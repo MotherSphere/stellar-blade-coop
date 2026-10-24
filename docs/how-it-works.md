@@ -1358,12 +1358,14 @@ names it. Four files do the work: `cut/lion.lua` (Lua), `cut/lion_rows.lua` (the
 
 ### The rows
 
-The native part adds 221 rows to 12 tables, all of them the Lion's own. A generator kept outside the repository writes
+The native part adds 220 rows to 12 tables, all of them the Lion's own. A generator kept outside the repository writes
 every field from the Lion's assets and from offline measurements of its clips. A shipped row of each table is only the
 struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row holds, to the
-Lion's value or to empty, so none of its values stays. These template rows are Behemoth rows, and a Scarlet effect for
-the effect row. The one Behemoth asset a Lion row names is the sound set `CSS_MON_46_BEHEMOTH`: the pak listing holds no
-sound set for the Lion, and its blueprint names none.
+Lion's value or to empty. For 891 of the 2075 fields the template holds, the Lion's value is the template's own (the
+Behemoth's 180 degrees a second turn, 900 cm/s run and 1.5 s getup time, among others), so the patch writes that value
+back. These template rows are Behemoth rows, and a Scarlet effect for the effect row. The one Behemoth asset a Lion
+row names is the sound set `CSS_MON_46_BEHEMOTH`: the pak listing holds no sound set for the Lion, and its blueprint
+names none.
 
 - Stats, in both CharacterTable rows: 160000 HP, 3300 shield, 14 stamina, 960 physical and range attack, 110 shield
   attack. The Great Desert elites (Behemoth, Stalker, Abaddon) have 170500 HP, 3500 shield, 15 stamina and 840 to 1050
@@ -1383,32 +1385,53 @@ sound set for the Lion, and its blueprint names none.
   pounces over three clips) and `RoarPhaseChange` (the roar Show again, for phase 2).
 - A Hit step is the Show step in which the striking claw, paw or jaw peaks. No Lion clip has a hit notify, so the
   striking point and its speed peak come from the decoded clips; their forward kinematics match the socket tracks the
-  game bakes for 21 Lion clips to 0.14 cm. In every claw hit, the claw's peak and the `NS_Lion_ClawTrail_01` particle
-  fall in the Show's hit step. Six hits peak 0.017 to 0.074 s before their step, and the generator lists them. A claw
-  strikes through `Mon_Lion_Attack_L_Arm_Collision` or `R_Arm`, a landing through `RL_Arm` (both arms). The roar and
-  the dash chain hit through a target filter, since the collision data tracks no socket for the dash clips. Five result
-  rows hold the game's own reaction Shows, effects and knockbacks: light (0.5 s stun), strong (0.8 s), knockdown
-  (1.5 s), guard and parry. A perfect parry on a skill's last hit goes to the shipped step
-  `M_Common_Result_ParryJust_Center`, which plays the Lion's `Result_Hit_JustParry`. EVE can neither parry nor guard
-  the roars and the high jump, as with the Behemoth's, and the game's action assist checks them 0.066 s before the hit.
-- 62 moves (CharacterMoveTable rows). Every Lion clip is in place: the root never moves, and each clip starts and ends
+  game bakes for 21 Lion clips within 0.14 cm on the clips' key frames, and up to 28 cm off between keys on fast hand
+  frames. On every claw attack the `NS_Lion_ClawTrail_01` particle starts within 0.05 s of the Show's hit step. Six hits
+  peak 0.017 to 0.074 s before their step, two of them claws (AttackToBackJump's first hit and MoveAttackChain's third),
+  and the generator lists them. A claw strikes through `Mon_Lion_Attack_L_Arm_Collision` or `R_Arm`, a landing through
+  `RL_Arm` (both arms). The roar and the dash chain hit through a target filter, since the collision data tracks no
+  socket for the dash clips. Five result rows hold the game's own reaction Shows, effects and knockbacks: light (0.5 s
+  stun), strong (0.8 s), knockdown (1.5 s), guard and parry. A perfect parry on a skill's last hit goes to the shipped
+  step `M_Common_Result_ParryJust_Center`, which plays the Lion's `Result_Hit_JustParry`. EVE can neither parry nor
+  guard the roars and the high jump, as with the Behemoth's, and the game's action assist checks them 0.066 s before the
+  hit.
+- 61 moves (CharacterMoveTable rows). Every Lion clip is in place: the root never moves, and each clip starts and ends
   on the idle pose. The travel the game has to give the Lion comes from each clip's planted feet, and in the air from
-  the pelvis keeping its take-off velocity. On the Behemoth's own clips the same method gives the distances and times of
-  its move rows (its ScratchLeft finish: 146 cm over 0.22 to 0.58 s, against the row's 143 cm from 0.2 to 0.6 s). A
-  step that travels 30 cm or more gets one move of that distance along the Lion's own axes, over the time its feet move,
-  turning toward EVE meanwhile. 22 come from planted feet; 32 are mostly in the air, an estimate the generator marks.
-  The side steps keep only their sideways travel (14.2 and 15.9 m), as the forward part is the method's error there.
-  Each skill's first step turns the Lion toward EVE: at once for the turn attacks and the back jump, whose clips start
-  with the body turned 90 or 180 degrees away, else over that step (8 moves turn only).
-- 23 target filters. A skill's range is the reach of its first hit (the striking socket's farthest point ahead of the
-  Lion during that step, at the mesh's 1.5 scale) plus its travel up to that hit, times 0.61: the Behemoth's ScratchLeft
-  filter is 300 cm for a claw reach of 440 cm and a move of 53 cm before it. A skill that travels 2 m or more before its
-  hit aims its arc along that travel. The turn attacks look behind a side, the back jump behind, the roar 7 m around.
-  Shipped space checks (`Valid_Move_*`) keep the side steps, run attacks, jumps and chains for open ground.
+  the pelvis keeping its take-off velocity. On the Behemoth's own clips the planted feet give the distances and times of
+  its move rows (its ScratchLeft finish: 146 cm over 0.22 to 0.58 s, against the row's 143 cm from 0.2 to 0.6 s); the
+  flight estimate does not (its JumpAttackHigh hit step comes out at 1106.6 cm forward and 341.8 cm right against 427 cm
+  of rows, its SmashBackflip finish at -1164.9 cm against -1588). A step that travels 30 cm or more gets one move over
+  the time its feet move. 24 of these come from planted feet; 29 spend half their time or more in the clip's flight
+  windows and are flight estimates, which the generator marks. The other 8 only turn the Lion.
+- A move that heads toward where its skill expects EVE (within 60 degrees) goes along the line to her and stops short of
+  her: `MovePositionType_InsideTargetOrSelf` with `MoveDirectionAxis_SelfToTarget`, the shape of the shipped lunges of
+  Elder phase 2, Scarlet, Raven and Tachy. It goes its clip's length, or less when EVE is nearer, and stops
+  `LimitApproachDistance` short of her: where the next strike lands at its peak (150 cm for the low jump's paws, 800 cm
+  for the high jump's, which land 8 m ahead of the root inside the clip). That these moves stop short comes from the
+  shipped rows (Scarlet's Airspin: 2000 cm with a 200 cm limit), not from the game's code. 43 moves are of this kind;
+  the other 10 keep their travel along the Lion's own axes (the side steps, steps and jumps back or sideways, the roars'
+  step forward). The side steps keep only their sideways travel (14.2 and 15.9 m), as the forward part is the method's
+  error there. BackJumpToAttack has no move: its first step's travel is the net of two opposite flight estimates (-924
+  cm, then +740 cm), and the clip spins the body about the root.
+- A skill whose travel up to its first hit heads 30 degrees or more off its front looks for EVE there and keeps its
+  heading while it moves, as its clip turns the body: RunAttackLeft and RunAttackRight at 80 degrees to the side,
+  ClawAttackChaseRight at 40. In every other skill the moves turn the Lion toward EVE, and its first step does so on its
+  own when that step has no move: at once for the turn attacks and the back jump, whose clips start with the body turned
+  90 or 180 degrees away, else over that step.
+- 23 target filters. A skill's range is the reach of its first hit toward where it expects EVE (the striking socket's
+  farthest point that way during the hit step, at the mesh's 1.5 scale) plus what its moves close before that hit: a
+  move toward EVE its whole length, any other its part toward her, negative when it goes away. The sum is multiplied by
+  0.61: the Behemoth's ScratchLeft filter is 300 cm for a claw reach of 440 cm and a move of 53 cm before it. The low
+  jump finds EVE within 490 cm, the high jump within 12.6 m, the run attacks within 520 and 550 cm, BackJumpToAttack
+  only within 110 cm, as its claw comes down at its own front paws. The turn attacks look behind a side, the back jump
+  behind, the roar in a 120-degree arc up to 7 m ahead. Each way the moves take the Lion 3 m or more gets the shortest
+  shipped space check (`Valid_Move_*`) that covers it, or the longest of that way when none does (the side steps' 14.2
+  and 15.9 m, and the high jump and three chains that go past 18 m forward).
 - Two anim sets (500200 and 500201) name the Lion's run clips and its `Result_*` reactions, and no shield break, which
   the Lion has no clip for.
 - Two stances. `M_LionC_Default` (500200, phase 1) lists 17 commands; `M_LionC_Phase2` (500201) lists all 21. Both walk
-  at 200 cm/s, the battle blend space's walk sample, and run at 900, the Behemoth's pace. At the Large scale the run
+  at 200 cm/s, the battle blend space's walk sample, and run at 900, the Behemoth's pace, and turn at 180 degrees a
+  second, as the Behemoth does in both its phases (the Raven keeps its 360 in phase 2 too). At the Large scale the run
   clip strides about 1550 cm/s, past the blend space's last sample (600), so any boss pace slides its feet; 900 slides
   less than 600. Phase 2 is the Raven's data-only switch: the CharacterTable rows list it in `StanceAliasArray`, and it
   takes over at HP under 60% (Priority 10, Condition HP, UnderRate, 60). Its start restores the shield and applies
@@ -1428,7 +1451,10 @@ place where its patch writes, and a template value the recipe does not set. It a
 row or asset other than the sound set, and a reference that lands on no Lion or shipped row: steps, skills, commands,
 stances, moves, target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips, blueprint,
 tree and sound set. Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or
-0.05 s late at most), and each collision group must exist with every socket tracked for the clip playing. Anim sets must
+0.05 s late at most), and each collision group must exist with every socket tracked for the clip playing. A move toward
+where its skill expects EVE must stop short of her, a skill that looks for EVE off its front may not turn toward her
+while it moves, no range may pass its first hit's reach plus what its moves close, and each way the moves take the
+Lion 3 m or more needs a space check that way, no shorter than that travel while a longer one ships. Anim sets must
 name clips of the Lion's folder, and no stance may hold HP at 60%. Each link flag must pick EVE link steps whose Shows
 play a clip the Lion has, and no move may travel over 17 m.
 
@@ -1464,19 +1490,20 @@ Then the native part reads the rows back through the game's own lookups by ID an
 
 ```
 lion=off
-lion=waiting added=<n>/221 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
-lion=rows added=221/221 asks=<a> spawns=<s> char=<k>/2 skills=<k>/21 stance=<k>/2
-lion=refused added=<n>/221 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
-lion=fault added=<n>/221 asks=<a> spawns=<s> where=<text>
+lion=waiting added=<n>/220 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+lion=rows added=220/220 asks=<a> spawns=<s> char=<k>/2 skills=<k>/21 stance=<k>/2
+lion=refused added=<n>/220 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
+lion=fault added=<n>/220 asks=<a> spawns=<s> where=<text>
 ```
 
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
 so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
-back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 2868 fields the patches
+back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 2974 fields the patches
 write, from `cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree).
-2089 of those fields overwrite a value of the template row, so a full match shows no template value is left. It spawns
+2083 of those values differ from the template row's, so reading them back shows the patches landed; the other 891
+restate a value the template holds, which a read-back cannot tell from the copy. It spawns
 only when every value matches and the line says `char=2/2 skills=21/21 stance=2/2`. The read-back runs in one frame,
 once per `coop lion`; how long that takes in game was not measured.
 
@@ -1540,15 +1567,18 @@ Only the game can settle these:
 - whether the Lion walks to EVE or stands while she moves around it (the follow line now logs its place);
 - where the lock-on marker sits, whether its feet meet the ground and whether its hit sounds play;
 - what a key-0 death does to the spawn manager's counter;
-- each AddRow runs the game's table-changed handling over the whole table, so 221 of them in one frame may cause a short
+- each AddRow runs the game's table-changed handling over the whole table, so 220 of them in one frame may cause a short
   hitch, not measured;
 - whether the game's lookups of the 4 tables new to the rows (moves, target filters, results, effects) run the same
   lazy init as the other 8;
 - whether `EffectAction_UseSkill` fires from a stance's start effect, so that the phase-2 roar plays (every shipped use
   comes from one of EVE's steps), and what it does when the Lion is in the middle of another skill;
-- whether the moves of the steps mostly in the air (32 of the 62, a ballistic estimate) carry the Lion as far as its
-  clips show, and whether a move with `MoveTransformType_None` turns the Lion at once for the turn attacks, whose
-  clips start with the body turned;
+- whether the moves mostly in the air (29 of the 61, a ballistic estimate) carry the Lion as far as its clips show,
+  and whether a move with `MoveTransformType_None` turns the Lion at once for the turn attacks, whose clips start with
+  the body turned;
+- whether an `InsideTargetOrSelf` move stops `LimitApproachDistance` short of EVE as the shipped lunges suggest, what
+  it does when she already stands closer than that, and whether the high jump, whose paws land 8 m ahead of the root
+  inside the clip, still passes over an EVE nearer than that;
 - how far each skill's range lets EVE stand before the Lion uses it, and whether 160000 HP makes a fight of the right
   length.
 

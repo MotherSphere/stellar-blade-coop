@@ -71,10 +71,11 @@ local LIVE='/Engine/Transient'
 
 -- The rows as the native part writes them: cut/lion_rows.lua, which the generator of lion/rows.h writes from the same
 -- recipe (tests/lua/cut/lion_test.lua checks the two agree): {table=, name=, id=<nil in the dead table>,
--- checks={{field, kind, value, held}}}. kind: f a float, i an int32, b a bool (0 or 1), e an enum's number, n an FName
--- (compared in any case: its text is whichever casing the game registered first), N a list of FNames, s an FString, S
--- a list of FStrings (lists joined by |). held: the field overwrites a value of the row's template (the shipped row the
--- native part copies before its patches), so a read-back of every check shows no template value is left.
+-- checks={{field, kind, value, changed}}}. kind: f a float, i an int32, b a bool (0 or 1), e an enum's number, n an
+-- FName (compared in any case: its text is whichever casing the game registered first), N a list of FNames, s an
+-- FString, S a list of FStrings (lists joined by |). changed: the value differs from the row's template (the shipped
+-- row the native part copies before its patches), so reading it back proves the patch landed; the other checks restate
+-- a value the template holds, and a read-back cannot tell them from the copy.
 local DATA_ROWS=require('cut.lion_rows')
 Lion.ROWS={}
 for _,r in ipairs(DATA_ROWS.ROWS) do Lion.ROWS[#Lion.ROWS+1]={table=r[1],name=r[2],id=r[3],checks=r[4]} end
@@ -142,10 +143,10 @@ local function same_value(kind,got,want)
 end
 -- R4: every row of ROWS read back through its table's FindRow (tables: by name, as found), its ID then its checks, in
 -- order. Returns the count that match and, at the first that does not, what it reads; with every row matching, also
--- the fields read and how many of them overwrite a template value. ponytail: about 2900 field reads in one frame, once
--- a coop lion; a read-back spread over frames if that hitch shows in game.
+-- the fields read and how many of them differ from the template. ponytail: about 3000 field reads in one frame, once a
+-- coop lion; a read-back spread over frames if that hitch shows in game.
 local function read_back(tables)
-    local fields,held=0,0
+    local fields,changed=0,0
     for n,r in ipairs(Lion.ROWS) do
         local found=tables[r.table]:FindRow(r.name)
         if found==nil then return n-1,r.name..' is not in '..r.table end
@@ -159,9 +160,9 @@ local function read_back(tables)
             end
         end
         fields=fields+#r.checks
-        for _,c in ipairs(r.checks) do held=held+(c[4] and 1 or 0) end
+        for _,c in ipairs(r.checks) do changed=changed+(c[4] and 1 or 0) end
     end
-    return #Lion.ROWS,nil,fields,held
+    return #Lion.ROWS,nil,fields,changed
 end
 
 -- o: log (the [LI] lines), ask(line) the native request (ok, message), status() the native status text.
@@ -455,14 +456,14 @@ function Lion.new(o)
                     s.line,k,tostring(s[k]),Lion.IN[k])
             end
         end
-        local n,wrong,fields,held=read_back(j.tables)
+        local n,wrong,fields,changed=read_back(j.tables)
         if wrong then
             log(string.format('rows read back through FindRow: %s (%d/%d match before it): no spawn',wrong,n,
                 #Lion.ROWS))
             return false,'A Lion row reads back wrong ('..wrong..'): no spawn.'
         end
-        log(string.format('rows read back through FindRow: %d/%d authored rows, %d fields as written, 0 template '
-            ..'values left (%d overwritten)',n,#Lion.ROWS,fields,held))
+        log(string.format('rows read back through FindRow: %d/%d authored rows, %d fields as written (%d differ from '
+            ..'the template row)',n,#Lion.ROWS,fields,changed))
         if j.rows_only then
             return true,string.format('Lion rows in: %s added, SB finds them by ID (char %s, skills %s, stance %s) and '
                 ..'they read back as written; coop lion spawns one.',s.added,s.char,s.skills,s.stance)
