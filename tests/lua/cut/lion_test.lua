@@ -264,6 +264,26 @@ local function body(cls,at)
     b.GetSBSpeedForAnimGraph=function(self) engine(); return self.speed end
     b.IsRunningSkill=function(self) engine(); return self.skill end
     b.GetCurrentCustomAnimAlpha=function(self,i) engine(); return assert(self.alpha[i+1]) end
+    -- Its mesh: the engine switches the mesh line reads (and unfreeze sets), and BONE's socket, b.hand in the body's
+    -- frame (yaw b.yaw).
+    b.yaw,b.hand,b.CustomTimeDilation=0,{X=120,Y=40,Z=-80},1
+    b.K2_GetActorRotation=function(self) return {Pitch=0,Yaw=self.yaw,Roll=0} end
+    local m=object({bPauseAnims=false,GlobalAnimRateScale=1,bNoSkeletonUpdate=false,VisibilityBasedAnimTickOption=0,
+        bEnableUpdateRateOptimizations=true,ticking=true,AnimClass='CH_M_NA_02_AnimBP_C',inits=0})
+    m.GetAnimInstance=function()
+        return object({GetFullName=function() return 'CH_M_NA_02_AnimBP_C /Game/Maps/E04.E04:AnimInstance_'..n end})
+    end
+    m.IsComponentTickEnabled=function(self) engine(); return self.ticking end
+    m.SetComponentTickEnabled=function(self,on) engine(); self.ticking=on end
+    m.SetAnimInstanceClass=function(self,c) engine(); assert(c==self.AnimClass); self.inits=self.inits+1 end
+    m.GetSocketLocation=function(_,bone)
+        engine()
+        assert(bone:ToString()=='Bip001-L-Hand',bone:ToString())
+        local y=math.rad(b.yaw)
+        return {X=b.at.X+b.hand.X*math.cos(y)-b.hand.Y*math.sin(y),Y=b.at.Y+b.hand.X*math.sin(y)+b.hand.Y*math.cos(y),
+            Z=b.at.Z+b.hand.Z}
+    end
+    b.Mesh=m
     b.SpawnDefaultController=function(self)
         engine()
         self.Controller=object({GetFullName=function() return 'SBAIController /Game/Maps/E04.E04:Ctl_'..n end})
@@ -390,10 +410,12 @@ end
 
 local lion=new()
 -- Usage and nothing reached without EVE, a table or a lion line.
-for _,w in ipairs({{'x'},{'rows','x'},{'brain'},{'brain','cat'},{'intro','now'},{nil,nil,'x'}}) do
+for _,w in ipairs({{'x'},{'rows','x'},{'brain'},{'brain','cat'},{'intro','now'},{'unfreeze','all'},{nil,nil,'x'}}) do
     local ok,why=lion.command(w[1],w[2],w[3])
-    assert(ok==false and why=='Use: coop lion [intro] | rows | control | brain skulling|lurker',tostring(why))
+    assert(ok==false and why=='Use: coop lion [intro] | rows | control | brain skulling|lurker | unfreeze [init]',
+        tostring(why))
 end
+assert(select(2,lion.command('unfreeze'))=='No living Lion followed: coop lion spawns one.','unfreeze with no Lion')
 player=nil
 local ok,why=lion.command()
 assert(ok==false and why:find('^no EVE in the world') and #asked==0 and #calls==0,why)
@@ -465,19 +487,44 @@ assert(last():find('^entrance: skipped %(off by default: the Lion AnimBP has no 
 at(202.49); n=#lines; lion.tick(); assert(#lines==n,'Not yet')
 at(202.5)
 assert(lion.tick()==nil and last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 0, skill no, anim alpha 0.00/0.00, '
-    ..'battle 0, state 0, controller yes, spawn count 7',last())
+    ..'hand moved ?, battle 0, state 0, controller yes, spawn count 7',last())
+-- Its mesh line once before it (then at each change), each field as read; a field that does not read is a ?.
+local MESH_LINE='lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, tick true, pause false, rate 1, no skeleton '
+    ..'update false, visibility tick 0, rate optimizations true, actor dilation 1, sequencer anim mode ?'
+assert(lines[#lines-1]==MESH_LINE,lines[#lines-1])
 assert(load_finds==2,'Two loaded-line lookups a second')
 lion1.battle,lion1.speed,lion1.skill,lion1.alpha=true,212.6,true,{0.5,1}
 at(203); n=#lines; lion.tick(); assert(#lines==n,'One a second')
 at(203.5); lion.tick()
-assert(last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 213, skill yes, anim alpha 0.50/1.00, battle 1, '
-    ..'state 0, controller yes, spawn count 7',last())
+assert(last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 213, skill yes, anim alpha 0.50/1.00, hand moved 0 cm, '
+    ..'battle 1, state 0, controller yes, spawn count 7',last())
+assert(lines[#lines-1]~=MESH_LINE and not lines[#lines-1]:find('mesh:',1,true),'The mesh line only when it changes')
+-- The hand in the body's own frame: a turn of the whole body moves nothing, a pose that plays does.
 -- A read that fails is a ?, the line still said.
+lion1.yaw=90
 local speed_of=lion1.GetSBSpeedForAnimGraph
 lion1.GetSBSpeedForAnimGraph=function() error('no such function') end
 at(204.5); lion.tick()
-assert(last():find(', speed %?, skill yes,'),last())
+assert(last():find(', speed %?, skill yes, anim alpha 0.50/1.00, hand moved 0 cm,'),last())
 lion1.GetSBSpeedForAnimGraph,lion1.speed=speed_of,0
+lion1.hand={X=150,Y=0,Z=-80}
+at(205.5); lion.tick()
+assert(last():find(', hand moved 50 cm,'),last())
+-- unfreeze: every switch back to its running value on each living Lion, its mesh line logged there (not again by the
+-- follow); init also builds the anim instance again. Usage for another word, and none without a Lion.
+lion1.Mesh.ticking,lion1.Mesh.bPauseAnims,lion1.Mesh.GlobalAnimRateScale,lion1.CustomTimeDilation=false,true,0,0
+ok,why=lion.command('unfreeze')
+assert(ok and why=='unfreeze on 1 Lion: see its mesh and hand moved lines ([LI] lines).',tostring(why))
+assert(last()=='lion 1 (50020) unfreeze: tick, pause, rate, skeleton, visibility, optimizations, dilation; mesh: '
+    ..'anim instance CH_M_NA_02_AnimBP_C, tick true, pause false, rate 1.0, no skeleton update false, visibility tick 0, '
+    ..'rate optimizations false, actor dilation 1.0, sequencer anim mode ?',last())
+assert(lion1.Mesh.inits==0,'No new anim instance without init')
+at(206.5); n=#lines; lion.tick(); assert(#lines==n+1 and last():find('^lion 1 %(50020%): '),'No second mesh line')
+lion1.Mesh.SetComponentTickEnabled=function() error('no tick') end
+ok,why=lion.command('unfreeze','init')
+assert(ok and lion1.Mesh.inits==1 and last():find('unfreeze: tick failed %(no tick%), pause, .*dilation, init; mesh:'),
+    last())
+lion1.Mesh.SetComponentTickEnabled=function(self,on) self.ticking=on end
 -- The loaded line: two of the 40 paths a second, each until first seen; once all were looked for, 0/20 says none
 -- loaded; then each change. A Show seen without its clip is named.
 for t=205.5,221.5 do at(t); lion.tick() end

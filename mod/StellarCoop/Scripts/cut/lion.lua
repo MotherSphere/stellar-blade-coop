@@ -12,14 +12,16 @@
 -- is the new character nearest the spot (of the Large blueprint's class for the Lion), or a body SB sent far away and
 -- moved back there (it reuses one: a Lion at 466 m came back for the next spawn on 2026-10-23), given its default
 -- controller when it has none, then followed: a line a second while it lives (distance, place, the anim graph's speed,
--- a skill running, the custom anim alphas the AnimBP blends a Show's clip by), its death (InteractionState and
+-- a skill running, the custom anim alphas the AnimBP blends a Show's clip by, how far a paw moved in the body's own
+-- frame, with its mesh's engine switches before the first line and at each change), its death (InteractionState and
 -- Controller, as run.lua reads them) and its body's despawn, with the spawn manager's counter (the lion line's spawns=)
 -- before, while it lives and after. While a Lion lives, two more: which of its 20 Shows and their clips have loaded
 -- (the in-game test of a Lion that attacks with no animation), and the boss bar's name, which the game shows as
--- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. Never called here: UE4SS's AddRow or RemoveRow (a raw
--- RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call. The Lion goes when it dies
--- or with the map; the rows stay for the game run, and a later coop lion only reads them back. coop off ends what this
--- file does (a wait, a search, the lines) and leaves a living Lion to the game.
+-- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. coop lion unfreeze puts those switches back to their
+-- running values on each living Lion (the test of a body whose pose stays on frame 1). Never called here: UE4SS's
+-- AddRow or RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call.
+-- The Lion goes when it dies or with the map; the rows stay for the game run, and a later coop lion only reads them
+-- back. coop off ends what this file does (a wait, a search, the lines) and leaves a living Lion to the game.
 -- The entrance: the Lion's AnimBP (CH_M_NA_02_AnimBP) has no montage slot, so a montage would not show, and a
 -- single-node clip on its mesh would replace the anim instance SB plays its skills on while its AI runs. So coop lion
 -- spawns at once, and coop lion intro first plays Mon_LionC_Scene01_Appearance (the cut boss intro's clip) on a display
@@ -61,7 +63,10 @@ local FOLLOW,GONE=1,60 -- s: a line a second while it lives; a body still there 
 -- back for this spawn (no enemy runs the difference in 5 s).
 local FAR=100
 local MASK=0xFFFFFFFF
-local USE='Use: coop lion [intro] | rows | control | brain skulling|lurker'
+local USE='Use: coop lion [intro] | rows | control | brain skulling|lurker | unfreeze [init]'
+-- The bone whose place in the body's own frame the follow line compares from one second to the next: a frozen pose
+-- keeps it still while the body runs and attacks (the in-game test of 2026-10-24: frame 1 of its idle, alphas 0).
+local BONE='Bip001-L-Hand'
 -- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4c3f0, through FText::FromStringTable on the
 -- row's Name), the text it shows for the Lion, and ours. FindAllOf('TextBlock') walks every object: the live blocks
 -- found (under /Engine/Transient, not a widget class's template) are kept, and looked for again at most every BOSS_LOOK
@@ -223,6 +228,33 @@ function Lion.new(o)
         log(string.format('lion %d spawn count: before %s, alive %s, %s %s',f.n,counted(f.before),counted(f.alive),
             f.dead and 'after death' or 'after',counted(spawn_count())))
     end
+    -- The body's mesh, as the engine ticks it: what could keep its pose still while its logic runs. A field that
+    -- cannot be read is a ?.
+    local function mesh_state(c)
+        local m=valid(c.Mesh)
+        if not m then return 'no mesh' end
+        local function read(get)
+            local fine,v=pcall(get)
+            if not fine then return '?' end
+            v=value_of(v)
+            return v==nil and '?' or tostring(v)
+        end
+        return string.format('anim instance %s, tick %s, pause %s, rate %s, no skeleton update %s, visibility tick %s, '
+            ..'rate optimizations %s, actor dilation %s, sequencer anim mode %s',
+            read(function() local a=valid(m:GetAnimInstance()); return a and class_of(a) or 'none' end),
+            read(function() return m:IsComponentTickEnabled() end),read(function() return m.bPauseAnims end),
+            read(function() return m.GlobalAnimRateScale end),read(function() return m.bNoSkeletonUpdate end),
+            read(function() return m.VisibilityBasedAnimTickOption end),
+            read(function() return m.bEnableUpdateRateOptimizations end),
+            read(function() return c.CustomTimeDilation end),read(function() return c.bSequencerAnimMode end))
+    end
+    -- BONE in the body's own frame (cm, yaw only): it moves when the mesh plays anything, and not when its actor moves.
+    local function hand(c)
+        local p=value_of(valid(c.Mesh):GetSocketLocation(FName(BONE)))
+        local at,yaw=location(c),math.rad(value_of(c:K2_GetActorRotation()).Yaw)
+        local x,y=p.X-at.X,p.Y-at.Y
+        return {X=x*math.cos(yaw)+y*math.sin(yaw),Y=y*math.cos(yaw)-x*math.sin(yaw),Z=p.Z-at.Z}
+    end
     local function follow_one(f,now)
         local ok,c=pcall(Doro.same,f.obj,f.path)
         local name=string.format('lion %d (%d)',f.n,f.id)
@@ -249,12 +281,19 @@ function Lion.new(o)
         end
         local skill_read,skill=pcall(function() return c:IsRunningSkill()==true end)
         local at_read,at=pcall(function() return xyz(location(c)) end)
-        log(string.format('%s: %s m, xyz %s, speed %s, skill %s, anim alpha %s/%s, battle %s, state %s, controller %s, '
-            ..'spawn count %s',name,eve and string.format('%.1f',metres(location(c),location(eve))) or '?',
+        local state=mesh_state(c)
+        if state~=f.mesh then log(string.format('%s mesh: %s',name,state)) end
+        f.mesh=state
+        local hand_read,p=pcall(hand,c)
+        local moved=hand_read and f.hand and string.format('%.0f cm',metres(p,f.hand)*100) or '?'
+        f.hand=hand_read and p or nil
+        log(string.format('%s: %s m, xyz %s, speed %s, skill %s, anim alpha %s/%s, hand moved %s, battle %s, state %s, '
+            ..'controller %s, spawn count %s',name,
+            eve and string.format('%.1f',metres(location(c),location(eve))) or '?',
             at_read and at or '?',num('%.0f',function() return c:GetSBSpeedForAnimGraph() end),
             skill_read and (skill and 'yes' or 'no') or '?',
             num('%.2f',function() return c:GetCurrentCustomAnimAlpha(0) end),
-            num('%.2f',function() return c:GetCurrentCustomAnimAlpha(1) end),read and (battle and 1 or 0) or '?',
+            num('%.2f',function() return c:GetCurrentCustomAnimAlpha(1) end),moved,read and (battle and 1 or 0) or '?',
             tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count())))
     end
     -- While a Lion lives, once a second: LOOKS of the 40 paths (each Show, then its clip) not seen yet, and the loaded
@@ -549,6 +588,39 @@ function Lion.new(o)
         if not ok then return false,'No spawn: '..why(e) end
         return true,'Antlion 50110 asked: [LI] lines follow.'
     end
+    -- coop lion unfreeze [init]: on each living Lion, every engine switch that can hold a mesh's pose put back to its
+    -- running value (component tick, anim pause, the rate scale, skeleton updates, the visibility-based and
+    -- rate-optimized ticking, the actor's time dilation), then its mesh line again; init also builds its anim instance
+    -- again (SetAnimInstanceClass with its own class), which SB's skills may not survive: last. The follow line's hand
+    -- moved says whether the pose moves after it.
+    local function unfreeze(init)
+        local n=0
+        for _,f in ipairs(followed) do
+            local ok,c=pcall(Doro.same,f.obj,f.path)
+            local m=ok and c and not f.dead and valid(c.Mesh)
+            if m then
+                local done={}
+                local function try(word,set)
+                    local fine,e=pcall(set)
+                    done[#done+1]=fine and word or word..' failed ('..why(e)..')'
+                end
+                try('tick',function() m:SetComponentTickEnabled(true) end)
+                try('pause',function() m.bPauseAnims=false end)
+                try('rate',function() m.GlobalAnimRateScale=1.0 end)
+                try('skeleton',function() m.bNoSkeletonUpdate=false end)
+                try('visibility',function() m.VisibilityBasedAnimTickOption=0 end) -- AlwaysTickPoseAndRefreshBones.
+                try('optimizations',function() m.bEnableUpdateRateOptimizations=false end)
+                try('dilation',function() c.CustomTimeDilation=1.0 end)
+                if init then try('init',function() m:SetAnimInstanceClass(m.AnimClass) end) end
+                f.mesh=mesh_state(c)
+                log(string.format('lion %d (%d) unfreeze: %s; mesh: %s',f.n,f.id,table.concat(done,', '),f.mesh))
+                n=n+1
+            end
+        end
+        if n==0 then return false,'No living Lion followed: coop lion spawns one.' end
+        return true,string.format('unfreeze on %d Lion%s: see its mesh and hand moved lines ([LI] lines).',n,
+            n>1 and 's' or '')
+    end
     -- brain sets the ID of the next spawns, even while a command runs; the others wait for it.
     function self.command(sub,a,extra)
         if extra~=nil then return false,USE end
@@ -558,6 +630,7 @@ function Lion.new(o)
             return true,string.format('coop lion spawns %d (%s, the %s tree) until the mod reloads.',brain,
                 Lion.IDS[brain],a=='lurker' and 'Lesser Lurker' or 'Skulling test')
         end
+        if sub=='unfreeze' and (a==nil or a=='init') then return unfreeze(a=='init') end
         if a~=nil or not (sub==nil or sub=='intro' or sub=='rows' or sub=='control') then return false,USE end
         if job then return false,'coop lion is busy ('..job.what..'): try again in a few seconds' end
         if sub=='rows' then return start(false,true) end
