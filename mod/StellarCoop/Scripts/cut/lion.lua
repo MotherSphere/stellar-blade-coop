@@ -210,14 +210,16 @@ function Lion.new(o)
     local seen,looked,looks,loaded_said={},0,0,nil -- The loaded line's paths seen, cursor, lookups and last line.
     local tried={} -- Each path's lookups so far (LOOK_MAX at most).
     -- The frame time while a command runs or a Lion lives (UGameplayStatics' world delta, read each frame), and what
-    -- this file's tick costs (os.clock is wall time in the game's CRT): the follow line's frame part, and the spawn's
-    -- before line to compare with. gs: the GameplayStatics default object; ctx: its world context (EVE).
-    local perf,gs,ctx={frames=0,sum=0,worst=0,lua=0},nil,nil
+    -- this file's tick costs (os.clock is wall time in the game's CRT), its longest tick, and what the last once-a-second
+    -- pass took by part (parts): the follow line's frame part, and the spawn's before line to compare with. gs: the
+    -- GameplayStatics default object; ctx: its world context (EVE).
+    local perf,gs,ctx={frames=0,sum=0,worst=0,lua=0,tick=0},nil,nil
+    local parts='none yet'
     local function perf_take() -- The frame part since the last take, then the counters back to 0.
-        local said=perf.frames>0 and string.format('frame %.1f ms (worst %.1f), lion Lua %.1f ms/s',
-            perf.sum/perf.frames*1000,perf.worst*1000,perf.lua) or string.format('frame ? ms, lion Lua %.1f ms/s',
-            perf.lua)
-        perf.frames,perf.sum,perf.worst,perf.lua=0,0,0,0
+        local said=(perf.frames>0 and string.format('frame %.1f ms (worst %.1f), ',perf.sum/perf.frames*1000,
+            perf.worst*1000) or 'frame ? ms, ')..string.format('lion Lua %.1f ms/s, longest tick %.1f ms (last pass: %s)',
+            perf.lua,perf.tick,parts)
+        perf.frames,perf.sum,perf.worst,perf.lua,perf.tick=0,0,0,0,0
         return said
     end
     local frame_said='frame ? ms, lion Lua 0.0 ms/s' -- The last second's, for each follow line of that second.
@@ -866,22 +868,30 @@ function Lion.new(o)
         if followed[1] and now>=next_follow then
             next_follow=now+FOLLOW
             frame_said=perf_take()
+            local took={}
+            local t=os.clock()
             for _,f in ipairs({table.unpack(followed)}) do
                 local fine,e=pcall(follow_one,f,now)
                 if not fine then let_go(f,string.format('lion %d no longer followed: %s',f.n,why(e))) end
             end
+            took[1]=string.format('follow %.1f ms',(os.clock()-t)*1000)
             local lives=false
             for _,f in ipairs(followed) do lives=lives or (f.id~=CONTROL and not f.dead) end
             if lives then
-                for word,f in pairs({loaded=look_loaded,['boss name']=boss_name}) do
+                for _,w in ipairs({{'loaded',look_loaded},{'boss name',boss_name}}) do
+                    local word,f=w[1],w[2]
+                    t=os.clock()
                     local fine,e=pcall(f,now)
+                    took[#took+1]=string.format('%s %.1f ms',word,(os.clock()-t)*1000)
                     e=not fine and string.format('%s: unread (%s)',word,why(e))
                     if e and e~=failed[word] then log(e) end
                     failed[word]=e
                 end
             end
+            parts=table.concat(took,', ')
         end
-        perf.lua=perf.lua+(os.clock()-now)*1000
+        local spent=(os.clock()-now)*1000
+        perf.lua,perf.tick=perf.lua+spent,math.max(perf.tick,spent)
         return ok,message
     end
     -- coop off: the job ended (an entrance copy removed), the bodies no longer followed. A living Lion stays: it is the

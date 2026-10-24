@@ -23,6 +23,7 @@
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
+local socket_cost=nil -- s the next hand read takes on the clock: what the follow line's longest tick and parts time.
 local function fname(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 FName=fname
 -- UE4SS refuses a call from a lua_State it did not create, and a coroutine is one: every fake engine call checks it.
@@ -310,6 +311,7 @@ local function body(cls,at)
     m.SetAnimInstanceClass=function() error('Tried calling a member function but the UObject instance is nullptr') end
     m.GetSocketLocation=function(_,bone)
         engine()
+        if socket_cost then clock,socket_cost=clock+socket_cost,nil end
         assert(bone:ToString()=='Bip001-L-Hand',bone:ToString())
         local y=math.rad(b.yaw)
         return {X=b.at.X+b.hand.X*math.cos(y)-b.hand.Y*math.sin(y),Y=b.at.Y+b.hand.X*math.sin(y)+b.hand.Y*math.cos(y),
@@ -534,7 +536,8 @@ assert(last():find('^entrance: skipped %(off by default: the Lion AnimBP has no 
 at(202.49); n=#lines; lion.tick(); assert(#lines==n,'Not yet')
 at(202.5)
 assert(lion.tick()==nil and last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 0, skill no, anim alpha 0.00/0.00, '
-    ..'hand moved ?, battle 0, state 0, controller yes, spawn count 7, frame ? ms, lion Lua 0.0 ms/s',last())
+    ..'hand moved ?, battle 0, state 0, controller yes, spawn count 7, frame ? ms, lion Lua 0.0 ms/s, longest tick '
+    ..'0.0 ms (last pass: none yet)',last())
 -- Its mesh line once before it (then at each change), each field as read; a field that does not read is a ?. With no
 -- anim instance (the 2026-10-24 test) it gets one once: the AnimBP mode, then SetAnimInstanceClass with the Lion
 -- AnimBP's class, here found once LoadAsset loaded its package (the mesh's own anim class read none).
@@ -553,7 +556,8 @@ lion1.battle,lion1.speed,lion1.skill,lion1.alpha=true,212.6,true,{0.5,1}
 at(203); n=#lines; lion.tick(); assert(#lines==n,'One a second')
 at(203.5); lion.tick()
 assert(last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 213, skill yes, anim alpha 0.50/1.00, hand moved 0 cm, '
-    ..'battle 1, state 0, controller yes, spawn count 7, frame ? ms, lion Lua 0.0 ms/s',last())
+    ..'battle 1, state 0, controller yes, spawn count 7, frame ? ms, lion Lua 0.0 ms/s, longest tick 0.0 ms (last '
+    ..'pass: follow 0.0 ms, loaded 0.0 ms, boss name 0.0 ms)',last())
 assert(lines[#lines-1]~=MESH_LINE and not lines[#lines-1]:find('mesh:',1,true),'The mesh line only when it changes')
 -- The hand in the body's own frame: a turn of the whole body moves nothing, a pose that plays does.
 -- A read that fails is a ?, the line still said.
@@ -562,13 +566,16 @@ local speed_of=lion1.GetSBSpeedForAnimGraph
 lion1.GetSBSpeedForAnimGraph=function() error('no such function') end
 frame_dt=0.02 -- 20 ms frames from now on: each frame read, the second's mean and worst on the next line.
 at(204); lion.tick(); frame_dt=0.05; at(204.2); lion.tick(); frame_dt=0.02
-at(204.5); lion.tick()
+at(204.5); socket_cost=0.012; lion.tick() -- Its hand read takes 12 ms: the next line's Lua part says so.
 assert(last():find(', speed %?, skill yes, anim alpha 0.50/1.00, hand moved 0 cm,'),last())
-assert(last():find(', frame 30%.0 ms %(worst 50%.0%), lion Lua 0%.0 ms/s$'),last())
+assert(last():find(', frame 30%.0 ms %(worst 50%.0%), lion Lua 0%.0 ms/s, longest tick 0%.0 ms %(last pass: follow '
+    ..'0%.0 ms, loaded 0%.0 ms, boss name 0%.0 ms%)$'),last())
 lion1.GetSBSpeedForAnimGraph,lion1.speed=speed_of,0
 lion1.hand={X=150,Y=0,Z=-80}
 at(205.5); lion.tick()
 assert(last():find(', hand moved 50 cm,'),last())
+assert(last():find(', frame 20%.0 ms %(worst 20%.0%), lion Lua 12%.0 ms/s, longest tick 12%.0 ms %(last pass: follow '
+    ..'12%.0 ms, loaded 0%.0 ms, boss name 0%.0 ms%)$'),last())
 -- unfreeze: every switch back to its running value on each living Lion, its mesh line logged there (not again by the
 -- follow); init also builds the anim instance again. Usage for another word, and none without a Lion.
 lion1.Mesh.ticking,lion1.Mesh.bPauseAnims,lion1.Mesh.GlobalAnimRateScale,lion1.CustomTimeDilation=false,true,0,0
