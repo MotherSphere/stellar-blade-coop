@@ -1118,7 +1118,7 @@ load (Ctrl+R) does the same if this one could not.
 
 The game's files hold a boss that was cut before release: Naytiba 02, the Lion, in
 `/Game/Art/Character/Monster/CH_M_NA_02/`. Its blueprint, meshes, animations, hit data and skill presentations (Shows)
-ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 221 rows it lacks to the game's 12
+ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 222 rows it lacks to the game's 12
 tables in memory and spawns it as an enemy to fight. Every row is written for the Lion: its stats, its skills, the
 timing of its hits and the moves that follow its own animations. It is a test command, left out of the usage line. Its
 lines go to `UE4SS.log` as `[StellarCoop][LI]`; the native part's go to `coop-link.log` as `lion rows ...`.

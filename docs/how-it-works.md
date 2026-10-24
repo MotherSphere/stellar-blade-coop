@@ -1363,7 +1363,7 @@ names it. Four files do the work: `cut/lion.lua` (Lua), `cut/lion_rows.lua` (the
 
 ### The rows
 
-The native part adds 221 rows to 12 tables, all of them the Lion's own. A generator kept outside the repository writes
+The native part adds 222 rows to 12 tables, all of them the Lion's own. A generator kept outside the repository writes
 every field from the Lion's assets and from offline measurements of its clips. A shipped row of each table is only the
 struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row holds, to the
 Lion's value or to empty. For 891 of the 2075 fields the template holds, the Lion's value is the template's own (the
