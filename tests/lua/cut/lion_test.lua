@@ -1,15 +1,18 @@
--- cut/lion.lua with fake UE4SS objects. Its row list matches native/src/lion/rows.h's generated recipe row for row
--- (names, IDs, each patched field's kind and value, no field more), and its tables are kLionTables in order. The lion
--- line parses in each of its forms. coop lion finds the 8 tables (a missing one, no EVE or no lion line asks nothing),
--- asks the rows once with every address in the native order, waits for the answer (a waiting line, or a refusal from
--- before the ask, is no answer; a map change, a refusal, a fault, 30 s or SB's lookups finding fewer rows stop it),
--- reads every row back through FindRow (the first value that differs stops before any spawn), then makes the one spawn
--- call: 50020 (50021 after brain lurker, 50110 for control, no rows needed) 10 m ahead and 1 m up, facing EVE, cheat
--- on, key 0. Rows already in are read back without an ask. The body is the new one nearest the spot (or one SB sent far
--- away and moved back, whose old follow ends as recycled), given its default controller when it still has none 1.5 s
--- after the call, then followed: a line a second (its place, anim speed, skill and custom anim alphas, a failed read as
--- ?), its death and its body's despawn with the spawn counts; none after 5 s stops. While a Lion lives, the loaded line
--- (two of the 30 Show and clip paths a second, each until seen; said once all were looked for, then at each change) and
+-- cut/lion.lua with fake UE4SS objects. Its row list (cut/lion_rows.lua, generated with rows.h) matches
+-- native/src/lion/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
+-- more), and its tables are kLionTables in order. The rows are the Lion's own: no value names a Behemoth row or asset
+-- but the sound set, every reference lands on a Lion row or a shipped generic one, the steps' moves are Lion moves, the
+-- phase-2 stance turns at HP under 60% and starts the roar's effect, which uses the phase-2 roar skill. The lion line
+-- parses in each of its forms. coop lion finds the 12 tables (a missing one, no EVE or no lion line asks nothing), asks
+-- the rows once with every address in the native order, waits for the answer (a waiting line, or a refusal from before
+-- the ask, is no answer; a map change, a refusal, a fault, 30 s or SB's lookups finding fewer rows stop it), reads
+-- every row back through FindRow (the first value that differs stops before any spawn), then makes the one spawn call:
+-- 50020 (50021 after brain lurker, 50110 for control, no rows needed) 10 m ahead and 1 m up, facing EVE, cheat on, key
+-- 0. Rows already in are read back without an ask. The body is the new one nearest the spot (or one SB sent far away
+-- and moved back, whose old follow ends as recycled), given its default controller when it still has none 1.5 s after
+-- the call, then followed: a line a second (its place, anim speed, skill and custom anim alphas, a failed read as ?),
+-- its death and its body's despawn with the spawn counts; none after 5 s stops. While a Lion lives, the loaded line
+-- (two of the 40 Show and clip paths a second, each until seen; said once all were looked for, then at each change) and
 -- the boss name (only the live TextBlock_BossName reading <M_LionC> set to Lion, again after the game writes it back;
 -- FindAllOf at most every 10 s while none is held). coop lion intro plays the entrance on a display copy first and
 -- spawns where its root ended (at the spot when that is too far), removing the copy as soon as the body shows; a map
@@ -58,12 +61,12 @@ do
     local src=f:read('a')
     f:close()
     local enum={}
-    for w in assert(src:match('enum class Table : uint8_t { ([^}]+) }')):gmatch('%a+') do enum[#enum+1]=w end
+    for w in assert(src:match('enum class Table : uint8_t {([^}]+)}')):gmatch('%a+') do enum[#enum+1]=w end
     local names={}
     for n in assert(src:match('constexpr TableInfo kTables%[kTableCount%] = {(.-)\n};')):gmatch('{"(%a+)", 0x') do
         names[#names+1]=n
     end
-    assert(#enum==8 and #names==8,'8 tables')
+    assert(#enum==12 and #names==12,'12 tables')
     for i,n in ipairs(names) do assert(L.TABLES[i]==n,'kLionTables order: '..n) end
     local block=assert(src:match('constexpr Patch kPatches%[%] = {\n(.-)\n};'))
     local patches,pending,line,closed_at={},nil,1,nil
@@ -100,7 +103,7 @@ do
             pending,closed_at,i=nil,line,j
         else i=i+1 end
     end
-    local KINDS={f32='f',name='n',string='s',names='N',strings='S'}
+    local KINDS={f32='f',i32='i',name='n',string='s',names='N',strings='S'}
     local n=0
     for t,name,_,id,first,count in src:gmatch('{Table::(%a+), "([%w_]+)", "([%w_]+)", (%d+), (%d+), (%d+)}') do
         n=n+1
@@ -115,36 +118,97 @@ do
             local pt,found=patches[p],nil
             for _,c in ipairs(r.checks) do if c[1]==pt.field then found=c end end
             assert(found,name..' lacks '..tostring(pt.field))
-            assert(found[2]==KINDS[pt.kind],name..' '..pt.field..' kind')
+            -- A byte is a bool (b, 0 or 1) or an enum's number (e).
+            assert(found[2]==KINDS[pt.kind] or pt.kind=='u8' and (found[2]=='e' or found[2]=='b' and pt.f<=1),
+                name..' '..pt.field..' kind')
             if pt.kind=='f32' then assert(math.abs(found[3]-pt.f)<1e-6,name..' '..pt.field)
+            elseif pt.kind=='i32' or pt.kind=='u8' then assert(found[3]==pt.f,name..' '..pt.field)
             else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
         end
     end
-    assert(n==78 and #L.ROWS==78 and #patches==207,n..' rows, '..#patches..' patches')
-    assert(L.IN.added=='78/78' and L.IN.char=='2/2' and L.IN.skills=='15/15' and L.IN.stance=='1/1')
+    assert(n==220 and #L.ROWS==220 and #patches==2974,n..' rows, '..#patches..' patches')
+    assert(L.IN.added=='220/220' and L.IN.char=='2/2' and L.IN.skills=='21/21' and L.IN.stance=='2/2')
 end
--- The read-back covers the link flag (Common, not the Behemoth's) and the moves the generator cut: the side step's 11 m
--- slide gone, the turn's Behemoth root motion gone and its turn kept, the low jump's moves to EVE and the high jump's
--- 4.3 m of Hit pushes gone, the claws' short moves left as the donor's.
+-- The Lion's own rows: no value names a Behemoth row or asset but its sound set (the Lion has none of its own); each
+-- step's moves, a skill's first step and target filter, a command's skill, a stance's commands and a hit's results are
+-- Lion rows, or the shipped generic ones named here; the link flag is Common; the phase-2 stance turns at HP under 60%
+-- and its start runs M_LionC_PhaseRoar, an EffectAction_UseSkill (69) of M_LionC_RoarPhaseChange, which only that
+-- stance lists and both trees never pick (AISkillFlag PhaseChange); phase 1 holds no MinimumHP_60p.
 do
-    local function check(name,field)
-        for _,r in ipairs(L.ROWS) do
-            if r.name==name and (r.table=='CharacterTable' or r.table=='SkillActiveStepTable') then
-                for _,c in ipairs(r.checks) do if c[1]==field then return c[3] end end
-                return nil
+    local by={}
+    for _,r in ipairs(L.ROWS) do
+        by[r.table..'.'..r.name]=r
+        r.field={}
+        for _,c in ipairs(r.checks) do r.field[c[1]]=c[3] end
+    end
+    local function row(t,name) return assert(by[t..'.'..name],t..' '..name) end
+    local function lion(t,name) return by[t..'.'..name] and name:find('^M_LionC_') end
+    local SHIPPED={M_Common_Result_ParryJust_Center=true,M_Common_ParryJustFX=true,M_Common_ParryJustEffect=true,
+        ['None']=true}
+    local changed=0
+    for _,r in ipairs(L.ROWS) do
+        for _,c in ipairs(r.checks) do
+            changed=changed+(c[4] and 1 or 0)
+            if type(c[3])=='string' and (c[3]:lower():find('behemoth') or c[3]:find('CH_M_NA_46')) then
+                assert(r.table=='CharacterTable' and c[1]=='OverrideCharacterSoundSet',r.name..' '..c[1]..' '..c[3])
             end
         end
+        local f=r.field
+        if r.table=='SkillActiveStepTable' then
+            for m in (f.SelfMoveAliasArray or ''):gmatch('[^|]+') do
+                assert(lion('CharacterMoveTable',m),r.name..' '..m)
+            end
+            for _,k in ipairs({'NextStepAlias','NextStepAliasWhenJustParry'}) do
+                assert(not f[k] or SHIPPED[f[k]] or lion('SkillActiveStepTable',f[k]),r.name..' '..k)
+            end
+            for _,k in ipairs({'SkillResultAlias','SkillResultAliasWhenParry','SkillResultAliasWhenGuard',
+                'SkillResultAliasWhenJustParry'}) do
+                assert(not f[k] or SHIPPED[f[k]] or lion('SkillResultTable',f[k]),r.name..' '..k)
+            end
+            assert(not f.OverrideTargetFilterAlias or lion('TargetFilterTable',f.OverrideTargetFilterAlias),r.name)
+        elseif r.table=='SkillTable' then
+            assert(lion('SkillActiveStepTable',f.FirstSkillActiveAlias) and
+                lion('TargetFilterTable',f.TargetFilterAlias))
+        elseif r.table=='SkillCommandTable' then
+            assert(f.SkillAlias==r.name and lion('SkillTable',f.SkillAlias))
+        elseif r.table=='CharacterStanceTable' then
+            for c in f.CommandArray:gmatch('[^|]+') do assert(lion('SkillCommandTable',c),r.name..' '..c) end
+            assert(not f.StartEffect:find('MinimumHP_60p'),r.name)
+        end
     end
-    assert(check('M_LionC','LinkSkillRandomActiveStepFlagArray')=='Common')
-    assert(check('M_LionC_Lurker','LinkSkillRandomActiveStepFlagArray')=='Common')
-    assert(check('M_LionC_SideStepLeft_Cast1','SelfMoveAliasArray')=='')
-    for _,step in ipairs({'JumpAttackLow_Cast1','JumpAttackLow_Hit1','JumpAttackHigh_Hit1'}) do
-        assert(check('M_LionC_'..step,'SelfMoveAliasArray')=='',step)
+    assert(changed==2083,'Fields that differ from the template: '..changed) -- The other 891 restate its value.
+    for _,name in ipairs({'M_LionC','M_LionC_Lurker'}) do
+        local c=row('CharacterTable',name).field
+        assert(c.LinkSkillRandomActiveStepFlagArray=='Common' and c.StanceAliasArray=='M_LionC_Phase2' and
+            c.DefaultStanceAlias=='M_LionC_Default' and c.MaxHP==160000 and
+            c.DefaultDetectAIAlias=='M_DetectCommon20m360')
     end
-    assert(check('M_LionC_TurnAttackLeft_Cast1','SelfMoveAliasArray')=='M_Behemoth_TurnAttackLeft_Move1')
-    assert(check('M_LionC_ClawAttackLeft_Cast1','SelfMoveAliasArray')==nil)
-    assert(#L.LOADS==30 and L.LOADS[1]=='/Game/Art/Show/CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackLeft_1.'
-        ..'M_LionC_ClawAttackLeft_1' and L.LOADS[26]=='/Game/Art/Character/Monster/CH_M_NA_02/Animation/'
+    local p2=row('CharacterStanceTable','M_LionC_Phase2').field
+    assert(p2.Priority==10 and p2.Condition_ActorStat==1 and p2.Condition_ActorStatCheck==2 and
+        p2.Condition_ActorStatCheckValue==60 and p2.StartEffect:find('"M_LionC_PhaseRoar"',1,true))
+    assert(p2.CommandArray:find('M_LionC_RoarPhaseChange',1,true))
+    assert(not row('CharacterStanceTable','M_LionC_Default').field.CommandArray:find('M_LionC_RoarPhaseChange',1,true))
+    local roar=row('EffectTable','M_LionC_PhaseRoar').field
+    assert(roar.Action1==69 and roar.ActionValue1=='M_LionC_RoarPhaseChange')
+    assert(row('SkillTable','M_LionC_RoarPhaseChange').field.AISkillFlag=='PhaseChange')
+    -- A Hit step lasts its Show's step, strikes through the claw's group and turns into the Lion's results; the low
+    -- jump leaps the Lion's own clip travel toward EVE (LocalAxis 6, InsideTargetOrSelf 3 along SelfToTarget 2) and
+    -- stops 150 cm short of her, where its paws land at their peak. The run attacks find EVE off their front and keep
+    -- their heading (no RotationType Target, 1).
+    local hit=row('SkillActiveStepTable','M_LionC_ClawAttackLeft_Hit1').field
+    assert(hit.Duration==0.2 and hit.Type==1 and hit.HitDetectionType==2 and
+        hit.SkillResultAlias=='M_LionC_Result_Light' and
+        hit.AttackCollisionGroupArray:find('Mon_Lion_Attack_L_Arm_Collision',1,true))
+    local leap=row('CharacterMoveTable','M_LionC_JumpAttackLow_Move1').field
+    assert(leap.ForwardValue==615.5 and leap.MoveType==6 and leap.PositionType==3 and leap.PositionDirectionAxis==2 and
+        leap.LimitApproachDistance==150.0 and leap.RightValue==0.0)
+    assert(row('TargetFilterTable','M_LionC_RunAttackLeft_Target').field.TargetCheckValue2==-80.0)
+    for _,m in ipairs({'Move1','Move2','Move3'}) do
+        assert((row('CharacterMoveTable','M_LionC_RunAttackLeft_'..m).field.RotationType or 0)==0,m)
+    end
+    assert(#L.SHOWS==20 and #L.LOADS==40 and
+        L.LOADS[1]=='/Game/Art/Show/CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackLeft_1.M_LionC_ClawAttackLeft_1' and
+        L.LOADS[26]=='/Game/Art/Character/Monster/CH_M_NA_02/Animation/'
         ..'Mon_Lion_Attack_Roar_01.Mon_Lion_Attack_Roar_01','Each Show, then its clip')
 end
 
@@ -219,7 +283,8 @@ FindAllOf=function(cls)
     for _,c in ipairs(chars) do if not c.destroyed and (cls=='SBCharacter' or c.class==cls) then out[#out+1]=c end end
     return out
 end
--- The tables: our rows as a game with every row in reads them back (FName fields as FNames, lists as Lua lists).
+-- The tables: our rows as a game with every row in reads them back (FName fields as FNames, lists as Lua lists, bools
+-- as Lua booleans, enums as their numbers).
 local tables,present={},{}
 local function fresh_rows(t)
     local rows={}
@@ -229,6 +294,7 @@ local function fresh_rows(t)
             for _,c in ipairs(r.checks) do
                 local v=c[3]
                 if c[2]=='n' then v=fname(v)
+                elseif c[2]=='b' then v=v==1
                 elseif c[2]=='N' or c[2]=='S' then
                     local list={}
                     for x in (v..'|'):gmatch('([^|]*)|') do list[#list+1]=c[2]=='N' and fname(x) or x end
@@ -309,11 +375,12 @@ end
 local function at(t) clock=t end
 local REQUEST='lion rows CharacterTable=0x%x CharacterAppearanceTable=0x%x CharacterDeadTable=0x%x '
     ..'CharacterStanceTable=0x%x CharacterAnimSetTable=0x%x SkillCommandTable=0x%x SkillTable=0x%x '
-    ..'SkillActiveStepTable=0x%x'
+    ..'SkillActiveStepTable=0x%x CharacterMoveTable=0x%x TargetFilterTable=0x%x SkillResultTable=0x%x '
+    ..'EffectTable=0x%x'
 local addresses={}
 for k,t in ipairs(L.TABLES) do addresses[k]=tables[t]:GetAddress() end
 REQUEST=REQUEST:format(table.unpack(addresses))
-local ROWS_IN='rows added=78/78 asks=%d spawns=%s char=2/2 skills=15/15 stance=1/1'
+local ROWS_IN='rows added=220/220 asks=%d spawns=%s char=2/2 skills=21/21 stance=2/2'
 local SPOT={X=1000,Y=0,Z=200}
 -- The call's body: the Lion with no controller, the Antlion with the game's own.
 local function spawns_lion(id,p)
@@ -334,42 +401,42 @@ player=eve
 present.SkillTable=false
 ok,why=lion.command('rows')
 assert(ok==false and why=='The game has no SkillTable loaded: nothing was asked.' and #asked==0,why)
-assert(last()=='tables: 7/8 found, missing SkillTable: nothing asked',last())
+assert(last()=='tables: 11/12 found, missing SkillTable: nothing asked',last())
 present.SkillTable=true
 status_text='mod=v\n'
 ok,why=lion.command()
 assert(ok==false and why:find('^coop%-status%.txt has no lion line') and #asked==0,why)
-assert(last():find('^tables: 8/8 found: CharacterTable=0x'),last())
+assert(last():find('^tables: 12/12 found: CharacterTable=0x'),last())
 refuse_ask='the Steam link needs the native part'
 lion_status('off')
 ok,why=lion.command('rows')
 assert(ok==false and why=='Lion rows not asked: the Steam link needs the native part' and #asked==0,why)
 refuse_ask=nil
 
--- coop lion rows: one ask with the 8 addresses in kLionTables' order, then the wait.
+-- coop lion rows: one ask with the 12 addresses in kLionTables' order, then the wait.
 at(100)
 ok,why=lion.command('rows')
 assert(ok and asked[1]==REQUEST and #asked==1,asked[1])
 assert(last()=='rows asked of the native part (lion=off): its answer is the next asks= past 0',last())
-assert(logged('^tables: 8/8 found: '..REQUEST:sub(11):gsub('%-','%%-')..'$'),'R1 with every address')
+assert(logged('^tables: 12/12 found: '..REQUEST:sub(11):gsub('%-','%%-')..'$'),'R1 with every address')
 ok,why=lion.command()
 assert(ok==false and why=='coop lion is busy (the wait for the Lion rows): try again in a few seconds',why)
 ok,why=lion.command('brain','lurker')
 assert(ok and why=='coop lion spawns 50021 (M_LionC_Lurker, the Lesser Lurker tree) until the mod reloads.',why)
 ok,why=lion.command('brain','skulling'); assert(ok and why:find('^coop lion spawns 50020 %(M_LionC, the Skulling'))
-lion_status('waiting added=10/78 asks=0 spawns=? why=busy ticks=3')
+lion_status('waiting added=10/220 asks=0 spawns=? why=busy ticks=3')
 at(100.1); assert(lion.tick()==nil and not logged('^rows wait'),'Not due before 0.25 s')
-at(100.25); assert(lion.tick()==nil and last()=='rows wait for the game thread: lion=waiting added=10/78 asks=0 '
+at(100.25); assert(lion.tick()==nil and last()=='rows wait for the game thread: lion=waiting added=10/220 asks=0 '
     ..'spawns=? why=busy ticks=3',last())
 local n=#lines
 at(100.5); lion.tick(); assert(#lines==n,'Said once')
 lion_status(ROWS_IN:format(1,'6'))
 at(100.75)
 ok,why=lion.tick()
-assert(ok and why=='Lion rows in: 78/78 added, SB finds them by ID (char 2/2, skills 15/15, stance 1/1) and they read '
-    ..'back as written; coop lion spawns one.',tostring(why))
+assert(ok and why=='Lion rows in: 220/220 added, SB finds them by ID (char 2/2, skills 21/21, stance 2/2) and they '
+    ..'read back as written; coop lion spawns one.',tostring(why))
 assert(lines[#lines-1]=='rows answer: lion='..ROWS_IN:format(1,'6') and last()=='rows read back through FindRow: '
-    ..'78/78 match',last())
+    ..'220/220 authored rows, 2974 fields as written (2083 differ from the template row)',last())
 assert(#calls==0 and #asked==1,'Rows only: no spawn')
 
 -- coop lion with the rows in: no ask, the read-back, the spawn call, then the body after 0.3 s.
@@ -377,7 +444,7 @@ on_create=spawns_lion
 at(200)
 ok,why=lion.command()
 assert(ok and why=='M_LionC 50020 asked: [LI] lines follow.' and #asked==1,why)
-assert(logged("^rows already in %(78/78; SB's lookups by ID: char 2/2, skills 15/15, stance 1/1%): not added again$"))
+assert(logged("^rows already in %(220/220; SB's lookups by ID: char 2/2, skills 21/21, stance 2/2%): not added again$"))
 local c=calls[1]
 assert(c[1]==50020 and c[2].X==1000 and c[2].Y==0 and c[2].Z==200 and c[3].Yaw==180 and c[3].Pitch==0,
     'Ahead 10 m, 1 m up, facing EVE')
@@ -411,26 +478,26 @@ lion1.GetSBSpeedForAnimGraph=function() error('no such function') end
 at(204.5); lion.tick()
 assert(last():find(', speed %?, skill yes,'),last())
 lion1.GetSBSpeedForAnimGraph,lion1.speed=speed_of,0
--- The loaded line: two of the 30 paths a second, each until first seen; once all were looked for, 0/15 says none
+-- The loaded line: two of the 40 paths a second, each until first seen; once all were looked for, 0/20 says none
 -- loaded; then each change. A Show seen without its clip is named.
-for t=205.5,216.5 do at(t); lion.tick() end
-assert(load_finds==30 and last()=='loaded: shows 0/15, clips 0/15',last())
+for t=205.5,221.5 do at(t); lion.tick() end
+assert(load_finds==40 and last()=='loaded: shows 0/20, clips 0/20',last())
 assets[L.LOADS[1]]=object({key='show'})
-at(217.5); lion.tick()
-assert(load_finds==32 and last()=='loaded: shows 1/15, clips 0/15 (Show seen, its clip not yet: ClawAttackLeft)',
+at(222.5); lion.tick()
+assert(load_finds==42 and last()=='loaded: shows 1/20, clips 0/20 (Show seen, its clip not yet: ClawAttackLeft)',
     last())
 assets[L.LOADS[2]]=object({key='clip'})
 local said_at=nil
-for t=218.5,240.5 do
+for t=223.5,250.5 do
     at(t); lion.tick()
-    if not said_at and last()=='loaded: shows 1/15, clips 1/15' then said_at=t end
+    if not said_at and last()=='loaded: shows 1/20, clips 1/20' then said_at=t end
 end
 assert(said_at,'The clip found on the next pass')
 assert(not logged('loaded: shows 2/'),'A seen path is not looked for again, nor counted twice')
 assets[L.LOADS[1]],assets[L.LOADS[2]]=nil,nil
 -- The boss name: the live TextBlock_BossName (under /Engine/Transient) reading <M_LionC> reads Lion; a widget class's
 -- template of it and another TextBlock stay as they are. FindAllOf('TextBlock') again only once no block is held, at
--- most every 10 s: with none found, it ran at 202.5, 212.5, 222.5 and 232.5.
+-- most every 10 s: with none found, it ran at 202.5, 212.5, 222.5, 232.5 and 242.5.
 local function block(name,path,shown)
     return object({name=name,shown=shown,GetFName=function(self) return fname(self.name) end,
         GetFullName=function(self) return 'TextBlock '..path..'.'..self.name end,
@@ -443,21 +510,21 @@ local template=block('TextBlock_BossName','/Game/UI/WB_BossHP.WB_BossHP_C:Widget
 local other=block('TextBlock_Title','/Engine/Transient.GameEngine_0:WB_MainHUD_Master_C_0.WidgetTree','<M_LionC>')
 widgets={template,other,live}
 local tf=text_finds
-assert(tf==4,'Every 10 s while none is held: '..tf)
-at(241.5); lion.tick(); assert(text_finds==tf and live.shown=='<M_LionC>','Not before 242.5')
-at(242.5); lion.tick()
+assert(tf==5,'Every 10 s while none is held: '..tf)
+at(251.5); lion.tick(); assert(text_finds==tf and live.shown=='<M_LionC>','Not before 252.5')
+at(252.5); lion.tick()
 assert(text_finds==tf+1 and live.shown=='Lion' and template.shown=='<M_LionC>' and other.shown=='<M_LionC>')
 assert(last()=='boss name: <M_LionC> -> Lion',last())
 n=#lines
-at(243.5); lion.tick()
+at(253.5); lion.tick()
 assert(text_finds==tf+1 and #lines==n+1,'Held: no new walk, nothing to set, only the follow line')
 live.shown='<M_LionC>' -- The game's next boss bind writes it again.
-at(244.5); lion.tick()
+at(254.5); lion.tick()
 assert(live.shown=='Lion' and last()=='boss name: <M_LionC> -> Lion',last())
 live.destroyed=true -- The HUD made again: the held block gone.
 widgets={}
-at(251.5); lion.tick(); assert(text_finds==tf+1,'At most every 10 s')
-at(252.5); lion.tick(); assert(text_finds==tf+2,'Looked for again once none is held')
+at(261.5); lion.tick(); assert(text_finds==tf+1,'At most every 10 s')
+at(262.5); lion.tick(); assert(text_finds==tf+2,'Looked for again once none is held')
 -- Its death, then its body's despawn: D1 and D2.
 lion1.InteractionState,lion1.Controller=3,nil
 at(344.5); n=#lines; lion.tick(); assert(#lines==n,'Dead: no line until its body goes')
@@ -479,8 +546,10 @@ assert(ok==false and #calls==1,'No spawn')
 assert(why=='A Lion row reads back wrong (M_LionC_ClawAttackLeft_Hit1 AttackCollisionGroupArray reads "[{"'
     ..'CollisionGroupName":"Collision_ArmLeft", "DelayTime":0}]", not "[{"CollisionGroupName":"Mon_Lion_Attack_L_Arm_'
     ..'Collision", "DelayTime":0}]"): no spawn.',why)
-assert(last():find('^rows read back through FindRow: M_LionC_ClawAttackLeft_Hit1 .* %(1/78 match before it%): '
-    ..'no spawn$'),last())
+local before=0 -- The rows ahead of the Hit step in the recipe: the effect, results, filters, moves and the Cast step.
+while L.ROWS[before+1].name~='M_LionC_ClawAttackLeft_Hit1' do before=before+1 end
+assert(last():find('^rows read back through FindRow: M_LionC_ClawAttackLeft_Hit1 .* %('..before..'/220 match before '
+    ..'it%): no spawn$'),last())
 hit.AttackCollisionGroupArray=good
 -- An FName reads in any case (the game's first casing wins); a missing row, a float off or an ID off stops.
 local app=tables.CharacterAppearanceTable.rows.M_LionC
@@ -493,16 +562,20 @@ local step=tables.SkillActiveStepTable.rows.M_LionC_Roar_Cast1
 step.Duration=1.5
 ok,why=lion.command(); assert(ok==false and why:find('M_LionC_Roar_Cast1 Duration reads "1.5"',1,true),why)
 step.Duration=1.3320000171661
+local cast=tables.SkillActiveStepTable.rows.M_LionC_Roar_Cast1
+cast.StopSelfMove=false -- A bool, read as a Lua boolean.
+ok,why=lion.command(); assert(ok==false and why:find('M_LionC_Roar_Cast1 StopSelfMove reads "0", not "1"',1,true),why)
+cast.StopSelfMove=true
 local dead=tables.CharacterDeadTable.rows.M_LionC
 tables.CharacterDeadTable.rows.M_LionC=nil
 ok,why=lion.command()
 assert(ok==false and why=='A Lion row reads back wrong (M_LionC is not in CharacterDeadTable): no spawn.',why)
 tables.CharacterDeadTable.rows.M_LionC=dead
 -- SB's lookups finding fewer rows: no spawn.
-lion_status('rows added=78/78 asks=1 spawns=6 char=1/2 skills=15/15 stance=1/1')
+lion_status('rows added=220/220 asks=1 spawns=6 char=1/2 skills=21/21 stance=2/2')
 ok,why=lion.command()
-assert(ok==false and why=='The Lion rows are not all usable: lion=rows added=78/78 asks=1 spawns=6 char=1/2 '
-    ..'skills=15/15 stance=1/1 (char=1/2, 2/2 expected): no spawn.' and #calls==1,why)
+assert(ok==false and why=='The Lion rows are not all usable: lion=rows added=220/220 asks=1 spawns=6 char=1/2 '
+    ..'skills=21/21 stance=2/2 (char=1/2, 2/2 expected): no spawn.' and #calls==1,why)
 
 -- brain lurker: 50021 through the same call; no body after 5 s stops (FindAllOf at 0.3, 1, 2, 3.5 and 5 s only).
 lion.command('brain','lurker')
@@ -542,13 +615,13 @@ assert(last()=='lion 2 spawn count: before ?, alive ?, after ?',last())
 -- A fresh Lua load with the rows not in: a refusal from before the ask is no answer, nor a waiting line with asks
 -- grown (an earlier ask finished, then ours was taken); then a refusal after it stops, and asking again goes on.
 lion=new()
-lion_status('refused added=3/78 asks=1 spawns=6 why=busy table=- row=-')
+lion_status('refused added=3/220 asks=1 spawns=6 why=busy table=- row=-')
 at(700)
 assert(lion.command() and asked[2]==REQUEST,'Asked again after a refusal')
 at(700.25); assert(lion.tick()==nil,'The old refusal is no answer')
-lion_status('waiting added=3/78 asks=2 spawns=6 why=net ticks=1')
+lion_status('waiting added=3/220 asks=2 spawns=6 why=net ticks=1')
 at(700.5); assert(lion.tick()==nil,'A waiting line is no answer')
-lion_status('refused added=3/78 asks=3 spawns=6 why=net table=- row=- detail=1')
+lion_status('refused added=3/220 asks=3 spawns=6 why=net table=- row=- detail=1')
 at(700.75)
 ok,why=lion.tick()
 assert(ok==false and why=='The native part refused the Lion rows (why=net, table=-, row=-): coop-link.log says why; '
@@ -556,7 +629,7 @@ assert(ok==false and why=='The native part refused the Lion rows (why=net, table
 -- A fault, the 30 s limit and a map change each stop the wait.
 lion_status('off')
 at(800); assert(lion.command())
-lion_status('fault added=3/78 asks=1 spawns=6 where=SB.exe+0x10')
+lion_status('fault added=3/220 asks=1 spawns=6 where=SB.exe+0x10')
 at(800.25); ok,why=lion.tick(); assert(ok==false and why=='The Lion rows stopped on a fault (SB.exe+0x10).',why)
 ok,why=lion.command()
 assert(ok==false and why=='The Lion rows stopped on a fault this game run (SB.exe+0x10).' and #asked==3,why)

@@ -1,32 +1,40 @@
-// The Lion boss's table rows (coop lion, plan A of the Lion study), free of Windows: tests/native/lion/rows_test.cpp
-// checks it on the build machine against fake memory. The cut Naytiba CH_M_NA_02 ships its blueprint, meshes, clips,
-// collision data and 41 Shows but no table row, so SB cannot spawn it. These are the rows it lacks, each a copy of a
-// shipped Behemoth row (the Lion shares the Behemoth's skeleton) with a few fields changed: 15 skills with their
-// commands and 41 steps (the v1 kit: claws, turns, run and jump attacks, the back jumps, a roar, two side steps), the
-// stance that lists the commands, two anim sets, the dead and appearance rows, and two CharacterTable rows, M_LionC
-// (50020) with the Skulling test tree and M_LionC_Lurker (50021) with the Lesser Lurker's: both trees pick skills by
-// their AISkillFlag, never by command name. The rows live in memory for the game run; nothing is written to disk and
-// no shipped row changes.
+// The Lion boss's table rows (coop lion, the Lion study's plan A made native), free of Windows:
+// tests/native/lion/rows_test.cpp checks it on the build machine against fake memory. The cut Naytiba CH_M_NA_02 ships
+// its blueprint, meshes, clips, collision data and 41 Shows but no table row, so SB cannot spawn it. These are the rows
+// it lacks, every one authored for the Lion by the generator (the generated part below says what each holds): 21 skills
+// with their commands and 80 steps (the 15 of the first kit, the claw chain and the rush of phase 1, the second claw
+// chain, the move chain, the dash chain and the phase-2 roar of phase 2), 61 moves timed on its clips' own travel
+// (those toward EVE stop short of her), 23 target filters sized to its reach, 5 hit results, 2 anim sets, 2 stances
+// (phase 1, and phase 2 at HP under 60%), the effect that runs the phase-2 roar, the dead and appearance rows, and two
+// CharacterTable rows, M_LionC (50020) with the Skulling test tree and M_LionC_Lurker (50021) with the Lesser Lurker's:
+// both trees pick skills by their AISkillFlag, never by command name. Each row starts as a copy of a shipped row of its
+// table (the template: SB's CopyScriptStruct needs a valid row of the struct), and the patches set every field that
+// template holds, some of them to the template's own value where the Lion's is the same. The rows live in memory for
+// the game run; nothing is written to disk and no shipped row changes.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
 // (glue/tick/lion_game.inc's gate: no lock guards the tables). For each row not added yet, in order: the table must be
 // SB's UDataTable with its row struct of the size the SDK gives; the new name must be free in RowMap and the new ID
-// free in the table's ID map; the donor is found by name; then the row is built in a block the glue owns
-// (InitializeStruct, CopyScriptStruct from the donor, the ID at +0x10, the patches) and handed to AddRow, which removes
-// any row of that name, copies ours into its own allocation and fills the ID and index maps. The first refusal stops
-// the run before any later row, and the CharacterTable rows come last, so NewActor finds 50020 only once every other
-// row is in. A row is added once a run: a later run skips it, so AddRow's RemoveRow never frees a row a Lion still
-// reads.
+// free in the table's ID map; the template is found by name; then the row is built in a block the glue owns
+// (InitializeStruct, CopyScriptStruct from the template, the ID at +0x10, the patches) and handed to AddRow, which
+// removes any row of that name, copies ours into its own allocation and fills the ID and index maps. The first refusal
+// stops the run before any later row, and the CharacterTable rows come last, so NewActor finds 50020 only once every
+// other row is in. A row is added once a run: a later run skips it, so AddRow's RemoveRow never frees a row a Lion
+// still reads.
 //
-// SB parses a row's JSON strings (StartEffect, AttackCollisionGroupArray, AttackerEffectWhenDead...) into Transient
-// arrays the first time it uses the row (row +8 is 0 until then; every lookup site sets it and calls the row's vtable
-// +0x20). The copy carries the donor's flag and parsed arrays, so the block's flag goes back to 0 and its Transient
-// arrays to empty: AddRow's copy then reads as a freshly loaded row, and SB parses our strings on its own copy.
+// SB parses a row's JSON strings (StartEffect, AttackCollisionGroupArray, AttackerEffectWhenDead, a hit result's
+// effects...) into Transient arrays the first time it uses the row (row +8 is 0 until then; every lookup site sets it
+// and calls the row's vtable +0x20). The copy carries the template's flag and parsed arrays, so the block's flag goes
+// back to 0 and its Transient arrays to empty: AddRow's copy then reads as a freshly loaded row, and SB parses our
+// strings on its own copy. The 4 tables the Lion's own moves, filters, results and effect need (CharacterMoveTable,
+// TargetFilterTable, SkillResultTable, EffectTable) derive from the same FSBTablePropertyBase, with its flag at +8;
+// that SB's lookups of their rows run the same lazy init was not traced, and resetting a flag the struct does not use
+// changes nothing.
 //
 // The block's strings and arrays point at its pool (UTF-16 text, FName and FString arrays), which AddRow's copy
 // duplicates into SB's allocations. The block is never destroyed: the next row's InitializeStruct writes over it.
-// ponytail: each row's copy of the donor's strings and arrays leaks inside the block's history, a few KB a game run;
+// ponytail: each row's copy of the template's strings and arrays leaks inside the block's history, a few KB a game run;
 // destroying the block would free our pool through SB's allocator instead.
 #pragma once
 
@@ -47,18 +55,32 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 8 tables, in coop::kLionTables' order (link/protocol.h): Lua's lion rows request names each with its address.
-enum class Table : uint8_t { character, appearance, dead, stance, anim, command, skill, step };
-constexpr size_t kTableCount = 8;
+// The 12 tables, in coop::kLionTables' order (link/protocol.h): Lua's lion rows request names each with its address.
+enum class Table : uint8_t {
+  character,
+  appearance,
+  dead,
+  stance,
+  anim,
+  command,
+  skill,
+  step,
+  move,
+  filter,
+  result,
+  effect
+};
+constexpr size_t kTableCount = 12;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
   bool id;                // An ID at +0x10, which AddRow puts in the table's ID maps.
-  uint16_t transient[12]; // The Transient TArrays SB's lazy init fills from the row's JSON strings; 0 ends the list.
+  uint16_t transient[25]; // The Transient TArrays SB's lazy init fills from the row's JSON strings; 0 ends the list.
 };
-// A patch writes one field of the copy: a float, an FName, an FString (UTF-16 in the pool), or a TArray of FNames or
-// of FStrings (items joined by '|' in text; empty text: an empty array).
-enum class Kind : uint8_t { f32, name, string, names, strings };
+// A patch writes one field of the copy: a float, an int32 or a byte (a bool or an enum's value), both held exactly in f
+// (the generator keeps every int32 under 2^24), an FName, an FString (UTF-16 in the pool), or a TArray of FNames or of
+// FStrings (items joined by '|' in text; empty text: an empty array).
+enum class Kind : uint8_t { f32, i32, u8, name, string, names, strings };
 struct Patch {
   uint16_t at;
   Kind kind;
@@ -67,41 +89,110 @@ struct Patch {
 };
 struct Row {
   Table table;
-  const char *name, *donor;
-  uint32_t id;           // 0 in a table with no ID.
-  uint16_t first, count; // Its patches in kPatches.
+  const char *name, *donor; // donor: the template row, the struct copied before the patches.
+  uint32_t id;              // 0 in a table with no ID.
+  uint16_t first, count;    // Its patches in kPatches.
 };
 
 // ---- Generated by ~/.claude/project-notes/stellar-blade-minecraft/tools/lion-rows/gen.py: do not edit by hand ----
-// From the offline reader's dumps (the 8 tables and CharacterMoveTable, the 15 Lion Shows, the two Shows
-// of a perfect parry's result steps, EVE's link Show for the Common flag, the Large blueprint and its
-// CH_M_NA_02_LionC_Collision), the pak listing and the Dumper-7 SDK (stellar-sdk-647527f). The Hit groups
-// that differ from the plan's guesses, and why each guess fails the checks:
-//   TurnAttackLeft: L_Arm, not RL_Arm (R arm untracked in Mon_Lion_Attack_Turn_Left)
-//   TurnAttackRight: R_Arm, not RL_Arm (L arm untracked in Mon_Lion_Attack_Turn_Right)
-//   RunAttackLeft: R_Arm, not L_Arm (L arm untracked in M_LionC_RunAttackLeft)
-//   RunAttackRight: L_Arm, not R_Arm (R arm untracked in M_LionC_RunAttackRight)
-//   JumpAttackLow: RL_Arm, not Jump01 (it names a shape the data lacks in Mon_Lion_Attak_Jump_01)
-//   JumpAttackHigh: RL_Arm, not Jump01 (it names a shape the data lacks in Mon_Lion_Attack_Jump_02)
-//   BackJumpToAttack: RL_Arm, not Jump01 (it names a shape the data lacks in Mon_Lion_Attack_Rotation_Back)
-//   AttackToBackJump: RL_Arm, not Head (it names a shape the data lacks in Mon_Lion_Attack_Back_Dash)
-// The donor moves the steps drop (an asset timed to a Behemoth clip, a move its target sets, or moves
-// over 300 cm in all on a step):
-//   M_LionC_TurnAttackLeft_Cast1 drops M_Behemoth_TurnAttackLeft_Move_RM (root motion asset)
-//   M_LionC_TurnAttackRight_Cast1 drops M_Behemoth_TurnAttackRight_Move_RM (root motion asset)
-//   M_LionC_JumpAttackLow_Cast1 drops M_Behemoth_JumpAttackLow_Move1 (Static move set by MovePositionType_Target)
-//   M_LionC_JumpAttackLow_Hit1 drops M_Behemoth_JumpAttackLow_Move2 (Static move set by MovePositionType_Target)
-//   M_LionC_JumpAttackHigh_Cast1 drops M_Behemoth_JumpAttackHigh_Move1 (curve asset)
-//   M_LionC_JumpAttackHigh_Hit1 drops M_Behemoth_JumpAttackHigh_Move2 (moves 110 cm of the step's 427)
-//   M_LionC_JumpAttackHigh_Hit1 drops M_Behemoth_JumpAttackHigh_Move3 (moves 206 cm of the step's 427)
-//   M_LionC_JumpAttackHigh_Hit1 drops M_Behemoth_JumpAttackHigh_Move4 (moves 105 cm of the step's 427)
-//   M_LionC_JumpAttackHigh_Hit1 drops M_Behemoth_JumpAttackHigh_Move5 (moves 7 cm of the step's 427)
-//   M_LionC_BackJumpToAttack_Finish1 drops M_Behemoth_SmashBackflip_Move2 (moves 953 cm of the step's 1588)
-//   M_LionC_BackJumpToAttack_Finish1 drops M_Behemoth_SmashBackflip_Move3 (moves 635 cm of the step's 1588)
-//   M_LionC_AttackToBackJump_Finish1 drops M_Behemoth_SmashBackflip_Move2 (moves 953 cm of the step's 1588)
-//   M_LionC_AttackToBackJump_Finish1 drops M_Behemoth_SmashBackflip_Move3 (moves 635 cm of the step's 1588)
-//   M_LionC_SideStepLeft_Cast1 drops M_Behemoth_SideStepLeft_Move1 (moves 1100 cm)
-//   M_LionC_SideStepRight_Cast1 drops M_Behemoth_SideStepRight_Move1 (moves 1100 cm)
+// The Lion's own rows: 220 in all (character 2, appearance 1, dead 1, stance 2, anim 2, command 21, skill 21, step
+// 80, move 61, filter 23, result 5, effect 1), 2974 fields. 2075 of them set a field the template row held, 891 of
+// those to the value it held (the Lion's value is the same); the other 899 fill fields it left empty. From the
+// offline reader's dumps of the 12 tables, the Lion Shows, the Large blueprint and its CH_M_NA_02_LionC_Collision,
+// the pak listing, the Dumper-7 SDK (stellar-sdk-647527f) and the Lion's animation points (lion-points.json).
+// Hit steps that follow their Show where the striking peak sits just outside:
+//   JumpAttackLow Hit1: the body peaks at 1.100 s, 0.030 s before its Hit step (1.130-1.230 s)
+//   AttackToBackJump Hit1: the claw_R peaks at 1.133 s, 0.017 s before its Hit step (1.150-1.350 s)
+//   MoveAttackChain Hit3: the claw_R peaks at 2.967 s, 0.033 s before its Hit step (3.000-3.100 s)
+//   DashAttackChain Hit1: the jaw peaks at 1.467 s, 0.074 s before its Hit step (1.541-2.023 s)
+//   DashAttackChain Hit2: the body peaks at 2.200 s, 0.026 s before its Hit step (2.226-2.849 s)
+//   DashAttackChain Hit4: the body peaks at 3.667 s, 0.019 s before its Hit step (3.686-4.306 s)
+// Where each skill looks for EVE (its target filter: the arc's centre, degrees right of the Lion's front, and range)
+// and the space checks its moves need:
+//   ClawAttackLeft: 0 within 360 cm; space none
+//   ClawAttackRight: 0 within 360 cm; space none
+//   ClawAttackChaseLeft: 0 within 490 cm; space Forward_700
+//   ClawAttackChaseRight: -40 within 480 cm; space Forward_700, SideL_400_50
+//   TurnAttackLeft: -110 within 320 cm; space none
+//   TurnAttackRight: 110 within 320 cm; space none
+//   RunAttackLeft: -80 within 550 cm; space SideL_1100
+//   RunAttackRight: 80 within 520 cm; space SideR_1000_50
+//   JumpAttackLow: 0 within 490 cm; space Forward_700
+//   JumpAttackHigh: 0 within 1260 cm; space Forward_1800, SideL_600_50
+//   BackJumpToAttack: 180 within 110 cm; space none
+//   AttackToBackJump: 0 within 320 cm; space Back_1100
+//   Roar: 0 within 700 cm; space none
+//   SideStepLeft: 100 within 1420 cm; space SideL_1100
+//   SideStepRight: -100 within 1590 cm; space SideR_1200_50
+//   ClawAttackChain: 0 within 350 cm; space Forward_1800
+//   ClawAttackChain2: 0 within 340 cm; space Forward_1800, SideR_700
+//   MoveAttackChain: 0 within 330 cm; space Forward_1800
+//   RushAttack: 0 within 730 cm; space Forward_1800
+//   DashAttackChain: 0 within 440 cm; space Forward_1800
+//   RoarPhaseChange: 0 within 8000 cm; space none
+// The moves, from the clip's planted feet, or a ballistic estimate where the move's span is mostly in the air.
+// A move toward EVE goes up to its length along the line to her and stops that far short of her:
+//   M_LionC_ClawAttackLeft_Turn: turn toward EVE over the first step
+//   M_LionC_ClawAttackRight_Turn: turn toward EVE over the first step
+//   M_LionC_ClawAttackChaseLeft_Move1: up to 54 toward EVE, 420 short, 0.267-0.700 s (feet)
+//   M_LionC_ClawAttackChaseLeft_Move2: up to 273 toward EVE, 420 short, 0.033-0.300 s (feet)
+//   M_LionC_ClawAttackChaseLeft_Move3: 2 fwd, 81 right, 0.033-0.367 s (feet)
+//   M_LionC_ClawAttackChaseRight_Move1: up to 66 toward EVE, 210 short, 0.400-0.700 s (feet)
+//   M_LionC_ClawAttackChaseRight_Move2: up to 275 toward EVE, 210 short, 0.033-0.300 s (feet)
+//   M_LionC_ClawAttackChaseRight_Move3: up to 195 toward EVE, 210 short, 0.033-0.333 s (in the air)
+//   M_LionC_TurnAttackLeft_Turn: turn toward EVE at once
+//   M_LionC_TurnAttackRight_Turn: turn toward EVE at once
+//   M_LionC_RunAttackLeft_Move1: up to 143 toward EVE, 110 short, 0.600-0.833 s (feet)
+//   M_LionC_RunAttackLeft_Move2: up to 602 toward EVE, 110 short, 0.037-0.437 s (in the air)
+//   M_LionC_RunAttackLeft_Move3: up to 265 toward EVE, 110 short, 0.050-0.250 s (in the air)
+//   M_LionC_RunAttackRight_Move1: up to 147 toward EVE, 110 short, 0.700-0.833 s (feet)
+//   M_LionC_RunAttackRight_Move2: up to 545 toward EVE, 110 short, 0.037-0.437 s (in the air)
+//   M_LionC_RunAttackRight_Move3: up to 252 toward EVE, 110 short, 0.050-0.383 s (in the air)
+//   M_LionC_JumpAttackLow_Move1: up to 616 toward EVE, 150 short, 0.667-1.100 s (in the air)
+//   M_LionC_JumpAttackHigh_Move1: 16 fwd, -534 right, 1.233-1.967 s (in the air)
+//   M_LionC_JumpAttackHigh_Move2: up to 1154 toward EVE, 800 short, 0.073-0.640 s (in the air)
+//   M_LionC_JumpAttackHigh_Move3: up to 899 toward EVE, 800 short, 0.033-0.333 s (in the air)
+//   M_LionC_BackJumpToAttack_Turn: turn toward EVE at once
+//   M_LionC_AttackToBackJump_Turn: turn toward EVE over the first step
+//   M_LionC_AttackToBackJump_Move3: -1034 fwd, 59 right, 0.383-1.617 s (in the air)
+//   M_LionC_Roar_Turn: turn toward EVE over the first step
+//   M_LionC_Roar_Move3: 175 fwd, 5 right, 0.433-1.400 s (feet)
+//   M_LionC_SideStepLeft_Move1: 0 fwd, -1419 right, 0.067-1.300 s (in the air)
+//   M_LionC_SideStepRight_Move1: 0 fwd, 1589 right, 0.100-1.267 s (in the air)
+//   M_LionC_ClawAttackChain_Move1: up to 40 toward EVE, 370 short, 0.333-0.767 s (feet)
+//   M_LionC_ClawAttackChain_Move2: up to 95 toward EVE, 370 short, 0.050-0.250 s (feet)
+//   M_LionC_ClawAttackChain_Move3: up to 43 toward EVE, 310 short, 0.033-0.100 s (feet)
+//   M_LionC_ClawAttackChain_Move4: up to 32 toward EVE, 310 short, 0.033-0.200 s (in the air)
+//   M_LionC_ClawAttackChain_Move5: up to 51 toward EVE, 440 short, 0.033-0.167 s (feet)
+//   M_LionC_ClawAttackChain_Move6: up to 270 toward EVE, 440 short, 0.050-0.417 s (in the air)
+//   M_LionC_ClawAttackChain_Move7: up to 600 toward EVE, 440 short, 0.050-0.650 s (in the air)
+//   M_LionC_ClawAttackChain2_Move1: up to 38 toward EVE, 380 short, 0.333-0.767 s (feet)
+//   M_LionC_ClawAttackChain2_Move2: up to 66 toward EVE, 380 short, 0.050-0.250 s (feet)
+//   M_LionC_ClawAttackChain2_Move4: up to 54 toward EVE, 370 short, 0.033-0.200 s (feet)
+//   M_LionC_ClawAttackChain2_Move5: up to 31 toward EVE, 560 short, 0.033-0.167 s (feet)
+//   M_LionC_ClawAttackChain2_Move6: up to 225 toward EVE, 560 short, 0.083-0.417 s (in the air)
+//   M_LionC_ClawAttackChain2_Move7: up to 845 toward EVE, 0 short, 0.083-1.083 s (feet)
+//   M_LionC_ClawAttackChain2_Move8: up to 246 toward EVE, 0 short, 0.067-0.367 s (in the air)
+//   M_LionC_ClawAttackChain2_Move9: 328 fwd, 669 right, 0.083-1.150 s (in the air)
+//   M_LionC_MoveAttackChain_Move1: -59 fwd, -82 right, 0.667-0.900 s (in the air)
+//   M_LionC_MoveAttackChain_Move3: up to 562 toward EVE, 210 short, 0.083-0.617 s (in the air)
+//   M_LionC_MoveAttackChain_Move4: up to 169 toward EVE, 210 short, 0.033-0.200 s (feet)
+//   M_LionC_MoveAttackChain_Move5: up to 1244 toward EVE, 340 short, 0.100-0.833 s (in the air)
+//   M_LionC_MoveAttackChain_Move6: up to 45 toward EVE, 340 short, 0.033-0.100 s (feet)
+//   M_LionC_RushAttack_Move1: up to 110 toward EVE, 280 short, 0.100-0.200 s (in the air)
+//   M_LionC_RushAttack_Move2: up to 321 toward EVE, 280 short, 0.053-0.187 s (in the air)
+//   M_LionC_RushAttack_Move3: up to 485 toward EVE, 280 short, 0.045-0.278 s (in the air)
+//   M_LionC_DashAttackChain_Move1: -48 fwd, -116 right, 0.800-1.533 s (feet)
+//   M_LionC_DashAttackChain_Move2: up to 326 toward EVE, 440 short, 0.092-0.492 s (in the air)
+//   M_LionC_DashAttackChain_Move3: up to 381 toward EVE, 0 short, 0.044-0.210 s (feet)
+//   M_LionC_DashAttackChain_Move4: up to 316 toward EVE, 0 short, 0.041-0.607 s (feet)
+//   M_LionC_DashAttackChain_Move5: up to 118 toward EVE, 270 short, 0.051-0.284 s (feet)
+//   M_LionC_DashAttackChain_Move6: up to 157 toward EVE, 270 short, 0.075-0.375 s (in the air)
+//   M_LionC_DashAttackChain_Move7: up to 239 toward EVE, 200 short, 0.053-0.220 s (in the air)
+//   M_LionC_DashAttackChain_Move8: up to 802 toward EVE, 200 short, 0.047-0.647 s (in the air)
+//   M_LionC_DashAttackChain_Move9: up to 68 toward EVE, 200 short, 0.061-0.127 s (in the air)
+//   M_LionC_RoarPhaseChange_Turn: turn toward EVE over the first step
+//   M_LionC_RoarPhaseChange_Move3: 175 fwd, 5 right, 0.433-1.400 s (feet)
 constexpr TableInfo kTables[kTableCount] = {
     {"CharacterTable", 0x548, true, {0x538}},              // SBCharacterTableProperty
     {"CharacterAppearanceTable", 0x158, true, {}},         // SBCharacterAppearanceTableProperty
@@ -112,395 +203,3650 @@ constexpr TableInfo kTables[kTableCount] = {
     {"SkillTable", 0x308, true, {0x2f8}},                  // SBSkillTableProperty
     // SBSkillActiveStepTableProperty
     {"SkillActiveStepTable", 0x390, true, {0x300, 0x310, 0x320, 0x330, 0x340, 0x350, 0x360, 0x370, 0x380}},
+    {"CharacterMoveTable", 0x130, true, {}}, // SBCharacterMoveTableProperty
+    {"TargetFilterTable", 0xb8, true, {}},   // SBSkillTargetFilterTableProperty
+    // SBSkillResultTableProperty
+    {"SkillResultTable", 0x4b0, true, {0x320, 0x330, 0x340, 0x350, 0x360, 0x370, 0x380, 0x390, 0x3a0,
+                                       0x3b0, 0x3c0, 0x3d0, 0x3e0, 0x3f0, 0x400, 0x410, 0x420, 0x430,
+                                       0x440, 0x450, 0x460, 0x470, 0x480, 0x490, 0x4a0}},
+    {"EffectTable", 0x588, true, {0x578}}, // SBEffectTableProperty
 };
 constexpr Patch kPatches[] = {
+    // M_LionC_PhaseRoar
+    {0x184, Kind::f32, 1.0f, nullptr},                   // CalculationMultipleValue
+    {0x198, Kind::u8, 2, nullptr},                       // LifeType
+    {0x19c, Kind::f32, 0.1f, nullptr},                   // LifeTime
+    {0x1b8, Kind::name, 0, "Self"},                      // ActiveTargetFilterAlias
+    {0x2fc, Kind::u8, 69, nullptr},                      // Action1
+    {0x300, Kind::string, 0, "M_LionC_RoarPhaseChange"}, // ActionValue1
+    {0x570, Kind::name, 0, "None"},                      // FileSuffix
+    // M_LionC_Result_Light
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Light\"}]"},
+    {0x038, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.5}]"}, // HitLevelResultTargetCommonEffect
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack"},        // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_050_100"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Light\"}]"},
+    {0x2d8, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.5}]"}, // HitLevelResultTargetEventMovingEffect
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                      // FileSuffix
+    // M_LionC_Result_Strong
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Strong\"}]"},
+    {0x038, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.8}]"}, // HitLevelResultTargetCommonEffect
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack"},       // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_080_300"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Strong\"}]"},
+    {0x2d8, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.8}]"},  // HitLevelResultTargetEventMovingEffect
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                       // FileSuffix
+    // M_LionC_Result_KnockDown
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactBlunt_Strong\"}]"},
+    // HitLevelResultTargetCommonEffect
+    {0x038, Kind::string, 0,
+     "[{\"Alias\":\"HitStun\", \"Time\":1.5}, {\"Alias\":\"KnockDownForward_Eve\"}, "
+     "{\"Alias\":\"KnockDownBackward_Eve\"}]"},
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack"},       // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_080_300"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactBlunt_Strong\"}]"},
+    // HitLevelResultTargetEventMovingEffect
+    {0x2d8, Kind::string, 0,
+     "[{\"Alias\":\"HitStun\", \"Time\":1.5}, {\"Alias\":\"KnockDownForward_Eve\"}, "
+     "{\"Alias\":\"KnockDownBackward_Eve\"}]"},
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                       // FileSuffix
+    // M_LionC_Result_Guard
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamageWhenGuard_Melee\"}, {\"Alias\":\"BlockAction\", \"Time\":0.3}]"},
+    {0x058, Kind::string, 0, "Result/Result_Guard_Back"}, // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_040_100"},           // HitLevelResultTargetCommonMoveAlias
+    {0x318, Kind::name, 0, "None"},                       // FileSuffix
+    // M_LionC_Result_Parry
+    {0x058, Kind::string, 0, "Result/Result_Parry_Back"}, // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_020_150"},           // HitLevelResultTargetCommonMoveAlias
+    {0x318, Kind::name, 0, "None"},                       // FileSuffix
+    // M_LionC_HitArea
+    {0x014, Kind::u8, 5, nullptr},        // TargetType
+    {0x015, Kind::u8, 1, nullptr},        // bMultipleTargets
+    {0x024, Kind::f32, 8000.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},        // SortType
+    {0x03c, Kind::u8, 5, nullptr},        // TargetCheckShape
+    {0x0b0, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_Roar_HitArea
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 700.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x030, Kind::f32, 200.0f, nullptr}, // ShapeForwardDistance
+    {0x03c, Kind::u8, 7, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 300.0f, nullptr}, // TargetCheckValue1
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 360.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 360.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChaseLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 490.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChaseRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 480.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x044, Kind::f32, -40.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_TurnAttackLeft_Target
+    {0x014, Kind::u8, 5, nullptr},        // TargetType
+    {0x015, Kind::u8, 1, nullptr},        // bMultipleTargets
+    {0x024, Kind::f32, 320.0f, nullptr},  // FarDistance
+    {0x028, Kind::u8, 1, nullptr},        // SortType
+    {0x03c, Kind::u8, 4, nullptr},        // TargetCheckShape
+    {0x040, Kind::f32, 140.0f, nullptr},  // TargetCheckValue1
+    {0x044, Kind::f32, -110.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 300.0f, nullptr},  // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_TurnAttackRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 320.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 140.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 110.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RunAttackLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 550.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x044, Kind::f32, -80.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RunAttackRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 520.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x044, Kind::f32, 80.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_JumpAttackLow_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 490.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_JumpAttackHigh_Target
+    {0x014, Kind::u8, 5, nullptr},        // TargetType
+    {0x015, Kind::u8, 1, nullptr},        // bMultipleTargets
+    {0x024, Kind::f32, 1260.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},        // SortType
+    {0x03c, Kind::u8, 4, nullptr},        // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},   // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr},  // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_BackJumpToAttack_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 110.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 120.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 180.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_AttackToBackJump_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 320.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_Roar_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 700.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 120.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_SideStepLeft_Target
+    {0x014, Kind::u8, 5, nullptr},        // TargetType
+    {0x015, Kind::u8, 1, nullptr},        // bMultipleTargets
+    {0x024, Kind::f32, 1420.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},        // SortType
+    {0x03c, Kind::u8, 4, nullptr},        // TargetCheckShape
+    {0x040, Kind::f32, 100.0f, nullptr},  // TargetCheckValue1
+    {0x044, Kind::f32, 100.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 300.0f, nullptr},  // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_SideStepRight_Target
+    {0x014, Kind::u8, 5, nullptr},        // TargetType
+    {0x015, Kind::u8, 1, nullptr},        // bMultipleTargets
+    {0x024, Kind::f32, 1590.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},        // SortType
+    {0x03c, Kind::u8, 4, nullptr},        // TargetCheckShape
+    {0x040, Kind::f32, 100.0f, nullptr},  // TargetCheckValue1
+    {0x044, Kind::f32, -100.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 300.0f, nullptr},  // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_ClawAttackChain_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 350.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 340.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_MoveAttackChain_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 330.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RushAttack_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 730.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 440.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_HitArea
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 450.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 120.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 300.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackLeft_Turn
+    {0x014, Kind::i32, 100, nullptr},  // Priority
+    {0x03a, Kind::u8, 0, nullptr},     // MoveType
+    {0x060, Kind::u8, 2, nullptr},     // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.8f, nullptr}, // Time
+    {0x094, Kind::f32, 0.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 0.8f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},     // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},     // bIndependentRotation
+    {0x0f2, Kind::u8, 1, nullptr},     // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},     // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},     // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},     // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},    // FileSuffix
+    // M_LionC_ClawAttackRight_Turn
+    {0x014, Kind::i32, 100, nullptr},  // Priority
+    {0x03a, Kind::u8, 0, nullptr},     // MoveType
+    {0x060, Kind::u8, 2, nullptr},     // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.8f, nullptr}, // Time
+    {0x094, Kind::f32, 0.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 0.8f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},     // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},     // bIndependentRotation
+    {0x0f2, Kind::u8, 1, nullptr},     // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},     // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},     // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},     // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},    // FileSuffix
+    // M_LionC_ClawAttackChaseLeft_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x080, Kind::f32, 0.267f, nullptr}, // MoveStartTime
+    {0x084, Kind::f32, 0.7f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.7f, nullptr},   // Time
+    {0x094, Kind::f32, 53.9f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 420.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.7f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChaseLeft_Move2
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.267f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.267f, nullptr}, // Time
+    {0x094, Kind::f32, 272.6f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 420.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.267f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChaseLeft_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.334f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.334f, nullptr}, // Time
+    {0x094, Kind::f32, 2.0f, nullptr},   // ForwardValue
+    {0x098, Kind::f32, 81.0f, nullptr},  // RightValue
+    {0x0b8, Kind::f32, 0.334f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChaseRight_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.4f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 0.3f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.3f, nullptr},   // Time
+    {0x094, Kind::f32, 66.1f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 210.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChaseRight_Move2
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.267f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.267f, nullptr}, // Time
+    {0x094, Kind::f32, 275.3f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 210.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChaseRight_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.3f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.3f, nullptr},   // Time
+    {0x094, Kind::f32, 195.3f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 210.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_TurnAttackLeft_Turn
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 0, nullptr},       // MoveType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.1f, nullptr},   // Time
+    {0x094, Kind::f32, 0.0f, nullptr},   // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 0.1f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},       // bIndependentRotation
+    {0x0dc, Kind::f32, 360.0f, nullptr}, // RotationLeftLimitAngle
+    {0x0e0, Kind::f32, 360.0f, nullptr}, // RotationRightLimitAngle
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_TurnAttackRight_Turn
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 0, nullptr},       // MoveType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.1f, nullptr},   // Time
+    {0x094, Kind::f32, 0.0f, nullptr},   // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 0.1f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},       // bIndependentRotation
+    {0x0dc, Kind::f32, 360.0f, nullptr}, // RotationLeftLimitAngle
+    {0x0e0, Kind::f32, 360.0f, nullptr}, // RotationRightLimitAngle
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RunAttackLeft_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.6f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 0.233f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.233f, nullptr}, // Time
+    {0x094, Kind::f32, 143.2f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 110.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RunAttackLeft_Move2
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.037f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.4f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.4f, nullptr},   // Time
+    {0x094, Kind::f32, 602.5f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 110.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RunAttackLeft_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.05f, nullptr},  // StartDelayTime
+    {0x084, Kind::f32, 0.2f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.2f, nullptr},   // Time
+    {0x094, Kind::f32, 265.3f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 110.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RunAttackRight_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.7f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 0.133f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.133f, nullptr}, // Time
+    {0x094, Kind::f32, 147.3f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 110.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RunAttackRight_Move2
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.037f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.4f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.4f, nullptr},   // Time
+    {0x094, Kind::f32, 544.9f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 110.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RunAttackRight_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.05f, nullptr},  // StartDelayTime
+    {0x084, Kind::f32, 0.333f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.333f, nullptr}, // Time
+    {0x094, Kind::f32, 252.3f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 110.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 0, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_JumpAttackLow_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x080, Kind::f32, 0.667f, nullptr}, // MoveStartTime
+    {0x084, Kind::f32, 1.1f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 1.13f, nullptr},  // Time
+    {0x094, Kind::f32, 615.5f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 150.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 1.13f, nullptr},  // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_JumpAttackHigh_Move1
+    {0x014, Kind::i32, 100, nullptr},     // Priority
+    {0x03a, Kind::u8, 6, nullptr},        // MoveType
+    {0x070, Kind::f32, 0.0f, nullptr},    // StartDelayTime
+    {0x080, Kind::f32, 1.233f, nullptr},  // MoveStartTime
+    {0x084, Kind::f32, 1.967f, nullptr},  // MoveEndTime
+    {0x088, Kind::f32, 1.967f, nullptr},  // Time
+    {0x094, Kind::f32, 16.0f, nullptr},   // ForwardValue
+    {0x098, Kind::f32, -534.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 1.967f, nullptr},  // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},        // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},        // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},        // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},        // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},        // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_JumpAttackHigh_Move2
+    {0x014, Kind::i32, 100, nullptr},     // Priority
+    {0x03a, Kind::u8, 6, nullptr},        // MoveType
+    {0x03b, Kind::u8, 3, nullptr},        // PositionType
+    {0x060, Kind::u8, 2, nullptr},        // PositionDirectionAxis
+    {0x070, Kind::f32, 0.073f, nullptr},  // StartDelayTime
+    {0x084, Kind::f32, 0.567f, nullptr},  // MoveEndTime
+    {0x088, Kind::f32, 0.567f, nullptr},  // Time
+    {0x094, Kind::f32, 1154.3f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},    // RightValue
+    {0x0b0, Kind::f32, 800.0f, nullptr},  // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.567f, nullptr},  // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},        // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},        // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},        // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},        // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},        // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_JumpAttackHigh_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.3f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.3f, nullptr},   // Time
+    {0x094, Kind::f32, 899.2f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 800.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.3f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_BackJumpToAttack_Turn
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 0, nullptr},       // MoveType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.1f, nullptr},   // Time
+    {0x094, Kind::f32, 0.0f, nullptr},   // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 0.1f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},       // bIndependentRotation
+    {0x0dc, Kind::f32, 360.0f, nullptr}, // RotationLeftLimitAngle
+    {0x0e0, Kind::f32, 360.0f, nullptr}, // RotationRightLimitAngle
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_AttackToBackJump_Turn
+    {0x014, Kind::i32, 100, nullptr},   // Priority
+    {0x03a, Kind::u8, 0, nullptr},      // MoveType
+    {0x060, Kind::u8, 2, nullptr},      // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},  // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr},  // MoveEndTime
+    {0x088, Kind::f32, 1.15f, nullptr}, // Time
+    {0x094, Kind::f32, 0.0f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},  // RightValue
+    {0x0b8, Kind::f32, 1.15f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},      // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},      // bIndependentRotation
+    {0x0f2, Kind::u8, 1, nullptr},      // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},      // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},      // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},      // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},     // FileSuffix
+    // M_LionC_AttackToBackJump_Move3
+    {0x014, Kind::i32, 100, nullptr},      // Priority
+    {0x03a, Kind::u8, 6, nullptr},         // MoveType
+    {0x070, Kind::f32, 0.383f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 1.234f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 1.234f, nullptr},   // Time
+    {0x094, Kind::f32, -1034.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 59.0f, nullptr},    // RightValue
+    {0x0b8, Kind::f32, 1.234f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},         // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},         // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},         // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},         // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},         // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},        // FileSuffix
+    // M_LionC_Roar_Turn
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 0, nullptr},       // MoveType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 1.332f, nullptr}, // Time
+    {0x094, Kind::f32, 0.0f, nullptr},   // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 1.332f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},       // bIndependentRotation
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_Roar_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x070, Kind::f32, 0.433f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.967f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.967f, nullptr}, // Time
+    {0x094, Kind::f32, 175.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 5.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 0.967f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_SideStepLeft_Move1
+    {0x014, Kind::i32, 100, nullptr},      // Priority
+    {0x03a, Kind::u8, 6, nullptr},         // MoveType
+    {0x070, Kind::f32, 0.0f, nullptr},     // StartDelayTime
+    {0x080, Kind::f32, 0.067f, nullptr},   // MoveStartTime
+    {0x084, Kind::f32, 1.3f, nullptr},     // MoveEndTime
+    {0x088, Kind::f32, 2.0f, nullptr},     // Time
+    {0x094, Kind::f32, 0.0f, nullptr},     // ForwardValue
+    {0x098, Kind::f32, -1419.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 2.0f, nullptr},     // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},         // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},         // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},         // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},         // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},         // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},        // FileSuffix
+    // M_LionC_SideStepRight_Move1
+    {0x014, Kind::i32, 100, nullptr},     // Priority
+    {0x03a, Kind::u8, 6, nullptr},        // MoveType
+    {0x070, Kind::f32, 0.0f, nullptr},    // StartDelayTime
+    {0x080, Kind::f32, 0.1f, nullptr},    // MoveStartTime
+    {0x084, Kind::f32, 1.267f, nullptr},  // MoveEndTime
+    {0x088, Kind::f32, 2.0f, nullptr},    // Time
+    {0x094, Kind::f32, 0.0f, nullptr},    // ForwardValue
+    {0x098, Kind::f32, 1589.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 2.0f, nullptr},    // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},        // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},        // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},        // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},        // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},        // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_ClawAttackChain_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x080, Kind::f32, 0.333f, nullptr}, // MoveStartTime
+    {0x084, Kind::f32, 0.767f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.767f, nullptr}, // Time
+    {0x094, Kind::f32, 39.8f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 370.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.767f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain_Move2
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.05f, nullptr},  // StartDelayTime
+    {0x084, Kind::f32, 0.2f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.2f, nullptr},   // Time
+    {0x094, Kind::f32, 94.8f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 370.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.2f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.067f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.067f, nullptr}, // Time
+    {0x094, Kind::f32, 42.6f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 310.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.067f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain_Move4
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.167f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.167f, nullptr}, // Time
+    {0x094, Kind::f32, 32.3f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 310.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.167f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain_Move5
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.134f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.134f, nullptr}, // Time
+    {0x094, Kind::f32, 50.6f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 440.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.134f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain_Move6
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.05f, nullptr},  // StartDelayTime
+    {0x084, Kind::f32, 0.367f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.367f, nullptr}, // Time
+    {0x094, Kind::f32, 270.4f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 440.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.367f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain_Move7
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.05f, nullptr},  // StartDelayTime
+    {0x084, Kind::f32, 0.6f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.6f, nullptr},   // Time
+    {0x094, Kind::f32, 599.6f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 440.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.6f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x080, Kind::f32, 0.333f, nullptr}, // MoveStartTime
+    {0x084, Kind::f32, 0.767f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.767f, nullptr}, // Time
+    {0x094, Kind::f32, 38.0f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 380.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.767f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Move2
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.05f, nullptr},  // StartDelayTime
+    {0x084, Kind::f32, 0.2f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.2f, nullptr},   // Time
+    {0x094, Kind::f32, 66.2f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 380.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.2f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Move4
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.167f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.167f, nullptr}, // Time
+    {0x094, Kind::f32, 54.5f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 370.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.167f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Move5
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.134f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.134f, nullptr}, // Time
+    {0x094, Kind::f32, 31.4f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 560.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.134f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Move6
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.083f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.334f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.334f, nullptr}, // Time
+    {0x094, Kind::f32, 224.8f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 560.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.334f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Move7
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.083f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 1.0f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 1.0f, nullptr},   // Time
+    {0x094, Kind::f32, 844.9f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 1.0f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Move8
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.067f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.3f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.3f, nullptr},   // Time
+    {0x094, Kind::f32, 246.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 0.3f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_ClawAttackChain2_Move9
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x070, Kind::f32, 0.083f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 1.067f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 1.067f, nullptr}, // Time
+    {0x094, Kind::f32, 328.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 669.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 1.067f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_MoveAttackChain_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x080, Kind::f32, 0.667f, nullptr}, // MoveStartTime
+    {0x084, Kind::f32, 0.9f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.9f, nullptr},   // Time
+    {0x094, Kind::f32, -59.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, -82.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 0.9f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_MoveAttackChain_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.083f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.534f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.534f, nullptr}, // Time
+    {0x094, Kind::f32, 561.7f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 210.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.534f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_MoveAttackChain_Move4
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.167f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.167f, nullptr}, // Time
+    {0x094, Kind::f32, 169.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 210.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.167f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_MoveAttackChain_Move5
+    {0x014, Kind::i32, 100, nullptr},     // Priority
+    {0x03a, Kind::u8, 6, nullptr},        // MoveType
+    {0x03b, Kind::u8, 3, nullptr},        // PositionType
+    {0x060, Kind::u8, 2, nullptr},        // PositionDirectionAxis
+    {0x070, Kind::f32, 0.1f, nullptr},    // StartDelayTime
+    {0x084, Kind::f32, 0.733f, nullptr},  // MoveEndTime
+    {0x088, Kind::f32, 0.733f, nullptr},  // Time
+    {0x094, Kind::f32, 1244.2f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},    // RightValue
+    {0x0b0, Kind::f32, 340.0f, nullptr},  // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.733f, nullptr},  // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},        // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},        // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},        // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},        // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},        // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_MoveAttackChain_Move6
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.033f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.067f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.067f, nullptr}, // Time
+    {0x094, Kind::f32, 45.1f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 340.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.067f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RushAttack_Move1
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x080, Kind::f32, 0.1f, nullptr},   // MoveStartTime
+    {0x084, Kind::f32, 0.2f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.2f, nullptr},   // Time
+    {0x094, Kind::f32, 110.1f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 280.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.2f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RushAttack_Move2
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.053f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.134f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.134f, nullptr}, // Time
+    {0x094, Kind::f32, 320.7f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 280.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.134f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RushAttack_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.045f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.233f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.233f, nullptr}, // Time
+    {0x094, Kind::f32, 485.3f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 280.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.233f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Move1
+    {0x014, Kind::i32, 100, nullptr},     // Priority
+    {0x03a, Kind::u8, 6, nullptr},        // MoveType
+    {0x070, Kind::f32, 0.0f, nullptr},    // StartDelayTime
+    {0x080, Kind::f32, 0.8f, nullptr},    // MoveStartTime
+    {0x084, Kind::f32, 1.533f, nullptr},  // MoveEndTime
+    {0x088, Kind::f32, 1.541f, nullptr},  // Time
+    {0x094, Kind::f32, -48.0f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, -116.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 1.541f, nullptr},  // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},        // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},        // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},        // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},        // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},        // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},       // FileSuffix
+    // M_LionC_DashAttackChain_Move2
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.092f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.4f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.4f, nullptr},   // Time
+    {0x094, Kind::f32, 326.5f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 440.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.4f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.044f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.166f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.166f, nullptr}, // Time
+    {0x094, Kind::f32, 380.6f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 0.166f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Move4
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.041f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.566f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.566f, nullptr}, // Time
+    {0x094, Kind::f32, 315.6f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 0.566f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Move5
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.051f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.233f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.233f, nullptr}, // Time
+    {0x094, Kind::f32, 118.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 270.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.233f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Move6
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.075f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.3f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.3f, nullptr},   // Time
+    {0x094, Kind::f32, 157.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 270.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.3f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Move7
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.053f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.167f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.167f, nullptr}, // Time
+    {0x094, Kind::f32, 239.4f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 200.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.167f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Move8
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.047f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.6f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 0.6f, nullptr},   // Time
+    {0x094, Kind::f32, 801.5f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 200.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.6f, nullptr},   // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_DashAttackChain_Move9
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x03b, Kind::u8, 3, nullptr},       // PositionType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.061f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.066f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.066f, nullptr}, // Time
+    {0x094, Kind::f32, 68.5f, nullptr},  // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b0, Kind::f32, 200.0f, nullptr}, // LimitApproachDistance
+    {0x0b8, Kind::f32, 0.066f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RoarPhaseChange_Turn
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 0, nullptr},       // MoveType
+    {0x060, Kind::u8, 2, nullptr},       // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr},   // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr},   // MoveEndTime
+    {0x088, Kind::f32, 1.332f, nullptr}, // Time
+    {0x094, Kind::f32, 0.0f, nullptr},   // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 1.332f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},       // bIndependentRotation
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
+    // M_LionC_RoarPhaseChange_Move3
+    {0x014, Kind::i32, 100, nullptr},    // Priority
+    {0x03a, Kind::u8, 6, nullptr},       // MoveType
+    {0x070, Kind::f32, 0.433f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.967f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.967f, nullptr}, // Time
+    {0x094, Kind::f32, 175.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 5.0f, nullptr},   // RightValue
+    {0x0b8, Kind::f32, 0.967f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},       // RotationType
+    {0x0f2, Kind::u8, 1, nullptr},       // bStopWhenClif
+    {0x0f5, Kind::u8, 1, nullptr},       // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 1, nullptr},       // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},       // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},      // FileSuffix
     // M_LionC_ClawAttackLeft_Cast1
-    {0x018, Kind::f32, 0.8f, nullptr},                                        // Duration
-    {0x034, Kind::name, 0, "M_LionC_ClawAttackLeft_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 0.8f, nullptr},                     // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackLeft_Turn"},                   // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackLeft_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                           // FileSuffix
     // M_LionC_ClawAttackLeft_Hit1
-    {0x018, Kind::f32, 0.2f, nullptr},                        // Duration
-    {0x034, Kind::name, 0, "M_LionC_ClawAttackLeft_Finish1"}, // NextStepAlias
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.2f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 1, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackLeft_Finish1"},   // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},             // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},               // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"}, // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_L_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_ClawAttackLeft_Finish1
     {0x018, Kind::f32, 2.067f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_ClawAttackLeft
-    {0x100, Kind::name, 0, "M_LionC_ClawAttackLeft_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                          // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                           // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                           // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                   // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                           // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_LionC_ClawAttackLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_ClawAttackLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 6.0f, nullptr},                       // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                       // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                       // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                           // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                           // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                          // FileSuffix
     // M_LionC_ClawAttackRight_Cast1
-    {0x018, Kind::f32, 0.8f, nullptr},                                         // Duration
-    {0x034, Kind::name, 0, "M_LionC_ClawAttackRight_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 0.8f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                             // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackRight_Turn"},                   // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackRight_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                            // FileSuffix
     // M_LionC_ClawAttackRight_Hit1
-    {0x018, Kind::f32, 0.2f, nullptr},                         // Duration
-    {0x034, Kind::name, 0, "M_LionC_ClawAttackRight_Finish1"}, // NextStepAlias
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.2f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackRight_Finish1"},  // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},             // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},               // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"}, // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_ClawAttackRight_Finish1
     {0x018, Kind::f32, 2.067f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_ClawAttackRight
-    {0x100, Kind::name, 0, "M_LionC_ClawAttackRight_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                            // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_LionC_ClawAttackRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_ClawAttackRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 6.0f, nullptr},                        // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                           // FileSuffix
     // M_LionC_ClawAttackChaseLeft_Cast1
-    {0x018, Kind::f32, 0.7f, nullptr},                                             // Duration
-    {0x034, Kind::name, 0, "M_LionC_ClawAttackChaseLeft_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 0.7f, nullptr},                          // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChaseLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChaseLeft_Move1"},                  // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackChaseLeft_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                // FileSuffix
     // M_LionC_ClawAttackChaseLeft_Hit1
+    {0x014, Kind::u8, 1, nullptr},                                 // Type
     {0x018, Kind::f32, 0.3f, nullptr},                             // Duration
+    {0x01c, Kind::u8, 1, nullptr},                                 // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                             // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                             // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                                 // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                                 // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                                 // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                                 // AvailableJustAction
     {0x034, Kind::name, 0, "M_LionC_ClawAttackChaseLeft_Finish1"}, // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"},    // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},                // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},                // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},                // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},                // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChaseLeft_Move2"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                                // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                                // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                                // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                    // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_L_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_ClawAttackChaseLeft_Finish1
     {0x018, Kind::f32, 2.067f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChaseLeft_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                                // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                               // FileSuffix
     // M_LionC_ClawAttackChaseLeft
-    {0x100, Kind::name, 0, "M_LionC_ClawAttackChaseLeft_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                               // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                                // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                                // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                        // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                                // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_700"},            // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_ClawAttackChaseLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_ClawAttackChaseLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 8.0f, nullptr},                            // CoolTime
+    {0x140, Kind::f32, 1.2f, nullptr},                            // AttackDamageRate
+    {0x144, Kind::f32, 1.2f, nullptr},                            // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                                // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                                // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                               // FileSuffix
     // M_LionC_ClawAttackChaseRight_Cast1
-    {0x018, Kind::f32, 0.7f, nullptr},                                              // Duration
-    {0x034, Kind::name, 0, "M_LionC_ClawAttackChaseRight_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 0.7f, nullptr},                           // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChaseRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                  // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChaseRight_Move1"},                  // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackChaseRight_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                 // FileSuffix
     // M_LionC_ClawAttackChaseRight_Hit1
+    {0x014, Kind::u8, 1, nullptr},                                  // Type
     {0x018, Kind::f32, 0.3f, nullptr},                              // Duration
+    {0x01c, Kind::u8, 2, nullptr},                                  // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                              // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                              // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                                  // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                                  // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                                  // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                                  // AvailableJustAction
     {0x034, Kind::name, 0, "M_LionC_ClawAttackChaseRight_Finish1"}, // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"},     // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},                 // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},                 // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},                 // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},                 // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChaseRight_Move2"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                                 // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                                 // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                                 // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                     // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_ClawAttackChaseRight_Finish1
     {0x018, Kind::f32, 2.067f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChaseRight_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
     // M_LionC_ClawAttackChaseRight
-    {0x100, Kind::name, 0, "M_LionC_ClawAttackChaseRight_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                                            // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                                             // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                                             // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                                     // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                                             // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_700|Valid_Move_SideL_400_50"}, // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_ClawAttackChaseRight_Target"},             // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_ClawAttackChaseRight_Cast1"},              // FirstSkillActiveAlias
+    {0x124, Kind::f32, 8.0f, nullptr},                                         // CoolTime
+    {0x140, Kind::f32, 1.2f, nullptr},                                         // AttackDamageRate
+    {0x144, Kind::f32, 1.2f, nullptr},                                         // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                                             // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                                             // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                                            // FileSuffix
     // M_LionC_TurnAttackLeft_Cast1
-    {0x018, Kind::f32, 0.58f, nullptr},                                       // Duration
-    {0x034, Kind::name, 0, "M_LionC_TurnAttackLeft_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 0.58f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_LionC_TurnAttackLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_TurnAttackLeft_Turn"},                   // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_TurnAttackLeft_1"}, // ShowPath
-    {0x138, Kind::names, 0, "M_Behemoth_TurnAttackLeft_Move1"},               // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                           // FileSuffix
     // M_LionC_TurnAttackLeft_Hit1
-    {0x018, Kind::f32, 0.32f, nullptr},                       // Duration
-    {0x034, Kind::name, 0, "M_LionC_TurnAttackLeft_Finish1"}, // NextStepAlias
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.32f, nullptr},                         // Duration
+    {0x01c, Kind::u8, 1, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_TurnAttackLeft_Finish1"},   // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},             // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},               // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"}, // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_L_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_TurnAttackLeft_Finish1
     {0x018, Kind::f32, 1.6f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_TurnAttackLeft
-    {0x100, Kind::name, 0, "M_LionC_TurnAttackLeft_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                          // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                           // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                           // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                   // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                           // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_LionC_TurnAttackLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_TurnAttackLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},                      // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                       // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                       // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                           // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                           // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                          // FileSuffix
     // M_LionC_TurnAttackRight_Cast1
-    {0x018, Kind::f32, 0.58f, nullptr},                                        // Duration
-    {0x034, Kind::name, 0, "M_LionC_TurnAttackRight_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 0.58f, nullptr},                     // Duration
+    {0x034, Kind::name, 0, "M_LionC_TurnAttackRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                             // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_TurnAttackRight_Turn"},                   // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_TurnAttackRight_1"}, // ShowPath
-    {0x138, Kind::names, 0, "M_Behemoth_TurnAttackRight_Move1"},               // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                            // FileSuffix
     // M_LionC_TurnAttackRight_Hit1
-    {0x018, Kind::f32, 0.32f, nullptr},                        // Duration
-    {0x034, Kind::name, 0, "M_LionC_TurnAttackRight_Finish1"}, // NextStepAlias
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.32f, nullptr},                         // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_TurnAttackRight_Finish1"},  // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},             // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},               // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"}, // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_TurnAttackRight_Finish1
     {0x018, Kind::f32, 1.6f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_TurnAttackRight
-    {0x100, Kind::name, 0, "M_LionC_TurnAttackRight_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                            // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_LionC_TurnAttackRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_TurnAttackRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},                       // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                           // FileSuffix
     // M_LionC_RunAttackLeft_Cast1
-    {0x018, Kind::f32, 0.83f, nullptr},                                      // Duration
-    {0x034, Kind::name, 0, "M_LionC_RunAttackLeft_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 0.83f, nullptr},                   // Duration
+    {0x034, Kind::name, 0, "M_LionC_RunAttackLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                           // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_RunAttackLeft_Move1"},                  // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_RunAttackLeft_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                           // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                          // FileSuffix
     // M_LionC_RunAttackLeft_Hit1
-    {0x018, Kind::f32, 0.42f, nullptr},                      // Duration
-    {0x034, Kind::name, 0, "M_LionC_RunAttackLeft_Finish1"}, // NextStepAlias
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.42f, nullptr},                         // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_RunAttackLeft_Finish1"},    // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_RunAttackLeft_Move2"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                          // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                          // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                          // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},              // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_RunAttackLeft_Finish1
     {0x018, Kind::f32, 1.68f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_RunAttackLeft_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                          // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                         // FileSuffix
     // M_LionC_RunAttackLeft
-    {0x100, Kind::name, 0, "M_LionC_RunAttackLeft_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                         // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                          // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                          // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                  // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                          // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_SideL_1100"},       // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_RunAttackLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_RunAttackLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},                     // CoolTime
+    {0x140, Kind::f32, 1.3f, nullptr},                      // AttackDamageRate
+    {0x144, Kind::f32, 1.3f, nullptr},                      // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                          // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                          // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                         // FileSuffix
     // M_LionC_RunAttackRight_Cast1
-    {0x018, Kind::f32, 0.83f, nullptr},                                       // Duration
-    {0x034, Kind::name, 0, "M_LionC_RunAttackRight_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 0.83f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_LionC_RunAttackRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_RunAttackRight_Move1"},                  // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_RunAttackRight_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                           // FileSuffix
     // M_LionC_RunAttackRight_Hit1
-    {0x018, Kind::f32, 0.42f, nullptr},                       // Duration
-    {0x034, Kind::name, 0, "M_LionC_RunAttackRight_Finish1"}, // NextStepAlias
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.42f, nullptr},                         // Duration
+    {0x01c, Kind::u8, 1, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_RunAttackRight_Finish1"},   // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_RunAttackRight_Move2"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                           // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                           // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                           // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},               // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_L_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_RunAttackRight_Finish1
     {0x018, Kind::f32, 1.68f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_RunAttackRight_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                           // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                          // FileSuffix
     // M_LionC_RunAttackRight
-    {0x100, Kind::name, 0, "M_LionC_RunAttackRight_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                          // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                           // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                           // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                   // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                           // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_SideR_1000_50"},     // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_RunAttackRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_RunAttackRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},                      // CoolTime
+    {0x140, Kind::f32, 1.3f, nullptr},                       // AttackDamageRate
+    {0x144, Kind::f32, 1.3f, nullptr},                       // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                           // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                           // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                          // FileSuffix
     // M_LionC_JumpAttackLow_Cast1
-    {0x018, Kind::f32, 1.13f, nullptr},                                      // Duration
-    {0x034, Kind::name, 0, "M_LionC_JumpAttackLow_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 1.13f, nullptr},                   // Duration
+    {0x034, Kind::name, 0, "M_LionC_JumpAttackLow_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                           // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_JumpAttackLow_Move1"},                  // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_JumpAttackLow_1"}, // ShowPath
-    {0x138, Kind::names, 0, ""},                                             // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                                           // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                          // FileSuffix
     // M_LionC_JumpAttackLow_Hit1
-    {0x018, Kind::f32, 0.1f, nullptr},                       // Duration
-    {0x034, Kind::name, 0, "M_LionC_JumpAttackLow_Finish1"}, // NextStepAlias
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.1f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_JumpAttackLow_Finish1"},    // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},               // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"}, // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_RL_Arm_Collision\", \"DelayTime\":0}]"},
-    {0x138, Kind::names, 0, ""}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_JumpAttackLow_Finish1
     {0x018, Kind::f32, 0.97f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_JumpAttackLow
-    {0x100, Kind::name, 0, "M_LionC_JumpAttackLow_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                         // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                          // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                          // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                  // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                          // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_700"},      // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_JumpAttackLow_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_JumpAttackLow_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 12.0f, nullptr},                     // CoolTime
+    {0x140, Kind::f32, 1.5f, nullptr},                      // AttackDamageRate
+    {0x144, Kind::f32, 1.5f, nullptr},                      // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                          // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                          // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                         // FileSuffix
     // M_LionC_JumpAttackHigh_Cast1
-    {0x018, Kind::f32, 1.96f, nullptr},                                       // Duration
-    {0x034, Kind::name, 0, "M_LionC_JumpAttackHigh_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 1.96f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_LionC_JumpAttackHigh_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":4}, "
+     "{\"Alias\":\"M_Common_ImmuneAbnormal_Step\"}, {\"Alias\":\"ImmuneStaminaDamage_Step\"}]"},
+    {0x130, Kind::u8, 1, nullptr},                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_JumpAttackHigh_Move1"},                  // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_JumpAttackHigh_1"}, // ShowPath
-    {0x138, Kind::names, 0, ""},                                              // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                                            // CanCutoff
+    {0x2ec, Kind::f32, 1.894f, nullptr},                                      // ActionAssistCheckDelay
+    {0x2f0, Kind::f32, 0.03f, nullptr},                                       // ActionAssistActiveTime
+    {0x2f4, Kind::f32, 0.1f, nullptr},                                        // ActionAssistCollisionPreCheckTime
+    {0x2f8, Kind::name, 0, "None"},                                           // FileSuffix
     // M_LionC_JumpAttackHigh_Hit1
+    {0x014, Kind::u8, 1, nullptr},                            // Type
     {0x018, Kind::f32, 0.64f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 3, nullptr},                            // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                        // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                        // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                            // AvailableJustAction
     {0x034, Kind::name, 0, "M_LionC_JumpAttackHigh_Finish1"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_KnockDown"},       // SkillResultAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":4}, "
+     "{\"Alias\":\"M_Common_ImmuneAbnormal_Step\"}, {\"Alias\":\"ImmuneStaminaDamage_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_JumpAttackHigh_Move2"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                           // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                           // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                           // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},               // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
     {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_RL_Arm_Collision\", \"DelayTime\":0}]"},
-    {0x138, Kind::names, 0, ""}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},      // bIgnoreHitStop
+    {0x2f0, Kind::f32, 0.03f, nullptr}, // ActionAssistActiveTime
+    {0x2f4, Kind::f32, 0.1f, nullptr},  // ActionAssistCollisionPreCheckTime
+    {0x2f8, Kind::name, 0, "None"},     // FileSuffix
     // M_LionC_JumpAttackHigh_Finish1
     {0x018, Kind::f32, 2.4f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_JumpAttackHigh_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                           // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                          // FileSuffix
     // M_LionC_JumpAttackHigh
-    {0x100, Kind::name, 0, "M_LionC_JumpAttackHigh_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                                             // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                                              // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                                              // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                                      // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                                              // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_1800|Valid_Move_SideL_600_50"}, // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_JumpAttackHigh_Target"},                    // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_JumpAttackHigh_Cast1"},                     // FirstSkillActiveAlias
+    {0x124, Kind::f32, 25.0f, nullptr},                                         // CoolTime
+    {0x140, Kind::f32, 2.0f, nullptr},                                          // AttackDamageRate
+    {0x144, Kind::f32, 2.0f, nullptr},                                          // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                                              // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                                              // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                                             // FileSuffix
     // M_LionC_BackJumpToAttack_Cast1
-    {0x018, Kind::f32, 1.2f, nullptr},                                          // Duration
-    {0x034, Kind::name, 0, "M_LionC_BackJumpToAttack_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 1.2f, nullptr},                       // Duration
+    {0x034, Kind::name, 0, "M_LionC_BackJumpToAttack_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                              // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_BackJumpToAttack_Turn"},                   // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_BackJumpToAttack_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                              // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                             // FileSuffix
     // M_LionC_BackJumpToAttack_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.1f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
     {0x034, Kind::name, 0, "M_LionC_BackJumpToAttack_Finish1"}, // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},               // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"}, // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
-    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_RL_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_BackJumpToAttack_Finish1
     {0x018, Kind::f32, 0.9f, nullptr}, // Duration
-    {0x138, Kind::names, 0, ""},       // SelfMoveAliasArray
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_BackJumpToAttack
-    {0x100, Kind::name, 0, "M_LionC_BackJumpToAttack_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                            // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                             // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                             // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                     // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                             // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_LionC_BackJumpToAttack_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_BackJumpToAttack_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 30.0f, nullptr},                        // CoolTime
+    {0x140, Kind::f32, 1.5f, nullptr},                         // AttackDamageRate
+    {0x144, Kind::f32, 1.5f, nullptr},                         // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                             // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                             // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                            // FileSuffix
     // M_LionC_AttackToBackJump_Cast1
-    {0x018, Kind::f32, 1.15f, nullptr},                                         // Duration
-    {0x034, Kind::name, 0, "M_LionC_AttackToBackJump_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 1.15f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_LionC_AttackToBackJump_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                              // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_AttackToBackJump_Turn"},                   // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_AttackToBackJump_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                              // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                             // FileSuffix
     // M_LionC_AttackToBackJump_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.2f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
     {0x034, Kind::name, 0, "M_LionC_AttackToBackJump_Finish1"}, // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},               // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"}, // OverrideTargetFilterAlias
     // AttackCollisionGroupArray
-    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_RL_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
     // M_LionC_AttackToBackJump_Finish1
     {0x018, Kind::f32, 2.25f, nullptr}, // Duration
-    {0x138, Kind::names, 0, ""},        // SelfMoveAliasArray
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_AttackToBackJump_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                            // FileSuffix
     // M_LionC_AttackToBackJump
-    {0x100, Kind::name, 0, "M_LionC_AttackToBackJump_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                            // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                             // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                             // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                     // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                             // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Back_1100"},           // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_AttackToBackJump_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_AttackToBackJump_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 30.0f, nullptr},                        // CoolTime
+    {0x140, Kind::f32, 1.5f, nullptr},                         // AttackDamageRate
+    {0x144, Kind::f32, 1.5f, nullptr},                         // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                             // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                             // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                            // FileSuffix
     // M_LionC_Roar_Cast1
-    {0x018, Kind::f32, 1.332f, nullptr},                            // Duration
-    {0x034, Kind::name, 0, "M_LionC_Roar_Hit1"},                    // NextStepAlias
+    {0x018, Kind::f32, 1.332f, nullptr},         // Duration
+    {0x034, Kind::name, 0, "M_LionC_Roar_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                  // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_Roar_Turn"},                   // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_Roar_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                  // CanCutoff
+    {0x2e4, Kind::name, 0, "ActionAssist_3DArc_700_120"},           // ActionAssistTargetFilter
     {0x2ec, Kind::f32, 1.266f, nullptr},                            // ActionAssistCheckDelay
+    {0x2f0, Kind::f32, 0.03f, nullptr},                             // ActionAssistActiveTime
+    {0x2f4, Kind::f32, 0.1f, nullptr},                              // ActionAssistCollisionPreCheckTime
+    {0x2f8, Kind::name, 0, "None"},                                 // FileSuffix
     // M_LionC_Roar_Hit1
-    {0x018, Kind::f32, 1.268f, nullptr},            // Duration
-    {0x034, Kind::name, 0, "M_LionC_Roar_Finish1"}, // NextStepAlias
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 1.268f, nullptr},                // Duration
+    {0x020, Kind::f32, 1.0f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_Roar_Finish1"},     // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_KnockDown"}, // SkillResultAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                          // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                        // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                        // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                        // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_Roar_HitArea"},       // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                        // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                        // bIgnoreHitStop
+    {0x2e4, Kind::name, 0, "ActionAssist_3DArc_700_120"}, // ActionAssistTargetFilter
+    {0x2f0, Kind::f32, 0.03f, nullptr},                   // ActionAssistActiveTime
+    {0x2f4, Kind::f32, 0.1f, nullptr},                    // ActionAssistCollisionPreCheckTime
+    {0x2f8, Kind::name, 0, "None"},                       // FileSuffix
     // M_LionC_Roar_Finish1
     {0x018, Kind::f32, 1.533f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_Roar_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                // FileSuffix
     // M_LionC_Roar
-    {0x100, Kind::name, 0, "M_LionC_Roar_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                 // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                 // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},         // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                 // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_LionC_Roar_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_Roar_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 40.0f, nullptr},            // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},             // AttackDamageRate
+    {0x144, Kind::f32, 2.5f, nullptr},             // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                 // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                 // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                // FileSuffix
     // M_LionC_SideStepLeft_Cast1
-    {0x018, Kind::f32, 2.0f, nullptr},                                      // Duration
+    {0x018, Kind::f32, 2.0f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                          // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_SideStepLeft_Move1"},                  // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_SideStepLeft_1"}, // ShowPath
-    {0x138, Kind::names, 0, ""},                                            // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                                          // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                         // FileSuffix
     // M_LionC_SideStepLeft
-    {0x100, Kind::name, 0, "M_LionC_SideStepLeft_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                        // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                         // AttributeType
+    {0x075, Kind::u8, 0, nullptr},                         // SkillType
+    {0x080, Kind::name, 0, "MoveAttack"},                  // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                         // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_SideL_1100"},      // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_SideStepLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_SideStepLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},                    // CoolTime
+    {0x140, Kind::f32, 0.0f, nullptr},                     // AttackDamageRate
+    {0x144, Kind::f32, 0.0f, nullptr},                     // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                         // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                         // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                        // FileSuffix
     // M_LionC_SideStepRight_Cast1
-    {0x018, Kind::f32, 2.0f, nullptr},                                       // Duration
+    {0x018, Kind::f32, 2.0f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                           // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_SideStepRight_Move1"},                  // SelfMoveAliasArray
     {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_SideStepRight_1"}, // ShowPath
-    {0x138, Kind::names, 0, ""},                                             // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                                           // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                          // FileSuffix
     // M_LionC_SideStepRight
-    {0x100, Kind::name, 0, "M_LionC_SideStepRight_Cast1"}, // FirstSkillActiveAlias
+    {0x070, Kind::i32, 1, nullptr},                         // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                          // AttributeType
+    {0x075, Kind::u8, 0, nullptr},                          // SkillType
+    {0x080, Kind::name, 0, "MoveAttack"},                   // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                          // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_SideR_1200_50"},    // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_SideStepRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_SideStepRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},                     // CoolTime
+    {0x140, Kind::f32, 0.0f, nullptr},                      // AttackDamageRate
+    {0x144, Kind::f32, 0.0f, nullptr},                      // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                          // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                          // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                         // FileSuffix
+    // M_LionC_ClawAttackChain_Cast1
+    {0x018, Kind::f32, 0.75f, nullptr},                     // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                             // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain_Move1"},                  // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackChain_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                            // FileSuffix
+    // M_LionC_ClawAttackChain_Hit1
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.25f, nullptr},                      // Duration
+    {0x01c, Kind::u8, 2, nullptr},                           // AttackDirection
+    {0x020, Kind::f32, 0.3f, nullptr},                       // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.3f, nullptr},                       // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                           // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                           // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                           // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain_Cast2"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},      // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain_Move2"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                            // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                            // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                            // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_ClawAttackChain_Cast2
+    {0x018, Kind::f32, 0.1f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_ClawAttackChain_Hit2
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.2f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 1, nullptr},                           // AttackDirection
+    {0x020, Kind::f32, 0.3f, nullptr},                       // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.3f, nullptr},                       // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                           // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                           // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                           // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain_Cast3"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},      // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain_Move4"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                            // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                            // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                            // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_L_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_ClawAttackChain_Cast3
+    {0x018, Kind::f32, 0.15f, nullptr},                     // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain_Hit3"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain_Move5"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_ClawAttackChain_Hit3
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.4f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.4f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain_Finish1"},  // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain_Move6"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                            // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                            // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                            // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_ClawAttackChain_Finish1
+    {0x018, Kind::f32, 3.417f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain_Move7"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_ClawAttackChain
+    {0x070, Kind::i32, 1, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                            // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_1800"},       // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_ClawAttackChain_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_ClawAttackChain_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 15.0f, nullptr},                       // CoolTime
+    {0x140, Kind::f32, 2.0f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 2.0f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_ClawAttackChain2_Cast1
+    {0x018, Kind::f32, 0.75f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain2_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                              // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain2_Move1"},                  // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackChain2_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                              // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                             // FileSuffix
+    // M_LionC_ClawAttackChain2_Hit1
+    {0x014, Kind::u8, 1, nullptr},                            // Type
+    {0x018, Kind::f32, 0.25f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 2, nullptr},                            // AttackDirection
+    {0x020, Kind::f32, 0.2f, nullptr},                        // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.2f, nullptr},                        // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                            // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                            // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                            // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                            // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain2_Cast2"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},           // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},           // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},       // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},           // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain2_Move2"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                 // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_ClawAttackChain2_Cast2
+    {0x018, Kind::f32, 0.1f, nullptr},                       // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain2_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_ClawAttackChain2_Hit2
+    {0x014, Kind::u8, 1, nullptr},                            // Type
+    {0x018, Kind::f32, 0.2f, nullptr},                        // Duration
+    {0x01c, Kind::u8, 1, nullptr},                            // AttackDirection
+    {0x020, Kind::f32, 0.2f, nullptr},                        // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.2f, nullptr},                        // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                            // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                            // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                            // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                            // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain2_Cast3"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},           // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},           // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},       // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},           // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain2_Move4"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                 // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_L_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_ClawAttackChain2_Cast3
+    {0x018, Kind::f32, 0.15f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain2_Hit3"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain2_Move5"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                            // FileSuffix
+    // M_LionC_ClawAttackChain2_Hit3
+    {0x014, Kind::u8, 1, nullptr},                            // Type
+    {0x018, Kind::f32, 0.4f, nullptr},                        // Duration
+    {0x01c, Kind::u8, 2, nullptr},                            // AttackDirection
+    {0x020, Kind::f32, 0.25f, nullptr},                       // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                       // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                            // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                            // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                            // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                            // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain2_Cast4"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},           // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},           // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},       // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},           // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain2_Move6"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                 // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_ClawAttackChain2_Cast4
+    {0x018, Kind::f32, 1.15f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain2_Hit4"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain2_Move7"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                            // FileSuffix
+    // M_LionC_ClawAttackChain2_Hit4
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.35f, nullptr},                         // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.35f, nullptr},                         // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.35f, nullptr},                         // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_ClawAttackChain2_Finish1"}, // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain2_Move8"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                 // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_ClawAttackChain2_Finish1
+    {0x018, Kind::f32, 1.817f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_ClawAttackChain2_Move9"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                            // FileSuffix
+    // M_LionC_ClawAttackChain2
+    {0x070, Kind::i32, 1, nullptr},                                          // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                                           // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                                           // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                                   // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                                           // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_1800|Valid_Move_SideR_700"}, // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_ClawAttackChain2_Target"},               // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_ClawAttackChain2_Cast1"},                // FirstSkillActiveAlias
+    {0x124, Kind::f32, 20.0f, nullptr},                                      // CoolTime
+    {0x140, Kind::f32, 3.0f, nullptr},                                       // AttackDamageRate
+    {0x144, Kind::f32, 3.0f, nullptr},                                       // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                                           // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                                           // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                                          // FileSuffix
+    // M_LionC_MoveAttackChain_Cast1
+    {0x018, Kind::f32, 0.9f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_LionC_MoveAttackChain_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                             // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_MoveAttackChain_Move1"},                  // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_MoveAttackChain_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                            // FileSuffix
+    // M_LionC_MoveAttackChain_Hit1
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.25f, nullptr},                      // Duration
+    {0x01c, Kind::u8, 2, nullptr},                           // AttackDirection
+    {0x020, Kind::f32, 0.3f, nullptr},                       // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.3f, nullptr},                       // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                           // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                           // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                           // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_MoveAttackChain_Cast2"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},      // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},               // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"}, // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_MoveAttackChain_Cast2
+    {0x018, Kind::f32, 0.65f, nullptr},                     // Duration
+    {0x034, Kind::name, 0, "M_LionC_MoveAttackChain_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_MoveAttackChain_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_MoveAttackChain_Hit2
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.2f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 1, nullptr},                           // AttackDirection
+    {0x020, Kind::f32, 0.3f, nullptr},                       // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.3f, nullptr},                       // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                           // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                           // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                           // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_MoveAttackChain_Cast3"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},      // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_MoveAttackChain_Move4"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                            // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                            // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                            // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_L_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_MoveAttackChain_Cast3
+    {0x018, Kind::f32, 1.0f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_LionC_MoveAttackChain_Hit3"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_MoveAttackChain_Move5"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_MoveAttackChain_Hit3
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.1f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.4f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.4f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_MoveAttackChain_Finish1"},  // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_MoveAttackChain_Move6"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                            // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                            // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                            // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},                // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_MoveAttackChain_Finish1
+    {0x018, Kind::f32, 2.0f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_MoveAttackChain
+    {0x070, Kind::i32, 1, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                            // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_1800"},       // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_MoveAttackChain_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_MoveAttackChain_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 18.0f, nullptr},                       // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 2.5f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_RushAttack_Cast1
+    {0x018, Kind::f32, 0.18f, nullptr},                 // Duration
+    {0x034, Kind::name, 0, "M_LionC_RushAttack_Cast2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                        // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_RushAttack_Move1"},                  // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_RushAttack_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                        // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                       // FileSuffix
+    // M_LionC_RushAttack_Cast2
+    {0x018, Kind::f32, 0.175f, nullptr},               // Duration
+    {0x034, Kind::name, 0, "M_LionC_RushAttack_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_RushAttack_Move2"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                       // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                      // FileSuffix
+    // M_LionC_RushAttack_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.345f, nullptr},                        // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_RushAttack_Finish1"},       // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_RushAttack_Move3"}, // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                       // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                       // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                       // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_HitArea"},           // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Mon_Lion_Attack_R_Arm_Collision\", \"DelayTime\":0}]"},
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},  // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_RushAttack_Finish1
+    {0x018, Kind::f32, 0.6f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_LionC_RushAttack
+    {0x070, Kind::i32, 1, nullptr},                      // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                       // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                       // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},               // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                       // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_1800"},  // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_RushAttack_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_RushAttack_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 12.0f, nullptr},                  // CoolTime
+    {0x140, Kind::f32, 1.5f, nullptr},                   // AttackDamageRate
+    {0x144, Kind::f32, 1.5f, nullptr},                   // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                       // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                       // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                      // FileSuffix
+    // M_LionC_DashAttackChain_Cast1
+    {0x018, Kind::f32, 1.541f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_LionC_DashAttackChain_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                             // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move1"},                  // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_DashAttackChain_1"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                            // FileSuffix
+    // M_LionC_DashAttackChain_Hit1
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.482f, nullptr},                     // Duration
+    {0x01c, Kind::u8, 3, nullptr},                           // AttackDirection
+    {0x020, Kind::f32, 0.25f, nullptr},                      // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                      // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                           // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                           // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                           // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_DashAttackChain_Cast2"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},      // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move2"},  // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_DashAttackChain_HitArea"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                             // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                             // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                            // FileSuffix
+    // M_LionC_DashAttackChain_Cast2
+    {0x018, Kind::f32, 0.203f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_LionC_DashAttackChain_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_DashAttackChain_Hit2
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.623f, nullptr},                     // Duration
+    {0x01c, Kind::u8, 3, nullptr},                           // AttackDirection
+    {0x020, Kind::f32, 0.25f, nullptr},                      // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                      // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                           // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                           // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                           // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_DashAttackChain_Cast3"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},      // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move4"},  // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_DashAttackChain_HitArea"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                             // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                             // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                            // FileSuffix
+    // M_LionC_DashAttackChain_Cast3
+    {0x018, Kind::f32, 0.276f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_LionC_DashAttackChain_Hit3"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move5"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_DashAttackChain_Hit3
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.355f, nullptr},                     // Duration
+    {0x01c, Kind::u8, 3, nullptr},                           // AttackDirection
+    {0x020, Kind::f32, 0.25f, nullptr},                      // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                      // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                           // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                           // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                           // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_DashAttackChain_Cast4"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"},      // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move6"},  // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_DashAttackChain_HitArea"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                             // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                             // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                            // FileSuffix
+    // M_LionC_DashAttackChain_Cast4
+    {0x018, Kind::f32, 0.206f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_LionC_DashAttackChain_Hit4"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move7"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_DashAttackChain_Hit4
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.62f, nullptr},                         // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.25f, nullptr},                         // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                         // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_DashAttackChain_Finish1"},  // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_LionC_Result_Strong"},            // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_LionC_Result_Parry"},             // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_LionC_Result_Guard"},             // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move8"},  // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                             // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                             // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                             // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_DashAttackChain_HitArea"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                             // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                             // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                            // FileSuffix
+    // M_LionC_DashAttackChain_Finish1
+    {0x018, Kind::f32, 0.8f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_DashAttackChain_Move9"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_DashAttackChain
+    {0x070, Kind::i32, 1, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                            // bCheckTargetExists
+    {0x090, Kind::names, 0, "Valid_Move_Forward_1800"},       // CheckValidMoveAliasArray
+    {0x0b4, Kind::name, 0, "M_LionC_DashAttackChain_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_DashAttackChain_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 25.0f, nullptr},                       // CoolTime
+    {0x140, Kind::f32, 3.0f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 3.0f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_RoarPhaseChange_Cast1
+    {0x018, Kind::f32, 1.332f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_LionC_RoarPhaseChange_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":4}, "
+     "{\"Alias\":\"FinalHPDamageReduceRate090_Step\"}, {\"Alias\":\"M_Common_ImmuneAbnormal_Skill\"}, "
+     "{\"Alias\":\"ImmuneStaminaDamage_Skill\"}]"},
+    {0x120, Kind::string, 0, "[{\"Alias\":\"P_Eve_BlockRangeMode_Skill\"}]"}, // StartTargetEffect
+    {0x130, Kind::u8, 1, nullptr},                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_LionC_RoarPhaseChange_Turn"},                  // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_02_Lion/Skill/M_LionC_Roar_1"},           // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                            // CanCutoff
+    {0x2e4, Kind::name, 0, "ActionAssist_3DArc_700_120"},                     // ActionAssistTargetFilter
+    {0x2ec, Kind::f32, 1.266f, nullptr},                                      // ActionAssistCheckDelay
+    {0x2f0, Kind::f32, 0.03f, nullptr},                                       // ActionAssistActiveTime
+    {0x2f4, Kind::f32, 0.1f, nullptr},                                        // ActionAssistCollisionPreCheckTime
+    {0x2f8, Kind::name, 0, "None"},                                           // FileSuffix
+    // M_LionC_RoarPhaseChange_Hit1
+    {0x014, Kind::u8, 1, nullptr},                             // Type
+    {0x018, Kind::f32, 1.268f, nullptr},                       // Duration
+    {0x020, Kind::f32, 1.0f, nullptr},                         // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                         // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                             // AvailableJustAction
+    {0x034, Kind::name, 0, "M_LionC_RoarPhaseChange_Finish1"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_LionC_Result_KnockDown"},        // SkillResultAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"ShowTag_AdditiveNoPlay_Step\"}, "
+     "{\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":4}, "
+     "{\"Alias\":\"FinalHPDamageReduceRate090_Step\"}, {\"Alias\":\"M_Common_ImmuneAbnormal_Skill\"}, "
+     "{\"Alias\":\"ImmuneStaminaDamage_Skill\"}]"},
+    {0x138, Kind::names, 0, ""},                          // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                        // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                        // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                        // bRetargeting
+    {0x1b4, Kind::name, 0, "M_LionC_Roar_HitArea"},       // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                        // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                        // bIgnoreHitStop
+    {0x2e4, Kind::name, 0, "ActionAssist_3DArc_700_120"}, // ActionAssistTargetFilter
+    {0x2f0, Kind::f32, 0.03f, nullptr},                   // ActionAssistActiveTime
+    {0x2f4, Kind::f32, 0.1f, nullptr},                    // ActionAssistCollisionPreCheckTime
+    {0x2f8, Kind::name, 0, "None"},                       // FileSuffix
+    // M_LionC_RoarPhaseChange_Finish1
+    {0x018, Kind::f32, 1.533f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, "M_LionC_RoarPhaseChange_Move3"}, // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_LionC_RoarPhaseChange
+    {0x070, Kind::i32, 1, nullptr},                          // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                           // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                           // SkillType
+    {0x080, Kind::name, 0, "PhaseChange"},                   // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                           // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_LionC_HitArea"},               // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_LionC_RoarPhaseChange_Cast1"}, // FirstSkillActiveAlias
+    {0x124, Kind::f32, 5.0f, nullptr},                       // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},                       // AttackDamageRate
+    {0x144, Kind::f32, 2.5f, nullptr},                       // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 0, nullptr},                           // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                           // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                          // FileSuffix
     // M_LionC_ClawAttackLeft
     {0x018, Kind::name, 0, "M_LionC_ClawAttackLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                    // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                    // bFly
+    {0x053, Kind::u8, 1, nullptr},                    // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                 // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                   // FileSuffix
     // M_LionC_ClawAttackRight
     {0x018, Kind::name, 0, "M_LionC_ClawAttackRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                     // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                     // bFly
+    {0x053, Kind::u8, 1, nullptr},                     // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                  // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                    // FileSuffix
     // M_LionC_ClawAttackChaseLeft
     {0x018, Kind::name, 0, "M_LionC_ClawAttackChaseLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                         // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                         // bFly
+    {0x053, Kind::u8, 1, nullptr},                         // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                      // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                        // FileSuffix
     // M_LionC_ClawAttackChaseRight
     {0x018, Kind::name, 0, "M_LionC_ClawAttackChaseRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                          // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                          // bFly
+    {0x053, Kind::u8, 1, nullptr},                          // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                       // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                         // FileSuffix
     // M_LionC_TurnAttackLeft
     {0x018, Kind::name, 0, "M_LionC_TurnAttackLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                    // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                    // bFly
+    {0x053, Kind::u8, 1, nullptr},                    // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                 // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                   // FileSuffix
     // M_LionC_TurnAttackRight
     {0x018, Kind::name, 0, "M_LionC_TurnAttackRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                     // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                     // bFly
+    {0x053, Kind::u8, 1, nullptr},                     // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                  // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                    // FileSuffix
     // M_LionC_RunAttackLeft
     {0x018, Kind::name, 0, "M_LionC_RunAttackLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                   // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                   // bFly
+    {0x053, Kind::u8, 1, nullptr},                   // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                  // FileSuffix
     // M_LionC_RunAttackRight
     {0x018, Kind::name, 0, "M_LionC_RunAttackRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                    // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                    // bFly
+    {0x053, Kind::u8, 1, nullptr},                    // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                 // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                   // FileSuffix
     // M_LionC_JumpAttackLow
     {0x018, Kind::name, 0, "M_LionC_JumpAttackLow"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                   // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                   // bFly
+    {0x053, Kind::u8, 1, nullptr},                   // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                  // FileSuffix
     // M_LionC_JumpAttackHigh
     {0x018, Kind::name, 0, "M_LionC_JumpAttackHigh"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                    // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                    // bFly
+    {0x053, Kind::u8, 1, nullptr},                    // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                 // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                   // FileSuffix
     // M_LionC_BackJumpToAttack
     {0x018, Kind::name, 0, "M_LionC_BackJumpToAttack"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                      // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                      // bFly
+    {0x053, Kind::u8, 1, nullptr},                      // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                   // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                     // FileSuffix
     // M_LionC_AttackToBackJump
     {0x018, Kind::name, 0, "M_LionC_AttackToBackJump"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                      // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                      // bFly
+    {0x053, Kind::u8, 1, nullptr},                      // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                   // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                     // FileSuffix
     // M_LionC_Roar
     {0x018, Kind::name, 0, "M_LionC_Roar"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},          // bJumping
+    {0x04f, Kind::u8, 1, nullptr},          // bFly
+    {0x053, Kind::u8, 1, nullptr},          // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},       // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},         // FileSuffix
     // M_LionC_SideStepLeft
     {0x018, Kind::name, 0, "M_LionC_SideStepLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                  // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                  // bFly
+    {0x053, Kind::u8, 1, nullptr},                  // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},               // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                 // FileSuffix
     // M_LionC_SideStepRight
     {0x018, Kind::name, 0, "M_LionC_SideStepRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                   // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                   // bFly
+    {0x053, Kind::u8, 1, nullptr},                   // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                  // FileSuffix
+    // M_LionC_ClawAttackChain
+    {0x018, Kind::name, 0, "M_LionC_ClawAttackChain"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                     // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                     // bFly
+    {0x053, Kind::u8, 1, nullptr},                     // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                  // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                    // FileSuffix
+    // M_LionC_ClawAttackChain2
+    {0x018, Kind::name, 0, "M_LionC_ClawAttackChain2"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                      // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                      // bFly
+    {0x053, Kind::u8, 1, nullptr},                      // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                   // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_LionC_MoveAttackChain
+    {0x018, Kind::name, 0, "M_LionC_MoveAttackChain"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                     // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                     // bFly
+    {0x053, Kind::u8, 1, nullptr},                     // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                  // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                    // FileSuffix
+    // M_LionC_RushAttack
+    {0x018, Kind::name, 0, "M_LionC_RushAttack"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                // bFly
+    {0x053, Kind::u8, 1, nullptr},                // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},             // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},               // FileSuffix
+    // M_LionC_DashAttackChain
+    {0x018, Kind::name, 0, "M_LionC_DashAttackChain"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                     // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                     // bFly
+    {0x053, Kind::u8, 1, nullptr},                     // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                  // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                    // FileSuffix
+    // M_LionC_RoarPhaseChange
+    {0x018, Kind::name, 0, "M_LionC_RoarPhaseChange"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                     // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                     // bFly
+    {0x053, Kind::u8, 1, nullptr},                     // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                  // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                    // FileSuffix
     // M_LionC_Peaceful
-    {0x330, Kind::string, 0, "Animation/Mon_Lion_B_Run_Start"},  // RunStart
-    {0x340, Kind::string, 0, "Animation/Mon_Lion_B_Run_Start"},  // RunStartAfterEvade
-    {0x290, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},    // RunToIdle
-    {0x270, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},    // RunToIdle_L
-    {0x280, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},    // RunToIdle_R
-    {0x2f0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},    // ShortMoveToIdle
-    {0x2d0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},    // ShortMoveToIdle_L
-    {0x2e0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},    // ShortMoveToIdle_R
-    {0x350, Kind::string, 0, "Animation/Mon_B_Lion_Run_L_Turn"}, // RunTurn_L
-    {0x370, Kind::string, 0, "Animation/Mon_B_Lion_Run_L_Turn"}, // WalkTurn_L
-    {0x360, Kind::string, 0, "Animation/Mon_B_Lion_Run_R_Turn"}, // RunTurn_R
-    {0x380, Kind::string, 0, "Animation/Mon_B_Lion_Run_R_Turn"}, // WalkTurn_R
-    {0xb70, Kind::string, 0, ""},                                // Custom_Anim3
-    {0xb80, Kind::string, 0, "Animation/Result_Hit_JustParry"},  // Custom_Anim4
+    {0x018, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunBlendSpace
+    {0x028, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunTiltBlendSpace
+    {0x038, Kind::u8, 0, nullptr},                                        // IdleAnimType
+    {0x0a0, Kind::string, 0, ""},                                         // LockOnRunBlendSpace
+    {0x0f0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Fall
+    {0x270, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},             // RunToIdle_L
+    {0x280, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},             // RunToIdle_R
+    {0x290, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},             // RunToIdle
+    {0x2d0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},             // ShortMoveToIdle_L
+    {0x2e0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},             // ShortMoveToIdle_R
+    {0x2f0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},             // ShortMoveToIdle
+    {0x330, Kind::string, 0, "Animation/Mon_Lion_B_Run_Start"},           // RunStart
+    {0x340, Kind::string, 0, "Animation/Mon_Lion_B_Run_Start"},           // RunStartAfterEvade
+    {0x350, Kind::string, 0, "Animation/Mon_B_Lion_Run_L_Turn"},          // RunTurn_L
+    {0x360, Kind::string, 0, "Animation/Mon_B_Lion_Run_R_Turn"},          // RunTurn_R
+    {0x370, Kind::string, 0, "Animation/Mon_B_Lion_Run_L_Turn"},          // WalkTurn_L
+    {0x380, Kind::string, 0, "Animation/Mon_B_Lion_Run_R_Turn"},          // WalkTurn_R
+    {0x970, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Rw"},   // Custom_HitStandLight1Left
+    {0x980, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Lw"},   // Custom_HitStandLight1Right
+    {0x990, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Dw"},   // Custom_HitStandLight1Back
+    {0x9a0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Uw"},   // Custom_HitStandLight1Front
+    {0x9b0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Lw"},      // Custom_HitStandLight2Left
+    {0x9c0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Rw"},      // Custom_HitStandLight2Right
+    {0x9e0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Bw"},      // Custom_HitStandLight2Front
+    {0x9f0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Rw"},   // Custom_HitStandStrong1Left
+    {0xa00, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Lw"},   // Custom_HitStandStrong1Right
+    {0xa10, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Dw"},   // Custom_HitStandStrong1Back
+    {0xa20, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Uw"},   // Custom_HitStandStrong1Front
+    {0xa30, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Lw"},      // Custom_HitStandStrong2Left
+    {0xa40, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Rw"},      // Custom_HitStandStrong2Right
+    {0xa60, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Bw"},      // Custom_HitStandStrong2Front
+    {0xa70, Kind::string, 0, "Animation/Result_State_Groggy_S"},          // Custom_Groggy_Start
+    {0xa80, Kind::string, 0, "Animation/Result_State_Groggy_L"},          // Custom_Groggy_Loop
+    {0xa90, Kind::string, 0, "Animation/Result_State_Groggy_E"},          // Custom_Groggy_End
+    {0xaa0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Custom_Airborne_Loop
+    {0xab0, Kind::string, 0, "Animation/Result_State_KnockDown_S_Fw"},    // Custom_KnockDown_Start_Front
+    {0xac0, Kind::string, 0, "Animation/Result_State_KnockDown_S_Bw"},    // Custom_KnockDown_Start_Back
+    {0xad0, Kind::string, 0, "Animation/Result_State_KnockDown_L"},       // Custom_KnockDown_Loop
+    {0xae0, Kind::string, 0, "Animation/Result_State_KnockDown_E"},       // Custom_KnockDown_End
+    {0xb10, Kind::string, 0, "Animation/Hit_Sword_Normal_LinkAttack1"},   // Custom_HitSwordNormalLinkAttack1
+    {0xb20, Kind::string, 0, "Animation/Hit_Sword_Normal_LinkAttack1"},   // Custom_HitSwordNormalFinishLinkAttack1
+    {0xb50, Kind::string, 0, "Animation/Result_Hit_JustParry"},           // Custom_Anim1
+    {0xb60, Kind::string, 0, "Animation/Result_Weak_S"},                  // Custom_Anim2
+    {0xb70, Kind::string, 0, ""},                                         // Custom_Anim3
+    {0xb80, Kind::string, 0, "Animation/Result_Hit_JustParry"},           // Custom_Anim4
     // M_LionC_Battle
-    {0x018, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_"}, // RunBlendSpace
-    {0x028, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_"}, // RunTiltBlendSpace
-    {0x330, Kind::string, 0, "Animation/Mon_Lion_B_Run_Start"},   // RunStart
-    {0x340, Kind::string, 0, "Animation/Mon_Lion_B_Run_Start"},   // RunStartAfterEvade
-    {0x290, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},     // RunToIdle
-    {0x270, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},     // RunToIdle_L
-    {0x280, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},     // RunToIdle_R
-    {0x2f0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},     // ShortMoveToIdle
-    {0x2d0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},     // ShortMoveToIdle_L
-    {0x2e0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},     // ShortMoveToIdle_R
-    {0x350, Kind::string, 0, "Animation/Mon_B_Lion_Run_L_Turn"},  // RunTurn_L
-    {0x370, Kind::string, 0, "Animation/Mon_B_Lion_Run_L_Turn"},  // WalkTurn_L
-    {0x360, Kind::string, 0, "Animation/Mon_B_Lion_Run_R_Turn"},  // RunTurn_R
-    {0x380, Kind::string, 0, "Animation/Mon_B_Lion_Run_R_Turn"},  // WalkTurn_R
-    {0xb70, Kind::string, 0, ""},                                 // Custom_Anim3
-    {0xb80, Kind::string, 0, "Animation/Result_Hit_JustParry"},   // Custom_Anim4
+    {0x018, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_"},       // RunBlendSpace
+    {0x028, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_"},       // RunTiltBlendSpace
+    {0x038, Kind::u8, 1, nullptr},                                      // IdleAnimType
+    {0x0a0, Kind::string, 0, "Animation/Blendspace/LockOn_BS"},         // LockOnRunBlendSpace
+    {0x0f0, Kind::string, 0, "Animation/Result_State_Airborne_L"},      // Fall
+    {0x270, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},           // RunToIdle_L
+    {0x280, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},           // RunToIdle_R
+    {0x290, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},           // RunToIdle
+    {0x2d0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},           // ShortMoveToIdle_L
+    {0x2e0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},           // ShortMoveToIdle_R
+    {0x2f0, Kind::string, 0, "Animation/Mon_Lion_B_Run_End"},           // ShortMoveToIdle
+    {0x330, Kind::string, 0, "Animation/Mon_Lion_B_Run_Start"},         // RunStart
+    {0x340, Kind::string, 0, "Animation/Mon_Lion_B_Run_Start"},         // RunStartAfterEvade
+    {0x350, Kind::string, 0, "Animation/Mon_B_Lion_Run_L_Turn"},        // RunTurn_L
+    {0x360, Kind::string, 0, "Animation/Mon_B_Lion_Run_R_Turn"},        // RunTurn_R
+    {0x370, Kind::string, 0, "Animation/Mon_B_Lion_Run_L_Turn"},        // WalkTurn_L
+    {0x380, Kind::string, 0, "Animation/Mon_B_Lion_Run_R_Turn"},        // WalkTurn_R
+    {0x970, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Rw"}, // Custom_HitStandLight1Left
+    {0x980, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Lw"}, // Custom_HitStandLight1Right
+    {0x990, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Dw"}, // Custom_HitStandLight1Back
+    {0x9a0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Uw"}, // Custom_HitStandLight1Front
+    {0x9b0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Lw"},    // Custom_HitStandLight2Left
+    {0x9c0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Rw"},    // Custom_HitStandLight2Right
+    {0x9e0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Bw"},    // Custom_HitStandLight2Front
+    {0x9f0, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Rw"}, // Custom_HitStandStrong1Left
+    {0xa00, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Lw"}, // Custom_HitStandStrong1Right
+    {0xa10, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Dw"}, // Custom_HitStandStrong1Back
+    {0xa20, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Fw_Uw"}, // Custom_HitStandStrong1Front
+    {0xa30, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Lw"},    // Custom_HitStandStrong2Left
+    {0xa40, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Rw"},    // Custom_HitStandStrong2Right
+    {0xa60, Kind::string, 0, "Animation/Result_Hit_Stand_Light_Bw"},    // Custom_HitStandStrong2Front
+    {0xa70, Kind::string, 0, "Animation/Result_State_Groggy_S"},        // Custom_Groggy_Start
+    {0xa80, Kind::string, 0, "Animation/Result_State_Groggy_L"},        // Custom_Groggy_Loop
+    {0xa90, Kind::string, 0, "Animation/Result_State_Groggy_E"},        // Custom_Groggy_End
+    {0xaa0, Kind::string, 0, "Animation/Result_State_Airborne_L"},      // Custom_Airborne_Loop
+    {0xab0, Kind::string, 0, "Animation/Result_State_KnockDown_S_Fw"},  // Custom_KnockDown_Start_Front
+    {0xac0, Kind::string, 0, "Animation/Result_State_KnockDown_S_Bw"},  // Custom_KnockDown_Start_Back
+    {0xad0, Kind::string, 0, "Animation/Result_State_KnockDown_L"},     // Custom_KnockDown_Loop
+    {0xae0, Kind::string, 0, "Animation/Result_State_KnockDown_E"},     // Custom_KnockDown_End
+    {0xb10, Kind::string, 0, "Animation/Hit_Sword_Normal_LinkAttack1"}, // Custom_HitSwordNormalLinkAttack1
+    {0xb20, Kind::string, 0, "Animation/Hit_Sword_Normal_LinkAttack1"}, // Custom_HitSwordNormalFinishLinkAttack1
+    {0xb50, Kind::string, 0, "Animation/Result_Hit_JustParry"},         // Custom_Anim1
+    {0xb60, Kind::string, 0, "Animation/Result_Weak_S"},                // Custom_Anim2
+    {0xb70, Kind::string, 0, ""},                                       // Custom_Anim3
+    {0xb80, Kind::string, 0, "Animation/Result_Hit_JustParry"},         // Custom_Anim4
     // M_LionC_Default
+    {0x01a, Kind::u8, 1, nullptr}, // bDetectCloakingTarget
+    {0x08d, Kind::u8, 1, nullptr}, // bInfiniteStance
     // CommandArray
     {0x090, Kind::names, 0,
      "M_LionC_ClawAttackLeft|M_LionC_ClawAttackRight|M_LionC_ClawAttackChaseLeft|M_LionC_ClawAttackChaseRight|"
      "M_LionC_TurnAttackLeft|M_LionC_TurnAttackRight|M_LionC_RunAttackLeft|M_LionC_RunAttackRight|"
      "M_LionC_JumpAttackLow|M_LionC_JumpAttackHigh|M_LionC_BackJumpToAttack|M_LionC_AttackToBackJump|M_LionC_Roar|"
-     "M_LionC_SideStepLeft|M_LionC_SideStepRight"},
+     "M_LionC_SideStepLeft|M_LionC_SideStepRight|M_LionC_ClawAttackChain|M_LionC_RushAttack"},
+    {0x0a8, Kind::f32, 200.0f, nullptr},                                            // WalkSpeed
+    {0x0ac, Kind::f32, 900.0f, nullptr},                                            // RunSpeed
+    {0x0b0, Kind::f32, 900.0f, nullptr},                                            // LockOnRunSpeed
+    {0x0b4, Kind::f32, 200.0f, nullptr},                                            // LockOnWalkSpeed
+    {0x0bc, Kind::f32, 180.0f, nullptr},                                            // RotateAnglePerSecond
     {0x110, Kind::string, 0, "[{\"Alias\":\"M_Common_HitProjectileCheckCount\"}]"}, // StartEffect
     {0x150, Kind::name, 0, "M_LionC_Peaceful"},                                     // AnimSet_Peaceful_UpperBody
     {0x158, Kind::name, 0, "M_LionC_Peaceful"},                                     // AnimSet_Peaceful_LowerBody
     {0x160, Kind::name, 0, "M_LionC_Battle"},                                       // AnimSet_Battle_UpperBody
     {0x168, Kind::name, 0, "M_LionC_Battle"},                                       // AnimSet_Battle_LowerBody
+    {0x170, Kind::name, 0, "Groggy"},                                               // AnimSet_Groggy_UpperBody
+    {0x178, Kind::name, 0, "Groggy"},                                               // AnimSet_Groggy_LowerBody
+    {0x180, Kind::name, 0, "Down"},                                                 // AnimSet_Down_UpperBody
+    {0x188, Kind::name, 0, "Down"},                                                 // AnimSet_Down_LowerBody
+    {0x1a0, Kind::name, 0, "Airborne"},                                             // AnimSet_Airborne_UpperBody
+    {0x1a8, Kind::name, 0, "Airborne"},                                             // AnimSet_Airborne_LowerBody
+    // M_LionC_Phase2
+    {0x014, Kind::i32, 10, nullptr}, // Priority
+    {0x01a, Kind::u8, 1, nullptr},   // bDetectCloakingTarget
+    {0x030, Kind::u8, 1, nullptr},   // Condition_ActorStat
+    {0x031, Kind::u8, 2, nullptr},   // Condition_ActorStatCheck
+    {0x034, Kind::i32, 60, nullptr}, // Condition_ActorStatCheckValue
+    {0x08d, Kind::u8, 1, nullptr},   // bInfiniteStance
+    // CommandArray
+    {0x090, Kind::names, 0,
+     "M_LionC_ClawAttackLeft|M_LionC_ClawAttackRight|M_LionC_ClawAttackChaseLeft|M_LionC_ClawAttackChaseRight|"
+     "M_LionC_TurnAttackLeft|M_LionC_TurnAttackRight|M_LionC_RunAttackLeft|M_LionC_RunAttackRight|"
+     "M_LionC_JumpAttackLow|M_LionC_JumpAttackHigh|M_LionC_BackJumpToAttack|M_LionC_AttackToBackJump|M_LionC_Roar|"
+     "M_LionC_SideStepLeft|M_LionC_SideStepRight|M_LionC_ClawAttackChain|M_LionC_ClawAttackChain2|"
+     "M_LionC_MoveAttackChain|M_LionC_RushAttack|M_LionC_DashAttackChain|M_LionC_RoarPhaseChange"},
+    {0x0a8, Kind::f32, 200.0f, nullptr}, // WalkSpeed
+    {0x0ac, Kind::f32, 900.0f, nullptr}, // RunSpeed
+    {0x0b0, Kind::f32, 900.0f, nullptr}, // LockOnRunSpeed
+    {0x0b4, Kind::f32, 200.0f, nullptr}, // LockOnWalkSpeed
+    {0x0bc, Kind::f32, 180.0f, nullptr}, // RotateAnglePerSecond
+    // StartEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"RecoverShield_100p\"}, {\"Alias\":\"M_LionC_PhaseRoar\"}, "
+     "{\"Alias\":\"M_Common_HitProjectileCheckCount\"}]"},
+    {0x150, Kind::name, 0, "M_LionC_Peaceful"}, // AnimSet_Peaceful_UpperBody
+    {0x158, Kind::name, 0, "M_LionC_Peaceful"}, // AnimSet_Peaceful_LowerBody
+    {0x160, Kind::name, 0, "M_LionC_Battle"},   // AnimSet_Battle_UpperBody
+    {0x168, Kind::name, 0, "M_LionC_Battle"},   // AnimSet_Battle_LowerBody
+    {0x170, Kind::name, 0, "Groggy"},           // AnimSet_Groggy_UpperBody
+    {0x178, Kind::name, 0, "Groggy"},           // AnimSet_Groggy_LowerBody
+    {0x180, Kind::name, 0, "Down"},             // AnimSet_Down_UpperBody
+    {0x188, Kind::name, 0, "Down"},             // AnimSet_Down_LowerBody
+    {0x1a0, Kind::name, 0, "Airborne"},         // AnimSet_Airborne_UpperBody
+    {0x1a8, Kind::name, 0, "Airborne"},         // AnimSet_Airborne_LowerBody
     // M_LionC
-    {0x010, Kind::strings, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"}, // DefaultDeadShowArray
-    {0x058, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Step0DeadShow
-    {0x078, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Step1DeadShow
-    {0x098, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Step2DeadShow
-    {0x0b8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Step3DeadShow
-    {0x0d8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Explosion1DeadShow
-    {0x0f8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Explosion2DeadShow
-    {0x118, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Custom1DeadShow
-    {0x178, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Custom4DeadShow
-    {0x1b8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Custom6DeadShow
-    {0x1f8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},  // Custom8DeadShow
+    {0x010, Kind::strings, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},      // DefaultDeadShowArray
+    {0x020, Kind::i32, 7000, nullptr},                                   // DefaultDeadRewardDelayTime
+    {0x038, Kind::string, 0, "Dead/Dead_Monster_EffectType_Stand"},      // StandDeadShow
+    {0x048, Kind::i32, 300, nullptr},                                    // StandDeadRewardDelayTime
+    {0x058, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Step0DeadShow
+    {0x068, Kind::i32, 7000, nullptr},                                   // Step0DeadRewardDelayTime
+    {0x078, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Step1DeadShow
+    {0x088, Kind::i32, 7000, nullptr},                                   // Step1DeadRewardDelayTime
+    {0x098, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Step2DeadShow
+    {0x0a8, Kind::i32, 7000, nullptr},                                   // Step2DeadRewardDelayTime
+    {0x0b8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Step3DeadShow
+    {0x0c8, Kind::i32, 7000, nullptr},                                   // Step3DeadRewardDelayTime
+    {0x0d8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Explosion1DeadShow
+    {0x0e8, Kind::i32, 7000, nullptr},                                   // Explosion1DeadRewardDelayTime
+    {0x0f8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Explosion2DeadShow
+    {0x108, Kind::i32, 7000, nullptr},                                   // Explosion2DeadRewardDelayTime
+    {0x118, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Custom1DeadShow
+    {0x178, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Custom4DeadShow
+    {0x188, Kind::i32, 7000, nullptr},                                   // Custom4DeadRewardDelayTime
+    {0x1b8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Custom6DeadShow
+    {0x1c8, Kind::i32, 7000, nullptr},                                   // Custom6DeadRewardDelayTime
+    {0x1d8, Kind::string, 0, "Dead/Dead_Monster_EffectType_ZoneEffect"}, // Custom7DeadShow
+    {0x1f8, Kind::string, 0, "CH_M_NA_02_Lion/Basic/M_Lion_Dead"},       // Custom8DeadShow
+    {0x208, Kind::i32, 7000, nullptr},                                   // Custom8DeadRewardDelayTime
+    {0x258, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // DownDeadShow
+    {0x278, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // AirborneDeadShow
+    {0x298, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // SwimmingDeadShow
     // M_LionC
     // CharacterAssetPath
     {0x014, Kind::name, 0, "/Game/Art/Character/Monster/CH_M_NA_02/BluePrints/CH_M_NA_02_BluePrint_Large"},
+    {0x0e0, Kind::name, 0, "None"}, // AirborneToDownShowPath
     // M_LionC_Lurker
-    {0x020, Kind::string, 0, "M_LionC"},                 // Type
-    {0x070, Kind::name, 0, "Lion"},                      // Flag
-    {0x060, Kind::names, 0, "Common"},                   // LinkSkillRandomActiveStepFlagArray
-    {0x220, Kind::names, 0, "Rank_Elite"},               // DefaultEffectArray
-    {0x298, Kind::name, 0, "M_LionC"},                   // DeadAlias
-    {0x2a8, Kind::string, 0, "Despawn/M_LionA_Despawn"}, // DespawnShow
-    {0x3a8, Kind::name, 0, "M_LionC_Default"},           // DefaultStanceAlias
+    {0x014, Kind::name, 0, "Elite"},     // Rank
+    {0x020, Kind::string, 0, "M_LionC"}, // Type
+    {0x030, Kind::name, 0, "Monster"},   // Tribe
+    {0x060, Kind::names, 0, "Common"},   // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Lion"},      // Flag
+    {0x078, Kind::i32, 160000, nullptr}, // MaxHP
+    {0x07c, Kind::i32, 3300, nullptr},   // MaxShield
+    {0x080, Kind::i32, 14, nullptr},     // MaxStamina
+    {0x084, Kind::f32, 960.0f, nullptr}, // PhysicAttackPower
+    {0x088, Kind::f32, 960.0f, nullptr}, // RangeAttackPower
+    {0x08c, Kind::f32, 110.0f, nullptr}, // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},   // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},   // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},   // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 80, nullptr},     // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},      // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},   // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},   // CriticalValueRate
+    // EffectAliasWhenZeroStaminaArray
+    {0x168, Kind::names, 0, "M_LinkAttackDelay_10|Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"},
+    {0x1f8, Kind::u8, 5, nullptr},                                      // WeightType
+    {0x1fc, Kind::f32, 1.0f, nullptr},                                  // MeshScale
+    {0x200, Kind::f32, 190.0f, nullptr},                                // TargetFilterRadius
+    {0x204, Kind::f32, 300.0f, nullptr},                                // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 240.0f, nullptr},                                // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 800.0f, nullptr},                                // RuleMoveBlockAreaZHeight
+    {0x210, Kind::f32, 60.0f, nullptr},                                 // RuleMoveBlockAreaOffsetX
+    {0x21c, Kind::f32, 190.0f, nullptr},                                // RuleMoveBlockCheckRadius
+    {0x220, Kind::names, 0, "Rank_Elite"},                              // DefaultEffectArray
+    {0x270, Kind::name, 0, "MonsterElite"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadElite\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_LionC"},                                  // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_LionA_Despawn"},                // DespawnShow
+    {0x398, Kind::names, 0, "M_LionC_Phase2"},                          // StanceAliasArray
+    {0x3a8, Kind::name, 0, "M_LionC_Default"},                          // DefaultStanceAlias
+    {0x3b0, Kind::f32, 1.5f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 2.0f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
     {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_LesserLurker_AI"}, // BehaviorTreeRes
-    {0x420, Kind::name, 0, "M_LionC"},                                                          // RefAppearance
-    {0x508, Kind::string, 0, ""},                                                               // Name
-    {0x1fc, Kind::f32, 1.0f, nullptr},                                                          // MeshScale
+    {0x3f8, Kind::name, 0, "M_DetectCommon20m360"},                                             // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_DetectCommon20m360"},                                             // NarrowDetectAIAlias
+    {0x410, Kind::f32, 200.0f, nullptr},                                                        // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},   // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},   // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},       // ActorType
+    {0x420, Kind::name, 0, "M_LionC"},   // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},      // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr}, // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},       // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},       // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},       // ScanDisplayType
+    {0x508, Kind::string, 0, ""},        // Name
     // OverrideCharacterSoundSet
     {0x520, Kind::string, 0,
      "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_46_BEHEMOTH.CSS_MON_46_BEHEMOTH'"},
     // M_LionC
-    {0x020, Kind::string, 0, "M_LionC"},                 // Type
-    {0x070, Kind::name, 0, "Lion"},                      // Flag
-    {0x060, Kind::names, 0, "Common"},                   // LinkSkillRandomActiveStepFlagArray
-    {0x220, Kind::names, 0, "Rank_Elite"},               // DefaultEffectArray
-    {0x298, Kind::name, 0, "M_LionC"},                   // DeadAlias
-    {0x2a8, Kind::string, 0, "Despawn/M_LionA_Despawn"}, // DespawnShow
-    {0x3a8, Kind::name, 0, "M_LionC_Default"},           // DefaultStanceAlias
+    {0x014, Kind::name, 0, "Elite"},     // Rank
+    {0x020, Kind::string, 0, "M_LionC"}, // Type
+    {0x030, Kind::name, 0, "Monster"},   // Tribe
+    {0x060, Kind::names, 0, "Common"},   // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Lion"},      // Flag
+    {0x078, Kind::i32, 160000, nullptr}, // MaxHP
+    {0x07c, Kind::i32, 3300, nullptr},   // MaxShield
+    {0x080, Kind::i32, 14, nullptr},     // MaxStamina
+    {0x084, Kind::f32, 960.0f, nullptr}, // PhysicAttackPower
+    {0x088, Kind::f32, 960.0f, nullptr}, // RangeAttackPower
+    {0x08c, Kind::f32, 110.0f, nullptr}, // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},   // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},   // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},   // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 80, nullptr},     // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},      // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},   // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},   // CriticalValueRate
+    // EffectAliasWhenZeroStaminaArray
+    {0x168, Kind::names, 0, "M_LinkAttackDelay_10|Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"},
+    {0x1f8, Kind::u8, 5, nullptr},                                      // WeightType
+    {0x1fc, Kind::f32, 1.0f, nullptr},                                  // MeshScale
+    {0x200, Kind::f32, 190.0f, nullptr},                                // TargetFilterRadius
+    {0x204, Kind::f32, 300.0f, nullptr},                                // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 240.0f, nullptr},                                // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 800.0f, nullptr},                                // RuleMoveBlockAreaZHeight
+    {0x210, Kind::f32, 60.0f, nullptr},                                 // RuleMoveBlockAreaOffsetX
+    {0x21c, Kind::f32, 190.0f, nullptr},                                // RuleMoveBlockCheckRadius
+    {0x220, Kind::names, 0, "Rank_Elite"},                              // DefaultEffectArray
+    {0x270, Kind::name, 0, "MonsterElite"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadElite\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_LionC"},                                  // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_LionA_Despawn"},                // DespawnShow
+    {0x398, Kind::names, 0, "M_LionC_Phase2"},                          // StanceAliasArray
+    {0x3a8, Kind::name, 0, "M_LionC_Default"},                          // DefaultStanceAlias
+    {0x3b0, Kind::f32, 1.5f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 2.0f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
     {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Skulling_AI_Test"}, // BehaviorTreeRes
-    {0x420, Kind::name, 0, "M_LionC"},                                                           // RefAppearance
-    {0x508, Kind::string, 0, ""},                                                                // Name
-    {0x1fc, Kind::f32, 1.0f, nullptr},                                                           // MeshScale
+    {0x3f8, Kind::name, 0, "M_DetectCommon20m360"},                                              // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_DetectCommon20m360"},                                              // NarrowDetectAIAlias
+    {0x410, Kind::f32, 200.0f, nullptr}, // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},   // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},   // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},       // ActorType
+    {0x420, Kind::name, 0, "M_LionC"},   // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},      // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr}, // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},       // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},       // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},       // ScanDisplayType
+    {0x508, Kind::string, 0, ""},        // Name
     // OverrideCharacterSoundSet
     {0x520, Kind::string, 0,
      "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_46_BEHEMOTH.CSS_MON_46_BEHEMOTH'"},
 };
 constexpr Row kRecipe[] = {
-    {Table::step, "M_LionC_ClawAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Cast1", 500200002, 0, 3},
-    {Table::step, "M_LionC_ClawAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Hit1", 500200003, 3, 3},
-    {Table::step, "M_LionC_ClawAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200004, 6, 1},
-    {Table::skill, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 7, 1},
-    {Table::step, "M_LionC_ClawAttackRight_Cast1", "M_Behemoth_ScratchLeft_Cast1", 500200102, 8, 3},
-    {Table::step, "M_LionC_ClawAttackRight_Hit1", "M_Behemoth_ScratchLeft_Hit1", 500200103, 11, 3},
-    {Table::step, "M_LionC_ClawAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200104, 14, 1},
-    {Table::skill, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 15, 1},
-    {Table::step, "M_LionC_ClawAttackChaseLeft_Cast1", "M_Behemoth_ScratchLeft_Cast1", 500200202, 16, 3},
-    {Table::step, "M_LionC_ClawAttackChaseLeft_Hit1", "M_Behemoth_ScratchLeft_Hit1", 500200203, 19, 3},
-    {Table::step, "M_LionC_ClawAttackChaseLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200204, 22, 1},
-    {Table::skill, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 23, 1},
-    {Table::step, "M_LionC_ClawAttackChaseRight_Cast1", "M_Behemoth_ScratchLeft_Cast1", 500200302, 24, 3},
-    {Table::step, "M_LionC_ClawAttackChaseRight_Hit1", "M_Behemoth_ScratchLeft_Hit1", 500200303, 27, 3},
-    {Table::step, "M_LionC_ClawAttackChaseRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200304, 30, 1},
-    {Table::skill, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 31, 1},
-    {Table::step, "M_LionC_TurnAttackLeft_Cast1", "M_Behemoth_TurnAttackLeft_Cast1", 500200402, 32, 4},
-    {Table::step, "M_LionC_TurnAttackLeft_Hit1", "M_Behemoth_TurnAttackLeft_Hit1", 500200403, 36, 3},
-    {Table::step, "M_LionC_TurnAttackLeft_Finish1", "M_Behemoth_TurnAttackLeft_Finish1", 500200404, 39, 1},
-    {Table::skill, "M_LionC_TurnAttackLeft", "M_Behemoth_TurnAttackLeft", 5002004, 40, 1},
-    {Table::step, "M_LionC_TurnAttackRight_Cast1", "M_Behemoth_TurnAttackRight_Cast1", 500200502, 41, 4},
-    {Table::step, "M_LionC_TurnAttackRight_Hit1", "M_Behemoth_TurnAttackRight_Hit1", 500200503, 45, 3},
-    {Table::step, "M_LionC_TurnAttackRight_Finish1", "M_Behemoth_TurnAttackRight_Finish1", 500200504, 48, 1},
-    {Table::skill, "M_LionC_TurnAttackRight", "M_Behemoth_TurnAttackRight", 5002005, 49, 1},
-    {Table::step, "M_LionC_RunAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Cast1", 500200602, 50, 3},
-    {Table::step, "M_LionC_RunAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Hit1", 500200603, 53, 3},
-    {Table::step, "M_LionC_RunAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200604, 56, 1},
-    {Table::skill, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 57, 1},
-    {Table::step, "M_LionC_RunAttackRight_Cast1", "M_Behemoth_ScratchLeft_Cast1", 500200702, 58, 3},
-    {Table::step, "M_LionC_RunAttackRight_Hit1", "M_Behemoth_ScratchLeft_Hit1", 500200703, 61, 3},
-    {Table::step, "M_LionC_RunAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200704, 64, 1},
-    {Table::skill, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 65, 1},
-    {Table::step, "M_LionC_JumpAttackLow_Cast1", "M_Behemoth_JumpAttackLow_Cast1", 500200802, 66, 4},
-    {Table::step, "M_LionC_JumpAttackLow_Hit1", "M_Behemoth_JumpAttackLow_Hit1", 500200803, 70, 4},
-    {Table::step, "M_LionC_JumpAttackLow_Finish1", "M_Behemoth_JumpAttackLow_Finish1", 500200804, 74, 1},
-    {Table::skill, "M_LionC_JumpAttackLow", "M_Behemoth_JumpAttackLow", 5002008, 75, 1},
-    {Table::step, "M_LionC_JumpAttackHigh_Cast1", "M_Behemoth_JumpAttackHigh_Cast1", 500200902, 76, 4},
-    {Table::step, "M_LionC_JumpAttackHigh_Hit1", "M_Behemoth_JumpAttackHigh_Hit1", 500200903, 80, 4},
-    {Table::step, "M_LionC_JumpAttackHigh_Finish1", "M_Behemoth_JumpAttackHigh_Finish1", 500200904, 84, 1},
-    {Table::skill, "M_LionC_JumpAttackHigh", "M_Behemoth_JumpAttackHigh", 5002009, 85, 1},
-    {Table::step, "M_LionC_BackJumpToAttack_Cast1", "M_Behemoth_SmashBackflip_Cast1", 500201002, 86, 3},
-    {Table::step, "M_LionC_BackJumpToAttack_Hit1", "M_Behemoth_SmashBackflip_Hit1", 500201003, 89, 3},
-    {Table::step, "M_LionC_BackJumpToAttack_Finish1", "M_Behemoth_SmashBackflip_Finish1", 500201004, 92, 2},
-    {Table::skill, "M_LionC_BackJumpToAttack", "M_Behemoth_SmashBackflip", 5002010, 94, 1},
-    {Table::step, "M_LionC_AttackToBackJump_Cast1", "M_Behemoth_SmashBackflip_Cast1", 500201102, 95, 3},
-    {Table::step, "M_LionC_AttackToBackJump_Hit1", "M_Behemoth_SmashBackflip_Hit1", 500201103, 98, 3},
-    {Table::step, "M_LionC_AttackToBackJump_Finish1", "M_Behemoth_SmashBackflip_Finish1", 500201104, 101, 2},
-    {Table::skill, "M_LionC_AttackToBackJump", "M_Behemoth_SmashBackflip", 5002011, 103, 1},
-    {Table::step, "M_LionC_Roar_Cast1", "M_Behemoth_Roar1_Cast1", 500201202, 104, 4},
-    {Table::step, "M_LionC_Roar_Hit1", "M_Behemoth_Roar1_Hit1", 500201203, 108, 2},
-    {Table::step, "M_LionC_Roar_Finish1", "M_Behemoth_Roar1_Finish1", 500201204, 110, 1},
-    {Table::skill, "M_LionC_Roar", "M_Behemoth_Roar1", 5002012, 111, 1},
-    {Table::step, "M_LionC_SideStepLeft_Cast1", "M_Behemoth_SideStepLeft_Cast1", 500201302, 112, 3},
-    {Table::skill, "M_LionC_SideStepLeft", "M_Behemoth_SideStepLeft", 5002013, 115, 1},
-    {Table::step, "M_LionC_SideStepRight_Cast1", "M_Behemoth_SideStepRight_Cast1", 500201402, 116, 3},
-    {Table::skill, "M_LionC_SideStepRight", "M_Behemoth_SideStepRight", 5002014, 119, 1},
-    {Table::command, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 120, 1},
-    {Table::command, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 121, 1},
-    {Table::command, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 122, 1},
-    {Table::command, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 123, 1},
-    {Table::command, "M_LionC_TurnAttackLeft", "M_Behemoth_TurnAttackLeft", 5002004, 124, 1},
-    {Table::command, "M_LionC_TurnAttackRight", "M_Behemoth_TurnAttackRight", 5002005, 125, 1},
-    {Table::command, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 126, 1},
-    {Table::command, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 127, 1},
-    {Table::command, "M_LionC_JumpAttackLow", "M_Behemoth_JumpAttackLow", 5002008, 128, 1},
-    {Table::command, "M_LionC_JumpAttackHigh", "M_Behemoth_JumpAttackHigh", 5002009, 129, 1},
-    {Table::command, "M_LionC_BackJumpToAttack", "M_Behemoth_SmashBackflip", 5002010, 130, 1},
-    {Table::command, "M_LionC_AttackToBackJump", "M_Behemoth_SmashBackflip", 5002011, 131, 1},
-    {Table::command, "M_LionC_Roar", "M_Behemoth_Roar1", 5002012, 132, 1},
-    {Table::command, "M_LionC_SideStepLeft", "M_Behemoth_SideStepLeft", 5002013, 133, 1},
-    {Table::command, "M_LionC_SideStepRight", "M_Behemoth_SideStepRight", 5002014, 134, 1},
-    {Table::anim, "M_LionC_Peaceful", "M_Behemoth_Peaceful", 500200, 135, 14},
-    {Table::anim, "M_LionC_Battle", "M_Behemoth_Battle", 500201, 149, 16},
-    {Table::stance, "M_LionC_Default", "M_Behemoth_Default", 500200, 165, 6},
-    {Table::dead, "M_LionC", "M_Behemoth", 0, 171, 11},
-    {Table::appearance, "M_LionC", "M_Behemoth", 50020, 182, 1},
-    {Table::character, "M_LionC_Lurker", "M_Behemoth", 50021, 183, 12},
-    {Table::character, "M_LionC", "M_Behemoth", 50020, 195, 12},
+    {Table::effect, "M_LionC_PhaseRoar", "M_Scarlet_CounterLinkStart", 5002000, 0, 7},
+    {Table::result, "M_LionC_Result_Light", "M_Behemoth_ScratchLeft_Parry1", 500200000, 7, 14},
+    {Table::result, "M_LionC_Result_Strong", "M_Behemoth_ScratchLeft_Parry1", 500200001, 21, 14},
+    {Table::result, "M_LionC_Result_KnockDown", "M_Behemoth_ScratchLeft_Parry1", 500200002, 35, 14},
+    {Table::result, "M_LionC_Result_Guard", "M_Behemoth_ScratchLeft_Parry1", 500200003, 49, 4},
+    {Table::result, "M_LionC_Result_Parry", "M_Behemoth_ScratchLeft_Parry1", 500200004, 53, 3},
+    {Table::filter, "M_LionC_HitArea", "M_Behemoth_HitArea", 5002000, 56, 6},
+    {Table::filter, "M_LionC_Roar_HitArea", "M_Behemoth_HitArea", 5002001, 62, 8},
+    {Table::filter, "M_LionC_ClawAttackLeft_Target", "M_Behemoth_HitArea", 5002002, 70, 8},
+    {Table::filter, "M_LionC_ClawAttackRight_Target", "M_Behemoth_HitArea", 5002003, 78, 8},
+    {Table::filter, "M_LionC_ClawAttackChaseLeft_Target", "M_Behemoth_HitArea", 5002004, 86, 8},
+    {Table::filter, "M_LionC_ClawAttackChaseRight_Target", "M_Behemoth_HitArea", 5002005, 94, 9},
+    {Table::filter, "M_LionC_TurnAttackLeft_Target", "M_Behemoth_HitArea", 5002006, 103, 9},
+    {Table::filter, "M_LionC_TurnAttackRight_Target", "M_Behemoth_HitArea", 5002007, 112, 9},
+    {Table::filter, "M_LionC_RunAttackLeft_Target", "M_Behemoth_HitArea", 5002008, 121, 9},
+    {Table::filter, "M_LionC_RunAttackRight_Target", "M_Behemoth_HitArea", 5002009, 130, 9},
+    {Table::filter, "M_LionC_JumpAttackLow_Target", "M_Behemoth_HitArea", 5002010, 139, 8},
+    {Table::filter, "M_LionC_JumpAttackHigh_Target", "M_Behemoth_HitArea", 5002011, 147, 8},
+    {Table::filter, "M_LionC_BackJumpToAttack_Target", "M_Behemoth_HitArea", 5002012, 155, 9},
+    {Table::filter, "M_LionC_AttackToBackJump_Target", "M_Behemoth_HitArea", 5002013, 164, 8},
+    {Table::filter, "M_LionC_Roar_Target", "M_Behemoth_HitArea", 5002014, 172, 8},
+    {Table::filter, "M_LionC_SideStepLeft_Target", "M_Behemoth_HitArea", 5002015, 180, 9},
+    {Table::filter, "M_LionC_SideStepRight_Target", "M_Behemoth_HitArea", 5002016, 189, 9},
+    {Table::filter, "M_LionC_ClawAttackChain_Target", "M_Behemoth_HitArea", 5002017, 198, 8},
+    {Table::filter, "M_LionC_ClawAttackChain2_Target", "M_Behemoth_HitArea", 5002018, 206, 8},
+    {Table::filter, "M_LionC_MoveAttackChain_Target", "M_Behemoth_HitArea", 5002019, 214, 8},
+    {Table::filter, "M_LionC_RushAttack_Target", "M_Behemoth_HitArea", 5002020, 222, 8},
+    {Table::filter, "M_LionC_DashAttackChain_Target", "M_Behemoth_HitArea", 5002021, 230, 8},
+    {Table::filter, "M_LionC_DashAttackChain_HitArea", "M_Behemoth_HitArea", 5002022, 238, 8},
+    {Table::move, "M_LionC_ClawAttackLeft_Turn", "M_Behemoth_ScratchLeft_Move2", 5002000, 246, 16},
+    {Table::move, "M_LionC_ClawAttackRight_Turn", "M_Behemoth_ScratchLeft_Move2", 5002001, 262, 16},
+    {Table::move, "M_LionC_ClawAttackChaseLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002002, 278, 18},
+    {Table::move, "M_LionC_ClawAttackChaseLeft_Move2", "M_Behemoth_ScratchLeft_Move2", 5002003, 296, 17},
+    {Table::move, "M_LionC_ClawAttackChaseLeft_Move3", "M_Behemoth_ScratchLeft_Move2", 5002004, 313, 14},
+    {Table::move, "M_LionC_ClawAttackChaseRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002005, 327, 17},
+    {Table::move, "M_LionC_ClawAttackChaseRight_Move2", "M_Behemoth_ScratchLeft_Move2", 5002006, 344, 17},
+    {Table::move, "M_LionC_ClawAttackChaseRight_Move3", "M_Behemoth_ScratchLeft_Move2", 5002007, 361, 17},
+    {Table::move, "M_LionC_TurnAttackLeft_Turn", "M_Behemoth_ScratchLeft_Move2", 5002008, 378, 18},
+    {Table::move, "M_LionC_TurnAttackRight_Turn", "M_Behemoth_ScratchLeft_Move2", 5002009, 396, 18},
+    {Table::move, "M_LionC_RunAttackLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002010, 414, 17},
+    {Table::move, "M_LionC_RunAttackLeft_Move2", "M_Behemoth_ScratchLeft_Move2", 5002011, 431, 17},
+    {Table::move, "M_LionC_RunAttackLeft_Move3", "M_Behemoth_ScratchLeft_Move2", 5002012, 448, 17},
+    {Table::move, "M_LionC_RunAttackRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002013, 465, 17},
+    {Table::move, "M_LionC_RunAttackRight_Move2", "M_Behemoth_ScratchLeft_Move2", 5002014, 482, 17},
+    {Table::move, "M_LionC_RunAttackRight_Move3", "M_Behemoth_ScratchLeft_Move2", 5002015, 499, 17},
+    {Table::move, "M_LionC_JumpAttackLow_Move1", "M_Behemoth_ScratchLeft_Move2", 5002016, 516, 18},
+    {Table::move, "M_LionC_JumpAttackHigh_Move1", "M_Behemoth_ScratchLeft_Move2", 5002017, 534, 15},
+    {Table::move, "M_LionC_JumpAttackHigh_Move2", "M_Behemoth_ScratchLeft_Move2", 5002018, 549, 17},
+    {Table::move, "M_LionC_JumpAttackHigh_Move3", "M_Behemoth_ScratchLeft_Move2", 5002019, 566, 17},
+    {Table::move, "M_LionC_BackJumpToAttack_Turn", "M_Behemoth_ScratchLeft_Move2", 5002020, 583, 18},
+    {Table::move, "M_LionC_AttackToBackJump_Turn", "M_Behemoth_ScratchLeft_Move2", 5002021, 601, 16},
+    {Table::move, "M_LionC_AttackToBackJump_Move3", "M_Behemoth_ScratchLeft_Move2", 5002022, 617, 14},
+    {Table::move, "M_LionC_Roar_Turn", "M_Behemoth_ScratchLeft_Move2", 5002023, 631, 16},
+    {Table::move, "M_LionC_Roar_Move3", "M_Behemoth_ScratchLeft_Move2", 5002024, 647, 14},
+    {Table::move, "M_LionC_SideStepLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002025, 661, 15},
+    {Table::move, "M_LionC_SideStepRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002026, 676, 15},
+    {Table::move, "M_LionC_ClawAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002027, 691, 18},
+    {Table::move, "M_LionC_ClawAttackChain_Move2", "M_Behemoth_ScratchLeft_Move2", 5002028, 709, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002029, 726, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002030, 743, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002031, 760, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002032, 777, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move7", "M_Behemoth_ScratchLeft_Move2", 5002033, 794, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move1", "M_Behemoth_ScratchLeft_Move2", 5002034, 811, 18},
+    {Table::move, "M_LionC_ClawAttackChain2_Move2", "M_Behemoth_ScratchLeft_Move2", 5002035, 829, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move4", "M_Behemoth_ScratchLeft_Move2", 5002036, 846, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move5", "M_Behemoth_ScratchLeft_Move2", 5002037, 863, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move6", "M_Behemoth_ScratchLeft_Move2", 5002038, 880, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move7", "M_Behemoth_ScratchLeft_Move2", 5002039, 897, 16},
+    {Table::move, "M_LionC_ClawAttackChain2_Move8", "M_Behemoth_ScratchLeft_Move2", 5002040, 913, 16},
+    {Table::move, "M_LionC_ClawAttackChain2_Move9", "M_Behemoth_ScratchLeft_Move2", 5002041, 929, 14},
+    {Table::move, "M_LionC_MoveAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002042, 943, 15},
+    {Table::move, "M_LionC_MoveAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002043, 958, 17},
+    {Table::move, "M_LionC_MoveAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002044, 975, 17},
+    {Table::move, "M_LionC_MoveAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002045, 992, 17},
+    {Table::move, "M_LionC_MoveAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002046, 1009, 17},
+    {Table::move, "M_LionC_RushAttack_Move1", "M_Behemoth_ScratchLeft_Move2", 5002047, 1026, 18},
+    {Table::move, "M_LionC_RushAttack_Move2", "M_Behemoth_ScratchLeft_Move2", 5002048, 1044, 17},
+    {Table::move, "M_LionC_RushAttack_Move3", "M_Behemoth_ScratchLeft_Move2", 5002049, 1061, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002050, 1078, 15},
+    {Table::move, "M_LionC_DashAttackChain_Move2", "M_Behemoth_ScratchLeft_Move2", 5002051, 1093, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002052, 1110, 16},
+    {Table::move, "M_LionC_DashAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002053, 1126, 16},
+    {Table::move, "M_LionC_DashAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002054, 1142, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002055, 1159, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move7", "M_Behemoth_ScratchLeft_Move2", 5002056, 1176, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move8", "M_Behemoth_ScratchLeft_Move2", 5002057, 1193, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move9", "M_Behemoth_ScratchLeft_Move2", 5002058, 1210, 17},
+    {Table::move, "M_LionC_RoarPhaseChange_Turn", "M_Behemoth_ScratchLeft_Move2", 5002059, 1227, 16},
+    {Table::move, "M_LionC_RoarPhaseChange_Move3", "M_Behemoth_ScratchLeft_Move2", 5002060, 1243, 14},
+    {Table::step, "M_LionC_ClawAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200002, 1257, 8},
+    {Table::step, "M_LionC_ClawAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200003, 1265, 25},
+    {Table::step, "M_LionC_ClawAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200004, 1290, 5},
+    {Table::skill, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 1295, 13},
+    {Table::step, "M_LionC_ClawAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200102, 1308, 8},
+    {Table::step, "M_LionC_ClawAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200103, 1316, 25},
+    {Table::step, "M_LionC_ClawAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200104, 1341, 5},
+    {Table::skill, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 1346, 13},
+    {Table::step, "M_LionC_ClawAttackChaseLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200202, 1359, 8},
+    {Table::step, "M_LionC_ClawAttackChaseLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200203, 1367, 25},
+    {Table::step, "M_LionC_ClawAttackChaseLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200204, 1392, 5},
+    {Table::skill, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 1397, 14},
+    {Table::step, "M_LionC_ClawAttackChaseRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200302, 1411, 8},
+    {Table::step, "M_LionC_ClawAttackChaseRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200303, 1419, 25},
+    {Table::step, "M_LionC_ClawAttackChaseRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200304, 1444, 5},
+    {Table::skill, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 1449, 14},
+    {Table::step, "M_LionC_TurnAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200402, 1463, 8},
+    {Table::step, "M_LionC_TurnAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200403, 1471, 25},
+    {Table::step, "M_LionC_TurnAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200404, 1496, 5},
+    {Table::skill, "M_LionC_TurnAttackLeft", "M_Behemoth_ScratchLeft", 5002004, 1501, 13},
+    {Table::step, "M_LionC_TurnAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200502, 1514, 8},
+    {Table::step, "M_LionC_TurnAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200503, 1522, 25},
+    {Table::step, "M_LionC_TurnAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200504, 1547, 5},
+    {Table::skill, "M_LionC_TurnAttackRight", "M_Behemoth_ScratchLeft", 5002005, 1552, 13},
+    {Table::step, "M_LionC_RunAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200602, 1565, 8},
+    {Table::step, "M_LionC_RunAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200603, 1573, 25},
+    {Table::step, "M_LionC_RunAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200604, 1598, 5},
+    {Table::skill, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 1603, 14},
+    {Table::step, "M_LionC_RunAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200702, 1617, 8},
+    {Table::step, "M_LionC_RunAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200703, 1625, 25},
+    {Table::step, "M_LionC_RunAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200704, 1650, 5},
+    {Table::skill, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 1655, 14},
+    {Table::step, "M_LionC_JumpAttackLow_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200802, 1669, 8},
+    {Table::step, "M_LionC_JumpAttackLow_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200803, 1677, 25},
+    {Table::step, "M_LionC_JumpAttackLow_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200804, 1702, 5},
+    {Table::skill, "M_LionC_JumpAttackLow", "M_Behemoth_ScratchLeft", 5002008, 1707, 14},
+    {Table::step, "M_LionC_JumpAttackHigh_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200902, 1721, 11},
+    {Table::step, "M_LionC_JumpAttackHigh_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200903, 1732, 20},
+    {Table::step, "M_LionC_JumpAttackHigh_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200904, 1752, 5},
+    {Table::skill, "M_LionC_JumpAttackHigh", "M_Behemoth_ScratchLeft", 5002009, 1757, 14},
+    {Table::step, "M_LionC_BackJumpToAttack_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201002, 1771, 8},
+    {Table::step, "M_LionC_BackJumpToAttack_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201003, 1779, 25},
+    {Table::step, "M_LionC_BackJumpToAttack_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201004, 1804, 5},
+    {Table::skill, "M_LionC_BackJumpToAttack", "M_Behemoth_ScratchLeft", 5002010, 1809, 13},
+    {Table::step, "M_LionC_AttackToBackJump_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201102, 1822, 8},
+    {Table::step, "M_LionC_AttackToBackJump_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201103, 1830, 25},
+    {Table::step, "M_LionC_AttackToBackJump_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201104, 1855, 5},
+    {Table::skill, "M_LionC_AttackToBackJump", "M_Behemoth_ScratchLeft", 5002011, 1860, 14},
+    {Table::step, "M_LionC_Roar_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201202, 1874, 12},
+    {Table::step, "M_LionC_Roar_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201203, 1886, 19},
+    {Table::step, "M_LionC_Roar_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201204, 1905, 5},
+    {Table::skill, "M_LionC_Roar", "M_Behemoth_ScratchLeft", 5002012, 1910, 13},
+    {Table::step, "M_LionC_SideStepLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201302, 1923, 7},
+    {Table::skill, "M_LionC_SideStepLeft", "M_Behemoth_ScratchLeft", 5002013, 1930, 14},
+    {Table::step, "M_LionC_SideStepRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201402, 1944, 7},
+    {Table::skill, "M_LionC_SideStepRight", "M_Behemoth_ScratchLeft", 5002014, 1951, 14},
+    {Table::step, "M_LionC_ClawAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201502, 1965, 8},
+    {Table::step, "M_LionC_ClawAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201503, 1973, 24},
+    {Table::step, "M_LionC_ClawAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201504, 1997, 6},
+    {Table::step, "M_LionC_ClawAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201505, 2003, 24},
+    {Table::step, "M_LionC_ClawAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201506, 2027, 6},
+    {Table::step, "M_LionC_ClawAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201507, 2033, 25},
+    {Table::step, "M_LionC_ClawAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201508, 2058, 5},
+    {Table::skill, "M_LionC_ClawAttackChain", "M_Behemoth_ScratchLeft", 5002015, 2063, 14},
+    {Table::step, "M_LionC_ClawAttackChain2_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201602, 2077, 8},
+    {Table::step, "M_LionC_ClawAttackChain2_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201603, 2085, 24},
+    {Table::step, "M_LionC_ClawAttackChain2_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201604, 2109, 6},
+    {Table::step, "M_LionC_ClawAttackChain2_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201605, 2115, 24},
+    {Table::step, "M_LionC_ClawAttackChain2_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201606, 2139, 6},
+    {Table::step, "M_LionC_ClawAttackChain2_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201607, 2145, 24},
+    {Table::step, "M_LionC_ClawAttackChain2_Cast4", "M_Behemoth_ScratchLeft_Finish1", 500201608, 2169, 6},
+    {Table::step, "M_LionC_ClawAttackChain2_Hit4", "M_Behemoth_ScratchLeft_Finish1", 500201609, 2175, 25},
+    {Table::step, "M_LionC_ClawAttackChain2_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201610, 2200, 5},
+    {Table::skill, "M_LionC_ClawAttackChain2", "M_Behemoth_ScratchLeft", 5002016, 2205, 14},
+    {Table::step, "M_LionC_MoveAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201702, 2219, 8},
+    {Table::step, "M_LionC_MoveAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201703, 2227, 24},
+    {Table::step, "M_LionC_MoveAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201704, 2251, 6},
+    {Table::step, "M_LionC_MoveAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201705, 2257, 24},
+    {Table::step, "M_LionC_MoveAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201706, 2281, 6},
+    {Table::step, "M_LionC_MoveAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201707, 2287, 25},
+    {Table::step, "M_LionC_MoveAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201708, 2312, 5},
+    {Table::skill, "M_LionC_MoveAttackChain", "M_Behemoth_ScratchLeft", 5002017, 2317, 14},
+    {Table::step, "M_LionC_RushAttack_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201802, 2331, 8},
+    {Table::step, "M_LionC_RushAttack_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201803, 2339, 6},
+    {Table::step, "M_LionC_RushAttack_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201804, 2345, 25},
+    {Table::step, "M_LionC_RushAttack_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201805, 2370, 5},
+    {Table::skill, "M_LionC_RushAttack", "M_Behemoth_ScratchLeft", 5002018, 2375, 14},
+    {Table::step, "M_LionC_DashAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201902, 2389, 8},
+    {Table::step, "M_LionC_DashAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201903, 2397, 23},
+    {Table::step, "M_LionC_DashAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201904, 2420, 6},
+    {Table::step, "M_LionC_DashAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201905, 2426, 23},
+    {Table::step, "M_LionC_DashAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201906, 2449, 6},
+    {Table::step, "M_LionC_DashAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201907, 2455, 23},
+    {Table::step, "M_LionC_DashAttackChain_Cast4", "M_Behemoth_ScratchLeft_Finish1", 500201908, 2478, 6},
+    {Table::step, "M_LionC_DashAttackChain_Hit4", "M_Behemoth_ScratchLeft_Finish1", 500201909, 2484, 24},
+    {Table::step, "M_LionC_DashAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201910, 2508, 5},
+    {Table::skill, "M_LionC_DashAttackChain", "M_Behemoth_ScratchLeft", 5002019, 2513, 14},
+    {Table::step, "M_LionC_RoarPhaseChange_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500202002, 2527, 13},
+    {Table::step, "M_LionC_RoarPhaseChange_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500202003, 2540, 19},
+    {Table::step, "M_LionC_RoarPhaseChange_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500202004, 2559, 5},
+    {Table::skill, "M_LionC_RoarPhaseChange", "M_Behemoth_ScratchLeft", 5002020, 2564, 13},
+    {Table::command, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 2577, 6},
+    {Table::command, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 2583, 6},
+    {Table::command, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 2589, 6},
+    {Table::command, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 2595, 6},
+    {Table::command, "M_LionC_TurnAttackLeft", "M_Behemoth_ScratchLeft", 5002004, 2601, 6},
+    {Table::command, "M_LionC_TurnAttackRight", "M_Behemoth_ScratchLeft", 5002005, 2607, 6},
+    {Table::command, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 2613, 6},
+    {Table::command, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 2619, 6},
+    {Table::command, "M_LionC_JumpAttackLow", "M_Behemoth_ScratchLeft", 5002008, 2625, 6},
+    {Table::command, "M_LionC_JumpAttackHigh", "M_Behemoth_ScratchLeft", 5002009, 2631, 6},
+    {Table::command, "M_LionC_BackJumpToAttack", "M_Behemoth_ScratchLeft", 5002010, 2637, 6},
+    {Table::command, "M_LionC_AttackToBackJump", "M_Behemoth_ScratchLeft", 5002011, 2643, 6},
+    {Table::command, "M_LionC_Roar", "M_Behemoth_ScratchLeft", 5002012, 2649, 6},
+    {Table::command, "M_LionC_SideStepLeft", "M_Behemoth_ScratchLeft", 5002013, 2655, 6},
+    {Table::command, "M_LionC_SideStepRight", "M_Behemoth_ScratchLeft", 5002014, 2661, 6},
+    {Table::command, "M_LionC_ClawAttackChain", "M_Behemoth_ScratchLeft", 5002015, 2667, 6},
+    {Table::command, "M_LionC_ClawAttackChain2", "M_Behemoth_ScratchLeft", 5002016, 2673, 6},
+    {Table::command, "M_LionC_MoveAttackChain", "M_Behemoth_ScratchLeft", 5002017, 2679, 6},
+    {Table::command, "M_LionC_RushAttack", "M_Behemoth_ScratchLeft", 5002018, 2685, 6},
+    {Table::command, "M_LionC_DashAttackChain", "M_Behemoth_ScratchLeft", 5002019, 2691, 6},
+    {Table::command, "M_LionC_RoarPhaseChange", "M_Behemoth_ScratchLeft", 5002020, 2697, 6},
+    {Table::anim, "M_LionC_Peaceful", "M_Behemoth_Battle", 500200, 2703, 45},
+    {Table::anim, "M_LionC_Battle", "M_Behemoth_Battle", 500201, 2748, 45},
+    {Table::stance, "M_LionC_Default", "M_Behemoth_Default", 500200, 2793, 19},
+    {Table::stance, "M_LionC_Phase2", "M_Behemoth_Default", 500201, 2812, 23},
+    {Table::dead, "M_LionC", "M_Behemoth", 0, 2835, 27},
+    {Table::appearance, "M_LionC", "M_Behemoth", 50020, 2862, 2},
+    {Table::character, "M_LionC_Lurker", "M_Behemoth", 50021, 2864, 55},
+    {Table::character, "M_LionC", "M_Behemoth", 50020, 2919, 55},
 };
 // ---- End of the generated part ----
 
@@ -528,7 +3874,7 @@ inline NameParts split_number(const char *text) {
 
 // Why a run stopped. table: not SB's UDataTable (its vtable or AddRow slot); size: its row struct's size is not the
 // SDK's; fname: no FName for a name; name: a row of the new name is already in the table; id: the new ID is taken;
-// donor: the donor row is missing; pool: the block's pool is full; busy, net, unread: the gate stayed shut for
+// donor: the template row is missing; pool: the block's pool is full; busy, net, unread: the gate stayed shut for
 // kGateTicks (a logic task in flight, the net mode not 0, no logic or net-mode global yet); off: coop off.
 enum class Why : uint8_t { none, table, size, fname, name, id, donor, pool, busy, net, unread, off };
 inline const char *why_word(Why w) {
@@ -581,7 +3927,7 @@ inline uint32_t rows_of(Table t) {
 // (FUN_141a2cef0).
 class Builder {
 public:
-  // One run over the recipe (see the top of this file). tables: the 8 tables' addresses as Lua found them, in Table's
+  // One run over the recipe (see the top of this file). tables: the 12 tables' addresses as Lua found them, in Table's
   // order; block: kBlock bytes of the glue's, 16-aligned; base: SB's image base. Runs every row not added yet and
   // stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
@@ -705,6 +4051,16 @@ public: // For the test's pool and FName cases, which the recipe's own data neve
   template <class Game> static Why patch(Game &g, uint64_t row, const Patch &p, uint64_t &pool, uint64_t end) {
     if (p.kind == Kind::f32) {
       g.write(row + p.at, &p.f, 4);
+      return Why::none;
+    }
+    if (p.kind == Kind::i32) {
+      const int32_t v = int32_t(p.f);
+      g.write(row + p.at, &v, 4);
+      return Why::none;
+    }
+    if (p.kind == Kind::u8) {
+      const uint8_t v = uint8_t(p.f);
+      g.write(row + p.at, &v, 1);
       return Why::none;
     }
     if (p.kind == Kind::name) {
@@ -834,7 +4190,7 @@ inline std::string describe(const Answer &a) {
     std::snprintf(why, sizeof why, "a row of that name is already in %s", kTables[size_t(r.table)].name);
     break;
   case Why::id: std::snprintf(why, sizeof why, "ID %u taken", unsigned(r.id)); break;
-  case Why::donor: std::snprintf(why, sizeof why, "donor %s missing", r.donor); break;
+  case Why::donor: std::snprintf(why, sizeof why, "template %s missing", r.donor); break;
   case Why::pool: std::snprintf(why, sizeof why, "its strings overflow the pool"); break;
   case Why::busy: std::snprintf(why, sizeof why, "logic busy %u frames", unsigned(kGateTicks)); break;
   case Why::net:

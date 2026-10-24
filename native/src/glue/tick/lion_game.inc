@@ -33,7 +33,8 @@ using AddRow = void (*)(void *table, uint64_t name, const void *row);
 using RowById = void *(*)(void *registry, uint64_t unused, int32_t id);
 using StanceName = uint64_t *(*)(void *registry, uint64_t *out, int32_t table, int32_t id);
 
-// The worker's ask, its number and the 8 tables, taken by the game thread with try_lock only.
+// The worker's ask, its number and the 12 tables, taken by the game thread with try_lock only.
+static_assert(lion::kTableCount == kLionTableCount, "the lion rows request names each of lion/rows.h's tables");
 std::mutex lion_m;
 uint32_t lion_asked = 0;
 uint64_t lion_ask_tables[lion::kTableCount] = {};

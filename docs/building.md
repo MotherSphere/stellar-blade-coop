@@ -92,7 +92,7 @@ build/host/pose_codec_test
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
-    and the boss tests included; `lion rows` with its 8 table words and bad addresses; `fly` and `slowmo` on or off),
+    and the boss tests included; `lion rows` with its 12 table words and bad addresses; `fly` and `slowmo` on or off),
     Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join codes (both real lobby
     ids, loose typing, malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
@@ -113,12 +113,13 @@ build/host/pose_codec_test
     switch against a fake game;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `lion_rows_test`: the Lion's rows against fake memory laid out like the pinned build: the recipe (unique names and
-    IDs, every patch inside its struct, the steps, skills, commands and stance pointing at the new rows, the
-    CharacterTable rows last with the link flag Common, the steps without the Behemoth's long moves and root motion), a
-    whole run (each row built from its donor with the game's lazy-init flag and parsed arrays reset, its ID and patches,
-    AddRow given the new name), the refusals that call no AddRow (a missing donor, a taken ID or name, a wrong vtable,
-    AddRow slot or row size), a later run skipping the rows already in, FName's number split, the read-back through the
-    game's lookups by ID, the answer word, the `lion=` status line and the log lines;
+    IDs, every patch inside its struct, the steps, skills, commands, stances, moves and target filters pointing at the
+    new rows, the CharacterTable rows last with the link flag Common and the phase-2 stance, no value naming a Behemoth
+    row or asset but the sound set), a whole run (each row built from its template with the game's lazy-init flag and
+    parsed arrays reset, its ID and patches of every kind, AddRow given the new name), the refusals that call no AddRow
+    (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size), a later run skipping the rows
+    already in, FName's number split, the read-back through the game's lookups by ID, the answer word, the `lion=`
+    status line and the log lines;
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves out,
     the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put back
     after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd control, taken
@@ -342,7 +343,7 @@ Platform-free headers, tested on the build machine:
 | `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose/record.h` | The recording, its check and its replay |
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
-| `lion/rows.h` | `coop lion`'s 78 rows (its data part written by a generator outside the repository), their build and AddRow call, the read-back, the answer word, the `lion=` line and the log lines |
+| `lion/rows.h` | `coop lion`'s 220 rows (its data part written by a generator outside the repository), their build and AddRow call, the read-back, the answer word, the `lion=` line and the log lines |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |

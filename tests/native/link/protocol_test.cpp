@@ -820,7 +820,7 @@ int main() {
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
 
-  // coop lion's rows: one <Table>=0x<address> word for each of the 8 tables, in any order, each once; the addresses
+  // coop lion's rows: one <Table>=0x<address> word for each of the 12 tables, in any order, each once; the addresses
   // in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request fits Lua's 512-byte
   // request file. Anything off is refused.
   const auto lion = [](const std::vector<std::string> &words) {
@@ -840,7 +840,7 @@ int main() {
   for (size_t i = 0; i < kLionTableCount; ++i)
     assert(li.tables[i] == 0x1f4a2b3c0000ull + 0x100 * i);
   std::vector<std::string> shuffled(words.rbegin(), words.rend());
-  shuffled[0] = "SkillActiveStepTable=0x1F4A2B3C0700"; // Upper-case digits too.
+  shuffled[kLionTableCount - 1 - 7] = "SkillActiveStepTable=0x1F4A2B3C0700"; // Upper-case digits too.
   li = parse_request(lion(shuffled));
   assert(li.command == Command::lion && li.tables[7] == 0x1f4a2b3c0700ull && li.tables[0] == 0x1f4a2b3c0000ull);
   std::vector<std::string> tables_longest;
@@ -852,14 +852,14 @@ int main() {
     v[i] = w;
     return v;
   };
-  std::vector<std::string> tables7(words.begin(), words.end() - 1), tables9 = words;
-  tables9.push_back(words[0]);
+  std::vector<std::string> tables11(words.begin(), words.end() - 1), tables13 = words;
+  tables13.push_back(words[0]);
   for (const std::string &bad :
-       {lion(tables7), lion(tables9), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
+       {lion(tables11), lion(tables13), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
         lion(with(2, "CharacterDeadTable=1f4a2b3c0200")), lion(with(2, "CharacterDeadTable=0x1f4a2b3c0201")),
         lion(with(2, "CharacterDeadTable=0xfff8")), lion(with(2, "CharacterDeadTable=0x7ffffffff0000")),
         lion(with(2, "CharacterDeadTable=0x1f4a2b3c02g0")), lion(with(2, "CharacterDeadTable=0x00001f4a2b3c0200000")),
-        lion(with(2, "EffectTable=0x1f4a2b3c0200")), lion(with(2, "characterdeadtable=0x1f4a2b3c0200")),
+        lion(with(2, "ZoneTable=0x1f4a2b3c0200")), lion(with(2, "characterdeadtable=0x1f4a2b3c0200")),
         lion(with(2, "CharacterDeadTable=-0x1f4a2b3c0200")), lion(words) + " extra", std::string("lion rows"),
         std::string("lion rows "), std::string("lion"), "lion rows  " + lion(words).substr(10)})
     assert(parse_request(bad).command == Command::none);
