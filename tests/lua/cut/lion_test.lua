@@ -374,9 +374,13 @@ local assets={[MESH]=mesh_asset,[CLIP]=clip_asset}
 local load_finds=0 -- StaticFindObject calls on the loaded line's paths.
 local loads={}
 for _,p in ipairs(L.LOADS) do loads[p]=true end
+-- The world delta the frame part of the follow line reads each frame (nil: not read).
+local frame_dt
+local gameplay=object({GetWorldDeltaSeconds=function(_,ctx) engine(); assert(ctx); return frame_dt end})
 StaticFindObject=function(path)
     engine()
     if loads[path] then load_finds=load_finds+1 end
+    if path=='/Script/Engine.Default__GameplayStatics' then return gameplay end
     if path:find('^/Script/') then return class(path) end
     local t=path:match('^/Game/Local/Data/(%a+)%.%a+$')
     if t then return present[t] and tables[t] or invalid end
@@ -530,7 +534,7 @@ assert(last():find('^entrance: skipped %(off by default: the Lion AnimBP has no 
 at(202.49); n=#lines; lion.tick(); assert(#lines==n,'Not yet')
 at(202.5)
 assert(lion.tick()==nil and last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 0, skill no, anim alpha 0.00/0.00, '
-    ..'hand moved ?, battle 0, state 0, controller yes, spawn count 7',last())
+    ..'hand moved ?, battle 0, state 0, controller yes, spawn count 7, frame ? ms, lion Lua 0.0 ms/s',last())
 -- Its mesh line once before it (then at each change), each field as read; a field that does not read is a ?. With no
 -- anim instance (the 2026-10-24 test) it gets one once: the AnimBP mode, then SetAnimInstanceClass with the Lion
 -- AnimBP's class, here found once LoadAsset loaded its package (the mesh's own anim class read none).
@@ -549,15 +553,18 @@ lion1.battle,lion1.speed,lion1.skill,lion1.alpha=true,212.6,true,{0.5,1}
 at(203); n=#lines; lion.tick(); assert(#lines==n,'One a second')
 at(203.5); lion.tick()
 assert(last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 213, skill yes, anim alpha 0.50/1.00, hand moved 0 cm, '
-    ..'battle 1, state 0, controller yes, spawn count 7',last())
+    ..'battle 1, state 0, controller yes, spawn count 7, frame ? ms, lion Lua 0.0 ms/s',last())
 assert(lines[#lines-1]~=MESH_LINE and not lines[#lines-1]:find('mesh:',1,true),'The mesh line only when it changes')
 -- The hand in the body's own frame: a turn of the whole body moves nothing, a pose that plays does.
 -- A read that fails is a ?, the line still said.
 lion1.yaw=90
 local speed_of=lion1.GetSBSpeedForAnimGraph
 lion1.GetSBSpeedForAnimGraph=function() error('no such function') end
+frame_dt=0.02 -- 20 ms frames from now on: each frame read, the second's mean and worst on the next line.
+at(204); lion.tick(); frame_dt=0.05; at(204.2); lion.tick(); frame_dt=0.02
 at(204.5); lion.tick()
 assert(last():find(', speed %?, skill yes, anim alpha 0.50/1.00, hand moved 0 cm,'),last())
+assert(last():find(', frame 30%.0 ms %(worst 50%.0%), lion Lua 0%.0 ms/s$'),last())
 lion1.GetSBSpeedForAnimGraph,lion1.speed=speed_of,0
 lion1.hand={X=150,Y=0,Z=-80}
 at(205.5); lion.tick()
@@ -630,6 +637,10 @@ live.destroyed=true -- The HUD made again: the held block gone.
 widgets={}
 at(261.5); lion.tick(); assert(text_finds==tf+1,'At most every 10 s')
 at(262.5); lion.tick(); assert(text_finds==tf+2,'Looked for again once none is held')
+-- The loaded line's lookups stop once each path was looked for 3 times (a clip never played no longer costs a lookup
+-- a second for the whole fight).
+for t=263.5,343.5 do at(t); lion.tick() end
+assert(load_finds<=3*#L.LOADS,'Each path looked for 3 times at most: '..load_finds)
 -- Its death, then its body's despawn: D1 and D2.
 lion1.InteractionState,lion1.Controller=3,nil
 at(344.5); n=#lines; lion.tick(); assert(#lines==n,'Dead: no line until its body goes')

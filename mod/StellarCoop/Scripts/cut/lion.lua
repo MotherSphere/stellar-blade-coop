@@ -123,9 +123,10 @@ Lion.IN={added=count(),char=count('CharacterTable'),skills=count('SkillTable'),s
 -- the roar's Show). 9 Shows name their clip as AnimSequence'...': UE 4.26's ResolveName would strip that, but SB's load
 -- path was not traced in the exe, so whether those clips load is part of what this line tests. StaticFindObject finds
 -- only what is in memory and costs about 4 ms a call here (core/unreal.lua): LOOKS paths a second, each looked for
--- until first seen.
+-- until first seen and LOOK_MAX times at most (a clip never played was looked for every 20 s for the whole fight, a
+-- hitch each second: the 2026-10-24 frame rate check).
 Lion.SHOWS=DATA_ROWS.SHOWS
-local LOOKS=2
+local LOOKS,LOOK_MAX=2,3
 Lion.LOADS={}
 for _,s in ipairs(Lion.SHOWS) do
     Lion.LOADS[#Lion.LOADS+1]='/Game/Art/Show/CH_M_NA_02_Lion/Skill/'..s[2]..'.'..s[2]
@@ -207,6 +208,19 @@ function Lion.new(o)
     local followed={} -- The bodies spawned this Lua load and not let go: {n=, id=, obj=, path=, since=, before=, ...}.
     local spawned,next_follow=0,0
     local seen,looked,looks,loaded_said={},0,0,nil -- The loaded line's paths seen, cursor, lookups and last line.
+    local tried={} -- Each path's lookups so far (LOOK_MAX at most).
+    -- The frame time while a command runs or a Lion lives (UGameplayStatics' world delta, read each frame), and what
+    -- this file's tick costs (os.clock is wall time in the game's CRT): the follow line's frame part, and the spawn's
+    -- before line to compare with. gs: the GameplayStatics default object; ctx: its world context (EVE).
+    local perf,gs,ctx={frames=0,sum=0,worst=0,lua=0},nil,nil
+    local function perf_take() -- The frame part since the last take, then the counters back to 0.
+        local said=perf.frames>0 and string.format('frame %.1f ms (worst %.1f), lion Lua %.1f ms/s',
+            perf.sum/perf.frames*1000,perf.worst*1000,perf.lua) or string.format('frame ? ms, lion Lua %.1f ms/s',
+            perf.lua)
+        perf.frames,perf.sum,perf.worst,perf.lua=0,0,0,0
+        return said
+    end
+    local frame_said='frame ? ms, lion Lua 0.0 ms/s' -- The last second's, for each follow line of that second.
     local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
     local failed={} -- The last error of the loaded line and of the boss name, each said once.
     local function lion_line() return Lion.parse(status and status()) end
@@ -447,13 +461,13 @@ function Lion.new(o)
         local moved=hand_read and f.hand and string.format('%.0f cm',metres(p,f.hand)*100) or '?'
         f.hand=hand_read and p or nil
         log(string.format('%s: %s m, xyz %s, speed %s, skill %s, anim alpha %s/%s, hand moved %s, battle %s, state %s, '
-            ..'controller %s, spawn count %s',name,
+            ..'controller %s, spawn count %s, %s',name,
             eve and string.format('%.1f',metres(location(c),location(eve))) or '?',
             at_read and at or '?',num('%.0f',function() return c:GetSBSpeedForAnimGraph() end),
             skill_read and (skill and 'yes' or 'no') or '?',
             num('%.2f',function() return c:GetCurrentCustomAnimAlpha(0) end),
             num('%.2f',function() return c:GetCurrentCustomAnimAlpha(1) end),moved,read and (battle and 1 or 0) or '?',
-            tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count())))
+            tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count()),frame_said))
     end
     -- While a Lion lives, once a second: LOOKS of the 40 paths (each Show, then its clip) not seen yet, and the loaded
     -- line once each path was looked for (0/20 then says none loaded) or one was seen, and whenever it changes. A Show
@@ -464,9 +478,10 @@ function Lion.new(o)
         for _=1,#paths do
             if tries==LOOKS then break end
             looked=looked%#paths+1
-            if not seen[paths[looked]] then
-                tries,looks=tries+1,looks+1
-                if valid(StaticFindObject(paths[looked])) then seen[paths[looked]]=true end
+            local p=paths[looked]
+            if not seen[p] and (tried[p] or 0)<LOOK_MAX then
+                tries,looks,tried[p]=tries+1,looks+1,(tried[p] or 0)+1
+                if valid(StaticFindObject(p)) then seen[p]=true end
             end
         end
         local shows,clips,without=0,0,{}
@@ -554,6 +569,7 @@ function Lion.new(o)
                 let_go(f,string.format('lion %d (%d) recycled: SB moved its body back for this spawn',f.n,f.id))
             end
         end
+        log('before the spawn: '..perf_take()) -- While the command ran, the Lion not there yet: to compare with.
         log(string.format('spawn %d: CreateActor returned; body %s %s m from EVE, %.1f m from the spot, after %.1f s; '
             ..'controller %s%s; EventSpawnId %s%s',j.id,class_of(best),from and string.format('%.1f',from) or '?',
             best_m,j.seen,ctl and class_of(ctl) or 'none',adopted,read and tostring(key) or '?',reused))
@@ -805,6 +821,14 @@ function Lion.new(o)
     function self.tick()
         local now=os.clock()
         local ok,message
+        if job or followed[1] then
+            local fine,dt=pcall(function()
+                if not valid(ctx) then ctx=her() end
+                gs=gs or valid(StaticFindObject('/Script/Engine.Default__GameplayStatics'))
+                return tonumber(value_of(gs:GetWorldDeltaSeconds(ctx)))
+            end)
+            if fine and dt then perf.frames,perf.sum,perf.worst=perf.frames+1,perf.sum+dt,math.max(perf.worst,dt) end
+        end
         if job and now>=job.at then
             local j=job
             local ran,done,said=pcall(j.step,j,now)
@@ -841,6 +865,7 @@ function Lion.new(o)
         end
         if followed[1] and now>=next_follow then
             next_follow=now+FOLLOW
+            frame_said=perf_take()
             for _,f in ipairs({table.unpack(followed)}) do
                 local fine,e=pcall(follow_one,f,now)
                 if not fine then let_go(f,string.format('lion %d no longer followed: %s',f.n,why(e))) end
@@ -856,6 +881,7 @@ function Lion.new(o)
                 end
             end
         end
+        perf.lua=perf.lua+(os.clock()-now)*1000
         return ok,message
     end
     -- coop off: the job ended (an entrance copy removed), the bodies no longer followed. A living Lion stays: it is the
