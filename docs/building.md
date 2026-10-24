@@ -346,7 +346,7 @@ Platform-free headers, tested on the build machine:
 | `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose/record.h` | The recording, its check and its replay |
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
-| `lion/rows.h` | `coop lion`'s 220 rows (its data part written by a generator outside the repository), their build and AddRow call, the read-back, the answer word, the `lion=` line and the log lines |
+| `lion/rows.h` | `coop lion`'s 221 rows (its data part written by a generator outside the repository), their build and AddRow call, the read-back, the answer word, the `lion=` line and the log lines |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
