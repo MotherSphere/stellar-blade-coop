@@ -1,7 +1,8 @@
 -- The settings main.lua reads from coop-settings.txt (fixture.lua's fake link): a modifier goes with its key, a refused
 -- setting is logged and keeps its default, the name tag, the look and collide reach the ghost, the pose rate reaches
 -- the state, the photo settings reach the state, the veils and the log line, photo_pause (experimental) makes
--- SB.PhotoMode.PauseMethod match it and puts the game's own back at coop off, and the ghost turns on with each session.
+-- SB.PhotoMode.PauseMethod match it and puts the game's own back at coop off, the ghost turns on with each session, and
+-- each key of UE4SS-settings.ini that UE4SS reads as on is logged and said once a load.
 dofile('tests/lua/main/fixture.lua')
 -- A modifier goes with its key; a refused setting is logged and keeps its default.
 settings_text='host_key=F10\nleave_key=Ctrl+F8\nsend_rate=25\nname_tag=off\ncloth=off\ndyes=on\neffects=on\n'
@@ -123,4 +124,72 @@ link_mode='none'; loops[2].f()
 coop('off'); assert(toggles==4 and not active)
 link_mode='host'; loops[2].f(); assert(toggles==4 and not active,'No toggle after coop off')
 link_mode='none'
+-- mod_names=off reaches the state (names=0: the native part sends no pak line); on by default.
+settings_text='mod_names=off\n'
+load_main(true)
+loops[2].f(); assert(state_names[#state_names]==false)
+settings_text=''
+load_main(true)
+loops[2].f(); assert(state_names[#state_names]==true)
+
+-- UE4SS-settings.ini, two folders above the mod's, through core/link.lua's files (fixture.lua's disk): each key UE4SS
+-- reads as on is logged at load, and its notice said once a load as soon as one can show (the feed with the UI up,
+-- else the line above EVE once a save is loaded), in the menu's words. A good file, or a mod folder with no two folders
+-- above it, says nothing; a file that cannot be read, or is too large, is logged only.
+do
+    local SOURCE='@C:\\SB\\ue4ss\\Mods\\StellarCoop\\Scripts\\main.lua'
+    local INI='C:\\SB\\ue4ss\\UE4SS-settings.ini'
+    local T=require('ui.text')
+    local function above(from) -- The notices about the file said on the line above EVE since said[from].
+        local out={}
+        for i=from+1,#said do if said[i]:find('UE4SS-settings.ini',1,true) then out[#out+1]=said[i] end end
+        return table.concat(out,'|')
+    end
+    local function fed_text(text) -- Whether the feed got that notice.
+        for _,call in ipairs(chat_calls) do if call:find('system '..text..' ',1,true)==1 then return true end end
+    end
+    load_main(true)
+    assert(not logged('UE4SS-settings.ini'),'mod/StellarCoop: no folder two levels up, nothing read')
+    -- HookBeginPlay on (CRLF, the package's two spaces): logged, then said above EVE once a save is loaded.
+    disk.files[INI]='[General]\r\nbUseUObjectArrayCache = false\r\n[Hooks]\r\nHookBeginPlay  = 1\r\n'
+    load_main(true,false,SOURCE)
+    assert(logged('UE4SS-settings.ini: HookBeginPlay = 1. '..T.en.ue4ss.hook),table.concat(printed,'|'))
+    assert(not logged('UE4SS-settings.ini: bUseUObjectArrayCache'))
+    in_world,at_title=false,false
+    local n=#said
+    loops[2].f(); assert(above(n)=='','No save and no UI: it waits')
+    in_world=true; loops[2].f()
+    assert(above(n)==T.en.ue4ss.hook,above(n))
+    loops[2].f(); assert(above(n)==T.en.ue4ss.hook,'Once a load')
+    -- The line above EVE in French gets the English beside it, for a font that cannot draw the French.
+    load_main(true,false,SOURCE)
+    kit_language='fr-FR'; n=#said; loops[2].f()
+    assert(above(n)==T.fr.ue4ss.hook,above(n))
+    for i=n+1,#said do if said[i]==T.fr.ue4ss.hook then assert(said_en[i]==T.en.ue4ss.hook) end end
+    -- Both keys missing ([Hooks] has another key): two lines, and both notices in the feed at the title, in French.
+    disk.files[INI]='\239\187\191[Hooks]\nHookEndPlay = 1\n'
+    load_main(true,false,SOURCE)
+    assert(logged('UE4SS-settings.ini: HookBeginPlay missing (UE4SS then uses its default, on). '..T.en.ue4ss.hook))
+    assert(logged('UE4SS-settings.ini: bUseUObjectArrayCache missing (UE4SS then uses its default, on). '
+        ..T.en.ue4ss.cache))
+    in_world,at_title,kit_ready,kit_language,chat_calls=false,true,true,'fr-FR',{}
+    n=#said
+    loops[2].f()
+    assert(fed_text(T.fr.ue4ss.hook) and fed_text(T.fr.ue4ss.cache) and above(n)=='',table.concat(chat_calls,'|'))
+    chat_calls={}; loops[2].f(); assert(not fed_text(T.fr.ue4ss.hook),'Once a load')
+    -- The package's values: nothing logged, nothing said.
+    disk.files[INI]='[General]\nbUseUObjectArrayCache = false\n[Hooks]\nHookBeginPlay = 0\n'
+    load_main(true,false,SOURCE)
+    in_world=true; n=#said; loops[2].f()
+    assert(not logged('UE4SS-settings.ini') and above(n)=='')
+    -- No file, or one over 64 KB: logged, nothing said.
+    disk.files[INI]=nil
+    load_main(true,false,SOURCE)
+    n=#said; loops[2].f()
+    assert(logged('UE4SS-settings.ini not checked: '..INI..': No such file or directory') and above(n)=='')
+    disk.files[INI]=('x'):rep(65537)
+    load_main(true,false,SOURCE)
+    assert(logged('UE4SS-settings.ini not checked: over 65536 bytes'),table.concat(printed,'|'))
+    disk.files[INI],in_world,at_title=nil,false,false
+end
 io.stdout:write('settings_test ok\n')

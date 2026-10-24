@@ -2,7 +2,7 @@
 -- it does not declare and on any write, FindAllOf raises on any class but the two booth classes (and gives nil for
 -- none, as UE4SS does), reading or writing any other global raises, and os.clock is a fake clock that a scan advances.
 -- Covered: no scan without EVE, the list kept; the first scan, both classes once; no FindAllOf between scans; a rescan
--- after 4 s and at once on a new map; near (2.9 m in, 3 m in, 3.1 m out in 3D, another map, the nearest of two, the
+-- after 4 s and at once on a new map; a due scan put off while EVE moves faster than 3 m/s, never on a new map; near (2.9 m in, 3 m in, 3.1 m out in 3D, another map, the nearest of two, the
 -- position copied at the scan); a booth whose name read raises and an invalid one skipped; a scan that raises (one
 -- line, nothing near, the next try 4 s later); the count line once per change and the slow-scan line, byte-exact;
 -- FindAllOf absent; and the only game calls made, all reads: nothing in the game is granted or changed.
@@ -11,7 +11,7 @@ local B=require('session.booth')
 local CAMP,PHONE='Env_Camp_TeleportMachine_C','Env_Camp_TeleportMachine_Standalone_C'
 local XION,WASTE='/game/art/bg/worldmap/level_p/e04','/game/art/bg/worldmap/level_p/e03'
 assert(#B.CLASSES==2 and B.CLASSES[1]==CAMP and B.CLASSES[2]==PHONE)
-assert(B.NEAR==3 and B.EVERY==4 and B.SLOW==5)
+assert(B.NEAR==3 and B.EVERY==4 and B.SLOW==5 and B.PACE==300)
 
 local clock,cost=0,0.001 -- os.clock in seconds; what one scan costs (the first class's FindAllOf adds it).
 os.clock=function() return clock end
@@ -127,6 +127,22 @@ b.tick(108.4,eve(P,WASTE))
 assert(scans()==1)
 b.tick(108.5,eve(P,WASTE))
 assert(scans()==2)
+
+-- A due scan waits while EVE moves faster than 3 m/s (4 m/s here, 1 m each 250 ms tick), and runs at her first slower
+-- tick; at 2.8 m/s it runs when due. A new map scans at once, however fast she moves.
+b=fresh({booth('Xion_10_EnvS_016',P)})
+b.tick(100,eve(off(0)))
+reset()
+for i=1,40 do b.tick(100+i*0.25,eve(off(i*100))) end
+assert(scans()==0,'Not while she runs')
+b.tick(110.25,eve(off(4000)))
+assert(scans()==1,'Once she stops')
+reset()
+for i=1,17 do b.tick(110.25+i*0.25,eve(off(4000+i*70))) end
+assert(scans()==1,'At 2.8 m/s, when due')
+reset()
+b.tick(114.75,eve(off(5375),WASTE))
+assert(scans()==1,'A new map at once')
 
 -- near: 3.1 m in 3D is out although the ground distance is 2.0 m; 3 m is in; another map; the nearest of two, either
 -- way round; the positions were copied at the scan (the game reusing its struct moves nothing).

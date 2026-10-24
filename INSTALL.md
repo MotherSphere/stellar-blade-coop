@@ -31,8 +31,9 @@ repository.
 4. Copy the whole `StellarCoop` folder (the one that holds `enabled.txt`) into the Mods folder. The result must be
    `SB/Binaries/Win64/ue4ss/Mods/StellarCoop/Scripts/main.lua`, with `StellarCoop.dll` and `enabled.txt` next to
    `Scripts/`.
-5. Start the game. On the title screen the mod asks whether to play on co-op saves (see "Co-op saves" below). Choose
-   Decide later until you have backed up your saves (see "Saves and Steam Cloud"). Load a save and press `F6`.
+5. Start the game. On the title screen the mod first opens its guide (Esc closes it), then asks whether to play on
+   co-op saves (see "Co-op saves" below). Choose Decide later until you have backed up your saves (see "Saves and
+   Steam Cloud"). Load a save and press `F6`.
    `Co-op: not in a session.` appears at the top left of the screen (or above EVE, in the first seconds after a load).
    `UE4SS.log` gets the same text in a line that contains `[StellarCoop] OK:`.
    If no line appears, close the game and look in `UE4SS.log` for lines with `[StellarCoop]`. `Native part not loaded`
@@ -44,6 +45,18 @@ UE4SS starts every mod folder that contains an `enabled.txt` file, so you do not
 On Linux, you can build and install the mod from the StellarCoop repository instead, with `python3 tools/install.py`.
 Add `--game <Stellar Blade folder>` if the game is not in the script's default folder (`--help` shows it). The script
 first backs up the files it replaces into `~/StellarCoop-install-backups`.
+
+### Linux and Steam Deck
+
+UE4SS starts through the `dwmapi.dll` next to the game's executable, in `SB/Binaries/Win64/`. Proton can load its own
+`dwmapi.dll` instead. UE4SS then never starts, and `ue4ss/UE4SS.log` is never written. If that happens, right-click
+Stellar Blade in Steam, then Properties, General, and set Launch options to:
+
+```
+WINEDLLOVERRIDES="dwmapi=n,b" %command%
+```
+
+`n,b` makes Wine load the game folder's `dwmapi.dll` first, and its own copy only when that one is missing.
 
 ### Update
 
@@ -69,6 +82,18 @@ together. Two games with different protocols cannot link, and the player who tri
    A file from version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in
    Options > Combat.
 5. Do install step 5, with your status key if you changed it.
+
+## Other mods
+
+UE4SS reads its settings from `ue4ss/UE4SS-settings.ini`. The file in the Stellar Blade UE4SS 1.3 package has
+`HookBeginPlay = 0` and `bUseUObjectArrayCache = false`. The Custom Nanosuit System (CNS) mod comes with its own
+`UE4SS-settings.ini`. Do not copy it over the 1.3 file. With `HookBeginPlay = 1`, the game can crash when EVE lets go
+of a movable crate, and `bUseUObjectArrayCache = true` can cause stutter and crashes at startup. If you already copied
+it, close the game and set those two lines back to `HookBeginPlay = 0` and `bUseUObjectArrayCache = false`.
+
+When the game starts, the mod reads these two lines. If one of them is on, or missing (UE4SS then uses its default,
+which is on), the mod writes a `[StellarCoop] UE4SS-settings.ini:` line to `UE4SS.log` and shows a notice. It never
+changes the file.
 
 ## Keys and settings
 
@@ -312,3 +337,8 @@ When you test with a friend, the player who leads the test types `coop mark <ste
 for example `coop mark 3 lift`. Each mark puts a numbered line with that text in both players' `coop-link.log` and
 `UE4SS.log` (see [usage.md](docs/usage.md#coop-mark)), so the four logs line up step by step. The text of each mark
 stays in the logs you send.
+
+## License
+
+`Assets/MotherSphere.png` is not covered by the GPL in `LICENSE`. It is the Mother Sphere art shown in the guide, by
+timediffer24 (https://x.com/timediffer24), given to this project.

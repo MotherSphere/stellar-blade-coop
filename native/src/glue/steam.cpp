@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -106,6 +107,13 @@ std::string utf8(const std::wstring &text) {
   std::string out(static_cast<size_t>(n > 0 ? n : 0), '\0');
   if (n > 0)
     WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), out.data(), n, nullptr, nullptr);
+  return out;
+}
+std::wstring wide(const std::string &text) {
+  int n = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
+  std::wstring out(static_cast<size_t>(n > 0 ? n : 0), L'\0');
+  if (n > 0)
+    MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), out.data(), n);
   return out;
 }
 
@@ -230,7 +238,9 @@ int slot_index = coop::slot::kUnread;   // The slot the game entered, every 250 
 coop::slot::Saves saves_state = coop::slot::Saves::unread; // The save files the game uses, with it (pose::saves).
 uint64_t next_slot = 0;
 bool probed = false; // The save name's probe ran at load.
-void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<coop::SaveWatch::Entry> &out, int depth) {
+// The files under dir, in folders down to deepest levels below it, most of them at most.
+void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<coop::SaveWatch::Entry> &out, int depth,
+                int deepest = 3, size_t most = SIZE_MAX) {
   WIN32_FIND_DATAW f;
   HANDLE h = FindFirstFileW((dir + L"\\*").c_str(), &f);
   if (h == INVALID_HANDLE_VALUE)
@@ -239,10 +249,12 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
     std::wstring name = f.cFileName;
     if (name == L"." || name == L"..")
       continue;
+    if (out.size() >= most)
+      break;
     std::string rel = prefix + utf8(name);
     if (f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-      if (depth < 3)
-        list_saves(dir + L"\\" + name, rel + "\\", out, depth + 1);
+      if (depth < deepest)
+        list_saves(dir + L"\\" + name, rel + "\\", out, depth + 1, deepest, most);
     } else {
       out.push_back({rel, (uint64_t(f.nFileSizeHigh) << 32) | f.nFileSizeLow,
                      (uint64_t(f.ftLastWriteTime.dwHighDateTime) << 32) | f.ftLastWriteTime.dwLowDateTime});
@@ -252,8 +264,15 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
 }
 
 // The .pak mods the game loads beyond the base game's (game/pak_list.h), from SB\Content\Paks next to the exe's
-// SB\Binaries\Win64, read once at start: a header line names them, and each friend gets their count and hash.
+// SB\Binaries\Win64 and its folders 8 levels down (4096 files at most; the engine mounts paks at any depth), read once
+// at start: a header line names them, and each friend gets their count and hash, and our mod containers by name. The
+// CNS packs among the files (.dekcns.json under ~mods, kMaxCnsPacks read, kMaxCnsBytes each) are counted with their
+// outfits for the log and the status's cns= line, and the assets they declare (cns_assets) go to coop-cns.txt, a
+// "<path> <outfit>" line each, sorted, written at every start (empty without CNS packs): the only paths of a mod
+// partner/puppet.lua loads when a friend's table names one, and the outfits partner/capture.lua tags her parts with.
 coop::Paks game_paks;
+std::vector<coop::PakMod> game_mods;
+std::string cns_line; // "cns=<packs> <outfits>\n", or empty without CNS packs.
 void log_paks() {
   wchar_t exe[MAX_PATH];
   DWORD n = GetModuleFileNameW(nullptr, exe, MAX_PATH);
@@ -262,15 +281,38 @@ void log_paks() {
     dir.resize(dir.find_last_of(L"\\/") == std::wstring::npos ? 0 : dir.find_last_of(L"\\/"));
   std::vector<coop::SaveWatch::Entry> files;
   if (!dir.empty())
-    list_saves(dir + L"\\Content\\Paks", "", files, 0);
+    list_saves(dir + L"\\Content\\Paks", "", files, 0, 8, 4096);
   std::vector<coop::PakFile> paks;
-  for (auto &f : files)
+  size_t packs = 0;
+  uint64_t outfits = 0;
+  std::map<std::string, std::string> assets;
+  for (auto &f : files) {
     paks.push_back({f.name, f.size});
+    if (packs < coop::kMaxCnsPacks && coop::cns_pack(f.name)) {
+      bool exists = false;
+      ++packs;
+      const std::string json =
+          coop::pose::read_file(dir + L"\\Content\\Paks\\" + wide(f.name), exists, coop::kMaxCnsBytes);
+      outfits += coop::cns_outfits(json);
+      coop::cns_assets(json, assets);
+    }
+  }
+  std::string declared;
+  for (const auto &[path, fit] : assets)
+    declared += path + " " + fit + "\n";
+  write_text(folder + L"coop-cns.txt", declared);
   game_paks = coop::digest(paks);
+  game_mods = coop::mods(paks);
   std::string names = game_paks.names.size() > 1000 ? game_paks.names.substr(0, 1000) + "..." : game_paks.names;
   header_lines.push_back("paks " + std::to_string(game_paks.count) + " beyond the base game, hash " +
                          std::to_string(game_paks.hash) + (names.empty() ? "" : ": " + names));
   append(utc_stamp() + " " + header_lines.back());
+  if (packs) {
+    cns_line = "cns=" + std::to_string(packs) + " " + std::to_string(outfits) + "\n";
+    header_lines.push_back("cns " + std::to_string(packs) + " packs, " + std::to_string(outfits) + " outfits, " +
+                           std::to_string(assets.size()) + " assets");
+    append(utc_stamp() + " " + header_lines.back());
+  }
 }
 
 // steam_id: 0 until Steam is ready; the marker is then not looked up, as another account's folder never decides.
@@ -360,13 +402,6 @@ public:
   }
 
 private:
-  static std::wstring wide(const std::string &text) {
-    int n = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
-    std::wstring out(static_cast<size_t>(n > 0 ? n : 0), L'\0');
-    if (n > 0)
-      MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), out.data(), n);
-    return out;
-  }
   static bool read_at(const std::wstring &path, std::string &out, size_t max) {
     HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -446,9 +481,10 @@ std::string status_text() {
   std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb1251.load()})
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
-  return head + coop::pose::status() + "\n" +
+  return head + cns_line + coop::pose::status() + "\n" +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
+         coop::pose::lion_status() + "\n" +
          coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
          "last=" + journal.last() + "\n";
 }
@@ -495,7 +531,7 @@ bool step() {
       loaded = true;
       link = std::make_unique<coop::Link>(api, STELLARCOOP_VERSION, event,
                                           [](const uint8_t *d, size_t n) { coop::pose::peer_receive(d, n); });
-      link->paks(game_paks.count, game_paks.hash);
+      link->paks(game_paks.count, game_paks.hash, game_mods);
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
@@ -544,12 +580,20 @@ bool step() {
       event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::lion: // coop lion's rows: the game thread's too.
+      event(coop::pose::ask_lion(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::freeze: {
       coop::Request r = coop::parse_request(request);
       event(coop::pose::ask_freeze(!r.off, r.ms, GetTickCount64()));
       request.clear();
       break;
     }
+    case coop::Command::gate: // coop fly and coop slowmo: the game thread's.
+      event(coop::pose::ask_gate(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::saves:
       if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());
@@ -602,6 +646,7 @@ bool step() {
       link->photo(lua.photo,
                   lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max,
                   lua.cut);
+      link->mod_names(lua.names);
       link->loopback(coop::pose::loopback());
     }
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
@@ -678,6 +723,9 @@ bool step() {
         loaded && !switched_off && link->photo_freeze() && coop::pose::lua_state().world, GetTickCount64());
     if (loaded && !said.empty())
       link->notice(said);
+    said = coop::pose::debug_pass(linked, coop_marker, GetTickCount64());
+    if (loaded && !said.empty())
+      link->notice(said);
     // Channel 2 both ways: the shared quests take their SBQ lines out first, the shared fight's job gets the rest; the
     // lobby owner hosts both. Ours are queued for the next tick.
     std::vector<std::string> channel2 = loaded ? link->take_fight() : std::vector<std::string>();
@@ -727,7 +775,7 @@ DWORD WINAPI worker(void *) {
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
-                               L"coop-night.txt"})
+                               L"coop-night.txt", L"coop-cns.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
   write_header();
   log_paks();

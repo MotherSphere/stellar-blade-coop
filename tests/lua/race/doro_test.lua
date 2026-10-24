@@ -7,7 +7,12 @@
 -- only those parts and restores the tick option, and keeps the file when a step fails; a map change turns it off, with
 -- no call on an object that took the place of one it met; its first error turns it off until the mod reloads; a restore
 -- from an earlier Lua load's file; a stale path only clears the file; the race's emote while she stands) and the
--- probe's steps and lines.
+-- probe's steps and lines. Each Doro's keepers (one hidden, non-ticking component a clip, which holds it), Doro.detach,
+-- and with a fake collector that drops what no live component holds, no clip loaded again while a Doro stands, and the
+-- loads at the look's making left out of its minute line; a clip missing on this PC. The drone that follows EVE: found
+-- by its class at look on and when the one held goes, never on a timer; its main mesh hidden only when shown and only
+-- once recorded in coop-look.txt, shown again on each way out and by the next Lua load (only when still hidden), and no
+-- other drone touched.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -39,13 +44,15 @@ for key,path in pairs(Doro.ASSETS) do
         GetBounds=function() return {BoxExtent={X=23.3,Y=17.2,Z=19.8}} end})
 end
 local by_path={} -- Objects StaticFindObject finds by path (EVE, an earlier Doro), beside classes and assets.
+local unloaded={[Doro.ASSETS.four]=true} -- Assets not in memory: only LoadAsset brings them.
 StaticFindObject=function(path)
     if by_path[path] then return by_path[path] end
     if path:find('^/Script/') then return class(path) end
-    if path:find('Peaceful_1',1,true) then return invalid end -- Not in memory: LoadAsset brings it.
+    if unloaded[path] then return invalid end
     return assets[path] or invalid
 end
-LoadAsset=function(path) loads[#loads+1]=path; return assets[path] or invalid end
+LoadAsset=function(path) loads[#loads+1]=path; unloaded[path]=nil; return assets[path] or invalid end
+local fail_anim=false -- SetAnimation refuses: a keeper cannot be made.
 -- A Doro component: its calls in order, as words.
 local function component(actor)
     local c=object({calls={},actor=actor})
@@ -55,6 +62,9 @@ local function component(actor)
         c.calls[#c.calls+1]=table.concat(words,' ')
     end
     function c:K2_AttachToComponent(parent) self.parent=parent; said('attach') end
+    function c:SetVisibility(on,children) assert(children==false); self.visible=on; said('visible',tostring(on)) end
+    function c:SetComponentTickEnabled(on) self.ticks=on; said('tick',tostring(on)) end
+    function c:SetAnimation(a) if fail_anim then error('no animation') end self.anim=a; said('anim',a.key) end
     function c:SetSkeletalMesh(m) self.mesh,self.SkeletalMesh=m,m; said('mesh',m.key) end
     function c:SetRelativeScale3D(v) self.scale=v; said('scale',v.X) end
     function c:SetCollisionEnabled(n) said('collision',n) end
@@ -63,7 +73,7 @@ local function component(actor)
         assert(sweep==false)
         self.at,self.rot,self.teleport=at,r,teleport
     end
-    function c:PlayAnimation(a,loop) said('play',a.key,tostring(loop)) end
+    function c:PlayAnimation(a,loop) self.anim=a; said('play',a.key,tostring(loop)) end
     function c:GetAnimInstance()
         return {SetBlendSpaceInput=function(_,v) assert(v.Y==0 and v.Z==0); said('input',v.X) end,
             GetClass=function() return {GetFName=function() return fname('AnimSingleNodeInstance') end} end}
@@ -72,7 +82,10 @@ local function component(actor)
     function c:SetPosition(at,notifies) assert(notifies==false,'Never notifies'); self.position=at; said('at',at) end
     function c:GetPosition() return self.position or 0 end
     function c:K2_GetComponentScale() return self.scale end
-    function c:K2_DestroyComponent() self.destroyed=true end
+    function c:K2_DestroyComponent(owner)
+        assert(owner==actor,'DestroyComponent takes the owner')
+        self.destroyed=true
+    end
     function c:IsA(k) return k.path=='/Script/Engine.SkeletalMeshComponent' end
     return c
 end
@@ -82,9 +95,10 @@ local world=object({SpawnActor=function(_,c,at,rot)
     local a=object({components={}})
     function a:SetActorEnableCollision(on) self.collision=on end
     function a:AddComponentByClass(k,manual,transform,deferred)
-        assert(k.path=='/Script/Engine.SkeletalMeshComponent' and manual==false and transform=='identity'
+        assert(k.path=='/Script/Engine.SkeletalMeshComponent' and type(manual)=='boolean' and transform=='identity'
             and deferred==false)
         local added=component(self)
+        added.manual=manual -- The display on the root, a keeper unattached.
         self.components[#self.components+1]=added
         return added
     end
@@ -124,6 +138,7 @@ local function eve_of(name)
     function e:GetFullName() return 'CH_P_EVE_01_Blueprint_C /Game/Map.Map:PersistentLevel.'..name end
     function e:GetWorld() return world end
     function e:K2_GetActorRotation() return {Pitch=0,Yaw=90,Roll=0} end
+    function e:K2_GetActorLocation() return {X=10,Y=20,Z=0} end
     function e:K2_GetComponentsByClass(k)
         assert(k.path=='/Script/Engine.MeshComponent')
         return self.parts
@@ -135,6 +150,13 @@ local function eve_of(name)
 end
 local eve=eve_of('EVE_1')
 player=eve
+-- What FindAllOf('CH_Drone_BP_C') gives (nil for none, as UE4SS does): the drones a test adds. finds counts the calls.
+local drones,finds={},0
+FindAllOf=function(name)
+    assert(name=='CH_Drone_BP_C',name)
+    finds=finds+1
+    return #drones>0 and drones or nil
+end
 local stored -- coop-look.txt's line.
 local store={save=function(line) stored=line; return true end,load=function() return stored end,
     clear=function() stored=nil end}
@@ -243,6 +265,18 @@ c=Doro.pick({},{speed=300,vz=0,falling=false,sprint=false,emote='win',now=0})
 assert(c.asset=='two' and c.input==300,'Moving: no emote')
 c=Doro.pick({},{speed=0,vz=500,falling=true,sprint=false,emote='win',now=0})
 assert(c.asset=='evade' and c.loop==false and c.at==0,'In the air: no emote')
+-- EVE's dash: a root-motion move the game flags as falling, with no real vertical speed, runs on all fours; a jump
+-- with root motion (a fast vertical speed) still hops.
+c=Doro.pick({},{speed=1248,vz=30,falling=true,sprint=false,root=true,now=0})
+assert(c.asset=='four' and c.loop==true and c.rate==1.8,'A dash is no jump: '..tostring(c.asset))
+c=Doro.pick({},{speed=600,vz=700,falling=true,sprint=false,root=true,now=0})
+assert(c.asset=='evade' and c.at==0,'A root-motion jump still hops')
+local dash={}
+Doro.pick(dash,{speed=1200,vz=0,falling=true,sprint=false,root=true,now=0})
+c=Doro.pick(dash,{speed=500,vz=0,falling=false,sprint=false,now=0.2})
+assert(c.asset=='four','On all fours for 0.3 s after the dash, as after a sprint')
+c=Doro.pick(dash,{speed=500,vz=0,falling=false,sprint=false,now=0.6})
+assert(c.asset=='two','Two legs again')
 
 -- While a race drives: all fours from 60% of the top speed (1320 of 2200), two legs again under 55% (1210); the play
 -- rate up to 3; the stumble's tired hop at twice its speed, from its start; a lean into the bend from the speed and the
@@ -301,7 +335,23 @@ local actor=world:SpawnActor(class('/Script/Engine.Actor'),{},{})
 local d=Doro.attach(actor)
 local m=d.mesh
 assert(table.concat(m.calls,'|')=='mesh mesh|scale 1.5|collision 0|mode 1',table.concat(m.calls,'|'))
-assert(m.parent==nil,'No parent given: the actor\'s root')
+assert(m.parent==nil and m.manual==false and actor.components[1]==m,'No parent given: the actor\'s root')
+-- Its keepers: one per clip, unattached and never moved, hidden and not ticking before the mesh is set, collision
+-- off, the single-node mode holding the clip. A clip not in memory (all fours) is loaded now, once, before anything
+-- plays it.
+local clips={}
+for key in pairs(Doro.ASSETS) do if key~='mesh' then clips[key]=true end end
+assert(#d.keepers==9 and #actor.components==10,#d.keepers)
+for k,keeper in ipairs(d.keepers) do
+    local key=keeper.anim.key
+    assert(keeper==actor.components[k+1] and keeper.manual==true and keeper.at==nil,'Unattached, never moved')
+    assert(table.concat(keeper.calls,'|')=='visible false|tick false|collision 0|mesh mesh|mode 1|anim '..key,
+        table.concat(keeper.calls,'|'))
+    assert(keeper.VisibilityBasedAnimTickOption==3 and keeper.mesh==assets[Doro.ASSETS.mesh] and clips[key],key)
+    clips[key]=nil
+end
+assert(next(clips)==nil,'Every clip held')
+assert(#loads==1 and loads[1]==Doro.ASSETS.four,'Loaded as the Doro was made')
 m.calls={}
 Doro.apply(d,{asset='two',loop=true,input=250,rate=1})
 Doro.apply(d,{asset='two',loop=true,input=500,rate=1.4})
@@ -313,20 +363,43 @@ Doro.apply(d,{asset='evade',loop=false,rate=0,at=0.5})
 Doro.apply(d,{asset='evade',loop=true,rate=1})
 assert(table.concat(m.calls,'|')=='play four true|input 500|rate 1|play evade false|rate 1|at 0|rate 0|at 0.5|'
     ..'play evade true|rate 1',table.concat(m.calls,'|'))
-assert(#loads==1 and loads[1]==Doro.ASSETS.four,'Not in memory: loaded, once')
+assert(#loads==1,'Played: not loaded again')
 Doro.apply(d,{asset='four',loop=true,input=0,rate=1})
 assert(#loads==1,'Cached')
--- Hung on a parent: attached there, kept relative.
+-- Hung on a parent: attached there, kept relative. Doro.detach (the ghost's Doro mode off): the display and its
+-- keepers gone, the actor kept.
 local parent=object({})
-assert(Doro.attach(actor,parent).mesh.parent==parent)
+local hung=Doro.attach(actor,parent)
+assert(hung.mesh.parent==parent and #hung.keepers==9)
+Doro.detach(hung,actor)
+assert(hung.mesh.destroyed and not actor.destroyed)
+for _,k in ipairs(hung.keepers) do assert(k.destroyed) end
+-- A keeper that cannot be made: nothing left on the actor.
+fail_anim=true
+local added=#actor.components
+local ok,why=pcall(Doro.attach,actor)
+fail_anim=false
+assert(not ok and why:find('no animation',1,true) and #actor.components==added+2,why)
+assert(actor.components[added+1].destroyed and actor.components[added+2].destroyed,'The display and the keeper gone')
 -- A missing mesh (the cached one collected, none to load): nothing added.
 local mesh_path=Doro.ASSETS.mesh
 local mesh_asset=assets[mesh_path]
 assets[mesh_path],mesh_asset.destroyed=nil,true
 local before=#actor.components
-local ok,why=pcall(Doro.attach,actor)
+ok,why=pcall(Doro.attach,actor)
 assert(not ok and why:find('the Doro mesh is missing on this PC',1,true) and #actor.components==before,why)
 assets[mesh_path],mesh_asset.destroyed=mesh_asset,nil
+-- A clip missing on this PC (the cached one collected, none to load): no keeper for it, the Doro made all the same, and
+-- playing that clip says so.
+local meet3=assets[Doro.ASSETS.meet3]
+assets[Doro.ASSETS.meet3],meet3.destroyed=nil,true
+local short=Doro.attach(actor)
+assert(#short.keepers==8,#short.keepers)
+for _,k in ipairs(short.keepers) do assert(k.anim.key~='meet3') end
+ok,why=pcall(Doro.apply,short,{asset='meet3',loop=false,rate=1})
+assert(not ok and why:find('meet3 is missing on this PC',1,true),why)
+Doro.detach(short,actor)
+assets[Doro.ASSETS.meet3],meet3.destroyed=meet3,nil
 
 -- Doro.remove: a Doro of spawn()'s destroyed while it is that actor; once gone, or another object at its place, no call.
 do
@@ -351,6 +424,7 @@ assert(ok and why=='Doro look on: 4 parts of EVE hidden; coop race look off show
 local doro=spawned[#spawned]
 local root=doro.components[1]
 assert(doro.collision==false and root.mesh==mesh_asset and root.scale.X==1.5 and not root.parent,'A Doro of its own')
+assert(#doro.components==10 and doro.components[2].manual==true,'With its keepers')
 assert(root.at.X==10 and root.at.Y==20 and root.at.Z==-87 and root.rot.Yaw==0,'At her main mesh, her feet')
 -- Only parts not hidden already: her ponytail stays the game's.
 local body,face,hair,pony,blade=table.unpack(eve.parts)
@@ -359,7 +433,8 @@ assert(pony.writes==0,'Hidden by the game: never touched, never listed')
 assert(body.VisibilityBasedAnimTickOption==0,'Her pose ticks while she is not drawn')
 assert(stored=='/Game/Map.Map:PersistentLevel.EVE_1\t3\t/Game/Map.Map:PersistentLevel.Actor_'..#spawned
     ..'\tCharacterMesh0\tMesh_Face\tSBHair\tBlade',stored)
-assert(logs[1]=='look hid=4 tick=3->0 rehid=0/min' and logs[2]=='look yaw_delta=90.0',table.concat(logs,'|'))
+assert(logs[1]=='look drone none within 30 m (0 in the world)' and
+    logs[2]=='look hid=4 tick=3->0 rehid=0/min' and logs[3]=='look yaw_delta=90.0',table.concat(logs,'|'))
 assert(look.active() and select(2,look.on())=='The Doro look is on already.')
 -- Each frame: placed at her main mesh, animated from her velocity, her sprint and her fall; her speed once a second.
 eve.velocity={X=300,Y=400,Z=0}
@@ -374,7 +449,9 @@ clock=100.1
 eve.sprint=true
 root.calls={}
 look.tick()
-assert(root.calls[1]=='play four true' and #logs==lines,'All fours; no speed line before a second')
+assert(root.calls[1]=='play four true' and #logs==lines+1
+    and last()=='look clip four: v=500 vz=0 falling=0 root=0 sprint=1',
+    'All fours, said once; no speed line before a second')
 clock=101
 look.tick()
 assert(last()=='speed v=500 sb=512 sprint=1',last())
@@ -622,4 +699,210 @@ p=spawned[#spawned]
 all.stop()
 assert(p.destroyed and not all.active() and last():find('^Doro look off %(coop off%)'),last())
 assert(body.bHiddenInGame==false and stored==nil)
+
+-- The drone that follows EVE (EVE's actor at 10, 20, 0): the nearest CH_Drone_BP_C within 30 m, shown or not; only its
+-- main mesh is written, and only while the game shows it. FindAllOf of the class gives a subclass 2 m off (it may give
+-- subclasses), the drone 3 m off, another drone 10 m off and one 50 m off. FindAllOf walks every object: it runs at
+-- look on and once each time the drone held goes, never on a timer.
+local function drone_of(name,x,class)
+    class=class or 'CH_Drone_BP_C'
+    local c=object({Mesh=part('CharacterMesh0',false)})
+    function c:IsA(k) return k.path=='/Script/SB.SBCharacter' end
+    function c:GetClass() return {GetFName=function() return fname(class) end} end
+    function c:K2_GetActorLocation() return {X=10+x,Y=20,Z=0} end
+    function c:GetFName() return fname(name) end
+    function c:GetFullName() return class..' /Game/Map.Map:PersistentLevel.'..name end
+    function c:SetActorHiddenInGame() error('never the actor: its spot light and effects would go with it') end
+    return c
+end
+local sub,drone=drone_of('Sub',200,'CH_Drone_Sequence_BP_C'),drone_of('Drone',300)
+local other,away=drone_of('Other',1000),drone_of('Away',5000)
+-- The drone's mesh is hidden only once its path is in coop-look.txt.
+local hide=drone.Mesh.SetHiddenInGame
+function drone.Mesh:SetHiddenInGame(on,children)
+    assert(not on or stored and stored:find('\t/Game/Map.Map:PersistentLevel.Drone$'),'Recorded before it is hidden')
+    hide(self,on,children)
+end
+drones={sub,drone,other,away}
+local function untouched()
+    for _,c in ipairs({sub,other,away}) do assert(c.Mesh.writes==0,c:GetFName():ToString()) end
+end
+local flyer=Doro.new({log=log,store=store})
+local function seconds(n) for _=1,n do clock=clock+1; flyer.tick() end end
+-- Look on: the drone's mesh hidden, its path in coop-look.txt after the parts'; the game showing it again: hidden again
+-- at the next second and counted; a minute with one search only; look off: shown again.
+local searched=finds
+lines=#logs
+assert(flyer.on())
+local dm=drone.Mesh
+assert(dm.bHiddenInGame==true and dm.writes==1 and logs[lines+1]=='look drone hid Drone at 3.0 m',logs[lines+1])
+assert(stored:find('\tBlade\t/Game/Map.Map:PersistentLevel.Drone$'),stored)
+dm.bHiddenInGame=false
+seconds(1)
+assert(dm.bHiddenInGame==true and dm.writes==2,'Hidden again')
+seconds(1)
+assert(dm.writes==2,'Hidden: no write')
+seconds(58)
+assert(last()=='look hid=4 tick=3->0 rehid=1/min retick=0/min reload=0/min reload_ms=0',last())
+assert(finds==searched+1,'One search a look: '..finds-searched)
+ok,why=flyer.off('test')
+assert(ok and why=='Doro look off (test): 4 parts and the drone shown again, tick option 3 back.',why)
+assert(dm.bHiddenInGame==false and dm.writes==3 and stored==nil)
+untouched()
+-- Hidden by the game at look on: held, said once and left alone, never another drone in its place, no search again;
+-- shown later: hidden then, and shown at off.
+dm.bHiddenInGame=true
+searched=finds
+assert(flyer.on())
+assert(dm.writes==3 and last()=='look hid=4 tick=3->0 rehid=0/min',last())
+assert(logs[#logs-1]=='look drone Drone at 3.0 m hidden by the game: hidden when it shows',logs[#logs-1])
+assert(not stored:find('Drone',1,true),'Not in the file while the look has not hidden it')
+lines=#logs
+seconds(3)
+for k=lines+1,#logs do assert(not logs[k]:find('drone',1,true),logs[k]) end
+assert(dm.writes==3 and finds==searched+1,'Never written, looked for once')
+dm.bHiddenInGame=false
+seconds(1)
+assert(dm.bHiddenInGame==true and dm.writes==4 and last()=='look drone hid Drone at 3.0 m',last())
+ok,why=flyer.off('test')
+assert(dm.bHiddenInGame==false and why:find('and the drone shown again',1,true),why)
+untouched()
+-- Hidden by the game for the whole look: off shows nothing.
+dm.bHiddenInGame=true
+assert(flyer.on())
+ok,why=flyer.off('test')
+assert(dm.bHiddenInGame==true and dm.writes==5,'Never written')
+assert(why=='Doro look off (test): 4 parts shown again, tick option 3 back.',why)
+dm.bHiddenInGame=false
+-- The drone held goes: looked for once more, the next one within 30 m hidden; that one goes too: looked for once more,
+-- none within 30 m, said, and never looked for again this look. Off: no call on either.
+assert(flyer.on() and dm.bHiddenInGame==true)
+searched=finds
+drone.destroyed=true
+seconds(1)
+assert(finds==searched+1 and other.Mesh.bHiddenInGame==true and last()=='look drone hid Other at 10.0 m',last())
+assert(stored:find('PersistentLevel.Other$'),stored)
+other.destroyed=true
+seconds(1)
+assert(finds==searched+2 and last()=='look drone none within 30 m (1 in the world)',last())
+seconds(60)
+assert(finds==searched+2,'Never on a timer: '..finds-searched)
+ok,why=flyer.off('test')
+assert(ok and why=='Doro look off (test): 4 parts shown again, tick option 3 back.',why)
+drone.destroyed,other.destroyed,dm.bHiddenInGame=nil,nil,false
+other.Mesh.bHiddenInGame,other.Mesh.writes=false,0
+untouched()
+-- coop off.
+assert(flyer.on() and dm.bHiddenInGame==true)
+flyer.stop()
+assert(dm.bHiddenInGame==false and last():find('^Doro look off %(coop off%): 4 parts and the drone'),last())
+-- A map change: off, the drone shown while it is still the one it hid; once another object is at its place, no call.
+assert(flyer.on() and dm.bHiddenInGame==true)
+player=eve_of('EVE_4')
+clock=clock+1
+ok,why=flyer.tick()
+assert(ok and why:find('^Doro look off %(map change%): 4 parts and the drone') and dm.bHiddenInGame==false,why)
+player=eve
+assert(flyer.on() and dm.bHiddenInGame==true)
+local full=drone.GetFullName
+drone.GetFullName=function() return 'Other /Game/Other.Other:PersistentLevel.Other' end
+local writes=dm.writes
+flyer.off('map change')
+assert(dm.writes==writes,'No call on another object')
+drone.GetFullName,dm.bHiddenInGame=full,false
+-- Its first error.
+local broken=Doro.new({log=log,store=store})
+assert(broken.on() and dm.bHiddenInGame==true)
+eve.broken=true
+clock=clock+1
+ok,why=broken.tick()
+eve.broken=false
+assert(ok==false and why:find('Doro look off %(error%): 4 parts and the drone') and dm.bHiddenInGame==false,why)
+-- The next Lua load (Ctrl+R with the look on): the drone shown from coop-look.txt; only an SB character there whose
+-- main mesh is still hidden.
+local left_on=Doro.new({log=log,store=store})
+assert(left_on.on() and dm.bHiddenInGame==true)
+by_path['/Game/Map.Map:PersistentLevel.Drone']=drone
+Doro.new({log=log,store=store}).restore()
+assert(dm.bHiddenInGame==false and stored==nil and last()=='look restored 4 parts and the drone from coop-look.txt',
+    last())
+local line_left='/Game/Map.Map:PersistentLevel.EVE_1\t3\t/Game/Map.Map:PersistentLevel.Actor_98\tCharacterMesh0'
+    ..'\t/Game/Map.Map:PersistentLevel.Drone'
+stored,writes=line_left,dm.writes
+Doro.new({log=log,store=store}).restore()
+assert(dm.writes==writes and stored==nil and last()=='look restored 0 parts from coop-look.txt',last())
+local plain=object({bHidden=true,IsA=function() return false end,Mesh=part('CharacterMesh0',true)})
+by_path['/Game/Map.Map:PersistentLevel.Drone']=plain
+stored=line_left
+Doro.new({log=log,store=store}).restore()
+assert(plain.Mesh.writes==0 and stored==nil and last()=='look restored 0 parts from coop-look.txt',last())
+by_path['/Game/Map.Map:PersistentLevel.Drone']=nil
+untouched()
+-- None within 30 m at look on: said, and not looked for again this look.
+drones={sub,away}
+searched=finds
+assert(flyer.on() and logs[#logs-1]=='look drone none within 30 m (1 in the world)',logs[#logs-1])
+seconds(60)
+assert(finds==searched+1,finds-searched)
+flyer.off('test')
+untouched()
+drones={}
+
+-- The engine's collector: an asset of Doro's that no live component of a live actor holds (its mesh, the clip it plays,
+-- a keeper's clip) is unloaded, and only LoadAsset brings it back, as a new object.
+local function collect()
+    local held={}
+    for _,a in ipairs(spawned) do
+        for _,c in ipairs(a.destroyed and {} or a.components) do
+            if not c.destroyed then
+                if c.mesh then held[c.mesh]=true end
+                if c.anim then held[c.anim]=true end
+            end
+        end
+    end
+    for path,a in pairs(assets) do
+        if not held[a] and not unloaded[path] then
+            a.destroyed,unloaded[path]=true,true
+            assets[path]=object({key=a.key,GetFullName=a.GetFullName,IsA=a.IsA,GetBounds=a.GetBounds})
+        end
+    end
+end
+-- With no Doro standing, every asset goes; the next Doro loads each again, once, as it is made. Then, whatever it
+-- plays (two legs, all fours, a jump, a stumble, the tired emote) with the collector between frames, nothing is loaded
+-- again, and the look's first minute line says reload=0/min: the loads at its making are not counted.
+for _,a in ipairs(spawned) do a.destroyed=true end
+collect()
+for _,path in pairs(Doro.ASSETS) do assert(unloaded[path],path) end
+local loaded=#loads
+local racer=Doro.new({log=log,store=store})
+assert(racer.on())
+assert(#loads==loaded+10 and Doro.reloads.n==0,#loads-loaded)
+loaded=#loads
+root=spawned[#spawned].components[1]
+local played={}
+local function run(seconds,set)
+    set()
+    for _=1,seconds*20 do
+        clock=clock+0.05
+        root.calls={}
+        assert(racer.tick()==nil)
+        for _,call in ipairs(root.calls) do played[call:match('^play (%a+)') or '']=true end
+        collect()
+    end
+end
+run(1,function() eve.velocity={X=300,Y=0,Z=0} end)
+run(1,function() eve.sprint=true end)
+run(1,function() eve.sprint,eve.falling,eve.velocity=false,true,{X=300,Y=0,Z=-600} end)
+run(1,function() eve.falling,eve.velocity=false,{X=300,Y=0,Z=0} end)
+run(1,function() racer.drive({top=2200,stumble=true}) end)
+run(1,function() racer.drive(nil); racer.emote('lose'); eve.velocity={X=0,Y=0,Z=0} end)
+racer.emote(nil)
+for _,key in ipairs({'two','four','evade','stumble','exhaust'}) do assert(played[key],key) end
+assert(#loads==loaded and Doro.reloads.n==0,'Nothing loaded again: '..(#loads-loaded))
+clock=clock+60
+racer.tick()
+assert(last():find(' reload=0/min reload_ms=0$'),last())
+racer.off('test')
+collect()
+assert(unloaded[Doro.ASSETS.four],'Its Doro gone: nothing holds the clips')
 print('doro_test ok')

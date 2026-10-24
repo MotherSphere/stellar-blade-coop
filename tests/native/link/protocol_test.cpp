@@ -111,7 +111,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC12 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC13 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -126,7 +126,7 @@ int main() {
                                  race + "end\r", race + "\xff", p + " race", race})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
-  for (const char *other : {"SBC11 race cp 7 1 2 3", "SBC13 race cp 7 1 2 3", "SBC race end 7"})
+  for (const char *other : {"SBC12 race cp 7 1 2 3", "SBC14 race cp 7 1 2 3", "SBC race end 7"})
     assert(parse_text(other).kind == Kind::invalid);
   for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
     m = parse_text(race + "x" + static_cast<char>(c) + "x");
@@ -161,6 +161,25 @@ int main() {
   assert(m.kind == Kind::paks && m.a == kMaxPaks && m.b == 0);
   for (const std::string &bad : {p + " paks", p + " paks 1", p + " paks 100001 5", p + " paks 1 5 6", p + " paks x 5",
                                  p + " paks 1 -5", p + " paks 1 18446744073709551616", std::string("SBC9 paks 1 5")})
+    assert(parse_text(bad).kind == Kind::invalid);
+  // The pak lines before it (protocol 13): one mod container each, its hash in 16 lower-case hex digits and its name
+  // as game/pak_list.h's mod_name() makes it. The longest fits kMaxMessage. Anything else is invalid.
+  assert(pak_line({"logicmods/menu_p", 91239, 0x0123456789abcdefull}) == p + " pak 0123456789abcdef logicmods/menu_p");
+  assert(pak_line({"a", 0, 0}) == p + " pak 0000000000000000 a");
+  m = parse_text(pak_line({"logicmods/hd-atool_p/hd-atool_p", 1, 18446744073709551615ull}));
+  assert(m.kind == Kind::pak && m.a == 18446744073709551615ull && m.text == "logicmods/hd-atool_p/hd-atool_p");
+  const std::string widest_pak = pak_line({std::string(kMaxModName, '~'), 1, 5});
+  m = parse_text(widest_pak);
+  assert(m.kind == Kind::pak && m.a == 5 && m.text == std::string(kMaxModName, '~') &&
+         widest_pak.size() < kMaxMessage);
+  const std::string pk = p + " pak ";
+  for (const std::string &bad :
+       {p + " pak", pk + "0123456789abcdef", pk + "0123456789abcdef ", pk + "0123456789ABCDEF a",
+        pk + "0123456789abcde a", pk + "0123456789abcdef0 a", pk + "0123456789abcdeg a", pk + "-123456789abcdef a",
+        pk + "0123456789abcdef a b", pk + "0123456789abcdef a,b", pk + "0123456789abcdef  a",
+        pk + "0123456789abcdef " + std::string(kMaxModName + 1, 'a'), pk + "0123456789abcdef caf\xc3\xa9",
+        pk + "0123456789abcdef a\x7f", pk + " 0123456789abcdef a", std::string("SBC12 pak 0123456789abcdef a"),
+        p + " Pak 0123456789abcdef a", p + " paks 0123456789abcdef a"})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // Night Operation's line, reliable: a full state of the run from the host ("h ...") or the guest ("g ..."), which Lua
@@ -199,7 +218,7 @@ int main() {
   assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
   for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
                                  p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
-                                 std::string("SBC11 mark 3 x"), std::string("SBC mark 3"), std::string("SBC13 mark 3")})
+                                 std::string("SBC12 mark 3 x"), std::string("SBC mark 3"), std::string("SBC14 mark 3")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
@@ -217,11 +236,17 @@ int main() {
   // copies would stay where its own game puts them. Protocol 11 refuses the link.
   // A v0.4.0-beta.1 peer runs protocol 11: its channel 2 knows no shared quests' line, so a host's steps would never
   // reach that guest. Protocol 12 refuses the link.
-  static_assert(kProtocol == 12, "12 adds the shared quests' lines and the race lines; 11 SBE and the show lines; 10 "
-                                 "the fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
+  // A v0.5.0-beta.1 peer runs protocol 12: it would count the pak lines as invalid, so her list of mods would never
+  // come. Protocol 13 refuses the link.
+  static_assert(kProtocol == 13, "13 adds the pak lines; 12 the shared quests' lines and the race lines; 11 SBE and "
+                                 "the show lines; 10 the fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is "
+                                 "v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
          lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
-         lobby_tag(24463856) != "11:24463856");
+         lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856");
+  assert(parse_text("SBC12 ping 1 2").kind == Kind::invalid && parse_text("SBC12 paks 1 5").kind == Kind::invalid);
+  m = parse_text("SBC hello 12 v0.5.0-beta.1 24463856"); // Answered too, and rejected by its number.
+  assert(m.kind == Kind::hello && m.a == 12 && m.text == "v0.5.0-beta.1");
   assert(parse_text("SBC11 ping 1 2").kind == Kind::invalid && parse_text("SBC11 photo 1 both").kind == Kind::invalid);
   assert(parse_text("SBC9 ping 1 2").kind == Kind::invalid && parse_text("SBC9 vit 1").kind == Kind::invalid);
   assert(parse_text("SBC10 ping 1 2").kind == Kind::invalid && parse_text("SBC10 paks 1 5").kind == Kind::invalid);
@@ -270,7 +295,8 @@ int main() {
   std::mt19937 rng(1234);
   const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2),
                                photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77),
-                               night_line(host_line), mark_line(9, "é ok")};
+                               pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
+                               mark_line(9, "é ok")};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -291,6 +317,8 @@ int main() {
       assert(plausible_vitals(f.vitals));
     if (f.kind == Kind::paks)
       assert(f.a <= kMaxPaks);
+    if (f.kind == Kind::pak) // A name the sender's rule makes, the line exactly as pak_line() writes it.
+      assert(mod_name_ok(f.text) && mod_name(f.text) == f.text && text == pak_line({f.text, 0, f.a}));
     if (f.kind == Kind::night) // Only what night_ok() lets through.
       assert(night_ok(f.text) && text == night_line(f.text));
     if (f.kind == Kind::mark) // Numbered from 1, cleaned and cut, maybe empty.
@@ -573,6 +601,14 @@ int main() {
   for (const char *bad : {"freeze", "freeze 0", "freeze 3601", "freeze -1", "freeze 1.5", "freeze on", "freeze  10",
                           "freeze 10 x", "freeze off now", "freezeoff", "freeze 99999999999999999999"})
     assert(parse_request(bad).command == Command::none);
+  // coop fly and coop slowmo: a gate on or off, nothing else.
+  Request g = parse_request("fly on\n");
+  assert(g.command == Command::gate && g.gate == 0 && !g.off);
+  g = parse_request("slowmo off\r\n");
+  assert(g.command == Command::gate && g.gate == 1 && g.off);
+  assert(parse_request("fly off").off && parse_request("slowmo on").gate == 1 && !parse_request("slowmo on").off);
+  for (const char *bad : {"fly", "fly On", "fly on now", "flyon", "slowmo", "slowmo 1", "fly  on", "slow on"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");
@@ -674,6 +710,14 @@ int main() {
   assert(parse_state("world=1 rate=60 photo=c sync=both max=600", s) && s.photo == 'c' && !s.cut);
   assert(parse_state("world=1 rate=60 photo=0 sync=off max=600 cut=1\n", s) && s.photo == '0' && s.cut);
   assert(parse_state("world=1 rate=60 photo=1 sync=both max=600 cut=0", s) && s.photo == '1' && !s.cut);
+  // mod_names (protocol 13): names=0 keeps our mod containers' names from the friend; without it, or with names=1,
+  // they go. After cut= when both are there.
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600", s) && s.names && !s.cut);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600 names=0\n", s) && !s.names && !s.cut);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600 names=1", s) && s.names);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600 cut=1 names=0", s) && !s.names && s.cut);
+  assert(parse_state("world=1 rate=60 photo=0 sync=both max=600 cut=0 names=1", s) && s.names && !s.cut);
+  assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1 names=0\r\n").size() <= kMaxState);
   assert(std::string("world=title rate=60 photo=c sync=notice max=3600 cut=1\r\n").size() <= kMaxState);
   assert(std::string("world=1 rate=30 photo=s sync=notice max=3600\r\n").size() <= kMaxState);
   for (const std::string &bad :
@@ -695,12 +739,17 @@ int main() {
         std::string("world=1 rate=20 photo=C sync=both max=600"),
         "world=1 rate=20" + tail + " cut=2", "world=1 rate=20" + tail + " cut=", "world=1 rate=20" + tail + " cut=1 x",
         "world=1 rate=20" + tail + " cut=01", "world=1 rate=20" + tail + "  cut=1", "world=1 rate=20" + tail + " Cut=1",
-        "world=1 rate=25" + tail + "\n" + std::string(64 - 41, '\n')}) { // The last is 65 bytes.
+        "world=1 rate=20" + tail + " names=0 cut=1", "world=1 rate=20" + tail + " names=2",
+        "world=1 rate=20" + tail + " names=", "world=1 rate=20" + tail + " names=0 names=0",
+        "world=1 rate=20" + tail + " cut=1 cut=1", "world=1 rate=20" + tail + " cut=1 names=0 x",
+        "world=1 rate=20" + tail + " Names=0", "world=1 rate=20" + tail + " cut=1  names=0",
+        "world=1 rate=25" + tail + "\n" + std::string(kMaxState - 41, '\n')}) { // The last is kMaxState + 1 bytes.
     State keep;
     keep.world = true, keep.rate = 7, keep.photo = 's', keep.sync = Sync::notice, keep.max = 99, keep.cut = true;
+    keep.names = false;
     State out = keep;
     assert(!parse_state(bad, out) && out.world && out.rate == 7 && out.photo == 's' && out.sync == Sync::notice &&
-           out.max == 99 && out.cut);
+           out.max == 99 && out.cut && !out.names);
   }
   State fresh; // Before Lua writes one: photo sync off, the default cap.
   assert(!fresh.world && !fresh.title && fresh.rate == 20 && fresh.photo == '0' && fresh.sync == Sync::off &&
@@ -769,6 +818,50 @@ int main() {
         std::string("travel Xion_Camp_10 1 4294967296"), std::string("travel Xion-Camp 1 0"),
         std::string("travel ") + a65 + " 1 0", std::string("travel Xion_Camp_10 1"), std::string("travel"),
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
+    assert(parse_request(bad).command == Command::none);
+
+  // coop lion's rows: one <Table>=0x<address> word for each of the 12 tables, in any order, each once; the addresses
+  // in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request fits Lua's 512-byte
+  // request file. Anything off is refused.
+  const auto lion = [](const std::vector<std::string> &words) {
+    std::string text = "lion rows";
+    for (const std::string &w : words)
+      text += " " + w;
+    return text;
+  };
+  std::vector<std::string> words;
+  for (size_t i = 0; i < kLionTableCount; ++i) {
+    char word[64];
+    std::snprintf(word, sizeof word, "%s=0x%llx", kLionTables[i], 0x1f4a2b3c0000ull + 0x100 * i);
+    words.push_back(word);
+  }
+  Request li = parse_request(lion(words) + "\r\n");
+  assert(li.command == Command::lion);
+  for (size_t i = 0; i < kLionTableCount; ++i)
+    assert(li.tables[i] == 0x1f4a2b3c0000ull + 0x100 * i);
+  std::vector<std::string> shuffled(words.rbegin(), words.rend());
+  shuffled[kLionTableCount - 1 - 7] = "SkillActiveStepTable=0x1F4A2B3C0700"; // Upper-case digits too.
+  li = parse_request(lion(shuffled));
+  assert(li.command == Command::lion && li.tables[7] == 0x1f4a2b3c0700ull && li.tables[0] == 0x1f4a2b3c0000ull);
+  std::vector<std::string> tables_longest;
+  for (size_t i = 0; i < kLionTableCount; ++i)
+    tables_longest.push_back(std::string(kLionTables[i]) + "=0x00007ffffffefff8");
+  assert(lion(tables_longest).size() + 2 <= 512 && parse_request(lion(tables_longest)).command == Command::lion);
+  const auto with = [&words](size_t i, const std::string &w) {
+    std::vector<std::string> v = words;
+    v[i] = w;
+    return v;
+  };
+  std::vector<std::string> tables11(words.begin(), words.end() - 1), tables13 = words;
+  tables13.push_back(words[0]);
+  for (const std::string &bad :
+       {lion(tables11), lion(tables13), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
+        lion(with(2, "CharacterDeadTable=1f4a2b3c0200")), lion(with(2, "CharacterDeadTable=0x1f4a2b3c0201")),
+        lion(with(2, "CharacterDeadTable=0xfff8")), lion(with(2, "CharacterDeadTable=0x7ffffffff0000")),
+        lion(with(2, "CharacterDeadTable=0x1f4a2b3c02g0")), lion(with(2, "CharacterDeadTable=0x00001f4a2b3c0200000")),
+        lion(with(2, "ZoneTable=0x1f4a2b3c0200")), lion(with(2, "characterdeadtable=0x1f4a2b3c0200")),
+        lion(with(2, "CharacterDeadTable=-0x1f4a2b3c0200")), lion(words) + " extra", std::string("lion rows"),
+        std::string("lion rows "), std::string("lion"), "lion rows  " + lion(words).substr(10)})
     assert(parse_request(bad).command == Command::none);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.

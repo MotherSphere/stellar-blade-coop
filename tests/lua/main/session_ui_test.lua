@@ -161,10 +161,11 @@ settings_text,in_world,kit_ready='',false,false
 -- before the menu, which draws over it, the status strip after the card and before her marker and arrow, which draw
 -- over it; each 250 ms in a world its card follows the session and her vitals, and the ghost hides its name tag while
 -- the marker carries her name (partner_bar on, the root up); each frame only its marker and arrow, projected through
--- the kit each frame and never without her anchor; nothing after coop off.
+-- the kit each frame and never without her anchor; nothing after coop off. The guide (ui/guide.lua) under the menu,
+-- which never shows with it.
 settings_text,status_text,link_mode='',plain,'host'
 load_main(true)
-assert(table.concat(kit_order,' ')=='chat feed card status marker arrow code menu line_hint ask badge saves',
+assert(table.concat(kit_order,' ')=='chat feed card status marker arrow code guide menu line_hint ask badge saves',
     table.concat(kit_order,' '))
 in_world,kit_ready,chatting=true,true,true
 mate_v={hp=500,max_hp=1000,shield=0,max_shield=0,blocks=0,beta=0,max_beta=0,burst=0,max_burst=0,tachy=0,max_tachy=0,

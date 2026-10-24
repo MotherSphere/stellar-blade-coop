@@ -12,7 +12,9 @@
 -- (session/saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native
 -- part's copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and coop where, a line of
 -- coordinates to compare between the two PCs; coop mark [text], a numbered line in both players' logs (coop-link.log,
--- and UE4SS.log through the status's mark= line) to line up a test played together; coop no [heal|rule|spawnpt|actor],
+-- and UE4SS.log through the status's mark= line) to line up a test played together; coop story [dump|find], the save
+-- object the game holds and its story lines, read only (story/dump.lua, a test tool to compare with tools/story.py,
+-- left out of the usage line); coop no [heal|rule|spawnpt|actor],
 -- the Night Operation probe of the T6 test only (nightop/probe.lua), on a co-op save only; coop nightop [start
 -- [noaggro|nomove]|stop|shop|buy <n> [count]], Night Operation's run (nightop/run.lua) and its reward shop
 -- (nightop/shop.lua), on a co-op save only (stop anywhere); coop challenge
@@ -50,10 +52,17 @@
 -- [<distance m>|auto] [<height m>|auto] [<scale>]|move <distance m>|auto [<height m>|auto]|skin
 -- statue|hydra|default|cam [<m/s>]|play [<clip>]|off, a read of the cut Naytiba 10's assets, a display of it playing
 -- its clips and a free camera to film it (cut/leviathan.lua; a test tool, left out of the usage line; show, and cam
--- turning the camera on, on a co-op save only). coop off stops everything until the game restarts. An XInput pad, read
--- by the native part, drives the co-op menu and the co-op saves' question: View held 1 s opens or closes the menu. The
--- console commands' handlers are in Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui
--- and coop off, which stay here.
+-- turning the camera on, on a co-op save only); coop gardener, coop tendril, coop mann, coop nier, coop orcal and coop
+-- enya, the same words for the cut Naytibas 1 and 6 and four cut models, one of them shown at a time; coop lion
+-- [intro]|rows|control|brain skulling|lurker, the cut Lion spawned as an enemy to fight, its table rows added through
+-- the native part (cut/lion.lua; left out of the usage line; the words that spawn on a co-op save only). coop off stops
+-- everything until the game restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op
+-- saves' question: View held 1 s opens or closes the menu. The console commands' handlers are in Scripts/commands/
+-- (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here. coop wear
+-- [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua). coop
+-- scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op save
+-- only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, on any save
+-- (cut/lines.lua).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -118,7 +127,9 @@ if link then
     link.display(nil)
     link.session(string.format('%d-%d',os.time(),math.floor(os.clock()*1000000)))
 end
-local capture=require('partner.capture').new(link and link.components or nil,look)
+-- With mod_names=off, no mod's path goes in the capture either.
+local capture=require('partner.capture').new(link and link.components or nil,look,link and link.cns_assets or nil,
+    settings~=nil and not settings.mod_names)
 local notice=require('ui.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box and the
 -- host's question: with the Steam link.
@@ -140,6 +151,25 @@ local T=require('ui.text')
 local function words() return T.pick(kit and kit.language(),settings and settings.ui_language) end
 -- A notice that build(words) puts together: in the menu's words, and in English for the line above EVE.
 local function tell(build) say(build(words()),build(T.en)) end
+-- UE4SS-settings.ini (core/ue4ss_settings.lua), two folders above the mod's, read only: each key there that UE4SS
+-- reads as on is logged now, and its notice said once this Lua load as soon as one can show (the 250 ms loop below,
+-- with the Steam link only). A file that cannot be read, or is too large, gets a log line and no notice.
+local ue4ss_notes={}
+do
+    local root=folder and folder:match('^(.*)[\\/][^\\/]+[\\/][^\\/]+$')
+    if root then
+        local S=require('core.ue4ss_settings')
+        local text,why=require('core.link').files.read(root..'\\UE4SS-settings.ini',S.LIMIT+1)
+        local on
+        if text then on,why=S.check(text) end
+        if not on then log('UE4SS-settings.ini not checked: '..tostring(why)) end
+        for _,k in ipairs(on or {}) do
+            log('UE4SS-settings.ini: '..k.key..(k.value and ' = '..k.value or ' missing (UE4SS then uses its default, '
+                ..'on)')..'. '..T.en.ue4ss[k.word])
+            ue4ss_notes[#ue4ss_notes+1]=k.word
+        end
+    end
+end
 local puppet=require('partner.puppet').new(link,capture,say,settings and settings.name_tag,look,words)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
@@ -149,17 +179,18 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
         return link.request(line)
     end
 end
--- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop leviathan show and coop
--- leviathan cam turning its free camera on run only on a co-op save (D2, N9): the native part's slot=coop, from the
--- start of its own line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual co-op slot that
--- StellarCoopSlot.txt names. The ghost, the Steam link and every other command are never locked to it.
+-- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop lion's words that spawn, show
+-- and cam turning the free camera on in coop leviathan and the other viewer commands, and a scene of coop scene run
+-- only on a co-op save (D2, N9): the native part's slot=coop, from the start of its own line (a Steam name never starts
+-- one), for a co-op copy (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam
+-- link and every other command are never locked to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -203,18 +234,35 @@ local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- T
 -- The Doro look and probe (race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
 local doro=require('race.doro').new({log=function(m) print('[StellarCoop][DR] '..tostring(m)..'\n') end,
     store=link and link.store('coop-look.txt')})
--- coop leviathan's read, display and free camera (cut/leviathan.lua), logging [LV] lines. coop-leviathan.txt lets the
--- next Lua load remove a display this one left and give the player controller back. The free camera reads no key while
--- the co-op menu or one of its boxes is open.
+-- The cut model viewer of coop leviathan and the other viewer commands (cut/leviathan.lua): its read, display and
+-- free camera, logging [LV] lines. coop-leviathan.txt lets the next Lua load remove a display this one left and give
+-- the player controller back. The free camera reads no key while the co-op menu or one of its boxes is open.
 local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoop][LV] '..tostring(m)..'\n') end,
     store=link and link.store('coop-leviathan.txt'),
     blocked=function()
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
             or saves_ui.is_open())
     end})
+-- coop lion (cut/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back.
+local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
+-- The live story dump (story/dump.lua, a test tool): coop story [dump|find], the save object the running game holds
+-- and its story lines, read only, in the lines tools/story.py prints from a save file; coop-story.txt in the mod folder
+-- asks for one once, in a loaded world.
+local story_dump=require('story.dump').new({log=function(m) print('[StellarCoop][ST] '..tostring(m)..'\n') end,
+    folder=folder})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
 local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
+-- coop wear (cut/wear.lua), logging [WR] lines: coop-wear.txt lets the next Lua load give EVE the game's meshes back.
+-- No look goes on again while the game is paused or shows one of its screens (its wardrobe among them).
+local wear=require('cut.wear').new({log=function(m) print('[StellarCoop][WR] '..tostring(m)..'\n') end,
+    store=link and link.store('coop-wear.txt'),paused=function() return kit~=nil and kit.paused(true) end})
+-- coop scene (cut/scene.lua), logging [SC] lines: two cut scenes through two of SB's theater rows.
+local scene=require('cut.scene').new({log=function(m) print('[StellarCoop][SC] '..tostring(m)..'\n') end})
+-- coop lines (cut/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles, in the chat's feed only.
+local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][LN] '..tostring(m)..'\n') end,
+    say=function(text) return box~=nil and box.say(text) end,ready=function() return kit~=nil and kit.ready() end})
 -- Doro races (race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and
 -- the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
 local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=doro,drive=drive,tell=tell,
@@ -317,8 +365,10 @@ end
 -- only, so they are read at each call; coop fight off and coop quests off set fight_auto and quests_auto to false.
 local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=look,looks=looks,ask=ask,
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
-    group=function() return group end,travel=function() return travel end,
-    fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end}
+    lion=lion,group=function() return group end,travel=function() return travel end,
+    fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
+    story_dump=story_dump}
+o.wear,o.scene,o.lines=wear,scene,cut_lines
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
@@ -356,6 +406,8 @@ local commands={
         -- A failing despawn or run end is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
+        stopped,e=pcall(wear.stop) -- EVE's own meshes back.
+        if not stopped then log('wear: '..tostring(e)) end
         stopped,e=pcall(night.stop,'coop off')
         if not stopped then log('nightop: '..tostring(e)) end
         if group then -- A death screen the revive hid comes back.
@@ -368,12 +420,18 @@ local commands={
         if not stopped then log('doro: '..tostring(e)) end
         stopped,e=pcall(leviathan.stop)
         if not stopped then log('leviathan: '..tostring(e)) end
+        stopped,e=pcall(lion.stop)
+        if not stopped then log('lion: '..tostring(e)) end
+        stopped,e=pcall(scene.stop) -- The Stop row: the game's camera, input and HUD back.
+        if not stopped then log('scene: '..tostring(e)) end
+        stopped,e=pcall(cut_lines.stop)
+        if not stopped then log('lines: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -411,10 +469,19 @@ if settings then
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
     local Join=require('session.join')
     code_box=Join.box({kit=kit,link=link,settings=settings,theme=Ui.THEME,run=run})
+    -- The first-launch guide (ui/guide.lua): the menu's Guide row and coop guide open it; in front of the co-op saves'
+    -- question, it takes the question's keys, pad, clicks and loops first (front), and the question waits for it. It
+    -- never opens over another co-op panel (busy).
+    local guide=require('ui.guide').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,log=log,folder=folder,
+        busy=function()
+            return menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open()
+        end})
+    o.guide=guide
     menu=require('ui.menu').new({kit=kit,link=link,settings=settings,look=look,puppet=puppet,run=run,log=log,
-        version=VERSION,chat=box,code=code_box})
-    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box})
-    saves_ui=require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,log=log})
+        version=VERSION,chat=box,code=code_box,guide=guide})
+    approval=Join.ask({kit=kit,link=link,settings=settings,run=run,say=say,menu=menu,chat=box,guide=guide})
+    saves_ui=guide.front(require('session.saves').new({kit=kit,link=link,settings=settings,theme=Ui.THEME,say=say,
+        log=log,wait=guide.waiting}))
 end
 -- Enter with nothing open asks for the chat's box (chat_asked, os.clock), which opens 0.1 s later unless a coop command
 -- came from the console around then (typed_at): UE4SS calls our Enter bind whatever has the keyboard, so that Enter was
@@ -480,8 +547,10 @@ end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 LoopInGameThreadWithDelay(1,function()
     doro.restore() -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
-    leviathan.restore() -- Likewise for a Leviathan display an earlier load left.
+    leviathan.restore() -- Likewise for a cut Naytiba display an earlier load left.
     pcall(drive.restore) -- Likewise for her movement after a reload with the driving on.
+    wear.restore() -- Likewise for her own meshes after a reload with a coop wear look on.
+    scene.restore() -- Likewise for a scene an earlier load left playing, and the farewell take it lent.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
     if message then report(ok,message) end
@@ -500,6 +569,12 @@ LoopInGameThreadWithDelay(1,function()
     looked=os.clock()-looked
     ok,message=leviathan.tick() -- Outside the doro column of the frame time line.
     if message then report(ok,message) end
+    ok,message=lion.tick()
+    if message then report(ok,message) end
+    ok,message=scene.tick()
+    if message then report(ok,message) end
+    ok,message=cut_lines.tick()
+    if message then report(ok,message) end
     local raced=os.clock()
     if link and race.armed() then inbox() end
     ok,message=race.tick() -- After the look: its Doros and HUD from where EVE is drawn this frame.
@@ -509,6 +584,8 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     nightop.tick() -- A due probe follow-up: it logs its own lines.
     recruiter.tick() -- Likewise for coop recruiter.
+    ok,message=wear.tick() -- Once a second at most: a worn look the game replaced goes on again.
+    if message then report(ok,message) end
     -- The open and close tweens, the game's input back after a close, the chat box focused again, the partner's marker
     -- (each frame, from the ghost's place just set).
     if kit then
@@ -752,16 +829,30 @@ if link then
             end
         end
     end
+    -- A notice naming mods (a list of core/link.lua's mods()): the file names (no folders) of the first two that fit,
+    -- then (+n) for the others (ui/text.lua's T.mods).
+    local mods_notice=T.mods
     -- The friend's game loads other .pak mods than ours (the native part compares a hash of them): one notice a session.
+    -- With their names (her mod_names=on), it names those she uses and we lack, then those we have in another version,
+    -- since parts of her outfit from them look different here; with neither, or without names, the two counts.
     local paks_said=false
     local function paks_notice()
-        local paks=link.paks()
+        local paks,mods=link.paks(),link.mods()
         if link.mode()=='none' then paks_said=false
         elseif paks and not paks.same and not paks_said then
             paks_said=true
-            tell(function(w) return w.fight.paks:format(her_name(w),paks.hers,paks.ours) end)
+            local missing,other=mods and mods.missing.n>0,mods and mods.other.n>0
+            if missing then
+                tell(function(w) return mods_notice(w.fight.mods_missing,her_name(w),mods.missing) end)
+            end
+            if other then tell(function(w) return mods_notice(w.fight.mods_other,her_name(w),mods.other) end) end
+            if not missing and not other then
+                tell(function(w) return w.fight.paks:format(her_name(w),paks.hers,paks.ours) end)
+            end
         end
     end
+    -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
+    local cns_said=false
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
@@ -818,6 +909,10 @@ if link then
         pilot_notices()
         quest_notices()
         paks_notice()
+        if not cns_said and link.cns() then
+            cns_said=true
+            log(link.cns())
+        end
         local mode=link.mode()
         if mode then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
@@ -833,13 +928,18 @@ if link then
             puppet.collide(settings.collide) -- The solid partner, as the co-op menu last set it.
             -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (session/group.lua).
             local line=link.state(world,settings.send_rate,group.photo(photo),settings.photo_sync,
-                settings.photo_freeze_max,title,group.cut())
+                settings.photo_freeze_max,title,group.cut(),settings.mod_names)
             if line then log('state: '..line) end
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             hud_shown=shown
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
             local ok,message=kit.slow(shown or title==true,title==true)
             if message then report(ok,message) end
+            -- UE4SS-settings.ini's notices, once: in the feed once the UI is up, or above EVE once a save is loaded.
+            if ue4ss_notes[1] and (kit.ready() or world==true) then
+                for _,word in ipairs(ue4ss_notes) do tell(function(w) return w.ue4ss[word] end) end
+                ue4ss_notes={}
+            end
             local dropped,who=kit.lost() -- The focus watchdog fired: as coop ui reset, nothing said on screen.
             if dropped then
                 ui_reset('focus watchdog: '..who..' lost the focus for 1 s: co-op UI closed, the game has its input '
@@ -854,6 +954,10 @@ if link then
             approval.slow(shown) -- After the chat's: it waits while the box is open.
             hud.slow()
             saves_ui.slow(world==true,title==true)
+            -- A story dump asked for by coop-story.txt in the mod folder (story/dump.lua, read only): once per
+            -- request, in a loaded world, and named in the log.
+            local dumped,dump_message=story_dump.poll(world==true)
+            if dump_message then report(dumped,dump_message) end
             puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
             if world or title then photo_pause(settings.photo_pause=='scenery' and 1 or 0,settings.photo_pause) end
             -- The race's session and map checks, from the ghost's world read just above.

@@ -65,6 +65,16 @@
 // block every 250 ms; status() puts the watch's state in the engine line for session/travel.lua, and the worker logs
 // each call.
 //
+// coop fly and coop slowmo (game/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
+// (on a co-op save; slow motion with no friend linked); every 250 ms the game thread sets each wanted gate's byte in
+// SB's settings map and puts back the value from before once it is no longer wanted (an off, coop off, the next Lua
+// load), under its own SEH latch; the worker logs each change and says a refusal or a fault on screen.
+//
+// The Lion's rows (lion/rows.h, coop lion): the worker hands over the 12 tables' addresses from Lua's lion rows
+// request; the game thread adds the rows through SB's own AddRow once the gate holds (net mode 0, no logic task in
+// flight), under its own SEH latch, reads them back through SB's lookups by ID and, once asked, reads the spawn
+// manager's counter every 250 ms; status() gives it all in the lion line, and the worker logs each answer.
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -85,12 +95,14 @@
 #include <vector>
 
 #include "fight/worker.h"
+#include "game/debug_keys.h"
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
 #include "game/travel.h"
 #include "glue/tick.h"
 #include "link/protocol.h"
+#include "lion/rows.h"
 #include "nightop/probe.h"
 #include "pose/codec.h"
 #include "pose/engine.h"
@@ -106,12 +118,15 @@
 #include "glue/tick/warp_game.inc"
 #include "glue/tick/pilot_game.inc"
 #include "glue/tick/travel_game.inc"
+#include "glue/tick/lion_game.inc"
+#include "glue/tick/debug_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
 #include "glue/tick/travel_worker.inc"
 #include "glue/tick/quests_worker.inc"
 #include "glue/tick/freeze_worker.inc"
+#include "glue/tick/debug_worker.inc"
 #include "glue/tick/status.inc"
 #include "glue/tick/pad_game.inc"
 
@@ -159,5 +174,11 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The follow's travel, its own latch: a new ask each frame, the watch each 250 ms; none after coop off or a fault.
   if (game_pinned && !travel_faulted && !blocked)
     travel_tick();
+  // The Lion's rows, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no call made.
+  if (game_pinned && !lion_faulted)
+    lion_tick();
+  // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.
+  if (game_pinned && !debug_faulted && (!blocked || debug_holding))
+    debug_tick();
   return 0;
 }

@@ -103,8 +103,9 @@ function Join.box(o)
     function self.stop() open,back_at,refocus_at=false,nil,nil end
     return self
 end
--- o: {kit=, link=, settings=, run= (as Join.box's), say=function(text) (a notice), menu=ui/menu.lua's (closed as the
--- question opens), chat=session/chat.lua's view (the question waits while its box is open)}.
+-- o: {kit=, link=, settings=, run= (as Join.box's), say=function(text) (a notice), menu=ui/menu.lua's and
+-- guide=ui/guide.lua's (closed as the question opens), chat=session/chat.lua's view (the question waits while its box
+-- is open)}.
 function Join.ask(o)
     local kit,link,settings=o.kit,o.link,o.settings
     local self,open,cursor,back_at,stopped,words,ready_at={},false,2,nil,false,T.en,0
@@ -163,6 +164,7 @@ function Join.ask(o)
             if can and not open then
                 words=T.pick(kit.language(),settings.ui_language)
                 if o.menu and o.menu.is_open() then o.menu.close() end
+                if o.guide and o.guide.is_open() then o.guide.close("the host's question") end
                 open,back_at,cursor,ready_at=true,nil,2,os.clock()+ARM
                 kit.show('ask',true,os.clock())
                 kit.input(true,'ask')

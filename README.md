@@ -4,13 +4,15 @@ Stellar Blade Online is an online co-op mod for Stellar Blade on PC. Two players
 one sees the other's EVE in their own world. It was called StellarCoop until October 2026: the mod's folder, its DLL,
 its `coop` console commands and this repository keep that name.
 
-Status: v0.5.0-beta.1, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
+Status: v0.6.0-beta.1, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
 first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil at about 240 ms
 ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and same place (each
 enemy in the same spot on both screens). The 0.5 additions have not been tested between two PCs yet: shared quests, the
 friend's revive, the cutscene wait, kills that count only for a player who took part, Night Operation's run and its
 challenges, Doro races, the co-op line at camp phone booths and the controller in the co-op menu. The Leviathan viewer
-and its free camera ran in game on one PC on 2026-10-22.
+and its free camera ran in game on one PC on 2026-10-22. None of the 0.6 additions has run in game yet: the first-launch
+guide, the .pak mod list and CNS outfits over the link, the UE4SS settings warning, `coop lion`, `coop wear`,
+`coop gardener` and `coop tendril`. 0.6 uses link protocol 13, so both players need 0.6.
 
 Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
 the Steam client that the game already runs, so the mod needs no other program and no server of its own.
@@ -52,9 +54,36 @@ the Steam client that the game already runs, so the mod needs no other program a
   It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
   [docs/usage.md](docs/usage.md#doro-races)).
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
-  a display-only model in front of EVE, with a free camera for filming (see
-  [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan)). It cannot be fought: the game has no entry for it
-  in its character table.
+  a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
+  for two more cut Naytibas, the Gardener and the Tendril (see
+  [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)). None of them can be
+  fought: the game has no entry for them in its character table. `coop mann`, `coop nier`, `coop orcal` and `coop enya`
+  show the early Mann model, the NieR collaboration's three cut machines and prototype statues of Orcal and Enya the
+  same way.
+- `coop lion` spawns the Lion, a boss cut from the game, as a real enemy to fight on a co-op save. The game's files keep
+  its model, animations and attacks but no table row, so the mod adds the 78 rows it needs to the game's tables in
+  memory. `coop lion intro` plays its entrance first. It writes nothing to a save, and only your game has it (see
+  [docs/usage.md](docs/usage.md#cut-boss-coop-lion)).
+- `coop wear` puts EVE in two cut hairs (mechanical cat ears and rabbit ears) and four cut suits, Gothic Rose among
+  them, by changing the meshes drawn. Your equipment and saves stay as they are, and your friend's ghost of you shows
+  the look too (see [docs/usage.md](docs/usage.md#cut-hairs-and-suits-coop-wear)).
+- `coop scene` plays two scenes cut from the game through its own cutscene player, each at its place in the world:
+  Emil's farewell from an ending of the first DLC and Orcal's monologue from the 2022 trailer. It writes nothing to a
+  save and has not been tried in game yet (see [docs/usage.md](docs/usage.md#cut-scenes-coop-scene)).
+- `coop lines` shows the subtitles of four scenes cut before they were voiced in the chat's feed, timed as the game's
+  sequences give them: the first meeting with Adam, Quest_Sub_015 with Mann and Orcal's last message, Quinn and Sky
+  Hall. The text comes from your game, which has most of them in English and Korean only, so other languages show the
+  Korean (see [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
+- `coop fly` and `coop slowmo` switch on the developer flight (R2 or Z in the air) and slow motion (R1) that the game
+  ships turned off, on a co-op save (see
+  [docs/usage.md](docs/usage.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo)).
+- At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
+  co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
+- Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS
+  outfit shows on your ghost of them when your own CNS packs declare its files (see
+  [docs/usage.md](docs/usage.md#mods-and-cns-outfits)).
+- If `UE4SS-settings.ini` has `HookBeginPlay` or `bUseUObjectArrayCache` on, a notice says so: the first can crash the
+  game when EVE lets go of a movable crate (see [docs/troubleshooting.md](docs/troubleshooting.md)).
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
 - The mod never writes your own saves, unlocks or equipment. It adds to the inventory only when you buy in Night
@@ -108,6 +137,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 | [docs/how-it-works.md](docs/how-it-works.md) | The Steam link, the ghost pipeline, safety design, loopback and replay |
 | [docs/night-operation.md](docs/night-operation.md) | The cut mode, the plan, the run alone and with a partner, the reward shop, the challenges and the two previews |
 | [docs/saves.md](docs/saves.md) | Save safety, backups, Steam Cloud, the co-op saves, recovery |
+| [docs/story.md](docs/story.md) | Where the save keeps the story and world state (quests, mission records, zones, doors), the tool that snapshots and diffs it, and the read-only live dump (`coop story`) |
 | [docs/building.md](docs/building.md) | Building from source, tests, the reproducible build, repository layout |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems and which logs to send |
 
@@ -118,7 +148,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same mod protocol (12 in this version) and the same game build.
+- To play together, both players need the same mod protocol (13 in this version) and the same game build.
 
 ## Disclaimer
 
@@ -146,6 +176,9 @@ The adapted parts are:
 `mod/StellarCoop/Scripts/nightop/run.lua`, `nightop/waves.lua` and `core/unreal.lua` mark each adapted function. The
 death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in
 `session/group.lua`. Stellar Blade Online contains no file from Survival Protocol.
+
+Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the GPL.
+It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run.
 
 ## License
 

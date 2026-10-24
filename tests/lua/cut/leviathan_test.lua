@@ -22,6 +22,14 @@
 -- the co-op menu is open; off, coop off, a map change, its first error and the next Lua load put the view back on what
 -- it showed before (EVE when that is gone), leave a view the game took meanwhile, put both ignore flags back as they
 -- were, and remove its actor.
+-- coop gardener and coop tendril: one command a creature, each with its own usage line, list, clips (of its own folder
+-- and skeleton), automatic distance and height (its lowest point at EVE's feet) and skins (none but its own for the
+-- Gardener, the Hydra's for the Tendril, kept for that creature's next show only); showing one removes another
+-- creature's display and says so, move and play of another creature leave it as it is, off from any creature's
+-- command removes it, a failed removal is named by the creature its mesh belongs to.
+-- coop mann, coop nier, coop orcal and coop enya: the early Mann plays the clips of his skeleton; a NieR machine (a
+-- word a mesh) and a prototype statue play none, the NieR blend spaces listed as assets and never played; a statue
+-- whose lowest point is below its root stands with that point at EVE's feet.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -55,14 +63,15 @@ LoadAsset=function(path)
     return invalid
 end
 local L=require('cut.leviathan')
-local function path(name)
-    for _,e in ipairs(L.LIST) do if e.path:match('[^.]+$')==name then return e.path end end
+-- An asset's path in the LIST of a creature (who: its word, the Leviathan when none).
+local function path(name,who)
+    for _,e in ipairs(L.CREATURES[who or 'leviathan'].LIST) do if e.path:match('[^.]+$')==name then return e.path end end
     error(name)
 end
 -- An asset at its LIST path: kinds are the class paths it IsA (the first one names its class), fields its properties.
 local made=0
-local function asset(name,kinds,fields)
-    local p=path(name)
+local function asset(name,kinds,fields,who)
+    local p=path(name,who)
     local o=object(fields or {})
     o.key=name
     o.GetFullName=function() return kinds[1]:match('[^.]+$')..' '..p end
@@ -822,6 +831,200 @@ stored='\t\t/Game/Map.Map:PersistentLevel.Actor_99\t/Game/Gone.Gone:PersistentLe
 L.new({log=log,store=store}).restore()
 assert(stored==nil and last()=='restore: the free camera of an earlier Lua load off: its controller is gone',last())
 controller=nil
+
+-- coop gardener and coop tendril: the same viewer with their own meshes, clips, defaults and skins, and one display
+-- between the three. new gives one command a creature, coop leviathan's also as command; no LIST names a path twice.
+local cmds=L.new({log=log})
+assert(cmds.command==cmds.commands.leviathan)
+local n_cmds=0
+for name in pairs(cmds.commands) do n_cmds=n_cmds+1; assert(L.CREATURES[name],name) end
+assert(n_cmds==7,n_cmds)
+for name,who in pairs(L.CREATURES) do
+    local seen={}
+    for _,e in ipairs(who.LIST) do assert(not seen[e.path],name..': '..e.path); seen[e.path]=true end
+end
+local gd,td=L.CREATURES.gardener,L.CREATURES.tendril
+local gardener,tendril=lv.commands.gardener,lv.commands.tendril
+assert(gd.USE=='Use: coop gardener [list] | show [body] [<distance m>|auto] [<height m>|auto] [<scale>] | move '
+    ..'<distance m>|auto [<height m>|auto] | skin default | cam [<m/s>] | play [<clip>] | off',gd.USE)
+assert(td.USE=='Use: coop tendril [list] | show [body] [<distance m>|auto] [<height m>|auto] [<scale>] | move '
+    ..'<distance m>|auto [<height m>|auto] | skin hydra|default | cam [<m/s>] | play [<clip>] | off',td.USE)
+for _,bad in ipairs({{'show','a'},{'show','statue'},{'skin','statue'},{'skin','hydra'},{'list','x'},{'move'}}) do
+    local done,said=gardener(table.unpack(bad))
+    assert(not done and said==gd.USE,said)
+end
+assert(select(2,tendril('skin','statue'))==td.USE)
+-- The Gardener's files as the pak has them (its bounds, read offline: about 20 m tall), three clips and a blend space
+-- of its skeleton, one of them named as one of the Leviathan's in another folder.
+local g_sk=asset('CH_M_NA_01_Skeleton',{'/Script/Engine.Skeleton'},nil,'gardener')
+asset('CH_M_NA_01',MESH,{Skeleton=g_sk,ExtendedBounds={SphereRadius=1453,Origin={X=0,Y=206,Z=798},
+    BoxExtent={X=511,Y=907,Z=1014}}},'gardener')
+asset('Mon_Gardener_C_Hide',SEQ,{Skeleton=g_sk,SequenceLength=4.0},'gardener')
+asset('Mon_Gardener_C_UnHide',SEQ,{Skeleton=g_sk,SequenceLength=4.5},'gardener')
+asset('Mon_Gardener_S_03_Toxic_Beam',SEQ,{Skeleton=g_sk,SequenceLength=6.0},'gardener')
+asset('IdleRun_BS_Battle',BS,{Skeleton=g_sk},'gardener')
+asset('CH_M_NA_01_BluePrint_C',{'/Script/Engine.BlueprintGeneratedClass'},{GetSuperStruct=super('SBCharacter')},
+    'gardener')
+local function present(who)
+    local n=0
+    for _,e in ipairs(L.CREATURES[who].LIST) do if assets[e.path] then n=n+1 end end
+    return n
+end
+-- list: its own assets, and the rows its words name.
+ROWS[#ROWS+1]={'M_Gardener',{ID=50010,Type=fname('M_Gardener')}}
+logs={}
+local count=#spawned
+ok,why=gardener('list')
+assert(ok and why==string.format('Gardener list: %d of %d assets found, 1 CharacterTable rows name it; [LV] lines in '
+    ..'this log.',present('gardener'),#gd.LIST),why)
+assert(logged('list class CH_M_NA_01_BluePrint_C: BlueprintGeneratedClass super=SBCharacter')
+    and logged('list clip Mon_Gardener_B_Tower_01: missing') and logged('list mesh CH_M_NA_01: SkeletalMesh '
+    ..'skeleton=CH_M_NA_01_Skeleton') and not logged('list mesh CH_M_NA_10: SkeletalMesh skeleton=CH_M_NA_10_Skeleton'))
+assert(last()=='list CharacterTable rows=5 named=1' and #spawned==count,last())
+-- show: the Leviathan shown before goes, said; 1.6 radii ahead, its lowest point at EVE's feet; its own clips in turn.
+lv.command('show','tentacle')
+local lev_shown=newest()
+logs={}
+ok,why=gardener('show')
+local g,g_path=newest()
+local gm=g.components[1]
+assert(ok and why=='Leviathan removed: one cut model is shown at a time. Gardener body shown 23.2 m ahead, 2.2 m up, '
+    ..'scale 1, 4 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
+assert(logs[1]=='removed (replaced by the Gardener)' and lev_shown.destroyed,logs[1])
+assert(close(gm.at.Y,20+1.6*1453) and gm.at.Z==-87+216 and gm.rot.Yaw==180,'Ahead of her, on the ground')
+assert(table.concat(gm.calls,'|')=='mesh CH_M_NA_01|scale 1|collision 0|mode 1|scale 1',table.concat(gm.calls,'|'))
+assert(last()=='show body: CH_M_NA_01, 4 clips on skeleton CH_M_NA_01_Skeleton, 23.2 m ahead, 2.2 m up, scale 1',
+    last())
+assert(stored==g_path..'\t'..path('CH_M_NA_01','gardener'),stored)
+gm.calls={}
+tick_at(8000); assert(last()=='show body step 1/4 Mon_Gardener_C_Hide 4.00 s twice',last())
+tick_at(8008); assert(last()=='show body step 2/4 Mon_Gardener_C_UnHide 4.50 s twice',last())
+tick_at(8017); assert(last()=='show body step 3/4 Mon_Gardener_S_03_Toxic_Beam 6.00 s twice',last())
+tick_at(8029); assert(last()=='show body step 4/4 IdleRun_BS_Battle 3.00 s twice',last())
+assert(table.concat(gm.calls,'|'):find('|play IdleRun_BS_Battle true|',1,true))
+ok,why=gardener('play','TOXIC_BEAM')
+assert(ok and why=='Gardener body holds Mon_Gardener_S_03_Toxic_Beam looping'..NO_CAM..'; coop gardener play goes '
+    ..'back to the cycle.',why)
+assert(select(2,gardener('play','hide')):find(' holds Mon_Gardener_C_Hide looping',1,true),'Its end, the first')
+assert(select(2,gardener('play','unhide')):find(' holds Mon_Gardener_C_UnHide looping',1,true))
+ok,why=gardener('move','auto','0')
+assert(ok and why=='Gardener body moved 23.2 m ahead of EVE, 0 m up.' and gm.at.Z==-87,why)
+ok,why=gardener('skin','default')
+assert(ok and why=='Gardener body skin default on its 3 material slots.' and slots(gm)=='own 0,own 1,own 2',why)
+-- The Leviathan's and the Tendril's commands leave the Gardener as it is: no move, no play, a skin for their next show.
+local g_at=gm.at
+for _,c in ipairs({{lv.command,'Leviathan','leviathan'},{tendril,'Tendril','tendril'}}) do
+    local run,title,word=c[1],c[2],c[3]
+    assert(select(2,run('move','10'))=='no '..title..' is shown: coop '..word..' show first' and gm.at==g_at)
+    assert(select(2,run('play','idle'))=='no '..title..' is shown: coop '..word..' show first')
+end
+ok,why=lv.command('skin','statue')
+assert(ok and why=='Leviathan skin statue for the next show.' and slots(gm)=='own 0,own 1,own 2',why)
+lv.command('skin','default')
+-- A map change: the Gardener's title in the message.
+map='/Game/Art/BG/WorldMap/Level_P/B07'
+ok,why=tick_at(8030)
+assert(ok==true and why=='Gardener body removed: map change.' and g.destroyed and stored==nil,why)
+map='/Game/Art/BG/WorldMap/Level_P/E04'
+-- The Tendril: no material of its own; the Hydra's skin, kept for its next show and never given to another creature.
+-- A clip of another skeleton in its folder is left out.
+local t_sk=asset('CH_M_NA_06_test_Skeleton',{'/Script/Engine.Skeleton'},nil,'tendril')
+asset('CH_M_NA_06_test',MESH,{Skeleton=t_sk,ExtendedBounds={SphereRadius=724,Origin={X=-12,Y=-62,Z=315},
+    BoxExtent={X=302,Y=565,Z=338}}},'tendril')
+asset('M_Tendril_WhipAttack',SEQ,{Skeleton=t_sk,SequenceLength=5.1},'tendril')
+asset('M_Tendril_WhipAttack_L',SEQ,{Skeleton=t_sk,SequenceLength=2.0},'tendril')
+asset('Idle',SEQ,{Skeleton=t_sk,SequenceLength=10.0},'tendril')
+asset('Airborne_BS',BS,{Skeleton=g_sk},'tendril')
+ok,why=tendril('list')
+assert(ok and why==string.format('Tendril list: %d of %d assets found, 0 CharacterTable rows name it; [LV] lines in '
+    ..'this log.',present('tendril'),#td.LIST),why)
+gardener('show')
+ok,why=tendril('show')
+local t,t_path=newest()
+local tm2=t.components[1]
+assert(ok and why=='Gardener removed: one cut model is shown at a time. Tendril body shown 11.6 m ahead, 0.2 m up, '
+    ..'scale 1, 3 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
+assert(last()=='show body: CH_M_NA_06_test, 3 clips on skeleton CH_M_NA_06_test_Skeleton, 11.6 m ahead, 0.2 m up, '
+    ..'scale 1',last())
+assert(stored==t_path..'\t'..path('CH_M_NA_06_test','tendril'),stored)
+assert(select(2,tendril('play','whipattack')):find(' holds M_Tendril_WhipAttack looping',1,true))
+assert(select(2,tendril('play','WhipAttack_L')):find(' holds M_Tendril_WhipAttack_L looping',1,true))
+assert(not tendril('play','airborne'),'Another skeleton\'s blend space: not played')
+ok,why=tendril('skin','hydra')
+assert(ok and why=='Tendril body skin hydra on its 3 material slots.' and slots(tm2)=='MI_M_NA_09_V03_Tentacle,'
+    ..'MI_M_NA_09_V03_Tentacle,MI_M_NA_09_V03_Tentacle',why)
+tendril('show','auto','auto','2')
+assert(slots(newest().components[1])=='MI_M_NA_09_V03_Tentacle,MI_M_NA_09_V03_Tentacle,MI_M_NA_09_V03_Tentacle'
+    and logged('show body: bounding sphere radius 14.5 m, centre 6.3 m and lowest point -0.5 m above its root'),
+    'Kept for its next show, at its scale')
+lv.command('show')
+assert(slots(newest().components[1])=='own 0,own 1,own 2','The Leviathan keeps its own skin')
+-- off from another creature's command removes whichever is shown; then nothing.
+ok,why=gardener('off')
+assert(ok and why=='Leviathan removed.' and newest().destroyed and stored==nil and last()=='removed (coop gardener off)',
+    why)
+assert(select(2,gardener('off'))=='No Gardener is shown.')
+tendril('skin','default')
+-- A display of another creature whose removal fails is named by its mesh; the next Lua load sweeps a Gardener too.
+gardener('show')
+local stuck_g,stuck_g_path=newest()
+by_path[stuck_g_path]=stuck_g
+local g_destroy=stuck_g.K2_DestroyActor
+stuck_g.K2_DestroyActor=function() error('busy',0) end
+ok,why=tendril('show')
+assert(not ok and why=='the Gardener shown before could not be removed: busy'
+    and stored==stuck_g_path..'\t'..path('CH_M_NA_01','gardener'),why)
+stuck_g.K2_DestroyActor=g_destroy
+L.new({log=log,store=store}).restore()
+assert(stuck_g.destroys==1 and stored==nil and last()=='restore: the display of an earlier Lua load destroyed',last())
+
+-- coop mann: his own clips in turn; 1.6 radii is under 6 m, and his lowest point, 11 cm under his root, at EVE's feet.
+local mann,nier,orcal,enya=lv.commands.mann,lv.commands.nier,lv.commands.orcal,lv.commands.enya
+local m_sk=asset('CH_NPC_Mann_Skeleton',{'/Script/Engine.Skeleton'},nil,'mann')
+asset('CH_NPC_Mann',MESH,{Skeleton=m_sk,ExtendedBounds={SphereRadius=220,Origin={X=0,Y=0,Z=168},
+    BoxExtent={X=67,Y=109,Z=179}}},'mann')
+asset('NPC_Mann_P_Idle',SEQ,{Skeleton=m_sk,SequenceLength=28.33},'mann')
+asset('NPC_Maan_P_Think',SEQ,{Skeleton=m_sk,SequenceLength=15.67},'mann')
+ok,why=mann('show')
+assert(ok and why=='Mann body shown 6 m ahead, 0.1 m up, scale 1, 2 clips in turn'..NO_CAM..'; [LV] lines in this log.',
+    why)
+assert(stored==select(2,newest())..'\t'..path('CH_NPC_Mann','mann') and newest().components[1].at.Z==-87+11,stored)
+tick_at(9000); assert(last()=='show body step 1/2 NPC_Mann_P_Idle 28.33 s twice',last())
+assert(select(2,mann('play','think')):find(' holds NPC_Maan_P_Think looping',1,true))
+-- coop nier: a word a mesh, no clip, its blend space a listed asset of its skeleton that is never played.
+local NIER_USE='Use: coop nier [list] | show [square|squareb|cylinder|cylinderb|cylinderc|sphere|sphereb] '
+    ..'[<distance m>|auto] [<height m>|auto] [<scale>] | move <distance m>|auto [<height m>|auto] | skin default | '
+    ..'cam [<m/s>] | play [<clip>] | off'
+assert(L.CREATURES.nier.USE==NIER_USE,L.CREATURES.nier.USE)
+for _,bad in ipairs({{'show','body'},{'show','cube'},{'skin','hydra'}}) do
+    assert(select(2,nier(table.unpack(bad)))==NIER_USE)
+end
+local n_sk=asset('CH_M_NA_951_Skeleton',{'/Script/Engine.Skeleton'},nil,'nier')
+asset('CH_M_NA_951_TypeB',MESH,{Skeleton=n_sk},'nier')
+asset('Base_BS_1D',BS,{Skeleton=n_sk},'nier')
+ok,why=nier('list')
+assert(ok and why==string.format('NieR machine list: 3 of %d assets found, 0 CharacterTable rows name it; [LV] lines '
+    ..'in this log.',#L.CREATURES.nier.LIST) and logged('list asset Base_BS_1D: BlendSpace'),why)
+ok,why=nier('show','squareb','10')
+local sq=newest().components[1]
+assert(ok and why=='Mann removed: one cut model is shown at a time. NieR machine squareb shown 10 m ahead, 0 m up, '
+    ..'scale 1, 0 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
+tick_at(9100); tick_at(9200)
+assert(table.concat(sq.calls,'|')=='mesh CH_M_NA_951_TypeB|scale 1|collision 0|mode 1|scale 1',
+    table.concat(sq.calls,'|'))
+assert(select(2,nier('play','base'))=='no clip of the shown squareb ends with or holds base')
+-- coop orcal: a statue 1.27 m deep under its root stands on EVE's feet, 3 m ahead; coop enya's off removes it.
+asset('XionElder_Native_Preview',MESH,{Skeleton=asset('XionElder_Native_Preview_Skeleton',{'/Script/Engine.Skeleton'},
+    nil,'orcal'),ExtendedBounds={SphereRadius=110,Origin={X=0,Y=0,Z=-24},BoxExtent={X=60,Y=60,Z=103}}},'orcal')
+ok,why=orcal('show','native')
+assert(ok and why=='NieR machine removed: one cut model is shown at a time. Orcal prototype native shown 3 m ahead, '
+    ..'1.3 m up, scale 1, 0 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
+assert(close(newest().components[1].at.Y,20+300) and newest().components[1].at.Z==-87+127)
+ok,why=enya('list')
+assert(ok and why=='Enya prototype list: 0 of 6 assets found, 0 CharacterTable rows name it; [LV] lines in this log.',
+    why)
+ok,why=enya('off')
+assert(ok and why=='Orcal prototype removed.' and newest().destroyed and stored==nil,why)
 
 -- Never another class than a plain Actor: here, and in the sources, which name no achievement, reward, item, quest,
 -- save, possession, console command, spawn or destroy call of their own (race/doro.lua's spawn and remove do both).

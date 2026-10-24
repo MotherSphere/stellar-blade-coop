@@ -3,16 +3,22 @@
 -- PoseableMeshComponent per part and no collision: not a Pawn, so lock-on, AI and saves never see it, and nothing of it
 -- is written to a save, an inventory or an unlock. Each part loads the mesh the table names (LoadAsset only brings a
 -- cooked asset into memory: display only, nothing is worn) with its own default materials, so the ghost wears her
--- outfit. A mesh this PC lacks (a DLC it does not own), one the path rule refused ('-'), or one with other bones than
--- hers falls back to the base suit (body and hair), whose bones the native part drives by name (a remap); a part with
--- no fallback is left out, with its followers. Parts hang as the table says (parent part, socket, placement) and
+-- outfit. A path outside the game's own folders (Capture.base_path) is a mod's: it is looked up or loaded only when
+-- your own CNS packs declare that exact path (core/link.lua's cns_assets()), and one LoadAsset cannot find (an asset
+-- outside the cooked registry) is loaded through AssetRegistryHelpers:GetAsset. A mesh this PC lacks (a DLC it does not
+-- own, a mod it lacks or does not declare), one the path rule refused ('-'), or one with other bones than hers falls
+-- back to the base suit (body and hair), whose bones the native part drives by name (a remap); another leader with
+-- other bones is drawn on that mesh with the same remap (a head replacer this PC lacks still shows a head), and a part
+-- with no fallback is left out, with its followers. A part of a mod's outfit (its mod line) that is not drawn on its
+-- own mesh is named on screen once a generation. Parts hang as the table says (parent part, socket, placement) and
 -- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (on unless
 -- coop-settings.txt says cloth=off, or coop look), a follower whose mesh has clothing assets (her ponytail) is a
 -- SkeletalMeshComponent whose cloth swings on its leader's bones, as hers does in solo: the bones only anchor the
--- strands. Else it is a rigid Poseable like the rest, which draws her ponytail as one block. With look.dyes, a part
--- drawn on its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same path
--- rule as meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. With look.effects, her attack
--- and skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
+-- strands. Else it is a rigid Poseable like the rest, which draws her ponytail as one block. Its collision is the one
+-- the table's cloth line names, else the one named from her body. With look.dyes, and always on a mod's mesh, a part
+-- drawn on its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same rules
+-- as meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. With look.effects, her attack and
+-- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
 -- slot and stops it when the slot changes, at most 8 starts a second.
 -- The build resolves one mesh a frame (a step a tick, never a coroutine), then names what it built for the native part
@@ -47,7 +53,8 @@ local BASE_BODY='/Game/Art/Character/PC/CH_P_EVE_08/CH_P_EVE_08.CH_P_EVE_08'
 local BASE_HAIR='/Game/Art/Character/PC/00_HR/EVE_HR_01/EVE_HR_01.EVE_HR_01'
 local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHair' and BASE_HAIR or nil end
 local Doro=require('race.doro')
-local EFFECTS=require('partner.capture').EFFECTS -- What the wire's effect indexes name, for both players.
+local Capture=require('partner.capture')
+local EFFECTS=Capture.EFFECTS -- What the wire's effect indexes name, for both players.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
 local PHYSICS_ASSET='/Script/Engine.PhysicsAsset'
@@ -105,7 +112,8 @@ function Puppet.collision_path(path)
 end
 -- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
--- bones, name, place (its 10 numbers as written), materials ({slot=, path=}, slots rising) and a leader's names.
+-- bones, name, place (its 10 numbers as written), materials ({slot=, path=}, slots rising), cloth (its cloth's
+-- collision asset) and label (the outfit a mod's mesh comes from), each nil without its line, and a leader's names.
 local function parse_remote(file)
     if type(file)~='string' then return nil end
     local lines,at={},1
@@ -138,6 +146,11 @@ local function parse_remote(file)
             if tonumber(index)~=part.i or slot>63 or last and slot<=last.slot or #part.materials==16 then return nil end
             part.materials[#part.materials+1]={slot=slot,path=path}
         end
+        local index
+        index,part.cloth=take('^cloth (%d+) (%S+)$')
+        if index and tonumber(index)~=part.i then return nil end
+        index,part.label=take('^mod (%d+) (%S+)$')
+        if index and tonumber(index)~=part.i then return nil end
         if lead=='-' then
             local index,names=take('^names (%d+) (.+)$')
             if tonumber(index)~=part.i then return nil end
@@ -178,13 +191,15 @@ function Puppet.tag_text(...)
 end
 -- link (nil without the native part): remote_table() -> coop-remote.txt's text, display(text|nil) publishes or
 -- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear), friend() her
--- Steam name. capture gives yaw_delta(), the loopback's offset. say(text,en) puts a line on screen (en: the same in
--- English); name_tag: the tag. look: what else the ghost shows ({cloth=,dyes=,effects=true|false}, read at each build;
--- nil: nothing more). words: the words for the screen now (ui/text.lua's T.en or T.fr; English when nil).
+-- Steam name, cns_assets() the assets our CNS packs declare (path to outfit). capture gives yaw_delta(), the loopback's
+-- offset. say(text,en) puts a line on screen (en: the same in English); name_tag: the tag. look: what else the ghost
+-- shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more). words: the words for the screen now
+-- (ui/text.lua's T.en or T.fr; English when nil).
 function Puppet.new(link,capture,say,name_tag,look,words)
     look=look or {}
     words=words or function() return T.en end
-    local files=link or {remote_table=function() end,display=function() return false,'no native part' end}
+    local files=link or {remote_table=function() end,display=function() return false,'no native part' end,
+        cns_assets=function() return {} end}
     local store=link and link.store() or {save=function() end,load=function() end,clear=function() end}
     local self,wanted,basesuit={},false,false
     local remote,seen_count,source=nil,nil,nil -- The remote table, the status count it was read at, where it came from.
@@ -193,6 +208,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     local back_since,hidden_pair,her_at=nil,nil,nil
     local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
+    local mods_said -- The generation whose parts from mods not shown were said on screen.
     local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
     local doro_on,doro_log,doro_emote=false,nil,nil -- Doro mode, where its [DR] lines go, the race's emote.
     local doro_top=nil -- While a race drives: its top speed (cm/s), for her Doro's dash, play rate and tilt.
@@ -225,22 +241,43 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     -- An asset of a class (a SkeletalMesh unless said) by its object path: in memory already (StaticFindObject), else
     -- loaded (LoadAsset, synchronous on this thread); nil when neither gives one of that class. A cached one nothing
     -- referenced may have been collected since, and its address reused: it is used again only while it is still that.
-    local function resolve(path,counts,class)
+    -- mod: a mod's asset your CNS packs declare (fetch()). LoadAsset finds an asset through the cooked asset registry,
+    -- which a mod's added assets are not in, so one it misses is loaded by AssetRegistryHelpers:GetAsset (an asset
+    -- data with only its path: FAssetData::GetAsset loads it by that path), as UE4SS's BPModLoaderMod loads mod actors;
+    -- how each was found or that it was not goes into counts.mods for the build line.
+    local function resolve(path,counts,class,mod)
         class=class or '/Script/Engine.SkeletalMesh'
         local key=class..' '..path -- A peer naming a mesh as a material spoils neither.
         if cache[key]==false then return nil end
         local asset=valid(cache[key] or nil)
         if asset and asset:IsA(find(class)) and asset:GetFullName():match('^%S+ (.+)$')==path then return asset end
-        local started=os.clock()
+        local started,by=os.clock(),'in memory'
         asset=valid(StaticFindObject(path))
         if not asset then
+            by='by LoadAsset'
             local ok,loaded=pcall(LoadAsset,path)
+            asset=ok and valid(loaded) or nil
+        end
+        if not asset and mod then
+            by='by GetAsset'
+            local ok,loaded=pcall(function()
+                return find('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
+            end)
             asset=ok and valid(loaded) or nil
         end
         if asset and not asset:IsA(find(class)) then asset=nil end
         cache[key]=asset or false
         counts.loaded,counts.ms=counts.loaded+1,counts.ms+(os.clock()-started)*1000
+        if mod then counts.mods[#counts.mods+1]=path..' '..(asset and by or 'missing') end
         return asset
+    end
+    -- An asset a peer named (a part's mesh, one of its materials, its cloth's collision, the one named from her body):
+    -- the game's own resolved as any; a mod's only when one of your own CNS packs declares that exact path, else never
+    -- looked up or loaded (nil, and why).
+    local function fetch(path,counts,class)
+        if Capture.base_path(path) then return resolve(path,counts,class) end
+        if not files.cns_assets()[path] then return nil,'not declared by your CNS packs' end
+        return resolve(path,counts,class,true)
     end
     -- Hangs a built part as the table says: its parent part (part 0 when that one was left out), socket and place;
     -- then shown or hidden (hidden in Doro mode).
@@ -262,7 +299,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         elseif not doro_on and g.doro then
             local d=g.doro
             g.doro=nil
-            d.mesh:K2_DestroyComponent(g.actor)
+            Doro.detach(d,g.actor) -- Its keepers too: the ghost's actor stays.
         end
         for _,part in ipairs(remote.parts) do
             local built=g.parts[part.i]
@@ -284,12 +321,12 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             {Pitch=0,Yaw=0,Roll=0}))
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
-            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={}}
+            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={},missed={}}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
         store.save(actor:GetFullName():match('^%S+ (.+)$'))
-        local counts,notes={loaded=0,ms=0},{}
+        local counts,notes={loaded=0,ms=0,mods={}},{}
         -- A step for the next frame (k: the k-th next), before the steps listed earlier.
         local function soon(f,k) table.insert(g.steps,k or 1,f) end
         local function clothed(mesh) -- A read that fails counts as no clothing assets.
@@ -297,14 +334,20 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             return ok and n>0
         end
         -- Her outfit's collision on her ponytail's cloth, set up before its leader and its mesh as SB does: the body
-        -- bones its collision bodies hang on, mapped from the leader when it is set, then the outfit's asset, which
-        -- the cloth takes when SetSkeletalMesh creates it (RecreateClothingActors). A failure keeps the clothing
-        -- asset's own collision, said in the build line.
+        -- bones its collision bodies hang on, mapped from the leader when it is set, then the outfit's asset (the
+        -- table's cloth line, a CNS outfit's PonyPhysics among them, else the one named from her body), which the
+        -- cloth takes when SetSkeletalMesh creates it (RecreateClothingActors). A failure keeps the clothing asset's
+        -- own collision, said in the build line.
         local function collide(target,part)
             local ok,why=pcall(function()
                 for k,name in ipairs(COLLISION_BONES) do target.AdditiveMasterBoneArray[k]=FName(name) end
-                local asset=g.collision and resolve(g.collision,counts,PHYSICS_ASSET) -- Cached by its own step.
-                if not asset then error(tostring(g.collision or 'her body mesh\'s collision name')..' missing',0) end
+                local asset,refused -- Each cached by its own step.
+                if part.cloth then asset,refused=fetch(part.cloth,counts,PHYSICS_ASSET) end
+                if not asset and g.collision then asset=fetch(g.collision,counts,PHYSICS_ASSET) end
+                if not asset then
+                    error(tostring(part.cloth or g.collision or 'her body mesh\'s collision name')..' '
+                        ..(refused or 'missing'),0)
+                end
                 target.OverrideClothPhysicsAsset=asset
             end)
             if not ok then
@@ -360,19 +403,20 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         -- One of the table's materials on a part drawn on its own mesh (a fallback's slots are another mesh's): a step
         -- each, resolved and set in the same frame, as a mesh is.
         local function dye(target,part,m)
-            local material=resolve(m.path,counts,'/Script/Engine.MaterialInterface')
+            local material,why=fetch(m.path,counts,'/Script/Engine.MaterialInterface')
             if material and m.slot<target:GetNumMaterials() then
                 target:SetMaterial(m.slot,material)
                 g.dyed=g.dyed+1
             else
-                notes[#notes+1]=string.format('%s: slot %d material %s missing, default kept',part.name,m.slot,m.path)
+                notes[#notes+1]=string.format('%s: slot %d material %s %s, default kept',part.name,m.slot,m.path,
+                    why or 'missing')
             end
         end
         -- A part drawn (based: on its fallback's mesh, remap: a leader's bones by name).
         local function keep(part,target,mesh,based,remap)
             if part.i==0 and look.cloth then -- Her outfit's ponytail collision, from her body as drawn: its own step.
                 g.collision=Puppet.collision_path(mesh:GetFullName():match('^%S+ (.+)$'))
-                if g.collision then soon(function() resolve(g.collision,counts,PHYSICS_ASSET) end) end
+                if g.collision then soon(function() fetch(g.collision,counts,PHYSICS_ASSET) end) end
             end
             local lead=part.lead and g.parts[part.lead]
             if lead then
@@ -386,18 +430,30 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             g.parts[part.i]={target=target,mesh=mesh,remap=remap}
             g.count=g.count+1
         end
+        -- A part of a mod's outfit not drawn on its own mesh: its outfit, for the notice (unless basesuit asked).
+        local function missed(part)
+            if part.label and not basesuit and not g.missed[part.label] then
+                g.missed[part.label]=true
+                g.missed[#g.missed+1]=part.label
+            end
+        end
         local function left_out(part)
             assert(part.i>0,'her body could not be drawn, not even on the base suit')
             g.left_out=g.left_out+1
+            missed(part)
         end
-        -- A part on its fallback's mesh, for a leader with its remap; left out when that one is missing too.
-        local function on_base(part,base,why)
-            local mesh=resolve(base,counts)
+        -- A part on its fallback's mesh, for a leader with its remap; left out when that one is missing too. mesh: the
+        -- fallback's, resolved in this frame already (a leader's own mesh, with other bones: not counted on the base
+        -- suit).
+        local function on_base(part,base,why,mesh)
+            mesh=mesh or resolve(base,counts)
             if not mesh then return left_out(part) end
+            local based=base~=part.path
+            if based then missed(part) end
             local target=add(mesh,part)
             if part.lead then
                 notes[#notes+1]=string.format('%s: %s %s, drawn as %s',part.name,part.path or '-',why,base)
-                return keep(part,target,mesh,true)
+                return keep(part,target,mesh,based)
             end
             -- Each of the fallback's bones takes her bone of the same name, else keeps its reference pose.
             local of,remap,follow={},{},0
@@ -409,10 +465,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             end
             notes[#notes+1]=string.format('%s: %s %s, drawn as %s (%d of %d bones follow)',part.name,part.path or '-',why,
                 base,follow,#remap)
-            keep(part,target,mesh,true,remap)
+            keep(part,target,mesh,based,remap)
         end
         -- One part's step: the table's mesh, then its dyes a step each; else its fallback's (a step of its own when the
-        -- table's was resolved in this one); left out with neither, or when its leader was.
+        -- table's was resolved in this one); left out with neither (its mesh's reason said), or when its leader was.
         local function dress(part)
             if part.lead and not g.parts[part.lead] then return left_out(part) end
             local base,why=fallback(part),'missing'
@@ -421,26 +477,43 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             elseif part.path then
                 -- Resolved and added in the same frame, so a freshly loaded mesh nothing holds yet cannot be collected
                 -- in between.
-                local mesh=resolve(part.path,counts)
+                local mesh,refused=fetch(part.path,counts)
+                why=refused or why
                 if mesh then
                     local target=add(mesh,part)
                     if part.lead or target:GetNumBones()==part.bones then
-                        if look.dyes then
+                        -- A mod's mesh takes hers with dyes off too: CNS puts an outfit's materials on at run time.
+                        if look.dyes or not Capture.base_path(part.path) then
                             for k,m in ipairs(part.materials) do soon(function() dye(target,part,m) end,k) end
                         end
                         return keep(part,target,mesh)
                     end
                     why=string.format('has %d bones, not %d',target:GetNumBones(),part.bones)
                     target:K2_DestroyComponent(actor) -- Never re-point it: a mesh of the same count would keep stale bones.
+                    -- No fallback (a head, an accessory): drawn on this mesh after all, its bones by name.
+                    if not base then return on_base(part,part.path,why,mesh) end
                 end
                 if base then return soon(function() on_base(part,base,why) end) end
             end
-            if base then on_base(part,base,why) else left_out(part) end
+            if base then return on_base(part,base,why) end
+            if part.path then notes[#notes+1]=string.format('%s: %s %s, left out',part.name,part.path,why) end
+            left_out(part)
         end
-        for _,part in ipairs(t.parts) do g.steps[#g.steps+1]=function() dress(part) end end
-        -- Doro mode: its mesh found or loaded in a step of its own, never with another one.
+        for _,part in ipairs(t.parts) do
+            -- The collision her cloth line names, in a step of its own before its part's.
+            if look.cloth and part.cloth then
+                g.steps[#g.steps+1]=function() fetch(part.cloth,counts,PHYSICS_ASSET) end
+            end
+            g.steps[#g.steps+1]=function() dress(part) end
+        end
+        -- Doro mode: its mesh and each clip its keepers hold found or loaded in a step of its own, never with another
+        -- one (while the look is on, its own Doro's keepers hold them already).
         if doro_on then
-            g.steps[#g.steps+1]=function() Doro.resolve(Doro.ASSETS.mesh,'/Script/Engine.SkeletalMesh') end
+            for key,path in pairs(Doro.ASSETS) do
+                g.steps[#g.steps+1]=function()
+                    Doro.resolve(path,key=='mesh' and '/Script/Engine.SkeletalMesh' or nil)
+                end
+            end
         end
         -- Her effects: the listed systems, a step each. One failing ends the build there, without effects.
         local fx_loaded,fx_why=0,nil
@@ -522,6 +595,15 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             end
             local published,why=files.display(table.concat(lines,'\n')..'\n')
             g.built=true
+            if #counts.mods>0 then notes[#notes+1]='mod assets: '..table.concat(counts.mods,', ') end
+            if g.missed[1] then
+                notes[#notes+1]='mod parts not shown: '..table.concat(g.missed,', ')
+                if mods_said~=t.generation then -- Once a generation, rebuilds included.
+                    mods_said=t.generation
+                    local list={n=#g.missed,names=g.missed}
+                    say(T.mods(words().ghost.mods,whose(),list),T.mods(T.en.ghost.mods,whose(),list))
+                end
+            end
             local line=string.format('Ghost %d built: %d parts (%d leaders), %d loaded in %.0f ms, %d on the base '
                 ..'suit, %d left out%s%s',
                 t.generation,g.count,g.leaders,counts.loaded,counts.ms,g.base,g.left_out,

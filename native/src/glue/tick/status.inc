@@ -49,4 +49,19 @@ std::string status() {
   return s; // Stable between events, the recording's seconds aside: per-frame counts go into the 60 s lines instead.
 }
 
+// coop-status.txt's lion line (lion/rows.h's status_line), from what the game thread published.
+std::string lion_status() {
+  lion::Status s;
+  s.word = lion_word;
+  const uint32_t read = lion_read;
+  s.read = {uint8_t(read), uint8_t(read >> 8), uint8_t(read >> 16)};
+  s.ticks = lion_ticks;
+  const int64_t spawns = lion_spawns;
+  s.spawns_read = spawns != INT64_MIN;
+  s.spawns = int32_t(spawns);
+  if (lion_faulted)
+    s.fault = fault_where(lion_fault_rva);
+  return lion::status_line(s);
+}
+
 } // namespace coop::pose

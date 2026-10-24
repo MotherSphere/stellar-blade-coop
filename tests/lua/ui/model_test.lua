@@ -20,26 +20,27 @@ local NONE,HOST,GUEST={mode='none'},{mode='host',chat=true},{mode='guest',chat=t
 -- The main page by session state (ctx.mode as link.mode() says; ctx.chat: a friend linked, or the loopback; ctx.code:
 -- our join code while we host with one; ctx.stranger: a player we let in who is not our Steam friend).
 local menu=M.new()
-assert(ids(menu,{})=='head:settings options head:help report close','Before Steam: no session rows, nor their header')
-assert(ids(menu,NONE)=='head:session host join join_code head:settings options head:help report close')
+assert(ids(menu,{})=='head:settings options head:help guide report close',
+    'Before Steam: no session rows, nor their header')
+assert(ids(menu,NONE)=='head:session host join join_code head:settings options head:help guide report close')
 assert(ids(menu,{mode='none',chat=true})
-    =='head:session host join join_code chat head:settings options head:help report close',
+    =='head:session host join join_code chat head:settings options head:help guide report close',
     'The loopback chats with no session')
 assert(ids(menu,{mode='host',code='0CS-CBMH'})
-    =='head:session leave invite copy head:settings options head:help report close','Hosting with a code')
+    =='head:session leave invite copy head:settings options head:help guide report close','Hosting with a code')
 assert(ids(menu,{mode='host',chat=true,code='0CS-CBMH',stranger={id='9',name='S'}})
-    =='head:session leave invite copy remove chat head:settings options head:help report close',
+    =='head:session leave invite copy remove chat head:settings options head:help guide report close',
     'A player let in who is not a Steam friend: removable')
-assert(ids(menu,HOST)=='head:session leave invite chat head:settings options head:help report close')
-assert(ids(menu,{mode='host'})=='head:session leave invite head:settings options head:help report close',
+assert(ids(menu,HOST)=='head:session leave invite chat head:settings options head:help guide report close')
+assert(ids(menu,{mode='host'})=='head:session leave invite head:settings options head:help guide report close',
     'Hosting with no friend linked yet: no chat')
-assert(ids(menu,GUEST)=='head:session leave chat head:settings options head:help report close')
+assert(ids(menu,GUEST)=='head:session leave chat head:settings options head:help guide report close')
 
 -- The cursor: the first row that is not a header, then down and up over headers, wrapping both ways.
 assert(menu.current(NONE).id=='host')
 local seen={}
-for _=1,6 do menu.move(NONE,1); seen[#seen+1]=menu.current(NONE).id end
-assert(table.concat(seen,' ')=='join join_code options report close host',table.concat(seen,' '))
+for _=1,7 do menu.move(NONE,1); seen[#seen+1]=menu.current(NONE).id end
+assert(table.concat(seen,' ')=='join join_code options guide report close host',table.concat(seen,' '))
 menu.move(NONE,-1)
 assert(menu.current(NONE).id=='close')
 menu.move(NONE,1) -- host
@@ -68,6 +69,8 @@ assert(menu.select(HOST,0)=='invite')
 menu.move(HOST,1)
 assert(menu.select(HOST,0)=='chat')
 menu.move(HOST,1)
+menu.move(HOST,1)
+assert(menu.select(HOST,0)=='guide','The guide: ui/menu.lua opens it')
 menu.move(HOST,1)
 assert(menu.select(HOST,0)=='report')
 menu.move(HOST,1)
@@ -101,7 +104,8 @@ assert(menu.select(CODE,61.5)=='confirm_remove','Moving forgets it')
 -- The mouse on a row (point, one of rows()): the cursor on it, true when it moved there; a header or a row not shown,
 -- nothing. A first Select on Leave or Remove stays while the mouse points at that same row only.
 menu=M.new()
-local rows=menu.rows(CODE) -- head:session leave invite copy remove chat head:settings options head:help report close
+-- head:session leave invite copy remove chat head:settings options head:help guide report close
+local rows=menu.rows(CODE)
 assert(menu.point(CODE,rows[4])==true and menu.current(CODE).id=='copy','The row under the mouse')
 assert(menu.point(CODE,rows[4])==false,'Already there')
 assert(menu.point(CODE,rows[1])==false and menu.current(CODE).id=='copy','A header: nothing')

@@ -7,6 +7,7 @@
 -- map change, its freed assets looked up again, the old handles never touching an address that holds another object;
 -- no rebuild storm; the root an earlier Lua load left swept; the first engine error, in a build's own update too,
 -- turning the kit off (off(): the notice line above EVE is the fallback); a look that cannot be had only degrading;
+-- an image's texture made at run time, refused without turning the kit off; the mouse cursor for a group that asks;
 -- nothing while the world is hidden or after coop off.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
@@ -928,7 +929,8 @@ pc=real
 k.input(false); k.input(false)
 assert(count(LIB..'SetInputMode_GameOnly')==2,'Still given back once the kit is off')
 -- Ctrl+R with the menu open: the old load's input mode and mouse cursor stay in the game, so its path says so and the
--- new load gives the input back and hides the cursor as it sweeps the root (or later, with no player controller yet).
+-- new load gives the input back and puts the cursor back as it found it, as it sweeps the root (or later, with no
+-- player controller yet).
 -- A record from before the cursor: the input only.
 reset()
 k=kit()
@@ -963,6 +965,20 @@ reloaded.slow(true)
 pc.bShowMouseCursor=true
 reloaded.input(false)
 assert(count(LIB..'SetInputMode_GameOnly')==4 and pc.bShowMouseCursor==true,'An older record: the cursor untouched')
+-- The guide on the title screen, whose menu shows the mouse cursor: the record says the cursor was shown, and the next
+-- load leaves it shown as it gives the input back.
+reset()
+k=kit()
+up(k)
+root_path=saved
+k.slow(true,true)
+pc.bShowMouseCursor=true
+k.input(true,'guide',true)
+assert(saved==root_path..' input cursor shown','The cursor shown before: said')
+registry[root_path]=viewport[1]
+reloaded=kit()
+reloaded.slow(true,true)
+assert(#viewport==0 and count(LIB..'SetInputMode_GameAndUIEx')==1 and pc.bShowMouseCursor==true,'Shown again')
 -- At the title (the co-op saves' question), given back as GameAndUIEx with no widget, no mouse lock and the cursor
 -- kept, so the title menu keeps its mouse; GameOnly when the engine refuses it (the kit stays on); in a world GameOnly.
 reset()
@@ -1008,6 +1024,19 @@ k.input(true); k.input(false); assert(pc.bShowMouseCursor==true,'The value found
 assert(k.paused()==true,'Not ours: a game screen')
 pc.bShowMouseCursor=false
 k.input(true); k.reset(); assert(pc.bShowMouseCursor==false,'coop ui reset')
+-- A group that asks for it (the guide, in a world) shows it too; one that takes the input from it without asking hides
+-- it again.
+k.input(true,'guide',true); assert(pc.bShowMouseCursor==true and k.paused()==false,'The guide asks: shown')
+k.input(true,'chat'); assert(pc.bShowMouseCursor==false,'The chat took it from the guide: hidden')
+k.input(false,'chat')
+-- An image's texture made at run time (the guide's art): its brush takes it, matched (true); a refused call only
+-- returns false, the kit stays on.
+local made,dot=object('Texture2D'),nil
+for _,o in ipairs(of('Image')) do if stores[o].brush.ResourceObject==asset('link') then dot=o end end
+assert(dot and k.view('card').dot.texture(made)==true and stores[dot].brush.ResourceObject==made)
+raise['Image.SetBrushFromTexture']='refused'
+assert(k.view('card').dot.texture(made)==false and not k.off() and k.view('card'),'Refused: false, the kit on')
+raise['Image.SetBrushFromTexture']=nil
 k.input(true); k.stop(); assert(pc.bShowMouseCursor==false,'coop off')
 -- The game paused or showing the mouse cursor (a screen of its own), or not (false when unread), and its language
 -- (nil when unread); nothing once off, where the language is the last one read (the fallback notices keep it), and

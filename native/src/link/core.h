@@ -98,6 +98,8 @@ constexpr size_t kNotices = 8, kMaxNotice = 300;
 constexpr uint64_t kApprovalMs = 60000;
 // The follow: the host takes at most one camps? from her each kCampsEveryMs.
 constexpr uint64_t kCampsEveryMs = 2000;
+// The names in each of the status's mods_ lines and in the log line of hers we lack, in bytes at most.
+constexpr size_t kModsLine = 400, kModsLog = 300;
 
 // The SteamID in a SessionRequest's identity, or 0. Read in place: the callback thread must not call Steam.
 inline uint64_t steam_id_of(const Identity &who) {
@@ -285,11 +287,17 @@ struct Peer {
   Window say_window;       // Her chat lines.
   Window night_window;     // Her night lines.
   Window race_window;      // Her race lines.
-  // Her .pak mods beyond the base game's (game/pak_list.h) from her paks line, once one came; our paks line as she last
-  // got it (sent again after each hello of hers, like the photo line).
-  bool has_paks = false;
-  uint64_t paks_count = 0, paks_hash = 0;
-  std::string paks_sent;
+  // Her .pak mods beyond the base game's (game/pak_list.h) from her paks line, once one came; her mod containers by
+  // name with their hashes, from the pak lines her last paks line ended (named: some came, or she loads no .pak mod;
+  // mod_names=off on her side sends none), and the pak lines since then; the status lines comparing them with ours,
+  // made when her paks line came; how many of our lines (pak lines, then the paks line) she got, sent again from the
+  // first after a hello of hers, like the photo line, but at most once each kHelloAgainMs (paks_again: one is due, from
+  // paks_next): a hello each pass would resend up to kMaxMods + 1 reliable lines each pass.
+  bool has_paks = false, pak_named = false, paks_again = false;
+  uint64_t paks_count = 0, paks_hash = 0, paks_next = 0;
+  std::map<std::string, uint64_t> pak_list, pak_in;
+  std::string mods_status;
+  size_t paks_at = 0;
   bool say_logged = false; // One chat drop line per 60 s line, never with a text.
   bool night_logged = false; // The same for her night lines.
   bool mark_logged = false; // The same for her mark lines, which share her chat lines' window.
@@ -444,12 +452,28 @@ public:
   // Her channel-2 lines since the last call, oldest first. The link never parses them: fight/sync.h does, strictly.
   std::vector<std::string> take_fight() { return std::exchange(fight_in_, {}); }
 
-  // Our .pak mods beyond the base game's (game/pak_list.h), once, before the first tick(): each friend past the
-  // handshake gets them, and status() compares hers. No paks line goes before this call.
-  void paks(uint32_t count, uint64_t hash) {
+  // Our .pak mods beyond the base game's and our mod containers (game/pak_list.h), once, before the first tick(): each
+  // friend past the handshake gets them, and status() compares hers. No paks line goes before this call.
+  void paks(uint32_t count, uint64_t hash, const std::vector<PakMod> &mods = {}) {
     paks_on_ = true;
     paks_count_ = count;
     paks_hash_ = hash;
+    mods_.clear();
+    for (const PakMod &m : mods)
+      mods_[m.name] = m.hash;
+    pak_lines_.clear();
+    for (const PakMod &m : mods)
+      if (pak_lines_.size() < kMaxMods && mod_name_ok(m.name))
+        pak_lines_.push_back(pak_line(m));
+  }
+  // mod_names from Lua's coop-state.txt, before each tick(): off sends the paks line alone, without the pak lines. A
+  // change sends ours again to each friend, so hers forgets our names when it goes off.
+  void mod_names(bool on) {
+    if (on == names_)
+      return;
+    names_ = on;
+    for (auto &p : peers_)
+      p.paks_at = 0;
   }
 
   // The synced photo mode (FEATURE-PARITY.md 6.3), from Lua's coop-state.txt, before each tick(): ours ('0', '1' or
@@ -629,11 +653,12 @@ public:
     // <text>]".
     if (!mark_.empty())
       s += mark_ + "\n";
-    // Her .pak mods against ours, once her paks line came: "paks=same <ours> <hers>" or "paks=differ <ours> <hers>".
+    // Her .pak mods against ours, once her paks line came: "paks=same <ours> <hers>" or "paks=differ <ours> <hers>";
+    // then, when it ended a named list, her mod containers against ours by name (mods_lines()).
     if (!peers_.empty() && peers_.front().has_paks && paks_on_) {
       const Peer &p = peers_.front();
       s += std::string("paks=") + (p.paks_hash == paks_hash_ ? "same " : "differ ") + std::to_string(paks_count_) +
-           " " + std::to_string(p.paks_count) + "\n";
+           " " + std::to_string(p.paks_count) + "\n" + p.mods_status;
     }
     // Her vitals for the partner card, while a session holds and her last line is under kMateMs old.
     if (has_mate_ && chatting() && now_ - mate_at_ < kMateMs) {
@@ -937,7 +962,8 @@ private:
         notice("No join code to copy.");
       }
       break;
-    // The pose path's, the shared fight's, the photo pause's, the saves' and the shared quests': the caller's.
+    // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests' and the Lion's: the
+    // caller's.
     case Command::off:
     case Command::loopback:
     case Command::record:
@@ -948,6 +974,8 @@ private:
     case Command::saves:
     case Command::quests:
     case Command::travel:
+    case Command::lion:
+    case Command::gate:
       break;
     case Command::none:
       event("unknown request");
@@ -1195,7 +1223,7 @@ private:
         event(peer->name + " is back");
         notice(peer->name + " is back.");
         peer->photo_sent.clear(); // Our last photo line may have gone with a broken session: it goes again.
-        peer->paks_sent.clear();
+        peer->paks_at = 0;
       }
       on_message(*peer, message);
     }
@@ -1384,7 +1412,9 @@ private:
       }
       peer.compatible = true;
       peer.photo_sent.clear(); // Her session may be new: our photo line goes again once she accepts.
-      peer.paks_sent.clear();  // The same for our paks line.
+      if (peer.paks_at)        // The same for our pak lines and paks line (send_paks); hers start again too.
+        peer.paks_again = true;
+      peer.pak_in.clear();
       send(peer, accept(), kReliable); // Every hello is answered: a peer whose first session broke greets again.
       // Ours may have been lost with that session. A repeated hello once ours was accepted may come from a guest who
       // rejoined before her leave showed here, so her new peer never had ours: it gets ours again, but only
@@ -1437,7 +1467,11 @@ private:
       peer.photo_both = both;
       break;
     }
-    case Kind::paks:
+    case Kind::pak: // One of her mod containers, kept until her paks line ends the list; kMaxMods names at most.
+      if (peer.compatible && peer.accepted && (peer.pak_in.size() < kMaxMods || peer.pak_in.count(message.text)))
+        peer.pak_in[message.text] = message.a;
+      break;
+    case Kind::paks: {
       if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
         break;
       if (!peer.has_paks || message.a != peer.paks_count || message.b != peer.paks_hash)
@@ -1446,7 +1480,18 @@ private:
                : message.b == paks_hash_ ? ", the same as ours"
                                          : ", not the same as ours (" + std::to_string(paks_count_) + " here)"));
       peer.has_paks = true, peer.paks_count = message.a, peer.paks_hash = message.b;
+      // Her pak lines since the last paks line are her list now; none with .pak mods: her mod_names=off.
+      const bool named = !peer.pak_in.empty() || message.a == 0;
+      const bool changed = named != peer.pak_named || peer.pak_in != peer.pak_list;
+      peer.pak_named = named;
+      peer.pak_list = std::exchange(peer.pak_in, {});
+      const ModsDiff d = compare_mods(mods_, peer.pak_list);
+      peer.mods_status = named && paks_on_ ? mods_lines(d) : std::string();
+      if (changed && named && paks_on_ && (!d.missing.empty() || !d.other.empty()))
+        event(peer.name + " has mods we lack (" + mods_list(d.missing, kModsLog) + ") and mods we have in another " +
+              "version (" + mods_list(d.other, kModsLog) + ")");
       break;
+    }
     case Kind::vitals:
       if (peer.compatible && peer.accepted) // Before the handshake: ignored, with no log line.
         mate_ = message.vitals, mate_at_ = now_, has_mate_ = true;
@@ -1539,18 +1584,37 @@ private:
     }
   }
 
-  // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
-  // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
-  // Our cutscene ('c') goes whatever photo_sync says: the guest's own setting decides whether it pauses her.
+  // Our pak lines (none with mod_names=off), then the paks line that ends them, to each friend past the handshake from
+  // the first she has not got (from the first again once a resend her hello asked for is due); a refused send goes
+  // again at the next pass.
   void send_paks() {
     if (!paks_on_)
       return;
-    const std::string line = paks_line(paks_count_, paks_hash_);
-    for (auto &p : peers_)
-      if (p.compatible && p.accepted && p.paks_sent != line &&
-          send(p, line.data(), line.size(), kReliable) == kResultOk)
-        p.paks_sent = line;
+    const size_t named = names_ ? pak_lines_.size() : 0;
+    const std::string end = paks_line(paks_count_, paks_hash_);
+    for (auto &p : peers_) {
+      if (p.paks_again && now_ >= p.paks_next) {
+        p.paks_again = false;
+        p.paks_at = 0;
+        p.paks_next = now_ + kHelloAgainMs;
+      }
+      while (p.compatible && p.accepted && p.paks_at <= named) {
+        const std::string &line = p.paks_at < named ? pak_lines_[p.paks_at] : end;
+        if (send(p, line.data(), line.size(), kReliable) != kResultOk)
+          break;
+        ++p.paks_at;
+      }
+    }
   }
+  // The status lines of her mod containers against ours: "mods_missing=", "mods_other=" and "mods_extra=", each
+  // mods_list() of kModsLine bytes at most.
+  static std::string mods_lines(const ModsDiff &d) {
+    return "mods_missing=" + mods_list(d.missing, kModsLine) + "\nmods_other=" + mods_list(d.other, kModsLine) +
+           "\nmods_extra=" + mods_list(d.extra, kModsLine) + "\n";
+  }
+  // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
+  // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
+  // Our cutscene ('c') goes whatever photo_sync says: the guest's own setting decides whether it pauses her.
   void send_photo() {
     if (!photo_on_)
       return;
@@ -1748,6 +1812,10 @@ private:
   bool photo_on_ = false;
   bool paks_on_ = false; // paks() said ours.
   uint64_t paks_count_ = 0, paks_hash_ = 0;
+  // Our mod containers by name with their hashes, their pak lines, and mod_names (on until Lua says).
+  std::map<std::string, uint64_t> mods_;
+  std::vector<std::string> pak_lines_;
+  bool names_ = true;
   char photo_ = '0', theirs_ = '0', mine_ = '0';
   Sync sync_ = Sync::off;
   uint32_t photo_max_ = 0;

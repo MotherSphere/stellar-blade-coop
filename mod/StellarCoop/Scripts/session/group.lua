@@ -37,13 +37,7 @@ local HIDDEN=2 -- ESlateVisibility Hidden.
 local function alive(m) return m~=nil and (m.life==1 or m.life==6) and m.hp>0 end
 local function down(m) return m~=nil and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) end
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
--- A TWeakObjectPtr property's object (UE4SS gives the pointer, whose Get() reads it), or nil.
-local function weak(v)
-    v=U.value_of(v)
-    local kind=U.kind(v)
-    if kind and kind:find('Weak',1,true) then v=v:Get() end
-    return U.valid(v)
-end
+local weak=U.weak
 -- Our EVE's mesh location (her ghost's place is the friend's mesh), or nil.
 local function feet()
     local eve=N.her()

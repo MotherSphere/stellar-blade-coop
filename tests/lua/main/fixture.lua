@@ -69,8 +69,18 @@ cv.kismet={type=function() return 'UObject' end,IsValid=function() return true e
         cv.value=cv.set or tonumber(command:match('^SB%.PhotoMode%.PauseMethod (%d)$'))
     end}
 package.loaded.UEHelpers={GetPlayerController=function() return cv.pc end}
+-- The engine's rendering library (the guide's art): ImportFileAsTexture2D gives art.texture (nil: none), each call's
+-- world and path kept in art.imports.
+art={imports={},texture={type=function() return 'UObject' end,IsValid=function() return true end,
+    GetFullName=function() return 'Texture2D /Engine/Transient.Texture2D_0' end}}
+art.library={type=function() return 'UObject' end,IsValid=function() return true end,
+    ImportFileAsTexture2D=function(_,world,path)
+        art.imports[#art.imports+1]={world,path}
+        return art.texture
+    end}
 StaticFindObject=function(path)
     if path=='/Script/Engine.Default__KismetSystemLibrary' then return cv.kismet end
+    if path=='/Script/Engine.Default__KismetRenderingLibrary' then return art.library end
     if path=='/Script/Engine.PlayerController' then return cv.class end
     assert(path=='/Script/SB.Default__SBAutomationBlueprintFunctionLibrary',path)
     local function read(value) photo_reads=photo_reads+1; if photo_error then error(photo_error,0) end return value end
@@ -85,12 +95,16 @@ link_mode='none' -- What link.mode() says, as of the last changes().
 ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
 mate_v=nil -- link.mate(): her vitals.
 paks_v=nil -- link.paks(): her .pak mods against ours.
+mods_v,cns_v=nil,nil -- link.mods(): her mod containers against ours by name; link.cns(): our CNS packs in words.
 friend_name,friend_linked='Kaanta',true -- link.friend()'s name and linked (fake_link.lost: lost, below).
 fight_text,fight_reads=nil,0 -- What link.fight() says (the fight= line), and how often it was asked.
 pilot_text,pilot_reads=nil,0 -- What link.pilot() says (the pilot= line), and how often it was asked.
 chatting,chat_lines,chat_takes=false,{},0 -- link.chatting(), coop-chat.txt's lines, and its takes.
 said_lines,say_refusal={},nil -- Our lines link.say wrote into coop-say.txt; why it refuses (nil: it writes).
 saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= line, the Steam ID.
+-- Our own files beside coop-settings.txt (link.read_file, link.write_file): coop-guide.txt there unless a test removes
+-- it, so the guide does not open by itself at the title.
+link_files={['coop-guide.txt']='The co-op guide opens by itself on the title screen while this file is missing.\n'}
 -- link.code() (our join code, the players refused), link.pending(), link.stranger(), link.lobby().
 link_code,link_refused,link_pending,link_stranger,link_lobby=nil,nil,nil,nil,'0'
 fake_link={
@@ -105,6 +119,8 @@ fake_link={
     changes=function() return {'link=host lobby=7'} end,
     mode=function() return link_mode end,
     saves=function() return saves_info end,
+    read_file=function(name) return link_files[name] end,
+    write_file=function(name,text) link_files[name]=text; return true end,
     fight=function() fight_reads=fight_reads+1; return fight_text end,
     pilot=function() pilot_reads=pilot_reads+1; return pilot_text end,
     chatting=function() return chatting end,
@@ -126,6 +142,8 @@ fake_link={
     ping=function() return ping_ms end,
     mate=function() return mate_v end,
     paks=function() return paks_v end,
+    mods=function() return mods_v end,
+    cns=function() return cns_v end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
     -- shows the real defaults, On for the three that pinned() reads as off).
     settings_text=function() return settings_text end,
@@ -136,9 +154,10 @@ fake_link={
     end,
     settings=function() return Link.parse_settings(pinned(settings_text)) end,
     -- The real one writes on a change only (link_test): this one says each call.
-    state=function(world,rate,photo,sync,max,title,cut)
+    state=function(world,rate,photo,sync,max,title,cut,names)
         photos[#photos+1]=string.format('%s %s %s',photo,sync,max)
         gr.cuts[#gr.cuts+1]=cut
+        state_names[#state_names+1]=names
         states[#states+1]=string.format('world=%s rate=%d',world and '1' or title and 'title' or '0',rate)
         return states[#states]
     end,
@@ -285,15 +304,59 @@ package.loaded['race.doro']={new=function(o)
         restore=function() dr.restores=dr.restores+1 end,
         tick=function() dr.ticks=dr.ticks+1; if dr.says then return table.unpack(dr.says) end end}
 end}
--- coop leviathan's read, display and free camera (cut/leviathan.lua; leviathan_test tests it): what new got (log,
--- store, blocked), its commands, restores, ticks and stops, what a tick says, whether its free camera is on.
+-- The cut model viewer's read, display and free camera (cut/leviathan.lua; leviathan_test tests it): what new got
+-- (log, store, blocked), its commands (each with its creature's word as who), restores, ticks and stops, what a tick
+-- says, whether its free camera is on.
 lv={}
 package.loaded['cut.leviathan']={new=function(o)
     lv.o=o
-    return {command=function(...) lv.cmds[#lv.cmds+1]={...}; return true,'lv '..tostring((...)) end,
+    local commands={}
+    for _,who in ipairs({'leviathan','gardener','tendril','mann','nier','orcal','enya'}) do
+        commands[who]=function(...) lv.cmds[#lv.cmds+1]={who=who,...}; return true,'lv '..tostring((...)) end
+    end
+    return {commands=commands,
         restore=function() lv.restores=lv.restores+1 end,
         tick=function() lv.ticks=lv.ticks+1; if lv.says then return table.unpack(lv.says) end end,
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
+end}
+-- coop lion (cut/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops, what a
+-- tick says.
+li={}
+package.loaded['cut.lion']={new=function(o)
+    li.o=o
+    return {command=function(...) li.cmds[#li.cmds+1]={...}; return true,'li '..tostring((...)) end,
+        tick=function() li.ticks=li.ticks+1; if li.says then return table.unpack(li.says) end end,
+        stop=function() li.stops=li.stops+1 end}
+end}
+-- coop wear (cut/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks and
+-- stops, what a tick says.
+wr={}
+package.loaded['cut.wear']={new=function(o)
+    wr.o=o
+    return {command=function(...) wr.cmds[#wr.cmds+1]={...}; return true,'wr '..tostring((...)) end,
+        restore=function() wr.restores=wr.restores+1 end,
+        tick=function() wr.ticks=wr.ticks+1; if wr.says then return table.unpack(wr.says) end end,
+        stop=function() wr.stops=wr.stops+1 end}
+end}
+-- coop scene (cut/scene.lua; scene_test tests it): what new got (log), its commands, restores, ticks and stops, what a
+-- tick says; its scenes' words.
+sc={}
+package.loaded['cut.scene']={new=function(o)
+    sc.o=o
+    return {SCENES={emil=true,orcal=true},
+        command=function(...) sc.cmds[#sc.cmds+1]={...}; return true,'sc '..tostring((...)) end,
+        restore=function() sc.restores=sc.restores+1 end,
+        tick=function() sc.ticks=sc.ticks+1; if sc.says then return table.unpack(sc.says) end end,
+        stop=function() sc.stops=sc.stops+1 end}
+end}
+-- coop lines (cut/lines.lua; lines_test tests it): what new got (log, say, ready), its commands, ticks and stops, what
+-- a tick says.
+ln={}
+package.loaded['cut.lines']={new=function(o)
+    ln.o=o
+    return {command=function(...) ln.cmds[#ln.cmds+1]={...}; return true,'ln '..tostring((...)) end,
+        tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
+        stop=function() ln.stops=ln.stops+1 end}
 end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
@@ -339,7 +402,12 @@ kit_shown={} -- Each group shown or not, as the kit keeps it.
 function builder(group)
     local b={}
     function b.panel(x,y,w,h) b.bottom,b.right=y+h,x+w end
-    local function gauge() return {set=function() end,show=function() end,tint=function() end,turn=function() end} end
+    local function gauge()
+        local g={set=function() end,tint=function() end,turn=function() end}
+        g.show=function(on) g.on=on end
+        g.texture=function(t) g.t=t; return true end -- The guide's art.
+        return g
+    end
     for _,kind in ipairs({'image','dots','hp','shield','cubes','bar','shade'}) do b[kind]=gauge end
     function b.text(_,_,s)
         local t={s=s,on=true}
@@ -441,7 +509,9 @@ package.loaded.version='v9-test'
 USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | mark [text] | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
+    ..'on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
+    ..'no [heal|rule|spawnpt|actor] | '
+    ..'nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
     ..'recruiter [off] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
@@ -451,7 +521,9 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued
 -- (q; 0 once empty), its event; calls: how often it was called; missing: an older DLL without it.
 pd={q={},calls=0,missing=false}
-function load_main(with_native,no_folder)
+-- source: the chunk name main.lua gets instead of its path in the repository, as UE4SS gives it ('@<path>'), which sets
+-- the mod folder.
+function load_main(with_native,no_folder,source)
     native_ok=with_native
     package.loadlib=function(_,name)
         if not native_ok then return nil,'no dll' end
@@ -468,6 +540,7 @@ function load_main(with_native,no_folder)
     end
     pd.q,pd.calls,kit_lost={},0,nil
     printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
+    state_names={} -- link.state's mod_names argument, each call.
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
@@ -475,6 +548,10 @@ function load_main(with_native,no_folder)
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
+    li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
+    wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
+    sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
+    ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
@@ -483,9 +560,9 @@ function load_main(with_native,no_folder)
     kit_order,kit_projects,her_anchor,markers,mate_v,kit_shown={},0,nil,{},nil,{}
     fake_link.Q={notes={}}
     local chunk
-    if no_folder then -- A chunk name with no Scripts folder in it: the mod folder unknown.
+    if no_folder or source then -- no_folder: a chunk name with no Scripts folder in it, the mod folder unknown.
         local f=assert(io.open('mod/StellarCoop/Scripts/main.lua','rb'))
-        chunk=assert(load(f:read('a'),'=main.lua'))
+        chunk=assert(load(f:read('a'),source or '=main.lua'))
         f:close()
     else chunk=assert(loadfile('mod/StellarCoop/Scripts/main.lua')) end
     chunk()
@@ -520,6 +597,14 @@ function paks_tick(v)
     local n,out=#said,{}
     loops[2].f()
     for i=n+1,#said do if said[i]:find('.pak',1,true) then out[#out+1]=said[i] end end
+    return table.concat(out,'|')
+end
+-- One loop with link.paks() and link.mods() as given: the notices about mods said, in the menu's words.
+function mods_tick(paks,mods)
+    paks_v,mods_v=paks,mods
+    local n,out=#said,{}
+    loops[2].f()
+    for i=n+1,#said do if said[i]:find('mod',1,true) then out[#out+1]=said[i] end end
     return table.concat(out,'|')
 end
 function key(k,modifier) press(k,modifier); flush() end

@@ -25,6 +25,7 @@ M.MAIN={
     {head='settings'},
     {id='options'},
     {head='help'},
+    {id='guide'}, -- The first-launch guide (ui/guide.lua); its word is ui/guide_text.lua's.
     {id='report'},
     {id='close'},
 }
@@ -190,9 +191,9 @@ function M.new(start)
         return 'set',row.key,new
     end
     -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'join',
-    -- 'join_code', 'chat', 'report', 'close', which Hang up gives too); 'confirm_leave' or 'confirm_remove' (the row
-    -- runs on a second Select of it within 3 s); 'options' or 'main' (the page changed: Co-op menu gives 'main');
-    -- 'rebind', key; or a setting's next value, as change().
+    -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too); 'confirm_leave' or 'confirm_remove'
+    -- (the row runs on a second Select of it within 3 s); 'options' or 'main' (the page changed: Co-op menu gives
+    -- 'main'); 'rebind', key; or a setting's next value, as change().
     function self.select(ctx,now,values)
         local row=self.current(ctx)
         if row.confirm then

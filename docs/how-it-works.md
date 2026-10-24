@@ -38,7 +38,8 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan`, with the co-op save check before `show` and before `cam` turns the camera on |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly` and `coop slowmo`, with the co-op save check before `on` |
+| `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
 | `partner/puppet.lua` | The ghost: builds it from a table, places it, its name tag, effects, its Doro mode in a race, `coop where` |
@@ -49,10 +50,13 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `session/booth.lua` | The camp phone booths near EVE, for the co-op line |
 | `ui/menu.lua` | The co-op menu: draws its pages, takes its keys, runs its rows as `coop` commands, writes and applies settings |
 | `ui/model.lua` | The menu's rows and settings, with no engine call |
+| `ui/guide.lua` | The first-launch guide: its pages, keys, mouse and pad, `coop-guide.txt`, and the Mother Sphere art imported from `Assets/MotherSphere.png` at run time (`ImportFileAsTexture2D`) |
+| `ui/guide_text.lua` | The guide's words and its menu row's, in the same languages as `ui/text.lua` |
 | `ui/text.lua` | The words of the menu, the chat, the partner HUD, the co-op saves, the join codes, the status line, the Doro race's HUD and the notices written in Lua, in the game's 23 text languages |
 | `ui/kit.lua` | The UI kit (runtime UMG widgets in the game's look) that draws the menu, the chat and the partner HUD |
 | `core/keybind.lua` | The key settings' grammar and their clash check |
 | `core/settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
+| `core/ue4ss_settings.lua` | Checks `HookBeginPlay` and `bUseUObjectArrayCache` in `UE4SS-settings.ini` (read only) |
 | `nightop/probe.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
 | `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, and the night line's two formats, with no engine call |
 | `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
@@ -63,27 +67,35 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
-| `cut/leviathan.lua` | `coop leviathan`: reads the cut Naytiba 10's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's, and flies a free camera to film it |
+| `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
+| `cut/lion.lua` | `coop lion`: the cut Lion's rows asked of the native part and read back, its spawn, its entrance on a display copy, the lines that follow it ([The cut Lion](#the-cut-lion)) |
+| `cut/lion_rows.lua` | The Lion's rows as `lion/rows.h` writes them, for the read-back, and its Shows for the loaded line; written by the rows' generator |
+| `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
+| `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
+| `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-Doro look, the `coop leviathan` display and free camera, a Doro race (with the incoming lines while one is armed), the
-notice line, the previews' follow-ups, the UI's open and close animations, the game's input given back after the menu or
-the chat box closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and your
-friend's marker and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines
-in and out, Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's
-rows and status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
+Doro look, the cut model display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
+while one is armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the `coop lines`
+scene's due lines, the UI's open and close animations, the game's input given back after the menu or the chat box
+closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and your friend's marker
+and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines in and out,
+Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's rows and
+status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
 `Env_Camp_TeleportMachine_Standalone_C` (the warp phones). In the Wasteland they stream in and out with distance, so
 `session/booth.lua` looks for them again: `FindAllOf` on both classes at once after a map change, then at most every 4
-s, and only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. A scan keeps
-each booth's `EnvActorName` and position, and no booth is read between scans. Each scan is timed: `UE4SS.log` gets
-`booths: <n> on <map> (<ms> ms)` when the count or the map changes, and `booths: slow scan <ms> ms (<n> found)` for a
-scan of 5 ms or more. The menu key opens the line when the nearest booth is within 3 m of EVE. Nothing in the game
-changes: the mod edits no table row, spawns nothing and fires no zone event, and the booth's travel and save stay the
-game's.
+s, and only while the on-screen UI is up, the world shows, the game is not paused and the menu is closed. `FindAllOf`
+walks every object, so a scan holds the game thread: 63 to 79 ms on the Great Desert in 0.5.0-beta.1, a freeze that
+showed most while EVE ran. A scan that is due therefore waits while EVE moves faster than 3 m/s (her run is 5 m/s) and
+runs once she walks or stops. A scan keeps each booth's `EnvActorName` and position, and no booth is read between scans.
+Each scan is timed: `UE4SS.log` gets `booths: <n> on <map> (<ms> ms)` when the count or the map changes, and
+`booths: slow scan <ms> ms (<n> found)` for a scan of 5 ms or more. The menu key opens the line when the nearest booth
+is within 3 m of EVE. Nothing in the game changes: the mod edits no table row, spawns nothing and fires no zone event,
+and the booth's travel and save stay the game's.
 
 ### Files shared by Lua and the native part
 
@@ -96,7 +108,7 @@ file is written in full beside its final name and then renamed over it, so the r
   state and settings) and `coop-night.txt` (our side of a Night Operation run, which the native part takes at its next
   pass and sends to the friend; a newer line replaces one not taken yet).
 - The native part writes `coop-status.txt` (the state Lua and `coop status` read), `coop-remote.txt` (the remote
-  table), `coop-link.log` and `coop-report.txt`.
+  table), `coop-cns.txt` (the assets your CNS packs declare, once at start), `coop-link.log` and `coop-report.txt`.
 - The chat has two files that exist for a moment only. Lua writes a typed line into `coop-say.txt` once the native
   part has taken the previous one, and the native part takes and deletes it at its next pass (every 5 to 50 ms). The
   native part writes your friend's lines into `coop-chat.txt` (`in <text>`, or `fail` for a line of yours that could
@@ -112,9 +124,9 @@ The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
 ## The co-op UI's input
 
-The co-op menu, the co-op saves' question, the host's question, the chat box and the code box take the game's input
-while they are open. The kit (`ui/kit.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the box's text
-field for the chat box and the code box. The game's viewport then ignores every key and controller button, so EVE
+The co-op menu, the guide, the co-op saves' question, the host's question, the chat box and the code box take the game's
+input while they are open. The kit (`ui/kit.lua`) calls `SetInputMode_UIOnlyEx` with its root focused, or with the box's
+text field for the chat box and the code box. The game's viewport then ignores every key and controller button, so EVE
 stands still. The menu's keys are UE4SS key binds, which read the keyboard and the mouse buttons whatever has the focus.
 When the UI closes, the kit gives the input back 150 ms later, so the key that closed it never reaches the game (Esc
 would open the pause menu): `SetInputMode_GameOnly` in a world, and at the title `SetInputMode_GameAndUIEx` with no
@@ -143,21 +155,23 @@ through XInput, a polling API that takes nothing from the game.
   `coop_pad`, called as a Lua C function, returns n, and Lua hands back the top n of the 7 arguments on its stack. n is
   the event, 1 to 7, or 0 when the ring is empty. `main.lua` takes at most 8 events a frame and routes them as the keys
   route theirs: the open menu gets the six navigation words and View closes it, the co-op saves' question gets up,
-  down, select and back, the chat box and the code box get back only (it closes them), the host's question gets none,
-  and with nothing open, in a world with the HUD shown, View opens the menu through the same path as `menu_key`.
+  down, select and back (the guide gets them first while it is open), the chat box and the code box get back only (it
+  closes them), the host's question gets none, and with nothing open, in a world with the HUD shown, View opens the
+  menu through the same path as `menu_key`.
 - The worker logs each change of the connected slots (`pad: XInput pads connected: <slots>`, `pad: no XInput pad`).
 
 ### Mouse
 
-While the menu holds the input, the kit sets the player controller's `bShowMouseCursor` after the input mode and keeps
-the value it found. That value goes back when the input goes back, when a text box takes the input, at `coop ui reset`
-and at `coop off`. A Ctrl+R with the menu open leaves ` cursor` beside ` input` in `coop-ui.txt`, and the next Lua load
-hides the cursor as it gives the input back. The check that keeps the menu closed while one of the game's screens shows
-the cursor ignores the cursor while it is the menu's. Every 100 ms the menu asks its 15 drawn rows whether the mouse is
-over them (`IsHovered`), and a row the mouse moved onto takes the focus. The `LEFT_MOUSE_BUTTON` bind selects the row
-under the mouse and `RIGHT_MOUSE_BUTTON` goes back. Slate gives a click that none of the mod's widgets takes to the
-game's viewport, with the keyboard focus, so while the UI holds the input either button has the kit focus its root (or
-the box's field) again 50 ms later.
+While the menu or the guide holds the input, the kit sets the player controller's `bShowMouseCursor` after the input
+mode and keeps the value it found. That value goes back when the input goes back, when a text box takes the input, at
+`coop ui reset` and at `coop off`. A Ctrl+R with the menu or the guide open leaves ` cursor` beside ` input` in
+`coop-ui.txt` (` cursor shown` when the cursor was already shown, as on the title screen), and the next Lua load puts
+that value back as it gives the input back. The check that keeps the menu closed while one of the game's screens shows
+the cursor ignores the cursor while it is the menu's or the guide's. Every 100 ms the menu asks its 15 drawn rows
+whether the mouse is over them (`IsHovered`), and a row the mouse moved onto takes the focus. The `LEFT_MOUSE_BUTTON`
+bind selects the row under the mouse and `RIGHT_MOUSE_BUTTON` goes back. Slate gives a click that none of the mod's
+widgets takes to the game's viewport, with the keyboard focus, so while the UI holds the input either button has the kit
+focus its root (or the box's field) again 50 ms later.
 
 ### Focus watchdog
 
@@ -271,19 +285,20 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC12 ping <seq> <ms>
-SBC12 pong <seq> <ms>
-SBC12 photo <0|1|s|c> <both|notice>
-SBC12 say <text>
-SBC12 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC12 paks <count> <hash>
-SBC12 camps? <id>
-SBC12 camps <id> <world> <camp>:<m> ...
-SBC12 camps <id> none <title|loading|nocamp|busy>
-SBC12 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end>
-SBC12 night g <n> <run> <state> <up> <killed> <done> <why>
-SBC12 mark <n> [<text>]
-SBC12 race <text>
+SBC13 ping <seq> <ms>
+SBC13 pong <seq> <ms>
+SBC13 photo <0|1|s|c> <both|notice>
+SBC13 say <text>
+SBC13 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC13 pak <hash> <name>
+SBC13 paks <count> <hash>
+SBC13 camps? <id>
+SBC13 camps <id> <world> <camp>:<m> ...
+SBC13 camps <id> none <title|loading|nocamp|busy>
+SBC13 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end>
+SBC13 night g <n> <run> <state> <up> <killed> <done> <why>
+SBC13 mark <n> [<text>]
+SBC13 race <text>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -309,13 +324,40 @@ every 100 ms, or 500 ms after a read that took over 1 ms (game build 24463856 on
 local player. A vit line is invalid if a value is over 10,000,000, HP is over its maximum, there are more than 64 shield
 blocks or the life state is over 255. Your friend's last line shows in `coop status` as `mate=` for 3 s.
 
-The paks line is sent reliable, once after each handshake. At start the native part lists the files under
-`SB/Content/Paks` (three folders deep) and leaves out the base game's own (`pakchunk<n>-WindowsNoEditor` and
-`pakchunk<n>optional-WindowsNoEditor`, `global`). The line carries the number of `.pak` files left and a 64-bit hash of
-their paths and sizes, and of their `.ucas` and `.utoc` files. The header of `coop-link.log` names those `.pak` files
-(`paks <n> beyond the base game, hash <hash>: ...`). When your friend's hash differs from yours, `coop status` has
-`paks=differ <yours> <theirs>` and a notice says so once a session; with the same hash it has `paks=same`. Nothing is
-refused: enemies that differ already stay unshared (same character id and maximum HP for each pair).
+The pak and paks lines are sent reliable, once after each handshake. At start the native part lists the files under
+`SB/Content/Paks` (eight folders deep, 4096 files at most) and leaves out the base game's own
+(`pakchunk<n>-WindowsNoEditor` and `pakchunk<n>optional-WindowsNoEditor`, `global`). The `.pak`, `.ucas` and `.utoc`
+files of one name make one mod container, and each container goes in a pak line: a 64-bit hash of its files' paths and
+sizes in 16 hex digits, then its name, which is its path from `SB/Content/Paks` in lower case with `/`, without the
+extension (`logicmods/hd-atool_p/hd-atool_p`). In a name, spaces, commas and bytes outside printable ASCII become `_`,
+and it keeps 100 bytes at most. Up to 256 containers go, sorted by name; with `mod_names=off` in `coop-settings.txt`,
+none. The paks line comes last and ends the list. It carries the number of `.pak` files left and a 64-bit hash of their
+paths and sizes, and of their `.ucas` and `.utoc` files. The header of `coop-link.log` names those `.pak` files
+(`paks <n> beyond the base game, hash <hash>: ...`).
+
+When your friend's hash differs from yours, `coop status` has `paks=differ <yours> <theirs>`; with the same hash it
+has `paks=same`. When their list came with names, three lines follow it: `mods_missing=<n> <names>` (theirs that you
+lack), `mods_other=<n> <names>` (the same name with another hash: another version) and `mods_extra=<n> <names>`
+(yours that they lack). Each line has the count, then the first names separated by commas, 400 bytes at most.
+`coop-link.log` names the ones you lack and the other versions each time their list changes
+(`<name> has mods we lack (<n> <names>) and mods we have in another version (<n> <names>)`). Once a session, a notice
+names the mods you lack and then the other versions, up to two file names each (see
+[usage.md](usage.md#shared-enemies-experimental)). Without names, or with only mods of yours that they lack, the notice
+gives the two counts. Nothing is refused: enemies that differ already stay unshared (same character id and maximum HP
+for each pair).
+
+The same scan counts the CNS packs (`*.dekcns.json` files of the Custom Nanosuit System under `~mods`, 256 at most,
+the first MiB of each) and their outfits (their `UniqueFitID` keys). With at least one pack, the header of
+`coop-link.log` has `cns <n> packs, <m> outfits, <k> assets`, the status a `cns=<n> <m>` line, and the Lua side logs
+`CNS detected (<n> packs, <m> outfits)` and adds those words to `coop status`.
+
+The scan also lists the assets the packs declare: each `/Game/...` string given as the value of an `OutfitPaths`,
+`Mesh`, `Materials`, `PonyPhysics`, `Textures` or `Value` key (or in an array under one), 255 printable bytes at most,
+8192 at most in all, each with the `UniqueFitID` given last before it. It is a bounded scan of the text, not a JSON
+parser: it tells strings (with their escapes) and keys apart and skips `//` and `/* */` comments, which real packs
+carry. Image and AnimBP paths are never listed. The list goes to `coop-cns.txt`, one `<path> <outfit>` line each,
+rewritten at every start. It never goes to your friend: only the tag of an outfit your EVE wears does, in the
+component table (see [The ghost pipeline](#the-ghost-pipeline)).
 
 The camps lines carry the [follow](#following-the-host), both reliable: the guest's `camps?` with a number from 0 to
 65535, and the host's answer to it, its world and up to 8 camps nearest its EVE with their distance in whole metres, or
@@ -356,7 +398,7 @@ that are dropped, with at most one line a minute per friend in `coop-link.log` (
 the rate limit` or `too many waiting`). Yours past it are only counted, in the session's end line. During
 `coop loopback` with no friend linked, your race lines come back as your friend's.
 
-Say, vit, paks, camps, night, mark and race lines from a friend who has not passed the handshake are ignored, without a log line.
+Say, vit, pak, paks, camps, night, mark and race lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -367,7 +409,7 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 12` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 13` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -407,7 +449,8 @@ instead of misread:
 | 9 | Poses sent as deltas against a keyframe (`SBD`) on Steam channel 1 |
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
-| 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line, the mark line and the Doro races' race line on channel 0 (this version) |
+| 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line, the mark line and the Doro races' race line on channel 0 |
+| 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders (this version) |
 
 ### Link health in the log
 
@@ -426,7 +469,18 @@ When the ghost is on, `partner/capture.lua` describes your EVE once she has been
 pawn). It only reads. For each skeletal mesh part (up to 16, with up to 1024 bones each) it notes the mesh path, the
 part it follows, the part and socket it hangs from, its placement there, whether it is shown, a leader's bone names,
 and the map she is on (the package path of her world, lowercased). With the dyes look on, it adds each part's
-overridden materials. With the effects look on, it adds what the native part needs to read her effects.
+overridden materials. With the effects look on, it adds what the native part needs to read her effects. A part whose
+ponytail cloth has a collision asset of its own (`OverrideClothPhysicsAsset`) names it.
+
+A mesh outside the game's own folders (`/Game/[DLC_<n>/]Art/Character/`) comes from a mod. Such a part gets a tag: the
+`UniqueFitID` that your CNS packs give its path (from `coop-cns.txt`), else the first two folders of the path
+(`OutfitMods/FooSuit`). It also names its overridden materials with the dyes look off, since CNS sets an outfit's
+materials when it puts the outfit on. With `mod_names=off`, no path outside the game's folders goes: such a mesh goes
+as `-`, with no tag, and such a material or collision asset is left out.
+
+The native part refuses a table whose pose would pass 16 KiB (about 900 leader bones in all). Before it publishes, the
+capture counts the pose as the native part does and leaves out the last leader parts, with their followers, until it
+fits; its log line then ends with `<n> leaders left out, over the pose size`.
 
 It reads her again once a second. A new mesh (her outfit) starts a new generation. A part hung elsewhere (the blade
 drawn or sheathed), shown or hidden is published again under the same generation. The log gives a `Capture` line per
@@ -444,6 +498,8 @@ map /<package path, lowercased>
 part <i> <lead|-> <parent|-> <socket|-> <shown 0|1> <bones> <name> <path|->
 place <i> qx qy qz qw tx ty tz sx sy sz           parts after 0: placement relative to the parent
 material <i> <slot> <path>                        up to 16, slots 0 to 63 rising: an overridden material
+cloth <i> <path>                                  optional: the collision asset of the part's cloth
+mod <i> <tag>                                     optional: on a mod's mesh, the outfit it comes from
 names <i> <bone>...                               leaders only: one per bone
 ```
 
@@ -504,8 +560,17 @@ builds the ghost from it:
 - It is built one mesh a frame, which spreads the loading over several frames. Each part loads the mesh its path names.
   Loading only brings a cooked game asset into memory: nothing is worn or unlocked. Each part keeps the mesh's own
   materials (unless the dyes look is on), so the ghost wears the captured outfit.
-- Only meshes under `/Game/Art/Character/...` and `/Game/DLC_<n>/Art/Character/...` are loaded. This path rule means a
-  friend's table cannot make your game load anything else.
+- Two kinds of path pass the native path rule: the game's own (`/Game/Art/Character/...` and
+  `/Game/DLC_<n>/Art/Character/...`, names of letters, digits and `_`) and a mod's (`/Game/<folders>/<asset>.<asset>`,
+  names of letters, digits, `_` and `-`, 255 bytes at most). A path is always a package's own asset, so never a
+  Blueprint class or a sub-object. The rule checks the text only. Before any lookup or load, `partner/puppet.lua` lets
+  a mod's path through only when one of your own CNS packs declares that exact path (`coop-cns.txt`), so a friend's
+  table cannot make your game load anything your installed outfits do not name. After a load, the asset must be of the
+  expected class (a skeletal mesh, a material, a physics asset) or it is not used.
+- A mod's asset that `LoadAsset` does not find (it looks in the cooked asset registry, where added assets usually are
+  not) is loaded through `AssetRegistryHelpers:GetAsset` with an asset data holding only its path, which loads it by
+  path. This is still one asset a frame. The build line lists each mod asset with how it came (`in memory`,
+  `by LoadAsset`, `by GetAsset` or `missing`).
 - Each part gets the render flags of every EVE part in the game's Blueprint: lighting channels 0 and 1, and custom
   depth with stencil 10, the game's value for the player.
 - Parts hang as the table says (parent part, socket, placement), and followers follow their leader. There are no
@@ -528,10 +593,16 @@ that the engine's gate refuses is logged once each time the native part takes a 
 
 ### 6. Fallback: the base suit
 
-A part falls back to the base suit when the path rule refuses its path, when your PC cannot load the mesh (a DLC you do
-not own), or when a leader's mesh has other bones than the table's. The body falls back to `CH_P_EVE_08` and the hair
-to `EVE_HR_01`, and each of the fallback's bones follows her bone with the same name. A part with no fallback is left
-out, with the parts that follow it. `coop basesuit` forces the base suit for the body and hair.
+A part falls back to the base suit when the path rule refuses its path, when your CNS packs do not declare a mod's path,
+when your PC cannot load the mesh (a DLC you do not own, a mod you lack), or when a leader's mesh has other bones than
+the table's. The body falls back to `CH_P_EVE_08` and the hair to `EVE_HR_01`, and each of the fallback's bones follows
+her bone with the same name. Another leader whose mesh has other bones is drawn on that mesh the same way, so a head
+replacer you lack still shows the original head. A part with no fallback is left out, with the parts that follow it.
+`coop basesuit` forces the base suit for the body and hair.
+
+When a part with a mod tag ends up on a fallback or left out, the ghost names the tags once per generation, on screen
+in the menu's language (see [usage.md](usage.md#mods-and-cns-outfits)), and in the build line
+(`mod parts not shown: ...`).
 
 ### 7. Map gate
 
@@ -542,20 +613,21 @@ for 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is fo
 
 ### Looks
 
-The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material` lines to the table. Effects fill the
-pose's four slots, and the native part writes the drawn slots into four boxes beside the mailbox, from which Lua
-starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the run and
-the ghost stays. See [usage.md](usage.md#looks).
+The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material` lines to the table (parts on a mod's
+mesh have them either way). Effects fill the pose's four slots, and the native part writes the drawn slots into four
+boxes beside the mailbox, from which Lua starts and moves the effects. Effects have their own fault latch, so a fault
+there turns effects off for the run and the ghost stays. See [usage.md](usage.md#looks).
 
-Cloth, on by default, adds nothing to the table or the poses: each PC runs NvCloth on the ghost's ponytail from the
-body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While the ghost is shown, its
-root moves without the engine's teleport flag: a teleport clears the cloth's inertia, and the strands would hang
-without trailing. It teleports when the ghost shows again and when it moves more than 2 m in one pose (a fast travel,
-a respawn). The cloth simulates only while the ghost is drawn (`VisibilityBasedAnimTickOption` 3): hidden, off screen
-or behind a wall for more than 1 s, it costs nothing, and it starts again from the bones when the ghost is drawn
-again. The ponytail's cloth part is set up as SB sets up hers: the 18 body bones its collision bodies hang on
-(`AdditiveMasterBoneArray`), the outfit's `<body mesh>_PonytailPhysicsAsset` as `OverrideClothPhysicsAsset`, then its
-leader, then its mesh, which creates the cloth. The asset is loaded in a build step of its own, after the body's.
+Cloth, on by default, uses only the table's `cloth` line (sent whatever the setting): each PC runs NvCloth on the
+ghost's ponytail from the body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While
+the ghost is shown, its root moves without the engine's teleport flag: a teleport clears the cloth's inertia, and the
+strands would hang without trailing. It teleports when the ghost shows again and when it moves more than 2 m in one pose
+(a fast travel, a respawn). The cloth simulates only while the ghost is drawn (`VisibilityBasedAnimTickOption` 3):
+hidden, off screen or behind a wall for more than 1 s, it costs nothing, and it starts again from the bones when the
+ghost is drawn again. The ponytail's cloth part is set up as SB sets up hers: the 18 body bones its collision bodies
+hang on (`AdditiveMasterBoneArray`), the collision asset as `OverrideClothPhysicsAsset` (the table's `cloth` line, else
+the outfit's `<body mesh>_PonytailPhysicsAsset`), then its leader, then its mesh, which creates the cloth. Each asset is
+loaded in a build step of its own: the named one before its part's step, the outfit's after the body's.
 
 ### Solid partner
 
@@ -599,7 +671,7 @@ enemies: the same pairs, the same host and the same Steam channel 2. Each pair h
 the enemy's AI and moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner.
 HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
-- The host's `same_place` decides for both games. The host sends it as `SBF12 place <gen> <0|1>` after its world line
+- The host's `same_place` decides for both games. The host sends it as `SBF13 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
@@ -612,12 +684,12 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   an AI task runs on the owner's copy, during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the
   host draws a copy that the game froze before the mod did (below: its AI would not run once the host owns it); the
   start of a takedown is the exception (below). Each change moves the owner epoch one up and goes to her as
-  `SBF12 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
-  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF12 aggro <gen> <game|host>`.
+  `SBF13 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
+  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF13 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
   except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
-  `SBF12 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `SBF13 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
   `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
   other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
   pauses.
@@ -656,7 +728,7 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF12 exec <gen> <hguid> 1`, and `SBF12 exec <gen> <hguid> 0` once her copy has held
+  with `aggro=game`, she sends `SBF13 exec <gen> <hguid> 1`, and `SBF13 exec <gen> <hguid> 0` once her copy has held
   none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
   one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
   holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
@@ -702,16 +774,16 @@ pairs through its spawn key like any other.
 - Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
 - Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
   manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
-  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF12
+  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF13
   epoch <gen> <zone> <n>` at each change and every 5 s, so a line lost on the way stalls nothing for long, and each
   side drops a line of another epoch.
 - The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
   spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
-  `SBF12 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
-  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF12 spawn <gen> <n> <spawnId> <idx>
+  `SBF13 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF13 spawn <gen> <n> <spawnId> <idx>
   <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
   the host's world; never a dying one), where it stands in whole
-  centimetres, and `SBF12 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+  centimetres, and `SBF13 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
   her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
   function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's despawn
@@ -855,13 +927,13 @@ The log lines are in [usage.md](usage.md#extra-enemies-experimental).
 Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
 any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
-game. The host sends `SBF12 bosses <gen> <percent>` with its list.
+game. The host sends `SBF13 bosses <gen> <percent>` with its list.
 
 With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
 battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
 applies them to her copy:
 
-- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF12 bstart <gen> <hguid>` when it turns on,
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF13 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
   once while the copy stays in battle mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on,
   then `0, 0, 0, 1`. The fifth argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs
@@ -876,7 +948,7 @@ applies them to her copy:
   copy gets no call. The host's next bstart for that copy calls it again.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
-  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF12 phase <gen> <hguid> <oe>
+  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF13 phase <gen> <hguid> <oe>
   <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
   does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
   game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
@@ -893,7 +965,7 @@ applies them to her copy:
   effect's GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward
   dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
   EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
-  shared list under it. After its up the host sends `SBF12 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
+  shared list under it. After its up the host sends `SBF13 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
   hguid> <row>`, with epoch 1 when same spawns do not run, and sends it again every second while it follows the
   summon: her game takes a repeat as one it has, and a line it refused for a passing reason (its boss not paired yet)
   can go through later. The guest makes it through `NewActor`, as for extra enemies,
@@ -932,11 +1004,11 @@ player's quest unit (the quest manager at `0x147032588`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470634f0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ12 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ13 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
 - The host only reads. Each quest whose state changed goes to the guest as one reliable line on channel 2 with the
-  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ12 q <gen> <seq> <id> <state>
+  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ13 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables.
 - Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
@@ -1088,8 +1160,8 @@ Whether every story scene, dialogue and boss intro runs through a theater observ
 
 A Doro race runs in Lua: `race/run.lua` on the game side, `race/model.lua` for the rules and the race lines,
 `race/doro.lua` for the Doros, `race/drive.lua` and `race/drive_model.lua` for the driving. Its only SB calls are two
-reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native part
-only carries the race lines. The commands and rules are in [usage.md](usage.md#doro-races).
+reads on EVE, `IsSprint` and `GetSBSpeedForAnimGraph` (for a log line); the rest are engine functions. The native
+part only carries the race lines. The commands and rules are in [usage.md](usage.md#doro-races).
 
 ### The display Doro
 
@@ -1113,16 +1185,26 @@ component runs the engine's single-node animation (`SetAnimationMode(1)`), and e
   spring. The lean is the rotator's `Pitch` and the nose its `Roll`, since the mesh faces its +Y; both signs are
   unchecked in game.
 
-The mesh and the clips come from the game's own files (`StaticFindObject`, else `LoadAsset`). A race shows at most two
-Doros of its own: before GO one at the start line's centre, and during the race one at the next checkpoint and one at
-the one after it, facing the checkpoint before them. Their object paths stay in `coop-race-doros.txt` while they stand,
-so a Lua reload (Ctrl+R) in a race destroys them at its first tick.
+The mesh and the clips come from the game's own files (`StaticFindObject`, else `LoadAsset`). The engine's garbage
+collector unloads an asset that nothing in the engine references, and a reference held in Lua does not count. In
+0.5.0-beta.1, a clip that no Doro had played for a while was unloaded, and the next `PlayAnimation` loaded it again
+synchronously: 5 loads a minute taking 185 ms in all while EVE sprinted, each one a short freeze in game. Each Doro
+now carries one keeper per clip: a second `SkeletalMeshComponent` with Doro's mesh, in single-node mode, given the clip
+with `SetAnimation`. Its animation instance holds the clip through `CurrentAsset`, which the collector follows, so every
+clip stays loaded while any Doro stands. The keepers are not attached and never move. They have `bVisible` off, so the
+renderer never gets them, component tick off, `VisibilityBasedAnimTickOption` 3 (pose only while drawn) and collision
+off. They go with their Doro's actor; on the ghost, whose actor stays, they go when Doro mode ends. A clip that is not
+in memory is loaded when a Doro is made, not during the race.
+
+A race shows at most two Doros of its own: before GO one at the start line's centre, and during the race one at the next
+checkpoint and one at the one after it, facing the checkpoint before them. Their object paths stay in
+`coop-race-doros.txt` while they stand, so a Lua reload (Ctrl+R) in a race destroys them at its first tick.
 
 ### The Doro look
 
 The look draws your EVE as a Doro. Its Doro is placed each frame, after the native tick, at the world location and
 rotation of EVE's main mesh (her feet); it is not attached to her. The look and the race's driving (below) are the
-features that write to the player actor. The look writes two things:
+features that write to the player actor. The look writes two things on her, and hides the drone:
 
 - `bHiddenInGame` on each of EVE's mesh components that did not have it, through `SetHiddenInGame`. The game shows and
   hides her parts (a drawn blade) with `SetVisibility`, which sets the separate `bVisible` flag, so the look neither
@@ -1130,20 +1212,45 @@ features that write to the player actor. The look writes two things:
 - `VisibilityBasedAnimTickOption` on her main mesh, set to 0 (always tick the pose). EVE's Blueprint ticks her pose
   only while she is drawn, so a hidden EVE would stop her pose, her animation notifies and the root-motion moves of
   dodges and ledges.
+- The drone that follows EVE is an SB character of its own, so hiding EVE's parts left it flying beside the Doro. The
+  look sets `bHiddenInGame` on the drone's main mesh (`CharacterMesh0`) through `SetHiddenInGame`, only when the mesh
+  does not have it, and writes nothing else on the drone. The actor itself stays shown: hiding it would also turn off
+  its spot light, which lights EVE's way in dark places, and its guide ray and wait signal. The look finds the drone
+  with one `FindAllOf('CH_Drone_BP_C')`, the drone's Blueprint class: the nearest one of exactly that class within 30 m
+  of EVE, whether the game shows it or not. `FindAllOf` walks every object on the game thread (25 to 40 ms in game), so
+  it runs at look on and once more each time the drone the look holds goes, and never on a timer. If it finds none, it
+  does not look again until the next look on. Once a second the look checks the held drone's mesh, and hides it if the
+  game showed it. A mesh the game hid is left alone until the game shows it. The log says
+  `[StellarCoop][DR] look drone hid <name> at <m> m` when it hides the drone the first time,
+  `[StellarCoop][DR] look drone <name> at <m> m hidden by the game: hidden when it shows` when the game had hidden it,
+  or `[StellarCoop][DR] look drone none within 30 m (<n> in the world)`.
 
-Before it changes anything, the look writes `coop-look.txt`: EVE's object path, the old tick option, its Doro's path
-and the names of the parts it hides. Every 250 ms it checks that the same EVE is on the same map (otherwise it turns
-off), hides again any listed part the game showed, and sets the tick option back to 0. The log counts both once a
-minute (`[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min ...`) and names each flag change the
-game made (`[StellarCoop][DR] flag <part> visible=<0|1> hidden=<0|1>`).
+Before it changes anything, the look writes `coop-look.txt`: EVE's object path, the old tick option, its Doro's path and
+the names of the parts it hides. Before it hides the drone's mesh the first time, it writes the file again with the
+drone's object path added at the end. Every 250 ms it checks that the same EVE is on the same map (otherwise it turns
+off), hides again any listed part the game showed, and sets the tick option back to 0. Once a second it hides the drone
+again if the game showed it. The log names each flag change the game made
+(`[StellarCoop][DR] flag <part> visible=<0|1> hidden=<0|1>`) and gives the counts once a minute:
 
-Turning the look off destroys its Doro, clears `bHiddenInGame` on the listed parts only, puts the tick option back and
-deletes the file. That runs at the race's end, on `coop race look off` and `coop off`, after a map change and at the
-look's first error, after which the look stays off until the mod reloads. If one of those steps fails, the file stays.
-A Lua load that finds `coop-look.txt` (after Ctrl+R, or a Lua state that stopped) uses it at its first game-thread
-tick: it destroys the Doro named there if that actor still shows Doro's mesh, clears `bHiddenInGame` on the listed
-parts that still have it, puts the tick option back and deletes the file. The log says
-`[StellarCoop][DR] look restored <n> parts from coop-look.txt`.
+```
+[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min reload=<n>/min reload_ms=<ms>
+```
+
+`rehid` counts the parts and the drone hidden again, `retick` the tick option set back, and `reload` the Doro assets
+loaded again after the collector unloaded them, with the total time those loads took in `reload_ms`. The loads at the
+making of the look's own Doro are not counted: the counter starts at 0 once that Doro stands. Its keepers (see
+[The display Doro](#the-display-doro)) then hold every clip, so `reload` reads 0 for the whole look.
+
+Turning the look off destroys its Doro, clears `bHiddenInGame` on the listed parts only, puts the tick option back,
+clears it on the drone's mesh if the look hid that mesh, the drone is still there and the mesh still has it, and deletes
+the file. That runs at the race's end, on `coop race look off` and `coop off`, after a map change and at the look's
+first error, after which the look stays off until the mod reloads. If one of those steps fails, the file stays. A Lua
+load that finds `coop-look.txt` (after Ctrl+R, or a Lua state that stopped) uses it at its first game-thread tick: it
+destroys the Doro named there if that actor still shows Doro's mesh, clears `bHiddenInGame` on the listed parts that
+still have it, puts the tick option back, clears `bHiddenInGame` on the main mesh of the drone named there if the object
+at that path is still an SB character and its mesh still has it, and deletes the file. The log says
+`[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with `and the drone` after `parts` when it showed the
+drone.
 
 The capture is unchanged, and it counts a part with `bHiddenInGame` as hidden. While the look is on, your friend's game
 therefore receives every part of your EVE as hidden, and draws your ghost with no body unless its Doro mode is on.
@@ -1156,14 +1263,16 @@ Your friend's ghost is drawn as a Doro while their game takes part in the race: 
 whose game answers `have <id> no <why>` stays EVE on both screens.
 
 In Doro mode, `partner/puppet.lua` hides every part of the ghost and hangs one more `SkeletalMeshComponent`, with Doro's
-mesh, on the ghost's main mesh, where her feet are. The ghost is the mod's own actor, so nothing of the game's is
-touched. The Doro's speed and vertical speed come from the ghost's feet between poses, measured over 50 ms at least. The
-pose stream has no sprint or falling flag, so the Doro goes on all fours above 560 cm/s and back on two legs below 520
-cm/s, and a vertical speed over 400 cm/s, up or down, counts as being in the air. The ghost's own hiding (no pose for 1
-s, another map) covers the Doro too. A Doro that cannot be made leaves the ghost drawn as EVE, with the reason in the
-log. The pose stream is the same during a race: the bones still arrive and are written into the hidden parts. While the
-race drives, the ghost's Doro follows the same driving rules as yours, with the turn rate taken from the ghost's yaw in
-the pose stream, and its lean and nose set as a relative rotation on the ghost's main mesh.
+mesh, on the ghost's main mesh, where her feet are, and adds the Doro's keepers to the ghost's actor. A ghost built in
+Doro mode resolves Doro's mesh and each clip in a build step of its own, so no frame loads more than one. The ghost is
+the mod's own actor, so nothing of the game's is touched. The Doro's speed and vertical speed come from the ghost's feet
+between poses, measured over 50 ms at least. The pose stream has no sprint or falling flag, so the Doro goes on all
+fours above 560 cm/s and back on two legs below 520 cm/s, and a vertical speed over 400 cm/s, up or down, counts as
+being in the air. The ghost's own hiding (no pose for 1 s, another map) covers the Doro too. A Doro that cannot be made
+leaves the ghost drawn as EVE, with the reason in the log. The pose stream is the same during a race: the bones still
+arrive and are written into the hidden parts. While the race drives, the ghost's Doro follows the same driving rules as
+yours, with the turn rate taken from the ghost's yaw in the pose stream, and its lean and nose set as a relative
+rotation on the ghost's main mesh.
 
 ### Driving
 
@@ -1205,7 +1314,7 @@ race are the ones to put back; the 250 ms check catches a write the search misse
 
 The host owns a race. Its game sends the track and the start, each game times its own racer from its own GO, and the
 host's game sends the ranking. The guest's game checks each line against fixed bounds before using it, and sends only
-its own racer's lines. Each line travels as `SBC12 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
+its own racer's lines. Each line travels as `SBC13 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
 with whole numbers only, in centimetres and milliseconds. `<id>` is the host's race number:
 
 | Line | From | Meaning |
@@ -1236,6 +1345,271 @@ PC.
 A race calls no achievement, reward, item, quest or save function and no console command, and the only class it spawns
 is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/doro.lua`, `race/model.lua`,
 `race/run.lua`, `race/drive.lua` and `race/drive_model.lua`.
+
+## The cut Lion
+
+`coop lion` spawns the cut Naytiba 02, the Lion, as an enemy to fight (plan A of the Lion study). In its first test
+(0.6.0-beta.1) it spawned, moved and hit EVE, but stayed in its idle pose. Its assets ship in
+`/Game/Art/Character/Monster/CH_M_NA_02/`: the blueprint `CH_M_NA_02_BluePrint_Large`, the mesh with its fur cloth, 138
+animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and 41 Shows. No table row
+names it. Four files do the work: `cut/lion.lua` (Lua), `cut/lion_rows.lua` (the rows as Lua reads them back),
+`lion/rows.h` (the rows and their build, free of Windows, tested on the build machine) and `glue/tick/lion_game.inc`
+(the game's calls).
+
+### The rows
+
+The native part adds 220 rows to 12 tables, all of them the Lion's own. A generator kept outside the repository writes
+every field from the Lion's assets and from offline measurements of its clips. A shipped row of each table is only the
+struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row holds, to the
+Lion's value or to empty. For 891 of the 2075 fields the template holds, the Lion's value is the template's own (the
+Behemoth's 180 degrees a second turn, 900 cm/s run and 1.5 s getup time, among others), so the patch writes that value
+back. These template rows are Behemoth rows, and a Scarlet effect for the effect row. The one Behemoth asset a Lion
+row names is the sound set `CSS_MON_46_BEHEMOTH`: the pak listing holds no sound set for the Lion, and its blueprint
+names none.
+
+- Stats, in both CharacterTable rows: 160000 HP, 3300 shield, 14 stamina, 960 physical and range attack, 110 shield
+  attack. The Great Desert elites (Behemoth, Stalker, Abaddon) have 170500 HP, 3500 shield, 15 stamina and 840 to 1050
+  attack; the Lion has a little less, as a boss with melee attacks only. Its target filter radius (190 cm) and rule-move
+  block radius (240 cm) fit the Large blueprint's 150 cm capsule. Rank Elite, difficulty group MonsterElite (the same
+  numbers as the Great Desert groups), actor type BossMonster, no reward. Zero stamina applies `M_LinkAttackDelay_10`,
+  `Groggy`, `SkillCancel`, `BlockSkill` and `M_StaminaRecoverReady`, as on Stalker and Abaddon; EVE's link attack needs
+  the target groggy. Detection is the shipped `M_DetectCommon20m360` (360 degrees, 20 m). The link flag is `Common`:
+  EVE's generic link Show plays the Lion's own `Hit_Sword_Normal_LinkAttack1` on it. `Name` stays empty, since
+  CharacterStringTable has no Lion text (see the spawn below).
+- 21 skills (IDs 5002000 to 5002020), their 21 commands and 80 steps (a skill's ID times 100, plus 2 to 10). Each skill
+  plays one Lion Show and follows that Show's steps one for one, in count and in duration: at each new step of the chain
+  the game moves the playing Show to its next stage and never matches the Show's step IDs (`FSBSkillPresentationObject`
+  queues each step row and reads its ID only for its log). The first 15 are the kit of 0.6.0-beta.1. The others are the
+  Lion Shows with a clip that the kit left out: `ClawAttackChain` (three claws), `ClawAttackChain2` (four claws and a
+  full turn), `MoveAttackChain` (three claws on the move), `RushAttack` (a leap, then a claw), `DashAttackChain` (four
+  pounces over three clips) and `RoarPhaseChange` (the roar Show again, for phase 2).
+- A Hit step is the Show step in which the striking claw, paw or jaw peaks. No Lion clip has a hit notify, so the
+  striking point and its speed peak come from the decoded clips; their forward kinematics match the socket tracks the
+  game bakes for 21 Lion clips within 0.14 cm on the clips' key frames, and up to 28 cm off between keys on fast hand
+  frames. On every claw attack the `NS_Lion_ClawTrail_01` particle starts within 0.05 s of the Show's hit step. Six hits
+  peak 0.017 to 0.074 s before their step, two of them claws (AttackToBackJump's first hit and MoveAttackChain's third),
+  and the generator lists them. A claw strikes through `Mon_Lion_Attack_L_Arm_Collision` or `R_Arm`, a landing through
+  `RL_Arm` (both arms). The roar and the dash chain hit through a target filter, since the collision data tracks no
+  socket for the dash clips. Five result rows hold the game's own reaction Shows, effects and knockbacks: light (0.5 s
+  stun), strong (0.8 s), knockdown (1.5 s), guard and parry. A perfect parry on a skill's last hit goes to the shipped
+  step `M_Common_Result_ParryJust_Center`, which plays the Lion's `Result_Hit_JustParry`. EVE can neither parry nor
+  guard the roars and the high jump, as with the Behemoth's, and the game's action assist checks them 0.066 s before the
+  hit.
+- 61 moves (CharacterMoveTable rows). Every Lion clip is in place: the root never moves, and each clip starts and ends
+  on the idle pose. The travel the game has to give the Lion comes from each clip's planted feet, and in the air from
+  the pelvis keeping its take-off velocity. On the Behemoth's own clips the planted feet give the distances and times of
+  its move rows (its ScratchLeft finish: 146 cm over 0.22 to 0.58 s, against the row's 143 cm from 0.2 to 0.6 s); the
+  flight estimate does not (its JumpAttackHigh hit step comes out at 1106.6 cm forward and 341.8 cm right against 427 cm
+  of rows, its SmashBackflip finish at -1164.9 cm against -1588). A step that travels 30 cm or more gets one move over
+  the time its feet move. 24 of these come from planted feet; 29 spend half their time or more in the clip's flight
+  windows and are flight estimates, which the generator marks. The other 8 only turn the Lion.
+- A move that heads toward where its skill expects EVE (within 60 degrees) goes along the line to her and stops short of
+  her: `MovePositionType_InsideTargetOrSelf` with `MoveDirectionAxis_SelfToTarget`, the shape of the shipped lunges of
+  Elder phase 2, Scarlet, Raven and Tachy. It goes its clip's length, or less when EVE is nearer, and stops
+  `LimitApproachDistance` short of her: where the next strike lands at its peak (150 cm for the low jump's paws, 800 cm
+  for the high jump's, which land 8 m ahead of the root inside the clip). That these moves stop short comes from the
+  shipped rows (Scarlet's Airspin: 2000 cm with a 200 cm limit), not from the game's code. 43 moves are of this kind;
+  the other 10 keep their travel along the Lion's own axes (the side steps, steps and jumps back or sideways, the roars'
+  step forward). The side steps keep only their sideways travel (14.2 and 15.9 m), as the forward part is the method's
+  error there. BackJumpToAttack has no move: its first step's travel is the net of two opposite flight estimates (-924
+  cm, then +740 cm), and the clip spins the body about the root.
+- A skill whose travel up to its first hit heads 30 degrees or more off its front looks for EVE there and keeps its
+  heading while it moves, as its clip turns the body: RunAttackLeft and RunAttackRight at 80 degrees to the side,
+  ClawAttackChaseRight at 40. In every other skill the moves turn the Lion toward EVE, and its first step does so on its
+  own when that step has no move: at once for the turn attacks and the back jump, whose clips start with the body turned
+  90 or 180 degrees away, else over that step.
+- 23 target filters. A skill's range is the reach of its first hit toward where it expects EVE (the striking socket's
+  farthest point that way during the hit step, at the mesh's 1.5 scale) plus what its moves close before that hit: a
+  move toward EVE its whole length, any other its part toward her, negative when it goes away. The sum is multiplied by
+  0.61: the Behemoth's ScratchLeft filter is 300 cm for a claw reach of 440 cm and a move of 53 cm before it. The low
+  jump finds EVE within 490 cm, the high jump within 12.6 m, the run attacks within 520 and 550 cm, BackJumpToAttack
+  only within 110 cm, as its claw comes down at its own front paws. The turn attacks look behind a side, the back jump
+  behind, the roar in a 120-degree arc up to 7 m ahead. Each way the moves take the Lion 3 m or more gets the shortest
+  shipped space check (`Valid_Move_*`) that covers it, or the longest of that way when none does (the side steps' 14.2
+  and 15.9 m, and the high jump and three chains that go past 18 m forward).
+- Two anim sets (500200 and 500201) name the Lion's run clips and its `Result_*` reactions, and no shield break, which
+  the Lion has no clip for.
+- Two stances. `M_LionC_Default` (500200, phase 1) lists 17 commands; `M_LionC_Phase2` (500201) lists all 21. Both walk
+  at 200 cm/s, the battle blend space's walk sample, and run at 900, the Behemoth's pace, and turn at 180 degrees a
+  second, as the Behemoth does in both its phases (the Raven keeps its 360 in phase 2 too). At the Large scale the run
+  clip strides about 1550 cm/s, past the blend space's last sample (600), so any boss pace slides its feet; 900 slides
+  less than 600. Phase 2 is the Raven's data-only switch: the CharacterTable rows list it in `StanceAliasArray`, and it
+  takes over at HP under 60% (Priority 10, Condition HP, UnderRate, 60). Its start restores the shield and applies
+  `M_LionC_PhaseRoar`, an effect whose action uses the skill `M_LionC_RoarPhaseChange` (`EffectAction_UseSkill`, as the
+  shipped `M_Scarlet_CounterLinkStart` does). That skill's AISkillFlag is `PhaseChange`, which neither tree picks. The
+  first phase has no `MinimumHP_60p`: had the switch failed, that floor would hold the Lion at 60% HP for good.
+- The dead row (the Lion's death Show for every kind of kill, then the `M_LionA_Despawn` dissolve) and the appearance
+  row (50020, the Large blueprint).
+- Two CharacterTable rows, added last: `M_LionC` (50020, the tree `M_Skulling_AI_Test`) and `M_LionC_Lurker` (50021,
+  `M_LesserLurker_AI`). Both trees pick skills by their AISkillFlag (MeleeAttack), not by name, which leaves out the
+  side steps (MoveAttack) and the phase-2 roar.
+
+The generator writes the data part of `lion/rows.h` and the whole of `cut/lion_rows.lua` from the offline reader's
+dumps of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the clip measurements. It
+refuses a taken ID or name (in any case, as the game compares names), a missing template, a field the SDK does not
+place where its patch writes, and a template value the recipe does not set. It also refuses a value naming a Behemoth
+row or asset other than the sound set, and a reference that lands on no Lion or shipped row: steps, skills, commands,
+stances, moves, target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips, blueprint,
+tree and sound set. Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or
+0.05 s late at most), and each collision group must exist with every socket tracked for the clip playing. A move toward
+where its skill expects EVE must stop short of her, a skill that looks for EVE off its front may not turn toward her
+while it moves, no range may pass its first hit's reach plus what its moves close, and each way the moves take the
+Lion 3 m or more needs a space check that way, no shorter than that travel while a longer one ships. Anim sets must
+name clips of the Lion's folder, and no stance may hold HP at 60%. Each link flag must pick EVE link steps whose Shows
+play a clip the Lion has, and no move may travel over 17 m.
+
+The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
+(the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 12 tables
+by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
+
+```
+lion rows CharacterTable=0x<address> CharacterAppearanceTable=0x<address> CharacterDeadTable=0x<address>
+CharacterStanceTable=0x<address> CharacterAnimSetTable=0x<address> SkillCommandTable=0x<address>
+SkillTable=0x<address> SkillActiveStepTable=0x<address> CharacterMoveTable=0x<address>
+TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address>
+```
+
+It is one line in `coop-request.txt` (457 bytes at most, under the file's 512). Each of the 12 words comes once, in any
+order. Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No
+console word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its
+AddRow slot and its row size.
+
+The game thread adds the rows in `coop_tick` only while the cached net mode is 0 and no logic task is in flight (logic
+`+0x5c0` is 0, the same check as same-place enemies' force target): no lock guards the tables, and the logic thread
+reads them. A shut gate tries again at the next frame and refuses after 300 frames. For each row not added yet, the
+native part initializes a block of its own from the row struct, copies the template row into it (CopyScriptStruct),
+writes the ID and the patches, resets the game's lazy-init flag (row `+8`) and the arrays the game parses from the row's
+JSON strings, then calls AddRow through the table's vtable with the new name. A row goes in once a game run and never
+again, so AddRow's own RemoveRow never frees a row that a living Lion reads. The first refusal stops the run before any
+later row. The CharacterTable rows come last, so a refused run leaves no Lion to spawn; asking again skips the rows
+already in. These calls run under their own SEH latch.
+
+Then the native part reads the rows back through the game's own lookups by ID and writes the `lion=` line of
+`coop-status.txt`:
+
+```
+lion=off
+lion=waiting added=<n>/220 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+lion=rows added=220/220 asks=<a> spawns=<s> char=<k>/2 skills=<k>/21 stance=<k>/2
+lion=refused added=<n>/220 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
+lion=fault added=<n>/220 asks=<a> spawns=<s> where=<text>
+```
+
+`asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
+`+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
+the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
+so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
+back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 2974 fields the patches
+write, from `cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree).
+2083 of those values differ from the template row's, so reading them back shows the patches landed; the other 891
+restate a value the template holds, which a read-back cannot tell from the copy. It spawns
+only when every value matches and the line says `char=2/2 skills=21/21 stance=2/2`. The read-back runs in one frame,
+once per `coop lion`; how long that takes in game was not measured.
+
+### The spawn
+
+The spawn is one call, `nightop/run.lua`'s, with key 0:
+`ServerRequest_CreateActor(<charId>, <location>, (0, <yaw>, 0), false, true, 0, 0, 0, None, false)`. Cheat on lets it
+take any CharacterTable ID at any place. The charId is fixed in code: 50020, or 50021 after `coop lion brain lurker`;
+`coop lion control` spawns 50110 (M_Antlion). The place is 10 m ahead of EVE and 1 m up, facing her. Key 0 is
+EventSpawnId 0, as the game's own summons spawn. The body is the new character of the Large blueprint's class nearest
+the spot, looked for at 0.3, 1, 2, 3.5 and 5 s (`FindAllOf` walks every object). One that still has no controller 1.5 s
+after the call gets its default one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from
+`InteractionState` and `Controller`, as `nightop/run.lua` reads it. The game can send a Lion body far away and reuse
+it for the next spawn (a Lion 466 m away came back on 2026-10-23), so a body that stood more than 100 m from the spot
+at the call and stands within 30 m of it after counts as the new one; its old follow line ends as recycled.
+
+While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend
+space reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the
+animation blueprint blends a Show's clip by (`GetCurrentCustomAnimAlpha(0)` and `(1)`). Two more checks run once a
+second. The loaded line looks for the 20 Lion Shows of the kit and the clip each one's first anim key plays, with
+`StaticFindObject`, two paths a second (a call costs about 4 ms), each until first seen: the game loads a Show when a
+step plays it, and the Show's anim key loads its clip. The boss name looks for the live `TextBlock_BossName` (under
+`/Engine/Transient`; `FindAllOf` again at most every 10 s while none is held) and sets it to `Lion` where it reads
+`<M_LionC>`. The game writes that block once per boss bind (`FText::FromStringTable` on the row's `Name`), so the check
+puts the name back after each bind.
+
+`coop lion intro` first plays `Mon_LionC_Scene01_Appearance` (13 s, the clip of the cut boss intro
+`DesertedCity_LionBossIntro`) on a display copy: `race/doro.lua`'s plain actor with the `CH_M_NA_02_Large` mesh at the
+blueprint's scale (1.5), on EVE's feet at the spot, facing her. At the clip's end the Lion spawns where the copy's bone
+0 stands, at the spot's height. When that is more than 20 m from the spot, it spawns at the spot. The copy goes as soon
+as the body shows, before the body's controller is checked, so the two never stand together. A map change during the
+entrance spawns nothing. The clip does not play on the Lion itself: `CH_M_NA_02_AnimBP` has no slot node, so a montage
+would not show; a single-node clip would replace the anim instance the game plays the Lion's skills on while its AI
+runs. The copy is in no file, so a Lua reload during its 13 s leaves it until the map changes.
+
+### What stays out
+
+- Quests: a key-0 actor has no EventSpawn row, so no EventOnSpawning, EventOnBattle or EventOnDead runs. The one Lion
+  quest task in the game's data, `EQ_DownTown_Quest_05_T01`, goes through spawn point 71, not an alias. Quest or
+  condition tasks that count kills by tribe or actor type were not checked.
+- Saves: an actor with no EventSpawn row is not in zone storage, so a save should not bring a Lion back (not checked in
+  game). The rows are never written anywhere. The command spawns only on a co-op save.
+- Achievements: a kill by EVE counts for the two Kill rows that take any enemy (`Kill_Character` and
+  `Trophy_KillCharacter`), as any Naytiba kill does. It unlocks no album entry. On a boss bind and a boss kill, the game
+  hands the row name to an achievement container through obfuscated code; whether that keeps anything was not
+  established.
+- Co-op: shared enemies pair by spawn key, and a key-0 actor has none, so the Lion stays in the game of the player who
+  typed the command. Sharing one would need a key range of its own, a host spawn through `NewActor` in the shared
+  fight's job, a guest rule in same spawns, a `kBosses` row and a protocol bump.
+
+### Open questions
+
+Only the game can settle these:
+
+- whether the game's lookups by ID see the rows and the read-back matches on this build;
+- whether the stance's command list builds the Lion's command set and `M_Skulling_AI_Test` runs on it;
+- why the Lion stays in its idle pose: the game never plays its Shows on that body, the Shows play and their clips do
+  not load, or the clips load and the animation blueprint does not blend them in (the follow and loaded lines tell
+  these apart, and `coop lion control` tells the spawn call from the rows);
+- why `InteractionState` reads 1 (executable) from the first second of the fight;
+- whether the Lion walks to EVE or stands while she moves around it (the follow line now logs its place);
+- where the lock-on marker sits, whether its feet meet the ground and whether its hit sounds play;
+- what a key-0 death does to the spawn manager's counter;
+- each AddRow runs the game's table-changed handling over the whole table, so 220 of them in one frame may cause a short
+  hitch, not measured;
+- whether the game's lookups of the 4 tables new to the rows (moves, target filters, results, effects) run the same
+  lazy init as the other 8;
+- whether `EffectAction_UseSkill` fires from a stance's start effect, so that the phase-2 roar plays (every shipped use
+  comes from one of EVE's steps), and what it does when the Lion is in the middle of another skill;
+- whether the moves mostly in the air (29 of the 61, a ballistic estimate) carry the Lion as far as its clips show,
+  and whether a move with `MoveTransformType_None` turns the Lion at once for the turn attacks, whose clips start with
+  the body turned;
+- whether an `InsideTargetOrSelf` move stops `LimitApproachDistance` short of EVE as the shipped lunges suggest, what
+  it does when she already stands closer than that, and whether the high jump, whose paws land 8 m ahead of the root
+  inside the clip, still passes over an EVE nearer than that;
+- how far each skill's range lets EVE stand before the Lion uses it, and whether 160000 HP makes a fight of the right
+  length.
+
+## Developer flight and slow motion
+
+`coop fly` and `coop slowmo` switch on two developer gates that the game ships off (`game/debug_keys.h`, run by
+`glue/tick/debug_game.inc`; not tested in game yet). EVE's character tick reads the flight key (R2 or Z) only through
+one function (`0x1423c9ea0`) and the time-control key (R1) only through another (`0x1423c9f90`), and each passes its key
+on only while its gate reads true. A gate is one bool in a settings singleton of the game's, not a UObject: the pointer
+at `0x147032540` (the globals block's `+0x18`) leads to a `TMap<int32, bool>` at `+0xa8`, keyed by the
+`Strihash_DEPRECATED` of the gate's name (`UseFlyingActionKey` `0x1147F83C`, `UseTimeControlKey` `0x43812976`), which
+its constructor fills with false. The cheat command meant for them, `USBCheatManager::SBSetCustomBool`, does nothing in
+the shipping build, and the character's own `SetCustomBool` writes another map, so no Lua call reaches them.
+
+Every 250 ms while a gate is wanted, the game thread looks its key up as the game's lookup (`0x14261db60`) does and
+writes 1 into the value byte of the element it finds. It first checks that the gate function's own copy of the key (a
+static that function fills at its first call, at `0x1471082ec` and `0x1471082f4`) holds the same key, that the map's
+counts and buckets are in range and that the byte reads 0 or 1. It never inserts an element. The reads go through
+`ReadProcessMemory`, and the one write runs under the gates' own SEH latch. The value read before the first write goes
+back once the gate is no longer wanted: `off`, `coop off`, the next Lua load (the worker clears the asks when Lua's
+session token changes) or a save that is not a co-op one. Slow motion is wanted only while no friend is linked, since
+time dilation is local. If the game builds the map again (its values back to false), the next pass sets the gate again
+and the log says `gates set again`. A missing key, a static that holds another key or a map out of range refuses the
+gate on screen, with no write. The worker numbers each ask and hands the number over with the gates it wants; the game
+thread hands back the number its last pass read. A gate's state is logged, and a refusal said, only from the first pass
+that read its ask, so a state left from before the ask never reaches the log or the screen.
+
+With the flight gate on, the character tick starts a flight while the key is held in the air (the falling movement
+mode) and the time pool allows it (`RemainFlyingActionTime` at least `FlyingActionEnableRemainTime`, 3 s, and no
+cooldown), and ends it when the key is released. With the slow-motion gate on, holding R1 sets the time dilation to
+`TimeControlKeyScale` (0.2), and every tick without it sets 1 again, so slow motion ends by itself.
 
 ## Achievements
 
@@ -1292,6 +1666,8 @@ claim the host accepts):
   items that a camp respawn refills too. The cutscene wait is a pause, and the solid partner changes no game state.
 - A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
+- A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is
+  that player's, like any Naytiba's.
 
 ## Safety design
 
@@ -1319,9 +1695,11 @@ drops the input.
 - The [Doro look](#the-doro-look) and a race's [driving](#driving) are the only writes to the player actor. The look
   writes `bHiddenInGame` on EVE's mesh parts and `VisibilityBasedAnimTickOption` on her main mesh. It writes
   `coop-look.txt` before it changes either, and undoes both at the race's end, on `coop race look off` and `coop off`,
-  after a map change and at its first error. The driving sets four values of her movement component to 0 and gives it a
-  velocity and her a yaw each frame. It writes `coop-drive.txt` before it changes the values, and puts them back on the
-  same exits. The next Lua load undoes either from its file when this one could not.
+  after a map change and at its first error. It also sets `bHiddenInGame` on the main mesh of the drone that follows
+  EVE, records the drone in the same file first, and clears it again on the same exits. The driving sets four values of
+  her movement component to 0 and gives it a velocity and her a yaw each frame. It writes `coop-drive.txt` before it
+  changes the values, and puts them back on the same exits. The next Lua load undoes either from its file when this one
+  could not.
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game
@@ -1349,6 +1727,9 @@ drops the input.
   request, on a co-op save, for a camp of her own table that her game already knows by name, under its own SEH latch:
   a fault turns it off until the game restarts. The revive calls the game's respawn on the downed player's own EVE,
   once per death, at the death screen only. No address, pointer or name index goes over the network for either.
+- `coop lion` adds [the Lion's 78 rows](#the-rows) to the game's tables through the game's own AddRow, on the game
+  thread with no logic task in flight, after a check of each table's vtable, AddRow slot and row size, under their own
+  SEH latch. No shipped row changes, no row is added twice and nothing is written to disk.
 - `coop off` stops engine access, the link and every feature until the game restarts, even across a Lua reload,
   because the native part keeps the flag.
 - The DLL pins itself in memory, so a Lua reload that frees the script's libraries never unloads code the worker is

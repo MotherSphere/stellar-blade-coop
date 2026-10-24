@@ -59,6 +59,7 @@ The main page shows the rows that fit your session:
 | Join with a code | Outside a session | Closes the menu and opens the [code box](#join-codes) |
 | Chat | During a session, with chat on | Closes the menu and opens the [chat](#session-chat) box |
 | Options | Always | Opens the settings, below |
+| Guide | Always | Closes the menu and opens the [guide](#guide) on its first page |
 | Write a bug report | Always | Runs `coop report` |
 | Close | Always | Closes the menu |
 
@@ -170,12 +171,12 @@ To change a key, select its row, then press the new key: `F1` to `F12` except `F
 A key that another action already holds is refused, and the menu names that action. Esc stops waiting. The new key
 works at once.
 
-The menu, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and notices, the
-shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel and notices,
-and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that the game ships.
-So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps them all in
-English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in English, and so
-do the error messages from the coop commands, shown in the menu or the code box.
+The menu, the guide, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and
+notices, the shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel
+and notices, and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that
+the game ships. So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps
+them all in English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in
+English, and so do the error messages from the coop commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](#join-codes) is answered with Deny, and the
@@ -314,7 +315,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (12) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (13) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
@@ -457,10 +458,35 @@ guest's rest works as in solo play.
 - A revive refills the recovery items, as a camp respawn does, and the enemies keep their HP. A death resets the zone,
   a boss fight included, which is why no revive runs during a boss fight.
 
+## Guide
+
+The guide has nine pages on what the mod adds, with the Mother Sphere art by timediffer24 on the left. At the mod's
+first run it opens on the title screen once the on-screen UI has loaded, and the [co-op saves](#co-op-saves) question
+waits until it closes. You can open it again from the co-op menu's Guide row or with `coop guide`, on the title screen
+or in the world, but not while the game is paused or shows one of its own screens, and not while the co-op saves'
+question, the host's question, the chat box or the code box is open.
+
+| Key | In the guide |
+| --- | --- |
+| Left arrow, A or Q | Previous page |
+| Right arrow or D | Next page |
+| Up arrow, W or Z; D-pad or left stick up | Up |
+| Down arrow or S; D-pad or left stick down | Down |
+| Enter or Space; A | Select |
+| Esc; B | Close |
+| Mouse | The row under the mouse takes the focus; a left click selects it |
+
+The rows are Next, Back, Don't show again and Close. For 1 s after the guide opens, Enter, Space, A and a click do
+nothing. Don't show again, or a close on the last page, writes `coop-guide.txt` in the mod folder, and while that file
+exists the guide does not open by itself. Delete it to see the guide at the next start. With no key for 3 minutes the
+guide closes, so a controller the mod cannot read does not keep you on it. If the art does not load, `UE4SS.log` says
+why and the guide shows without it.
+
 ## Co-op saves
 
 On the title screen, once the on-screen UI has loaded (a few seconds), the mod asks whether to play on co-op copies of
-your saves, while the game uses your own saves (`auto_coop_save=ask`, the default).
+your saves, while the game uses your own saves (`auto_coop_save=ask`, the default). At the mod's first run the
+[guide](#guide) comes first.
 [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves) lists the choices; [saves.md](saves.md#co-op-saves) has the files
 and the rules.
 
@@ -708,10 +734,18 @@ While the race drives EVE, her Doro runs on all fours from 60% of the top speed,
 faces where it is heading (so it shows its side in a drift), leans into bends, dips its nose when it lands and plays a
 tired hop when it hits a wall. Your friend's Doro does the same from their ghost's movement, except the tired hop.
 
-To draw the Doro, the look hides EVE's mesh parts in game, and sets her main mesh to keep animating while hidden. The
-race's end, `coop race quit`, `coop off`, a map change and the look's first error undo both changes. While the look is
-on, `coop-look.txt` holds what it changed, so the next Lua load (Ctrl+R) undoes them when this one could not. If EVE
-stays hidden, see [troubleshooting.md](troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
+To draw the Doro, the look hides EVE's mesh parts in game, and sets her main mesh to keep animating while hidden. It
+also hides the body of the drone that follows EVE, when it is within 30 m of her as the look starts. The drone's light
+and signals keep working. The race's end, `coop race quit`, `coop off`, a map change and the look's first error undo
+these changes. While the look is on, `coop-look.txt` holds what it changed, so the next Lua load (Ctrl+R) undoes them
+when this one could not. If EVE or the drone stays hidden, see
+[troubleshooting.md](troubleshooting.md#eve-is-invisible-or-only-a-doro-shows).
+
+Each Doro keeps its animations loaded while it stands. The first Doro of a race loads them all at once, so it can take
+a moment to appear, and none loads during the race. While the look is on, `UE4SS.log` has a line once a minute,
+`[StellarCoop][DR] look hid=<n> tick=<t>->0 rehid=<n>/min retick=<n>/min reload=<n>/min reload_ms=<ms>`. `reload`
+counts the Doro animations loaded again since the look's Doro appeared, and `reload_ms` the total time they took. In
+0.5.0-beta.1 these loads froze the Doro for a moment when EVE sprinted. It should read 0.
 
 While the look is on, your friend's game receives your EVE's parts as hidden. In a race their game joined, they see
 your ghost as a Doro. Otherwise your ghost on their screen shows its name and marker but no body until the look ends.
@@ -778,6 +812,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
+| `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
+| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed (untested in game), or end it |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -787,6 +823,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
+| `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
+| `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its first test it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions (spawns on a co-op save only) |
+| `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) (test commands, untested in game; on on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -799,8 +838,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop quests force <number>` | As the guest, make the step that quest holds for your own kill, or for a place the game's tables cannot give, where you stand; type it twice within 10 s |
 | `coop freeze <seconds>` / `coop freeze off` | Hold the [synced photo mode](#synced-photo-mode)'s pause alone, 1 to 3600 s |
 | `coop revive test` | Solo test of the [revive](#revive-by-your-friend-experimental): at the death screen, call the game's in-place respawn on your EVE once (co-op save only, no session, with `coop loopback 0 0 0` running so that your life state is read) |
+| `coop guide` | Open the [guide](#guide) on its first page, on the title screen or in the world |
 | `coop ui reset` | Close the co-op menu and the chat box, and give the game its keys back at once |
-| `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel and the co-op saves' question until the mod reloads |
+| `coop ui off` | Remove the co-op menu, the chat box, the feed, the partner HUD, Night Operation's card and result panel, the guide and the co-op saves' question until the mod reloads |
 | `coop saves probe` | Log what the mod reads of the save file name and the plan of the next copy pass; writes nothing |
 | `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
@@ -894,7 +934,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 12). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 13). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -933,16 +973,31 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
   per Steam ID and co-op slot. See [night-operation.md](night-operation.md#the-reward-shop).
 
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
-`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), and `coop leviathan show` and
-`coop leviathan cam` when it turns the camera on (below), run on any save. `coop fight pilot` runs on any save too,
-since same place only moves enemies while shared enemies run.
+`coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
+`coop leviathan cam` when it turns the camera on (and the same two in the six other
+[viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
+`coop lion control`, a scene of `coop scene`, `coop fly on` and `coop slowmo on` (below) run on any save.
+`coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
-### Cut enemy preview: `coop leviathan`
+### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
 
-The game's files hold an enemy that has not been seen in the game: Naytiba 10, the Leviathan, in
-`/Game/Art/Character/Monster/CH_M_NA_10/`. `coop leviathan` is a test command for it, left out of the usage line. It
-never spawns an enemy or a character. What it shows is a plain actor with one mesh and collision off, like the Doros
-of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4SS.log` as `[StellarCoop][LV]`.
+The game's files hold enemies that have not been seen in the game. These test commands, left out of the usage line,
+show three of them:
+
+- `coop leviathan`: Naytiba 10, the Leviathan, in `/Game/Art/Character/Monster/CH_M_NA_10/`.
+- `coop gardener`: Naytiba 1, the Gardener, in `/Game/Art/Character/Monster/CH_M_NA_01/`. It is an artillery Naytiba
+  about 20 m tall at scale 1, with its own textures. The prologue shows its mesh far away as scenery; its fight and its
+  Data Bank entry were cut.
+- `coop tendril`: Naytiba 6, the Tendril, in `/Game/Art/Character/Monster/CH_M_NA_06/`. It is a prototype mesh
+  (`CH_M_NA_06_test`, about 7 m tall) with 44 animations and blend spaces and no material.
+
+The three commands take the same words, described below with `coop leviathan`, and share one display and one
+[free camera](#free-camera) with four more commands for
+[other cut models](#other-cut-models-coop-mann-coop-nier-coop-orcal-and-coop-enya). One model is shown at a time: a
+`show` of another one removes the first, and its answer starts with
+`Leviathan removed: one cut model is shown at a time.` (or the name of the other model). They never spawn
+an enemy or a character. What they show is a plain actor with one mesh and collision off, like the Doros of a race, so
+nothing of it can fight, die or reach a save. Their lines go to `UE4SS.log` as `[StellarCoop][LV]`.
 
 - `coop leviathan` or `coop leviathan list` only reads. It logs one line for each mesh, skeleton, animation, blend
   space and Blueprint class it looks for: `missing`, or the object's class, with the skeleton of a mesh or an
@@ -980,9 +1035,52 @@ of a race, so nothing of it can fight, die or reach a save. Its lines go to `UE4
   remove it too. While it is shown, `coop-leviathan.txt` holds its path, so the next Lua load (Ctrl+R) removes it if
   this one could not. The next `show` tries again first, and shows nothing new while the old mesh cannot be removed.
 
+`coop gardener` and `coop tendril` differ in these points:
+
+- `show` has one mesh, `body`: `CH_M_NA_01` for the Gardener, `CH_M_NA_06_test` for the Tendril. Its `auto` height
+  puts the mesh's lowest point at EVE's feet, since both stand on the ground, and its root at her feet when the bounds
+  cannot be read. At scale 1, `auto` puts the Gardener about 23 m away and the Tendril about 12 m away.
+- `list` reads their own folders. For the Gardener: its mesh and skeleton, 29 animations and blend spaces, 4 Blueprint
+  classes, its projectile class, the `M_Gardener_SingleShot_1`, `M_Gardener_MultipleShot_1` and `M_Gardener_ToxicBeam`
+  shows from `/Game/Art/Show/CH_M_NA_01_Gardener/Skill/` and `Default` in its folder. Its CharacterTable rows are those
+  that contain `NA_01` or `Gardener`. For the Tendril: its mesh, skeleton, 44 animations and blend spaces, 2 Blueprint
+  classes and its physics asset, and the rows that contain `NA_06` or `Tendril`. No row of the game's CharacterTable
+  contains any of these words (read offline on 2026-10-23), so both lists report 0 rows.
+- `play` matches their own animation names: `coop gardener play toxic_beam` plays `Mon_Gardener_S_03_Toxic_Beam`,
+  `coop gardener play hide` plays `Mon_Gardener_C_Hide` and `coop gardener play unhide` plays `Mon_Gardener_C_UnHide`.
+  `coop tendril play whipattack` plays `M_Tendril_WhipAttack`; its left and right versions need their `_l` or `_r`.
+- `skin`: the Gardener has only `default`, its own textures. The Tendril has `hydra` and `default`. Its `default` is the
+  engine's grey, since its one material slot is empty. Each creature keeps its own last skin for its next `show`.
+- `move`, `skin` and `play` act on the shown mesh only when it is that command's creature: with the Gardener shown,
+  `coop tendril move 20` answers `no Tendril is shown: coop tendril show first`. `off` of any of the viewer commands
+  removes the shown mesh, whichever it is, and turns the free camera off.
+
+#### Other cut models: `coop mann`, `coop nier`, `coop orcal` and `coop enya`
+
+Four more test commands use the same viewer, words and free camera for cut models that are not Naytibas. None of them
+has been tried in game yet.
+
+| Command | `show` words | What it shows |
+| --- | --- | --- |
+| `coop mann` | `body` | The early Mann, `CH_NPC_Mann` in `/Game/Art/Character/NPC/Mann/`, about 3.5 m tall, with his 4 animations: 3 idles and a run. The shipped Mann uses another mesh, `CH_NPC_Mann_Body` in `CH_NPC_Mann_01/`. |
+| `coop nier` | `square` (the default), `squareb`, `cylinder`, `cylinderb`, `cylinderc`, `sphere`, `sphereb` | The NieR collaboration's three cut machines, `CH_M_NA_951` to `CH_M_NA_953` in `/Game/DLC_1/Art/Character/Monster/`, with their TypeB and TypeC variants: blockout shapes of 32 to 810 vertices with no material, drawn in the engine's grey |
+| `coop orcal` | `test1` (the default), `test2`, `native` | Orcal prototypes in `/Game/Art/Character/NPC/CH_NPC_XionElder/`: `OrcalTest_01`, `OrcalTest_02` (both about 1 m tall) and `XionElder_Native_Preview` |
+| `coop enya` | `mech` (the default), `enya05` | Enya prototypes in `/Game/Art/Character/NPC/CH_NPC_Enya/Temp/`: `CH_NPC_Enya_Mech` and `Enya_05`, 1.6 and 1.7 m tall |
+
+- Only the early Mann plays animations. The NieR machines have none: their blend spaces hold no samples, so `list`
+  reads them as `list asset` lines and nothing plays them. The Orcal and Enya meshes have one bone each, in a fixed
+  pose.
+- `auto` puts each model's lowest point at EVE's feet, 1.6 times its bounding sphere radius away and at least 6 m
+  (3 m for the Orcal and Enya statues).
+- `skin` takes `default` only.
+- `list` reads each command's meshes, skeletons, Blueprint classes and physics assets (the NieR blend spaces too), then
+  the CharacterTable rows that contain `CH_NPC_Mann_Blueprint`, `NA_95`, `OrcalTest`, `Enya_Mech` or `Enya_05`. A
+  plain `Mann` would match the shipped Mann's rows.
+
 #### Free camera
 
-The free camera is for filming the mesh. `show` and `play` turn it on, and `coop leviathan cam` turns it on or off.
+The free camera is for filming the mesh. `show` and `play` turn it on, and `coop leviathan cam` turns it on or off
+(`cam` of the other viewer commands does the same with the same camera).
 Turning it on needs a co-op save, like `show`; turning it off works on any save. It starts where the game's camera is
 and blends there in 0.3 s. EVE keeps standing where she was: while the camera is on, the game ignores the move input
 of her controller. Its look input stays on, and the free camera turns with the controller, so the mouse and a
@@ -1015,6 +1113,269 @@ that camera is gone. If the game moved the view to another camera meanwhile (a d
 controller ignores move and look input again only if it did before, and the camera is removed. While it is on,
 `coop-leviathan.txt` also holds the camera's path, the player controller's and the view's from before, so the next Lua
 load (Ctrl+R) does the same if this one could not.
+
+### Cut boss: `coop lion`
+
+The game's files hold a boss that was cut before release: Naytiba 02, the Lion, in
+`/Game/Art/Character/Monster/CH_M_NA_02/`. Its blueprint, meshes, animations, hit data and skill presentations (Shows)
+ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 220 rows it lacks to the game's 12
+tables in memory and spawns it as an enemy to fight. Every row is written for the Lion: its stats, its skills, the
+timing of its hits and the moves that follow its own animations. It is a test command, left out of the usage line. Its
+lines go to `UE4SS.log` as `[StellarCoop][LI]`; the native part's go to `coop-link.log` as `lion rows ...`.
+
+- `coop lion` spawns a Lion 10 m in front of EVE and 1 m up, facing her. The first time in a game run it asks the native
+  part to add the rows and waits for the answer, 30 s at most. Each time it reads every row back first and stops at the
+  first value that differs, with no spawn. It runs only on a [co-op save](#co-op-saves).
+- `coop lion intro` first plays the Lion's entrance from the cut boss intro (`Mon_LionC_Scene01_Appearance`, 13 s) on a
+  copy of its mesh where it will stand, then spawns the Lion where the copy's root ended (at the 10 m spot when that is
+  more than 20 m away) and removes the copy as soon as the Lion is there. The copy is a display only, like the Doros of
+  a race: it cannot fight or be hit. A copy that cannot be made skips the entrance and spawns at once. A map change
+  during the entrance spawns nothing. Co-op save only.
+- `coop lion rows` adds the rows and reads them back, with no spawn. Any save.
+- `coop lion control` spawns an Antlion (M_Antlion, 50110), a shipped Naytiba, through the same call and with no rows.
+  If the Antlion comes and the Lion does not, the rows are at fault rather than the call. Co-op save only. The native
+  part reads the game's spawn counter only once rows were asked in the game run, so run `coop lion rows` first if the
+  Antlion's lines should carry it; before that they show `spawn count ?`.
+- `coop lion brain skulling|lurker` picks the behaviour tree of the next Lions until the mod reloads. `skulling`, the
+  default, spawns 50020 (row M_LionC, tree M_Skulling_AI_Test); `lurker` spawns 50021 (row M_LionC_Lurker, the Lesser
+  Lurker's tree). Any save.
+
+While a command waits for its rows, its body or its entrance, another `coop lion` answers that it is busy.
+
+Try it in an open, flat area such as the Great Desert, with open ground 10 m in front of EVE, away from story events,
+quest areas and Behemoths.
+
+What to expect:
+
+- The Lion has 160000 HP, 3300 shield and 14 stamina, and attacks with a power of 960. That is a little under the Great
+  Desert bosses (170500 HP, 3500 shield, 15 stamina). On Story mode it has 10% less HP and 30% less attack; on Hard
+  mode, 150% more HP, shield and attack. Its rank is Elite, and it is a boss to the game, so the boss bar shows once it
+  targets EVE. The game has no name text for it and writes `<M_LionC>` on the bar; while a Lion lives, `coop lion`
+  changes that to `Lion` (checked once a second, since the game writes the name again at each boss bind).
+- It has 21 skills, each one playing one of its own skill animations: two claws, two chasing claws, two turning
+  attacks, two running attacks, two jumping attacks, two back jumps, a roar, two side steps, a three-claw chain and a
+  rush. Under 60% HP it switches to its second phase, which adds a four-claw chain, a chain of claws on the move, a
+  chain of four pounces, and a roar at the switch. Both trees pick the skills flagged MeleeAttack, which leaves out the
+  side steps and the switch's roar (the switch itself starts that one). Whether the game plays that roar is not known
+  yet; the phase switch itself is how the game's Raven fight works.
+- Each attack hits during the part of its animation where the claw, paw or jaw swings, measured on the animation
+  itself. The roars and the high jump cannot be parried or blocked, only dodged; the other attacks can be parried,
+  blocked and perfect-parried.
+- Each move follows its animation: the Lion travels as far as its feet show, when they show it. A move toward EVE
+  stops short of her, where the next blow lands, so a leap does not carry the Lion past her when she stands closer than
+  the leap's length. Leaps are estimates, since the feet are off the ground. The two running attacks and one chasing
+  claw look for EVE to the side and keep the Lion's heading; the other skills turn it toward her. Each skill's range is
+  the reach of its first hit toward EVE plus what its moves close before it, and a skill whose moves take the Lion 3 m
+  or more one way needs that much open ground to start. It walks at 2 m/s and runs at 9 m/s, the Behemoth's pace. Its
+  run animation, at the Lion's size, strides faster than that, so its feet may slide.
+- EVE's link attack on it plays the generic link: the Lion reacts with its own `Hit_Sword_Normal_LinkAttack1` clip.
+  When its balance gauge empties it goes groggy as Stalker and Abaddon do, with their one-second delay before EVE can
+  link.
+- Its rows give it its own death animation (7 s), then a dissolve (15 s). It drops nothing.
+- It should not come back from a save: a Lion alive when you load a save or change maps is gone. No command removes one:
+  it goes when it dies or with the map.
+- No quest event runs for it. A kill counts toward the two achievement counters that take any enemy, as any Naytiba kill
+  does. It unlocks no album entry.
+- The rows stay in memory until the game exits. A second `coop lion` only reads them back. Nothing is written to a game
+  file or a save.
+- Only your game has the Lion. In a session your friend does not see it, and her ghost on your screen is no target for
+  it. If she types `coop lion`, she gets her own Lion in her game.
+
+The entrance is off by default because the Lion's animation blueprint has no montage slot: a montage played on it would
+not show; a clip played straight on its mesh would replace the animation instance that the game plays the Lion's skills
+on while its AI runs.
+
+The log lines, in `UE4SS.log` unless marked:
+
+| Line | What it answers |
+| --- | --- |
+| `tables: 12/12 found: CharacterTable=0x...` | The 12 tables found, with the addresses sent to the native part |
+| `lion rows: 220/220 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 5002000-5002020 21/21, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need |
+| `rows read back through FindRow: 220/220 authored rows, 2974 fields as written (2083 differ from the template row)` | Every field the native part wrote reads as written; 2083 of them hold a value the shipped row it started from did not, and the other 891 restate that row's value |
+| `rows already in (220/220; ...): not added again` | A later `coop lion` in the same game run |
+| `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
+| `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, battle 1, state 1, controller yes, spawn count -5` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), battle mode, state, controller and the game's spawn counter |
+| `loaded: shows 3/20, clips 2/20 (Show seen, its clip not yet: Roar)` | Which of the Lion's 20 skill presentations (Shows) and their clips the game has loaded so far; first said once all 40 were looked for (about 20 s), then at each change |
+| `boss name: <M_LionC> -> Lion` | The boss bar's name set to Lion |
+| `lion 1 (50020) recycled: SB moved its body back for this spawn` | The game reused a Lion body it had sent far away for the next spawn; that spawn's line ends with `a body SB reused` |
+| `lion 1 (50020) dead after 143 s (InteractionState 3, no controller); body gone after 22.4 s` | Its death and its body's despawn |
+| `lion 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
+| `entrance: ...` | What `coop lion intro` played, or why the entrance was skipped |
+
+A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; <n>/220 added`) and ends with a `STOP:`
+line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded save: on the title screen the native
+part can wait for a game state that never comes and refuse after 300 frames. See
+[how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
+
+In the first test (0.6.0-beta.1, 2026-10-23) the Lion moved and its attacks hit, but it stayed in its idle pose. The
+cause is not known yet. To find it, fight a Lion for at least 30 s, then run `coop lion control` in the same game run
+and watch whether the Antlion animates. Note whether the Lion's attacks showed claw trails (the Show ran) or growls
+(its clip played: the growls are in the clip). The lines then tell the cases apart:
+
+- `loaded: shows 0/20` after attacks: the game never played a Lion Show on that body.
+- A Show seen and its clip not: the Show ran, but its clip did not load.
+- Both seen, `anim alpha 0.00/0.00` during attacks: the clip loaded, but the animation blueprint never blended it in.
+- `anim alpha` above 0 during attacks: the Lion does animate.
+- An Antlion that does not animate either: the spawn call is at fault, not the Lion's rows.
+### Cut hairs and suits: `coop wear`
+
+The game's files hold two hairs and four suits that no item gives. `coop wear` puts them on your EVE by setting the
+meshes of her own hair and body components. It changes what is drawn and nothing else: your equipment, inventory, saves
+and quests are never read or written, so the game's menus still show what you equipped and the next save keeps it. It
+runs on any save and has not been tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][WR]`.
+
+| Name | Part | Mesh | What it is |
+| --- | --- | --- | --- |
+| `nyaaa` | Hair | `EVE_HR_14` | A bob cut with a lace headband and mechanical cat ears (Nyaaa, a hair whose name and description are in the game's text, with no item) |
+| `rabbit` | Hair | `EVE_HR_15` | A bob cut with long mechanical rabbit ears (Mecha Rabbit, the same) |
+| `gothic` | Suit | `CH_P_EVE_IberisCos` | Gothic Rose (`BS_1000`), the gothic dress of Iberis, Lily's late colleague |
+| `rider` | Suit | `CH_P_EVE_03_Body` | Daily Rider (`BS_Leather_Jean2`), an earlier build of Daily Biker |
+| `diving2` | Suit | `CH_P_EVE_01_TypeB` | Planet Diving Suit (5th) V2 (`BS_Blue_Suit_Var2`) |
+| `golden` | Suit | `CH_P_EVE_InnerSuit1` | Golden Skin Suit (`BS_102_1`), with the placeholder materials of the asset |
+
+The meshes are in `/Game/Art/Character/PC/`, the hairs under `00_HR/`. Each suit has an EquipmentTable row and no item.
+
+- `coop wear` lists what is worn and the names.
+- `coop wear <name>` puts one on. A hair and a suit can be worn together. A second hair or suit replaces the first. A
+  hair also gets its own physics asset and its own animation Blueprint, which moves its ears and strands. On the part
+  it changes, a slot where the game put a material of its own (your hair colour) shows the cut mesh's material.
+- `coop wear off` gives the game's hair and suit back. `coop wear off hair` and `coop wear off suit` give one back.
+
+A suit changes the body mesh alone. EVE's animations, face, ponytail and body collision stay as the game set them. The
+ponytail keeps the colour and the cloth collision of what you equipped, so its strands may pass through a long dress.
+
+The game can put its own meshes on again: after its wardrobe, a map load, a cutscene or photo mode. Once a second, while
+the game is neither paused nor showing one of its screens, `coop wear` looks at the worn parts. A part that shows a mesh
+of the game's again takes that look as the one to give back, then gets the cut one again, with a `re-applied` line in
+the log. An outfit you pick in the wardrobe while a suit is worn therefore shows after `coop wear off suit`.
+
+The look lasts until `coop wear off`, `coop off`, a Lua reload (Ctrl+R) or a game restart. While one is worn,
+`coop-wear.txt` holds your EVE's own look, so the next Lua load gives it back if this one could not.
+
+Your friend sees it. The capture reads the mesh of each part of your EVE every second. The ghost then loads the same
+hair or suit from your friend's own game files, so nothing more is needed on that PC. The Gothic Rose dress has 385
+bones, where the other suits here have 159 to 203. The capture and the ghost take up to 1024 bones a part, so the ghost
+wears the dress on its own mesh, not the base suit. A cut mesh shows its own materials on both screens, with the `dyes`
+look on or off.
+
+### Cut scenes: `coop scene`
+
+The game's files hold scenes that no cutscene trigger plays. `coop scene` plays two of them through the game's own
+cutscene player, its theater. The camera follows the scene's cameras while your input and the HUD are locked, and other
+characters are hidden. It has not been tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][SC]`.
+
+| Name | Scene | Where it plays |
+| --- | --- | --- |
+| `emil` | Emil's farewell (`/Game/DLC_1/Art/Cinema/MV_DLC_Ending_E03`), 48 s from an ending of the first DLC: EVE, the drone, a blockout Emil made of a vehicle mesh and grey shapes, 15 Stellar Tear cans and the scene's own cameras. It has no sound; Emil's five lines show as subtitles | The Wasteland, within 50 m of Emil's spot (11348, 22974, 418) |
+| `orcal` | Orcal's monologue from the 2022 trailer (`/Game/Cinematics/Trailer_2022/Trailer_Resource_2022_Theater`), 39 s in his room, with his Korean voice and one Korean subtitle line that the game has no translation for | Xion, within 50 m of Orcal's room (34095, -1075, -34663) |
+
+- `coop scene` lists the scenes and where each plays. Any save.
+- `coop scene <name>` plays one. It runs only on a [co-op save](#co-op-saves), with EVE on the scene's map within 50 m
+  of its spot (`coop where` prints where you stand) and not while a cutscene of the game plays. The scene moves EVE to
+  its own spot.
+- `coop scene stop` ends the scene. The game gives the camera, your input and the HUD back as after a skipped
+  cutscene. Any save.
+
+`coop off` ends a scene the same way, and so does the next Lua load (Ctrl+R) for a scene an earlier load left playing.
+
+The game starts a cutscene from a row of its theater table. Two unused test rows, `LYC02GO_E_Theater_002` (play) and
+`LYC02GO_E_Theater_003` (stop), point at a theater that is not in the game's files, and only a zone of a map that does
+not ship uses them. `coop scene` checks both rows, sets their theater path in memory and asks the game to run the
+first. Emil's farewell has no theater of its own, so it borrows the take of the game's Emil farewell
+(`MV_Nier_Emil_GoodBye_WLA`): that take plays E03 while `coop scene emil` runs and its own scene again once E03 ends.
+The rows keep the new path until the game exits. Nothing is written to a game file or a save. Neither scene holds a
+quest event, and the trailer's own triggers, which add quests before they play, are not used.
+
+The scene's subtitles are in Korean and Japanese, under keys that the game's translations do not have. `coop scene
+emil` registers them for the game's language with the five lines Emil says in the shipped farewell
+(`Seq_Subtitle_Nier_Emil_GoodBye_01_01` to `_05` of `StringTable_Seq`), which say the same thing. The Korean and the
+Japanese rows show at the same times; if the game draws both, each line shows twice. When the registration fails (a
+`STOP: text:` line), the next `coop scene emil` tries again.
+
+Not known before a test in game:
+
+- whether the game plays a theater asked from the mod's Lua and whether it plays E03 from the borrowed take (if not,
+  the log says that the game's own farewell plays instead);
+- in Xion, a second Orcal may show if the game's Orcal stands in his room: the scene moves him onto its own and makes
+  him visible;
+- whether the game's skip prompt shows (it should);
+- whether a camera fade stays at the end. E03 opens on black and is clear from 3.7 s, then fades out from 43.0 s and is
+  fully black from 47.8 s to its end at 48.3 s. A fade left after the scene is cleared, with a line in the log.
+
+Do not save while a scene plays (the pause menu is locked anyway).
+
+The 2022 Adam trailer (`Trailer_Adam_2022_Theater`) is left out. Its Adam and Lily exist only during one story step,
+so they would be missing. Its first shot moves 374 pieces of the Xion hyperdrive room and keeps 336 material changes
+until the area reloads, its master sequence moves four spawn points and three director events in it run code that has
+not been read.
+
+The log lines, in `UE4SS.log`:
+
+| Line | What it answers |
+| --- | --- |
+| `rows: LYC02GO_E_Theater_002 and LYC02GO_E_Theater_003 -> MV_Nier_Emil_GoodBye_WLA; read back` | Both rows name the scene's theater |
+| `take: MV_Nier_Emil_GoodBye_WLA take 1 MV_Nier_Emil_GoodBye_WLA -> MV_DLC_Ending_E03; read back` | `emil`: the farewell's take plays E03 |
+| `text: game language fr; 10 keys registered, each reads its GoodBye_01 line` | `emil`: the subtitles in your language (a `STOP: text:` line says why not) |
+| `play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called; EVE 3.2 m from the stage` | The game was asked to play it |
+| `playing: MV_DLC_Ending_E03, 1.0 s after the call` | The game plays it |
+| `Emil's farewell ended after 48 s. (the farewell take back on its own sequence)` | Its end and what was put back |
+
+### Cut scene lines: `coop lines`
+
+The game's files hold the subtitles of scenes that were cut before they were voiced. `coop lines <name>` shows one of
+these scenes in the chat's feed, line by line, at the times its level sequences give, with the speaker's name before
+each line. Nothing else plays: no camera, character or sound. It runs on any save and writes nothing. It has not been
+tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
+
+| Name | Scene | Lines | Length |
+| --- | --- | --- | --- |
+| `adam` | The first meeting with Adam in the Tetrapod (he replaces EVE's nerve module and makes the Hall of Records deal), then the drone on the arrival at Eidos 7 | 49 | 3 min 7 s |
+| `warrior` | Quest_Sub_015, a side quest after Raven's attack on Xion: Mann in the empty Presence Chamber, then Orcal's recorded last message | 47 (2 more have no text in the game) | 3 min 47 s |
+| `quinn` | Quinn, a Xion engineer who insists he is human, in three short barks | 10 | 27 s |
+| `skyhall` | Sky Hall, an earlier route where Lily leads EVE and Adam through a temple toward the Great Desert | 37 | 1 min 29 s |
+
+- `coop lines` lists the scenes, and the one running.
+- `coop lines <name>` starts one. A second `coop lines <name>` replaces it.
+- `coop lines stop` ends it. `coop off`, a Lua reload (Ctrl+R) and the co-op UI going off end it too.
+
+The words come from your game when the scene starts: the mod holds only each line's start time and its key in the game's
+`StringTable_Seq`, or for Sky Hall its subtitle section in the test sequence. The game has the `adam` and `warrior`
+lines in English and Korean, and Quinn's in Japanese too. In its other languages the game itself gives the Korean text,
+its source language, so the lines show in Korean and the command's answer says how many do. Getting English there would
+mean switching the whole game's language or copying the lines into the mod, and `coop lines` does neither. The Sky Hall
+lines are Korean placeholder text in every language, most with the speaker's name inside.
+
+The lines need the chat's feed, which draws every script the game has (the notice line above EVE draws Latin letters
+only): without the Steam link or with the co-op UI off, the command answers `STOP`. While the chat box is closed, the
+feed shows each line for 8 s, 6 rows at most. A scene goes on while the game is paused.
+
+### Debug flight and slow motion: `coop fly` and `coop slowmo`
+
+The game's code holds two developer tools that it ships switched off: a flight move and a slow-motion key. Each one
+waits on a setting of the game's (`UseFlyingActionKey`, `UseTimeControlKey`) that only a cheat command sets, and that
+command does nothing in the released game. `coop fly on` and `coop slowmo on` have the native part set the setting in
+the game's memory, and `off` puts the game's value back. These test commands are left out of the usage line, need the
+native part and run on a [co-op save](#co-op-saves) only. They have not been tried in game yet.
+
+- `coop fly on`: hold R2 (Z on the keyboard) while EVE is in the air after a jump, and she flies until you release it.
+  Flight time comes from a pool of 90 s that drains while she flies and refills at 1 s per second, the game's own
+  values. During a flight the face buttons dodge up, down, left and right. How it looks is unknown: the game may have
+  no animation left for it and show EVE in a fall pose.
+- `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
+  keyboard key to it. It waits while a friend is linked, since the slow time would be your game's alone.
+- `coop fly off`, `coop slowmo off`, `coop off` and a Lua reload (Ctrl+R) put the game's values back. On a save that is
+  not a co-op one, both wait until you are back on one. Nothing of it is saved: the game builds these settings again
+  at each start.
+
+The keys are the game's own and keep their other uses. R2 is also Interact and the fishing reel, Z walks forward on an
+AZERTY keyboard and R1 opens the Burst skills. So with `coop fly on`, walking forward in the air on AZERTY flies, and
+with `coop slowmo on` holding R1 for a Burst skill slows time. Flight can carry EVE past places the game expects her to
+reach on foot, and the next save keeps where she is: hence the co-op saves only.
+
+The native part's lines go to `coop-link.log`: `coop fly on: UseFlyingActionKey set at the game thread's next pass`,
+then `gate fly: on, ours, 1 writes` once the setting is set. When the game's memory does not hold the setting the way
+the pinned build does, the native part writes nothing, logs why and says `coop fly refused: ...` on screen.
 
 ### Shared enemies (experimental)
 
@@ -1129,10 +1490,20 @@ enemies get linked after none (the host counts none until the friend's side is o
 (the row, `coop fight off` or `coop off`). `Shared enemies stopped until the game restarts. coop-link.log says why.`
 shows when a check of the game's memory turned it off for the run. These notices use the menu's language.
 
-When your friend's game loads other `.pak` mods than yours, a notice says so once a session, for example
-`Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.` The mod compares the
-`.pak` files beside the base game's in `SB/Content/Paks` and its folders (`~mods`, `LogicMods`), by name and size;
-`coop-link.log` lists yours at its start. It is a warning only.
+When your friend's game loads other `.pak` mods than yours, a notice says so once a session. The mod compares the
+`.pak`, `.ucas` and `.utoc` files beside the base game's in `SB/Content/Paks` and its folders (`~mods`, `LogicMods`),
+by name and size; `coop-link.log` lists yours at its start. With the names of your friend's mods (their `mod_names=on`,
+the default), it names those they use and you lack, and those you both have in another version, up to two file names
+each, then `(+n)` for the others:
+
+- `Kaanta uses mods you don't have: lily_hair_p, hd-atool_p (+1). Parts of their outfit from them look different here.`
+- `Kaanta uses other versions of mods you have: menu_p. Parts of their outfit from them may look different here.`
+
+Without names (their `mod_names=off`), or when only you have mods they lack, it gives the counts instead:
+`Kaanta loads other .pak mods than you (1 there, 2 here). Enemies that differ stay unshared.` It is a warning only.
+`coop status` lists the three groups in full (`mods_missing=`, `mods_other=`, `mods_extra=`). With `mod_names=off`
+in `coop-settings.txt`, your game sends only the count and the hash of your mods, never their names, and your capture
+leaves out every path from a mod's own folder (see [Mods and CNS outfits](#mods-and-cns-outfits)).
 
 The guest also sees two notices while enemies are shared. `Shared enemies: some enemies have another max HP in <name>'s
 game (another difficulty or New Game+). They stay unshared.` shows once, until shared enemies stop or the friend
@@ -1597,9 +1968,12 @@ run or a challenge (it ends as aborted, and so does the partner's co-op run; you
 Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
-drawn again) and the Leviathan display and its free camera (`coop leviathan`; the view goes back as it was). Afterwards
-only `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game
-restarts`, and so do the menu, host and leave keys. The race key does nothing.
+drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes
+back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living
+Lion stays), the `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene and the game's
+developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back). Afterwards only
+`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
+and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
 
@@ -1728,6 +2102,11 @@ ui_sounds=on
 ui_language=game
 # The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
 chat=on
+# Mod names: on or off. On, your friend's game gets the names of the .pak mods your game loads (beyond the base game's,
+# under SB/Content/Paks), so each of you is told which mods the other uses and you lack. Off sends only how many there
+# are and one hash of them, and the parts of your outfit from a mod's own folder reach your friend's ghost of you as
+# the base suit or not at all.
+mod_names=on
 # Your friend on screen, each on or off: partner_bar her name, HP and shield over her head; partner_arrow an arrow at
 # the screen's edge toward her when she is out of view; partner_card her card at the top left; card_details the ping
 # and her map on it. While partner_bar shows her name, the name tag above her ghost hides.
@@ -1782,6 +2161,7 @@ status_overlay=off
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
 | `ui_language` | `game` (the game's text language) or `english` | `game` |
 | `chat` | `on` or `off`: the [session chat](#session-chat); off hides your friend's lines and sends none | `on` |
+| `mod_names` | `on` or `off`: the names of your `.pak` mods go to your friend, for the [notice](#shared-enemies-experimental) of the mods one of you lacks; off sends their count and hash only, and no path from a mod's own folder goes in your capture (see [Mods and CNS outfits](#mods-and-cns-outfits)); no menu row | `on` |
 | `partner_bar` | `on` or `off`: the [marker](#partner-hud) over your friend's ghost; on, it carries their name instead of the name tag | `on` |
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
@@ -1833,15 +2213,17 @@ The three looks have not been tested in game yet. Back up your saves before you 
   pinned at the scalp; the bones that the poses carry only anchor it. Without cloth, the ghost's ponytail follows those
   bones rigidly and looks like one long block. With cloth on, your game runs the same simulation on the ghost's
   ponytail: a follower part whose mesh has clothing assets is drawn as a SkeletalMeshComponent whose cloth simulates on
-  its leader's bones, only while the ghost is on screen. It collides with her outfit as in solo: it takes the outfit's
-  ponytail collision asset (`<body mesh>_PonytailPhysicsAsset`). If your PC lacks that asset, the build line says
-  `outfit collision not used` and the cloth keeps the clothing asset's own collision. Nothing more goes over the
-  network. Each PC simulates the ghost it draws, so only the viewer's setting counts, and the strands follow the same
-  rules as on her screen without being the same strands. If the cloth part fails, the ponytail is a plain part, with a
-  note in the log.
+  its leader's bones, only while the ghost is on screen. It collides with her outfit as in solo: it takes the collision
+  asset her ponytail uses (her capture's `cloth` line, a CNS outfit's `PonyPhysics` among them), else the outfit's
+  ponytail collision asset (`<body mesh>_PonytailPhysicsAsset`). If your PC lacks both, the build line says
+  `outfit collision not used` and the cloth keeps the clothing asset's own collision. Only that asset's path goes over
+  the network, whatever the setting. Each PC simulates the ghost it draws, so only the viewer's setting counts, and the
+  strands follow the same rules as on her screen without being the same strands. If the cloth part fails, the ponytail
+  is a plain part, with a note in the log.
 - `dyes`: her hair colour and other material variants. Her capture also names each part's overridden materials (a
   material made at run time is sent as the asset it was made from), and the ghost puts on each one your PC has, by the
-  same path rule as the meshes. Dyes do not apply to a fallback mesh. Off, each part has its mesh's own colours.
+  same rules as the meshes. Dyes do not apply to a fallback mesh. Off, each part has its mesh's own colours, except a
+  part on a mod's mesh, which takes its materials either way (see [Mods and CNS outfits](#mods-and-cns-outfits)).
 - `effects`: her attack and skill effects. The native part reads which of 19 known effects (Niagara systems) are
   playing on her, at most 4, into four effect slots of each pose (an index into a fixed list, never a path). The ghost
   starts each effect on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8
@@ -1849,6 +2231,56 @@ The three looks have not been tested in game yet. Back up your saves before you 
   (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
   `effects, last 60 s:` line counts those started, those over 4, unlisted reads and boxes written.
 - `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
+
+## Mods and CNS outfits
+
+Your friend's ghost loads the meshes their capture names. What your game can draw depends on where a mod puts its
+files.
+
+A replacer mod puts its files at the path of a game asset, under `/Game/Art/Character/` or
+`/Game/DLC_<n>/Art/Character/`. Your game loads its own file at that path: the mod's version if you have the same mod,
+the original if you do not. A leader part (one with bones of its own) whose mesh here has other bones than theirs is
+drawn on your mesh with each of its bones following theirs of the same name. A head replacer you lack still shows a
+head that way: the original head, moved by the bones the two share.
+
+An added-asset mod puts new assets in a folder of its own. CNS outfits use `/Game/OutfitMods/<name>/`, and `HD-ATOOL_P`
+uses `/Game/Mods/HD-ATOOL_P/`. Your game looks up a mesh, a material or a ponytail collision asset from such a folder
+only when one of your own CNS packs names that exact path. A pack names every `/Game/...` path it gives under
+`OutfitPaths`, `Mesh`, `Materials`, `PonyPhysics`, `Textures` and `Value`. The native part reads your
+`*.dekcns.json` files under `SB/Content/Paks/~mods` once at start and writes those paths to `coop-cns.txt`. With the
+same CNS outfit installed on both PCs, the ghost wears it. A path that none of your packs names is never looked up or
+loaded, even when the file is there: a mod that comes without a CNS pack, such as `HD-ATOOL_P`, always falls back.
+
+A part that cannot be drawn on its own mesh falls back: the body to the base suit `CH_P_EVE_08`, the hair to
+`EVE_HR_01`, and any other part is left out with the parts that follow it. When such a part comes from a mod's folder,
+a notice names the outfit, in the menu's language, once each time their capture changes (an outfit change, or a load
+in their game):
+
+`Kaanta wears parts from mods your game cannot load: Foo_Suit, HD-ATOOL_P. They show on the base suit or are left out.`
+
+The name is the outfit's `UniqueFitID` in your friend's CNS pack, else the last of the first two folders of the path
+(`HD-ATOOL_P` for `/Game/Mods/HD-ATOOL_P/...`). Up to two names fit, then `(+n)` for the others. `coop basesuit`
+gives no notice.
+
+A part on a mod's mesh sends its overridden materials even with `dyes=off`: CNS sets an outfit's materials when it
+puts the outfit on, so the mesh's own are not the outfit's. Her ponytail's collision asset goes too (the `cloth` look
+uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
+
+A mod's added assets are usually missing from the game's cooked asset registry, and UE4SS's `LoadAsset` finds an
+asset through that registry. When `LoadAsset` finds nothing for a path your packs name, the ghost tries
+`AssetRegistryHelpers:GetAsset`, which loads by path (the way UE4SS's BPModLoaderMod loads mod actors). This step has
+not been tested in game yet. The `Ghost ... built` log line says how each mod asset came:
+`mod assets: <path> by GetAsset` (or `by LoadAsset`, `in memory`, `missing`), and which outfits were not shown:
+`mod parts not shown: <names>`. A path your packs do not name shows as `<path> not declared by your CNS packs`.
+
+With `mod_names=off` in `coop-settings.txt`, your capture leaves out every path outside the game's own folders: your
+friend's ghost of you shows those parts on the base suit or leaves them out, and no folder or outfit name of yours
+reaches them.
+
+Not carried: CNS material settings (colours, sliders, texture options, toggles), shape keys and face morphs,
+accessories that are static meshes, actors attached to EVE, and parts past 16. A pose holds about 900 leader bones in
+all. When her parts have more, the capture leaves out the last leader parts and their followers until the pose fits,
+and its log line ends with `<n> leaders left out, over the pose size`.
 
 ## Solid partner (experimental)
 
@@ -1922,6 +2354,7 @@ a Steam name or a chat line shows as `?`.
 | Co-op saves not switched on (`auto_coop_save=always`, or the title screen left while the copies were made) | `Co-op saves off for this load: <why>. You play your own saves.` |
 | Co-op copies on with a manual co-op slot N, once a load | `Co-op now plays StellarBladeCoop0N.sav. With the game closed, you can move StellarCoopSlot.txt out of the save folder, and StellarBladeSave0N.sav unless you played it after that copy was made.` |
 | Another game version (a game update), on the title screen with `auto_coop_save=ask` or `always`, once a load | `Co-op saves are off: StellarCoop does not support this version of the game. You play your own saves until StellarCoop is updated.` |
+| Your friend's `.pak` mods differ from yours, once a session | `<name> uses mods you don't have: <mods>. ...`, `<name> uses other versions of mods you have: <mods>. ...` or `<name> loads other .pak mods than you (<n> there, <n> here). ...`; see [Shared enemies](#shared-enemies-experimental) |
 | Shared enemies started, stopped, or waiting for something | See [Shared enemies](#shared-enemies-experimental) |
 | Same place moving enemies, or stopped | See [Same place](#same-place-experimental) |
 | Shared quests on, off or waiting for a co-op save, and quest steps that wait or that were made apart | See [Shared quests](#shared-quests-experimental) |
@@ -1947,7 +2380,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=12 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=13 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
@@ -2009,6 +2442,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | --- | --- | --- |
 | `coop-settings.txt` | Lua, once, then the co-op menu | Your settings (see above) |
 | `coop-settings.old.txt` | Lua, at the menu's first change since the mod loaded | `coop-settings.txt` as it was before that change |
+| `coop-guide.txt` | Lua, on the guide's Don't show again or a close on its last page | One line. While it exists, the [guide](#guide) does not open by itself |
 | `coop-records.txt` | Lua, after a challenge or Night Operation success that beats the best kept | Your best runs, one `best_<name>=<score> <seconds>` line each (see [night-operation.md](night-operation.md#best-runs-coop-recordstxt)). Written to `coop-records.txt.tmp` first, then renamed |
 | `coop-status.txt` | native | The current state, as `coop status` shows it |
 | `coop-link.log` | native | This run's header and numbered events, in UTC like `UE4SS.log`, repeats counted, capped at 1 MB |
@@ -2027,6 +2461,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from |
+| `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): the only paths from a mod's folder the ghost loads |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded or the title screen is shown, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |
@@ -2037,16 +2472,17 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [night-operation.md](night-operation.md#the-reward-shop)) |
 | `coop-race.txt` | Lua | Your [Doro race](#doro-races) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
-| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path and the names of the parts the look hid, so the next Lua load (Ctrl+R) can show her again |
+| `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
-| `coop-leviathan.txt` | Lua | While `coop leviathan show` shows a mesh or its free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
+| `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
+| `coop-wear.txt` | Lua | While `coop wear` puts a look on: your EVE's object path and, for her hair and her suit, the worn mesh's path and her own look (the mesh's path, the hair's animation Blueprint class, the hair's physics asset and the materials the game set on its slots), so the next Lua load (Ctrl+R) can give it back |
 
-Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over
-it, so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display,
-state, chat and night line files, `coop-race.txt`, and any stale request or report. The chat files and
-`coop-race.txt` are also deleted when a session ends and when the game exits. A run without `coop no` writes no probe
-file, so `nightop-probe.old.txt` can be older than the previous run.
+Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,
+so neither side reads a half-written file. When the native part starts, it deletes the capture, remote, display, state,
+chat and night line files, `coop-race.txt`, and any stale request or report, and writes `coop-cns.txt` again. The chat
+files and `coop-race.txt` are also deleted when a session ends and when the game exits. A run without `coop no` writes
+no probe file, so `nightop-probe.old.txt` can be older than the previous run.
 
 An install and the release zip both add `Scripts/version.lua`. An install also writes `install-manifest.txt`; the
 release zip adds `INSTALL.md`, `CHANGELOG.md` and `SHA256SUMS.txt`.

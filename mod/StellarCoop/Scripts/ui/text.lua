@@ -91,7 +91,13 @@ T.en={
         world='The co-op menu opens in the game world only.',
         paused='The co-op menu does not open while the game is paused or shows a menu.'},
     -- The ghost's notices (partner/puppet.lua): her name, her map, yours.
-    ghost={failed='Ghost failed 3 times: the reason is in UE4SS.log.',away='%s is in %s, you are in %s.'},
+    ghost={failed='Ghost failed 3 times: the reason is in UE4SS.log.',away='%s is in %s, you are in %s.',
+        mods='%s wears parts from mods your game cannot load: %s. They show on the base suit or are left out.'},
+    -- UE4SS-settings.ini's notices (main.lua, core/ue4ss_settings.lua): HookBeginPlay or bUseUObjectArrayCache on.
+    ue4ss={hook='In UE4SS-settings.ini, HookBeginPlay is on: Stellar Blade can crash when EVE lets go of a movable '
+            ..'crate. Set it to 0 (the Stellar Blade UE4SS 1.3 value).',
+        cache='In UE4SS-settings.ini, bUseUObjectArrayCache is on: it can cause stutter and crashes at startup. Set it '
+            ..'to false (the Stellar Blade UE4SS 1.3 value).'},
     -- The shared enemies' notices (main.lua): on, off, stopped, and what keeps coop fight on from sharing (%s: her
     -- name). The title question's buttons are saves.convert and saves.play.
     fight={on='Shared enemies on: %d enemies linked.',one='Shared enemies on: 1 enemy linked.',
@@ -110,7 +116,10 @@ T.en={
         maxhp="Shared enemies: some enemies have another max HP in %s's game (another difficulty or New Game+). They "
             ..'stay unshared.',
         host_down='Shared enemies: %s is down. Once they respawn, the enemies you share go back to full health.',
-        paks='%s loads other .pak mods than you (%d there, %d here). Enemies that differ stay unshared.'},
+        paks='%s loads other .pak mods than you (%d there, %d here). Enemies that differ stay unshared.',
+        mods_missing="%s uses mods you don't have: %s. Parts of their outfit from them look different here.",
+        mods_other='%s uses other versions of mods you have: %s. Parts of their outfit from them may look different '
+            ..'here.'},
     -- Same place's notices (main.lua): how many enemies it moves, and why it went off (off with host or stopped; %s
     -- in host: her name, or fight.friend).
     pilot={on='Same place: %d enemies piloted.',one='Same place: 1 enemy piloted.',off='Same place off: %s',
@@ -291,7 +300,14 @@ T.fr={
     refused={off="Le menu co-op est coupé (l'interface s'est arrêtée, voir UE4SS.log) : utilisez les commandes coop.",
         world="Le menu co-op ne s'ouvre que dans le monde du jeu.",
         paused="Le menu co-op ne s'ouvre pas quand le jeu est en pause ou affiche un menu."},
-    ghost={failed='Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.',away='%s est dans %s, vous êtes dans %s.'},
+    ghost={failed='Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.',
+        away='%s est dans %s, vous êtes dans %s.',
+        mods='%s porte des pièces de mods que votre jeu ne peut pas charger : %s. Elles sont remplacées par la tenue '
+            ..'de base ou omises.'},
+    ue4ss={hook='Dans UE4SS-settings.ini, HookBeginPlay est activé : Stellar Blade peut planter quand EVE lâche une '
+            ..'caisse mobile. Réglez-le sur 0 (valeur de Stellar Blade UE4SS 1.3).',
+        cache='Dans UE4SS-settings.ini, bUseUObjectArrayCache est activé : saccades et plantages possibles au '
+            ..'démarrage. Réglez-le sur false (valeur de Stellar Blade UE4SS 1.3).'},
     fight={on='Ennemis partagés actifs : %d ennemis liés.',one='Ennemis partagés actifs : 1 ennemi lié.',
         scale="PV des ennemis %d %%, équilibre %d %% (réglage de l'hôte).",
         off='Ennemis partagés coupés. coop-link.log dit pourquoi.',
@@ -311,7 +327,11 @@ T.fr={
         host_down='Ennemis partagés : %s est à terre. Après sa réapparition, vos ennemis partagés reviennent à pleine '
             ..'santé.',
         paks="%s n'a pas les mêmes mods .pak que vous (%d en face, %d ici). Les ennemis qui diffèrent ne sont pas "
-            ..'partagés.'},
+            ..'partagés.',
+        mods_missing="%s utilise des mods que vous n'avez pas : %s. Les parties de sa tenue qui en viennent "
+            .."s'affichent autrement ici.",
+        mods_other="%s a d'autres versions de vos mods : %s. Les parties de sa tenue qui en viennent peuvent "
+            .."s'afficher autrement ici."},
     pilot={on='Même position : %d ennemis pilotés.',one='Même position : 1 ennemi piloté.',
         off='Même position coupée : %s',host="la partie de %s l'a désactivée.",
         stopped="arrêtée par une erreur jusqu'au redémarrage du jeu. coop-link.log dit pourquoi."},
@@ -467,7 +487,12 @@ T.ar={
     refused={off='قائمة اللعب التعاوني متوقفة (توقفت الواجهة، ويذكر UE4SS.log السبب): استخدم أوامر coop.',
         world='لا تُفتح قائمة اللعب التعاوني إلا في عالم اللعبة.',
         paused='لا تُفتح قائمة اللعب التعاوني أثناء إيقاف اللعبة مؤقتًا أو عند عرض قائمة.'},
-    ghost={failed='فشل الشبح 3 مرات: يذكر UE4SS.log السبب.',away='يوجد %s في %s، وأنت في %s.'},
+    ghost={failed='فشل الشبح 3 مرات: يذكر UE4SS.log السبب.',away='يوجد %s في %s، وأنت في %s.',
+        mods='يرتدي %s أجزاء من تعديلات لا تحمّلها لعبتك: %s. تظهر بالزي الأساسي أو تُحذف.'},
+    ue4ss={hook='HookBeginPlay مفعّل في UE4SS-settings.ini: قد تتعطل اللعبة عندما تترك EVE صندوقًا متحركًا. اضبطه على '
+            ..'0 (قيمة Stellar Blade UE4SS 1.3).',
+        cache='bUseUObjectArrayCache مفعّل في UE4SS-settings.ini: قد يسبب تقطعًا وأعطالًا عند البدء. اضبطه على false '
+            ..'(قيمة Stellar Blade UE4SS 1.3).'},
     fight={on='مشاركة الأعداء مفعّلة: تم ربط %d من الأعداء.',one='مشاركة الأعداء مفعّلة: تم ربط عدو واحد.',
         scale='نقاط صحة الأعداء %d%%، والتوازن %d%% (إعداد المضيف).',
         off='توقفت مشاركة الأعداء. يذكر coop-link.log السبب.',
@@ -484,7 +509,9 @@ T.ar={
         maxhp='مشاركة الأعداء: لبعض الأعداء صحة قصوى مختلفة في لعبة %s (صعوبة أخرى أو لعبة جديدة +) فلا '
             ..'تُشارك.',
         host_down='مشاركة الأعداء: %s على الأرض. عند عودته، يستعيد الأعداء المشتركون صحتهم كاملة.',
-        paks='يحمّل %s تعديلات .pak مختلفة عنك (%d لديه، %d لديك). لن تتم مشاركة الأعداء المختلفين.'},
+        paks='يحمّل %s تعديلات .pak مختلفة عنك (%d لديه، %d لديك). لن تتم مشاركة الأعداء المختلفين.',
+        mods_missing='يستخدم %s تعديلات ليست لديك: %s. يظهر جزء من زيه بشكل مختلف هنا.',
+        mods_other='لدى %s إصدارات أخرى من تعديلاتك: %s. قد يظهر جزء من زيه بشكل مختلف هنا.'},
     pilot={on='تطابق المواضع: يتم التحكم في %d من الأعداء.',one='تطابق المواضع: يتم التحكم في عدو واحد.',
         off='تطابق المواضع متوقف: %s',host='أوقفته لعبة %s.',
         stopped='أوقفه خطأ حتى إعادة تشغيل اللعبة. يذكر coop-link.log السبب.'},
@@ -635,7 +662,12 @@ T.da={
     refused={off='Co-op-menuen er slået fra (brugerfladen stoppede, se UE4SS.log): brug coop-kommandoerne.',
         world='Co-op-menuen kan kun åbnes i spilverdenen.',
         paused='Co-op-menuen kan ikke åbnes, mens spillet er sat på pause eller viser en menu.'},
-    ghost={failed='Spøgelset fejlede 3 gange: årsagen står i UE4SS.log.',away='%s er i %s, du er i %s.'},
+    ghost={failed='Spøgelset fejlede 3 gange: årsagen står i UE4SS.log.',away='%s er i %s, du er i %s.',
+        mods='%s bærer dele fra mods, som dit spil ikke kan indlæse: %s. De vises som basisdragten eller udelades.'},
+    ue4ss={hook='I UE4SS-settings.ini er HookBeginPlay slået til: Stellar Blade kan gå ned, når EVE slipper en flytbar '
+            ..'kasse. Sæt den til 0 (værdien i Stellar Blade UE4SS 1.3).',
+        cache='I UE4SS-settings.ini er bUseUObjectArrayCache slået til: det kan give hak og nedbrud ved start. Sæt den '
+            ..'til false (værdien i Stellar Blade UE4SS 1.3).'},
     fight={on='Delte fjender slået til: %d fjender forbundet.',one='Delte fjender slået til: 1 fjende forbundet.',
         scale='Fjendernes HP %d %%, balance %d %% (værtens indstilling).',
         off='Delte fjender slået fra. coop-link.log forklarer hvorfor.',
@@ -654,7 +686,9 @@ T.da={
         maxhp='Delte fjender: nogle fjender har en anden maks. HP hos %s (anden sværhedsgrad eller Nyt spil +). '
             ..'De deles ikke.',
         host_down='Delte fjender: %s er faldet. Når værten er genoplivet, har jeres delte fjender fuld HP igen.',
-        paks='%s har andre .pak-mods end dig (%d der, %d her). Fjender, der afviger, deles ikke.'},
+        paks='%s har andre .pak-mods end dig (%d der, %d her). Fjender, der afviger, deles ikke.',
+        mods_missing='%s bruger mods, du ikke har: %s. Dele af dragten fra dem ser anderledes ud her.',
+        mods_other='%s bruger andre versioner af dine mods: %s. Dele af dragten fra dem kan se anderledes ud her.'},
     pilot={on='Samme position: %d fjender styret.',one='Samme position: 1 fjende styret.',
         off='Samme position slået fra: %s',host='spillet hos %s slog den fra.',
         stopped='stoppet af en fejl, indtil spillet genstartes. coop-link.log forklarer hvorfor.'},
@@ -811,7 +845,13 @@ T.de={
         world='Das Koop-Menü öffnet sich nur in der Spielwelt.',
         paused='Das Koop-Menü öffnet sich nicht, solange das Spiel pausiert ist oder ein Menü zeigt.'},
     ghost={failed='Geist: 3 Fehlversuche. Der Grund steht in UE4SS.log.',
-        away='%s ist in %s, du bist in %s.'},
+        away='%s ist in %s, du bist in %s.',
+        mods='%s trägt Teile aus Mods, die dein Spiel nicht laden kann: %s. Sie erscheinen als Basisanzug oder '
+            ..'fehlen.'},
+    ue4ss={hook='In UE4SS-settings.ini ist HookBeginPlay an: Stellar Blade kann abstürzen, wenn EVE eine bewegliche '
+            ..'Kiste loslässt. Setz es auf 0 (der Wert von Stellar Blade UE4SS 1.3).',
+        cache='In UE4SS-settings.ini ist bUseUObjectArrayCache an: Das kann Ruckler und Abstürze beim Start '
+            ..'verursachen. Setz es auf false (der Wert von Stellar Blade UE4SS 1.3).'},
     fight={on='Gemeinsame Gegner aktiv: %d Gegner verbunden.',one='Gemeinsame Gegner aktiv: 1 Gegner verbunden.',
         scale='LP der Gegner %d %%, Gleichgewicht %d %% (Einstellung des Hosts).',
         off='Gemeinsame Gegner aus. Der Grund steht in coop-link.log.',
@@ -831,7 +871,9 @@ T.de={
             ..'Spiel +). Diese werden nicht geteilt.',
         host_down='Gemeinsame Gegner: %s ist am Boden. Nach der Wiederbelebung haben eure gemeinsamen Gegner '
             ..'wieder volle LP.',
-        paks='%s lädt andere .pak-Mods als du (%d dort, %d hier). Abweichende Gegner werden nicht geteilt.'},
+        paks='%s lädt andere .pak-Mods als du (%d dort, %d hier). Abweichende Gegner werden nicht geteilt.',
+        mods_missing='%s nutzt Mods, die du nicht hast: %s. Teile des Outfits daraus sehen hier anders aus.',
+        mods_other='%s nutzt andere Versionen deiner Mods: %s. Teile des Outfits daraus können hier anders aussehen.'},
     pilot={on='Gleiche Position: %d Gegner gesteuert.',one='Gleiche Position: 1 Gegner gesteuert.',
         off='Gleiche Position aus: %s',host='im Spiel des Hosts (%s) ausgeschaltet.',
         stopped='durch einen Fehler bis zum Neustart des Spiels gestoppt. Der Grund steht in coop-link.log.'},
@@ -994,7 +1036,12 @@ T.es={
         world='El menú co-op solo se abre en el mundo del juego.',
         paused='El menú co-op no se abre con el juego en pausa o con un menú abierto.'},
     ghost={failed='No se pudo crear el fantasma tras 3 intentos: el motivo está en UE4SS.log.',
-        away='%s está en %s; tú estás en %s.'},
+        away='%s está en %s; tú estás en %s.',
+        mods='%s lleva piezas de mods que tu juego no puede cargar: %s. Se muestran con el traje base o se omiten.'},
+    ue4ss={hook='En UE4SS-settings.ini, HookBeginPlay está activado: Stellar Blade puede cerrarse cuando EVE suelta '
+            ..'una caja móvil. Ponlo en 0 (el valor de Stellar Blade UE4SS 1.3).',
+        cache='En UE4SS-settings.ini, bUseUObjectArrayCache está activado: puede causar tirones y cierres al iniciar. '
+            ..'Ponlo en false (el valor de Stellar Blade UE4SS 1.3).'},
     fight={on='Enemigos compartidos activados: %d enemigos vinculados.',
         one='Enemigos compartidos activados: 1 enemigo vinculado.',
         scale='PS de enemigos %d %%, equilibrio %d %% (ajuste del anfitrión).',
@@ -1015,7 +1062,10 @@ T.es={
             ..'o Partida nueva +). No se comparten.',
         host_down='Enemigos compartidos: %s ha caído. Cuando reaparezca, los enemigos que compartís recuperan '
             ..'todos sus PS.',
-        paks='Mods .pak distintos entre %s y tú (%d allí, %d aquí). Los enemigos que difieren no se comparten.'},
+        paks='Mods .pak distintos entre %s y tú (%d allí, %d aquí). Los enemigos que difieren no se comparten.',
+        mods_missing='%s usa mods que no tienes: %s. Las partes de su traje que vienen de ellos se ven distintas aquí.',
+        mods_other='%s usa otras versiones de tus mods: %s. Las partes de su traje que vienen de ellos pueden verse '
+            ..'distintas aquí.'},
     pilot={on='Misma posición: %d enemigos controlados.',one='Misma posición: 1 enemigo controlado.',
         off='Misma posición desactivada: %s',host='la partida de %s la ha desactivado.',
         stopped='detenida por un error hasta que se reinicie el juego. coop-link.log indica el motivo.'},
@@ -1174,7 +1224,12 @@ T['es-MX']={
         world='El menú co-op solo se abre en el mundo del juego.',
         paused='El menú co-op no se abre si el juego está en pausa o muestra un menú.'},
     ghost={failed='No se pudo crear el fantasma tras 3 intentos: la razón está en UE4SS.log.',
-        away='%s está en %s; tú estás en %s.'},
+        away='%s está en %s; tú estás en %s.',
+        mods='%s lleva piezas de mods que tu juego no puede cargar: %s. Se muestran con el atuendo base o se omiten.'},
+    ue4ss={hook='En UE4SS-settings.ini, HookBeginPlay está activado: Stellar Blade puede cerrarse cuando EVE suelta '
+            ..'una caja móvil. Cámbialo a 0 (el valor de Stellar Blade UE4SS 1.3).',
+        cache='En UE4SS-settings.ini, bUseUObjectArrayCache está activado: puede causar tirones y cierres al iniciar. '
+            ..'Cámbialo a false (el valor de Stellar Blade UE4SS 1.3).'},
     fight={on='Enemigos compartidos activados: %d enemigos vinculados.',
         one='Enemigos compartidos activados: 1 enemigo vinculado.',
         scale='Salud enemiga %d%%, equilibrio %d%% (configuración del anfitrión).',
@@ -1195,7 +1250,11 @@ T['es-MX']={
             ..'o Partida nueva+). No se comparten.',
         host_down='Enemigos compartidos: %s cayó. Cuando reaparezca, los enemigos que comparten recuperan toda su '
             ..'salud.',
-        paks='%s carga otros mods .pak que tú (%d allá, %d aquí). Los enemigos que difieren no se comparten.'},
+        paks='%s carga otros mods .pak que tú (%d allá, %d aquí). Los enemigos que difieren no se comparten.',
+        mods_missing='%s usa mods que no tienes: %s. Las partes de su atuendo que vienen de ellos se ven diferentes '
+            ..'aquí.',
+        mods_other='%s usa otras versiones de tus mods: %s. Las partes de su atuendo que vienen de ellos pueden '
+            ..'verse diferentes aquí.'},
     pilot={on='Misma posición: %d enemigos controlados.',one='Misma posición: 1 enemigo controlado.',
         off='Misma posición desactivada: %s',host='la partida de %s la desactivó.',
         stopped='detenida por un error hasta que reinicies el juego. coop-link.log dice por qué.'},
@@ -1352,7 +1411,12 @@ T.fi={
         world='Co-op-valikko avautuu vain pelimaailmassa.',
         paused='Co-op-valikko ei avaudu, kun peli on tauolla tai näyttää valikkoa.'},
     ghost={failed='Haamu epäonnistui 3 kertaa: syy on UE4SS.log-tiedostossa.',
-        away='%s on alueella %s, sinä alueella %s.'},
+        away='%s on alueella %s, sinä alueella %s.',
+        mods='%s käyttää osia modeista, joita pelisi ei voi ladata: %s. Ne näkyvät perusasuna tai jäävät pois.'},
+    ue4ss={hook='UE4SS-settings.ini: HookBeginPlay on päällä. Stellar Blade voi kaatua, kun EVE päästää irti '
+            ..'siirrettävästä laatikosta. Aseta arvoksi 0 (Stellar Blade UE4SS 1.3:n arvo).',
+        cache='UE4SS-settings.ini: bUseUObjectArrayCache on päällä. Se voi aiheuttaa nykimistä ja kaatumisia '
+            ..'käynnistyksessä. Aseta arvoksi false (Stellar Blade UE4SS 1.3:n arvo).'},
     fight={on='Jaetut viholliset päällä: %d vihollista yhdistetty.',
         one='Jaetut viholliset päällä: 1 vihollinen yhdistetty.',
         scale='Vihollisten HP %d %%, tasapaino %d %% (isännän asetus).',
@@ -1374,7 +1438,11 @@ T.fi={
             ..'Uusi peli+). Niitä ei jaeta.',
         host_down='Jaetut viholliset: %s on kaatunut. Kun hän palaa henkiin, jaettujen vihollisten HP palautuu '
             ..'täyteen.',
-        paks='%s käyttää eri .pak-modeja kuin sinä (%d siellä, %d täällä). Eroavia vihollisia ei jaeta.'},
+        paks='%s käyttää eri .pak-modeja kuin sinä (%d siellä, %d täällä). Eroavia vihollisia ei jaeta.',
+        mods_missing='%s käyttää modeja, joita sinulla ei ole: %s. Niistä tulevat asun osat näyttävät täällä '
+            ..'erilaisilta.',
+        mods_other='%s käyttää eri versioita modeistasi: %s. Niistä tulevat asun osat voivat näyttää täällä '
+            ..'erilaisilta.'},
     pilot={on='Sama sijainti: %d vihollista ohjauksessa.',one='Sama sijainti: 1 vihollinen ohjauksessa.',
         off='Sama sijainti pois: %s',host='%s on poistanut sen käytöstä.',
         stopped='virhe pysäytti sen pelin uudelleenkäynnistykseen asti. Syy on coop-link.log-tiedostossa.'},
@@ -1532,7 +1600,13 @@ T.it={
         world='Il menu co-op si apre solo nel mondo di gioco.',
         paused='Il menu co-op non si apre mentre il gioco è in pausa o mostra un menu.'},
     ghost={failed='Creazione del fantasma fallita 3 volte: il motivo è in UE4SS.log.',
-        away='%s è in %s, tu sei in %s.'},
+        away='%s è in %s, tu sei in %s.',
+        mods='%s indossa parti di mod che il tuo gioco non può caricare: %s. Appaiono con la tuta base o vengono '
+            ..'omesse.'},
+    ue4ss={hook='In UE4SS-settings.ini, HookBeginPlay è attivo: Stellar Blade può andare in crash quando EVE lascia '
+            ..'una cassa mobile. Impostalo su 0 (il valore di Stellar Blade UE4SS 1.3).',
+        cache="In UE4SS-settings.ini, bUseUObjectArrayCache è attivo: può causare scatti e crash all'avvio. Impostalo "
+            .."su false (il valore di Stellar Blade UE4SS 1.3)."},
     fight={on='Nemici condivisi attivi: %d nemici collegati.',one='Nemici condivisi attivi: 1 nemico collegato.',
         scale="PS dei nemici %d %%, equilibrio %d %% (impostazione dell'host).",
         off='Nemici condivisi disattivati. Il motivo è in coop-link.log.',
@@ -1551,7 +1625,10 @@ T.it={
             ..'Restano non condivisi.',
         host_down='Nemici condivisi: %s è a terra. Quando torna in gioco, i nemici che condividete recuperano '
             ..'tutti i PS.',
-        paks='Mod .pak diverse tra te e %s (%d là, %d qui). I nemici diversi restano non condivisi.'},
+        paks='Mod .pak diverse tra te e %s (%d là, %d qui). I nemici diversi restano non condivisi.',
+        mods_missing='%s usa mod che non hai: %s. Le parti della sua tenuta che ne derivano qui appaiono diverse.',
+        mods_other='%s usa altre versioni delle tue mod: %s. Le parti della sua tenuta che ne derivano qui possono '
+            ..'apparire diverse.'},
     pilot={on='Stessa posizione: %d nemici pilotati.',one='Stessa posizione: 1 nemico pilotato.',
         off='Stessa posizione disattivata: %s',host="%s l'ha disattivata.",
         stopped='fermata da un errore fino al riavvio del gioco. Il motivo è in coop-link.log.'},
@@ -1705,7 +1782,12 @@ T.ja={
     refused={off='協力プレイメニューは使えません（UIが停止。UE4SS.logを参照）。coopコマンドを使ってください。',
         world='協力プレイメニューはゲームプレイ中にのみ開けます。',
         paused='一時停止中やメニュー表示中は協力プレイメニューを開けません。'},
-    ghost={failed='ゴーストの生成に3回失敗しました。理由はUE4SS.logにあります。',away='%sは%sにいます（自分は%s）。'},
+    ghost={failed='ゴーストの生成に3回失敗しました。理由はUE4SS.logにあります。',away='%sは%sにいます（自分は%s）。',
+        mods='%sの衣装に、読み込めないMODのパーツがあります：%s。基本スーツで表示するか、省きます。'},
+    ue4ss={hook='UE4SS-settings.iniのHookBeginPlayがオンです。EVEが動かせる箱を放すとクラッシュすることがあります。0にしてください（Stellar Blade UE4SS '
+            ..'1.3の値）。',
+        cache='UE4SS-settings.iniのbUseUObjectArrayCacheがオンです。カクつきや起動時のクラッシュの原因になります。falseにしてください（Stellar Blade UE4SS '
+            ..'1.3の値）。'},
     fight={on='敵の共有：オン。%d体の敵をリンク中。',one='敵の共有：オン。1体の敵をリンク中。',
         scale='敵のHP%d%%、バランス%d%%（ホストの設定）。',
         off='敵の共有：オフ。理由はcoop-link.logにあります。',
@@ -1722,7 +1804,9 @@ T.ja={
         maxhp='敵の共有：%sのゲームでは最大HPが違う敵がいます（難易度やニューゲーム+の違い）。'
             ..'その敵は共有されません。',
         host_down='敵の共有：%sが戦闘不能。復活すると共有中の敵のHPは全回復します。',
-        paks='%sとは.pak MODが違います（相手%d個、自分%d個）。違う敵は共有されません。'},
+        paks='%sとは.pak MODが違います（相手%d個、自分%d個）。違う敵は共有されません。',
+        mods_missing='%sはあなたにないMODを使用中：%s。相手の衣装の一部がこちらでは違って見えます。',
+        mods_other='%sはあなたのMODの別バージョンを使用中：%s。相手の衣装の一部が違って見えることがあります。'},
     pilot={on='敵の位置同期：%d体の敵を操作中。',one='敵の位置同期：1体の敵を操作中。',off='敵の位置同期：オフ。%s',
         host='%sのゲームでオフになりました。',
         stopped='エラーのためゲームを再起動するまで停止。理由はcoop-link.logにあります。'},
@@ -1856,7 +1940,12 @@ T.ko={
     refused={off='코옵 메뉴가 꺼져 있습니다(UI가 멈춤, UE4SS.log 참고). coop 명령어를 사용하세요.',
         world='코옵 메뉴는 게임 월드 안에서만 열립니다.',
         paused='게임이 일시 정지 중이거나 메뉴가 열려 있으면 코옵 메뉴가 열리지 않습니다.'},
-    ghost={failed='고스트 생성에 3번 실패했습니다. 이유는 UE4SS.log에 있습니다.',away='%s 위치: %s, 내 위치: %s.'},
+    ghost={failed='고스트 생성에 3번 실패했습니다. 이유는 UE4SS.log에 있습니다.',away='%s 위치: %s, 내 위치: %s.',
+        mods='%s 의상에 불러올 수 없는 모드 부품이 있습니다: %s. 기본 슈트로 보이거나 빠집니다.'},
+    ue4ss={hook='UE4SS-settings.ini의 HookBeginPlay가 켜져 있습니다. EVE가 움직이는 상자를 놓으면 게임이 튕길 수 있습니다. 0으로 바꾸세요(Stellar Blade '
+            ..'UE4SS 1.3 값).',
+        cache='UE4SS-settings.ini의 bUseUObjectArrayCache가 켜져 있습니다. 끊김이나 시작 시 튕김이 생길 수 있습니다. false로 바꾸세요(Stellar Blade '
+            ..'UE4SS 1.3 값).'},
     fight={on='적 공유 켜짐: 적 %d마리 연결.',one='적 공유 켜짐: 적 1마리 연결.',
         scale='적 생명력 %d%%, 균형 %d%%(호스트 설정).',
         off='적 공유 꺼짐. 이유는 coop-link.log 참고.',
@@ -1873,7 +1962,9 @@ T.ko={
         maxhp='적 공유: 일부 적의 최대 생명력이 %s의 게임과 다릅니다(다른 난이도 또는 새로운 게임+). 이 적은 '
             ..'공유되지 않습니다.',
         host_down='적 공유: %s 쪽이 쓰러졌습니다. 부활하면 공유 중인 적의 생명력이 모두 회복됩니다.',
-        paks='%s 쪽과 .pak 모드가 다릅니다(그쪽 %d개, 이쪽 %d개). 서로 다른 적은 공유되지 않습니다.'},
+        paks='%s 쪽과 .pak 모드가 다릅니다(그쪽 %d개, 이쪽 %d개). 서로 다른 적은 공유되지 않습니다.',
+        mods_missing='%s 쪽이 이쪽에 없는 모드를 씁니다: %s. 그 모드로 된 의상 부분은 여기서 다르게 보입니다.',
+        mods_other='%s 쪽이 다른 버전의 모드를 씁니다: %s. 그 모드로 된 의상 부분은 여기서 다르게 보일 수 있습니다.'},
     pilot={on='적 위치 동기화: 적 %d마리 조종 중.',one='적 위치 동기화: 적 1마리 조종 중.',off='적 위치 동기화 꺼짐: %s',
         host='%s의 게임에서 꺼졌습니다.',stopped='오류로 게임을 다시 시작할 때까지 중지됨. 이유는 coop-link.log 참고.'},
     spawns={host='스폰 동기화 켜짐: 한 구역에서 나와 %s의 거리가 100m 이내인 곳에서는 그쪽 게임에 내 게임과 같은 '
@@ -2016,7 +2107,13 @@ T.nl={
     refused={off="Het co-opmenu staat uit (de interface is gestopt, zie UE4SS.log): gebruik de coop-commando's.",
         world='Het co-opmenu opent alleen in de gamewereld.',
         paused='Het co-opmenu opent niet als de game gepauzeerd is of een menu toont.'},
-    ghost={failed='Geest 3 keer mislukt: de reden staat in UE4SS.log.',away='%s is in %s, jij bent in %s.'},
+    ghost={failed='Geest 3 keer mislukt: de reden staat in UE4SS.log.',away='%s is in %s, jij bent in %s.',
+        mods='%s draagt delen uit mods die jouw game niet kan laden: %s. Ze verschijnen als het basispak of '
+            ..'ontbreken.'},
+    ue4ss={hook='In UE4SS-settings.ini staat HookBeginPlay aan: Stellar Blade kan crashen als EVE een verplaatsbare '
+            ..'krat loslaat. Zet het op 0 (de waarde van Stellar Blade UE4SS 1.3).',
+        cache='In UE4SS-settings.ini staat bUseUObjectArrayCache aan: dat kan haperingen en crashes bij het starten '
+            ..'geven. Zet het op false (de waarde van Stellar Blade UE4SS 1.3).'},
     fight={on='Gedeelde vijanden aan: %d vijanden gekoppeld.',one='Gedeelde vijanden aan: 1 vijand gekoppeld.',
         scale='HP vijanden %d %%, balans %d %% (instelling van de host).',
         off='Gedeelde vijanden uit. coop-link.log zegt waarom.',
@@ -2034,7 +2131,10 @@ T.nl={
         maxhp='Gedeelde vijanden: sommige vijanden hebben een andere max. HP in de game van %s (ander spelniveau of '
             ..'Nieuwe game +). Die worden niet gedeeld.',
         host_down='Gedeelde vijanden: %s is geveld. Zodra die terugkeert, krijgen de gedeelde vijanden weer volle HP.',
-        paks='%s laadt andere .pak-mods dan jij (%d daar, %d hier). Vijanden die verschillen worden niet gedeeld.'},
+        paks='%s laadt andere .pak-mods dan jij (%d daar, %d hier). Vijanden die verschillen worden niet gedeeld.',
+        mods_missing='%s gebruikt mods die jij niet hebt: %s. Delen van de outfit daaruit zien er hier anders uit.',
+        mods_other='%s gebruikt andere versies van jouw mods: %s. Delen van de outfit daaruit kunnen er hier anders '
+            ..'uitzien.'},
     pilot={on='Zelfde plek: %d vijanden aangestuurd.',one='Zelfde plek: 1 vijand aangestuurd.',
         off='Zelfde plek uit: %s',host='de game van %s heeft het uitgezet.',
         stopped='gestopt door een fout tot de game opnieuw start. coop-link.log zegt waarom.'},
@@ -2192,7 +2292,13 @@ T.no={
     refused={off='Co-op-menyen er slått av (grensesnittet stoppet, se UE4SS.log): bruk coop-kommandoene.',
         world='Co-op-menyen åpnes bare i spillverdenen.',
         paused='Co-op-menyen åpnes ikke mens spillet er satt på pause eller viser en meny.'},
-    ghost={failed='Spøkelset mislyktes 3 ganger: årsaken står i UE4SS.log.',away='%s er i %s, du er i %s.'},
+    ghost={failed='Spøkelset mislyktes 3 ganger: årsaken står i UE4SS.log.',away='%s er i %s, du er i %s.',
+        mods='%s har på seg deler fra modder spillet ditt ikke kan laste inn: %s. De vises som basisdrakten eller '
+            ..'utelates.'},
+    ue4ss={hook='I UE4SS-settings.ini er HookBeginPlay slått på: Stellar Blade kan krasje når EVE slipper en flyttbar '
+            ..'kasse. Sett den til 0 (verdien i Stellar Blade UE4SS 1.3).',
+        cache='I UE4SS-settings.ini er bUseUObjectArrayCache slått på: det kan gi hakking og krasj ved oppstart. Sett '
+            ..'den til false (verdien i Stellar Blade UE4SS 1.3).'},
     fight={on='Delte fiender slått på: %d fiender koblet sammen.',one='Delte fiender slått på: 1 fiende koblet sammen.',
         scale='Fiende-HP %d %%, balanse %d %% (vertens innstilling).',
         off='Delte fiender slått av. coop-link.log sier hvorfor.',
@@ -2210,7 +2316,10 @@ T.no={
         maxhp='Delte fiender: noen fiender har annen maks HP i spillet til %s (annen vanskelighetsgrad eller Nytt '
             ..'spill+). De deles ikke.',
         host_down='Delte fiender: %s er nede. Etter gjenopplivingen får de delte fiendene full HP igjen.',
-        paks='%s laster andre .pak-modder enn deg (%d der, %d her). Fiender som avviker, deles ikke.'},
+        paks='%s laster andre .pak-modder enn deg (%d der, %d her). Fiender som avviker, deles ikke.',
+        mods_missing='%s bruker modder du ikke har: %s. Deler av antrekket fra dem ser annerledes ut her.',
+        mods_other='%s bruker andre versjoner av moddene dine: %s. Deler av antrekket fra dem kan se annerledes ut '
+            ..'her.'},
     pilot={on='Samme posisjon: %d fiender styres.',one='Samme posisjon: 1 fiende styres.',
         off='Samme posisjon slått av: %s',
         host='spillet til %s slo den av.',
@@ -2364,7 +2473,12 @@ T.pl={
     refused={off='Menu co-op jest wyłączone (interfejs przestał działać, patrz UE4SS.log): użyj komend coop.',
         world='Menu co-op otwiera się tylko w świecie gry.',
         paused='Menu co-op nie otwiera się, gdy gra jest wstrzymana lub wyświetla menu.'},
-    ghost={failed='Duch: 3 nieudane próby, powód jest w UE4SS.log.',away='%s jest na mapie %s, ty na mapie %s.'},
+    ghost={failed='Duch: 3 nieudane próby, powód jest w UE4SS.log.',away='%s jest na mapie %s, ty na mapie %s.',
+        mods='%s nosi części z modów, których twoja gra nie może wczytać: %s. Widać je jako strój bazowy albo wcale.'},
+    ue4ss={hook='W UE4SS-settings.ini HookBeginPlay jest włączone: Stellar Blade może ulec awarii, gdy EVE puści '
+            ..'ruchomą skrzynię. Ustaw 0 (wartość z Stellar Blade UE4SS 1.3).',
+        cache='W UE4SS-settings.ini bUseUObjectArrayCache jest włączone: może powodować przycięcia i awarie przy '
+            ..'starcie. Ustaw false (wartość z Stellar Blade UE4SS 1.3).'},
     fight={on='Wspólni wrogowie: włączono, połączono %d wrogów.',one='Wspólni wrogowie: włączono, połączono 1 wroga.',
         scale='PŻ wrogów %d%%, równowaga %d%% (ustawienie hosta).',
         off='Wspólni wrogowie: wyłączono. coop-link.log podaje powód.',
@@ -2382,7 +2496,9 @@ T.pl={
         maxhp='Wspólni wrogowie: %s ma w grze wrogów z innymi maks. PŻ (inny poziom trudności lub Nowa gra +). '
             ..'Ci wrogowie nie są wspólni.',
         host_down='Wspólni wrogowie: %s ginie. Gdy się odrodzi, wasi wspólni wrogowie odzyskają pełne PŻ.',
-        paks='Różne mody .pak: %s ma %d, ty masz %d. Wrogowie, którzy się różnią, nie są wspólni.'},
+        paks='Różne mody .pak: %s ma %d, ty masz %d. Wrogowie, którzy się różnią, nie są wspólni.',
+        mods_missing='%s używa modów, których nie masz: %s. Części stroju z tych modów wyglądają tu inaczej.',
+        mods_other='%s używa innych wersji twoich modów: %s. Części stroju z tych modów mogą tu wyglądać inaczej.'},
     pilot={on='Ta sama pozycja: sterowanie %d wrogami.',one='Ta sama pozycja: sterowanie 1 wrogiem.',
         off='Ta sama pozycja wyłączona: %s',host='zrobiła to gra po drugiej stronie (%s).',
         stopped='zatrzymał ją błąd do restartu gry. coop-link.log podaje powód.'},
@@ -2539,7 +2655,13 @@ T.pt={
         world='O menu co-op só abre no mundo do jogo.',
         paused='O menu co-op não abre com o jogo em pausa ou com um menu aberto.'},
     ghost={failed='Não foi possível criar o fantasma após 3 tentativas: a razão está no UE4SS.log.',
-        away='%s está na zona %s, tu estás na zona %s.'},
+        away='%s está na zona %s, tu estás na zona %s.',
+        mods='%s usa peças de mods que o teu jogo não consegue carregar: %s. Aparecem com o fato base ou ficam de '
+            ..'fora.'},
+    ue4ss={hook='No UE4SS-settings.ini, HookBeginPlay está ativo: o Stellar Blade pode bloquear quando a EVE larga uma '
+            ..'caixa móvel. Define-o como 0 (o valor do Stellar Blade UE4SS 1.3).',
+        cache='No UE4SS-settings.ini, bUseUObjectArrayCache está ativo: pode causar engasgos e bloqueios no arranque. '
+            ..'Define-o como false (o valor do Stellar Blade UE4SS 1.3).'},
     fight={on='Inimigos partilhados ativados: %d inimigos ligados.',
         one='Inimigos partilhados ativados: 1 inimigo ligado.',
         scale='PV dos inimigos %d %%, equilíbrio %d %% (definição do anfitrião).',
@@ -2559,7 +2681,10 @@ T.pt={
             ..'+). Não são partilhados.',
         host_down='Inimigos partilhados: %s está no chão. Quando reaparecer, os inimigos partilhados recuperam '
             ..'todos os PV.',
-        paks='%s usa mods .pak diferentes dos teus (%d lá, %d aqui). Os inimigos que diferem não são partilhados.'},
+        paks='%s usa mods .pak diferentes dos teus (%d lá, %d aqui). Os inimigos que diferem não são partilhados.',
+        mods_missing='%s usa mods que não tens: %s. As partes da roupa que vêm deles aparecem diferentes aqui.',
+        mods_other='%s usa outras versões dos teus mods: %s. As partes da roupa que vêm deles podem aparecer '
+            ..'diferentes aqui.'},
     pilot={on='Mesma posição: %d inimigos controlados.',one='Mesma posição: 1 inimigo controlado.',
         off='Mesma posição desativada: %s',host='o outro jogo (%s) desativou-a.',
         stopped='parada por um erro até o jogo reiniciar. O coop-link.log diz porquê.'},
@@ -2714,7 +2839,13 @@ T['pt-BR']={
     refused={off='O menu co-op está desativado (a interface parou, veja UE4SS.log): use os comandos coop.',
         world='O menu co-op só abre no mundo do jogo.',
         paused='O menu co-op não abre com o jogo pausado ou com um menu aberto.'},
-    ghost={failed='O fantasma falhou 3 vezes: o motivo está no UE4SS.log.',away='%s está em %s, você está em %s.'},
+    ghost={failed='O fantasma falhou 3 vezes: o motivo está no UE4SS.log.',away='%s está em %s, você está em %s.',
+        mods='%s usa peças de mods que o seu jogo não consegue carregar: %s. Elas aparecem com o traje base ou ficam '
+            ..'de fora.'},
+    ue4ss={hook='No UE4SS-settings.ini, HookBeginPlay está ativado: o Stellar Blade pode fechar com erro quando a EVE '
+            ..'solta uma caixa móvel. Mude para 0 (o valor do Stellar Blade UE4SS 1.3).',
+        cache='No UE4SS-settings.ini, bUseUObjectArrayCache está ativado: pode causar travadas e erros ao iniciar. '
+            ..'Mude para false (o valor do Stellar Blade UE4SS 1.3).'},
     fight={on='Inimigos compartilhados ativados: %d inimigos vinculados.',
         one='Inimigos compartilhados ativados: 1 inimigo vinculado.',
         scale='PV dos inimigos %d %%, equilíbrio %d %% (configuração do anfitrião).',
@@ -2734,7 +2865,10 @@ T['pt-BR']={
             ..'Jogo +). Esses não são compartilhados.',
         host_down='Inimigos compartilhados: %s caiu. Quando voltar, os inimigos compartilhados recuperam todos os PV.',
         paks='%s não tem os mesmos mods .pak que você (%d lá, %d aqui). Os inimigos diferentes não são '
-            ..'compartilhados.'},
+            ..'compartilhados.',
+        mods_missing='%s usa mods que você não tem: %s. As partes do traje que vêm deles aparecem diferentes aqui.',
+        mods_other='%s usa outras versões dos seus mods: %s. As partes do traje que vêm deles podem aparecer '
+            ..'diferentes aqui.'},
     pilot={on='Mesma posição: %d inimigos controlados.',one='Mesma posição: 1 inimigo controlado.',
         off='Mesma posição desativada: %s',host='o jogo de %s a desativou.',
         stopped='parada por um erro até o jogo reiniciar. O coop-link.log diz o motivo.'},
@@ -2892,7 +3026,12 @@ T.ru={
         world='Меню кооператива открывается только в игровом мире.',
         paused='Меню кооператива не открывается, пока игра на паузе или открыто меню.'},
     ghost={failed='Призрак не удалось создать 3 раза подряд: причина в UE4SS.log.',
-        away='%s в локации %s, вы в локации %s.'},
+        away='%s в локации %s, вы в локации %s.',
+        mods='Моды партнера (%s) не загружаются: %s. Эти части в базовом костюме или скрыты.'},
+    ue4ss={hook='В UE4SS-settings.ini включен HookBeginPlay: игра может вылететь, когда EVE отпускает ящик. Поставьте '
+            ..'0, как в Stellar Blade UE4SS 1.3.',
+        cache='В UE4SS-settings.ini включен bUseUObjectArrayCache: возможны фризы и вылеты при запуске. Поставьте '
+            ..'false, как в Stellar Blade UE4SS 1.3.'},
     fight={on='Общие враги включены. Связано врагов: %d.',one='Общие враги включены. Связан 1 враг.',
         scale='ОЗ врагов %d%%, устойчивость %d%% (настройка хоста).',
         off='Общие враги выключены. Причина в coop-link.log.',
@@ -2907,7 +3046,9 @@ T.ru={
         map='Общие враги ждут, пока вы и %s не окажетесь в одной локации.',
         maxhp='В игре партнера (%s) у части врагов другой макс. ОЗ (сложность или "Новая игра +"). Они не общие.',
         host_down='Общие враги: %s не в строю. Когда хост возродится, общие враги восстановят все ОЗ.',
-        paks='У партнера (%s) другие моды .pak (там %d, здесь %d). Отличающиеся враги не будут общими.'},
+        paks='У партнера (%s) другие моды .pak (там %d, здесь %d). Отличающиеся враги не будут общими.',
+        mods_missing='У партнера (%s) моды, которых у вас нет: %s. Часть костюма здесь выглядит иначе.',
+        mods_other='У партнера (%s) другие версии ваших модов: %s. Костюм может выглядеть иначе.'},
     pilot={on='Общие позиции включены. Синхронизировано врагов: %d.',
         one='Общие позиции включены. Синхронизирован 1 враг.',off='Общие позиции выключены: %s',
         host='так решила игра партнера (%s).',
@@ -3063,7 +3204,12 @@ T.sv={
     refused={off='Co-op-menyn är av (gränssnittet stoppades, se UE4SS.log): använd coop-kommandona.',
         world='Co-op-menyn öppnas bara i spelvärlden.',
         paused='Co-op-menyn öppnas inte när spelet är pausat eller visar en meny.'},
-    ghost={failed='Spöket misslyckades 3 gånger: orsaken står i UE4SS.log.',away='%s är i %s, du är i %s.'},
+    ghost={failed='Spöket misslyckades 3 gånger: orsaken står i UE4SS.log.',away='%s är i %s, du är i %s.',
+        mods='%s bär delar från moddar som ditt spel inte kan läsa in: %s. De visas som basdräkten eller utelämnas.'},
+    ue4ss={hook='I UE4SS-settings.ini är HookBeginPlay på: Stellar Blade kan krascha när EVE släpper en flyttbar låda. '
+            ..'Sätt den till 0 (värdet i Stellar Blade UE4SS 1.3).',
+        cache='I UE4SS-settings.ini är bUseUObjectArrayCache på: det kan ge hack och krascher vid start. Sätt den till '
+            ..'false (värdet i Stellar Blade UE4SS 1.3).'},
     fight={on='Delade fiender på: %d fiender länkade.',one='Delade fiender på: 1 fiende länkad.',
         scale='Fiendernas hälsa %d %%, balans %d %% (värdens inställning).',
         off='Delade fiender av. coop-link.log säger varför.',
@@ -3080,7 +3226,10 @@ T.sv={
         maxhp='Delade fiender: vissa fiender har en annan maxhälsa i spelet hos %s (annan svårighetsgrad eller '
             ..'Nytt spel +). De förblir odelade.',
         host_down='Delade fiender: %s har fallit. Vid återupplivning får era delade fiender full hälsa igen.',
-        paks='%s laddar andra .pak-moddar än du (%d där, %d här). Fiender som skiljer sig förblir odelade.'},
+        paks='%s laddar andra .pak-moddar än du (%d där, %d här). Fiender som skiljer sig förblir odelade.',
+        mods_missing='%s använder moddar som du inte har: %s. Delar av dräkten från dem ser annorlunda ut här.',
+        mods_other='%s använder andra versioner av dina moddar: %s. Delar av dräkten från dem kan se annorlunda ut '
+            ..'här.'},
     pilot={on='Samma position: %d fiender styrs.',one='Samma position: 1 fiende styrs.',off='Samma position av: %s',
         host='spelet hos %s stängde av den.',
         stopped='ett fel stoppade den tills spelet startas om. coop-link.log säger varför.'},
@@ -3230,7 +3379,10 @@ T.th={
     refused={off='เมนู co-op ปิดอยู่ (UI หยุดทำงาน ดู UE4SS.log): ใช้คำสั่ง coop แทน',
         world='เมนู co-op เปิดได้เฉพาะในโลกของเกม',
         paused='เมนู co-op เปิดไม่ได้ขณะเกมหยุดชั่วคราวหรือกำลังแสดงเมนู'},
-    ghost={failed='สร้างร่างจำลองไม่สำเร็จ 3 ครั้ง ดูสาเหตุใน UE4SS.log',away='%s อยู่ที่ %s ส่วนคุณอยู่ที่ %s'},
+    ghost={failed='สร้างร่างจำลองไม่สำเร็จ 3 ครั้ง ดูสาเหตุใน UE4SS.log',away='%s อยู่ที่ %s ส่วนคุณอยู่ที่ %s',
+        mods='%s ใช้ม็อดที่โหลดไม่ได้: %s ชุดบางส่วนจะดูต่างไป'},
+    ue4ss={hook='HookBeginPlay ใน UE4SS-settings.ini เปิดอยู่ เกมอาจแครชเมื่อ EVE ปล่อยกล่อง ตั้งเป็น 0 ตาม UE4SS 1.3',
+        cache='bUseUObjectArrayCache ใน UE4SS-settings.ini เปิดอยู่ เกมอาจกระตุกหรือแครช ตั้งเป็น false ตาม UE4SS 1.3'},
     fight={on='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู %d ตัว',one='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู 1 ตัว',
         scale='HP ศัตรู %d%% บาลานซ์ %d%% (ค่าของโฮสต์)',
         off='ปิดศัตรูร่วมแล้ว ดูสาเหตุใน coop-link.log',
@@ -3243,7 +3395,9 @@ T.th={
         map='ศัตรูร่วมรอจนกว่าคุณกับ %s จะอยู่แผนที่เดียวกัน',
         maxhp='ศัตรูที่ HP สูงสุดต่างจากเกม %s (ความยาก/เกมใหม่ +) จะไม่แชร์',
         host_down='ศัตรูร่วม: %s ล้มลง เมื่อฟื้นคืนชีพ ศัตรูร่วมจะกลับมามี HP เต็ม',
-        paks='%s ใช้ม็อด .pak ต่างจากคุณ (เขา %d, คุณ %d) ศัตรูที่ต่างกันจะไม่แชร์'},
+        paks='%s ใช้ม็อด .pak ต่างจากคุณ (เขา %d, คุณ %d) ศัตรูที่ต่างกันจะไม่แชร์',
+        mods_missing='%s ใช้ม็อดที่คุณไม่มี: %s ชุดบางส่วนจะดูต่างไป',
+        mods_other='%s ใช้ม็อดคนละเวอร์ชัน: %s ชุดบางส่วนอาจดูต่างไป'},
     pilot={on='ตำแหน่งเดียวกัน: ควบคุมศัตรู %d ตัว',one='ตำแหน่งเดียวกัน: ควบคุมศัตรู 1 ตัว',
         off='ปิดตำแหน่งเดียวกัน: %s',host='เกมของ %s ปิดฟีเจอร์นี้',
         stopped='เกิดข้อผิดพลาด หยุดจนกว่าจะรีสตาร์ตเกม ดูใน coop-link.log'},
@@ -3390,7 +3544,13 @@ T.tr={
         world='Co-op menüsü yalnızca oyun dünyasında açılır.',
         paused='Oyun duraklatılmışken ya da bir menü açıkken co-op menüsü açılmaz.'},
     ghost={failed='Hayalet 3 kez oluşturulamadı: nedeni UE4SS.log dosyasında.',
-        away='%s şu an %s haritasında, sen %s haritasındasın.'},
+        away='%s şu an %s haritasında, sen %s haritasındasın.',
+        mods='%s, oyununun yükleyemediği modlardan parçalar giyiyor: %s. Bunlar temel kıyafetle görünür ya da hiç '
+            ..'görünmez.'},
+    ue4ss={hook='UE4SS-settings.ini içinde HookBeginPlay açık: EVE hareketli bir sandığı bıraktığında Stellar Blade '
+            ..'çökebilir. 0 yapın (Stellar Blade UE4SS 1.3 değeri).',
+        cache='UE4SS-settings.ini içinde bUseUObjectArrayCache açık: takılmalara ve açılışta çökmelere yol açabilir. '
+            ..'false yapın (Stellar Blade UE4SS 1.3 değeri).'},
     fight={on='Ortak düşmanlar açık: %d düşman bağlandı.',one='Ortak düşmanlar açık: 1 düşman bağlandı.',
         scale='Düşman canı %%%d, denge %%%d (ev sahibinin ayarı).',
         off='Ortak düşmanlar kapandı. Nedeni coop-link.log dosyasında.',
@@ -3408,7 +3568,11 @@ T.tr={
         maxhp='Ortak düşmanlar: bazı düşmanların maksimum canı seninle %s arasında farklı (başka zorluk ya da Yeni '
             ..'Oyun +). Bunlar paylaşılmaz.',
         host_down='Ortak düşmanlar: %s yere düştü. O yeniden doğunca ortak düşmanların canı tamamen dolar.',
-        paks='%s senden farklı .pak modları yüklüyor (onda %d, sende %d). Farklı olan düşmanlar paylaşılmaz.'},
+        paks='%s senden farklı .pak modları yüklüyor (onda %d, sende %d). Farklı olan düşmanlar paylaşılmaz.',
+        mods_missing='%s sende olmayan modlar kullanıyor: %s. Kıyafetinin bu modlardan gelen kısımları burada farklı '
+            ..'görünür.',
+        mods_other='%s sendeki modların başka sürümlerini kullanıyor: %s. Kıyafetinin bu modlardan gelen kısımları '
+            ..'burada farklı görünebilir.'},
     pilot={on='Aynı konum: %d düşman yönlendiriliyor.',one='Aynı konum: 1 düşman yönlendiriliyor.',
         off='Aynı konum devre dışı: %s',host='%s tarafından kapatıldı.',
         stopped='bir hata yüzünden oyun yeniden başlayana dek durdu. Nedeni coop-link.log dosyasında.'},
@@ -3554,7 +3718,10 @@ T['zh-Hans']={
     refused={off='合作菜单已关闭（界面已停止，见UE4SS.log）：请使用coop命令。',
         world='合作菜单只能在游戏世界中打开。',
         paused='游戏暂停或显示菜单时，无法打开合作菜单。'},
-    ghost={failed='幽灵生成失败3次：原因见UE4SS.log。',away='%s在%s，你在%s。'},
+    ghost={failed='幽灵生成失败3次：原因见UE4SS.log。',away='%s在%s，你在%s。',
+        mods='%s穿着来自你的游戏无法加载的模组的部件：%s。这些部件以基础服装显示或不显示。'},
+    ue4ss={hook='UE4SS-settings.ini中的HookBeginPlay已开启：EVE放开可移动的箱子时游戏可能崩溃。请改为0（Stellar Blade UE4SS 1.3的值）。',
+        cache='UE4SS-settings.ini中的bUseUObjectArrayCache已开启：可能导致卡顿和启动时崩溃。请改为false（Stellar Blade UE4SS 1.3的值）。'},
     fight={on='共享敌人已启用：已关联%d个敌人。',one='共享敌人已启用：已关联1个敌人。',
         scale='敌人生命%d%%，平衡%d%%（房主的设置）。',
         off='共享敌人已关闭。原因见coop-link.log。',
@@ -3568,7 +3735,9 @@ T['zh-Hans']={
         map='共享敌人等待中：需要你和%s在同一地图。',
         maxhp='共享敌人：部分敌人在%s的游戏中生命上限不同（难度不同或新游戏+），这些敌人不共享。',
         host_down='共享敌人：%s已倒地。对方重生后，共享的敌人将恢复全部生命。',
-        paks='%s加载的.pak模组与你不同（对方%d个，你%d个）。不同的敌人不共享。'},
+        paks='%s加载的.pak模组与你不同（对方%d个，你%d个）。不同的敌人不共享。',
+        mods_missing='%s使用了你没有的模组：%s。其服装中来自这些模组的部分在这里看起来不同。',
+        mods_other='%s使用了你已有模组的其他版本：%s。其服装中来自这些模组的部分在这里可能看起来不同。'},
     pilot={on='同步位置：已操控%d个敌人。',one='同步位置：已操控1个敌人。',off='同步位置已关闭：%s',
         host='%s的游戏关闭了此功能。',stopped='因错误停止，重启游戏前不会恢复。原因见coop-link.log。'},
     spawns={host='同步刷怪已启用：你和%s在同一区域内相距100米以内时，对方游戏中的普通敌人与你的相同。',
@@ -3690,7 +3859,10 @@ T['zh-Hant']={
     refused={off='合作選單已關閉（使用者介面已停止，請見UE4SS.log）：請使用coop指令。',
         world='合作選單只能在遊戲世界中開啟。',
         paused='遊戲暫停或顯示選單時，無法開啟合作選單。'},
-    ghost={failed='幻影生成失敗3次：原因記錄在UE4SS.log。',away='%s在%s，你在%s。'},
+    ghost={failed='幻影生成失敗3次：原因記錄在UE4SS.log。',away='%s在%s，你在%s。',
+        mods='%s穿著來自你的遊戲無法載入的模組的部件：%s。這些部件以基礎服裝顯示或不顯示。'},
+    ue4ss={hook='UE4SS-settings.ini中的HookBeginPlay已開啟：EVE放開可移動的箱子時遊戲可能閃退。請改為0（Stellar Blade UE4SS 1.3的值）。',
+        cache='UE4SS-settings.ini中的bUseUObjectArrayCache已開啟：可能造成卡頓及啟動時閃退。請改為false（Stellar Blade UE4SS 1.3的值）。'},
     fight={on='共享敵人已開啟：已連結%d個敵人。',one='共享敵人已開啟：已連結1個敵人。',
         scale='敵人生命值%d%%，平衡%d%%（主機設定）。',
         off='共享敵人已關閉。原因請見coop-link.log。',
@@ -3705,7 +3877,9 @@ T['zh-Hant']={
         map='共享敵人等待中：須與%s位於同一張地圖。',
         maxhp='共享敵人：部分敵人在%s的遊戲中最大生命值不同（難度不同或新遊戲+），不會共享。',
         host_down='共享敵人：%s已倒地。對方重生後，共享的敵人會回復至滿生命值。',
-        paks='%s載入的.pak模組與你不同（對方%d個，你%d個）。不同的敵人不會共享。'},
+        paks='%s載入的.pak模組與你不同（對方%d個，你%d個）。不同的敵人不會共享。',
+        mods_missing='%s使用了你沒有的模組：%s。其服裝中來自這些模組的部分在這裡看起來不同。',
+        mods_other='%s使用了你已有模組的其他版本：%s。其服裝中來自這些模組的部分在這裡可能看起來不同。'},
     pilot={on='敵人位置同步：已操控%d個敵人。',one='敵人位置同步：已操控1個敵人。',off='敵人位置同步已關閉：%s',
         host='%s的遊戲關閉了此功能。',stopped='因錯誤而停止，重新啟動遊戲前不會恢復。原因請見coop-link.log。'},
     spawns={host='敵人生成同步已開啟：在同一區域內，你與%s相距100公尺以內時，對方遊戲中的一般敵人會與你的相同。',
@@ -3764,6 +3938,22 @@ local culture=require('nightop.recruiter_text').culture
 local function fallback(t,en)
     for k,v in pairs(t) do if type(v)=='table' and type(en[k])=='table' then fallback(v,en[k]) end end
     return setmetatable(t,{__index=en})
+end
+-- A notice naming mods (main.lua's about her .pak mods, partner/puppet.lua's about her outfit's parts): fmt with name
+-- and the last part ('/'-separated) of each of the first two of list.names ({n=, names=}) that fit the feed's 200 bytes
+-- (session/chat.lua), then (+n) for the others.
+function T.mods(fmt,name,list)
+    local room,shown=200-#fmt:format(name,''),{}
+    for i=1,math.min(2,#list.names) do
+        local short=list.names[i]:match('[^/]*$')
+        local text=table.concat(shown,', ')..(i>1 and ', ' or '')..short
+        local rest=list.n-i
+        if #text+(rest>0 and #(' (+'..rest..')') or 0)>room then break end
+        shown[i]=short
+    end
+    local text,rest=table.concat(shown,', '),list.n-#shown
+    if rest>0 then text=text..(text~='' and ' ' or '')..'(+'..rest..')' end
+    return fmt:format(name,text)
 end
 -- The words for the game's culture (nil when unread) and ui_language.
 function T.pick(name,setting)

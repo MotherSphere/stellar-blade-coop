@@ -114,10 +114,12 @@ For the host:
 
 ### The ghost wears the base suit, or a part is missing
 
-A part falls back to the base suit when your PC cannot load its mesh (a DLC you do not own), when its path is outside
-the game's character folders, or when its bones differ. A part with no fallback is left out. The `Ghost ... built` line
-in `UE4SS.log` counts both and names each part drawn on the base suit. `coop basesuit` may also be on: run it again to
-go back.
+Only the body and the hair have a base-suit fallback. One of them falls back when your PC cannot load its mesh (a DLC
+you do not own, a mod you lack), when its path is outside the game's character folders and none of your CNS packs
+declares it, or when its bones differ. Any other part whose mesh has other bones is drawn on that mesh, its bones
+matched by name; one that cannot be loaded is left out, with the parts that follow it. The `Ghost ... built` line in
+`UE4SS.log` counts the parts on the base suit and those left out, and gives each one's reason, such as `missing` or
+`not declared by your CNS packs`. `coop basesuit` may also be on: run it again to go back.
 
 ### A look misbehaves
 
@@ -128,15 +130,17 @@ effects off until the game restarts; the ghost stays, without effects.
 
 ### EVE is invisible, or only a Doro shows
 
-During a [Doro race](usage.md#doro-races), and after `coop race look on`, the Doro look hides EVE's parts and draws a
-Doro at her feet. The race's end, `coop race quit`, `coop off` and a map change show her again. If she stays hidden:
+During a [Doro race](usage.md#doro-races), and after `coop race look on`, the Doro look hides EVE's parts and the drone
+that follows her, and draws a Doro at her feet. The race's end, `coop race quit`, `coop off` and a map change show both
+again. If EVE or the drone stays hidden:
 
 - Type `coop race look off`. While the look is still on, it answers `OK: Doro look off (coop race look off): <n> parts
-  shown again, tick option <t> back.` If it answers `The Doro look is off already.`, go on to Ctrl+R.
-- Press Ctrl+R. The next Lua load reads `coop-look.txt`, which the look keeps while it is on, and shows EVE again at its
-  first tick: `UE4SS.log` says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`. This covers a look
-  stopped by a Lua error, and an off that failed (`Doro look off (...): ...; <error>` in the log keeps the file for
-  this).
+  shown again, tick option <t> back.`, with `and the drone` after `parts` when it hid the drone. If it answers
+  `The Doro look is off already.`, go on to Ctrl+R.
+- Press Ctrl+R. The next Lua load reads `coop-look.txt`, which the look keeps while it is on, and shows EVE and the
+  drone again at its first tick: `UE4SS.log` says `[StellarCoop][DR] look restored <n> parts from coop-look.txt`, with
+  `and the drone` after `parts` when it showed the drone. This covers a look stopped by a Lua error, and an off that
+  failed (`Doro look off (...): ...; <error>` in the log keeps the file for this).
 - Restart the game if neither works. The look's changes are in memory only, and no save holds them.
 
 A Doro left standing alone where a race was (at a checkpoint or the start line) goes at the next Lua load too:
@@ -168,7 +172,8 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
 - Look for `booths:` lines in `UE4SS.log`. `booths: <n> on <map> (<ms> ms)` gives the number of booths that the last
   scan found on that map. With no `booths:` line at all, no scan has run yet: the on-screen UI is off
   (`UI off until the mod reloads`, or `coop ui off`), `coop off` ran, or the native part is not loaded.
-  `booths: 0 on <map>` means that no booth was loaded at the scan: walk closer and wait 4 s.
+  `booths: 0 on <map>` means that no booth was loaded at the scan: walk closer, stop and wait 4 s. No scan runs while
+  EVE runs or sprints.
   `booths: scan failed on <map>: <why> (<ms> ms)` means that the scan hit an error; the next one runs 4 s later.
 - Press the menu key at the booth. `line: booth <name> (<class>) at <d> m` after `key F5: menu` means that the line
   opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.
@@ -218,6 +223,15 @@ enemy it refused (`spawn filter refused <spawnId>:<index>`), and the `fight stat
 refused`. `spawn filter refused: ...` with no key means the filter never started (another mod holds the same pointer,
 or the page would not become writable), and every spawn went on as with it off. See
 [usage.md: Spawn filter](usage.md#spawn-filter-experimental).
+
+### The game crashes when EVE lets go of a crate
+
+Look in `UE4SS.log` for a `[StellarCoop] UE4SS-settings.ini:` line. With `HookBeginPlay` on in
+`ue4ss/UE4SS-settings.ini`, the game can crash when EVE lets go of a movable crate; with `bUseUObjectArrayCache` on, it
+can stutter and crash at startup. Close the game, set `HookBeginPlay = 0` and `bUseUObjectArrayCache = false` (the
+Stellar Blade UE4SS 1.3 values), and start it again. The usual cause is another mod's `UE4SS-settings.ini` copied over
+the 1.3 one. See [INSTALL.md: Other mods](../INSTALL.md#other-mods). `UE4SS-settings.ini not checked: <why>` means the
+mod could not read the file, so check the two lines by hand.
 
 ### Screen notices stopped
 
@@ -280,7 +294,8 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
   (another enemy at that spawn point), `maxhp` (another difficulty or New Game+ in one of the two games) or
   `duplicate`.
 - `paks=differ` in `coop status`: the two games load different `.pak` mods. Each `coop-link.log` names its own in the
-  `paks` line at the top; compare the two lists.
+  `paks` line at the top; compare the two lists. When both players have `mod_names=on`, the `mods_missing=`,
+  `mods_other=` and `mods_extra=` lines in `coop status` name the differences already.
 - `fight kill held` in `coop-link.log`: a kill from the other game waits while this game's copy is in a grab or another
   state that takes no damage, or, on the host with same place, while the guest's takedown of that enemy runs (`her
   takedown`). It goes when the state or the takedown ends, or after 6 s (`fight held-expired`).
