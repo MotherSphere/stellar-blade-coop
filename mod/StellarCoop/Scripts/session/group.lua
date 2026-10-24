@@ -20,6 +20,10 @@
 -- The friend's side: her down notice once per death of hers, while our EVE is not down, she is on our map and no boss
 -- of ours is in battle; our revive of her when her vitals go from down to alive while our EVE stands within 3 m of her
 -- ghost. Her revive setting reaches no line, so the down notice shows whatever it says.
+-- The native revive (glue/tick/revive.inc through core/link.lua's revive()) keeps our EVE at 1 HP, so neither the death
+-- screen nor her vitals ever show a down: its states give the same notices. Ours: the wait when the hold downs us, the
+-- spectating line once our revive is spent, the revived line when her game brings us back. Hers: her down once, and our
+-- revive of her once, only while our EVE stands within 3 m of her ghost.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
 -- with the same lines (commands/session.lua runs it on a co-op save only).
 -- The host's cutscene, on both PCs once a second while linked: one FindAllOf of SB's theater observers; a cutscene
@@ -61,6 +65,7 @@ function G.new(o)
     local d=nil -- This death of ours: {since=, waited=, said=, call=, before=, fallback=, probe=}.
     local hers=nil -- Her death as we saw it: {said=}.
     local scene={playing=false,next=0,told=false} -- A cutscene: as of the last read, the next read, our notice.
+    local native=nil -- The native revive's last states: {mine=, hers=}.
     local function engine() return ('\n'..(link.status() or '')):match('\nengine=([^\r\n]*)') or '' end
     local function death_screen()
         if not U.valid(screen) then
@@ -217,6 +222,23 @@ function G.new(o)
             end
         end
     end
+    -- The native revive's notices (core/link.lua's revive(): nil while revive=off, so nothing here runs).
+    local function states()
+        local r=link.revive and link.revive()
+        if not r then native=nil; return end
+        if not native then native={mine=r.state,hers=r.partner}; return end
+        if r.state~=native.mine then
+            if r.state=='down' then tell('wait')
+            elseif r.state=='spectating' then tell('spectating')
+            elseif r.state=='alive' and native.mine=='down' then tell('revived') end
+            native.mine=r.state
+        end
+        if r.partner~=native.hers then
+            if r.partner=='down' then tell('down')
+            elseif native.hers=='down' and r.distance>=0 and r.distance<=NEAR then tell('you_revived') end
+            native.hers=r.partner
+        end
+    end
     -- The cutscene's name while one plays, else nil.
     local function theater()
         local name=nil
@@ -261,6 +283,7 @@ function G.new(o)
             guard('screen',show,off.revive and 'the revive is off' or 'no session')
         end
         if linked then guard('friend',friend) else hers=nil end
+        if linked then guard('states',states) else native=nil end
         if linked then guard('cutscene',watch) end
         if not linked or off.cutscene then scene.playing,scene.told=false,false end
     end
