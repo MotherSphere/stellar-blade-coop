@@ -70,9 +70,11 @@ local USE='Use: coop lion [intro] | rows | control | brain skulling|lurker | unf
 local BONE='Bip001-L-Hand'
 -- The Lion's AnimBP, which all three of its blueprints name: the test of 2026-10-24 found the body's mesh with no anim
 -- instance at all (anim instance none), so nothing it plays shows. Its class, and the package that loads it.
--- On 2026-10-24 SetAnimationMode(0), which builds the instance in AnimBP mode, left it none, and SetAnimInstanceClass
--- with the class the mesh's AnimClass read raised (a null UObject): so each class is found by its path, the Lion's
--- first, then the Behemoth's (same skeleton, CH_M_NA_46_Skeleton, shipped and working), until the mesh has an instance.
+-- On 2026-10-24 SetAnimationMode(0), which builds the instance in AnimBP mode, left it none, and UE4SS raised a null
+-- UObject on SetAnimInstanceClass with any class (by the mesh's AnimClass or by path: its class parameter does not
+-- pass), while the control Antlion has its own instance. So each class goes into AnimClass by a property write, and a
+-- mode change (single node, then AnimBP) makes the engine clear the instance and build it again: the mesh's own class
+-- first, then the Lion's found by its path, then the Behemoth's (same skeleton, CH_M_NA_46_Skeleton, shipped).
 local BEHEMOTH='/Game/Art/Character/Monster/CH_M_NA_46/BluePrints/'
 local ANIM_CLASSES={
     {name='CH_M_NA_02_AnimBP_C',class=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP_C',
@@ -268,14 +270,22 @@ function Lion.new(o)
             read(function() return m.bEnableUpdateRateOptimizations end),
             read(function() return c.CustomTimeDilation end),read(function() return c.bSequencerAnimMode end))
     end
-    -- A mesh with no anim instance gets one: the AnimBP mode (which builds it when the engine can), then each of
-    -- ANIM_CLASSES (found by path, its package loaded first when it is not yet) until the mesh has one. Returns what
-    -- each try gave, as words.
+    -- A mesh with no anim instance gets one: with its own anim class, then each of ANIM_CLASSES (found by path, its
+    -- package loaded first when it is not yet), the class written into AnimClass, then SetAnimationMode 1 and 0, until
+    -- the mesh has an instance. Returns what each try gave, as words (an error's first line only).
     local function give_anim(m)
         local said={}
         local function has() return valid(m:GetAnimInstance())~=nil end
-        local fine,e=pcall(function() m:SetAnimationMode(0) end) -- EAnimationMode::AnimationBlueprint.
-        said[1]='SetAnimationMode(0) '..(not fine and 'failed ('..why(e)..')' or has() and 'built one' or 'built none')
+        local function try(name,c)
+            local fine,e=pcall(function()
+                if c then m.AnimClass=c end
+                m:SetAnimationMode(1) -- EAnimationMode::AnimationSingleNode, then AnimationBlueprint: a rebuild.
+                m:SetAnimationMode(0)
+            end)
+            said[#said+1]=name..' '..(not fine and 'failed ('..why(e):match('^[^\n]*')..')' or has() and 'built one'
+                or 'built none')
+        end
+        try('its own class',nil)
         for _,a in ipairs(ANIM_CLASSES) do
             if has() then break end
             local c=valid(StaticFindObject(a.class))
@@ -283,12 +293,7 @@ function Lion.new(o)
                 pcall(LoadAsset,a.package)
                 c=valid(StaticFindObject(a.class))
             end
-            if not c then said[#said+1]=a.name..' does not load'
-            else
-                fine,e=pcall(function() m:SetAnimInstanceClass(c) end)
-                said[#said+1]='SetAnimInstanceClass('..a.name..') '..(not fine and 'failed ('..why(e)..')'
-                    or has() and 'built one' or 'built none')
-            end
+            if c then try(a.name,c) else said[#said+1]=a.name..' does not load' end
         end
         return table.concat(said,', ')
     end

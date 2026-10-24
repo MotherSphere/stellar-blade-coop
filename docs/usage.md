@@ -1202,7 +1202,7 @@ The log lines, in `UE4SS.log` unless marked:
 | `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
 | `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, hand moved 0 cm, battle 1, state 1, controller yes, spawn count -5` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), how far its left front paw (`Bip001-L-Hand`) moved in its own frame since the last line (0 cm while it runs or attacks: its pose does not play), battle mode, state, controller and the game's spawn counter |
 | `lion 1 (50020) mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, its skeleton CH_M_NA_46_Skeleton, mesh skeleton CH_M_NA_46_Skeleton, mode 0, mesh CH_M_NA_02_Large, tick true, pause false, rate 1.0, no skeleton update false, visibility tick 0, rate optimizations true, actor dilation 1.0, sequencer anim mode false` | Its mesh as the engine ticks it, before its first line and at each change: the animation instance class (`none` when it has none), the mesh's anim class, that class's target skeleton, the mesh's skeleton, its animation mode (0: animation blueprint), its mesh asset, the mesh's tick, `bPauseAnims`, `GlobalAnimRateScale`, `bNoSkeletonUpdate`, `VisibilityBasedAnimTickOption`, `bEnableUpdateRateOptimizations`, the actor's `CustomTimeDilation` and SB's `bSequencerAnimMode`; `?` for a field that does not read |
-| `lion 1 (50020) had no anim instance: SetAnimationMode(0) built none, SetAnimInstanceClass(CH_M_NA_02_AnimBP_C) built one; mesh: ...` | Its mesh had no animation instance. Once a body (never for the control Antlion), the mod asks the engine to build one: the AnimBP mode, then the Lion's AnimBP, then the Behemoth's (same skeleton), each class found by its path. The line says what each try gave, then the mesh line |
+| `lion 1 (50020) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built one; mesh: ...` | Its mesh had no animation instance. Once a body (never for the control Antlion), the mod asks the engine to build one: with the mesh's own anim class, then the Lion's AnimBP, then the Behemoth's (same skeleton), each class found by its path, written into the mesh's `AnimClass` and followed by a switch to single-node mode and back. The line says what each try gave, then the mesh line |
 | `lion 1 (50020) unfreeze: tick, pause, rate, skeleton, visibility, optimizations, dilation; mesh: ...` | What `coop lion unfreeze` set (a failed one with its reason) and the mesh line after it |
 | `loaded: shows 3/20, clips 2/20 (Show seen, its clip not yet: Roar)` | Which of the Lion's 20 skill presentations (Shows) and their clips the game has loaded so far; first said once all 40 were looked for (about 20 s), then at each change |
 | `boss name: <M_LionC> -> Lion` | The boss bar's name set to Lion |
@@ -1218,12 +1218,12 @@ part can wait for a game state that never comes and refuse after 300 frames. See
 
 In the tests of 2026-10-23 and 2026-10-24 the Lion fought like a boss, but its body stayed on the first frame of its
 idle pose. The mesh line read `anim instance none` with the right anim class (`CH_M_NA_02_AnimBP_C`), the AnimBP mode
-and the Lion's mesh: the engine builds no animation instance for this AnimBP, so the body plays nothing (`anim alpha`
-0.00/0.00, `hand moved 0 cm`). `SetAnimationMode(0)`, which builds the instance when it can, left it none, and
-`SetAnimInstanceClass` with the class read off the mesh raised an error. `coop lion` now tries the Lion's AnimBP found
-by its path, then the Behemoth's, which uses the same skeleton. The next test answers two questions: whether one of them
-builds an instance (`built one` and `hand moved` above 0), and what `coop lion control` shows for the Antlion's mesh. An
-Antlion with no animation instance either would put the fault on the spawn call, not on the Lion.
+and the Lion's mesh, so the body played nothing (`anim alpha` 0.00/0.00, `hand moved 0 cm`). The control Antlion,
+spawned by the same call, had its own instance and moved (`hand moved` 5 to 12 cm): the fault is the Lion's, not the
+spawn call's. `SetAnimationMode(0)` built no instance, and UE4SS could not call `SetAnimInstanceClass`. `coop lion` now
+writes each class into the mesh's `AnimClass` and switches the mode to single node and back, which makes the engine
+build the instance again: the mesh's own class, the Lion's AnimBP, then the Behemoth's. In the next test, `built one`
+and `hand moved` above 0 say which one animates the Lion.
 
 ### Cut hairs and suits: `coop wear`
 
