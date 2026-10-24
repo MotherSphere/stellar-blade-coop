@@ -280,7 +280,7 @@ function Lion.new(o)
     -- A mesh with no anim instance gets one: with its own anim class, then each of ANIM_CLASSES (found by path, its
     -- package loaded first when it is not yet), the class written into AnimClass, then SetAnimationMode 1 and 0, until
     -- the mesh has an instance. Returns what each try gave, as words (an error's first line only).
-    local function give_anim(m)
+    local function give_anim(m,own_only)
         local said={}
         local function has() return valid(m:GetAnimInstance())~=nil end
         local function try(name,c)
@@ -293,7 +293,7 @@ function Lion.new(o)
                 or 'built none')
         end
         try('its own class',nil)
-        for _,a in ipairs(ANIM_CLASSES) do
+        for _,a in ipairs(own_only and {} or ANIM_CLASSES) do
             if has() then break end
             local c=valid(StaticFindObject(a.class))
             if not c then
@@ -351,7 +351,14 @@ function Lion.new(o)
         if state~=f.mesh then log(string.format('%s mesh: %s',name,state)) end
         f.mesh=state
         -- Once a body, the anim instance it lacks: SetAnimInstanceClass, then its mesh line again.
-        -- Not the control Antlion: it shows what a shipped Naytiba gets from the same spawn call.
+        -- The control Antlion, once: the same rebuild with its own class, which tells whether the rebuild works on a
+        -- shipped Naytiba's body (its instance is built again; it is never given the Lion's classes).
+        if f.id==CONTROL and not f.given then
+            f.given=true
+            local fine,e=pcall(give_anim,valid(c.Mesh),true)
+            f.mesh=mesh_state(c)
+            log(string.format('%s rebuild test: %s; mesh: %s',name,fine and e or 'failed ('..why(e)..')',f.mesh))
+        end
         if not f.given and f.id~=CONTROL and state:find('^anim instance none,') then
             f.given=true
             local fine,e=pcall(give_anim,valid(c.Mesh))
@@ -536,6 +543,10 @@ function Lion.new(o)
         end
         log(string.format('entrance: played on a display copy for %.1f s; %s: the Lion spawns %s',now-j.played,said,
             at==j.spot and 'at the spot' or 'there'))
+        -- The copy is a plain actor's mesh, not an SBCharacter's: whether the Lion's AnimBP (or the Behemoth's) builds
+        -- an instance there tells a refused AnimBP from a refusing body. It is removed once the Lion shows.
+        local tested,t=pcall(give_anim,j.display.mesh)
+        log('entrance copy AnimBP test: '..(tested and t or 'failed ('..why(t)..')'))
         spawn(j,at,now)
     end
     -- The display copy at the spot, on EVE's feet, facing her, playing the clip once; then intro_done when it ends.

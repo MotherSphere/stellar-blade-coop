@@ -389,7 +389,9 @@ function world:SpawnActor(cls,at,rot)
         function m:SetSkeletalMesh(x) said('mesh',x.key) end
         function m:SetRelativeScale3D(v) said('scale',v.X) end
         function m:SetCollisionEnabled(n) said('collision',n) end
-        function m:SetAnimationMode(n) said('mode',n) end
+        -- The single-node mode builds its instance, the AnimBP mode one of AnimClass when it holds one.
+        function m:SetAnimationMode(n) said('mode',n); self.instance=n==1 or self.AnimClass~=nil end
+        function m:GetAnimInstance() return self.instance and object({}) or nil end
         function m:K2_SetWorldLocationAndRotation(p,r) self.at,self.rot=p,r end
         function m:PlayAnimation(x,loop) said('play',x.key,tostring(loop)) end
         function m:SetPlayRate(r) said('rate',r) end
@@ -702,9 +704,13 @@ assert(ok and why=='M_Antlion 50110 is here, 10.0 m from EVE: lion 2 in the [LI]
 assert(last()=='spawn 50110: CreateActor returned; body CH_M_NA_15_Antlion_C 10.0 m from EVE, 0.0 m from the spot, '
     ..'after 0.3 s; controller SBAIController; EventSpawnId 0','Its own controller, at once, no entrance line')
 local antlion=chars[#chars]
-antlion.destroyed=true -- Gone with the map while alive.
+-- Its first follow: the rebuild with its own class only (the test of the rebuild on a shipped Naytiba).
 at(601.3); lion.tick()
-assert(lines[#lines-1]=='lion 2 (50110) gone while alive after 1 s (a map change, or the game removed it)',
+assert(logged('^lion 2 %(50110%) rebuild test: its own class built one; mesh: anim instance CH_M_NA_02_AnimBP_C,'),
+    'The control rebuild line')
+antlion.destroyed=true -- Gone with the map while alive.
+at(602.3); lion.tick()
+assert(lines[#lines-1]=='lion 2 (50110) gone while alive after 2 s (a map change, or the game removed it)',
     lines[#lines-1])
 assert(last()=='lion 2 spawn count: before ?, alive ?, after ?',last())
 
@@ -758,8 +764,11 @@ ok,why=lion.command(); assert(ok==false and why:find('busy %(the entrance%)'),wh
 at(1112.9); assert(lion.tick()==nil and #calls==3)
 at(1113)
 assert(lion.tick()==nil and calls[4][1]==50020 and calls[4][2].X==1300 and calls[4][2].Z==200,'Where its root ended')
-assert(lines[#lines-1]=='entrance: played on a display copy for 13.0 s; its root ended 3.0 m from the spot: the Lion '
-    ..'spawns there',lines[#lines-1])
+assert(lines[#lines-2]=='entrance: played on a display copy for 13.0 s; its root ended 3.0 m from the spot: the Lion '
+    ..'spawns there',lines[#lines-2])
+-- On the copy, a plain actor mesh: the Lion AnimBP builds an instance there (written into AnimClass, mode 1 then 0).
+assert(lines[#lines-1]=='entrance copy AnimBP test: its own class built none, CH_M_NA_02_AnimBP_C built one',
+    lines[#lines-1])
 assert(not copy.destroyed,'The copy holds its last frame until the body shows')
 at(1113.3); assert(lion.tick()==nil and copy.destroyed and not chars[#chars].Controller,'Gone once the body shows')
 at(1114.5)
