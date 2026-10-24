@@ -242,7 +242,8 @@ def selftest():
     h = header(r)
     p = properties(r)
     assert h['engine'] == '4.26.2-1' and h['class'] == '/Script/SB.SBSaveGame', h
-    assert p == {'Count': 7, 'Zone': {'Alias': 'Zone_A', 'bOn': True}, 'Tasks': [['T1', 3]], 'Where': [1.0, 2.0, 3.0]}, p
+    assert p == {'Count': 7, 'Zone': {'Alias': 'Zone_A', 'bOn': True}, 'Tasks': [['T1', 3]],
+                 'Where': [1.0, 2.0, 3.0]}, p
     assert dict(leaves(p))['Zone.bOn'] is True and r.at == len(body) - 4
     print('gvas selftest: ok')
 

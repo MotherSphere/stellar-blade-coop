@@ -109,8 +109,8 @@ def record(group, entries):
     return name_prop('RecordGroupName', group) + \
         map_prop('RecordTaskGroupMap', 'NameProperty', 'StructProperty',
                  [(name_entry('ESBMission_Achievement'),
-                   array_prop('TaskDataList', 'StructProperty', [name_prop('DataAlias', a) + bool_prop('bSuccessTask', d)
-                                                                 for a, d in entries],
+                   array_prop('TaskDataList', 'StructProperty',
+                              [name_prop('DataAlias', a) + bool_prop('bSuccessTask', d) for a, d in entries],
                               'SBSaveProgressData'))])
 
 

@@ -1,5 +1,5 @@
--- The live story dump (Scripts/story/dump.lua) on stubbed game objects: the lines from the game's save-shaped object are
--- byte for byte the ones tools/story.py prints for tests/tools/story_sample.txt, which is the same fixture
+-- The live story dump (Scripts/story/dump.lua) on stubbed game objects: the lines from the game's save-shaped object
+-- are byte for byte the ones tools/story.py prints for tests/tools/story_sample.txt, which is the same fixture
 -- tests/tools/story_test.py
 -- builds as a save; a duplicate alias is numbered, a fixed alias is kept (WorldObjectStorageMap's integer keys become
 -- UniqueKey), positions and bZoneReset never appear, and the file is written with its header only through the injected
@@ -8,7 +8,8 @@ package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Story=require('story.dump')
 
 -- The game's containers as UE4SS hands them over, or (here) as plain tables: a map as its {key, value} pairs, an
--- array as its elements. tools/story.py's sample(), mirrored field by field, and tests/tools/story_sample.txt its lines.
+-- array as its elements. tools/story.py's sample(), mirrored field by field, and tests/tools/story_sample.txt its
+-- lines.
 local function save_object()
     return {
         DataMap_SBQuest={{'Quest',{
@@ -135,7 +136,9 @@ assert(comments>=4,'one comment per object and the header: '..tostring(comments)
 local class={}
 class.GetFName=function(self) return {ToString=function() return self.name end} end
 local classes={{name='SBSaveGame'},{name='SBQuestComponent'},{name='Actor'}}
-for index,entry in ipairs(classes) do entry.GetFName=function() return {ToString=function() return entry.name end} end end
+for index,entry in ipairs(classes) do
+    entry.GetFName=function() return {ToString=function() return entry.name end} end
+end
 story,written,logged=harness({SBSaveGame={}},classes)
 ok,message=story.run()
 assert(ok and message:find('no live save object',1,true),message)

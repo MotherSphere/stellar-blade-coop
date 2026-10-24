@@ -344,7 +344,8 @@ def selftest():
 
 def main(argv):
     if hasattr(sys.stdout, 'reconfigure'):
-        sys.stdout.reconfigure(errors='replace')  # A name with an odd byte prints, never crashes on a console's code page.
+        # A name with an odd byte prints, never crashes on a console's code page.
+        sys.stdout.reconfigure(errors='replace')
     if argv[:1] == ['selftest']:
         return selftest()
     if len(argv) in (2, 3) and argv[0] == 'snapshot':

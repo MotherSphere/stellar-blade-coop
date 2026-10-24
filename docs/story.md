@@ -1,17 +1,16 @@
 # Story and world state: where the save keeps it
 
-The co-op campaign's step 5 (story sync) needs to know what the
-game's story and world state is before any of it can go from one player to the other. This page maps the part of it
-that the save holds, as read on 2026-10-23 from the test copy's first-beach co-op save (New Game, Story Mode,
-`StellarBladeCoop00.sav`, 629,404 bytes, Steam build 24463856), and says what the mapping does and does not cover.
+Syncing the story between two players needs to know what the game's story and world state is before any of it can go
+from one player to the other. This page maps the part of it that the save holds, as read on 2026-10-23 from the test
+copy's first-beach co-op save (New Game, Story Mode, `StellarBladeCoop00.sav`, 629,404 bytes, Steam build 24463856), and
+says what the mapping does and does not cover.
 
 ## Why the save first
 
 There are two ways to sync a story: mirror the live game objects, or keep the persistent world state and send its
-changes. The game already writes the persistent state into `SBSaveGame` — quests, mission records, and per-zone object
-state — keyed by its own aliases. Reading that is cheaper and steadier than enumerating live actors, and step 4 already
-carries the host's save to the guest. What the save cannot show is anything the game has not written yet (see
-[Gaps](#gaps)).
+changes. The game already writes the persistent state into `SBSaveGame` (quests, mission records and per-zone object
+state), keyed by its own aliases. Reading that is cheaper and steadier than enumerating live actors. What the save
+cannot show is anything the game has not written yet (see [Gaps](#gaps)).
 
 ## The three structures
 
@@ -39,8 +38,8 @@ counter that lives there would be missed.
 ### Mission records: `GamePlayProgressRecordData`
 
 `ProgressRecordGroup` is a list per quest task group (`RecordGroupName`, e.g. `Quest_Epic_01_M01`). Each holds
-`RecordTaskGroupMap`, keyed by the kind of record — the save holds `ESBMission_Achievement`, `ESBMission_EnterTrigger`
-and `ESBMission_EnvState` — and each of those holds `TaskDataList` of `DataAlias` + `bSuccessTask`. This is where the
+`RecordTaskGroupMap`, keyed by the kind of record (the save holds `ESBMission_Achievement`, `ESBMission_EnterTrigger`
+and `ESBMission_EnvState`), and each of those holds `TaskDataList` of `DataAlias` + `bSuccessTask`. This is where the
 game notes that an achievement fired, a trigger was entered or an env object reached a state, *including the ones the
 achievement and mission systems only need to remember once*. `DataAlias` repeats inside a list (two `SD_10_EnvS_010`
 entries in `ESBMission_EnvState`), so lines are numbered by occurrence.
@@ -108,20 +107,20 @@ The rules, so that a line means the same thing in any save:
   sequence set, and the zone scaffolding (a zone with nothing in it contributes only its `state` line).
 - `digest` is one SHA-256 over the sorted lines: two saves whose story agrees give one value, whatever moved.
 
-Verified: `python -I tools/gvas.py selftest`, `python -I tools/story.py selftest`, `tests/story_test.py` (a save
-written the way the game writes it — EVAS, GVAS, CRC-32 — read back; a moved zone, a reset zone and reordered zones
+Verified: `python -I tools/gvas.py selftest`, `python -I tools/story.py selftest`, `tests/tools/story_test.py` (a save
+written the way the game writes it (EVAS, GVAS, CRC-32) read back; a moved zone, a reset zone and reordered zones
 keep the digest and produce no diff; a quest state, a task value, a mission flag, an env object and a world object each
 show as one line; the command line's snapshot, digest and diff), and the two real saves above.
 
 ## The live dump
 
 `coop story [dump|find]` prints the same lines from the save object the running game holds, read only
-(`mod/StellarCoop/Scripts/story/dump.lua`). It writes `StellarCoopStory.txt` in the mod folder: a header, one comment per
-save-shaped object found, a `# stage:` line, then the sorted lines, so `python tools/story.py compare SAVE DUMP` reads
-it as it reads any dump. The file is rewritten after every stage (quests, the mission records, each zone, the world
-actors), so a run that ends in a crash still says how far it got. `coop-story.txt` in the mod folder asks for a dump
-(`find` for the listing instead) once a world is loaded, for when the console is out of reach; the dump is identical
-whichever way it is asked for.
+(`mod/StellarCoop/Scripts/story/dump.lua`). It writes `StellarCoopStory.txt` in the mod folder: a header, one comment
+per save-shaped object found, a `# stage:` line, then the sorted lines, so `python tools/story.py compare SAVE DUMP`
+reads it as it reads any dump. The file is rewritten after every stage (quests, the mission records, each zone, the
+world actors), so a run that ends in a crash still says how far it got. `coop-story.txt` in the mod folder asks for a
+dump (`find` for the listing instead) once a world is loaded, for when the console is out of reach; the dump is
+identical whichever way it is asked for.
 
 What reading the live object took, all of it found by running it in the test copy:
 
@@ -142,7 +141,7 @@ the way the save writes it, `ElementInfoMap[Element_Fire].ElementAmount`; its ke
 
 Result, test copy on 2026-10-23 (`StellarBladeSave00.sav`, 647,849 bytes, digest `b71a70c8…`, loaded by Continue):
 the dump was asked for at the title, before the load, so it ran as soon as the world reported loaded. It found three
-save-shaped objects, dumped the largest in 6.0 s, and wrote 1,532 lines whose digest is `b71a70c8…` —
+save-shaped objects, dumped the largest in 6.0 s, and wrote 1,532 lines whose digest is `b71a70c8…`:
 `python tools/story.py compare` printed `the same`, no line only in the dump, none only in the save.
 
 That object is a full mirror only at load and around a save. A dump taken two minutes later in the same session found
@@ -171,11 +170,11 @@ The same test copy, played on 2026-10-23, says what that gap looks like from ins
 - 73 s after that dump the game held one object again, with the same 946 lines as before the save: the objects the game
   fills exist only for about a minute around a save.
 
-A second session the same night (the game as host of the loop bot, `StellarBladeCoop00.sav` loaded, 648,105 bytes) put
+A second session the same night (the game as host, `StellarBladeCoop00.sav` loaded, 648,105 bytes) put
 numbers on both sides of that window. Two dumps 25 s apart with nothing done were identical (949 lines with the three
 header lines), so the partial object is steady. An 8 s walk forward then made the game autosave (648,080 bytes at
 06:07:16); a dump asked for 16 s later found three `SBSaveGame` objects, merged them into 1,532 lines in 6.6 s, and
-`tools/story.py compare` with the new file printed `the same` — the same digest, `b71a70c8…`, and the same count. So a
+`tools/story.py compare` with the new file printed `the same`: the same digest, `b71a70c8…`, and the same count. So a
 change made during play reaches the live dump when the game writes its save (the walk's autosave, here), and the full
 mirror is exact at that moment; before the write, a change is only in the partial object and the save is the only
 complete copy. What no run has shown yet is a story line moving between two dumps with no save in between.
@@ -202,14 +201,14 @@ fixes:
   `ESBZoneObjSaveType_Save`; the dump names it now.
 - **Finished quests.** The save now writes `CompleteQuestList` entries as whole quest structs, not names, and
   `tools/story.py` skipped anything that was not a string, so the file hid two completed quests the live object had.
-  It reads `QuestAlias` from a struct now (tests/story_test.py covers both shapes).
+  It reads `QuestAlias` from a struct now (tests/tools/story_test.py covers both shapes).
 
-Result on the same save: the dump wrote 10,430 lines in 15.6 s and `tools/story.py compare` printed `the same` — the
+Result on the same save: the dump wrote 10,430 lines in 15.6 s and `tools/story.py compare` printed `the same`: the
 same digest, `faeb83f9…`, 10,430 lines, no line only in the dump and none only in the save. The whole object is now a
 full mirror at load and around a save, world actors included.
 
-`coop story find` was tried in game too (typed into the UE4SS console, F10). It wrote its listing — each class, its
-live objects, the save's fields and which of the three story structures it has — but `FindAllOf('Class')` failed in
+`coop story find` was tried in game too (typed into the UE4SS console, F10). It wrote its listing (each class, its
+live objects, the save's fields and which of the three story structures it has), but `FindAllOf('Class')` failed in
 this build (`FindAllOf(Class) failed: listed 5 known names instead`), so it reported only the five names it knows
 (`SBGameInstance`, `SBQuestManager`, `SBSaveGame`, `SBSaveManager`, `SBZoneManager`): a class it does not know is not
 found. The listing named one live `SBSaveGame` with 130 zones at that point, and the quests, mission records and env
@@ -233,23 +232,7 @@ maps among its fields.
   game does with it on entry is unknown, so it is neither read nor synced.
 - **Applying it.** The guest's own game holds its story in memory. Writing the received lines into its save file is
   not enough while it runs: a change has to reach the live object (a UE4SS call, needs the setters) or the guest has
-  to reload at a moment that does not break the session (step 4's save sets and the title, or an area transition).
-
-## Next, in order
-
-1. **A live dump, read only.** Done: `coop story [dump|find]` ([The live dump](#the-live-dump)), and at load its
-   digest is the file's. Two dumps during play are known to be comparable (they are identical when nothing happens),
-   and the full object is there only in the minute after a save: a walk that made the game autosave was followed, 16 s
-   later, by a dump whose digest was that new save's. A partial object also drops whole parts of the save: two minutes
-   after a load it had 166 of the 299 env entries and 528 of the 950 mission-record lines, so a change made during play
-   is invisible until the next save writes it. Still to see: what a door opening, a trigger or a quest task looks like
-   between two dumps taken before the save writes it (so far every walk that crossed a trigger also made the game
-   autosave). The dump now matches the whole object, world actors included (see [The whole object, matched](#the-whole-object-matched)).
-2. **Host to guest, logging only.** The host sends its story lines (or the delta since the last save) on every save and
-   area change; the guest writes them to its log and changes nothing. A chapter played with the bot measures what a
-   real session produces, which decides whether delta or whole-state is the right unit.
-3. **Then apply**: live writes for the state a player sees (env objects, triggers, quest tasks), or a reload on area
-   transitions, which step 4's save sets already make possible. The owner decides which before it is built.
+  to reload at a moment that does not break the session (through the title or an area transition).
 
 ## Running it
 
