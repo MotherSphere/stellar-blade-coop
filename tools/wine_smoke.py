@@ -17,7 +17,7 @@ import install  # noqa: E402  Same root, toolchain and version as the installer'
 
 ROOT = install.ROOT
 XWIN = Path.home() / '.local/share/xwin'  # The toolchain file's default XWIN_ROOT.
-WINE = Path.home() / ('.local/share/Steam/compatibilitytools.d/proton-cachyos-11.0-20261005-slr-x86_64_v3/'
+WINE = Path.home() / ('.local/share/Steam/compatibilitytools.d/proton-cachyos-11.0-20261014-slr-x86_64_v3/'
                       'files/bin/wine')
 OUT = ROOT / 'build/wine'
 
