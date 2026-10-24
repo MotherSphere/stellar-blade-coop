@@ -137,6 +137,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 | [docs/how-it-works.md](docs/how-it-works.md) | The Steam link, the ghost pipeline, safety design, loopback and replay |
 | [docs/night-operation.md](docs/night-operation.md) | The cut mode, the plan, the run alone and with a partner, the reward shop, the challenges and the two previews |
 | [docs/saves.md](docs/saves.md) | Save safety, backups, Steam Cloud, the co-op saves, recovery |
+| [docs/story.md](docs/story.md) | Where the save keeps the story and world state (quests, mission records, zones, doors), the tool that snapshots and diffs it, and the read-only live dump (`coop story`) |
 | [docs/building.md](docs/building.md) | Building from source, tests, the reproducible build, repository layout |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Common problems and which logs to send |
 

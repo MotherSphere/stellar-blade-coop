@@ -78,17 +78,18 @@ build/host/pose_codec_test
   `scene`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`;
   `nightop/`: `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`,
   `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`,
-  `join`, `saves`, `travel`; `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those
-  that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load
-  `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test` also covers `coop fight pilot` (its
-  `test target` and boss tests included), `coop fight spawn probe`, the `spawn_filter` setting with the `filter` word it
-  adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows
-  `main/menu_test` covers with the `shared_quests` row; `main/fight_notices_test` the same place and same spawns notices
-  in both languages; `main/quests_test` `coop quests` with the `shared_quests` and `quest_deny` settings and the shared
-  quests' notices; `main/input_test` the controller's events from a fake `coop_pad` (routed to the menu, the co-op
-  saves' question and the two boxes, never to the host's question; at most 8 a frame; an older DLL without it), the
-  mouse in the menu and the focus watchdog's reset. `ui/kit_test` covers the menu's mouse cursor, the focus put back
-  after a click and the focus watchdog; `session/chat_test` the Thai leading vowels at a row's end.
+  `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS
+  objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/`
+  tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test` also covers
+  `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn probe`, the `spawn_filter` setting
+  with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`, `bosses` and
+  `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row; `main/fight_notices_test`
+  the same place and same spawns notices in both languages; `main/quests_test` `coop quests` with the `shared_quests`
+  and `quest_deny` settings and the shared quests' notices; `main/input_test` the controller's events from a fake
+  `coop_pad` (routed to the menu, the co-op saves' question and the two boxes, never to the host's question; at most 8 a
+  frame; an older DLL without it), the mouse in the menu and the focus watchdog's reset. `ui/kit_test` covers the menu's
+  mouse cursor, the focus put back after a click and the focus watchdog; `session/chat_test` the Thai leading vowels at
+  a row's end.
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
@@ -260,6 +261,8 @@ build/host/pose_codec_test
     the status lines).
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
+  - `story_test.py`: `tools/story.py` and `tools/gvas.py`, the story lines and digest of a built save, and the
+    fixture `story/dump_test` reads, against the tool's own sample;
   - `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder;
   - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
     (see [night-operation.md](night-operation.md#how-the-original-matchmaking-is-blocked)).

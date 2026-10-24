@@ -12,7 +12,9 @@
 -- (session/saves.lua, auto_coop_save in coop-settings.txt), with coop saves probe|convert|coop|main for the native
 -- part's copies and save name by hand and coop saves refresh <0-4> to replace one co-op copy; and coop where, a line of
 -- coordinates to compare between the two PCs; coop mark [text], a numbered line in both players' logs (coop-link.log,
--- and UE4SS.log through the status's mark= line) to line up a test played together; coop no [heal|rule|spawnpt|actor],
+-- and UE4SS.log through the status's mark= line) to line up a test played together; coop story [dump|find], the save
+-- object the game holds and its story lines, read only (story/dump.lua, a test tool to compare with tools/story.py,
+-- left out of the usage line); coop no [heal|rule|spawnpt|actor],
 -- the Night Operation probe of the T6 test only (nightop/probe.lua), on a co-op save only; coop nightop [start
 -- [noaggro|nomove]|stop|shop|buy <n> [count]], Night Operation's run (nightop/run.lua) and its reward shop
 -- (nightop/shop.lua), on a co-op save only (stop anywhere); coop challenge
@@ -244,6 +246,11 @@ local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoo
 -- coop lion (cut/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back.
 local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
+-- The live story dump (story/dump.lua, a test tool): coop story [dump|find], the save object the running game holds
+-- and its story lines, read only, in the lines tools/story.py prints from a save file; coop-story.txt in the mod folder
+-- asks for one once, in a loaded world.
+local story_dump=require('story.dump').new({log=function(m) print('[StellarCoop][ST] '..tostring(m)..'\n') end,
+    folder=folder})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
 local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
@@ -359,7 +366,8 @@ end
 local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=look,looks=looks,ask=ask,
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
     lion=lion,group=function() return group end,travel=function() return travel end,
-    fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end}
+    fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
+    story_dump=story_dump}
 o.wear,o.scene,o.lines=wear,scene,cut_lines
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
@@ -423,7 +431,7 @@ local commands={
     end,
 }
 -- The other commands, from Scripts/commands/.
-for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide'}) do
+for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide','story'}) do
     for name,handler in pairs(require('commands.'..file).new(o)) do
         assert(commands[name]==nil,'coop '..name..' is defined twice')
         commands[name]=handler
@@ -946,6 +954,10 @@ if link then
             approval.slow(shown) -- After the chat's: it waits while the box is open.
             hud.slow()
             saves_ui.slow(world==true,title==true)
+            -- A story dump asked for by coop-story.txt in the mod folder (story/dump.lua, read only): once per
+            -- request, in a loaded world, and named in the log.
+            local dumped,dump_message=story_dump.poll(world==true)
+            if dump_message then report(dumped,dump_message) end
             puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
             if world or title then photo_pause(settings.photo_pause=='scenery' and 1 or 0,settings.photo_pause) end
             -- The race's session and map checks, from the ghost's world read just above.
