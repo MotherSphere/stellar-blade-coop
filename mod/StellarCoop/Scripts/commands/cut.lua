@@ -6,7 +6,7 @@
 -- (cut/scene.lua): a scene's name on a co-op save only; the list and stop on any. main.lua builds it with new(o) at
 -- each Lua load and merges it into its command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one
 -- command a creature), lion (cut/lion.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines (cut/lines.lua's)
--- and ask (a native request; coop fly and coop slowmo).
+-- flight (cut/flight.lua's keys for coop fly) and ask (a native request; coop fly and coop slowmo).
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -24,7 +24,11 @@ function Cut.new(o)
             local ok,why=true,nil
             if sub=='on' then ok,why=coop_slot('coop '..name..' on') end
             if not ok then return false,why end
-            return o.ask(name..' '..sub)()
+            ok,why=o.ask(name..' '..sub)()
+            if name=='fly' and o.flight then -- Its keys: A and E fly, Shift with a direction evades.
+                if sub=='off' then o.flight.off() elseif ok then why=tostring(why)..'; '..o.flight.on() end
+            end
+            return ok,why
         end
     end
     for name,command in pairs(leviathan.commands) do

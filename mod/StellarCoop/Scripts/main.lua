@@ -368,7 +368,9 @@ local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=
     lion=lion,group=function() return group end,travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
     story_dump=story_dump}
-o.wear,o.scene,o.lines=wear,scene,cut_lines
+-- coop fly's keys (cut/flight.lua), logging [FL] lines: A and E fly, Shift with a direction evades.
+local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
+o.wear,o.scene,o.lines,o.flight=wear,scene,cut_lines,flight
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
@@ -426,6 +428,8 @@ local commands={
         if not stopped then log('scene: '..tostring(e)) end
         stopped,e=pcall(cut_lines.stop)
         if not stopped then log('lines: '..tostring(e)) end
+        stopped,e=pcall(flight.off) -- The game's flight keys back.
+        if not stopped then log('flight: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -550,6 +554,7 @@ LoopInGameThreadWithDelay(1,function()
     leviathan.restore() -- Likewise for a cut Naytiba display an earlier load left.
     pcall(drive.restore) -- Likewise for her movement after a reload with the driving on.
     wear.restore() -- Likewise for her own meshes after a reload with a coop wear look on.
+    flight.restore() -- Likewise for the flight keys after a reload with coop fly on.
     scene.restore() -- Likewise for a scene an earlier load left playing, and the farewell take it lent.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
@@ -573,6 +578,7 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     ok,message=scene.tick()
     if message then report(ok,message) end
+    flight.tick()
     ok,message=cut_lines.tick()
     if message then report(ok,message) end
     local raced=os.clock()

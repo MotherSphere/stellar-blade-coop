@@ -1369,21 +1369,25 @@ The game's code holds two developer tools that it ships switched off: a flight m
 waits on a setting of the game's (`UseFlyingActionKey`, `UseTimeControlKey`) that only a cheat command sets, and that
 command does nothing in the released game. `coop fly on` and `coop slowmo on` have the native part set the setting in
 the game's memory, and `off` puts the game's value back. These test commands are left out of the usage line, need the
-native part and run on a [co-op save](#co-op-saves) only. They have not been tried in game yet.
+native part and run on a [co-op save](#co-op-saves) only. The flight was tried in game once, with the game's Z key.
 
-- `coop fly on`: hold R2 (Z on the keyboard) while EVE is in the air after a jump, and she flies until you release it.
-  Flight time comes from a pool of 90 s that drains while she flies and refills at 1 s per second, the game's own
-  values. During a flight the face buttons dodge up, down, left and right. How it looks is unknown: the game may have
-  no animation left for it and show EVE in a fall pose.
+- `coop fly on`: hold R2, A or E while EVE is in the air after a jump, and she flies until you release it. The
+  game's flight carries her along the camera's heading at 10 m/s: turn the camera to steer. On the keyboard, A held
+  climbs, E held descends and both held fly level. Flight time comes from a pool of 90 s that drains while she flies
+  and refills at 1 s per second, the game's own values. During a flight the face buttons dodge up, down, left and
+  right, and so do Shift with Q, D, A or E on the keyboard (left, right, up, down). `coop fly on` puts A and E in
+  place of the game's Z (which walks forward on an AZERTY keyboard) and adds the four Shift keys to the input
+  settings; if the game's key list takes no third key, E takes R2's place and the pad no longer flies. The log's
+  `[FL]` lines say which.
 - `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
   keyboard key to it. It waits while a friend is linked, since the slow time would be your game's alone.
 - `coop fly off`, `coop slowmo off`, `coop off` and a Lua reload (Ctrl+R) put the game's values back. On a save that is
   not a co-op one, both wait until you are back on one. Nothing of it is saved: the game builds these settings again
   at each start.
 
-The keys are the game's own and keep their other uses. R2 is also Interact and the fishing reel, Z walks forward on an
-AZERTY keyboard and R1 opens the Burst skills. So with `coop fly on`, walking forward in the air on AZERTY flies, and
-with `coop slowmo on` holding R1 for a Burst skill slows time. Flight can carry EVE past places the game expects her to
+The keys keep their other uses. R2 is also Interact and the fishing reel, E blocks and parries, and R1 opens the Burst
+skills. So with `coop fly on`, pressing E in the air flies, and with `coop slowmo on` holding R1 for a Burst skill
+slows time. Flight can carry EVE past places the game expects her to
 reach on foot, and the next save keeps where she is: hence the co-op saves only.
 
 The native part's lines go to `coop-link.log`: `coop fly on: UseFlyingActionKey set at the game thread's next pass`,
