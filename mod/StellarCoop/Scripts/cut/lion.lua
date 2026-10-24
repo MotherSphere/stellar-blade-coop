@@ -1,25 +1,25 @@
 -- coop lion: the cut Naytiba 02, the Lion (/Game/Art/Character/Monster/CH_M_NA_02/: blueprint, mesh, clips, collision
--- data and 41 Shows, but no table row), spawned as a real enemy to fight, on the game thread (plan A of the Lion
--- study). Its 78 rows go into SB's 8 tables through the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own
--- AddRow on the game thread with no logic task in flight). This file finds the tables by their fixed paths and sends
--- their addresses (the lion rows request: no console word reaches an address), waits for the answer in
--- coop-status.txt's lion line, then reads every row back through FindRow by field name, independent of the SDK's
--- offsets, and stops at the first value that differs. Then one spawn call, nightop/run.lua's ServerRequest_CreateActor
--- with cheat on and key 0 (no EventSpawn row: no zone storage, no quest event, no respawn, nothing saved), 10 m ahead
--- of EVE and 1 m up, facing her, for a fixed CharacterTable ID only: 50020 (M_LionC, the Skulling test tree), 50021
--- after coop lion brain lurker (M_LionC_Lurker, the Lesser Lurker tree), or for coop lion control 50110 (M_Antlion, a
--- shipped Naytiba, which tells a broken call from broken rows). Its body is the new character nearest the spot (of the
--- Large blueprint's class for the Lion), or a body SB sent far away and moved back there (it reuses one: a Lion at 466
--- m came back for the next spawn on 2026-10-23), given its default controller when it has none, then followed: a line a
--- second while it lives (distance, place, the anim graph's speed, a skill running, the custom anim alphas the AnimBP
--- blends a Show's clip by), its death (InteractionState and Controller, as run.lua reads them) and its body's despawn,
--- with the spawn manager's counter (the lion line's spawns=) before, while it lives and after. While a Lion lives, two
--- more: which of its 15 Shows and their clips have loaded (the in-game test of a Lion that attacks with no animation),
--- and the boss bar's name, which the game shows as <M_LionC> (no Lion text in CharacterStringTable), set to Lion. Never
--- called here: UE4SS's AddRow or RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save,
--- quest or inventory call. The Lion goes when it dies or with the map; the rows stay for the game run, and a later coop
--- lion only reads them back. coop off ends what this file does (a wait, a search, the lines) and leaves a living Lion
--- to the game.
+-- data and 41 Shows, but no table row), spawned as a real enemy to fight, on the game thread (plan A of the Lion study,
+-- made native). Its 221 rows, each authored for it (cut/lion_rows.lua lists them), go into SB's 12 tables through the
+-- native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight).
+-- This file finds the tables by their fixed paths and sends their addresses (the lion rows request: no console word
+-- reaches an address), waits for the answer in coop-status.txt's lion line, then reads every row back through FindRow
+-- by field name, independent of the SDK's offsets, and stops at the first value that differs. Then one spawn call,
+-- nightop/run.lua's ServerRequest_CreateActor with cheat on and key 0 (no EventSpawn row: no zone storage, no quest
+-- event, no respawn, nothing saved), 10 m ahead of EVE and 1 m up, facing her, for a fixed CharacterTable ID only:
+-- 50020 (M_LionC, the Skulling test tree), 50021 after coop lion brain lurker (M_LionC_Lurker, the Lesser Lurker tree),
+-- or for coop lion control 50110 (M_Antlion, a shipped Naytiba, which tells a broken call from broken rows). Its body
+-- is the new character nearest the spot (of the Large blueprint's class for the Lion), or a body SB sent far away and
+-- moved back there (it reuses one: a Lion at 466 m came back for the next spawn on 2026-10-23), given its default
+-- controller when it has none, then followed: a line a second while it lives (distance, place, the anim graph's speed,
+-- a skill running, the custom anim alphas the AnimBP blends a Show's clip by), its death (InteractionState and
+-- Controller, as run.lua reads them) and its body's despawn, with the spawn manager's counter (the lion line's spawns=)
+-- before, while it lives and after. While a Lion lives, two more: which of its 20 Shows and their clips have loaded
+-- (the in-game test of a Lion that attacks with no animation), and the boss bar's name, which the game shows as
+-- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. Never called here: UE4SS's AddRow or RemoveRow (a raw
+-- RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call. The Lion goes when it dies
+-- or with the map; the rows stay for the game run, and a later coop lion only reads them back. coop off ends what this
+-- file does (a wait, a search, the lines) and leaves a living Lion to the game.
 -- The entrance: the Lion's AnimBP (CH_M_NA_02_AnimBP) has no montage slot, so a montage would not show, and a
 -- single-node clip on its mesh would replace the anim instance SB plays its skills on while its AI runs. So coop lion
 -- spawns at once, and coop lion intro first plays Mon_LionC_Scene01_Appearance (the cut boss intro's clip) on a display
@@ -31,9 +31,10 @@ local N=require('nightop.probe')
 local Doro=require('race.doro')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Lion={}
--- The 8 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
+-- The 12 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
 Lion.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
-    'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable'}
+    'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
+    'TargetFilterTable','SkillResultTable','EffectTable'}
 local DATA='/Game/Local/Data/'
 -- The only IDs the spawn call takes, with what each is; the brains are the Lion's two CharacterTable rows.
 Lion.IDS={[50020]='M_LionC',[50021]='M_LionC_Lurker',[50110]='M_Antlion'}
@@ -61,8 +62,6 @@ local FOLLOW,GONE=1,60 -- s: a line a second while it lives; a body still there 
 local FAR=100
 local MASK=0xFFFFFFFF
 local USE='Use: coop lion [intro] | rows | control | brain skulling|lurker'
-local GROUP='[{"CollisionGroupName":"Mon_Lion_Attack_%s_Collision", "DelayTime":0}]'
-local DEAD='CH_M_NA_02_Lion/Basic/M_Lion_Dead'
 -- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4c3f0, through FText::FromStringTable on the
 -- row's Name), the text it shows for the Lion, and ours. FindAllOf('TextBlock') walks every object: the live blocks
 -- found (under /Engine/Transient, not a widget class's template) are kept, and looked for again at most every BOSS_LOOK
@@ -70,88 +69,15 @@ local DEAD='CH_M_NA_02_Lion/Basic/M_Lion_Dead'
 local BOSS_TEXT,BOSS_SHOWN,BOSS_NAME,BOSS_LOOK='TextBlock_BossName','^<M_LionC[%w_]*>$','Lion',10
 local LIVE='/Engine/Transient'
 
--- The rows as the native part writes them (lion/rows.h's generated recipe; tests/lua/cut/lion_test.lua checks this
--- list against it): {table=, name=, id=<nil in the dead table>, checks={{field, kind, value}}}. kind: f a float, n an
--- FName (compared in any case: its text is whichever casing the game registered first), N a list of FNames, s an
--- FString, S a list of FStrings (lists joined by |).
+-- The rows as the native part writes them: cut/lion_rows.lua, which the generator of lion/rows.h writes from the same
+-- recipe (tests/lua/cut/lion_test.lua checks the two agree): {table=, name=, id=<nil in the dead table>,
+-- checks={{field, kind, value, held}}}. kind: f a float, i an int32, b a bool (0 or 1), e an enum's number, n an FName
+-- (compared in any case: its text is whichever casing the game registered first), N a list of FNames, s an FString, S
+-- a list of FStrings (lists joined by |). held: the field overwrites a value of the row's template (the shipped row the
+-- native part copies before its patches), so a read-back of every check shows no template value is left.
+local DATA_ROWS=require('cut.lion_rows')
 Lion.ROWS={}
-local function row(t,name,id,checks) Lion.ROWS[#Lion.ROWS+1]={table=t,name=name,id=id,checks=checks} end
--- The v1 kit in its rows' order: the skill, its steps' durations (s), its Hit step's collision group (none: no Hit
--- collision) and, for a Cast step shorter than its donor's, its action assist check (s, as far before its end as the
--- donor's). IDs 5002000 on; a step's ID is its skill's times 100 plus 2, 3, 4.
-local KIT={{'ClawAttackLeft',{0.8,0.2,2.067},'L_Arm'},{'ClawAttackRight',{0.8,0.2,2.067},'R_Arm'},
-    {'ClawAttackChaseLeft',{0.7,0.3,2.067},'L_Arm'},{'ClawAttackChaseRight',{0.7,0.3,2.067},'R_Arm'},
-    {'TurnAttackLeft',{0.58,0.32,1.6},'L_Arm'},{'TurnAttackRight',{0.58,0.32,1.6},'R_Arm'},
-    {'RunAttackLeft',{0.83,0.42,1.68},'R_Arm'},{'RunAttackRight',{0.83,0.42,1.68},'L_Arm'},
-    {'JumpAttackLow',{1.13,0.1,0.97},'RL_Arm'},{'JumpAttackHigh',{1.96,0.64,2.4},'RL_Arm'},
-    {'BackJumpToAttack',{1.2,0.1,0.9},'RL_Arm'},{'AttackToBackJump',{1.15,0.2,2.25},'RL_Arm'},
-    {'Roar',{1.332,1.268,1.533},nil,1.266},{'SideStepLeft',{2.0}},{'SideStepRight',{2.0}}}
-local STEPS={'_Cast1','_Hit1','_Finish1'}
--- The steps whose donor moves the generator cut, with the moves each keeps ('' none). It cuts a move on the Behemoth's
--- root motion or curves, a move to a spot its target sets (JumpAttackLow's two carry the body from wherever it stands
--- to EVE), and every move of a step whose moves add up to over 3 m (JumpAttackHigh's Hit pushes 4.3 m in 0.84 s): all
--- slid the Lion with no clip to match.
-local MOVES={TurnAttackLeft_Cast1='M_Behemoth_TurnAttackLeft_Move1',
-    TurnAttackRight_Cast1='M_Behemoth_TurnAttackRight_Move1',JumpAttackLow_Cast1='',JumpAttackLow_Hit1='',
-    JumpAttackHigh_Cast1='',JumpAttackHigh_Hit1='',BackJumpToAttack_Finish1='',AttackToBackJump_Finish1='',
-    SideStepLeft_Cast1='',SideStepRight_Cast1=''}
-local commands={}
-for i,k in ipairs(KIT) do
-    local skill,id,d='M_LionC_'..k[1],5002000+i-1,k[2]
-    commands[i]=skill
-    for s=1,#d do
-        local c={{'Duration','f',d[s]}}
-        if s<#d then c[#c+1]={'NextStepAlias','n',skill..STEPS[s+1]} end
-        if s==1 then c[#c+1]={'ShowPath','n','CH_M_NA_02_Lion/Skill/'..skill..'_1'} end
-        if s==1 and k[4] then c[#c+1]={'ActionAssistCheckDelay','f',k[4]} end
-        if s==2 and k[3] then c[#c+1]={'AttackCollisionGroupArray','s',GROUP:format(k[3])} end
-        if MOVES[k[1]..STEPS[s]] then c[#c+1]={'SelfMoveAliasArray','N',MOVES[k[1]..STEPS[s]]} end
-        row('SkillActiveStepTable',skill..STEPS[s],id*100+s+1,c)
-    end
-    row('SkillTable',skill,id,{{'FirstSkillActiveAlias','n',skill..'_Cast1'}})
-end
-for i,skill in ipairs(commands) do row('SkillCommandTable',skill,5002000+i-1,{{'SkillAlias','n',skill}}) end
-for k,set in ipairs({'Peaceful','Battle'}) do
-    local c={}
-    if set=='Battle' then
-        c={{'RunBlendSpace','s','Animation/BlendSpace/IdleRun_BS_'},
-            {'RunTiltBlendSpace','s','Animation/BlendSpace/IdleRun_BS_'}}
-    end
-    local function to(clip,fields) for f in fields:gmatch('%S+') do c[#c+1]={f,'s',clip} end end
-    to('Animation/Mon_Lion_B_Run_Start','RunStart RunStartAfterEvade')
-    to('Animation/Mon_Lion_B_Run_End','RunToIdle RunToIdle_L RunToIdle_R ShortMoveToIdle ShortMoveToIdle_L '
-        ..'ShortMoveToIdle_R')
-    to('Animation/Mon_B_Lion_Run_L_Turn','RunTurn_L WalkTurn_L')
-    to('Animation/Mon_B_Lion_Run_R_Turn','RunTurn_R WalkTurn_R')
-    to('','Custom_Anim3') -- The Behemoth's shield-break clip: none for the Lion.
-    -- The second just parry's (a perfect parry on the Hits of ScratchLeft and TurnAttackLeft): the Lion's one clip.
-    to('Animation/Result_Hit_JustParry','Custom_Anim4')
-    row('CharacterAnimSetTable','M_LionC_'..set,500199+k,c)
-end
-row('CharacterStanceTable','M_LionC_Default',500200,{{'CommandArray','N',table.concat(commands,'|')},
-    {'StartEffect','s','[{"Alias":"M_Common_HitProjectileCheckCount"}]'},
-    {'AnimSet_Peaceful_UpperBody','n','M_LionC_Peaceful'},{'AnimSet_Peaceful_LowerBody','n','M_LionC_Peaceful'},
-    {'AnimSet_Battle_UpperBody','n','M_LionC_Battle'},{'AnimSet_Battle_LowerBody','n','M_LionC_Battle'}})
-do
-    local c={{'DefaultDeadShowArray','S',DEAD}}
-    for f in ('Step0 Step1 Step2 Step3 Explosion1 Explosion2 Custom1 Custom4 Custom6 Custom8'):gmatch('%S+') do
-        c[#c+1]={f..'DeadShow','s',DEAD}
-    end
-    row('CharacterDeadTable','M_LionC',nil,c)
-end
-row('CharacterAppearanceTable','M_LionC',50020,
-    {{'CharacterAssetPath','n','/Game/Art/Character/Monster/CH_M_NA_02/BluePrints/CH_M_NA_02_BluePrint_Large'}})
-for _,c in ipairs({{'M_LionC_Lurker',50021,'M_LesserLurker_AI'},{'M_LionC',50020,'M_Skulling_AI_Test'}}) do
-    -- The link flag Common: EVE's link Show for it plays the anim sets' Hit_Sword_Normal_LinkAttack1 on the Lion; the
-    -- Behemoth's flag played a Behemoth clip the Lion lacks.
-    row('CharacterTable',c[1],c[2],{{'Type','s','M_LionC'},{'Flag','n','Lion'},
-        {'LinkSkillRandomActiveStepFlagArray','N','Common'},{'DefaultEffectArray','N','Rank_Elite'},
-        {'DeadAlias','n','M_LionC'},{'DespawnShow','s','Despawn/M_LionA_Despawn'},
-        {'DefaultStanceAlias','n','M_LionC_Default'},
-        {'BehaviorTreeRes','s','/Game/GameDesign/Combat/BehaviorTree/Monster/'..c[3]},{'RefAppearance','n','M_LionC'},
-        {'Name','s',''},{'MeshScale','f',1.0},{'OverrideCharacterSoundSet','s',
-            "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_46_BEHEMOTH.CSS_MON_46_BEHEMOTH'"}})
-end
+for _,r in ipairs(DATA_ROWS.ROWS) do Lion.ROWS[#Lion.ROWS+1]={table=r[1],name=r[2],id=r[3],checks=r[4]} end
 -- The lion line's counts once every row is in: added=, and SB's lookups by ID (char=, skills=, stance=).
 local function count(t)
     local n=0
@@ -159,23 +85,17 @@ local function count(t)
     return n..'/'..n
 end
 Lion.IN={added=count(),char=count('CharacterTable'),skills=count('SkillTable'),stance=count('CharacterStanceTable')}
--- The loaded line's 30 paths: each Lion Show, then the clip its one anim key plays. 8 Shows name it as
--- AnimSequence'...': UE 4.26's ResolveName would strip that, but SB's load path was not traced in the exe, so whether
--- those 8 clips load is part of what this line tests. StaticFindObject finds only what is in memory and costs about 4
--- ms a call here (core/unreal.lua): LOOKS paths a second, each looked for until first seen.
-local CLIPS={ClawAttackLeft='M_LionC_ClawAttackLeft',ClawAttackRight='M_LionC_ClawAttackRight',
-    ClawAttackChaseLeft='M_LionA_ClawAttackChaseLeft',ClawAttackChaseRight='M_LionA_ClawAttackChaseRight',
-    TurnAttackLeft='Mon_Lion_Attack_Turn_Left',TurnAttackRight='Mon_Lion_Attack_Turn_Right',
-    RunAttackLeft='M_LionC_RunAttackLeft',RunAttackRight='M_LionC_RunAttackRight',
-    JumpAttackLow='Mon_Lion_Attak_Jump_01',JumpAttackHigh='Mon_Lion_Attack_Jump_02',
-    BackJumpToAttack='Mon_Lion_Attack_Rotation_Back',AttackToBackJump='Mon_Lion_Attack_Back_Dash',
-    Roar='Mon_Lion_Attack_Roar_01',SideStepLeft='Mon_Lion_SideStep_Left',SideStepRight='Mon_Lion_SideStep_Right'}
+-- The loaded line's paths: each Lion Show of the kit, then the clip its first anim key plays (the phase-2 roar plays
+-- the roar's Show). 9 Shows name their clip as AnimSequence'...': UE 4.26's ResolveName would strip that, but SB's load
+-- path was not traced in the exe, so whether those clips load is part of what this line tests. StaticFindObject finds
+-- only what is in memory and costs about 4 ms a call here (core/unreal.lua): LOOKS paths a second, each looked for
+-- until first seen.
+Lion.SHOWS=DATA_ROWS.SHOWS
 local LOOKS=2
 Lion.LOADS={}
-for _,k in ipairs(KIT) do
-    local show='M_LionC_'..k[1]..'_1'
-    Lion.LOADS[#Lion.LOADS+1]='/Game/Art/Show/CH_M_NA_02_Lion/Skill/'..show..'.'..show
-    Lion.LOADS[#Lion.LOADS+1]=DIR..'Animation/'..CLIPS[k[1]]..'.'..CLIPS[k[1]]
+for _,s in ipairs(Lion.SHOWS) do
+    Lion.LOADS[#Lion.LOADS+1]='/Game/Art/Show/CH_M_NA_02_Lion/Skill/'..s[2]..'.'..s[2]
+    Lion.LOADS[#Lion.LOADS+1]=DIR..'Animation/'..s[3]..'.'..s[3]
 end
 
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
@@ -203,10 +123,12 @@ function Lion.parse(status)
     s.asks,s.spawns=tonumber(s.asks) or 0,tonumber(s.spawns)
     return s
 end
--- A field of a row as compared: a number, or text (an FName lower-cased), a list joined by |. Raises when unread.
+-- A field of a row as compared: a number (a bool as 0 or 1), or text (an FName lower-cased), a list joined by |. Raises
+-- when unread.
 local function get(r,field,kind)
     local x=value_of(r[field])
-    if kind=='f' or kind=='i' then return assert(tonumber(x),'not a number') end
+    if kind=='b' and type(x)=='boolean' then return x and 1 or 0 end
+    if kind=='f' or kind=='i' or kind=='e' or kind=='b' then return assert(tonumber(x),'not a number') end
     if kind=='n' then return text(x):lower() end
     if kind=='s' then return text(x) end
     local items={}
@@ -219,8 +141,11 @@ local function same_value(kind,got,want)
     return got==((kind=='n' or kind=='N') and want:lower() or want)
 end
 -- R4: every row of ROWS read back through its table's FindRow (tables: by name, as found), its ID then its checks, in
--- order. Returns the count that match and, at the first that does not, what it reads.
+-- order. Returns the count that match and, at the first that does not, what it reads; with every row matching, also
+-- the fields read and how many of them overwrite a template value. ponytail: about 2900 field reads in one frame, once
+-- a coop lion; a read-back spread over frames if that hitch shows in game.
 local function read_back(tables)
+    local fields,held=0,0
     for n,r in ipairs(Lion.ROWS) do
         local found=tables[r.table]:FindRow(r.name)
         if found==nil then return n-1,r.name..' is not in '..r.table end
@@ -233,8 +158,10 @@ local function read_back(tables)
                 return n-1,string.format('%s %s reads "%s", not "%s"',r.name,c[1],tostring(got),tostring(c[3]))
             end
         end
+        fields=fields+#r.checks
+        for _,c in ipairs(r.checks) do held=held+(c[4] and 1 or 0) end
     end
-    return #Lion.ROWS
+    return #Lion.ROWS,nil,fields,held
 end
 
 -- o: log (the [LI] lines), ask(line) the native request (ok, message), status() the native status text.
@@ -250,7 +177,7 @@ function Lion.new(o)
     local failed={} -- The last error of the loaded line and of the boss name, each said once.
     local function lion_line() return Lion.parse(status and status()) end
     local her=N.her
-    -- The 8 tables by name, and those missing.
+    -- The 12 tables by name, and those missing.
     local function tables()
         local found,missing,words={},{},{}
         for _,t in ipairs(Lion.TABLES) do
@@ -329,8 +256,8 @@ function Lion.new(o)
             num('%.2f',function() return c:GetCurrentCustomAnimAlpha(1) end),read and (battle and 1 or 0) or '?',
             tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count())))
     end
-    -- While a Lion lives, once a second: LOOKS of the 30 paths (each Show, then its clip) not seen yet, and the loaded
-    -- line once each path was looked for (0/15 then says none loaded) or one was seen, and whenever it changes. A Show
+    -- While a Lion lives, once a second: LOOKS of the 40 paths (each Show, then its clip) not seen yet, and the loaded
+    -- line once each path was looked for (0/20 then says none loaded) or one was seen, and whenever it changes. A Show
     -- seen means the game played it on a Lion (it loads a Show when a step names it); its clip seen means the Show's
     -- anim key loaded it. A Show seen without its clip is named.
     local function look_loaded()
@@ -344,12 +271,12 @@ function Lion.new(o)
             end
         end
         local shows,clips,without=0,0,{}
-        for i,k in ipairs(KIT) do
+        for i,k in ipairs(Lion.SHOWS) do
             local show,clip=seen[paths[2*i-1]],seen[paths[2*i]]
             shows,clips=shows+(show and 1 or 0),clips+(clip and 1 or 0)
             if show and not clip then without[#without+1]=k[1] end
         end
-        local line=string.format('loaded: shows %d/%d, clips %d/%d',shows,#KIT,clips,#KIT)
+        local line=string.format('loaded: shows %d/%d, clips %d/%d',shows,#Lion.SHOWS,clips,#Lion.SHOWS)
             ..(without[1] and ' (Show seen, its clip not yet: '..table.concat(without,', ')..')' or '')
         if (shows>0 or clips>0 or looks>=#paths) and line~=loaded_said then
             loaded_said=line
@@ -528,13 +455,14 @@ function Lion.new(o)
                     s.line,k,tostring(s[k]),Lion.IN[k])
             end
         end
-        local n,wrong=read_back(j.tables)
+        local n,wrong,fields,held=read_back(j.tables)
         if wrong then
             log(string.format('rows read back through FindRow: %s (%d/%d match before it): no spawn',wrong,n,
                 #Lion.ROWS))
             return false,'A Lion row reads back wrong ('..wrong..'): no spawn.'
         end
-        log(string.format('rows read back through FindRow: %d/%d match',n,#Lion.ROWS))
+        log(string.format('rows read back through FindRow: %d/%d authored rows, %d fields as written, 0 template '
+            ..'values left (%d overwritten)',n,#Lion.ROWS,fields,held))
         if j.rows_only then
             return true,string.format('Lion rows in: %s added, SB finds them by ID (char %s, skills %s, stance %s) and '
                 ..'they read back as written; coop lion spawns one.',s.added,s.char,s.skills,s.stance)

@@ -69,6 +69,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
 | `cut/lion.lua` | `coop lion`: the cut Lion's rows asked of the native part and read back, its spawn, its entrance on a display copy, the lines that follow it ([The cut Lion](#the-cut-lion)) |
+| `cut/lion_rows.lua` | The Lion's rows as `lion/rows.h` writes them, for the read-back, and its Shows for the loaded line; written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
@@ -1351,93 +1352,133 @@ is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/do
 (0.6.0-beta.1) it spawned, moved and hit EVE, but stayed in its idle pose. Its assets ship in
 `/Game/Art/Character/Monster/CH_M_NA_02/`: the blueprint `CH_M_NA_02_BluePrint_Large`, the mesh with its fur cloth, 138
 animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and 41 Shows. No table row
-names it. Three files do the work: `cut/lion.lua` (Lua), `lion/rows.h` (the rows and their build, free of Windows,
-tested on the build machine) and `glue/tick/lion_game.inc` (the game's calls).
+names it. Four files do the work: `cut/lion.lua` (Lua), `cut/lion_rows.lua` (the rows as Lua reads them back),
+`lion/rows.h` (the rows and their build, free of Windows, tested on the build machine) and `glue/tick/lion_game.inc`
+(the game's calls).
 
 ### The rows
 
-The native part adds 78 rows to 8 tables. Each one is a copy of a shipped Behemoth row with a few fields changed:
+The native part adds 221 rows to 12 tables, all of them the Lion's own. A generator kept outside the repository writes
+every field from the Lion's assets and from offline measurements of its clips. A shipped row of each table is only the
+struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row holds, to the
+Lion's value or to empty, so none of its values stays. These template rows are Behemoth rows, and a Scarlet effect for
+the effect row. The one Behemoth asset a Lion row names is the sound set `CSS_MON_46_BEHEMOTH`: the pak listing holds no
+sound set for the Lion, and its blueprint names none.
 
-- 15 skills (IDs 5002000 to 5002014) with their 15 commands and 41 steps (a skill's ID times 100, plus 2, 3 or 4). Each
-  first step names the skill's Lion Show, and each step lasts as long as that Show's own step. Each Hit step names a
-  Lion attack collision group (`Mon_Lion_Attack_L_Arm_Collision`, `R_Arm` or `RL_Arm`). The generator checked each group
-  against the Large blueprint's collision data and the sockets the attack's clip moves. The roar's first step is shorter
-  than the Behemoth's (1.332 s, not 1.6 s), so its action assist check moves to 1.266 s, the same 0.066 s before the
-  step ends. A step keeps the Behemoth's moves (`SelfMoveAliasArray`, rows of CharacterMoveTable) that name no asset,
-  move by their own Forward, Right and Up values (`MovePositionType_Self`) and add up to at most 3 m on the step. It
-  drops the others, which pushed the Lion with no clip to match: the side steps' 11 m, the back jumps' 9.5 and 6.3 m,
-  the turns' root motion (`CH_M_NA_46/Animation/RootMotionData/M_Behemoth_TurnAttack*_RM`), the high jump's Behemoth
-  curves and its Hit's four pushes (4.3 m in 0.84 s), and the low jump's two `MoveTransformType_Static` moves with
-  `MovePositionType_Target`. Those take Forward 200 and 100 as a spot set from EVE, not as a distance, so they carried
-  the body across the whole gap in 0.5 s and 0.1 s. At each new step of the chain the game moves the playing Show to its
-  next stage and never matches the Show's step IDs: `FSBSkillPresentationObject` queues each step row and reads its ID
-  only for its log. So the Lion Shows' step IDs of 0 do not matter.
-- The stance `M_LionC_Default` (500200), which lists the 15 commands. It leaves out the Behemoth's `MinimumHP_60p` start
-  effect, which holds HP at 60% until a phase skill the Lion lacks. Two anim sets (500200 and 500201) name the Lion's
-  run clips and drop the Behemoth's shield-break clip, which the Lion has no copy of. `Custom_Anim4`, the clip of the
-  second just-parry result that 7 of the 12 attacks go to on a perfect parry, names the Lion's one just-parry clip
-  (`Animation/Result_Hit_JustParry`), as 153 of the game's anim sets do.
-- The dead row (the Lion's death Show, then the `M_LionA_Despawn` dissolve) and the appearance row (50020, the Large
-  blueprint).
+- Stats, in both CharacterTable rows: 160000 HP, 3300 shield, 14 stamina, 960 physical and range attack, 110 shield
+  attack. The Great Desert elites (Behemoth, Stalker, Abaddon) have 170500 HP, 3500 shield, 15 stamina and 840 to 1050
+  attack; the Lion has a little less, as a boss with melee attacks only. Its target filter radius (190 cm) and rule-move
+  block radius (240 cm) fit the Large blueprint's 150 cm capsule. Rank Elite, difficulty group MonsterElite (the same
+  numbers as the Great Desert groups), actor type BossMonster, no reward. Zero stamina applies `M_LinkAttackDelay_10`,
+  `Groggy`, `SkillCancel`, `BlockSkill` and `M_StaminaRecoverReady`, as on Stalker and Abaddon; EVE's link attack needs
+  the target groggy. Detection is the shipped `M_DetectCommon20m360` (360 degrees, 20 m). The link flag is `Common`:
+  EVE's generic link Show plays the Lion's own `Hit_Sword_Normal_LinkAttack1` on it. `Name` stays empty, since
+  CharacterStringTable has no Lion text (see the spawn below).
+- 21 skills (IDs 5002000 to 5002020), their 21 commands and 80 steps (a skill's ID times 100, plus 2 to 10). Each skill
+  plays one Lion Show and follows that Show's steps one for one, in count and in duration: at each new step of the chain
+  the game moves the playing Show to its next stage and never matches the Show's step IDs (`FSBSkillPresentationObject`
+  queues each step row and reads its ID only for its log). The first 15 are the kit of 0.6.0-beta.1. The others are the
+  Lion Shows with a clip that the kit left out: `ClawAttackChain` (three claws), `ClawAttackChain2` (four claws and a
+  full turn), `MoveAttackChain` (three claws on the move), `RushAttack` (a leap, then a claw), `DashAttackChain` (four
+  pounces over three clips) and `RoarPhaseChange` (the roar Show again, for phase 2).
+- A Hit step is the Show step in which the striking claw, paw or jaw peaks. No Lion clip has a hit notify, so the
+  striking point and its speed peak come from the decoded clips; their forward kinematics match the socket tracks the
+  game bakes for 21 Lion clips to 0.14 cm. In every claw hit, the claw's peak and the `NS_Lion_ClawTrail_01` particle
+  fall in the Show's hit step. Six hits peak 0.017 to 0.074 s before their step, and the generator lists them. A claw
+  strikes through `Mon_Lion_Attack_L_Arm_Collision` or `R_Arm`, a landing through `RL_Arm` (both arms). The roar and
+  the dash chain hit through a target filter, since the collision data tracks no socket for the dash clips. Five result
+  rows hold the game's own reaction Shows, effects and knockbacks: light (0.5 s stun), strong (0.8 s), knockdown
+  (1.5 s), guard and parry. A perfect parry on a skill's last hit goes to the shipped step
+  `M_Common_Result_ParryJust_Center`, which plays the Lion's `Result_Hit_JustParry`. EVE can neither parry nor guard
+  the roars and the high jump, as with the Behemoth's, and the game's action assist checks them 0.066 s before the hit.
+- 62 moves (CharacterMoveTable rows). Every Lion clip is in place: the root never moves, and each clip starts and ends
+  on the idle pose. The travel the game has to give the Lion comes from each clip's planted feet, and in the air from
+  the pelvis keeping its take-off velocity. On the Behemoth's own clips the same method gives the distances and times of
+  its move rows (its ScratchLeft finish: 146 cm over 0.22 to 0.58 s, against the row's 143 cm from 0.2 to 0.6 s). A
+  step that travels 30 cm or more gets one move of that distance along the Lion's own axes, over the time its feet move,
+  turning toward EVE meanwhile. 22 come from planted feet; 32 are mostly in the air, an estimate the generator marks.
+  The side steps keep only their sideways travel (14.2 and 15.9 m), as the forward part is the method's error there.
+  Each skill's first step turns the Lion toward EVE: at once for the turn attacks and the back jump, whose clips start
+  with the body turned 90 or 180 degrees away, else over that step (8 moves turn only).
+- 23 target filters. A skill's range is the reach of its first hit (the striking socket's farthest point ahead of the
+  Lion during that step, at the mesh's 1.5 scale) plus its travel up to that hit, times 0.61: the Behemoth's ScratchLeft
+  filter is 300 cm for a claw reach of 440 cm and a move of 53 cm before it. A skill that travels 2 m or more before its
+  hit aims its arc along that travel. The turn attacks look behind a side, the back jump behind, the roar 7 m around.
+  Shipped space checks (`Valid_Move_*`) keep the side steps, run attacks, jumps and chains for open ground.
+- Two anim sets (500200 and 500201) name the Lion's run clips and its `Result_*` reactions, and no shield break, which
+  the Lion has no clip for.
+- Two stances. `M_LionC_Default` (500200, phase 1) lists 17 commands; `M_LionC_Phase2` (500201) lists all 21. Both walk
+  at 200 cm/s, the battle blend space's walk sample, and run at 900, the Behemoth's pace. At the Large scale the run
+  clip strides about 1550 cm/s, past the blend space's last sample (600), so any boss pace slides its feet; 900 slides
+  less than 600. Phase 2 is the Raven's data-only switch: the CharacterTable rows list it in `StanceAliasArray`, and it
+  takes over at HP under 60% (Priority 10, Condition HP, UnderRate, 60). Its start restores the shield and applies
+  `M_LionC_PhaseRoar`, an effect whose action uses the skill `M_LionC_RoarPhaseChange` (`EffectAction_UseSkill`, as the
+  shipped `M_Scarlet_CounterLinkStart` does). That skill's AISkillFlag is `PhaseChange`, which neither tree picks. The
+  first phase has no `MinimumHP_60p`: had the switch failed, that floor would hold the Lion at 60% HP for good.
+- The dead row (the Lion's death Show for every kind of kill, then the `M_LionA_Despawn` dissolve) and the appearance
+  row (50020, the Large blueprint).
 - Two CharacterTable rows, added last: `M_LionC` (50020, the tree `M_Skulling_AI_Test`) and `M_LionC_Lurker` (50021,
-  `M_LesserLurker_AI`). Both trees pick skills by their AISkillFlag (MeleeAttack, which leaves the side steps out), not
-  by name, so the Lion's commands need no tree of their own. The rows keep the Behemoth's actor type (BossMonster, so
-  the boss bar binds it), rank, tribe and stats. Their `Name` stays empty: CharacterStringTable has no Lion text, and
-  the bar shows `<M_LionC>` (see the spawn below). Their link flag (`LinkSkillRandomActiveStepFlagArray`) is
-  `Common`, as 77 shipped rows have, not the Behemoth's `Behemoth`: that one picks EVE's
-  `P_Eve_Sword_Normal_LinkAttack1_Behemoth` Show, which plays `Animation/Hit_Sword_Normal_LinkAttack1_Behemoth` from
-  the target's own folder, and the Lion's folder has no such clip. The Common Show plays the target's custom anim
-  `HitSwordNormalLinkAttack1`, which the Lion's anim sets name as its `Animation/Hit_Sword_Normal_LinkAttack1`.
+  `M_LesserLurker_AI`). Both trees pick skills by their AISkillFlag (MeleeAttack), not by name, which leaves out the
+  side steps (MoveAttack) and the phase-2 roar.
 
-A generator kept outside the repository writes the data part of `lion/rows.h` from the offline reader's dumps of the
-tables and the pak listing. It refuses a taken ID or name (in any case, as the game compares names) and a missing donor,
-Show, clip, blueprint or tree, including a clip that the Show of a step outside the kit plays when a Lion step goes to
-it (a perfect parry's result) and the clip EVE's link Show for each link flag plays on the Lion. It also refuses a
-field the SDK does not place where its patch writes, an action assist check after its step's end, and a step that
-keeps a move naming an asset or ending at a spot its target sets, or moves that add up to over 3 m.
+The generator writes the data part of `lion/rows.h` and the whole of `cut/lion_rows.lua` from the offline reader's
+dumps of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the clip measurements. It
+refuses a taken ID or name (in any case, as the game compares names), a missing template, a field the SDK does not
+place where its patch writes, and a template value the recipe does not set. It also refuses a value naming a Behemoth
+row or asset other than the sound set, and a reference that lands on no Lion or shipped row: steps, skills, commands,
+stances, moves, target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips, blueprint,
+tree and sound set. Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or
+0.05 s late at most), and each collision group must exist with every socket tracked for the clip playing. Anim sets must
+name clips of the Lion's folder, and no stance may hold HP at 60%. Each link flag must pick EVE link steps whose Shows
+play a clip the Lion has, and no move may travel over 17 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
-its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 8 tables by
-their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 12 tables
+by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
 
 ```
 lion rows CharacterTable=0x<address> CharacterAppearanceTable=0x<address> CharacterDeadTable=0x<address>
 CharacterStanceTable=0x<address> CharacterAnimSetTable=0x<address> SkillCommandTable=0x<address>
-SkillTable=0x<address> SkillActiveStepTable=0x<address>
+SkillTable=0x<address> SkillActiveStepTable=0x<address> CharacterMoveTable=0x<address>
+TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address>
 ```
 
-It is one line in `coop-request.txt`. Each of the 8 words comes once, in any order. Each address has 1 to 16 hex digits,
-is plausible and is 8-aligned; anything else gets `unknown request`. No console word reaches an address. The native part
-trusts none before it checks the table's vtable (`0x146402e10`), its AddRow slot and its row size.
+It is one line in `coop-request.txt` (457 bytes at most, under the file's 512). Each of the 12 words comes once, in any
+order. Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No
+console word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its
+AddRow slot and its row size.
 
 The game thread adds the rows in `coop_tick` only while the cached net mode is 0 and no logic task is in flight (logic
 `+0x5c0` is 0, the same check as same-place enemies' force target): no lock guards the tables, and the logic thread
 reads them. A shut gate tries again at the next frame and refuses after 300 frames. For each row not added yet, the
-native part initializes a block of its own from the row struct, copies the donor row into it (CopyScriptStruct), writes
-the ID and the patches, resets the game's lazy-init flag (row `+8`) and the arrays the game parses from the row's JSON
-strings, then calls AddRow through the table's vtable with the new name. A row goes in once a game run and never again,
-so AddRow's own RemoveRow never frees a row that a living Lion reads. The first refusal stops the run before any later
-row. The CharacterTable rows come last, so a refused run leaves no Lion to spawn; asking again skips the rows already
-in. These calls run under their own SEH latch.
+native part initializes a block of its own from the row struct, copies the template row into it (CopyScriptStruct),
+writes the ID and the patches, resets the game's lazy-init flag (row `+8`) and the arrays the game parses from the row's
+JSON strings, then calls AddRow through the table's vtable with the new name. A row goes in once a game run and never
+again, so AddRow's own RemoveRow never frees a row that a living Lion reads. The first refusal stops the run before any
+later row. The CharacterTable rows come last, so a refused run leaves no Lion to spawn; asking again skips the rows
+already in. These calls run under their own SEH latch.
 
 Then the native part reads the rows back through the game's own lookups by ID and writes the `lion=` line of
 `coop-status.txt`:
 
 ```
 lion=off
-lion=waiting added=<n>/78 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
-lion=rows added=78/78 asks=<a> spawns=<s> char=<k>/2 skills=<k>/15 stance=<k>/1
-lion=refused added=<n>/78 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
-lion=fault added=<n>/78 asks=<a> spawns=<s> where=<text>
+lion=waiting added=<n>/221 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+lion=rows added=221/221 asks=<a> spawns=<s> char=<k>/2 skills=<k>/21 stance=<k>/2
+lion=refused added=<n>/221 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
+lion=fault added=<n>/221 asks=<a> spawns=<s> where=<text>
 ```
 
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
 so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
-back through `FindRow` by field name (independent of the SDK's offsets) and spawns only when every value matches and the
-line says `char=2/2 skills=15/15 stance=1/1`.
+back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 2868 fields the patches
+write, from `cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree).
+2089 of those fields overwrite a value of the template row, so a full match shows no template value is left. It spawns
+only when every value matches and the line says `char=2/2 skills=21/21 stance=2/2`. The read-back runs in one frame,
+once per `coop lion`; how long that takes in game was not measured.
 
 ### The spawn
 
@@ -1455,11 +1496,12 @@ at the call and stands within 30 m of it after counts as the new one; its old fo
 While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend
 space reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the
 animation blueprint blends a Show's clip by (`GetCurrentCustomAnimAlpha(0)` and `(1)`). Two more checks run once a
-second. The loaded line looks for the 15 Lion Shows and their 15 clips with `StaticFindObject`, two paths a second (a
-call costs about 4 ms), each until first seen: the game loads a Show when a step plays it, and the Show's anim key
-loads its clip. The boss name looks for the live `TextBlock_BossName` (under `/Engine/Transient`; `FindAllOf` again at
-most every 10 s while none is held) and sets it to `Lion` where it reads `<M_LionC>`. The game writes that block once
-per boss bind (`FText::FromStringTable` on the row's `Name`), so the check puts the name back after each bind.
+second. The loaded line looks for the 20 Lion Shows of the kit and the clip each one's first anim key plays, with
+`StaticFindObject`, two paths a second (a call costs about 4 ms), each until first seen: the game loads a Show when a
+step plays it, and the Show's anim key loads its clip. The boss name looks for the live `TextBlock_BossName` (under
+`/Engine/Transient`; `FindAllOf` again at most every 10 s while none is held) and sets it to `Lion` where it reads
+`<M_LionC>`. The game writes that block once per boss bind (`FText::FromStringTable` on the row's `Name`), so the check
+puts the name back after each bind.
 
 `coop lion intro` first plays `Mon_LionC_Scene01_Appearance` (13 s, the clip of the cut boss intro
 `DesertedCity_LionBossIntro`) on a display copy: `race/doro.lua`'s plain actor with the `CH_M_NA_02_Large` mesh at the
@@ -1498,8 +1540,17 @@ Only the game can settle these:
 - whether the Lion walks to EVE or stands while she moves around it (the follow line now logs its place);
 - where the lock-on marker sits, whether its feet meet the ground and whether its hit sounds play;
 - what a key-0 death does to the spawn manager's counter;
-- each AddRow runs the game's table-changed handling over the whole table, so 78 of them in one frame may cause a short
-  hitch, not measured.
+- each AddRow runs the game's table-changed handling over the whole table, so 221 of them in one frame may cause a short
+  hitch, not measured;
+- whether the game's lookups of the 4 tables new to the rows (moves, target filters, results, effects) run the same
+  lazy init as the other 8;
+- whether `EffectAction_UseSkill` fires from a stance's start effect, so that the phase-2 roar plays (every shipped use
+  comes from one of EVE's steps), and what it does when the Lion is in the middle of another skill;
+- whether the moves of the steps mostly in the air (32 of the 62, a ballistic estimate) carry the Lion as far as its
+  clips show, and whether a move with `MoveTransformType_None` turns the Lion at once for the turn attacks, whose
+  clips start with the body turned;
+- how far each skill's range lets EVE stand before the Lion uses it, and whether 160000 HP makes a fight of the right
+  length.
 
 ## Developer flight and slow motion
 

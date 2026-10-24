@@ -70,10 +70,10 @@
 // SB's settings map and puts back the value from before once it is no longer wanted (an off, coop off, the next Lua
 // load), under its own SEH latch; the worker logs each change and says a refusal or a fault on screen.
 //
-// The Lion's rows (lion/rows.h, coop lion): the worker hands over the 8 tables' addresses from Lua's lion rows request;
-// the game thread adds the rows through SB's own AddRow once the gate holds (net mode 0, no logic task in flight),
-// under its own SEH latch, reads them back through SB's lookups by ID and, once asked, reads the spawn manager's
-// counter every 250 ms; status() gives it all in the lion line, and the worker logs each answer.
+// The Lion's rows (lion/rows.h, coop lion): the worker hands over the 12 tables' addresses from Lua's lion rows
+// request; the game thread adds the rows through SB's own AddRow once the gate holds (net mode 0, no logic task in
+// flight), under its own SEH latch, reads them back through SB's lookups by ID and, once asked, reads the spawn
+// manager's counter every 250 ms; status() gives it all in the lion line, and the worker logs each answer.
 //
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named

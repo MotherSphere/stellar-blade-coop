@@ -1,13 +1,13 @@
 // The Lion's rows on the build machine against fake memory laid out like the pinned build: the recipe itself (names
-// and IDs unique, every patch inside its struct and past its header, the step chains, skills, commands and stance
-// pointing at the new rows, the CharacterTable rows last with the link flag Common, the steps' moves without the
-// Behemoth's long ones and root motion); a whole run (the table checks, each row built from its
-// donor with SB's lazy-init flag and Transient arrays reset, its ID, its patches read back from the pool, AddRow given
-// the new name); a missing donor, a taken ID, a taken name, a wrong vtable (even with SB's AddRow in its slot), AddRow
-// slot or row size, and no FName for a row's, a donor's, a patch's or a list item's text, refusing without calling
-// AddRow, and a later run skipping the rows already in; the pool's bound and a list item's FName length; FName's number
-// split; the read-back through SB's lookups by ID (nothing found is no match); the answer word, the status line and the
-// log lines.
+// and IDs unique, every patch inside its struct and past its header, the step chains, skills, commands, stances, moves
+// and target filters pointing at the new rows, the CharacterTable rows last with the link flag Common and the phase-2
+// stance, no field naming a Behemoth row or asset but the sound set); a whole run (the table checks, each row built
+// from its template with SB's lazy-init flag and Transient arrays reset, its ID, its patches of every kind read back,
+// the pool's strings among them, AddRow given the new name); a missing template, a taken ID, a taken name, a wrong
+// vtable (even with SB's AddRow in its slot), AddRow slot or row size, and no FName for a row's, a template's, a
+// patch's or a list item's text, refusing without calling AddRow, and a later run skipping the rows already in; the
+// pool's bound and a list item's FName length; FName's number split; the read-back through SB's lookups by ID (nothing
+// found is no match); the answer word, the status line and the log lines.
 #include "lion/rows.h"
 
 #include <cassert>
@@ -24,7 +24,7 @@ using namespace coop::lion;
 namespace {
 constexpr uint64_t kBase = 0x7ff600000000;
 uint64_t rebased(uint64_t address) { return kBase + (address - kImageBase); }
-size_t kind_size(Kind k) { return k == Kind::f32 ? 4 : k == Kind::name ? 8 : 16; }
+size_t kind_size(Kind k) { return k == Kind::f32 || k == Kind::i32 ? 4 : k == Kind::u8 ? 1 : k == Kind::name ? 8 : 16; }
 
 // Regions by start address, with gaps between them: an access outside them fails, as the game's would fault.
 struct Memory {
@@ -57,8 +57,8 @@ struct Memory {
   }
 };
 
-// One game: SB's 8 tables (its UDataTable vtable with AddRow in slot +0x2b0, each row struct with its size), the
-// Behemoth donors every recipe row names (filled with a pattern, their lazy-init flag set, their Transient arrays
+// One game: SB's 12 tables (its UDataTable vtable with AddRow in slot +0x2b0, each row struct with its size), the
+// template rows every recipe row names (filled with a pattern, their lazy-init flag set, their Transient arrays
 // holding junk as after SB parsed them), FNames interned by text and number, the RowMap and ID maps as AddRow fills
 // them, and the registry's lookups by ID over them.
 struct Game {
@@ -250,11 +250,12 @@ size_t row_index(const char *name, Table t) {
 
 int main() {
   // ---- The recipe ----
-  static_assert(kRows == 78, "15 commands, 15 skills, 41 steps, 2 anim sets, the stance, dead and appearance rows and "
-                             "the two CharacterTable rows");
-  assert(rows_of(Table::step) == 41 && rows_of(Table::skill) == 15 && rows_of(Table::command) == 15 &&
-         rows_of(Table::anim) == 2 && rows_of(Table::stance) == 1 && rows_of(Table::dead) == 1 &&
-         rows_of(Table::appearance) == 1 && rows_of(Table::character) == 2);
+  static_assert(kRows == 221, "21 commands, 21 skills, 80 steps, 62 moves, 23 target filters, 5 results, the effect, 2 "
+                              "anim sets, 2 stances, the dead and appearance rows and the two CharacterTable rows");
+  assert(rows_of(Table::step) == 80 && rows_of(Table::skill) == 21 && rows_of(Table::command) == 21 &&
+         rows_of(Table::move) == 62 && rows_of(Table::filter) == 23 && rows_of(Table::result) == 5 &&
+         rows_of(Table::effect) == 1 && rows_of(Table::anim) == 2 && rows_of(Table::stance) == 2 &&
+         rows_of(Table::dead) == 1 && rows_of(Table::appearance) == 1 && rows_of(Table::character) == 2);
   // The two CharacterTable rows last, M_LionC the very last: NewActor finds 50020 only once every other row is in.
   assert(kRecipe[kRows - 1].table == Table::character && !std::strcmp(kRecipe[kRows - 1].name, "M_LionC") &&
          kRecipe[kRows - 1].id == 50020 && kRecipe[kRows - 2].table == Table::character &&
@@ -280,7 +281,14 @@ int main() {
       assert(x.at >= kIdAt + (info.id ? 4 : 0) && x.at + kind_size(x.kind) <= info.size);
       for (uint16_t at : info.transient)
         assert(!at || x.at + kind_size(x.kind) <= at || x.at >= at + 16u);
-      assert(x.kind == Kind::f32 ? x.text == nullptr : x.text != nullptr);
+      const bool number = x.kind == Kind::f32 || x.kind == Kind::i32 || x.kind == Kind::u8;
+      assert(number ? x.text == nullptr : x.text != nullptr);
+      // An int32 or a byte is a whole number its float holds exactly; a byte fits.
+      assert(x.kind == Kind::f32 || (x.f == float(int32_t(x.f)) && x.f > -16777216.0f && x.f < 16777216.0f));
+      assert(x.kind != Kind::u8 || (x.f >= 0 && x.f <= 255));
+      // No field names a Behemoth row or asset, but the sound set the Lion has no copy of (CharacterTable +0x520).
+      assert(!x.text || (!std::strstr(x.text, "Behemoth") && !std::strstr(x.text, "CH_M_NA_46")) ||
+             (r.table == Table::character && x.at == 0x520));
       for (size_t q = r.first; q < p; ++q) // No two patches of a row on the same bytes.
         assert(kPatches[q].at + kind_size(kPatches[q].kind) <= x.at || x.at + kind_size(x.kind) <= kPatches[q].at);
     }
@@ -291,8 +299,9 @@ int main() {
     for (uint16_t at : kTables[t].transient)
       assert(!at || (at >= kIdAt + 4 && at + 16u <= kTables[t].size));
   }
-  // Every reference among the new rows lands on a new row: the steps' chains, the skills' first steps, the commands'
-  // skills, the stance's commands and anim sets, the CharacterTable rows' stance, dead row and appearance.
+  // Every reference among the new rows lands on a new row: the steps' chains and moves, the skills' first steps and
+  // target filters, the commands' skills, the stances' commands and anim sets, the CharacterTable rows' stances, dead
+  // row and appearance.
   const auto patched = [](const Row &r, uint16_t at) -> const char * {
     for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
       if (kPatches[p].at == at)
@@ -305,46 +314,65 @@ int main() {
         return true;
     return false;
   };
+  const auto each = [](const char *list, auto f) { // A '|'-joined list's items.
+    for (std::string s = list; !s.empty();) {
+      const size_t bar = s.find('|');
+      f(s.substr(0, bar));
+      s = bar == std::string::npos ? "" : s.substr(bar + 1);
+    }
+  };
   for (const Row &r : kRecipe) {
-    if (r.table == Table::step)
+    if (r.table == Table::step) {
       if (const char *next = patched(r, 0x34))
         assert(has(Table::step, next));
+      if (const char *moves = patched(r, 0x138)) // SelfMoveAliasArray: the Lion's own moves only.
+        each(moves, [&](const std::string &m) { assert(has(Table::move, m.c_str())); });
+    }
     if (r.table == Table::skill)
-      assert(has(Table::step, patched(r, 0x100)) && std::strstr(patched(r, 0x100), r.name) == patched(r, 0x100));
+      assert(has(Table::step, patched(r, 0x100)) && std::strstr(patched(r, 0x100), r.name) == patched(r, 0x100) &&
+             has(Table::filter, patched(r, 0xb4)));
     if (r.table == Table::command)
       assert(has(Table::skill, patched(r, 0x18)) && !std::strcmp(patched(r, 0x18), r.name));
     if (r.table == Table::character)
       assert(!std::strcmp(patched(r, 0x3a8), "M_LionC_Default") && !std::strcmp(patched(r, 0x298), "M_LionC") &&
-             !std::strcmp(patched(r, 0x420), "M_LionC") && has(Table::dead, "M_LionC") &&
-             has(Table::appearance, "M_LionC") && has(Table::stance, "M_LionC_Default"));
+             !std::strcmp(patched(r, 0x420), "M_LionC") && !std::strcmp(patched(r, 0x398), "M_LionC_Phase2") &&
+             has(Table::dead, "M_LionC") && has(Table::appearance, "M_LionC") &&
+             has(Table::stance, "M_LionC_Default") && has(Table::stance, "M_LionC_Phase2"));
     // The link flag: the Behemoth's "Behemoth" picks EVE's link Show whose target clip the Lion lacks; "Common" plays
     // the anim sets' Hit_Sword_Normal_LinkAttack1, which it has.
     if (r.table == Table::character)
       assert(patched(r, 0x60) && !std::strcmp(patched(r, 0x60), "Common"));
-    // The moves a step keeps (SelfMoveAliasArray, +0x138): none of the Behemoth's root motion.
-    if (r.table == Table::step && patched(r, 0x138))
-      assert(!std::strstr(patched(r, 0x138), "_RM"));
   }
-  // The Behemoth's long moves are gone from the steps that carried them (SideStep's 11 m, the back jumps' 9.5 and 6.3
-  // m, JumpAttackHigh's jump on Behemoth curves and its Hit's 4.3 m of pushes, JumpAttackLow's moves to a spot EVE
-  // sets), the turns keep only their turn, and the claws keep the donor's short moves (no patch).
-  for (const char *step : {"M_LionC_SideStepLeft_Cast1", "M_LionC_SideStepRight_Cast1", "M_LionC_JumpAttackHigh_Cast1",
-                           "M_LionC_JumpAttackHigh_Hit1", "M_LionC_JumpAttackLow_Cast1", "M_LionC_JumpAttackLow_Hit1",
-                           "M_LionC_BackJumpToAttack_Finish1", "M_LionC_AttackToBackJump_Finish1"})
-    assert(patched(kRecipe[row_index(step, Table::step)], 0x138) &&
-           !*patched(kRecipe[row_index(step, Table::step)], 0x138));
-  assert(!std::strcmp(patched(kRecipe[row_index("M_LionC_TurnAttackLeft_Cast1", Table::step)], 0x138),
-                      "M_Behemoth_TurnAttackLeft_Move1"));
-  assert(!patched(kRecipe[row_index("M_LionC_ClawAttackLeft_Cast1", Table::step)], 0x138));
+  // The stances: phase 1 lists 17 commands, phase 2 (HP under 60%: Condition_ActorStat HP +0x30, UnderRate +0x31, 60 at
+  // +0x34, Priority 10 at +0x14) all 21 with the phase-2 roar, and its start runs M_LionC_PhaseRoar, the effect whose
+  // action (+0x2fc, EffectAction_UseSkill 69) uses that roar (+0x300). Neither holds HP at 60%.
+  const auto value = [](const Row &r, uint16_t at) {
+    for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
+      if (kPatches[p].at == at)
+        return kPatches[p].f;
+    return -1.0f;
+  };
   {
-    const Row &stance = kRecipe[row_index("M_LionC_Default", Table::stance)];
-    std::string commands = patched(stance, 0x90);
-    size_t n = 0;
-    for (const Row &r : kRecipe)
-      if (r.table == Table::command)
-        assert(commands.find(r.name) != std::string::npos), ++n;
-    assert(n == 15 && std::strstr(patched(stance, 0x110), "MinimumHP") == nullptr);
-    assert(has(Table::anim, patched(stance, 0x150)) && has(Table::anim, patched(stance, 0x160)));
+    const Row &one = kRecipe[row_index("M_LionC_Default", Table::stance)];
+    const Row &two = kRecipe[row_index("M_LionC_Phase2", Table::stance)];
+    size_t n = 0, m = 0;
+    each(patched(one, 0x90), [&](const std::string &c) { assert(has(Table::command, c.c_str())), ++n; });
+    each(patched(two, 0x90), [&](const std::string &c) { assert(has(Table::command, c.c_str())), ++m; });
+    assert(n == 17 && m == 21 && !std::strstr(patched(one, 0x90), "M_LionC_RoarPhaseChange") &&
+           std::strstr(patched(two, 0x90), "M_LionC_RoarPhaseChange"));
+    assert(value(two, 0x14) == 10 && value(two, 0x30) == 1 && value(two, 0x31) == 2 && value(two, 0x34) == 60);
+    assert(std::strstr(patched(two, 0x110), "\"M_LionC_PhaseRoar\"") &&
+           !std::strstr(patched(one, 0x110), "MinimumHP") && !std::strstr(patched(two, 0x110), "MinimumHP"));
+    assert(has(Table::anim, patched(one, 0x150)) && has(Table::anim, patched(one, 0x160)));
+    const Row &roar = kRecipe[row_index("M_LionC_PhaseRoar", Table::effect)];
+    assert(value(roar, 0x2fc) == 69 && !std::strcmp(patched(roar, 0x300), "M_LionC_RoarPhaseChange") &&
+           has(Table::skill, "M_LionC_RoarPhaseChange"));
+  }
+  // A move of the Lion's own clip travel: the low jump's leap, 614 cm forward (LocalAxis 6, from the Lion: no
+  // MovePositionType, so the template's Self stays), not a move to a spot EVE sets.
+  {
+    const Row &leap = kRecipe[row_index("M_LionC_JumpAttackLow_Move1", Table::move)];
+    assert(value(leap, 0x3a) == 6 && value(leap, 0x3b) == -1.0f && value(leap, 0x94) == 614.0f);
   }
 
   // ---- FName's number split, as UE 4.26's ParseNumber ----
@@ -389,6 +417,10 @@ int main() {
           touched[x.at + k] = true;
         if (x.kind == Kind::f32)
           assert(Game::field<float>(add, x.at) == x.f);
+        else if (x.kind == Kind::i32)
+          assert(Game::field<int32_t>(add, x.at) == int32_t(x.f));
+        else if (x.kind == Kind::u8)
+          assert(add.block[x.at] == uint8_t(x.f));
         else if (x.kind == Kind::name)
           assert(g.name_text(Game::field<uint64_t>(add, x.at)) == x.text);
         else if (x.kind == Kind::string)
@@ -400,8 +432,9 @@ int main() {
       for (size_t k = 0; k < info.size; ++k)
         assert(touched[k] || add.block[k] == g.mem.at(donor + k, 1)[0]);
     }
-    // Spot checks against the plan's rows: a Hit step's collision group as JSON text, the first step's Show, the
-    // stance's 15 commands, the dead row's Shows, the brains.
+    // Spot checks: a Hit step's collision group as JSON text, its type (Hit, 1) and detection (ActiveCollision, 2) as
+    // bytes, the first step's Show, the phase-1 stance's 17 commands, the dead row's Shows, the Lion's 160000 HP as an
+    // int32, the brains.
     const Game::Add &hit = g.adds[row_index("M_LionC_ClawAttackLeft_Hit1", Table::step)];
     assert(g.string_field(hit, 0x1c0) ==
            "[{\"CollisionGroupName\":\"Mon_Lion_Attack_L_Arm_Collision\", \"DelayTime\":0}]");
@@ -409,12 +442,14 @@ int main() {
     assert(g.name_text(Game::field<uint64_t>(cast, 0x160)) == "CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackLeft_1");
     assert(uint32_t(Game::field<uint64_t>(cast, 0x160) >> 32) == 2); // "_1" as FName's number, as SB makes it.
     const Game::Add &stance = g.adds[row_index("M_LionC_Default", Table::stance)];
-    assert(Game::field<int32_t>(stance, 0x90 + 8) == 15);
+    assert(Game::field<int32_t>(stance, 0x90 + 8) == 17);
+    assert(hit.block[0x14] == 1 && hit.block[0x1a5] == 2 && Game::field<int32_t>(g.adds[kRows - 1], 0x78) == 160000);
     const Game::Add &dead = g.adds[row_index("M_LionC", Table::dead)];
     assert(g.list_field(dead, 0x10, Kind::strings) == "CH_M_NA_02_Lion/Basic/M_Lion_Dead");
-    // The side step's move list emptied (no data, no count), the link flag one FName.
-    const Game::Add &side = g.adds[row_index("M_LionC_SideStepLeft_Cast1", Table::step)];
-    assert(Game::field<uint64_t>(side, 0x138) == 0 && Game::field<int32_t>(side, 0x138 + 8) == 0);
+    // The template's move list emptied where a step has no move of its own (no data, no count), the template's
+    // CanCutoff (+0x240) cleared on a Hit step, the link flag one FName.
+    assert(Game::field<uint64_t>(hit, 0x138) == 0 && Game::field<int32_t>(hit, 0x138 + 8) == 0 &&
+           hit.block[0x240] == 0);
     assert(g.list_field(g.adds[kRows - 1], 0x60, Kind::names) == "Common");
     assert(g.string_field(g.adds[kRows - 1], 0x3e8) ==
            "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Skulling_AI_Test");
@@ -422,14 +457,14 @@ int main() {
            "/Game/GameDesign/Combat/BehaviorTree/Monster/M_LesserLurker_AI");
     assert(g.string_field(g.adds[kRows - 1], 0x508).empty() && Game::field<uint64_t>(g.adds[kRows - 1], 0x508) == 0);
 
-    // SB's lookups by ID find our rows: both CharacterTable rows, the 15 skills, the stance's name.
+    // SB's lookups by ID find our rows: both CharacterTable rows, the 21 skills, both stances' names.
     Builder::ReadBack rb = Builder::read_back(g, g.tables);
-    assert(rb.character == 2 && rb.skills == 15 && rb.stance == 1);
+    assert(rb.character == 2 && rb.skills == 21 && rb.stance == 2);
     g.skill_override = 0x12345678, g.skill_override_id = 5002003;
     rb = Builder::read_back(g, g.tables);
-    assert(rb.skills == 14);
+    assert(rb.skills == 20);
     assert(describe_read(rb) == "lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable "
-                                "5002000-5002014 14/15, stance 500200 1/1");
+                                "5002000-5002020 20/21, stance 500200-500201 2/2");
 
     // A second run adds nothing: every row is in.
     const Answer again = b.run(g, kBase, g.tables, g.block);
@@ -443,17 +478,17 @@ int main() {
 
   // ---- Refusals: nothing handed to AddRow for the refused row or any after it; a later run goes on ----
   {
-    Game g;
-    const size_t roar = row_index("M_LionC_Roar_Hit1", Table::step);
-    const uint64_t key = g.name("M_Behemoth_Roar1_Hit1");
+    Game g; // The steps' template gone: the first step refused, every row before it in.
+    const size_t first = row_index("M_LionC_ClawAttackLeft_Cast1", Table::step);
+    const uint64_t key = g.name("M_Behemoth_ScratchLeft_Finish1");
     const uint64_t row = g.rows[{g.tables[size_t(Table::step)], key}];
     g.rows.erase({g.tables[size_t(Table::step)], key});
     Builder b;
     Answer a = b.run(g, kBase, g.tables, g.block);
-    assert(a.state == State::refused && a.why == Why::donor && a.row == roar && a.added == roar);
-    assert(g.adds.size() == roar && !b.added(roar));
-    assert(describe(a) == "lion rows refused M_LionC_Roar_Hit1: donor M_Behemoth_Roar1_Hit1 missing; " +
-                              std::to_string(roar) + "/78 added");
+    assert(a.state == State::refused && a.why == Why::donor && a.row == first && a.added == first);
+    assert(g.adds.size() == first && !b.added(first) && first == 91);
+    assert(describe(a) == "lion rows refused M_LionC_ClawAttackLeft_Cast1: template M_Behemoth_ScratchLeft_Finish1 "
+                          "missing; 91/221 added");
     g.rows[{g.tables[size_t(Table::step)], key}] = row;
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::rows && a.added == kRows && g.adds.size() == kRows); // Each row added once.
@@ -489,7 +524,7 @@ int main() {
     g.mem.put<uint64_t>(g.vtable_at + kAddRowSlot, rebased(kAddRow) + 0x10);
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::table && a.row == kRows - 2 && g.adds.empty()); // CharacterTable, checked first.
-    assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/78 added");
+    assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/221 added");
   }
   {
     Game g; // Another vtable whose AddRow slot holds SB's AddRow: still not SB's UDataTable.
@@ -513,9 +548,13 @@ int main() {
       assert(describe(a).find(": the game made no FName; ") != std::string::npos);
     };
     refused_at("M_LionC_TurnAttackLeft_Cast1", row_index("M_LionC_TurnAttackLeft_Cast1", Table::step));
-    refused_at("M_Behemoth_Roar1_Hit1", row_index("M_LionC_Roar_Hit1", Table::step));
-    refused_at("M_LionC_ClawAttackLeft_Hit1", 0); // Row 0's NextStepAlias, before row 1 is named so.
-    refused_at("Rank_Elite", kRows - 2);          // M_LionC_Lurker's DefaultEffectArray.
+    refused_at("M_Scarlet_CounterLinkStart", 0); // The effect's template.
+    refused_at("M_Behemoth_ScratchLeft_Move2", row_index("M_LionC_ClawAttackLeft_Turn", Table::move));
+    // A Hit step's just-parry result, an FName patch.
+    refused_at("M_Common_ParryJustFX", row_index("M_LionC_ClawAttackLeft_Hit1", Table::step));
+    // The Cast step's NextStepAlias, before the Hit step is named so.
+    refused_at("M_LionC_ClawAttackLeft_Hit1", row_index("M_LionC_ClawAttackLeft_Cast1", Table::step));
+    refused_at("Rank_Elite", kRows - 2); // M_LionC_Lurker's DefaultEffectArray.
   }
   {
     // The pool's bound and a list item's FName length, which the recipe's own texts stay inside: refused, and nothing
@@ -543,7 +582,7 @@ int main() {
     Builder b;
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::size && a.detail == 0x2c8 && g.adds.empty());
-    assert(describe(a) == "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/78 added");
+    assert(describe(a) == "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/221 added");
     g.mem.put<int32_t>(rs + kPropertiesSize, 0x2d0);
     uint64_t tables[kTableCount];
     std::memcpy(tables, g.tables, sizeof tables);
@@ -564,25 +603,26 @@ int main() {
     assert(status_line(s) == "lion=off");
     a = Answer(), a.state = State::waiting, a.why = Why::busy;
     s.word = pack(a, 0), s.ticks = 41;
-    assert(status_line(s) == "lion=waiting added=0/78 asks=0 spawns=? why=busy ticks=41");
-    a = Answer(), a.state = State::rows, a.added = 78;
-    s.word = pack(a, 1), s.read = {2, 15, 1}, s.spawns_read = true, s.spawns = 7;
-    assert(status_line(s) == "lion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1");
-    assert(describe(a) == "lion rows: 78/78 added through SB's AddRow 0x14417ba30, 0 refused");
-    a = Answer(), a.state = State::refused, a.why = Why::size, a.added = 0, a.row = 76, a.detail = 0x540;
+    assert(status_line(s) == "lion=waiting added=0/221 asks=0 spawns=? why=busy ticks=41");
+    a = Answer(), a.state = State::rows, a.added = 221;
+    s.word = pack(a, 1), s.read = {2, 21, 2}, s.spawns_read = true, s.spawns = 7;
+    assert(status_line(s) == "lion=rows added=221/221 asks=1 spawns=7 char=2/2 skills=21/21 stance=2/2");
+    assert(describe(a) == "lion rows: 221/221 added through SB's AddRow 0x14417ba30, 0 refused");
+    a = Answer(), a.state = State::refused, a.why = Why::size, a.added = 0, a.row = uint8_t(kRows - 2),
+    a.detail = 0x540;
     s.word = pack(a, 2);
     assert(status_line(s) ==
-           "lion=refused added=0/78 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
+           "lion=refused added=0/221 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
     a = Answer(), a.state = State::refused, a.why = Why::busy, a.added = 3, a.row = uint8_t(kRows);
     s.word = pack(a, 3);
-    assert(status_line(s) == "lion=refused added=3/78 asks=3 spawns=7 why=busy table=- row=-");
-    assert(describe(a) == "lion rows refused -: logic busy 300 frames; 3/78 added");
+    assert(status_line(s) == "lion=refused added=3/221 asks=3 spawns=7 why=busy table=- row=-");
+    assert(describe(a) == "lion rows refused -: logic busy 300 frames; 3/221 added");
     a.why = Why::net, a.detail = 3, s.word = pack(a, 4);
-    assert(status_line(s) == "lion=refused added=3/78 asks=4 spawns=7 why=net table=- row=- detail=3");
+    assert(status_line(s) == "lion=refused added=3/221 asks=4 spawns=7 why=net table=- row=- detail=3");
     a.why = Why::off, s.word = pack(a, 5);
-    assert(status_line(s) == "lion=refused added=3/78 asks=5 spawns=7 why=coop_off table=- row=-");
+    assert(status_line(s) == "lion=refused added=3/221 asks=5 spawns=7 why=coop_off table=- row=-");
     a = Answer(), a.state = State::fault, a.added = 30, s.word = pack(a, 6), s.fault = "the game at 0x14417ba30";
-    assert(status_line(s) == "lion=fault added=30/78 asks=6 spawns=7 where=the game at 0x14417ba30");
+    assert(status_line(s) == "lion=fault added=30/221 asks=6 spawns=7 where=the game at 0x14417ba30");
   }
 
   std::puts("lion_rows_test: ok");

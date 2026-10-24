@@ -537,10 +537,11 @@ enum class Command {
   remove, copy, quests, camps, travel, mark, lion, gate
 };
 // The tables the Lion's rows go into (lion/rows.h's Table, in this order), as their assets are named.
-constexpr size_t kLionTableCount = 8;
+constexpr size_t kLionTableCount = 12;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
-    "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable"};
+    "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable",
+    "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable"};
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).

@@ -491,7 +491,7 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's rows (Lua's lion rows request): the 8 tables' addresses for the game thread, which adds the rows at the
+// coop lion's rows (Lua's lion rows request): the 12 tables' addresses for the game thread, which adds the rows at the
 // first frame its gate holds. An ask it has not taken yet is replaced. Refused off the pinned build, after coop off and
 // after the Lion's fault; once every row is in, nothing more is asked (the rows stay for the game run).
 std::string ask_lion(const coop::Request &request) {

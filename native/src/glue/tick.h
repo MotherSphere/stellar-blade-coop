@@ -102,7 +102,7 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
 // frame, which calls SB's fast travel once game/travel.h's guard passes. Refused off the pinned build, after coop off
 // and after the travel latch's fault. Returns the line for the log; the call's own line follows from worker_poll.
 std::string ask_travel(const coop::Request &request);
-// Worker thread, coop lion (lion/rows.h): Lua's lion rows request, the 8 tables' addresses for the game thread, which
+// Worker thread, coop lion (lion/rows.h): Lua's lion rows request, the 12 tables' addresses for the game thread, which
 // adds the Lion's rows through SB's AddRow once its gate holds. Refused off the pinned build, after coop off and after
 // the Lion's fault, and not asked again once every row is in. Returns the line for the log; fight_pass logs the game
 // thread's answer.

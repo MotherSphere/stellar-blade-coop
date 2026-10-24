@@ -1118,9 +1118,10 @@ load (Ctrl+R) does the same if this one could not.
 
 The game's files hold a boss that was cut before release: Naytiba 02, the Lion, in
 `/Game/Art/Character/Monster/CH_M_NA_02/`. Its blueprint, meshes, animations, hit data and skill presentations (Shows)
-ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 78 rows it lacks to the game's tables
-in memory and spawns it as an enemy to fight. It is a test command, left out of the usage line. Its lines go to
-`UE4SS.log` as `[StellarCoop][LI]`; the native part's go to `coop-link.log` as `lion rows ...`.
+ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 221 rows it lacks to the game's 12
+tables in memory and spawns it as an enemy to fight. Every row is written for the Lion: its stats, its skills, the
+timing of its hits and the moves that follow its own animations. It is a test command, left out of the usage line. Its
+lines go to `UE4SS.log` as `[StellarCoop][LI]`; the native part's go to `coop-link.log` as `lion rows ...`.
 
 - `coop lion` spawns a Lion 10 m in front of EVE and 1 m up, facing her. The first time in a game run it asks the native
   part to add the rows and waits for the answer, 30 s at most. Each time it reads every row back first and stops at the
@@ -1146,19 +1147,27 @@ quest areas and Behemoths.
 
 What to expect:
 
-- The Lion has 15 skills made from the Behemoth's: two claws, two chasing claws, two turning attacks, two running
-  attacks, two jumping attacks, two back jumps, a roar and two side steps. Both trees pick the skills flagged
-  MeleeAttack, which leaves the side steps out. Its stats, rank (Elite) and hostility are the Behemoth's (37840 HP and
-  1455 shield in its row). It is a boss to the game, so the boss bar shows once it targets EVE. The game has no name
-  text for it and writes `<M_LionC>` on the bar; while a Lion lives, `coop lion` changes that to `Lion` (checked once a
-  second, since the game writes the name again at each boss bind).
-- The skills keep the Behemoth's short moves (the claws' 0.9 and 1.4 m steps, the turns' rotation, the roar's 1.6 m) and
-  drop the others: the side steps' 11 m, the back jumps' 9.5 and 6.3 m, the turns' Behemoth root motion, the high jump's
-  Behemoth curves and the 4.3 m of pushes in its hit, and the low jump's two moves, which carry the body to EVE from
-  wherever it stands. In 0.6.0-beta.1 those moves pushed the Lion across the ground with no clip to match.
+- The Lion has 160000 HP, 3300 shield and 14 stamina, and attacks with a power of 960. That is a little under the Great
+  Desert bosses (170500 HP, 3500 shield, 15 stamina). On Story mode it has 10% less HP and 30% less attack; on Hard
+  mode, 150% more HP, shield and attack. Its rank is Elite, and it is a boss to the game, so the boss bar shows once it
+  targets EVE. The game has no name text for it and writes `<M_LionC>` on the bar; while a Lion lives, `coop lion`
+  changes that to `Lion` (checked once a second, since the game writes the name again at each boss bind).
+- It has 21 skills, each one playing one of its own skill animations: two claws, two chasing claws, two turning
+  attacks, two running attacks, two jumping attacks, two back jumps, a roar, two side steps, a three-claw chain and a
+  rush. Under 60% HP it switches to its second phase, which adds a four-claw chain, a chain of claws on the move, a
+  chain of four pounces, and a roar at the switch. Both trees pick the skills flagged MeleeAttack, which leaves out the
+  side steps and the switch's roar (the switch itself starts that one). Whether the game plays that roar is not known
+  yet; the phase switch itself is how the game's Raven fight works.
+- Each attack hits during the part of its animation where the claw, paw or jaw swings, measured on the animation
+  itself. The roars and the high jump cannot be parried or blocked, only dodged; the other attacks can be parried,
+  blocked and perfect-parried.
+- Each move follows its animation: the Lion travels as far as its feet show, when they show it, and turns toward EVE.
+  Leaps are estimates, since the feet are off the ground. Each skill's range comes from the reach of its first hit plus
+  that travel, and the side steps, runs, jumps and chains need open ground to start. It walks at 2 m/s and runs at
+  9 m/s, the Behemoth's pace. Its run animation, at the Lion's size, strides faster than that, so its feet may slide.
 - EVE's link attack on it plays the generic link: the Lion reacts with its own `Hit_Sword_Normal_LinkAttack1` clip.
-  In 0.6.0-beta.1 its row kept the Behemoth's link flag, which picks EVE's Behemoth link, whose reaction clip the Lion
-  does not have.
+  When its balance gauge empties it goes groggy as Stalker and Abaddon do, with their one-second delay before EVE can
+  link.
 - Its rows give it its own death animation (7 s), then a dissolve (15 s). It drops nothing.
 - It should not come back from a save: a Lion alive when you load a save or change maps is gone. No command removes one:
   it goes when it dies or with the map.
@@ -1177,21 +1186,21 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 8/8 found: CharacterTable=0x...` | The 8 tables found, with the addresses sent to the native part |
-| `lion rows: 78/78 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
-| `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 5002000-5002014 15/15, stance 500200 1/1` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need |
-| `rows read back through FindRow: 78/78 match` | Every changed field reads as written |
-| `rows already in (78/78; ...): not added again` | A later `coop lion` in the same game run |
+| `tables: 12/12 found: CharacterTable=0x...` | The 12 tables found, with the addresses sent to the native part |
+| `lion rows: 221/221 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 5002000-5002020 21/21, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need |
+| `rows read back through FindRow: 221/221 authored rows, 2868 fields as written, 0 template values left (2089 overwritten)` | Every field the native part wrote reads as written, including every field the shipped row it started from held |
+| `rows already in (221/221; ...): not added again` | A later `coop lion` in the same game run |
 | `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
 | `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, battle 1, state 1, controller yes, spawn count -5` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), battle mode, state, controller and the game's spawn counter |
-| `loaded: shows 3/15, clips 2/15 (Show seen, its clip not yet: Roar)` | Which of the Lion's 15 skill presentations (Shows) and their clips the game has loaded so far; first said once all 30 were looked for (about 15 s), then at each change |
+| `loaded: shows 3/20, clips 2/20 (Show seen, its clip not yet: Roar)` | Which of the Lion's 20 skill presentations (Shows) and their clips the game has loaded so far; first said once all 40 were looked for (about 20 s), then at each change |
 | `boss name: <M_LionC> -> Lion` | The boss bar's name set to Lion |
 | `lion 1 (50020) recycled: SB moved its body back for this spawn` | The game reused a Lion body it had sent far away for the next spawn; that spawn's line ends with `a body SB reused` |
 | `lion 1 (50020) dead after 143 s (InteractionState 3, no controller); body gone after 22.4 s` | Its death and its body's despawn |
 | `lion 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
 | `entrance: ...` | What `coop lion intro` played, or why the entrance was skipped |
 
-A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; <n>/78 added`) and ends with a `STOP:`
+A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; <n>/221 added`) and ends with a `STOP:`
 line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded save: on the title screen the native
 part can wait for a game state that never comes and refuse after 300 frames. See
 [how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
@@ -1201,7 +1210,7 @@ cause is not known yet. To find it, fight a Lion for at least 30 s, then run `co
 and watch whether the Antlion animates. Note whether the Lion's attacks showed claw trails (the Show ran) or growls
 (its clip played: the growls are in the clip). The lines then tell the cases apart:
 
-- `loaded: shows 0/15` after attacks: the game never played a Lion Show on that body.
+- `loaded: shows 0/20` after attacks: the game never played a Lion Show on that body.
 - A Show seen and its clip not: the Show ran, but its clip did not load.
 - Both seen, `anim alpha 0.00/0.00` during attacks: the clip loaded, but the animation blueprint never blended it in.
 - `anim alpha` above 0 during attacks: the Lion does animate.
