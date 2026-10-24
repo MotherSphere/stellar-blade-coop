@@ -4,9 +4,7 @@
 -- with none), checks}, each check {field, kind, value, changed}. kind: f a float, i an int32, b a bool (0 or 1), e
 -- an enum's number, n an FName, N a list of FNames, s an FString, S a list of FStrings (lists joined by |).
 -- changed: true where the value differs from the template row's (2085 in all; the other 891 restate a value the
--- template held, so a read-back cannot tell them from the copy). SHOWS: each skill's Show (under
--- /Game/Art/Show/CH_M_NA_02_Lion/Skill/) and the clip its first anim key plays (under the Lion's folder), once
--- each, for the loaded line.
+-- template held, so a read-back cannot tell them from the copy).
 local R={}
 R.ROWS={
     {'EffectTable','M_LionC_PhaseRoar',5002000,{{'CalculationMultipleValue','f',1.0},{'LifeType','e',2},
@@ -1628,27 +1626,5 @@ R.ROWS={
         {'Name','s','',true},
         {'OverrideCharacterSoundSet','s','SBCharacterSoundSet\'/Game/Sound/SoundAsset/CharacterSoundset/'..
             'CSS_MON_46_BEHEMOTH.CSS_MON_46_BEHEMOTH\'',true},}},
-}
-R.SHOWS={
-    {'ClawAttackLeft','M_LionC_ClawAttackLeft_1','M_LionC_ClawAttackLeft'},
-    {'ClawAttackRight','M_LionC_ClawAttackRight_1','M_LionC_ClawAttackRight'},
-    {'ClawAttackChaseLeft','M_LionC_ClawAttackChaseLeft_1','M_LionA_ClawAttackChaseLeft'},
-    {'ClawAttackChaseRight','M_LionC_ClawAttackChaseRight_1','M_LionA_ClawAttackChaseRight'},
-    {'TurnAttackLeft','M_LionC_TurnAttackLeft_1','Mon_Lion_Attack_Turn_Left'},
-    {'TurnAttackRight','M_LionC_TurnAttackRight_1','Mon_Lion_Attack_Turn_Right'},
-    {'RunAttackLeft','M_LionC_RunAttackLeft_1','M_LionC_RunAttackLeft'},
-    {'RunAttackRight','M_LionC_RunAttackRight_1','M_LionC_RunAttackRight'},
-    {'JumpAttackLow','M_LionC_JumpAttackLow_1','Mon_Lion_Attak_Jump_01'},
-    {'JumpAttackHigh','M_LionC_JumpAttackHigh_1','Mon_Lion_Attack_Jump_02'},
-    {'BackJumpToAttack','M_LionC_BackJumpToAttack_1','Mon_Lion_Attack_Rotation_Back'},
-    {'AttackToBackJump','M_LionC_AttackToBackJump_1','Mon_Lion_Attack_Back_Dash'},
-    {'Roar','M_LionC_Roar_1','Mon_Lion_Attack_Roar_01'},
-    {'SideStepLeft','M_LionC_SideStepLeft_1','Mon_Lion_SideStep_Left'},
-    {'SideStepRight','M_LionC_SideStepRight_1','Mon_Lion_SideStep_Right'},
-    {'ClawAttackChain','M_LionC_ClawAttackChain_1','M_LionC_ClawAttackChain'},
-    {'ClawAttackChain2','M_LionC_ClawAttackChain2_1','M_LionC_ClawAttackChain2'},
-    {'MoveAttackChain','M_LionC_MoveAttackChain_1','M_LionC_MoveAttackChain'},
-    {'RushAttack','M_LionC_RushAttack_1','Mon_Lion_Attack_Charge'},
-    {'DashAttackChain','M_LionC_DashAttackChain_1','Mon_Lion_Attack_Chain_Dash_Start'},
 }
 return R

@@ -11,9 +11,7 @@
 -- 0. Rows already in are read back without an ask. The body is the new one nearest the spot (or one SB sent far away
 -- and moved back, whose old follow ends as recycled), given its default controller when it still has none 1.5 s after
 -- the call, then followed: a line a second (its place, anim speed, skill and custom anim alphas, a failed read as ?),
--- its death and its body's despawn with the spawn counts; none after 5 s stops. While a Lion lives, the loaded line
--- (two of the 40 Show and clip paths a second, each until seen; said once all were looked for, then at each change) and
--- the boss name (only the live TextBlock_BossName reading <M_LionC> set to Lion, again after the game writes it back;
+-- its death and its body's despawn with the spawn counts; none after 5 s stops. While a Lion lives, the boss name (only the live TextBlock_BossName reading <M_LionC> set to Lion, again after the game writes it back;
 -- FindAllOf at most every 10 s while none is held). coop lion intro plays the entrance on a display copy first and
 -- spawns where its root ended (at the spot when that is too far), removing the copy as soon as the body shows; a map
 -- change during it spawns nothing; a copy that cannot be made spawns at once. A second command waits while one runs
@@ -207,10 +205,6 @@ do
     for _,m in ipairs({'Move1','Move2','Move3'}) do
         assert((row('CharacterMoveTable','M_LionC_RunAttackLeft_'..m).field.RotationType or 0)==0,m)
     end
-    assert(#L.SHOWS==20 and #L.LOADS==40 and
-        L.LOADS[1]=='/Game/Art/Show/CH_M_NA_02_Lion/Skill/M_LionC_ClawAttackLeft_1.M_LionC_ClawAttackLeft_1' and
-        L.LOADS[26]=='/Game/Art/Character/Monster/CH_M_NA_02/Animation/'
-        ..'Mon_Lion_Attack_Roar_01.Mon_Lion_Attack_Roar_01','Each Show, then its clip')
 end
 
 -- The lion line in each of its forms (lion/rows.h's status_line).
@@ -373,15 +367,11 @@ local mesh_asset=object({IsA=is('/Script/Engine.SkeletalMesh'),key='mesh',
 local clip_asset=object({IsA=is('/Script/Engine.AnimSequence','/Script/Engine.AnimationAsset'),SequenceLength=13.0,
     key='clip',GetFullName=function() return 'AnimSequence '..CLIP end})
 local assets={[MESH]=mesh_asset,[CLIP]=clip_asset}
-local load_finds=0 -- StaticFindObject calls on the loaded line's paths.
-local loads={}
-for _,p in ipairs(L.LOADS) do loads[p]=true end
 -- The world delta the frame part of the follow line reads each frame (nil: not read).
 local frame_dt
 local gameplay=object({GetWorldDeltaSeconds=function(_,ctx) engine(); assert(ctx); return frame_dt end})
 StaticFindObject=function(path)
     engine()
-    if loads[path] then load_finds=load_finds+1 end
     if path=='/Script/Engine.Default__GameplayStatics' then return gameplay end
     if path:find('^/Script/') then return class(path) end
     local t=path:match('^/Game/Local/Data/(%a+)%.%a+$')
@@ -551,13 +541,12 @@ assert(lines[#lines-1]=='lion 1 (50020) had no anim instance: its own class buil
     ..'one; '..MESH_LINE:gsub('^lion 1 %(50020%) ',''),lines[#lines-1])
 assert(lion1.Mesh.inits==1 and lion1.Mesh.mode==0,'Given once, in the AnimBP mode')
 lion1.Mesh.inits,LoadAsset=0,load_asset
-assert(load_finds==2,'Two loaded-line lookups a second')
 lion1.battle,lion1.speed,lion1.skill,lion1.alpha=true,212.6,true,{0.5,1}
 at(203); n=#lines; lion.tick(); assert(#lines==n,'One a second')
 at(203.5); lion.tick()
 assert(last()=='lion 1 (50020): 10.0 m, xyz 1000,0,200, speed 213, skill yes, anim alpha 0.50/1.00, hand moved 0 cm, '
     ..'battle 1, state 0, controller yes, spawn count 7, frame ? ms, lion Lua 0.0 ms/s, longest tick 0.0 ms (last '
-    ..'pass: follow 0.0 ms, loaded 0.0 ms, boss name 0.0 ms)',last())
+    ..'pass: follow 0.0 ms, boss name 0.0 ms)',last())
 assert(lines[#lines-1]~=MESH_LINE and not lines[#lines-1]:find('mesh:',1,true),'The mesh line only when it changes')
 -- The hand in the body's own frame: a turn of the whole body moves nothing, a pose that plays does.
 -- A read that fails is a ?, the line still said.
@@ -569,13 +558,13 @@ at(204); lion.tick(); frame_dt=0.05; at(204.2); lion.tick(); frame_dt=0.02
 at(204.5); socket_cost=0.012; lion.tick() -- Its hand read takes 12 ms: the next line's Lua part says so.
 assert(last():find(', speed %?, skill yes, anim alpha 0.50/1.00, hand moved 0 cm,'),last())
 assert(last():find(', frame 30%.0 ms %(worst 50%.0%), lion Lua 0%.0 ms/s, longest tick 0%.0 ms %(last pass: follow '
-    ..'0%.0 ms, loaded 0%.0 ms, boss name 0%.0 ms%)$'),last())
+    ..'0%.0 ms, boss name 0%.0 ms%)$'),last())
 lion1.GetSBSpeedForAnimGraph,lion1.speed=speed_of,0
 lion1.hand={X=150,Y=0,Z=-80}
 at(205.5); lion.tick()
 assert(last():find(', hand moved 50 cm,'),last())
 assert(last():find(', frame 20%.0 ms %(worst 20%.0%), lion Lua 12%.0 ms/s, longest tick 12%.0 ms %(last pass: follow '
-    ..'12%.0 ms, loaded 0%.0 ms, boss name 0%.0 ms%)$'),last())
+    ..'12%.0 ms, boss name 0%.0 ms%)$'),last())
 -- unfreeze: every switch back to its running value on each living Lion, its mesh line logged there (not again by the
 -- follow); init also builds the anim instance again. Usage for another word, and none without a Lion.
 lion1.Mesh.ticking,lion1.Mesh.bPauseAnims,lion1.Mesh.GlobalAnimRateScale,lion1.CustomTimeDilation=false,true,0,0
@@ -597,23 +586,8 @@ assert(ok and lion1.Mesh.inits==1 and last():find('unfreeze: tick failed %(no ti
     ..'its own class built none, CH_M_NA_02_AnimBP_C built none, CH_M_NA_46_AnimBP_C built one; mesh: anim instance '
     ..'CH_M_NA_02_AnimBP_C, anim class CH_M_NA_46_AnimBP_C,'),last())
 lion1.Mesh.SetComponentTickEnabled=function(self,on) self.ticking=on end
--- The loaded line: two of the 40 paths a second, each until first seen; once all were looked for, 0/20 says none
--- loaded; then each change. A Show seen without its clip is named.
-for t=205.5,221.5 do at(t); lion.tick() end
-assert(load_finds==40 and last()=='loaded: shows 0/20, clips 0/20',last())
-assets[L.LOADS[1]]=object({key='show'})
-at(222.5); lion.tick()
-assert(load_finds==42 and last()=='loaded: shows 1/20, clips 0/20 (Show seen, its clip not yet: ClawAttackLeft)',
-    last())
-assets[L.LOADS[2]]=object({key='clip'})
-local said_at=nil
-for t=223.5,250.5 do
-    at(t); lion.tick()
-    if not said_at and last()=='loaded: shows 1/20, clips 1/20' then said_at=t end
-end
-assert(said_at,'The clip found on the next pass')
-assert(not logged('loaded: shows 2/'),'A seen path is not looked for again, nor counted twice')
-assets[L.LOADS[1]],assets[L.LOADS[2]]=nil,nil
+for t=205.5,250.5 do at(t); lion.tick() end
+assert(not logged('loaded:'),'No Show or clip lookup: each StaticFindObject of one cost about 30 ms here')
 -- The boss name: the live TextBlock_BossName (under /Engine/Transient) reading <M_LionC> reads Lion; a widget class's
 -- template of it and another TextBlock stay as they are. FindAllOf('TextBlock') again only once no block is held, at
 -- most every 10 s: with none found, it ran at 202.5, 212.5, 222.5, 232.5 and 242.5.
@@ -644,10 +618,6 @@ live.destroyed=true -- The HUD made again: the held block gone.
 widgets={}
 at(261.5); lion.tick(); assert(text_finds==tf+1,'At most every 10 s')
 at(262.5); lion.tick(); assert(text_finds==tf+2,'Looked for again once none is held')
--- The loaded line's lookups stop once each path was looked for 3 times (a clip never played no longer costs a lookup
--- a second for the whole fight).
-for t=263.5,343.5 do at(t); lion.tick() end
-assert(load_finds<=3*#L.LOADS,'Each path looked for 3 times at most: '..load_finds)
 -- Its death, then its body's despawn: D1 and D2.
 lion1.InteractionState,lion1.Controller=3,nil
 at(344.5); n=#lines; lion.tick(); assert(#lines==n,'Dead: no line until its body goes')

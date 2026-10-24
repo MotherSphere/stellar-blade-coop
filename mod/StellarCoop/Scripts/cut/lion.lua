@@ -15,9 +15,9 @@
 -- a skill running, the custom anim alphas the AnimBP blends a Show's clip by, how far a paw moved in the body's own
 -- frame, with its mesh's engine switches before the first line and at each change), its death (InteractionState and
 -- Controller, as run.lua reads them) and its body's despawn, with the spawn manager's counter (the lion line's spawns=)
--- before, while it lives and after. While a Lion lives, two more: which of its 20 Shows and their clips have loaded
--- (the in-game test of a Lion that attacks with no animation), and the boss bar's name, which the game shows as
--- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. coop lion unfreeze puts those switches back to their
+-- before, while it lives and after. While a Lion lives, one more: the boss bar's name, which the game shows as
+-- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. Nothing looks its Shows or clips up: a StaticFindObject
+-- of one took about 30 ms here, a 50 ms frame each second (the frame rate check of 2026-10-24). coop lion unfreeze puts those switches back to their
 -- running values on each living Lion (the test of a body whose pose stays on frame 1); a body whose mesh has no anim
 -- instance runs the Lion's AnimBP on a hidden Behemoth mesh that the Lion's mesh copies (LEADER_MESH says why), or a
 -- single-node stand-in when that fails. Never called here: UE4SS's
@@ -119,19 +119,6 @@ local function count(t)
     return n..'/'..n
 end
 Lion.IN={added=count(),char=count('CharacterTable'),skills=count('SkillTable'),stance=count('CharacterStanceTable')}
--- The loaded line's paths: each Lion Show of the kit, then the clip its first anim key plays (the phase-2 roar plays
--- the roar's Show). 9 Shows name their clip as AnimSequence'...': UE 4.26's ResolveName would strip that, but SB's load
--- path was not traced in the exe, so whether those clips load is part of what this line tests. StaticFindObject finds
--- only what is in memory and costs about 4 ms a call here (core/unreal.lua): LOOKS paths a second, each looked for
--- until first seen and LOOK_MAX times at most (a clip never played was looked for every 20 s for the whole fight, a
--- hitch each second: the 2026-10-24 frame rate check).
-Lion.SHOWS=DATA_ROWS.SHOWS
-local LOOKS,LOOK_MAX=2,3
-Lion.LOADS={}
-for _,s in ipairs(Lion.SHOWS) do
-    Lion.LOADS[#Lion.LOADS+1]='/Game/Art/Show/CH_M_NA_02_Lion/Skill/'..s[2]..'.'..s[2]
-    Lion.LOADS[#Lion.LOADS+1]=DIR..'Animation/'..s[3]..'.'..s[3]
-end
 
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 local function xyz(v) return string.format('%.0f,%.0f,%.0f',v.X,v.Y,v.Z) end
@@ -207,8 +194,6 @@ function Lion.new(o)
     local job=nil -- The command under way: {what=<for a busy refusal>, step=f(job, now), at=<os.clock when due>, ...}.
     local followed={} -- The bodies spawned this Lua load and not let go: {n=, id=, obj=, path=, since=, before=, ...}.
     local spawned,next_follow=0,0
-    local seen,looked,looks,loaded_said={},0,0,nil -- The loaded line's paths seen, cursor, lookups and last line.
-    local tried={} -- Each path's lookups so far (LOOK_MAX at most).
     -- The frame time while a command runs or a Lion lives (UGameplayStatics' world delta, read each frame), and what
     -- this file's tick costs (os.clock is wall time in the game's CRT), its longest tick, and what the last once-a-second
     -- pass took by part (parts): the follow line's frame part, and the spawn's before line to compare with. gs: the
@@ -224,7 +209,7 @@ function Lion.new(o)
     end
     local frame_said='frame ? ms, lion Lua 0.0 ms/s' -- The last second's, for each follow line of that second.
     local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
-    local failed={} -- The last error of the loaded line and of the boss name, each said once.
+    local failed={} -- The boss name's last error, said once.
     local function lion_line() return Lion.parse(status and status()) end
     local her=N.her
     -- The 12 tables by name, and those missing.
@@ -470,34 +455,6 @@ function Lion.new(o)
             num('%.2f',function() return c:GetCurrentCustomAnimAlpha(0) end),
             num('%.2f',function() return c:GetCurrentCustomAnimAlpha(1) end),moved,read and (battle and 1 or 0) or '?',
             tostring(c.InteractionState),valid(c.Controller) and 'yes' or 'no',counted(spawn_count()),frame_said))
-    end
-    -- While a Lion lives, once a second: LOOKS of the 40 paths (each Show, then its clip) not seen yet, and the loaded
-    -- line once each path was looked for (0/20 then says none loaded) or one was seen, and whenever it changes. A Show
-    -- seen means the game played it on a Lion (it loads a Show when a step names it); its clip seen means the Show's
-    -- anim key loaded it. A Show seen without its clip is named.
-    local function look_loaded()
-        local paths,tries=Lion.LOADS,0
-        for _=1,#paths do
-            if tries==LOOKS then break end
-            looked=looked%#paths+1
-            local p=paths[looked]
-            if not seen[p] and (tried[p] or 0)<LOOK_MAX then
-                tries,looks,tried[p]=tries+1,looks+1,(tried[p] or 0)+1
-                if valid(StaticFindObject(p)) then seen[p]=true end
-            end
-        end
-        local shows,clips,without=0,0,{}
-        for i,k in ipairs(Lion.SHOWS) do
-            local show,clip=seen[paths[2*i-1]],seen[paths[2*i]]
-            shows,clips=shows+(show and 1 or 0),clips+(clip and 1 or 0)
-            if show and not clip then without[#without+1]=k[1] end
-        end
-        local line=string.format('loaded: shows %d/%d, clips %d/%d',shows,#Lion.SHOWS,clips,#Lion.SHOWS)
-            ..(without[1] and ' (Show seen, its clip not yet: '..table.concat(without,', ')..')' or '')
-        if (shows>0 or clips>0 or looks>=#paths) and line~=loaded_said then
-            loaded_said=line
-            log(line)
-        end
     end
     -- While a Lion lives, once a second: the boss bar's name as BOSS_NAME where it reads <M_LionC> (SB writes it again
     -- at its next boss bind, and this puts it back).
@@ -878,15 +835,12 @@ function Lion.new(o)
             local lives=false
             for _,f in ipairs(followed) do lives=lives or (f.id~=CONTROL and not f.dead) end
             if lives then
-                for _,w in ipairs({{'loaded',look_loaded},{'boss name',boss_name}}) do
-                    local word,f=w[1],w[2]
-                    t=os.clock()
-                    local fine,e=pcall(f,now)
-                    took[#took+1]=string.format('%s %.1f ms',word,(os.clock()-t)*1000)
-                    e=not fine and string.format('%s: unread (%s)',word,why(e))
-                    if e and e~=failed[word] then log(e) end
-                    failed[word]=e
-                end
+                t=os.clock()
+                local fine,e=pcall(boss_name,now)
+                took[2]=string.format('boss name %.1f ms',(os.clock()-t)*1000)
+                e=not fine and string.format('boss name: unread (%s)',why(e))
+                if e and e~=failed.boss then log(e) end
+                failed.boss=e
             end
             parts=table.concat(took,', ')
         end
