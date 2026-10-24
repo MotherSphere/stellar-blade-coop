@@ -403,7 +403,7 @@ function Link.new(folder,fs)
     -- .pak mods against ours (paks()); quests: the shared quests' line; noted: their notes listed; noted_shown: the
     -- last note number handed out.
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
-    local mate,life,ping,loopback,rejoined,saves,paks=nil,nil,nil,false,false,{},nil
+    local mate,life,ping,loopback,rejoined,saves,paks,revive=nil,nil,nil,false,false,{},nil,nil
     local quests,noted,noted_shown=nil,nil,nil
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
@@ -548,9 +548,14 @@ function Link.new(folder,fs)
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
-        mate,life,ping,loopback,saves,paks=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil
+        mate,life,ping,loopback,saves,paks,revive=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil,nil
         quests,noted=nil,nil
         camps_asked,camps_answer=nil,nil
+        do -- Death and revive (glue/tick/revive.inc, revive/local.h): our state, her state and how far her EVE is, on
+           -- the engine line's own revive= part.
+            local state,used,her,dist,hold=engine:match(' revive=(%a+) used=([01]) partner=(%a+) dist=(%-?%d+) hold=([01])')
+            if state then revive={state=state,used=used=='1',partner=her,distance=tonumber(dist),hold=hold=='1'} end
+        end
         -- The engine off on another game build (check_build's reasons): a game update, said at the title
         -- (session/saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
@@ -642,6 +647,11 @@ function Link.new(folder,fs)
     -- The shared fight's line ("fight=on mode=on role=host enemies=3 ...", "fight=off why=..."; native fight_status());
     -- nil without one.
     function self.fight() return fight end
+    -- Death and revive (glue/tick/revive.inc), from the engine line: {state= our 'alive', 'down', 'spectating' or
+    -- 'dead', used= whether our revive is spent, partner= her state or 'none', distance= cm to her EVE (-1 unknown),
+    -- hold= whether the native part holds our EVE at 1 HP}. nil before the first status line, or with the native part
+    -- off.
+    function self.revive() return revive end
     -- Same-place enemies' line ("pilot=on piloted=3 owned=1 drawn=2", "pilot=off why=host", "pilot=stopped",
     -- "pilot=refused why=..."; native pilot_status()), from the start of its own line; nil without one.
     function self.pilot() return pilot end

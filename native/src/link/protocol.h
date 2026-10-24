@@ -490,7 +490,7 @@ inline uint64_t code_lobby(std::string_view text) {
 // players' logs, the text chat_clean() to kMaxMark bytes, maybe empty).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark
+  remove, copy, quests, camps, travel, mark, revive
 };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
@@ -531,6 +531,7 @@ struct Request {
   bool spawns = false;         // fight on, record, replay: same_spawns=on (a host's); probe: coop fight spawn probe.
   uint8_t extra = 0;           // fight on, record, replay: enemy_extra, 1 to 3 (a host's; 0: none).
   bool filter = false;         // fight on, probe: spawn_filter=on (the guest's own; with probe, its pass-through test).
+  bool hold = false;           // revive hold on|off: whether the native part holds our EVE at 1 HP (revive/local.h).
   PilotAsk pilot = PilotAsk::probe;      // fight pilot: what.
   PilotTest test = PilotTest::replay;    // fight pilot test: how far.
   int stat = 0;                // fight test: 0 HP, 1 Shield, 2 Stamina (fight/sync.h's Stat), or -1: a kill.
@@ -697,7 +698,10 @@ inline Request parse_request(std::string text) {
   } else if (split(text, f, 2, nullptr) && (f[0] == "allow" || f[0] == "deny" || f[0] == "remove") &&
              number(f[1], r.player) && r.player)
     r.command = f[0] == "allow" ? Command::allow : f[0] == "deny" ? Command::deny : Command::remove;
-  else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
+  else if (text == "revive hold on" || text == "revive hold off") {
+    r.command = Command::revive;
+    r.hold = text == "revive hold on";
+  } else if (text == "record" || text == "record off" || text == "replay" || text == "replay off") {
     r.command = text[2] == 'c' ? Command::record : Command::replay;
     r.off = text.size() > 6;
   } else if (text.rfind("saves ", 0) == 0) {

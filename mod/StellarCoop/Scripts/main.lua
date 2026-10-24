@@ -306,6 +306,16 @@ end
 -- asks it again (on) or asks coop quests off at once while it waits or runs (off); quests_wanted: the value last acted
 -- on. shared_quests=off at a reload (Ctrl+R) ends a coop quests on an earlier load asked, waiting or running; a probe,
 -- record or replay goes on.
+-- The friend's revive's native half (revive/local.h): the 1 HP floor goes on only while revive=on, as session/group.lua
+-- and the co-op menu's row have it, and comes off as it turns off; asked again whenever the setting moves.
+local revive_asked=false -- The native part starts with the floor off.
+local function revive_hold_ask()
+    local on=settings~=nil and settings.revive and true or false
+    if on==revive_asked then return end
+    revive_asked=on
+    local ok,why=ask(on and 'revive hold on' or 'revive hold off')()
+    log((ok and 'OK: ' or 'STOP: ')..'revive: '..tostring(why))
+end
 local quests_auto=settings~=nil and settings.shared_quests
 local quests_wanted=quests_auto
 if settings and not settings.shared_quests and not off
@@ -816,6 +826,7 @@ if link then
         end
         fight_notices()
         pilot_notices()
+        revive_hold_ask()
         quest_notices()
         paks_notice()
         local mode=link.mode()

@@ -89,7 +89,7 @@ local function world(change)
             return 'mod=v proto=12 steam=ready\nlink='..W.mode..' lobby=7\n'..W.engine..'\nlast=#1 x\n'
         end,
         mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
-        photo=function() return W.photo end}
+        photo=function() return W.photo end,revive=function() return W.revive end}
     local puppet={her_map=function() return W.her_map end,me=function() return {at=W.at,map=W.map} end,
         anchor=function()
             if W.shown then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end
@@ -107,6 +107,7 @@ local function logged(text)
     for _,line in ipairs(W.logs) do if line:find(text,1,true) then return line end end
 end
 local WAIT,REVIVED='Kaanta can revive you: wait, or respawn at a camp.','Revived by Kaanta.'
+local SPECTATING=T.en.group.spectating
 local RESPAWN,REVIVAL='respawn 4242 false','revival 4242 false'
 
 -- Every condition held: the respawn call once 3 s held, never before; the wait notice at the first tick. A revive that
@@ -318,6 +319,58 @@ for _,change in ipairs({function(w) w.her_map='/game/f02' end,function(w) w.figh
     run(g,2)
     assert(#W.said==0)
 end
+
+-- The native revive (core/link.lua's revive()): its states give the same notices, our EVE alive throughout (its hold
+-- keeps her at 1 HP, so no death screen ever plays): the wait once when the hold downs us, the spectating line when our
+-- revive is spent, the revived line when her game brings us back; her down once, and our revive of her once, only while
+-- our EVE stands within 3 m of her ghost. No line, no notice: nothing runs with revive=off.
+g=world(function(w) w.life,w.revive={state=1,hp=800},{state='alive',used=false,partner='alive',distance=-1,hold=true} end)
+run(g,1)
+assert(#W.said==0,'Alive and alone: nothing')
+W.revive={state='down',used=false,partner='alive',distance=140,hold=true}
+run(g,0.25)
+assert(#W.said==1 and W.said[1]==WAIT,table.concat(W.said,'|'))
+run(g,3)
+assert(#W.said==1,'Once per down')
+W.revive={state='spectating',used=true,partner='alive',distance=140,hold=true}
+run(g,0.25)
+assert(#W.said==2 and W.said[2]==SPECTATING,table.concat(W.said,'|'))
+run(g,3)
+assert(#W.said==2,'Once while spectating')
+W.revive={state='alive',used=true,partner='alive',distance=140,hold=true}
+run(g,0.5)
+assert(#W.said==2,'Only a revive from down says so; a rest gets no line here')
+W.revive={state='down',used=true,partner='alive',distance=140,hold=true}
+run(g,0.25)
+W.revive={state='alive',used=true,partner='alive',distance=140,hold=true}
+run(g,0.25)
+assert(#W.said==4 and W.said[3]==WAIT and W.said[4]==REVIVED,table.concat(W.said,'|'))
+-- Hers: down once, our revive of her only within 3 m.
+W.revive={state='alive',used=true,partner='down',distance=140,hold=true}
+run(g,0.25)
+assert(#W.said==5 and W.said[5]==DOWN,table.concat(W.said,'|'))
+run(g,2)
+assert(#W.said==5,'Once per down of hers')
+W.revive={state='alive',used=true,partner='alive',distance=1500,hold=true}
+run(g,0.25)
+assert(#W.said==5,'Farther than 3 m: not ours')
+W.revive={state='alive',used=true,partner='down',distance=140,hold=true}
+run(g,0.25)
+W.revive={state='alive',used=true,partner='alive',distance=250,hold=true}
+run(g,0.25)
+assert(#W.said==7 and W.said[7]==YOU,table.concat(W.said,'|'))
+W.revive={state='dead',used=true,partner='dead',distance=-1,hold=false}
+run(g,2)
+assert(#W.said==7,'The game\'s own death: no notice')
+-- revive=off (no line): nothing, and a new line starts from its own state rather than replaying a death it missed.
+W.revive=nil
+run(g,1)
+W.revive={state='down',used=false,partner='alive',distance=140,hold=true}
+run(g,1)
+assert(#W.said==7,'A line that comes back does not replay what it missed')
+W.revive={state='alive',used=false,partner='alive',distance=140,hold=true}
+run(g,0.25)
+assert(#W.said==8 and W.said[8]==REVIVED)
 
 -- coop revive test: refused while linked or before Steam, without a life read (a session: coop loopback), alive, off
 -- the death screen or while a respawn runs; at the death screen with life 3 to 5 alone, the same call and lines.

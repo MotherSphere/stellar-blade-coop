@@ -74,7 +74,7 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.
 build/host/pose_codec_test
 ```
 
-- Lua tests (`core/`: `keybind`, `link`, `settings_file`; `cut/`: `leviathan`; `main/`: `boot`, `fight`,
+- Lua tests (`core/`: `keybind`, `link`, `settings_file`; `core/`: `keybind`, `link`, `revive`, `settings_file`; `cut/`: `leviathan`; `main/`: `boot`, `fight`,
   `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`,
   `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`,
   `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `ui/`:
@@ -113,6 +113,12 @@ build/host/pose_codec_test
     write, the manifest, the backup before the first copy, torn reads and failed writes, and the requests and the
     switch against a fake game;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
+  - `revive_core_test`: the death and revive rules for one player, and the SBV line and its parse (state, the revive
+    spent, the EVE's place in cm), on their own;
+  - `revive_local_test`: the same rules run over a fake EVE: the MinimumHP floor on at its base value + 1 only with a
+    partner, written again only when it is gone, back to its base value when the session ends or the game's own death
+    is due; a hit to the floor as a lethal hit, once; 3 s near for a revive at half HP; spectating next; the partner
+    gone ends her with the game's own death; a new EVE forgets the old floor;
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves out,
     the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put back
     after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd control, taken

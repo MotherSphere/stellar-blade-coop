@@ -30,6 +30,8 @@ std::string status() {
   if (engine_on && remote.generation && remote_count) // Once coop-remote.txt was written at least once.
     s += " remote=" + std::to_string(remote.generation) + " " + std::to_string(remote_count) + " " + remote_source;
   s += fight_worker.status();
+  s += " ";
+  s += revive_status(); // Death and revive (glue/tick/revive.inc, session/group.lua's hold).
   // The revive's guard (session/group.lua): a respawn or a warp in flight, and our EVE's GUID, as of the game thread's
   // last read; none before the first one, after coop off or after its fault.
   if (const int warp = warp_state; warp >= 0 && !blocked)

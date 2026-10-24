@@ -335,6 +335,12 @@ int main() {
   assert(replay.command == Command::replay && !replay.off);
   replay = parse_request("replay off");
   assert(replay.command == Command::replay && replay.off);
+  // The friend's revive's native half (glue/tick/revive.inc): revive hold on|off, and nothing else.
+  Request rv = parse_request("revive hold on");
+  assert(rv.command == Command::revive && rv.hold);
+  rv = parse_request("revive hold off");
+  assert(rv.command == Command::revive && !rv.hold);
+  assert(parse_request("revive hold maybe").command == Command::none);
   Request loopback = parse_request("loopback 120 30 1\r\n");
   assert(loopback.command == Command::loopback && loopback.ms == 120 && loopback.jitter == 30 && loopback.loss == 1 &&
          !loopback.off);
