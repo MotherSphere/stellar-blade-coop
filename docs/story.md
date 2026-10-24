@@ -116,7 +116,7 @@ show as one line; the command line's snapshot, digest and diff), and the two rea
 ## The live dump
 
 `coop story [dump|find]` prints the same lines from the save object the running game holds, read only
-(`mod/StellarCoop/Scripts/story.lua`). It writes `StellarCoopStory.txt` in the mod folder: a header, one comment per
+(`mod/StellarCoop/Scripts/story/dump.lua`). It writes `StellarCoopStory.txt` in the mod folder: a header, one comment per
 save-shaped object found, a `# stage:` line, then the sorted lines, so `python tools/story.py compare SAVE DUMP` reads
 it as it reads any dump. The file is rewritten after every stage (quests, the mission records, each zone, the world
 actors), so a run that ends in a crash still says how far it got. `coop-story.txt` in the mod folder asks for a dump
