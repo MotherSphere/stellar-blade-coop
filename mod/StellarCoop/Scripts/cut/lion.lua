@@ -19,7 +19,8 @@
 -- (the in-game test of a Lion that attacks with no animation), and the boss bar's name, which the game shows as
 -- <M_LionC> (no Lion text in CharacterStringTable), set to Lion. coop lion unfreeze puts those switches back to their
 -- running values on each living Lion (the test of a body whose pose stays on frame 1); a body whose mesh has no anim
--- instance is given one with the Lion's AnimBP (the 2026-10-24 finding). Never called here: UE4SS's
+-- instance runs the Lion's AnimBP on a hidden Behemoth mesh that the Lion's mesh copies (LEADER_MESH says why), or a
+-- single-node stand-in when that fails. Never called here: UE4SS's
 -- AddRow or RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call.
 -- The Lion goes when it dies or with the map; the rows stay for the game run, and a later coop lion only reads them
 -- back. coop off ends what this file does (a wait, a search, the lines) and leaves a living Lion to the game.
@@ -79,13 +80,15 @@ local BONE='Bip001-L-Hand'
 -- (speed 0 to 600 cm/s), its input set each frame from the anim graph speed. A stand-in until an AnimBP plays: no skill
 -- clip shows with it.
 local DRIVE_BS=DIR..'Animation/BlendSpace/IdleRun_BS_.IdleRun_BS_'
--- The Lion's two other meshes (the base and small blueprints'), same skeleton: on 2026-10-24 no AnimBP built an
--- instance on CH_M_NA_02_Large even on the entrance copy, a plain actor, while the rebuild worked on the Antlion. So
--- the body's mesh is swapped for one of these (its component keeps the Large blueprint's 1.5 scale) and the Lion's
--- AnimBP tried again, before the stand-in.
-local OTHER_MESHES={{name='CH_M_NA_02',path=DIR..'CH_M_NA_02.CH_M_NA_02'},
-    {name='CH_M_NA_02_small',path=DIR..'CH_M_NA_02_small.CH_M_NA_02_small'}}
 local DRIVE_MAX=600
+-- Why no AnimBP builds an instance on the Lion (2026-10-24, the eighth test): its three meshes hang Bip001 under Root,
+-- but CH_M_NA_46_Skeleton, which the Behemoth's update gave a Base bone, hangs it under Base. UE 4.26 builds an AnimBP
+-- instance only for a mesh whose bone hierarchy matches its skeleton's (USkeleton::IsCompatibleMesh); the single-node
+-- instance has no such check, so the entrance and the stand-in play. The leader: the body's own mesh component gets
+-- the Behemoth's mesh (CH_M_NA_46, same skeleton, Base included), hidden, with the Lion's AnimBP, which SB's skills and
+-- moves play on as on any monster; a new component on the body draws the Lion's mesh and copies that pose by bone name
+-- (SetMasterPoseComponent).
+local LEADER_MESH={name='CH_M_NA_46',path='/Game/Art/Character/Monster/CH_M_NA_46/CH_M_NA_46.CH_M_NA_46'}
 local BEHEMOTH='/Game/Art/Character/Monster/CH_M_NA_46/BluePrints/'
 local ANIM_CLASSES={
     {name='CH_M_NA_02_AnimBP_C',class=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP_C',
@@ -310,29 +313,43 @@ function Lion.new(o)
         end
         return table.concat(said,', ')
     end
-    -- Each of OTHER_MESHES in turn on m, then the Lion's AnimBP (give_anim's tries), until m has an instance. Returns
-    -- what each mesh gave, as words; m keeps the last mesh tried.
-    local function other_mesh(m)
-        local said={}
-        for _,o in ipairs(OTHER_MESHES) do
-            local mesh=valid(StaticFindObject(o.path))
-            if not mesh then
-                pcall(LoadAsset,o.path)
-                mesh=valid(StaticFindObject(o.path))
-            end
-            if not mesh then said[#said+1]=o.name..' does not load'
-            else
-                local fine,e=pcall(function()
-                    m:SetSkeletalMesh(mesh,true)
-                    -- The Lion's AnimBP first, not the class tried last on the Large mesh.
-                    local lion=valid(StaticFindObject(ANIM_CLASSES[1].class))
-                    if lion then m.AnimClass=lion end
-                end)
-                said[#said+1]=o.name..': '..(fine and give_anim(m) or 'SetSkeletalMesh failed ('..why(e)..')')
-                if valid(m:GetAnimInstance()) and m:GetAnimationMode()==0 then break end
-            end
+    -- An object by path, its package loaded first when it is not yet; raises when it does not load.
+    local function load(path,name)
+        local o=valid(StaticFindObject(path))
+        if not o then
+            pcall(LoadAsset,path)
+            o=valid(StaticFindObject(path))
         end
-        return table.concat(said,'; ')
+        return assert(o,name..' does not load')
+    end
+    -- The leader (see LEADER_MESH): the body's mesh component takes the Behemoth's mesh and the Lion's AnimBP, then is
+    -- hidden; a new component on the body, attached to it with no offset (so with its place and 1.5 scale), draws the
+    -- Lion's mesh and copies its pose. Returns the new component; raises when the AnimBP builds no instance there
+    -- either.
+    local function lead(c)
+        local m=valid(c.Mesh)
+        local lion_mesh=assert(valid(m.SkeletalMesh),'no Lion mesh on the body')
+        local leader_mesh=load(LEADER_MESH.path,LEADER_MESH.name)
+        local class=load(ANIM_CLASSES[1].class,ANIM_CLASSES[1].name)
+        m:SetSkeletalMesh(leader_mesh,true)
+        m.AnimClass=class
+        m:SetAnimationMode(1)
+        m:SetAnimationMode(0)
+        if not valid(m:GetAnimInstance()) then
+            m:SetSkeletalMesh(lion_mesh,true) -- Never a Behemoth drawn as the Lion: its own mesh back.
+            error('the Lion AnimBP builds no instance on '..LEADER_MESH.name..' either',0)
+        end
+        local identity=load('/Script/Engine.Default__KismetMathLibrary','KismetMathLibrary'):MakeTransform(
+            {X=0,Y=0,Z=0},{Pitch=0,Yaw=0,Roll=0},{X=1,Y=1,Z=1})
+        local skinned=load('/Script/Engine.SkeletalMeshComponent','SkeletalMeshComponent')
+        local f=assert(valid(c:AddComponentByClass(skinned,true,identity,false)),'no component for the Lion mesh')
+        f:SetCollisionEnabled(0)
+        f:K2_AttachToComponent(m,FName('None'),0,0,0,false) -- EAttachmentRule::KeepRelative, all three.
+        f:SetMasterPoseComponent(m,true)
+        f:SetSkeletalMesh(lion_mesh,true)
+        m:SetVisibility(false,false)
+        m.VisibilityBasedAnimTickOption=0 -- Hidden, it must still tick and refresh its bones for the copy.
+        return f
     end
     -- The stand-in when give_anim built nothing: the single-node instance playing DRIVE_BS. True once it has one.
     local function drive_start(m)
@@ -394,8 +411,10 @@ function Lion.new(o)
             local fine,e=pcall(give_anim,valid(c.Mesh))
             e=fine and e or 'not given ('..why(e)..')'
             if not valid(valid(c.Mesh):GetAnimInstance()) then
-                local swapped,w=pcall(other_mesh,valid(c.Mesh))
-                e=e..'; other meshes: '..(swapped and w or 'failed ('..why(w)..')')
+                local led,l=pcall(lead,c)
+                f.lead=led and valid(c.Mesh) or nil
+                e=e..'; leader: '..(led and 'the Lion AnimBP runs on a hidden '..LEADER_MESH.name..', the Lion mesh '
+                    ..'copies its pose' or 'failed ('..why(l)..')')
             end
             if not valid(valid(c.Mesh):GetAnimInstance()) then
                 local ran,driven=pcall(drive_start,valid(c.Mesh))
@@ -577,14 +596,7 @@ function Lion.new(o)
         end
         log(string.format('entrance: played on a display copy for %.1f s; %s: the Lion spawns %s',now-j.played,said,
             at==j.spot and 'at the spot' or 'there'))
-        -- The copy is a plain actor's mesh, not an SBCharacter's: whether the Lion's AnimBP (or the Behemoth's) builds
-        -- an instance there tells a refused AnimBP from a refusing body. It is removed once the Lion shows.
-        local tested,t=pcall(give_anim,j.display.mesh)
-        if tested and not valid(j.display.mesh:GetAnimInstance()) then
-            local swapped,w=pcall(other_mesh,j.display.mesh)
-            t=t..'; other meshes: '..(swapped and w or 'failed ('..why(w)..')')
-        end
-        log('entrance copy AnimBP test: '..(tested and t or 'failed ('..why(t)..')'))
+
         spawn(j,at,now)
     end
     -- The display copy at the spot, on EVE's feet, facing her, playing the clip once; then intro_done when it ends.
@@ -784,8 +796,14 @@ function Lion.new(o)
             elseif done~=nil then ok,message=done,said end
             if ok~=nil and job==j then job=nil end
         end
+        -- The leaders: SB sets their tick option back to OnlyTickPoseWhenRendered, which a hidden mesh never is.
         -- The stand-ins: each frame, their blend space input from the anim graph speed.
         for _,f in ipairs(followed) do
+            if f.lead and not f.dead then
+                pcall(function()
+                    if f.lead.VisibilityBasedAnimTickOption~=0 then f.lead.VisibilityBasedAnimTickOption=0 end
+                end)
+            end
             if f.drive and not f.dead then
                 pcall(function()
                     local m=f.drive.Mesh

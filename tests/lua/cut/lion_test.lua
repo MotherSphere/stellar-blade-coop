@@ -770,11 +770,8 @@ ok,why=lion.command(); assert(ok==false and why:find('busy %(the entrance%)'),wh
 at(1112.9); assert(lion.tick()==nil and #calls==3)
 at(1113)
 assert(lion.tick()==nil and calls[4][1]==50020 and calls[4][2].X==1300 and calls[4][2].Z==200,'Where its root ended')
-assert(lines[#lines-2]=='entrance: played on a display copy for 13.0 s; its root ended 3.0 m from the spot: the Lion '
-    ..'spawns there',lines[#lines-2])
--- On the copy, a plain actor mesh: the Lion AnimBP builds an instance there (written into AnimClass, mode 1 then 0).
-assert(lines[#lines-1]=='entrance copy AnimBP test: its own class built none, CH_M_NA_02_AnimBP_C built one',
-    lines[#lines-1])
+assert(lines[#lines-1]=='entrance: played on a display copy for 13.0 s; its root ended 3.0 m from the spot: the Lion '
+    ..'spawns there',lines[#lines-1])
 assert(not copy.destroyed,'The copy holds its last frame until the body shows')
 at(1113.3); assert(lion.tick()==nil and copy.destroyed and not chars[#chars].Controller,'Gone once the body shows')
 at(1114.5)
@@ -839,6 +836,9 @@ lion=new()
 lion_status(ROWS_IN:format(1,'6'))
 on_create=spawns_lion
 assets[DIR..'Animation/BlendSpace/IdleRun_BS_.IdleRun_BS_']=drive_bs
+-- Here the Behemoth's mesh takes no AnimBP either: the body gets its Lion mesh back before the stand-in.
+assets['/Game/Art/Character/Monster/CH_M_NA_46/CH_M_NA_46.CH_M_NA_46']=object({works=false,
+    GetFName=function() return fname('CH_M_NA_46') end})
 at(1600); assert(lion.command())
 local lone=chars[#chars]
 lone.Mesh.no_instance,lone.Mesh.refuse_all=true,true
@@ -846,28 +846,58 @@ at(1600.3); lion.tick()
 at(1601.5); assert(lion.tick())
 at(1602.5); lion.tick()
 assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built none, '
-    ..'CH_M_NA_46_AnimBP_C built none; other meshes: CH_M_NA_02 does not load; CH_M_NA_02_small does not load; '
+    ..'CH_M_NA_46_AnimBP_C built none; leader: failed %(the Lion AnimBP builds no instance on CH_M_NA_46 either%); '
     ..'stand%-in: the single%-node instance plays IdleRun_BS_ by speed; mesh: anim instance AnimSingleNodeInstance, '
-    ..'anim class CH_M_NA_46_AnimBP_C, .*, mode 1,'),'The stand-in line')
+    ..'anim class CH_M_NA_02_AnimBP_C, .*, mode 1,'),'The stand-in line')
+assert(lone.Mesh.SkeletalMesh:GetFName():ToString()=='CH_M_NA_02_Large','Its own mesh back')
 lone.speed=900; at(1602.6); lion.tick(); assert(lone.Mesh.input==600,tostring(lone.Mesh.input))
 lone.speed=212; at(1602.7); lion.tick(); assert(lone.Mesh.input==212,tostring(lone.Mesh.input))
 lone.Mesh.mode=0; at(1602.8); lion.tick()
 lone.speed=100; at(1602.9); lion.tick(); assert(lone.Mesh.input==212,'No input once out of single-node mode')
--- The base Lion mesh takes the AnimBP: the body gets it (and its 1.5 scale stays on the component), no stand-in.
+-- The leader: the Behemoth's mesh (its hierarchy matches the skeleton) takes the Lion's AnimBP on the body's mesh
+-- component, hidden and ticking; a new component attached to it with no offset draws the Lion's mesh and copies its
+-- pose. No stand-in. SB's tick option comes back to 3 and is set to 0 again the next frame.
 lion=new()
 lion_status(ROWS_IN:format(1,'6'))
-assets[DIR..'CH_M_NA_02.CH_M_NA_02']=object({works=true,GetFName=function() return fname('CH_M_NA_02') end})
+assets['/Game/Art/Character/Monster/CH_M_NA_46/CH_M_NA_46.CH_M_NA_46']=object({works=true,
+    GetFName=function() return fname('CH_M_NA_46') end})
 at(1700); assert(lion.command())
-local swapped=chars[#chars]
-swapped.Mesh.no_instance,swapped.Mesh.refuse_all=true,true
+local led=chars[#chars]
+led.Mesh.no_instance,led.Mesh.refuse_all=true,true
+local follower
+led.AddComponentByClass=function(_,cls,manual,t,deferred)
+    engine()
+    assert(cls.path=='/Script/Engine.SkeletalMeshComponent' and manual==true and t~=nil and deferred==false)
+    follower=object({calls={}})
+    function follower:SetCollisionEnabled(n) self.calls[#self.calls+1]='collision '..n end
+    function follower:K2_AttachToComponent(p,socket,a,b,c,weld)
+        assert(p==led.Mesh and socket:ToString()=='None' and a==0 and b==0 and c==0 and weld==false)
+        self.calls[#self.calls+1]='attach'
+    end
+    function follower:SetMasterPoseComponent(p,force)
+        assert(p==led.Mesh and force==true)
+        self.calls[#self.calls+1]='lead'
+    end
+    function follower:SetSkeletalMesh(x,reinit)
+        assert(reinit==true)
+        self.calls[#self.calls+1]='mesh '..x:GetFName():ToString()
+    end
+    return follower
+end
+led.Mesh.SetVisibility=function(self,on,propagate) engine(); assert(propagate==false); self.shown=on end
 at(1700.3); lion.tick()
 at(1701.5); assert(lion.tick())
 at(1702.5); lion.tick()
 assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C built none, '
-    ..'CH_M_NA_46_AnimBP_C built none; other meshes: CH_M_NA_02: its own class built one; mesh: anim instance '
-    ..'CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, .*, mode 0, leader none, anim set sync true, mesh '
-    ..'CH_M_NA_02,'),'The other mesh line')
-assert(swapped.Mesh.mode==0 and swapped.Mesh.input==nil,'An AnimBP, no stand-in')
+    ..'CH_M_NA_46_AnimBP_C built none; leader: the Lion AnimBP runs on a hidden CH_M_NA_46, the Lion mesh copies its '
+    ..'pose; mesh: anim instance CH_M_NA_02_AnimBP_C, anim class CH_M_NA_02_AnimBP_C, .*, mode 0, leader none, '
+    ..'anim set sync true, mesh CH_M_NA_46,'),'The leader line')
+assert(table.concat(follower.calls,'|')=='collision 0|attach|lead|mesh CH_M_NA_02_Large',
+    table.concat(follower.calls,'|'))
+assert(led.Mesh.shown==false and led.Mesh.VisibilityBasedAnimTickOption==0 and led.Mesh.input==nil,
+    'Hidden, ticking, no stand-in')
+led.Mesh.VisibilityBasedAnimTickOption=3
+at(1702.6); lion.tick(); assert(led.Mesh.VisibilityBasedAnimTickOption==0,'Ticking again the next frame')
 
 -- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
 -- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn
