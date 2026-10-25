@@ -1378,8 +1378,9 @@ native part and run on a [co-op save](#co-op-saves) only. The flight was tried i
   own values. During a flight the face buttons dodge up, down, left and right, and so do Shift with Z, S, Q or D on
   the keyboard (up, down, left, right). `coop fly on` adds S to the game's flight keys (R2 and Z) and the four Shift
   keys to the input settings; if the key list takes no third key, S takes R2's place and the pad no longer flies. The
-  game itself ends a flight once no flight key is held, so the level flight sets its key again each frame; the log's
-  `[FL]` lines say once a flight whether that held. The game sets the flight's velocity whole each frame, with no
+  game itself ends a flight once no flight key is held, so the level flight sets its key again each frame, from a hook
+  on EVE's blueprint tick that runs between the game's key pass and its flight check; the log's `[FL]` lines say once
+  a flight whether that held. The game sets the flight's velocity whole each frame, with no
   easing: the mod eases the climb and the descent in and out over 0.3 s, and starts a flight at 40 % of its speed,
   full after 0.6 s. Turns follow the camera at once, as in the game.
 - `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
