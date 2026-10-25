@@ -10,8 +10,10 @@
 -- (HOLD), until the space bar drops her or the game ends the flight (landing, its 90 s pool). Shift with Q, D, Z or S
 -- fires the evade left, right, up or down, through four action mappings added to the input settings. Whether the
 -- level flight holds depends on this tick coming after the game's input pass in the frame: the log says it once a
--- flight. coop fly off, coop off and the next Lua load put the keys and the mappings back. Never called here: a save,
--- the game's key settings file, anything on another character.
+-- flight. The game's flight sets its velocity whole each frame, with no easing: the climb and the descent here ease in
+-- and out over RAMP s, and a flight starts at START of MaxFlyingActionSpeed and reaches all of it in START_RAMP s (its
+-- value put back when the flight ends). coop fly off, coop off and the next Lua load put the keys and the mappings
+-- back. Never called here: a save, the game's key settings file, anything on another character.
 local U=require('core.unreal')
 local Flight={}
 Flight.DEFAULT={'Gamepad_RightTrigger','Z'} -- DefaultInput.ini's DefinedFlyActionKeyLists.
@@ -20,6 +22,7 @@ Flight.UP,Flight.DOWN,Flight.DROP='Z','S','SpaceBar'
 Flight.EVADES={{'FlyingActionEvade_Left','Q'},{'FlyingActionEvade_Right','D'},{'FlyingActionEvade_Up','Z'},
     {'FlyingActionEvade_Down','S'}}
 Flight.HOLD=0.5 -- s with no key held after which a flight still on says the level flight holds.
+Flight.RAMP,Flight.START,Flight.START_RAMP=0.3,0.4,0.6 -- s; share of the speed at the start; s to all of it.
 local SETTINGS='/Script/Engine.Default__InputSettings'
 local function key(name) return {KeyName=FName(name)} end
 
@@ -27,8 +30,13 @@ function Flight.new(o)
     local log=o.log
     local self={}
     local on,failed,restored=false,nil,false
-    -- This flight: dropped (the space bar), since (os.clock with no key held, nil while one is), said (its line).
+    -- This flight: dropped (the space bar), since (os.clock with no key held, nil while one is), said (its line), at
+    -- (os.clock at its first tick), last (at the last tick), v (the eased climb, -1 to 1), speed (the game's
+    -- MaxFlyingActionSpeed, put back at its end), cmc (EVE's movement component).
     local fl=nil
+    local function speed_back()
+        if fl and fl.speed then pcall(function() fl.cmc.MaxFlyingActionSpeed=fl.speed end) end
+    end
     local function handler()
         local pc=U.controller()
         local h=pc and U.valid(pc.InputHandler)
@@ -80,6 +88,7 @@ function Flight.new(o)
     end
     function self.off()
         if not on then return end
+        speed_back()
         on,fl=false,nil
         local ok,why=pcall(function() return put_back(handler().DefinedFlyActionKeyLists) end)
         log(ok and 'flight keys back: '..why or 'flight keys not put back: '..tostring(why))
@@ -105,6 +114,7 @@ function Flight.new(o)
             local eve=U.valid(pc:K2_GetPawn())
             local flying=eve and eve:IsFlyingAction()==true
             if not flying then
+                speed_back()
                 if fl and fl.since and not fl.dropped and not fl.said then
                     log(string.format('level flight did not hold: the flight ended %.2f s after the keys were let go '
                         ..'(the input pass comes after this tick)',os.clock()-fl.since))
@@ -112,10 +122,24 @@ function Flight.new(o)
                 fl=nil
                 return
             end
-            fl=fl or {}
+            local now=os.clock()
+            if not fl then
+                local cmc=U.valid(eve.CharacterMovement)
+                fl={at=now,last=now,v=0,cmc=cmc,speed=cmc and tonumber(cmc.MaxFlyingActionSpeed)}
+            end
+            local dt=math.min(0.1,now-fl.last)
+            fl.last=now
+            if fl.speed then -- The start: from START of the speed to all of it, then the game's value again.
+                local share=math.min(1,Flight.START+(1-Flight.START)*(now-fl.at)/Flight.START_RAMP)
+                fl.cmc.MaxFlyingActionSpeed=fl.speed*share
+                if share>=1 then fl.speed=nil end
+            end
             local up,down=pc:IsInputKeyDown(key(Flight.UP))==true,pc:IsInputKeyDown(key(Flight.DOWN))==true
             if pc:IsInputKeyDown(key(Flight.DROP))==true then fl.dropped=true end
-            if up~=down then eve:AddMovementInput({X=0,Y=0,Z=up and 1 or -1},1.0,false) end
+            local want=up==down and 0 or up and 1 or -1 -- The climb eases toward it.
+            local step=dt/Flight.RAMP
+            fl.v=fl.v<want and math.min(want,fl.v+step) or math.max(want,fl.v-step)
+            if math.abs(fl.v)>0.01 then eve:AddMovementInput({X=0,Y=0,Z=fl.v},1.0,false) end
             if up or down then fl.since=nil return end
             if fl.dropped then return end
             fl.since=fl.since or os.clock()
