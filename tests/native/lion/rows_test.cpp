@@ -250,10 +250,10 @@ size_t row_index(const char *name, Table t) {
 
 int main() {
   // ---- The recipe ----
-  static_assert(kRows == 220, "21 commands, 21 skills, 80 steps, 61 moves, 23 target filters, 5 results, the effect, 2 "
+  static_assert(kRows == 222, "21 commands, 21 skills, 80 steps, 61 moves, 25 target filters, 5 results, the effect, 2 "
                               "anim sets, 2 stances, the dead and appearance rows and the two CharacterTable rows");
   assert(rows_of(Table::step) == 80 && rows_of(Table::skill) == 21 && rows_of(Table::command) == 21 &&
-         rows_of(Table::move) == 61 && rows_of(Table::filter) == 23 && rows_of(Table::result) == 5 &&
+         rows_of(Table::move) == 61 && rows_of(Table::filter) == 25 && rows_of(Table::result) == 5 &&
          rows_of(Table::effect) == 1 && rows_of(Table::anim) == 2 && rows_of(Table::stance) == 2 &&
          rows_of(Table::dead) == 1 && rows_of(Table::appearance) == 1 && rows_of(Table::character) == 2);
   // The two CharacterTable rows last, M_LionC the very last: NewActor finds 50020 only once every other row is in.
@@ -491,9 +491,9 @@ int main() {
     Builder b;
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::refused && a.why == Why::donor && a.row == first && a.added == first);
-    assert(g.adds.size() == first && !b.added(first) && first == 90);
+    assert(g.adds.size() == first && !b.added(first) && first == 92);
     assert(describe(a) == "lion rows refused M_LionC_ClawAttackLeft_Cast1: template M_Behemoth_ScratchLeft_Finish1 "
-                          "missing; 90/220 added");
+                          "missing; 92/222 added");
     g.rows[{g.tables[size_t(Table::step)], key}] = row;
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::rows && a.added == kRows && g.adds.size() == kRows); // Each row added once.
@@ -529,7 +529,7 @@ int main() {
     g.mem.put<uint64_t>(g.vtable_at + kAddRowSlot, rebased(kAddRow) + 0x10);
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::table && a.row == kRows - 2 && g.adds.empty()); // CharacterTable, checked first.
-    assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/220 added");
+    assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/222 added");
   }
   {
     Game g; // Another vtable whose AddRow slot holds SB's AddRow: still not SB's UDataTable.
@@ -587,7 +587,7 @@ int main() {
     Builder b;
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::size && a.detail == 0x2c8 && g.adds.empty());
-    assert(describe(a) == "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/220 added");
+    assert(describe(a) == "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/222 added");
     g.mem.put<int32_t>(rs + kPropertiesSize, 0x2d0);
     uint64_t tables[kTableCount];
     std::memcpy(tables, g.tables, sizeof tables);
@@ -608,26 +608,26 @@ int main() {
     assert(status_line(s) == "lion=off");
     a = Answer(), a.state = State::waiting, a.why = Why::busy;
     s.word = pack(a, 0), s.ticks = 41;
-    assert(status_line(s) == "lion=waiting added=0/220 asks=0 spawns=? why=busy ticks=41");
-    a = Answer(), a.state = State::rows, a.added = 220;
+    assert(status_line(s) == "lion=waiting added=0/222 asks=0 spawns=? why=busy ticks=41");
+    a = Answer(), a.state = State::rows, a.added = 222;
     s.word = pack(a, 1), s.read = {2, 21, 2}, s.spawns_read = true, s.spawns = 7;
-    assert(status_line(s) == "lion=rows added=220/220 asks=1 spawns=7 char=2/2 skills=21/21 stance=2/2");
-    assert(describe(a) == "lion rows: 220/220 added through SB's AddRow 0x14417ba30, 0 refused");
+    assert(status_line(s) == "lion=rows added=222/222 asks=1 spawns=7 char=2/2 skills=21/21 stance=2/2");
+    assert(describe(a) == "lion rows: 222/222 added through SB's AddRow 0x14417ba30, 0 refused");
     a = Answer(), a.state = State::refused, a.why = Why::size, a.added = 0, a.row = uint8_t(kRows - 2),
     a.detail = 0x540;
     s.word = pack(a, 2);
     assert(status_line(s) ==
-           "lion=refused added=0/220 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
+           "lion=refused added=0/222 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
     a = Answer(), a.state = State::refused, a.why = Why::busy, a.added = 3, a.row = uint8_t(kRows);
     s.word = pack(a, 3);
-    assert(status_line(s) == "lion=refused added=3/220 asks=3 spawns=7 why=busy table=- row=-");
-    assert(describe(a) == "lion rows refused -: logic busy 300 frames; 3/220 added");
+    assert(status_line(s) == "lion=refused added=3/222 asks=3 spawns=7 why=busy table=- row=-");
+    assert(describe(a) == "lion rows refused -: logic busy 300 frames; 3/222 added");
     a.why = Why::net, a.detail = 3, s.word = pack(a, 4);
-    assert(status_line(s) == "lion=refused added=3/220 asks=4 spawns=7 why=net table=- row=- detail=3");
+    assert(status_line(s) == "lion=refused added=3/222 asks=4 spawns=7 why=net table=- row=- detail=3");
     a.why = Why::off, s.word = pack(a, 5);
-    assert(status_line(s) == "lion=refused added=3/220 asks=5 spawns=7 why=coop_off table=- row=-");
+    assert(status_line(s) == "lion=refused added=3/222 asks=5 spawns=7 why=coop_off table=- row=-");
     a = Answer(), a.state = State::fault, a.added = 30, s.word = pack(a, 6), s.fault = "the game at 0x14417ba30";
-    assert(status_line(s) == "lion=fault added=30/220 asks=6 spawns=7 where=the game at 0x14417ba30");
+    assert(status_line(s) == "lion=fault added=30/222 asks=6 spawns=7 where=the game at 0x14417ba30");
   }
 
   std::puts("lion_rows_test: ok");
