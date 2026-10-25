@@ -1,8 +1,8 @@
 -- coop fly's keys (cut/flight.lua) with fakes: the flight key list taking a third key (R2, Z, S) or not (S, Z), the
 -- four Shift evade mappings added once and taken out (and the first version's A and E ones), a climb or a descent each
 -- frame only while EVE flies with Z or S held (none with both), the fly key held again with neither until the space bar
--- drops her, its line once a flight (held, or ended), the keys and mappings back at off, the restore once a load of keys
--- an earlier load left (never while on), and no player input (the game's keys stay).
+-- drops her, its line once a flight (held, or ended), the keys and mappings back at off, the restore once a load of
+-- keys an earlier load left (never while on), and no player input (the game's keys stay).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local function object(t)
@@ -19,7 +19,8 @@ local hooks={} -- RegisterHook's: {name, callback}.
 RegisterHook=function(name,f) hooks[#hooks+1]={name,f} return 1,2 end
 local eve_class=object({GetFullName=function() return 'BlueprintGeneratedClass /Game/Art/Character/PC/CH_P_EVE_01/'
     ..'CH_P_EVE_01_Blueprint.CH_P_EVE_01_Blueprint_C' end})
-local eve=object({IsFlyingAction=function() return flying end,CharacterMovement=cmc,GetClass=function() return eve_class end,
+local eve=object({IsFlyingAction=function() return flying end,CharacterMovement=cmc,
+    GetClass=function() return eve_class end,
     AddMovementInput=function(_,v,scale,force) inputs[#inputs+1]={v.Z,scale,force} end})
 local handler=object({})
 local clock=0
@@ -98,7 +99,8 @@ assert(fixed[1].KeyName:ToString()=='S' and fixed[2].KeyName:ToString()=='Z' and
 handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z','S')
 local h=fresh()
 h.restore()
-assert(names()=='Gamepad_RightTrigger,Z,Z' and lines[#lines]:find('^flight keys an earlier Lua load left, back'),names())
+assert(names()=='Gamepad_RightTrigger,Z,Z' and lines[#lines]:find('^flight keys an earlier Lua load left, back'),
+    names())
 handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z','S')
 h.restore(); assert(names()=='Gamepad_RightTrigger,Z,S','Once a load')
 local k=fresh(); k.on(); k.restore(); assert(names()=='Gamepad_RightTrigger,Z,S','Not while on')
