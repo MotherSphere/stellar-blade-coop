@@ -487,17 +487,23 @@ After a call, the `revive result` line gives the life state, HP and death screen
 stays up over a living EVE, the mod hides it.
 
 During a co-op Night Operation run the run's own revive applies instead (see
-[Down and revive](night-operation.md#down-and-revive)), and the `revive` setting plays no part. Its
-`[StellarCoop][NR]` lines say what happened:
+[Down and revive](night-operation.md#down-and-revive)). It needs the downed player's `revive=on` too, but none of the
+friend's distance, the shared fight or the boss rule above. Its `[StellarCoop][NR]` lines say what happened:
 
-- No `down (life 3): ...` line after a death, and the run failed at once: the game's own life state was not read
-  (`coop status` shows no `life=` line). The down needs it.
+- No `down (life 3): ...` line after a death, and the run failed at once: the dead player's `revive` setting is off,
+  or the game's own life state was not read (`coop status` shows no `life=` line). The down needs both.
 - On the partner's side, `revive of <name> stopped at <n> %`: the interact key was let go, the partner's EVE stepped
   more than 2 m across or 1 m up or down from the downed EVE's ghost, or the game was paused. Only F and the pad's right
   trigger count, not a rebound interact key.
 - On the downed side, `revive not asked (friend): <why>` or `(self): <why>`: the reasons of the list above that the
-  call itself checks, such as `a respawn or a warp is under way` or `no death screen`.
-- `up with no revive asked`: the death screen's respawn was pressed. That ends the run as a death.
+  call itself checks, such as `revive=off`, `a respawn or a warp is under way` or `no death screen`. For her own
+  revive, `your EVE lies <n> m across and <n> m up or down from where she last walked` means the body is more than
+  2 m across or 1 m up or down from the last ground her EVE walked on, as after a fall into a pit; only her partner can
+  revive her then.
+- `revive (<who>) did not take: not up 5 s after the call`: the game's respawn did not bring EVE up. The `[GR]`
+  `revive result` line before it gives the life state and the death screen. The down asks for no other call.
+- `up with no revive asked` or `up after a revive that did not take`: the death screen's respawn was pressed. That ends
+  the run as a death.
 
 ### Stuck at a doorway with the solid partner
 

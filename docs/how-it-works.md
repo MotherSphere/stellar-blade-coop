@@ -1135,12 +1135,14 @@ own state, the friend's vitals and the friend's ghost. The friend's game calls n
   in-game check.
 - With both players down, nobody can revive. Each respawns at a camp in their own game, each world resets on its own,
   and same spawns brings the guest's enemies back to the host's set.
-- During a Night Operation run (`nightop/run.lua`), the run owns the revive. The 3 s rule and the friend's down
-  notice wait. The run asks `session/group.lua` for the call (`night_revive`) when the partner's night line says her
-  interact key was held next to the downed EVE for 3 s, or for `coop nightop revive`. The call then has the guards of
-  `coop revive test` (life 3 to 5, the death screen, `warp=idle`, standalone, no probe rule) and none of `revive=on`,
-  the friend's distance or the shared fight, and the same fallback, result line and hidden death screen. See
-  [Down and revive](night-operation.md#down-and-revive).
+- During a Night Operation run (`nightop/run.lua`), the run owns the revive. The 3 s rule and the friend's notices
+  wait; the run says `You revived <name>.` itself when the partner's own hold was full. A death is a down only with
+  `revive=on`. The run asks `session/group.lua` for the call (`night_revive`) when the partner's night line says her
+  interact key was held next to the downed EVE for 3 s, or for `coop nightop revive`, which first needs the body
+  within 2 m across and 1 m up or down of the last place where the EVE's movement read walking. The call then has
+  `revive=on` and the guards of `coop revive test` (life 3 to 5, the death screen, `warp=idle`, standalone, no probe
+  rule), none of the friend's distance or the shared fight, and the same fallback, result line and hidden death
+  screen. See [Down and revive](night-operation.md#down-and-revive).
 
 ## Camp rests in a shared area
 
