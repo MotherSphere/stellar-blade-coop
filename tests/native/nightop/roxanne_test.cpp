@@ -146,8 +146,9 @@ int main() {
            g.get<int32_t>(e + kMax) == 2 && shape(g, kBase, s) == Shape::hers);
     assert(g.writes.size() >= 3 && g.writes[g.writes.size() - 3] == e + kCount && g.writes.back() == e + kData);
     assert(!disarm(g, kBase, s)); // Nothing left to put back.
-    // On again: the same array, no second allocation.
-    assert(arm(g, kBase, s) == Why::none && g.mallocs == 1 && g.get<uint64_t>(e + kData) == kHeap);
+    // On again after that off: the same array, no second allocation.
+    assert(!s.installed && arm(g, kBase, s) == Why::none && g.mallocs == 1 && g.get<uint64_t>(e + kData) == kHeap &&
+           s.installed);
   }
   // The element array moved (a rehash): the entry is found again by name, never through the old address.
   {
@@ -164,7 +165,8 @@ int main() {
     assert(shape(g, kBase, s) == Shape::ours && disarm(g, kBase, s));
     assert(g.get<uint64_t>(moved + 2 * kStride + kData) == kHerNames);
   }
-  // The game rebuilt her entry with an array of its own: lost, and off never writes over it.
+  // The game rebuilt her entry with an array of its own: ours went with the old entry (SB's to free), off never writes
+  // over the new one, and the next on allocates a new array of ours, never writing into the old one.
   {
     Game g = cache();
     Swap s;
@@ -177,8 +179,24 @@ int main() {
     assert(shape(g, kBase, s) == Shape::hers);
     g.writes.clear();
     assert(!disarm(g, kBase, s) && g.writes.empty());
-    // A new on takes the new array as the one to put back, with the same array of ours.
-    assert(arm(g, kBase, s) == Why::none && s.old_data == 0x58000 && g.mallocs == 1);
+    assert(arm(g, kBase, s) == Why::none && s.old_data == 0x58000 && g.mallocs == 2 && s.ours == kHeap + 0x1000);
+    for (const uint64_t w : g.writes)
+      assert(w - kHeap >= 48); // Nothing written into the first array.
+    assert(g.get<uint64_t>(kElements + kStride + kData) == kHeap + 0x1000 && shape(g, kBase, s) == Shape::ours);
+  }
+  // Rebuilt into the very block of ours that SB freed (its GMalloc handed it out again, two names long): hers, not
+  // ours, so off leaves it and on allocates anew.
+  {
+    Game g = cache();
+    Swap s;
+    assert(arm(g, kBase, s) == Why::none && s.ours == kHeap);
+    g.put(kHeap, g.name("TS_Xion_Roxane_Choice_1"));
+    g.put(kHeap + 8, g.name("TS_Xion_Roxane_Choice_2"));
+    g.put<int32_t>(kElements + kStride + kCount, 2);
+    g.put<int32_t>(kElements + kStride + kMax, 2);
+    assert(shape(g, kBase, s) == Shape::hers && !disarm(g, kBase, s));
+    assert(arm(g, kBase, s) == Why::none && g.mallocs == 2 && s.ours == kHeap + 0x1000 && s.old_data == kHeap &&
+           s.old_count == 2);
   }
   // Refusals: no world, no holder, her list absent, another shape (three rows, another order), no memory.
   {

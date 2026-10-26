@@ -9,9 +9,10 @@
 // edits and gives its text), then her two rows, so End Conversation stays the last slot (the cancel input picks the
 // last one) whether the widget sorts by priority (all six read 0) or not, and the select widget's six slots hold them
 // all. The new array is SB's GMalloc's (FMalloc at 0x14706b500, Malloc at its vtable's +0x10), so SB may free it like
-// its own; the old one is kept untouched, and off puts the old pointer, count and max back while the entry still points
-// at ours. The entry is found again by name at each step (a rehash may move the map's elements), and it is changed only
-// when it holds exactly her two rows, in her order.
+// its own: from the moment the entry points at it, it is SB's, reused only once off took it back, and an entry the game
+// rebuilt meanwhile gets a new one. The old one is kept untouched, and off puts the old pointer, count and max back
+// while the entry still points at ours. The entry is found again by name at each step (a rehash may move the map's
+// elements), and it is changed only when it holds exactly her two rows, in her order.
 // The writes: the pointer before the count when the list grows, the count before the pointer when it shrinks, so a
 // reader between two writes never reads past an array; they run on the game thread under the rows' gate (net mode 0,
 // no logic task in flight), glue/tick/nightop_game.inc, under their own SEH latch.
@@ -50,10 +51,11 @@ inline const char *shape_word(Shape s) {
   return kWords[size_t(s)];
 }
 
-// Ours, and what the entry held before it pointed at ours.
+// Ours, what the entry held before it pointed at ours, and whether the entry was left pointing at ours (no off since).
 struct Swap {
   uint64_t ours = 0, old_data = 0;
   int32_t old_count = 0, old_max = 0;
+  bool installed = false;
 };
 
 // Game: read(address, out, n) (false when unmapped), write(address, in, n), name(text, len, number) (FName's
@@ -86,20 +88,23 @@ template <class Game> Shape shape(Game &g, uint64_t base, const Swap &s) {
   int32_t count = 0;
   if (!g.read(e + kData, &data, 8) || !g.read(e + kCount, &count, 4))
     return Shape::unread;
-  if (s.ours && data == s.ours)
+  if (s.ours && data == s.ours && count == kOurs) // The count too: SB may hand a freed array of ours out again.
     return Shape::ours;
   if (count != kHers || !game::plausible(data) || !g.read(data, names, sizeof names))
     return Shape::other;
   return names[0] == make(g, kRows[4]) && names[1] == make(g, kRows[5]) && names[0] && names[1] ? Shape::hers
                                                                                                 : Shape::other;
 }
-// On: her entry pointed at our six names (allocated once a game run, then reused). Why::none once it is ours.
+// On: her entry pointed at our six names (reused after an off, a new array once the game rebuilt the entry). Why::none
+// once it is ours.
 template <class Game> Why arm(Game &g, uint64_t base, Swap &s) {
   const Shape now = shape(g, base, s);
   if (now == Shape::ours)
     return Why::none;
   if (now != Shape::hers)
     return now == Shape::unread ? Why::unread : now == Shape::absent ? Why::absent : Why::other;
+  if (s.installed) // Hers again with no off: the game rebuilt the entry, and its TArray freed ours or holds it.
+    s.ours = 0, s.installed = false;
   uint64_t names[kOurs];
   for (int32_t i = 0; i < kOurs; ++i)
     if (!(names[i] = make(g, kRows[i])))
@@ -115,10 +120,11 @@ template <class Game> Why arm(Game &g, uint64_t base, Swap &s) {
   g.write(e + kData, &s.ours, 8); // The pointer first: a reader in between reads her two names at the front of ours.
   g.write(e + kCount, &kOurs, 4);
   g.write(e + kMax, &kOurs, 4);
+  s.installed = true;
   return Why::none;
 }
 // Off: her two names back (the old pointer, count and max) while the entry still points at ours; true when it did.
-template <class Game> bool disarm(Game &g, uint64_t base, const Swap &s) {
+template <class Game> bool disarm(Game &g, uint64_t base, Swap &s) {
   if (!s.ours || shape(g, base, s) != Shape::ours)
     return false;
   Shape at = Shape::unread;
@@ -126,6 +132,7 @@ template <class Game> bool disarm(Game &g, uint64_t base, const Swap &s) {
   g.write(e + kCount, &s.old_count, 4); // The count first: never more names than the array behind the pointer.
   g.write(e + kMax, &s.old_max, 4);
   g.write(e + kData, &s.old_data, 8);
+  s.installed = false; // Ours again: the next on reuses it.
   return true;
 }
 
