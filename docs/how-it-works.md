@@ -62,6 +62,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
 | `nightop/shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
 | `nightop/challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
+| `nightop/board.lua` | The Shooting Range's score on the cut test widget `WB_ShootingTrainingTest`, beside the run's card |
 | `nightop/recruiter.lua` | The `coop recruiter` preview |
 | `nightop/recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
 | `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
@@ -370,16 +371,17 @@ guest's keeps only the answer to her last number. A world or camp name is letter
 characters. Both lines show in `coop status` (`camps?=`, `camps=`) until the session ends.
 
 The night line carries a Night Operation run between the two games (see
-[night-operation.md](night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of
-one side, so a lost line is repaired by the next. The host's `h` line has a counter, the run number and seed, the
-phase (`ask`, `count`, `wave`, `rest` or `end`), the wave, the run time in milliseconds, the score, kills and waves
-cleared, the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, the outcome once
-the run ends (`success`, `time`, `failed:host`, `failed:guest` or `aborted:<reason>`), and the run's level (`easy`,
-`normal`, `hard` or `nightmare`), which the guest's run takes. A mask has one bit for each wave and slot, 8 slots a
-wave, so it covers the largest level's waves. The guest's `g` line has a counter, the run number, her state (`ready`,
-`refuse`, `run`, `dead` or `abort`), her monsters still up, masks of the ones killed and done in her world, and a
-refusal or abort word. Each game writes its line when it changes and at least once a second, never twice in one Lua
-tick, and logs each line out and in as `[StellarCoop][NR] night out: ...` and `night in: ...`.
+[night-operation.md](night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of one
+side, so a lost line is repaired by the next. The host's `h` line has a counter, the run number and seed, the phase
+(`ask`, `count`, `wave`, `rest` or `end`), the wave, the run time in milliseconds, the score, kills and waves cleared,
+the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, the outcome once the run
+ends (`success`, `time`, `failed:host`, `failed:guest` or `aborted:<reason>`), and the run's level (`easy`, `normal`,
+`hard` or `nightmare`, or `range` for the Shooting Range challenge), which the guest's run takes. A mask has one bit for
+each wave and slot, 8 slots a wave, so it covers the largest level's waves and the range's three rounds. The guest's `g`
+line has a counter, the run number, her state (`ready`, `refuse`, `run`, `dead` or `abort`), her monsters still up,
+masks of the ones killed and done in her world, and a refusal or abort word. Each game writes its line when it changes
+and at least once a second, never twice in one Lua tick, and logs each line out and in as
+`[StellarCoop][NR] night out: ...` and `night in: ...`.
 
 The native part checks only the bytes: 3 to 300 of `0-9`, `a-z`, `/`, `_`, `:` and `-` with single spaces between
 words, the first word `h` from the lobby owner and `g` from the guest. It sends an `h` line only while it owns the
@@ -457,7 +459,7 @@ instead of misread:
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
 | 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line, the mark line and the Doro races' race line on channel 0 |
 | 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders |
-| 14 | Night Operation's level on the host's night line, and night line masks for a level's extra monsters (this version) |
+| 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), and night line masks for a level's extra monsters (this version) |
 
 ### Link health in the log
 
@@ -1808,9 +1810,10 @@ claim the host accepts):
   player's save only by the took-part test above. The shop's points go only to a player whose own game ran the run from
   its countdown to a success or a time up: each game credits its own player, a guest whose game missed the countdown
   gets none, and no line between the games carries points.
-- The challenges run only without a Steam session: a start refuses one, and a session that starts ends the run. Their
-  kills are the player's own, and they give no shop points. A best run goes into `coop-records.txt` only on the PC
-  whose own solo run ended in success, never from a co-op run and never over the link.
+- The challenges but the Shooting Range run only without a Steam session: a start refuses one, and a session that
+  starts ends the run. The Shooting Range also runs for two linked players, under Night Operation's rule above. A
+  challenge's kills are the player's own, and it gives no shop points. A best run goes into `coop-records.txt` only on
+  the PC whose own solo run ended in success, never from a co-op run and never over the link.
 - The travel to the host takes only camps that a read of the guest's save confirms as activated, because activating a
   camp counts toward achievements ([Following the host](#following-the-host)). That read does not exist yet, so the
   travel makes no call at all. A revive changes only the downed player's own EVE: her life, her HP and the recovery
