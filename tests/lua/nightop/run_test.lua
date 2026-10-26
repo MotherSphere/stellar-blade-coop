@@ -41,7 +41,8 @@
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
 -- sides' spots and wallets. The Shooting Range for two: the host's ask, his line's range word, her run's waves and
--- notices, the same dummies on the same spots, one score, no points and no best.
+-- notices, the same dummies on the same spots, one score, no points and no best; a host ask that names a solo
+-- challenge (targets, swarm) refused, with no join.
 -- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
 -- body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a corpse the game's pool
 -- brings back for a later wave.
@@ -1603,6 +1604,17 @@ round(1)
 Gs.night='h 1 1 dance'
 round(1,Gs)
 assert(has(Gs.lines,'night in: h 1 1 dance (refused)'))
+-- So is a host ask that names a solo challenge in place of the level: only a challenge marked coop goes on the line.
+for _,word in ipairs({'targets','swarm'}) do
+    pair()
+    host_start()
+    round(1,Hs)
+    local ask=Hs.sent[1]:gsub(' normal$',' '..word)
+    assert(ask:find(' '..word..'$'),ask)
+    Gs.night=ask
+    round(2,Gs)
+    assert(has(Gs.lines,'night in: '..ask..' (refused)') and not find(Gs.lines,'^join:') and #Gs.sent==0,Gs.lines[1])
+end
 -- A status not read for a tick ends nothing: not his ask, not hers, not a run on either side.
 pair()
 host_start()
