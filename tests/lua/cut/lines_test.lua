@@ -8,9 +8,10 @@
 -- stop, coop off and a feed that refuses or raises end it; anything else is its usage line. enya loads its takes at the
 -- start, plays each from EVE as a 2D sound GAP after the one before ends (their lengths the takes' own), says the
 -- subtitle the table has for one with it and nothing for the others, skips a take not in the game with no gap, logs
--- one it cannot play (freed meanwhile, or a raising call) and still says its subtitle, and cuts the voice playing at
--- coop lines stop, a new scene and coop off, never once its take has ended. The timing table holds every line in
--- order within its sequence, and the source names no save, quest, item, spawn but its sounds' or console call.
+-- one it cannot play and still says its subtitle, loads one the engine freed meanwhile again, and cuts the voice at
+-- coop lines stop, a new scene and coop off, never once its take has ended; the co-op UI going off ends it at its next
+-- take. The timing table holds every line in order within its sequence, and the source names no save, quest, item,
+-- spawn but its sounds' or console call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -243,7 +244,8 @@ local function wave(who,n,seconds)
     local name='Seq_Quest_Sub_008_'..n..'_VO'
     local p=VO..who..'/'..name..'.'..name
     local class=object({GetFName=function() return fstring('Dialogue_NPC_En') end})
-    takes[p]=object({Duration=seconds,SoundClassObject=class,GetFullName=function() return fstring('SoundWave '..p) end})
+    takes[p]=object({Duration=seconds,SoundClassObject=class,
+        GetFullName=function() return fstring('SoundWave '..p) end})
     return takes[p],p
 end
 local w05=wave('Enya','02_05',3.42)
@@ -284,15 +286,16 @@ clock=800+4.41; ln.tick(); assert(#sounds==1,'Not before the gap ends')
 clock=800+4.42; ln.tick(); assert(#sounds==2 and #said==0)
 clock=800+7.42; ln.tick()
 assert(#sounds==3 and sounds[3][2]==w10 and said[1]=='Enya: Enya line',said[1])
--- Su's take freed meanwhile (another object at its address): not played, logged, its subtitle still said.
+-- Su's take freed meanwhile (another object at its address): loaded again at its turn, logged, then played.
 w11.GetFullName=function() return fstring('SoundWave /Game/Other.Other') end
+by_path[p11]=nil
+local w11b=wave('Su','02_11',4)
 clock=800+10.29; ln.tick()
-assert(#sounds==3 and said[2]=='Su: Su line' and logged('enya line 4: take not played (freed before its turn)'),
-    logs[#logs])
-w11.GetFullName=function() return fstring('SoundWave '..p11) end
+assert(#sounds==4 and sounds[4][2]==w11b and said[2]=='Su: Su line' and loads[#loads]==p11
+    and logged('take Seq_Quest_Sub_008_02_11_VO loaded again: freed before its turn'),logs[#logs])
 -- A call that raises is logged; the scene goes on and ends after the last take.
 clock=800+18.79; ln.tick()
-assert(#sounds==4 and logged('enya line 6: take not played (no audio device)') and not logged('enya ended'))
+assert(#sounds==5 and logged('enya line 6: take not played (no audio device)') and not logged('enya ended'))
 clock=800+21.79; ln.tick()
 assert(logged('enya ended') and #said==2 and stops==0)
 -- coop lines stop cuts the take playing; once it has ended, nothing is cut.

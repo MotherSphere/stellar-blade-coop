@@ -1419,7 +1419,9 @@ with nothing in the feed. Each take plays as a 2D sound, not placed in the world
 `coop off` cut the take playing; with the co-op UI off, the scene ends at its next take. The log gives each take's
 length and sound class when the scene starts
 (`take Seq_Quest_Sub_008_02_05_VO: 3.42 s, sound class Dialog_NPC`: `Dialog_NPC` is the Korean take, a class ending in
-`_En` the English one), and `enya line <n>: take not played (<why>)` for one that could not play.
+`_En` the English one), and `enya line <n>: take not played (<why>)` for one that could not play. A take the engine
+unloaded after the start is loaded again at its turn, with a short stutter, and logged as
+`take <name> loaded again: freed before its turn`.
 
 The lines need the chat's feed, which draws every script the game has (the notice line above EVE draws Latin letters
 only): without the Steam link or with the co-op UI off, the command answers `STOP`. While the chat box is closed, the

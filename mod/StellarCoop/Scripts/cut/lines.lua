@@ -153,9 +153,9 @@ local function entry(id,key,korean)
 end
 -- A take's SoundWave by its object path, loaded first when it is not in memory: the source path names the Korean take,
 -- and the engine loads the voice language's copy from /Game/L10N/ instead, as for the game's own takes (their facial
--- animations have L10N copies too). {o=, full=<its full name, to know it again>, seconds=<its Duration>, class=<its
--- sound class's name, which tells the language: Dialog_NPC for Korean, Dialogue_NPC_En for English>}. Raises when it
--- cannot be had.
+-- animations have L10N copies too). {path=, o=, full=<its full name, to know it again>, seconds=<its Duration>,
+-- class=<its sound class's name, which tells the language: Dialog_NPC for Korean, Dialogue_NPC_En for English>}.
+-- Raises when it cannot be had.
 local function take(path)
     if not valid(StaticFindObject(path)) then pcall(LoadAsset,path) end
     local o=valid(StaticFindObject(path))
@@ -163,7 +163,7 @@ local function take(path)
     local seconds=tonumber(value_of(o.Duration))
     if not (seconds and seconds>0) then error('no length',0) end
     local ok,class=pcall(function() return text(valid(o.SoundClassObject):GetFName()) end)
-    return {o=o,full=text(o:GetFullName()),seconds=seconds,class=ok and class or '-'}
+    return {path=path,o=o,full=text(o:GetFullName()),seconds=seconds,class=ok and class or '-'}
 end
 -- The text of section n of a Sky Hall sequence, loaded first by its object path; nil when the section is not found.
 local function section_text(seq,n)
@@ -237,12 +237,16 @@ function Lines.new(o)
         r.audio=nil
         if a and os.clock()<r.till then pcall(function() a=valid(a); if a then a:Stop() end end) end
     end
-    -- A line's take from its start, as a 2D sound of EVE's world, its audio component kept for hush. Only while it is
-    -- still the object read at the start: the engine's collector may have freed it meanwhile (a Lua reference holds
-    -- nothing). Raises when it cannot play.
+    -- A line's take from its start, as a 2D sound of EVE's world, its audio component kept for hush. The engine's
+    -- collector may have freed the take since the start (a Lua reference holds nothing): it is loaded again then, a
+    -- synchronous load at its turn, logged. Raises when it cannot play.
     local function speak(r,v,now)
         local o=valid(v.o)
-        if not (o and text(o:GetFullName())==v.full) then error('freed before its turn',0) end
+        if not (o and text(o:GetFullName())==v.full) then
+            local again=take(v.path)
+            v.o,v.full,o=again.o,again.full,again.o
+            log('take '..v.path:match('[^.]+$')..' loaded again: freed before its turn')
+        end
         local eve=assert(valid(UE.GetPlayer()),'no EVE in the world')
         r.audio,r.till=valid(find(STATICS):SpawnSound2D(eve,o,1,1,0,nil,false,true)),now+v.seconds
     end
