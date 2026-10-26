@@ -151,7 +151,6 @@ local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)
 local function location(actor) local v=value_of(actor:K2_GetActorLocation()); return {X=v.X,Y=v.Y,Z=v.Z} end
 local function class_of(o) return text(o:GetFullName()):match('^%S+') end
 local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end
-Enemy.class_of,Enemy.path_of=class_of,path_of
 local function key_of(c) -- BroadcastSpawnInfo.EventSpawnId, which the spawn sets from the call's key; unsigned.
     local k=math.tointeger(c.BroadcastSpawnInfo.EventSpawnId)
     return k and k&MASK
