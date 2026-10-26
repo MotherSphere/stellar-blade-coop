@@ -2321,7 +2321,8 @@ Night Operation poller, a recruiter (despawned if one was requested, in Xion), t
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
 drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes
 back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living
-Lion stays), the `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene, the game's
+Lion stays), the same for `coop gardener fight` and `coop tendril fight` (a living Gardener or Tendril stays), the
+`coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene, the game's
 developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
 (`coop glide`: EVE's glide flag is cleared) and a `coop emote` pose (its montage stopped). Afterwards only
 `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
