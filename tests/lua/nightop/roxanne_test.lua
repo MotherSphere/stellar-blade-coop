@@ -7,7 +7,9 @@
 -- its SelectIndex turns from -1 to a line of ours (her own Shop, End and a widget first seen on a line do nothing); a
 -- level booked and started through coop nightop start once EVE is out of Xion, its refusals said once each; a guest's
 -- pick; the supplies opening the shop's screen after her goodbye; roxanne on asked again when the native part reads
--- off; off on another save and at coop off (roxanne off, the rows' shipped values); cancel.
+-- off; off on another save and at coop off (roxanne off, asked again every 10 s while her list reads on, then the rows'
+-- shipped values only once it reads off, never while it reads on or after a fault); cancel; an arm, a start or a shop
+-- open that raises.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -205,23 +207,69 @@ status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want
 widget.SelectIndex=-1; at(161); rox.tick()
 widget.SelectIndex=1; at(161.25); rox.tick()
 assert(rox.cancel()=='normal' and rox.cancel()==nil)
--- Another save: off, her choices back, the rows shipped again.
+-- A start or a shop open that raises: its refusal, logged, and the tick goes on.
+start_answer=nil
+local raising=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
+    ask=function() return true,'asked' end,paused=function() return false end,
+    start=function() error('nightop.lua:12: no census',0) end,shop=function() error('shop.lua:3: no wallet',0) end})
+widget.SelectIndex=-1; at(162); raising.tick()
+widget.SelectIndex=3; at(162.25); raising.tick()
+at(168); raising.tick()
+assert(last()=='roxanne: supplies: STOP: no wallet',last())
+widget.SelectIndex=-1; at(169); raising.tick()
+widget.SelectIndex=0; at(169.25); raising.tick()
+world=WASTE
+at(174.5); raising.tick()
+assert(last()=='roxanne: the booked easy run waits: no census',last())
+world=XION
+start_answer={true,'Night Operation (hard) starts in 5 s (run 0x01)'}
+-- Another save: roxanne off asked; the rows stay ours while her list reads on (her entry may still list them), off is
+-- asked again every 10 s meanwhile, and they go back once it reads off.
 status_text='mod=v\nslot=main index=0\nroxanne=on asks=2 want=on why=none\n'
-rox.tick()
-assert(asked[#asked]=='roxanne off' and last()=='roxanne off (not a co-op save): her two choices back, the 4 rows '
-    ..'shipped',last())
+local offs=#asked
+at(171); rox.tick()
+assert(asked[#asked]=='roxanne off' and last()=='roxanne off (not a co-op save): asked the native part: roxanne off; '
+    ..'the 4 rows go back once her list reads off',last())
+assert(exec('Temp_TS_Select_Test_2')=='Success2','Ours while her list reads on')
+at(175); rox.tick(); assert(#asked==offs+1 and exec('Temp_TS_Select_Test_2')=='Success2')
+status_text='mod=v\nslot=main index=0\nroxanne=on asks=3 want=off why=gate\n' -- The gate stayed shut.
+at(181.5); rox.tick(); assert(#asked==offs+2 and asked[#asked]=='roxanne off','Asked again')
+status_text='mod=v\nslot=main index=0\nroxanne=off asks=4 want=off why=none\n'
+at(182); rox.tick()
+assert(last()=='roxanne: her two choices back, the 4 rows shipped' and #asked==offs+2,last())
 assert(exec('Temp_TS_Select_Test_2')=='None' and task('Temp_TS_Select_Test_2')=='A2'
     and exec('TS_GoToTest_1')=='Success' and task('TS_GoToTest_1')=='None')
--- Back on a co-op save in Xion: on again; coop off puts everything back.
-status_text='mod=v\nslot=coop index=4\nroxanne=off asks=3 want=off why=none\n'
+said=#logs
+at(183); rox.tick(); assert(#logs==said and #asked==offs+2,'Once')
+-- Back on a co-op save in Xion: on again; coop off asks off, then tick(true) puts the rows back once her list reads
+-- off.
+status_text='mod=v\nslot=coop index=4\nroxanne=off asks=4 want=off why=none\n'
 rox.tick()
 assert(asked[#asked]=='roxanne on' and exec('Temp_TS_Select_Test_1')=='Success2')
-status_text='mod=v\nslot=coop index=4\nroxanne=on asks=4 want=on why=none\n'
+status_text='mod=v\nslot=coop index=4\nroxanne=on asks=5 want=on why=none\n'
 rox.stop()
-assert(asked[#asked]=='roxanne off' and exec('Temp_TS_Select_Test_1')=='None'
+assert(asked[#asked]=='roxanne off' and exec('Temp_TS_Select_Test_1')=='Success2'
     and last():find('^roxanne off %(coop off%)'))
--- A row that is not the one known: nothing written, nothing asked, no retry this Lua load.
+offs=#asked
+at(184); rox.tick(true); assert(#asked==offs and exec('Temp_TS_Select_Test_1')=='Success2','No arm after coop off')
+status_text='mod=v\nslot=coop index=4\nroxanne=on asks=6 want=off why=gate\n'
+at(194.5); rox.tick(true); assert(#asked==offs+1 and asked[#asked]=='roxanne off','Asked again after coop off')
+status_text='mod=v\nslot=coop index=4\nroxanne=off asks=7 want=off why=none\n'
+at(195); rox.tick(true)
+assert(exec('Temp_TS_Select_Test_1')=='None' and last()=='roxanne: her two choices back, the 4 rows shipped')
+-- A fault: the rows stay ours (their exec only plays her goodbye), nothing asked again.
+status_text='mod=v\nslot=coop index=4\nroxanne=off asks=7 want=off why=none\n'
+local again=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
+    ask=function(line) asked[#asked+1]=line; return true,'asked' end,paused=function() return false end,
+    start=function() end,shop=function() end})
+again.tick()
+assert(asked[#asked]=='roxanne on' and exec('Temp_TS_Select_Test_1')=='Success2')
+status_text='mod=v\nslot=main index=0\nroxanne=fault asks=8 where=SB-Win64-Shipping.exe+0x1702300\n'
+offs=#asked
+at(200); again.tick(); at(215); again.tick(); at(230); again.tick()
+assert(#asked==offs+1 and exec('Temp_TS_Select_Test_1')=='Success2','After a fault: one off, the rows ours')
 ship()
+-- A row that is not the one known: nothing written, nothing asked, no retry this Lua load.
 rows.Temp_TS_Select_Test_3.NextTaskTagName=FName('B9')
 local other=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
     ask=function(line) asked[#asked+1]=line; return true end,paused=function() return false end,
@@ -234,4 +282,15 @@ assert(#asked==before and last():find('^STOP: roxanne: Temp_TS_Select_Test_3 is 
 assert(exec('Temp_TS_Select_Test_1')=='None' and exec('Temp_TS_Select_Test_2')=='None','Put back')
 said=#logs
 other.tick(); assert(#logs==said and #asked==before,'No retry')
+-- An arm that raises (here its request): STOP once, the rows put back, no retry this Lua load.
+ship()
+local tries=0
+local lost=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
+    ask=function() tries=tries+1; error('link.lua:5: closed',0) end,paused=function() return false end,
+    start=function() end,shop=function() end})
+lost.tick()
+assert(tries==1 and last()=='STOP: roxanne: closed (the 4 rows put back)',last())
+assert(exec('Temp_TS_Select_Test_1')=='None' and task('Temp_TS_Select_Test_3')=='A3')
+said=#logs
+lost.tick(); assert(#logs==said and tries==1,'No retry')
 print('nightop_roxanne_test ok')

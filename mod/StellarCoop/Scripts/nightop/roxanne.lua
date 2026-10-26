@@ -11,9 +11,11 @@
 -- -1 to a line, that line's text matched against our labels. A level is booked and starts on its own once EVE is out of
 -- Xion with no one within 40 m (Night Operation never starts in Xion: its people and quests stay out of a fight); in a
 -- co-op session only the host's pick books. The supplies open the Night Operation shop's screen once her goodbye is
--- over. Everything goes back (roxanne off, the rows' shipped values) on coop off and on a save that is not a co-op
--- save; coop nightop stop drops a booking. No quest, item, achievement, save or story state is touched here: talking
--- to her still runs her own graph as without the mod.
+-- over. Everything goes back on coop off and on a save that is not a co-op save: roxanne off (asked again every 10 s
+-- while the native part reads on), then the rows' shipped values once it reads her list off or absent (while it reads
+-- on, or after a fault, the rows stay ours: their exec only plays her goodbye); coop nightop stop drops a booking. No
+-- quest, item, achievement, save or story state is touched here: talking to her still runs her own graph as without
+-- the mod.
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local R=require('nightop.recruiter')
@@ -49,11 +51,13 @@ end
 function Roxanne.row_of(text,by) return (by or labels())[text] end
 -- log(text) writes an [NR] line; status() the native part's status text; ask(line) its request; paused() whether the
 -- game is paused or shows one of its screens (the UI kit's); tell(build) a notice; start(level) coop nightop start
--- <level> and shop() coop nightop shop, through commands/nightop.lua (its co-op save and race checks).
+-- <level> and shop() coop nightop shop, through commands/nightop.lua (its co-op save and race checks; an error they
+-- raise is their refusal here).
 function Roxanne.new(o)
     local log,status,ask,paused,tell=o.log,o.status,o.ask,o.paused,o.tell
     local by=nil -- labels(), once the text is registered.
     local armed,failed=false,false -- Rows edited and asked on in this Lua load; an arm that stopped (no retry).
+    local restore=false -- Off asked: the rows go back to their shipped values once her list reads off or absent.
     local asked_at=-math.huge
     local held,look_at,walk=nil,-math.huge,false -- The select widgets {obj, last}; the next look; FindAllOf's route.
     local booked,shop_at=nil,nil -- {level, next, said}; the time the screen opens after a supplies pick.
@@ -95,19 +99,27 @@ function Roxanne.new(o)
             return
         end
         by=labels()
+        restore=false
         local ok,said=ask('roxanne on')
         log('roxanne: 4 rows read back as ours; '..tostring(said))
         armed,asked_at=ok,os.clock()
         if not ok then failed=true end
     end
-    -- Off: the swap back, then the rows' shipped values.
+    -- Off: the swap back asked; the rows follow in settle().
     local function off(reason)
-        local raw='\n'..(status() or '')
-        if armed or (line_of(raw) or ''):find('^on ') then pcall(ask,'roxanne off') end
+        local ran,ok,said=pcall(ask,'roxanne off')
+        log(string.format('roxanne off (%s): %s; the 4 rows go back once her list reads off',reason,
+            ran and tostring(said) or why(ok)))
+        armed,held,shop_at,restore,asked_at=false,nil,nil,true,os.clock()
+    end
+    -- The rows' shipped values, once the native part reads her list off (hers, after an off it took) or absent: never
+    -- while her entry may still list them.
+    local function settle(line)
+        line=line or ''
+        if not restore or not line:find('^off .* want=off') and not line:find('^absent ') then return end
+        restore=false
         local fine,stop=pcall(rows,false)
-        log(string.format('roxanne off (%s): %s',reason,fine and (stop or 'her two choices back, the 4 rows shipped')
-            or why(stop)))
-        armed,held,shop_at=false,nil,nil
+        log('roxanne: '..(fine and (stop or 'her two choices back, the 4 rows shipped') or why(stop)))
     end
     -- The select widgets of EVE's world: the widget library's lookup (the engine's class hash), or, when that call
     -- fails, FindAllOf (which walks every object) only while the game shows one of its screens.
@@ -166,19 +178,29 @@ function Roxanne.new(o)
         end
     end
     local self={}
-    -- Every 250 ms on the game thread (main.lua's loop).
-    function self.tick()
+    -- Every 250 ms on the game thread (main.lua's loop); stopped: after coop off, only off and the rows' values back.
+    function self.tick(stopped)
         local now=os.clock()
         local raw='\n'..(status() or '')
         local line=line_of(raw)
-        if not raw:find('\nslot=coop ') then
-            if armed or (line or ''):find('^on ') then off('not a co-op save') end
+        if stopped or not raw:find('\nslot=coop ') then
+            if armed or (line or ''):find('^on ') and now-asked_at>=Roxanne.ASK_EVERY then
+                off(stopped and 'coop off' or 'not a co-op save')
+            end
+            settle(line)
             booked=nil
             return
         end
         local eve=N.her()
         local here=eve and U.map_of(eve)==XION
-        if not armed and not failed and here and line then arm() end
+        if not armed and not failed and here and line then
+            local ran,e=pcall(arm)
+            if not ran then
+                failed=true
+                log('STOP: roxanne: '..why(e)..' (the 4 rows put back)')
+                pcall(rows,false)
+            end
+        end
         if armed and (line or ''):find('^off ') and now-asked_at>=Roxanne.ASK_EVERY then
             asked_at=now -- The game rebuilt its cache, or the gate stayed shut: asked again.
             log('roxanne: the native part reads '..line..': roxanne on asked again')
@@ -188,7 +210,8 @@ function Roxanne.new(o)
         if shop_at and now>=shop_at then
             if not paused() then
                 shop_at=nil
-                local ok,said=o.shop()
+                local ran,ok,said=pcall(o.shop)
+                if not ran then ok,said=false,why(ok) end
                 log('roxanne: supplies: '..(ok and '' or 'STOP: ')..tostring(said))
                 if not ok and tell then tell(function(w) return w.night.shop_failed end) end
             elseif now>=shop_at+Roxanne.SHOP_WAIT then
@@ -200,7 +223,8 @@ function Roxanne.new(o)
             booked.next=now+Roxanne.BOOK_EVERY
             if eve and not here and not paused() then
                 local level=booked.level
-                local ok,said=o.start(level)
+                local ran,ok,said=pcall(o.start,level)
+                if not ran then ok,said=false,why(ok) end
                 if ok then
                     booked=nil
                     log('roxanne: the booked '..level..' run: '..tostring(said))
@@ -217,7 +241,7 @@ function Roxanne.new(o)
         booked=nil
         return level
     end
-    -- coop off: everything back (may raise; main.lua logs it and goes on).
+    -- coop off: roxanne off asked (may raise; main.lua logs it and goes on); tick(true) then puts the rows back.
     function self.stop()
         booked=nil
         if armed or ('\n'..(status() or '')):find('\nroxanne=on ') then off('coop off') end

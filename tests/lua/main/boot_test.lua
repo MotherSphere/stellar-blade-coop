@@ -804,7 +804,14 @@ end
 nr.ticked=nr.ticks
 rx.ticked=rx.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
-assert(rx.ticks==rx.ticked+1 and rx.stops==0,"Roxanne's choices tick every 250 ms too")
+assert(rx.ticks==rx.ticked+1 and rx.stops==0 and rx.stopped==false,"Roxanne's choices tick every 250 ms too")
+-- A tick of hers that raises is logged, and the rest of the loop goes on.
+rx.tick_raise='roxanne.lua:9: boom'
+local follows=#tv.ticks
+loops[2].f()
+assert(logged('roxanne: roxanne.lua:9: boom') and #tv.ticks==follows+1,'Her error skips nothing else')
+rx.tick_raise=nil
+nr.ticked,gr.count,tv.count=nr.ticked+1,gr.count+1,tv.count+1 -- That extra tick, for the counts below.
 -- Roxanne's picks go through coop nightop's own checks (the co-op slot, the race); coop nightop stop drops a booking.
 do
     local runs=#nr.runs
@@ -820,6 +827,7 @@ end
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
 assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
 assert(rx.stops==1,"off puts Roxanne's two choices back")
+rx.ticked=rx.ticks
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 assert(gr.stops==1,'off gives back a death screen the revive hid')
@@ -840,6 +848,7 @@ ra.s=ra.slows
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 assert(ra.slows==ra.s,'No race check after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
+assert(rx.ticks==rx.ticked+1 and rx.stopped==true,"Roxanne's tick goes on after coop off, as stopped")
 assert(#gr.ticks==gr.count+3,'No revive tick after coop off')
 assert(#tv.ticks==tv.count+2,'No follow tick after coop off')
 assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')

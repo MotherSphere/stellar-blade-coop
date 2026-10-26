@@ -483,7 +483,7 @@ for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide'
 end
 -- Roxanne's Night Operation choices (nightop/roxanne.lua), logging [NR] lines: on a co-op save, once EVE is in Xion;
 -- a level picked is booked and started through coop nightop start, the supplies open coop nightop shop. Ticked in the
--- 250 ms loop below (with the Steam link only); coop off puts her two choices back.
+-- 250 ms loop below (with the Steam link only), after coop off too: coop off puts her two choices back.
 o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
     paused=function() return kit~=nil and kit.paused(true) end,tell=tell,
@@ -921,7 +921,9 @@ if link then
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         if not off then night.tick() end -- Night Operation's run, if any: it logs its own lines.
-        if not off then o.roxanne.tick() end -- Roxanne's Night Operation choices: likewise.
+        -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
+        local ticked,te=pcall(o.roxanne.tick,off)
+        if not ticked then log('roxanne: '..tostring(te)) end
         chat_clock=chat_clock+0.25
         if not off then group.tick(chat_clock) end -- The friend's revive: it logs its own lines.
         if not off then travel.tick(chat_clock) end -- The follow: likewise.
