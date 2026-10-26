@@ -78,6 +78,10 @@
 // flight), under its own SEH latch, reads them back through SB's lookups by ID and, once asked, reads the spawn
 // manager's counter every 250 ms; status() gives it all in the lion line, and the worker logs each answer.
 //
+// coop shortcut (save/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
+// 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
+// lines. It writes nothing and keeps no bytes.
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -112,6 +116,7 @@
 #include "pose/record.h"
 #include "pose/stream.h"
 #include "quest/engine.h"
+#include "save/shortcut.h"
 #include "save/slot.h"
 
 #include "glue/tick/pose_game.inc"
@@ -123,10 +128,12 @@
 #include "glue/tick/travel_game.inc"
 #include "glue/tick/lion_game.inc"
 #include "glue/tick/debug_game.inc"
+#include "glue/tick/shortcut_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
 #include "glue/tick/travel_worker.inc"
+#include "glue/tick/shortcut_worker.inc"
 #include "glue/tick/quests_worker.inc"
 #include "glue/tick/freeze_worker.inc"
 #include "glue/tick/debug_worker.inc"
@@ -183,5 +190,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.
   if (game_pinned && !debug_faulted && (!blocked || debug_holding))
     debug_tick();
+  // coop shortcut's list, its own latch: a file a frame while a list is under way; none after coop off or a fault.
+  if (game_pinned && !shortcut_faulted && !blocked)
+    shortcut_tick();
   return 0;
 }

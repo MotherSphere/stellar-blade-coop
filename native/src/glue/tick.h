@@ -107,6 +107,13 @@ std::string ask_travel(const coop::Request &request);
 // the Lion's fault, and not asked again once every row is in. Returns the line for the log; fight_pass logs the game
 // thread's answer.
 std::string ask_lion(const coop::Request &request);
+// Worker thread, coop shortcut (save/shortcut.h): Lua's shortcut list request, which the game thread serves by
+// reading the cut Load Shortcut menu's 16 paths through SB's file manager, one a frame. Refused off the pinned build,
+// after coop off, after the list's fault and while a list is under way. Returns the line for the log.
+std::string ask_shortcut();
+// Worker, every pass: the lines of what the game thread read since the last pass (each file's, then the summary once
+// all 16 are read, or why the list stopped), for the log; none when no list is under way.
+std::vector<std::string> shortcut_pass();
 // Worker: coop-status.txt's lion line (lion/rows.h's status_line): "lion=off", or the state (waiting, rows, refused,
 // fault) with added=<n>/<N>, asks=<a>, spawns=<s> and that state's own fields.
 std::string lion_status();

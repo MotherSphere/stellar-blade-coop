@@ -67,6 +67,8 @@
 -- (cut/lines.lua).
 -- coop glide on|off, EVE's cut glide while Jump is held in the air (cut/glide.lua; a test tool, left out of the usage
 -- line; on on a co-op save only).
+-- coop shortcut lists the cut Load Shortcut menu's developer saves, read from the game's paks by the native part, on
+-- any save (left out of the usage line); loading one is held back.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end

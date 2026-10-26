@@ -531,10 +531,11 @@ inline uint64_t code_lobby(std::string_view text) {
 // <Table>=0x<address> ..." (the Lion's rows for SB's AddRow, glue/tick/lion_game.inc: one word for each of the
 // kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible). Lua finds the tables by their
 // fixed paths, so no console argument reaches an address, and the native part trusts none before it checked the
-// table's vtable and row size (lion/rows.h).
+// table's vtable and row size (lion/rows.h); and for coop shortcut "shortcut list" (the cut Load Shortcut menu's saves,
+// read through the game's file manager on the game thread and named in the log, save/shortcut.h).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, lion, gate
+  remove, copy, quests, camps, travel, mark, lion, gate, shortcut
 };
 // The tables the Lion's rows and the cut items' go into (lion/rows.h's Table, in this order), as their assets are
 // named.
@@ -762,6 +763,8 @@ inline Request parse_request(std::string text) {
     r.command = Command::report;
   else if (text == "off")
     r.command = Command::off;
+  else if (text == "shortcut list")
+    r.command = Command::shortcut;
   else if (text == "mark" || text.rfind("mark ", 0) == 0) {
     r.command = Command::mark;
     r.text = chat_clean(std::string_view(text).substr(4), kMaxMark);

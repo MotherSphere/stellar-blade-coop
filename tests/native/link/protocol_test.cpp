@@ -609,6 +609,10 @@ int main() {
   assert(parse_request("fly off").off && parse_request("slowmo on").gate == 1 && !parse_request("slowmo on").off);
   for (const char *bad : {"fly", "fly On", "fly on now", "flyon", "slowmo", "slowmo 1", "fly  on", "slow on"})
     assert(parse_request(bad).command == Command::none);
+  // coop shortcut: the list, nothing else.
+  assert(parse_request("shortcut list\r\n").command == Command::shortcut);
+  for (const char *bad : {"shortcut", "shortcut List", "shortcut list now", "shortcut load F02 1", "shortcutlist"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");

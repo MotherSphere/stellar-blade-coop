@@ -594,6 +594,10 @@ bool step() {
       event(coop::pose::ask_gate(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::shortcut: // coop shortcut's list: the game thread's reads.
+      event(coop::pose::ask_shortcut());
+      request.clear();
+      break;
     case coop::Command::saves:
       if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());
@@ -636,6 +640,8 @@ bool step() {
       for (const std::string &line : coop_saves.pass(account.get(), game, switched_off))
         event(line);
     }
+    for (const std::string &line : coop::pose::shortcut_pass()) // coop shortcut's lines, as the game thread reads.
+      event(line);
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);
     if (loaded) { // Before ready(): a +connect_lobby there is held until a world loads.

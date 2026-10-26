@@ -21,7 +21,8 @@
 -- paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
--- coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop glide reaches cut/glide.lua
+-- coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop shortcut asks it for its list
+-- (on any slot), coop glide reaches cut/glide.lua
 -- (on from the co-op save slot only, its own check on that slot; restored and ticked every frame, ended by coop off),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
@@ -677,6 +678,18 @@ for _,name in ipairs({'fly','slowmo'}) do
     for _,bad in ipairs({{},{'On'},{'on','x'},{'toggle'}}) do
         coop(name,table.unpack(bad))
         assert(#asked==n and last()=='[StellarCoop] STOP: Use: coop '..name..' on|off\n',last())
+    end
+end
+-- coop shortcut: the list asked of the native part on any save; any word after it its usage, nothing asked.
+do
+    local n=#asked
+    coop('shortcut')
+    assert(#asked==n+1 and asked[#asked]=='shortcut list' and last()=='[StellarCoop] OK: asked the native part: '
+        ..'shortcut list: the list goes to coop-link.log, its summary to this log\n',last())
+    for _,bad in ipairs({{'load','F02','1'},{'list'},{'x'}}) do
+        coop('shortcut',table.unpack(bad))
+        assert(#asked==n+1 and last()=='[StellarCoop] STOP: Use: coop shortcut (the list; loading a shortcut save is '
+            ..'held back)\n',last())
     end
 end
 -- coop glide: on on a co-op save only, off and anything else on any (its usage is cut/glide.lua's); its own check of
