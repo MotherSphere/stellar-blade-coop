@@ -1859,7 +1859,8 @@ grant raises, so a gift is never taken twice.
 
 The file holds whole lines and is written whole through `link.write_file`. A line in no known shape, or with an item
 outside the seven or a count outside 1 to 10, is dropped and logged. When the file is missing, its `.tmp` is read,
-since `link.write_file` removes the file before renaming the `.tmp` over it.
+since `link.write_file` removes the file before renaming the `.tmp` over it. A write whose rename failed after that
+removal therefore counts as done; one whose old file is still there counts as failed, and its text stands.
 
 ## Achievements
 

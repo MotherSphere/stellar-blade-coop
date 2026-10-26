@@ -197,8 +197,15 @@ function Mailbox.new(o)
         st.name=name
         return st
     end
+    -- Written, or left as its .tmp (link.write_file's third value), which counts once the file itself is gone: load()
+    -- then reads the .tmp. With the old file still there, its text stands and the save failed.
     local function save(st)
-        local ok,e=write(st.name,Mailbox.write(st))
+        local ok,e,beside=write(st.name,Mailbox.write(st))
+        if not ok and beside then
+            local text,_,code=read(st.name)
+            ok=not text and (code or 2)==2
+            if ok then log('gift file left as its .tmp: '..tostring(e)) end
+        end
         if not ok then log('gift file not written: '..tostring(e)) end
         pending=#st.out>0 or #st.back>0
         return ok,e

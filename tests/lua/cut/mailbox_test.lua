@@ -75,15 +75,22 @@ local function status()
         ..'link=host lobby=5\n'..(peer_id and 'peer='..peer_id..' name=Kaanta hello=1 accepted=1\n' or '')
         ..'friend=1 0 Kaanta\n'..slot..'\n'
 end
-local files,unreadable,write_fails={},{},nil
+local files,unreadable,write_fails,write_beside={},{},nil,nil
 local function read(name)
     if unreadable[name] then return nil,name..': Permission denied',13 end
     if files[name] then return files[name] end
     return nil,name..': No such file or directory',2
 end
+-- As link.write_file: the text in the .tmp, the file removed and the .tmp renamed over it; write_beside the rename
+-- failing with the file removed ('gone') or still there ('kept').
 local function write(name,content)
     if write_fails then return false,write_fails end
-    files[name]=content
+    if write_beside then
+        files[name..'.tmp']=content
+        if write_beside=='gone' then files[name]=nil end
+        return false,'cannot write '..name..': Permission denied',true
+    end
+    files[name],files[name..'.tmp']=content,nil
     return true
 end
 local asked,logs,says,toasts,untoasts={},{},{},{},0
@@ -406,5 +413,17 @@ files['coop-gift-'..ME..'-2.txt']=nil
 files['coop-gift-'..ME..'-2.txt.tmp']='box 1 HP_Potion 1 9 1 Kaanta\n'
 list_ok,list=mail.command()
 assert(list_ok and list:find('^Mailbox: 1 HP_Potion x1 from Kaanta'),list)
+-- A save whose rename failed: written once the file itself is gone (load() then reads the .tmp), not while the old
+-- file stands.
+local FILE2='coop-gift-'..ME..'-2.txt'
+files[FILE2],files[FILE2..'.tmp']='box 1 HP_Potion 1 9 1 Kaanta\n',nil
+write_beside='kept'
+mail.receive('s 908 HP_Potion 1')
+assert(asked[#asked]=='gift n 908 store' and #M.read(files[FILE2]).box==1,asked[#asked])
+write_beside='gone'
+mail.receive('s 909 HP_Potion 1')
+write_beside=nil
+assert(asked[#asked]=='gift a 909' and files[FILE2]==nil and #M.read(files[FILE2..'.tmp']).box==2,asked[#asked])
+assert(logs[#logs-1]=='gift file left as its .tmp: cannot write '..FILE2..': Permission denied',logs[#logs-1])
 mail.stop()
 print('cut_mailbox_test ok')
