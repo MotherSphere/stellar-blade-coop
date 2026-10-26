@@ -1011,14 +1011,17 @@ do
     player=eve
 end
 
--- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
--- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn
--- and remove make and drop the display copy); its one destroy call drops the component it added itself, when the
--- leader fails.
+-- The source (cut/lion.lua and the flow it runs, cut/enemy.lua) names no achievement, reward, item, quest, save,
+-- possession, console command, destroy or row call of its own, and its only spawn words are its one CreateActor and
+-- its one SpawnDefaultController (race/doro.lua's spawn and remove make and drop the display copy); its one destroy
+-- call drops the component it added itself, when the leader fails.
 do
-    local f=assert(io.open('mod/StellarCoop/Scripts/cut/lion.lua','rb'))
-    local src=f:read('a')
-    f:close()
+    local src=''
+    for _,p in ipairs({'mod/StellarCoop/Scripts/cut/lion.lua','mod/StellarCoop/Scripts/cut/enemy.lua'}) do
+        local f=assert(io.open(p,'rb'))
+        src=src..f:read('a')
+        f:close()
+    end
     local allowed,seen={ServerRequest_CreateActor=true,SpawnDefaultController=true,K2_DestroyComponent=true},{}
     for call in src:gmatch('[:.]([%a_][%w_]*)%s*%(') do
         if allowed[call] then seen[call]=(seen[call] or 0)+1
