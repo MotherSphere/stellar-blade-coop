@@ -107,18 +107,18 @@ the Steam client that the game already runs, so the mod needs no other program a
   game when EVE lets go of a movable crate (see [docs/troubleshooting.md](docs/troubleshooting.md)).
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
-- The mod never writes your own saves, unlocks or equipment. It adds to the inventory only when you buy in Night
-  Operation's shop, on a co-op save. It reads your saves only to make separate co-op copies of them (see
-  [docs/saves.md](docs/saves.md)).
+- The mod never writes your own saves, unlocks or equipment. It changes the inventory only when you buy in Night
+  Operation's shop or send and take a `coop gift`, on a co-op save. It reads your saves only to make separate co-op
+  copies of them (see [docs/saves.md](docs/saves.md)).
 
-The ghost is display only, and items are not shared. The experimental Shared enemies option (co-op menu, Options,
-Combat) is on by default and untested in game. It shares common enemies only while both players play a co-op save (see
-[docs/usage.md](docs/usage.md#shared-enemies-experimental)). Same place, same spawns and shared bosses build on it. They
-are experimental and on by default too, and the host's settings decide them for both games. As guest, the Same place row
-of your co-op menu can still turn same place off on your screen. The experimental Shared quests option (Options, Saves)
-is off by default and untested in game. While both players play a co-op save, it makes the quest steps that the host and
-the guest make together in the guest's game too, through the game's own quest functions (see
-[docs/usage.md](docs/usage.md#shared-quests-experimental)).
+The ghost is display only, and items are not shared, except the consumables sent with `coop gift`. The experimental
+Shared enemies option (co-op menu, Options, Combat) is on by default and untested in game. It shares common enemies only
+while both players play a co-op save (see [docs/usage.md](docs/usage.md#shared-enemies-experimental)). Same place, same
+spawns and shared bosses build on it. They are experimental and on by default too, and the host's settings decide them
+for both games. As guest, the Same place row of your co-op menu can still turn same place off on your screen. The
+experimental Shared quests option (Options, Saves) is off by default and untested in game. While both players play a
+co-op save, it makes the quest steps that the host and the guest make together in the guest's game too, through the
+game's own quest functions (see [docs/usage.md](docs/usage.md#shared-quests-experimental)).
 
 ## Night Operation
 

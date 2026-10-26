@@ -133,6 +133,32 @@ int main() {
     assert(m.kind == Kind::race && m.text == std::string("x") + static_cast<char>(c) + "x");
   }
 
+  // coop gift's line, reliable: s <id> <alias> <count>, a <id>, n <id> <why>, each field at its edge. Anything else is
+  // invalid, never cleaned into another line.
+  assert(gift_line("s 1761480000123 HP_Potion 3") == p + " gift s 1761480000123 HP_Potion 3");
+  m = parse_text(gift_line("s 1761480000123 HP_Potion 3"));
+  assert(m.kind == Kind::gift && m.text == "s 1761480000123 HP_Potion 3");
+  for (const std::string &good : {std::string("s 1 A 1"), std::string("s 18446744073709551615 HP_Potion_Small 10"),
+                                  "s 7 " + std::string(kMaxAlias, 'Z') + " 1", std::string("a 1761480000123"),
+                                  std::string("n 1761480000123 nolink"), std::string("n 5 abcdefghijklmnop")}) {
+    assert(gift_ok(good));
+    m = parse_text(p + " gift " + good);
+    assert(m.kind == Kind::gift && m.text == good);
+  }
+  for (const std::string &bad :
+       {std::string("s 0 HP_Potion 1"), std::string("s 1 HP_Potion 0"), std::string("s 1 HP_Potion 11"),
+        std::string("s 1 HP-Potion 1"), "s 7 " + std::string(kMaxAlias + 1, 'Z') + " 1", std::string("s 1 HP_Potion"),
+        std::string("s 1 HP_Potion 1 2"), std::string("s -1 HP_Potion 1"), std::string("s 1 HP_Potion +1"),
+        std::string("s 100000000000000000000 A 1"), std::string("s 123456789012345678901 A 1"), std::string("a 0"),
+        std::string("a"), std::string("a 1 2"), std::string("a x"), std::string("n 1"), std::string("n 1 Nolink"),
+        std::string("n 1 abcdefghijklmnopq"), std::string("n 1 no link"), std::string("n 1 no_link"),
+        std::string("x 1"), std::string("s  1 A 1"), std::string("a 1 "), std::string(""), std::string("S 1 A 1")}) {
+    assert(!gift_ok(bad) && gift_line(bad).empty());
+    assert(parse_text(p + " gift " + bad).kind == Kind::invalid);
+  }
+  for (const char *other : {"SBC13 gift a 1", "SBC15 gift a 1", "SBC gift a 1"})
+    assert(parse_text(other).kind == Kind::invalid);
+
   // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
   const Vitals v = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
   assert(vit_line(v) == p + " vit 1500 1600 30 50 5 400 1000 0 0 0 0 1");
@@ -249,15 +275,16 @@ int main() {
   // A v0.5.0-beta.1 peer runs protocol 12: it would count the pak lines as invalid, so her list of mods would never
   // come. Protocol 13 refuses the link.
   // A v0.6.0-beta.3 peer runs protocol 13: it would refuse the host's night line with its level, so a co-op Night
-  // Operation run would end as lost. Protocol 14 refuses the link.
-  static_assert(kProtocol == 14, "14 adds the night lines' level and down words; 13 the pak lines; 12 the shared "
-                                 "quests' lines and the race lines; 11 SBE and the show lines; 10 the fight's scale "
-                                 "line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
+  // Operation run would end as lost, and it would count the gift lines as invalid, so a gift would wait for an answer
+  // that never comes. Protocol 14 refuses the link.
+  static_assert(kProtocol == 14, "14 adds the night lines' level and down words and the gift line; 13 the pak lines; "
+                                 "12 the shared quests' lines and the race lines; 11 SBE and the show lines; 10 the "
+                                 "fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
          lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
          lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856" &&
          lobby_tag(24463856) != "13:24463856");
-  assert(parse_text("SBC13 ping 1 2").kind == Kind::invalid &&
+  assert(parse_text("SBC13 ping 1 2").kind == Kind::invalid && parse_text("SBC13 race go 7").kind == Kind::invalid &&
          parse_text("SBC13 night " + host_line).kind == Kind::invalid);
   m = parse_text("SBC hello 13 v0.6.0-beta.3 24463856"); // Answered too, and rejected by its number.
   assert(m.kind == Kind::hello && m.a == 13 && m.text == "v0.6.0-beta.3");
@@ -865,6 +892,26 @@ int main() {
         std::string("travel Xion_Camp_10 1 4294967296"), std::string("travel Xion-Camp 1 0"),
         std::string("travel ") + a65 + " 1 0", std::string("travel Xion_Camp_10 1"), std::string("travel"),
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
+    assert(parse_request(bad).command == Command::none);
+
+  // coop gift's requests: gift <payload> goes to the friend as written, once gift_ok() took it; items <ask> <alias>
+  // <FName index> <FName number> is the worker's inventory read. Anything off is refused.
+  Request gr = parse_request("gift s 1761480000123 PulseGrenade 2\n");
+  assert(gr.command == Command::gift && gr.text == "s 1761480000123 PulseGrenade 2");
+  gr = parse_request("gift n 17 slot");
+  assert(gr.command == Command::gift && gr.text == "n 17 slot");
+  for (const char *bad : {"gift", "gift ", "gift s 1 HP_Potion 11", "gift a 0", "gift n 1 x y", "gifts a 1"})
+    assert(parse_request(bad).command == Command::none);
+  Request ir = parse_request("items 7 HP_Potion 4096 0\r\n");
+  assert(ir.command == Command::items && ir.ask == 7 && ir.alias == "HP_Potion" && ir.index == 4096 && ir.number == 0);
+  ir = parse_request("items 65535 A 4294967295 4294967295");
+  assert(ir.command == Command::items && ir.ask == 65535 && ir.index == 4294967295u && ir.number == 4294967295u);
+  for (const std::string &bad :
+       {std::string("items 0 HP_Potion 1 0"), std::string("items 65536 HP_Potion 1 0"),
+        std::string("items 1 HP_Potion 0 0"), std::string("items 1 HP_Potion 4294967296 0"),
+        std::string("items 1 HP_Potion 1 4294967296"), std::string("items 1 HP-Potion 1 0"),
+        std::string("items 1 ") + a65 + " 1 0", std::string("items 1 HP_Potion 1"), std::string("items"),
+        std::string("items 1 HP_Potion 1 0 1"), std::string("items -1 HP_Potion 1 0")})
     assert(parse_request(bad).command == Command::none);
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2) and the Shock Bolt's

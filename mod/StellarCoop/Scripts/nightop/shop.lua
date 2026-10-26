@@ -12,9 +12,9 @@
 -- gun cannot fire costs no point either. The wallet is one file per SteamID and co-op slot beside the mod,
 -- coop-night-<steamid>-<index>.txt, one line: the points. The game never reads it; a save restore does not take points
 -- back.
--- Called here: the player controller's ItemBucketItemAdd request, once a buy, in grant() only: bucket type 1 (the
--- inventory), EVE's own GUID, one of the seven aliases, 1 to 10 items. Never called here: an item remove, consume or
--- equip, a save, a quest call, the game's own shops, anything online.
+-- Called here: the player controller's ItemBucketItemAdd request, once a buy, in grant() only (through Shop.add, which
+-- coop gift's grants share): bucket type 1 (the inventory), EVE's own GUID, one of the seven aliases, 1 to 10 items.
+-- Never called here: an item remove, consume or equip, a save, a quest call, the game's own shops, anything online.
 local U=require('core.unreal')
 local W=require('nightop.waves')
 local N=require('nightop.probe')
@@ -34,15 +34,37 @@ Shop.MOST=10 -- Items in one buy.
 local BUY='Use: coop nightop buy <item 1-'..#Shop.ITEMS..'> [count 1-10]'
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 local function whole(text) return type(text)=='string' and text:match('^%d+$') and math.tointeger(tonumber(text)) end
--- The one grant call: an alias of the catalogue, EVE's GUID and 1 to MOST items, into the inventory, with the game's
--- pickup message; no stat level, no enhance message, not an event load, no saved instance.
+-- The one grant call: an item alias, EVE's GUID and 1 to MOST items, into the inventory, with the game's pickup
+-- message; no stat level, no enhance message, not an event load, no saved instance. Shop.grant and coop gift
+-- (cut/mailbox.lua) call it, each after checking the alias against its own list.
+function Shop.add(pc,guid,alias,count)
+    assert(type(alias)=='string' and alias:match('^[%w_]+$'),'not an alias')
+    assert(math.type(count)=='integer' and count>=1 and count<=Shop.MOST,'not a count')
+    assert(math.type(guid)=='integer' and guid>0 and guid<=MASK,'not a GUID')
+    pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})
+end
+-- A buy's grant: an alias of the catalogue only.
 function Shop.grant(pc,guid,alias,count)
     local listed=false
     for _,item in ipairs(Shop.ITEMS) do listed=listed or item.alias==alias end
     assert(listed,'not a shop item')
-    assert(math.type(count)=='integer' and count>=1 and count<=Shop.MOST,'not a count')
-    assert(math.type(guid)=='integer' and guid>0 and guid<=MASK,'not a GUID')
-    pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})
+    Shop.add(pc,guid,alias,count)
+end
+-- EVE's GUID for the item requests, or nil when every read gives 0: her spawn info's; the player state's when that
+-- holds none (read 0 in game, 2026-10-26); the native part's, its engine line's me=, when that reads 0 too (read 0 in
+-- game as well). status: the native part's status text.
+function Shop.guid(eve,pc,status)
+    local guid=math.tointeger(eve.BroadcastSpawnInfo.ActorGuid)
+    guid=guid and guid&MASK
+    if not guid or guid==0 then
+        local ok,g=pcall(function() return math.tointeger(U.valid(pc.PlayerState).ActorNetGuid) end)
+        guid=ok and g and g&MASK or guid
+    end
+    if not guid or guid==0 then
+        local me=('\n'..tostring(status or '')):match('\nengine=[^\r\n]* me=(%d+)')
+        guid=me and math.tointeger(tonumber(me)) or guid
+    end
+    if guid and guid~=0 then return guid end
 end
 -- log(text) writes an [NR] line; status() is the native part's status text; store(name) core/link.lua's one-line file;
 -- paused() whether the game is paused or shows one of its screens; busy() whether a run of ours is on (not in its
@@ -105,17 +127,8 @@ function Shop.new(o)
         local eve,pc=N.her(),N.controller()
         if not eve then return nil,'no EVE in the world' end
         if not pc then return nil,'no SB player controller' end
-        local guid=math.tointeger(eve.BroadcastSpawnInfo.ActorGuid)
-        guid=guid and guid&MASK
-        if not guid or guid==0 then -- Her spawn info holds none (read 0 in game, 2026-10-26): the player state's.
-            local ok,g=pcall(function() return math.tointeger(U.valid(pc.PlayerState).ActorNetGuid) end)
-            guid=ok and g and g&MASK or guid
-        end
-        if not guid or guid==0 then -- Read 0 there too in game: the native part's, its engine line's me=.
-            local me=('\n'..tostring(status and status() or '')):match('\nengine=[^\r\n]* me=(%d+)')
-            guid=me and math.tointeger(tonumber(me)) or guid
-        end
-        if not guid or guid==0 then return nil,"EVE's ActorGuid reads 0: nothing bought" end
+        local guid=Shop.guid(eve,pc,status and status())
+        if not guid then return nil,"EVE's ActorGuid reads 0: nothing bought" end
         local price=item.price*c
         if w.points<price then
             return nil,string.format('%s x%d needs %d points; you have %d',item.alias,c,price,w.points)

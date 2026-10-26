@@ -49,6 +49,9 @@ std::string status() {
     s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
          " anim_id=" + std::to_string(a.id);
   }
+  // coop gift's inventory read (cut/mailbox.lua): the last ask's answer, by its number.
+  if (!items_line.empty() && !blocked)
+    s += items_line;
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)

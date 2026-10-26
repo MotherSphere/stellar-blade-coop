@@ -121,6 +121,10 @@ std::string ask_shortcut();
 // Worker, every pass: the lines of what the game thread read since the last pass (each file's, then the summary once
 // all 16 are read, or why the list stopped), for the log; none when no list is under way.
 std::vector<std::string> shortcut_pass();
+// Worker thread, coop gift (game/items.h): Lua's items request, how many of one item our EVE carries, read now through
+// ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build, after coop
+// off and with no EVE read. Returns the line for the log.
+std::string ask_items(const coop::Request &request);
 // Worker: coop-status.txt's shared quests lines (quest/engine.h's Worker::status), each ending in a line break.
 std::string quest_status();
 // Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",

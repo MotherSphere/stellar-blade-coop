@@ -318,7 +318,8 @@ More about sessions:
 - Both players need the same protocol (14) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
-The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
+The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
+you send with [`coop gift`](#cut-mailbox-coop-gift), which leave one co-op save and go into the other. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
 
 Achievements follow one rule: a shared enemy you fight together counts for both of you, and nothing done without you
@@ -839,6 +840,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save; loading one is held back) |
 | `coop devmenu [list\|<row>]` | The rows of the game's [developer menu](#developer-menu-coop-devmenu-and-coop-devinfo) that still work: the list, or one row on EVE or the enemies near her (test command, untested in game; a row on a co-op save only) |
 | `coop devinfo quest\|player\|off` | The game's [quest debugger or player info panel](#developer-menu-coop-devmenu-and-coop-devinfo), opened or closed (test command, untested in game, any save) |
+| `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -1003,8 +1005,8 @@ The ghost, the link and every other command except `coop fight` (below), `coop r
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
 [viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
 `coop lion control`, `coop gardener fight` with no word, `intro`, `half` or `skulling`, `coop tendril fight` with no
-word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`, `coop glide on` and a row of
-`coop devmenu` (below) run on any save.
+word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`, `coop glide on`, a row of
+`coop devmenu` and `coop gift` (below) run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
@@ -1899,6 +1901,88 @@ rest of that check): on the title screen or during a load the line says `not in 
 closes them. The boss challenge debug panel cannot open: like the menu's, its code is not
 in the build. The native part's lines go to `coop-link.log`: `coop devinfo quest asked: at the game thread's next
 frame`, then `devinfo quest: 0 closed, 1 opened`, or `devinfo quest refused: not playing, 0 closed`.
+
+### Cut mailbox: `coop gift`
+
+The game's files hold a mailbox that was cut: its menu (`WB_MailBox_Set`, with a detail panel and list rows), a toast
+for a new gift (`WB_MailBox_Toast_GetGift`), their textures and the sound `UI_MailBox_GetGift`. The two gift rows left
+in its table turn a mailbox on only for an object of a test map that is not in the game, and their titles were never
+written. The menu's code is still in the game, but it only lists those rows, and taking one of its gifts writes that
+gift into the save. `coop gift` uses the mailbox for gifts between two players instead: your linked friend sends you
+consumables from her inventory, they wait in your mailbox, and you take them when you want. Both of you must play a
+[co-op save](#co-op-saves). None of it has been tried in game yet.
+
+| Command | What it does |
+| --- | --- |
+| `coop gift` | Lists what waits in your mailbox, what you sent that waits for an answer, and the items you can send |
+| `coop gift send <item> [count]` | Sends 1 to 10 of one item to your linked friend, 1 when the count is left out |
+| `coop gift take [n]` | Puts every gift that waits into your inventory, or only gift n of the list |
+
+The item is its number or its name, in any case:
+
+| Number | Name | In the game |
+| --- | --- | --- |
+| 1 | `HP_Potion` | Highly Concentrated Potion |
+| 2 | `HP_Potion_Small` | Lingering Potion |
+| 3 | `HealGrenade` | Biotic Field Generator |
+| 4 | `PulseGrenade` | Pulse Grenade |
+| 5 | `ConcussionGrenade` | Shock Grenade |
+| 6 | `TrapGrenade` | Smart Mine |
+| 7 | `FlashGrenade` | Sonic Grenade |
+
+Only these consumables can be sent. Key, story and quest items, equipment, the Tumbler (whose charges the game keeps as
+a stat), drone ammo and the cut stimpacks are left out, and none of the seven counts toward a trophy.
+
+- A send checks how many of the item you carry and refuses when you have fewer than the count. The game then takes the
+  items out of your inventory with its own remove request, and the gift goes only once a second read shows they left.
+  That wait lasts 10 s of play at most: time with the game paused or in photo mode (yours, or your friend's when it
+  pauses your game) does not count, since the game runs the remove only once it plays again.
+  `OK: reading how many PulseGrenade you carry; the gift of 2 follows` answers the command, then a notice says
+  `Gift sent: 2 PulseGrenade. It waits for your friend's answer.` or why it was not sent.
+- Your friend's game keeps the gift in her mailbox and answers, and you get `Kaanta got your 2 PulseGrenade.` She gets
+  `<your name> sent you 2 PulseGrenade: coop gift take puts them in your inventory.` and the cut toast for 4 s. A Lua
+  reload (Ctrl+R) in those 4 s takes the toast off at once.
+- Her game refuses a gift when she is not on a co-op save, when 20 gifts already wait in her mailbox, or when it cannot
+  write its mailbox file. The items then come back to you: `Gift refused (full): the 2 PulseGrenade come back.`
+- The items also come back when she leaves the session before answering, when no answer came in 60 s, or when the
+  gift could not be sent at all. They come back through the same request the
+  [Night Operation shop](night-operation.md#the-reward-shop) adds items with, as soon as EVE is in the world and the
+  game is not paused, and only on the co-op save they left.
+  `Gift returned: 2 PulseGrenade are back in your inventory.` says it.
+- While she is linked and has not answered, the gift is sent again every 10 s under the same number. Her game keeps
+  that number with the gift, and keeps the last 64 it took or refused, so a gift sent twice is kept once.
+- `coop gift take` puts the gifts in your inventory through the same request as the shop, `OK: took 3 HP_Potion from
+  Kaanta`. The game must not be paused. A gift is crossed off your mailbox before the game adds it, and put back if
+  the game refuses the call.
+- `coop loopback` with no friend linked sends a gift to yourself, for a test on one PC: the items leave, arrive in your
+  own mailbox, and `coop gift take` puts them back.
+
+These cases can still lose or double a gift:
+
+- Your friend's answer is lost as she leaves the session, or her link stays lost for more than 60 s while the gift
+  line is on its way. The items come back to you, and her game keeps the gift if the line reaches it. The log shows
+  `gift <id> comes back: ...`, and an answer that arrives after it shows `answer a <id> for no gift waiting`.
+- The game stops (a crash, `coop off`, a Lua reload) after the remove and before the gift's entry in your file, which
+  can take up to the 10 s of play above plus 5 s for a read. The items are gone and nothing is sent: the log has a
+  `remove asked` line with no `sent` line after it.
+- The count does not fall by the gift's in those 10 s, because the game ran the remove later still or because an item
+  you picked up meanwhile hid the drop. Nothing is sent, and the notice says the items may be gone:
+  `Gift not sent: the count did not fall by 2 in 10 s of play (5 before, 4 now); the items may be gone`. Check your
+  inventory.
+- You use the same item between the remove request and the game's turn that runs it. The use can look like the drop,
+  so the gift goes, and the remove then takes only what is left.
+
+The mailbox is a file per Steam ID and co-op slot in the mod folder, `coop-gift-<steamid>-<index>.txt`, like the shop's
+points: restoring a save backup does not change it. Its lines go to `UE4SS.log` with the `[StellarCoop][GF]` tag:
+`remove asked: PulseGrenade x2 of 5 (guid 228)`, `sent <id>: PulseGrenade x2 to <SteamID> (had 5)`,
+`gift <id> kept by Kaanta: PulseGrenade x2`, `gift <id> comes back: your friend left`,
+`took <id>: HP_Potion x3 from <SteamID> (guid 228)`.
+`coop-link.log` has each gift line both ways (`gift line sent: s <id> PulseGrenade 2`,
+`gift line from Kaanta: a <id>`).
+
+Check in game that a send takes the items out of your inventory and that a take adds them, that the counts in
+`[GF]` lines match the inventory screen, that the toast shows its icon and whether it plays a sound, and that a gift
+refused or left unanswered comes back once.
 
 ### Shared enemies (experimental)
 
@@ -2926,7 +3010,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
   requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip the native part took and what
   became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`, `refused:<why>` or `fault`, see
-  [Emotes](#emotes-coop-emote)), and `nightop=on` or `nightop=rule` while the probe's poller runs.
+  [Emotes](#emotes-coop-emote)), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
+  [`coop gift`](#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
+  `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another
@@ -2998,6 +3084,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-chat.txt` | native | Your friend's chat lines and race lines, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
 | `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |
 | `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [night-operation.md](night-operation.md#the-reward-shop)) |
+| `coop-gift-<steamid>-<index>.txt` | Lua | Your mailbox on that co-op slot: the gifts that wait, the ones you sent that wait for an answer or come back, and the last 64 gifts taken (see [Cut mailbox](#cut-mailbox-coop-gift)) |
+| `coop-gift-toast.txt` | Lua | While a gift's toast shows: its object path, so the next Lua load (Ctrl+R) can take it off |
 | `coop-race.txt` | Lua | Your [Doro race](#doro-races) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |

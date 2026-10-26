@@ -6,7 +6,8 @@
 -- changed is returned once, for the log; peer lines change with every ping, the shared fight's counts (its fight= line)
 -- every second and her vitals (mate=) and our life state (life=) up to 10 times a second, so they stay in coop status,
 -- out of the log. The chat has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see
--- say()), and the race one more (coop-race.txt, see race()); her race lines come in coop-chat.txt. The same read gives
+-- say()), and the race one more (coop-race.txt, see race()); her race lines come in coop-chat.txt, and her gift lines
+-- (coop gift, cut/mailbox.lua, whose own lines go as gift requests). The same read gives
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (session/join.lua asks the
@@ -537,15 +538,17 @@ function Link.new(folder,fs)
         end
     end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=} for each of her lines, {fail=true} when one
-    -- of ours could not go, {race=} for each of her race lines, oldest first; anything else is ignored.
+    -- of ours could not go, {race=} for each of her race lines, {gift=} for each of her gift lines (or a gift of ours
+    -- that could not go, as her refusal), oldest first; anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
         if not text or not fs.remove(name) then return lines end -- Not deleted: taken next time, never shown twice.
         for line in text:gmatch('[^\n]+') do
-            local said,raced=line:match('^in (.+)$'),line:match('^race (.+)$')
+            local said,raced,gifted=line:match('^in (.+)$'),line:match('^race (.+)$'),line:match('^gift (.+)$')
             if said then lines[#lines+1]={text=said}
             elseif raced then lines[#lines+1]={race=raced}
+            elseif gifted then lines[#lines+1]={gift=gifted}
             elseif line=='fail' then lines[#lines+1]={fail=true} end
         end
         return lines

@@ -8,8 +8,9 @@
 // shared quests' lines on the same channel (Phase 12, glue/tick.cpp) with their record beside each co-op slot, the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (glue/tick.cpp),
 // the chat and vitals lines between the link, our EVE (glue/tick.cpp) and Lua's two short-lived chat files,
-// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), and the race lines Lua
-// writes into coop-race.txt (hers reach Lua through coop-chat.txt). It
+// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), the race lines Lua
+// writes into coop-race.txt and coop gift's lines from Lua's gift requests (hers of both reach Lua through
+// coop-chat.txt). It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save/twins.h), and
 // puts our join code on the clipboard on the copy request (glue/clipboard.h). The follow's camps lines go through the
 // link (link/core.h), its travel request to the game thread (glue/tick.cpp).
@@ -578,6 +579,10 @@ bool step() {
       break;
     case coop::Command::travel: // The follow's call: the game thread's.
       event(coop::pose::ask_travel(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::items: // coop gift's inventory read: the worker's, now.
+      event(coop::pose::ask_items(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt: the game thread's.

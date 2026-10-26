@@ -82,6 +82,8 @@
 -- its clear and lockswitch rows once more when a row ran). coop devinfo quest|player|off, the game's quest debugger
 -- and player info panels, opened and closed by the native part through the game's UI manager (game/dev_panels.h; left
 -- out of the usage line; any save, as both only read); coop off closes them.
+-- coop gift [send <item> [count]|take [n]], SB's cut mailbox as a co-op gift box: consumables sent to the linked
+-- friend's mailbox and taken from yours, with the cut toast when one arrives (cut/mailbox.lua; on a co-op save only).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -198,7 +200,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -419,6 +421,23 @@ o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][C
 -- coop devmenu (cut/devmenu.lua), logging [DM] lines: the developer menu's working rows, through the same call.
 o.devmenu=require('cut.devmenu').new({log=function(m) print('[StellarCoop][DM] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end})
+-- coop gift (cut/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link only. Its
+-- tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save only
+-- (commands/cut.lua). An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.
+-- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
+local mailbox=link and require('cut.mailbox').new({log=function(m) print('[StellarCoop][GF] '..tostring(m)..'\n') end,
+    say=function(text) say(text) end,status=function() return link.status() end,
+    request=function(line) return link.request(line) end,read=function(name) return link.read_file(name) end,
+    write=function(name,text) return link.write_file(name,text) end,friend=function() return link.friend() end,
+    loopback=function() return link.loopback() end,store=link.store('coop-gift-toast.txt'),
+    paused=function() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end,
+    name=function(alias)
+        local n=U.value_of(FName(alias,EFindName.FNAME_Find))
+        local index=n:GetComparisonIndex()
+        if not index or index==0 or U.text(n):lower()~=alias:lower() then return nil end
+        return {index=index,number=require('session.travel').number(alias)}
+    end}) or nil
+o.mailbox=mailbox
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
@@ -488,6 +507,10 @@ local commands={
         if not stopped then log('emote: '..tostring(e)) end
         stopped,e=pcall(o.devmenu.stop) -- clear and lockswitch, while the engine line still names EVE.
         if not stopped then log('devmenu: '..tostring(e)) end
+        if mailbox then -- The gift toast off the screen.
+            stopped,e=pcall(mailbox.stop)
+            if not stopped then log('gift: '..tostring(e)) end
+        end
         if not link then return true,'everything is off until the game restarts' end
         stopped,e=pcall(ask('devinfo off')) -- The game's developer panels closed, if open.
         if not stopped then log('devinfo: '..tostring(e)) end
@@ -563,6 +586,10 @@ local function inbox()
     for _,line in ipairs(link.take_chat()) do
         if line.fail then chat.fail()
         elseif line.race then race.receive(line.race)
+        elseif line.gift then
+            local ok,e=true,nil
+            if not off then ok,e=pcall(mailbox.receive,line.gift) end
+            if not ok then log('gift: '..tostring(e)) end
         elseif line.text then
             local got=chat.receive((link.friend()) or '',line.text,chat_clock)
             if got and not kit.ready() then
@@ -936,6 +963,10 @@ if link then
         chat_clock=chat_clock+0.25
         if not off then group.tick(chat_clock) end -- The friend's revive: it logs its own lines.
         if not off then travel.tick(chat_clock) end -- The follow: likewise.
+        if not off then -- coop gift: it logs its own lines; an error of its own never stops this loop.
+            local ok,e=pcall(mailbox.tick)
+            if not ok then log('gift: '..tostring(e)) end
+        end
         local chatting=link.chatting() -- nil: the status was not read, which ends no session.
         if off or chatting~=nil then chat.session(not off and chatting) end
         if not race.armed() then inbox() end -- Each frame while one is.

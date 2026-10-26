@@ -16,7 +16,9 @@
 -- (cut/devmenu.lua's). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of the usage line), runs
 -- on a co-op save only. coop emote, one of EVE's clips (cut/emote.lua, o.emote), runs on any save. coop devmenu, the
 -- developer menu's rows that still work (left out of the usage line too): its list on any save, a row on a co-op save
--- only. coop devinfo, two read-only panels of the game's developer UI (left out too), on any save.
+-- only. coop devinfo, two read-only panels of the game's developer UI (left out too), on any save. coop gift, the
+-- cut mailbox as a co-op gift box (cut/mailbox.lua, o.mailbox, built with the Steam link only), runs on a co-op save
+-- only: every word of it.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -97,6 +99,12 @@ function Cut.new(o)
             if not ok then return false,why end
         end
         return lion.command(sub,a,b)
+    end
+    function self.gift(sub,a,b,c)
+        if not o.mailbox then return false,'coop gift needs the Steam link' end
+        local ok,why=coop_slot('coop gift')
+        if not ok then return false,why end
+        return o.mailbox.command(sub,a,b,c)
     end
     function self.chainspin(extra)
         local ok,why=coop_slot('coop chainspin')

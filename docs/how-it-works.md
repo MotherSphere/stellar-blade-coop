@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on` |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -77,6 +77,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
 | `cut/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
+| `cut/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](#cut-mailbox)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
@@ -128,6 +129,9 @@ file is written in full beside its final name and then renamed over it, so the r
   the native part has taken the previous file, and the native part takes it at its next pass and sends each line in
   order. Your friend's race lines come in `coop-chat.txt` as `race <text>`, beside the chat lines, and Lua reads that
   file every frame while a race is armed. `coop-race.txt` is deleted with the chat files.
+- `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
+  same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
+  go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](#cut-mailbox)).
 
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
@@ -308,6 +312,9 @@ SBC14 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <cle
 SBC14 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
 SBC14 mark <n> [<text>]
 SBC14 race <text>
+SBC14 gift s <id> <item> <count>
+SBC14 gift a <id>
+SBC14 gift n <id> <why>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -415,7 +422,16 @@ that are dropped, with at most one line a minute per friend in `coop-link.log` (
 the rate limit` or `too many waiting`). Yours past it are only counted, in the session's end line. During
 `coop loopback` with no friend linked, your race lines come back as your friend's.
 
-Say, vit, pak, paks, camps, night, mark and race lines from a friend who has not passed the handshake are ignored, without a log line.
+The gift line carries a [cut mailbox](#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
+to 20 digits, not 0), an item name (letters, digits and `_`, at most 64) and a count from 1 to 10; `a` when the
+receiver kept it; `n` and a word of 1 to 16 lowercase letters when it refused it. The link checks that shape and no
+more: Lua checks the item. At most 8 lines a second go each way, and each one, sent, refused or received, has a line in
+`coop-link.log` (`gift line sent: ...`, `gift line not sent: ...`, `gift line from <name>: ...`). A gift line of yours
+that cannot go (no session, past the rate, a send Steam refused) comes back to Lua at once as `gift n <id> nolink`.
+Your friend's lines reach Lua in `coop-chat.txt` as `gift <payload>`, beside the chat and race lines. During
+`coop loopback` with no friend linked, your gift lines come back as your friend's.
+
+Say, vit, pak, paks, camps, night, mark, race and gift lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -426,7 +442,7 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 13` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 14` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -473,7 +489,7 @@ instead of misread:
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
 | 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line, the mark line and the Doro races' race line on channel 0 |
 | 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders |
-| 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), night line masks for a level's extra monsters, and each side's down time and revive progress on both night lines (this version) |
+| 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), night line masks for a level's extra monsters, each side's down time and revive progress on both night lines, and the gift line for `coop gift` (this version) |
 
 ### Link health in the log
 
@@ -2275,6 +2291,85 @@ with `try_lock` at its next frame, under its own SEH latch, and hands back the n
 refusal and what it opened and closed. Lua's `coop off` asks `devinfo off` before `off`, and the game thread takes it
 after the block too.
 
+## Cut mailbox
+
+`coop gift` (`cut/mailbox.lua`, not tested in game yet) carries consumables from one player's co-op save to the other's.
+
+### Why the game's mailbox is not used
+
+The mailbox's UI logic (`ESBUILogicType_MailBox`) is still compiled in, unlike the Load Shortcut menu's load call. Its
+open (`FUN_141ef3850`) takes the mailbox object's alias from its init parameter, builds the list from
+`MailBoxGiftTable` rows whose `EnableMailBoxEnvSpawnList` holds that alias, and marks a row received when its
+`EventGiftAlias` is in the game data's received list (`+0x848`, its array at `+0x850`). Its confirm handler
+(`FUN_141ef4db0`) calls `FUN_141cfd8e0`, which adds the gift's alias to that list, looks up its `EventGiftTable` row and
+grants each item through `FUN_141cfde20`, a grant of its own that builds an item instance and queues an add. The save
+struct has the same kind of list (`FSBSaveGameData_EventGiftInfo.GiftList`, an array of names), which is where the
+received list most likely goes.
+
+Feeding it would mean rows in two tables, a second grant path and a mod alias in the save's received list, so the mod
+keeps its own list on disk and only shows the cut toast: `WidgetBlueprintLibrary::Create` with
+`WB_MailBox_Toast_GetGift_C`, its `Text_Title` set, `AddToViewport` and its `Play` function. `Play` starts its `In`
+animation, whose event track calls the widget's `Toast In Play Sound` (from the offline dump of the widget; what that
+function plays is not read). The toast comes off after 4 s, and its first failure turns it off for the Lua load. The
+widget has no removal of its own, so while it shows its object path waits in `coop-gift-toast.txt`, and the next Lua
+load's first tick takes off a toast an earlier load left on screen.
+
+### The inventory read
+
+SB has no reflected function that returns how many of an item EVE carries, and its remove by alias takes what there is
+when asked for more, so the native part reads the count itself (`game/items.h`, `glue/tick/items_worker.inc`). Lua asks
+`items <ask> <alias> <FName index> <FName number>`; the worker reads at once through `ReadProcessMemory`, with EVE's
+GUID from the revive guard's read (client `+0x58`), and the engine line of `coop-status.txt` gets
+`items=<ask> <count>` or `items=<ask> none <why>` (`unpinned`, `noeve`, `nomanager`, `nobucket`, `unread`; after
+`coop off` the status leaves `items=` out and only the worker's log line has `none off`).
+The read follows the game's own lookups on build 24463856:
+
+- the item bucket manager, a lazy singleton at `0x147032568` (its getter `FUN_141a97b20` makes it when null; the read
+  never does, so 0 is no inventory yet);
+- its bucket map at `+0x2b0`, from the bucket type (1, the inventory) to a map from the owner's GUID to the bucket,
+  both keyed by an int that is its own hash (`FUN_141ad7250`);
+- the bucket's map at `+0x90` from the item's alias (an FName) to the GUIDs of its instances, hashed as UE 4.26 hashes
+  an FName (`FUN_140ecc610`, the find that the remove by alias `FUN_141bde8c0` calls);
+- the manager's instance map at `+0x210` from an instance GUID to the item, hashed with CityHash64 of its 16 bytes
+  (`FUN_142835af0`; the test checks the result against that function run in Ghidra's emulator), and each item's count
+  at `+0x6c`, the field the remove lowers.
+
+Each set is a TSet: its element array at `+0`, the array's count at `+8`, its free count at `+0x34`, an inline hash
+bucket at `+0x38`, the hash array at `+0x40` when there is one and its size at `+0x48`. A chain longer than the array,
+an index outside it, a hash size that is not a power of two or an implausible pointer ends the read as `unread`.
+
+### The remove, the gift and its answer
+
+The remove is the player controller's `ServerRequest_ItemBucketItemRemove(1, <GUID>, <alias>, <count>, -1)`. Its
+implementation (`FUN_1423ba230`, vtable `+0x13d8` of the network player controller, behind a validate that returns
+true) queues the game's remove request (type 0x16, `FUN_141af93e0`) for the next turn of the logic thread, where
+`FSBItemBucketItemRemove::Simulate` (`FUN_141b0ba20`) removes by alias. -1 is the pocket index the request pool sets
+by default (`FUN_141b48810`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by
+the gift's count, for 10 s of play at most. A tick while the game is paused, in photo mode, or in the friend's photo
+mode that pauses ours does not count: SB's logic thread stops then, and the remove waits with it. If the count has not
+fallen by then, nothing is sent and the notice says the items may be gone.
+
+Once it fell, Lua writes the gift into `coop-gift-<steamid>-<index>.txt` (`out <id> <alias> <count> <to> <at> <sent>`)
+and only then sends the gift line as a request, `gift s <id> <alias> <count>`. The id is the time in seconds and three
+digits. The receiving game answers `gift a <id>` once the gift is in its file (`box ...`), or `gift n <id> <why>`
+(`slot`, `full`, `item`, `store`). A refusal, no answer in 60 s, the friend gone from the lobby (not one whose link is
+lost and may come back) or the native part's own `n <id> nolink` turns the entry into `back <id> <alias> <count>`,
+and the next tick with EVE in the world and the game playing grants it through the shop's call
+(`ServerRequest_ItemBucketItemAdd`, nightop/shop.lua's `Shop.add`). The entry leaves the file before the grant, as a
+take's does, and goes back if the grant raises, so a file that cannot be written gives nothing back until it can. A
+grant that raises, or a write that fails, is tried again after 10 s.
+Until an answer, the gift line goes again every 10 s with the same id while the friend is linked.
+
+The receiver keys each gift by the sender's SteamID (the first peer line; 0 in the loopback) and the id. A key in its
+mailbox gets `a` again, and so does one among the last 64 it took (`seen <from> <id> a`); a key it refused for a full
+mailbox gets `full` again (`seen <from> <id> n`). A take writes the file before the grant and puts the entry back if the
+grant raises, so a gift is never taken twice.
+
+The file holds whole lines and is written whole through `link.write_file`. A line in no known shape, or with an item
+outside the seven or a count outside 1 to 10, is dropped and logged. When the file is missing, its `.tmp` is read,
+since `link.write_file` removes the file before renaming the `.tmp` over it. A write whose rename failed after that
+removal therefore counts as done; one whose old file is still there counts as failed, and its text stands.
+
 ## Achievements
 
 The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks
@@ -2335,6 +2430,10 @@ claim the host accepts):
   that player's, like any Naytiba's.
 - `coop shortcut` lists the cut Load Shortcut menu's developer saves and loads none of them, since two hold boss
   achievements as done ([Why no load](#why-no-load)).
+- A [gift](#cut-mailbox) moves consumables between two co-op saves and nothing else. Its seven items lead to no trophy
+  in the AchievementTable: their acquire rows (`Acquire_Item_Grenade`, `Ach_Reward_Acquire_Item_ConcussionGrenade` and
+  the potion and grenade category guides) open guides only. A gift that arrives can open those guides early, as a shop
+  buy can.
 
 ## Safety design
 
@@ -2382,12 +2481,15 @@ drops the input.
   only, with the page writable for that store alone, and swapped back from the mod's value only at `coop off` or after
   a fault. A slot that holds another value is never written.
 - Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only
-  for a Night Operation shop buy (`coop nightop buy`, co-op saves only), through the game's own request
-  (`ServerRequest_ItemBucketItemAdd`) with one of four items and 1 to 10 of it. Apart from enemy stats with the
+  for a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming
+  back, co-op saves only), through the game's own request (`ServerRequest_ItemBucketItemAdd`) with an item of its list
+  and 1 to 10 of it. It removes from the inventory only for a `coop gift` send, through the game's own request
+  (`ServerRequest_ItemBucketItemRemove`) with one of seven consumables and 1 to 10 of it, after the native part read
+  that EVE carries that many. Apart from enemy stats with the
   experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and animations with the
   experimental same place (on by default), the quest steps of the experimental shared quests (off by default, co-op
   saves only, made by the guest's game through its own quest functions) and a Night Operation run's state on the night
-  line, nothing is copied between the two players' games. Beside
+  line and `coop gift`'s consumables, nothing is copied between the two players' games. Beside
   the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
   only checks whether a copy exists, opening none of your own saves. See [saves.md](saves.md).
 - The follow and the revive call the game's own functions on the local player only. A travel runs on the guest's own
