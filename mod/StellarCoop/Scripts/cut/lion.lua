@@ -1,7 +1,9 @@
 -- coop lion: the cut Naytiba 02, the Lion (/Game/Art/Character/Monster/CH_M_NA_02/: blueprint, mesh, clips, collision
 -- data and 41 Shows, but no table row), spawned as a real enemy to fight, on the game thread (plan A of the Lion study,
--- made native). Its 221 rows, each authored for it (cut/lion_rows.lua lists them), go into SB's 12 tables through the
--- native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight).
+-- made native). Its 222 rows, each authored for it (cut/lion_rows.lua lists them), go into SB's tables through the
+-- native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight),
+-- after the 4 rows of the cut items the Night Operation shop sells (2 ItemTable rows, an ItemConsumableTable row and
+-- the SkillTable row they play), 226 rows in 14 tables. The shop asks for them through Lion.rows (nightop/shop.lua).
 -- This file finds the tables by their fixed paths and sends their addresses (the lion rows request: no console word
 -- reaches an address), waits for the answer in coop-status.txt's lion line, then reads every row back through FindRow
 -- by field name, independent of the SDK's offsets, and stops at the first value that differs. Then one spawn call,
@@ -35,10 +37,10 @@ local N=require('nightop.probe')
 local Doro=require('race.doro')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Lion={}
--- The 12 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
+-- The 14 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
 Lion.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
     'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
-    'TargetFilterTable','SkillResultTable','EffectTable'}
+    'TargetFilterTable','SkillResultTable','EffectTable','ItemTable','ItemConsumableTable'}
 local DATA='/Game/Local/Data/'
 -- The only IDs the spawn call takes, with what each is; the brains are the Lion's two CharacterTable rows.
 Lion.IDS={[50020]='M_LionC',[50021]='M_LionC_Lurker',[50110]='M_Antlion'}
@@ -212,7 +214,7 @@ function Lion.new(o)
     local failed={} -- The boss name's last error, said once.
     local function lion_line() return Lion.parse(status and status()) end
     local her=N.her
-    -- The 12 tables by name, and those missing.
+    -- The 14 tables by name, and those missing.
     local function tables()
         local found,missing,words={},{},{}
         for _,t in ipairs(Lion.TABLES) do

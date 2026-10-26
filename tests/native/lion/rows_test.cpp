@@ -1,7 +1,7 @@
 // The Lion's rows on the build machine against fake memory laid out like the pinned build: the recipe itself (names
 // and IDs unique, every patch inside its struct and past its header, the step chains, skills, commands, stances, moves
-// and target filters pointing at the new rows, the CharacterTable rows last with the link flag Common and the phase-2
-// stance, no field naming a Behemoth row or asset but the sound set); a whole run (the table checks, each row built
+// and target filters pointing at the new rows, the cut items first and the CharacterTable rows last with the link flag
+// Common and the phase-2 stance, no field naming a Behemoth row or asset but the sound set); a whole run (the table checks, each row built
 // from its template with SB's lazy-init flag and Transient arrays reset, its ID, its patches of every kind read back,
 // the pool's strings among them, AddRow given the new name); a missing template, a taken ID, a taken name, a wrong
 // vtable (even with SB's AddRow in its slot), AddRow slot or row size, and no FName for a row's, a template's, a
@@ -57,7 +57,7 @@ struct Memory {
   }
 };
 
-// One game: SB's 12 tables (its UDataTable vtable with AddRow in slot +0x2b0, each row struct with its size), the
+// One game: SB's 14 tables (its UDataTable vtable with AddRow in slot +0x2b0, each row struct with its size), the
 // template rows every recipe row names (filled with a pattern, their lazy-init flag set, their Transient arrays
 // holding junk as after SB parsed them), FNames interned by text and number, the RowMap and ID maps as AddRow fills
 // them, and the registry's lookups by ID over them.
@@ -250,12 +250,25 @@ size_t row_index(const char *name, Table t) {
 
 int main() {
   // ---- The recipe ----
-  static_assert(kRows == 222, "21 commands, 21 skills, 80 steps, 61 moves, 25 target filters, 5 results, the effect, 2 "
-                              "anim sets, 2 stances, the dead and appearance rows and the two CharacterTable rows");
-  assert(rows_of(Table::step) == 80 && rows_of(Table::skill) == 21 && rows_of(Table::command) == 21 &&
+  static_assert(kRows == 226, "the 4 cut items' rows, 21 commands, 21 skills, 80 steps, 61 moves, 25 target filters, 5 "
+                              "results, the effect, 2 anim sets, 2 stances, the dead and appearance rows and the two "
+                              "CharacterTable rows");
+  assert(rows_of(Table::step) == 80 && rows_of(Table::skill) == 22 && rows_of(Table::command) == 21 &&
          rows_of(Table::move) == 61 && rows_of(Table::filter) == 25 && rows_of(Table::result) == 5 &&
          rows_of(Table::effect) == 1 && rows_of(Table::anim) == 2 && rows_of(Table::stance) == 2 &&
-         rows_of(Table::dead) == 1 && rows_of(Table::appearance) == 1 && rows_of(Table::character) == 2);
+         rows_of(Table::dead) == 1 && rows_of(Table::appearance) == 1 && rows_of(Table::character) == 2 &&
+         rows_of(Table::item) == 2 && rows_of(Table::consumable) == 1);
+  // The cut items first, in the order each needs the one before: the skill the stimpacks play, the Beta Stimpack's
+  // consumable, then the two items (ItemTable ID, ConsumableAlias +0x14c). The skill is the health potion's under the
+  // name HP2Burst_Potion gives (FirstSkillActiveAlias +0x100: the potion's own steps).
+  {
+    const char *const kCut[] = {"P_Eve_Sword_Normal_Buff_1", "Buff_HP2MP", "HP2Burst_Potion", "Buff_HP2MP"};
+    const Table kCutTables[] = {Table::skill, Table::consumable, Table::item, Table::item};
+    for (size_t i = 0; i < 4; ++i)
+      assert(kRecipe[i].table == kCutTables[i] && !std::strcmp(kRecipe[i].name, kCut[i]));
+    assert(!std::strcmp(kRecipe[0].donor, "P_Eve_Sword_Normal_Potion_1") && kRecipe[0].id == 6000101 &&
+           kRecipe[1].id == 1032 && kRecipe[2].id == 300013 && kRecipe[3].id == 300014);
+  }
   // The two CharacterTable rows last, M_LionC the very last: NewActor finds 50020 only once every other row is in.
   assert(kRecipe[kRows - 1].table == Table::character && !std::strcmp(kRecipe[kRows - 1].name, "M_LionC") &&
          kRecipe[kRows - 1].id == 50020 && kRecipe[kRows - 2].table == Table::character &&
@@ -328,7 +341,7 @@ int main() {
       if (const char *moves = patched(r, 0x138)) // SelfMoveAliasArray: the Lion's own moves only.
         each(moves, [&](const std::string &m) { assert(has(Table::move, m.c_str())); });
     }
-    if (r.table == Table::skill)
+    if (r.table == Table::skill && !std::strncmp(r.name, "M_LionC_", 8))
       assert(has(Table::step, patched(r, 0x100)) && std::strstr(patched(r, 0x100), r.name) == patched(r, 0x100) &&
              has(Table::filter, patched(r, 0xb4)));
     if (r.table == Table::command)
@@ -462,14 +475,23 @@ int main() {
            "/Game/GameDesign/Combat/BehaviorTree/Monster/M_LesserLurker_AI");
     assert(g.string_field(g.adds[kRows - 1], 0x508).empty() && Game::field<uint64_t>(g.adds[kRows - 1], 0x508) == 0);
 
-    // SB's lookups by ID find our rows: both CharacterTable rows, the 21 skills, both stances' names.
+    // The cut items: the Burst Stimpack's consumable and text keys, the Beta Stimpack's consumable with its two effects
+    // (EffectAliasArray +0x20) and the skill they both play (ConsumeSkillAlias +0x38).
+    const Game::Add &burst = g.adds[row_index("HP2Burst_Potion", Table::item)];
+    assert(g.name_text(Game::field<uint64_t>(burst, 0x14c)) == "HP2Burst_Potion" &&
+           g.string_field(burst, 0x30) == "Item_HP2Burst_Potion_Name");
+    const Game::Add &beta = g.adds[row_index("Buff_HP2MP", Table::consumable)];
+    assert(g.list_field(beta, 0x20, Kind::names) == "Item_Buff_HP2MP_ReduceHP|Item_Buff_HP2MP_GainMP" &&
+           g.name_text(Game::field<uint64_t>(beta, 0x38)) == "P_Eve_Sword_Normal_Buff_1");
+
+    // SB's lookups by ID find our rows: both CharacterTable rows, the 22 skills, both stances' names.
     Builder::ReadBack rb = Builder::read_back(g, g.tables);
-    assert(rb.character == 2 && rb.skills == 21 && rb.stance == 2);
+    assert(rb.character == 2 && rb.skills == 22 && rb.stance == 2);
     g.skill_override = 0x12345678, g.skill_override_id = 5002003;
     rb = Builder::read_back(g, g.tables);
-    assert(rb.skills == 20);
+    assert(rb.skills == 21);
     assert(describe_read(rb) == "lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable "
-                                "5002000-5002020 20/21, stance 500200-500201 2/2");
+                                "5002000-6000101 21/22, stance 500200-500201 2/2");
 
     // A second run adds nothing: every row is in.
     const Answer again = b.run(g, kBase, g.tables, g.block);
@@ -491,9 +513,9 @@ int main() {
     Builder b;
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::refused && a.why == Why::donor && a.row == first && a.added == first);
-    assert(g.adds.size() == first && !b.added(first) && first == 92);
+    assert(g.adds.size() == first && !b.added(first) && first == 96);
     assert(describe(a) == "lion rows refused M_LionC_ClawAttackLeft_Cast1: template M_Behemoth_ScratchLeft_Finish1 "
-                          "missing; 92/222 added");
+                          "missing; 96/226 added");
     g.rows[{g.tables[size_t(Table::step)], key}] = row;
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::rows && a.added == kRows && g.adds.size() == kRows); // Each row added once.
@@ -529,7 +551,7 @@ int main() {
     g.mem.put<uint64_t>(g.vtable_at + kAddRowSlot, rebased(kAddRow) + 0x10);
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::table && a.row == kRows - 2 && g.adds.empty()); // CharacterTable, checked first.
-    assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/222 added");
+    assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/226 added");
   }
   {
     Game g; // Another vtable whose AddRow slot holds SB's AddRow: still not SB's UDataTable.
@@ -553,7 +575,8 @@ int main() {
       assert(describe(a).find(": the game made no FName; ") != std::string::npos);
     };
     refused_at("M_LionC_TurnAttackLeft_Cast1", row_index("M_LionC_TurnAttackLeft_Cast1", Table::step));
-    refused_at("M_Scarlet_CounterLinkStart", 0); // The effect's template.
+    refused_at("M_Scarlet_CounterLinkStart", row_index("M_LionC_PhaseRoar", Table::effect)); // The effect's template.
+    refused_at("HP_Potion", row_index("HP2Burst_Potion", Table::item)); // The stimpacks' template.
     refused_at("M_Behemoth_ScratchLeft_Move2", row_index("M_LionC_ClawAttackLeft_Turn", Table::move));
     // A Hit step's just-parry result, an FName patch.
     refused_at("M_Common_ParryJustFX", row_index("M_LionC_ClawAttackLeft_Hit1", Table::step));
@@ -587,7 +610,7 @@ int main() {
     Builder b;
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::size && a.detail == 0x2c8 && g.adds.empty());
-    assert(describe(a) == "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/222 added");
+    assert(describe(a) == "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/226 added");
     g.mem.put<int32_t>(rs + kPropertiesSize, 0x2d0);
     uint64_t tables[kTableCount];
     std::memcpy(tables, g.tables, sizeof tables);
@@ -608,26 +631,26 @@ int main() {
     assert(status_line(s) == "lion=off");
     a = Answer(), a.state = State::waiting, a.why = Why::busy;
     s.word = pack(a, 0), s.ticks = 41;
-    assert(status_line(s) == "lion=waiting added=0/222 asks=0 spawns=? why=busy ticks=41");
-    a = Answer(), a.state = State::rows, a.added = 222;
-    s.word = pack(a, 1), s.read = {2, 21, 2}, s.spawns_read = true, s.spawns = 7;
-    assert(status_line(s) == "lion=rows added=222/222 asks=1 spawns=7 char=2/2 skills=21/21 stance=2/2");
-    assert(describe(a) == "lion rows: 222/222 added through SB's AddRow 0x14417ba30, 0 refused");
+    assert(status_line(s) == "lion=waiting added=0/226 asks=0 spawns=? why=busy ticks=41");
+    a = Answer(), a.state = State::rows, a.added = 226;
+    s.word = pack(a, 1), s.read = {2, 22, 2}, s.spawns_read = true, s.spawns = 7;
+    assert(status_line(s) == "lion=rows added=226/226 asks=1 spawns=7 char=2/2 skills=22/22 stance=2/2");
+    assert(describe(a) == "lion rows: 226/226 added through SB's AddRow 0x14417ba30, 0 refused");
     a = Answer(), a.state = State::refused, a.why = Why::size, a.added = 0, a.row = uint8_t(kRows - 2),
     a.detail = 0x540;
     s.word = pack(a, 2);
     assert(status_line(s) ==
-           "lion=refused added=0/222 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
+           "lion=refused added=0/226 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
     a = Answer(), a.state = State::refused, a.why = Why::busy, a.added = 3, a.row = uint8_t(kRows);
     s.word = pack(a, 3);
-    assert(status_line(s) == "lion=refused added=3/222 asks=3 spawns=7 why=busy table=- row=-");
-    assert(describe(a) == "lion rows refused -: logic busy 300 frames; 3/222 added");
+    assert(status_line(s) == "lion=refused added=3/226 asks=3 spawns=7 why=busy table=- row=-");
+    assert(describe(a) == "lion rows refused -: logic busy 300 frames; 3/226 added");
     a.why = Why::net, a.detail = 3, s.word = pack(a, 4);
-    assert(status_line(s) == "lion=refused added=3/222 asks=4 spawns=7 why=net table=- row=- detail=3");
+    assert(status_line(s) == "lion=refused added=3/226 asks=4 spawns=7 why=net table=- row=- detail=3");
     a.why = Why::off, s.word = pack(a, 5);
-    assert(status_line(s) == "lion=refused added=3/222 asks=5 spawns=7 why=coop_off table=- row=-");
+    assert(status_line(s) == "lion=refused added=3/226 asks=5 spawns=7 why=coop_off table=- row=-");
     a = Answer(), a.state = State::fault, a.added = 30, s.word = pack(a, 6), s.fault = "the game at 0x14417ba30";
-    assert(status_line(s) == "lion=fault added=30/222 asks=6 spawns=7 where=the game at 0x14417ba30");
+    assert(status_line(s) == "lion=fault added=30/226 asks=6 spawns=7 where=the game at 0x14417ba30");
   }
 
   std::puts("lion_rows_test: ok");

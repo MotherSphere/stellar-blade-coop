@@ -8,7 +8,7 @@ namespace {
 // pause's kMakeName); a table's row by name, through its RowMap (+0x30, GetRowMap's own lea at vtable +0x280) and
 // that TMap's find 0x140e8c5f0, and its ID map's row name (FUN_141a2ce50), both read-only; AddRow through the table's
 // vtable slot +0x2b0, once lion/rows.h saw it hold 0x14417ba30. Not SB's FindRow (FUN_141aa8760): it is
-// FindRow<FSBCharacterTableProperty>, null for a table whose row struct is no child of that struct, as the other 7
+// FindRow<FSBCharacterTableProperty>, null for a table whose row struct is no child of that struct, as the other 9
 // tables' are not (FSBTablePropertyBase's other children); the TMap find is its untyped second half. For the read-back,
 // the registry's own lookups by ID: FUN_141a9de20 (CharacterTable), FUN_141a9d900 (SkillTable) and FUN_141a2cef0 (a
 // stance's row name, the registry's table 10), on the registry at fight::kTables +0x20, read and never made (its getter
@@ -33,7 +33,7 @@ using AddRow = void (*)(void *table, uint64_t name, const void *row);
 using RowById = void *(*)(void *registry, uint64_t unused, int32_t id);
 using StanceName = uint64_t *(*)(void *registry, uint64_t *out, int32_t table, int32_t id);
 
-// The worker's ask, its number and the 12 tables, taken by the game thread with try_lock only.
+// The worker's ask, its number and the 14 tables, taken by the game thread with try_lock only.
 static_assert(lion::kTableCount == kLionTableCount, "the lion rows request names each of lion/rows.h's tables");
 std::mutex lion_m;
 uint32_t lion_asked = 0;

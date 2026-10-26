@@ -536,12 +536,14 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, lion, gate
 };
-// The tables the Lion's rows go into (lion/rows.h's Table, in this order), as their assets are named.
-constexpr size_t kLionTableCount = 12;
+// The tables the Lion's rows and the cut items' go into (lion/rows.h's Table, in this order), as their assets are
+// named.
+constexpr size_t kLionTableCount = 14;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
     "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable",
-    "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable"};
+    "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable",
+    "ItemTable",             "ItemConsumableTable"};
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).

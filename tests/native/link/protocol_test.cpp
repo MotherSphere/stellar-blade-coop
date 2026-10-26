@@ -820,9 +820,9 @@ int main() {
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
 
-  // coop lion's rows: one <Table>=0x<address> word for each of the 12 tables, in any order, each once; the addresses
-  // in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request fits Lua's 512-byte
-  // request file. Anything off is refused.
+  // coop lion's rows: one <Table>=0x<address> word for each of the 14 tables, in any order, each once; the addresses
+  // in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request Lua writes (%x, so 12
+  // digits at most under plausible's bound) fits its 512-byte request file. Anything off is refused.
   const auto lion = [](const std::vector<std::string> &words) {
     std::string text = "lion rows";
     for (const std::string &w : words)
@@ -845,17 +845,19 @@ int main() {
   assert(li.command == Command::lion && li.tables[7] == 0x1f4a2b3c0700ull && li.tables[0] == 0x1f4a2b3c0000ull);
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
-    tables_longest.push_back(std::string(kLionTables[i]) + "=0x00007ffffffefff8");
-  assert(lion(tables_longest).size() + 2 <= 512 && parse_request(lion(tables_longest)).command == Command::lion);
+    tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
+  assert(lion(tables_longest).size() + 1 <= 512 && parse_request(lion(tables_longest)).command == Command::lion);
+  tables_longest[0] = "CharacterTable=0x00007ffffffefff8"; // Leading zeros Lua never writes: still parsed.
+  assert(parse_request(lion(tables_longest)).command == Command::lion);
   const auto with = [&words](size_t i, const std::string &w) {
     std::vector<std::string> v = words;
     v[i] = w;
     return v;
   };
-  std::vector<std::string> tables11(words.begin(), words.end() - 1), tables13 = words;
-  tables13.push_back(words[0]);
+  std::vector<std::string> one_short(words.begin(), words.end() - 1), one_more = words;
+  one_more.push_back(words[0]);
   for (const std::string &bad :
-       {lion(tables11), lion(tables13), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
+       {lion(one_short), lion(one_more), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
         lion(with(2, "CharacterDeadTable=1f4a2b3c0200")), lion(with(2, "CharacterDeadTable=0x1f4a2b3c0201")),
         lion(with(2, "CharacterDeadTable=0xfff8")), lion(with(2, "CharacterDeadTable=0x7ffffffff0000")),
         lion(with(2, "CharacterDeadTable=0x1f4a2b3c02g0")), lion(with(2, "CharacterDeadTable=0x00001f4a2b3c0200000")),
