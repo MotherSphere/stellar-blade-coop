@@ -80,8 +80,9 @@ the Steam client that the game already runs, so the mod needs no other program a
 - `coop glide` brings back EVE's cut glide: with Jump held in the air, she falls at a tenth of the normal gravity, on a
   co-op save (see [docs/usage.md](docs/usage.md#cut-glide-coop-glide)).
 - `coop emote <name>` plays one of EVE's clips through the game's own animation call: 31 photo-mode poses held until
-  she moves (grouped under the categories of the game's cut Social Action menu), two waves, and six clips of hers
-  whose enemy was cut (the Chariot's struggle, takedowns on the Chariot and on Kali, Kali's grab). It has not been
+  she moves (grouped under the categories of the game's cut Social Action menu), two waves, and six clips of hers made
+  for two enemies with no character in the game files: the Chariot, which was cut (its struggle and her takedown on
+  it), and Kali, possibly an early name of a shipped enemy (her takedown on Kali and Kali's grab). It has not been
   tried in game yet (see [docs/usage.md](docs/usage.md#emotes-coop-emote)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).

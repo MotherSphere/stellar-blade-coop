@@ -4,15 +4,17 @@
 -- are grouped under the six categories of the cut Social Action menu (StringTable_UI's UI_Gesture_Category_*, cut
 -- survey entry 27), whose own gestures shipped as text only. Greetings also holds the selfie mode's two waves,
 -- Hello_Selfie_L and _R (3 s each), played once outside their blend space, which follows the selfie camera's
--- direction. A seventh category, Cut, holds six clips of EVE's whose enemy was cut (cut survey entries 21 and 39), also
--- played once: the Chariot's struggle (Hit_Chariot_Confront, 14.8 s, then Hit_Chariot_ConfrontAttack or _ConfrontFail)
--- and EVE's takedown on it (P_Eve_Sword_Normal_LinkAttack1_Chariot), and her takedown on Kali and Kali's grab
--- (P_Eve_Sword_Normal_LinkAttack1_Kali, M_Kali_Beta_Grab), all in CH_P_EVE_01/Animation/.
+-- direction. A seventh category, Cut, holds six clips of EVE's made for two enemies with no character folder, mesh,
+-- CharacterTable row or text string in the game files, also played once: the Chariot's struggle (Hit_Chariot_Confront,
+-- 14.8 s, then Hit_Chariot_ConfrontAttack or _ConfrontFail) and EVE's takedown on it
+-- (P_Eve_Sword_Normal_LinkAttack1_Chariot), an enemy that was cut (cut survey entry 21); her takedown on Kali and Kali's
+-- grab (P_Eve_Sword_Normal_LinkAttack1_Kali, M_Kali_Beta_Grab), an enemy the survey leaves unsure, possibly an early
+-- name of a shipped one (entry 39). All are in CH_P_EVE_01/Animation/.
 -- The native part plays the clip (game/anim.h): "anim play <id> <path> once|loop" asks SB's own custom animation call
 -- on her, the way the game plays her clips, and "anim stop" blends ours out; the native status line's anim=<state>
 -- anim_id=<id> says what became of our id (playing, ended, ended:weight when her blueprint took none of it, stopped,
--- refused:<why>, fault). Without that line (no native part, another game build, coop off) or after its fault, the clip
--- goes in as a dynamic montage in DefaultSlot of her animation instance instead (PlaySlotAnimationAsDynamicMontage),
+-- refused:<why>, fault). Without that line (no native part, another game build) or after its fault, the clip goes in
+-- as a dynamic montage in DefaultSlot of her animation instance instead (PlaySlotAnimationAsDynamicMontage),
 -- looped for a pose, which most likely shows nothing: CH_P_EVE_01_AnimBP_New has no slot node in the 2026-10-06
 -- extract. Either way her animation blueprint keeps running, the clip blends in and out over 0.25 s, and a friend sees
 -- what the pose stream carries (the ghost copies her bones): nothing new travels.

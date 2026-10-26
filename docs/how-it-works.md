@@ -72,7 +72,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion_rows.lua` | The Lion's rows as `lion/rows.h` writes them, for the read-back, and its Shows for the loaded line; written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
-| `cut/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a cut enemy's clip played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
+| `cut/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
@@ -1765,12 +1765,14 @@ on the player's EVE when it reads true. The property is transient: nothing of it
 `coop emote` (`cut/emote.lua`, not tested in game yet) plays one of 39 clips under
 `/Game/Art/Character/PC/CH_P_EVE_01/Animation/`: the 31 of `PhotoMode/` that are not in `Bear/` and not a `_Selfie`
 file, each a still (7 frames over 0.2 s, or 2 frames over 0.033 s) played in a loop; and, played once, the two selfie
-waves `PhotoMode/Hello_Selfie_L` and `_R` (3 s each, not additive) and six clips whose enemy was cut:
-`Hit_Chariot_Confront` (14.8 s), `Hit_Chariot_ConfrontAttack` (10.0 s), `Hit_Chariot_ConfrontFail` (1.5 s),
-`P_Eve_Sword_Normal_LinkAttack1_Chariot` (4.9 s), `P_Eve_Sword_Normal_LinkAttack1_Kali` (5.6 s) and `M_Kali_Beta_Grab`
-(5.8 s). All of them are on EVE's skeleton, with no additive type and no root motion. The command loads its clip
-(`Doro.resolve`: in memory, else `LoadAsset`), so the native call finds it in memory. A start is refused in the air or
-during a skill.
+waves `PhotoMode/Hello_Selfie_L` and `_R` (3 s each, not additive) and six clips made for two enemies with no
+character folder, mesh, `CharacterTable` row or text string in the game files: for the Chariot, removed (an
+`EventSpawnTable` test row and `M_Chariot_Despawn` still name it), `Hit_Chariot_Confront` (14.8 s),
+`Hit_Chariot_ConfrontAttack` (10.0 s), `Hit_Chariot_ConfrontFail` (1.5 s) and `P_Eve_Sword_Normal_LinkAttack1_Chariot`
+(4.9 s); for Kali, which may be an early name of a shipped enemy (`M_Kali_Despawn` also names it),
+`P_Eve_Sword_Normal_LinkAttack1_Kali` (5.6 s) and `M_Kali_Beta_Grab` (5.8 s). All of them are on EVE's skeleton, with
+no additive type and no root motion. The command loads its clip (`Doro.resolve`: in memory, else `LoadAsset`), so the
+native call finds it in memory. A start is refused in the air or during a skill.
 
 The montage most likely shows nothing: `CH_P_EVE_01_AnimBP_New`, EVE's animation blueprint, has no slot node and no
 montage in the 2026-10-06 extract. SB plays her clips through its own custom animation nodes
@@ -1813,7 +1815,7 @@ stop, and no answer in 5 s ends it with `anim stop` asked anyway. Each frame whi
 field, `GetLastMovementInputVector`, the movement's `IsFalling` and `IsRunningSkill`, and asks `anim stop` at movement
 input longer than 0.1, in the air or at a skill.
 
-Without that field (no native part, another game build, `coop off`) or after its fault, the module calls
+Without that field (no native part, another game build) or after its fault, the module calls
 `PlaySlotAnimationAsDynamicMontage(clip, DefaultSlot, 0.25, 0.25, 1.0, loops, -1, 0)` on the animation instance of
 EVE's main mesh, with 1048576 loops for a pose (the still holds for hours; 0 would end it at once) and 1 for the rest,
 reads `Montage_IsPlaying` each frame and calls `Montage_Stop(0.25)` at the same end rules. The next Lua load stops a

@@ -814,7 +814,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed (untested in game), or end it |
-| `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a cut enemy's clip; untested in game), list them or end it |
+| `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -1440,17 +1440,18 @@ until she moves. The other eight clips play once and end by themselves:
 
 - `wave` and `wave2` are the selfie mode's two waves (`Hello_Selfie_L` and `Hello_Selfie_R`, 3 s each). In selfie
   mode they sit in a blend space that follows the camera's direction; here each one plays whole.
-- The Cut category holds clips of EVE's whose enemy was removed from the game: the Chariot's struggle
-  (`chariotstruggle`, 14.8 s) and its two endings as the files name them, `ConfrontAttack` (`chariotcounter`, 10.0 s)
-  and `ConfrontFail` (`chariotfail`, 1.5 s); her takedown on the Chariot (`chariottakedown`, 4.9 s); her takedown on
-  Kali (`kalitakedown`, 5.6 s) and Kali's grab (`kaligrab`, 5.8 s). Neither enemy is in the game files, so EVE acts
-  alone.
+- The Cut category holds clips of EVE's made for two enemies that have no character in the game files: no mesh, no
+  `CharacterTable` row and no name in the game's text. The Chariot was removed (a test spawn row and a despawn effect
+  still name it): its struggle (`chariotstruggle`, 14.8 s) and its two endings as the files name them,
+  `ConfrontAttack` (`chariotcounter`, 10.0 s) and `ConfrontFail` (`chariotfail`, 1.5 s), and her takedown on it
+  (`chariottakedown`, 4.9 s). Kali may be a cut enemy or an early name of one that shipped: her takedown on Kali
+  (`kalitakedown`, 5.6 s) and Kali's grab (`kaligrab`, 5.8 s). In all six, EVE acts alone.
 
 The native part plays the clip through the game's own custom animation call, the one the game uses for EVE's flight
 start, so it goes through the custom animation nodes of her animation blueprint. Without the native part, on another
-game build, after `coop off` or after a fault in that call, the clip goes in as an animation montage instead, which
-most likely shows nothing: her blueprint has no montage slot in the game files read for this version. A linked friend
-sees what your EVE shows, through the pose stream the ghost already copies.
+game build or after a fault in that call, the clip goes in as an animation montage instead, which most likely shows
+nothing: her blueprint has no montage slot in the game files read for this version. A linked friend sees what your EVE
+shows, through the pose stream the ghost already copies.
 
 Its lines go to `UE4SS.log` with the `[StellarCoop][EM]` tag. With the native part:
 `emote clap: Clap asked of the native part (anim 482913, loop)` when one starts (`once` for the eight clips above),
