@@ -380,6 +380,16 @@ package.loaded['cut.glide']={new=function(o)
         tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
         stop=function() gl.stops=gl.stops+1 end}
 end}
+-- coop emote (cut/emote.lua; emote_test tests it): what new got (log), its commands, restores, ticks and stops, what
+-- a tick says.
+em={}
+package.loaded['cut.emote']={new=function(o)
+    em.o=o
+    return {command=function(...) em.cmds[#em.cmds+1]=table.pack(...); return true,'em '..tostring((...)) end,
+        restore=function() em.restores=em.restores+1 end,
+        tick=function() em.ticks=em.ticks+1; if em.says then return table.unpack(em.says) end end,
+        stop=function() em.stops=em.stops+1 end}
+end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
 package.loaded['race.drive']={new=function(o)
@@ -532,6 +542,7 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'status | report | mark [text] | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
+    ..'emote [list|<name>|off] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
@@ -576,6 +587,7 @@ function load_main(with_native,no_folder,source)
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
     gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
+    em.o,em.cmds,em.restores,em.ticks,em.stops,em.says=nil,{},0,0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}

@@ -23,6 +23,7 @@
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
 -- coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop glide reaches cut/glide.lua
 -- (on from the co-op save slot only, its own check on that slot; restored and ticked every frame, ended by coop off),
+-- coop emote reaches cut/emote.lua with all its words on any slot (restored and ticked every frame, ended by coop off),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
 -- and coop challenge accept the co-op saves (slot=coop saves=coop), coop off holds across a Lua reload, the pose
@@ -697,6 +698,19 @@ loops[1].f()
 assert(gl.restores==gl.r+1 and gl.ticks==gl.t+1 and last()=='[StellarCoop] STOP: coop glide stopped: no velocity\n',
     last())
 gl.says=nil
+-- coop emote: all its words to cut/emote.lua on any save; each frame its restore (done once, inside it) and its tick,
+-- whose message is reported.
+em.o.log('emote clap ended (movement input) after 2.0 s')
+assert(last()=='[StellarCoop][EM] emote clap ended (movement input) after 2.0 s\n',last())
+coop('emote'); coop('emote','clap'); coop('emote','list','x')
+assert(#em.cmds==3 and em.cmds[1][1]==nil and em.cmds[2][1]=='clap' and em.cmds[3][1]=='list' and em.cmds[3][2]=='x',
+    'All its words, on any save')
+assert(last()=='[StellarCoop] OK: em list\n',last())
+em.r,em.t,em.says=em.restores,em.ticks,{false,'coop emote stopped: no input'}
+loops[1].f()
+assert(em.restores==em.r+1 and em.ticks==em.t+1 and last()=='[StellarCoop] STOP: coop emote stopped: no input\n',
+    last())
+em.says=nil
 -- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
 -- clock; coop revive test is its probe, on a co-op save only, and anything else its usage line.
 assert(gr.o.link==fake_link and gr.o.settings.revive==false and gr.o.name(require('ui.text').en)=='Kaanta'
@@ -749,6 +763,7 @@ assert(wr.stops==1,'off gives EVE the game\'s meshes back')
 assert(sc.stops==1,'off stops a scene')
 assert(ln.stops==1,'off ends the cut scene lines')
 assert(gl.stops==1,'off puts bGlide back')
+assert(em.stops==1,'off stops a pose')
 local written=#states
 takes=chat_takes
 ra.s=ra.slows
@@ -774,8 +789,8 @@ assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop]
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 dr.t,ra.t,ra.s,lv.t,li.t,wr.t,sc.t,ln.t=dr.ticks,ra.ticks,ra.steers,lv.ticks,li.ticks,wr.ticks,sc.ticks,ln.ticks
-gl.t=gl.ticks
-loops[1].f(); assert(ticks==13 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+gl.t,em.t=gl.ticks,em.ticks
+loops[1].f(); assert(ticks==14 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
 assert(lv.ticks==lv.t,'No Leviathan tick after coop off')
 assert(li.ticks==li.t,'No Lion tick after coop off')
@@ -783,10 +798,11 @@ assert(wr.ticks==wr.t,'No coop wear tick after coop off')
 assert(sc.ticks==sc.t,'No coop scene tick after coop off')
 assert(ln.ticks==ln.t,'No coop lines tick after coop off')
 assert(gl.ticks==gl.t,'No coop glide tick after coop off')
+assert(em.ticks==em.t,'No coop emote tick after coop off')
 assert(ra.ticks==ra.t and ra.steers==ra.s,'No race tick nor driving after coop off')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
-assert(ticks==14 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
+assert(ticks==15 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')
@@ -806,6 +822,7 @@ assert(dr.restores==1 and dr.ticks==0,'An EVE an earlier load left hidden is res
 assert(dv.restores==1 and ra.steers==0,'Her movement an earlier load left driving too')
 assert(wr.restores==1 and wr.ticks==0,'Her own meshes after an earlier load\'s coop wear too')
 assert(sc.restores==1 and sc.ticks==0,'An earlier load\'s scene stopped too')
+assert(em.restores==1 and em.ticks==0,'An earlier load\'s pose stopped too')
 loops[2].f(); assert(#states==0,'Nor a world state')
 -- Only the pose path's line says so: a peer may call herself anything.
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'
