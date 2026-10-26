@@ -212,8 +212,8 @@ struct Asks {
 // glue/tick/debug_game.inc's hook in those slots runs the pass, then Hold's step while the fly gate is ours. The same
 // pass sets bPushedJumpKey (the space bar) on every frame a key of DefinedJumpKeyLists (+0xF8) is down (0x1423c887e),
 // so a press is the flag's rise. Hold counts the presses since EVE left the ground: on the ground (any movement mode
-// but falling) the count is 0, or 1 while the press she jumps with is still down (her jump may leave the ground a few
-// frames after it); each press in the air adds one. From the third, while the key is down and she does not fly, the
+// but falling) the count is 0, or 1 while the press she jumps with is still down or kGroundPress s old (her jump may
+// leave the ground some frames after it, and a short tap may be let go before); each press in the air adds one. From the third, while the key is down and she does not fly, the
 // flight flag is set, as a held R2 would, and the game's tick starts the flight when its own checks allow it. In the
 // flight the flag is set again when no fly key set it, so she flies level; the next press (the one that started the
 // flight is still down, no rise) drops her: no write until that flight ends, and the count starts over. The pass
@@ -226,22 +226,25 @@ constexpr uint64_t kInputSlots[] = {0x145cc74a8, 0x145cd37a8};
 constexpr size_t kPawn = 0x2f8, kInputHandler = 0x668, kFlyingAction = 0x1101, kFlyKey = 0x193, kJumpKey = 0x197,
                  kCharacterMovement = 0x330, kMovementMode = 0x19c;
 constexpr uint8_t kFalling = 3, kFlyPresses = 3;
+constexpr float kGroundPress = 0.3f; // Game seconds a press on the ground counts for, let go or not.
 
 struct Hold {
   uint8_t presses = 0;   // Jump key presses since EVE left the ground (kFlyPresses at most).
   bool dropped = false;  // The jump key was pressed in this flight.
   bool jump_was = true;  // The jump flag at the last step, taken as set when there was none (a key held from before).
+  float ground_press = 0; // Seconds left for the last press on the ground to count with the key up.
 
-  template <class Mem> void step(Mem &m, uint64_t pc) {
+  // dt: the input pass's own (game seconds since the last frame).
+  template <class Mem> void step(Mem &m, uint64_t pc, float dt) {
     const uint64_t pawn = m.u64(pc + kPawn), input = m.u64(pc + kInputHandler);
     if (!game::plausible(pawn) || !game::plausible(input)) {
-      presses = 0, dropped = false, jump_was = true;
+      presses = 0, dropped = false, jump_was = true, ground_press = 0;
       return;
     }
     const bool jump = m.u8(input + kJumpKey) != 0, press = jump && !jump_was;
     jump_was = jump;
     if (m.u8(pawn + kFlyingAction) == 1) {
-      presses = 0;
+      presses = 0, ground_press = 0;
       dropped = dropped || press;
       if (!dropped && !m.u8(input + kFlyKey))
         m.put(input + kFlyKey, 1);
@@ -249,10 +252,15 @@ struct Hold {
     }
     dropped = false;
     const uint64_t cmc = m.u64(pawn + kCharacterMovement);
-    if (!game::plausible(cmc) || m.u8(cmc + kMovementMode) != kFalling)
-      presses = uint8_t(press || (jump && presses)); // On the ground: 0, or the press she jumps with while it is down.
-    else if (press && presses < kFlyPresses)
-      ++presses;
+    if (!game::plausible(cmc) || m.u8(cmc + kMovementMode) != kFalling) {
+      ground_press = press ? kGroundPress : ground_press - dt;
+      // On the ground: 0, or the press she jumps with while it is down or recent.
+      presses = uint8_t(press || (presses && (jump || ground_press > 0)));
+    } else {
+      ground_press = 0; // In the air: the ground press is counted, a landing starts from 0.
+      if (press && presses < kFlyPresses)
+        ++presses;
+    }
     if (presses >= kFlyPresses && jump && !m.u8(input + kFlyKey))
       m.put(input + kFlyKey, 1);
   }

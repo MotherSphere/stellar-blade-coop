@@ -1722,8 +1722,9 @@ key already down when the hook first reads it counts only once let go and presse
 The hook counts the space bar's presses since EVE left the ground. She is on the ground when her movement component
 (`ACharacter`'s `+0x330`) has a `MovementMode` (`+0x19C`) other than falling (3): the pinned build's `IsFalling`
 (`0x1440a5b80`, in the movement component's vtable) compares that byte with 3. There the count is 0, or 1 while the
-press she jumps with is still down, since her jump may leave the ground a frame or more after the press. Each press in
-the air adds one. From the third press, while the space bar is down and her `bFlyingAction` (`+0x1101`) reads 0, the
+press she jumps with is still down or less than 0.3 s old (game time, from the pass's own delta), since her
+jump may leave the ground a frame or more after the press and a short tap can end before that. Each press in the air
+adds one. From the third press, while the space bar is down and her `bFlyingAction` (`+0x1101`) reads 0, the
 hook writes 1 into the flight flag, as a held R2 would, and the character tick starts the flight when its own checks
 allow it. With `bFlyingAction` at 1 and the flight flag at 0, it writes 1, so she flies level. The press that started
 the flight is still down when the flight begins, so it is no rise. The next press stops the writes until the flight

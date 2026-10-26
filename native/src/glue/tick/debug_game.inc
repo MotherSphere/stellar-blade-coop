@@ -70,9 +70,9 @@ using InputPass = void (*)(void *pc, float dt, bool paused); // FUN_1423c47a0 re
 std::atomic<bool> hold_faulted{false}, hold_live{false};
 std::atomic<uint64_t> hold_fault_code{0}, hold_fault_rva{0}, hold_fault_address{0};
 debug::Hold debug_hold; // The game thread's.
-__declspec(noinline) void hold_step(void *pc) {
+__declspec(noinline) void hold_step(void *pc, float dt) {
   DebugMem m;
-  debug_hold.step(m, reinterpret_cast<uintptr_t>(pc));
+  debug_hold.step(m, reinterpret_cast<uintptr_t>(pc), dt);
 }
 // The game's pass as it would run, then Hold's step under its own latch, on the game thread, while both slots hold the
 // hook (not after coop off), the fly gate is ours and the pass set the keys (a paused game's pass leaves them as they
@@ -82,7 +82,7 @@ void hold_input(void *pc, float dt, bool paused) {
   if (paused || !hold_live || hold_faulted || !debug_gates.ours[debug::kFly])
     return;
   __try {
-    hold_step(pc);
+    hold_step(pc, dt);
   } __except (fault_filter(GetExceptionInformation(), hold_fault_code, hold_fault_rva, hold_fault_address)) {
     hold_faulted = true;
   }

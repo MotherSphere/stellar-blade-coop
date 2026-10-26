@@ -332,7 +332,8 @@ int main() {
   }
 
   // coop fly's start and level flight (Hold): the jump key's presses counted since EVE left the ground (0 on the
-  // ground, 1 while the press she jumps with is down), the third in the air sets the fly key while it is down; in the
+  // ground, 1 while the press she jumps with is down or under kGroundPress s old), the third in the air sets the fly
+  // key while it is down; in the
   // flight the key is set while none is, the press that started it is no press, the next one drops her until the
   // flight ends and the count starts over; a ledge fall counts from 0; no pawn, no input or no movement component
   // writes nothing.
@@ -340,6 +341,7 @@ int main() {
     constexpr uint64_t kPc = 0x30000000, kEve = 0x30010000, kInput = 0x30020000, kCmc = 0x30030000;
     Mem m;
     Hold hold;
+    constexpr float kDt = 1.0f / 60;
     // One frame after the input pass, which leaves the fly key at 0 (no fly key held): the jump key down or not, EVE
     // falling or walking, flying or not. True when the step set the fly key.
     auto frame = [&](bool jump, bool air, uint8_t flying) {
@@ -347,14 +349,14 @@ int main() {
       m.set<uint8_t>(kCmc + kMovementMode, air ? kFalling : 1);
       m.set<uint8_t>(kEve + kFlyingAction, flying);
       m.set<uint8_t>(kInput + kFlyKey, 0);
-      hold.step(m, kPc);
+      hold.step(m, kPc, kDt);
       return m.u8(kInput + kFlyKey) == 1;
     };
-    hold.step(m, kPc);
+    hold.step(m, kPc, kDt);
     assert(m.writes == 0 && "No pawn");
     m.set(kPc + kPawn, kEve);
     m.set<uint8_t>(kEve + kFlyingAction, 1);
-    hold.step(m, kPc);
+    hold.step(m, kPc, kDt);
     assert(m.writes == 0 && "No input");
     m.set(kPc + kInputHandler, kInput);
     m.set(kEve + kCharacterMovement, kCmc);
@@ -371,7 +373,7 @@ int main() {
     assert(frame(false, true, 1) && frame(false, true, 1) && !hold.dropped);
     m.set<uint8_t>(kInput + kFlyKey, 1);
     const int writes = m.writes;
-    hold.step(m, kPc);
+    hold.step(m, kPc, kDt);
     assert(m.writes == writes && "A fly key set already (R2): no write");
     // The next press drops her until the flight ends; then the count starts over from 0.
     assert(!frame(true, true, 1) && hold.dropped && "The next press drops her");
@@ -384,8 +386,18 @@ int main() {
     assert(!frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0 && "Landed");
     assert(!frame(true, false, 0) && !frame(false, true, 0) && !frame(true, true, 0) && hold.presses == 2);
     assert(!frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0);
-    assert(!frame(true, false, 0) && !frame(false, false, 0) && !frame(true, false, 0) && !frame(false, false, 0) &&
-           hold.presses == 0 && "Taps on the ground count nothing");
+    // A short tap let go before she leaves the ground still counts as the jump's press.
+    assert(!frame(true, false, 0) && !frame(false, false, 0) && !frame(false, false, 0) && !frame(false, false, 0));
+    assert(!frame(false, true, 0) && hold.presses == 1 && "Tap, let go, then she leaves the ground: one");
+    assert(!frame(true, true, 0) && !frame(false, true, 0) && frame(true, true, 0) && "Two presses in the air fly");
+    assert(!frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0 && "Landed");
+    // A tap on the ground with no jump counts for kGroundPress s only.
+    assert(!frame(true, false, 0) && hold.presses == 1);
+    for (int i = 0; i < 17; ++i)
+      assert(!frame(false, false, 0) && hold.presses == 1);
+    for (int i = 0; i < 3; ++i)
+      frame(false, false, 0);
+    assert(hold.presses == 0 && "A tap on the ground expires");
     // A ledge fall: she leaves the ground with the key up, so three presses in the air.
     assert(!frame(false, true, 0) && hold.presses == 0);
     assert(!frame(true, true, 0) && !frame(false, true, 0) && !frame(true, true, 0) && !frame(false, true, 0));
@@ -400,7 +412,7 @@ int main() {
     m.set<uint64_t>(kEve + kCharacterMovement, kCmc);
     // No input mid-air: the count and the drop go, and a key down at the next step is no press.
     m.set<uint64_t>(kPc + kInputHandler, 0);
-    hold.step(m, kPc);
+    hold.step(m, kPc, kDt);
     assert(hold.presses == 0 && hold.jump_was);
     m.set(kPc + kInputHandler, kInput);
     assert(!frame(true, true, 0) && hold.presses == 0);
