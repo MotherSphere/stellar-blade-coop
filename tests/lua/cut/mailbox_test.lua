@@ -88,7 +88,7 @@ local function write(name,content)
 end
 local asked,logs,says,toasts,untoasts={},{},{},{},0
 local linked,lost,loop,paused,clock,now=true,false,false,false,100,5000
-local toast_fails=nil
+local toast_fails,no_controller=nil,false
 local names={}
 for i,alias in ipairs(M.ITEMS) do names[alias]={index=4000+i,number=0} end
 local mail=M.new({log=function(t) logs[#logs+1]=t end,say=function(t) says[#says+1]=t end,status=status,
@@ -98,6 +98,7 @@ local mail=M.new({log=function(t) logs[#logs+1]=t end,say=function(t) says[#says
     clock=function() return clock end,now=function() return now end,
     toast=function(t)
         if toast_fails then return nil,toast_fails end
+        if no_controller then return false end
         toasts[#toasts+1]=t
         return function() untoasts=untoasts+1 end
     end})
@@ -136,28 +137,30 @@ ok,why=mail.command('send','1'); assert(not ok and why=='the gift file was not r
 unreadable[FILE]=nil
 assert(#asked==0 and #removes==0,'Nothing asked, nothing removed')
 
--- 4. A send: the read, the remove, the reads until the count fell, then the entry and its line.
+-- 4. A send: the read, the remove, the reads until the count fell, then the entry and its line. The engine line still
+-- shows an earlier Lua load's answer numbered 1: the first ask takes 2, so that answer never counts.
+with_items(1,'99')
 ok,why=mail.command('send','pulsegrenade','2')
 assert(ok and why=='reading how many PulseGrenade you carry; the gift of 2 follows',why)
-assert(asked[1]=='items 1 PulseGrenade 4004 0')
+assert(asked[1]=='items 2 PulseGrenade 4004 0')
 ok,why=mail.command('send','1')
 assert(not ok and why=='a gift is already on its way out: wait for its answer on screen')
 tick()
-assert(#removes==0,'No answer yet')
-with_items(1,'5')
+assert(#removes==0,'No answer yet: the one numbered 1 is not ours')
+with_items(2,'5')
 tick()
 r=removes[1]
 assert(#removes==1 and r[1]==1 and r[2]==0x51 and r[3]:ToString()=='PulseGrenade' and r[4]==2 and r[5]==-1)
 assert(logs[#logs]=='remove asked: PulseGrenade x2 of 5 (guid 81)',logs[#logs])
 assert(#asked==1,'The next read waits POLL s')
 tick(0.5)
-assert(asked[2]=='items 2 PulseGrenade 4004 0')
-with_items(2,'5') -- Not taken out yet.
+assert(asked[2]=='items 3 PulseGrenade 4004 0')
+with_items(3,'5') -- Not taken out yet.
 tick(0.25)
 assert(#asked==2 and files[FILE]==nil)
 tick(0.25)
-assert(asked[3]=='items 3 PulseGrenade 4004 0')
-with_items(3,'3')
+assert(asked[3]=='items 4 PulseGrenade 4004 0')
+with_items(4,'3')
 tick(0.25)
 st=M.read(files[FILE])
 assert(#st.out==1 and st.out[1].alias=='PulseGrenade' and st.out[1].count==2 and st.out[1].to==HER
@@ -326,6 +329,13 @@ assert(asked[7]=='gift n 904 full','A refusal kept: the same answer')
 local u=untoasts
 tick(Mailbox.TOAST)
 assert(untoasts==u+1)
+st=M.read(files[FILE])
+st.box={st.box[1]}
+files[FILE]=M.write(st)
+no_controller=true -- A load under way: no toast, and the next gift still gets one.
+mail.receive('s 907 HealGrenade 1')
+no_controller=false
+assert(#toasts==1 and not logs[#logs]:find('toast off',1,true))
 st=M.read(files[FILE])
 st.box={st.box[1]}
 files[FILE]=M.write(st)

@@ -131,7 +131,8 @@ function Mailbox.remove(pc,guid,alias,count)
     pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)
 end
 -- The cut toast on screen with text as its title, through UMG's own Create on SB's player controller: a function that
--- takes it off, or nil and why. Its class is loaded the first time a gift arrives (LoadAsset, synchronous).
+-- takes it off, false with no controller (a load), or nil and why. Its class is loaded the first time a gift arrives
+-- (LoadAsset, synchronous).
 function Mailbox.toast(text)
     local class=U.valid(StaticFindObject(TOAST))
     if not class then
@@ -140,7 +141,7 @@ function Mailbox.toast(text)
     end
     if not class then return nil,'the toast widget is not in this game build' end
     local pc=N.controller()
-    if not pc then return nil,'no SB player controller' end
+    if not pc then return false end -- A load under way: no toast this time.
     local w=U.valid(U.find(WIDGETS):Create(pc,class,pc))
     if not w then return nil,'the toast was not created' end
     w.Text_Title:SetText(FText(text))
@@ -164,9 +165,15 @@ function Mailbox.new(o)
     local tried={} -- A gift coming back whose grant raised: when, by id, so it is tried again after RETRY s only.
     local untoast,toast_until,toast_off=nil,nil,false
     local asks,seq=0,math.random(0,999)
-    local function next_ask() asks=asks%65535+1; return asks end
-    local function new_id() seq=(seq+1)%1000; return string.format('%d%03d',now(),seq) end
     local function engine(raw) return ('\n'..(raw or '')):match('\nengine=([^\r\n]*)') or '' end
+    -- The next ask's number, never the one the engine line answers now: that answer may be an earlier Lua load's, so
+    -- an answer that comes with the new number is always the new read's.
+    local function next_ask(raw)
+        local shown=math.tointeger(tonumber(engine(raw):match(' items=(%d+) ')))
+        repeat asks=asks%65535+1 until asks~=shown
+        return asks
+    end
+    local function new_id() seq=(seq+1)%1000; return string.format('%d%03d',now(),seq) end
     local function peer(raw) return ('\n'..(raw or '')):match('\npeer=(%d+) ') end
     -- This player's file on this co-op save, or nil and a refusal word: slot (no co-op save), store (no SteamID yet).
     local function where(raw)
@@ -212,6 +219,7 @@ function Mailbox.new(o)
         if untoast then pcall(untoast) end
         local ok,off,e=pcall(toast,text)
         if ok and off then untoast,toast_until=off,clock()+Mailbox.TOAST; return end
+        if ok and off==false then return end -- No controller now: the next gift tries again.
         toast_off=true -- The first failure: no toast for this Lua load.
         log('toast off until the mod reloads: '..why(ok and e or off))
     end
@@ -287,7 +295,7 @@ function Mailbox.new(o)
             return fail(string.format('the game did not take the items out (%d before, %d now)',s.before,have))
         end
         if t>=s.next then -- The count has not fallen yet: read again.
-            s.ask,s.at,s.next=next_ask(),t,t+Mailbox.POLL
+            s.ask,s.at,s.next=next_ask(raw),t,t+Mailbox.POLL
             request(string.format('items %d %s %d %d',s.ask,s.alias,s.index,s.number))
         end
     end
@@ -449,7 +457,7 @@ function Mailbox.new(o)
         local n=name_of(alias)
         if not n then return false,'this game holds no name '..alias..': nothing sent' end
         local t=clock()
-        sending={alias=alias,count=c,to=to,step='count',ask=next_ask(),at=t,index=n.index,number=n.number}
+        sending={alias=alias,count=c,to=to,step='count',ask=next_ask(raw),at=t,index=n.index,number=n.number}
         local ok,qe=request(string.format('items %d %s %d %d',sending.ask,alias,n.index,n.number))
         if not ok then sending=nil; return false,'the native part was not asked: '..tostring(qe) end
         return true,string.format('reading how many %s you carry; the gift of %d follows',alias,c)
