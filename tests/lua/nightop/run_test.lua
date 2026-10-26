@@ -625,6 +625,16 @@ list=begin('noaggro')
 tick(40)
 assert(count('Damage:ReportDamageEvent')==0 and count('M:Event_ChangeBattleState')==0,'noaggro')
 run.stop('stop')
+-- A level word before the switch (coop nightop start hard noaggro) keeps both.
+bodies,calls,lines={},{},{}
+ok,message=run.command('start','hard','noaggro')
+assert(ok,message)
+assert(lines[1]:find(' noaggro level hard; census: ',1,true),lines[1])
+for _=1,100 do tick(); if logged('wave 1 find +1 s: tracked 6/6') then break end end
+assert(logged('wave 1 find +1 s: tracked 6/6'),since(0))
+tick(40)
+assert(count('Damage:ReportDamageEvent')==0 and count('M:Event_ChangeBattleState')==0,'hard noaggro')
+run.stop('stop')
 
 -- 7. Aborts. Each drops every handle without a read in its tick.
 local function no_read_in(f)
