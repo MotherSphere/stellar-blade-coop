@@ -22,6 +22,7 @@ local Flight={}
 Flight.DEFAULT={'Gamepad_RightTrigger','Z'} -- DefaultInput.ini's DefinedFlyActionKeyLists.
 Flight.PAD='Gamepad_RightTrigger' -- The one fly key while on, in every slot.
 Flight.UP,Flight.DOWN,Flight.DROP='Z','S','SpaceBar'
+Flight.PROBE_MAX=12 -- Space presses outside a flight logged with EVE's movement mode, once a Lua load.
 Flight.EVADES={{'FlyingActionEvade_Left','Q'},{'FlyingActionEvade_Right','D'},{'FlyingActionEvade_Up','Z'},
     {'FlyingActionEvade_Down','S'}}
 Flight.HOLD=0.5 -- s with no key held after which a flight still on says the level flight holds.
@@ -38,6 +39,7 @@ function Flight.new(o)
     -- v (the eased climb, -1 to 1), speed (the game's MaxFlyingActionSpeed, put back at its end), cmc (EVE's movement
     -- component).
     local fl=nil
+    local probes,probe_was=0,false -- Space presses logged outside a flight (PROBE_MAX at most); the last read.
     local function speed_back()
         if fl and fl.speed then pcall(function() fl.cmc.MaxFlyingActionSpeed=fl.speed end) end
     end
@@ -122,6 +124,17 @@ function Flight.new(o)
             local _,pc=handler()
             local eve=U.valid(pc:K2_GetPawn())
             local flying=eve and eve:IsFlyingAction()==true
+            -- Each space press outside a flight, PROBE_MAX a load: her movement mode, as the native count resets on any
+            -- mode but falling (3). The test of 2026-10-26 showed no flight from three presses.
+            local press=pc:IsInputKeyDown(key(Flight.DROP))==true
+            if press and not probe_was and not flying and probes<Flight.PROBE_MAX and eve then
+                probes=probes+1
+                local cmc=U.valid(eve.CharacterMovement)
+                log(string.format('space press %d: movement mode %s, custom mode %s, falling %s',probes,
+                    cmc and tostring(cmc.MovementMode) or '?',cmc and tostring(cmc.CustomMovementMode) or '?',
+                    cmc and tostring(cmc:IsFalling()) or '?'))
+            end
+            probe_was=press
             if not flying then
                 speed_back()
                 if fl and fl.since and not fl.dropped and not fl.said then
