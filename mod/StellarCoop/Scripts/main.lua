@@ -65,6 +65,8 @@
 -- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op
 -- save only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, on any save
 -- (cut/lines.lua).
+-- coop glide on|off, EVE's cut glide while Jump is held in the air (cut/glide.lua; a test tool, left out of the usage
+-- line; on on a co-op save only).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -267,6 +269,9 @@ local scene=require('cut.scene').new({log=function(m) print('[StellarCoop][SC] '
 -- coop lines (cut/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles, in the chat's feed only.
 local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][LN] '..tostring(m)..'\n') end,
     say=function(text) return box~=nil and box.say(text) end,ready=function() return kit~=nil and kit.ready() end})
+-- coop glide (cut/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.
+local glide=require('cut.glide').new({log=function(m) print('[StellarCoop][GL] '..tostring(m)..'\n') end,
+    slot=function() return coop_slot('coop glide') end})
 -- Doro races (race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and
 -- the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
 local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=doro,drive=drive,tell=tell,
@@ -374,7 +379,7 @@ local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=
     story_dump=story_dump}
 -- coop fly's keys (cut/flight.lua), logging [FL] lines: A and E fly, Shift with a direction evades.
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
-o.wear,o.scene,o.lines,o.flight=wear,scene,cut_lines,flight
+o.wear,o.scene,o.lines,o.flight,o.glide=wear,scene,cut_lines,flight,glide
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
 o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
@@ -437,6 +442,8 @@ local commands={
         if not stopped then log('lines: '..tostring(e)) end
         stopped,e=pcall(flight.off) -- The game's flight keys back.
         if not stopped then log('flight: '..tostring(e)) end
+        stopped,e=pcall(glide.stop) -- bGlide false again on EVE.
+        if not stopped then log('glide: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
     end,
@@ -563,6 +570,7 @@ LoopInGameThreadWithDelay(1,function()
     wear.restore() -- Likewise for her own meshes after a reload with a coop wear look on.
     flight.restore() -- Likewise for the flight keys after a reload with coop fly on.
     scene.restore() -- Likewise for a scene an earlier load left playing, and the farewell take it lent.
+    glide.restore() -- Likewise for a bGlide an earlier load left on.
     if off then if blocked and native_tick then native_tick() end return end
     local ok,message=puppet.tick()
     if message then report(ok,message) end
@@ -587,6 +595,8 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     flight.tick()
     ok,message=cut_lines.tick()
+    if message then report(ok,message) end
+    ok,message=glide.tick()
     if message then report(ok,message) end
     local raced=os.clock()
     if link and race.armed() then inbox() end

@@ -6,9 +6,9 @@
 -- (cut/scene.lua): a scene's name on a co-op save only; the list and stop on any. main.lua builds it with new(o) at
 -- each Lua load and merges it into its command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one
 -- command a creature), lion (cut/lion.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines (cut/lines.lua's)
--- flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's) and ask (a native request; coop fly and
--- coop slowmo). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of the usage line), runs on a
--- co-op save only.
+-- flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide (cut/glide.lua's) and ask (a
+-- native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
+-- the usage line), runs on a co-op save only.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -32,6 +32,15 @@ function Cut.new(o)
             end
             return ok,why
         end
+    end
+    -- coop glide (cut/glide.lua, o.glide, a test tool left out of the usage line): EVE's cut glide, on asked on a co-op
+    -- save only, off anywhere (cut/glide.lua checks the save again once a second while on).
+    function self.glide(sub,extra)
+        if sub=='on' and extra==nil then
+            local ok,why=coop_slot('coop glide on')
+            if not ok then return false,why end
+        end
+        return o.glide.command(sub,extra)
     end
     for name,command in pairs(leviathan.commands) do
         self[name]=function(sub,a,b,c,d,e)

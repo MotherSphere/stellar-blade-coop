@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly` and `coop slowmo`, with the co-op save check before `on` |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on` |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -71,6 +71,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion.lua` | `coop lion`: the cut Lion's rows asked of the native part and read back, its spawn, its entrance on a display copy, the lines that follow it ([The cut Lion](#the-cut-lion)) |
 | `cut/lion_rows.lua` | The Lion's rows as `lion/rows.h` writes them, for the read-back, and its Shows for the loaded line; written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
+| `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
@@ -78,11 +79,12 @@ Both games run the same pipeline in both directions, so each player sees the oth
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
 Doro look, the cut model display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
 while one is armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the `coop lines`
-scene's due lines, the UI's open and close animations, the game's input given back after the menu or the chat box
-closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and your friend's marker
-and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines in and out,
-Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's rows and
-status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
+scene's due lines, the `coop glide` check, the UI's open and close animations, the game's input given back after the
+menu or the chat box closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and
+your friend's marker and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat
+lines in and out, Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the
+menu's rows and status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote
+table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -1720,6 +1722,31 @@ since the jump counts only once let go and pressed again. A press stops the writ
 bar drops her. The reads go through
 `ReadProcessMemory`; the write runs under the hook's own SEH latch, and a fault puts both slots back for the run.
 `coop off` puts them back too. The pass recomputes both flags each frame, so nothing else needs putting back.
+
+## Cut glide
+
+`coop glide` (`cut/glide.lua`, not tested in game yet) plays the part of a cut piece of EVE's movement code. In the
+pinned build, `ASBCharacter`'s `bGlide` (`+0x1100`) has four readers and no writer. The movement component's gravity
+(`0x14214d380`, its `GetGravityZ` slot) checks it before the flight and the wall run and scales gravity by
+`GlideGravityScale` (`+0xC80`, 0.1). Its air control (`0x142154f80`) scales by `GlideAirControlScale` (`+0xC8C`, 1.0,
+the same as without a glide). The reflected `IsGlide` (`0x142686080`) returns it, and the movement debug print shows it
+as `Glide %s`. No instruction writes it, and nothing reads `GlideHoldKeyDurationOnJump` (`+0x1360`, 0.2) or
+`RemainGlideKeyHoldDuration` (`+0x1364`): the hold-Jump code that set and cleared the flag was cut. Unlike the flight,
+no setting gates it, so no write to the settings map could turn it on.
+
+`bGlide` is a reflected property, so Lua sets it. Each frame while `coop glide` is on, the module reads the player's
+EVE and her movement's `IsFalling`. In the air it also reads her velocity, `bFlyingAction` and the game's default Jump
+keys (`SpaceBar`, `Gamepad_FaceButton_Bottom`) through the player controller's `IsInputKeyDown`. A glide starts once
+Jump has been held for 0.2 s of her world time (`GetGameTimeSinceCreation`, which stops in the pause menu) while she
+falls with a velocity Z at or below 0 and is not in the flight, and it ends as soon as one of these no longer holds.
+The velocity check keeps a held jump from rising ten times higher, as the low gravity would also act on the way up. A
+hitch counts as 0.1 s at most, and another EVE (a map change) starts the hold over.
+
+The module writes `bGlide` only when a glide starts or ends, on the player's own EVE. It puts false back at
+`coop glide off`, at `coop off`, when her EVE changes and when the save is not a co-op one (`coop_slot`, read once a
+second). A failing frame puts it back and turns `coop glide` off with a line on screen. Since no code of the game sets
+`bGlide`, a true value at the next Lua load can only come from an earlier load, so that load's first tick sets false
+on the player's EVE when it reads true. The property is transient: nothing of it reaches a save.
 
 ## Achievements
 

@@ -21,7 +21,8 @@
 -- paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
--- coop fly and coop slowmo ask the native part (on from the co-op save slot only),
+-- coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop glide reaches cut/glide.lua
+-- (on from the co-op save slot only, its own check on that slot; restored and ticked every frame, ended by coop off),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
 -- and coop challenge accept the co-op saves (slot=coop saves=coop), coop off holds across a Lua reload, the pose
@@ -678,6 +679,24 @@ for _,name in ipairs({'fly','slowmo'}) do
         assert(#asked==n and last()=='[StellarCoop] STOP: Use: coop '..name..' on|off\n',last())
     end
 end
+-- coop glide: on on a co-op save only, off and anything else on any (its usage is cut/glide.lua's); its own check of
+-- the slot is main.lua's coop_slot; restored and ticked every frame, a tick's line reported.
+gl.o.log('glide on'); assert(last()=='[StellarCoop][GL] glide on\n',last())
+assert(gl.o.slot()==false,'Its slot check: not a co-op save here')
+coop('glide','on')
+assert(#gl.cmds==0 and last():find('^%[StellarCoop%] STOP: coop glide on runs only on a co%-op save'),last())
+coop('glide','off'); coop('glide','on','x'); coop('glide')
+assert(#gl.cmds==3 and gl.cmds[1][1]=='off' and gl.cmds[2][2]=='x' and gl.cmds[3][1]==nil,'off and the rest on any')
+status_text=COOP
+assert(gl.o.slot()==true)
+coop('glide','on')
+assert(gl.cmds[4][1]=='on' and last()=='[StellarCoop] OK: gl on\n',last())
+status_text=plain
+gl.r,gl.t,gl.says=gl.restores,gl.ticks,{false,'coop glide stopped: no velocity'}
+loops[1].f()
+assert(gl.restores==gl.r+1 and gl.ticks==gl.t+1 and last()=='[StellarCoop] STOP: coop glide stopped: no velocity\n',
+    last())
+gl.says=nil
 -- The friend's revive: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's
 -- clock; coop revive test is its probe, on a co-op save only, and anything else its usage line.
 assert(gr.o.link==fake_link and gr.o.settings.revive==false and gr.o.name(require('ui.text').en)=='Kaanta'
@@ -729,6 +748,7 @@ assert(li.stops==1,'off ends what coop lion does')
 assert(wr.stops==1,'off gives EVE the game\'s meshes back')
 assert(sc.stops==1,'off stops a scene')
 assert(ln.stops==1,'off ends the cut scene lines')
+assert(gl.stops==1,'off puts bGlide back')
 local written=#states
 takes=chat_takes
 ra.s=ra.slows
@@ -754,17 +774,19 @@ assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop]
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 dr.t,ra.t,ra.s,lv.t,li.t,wr.t,sc.t,ln.t=dr.ticks,ra.ticks,ra.steers,lv.ticks,li.ticks,wr.ticks,sc.ticks,ln.ticks
-loops[1].f(); assert(ticks==12 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+gl.t=gl.ticks
+loops[1].f(); assert(ticks==13 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
 assert(lv.ticks==lv.t,'No Leviathan tick after coop off')
 assert(li.ticks==li.t,'No Lion tick after coop off')
 assert(wr.ticks==wr.t,'No coop wear tick after coop off')
 assert(sc.ticks==sc.t,'No coop scene tick after coop off')
 assert(ln.ticks==ln.t,'No coop lines tick after coop off')
+assert(gl.ticks==gl.t,'No coop glide tick after coop off')
 assert(ra.ticks==ra.t and ra.steers==ra.s,'No race tick nor driving after coop off')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
-assert(ticks==13 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
+assert(ticks==14 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')
