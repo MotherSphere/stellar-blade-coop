@@ -1528,6 +1528,8 @@ effect: `devmenu attack30: SBApplyEffectMe Test_ShieldDamageUpMe30 (9000178) on 
 | `clear` | The lasting effects above come off EVE and the enemies near her |
 
 - "Near EVE" is the range the game's test effects use. Run the row again after you move to reach other enemies.
+- Only your game runs a row. With [shared enemies](#shared-enemies-experimental) on, an enemy row changes your copies
+  only, so they may act differently from your friend's.
 - Effects that last stay until `clear` (or `enemyclear`; `nolockswitch` until `lockswitch`), a save load or the
   game's exit. Running a lasting row twice does not turn it off. Nothing of it is saved.
 - Left out: the rows that kill enemies or cut their health (EVE would get the kill, its rewards and its trophies
