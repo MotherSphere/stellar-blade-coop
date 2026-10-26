@@ -21,7 +21,8 @@ function Cut.new(o)
     local self={}
     -- coop wear (cut/wear.lua, o.wear): every word to it, on any save, as nothing of it is saved.
     function self.wear(...) return o.wear.command(...) end
-    -- coop lines (cut/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed.
+    -- coop lines (cut/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed and plays
+    -- voice takes.
     function self.lines(...) return o.lines.command(...) end
     -- coop emote (cut/emote.lua, o.emote): every word to it, on any save, as nothing of it is saved.
     function self.emote(...) return o.emote.command(...) end
