@@ -17,7 +17,7 @@
 -- turning it off and cam's speed on any; restored and ticked every frame, ended by coop off), coop gardener, coop
 -- tendril, coop mann, coop nier, coop orcal and coop enya reach it too, each as its own creature's command, coop lion
 -- reaches cut/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by coop off), coop
--- wear reaches cut/wear.lua with all its words on any slot (restored and ticked every frame, waiting while the game is
+-- chainspin reaches cut/chainspin.lua on the co-op save slot only (its rows through coop lion's), coop wear reaches cut/wear.lua with all its words on any slot (restored and ticked every frame, waiting while the game is
 -- paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
@@ -595,6 +595,18 @@ loops[1].f()
 assert(li.ticks==li.t+1 and last()=='[StellarCoop] OK: M_LionC 50020 is here, 9.8 m from EVE: lion 1 in the [LI] '
     ..'lines.\n',last())
 li.says=nil
+-- coop chainspin: out of the usage line too, on a co-op save only. Its rows come through coop lion's Lion.rows, its
+-- status is the link's and its lines are [CS] lines.
+cs.o.log('asked'); assert(last()=='[StellarCoop][CS] asked\n',last())
+assert(cs.o.status()==status_text,'The native status, as the link reads it')
+assert(select(2,cs.o.rows(function(ok,m) return ok,m end))=='li rows','coop lion\'s rows')
+coop('chainspin')
+assert(#cs.cmds==0 and last():find('^%[StellarCoop%] STOP: coop chainspin runs only on a co%-op save'),last())
+status_text=COOP
+coop('chainspin'); coop('chainspin','x')
+assert(#cs.cmds==2 and cs.cmds[1].n==1 and cs.cmds[1][1]==nil and cs.cmds[2][1]=='x'
+    and last()=='[StellarCoop] OK: cs x\n','On a co-op save: its word reaches it, an extra one to be refused there')
+status_text=plain
 -- coop wear: all its words to cut/wear.lua on any save, coop-wear.txt through the link; each frame its restore (done
 -- once, inside it) and its tick, whose message is reported; it waits while the game is paused or shows a screen.
 assert(wr.o.store=='store coop-wear.txt' and wr.o.log,'coop-wear.txt through the link')

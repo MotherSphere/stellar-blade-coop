@@ -4,7 +4,8 @@
 -- native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight),
 -- after the 4 rows of the cut items the Night Operation shop sells (2 ItemTable rows, an ItemConsumableTable row and
 -- the SkillTable row they play) and the 11 of EVE's cut Tachy ChainSpin (its skill, 9 steps and the effect that starts
--- it), 237 rows in 14 tables. The shop asks for them through Lion.rows (nightop/shop.lua).
+-- it), 237 rows in 14 tables. The shop and coop chainspin ask for them through Lion.rows (nightop/shop.lua,
+-- cut/chainspin.lua).
 -- This file finds the tables by their fixed paths and sends their addresses (the lion rows request: no console word
 -- reaches an address), waits for the answer in coop-status.txt's lion line, then reads every row back through FindRow
 -- by field name, independent of the SDK's offsets, and stops at the first value that differs. Then one spawn call,

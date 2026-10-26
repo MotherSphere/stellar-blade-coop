@@ -55,13 +55,15 @@
 -- turning the camera on, on a co-op save only); coop gardener, coop tendril, coop mann, coop nier, coop orcal and coop
 -- enya, the same words for the cut Naytibas 1 and 6 and four cut models, one of them shown at a time; coop lion
 -- [intro]|rows|control|brain skulling|lurker, the cut Lion spawned as an enemy to fight, its table rows added through
--- the native part (cut/lion.lua; left out of the usage line; the words that spawn on a co-op save only). coop off stops
--- everything until the game restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op
--- saves' question: View held 1 s opens or closes the menu. The console commands' handlers are in Scripts/commands/
--- (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here. coop wear
--- [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua). coop
--- scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op save
--- only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, on any save
+-- the native part (cut/lion.lua; left out of the usage line; the words that spawn on a co-op save only); coop
+-- chainspin, EVE's cut Tachy Mode ChainSpin, its rows added with the Lion's and the skill started through SB's own
+-- effect call while she is in Tachy Mode (cut/chainspin.lua; left out of the usage line; on a co-op save only). coop
+-- off stops everything until the game restarts. An XInput pad, read by the native part, drives the co-op menu and the
+-- co-op saves' question: View held 1 s opens or closes the menu. The console commands' handlers are in
+-- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
+-- coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua).
+-- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op
+-- save only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, on any save
 -- (cut/lines.lua).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
@@ -373,6 +375,9 @@ local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=
 -- coop fly's keys (cut/flight.lua), logging [FL] lines: A and E fly, Shift with a direction evades.
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight=wear,scene,cut_lines,flight
+-- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
+o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
+    status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off

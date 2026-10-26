@@ -334,6 +334,12 @@ package.loaded['cut.lion']={new=function(o)
         tick=function() li.ticks=li.ticks+1; if li.says then return table.unpack(li.says) end end,
         stop=function() li.stops=li.stops+1 end}
 end}
+-- coop chainspin (cut/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
+cs={}
+package.loaded['cut.chainspin']={new=function(o)
+    cs.o=o
+    return {command=function(...) cs.cmds[#cs.cmds+1]=table.pack(...); return true,'cs '..tostring((...)) end}
+end}
 -- coop wear (cut/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks and
 -- stops, what a tick says.
 wr={}
@@ -555,6 +561,7 @@ function load_main(with_native,no_folder,source)
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
     li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
+    cs.o,cs.cmds=nil,{}
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
