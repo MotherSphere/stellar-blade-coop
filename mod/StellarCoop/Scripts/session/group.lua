@@ -23,9 +23,10 @@
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
 -- with the same lines (commands/session.lua runs it on a co-op save only).
 -- During a Night Operation run (o.night()), the run owns the revive (nightop/run.lua): the 3 s rule and its notices
--- wait, and night_revive(by) makes the call with coop revive test's guards, when her interact key was held next to our
--- EVE ('friend', on her night line) or for coop nightop revive ('self'), with the same fallback, result line and
--- hidden death screen; the revived notice only after the friend's revive.
+-- wait, our revive of her too (the run says it when its hold was full), and night_revive(by) makes the call with
+-- revive=on and coop revive test's guards, when her interact key was held next to our EVE ('friend', on her night line)
+-- or for coop nightop revive ('self'), with the same fallback, result line and hidden death screen; the revived notice
+-- only after the friend's revive.
 -- The host's cutscene, on both PCs once a second while linked: one FindAllOf of SB's theater observers; a cutscene
 -- plays while one of them has a valid player whose IsPlaying() is true (on and off logged with its sequence's name).
 -- The host's photo state goes to the native part as 'c' while it plays and the host's own is '0' (photo()), so its
@@ -214,7 +215,7 @@ function G.new(o)
             hers=nil
             local _,ghost=puppet.anchor()
             local mine=feet()
-            if ghost and mine and (ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2+(ghost.Z-mine.Z)^2<=NEAR^2 then
+            if not night() and ghost and mine and (ghost.X-mine.X)^2+(ghost.Y-mine.Y)^2+(ghost.Z-mine.Z)^2<=NEAR^2 then
                 tell('you_revived')
             end
         end
@@ -300,11 +301,13 @@ function G.new(o)
     end
     -- coop off: the death screen we hid comes back.
     function self.stop() if hidden then show('coop off') end end
-    -- The Night Operation run's revive of our EVE (nightop/run.lua), by 'friend' or 'self': coop revive test's guards
-    -- (life 3 to 5, the death screen, no respawn or warp in flight, no probe rule, standalone), then the call. true,
-    -- or false and why not; a Lua error turns the revive off for the run.
+    -- The Night Operation run's revive of our EVE (nightop/run.lua), by 'friend' or 'self': revive=on (the setting may
+    -- turn off during the down), coop revive test's guards (life 3 to 5, the death screen, no respawn or warp in
+    -- flight, no probe rule, standalone), then the call. true, or false and why not; a Lua error turns the revive off
+    -- for the run.
     function self.night_revive(by)
         if off.revive then return false,'the revive is off for this run (see the log)' end
+        if not settings.revive then return false,'revive=off' end
         if d and d.call then return false,'a revive call is under way' end
         local ok,reason,me,pc=pcall(blocker,true)
         if not ok then return false,why(reason) end

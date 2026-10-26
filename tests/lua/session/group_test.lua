@@ -9,9 +9,9 @@
 -- both sides: the wait once per death, the revived line after a revive, her down once per death of hers on our map
 -- outside a boss fight while we are up, and our revive of her only while our EVE stands within 3 m of her ghost. coop
 -- revive test: solo only, at the death screen with life 3 to 5, the same call and the same lines. During a Night
--- Operation run: no 3 s rule and none of its notices on either side but our revive of her; night_revive's call with
--- coop revive test's guards, its fallback with them too (revive=off and the friend far change nothing), the revived
--- notice after the friend's only.
+-- Operation run: no 3 s rule and none of its notices on either side, our revive of her included (the run says it);
+-- night_revive's call with revive=on and coop revive test's guards, its fallback with them too (the friend far changes
+-- nothing), refused with revive=off, the revived notice after the friend's only.
 -- The host's cutscene: SB's theater observers read once a second while linked (walked for only while a level sequence
 -- actor plays, the one found kept while it plays), a cutscene while one has a valid player that plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
 -- with cutscene_wait=on, the host on her map and our read not off for the run; the notice once a pause for it, from the
@@ -346,8 +346,14 @@ ok,no=g.night_revive('friend')
 assert(not ok and no=='a revive call is under way' and #W.calls==1)
 run(g,2)
 assert(logged('revive result (Kaanta): life 3/1') and W.vis==2 and W.said[1]==REVIVED and #W.said==1)
--- Its self revive, with revive=off and the friend far: the call, its fallback with the same guards, no notice.
-g=world(function(w) w.night,w.settings.revive,w.ghost=true,false,{X=9000,Y=2000,Z=300} end)
+-- revive=off (the downed player's opt-in, off by default): no call, by the friend or by herself.
+g=world(function(w) w.night,w.settings.revive=true,false end)
+for _,by in ipairs({'friend','self'}) do
+    ok,no=g.night_revive(by)
+    assert(not ok and no=='revive=off' and #W.calls==0,tostring(no))
+end
+-- Its self revive, with the friend far: the call, its fallback with the same guards, no notice.
+g=world(function(w) w.night,w.ghost=true,{X=9000,Y=2000,Z=300} end)
 ok=g.night_revive('self')
 assert(ok and W.calls[1]==RESPAWN and logged('asked (coop nightop revive; life 3'),table.concat(W.logs,'|'))
 run(g,2)
@@ -361,13 +367,19 @@ for _,case in ipairs({{function(w) w.life={state=1,hp=1600} end,'life 1'},
     ok,no=g.night_revive('friend')
     assert(not ok and no==case[2] and #W.calls==0,tostring(no))
 end
--- The friend's side: no down notice of hers (the run gives its own), our revive of her still said.
+-- The friend's side: no down notice of hers and no revived notice of ours (the run gives its own: her own revive with
+-- us next to her is not ours), both back once the run is over.
 g=world(function(w) w.night,w.mode,w.life,w.mate=true,'host',{state=1,hp=1600},{life=3,hp=0,max_hp=1600} end)
 run(g,5)
 assert(#W.said==0)
 W.mate={life=1,hp=1600,max_hp=1600}
 run(g,0.25)
-assert(W.said[1]==YOU and #W.said==1)
+assert(#W.said==0,'The run says ours')
+W.night,W.mate=false,{life=3,hp=0,max_hp=1600}
+run(g,0.25)
+W.mate={life=1,hp=1600,max_hp=1600}
+run(g,0.25)
+assert(W.said[1]==DOWN and W.said[2]==YOU and #W.said==2,table.concat(W.said,'|'))
 
 -- coop revive test: refused while linked or before Steam, without a life read (a session: coop loopback), alive, off
 -- the death screen or while a respawn runs; at the death screen with life 3 to 5 alone, the same call and lines.

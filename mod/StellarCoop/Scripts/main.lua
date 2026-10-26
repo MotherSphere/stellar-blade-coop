@@ -220,9 +220,11 @@ local group,travel=nil,nil
 -- (none when it is unknown). No such file is no best yet; a file that cannot be opened raises, so nothing is written
 -- over it. It is written through a temporary file: a write that fails before the old file is deleted leaves it as it
 -- was, one that fails after leaves the new text in coop-records.txt.tmp. In a co-op run, a downed player's revive
--- goes through the friend's revive (group), and the partner's ghost feet come from the puppet.
+-- (with her revive setting on) goes through the friend's revive (group), and the partner's ghost feet come from the
+-- puppet.
 local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
+    settings=settings,
     tell=tell,send=function(line) if link then return link.night(line) end end,
     friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end,
     rows=function(done) return lion.rows(done) end,

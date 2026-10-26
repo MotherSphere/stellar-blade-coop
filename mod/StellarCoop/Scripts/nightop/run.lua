@@ -13,9 +13,10 @@
 -- around his start point and both cards show one timer and one score. Each world fights its own monsters, unless the
 -- shared fight pairs their copies by key: then the guest leaves the aggro and stuck moves of a key the host tracks and
 -- has not done to the pilot while same-place enemies draw at least one copy. In a co-op run a death is a down, the cut
--- mode's revive: the line carries each side's down time left and its revive of the other (the interact key held next to
--- the downed EVE's ghost), and the downed side asks session/group.lua for the game's in-place respawn, which a friend's
--- full hold or coop nightop revive (the level's self revives) starts; both down, or the time out, ends the run as a
+-- mode's revive, when the downed player's revive setting is on: the line carries each side's down time left and its
+-- revive of the other (the interact key held next to the downed EVE's ghost), and the downed side asks
+-- session/group.lua for the game's in-place respawn, which a friend's full hold or coop nightop revive (the level's
+-- self revives, for a body that lies where EVE last walked) starts; both down, or the time out, ends the run as a
 -- death did. The card and the notices use the cut mode's own words for it (StringTable_UI). A solo run keeps the death.
 -- A run of ours that went from its countdown to a success or a time up credits its final score as points to this
 -- player's wallet (a challenge credits none); coop nightop shop and buy spend them (nightop/shop.lua, which holds the
@@ -67,8 +68,10 @@ local WHY={['map change']='map',left='left',slot='slot',link='link',error='error
 -- his start point to join.
 local ASK,QUIET,EVERY_LINE,FAR=20,20,4,50
 -- The revive: cm from our EVE's mesh to the downed partner's ghost feet, across and up or down (session/group.lua's
--- reach), and seconds a revive call keeps the down open past W.DOWN (group.lua's 2 s, its fallback's 2 s, a read).
+-- reach; the self revive's too, from the body to where EVE last stood on ground), and seconds within which a revive
+-- call must bring EVE up, which also keep the down open past W.DOWN (group.lua's 2 s, its fallback's 2 s, a read).
 local ACROSS,UP,CALL=200,100,5
+local GROUND={[1]=true,[2]=true} -- EMovementMode: Walking, NavWalking (a floor under the capsule).
 -- The game's default Interaction_Key (DefaultInput.ini), read through the player controller's IsInputKeyDown.
 -- ponytail: the default keys only; a rebound interact key is not followed. Read the player's mappings if that matters.
 local KEYS={'F','Gamepad_RightTrigger'}
@@ -244,9 +247,9 @@ end
 -- cut items. records: {read() the text of coop-records.txt, nil when there is none (it raises when the file cannot be
 -- read), write(text) true once written}, or nil for no bests. revive(by) asks session/group.lua for the in-place
 -- respawn of our downed EVE, by 'friend' or 'self': true, or false and why not; ghost() the partner's ghost feet in our
--- world (partner/puppet.lua's anchor), or nil.
+-- world (partner/puppet.lua's anchor), or nil; settings: main.lua's (revive: a co-op run's down needs it on), or nil.
 function Run.new(o)
-    local log,status,paused,tell,records=o.log,o.status,o.paused,o.tell,o.records
+    local log,status,paused,tell,records,settings=o.log,o.status,o.paused,o.tell,o.records,o.settings
     local send,friend=o.send,o.friend or function() return nil end
     local revive=o.revive or function() return false,'no Steam link' end
     local ghost=o.ghost or function() return nil end
@@ -578,6 +581,8 @@ function Run.new(o)
                 for slot=0,#ids-1 do r.queue[#r.queue+1]={k=e.wave,slot=slot} end
                 log(string.format('wave %d/%d at run time %.1f s: %d monsters',e.wave,n,r.now-r.s.t0,#ids))
                 notify(function(w) return notice(def,w,'wave_notice',e.wave,n) end)
+            elseif e.what=='heal' and r.down then -- Its effect on a dead EVE is unknown; a revive heals her fully.
+                log(string.format('heal after wave %d: skipped (our EVE is down)',e.wave))
             elseif e.what=='heal' then
                 local ok,healed=pcall(N.heal)
                 log(string.format('heal after wave %d: %s',e.wave,ok and healed and 'asked'
@@ -621,6 +626,20 @@ function Run.new(o)
         return d and math.max(1,math.min(W.DOWN,math.ceil(W.DOWN-(r.ticks-d.at)*TICK))) or 0
     end
     local function help_pct() return math.min(100,math.floor(r.held*TICK*100/W.HOLD)) end
+    -- Why the self revive may not go, or nil. The in-place respawn raises EVE where her body lies: the friend's revive
+    -- has the friend standing next to it as proof of ground, the self revive needs the body within ACROSS cm across and
+    -- UP cm up or down of where she last walked (r.ground), so a body that fell through the map, into a pit or off a
+    -- ledge is refused.
+    local function lies_off()
+        local eve,g=N.her(),r.ground
+        if not eve then return 'no EVE in the world' end
+        if not g then return 'your EVE has not walked on ground in this run' end
+        local at=location(eve)
+        local across,up=math.sqrt((at.X-g.X)^2+(at.Y-g.Y)^2),math.abs(at.Z-g.Z)
+        if across<=ACROSS and up<=UP then return nil end
+        return string.format('your EVE lies %.1f m across and %.1f m up or down from where she last walked (at most %d m '
+            ..'and %d m)',across/100,up/100,ACROSS//100,UP//100)
+    end
     -- One revive call a down, through session/group.lua's guards (the death screen, life 3 to 5, no respawn or warp in
     -- flight, a standalone game, no probe rule). A refusal is logged once a reason; the friend's is asked again each
     -- tick while her line holds 100.
@@ -639,18 +658,20 @@ function Run.new(o)
         end
         return false,no
     end
-    -- A co-op run's death is a down while life= reads (our vitals, read in a session only): the death screen's start,
-    -- or life 3 to 5 that its watch missed. With no life read, the death ends the run as in a solo run. A down lasts
-    -- W.DOWN s of ticks (a pause does not hold it), plus CALL s past it once a call went, and input.down tells the
-    -- host's states (both down: failed 'both'). The partner's line at help 100 asks for the call. Up again (life 1 or
-    -- 6, once 3 to 5 was read in this down): revived when a call went, else the death screen's respawn at a camp,
-    -- which ends the run as the death it was. The time running out ends it so too.
+    -- A co-op run's death is a down while life= reads (our vitals, read in a session only) and revive=on (the
+    -- downed player's opt-in to the in-place respawn, off by default): the death screen's start, or life 3 to 5 that
+    -- its watch missed. Else the death ends the run as in a solo run. A down lasts W.DOWN s of ticks (a pause does not
+    -- hold it), plus CALL s past it once a call went, and input.down tells the host's states (both down: failed
+    -- 'both'). The partner's line at help 100 asks for the call. Up again (life 1 or 6, once 3 to 5 was read in this
+    -- down): revived when it comes within CALL s of the call, else the death screen's respawn at a camp, which ends the
+    -- run as the death it was. A call with no up within CALL s did not take, and the down asks no other. The time
+    -- running out ends the run as a death too.
     local function downed(raw,input)
         local life=math.tointeger(tonumber(raw:match('\nlife=(%d+) ') or ''))
         local dying=life~=nil and life>=3 and life<=5
         local d=r.down
         if not d then
-            if not (input.dead or dying) or not life then return end
+            if not (input.dead or dying) or not life or not (settings and settings.revive) then return end
             d={at=r.ticks}
             r.down=d
             log(string.format('down (life %d): %d s for a revive, %d self revives left',life,W.DOWN,r.revives))
@@ -662,14 +683,19 @@ function Run.new(o)
             r.down=nil
             if d.called then return log('up: revived ('..d.called..')') end
             input.dead=true
-            return log('up with no revive asked (a respawn at a camp): the run ends as a death')
+            return log((d.missed and 'up after a revive that did not take' or 'up with no revive asked')
+                ..' (a respawn at a camp): the run ends as a death')
+        end
+        if d.called and (r.ticks-d.call_at)*TICK>=CALL then
+            d.missed,d.called=d.called,nil
+            log(string.format('revive (%s) did not take: not up %d s after the call',d.missed,CALL))
         end
         if (r.ticks-d.at)*TICK>=W.DOWN and not (d.call_at and (r.ticks-d.call_at)*TICK<CALL) then
             r.down,input.dead=nil,true
             return log(string.format('down %d s with no revive: the run ends as a death',W.DOWN))
         end
         input.down=true
-        if r.peer and r.peer.help>=100 and not d.called then ask('friend') end
+        if r.peer and r.peer.help>=100 and not (d.called or d.missed) then ask('friend') end
     end
     local fkeys={}
     local function held()
@@ -682,7 +708,9 @@ function Run.new(o)
         return false
     end
     -- The partner's down as her line says it: a notice when it starts (her request, in the cut mode's words) and when
-    -- she is up again with the run still on. Then our revive of her: our EVE up, its mesh within ACROSS cm across and
+    -- she is up again while her line says her run goes on (not her end, death or abort), with our revived notice first
+    -- when our hold was full (her line does not say whose call it was: her own revive that went first while our hold
+    -- was full is said as ours too). Then our revive of her: our EVE up, its mesh within ACROSS cm across and
     -- UP up or down of her ghost's feet, the interact key held, counts ticks to W.HOLD s; a release, a step away, a
     -- pause or her getting up starts it over. Full, it stays full while she is down: her game makes the call.
     local function helping(eve)
@@ -694,8 +722,9 @@ function Run.new(o)
             if down then
                 log(name..' is down')
                 if tell then tell(function(w) return named('UI_Night_Message_RequestRevive_Receive',w) end) end
-            elseif peer.state~='dead' and peer.phase~='end' then
+            elseif peer.phase~='end' and (peer.state or 'run')=='run' then -- The h line has no state.
                 log(name..' is up again')
+                if tell and help_pct()>=100 then tell(function(w) return w.group.you_revived:format(name) end) end
                 if tell then tell(function(w) return named('UI_Night_Message_ComeBackFriend',w) end) end
             end
         end
@@ -798,8 +827,12 @@ function Run.new(o)
             r.gone,now=0,clock(eve)
             if U.map_of(eve)~=r.map or now<r.now then input.abort='map change'
             else
-                r.far=metres(location(eve),r.p0)>LEAVE and r.far+1 or 0
+                local at=location(eve)
+                r.far=metres(at,r.p0)>LEAVE and r.far+1 or 0
                 if r.far*TICK>=LEAVE_FOR then input.abort='left' end
+                -- The self revive's ground: where our EVE (or her body, while it lies on a floor) last walked.
+                local move=r.role and U.valid(eve.CharacterMovement)
+                if move and GROUND[move.MovementMode] then r.ground=at end
             end
         end
         if not input.abort and eve then
@@ -1026,7 +1059,13 @@ function Run.new(o)
             if not r.role then return false,'a solo run has no revive: a death ends it' end
             if not r.down then return false,'your EVE is not down' end
             if r.down.called then return false,'a revive is under way: its result follows in this log' end
+            if r.down.missed then return false,'this down had its revive call, which did not take' end
             if r.revives<1 then return false,'no self revive left in this run' end
+            local off=lies_off()
+            if off then
+                log('revive not asked (self): '..off)
+                return false,'no revive: '..off
+            end
             local asked,no=ask('self')
             if not asked then return false,'no revive: '..no end
             r.revives=r.revives-1

@@ -40,11 +40,14 @@
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
 -- sides' spots and wallets.
--- The co-op down and revive, with each side's life read: a death is a down on both lines and both cards (the cut mode's
--- words, the game's when its table reads, its English with ui_language=english), with each side's notice; the
--- friend's interact key held next to the ghost fills the revive in 3 s (key alone, near alone, too high, a release:
--- none), and her game asks once; up again goes on; the self revive and its count by level; both down, 30 s down, and up
--- with no revive asked end the run as a death; a call keeps the down open for its result; no revive in a solo run.
+-- The co-op down and revive, with each side's life read and revive=on: a death is a down on both lines and both cards
+-- (the cut mode's words, the game's when its table reads, its English with ui_language=english), with each side's
+-- notice; the friend's interact key held next to the ghost fills the revive in 3 s (key alone, near alone, too high, a
+-- release: none), and her game asks once; up again goes on, with his revived notice; the self revive and its count by
+-- level, refused for a body 4 m below where EVE last walked, with no revived notice for the partner; both down, 30 s
+-- down, and up with no revive asked end the run as a death; a call keeps the down open for its result; a call with no
+-- up in 5 s did not take (no other call, and a later up is a death); a wave's heal skips a downed EVE; a stop while
+-- down is no getting up; with revive=off a death ends the run at once; no revive in a solo run.
 -- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
 -- body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a corpse the game's pool
 -- brings back for a later wave.
@@ -110,7 +113,10 @@ local eve=uobject('EVE','BP_PC_EVE_C /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0
     IsA=function(_,c) return c==SBCharacter end,K2_GetActorLocation=function() return eve_at end,
     K2_GetActorRotation=function() return {Pitch=0,Yaw=eve_yaw,Roll=0} end,GetWorld=function() return world end},
     {BroadcastSpawnInfo={EventSpawnId=0,ActorGuid=0x51},InteractionState=0,bCharacterHiddenInGame=false,
-        Mesh=eve_mesh})
+        Mesh=eve_mesh,CharacterMovement=uobject('Move',
+            'SBCharacterMovementComponent /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0.CharMoveComp',{},
+            -- Her MovementMode: 1, walking, unless her place says another (3: falling).
+            setmetatable({},{__index=function(_,k) if k=='MovementMode' then return eve_at.mode or 1 end end}))})
 local bodies={} -- What the game holds, in the class hash's order after EVE.
 -- spawn_ok: the spawn call makes a body (false: it fails with no word, as a refused request would); pool: corpses the
 -- next spawns reuse, at the same address, as SB's character pool does.
@@ -1370,11 +1376,11 @@ local function side(name,mate_name,x,t)
     local w={bodies={},gt=t,eve_at={X=x,Y=0,Z=1000},map='/Game/Art/BG/WorldMap/Level_P/F02.F02',
         link=name=='host' and 'link=host lobby=7' or 'link=guest lobby=7',friend='friend=1 0 '..mate_name,
         slot='slot=coop index=4 marker=4',dying=false,lines={},told={},told_fr={},sent={},ticks={},drop=0,revives={},
-        steamid=name=='host' and '76561198000000001' or '76561198000000002'}
+        steamid=name=='host' and '76561198000000001' or '76561198000000002',settings={revive=true}}
     w.wallet='coop-night-'..w.steamid..'-4.txt'
     w.run=Run.new({log=function(text) w.lines[#w.lines+1]=text end,status=status,paused=function() return w.paused end,
         store=store,records={read=function() return '' end,write=function() w.writes=(w.writes or 0)+1 return true end},
-        tell=function(build) -- main.lua's: the screen's words (French here), and English for the line above EVE.
+        settings=w.settings,tell=function(build) -- main.lua's: the screen's words (French here), and English for the line above EVE.
             w.told_fr[#w.told_fr+1]=build(Tx.fr)
             w.told[#w.told+1]=build(Tx.en)
         end,friend=function() return mate_name end,
@@ -1654,6 +1660,7 @@ rise(Gs)
 round(3)
 assert(has(Gs.lines,'up: revived (friend)') and has(Hs.lines,'Kaanta is up again'),Gs.lines[#Gs.lines])
 assert(Hs.told[#Hs.told]=='Kaanta has joined the game.' and not state(Gs).down and state(Gs).phase=='wave')
+assert(Hs.told[#Hs.told-1]=='You revived Kaanta.','His hold was full: his revived notice')
 assert(Hs.sent[#Hs.sent]:find(' 0 0$') and Gs.sent[#Gs.sent]:find(' 0 0$'),'Both lines: nobody down')
 assert(Hk.groups.night.title.text=='OPÉRATION NOCTURNE' and Gk.groups.night.title.text=='NIGHT OPERATION')
 assert(not find(Gs.lines,'^result: ') and not find(Hs.lines,'^result: '))
@@ -1663,8 +1670,17 @@ assert(select(2,on(Hs,function() return Hs.run.command('revive') end))=='your EV
 fall(Hs)
 round(5)
 assert(has(Gs.told,'Me has requested resuscitation.') and state(Hs).down)
-Hs.revive_no='a respawn or a warp is under way'
+-- His body 4 m down, falling (no floor under it): refused, nothing spent. On a floor 3 m across, it may go.
+Hs.eve_at.mode,Hs.eve_at.Z=3,Hs.eve_at.Z-400
+round(2)
 local okr,said=on(Hs,function() return Hs.run.command('revive') end)
+assert(not okr and said=='no revive: your EVE lies 0.0 m across and 4.0 m up or down from where she last walked '
+    ..'(at most 2 m and 1 m)' and state(Hs).revives==2 and #Hs.revives==0,said)
+assert(has(Hs.lines,'revive not asked (self): '..said:sub(12)))
+Hs.eve_at.mode,Hs.eve_at.Z,Hs.eve_at.X=nil,Hs.eve_at.Z+400,Hs.eve_at.X+300
+round(1)
+Hs.revive_no='a respawn or a warp is under way'
+okr,said=on(Hs,function() return Hs.run.command('revive') end)
 assert(not okr and said=='no revive: a respawn or a warp is under way' and state(Hs).revives==2,said)
 assert(has(Hs.lines,'revive not asked (self): a respawn or a warp is under way'))
 Hs.revive_no=nil
@@ -1675,6 +1691,7 @@ assert(not okr and said=='a revive is under way: its result follows in this log'
 rise(Hs)
 round(3)
 assert(has(Hs.lines,'up: revived (self)') and Gs.told[#Gs.told]=='Me has joined the game.')
+assert(not has(Gs.told,'You revived Me.'),'His own revive is not hers')
 fall(Hs)
 round(5)
 assert(on(Hs,function() return Hs.run.command('revive') end))
@@ -1718,6 +1735,62 @@ rise(Gs)
 round(3)
 assert(has(Gs.lines,'up with no revive asked (a respawn at a camp): the run ends as a death'))
 assert(find(Gs.lines,'^result: failed %(guest%) ') and find(Hs.lines,'^result: failed %(guest%) '))
+-- A call with no up within 5 s did not take: no other call in this down (her own revive refused, his full hold asks
+-- nothing), and her getting up later is the camp respawn, a death, with no revived notice for him.
+lives()
+fall(Gs)
+round(5)
+assert(on(Gs,function() return Gs.run.command('revive') end))
+round(20)
+assert(has(Gs.lines,'revive (self) did not take: not up 5 s after the call'),Gs.lines[#Gs.lines])
+okr,said=on(Gs,function() return Gs.run.command('revive') end)
+assert(not okr and said=='this down had its revive call, which did not take' and state(Gs).revives==1,said)
+Hs.key,Hs.ghost=true,{X=Hs.eve_at.X+150,Y=Hs.eve_at.Y,Z=Hs.eve_at.Z-90}
+round(14)
+assert(Hs.sent[#Hs.sent]:find(' 0 100$') and #Gs.revives==1,'No other call')
+rise(Gs)
+round(3)
+assert(has(Gs.lines,'up after a revive that did not take (a respawn at a camp): the run ends as a death'))
+assert(find(Gs.lines,'^result: failed %(guest%) ') and find(Hs.lines,'^result: failed %(guest%) '))
+assert(not has(Hs.lines,'Kaanta is up again') and not has(Hs.told,'You revived Kaanta.'))
+-- Wave 2's heal skips her downed EVE; his still goes.
+lives()
+for k=1,2 do
+    local found_k,n=string.format('^wave %d find %%+2%%.5 s',k),0
+    while not (find(Hs.lines,found_k) and find(Gs.lines,found_k)) do
+        round()
+        n=n+1
+        assert(n<400,'Wave '..k..' on both')
+    end
+    if k==2 then
+        fall(Gs)
+        round(5)
+    end
+    local heals=count('BPL:CreateSBZoneEvent')
+    kill_all(Hs,k)
+    kill_all(Gs,k)
+    round(3)
+    if k==2 then
+        assert(has(Gs.lines,'heal after wave 2: skipped (our EVE is down)')
+            and has(Hs.lines,'heal after wave 2: asked'),Gs.lines[#Gs.lines])
+        assert(count('BPL:CreateSBZoneEvent')==heals+1,'His heal only')
+    end
+end
+-- Her stop while she is down: he reads that she left the run, not that she is up again.
+lives()
+fall(Gs)
+round(5)
+assert(on(Gs,function() return Gs.run.command('stop') end))
+round(2)
+assert(find(Hs.lines,'^result: aborted %(mate%) ') and Hs.told[#Hs.told]=='Your partner left the run.')
+assert(not has(Hs.lines,'Kaanta is up again') and not has(Hs.told,'Kaanta has joined the game.'))
+-- revive=off on her side (the default): her death ends both runs at once, as with no revive.
+lives()
+Gs.settings.revive=false
+fall(Gs)
+round(5)
+assert(not find(Gs.lines,'^down ') and find(Gs.lines,'^result: failed %(guest%) ')
+    and find(Hs.lines,'^result: failed %(guest%) '),Gs.lines[#Gs.lines])
 -- No self revive at nightmare, and none in a solo run (its death ends it, as before).
 pair()
 host_start('nightmare')
