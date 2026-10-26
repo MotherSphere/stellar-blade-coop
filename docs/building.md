@@ -253,8 +253,10 @@ build/host/pose_codec_test
     in that flight until it ends (a jump key held from before the flight counts only once let go and pressed again);
   - `anim_test`: `coop emote`'s native clips: the clip paths that pass, the game's string built from one, the call's
     arguments, the custom animation slot as read, and the track (a play answered with or without an id, the watch on
-    our clip, another clip, a cleared slot, a gone EVE and a slot that takes no weight, the stops, the fault, the
-    status word and the log lines);
+    our clip, another clip, a cleared slot, a gone EVE and a slot that takes no weight, with paused time left out,
+    the stops, the fault, the status word and the log lines), our EVE as the controller's pawn and the check that she
+    is still the object played on, over fake memory (no pawn, a pawn of another class, a pending kill, a new serial),
+    and what each frame does;
   - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
     diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
     stick's thresholds, View held 1 s, a disconnect,
@@ -370,7 +372,7 @@ Platform-free headers, tested on the build machine:
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
-| `game/anim.h` | `coop emote`'s native clips: which clip paths pass, the path as the game's string, the call's arguments, the custom animation slot as read, and the track of the last play (its answer, the watch, the stop) with its log lines |
+| `game/anim.h` | `coop emote`'s native clips: which clip paths pass, the path as the game's string, the call's arguments, the custom animation slot as read, our EVE and the check that she is still the object played on, what each frame does, and the track of the last play (its answer, the watch, the stop) with its log lines |
 | `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare |
 
 The Windows side:

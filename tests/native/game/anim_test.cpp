@@ -1,12 +1,17 @@
 // game/anim.h on the build machine: which clip paths pass, the FString the call reads, the call's scalars, slot 0 as
 // read, and the track: an answer with and without an FGuid, the watch (ours, another clip, EVE gone, a slot that takes
-// no weight), the stop, the fault, the word packed for the worker and the status line, and the log lines.
+// no weight, a paused world), the stop, the fault, the word packed for the worker and the status line, and the log
+// lines. Then our EVE and the alive check over fake memory with fight/pilot.h's live and is_a, and each frame's act.
 #include "game/anim.h"
+
+#include "fight/pilot.h" // live and is_a, which the glue hands to eve and alive
 
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <map>
 #include <string>
+#include <vector>
 
 using namespace coop::anim;
 
@@ -18,6 +23,66 @@ Slot ours(const int32_t (&guid)[4], float weight) {
   std::memcpy(s.guid, guid, sizeof s.guid);
   return s;
 }
+
+// Fake memory laid out like the pinned build: UE's object array (one chunk), objects with their index and class, and
+// classes with their struct base chain. A read outside every region fails, as safe_read does.
+struct World {
+  static constexpr uint64_t kObjects = 0x40000000, kChunks = 0x40001000, kChunk0 = 0x40002000;
+  std::map<uint64_t, std::vector<uint8_t>> regions;
+  uint64_t next = 0x50000000;
+  int32_t next_index = 1;
+  World() {
+    region(kObjects, 0x28);
+    put<uint64_t>(kObjects + coop::pose::kChunkTable, kChunks);
+    put<int32_t>(kObjects + coop::pose::kElementCount, 64);
+    region(kChunks, 8);
+    put<uint64_t>(kChunks, kChunk0);
+    region(kChunk0, coop::pose::kItemBytes * 64);
+  }
+  void region(uint64_t base, size_t size) { regions[base].resize(size); }
+  template <class T> void put(uint64_t at, T value) {
+    for (auto &[base, bytes] : regions)
+      if (at >= base && at + sizeof value <= base + bytes.size()) {
+        std::memcpy(bytes.data() + (at - base), &value, sizeof value);
+        return;
+      }
+    assert(!"put outside every region");
+  }
+  bool read(uint64_t at, void *out, size_t n) {
+    for (auto &[base, bytes] : regions)
+      if (at >= base && n <= bytes.size() && at - base <= bytes.size() - n) {
+        std::memcpy(out, bytes.data() + (at - base), n);
+        return true;
+      }
+    return false;
+  }
+  uint64_t alloc(size_t size) {
+    const uint64_t at = next;
+    region(at, size);
+    next += 0x1000;
+    return at;
+  }
+  // A class whose base chain holds parent's chain (0: none) and its own, at +0x30 with its depth at +0x38.
+  uint64_t klass(uint64_t parent) {
+    const uint64_t at = alloc(0x40), chain = alloc(16);
+    put<uint64_t>(chain, parent ? parent + 0x30 : at + 0x30);
+    put<uint64_t>(chain + 8, at + 0x30);
+    put<uint64_t>(at + 0x30, chain);
+    put<int32_t>(at + 0x38, parent ? 1 : 0);
+    return at;
+  }
+  uint64_t item(int32_t index) { return kChunk0 + coop::pose::kItemBytes * uint64_t(index); }
+  // A live UObject of class cls, its object item holding it with serial.
+  uint64_t object(uint64_t cls, int32_t serial) {
+    const uint64_t at = alloc(0x400);
+    const int32_t index = next_index++;
+    put<int32_t>(at + coop::pose::kInternalIndex, index);
+    put<uint64_t>(at + coop::pose::kClass, cls);
+    put<uint64_t>(item(index), at);
+    put<int32_t>(item(index) + coop::pose::kItemSerial, serial);
+    return at;
+  }
+};
 } // namespace
 
 int main() {
@@ -78,37 +143,43 @@ int main() {
 
   // The watch: ours with weight holds and keeps the highest weight; nothing else changes the word.
   const uint64_t playing = t.word();
-  assert(!t.watch(true, ours(guid, 0.4f), 1100) && !t.watch(true, ours(guid, 1.0f), 1200));
-  assert(!t.watch(true, ours(guid, 0.7f), 5000) && t.word() == playing && t.peak() == 1.0f);
+  assert(!t.watch(true, ours(guid, 0.4f), 1100, false) && !t.watch(true, ours(guid, 1.0f), 1200, false));
+  assert(!t.watch(true, ours(guid, 0.7f), 5000, false) && t.word() == playing && t.peak() == 1.0f);
   // Another FGuid in the slot (another clip took it), the slot done or EVE gone: ended, with the time held.
   int32_t other[4] = {11, 22, 33, 45};
-  assert(!t.watch(true, ours(other, 1.0f), 5900));
+  assert(!t.watch(true, ours(other, 1.0f), 5900, false));
   w = unpack(t.word());
   assert(w.state == State::ended && w.why == Why::none && w.id == 6 && w.changes == 3 && !t.live() && t.held() == 4900);
   assert(describe(w, 0, 1.0f, 4900) == "anim 6 ended after 4.9 s, weight up to 1.00");
   const uint64_t ended = t.word();
-  assert(!t.watch(true, ours(guid, 1.0f), 6000) && t.word() == ended); // Nothing more once it ended.
+  assert(!t.watch(true, ours(guid, 1.0f), 6000, false) && t.word() == ended); // Nothing more once it ended.
   t.stopped(6000, Why::none);
   assert(t.word() == ended);
   t.played(7, 0, guid, 1, 0);
   Slot done = ours(guid, 0.2f);
   done.playing = 0;
-  t.watch(true, done, 300);
+  t.watch(true, done, 300, false);
   assert(unpack(t.word()).state == State::ended);
   t.played(8, 0, guid, 1, 0);
-  t.watch(false, ours(guid, 1.0f), 300);
+  t.watch(false, ours(guid, 1.0f), 300, false);
   assert(unpack(t.word()).state == State::ended);
 
   // A slot that takes no weight: held while under kNoWeightMs, then ended (weight) and the caller frees the slot.
   t.played(9, 0, guid, 1, 2000);
-  assert(!t.watch(true, ours(guid, 0), 2000 + kNoWeightMs - 1) && t.live());
-  assert(t.watch(true, ours(guid, 0), 2000 + kNoWeightMs));
+  assert(!t.watch(true, ours(guid, 0), 2000 + kNoWeightMs - 1, false) && t.live());
+  assert(t.watch(true, ours(guid, 0), 2000 + kNoWeightMs, false));
   w = unpack(t.word());
   assert(w.state == State::ended && w.why == Why::weight && state_text(w.state, w.why) == "ended:weight");
   assert(describe(w, 0, 0, 1000) == "anim 9 ended after 1.0 s, weight up to 0.00: the slot took no weight, so EVE's "
                                     "animation blueprint did not show the clip");
+  // Paused (coop freeze, the photo pause on a guest): that time does not count, as her tick could not move the weight;
+  // once the world runs again the count goes on from where it stood. The time held stays the clock's.
+  t.played(16, 0, guid, 1, 20000);
+  assert(!t.watch(true, ours(guid, 0), 20400, false));
+  assert(!t.watch(true, ours(guid, 0), 25000, true) && !t.watch(true, ours(guid, 0), 25599, false) && t.live());
+  assert(t.watch(true, ours(guid, 0), 25600, false) && unpack(t.word()).why == Why::weight && t.held() == 5600);
   t.played(10, 0, guid, 1, 2000);
-  assert(!t.watch(true, ours(guid, 0.01f), 2050) && !t.watch(true, ours(guid, 0), 9000) && t.live());
+  assert(!t.watch(true, ours(guid, 0.01f), 2050, false) && !t.watch(true, ours(guid, 0), 9000, false) && t.live());
 
   // Our stop: stopped with why; a refusal for each reason.
   t.stopped(9500, Why::session);
@@ -131,6 +202,58 @@ int main() {
   t.faulted();
   w = unpack(t.word());
   assert(w.state == State::fault && w.id == 15 && state_text(w.state, w.why) == "fault");
+
+  // Our EVE: the controller's pawn at +0x2f8, when it is a live object of ASBCharacter's class (or a child class).
+  {
+    World m;
+    const uint64_t character = m.klass(0), eve_class = m.klass(character), other_class = m.klass(0);
+    const uint64_t pc = m.object(m.klass(0), 1), eve_at = m.object(eve_class, 40);
+    auto read = [&](uint64_t at, void *out, size_t n) { return m.read(at, out, n); };
+    auto live = [&](uint64_t o, int32_t *index, int32_t *serial) {
+      return coop::pilot::live(read, World::kObjects, o, index, serial);
+    };
+    auto is_eve = [&](uint64_t o) { return coop::pilot::is_a(read, o, character); };
+    int32_t index = 0, serial = 0;
+    assert(eve(read, live, is_eve, pc, index, serial) == 0); // No pawn yet.
+    m.put<uint64_t>(pc + kPawn, eve_at);
+    assert(eve(read, live, is_eve, pc, index, serial) == eve_at && index == 2 && serial == 40);
+    assert(eve(read, live, is_eve, 0, index, serial) == 0);
+    const uint64_t box = m.object(other_class, 41); // A pawn that is not an ASBCharacter.
+    m.put<uint64_t>(pc + kPawn, box);
+    assert(eve(read, live, is_eve, pc, index, serial) == 0);
+    m.put<uint64_t>(pc + kPawn, eve_at);
+    m.put<int32_t>(m.item(2) + coop::pose::kItemFlags, coop::pose::kPendingKill);
+    assert(eve(read, live, is_eve, pc, index, serial) == 0);
+    m.put<int32_t>(m.item(2) + coop::pose::kItemFlags, 0);
+
+    // Still the object played on: the same address, index and serial. Freed and its address and item given to another
+    // object (a new serial), another index than the one saved, or unreachable: not ours any more. Nothing for none.
+    assert(alive(live, eve_at, 2, 40));
+    m.put<int32_t>(m.item(2) + coop::pose::kItemSerial, 42);
+    assert(!alive(live, eve_at, 2, 40));
+    m.put<int32_t>(m.item(2) + coop::pose::kItemSerial, 40);
+    assert(!alive(live, eve_at, 3, 40) && !alive(live, 0, 0, 0));
+    m.put<int32_t>(m.item(2) + coop::pose::kItemFlags, coop::pose::kUnreachable);
+    assert(!alive(live, eve_at, 2, 40));
+  }
+
+  // Each frame: a play asked is played, or refused after coop off; with ours playing, a stop, a new Lua load or coop
+  // off stop it with why, else the watch once due; nothing without ours playing.
+  {
+    Why why = Why::weight;
+    assert(act(true, false, false, false, false, 0, 0, why) == Act::play && why == Why::none);
+    assert(act(true, false, false, true, true, 0, 0, why) == Act::play);
+    assert(act(true, false, true, false, false, 0, 0, why) == Act::refuse && why == Why::off);
+    assert(act(true, true, false, false, true, 0, 500, why) == Act::stop && why == Why::none);
+    assert(act(false, false, false, true, true, 0, 500, why) == Act::stop && why == Why::session);
+    assert(act(false, false, true, true, true, 0, 500, why) == Act::stop && why == Why::off);
+    assert(act(false, false, false, false, true, 499, 500, why) == Act::none);
+    assert(act(false, false, false, false, true, 500, 500, why) == Act::watch && why == Why::none);
+    for (bool got : {false, true})
+      for (bool blocked : {false, true})
+        for (bool drop : {false, true})
+          assert(act(got, true, blocked, drop, false, 900, 500, why) == Act::none);
+  }
 
   // The word round trip, and the changes count wrapping at 16 bits.
   const Word big{4294967295u, State::stopped, Why::weight, 65535};

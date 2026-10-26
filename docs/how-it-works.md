@@ -1799,9 +1799,12 @@ argument. The flight start's wrapper `0x1420af3c0` was not used: it has no loop 
 `0x1420addc0(character, 0, 0.25, the clip's FName, 1)`, which blends the slot out only while it holds that clip.
 While ours plays, the game thread reads slot 0 every 100 ms after checking the character is still the live object it
 played on: another FGuid, a cleared playing byte or a gone EVE end it, and a slot that took no weight in 1 s (SB's
-node is not playing it, so its time would never move) is freed and reported as `ended:weight`. A new Lua load and
-`coop off` stop ours. All of it runs on the pinned build under its own SEH latch; the first fault tries once to stop
-ours and turns the native clips off for the run.
+node is not playing it, so its time would never move) is freed and reported as `ended:weight`. Only time in a world
+that is not paused counts toward that second: the weight moves in her tick (`0x1420a7fd0`, the only caller of
+`UpdateCustomAnimWeight`), which a paused world does not run, so while the slot has no weight yet each watch asks the
+photo pause's read of the WorldSettings' `PauserPlayerState`. A new Lua load and `coop off` stop ours. All of it runs
+on the pinned build under its own SEH latch; the first fault tries once to stop ours and turns the native clips off
+for the run.
 
 The engine status line carries `anim=<state> anim_id=<id>` for the last play the game thread took (`idle`, `playing`,
 `ended`, `ended:weight`, `stopped`, `refused:<eve|slots|game|off>` or `fault`). Lua sends a start only while that

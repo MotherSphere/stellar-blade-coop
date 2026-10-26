@@ -8,10 +8,11 @@ namespace {
 // to 17 (stop at input, 16, hold at the end) 0, five empty FStrings with 0 weights between them, 0, 0, 0.0, 0, 0. And
 // SB's stop FUN_1420addc0(character, slot, blend out, the clip's FName, force 1). Our EVE is the pawn of the player
 // controller SB's getter gives (kController, the photo pause's), checked to be a live ASBCharacter (fight/pilot.h's
-// live and is_a); every read goes through safe_read. The watch reads slot 0 every anim::kWatchMs while ours plays,
-// after checking she is still the live object played on. All of it runs in coop_tick on the pinned build, under its
-// own SEH latch: the first fault ends the native clips for the run (after one try to stop ours) and Lua falls back to
-// the montage. A new Lua load and coop off stop ours.
+// live and is_a, through anim::eve); every read of her goes through safe_read. The watch reads slot 0 every
+// anim::kWatchMs while ours plays, after checking she is still the live object played on, and while her slot has taken
+// no weight asks the photo pause's FreezeGame whether the world is paused. All of it runs in coop_tick on the pinned
+// build, under its own SEH latch: the first fault ends the native clips for the run (after one try to stop ours) and
+// Lua falls back to the montage. A new Lua load and coop off stop ours.
 struct FStringArg { // An FString as the call reads it: data, ArrayNum (with the null), ArrayMax.
   const char16_t *data;
   int32_t num, max;
@@ -63,24 +64,22 @@ bool anim_slot(uint64_t ch, anim::Slot &s, uint64_t *slots = nullptr) {
     *slots = at;
   return true;
 }
+// fight/pilot.h's live and is_a (ASBCharacter's class read from its global each time), for anim::eve and anim::alive.
+bool anim_live(uint64_t object, int32_t *index, int32_t *serial) {
+  return pilot::live(anim_read, objects, object, index, serial);
+}
+bool anim_is_eve(uint64_t object) {
+  uint64_t cls = 0;
+  return anim_read(base + (pilot::kCharacterClassAt - game::kImageBase), &cls, sizeof cls) &&
+         pilot::is_a(anim_read, object, cls);
+}
 // Our EVE: the player controller's pawn, the actor Lua's UEHelpers.GetPlayer gives, when it is a live ASBCharacter;
 // else 0. index and serial take her object item's.
-constexpr size_t kPawn = 0x2f8; // AController::Pawn, as execK2_GetPawn (0x144723570) reads it.
 uint64_t anim_eve(int32_t &index, int32_t &serial) {
-  const uint64_t pc = game_function<Controller>(kController)();
-  uint64_t ch = 0, cls = 0;
-  return game::plausible(pc) && anim_read(pc + kPawn, &ch, sizeof ch) && game::plausible(ch) &&
-                 anim_read(base + (pilot::kCharacterClassAt - game::kImageBase), &cls, sizeof cls) &&
-                 pilot::live(anim_read, objects, ch, &index, &serial) && pilot::is_a(anim_read, ch, cls)
-             ? ch
-             : 0;
+  return anim::eve(anim_read, anim_live, anim_is_eve, game_function<Controller>(kController)(), index, serial);
 }
 // The character played on, still the same live object.
-bool anim_alive() {
-  int32_t index = 0, serial = 0;
-  return anim_ch && pilot::live(anim_read, objects, anim_ch, &index, &serial) && index == anim_index &&
-         serial == anim_serial;
-}
+bool anim_alive() { return anim::alive(anim_live, anim_ch, anim_index, anim_serial); }
 // Out of line, since clang-cl catches a fault only in a function the __try calls.
 __declspec(noinline) void anim_play(uint64_t now) {
   int32_t index = 0, serial = 0;
@@ -110,7 +109,10 @@ __declspec(noinline) void anim_play(uint64_t now) {
 __declspec(noinline) void anim_watch(bool stop, anim::Why why, uint64_t now) {
   anim::Slot s;
   const bool alive = anim_alive() && anim_slot(anim_ch, s);
-  const bool stale = anim_track.watch(alive, s, now);
+  // The photo pause's read (FUN_1422ab320's PauserPlayerState), only while the no-weight clock runs: a paused world
+  // does not tick her, so her weight cannot move.
+  const bool paused = alive && anim_track.live() && anim_track.peak() <= 0 && FreezeGame().paused();
+  const bool stale = anim_track.watch(alive, s, now, paused);
   if (!stale && !(stop && anim_track.live()))
     return;
   game_function<StopAnim>(anim::kStop)(reinterpret_cast<void *>(anim_ch), 0, stale ? 0.f : anim::play(false).blend_out,
@@ -137,18 +139,18 @@ void anim_tick() {
     anim_m.unlock();
   }
   const bool drop = anim_drop.exchange(false);
-  if (!got && !anim_track.live())
+  anim::Why why = anim::Why::none;
+  const anim::Act act = anim::act(got, anim_now.stop, blocked, drop, anim_track.live(), now, anim_next, why);
+  if (act == anim::Act::none)
     return;
   const uint64_t was = anim_track.word();
   __try {
-    if (got && !anim_now.stop && blocked)
-      anim_track.refused(anim_now.id, anim::Why::off);
-    else if (got && !anim_now.stop)
+    if (act == anim::Act::refuse)
+      anim_track.refused(anim_now.id, why);
+    else if (act == anim::Act::play)
       anim_play(now);
-    else if (got || drop || blocked)
-      anim_watch(true, blocked ? anim::Why::off : drop ? anim::Why::session : anim::Why::none, now);
-    else if (now >= anim_next)
-      anim_watch(false, anim::Why::none, now);
+    else
+      anim_watch(act == anim::Act::stop, why, now);
   } __except (fault_filter(GetExceptionInformation(), anim_fault_code, anim_fault_rva, anim_fault_address)) {
     anim_faulted = true;
   }

@@ -1469,7 +1469,9 @@ The native part's lines go to `coop-link.log`: `anim 482913 asked: <path> in a l
 the blueprint blended in: 1.00 is all of it. `anim 482913 refused: no EVE of ours in the world`,
 `refused: EVE has no custom animation slot` and `refused: the game played nothing (ret -1: the clip did not load, or a
 clip of a higher priority holds the slot)` say why nothing played. A clip the blueprint takes no weight of for 1 s
-ends with `: the slot took no weight, so EVE's animation blueprint did not show the clip`. A fault in the game's call
+ends with `: the slot took no weight, so EVE's animation blueprint did not show the clip`. Time while the game is
+paused (`coop freeze`, or a host's photo mode holding the guest) does not count toward that second, since EVE's
+animation does not move then; the `after ... s` figure is still the clock's. A fault in the game's call
 logs `anim fault ...`, says on screen that the native clips stopped until the game restarts, and sends later emotes to
 the montage.
 

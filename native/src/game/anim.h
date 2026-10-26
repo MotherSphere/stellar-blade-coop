@@ -21,7 +21,9 @@
 // Each tick ASBCharacter::UpdateCustomAnimWeight (FUN_1420a7130) moves each slot's time and weight. A clip played once
 // starts blending out at its end minus the blend out time and clears +0x18 when its weight reaches 0; a loop with count
 // -1 never blends out. A slot whose node is not playing gets weight 0 each tick, its +0x18 left set. Photo mode stops
-// the player's custom animation (FUN_1420addc0(character, 0, ...)), which this watch reads as the clip ending.
+// the player's custom animation (FUN_1420addc0(character, 0, ...)), which this watch reads as the clip ending. Its one
+// caller, FUN_1420a7fd0(character, delta time), is reached only through vtables: her tick, which a paused world does
+// not run, so coop freeze and the photo pause a host's photo mode puts on the guest leave the weight where it was.
 //
 // The stop is SB's FUN_1420addc0(character, slot, blend out, FName, force): the slot's clip blends out when it is the
 // named one (NAME_None: any), so ours stops only while the slot still holds the clip we played.
@@ -34,6 +36,8 @@
 #include <string>
 #include <string_view>
 
+#include "game/memory.h" // plausible
+
 namespace coop::anim {
 constexpr uint64_t kPlayByPath = 0x1420b31d0, kStop = 0x1420addc0;
 constexpr size_t kSlots = 0x21b8, kSlotCount = 0x21c0; // The slot array and its count on the ASBCharacter.
@@ -43,7 +47,7 @@ constexpr size_t kSlotWeight = 0x14, kSlotPlaying = 0x18, kSlotGuid = 0x20, kSlo
 constexpr size_t kSlotRead = kSlotGuid + 16 - kSlotWeight;
 constexpr uint64_t kWatchMs = 100; // The game thread reads slot 0 this often while ours plays.
 // A play whose slot took no weight in this long is ended and stopped: SB's node is not playing it (its time then never
-// moves, so a clip played once would never end), and nothing shows.
+// moves, so a clip played once would never end), and nothing shows. Only time in a world that is not paused counts.
 constexpr uint64_t kNoWeightMs = 1000;
 // Only EVE's clips: the path starts with kDir, holds letters, digits, '_', '/' and single '.', and fits kMaxPath.
 constexpr char kDir[] = "/Game/Art/Character/PC/CH_P_EVE_01/Animation/";
@@ -76,6 +80,26 @@ inline Path widen(std::string_view p) {
     out.chars[i] = char16_t(uint8_t(p[i]));
   out.num = int32_t(p.size() + 1);
   return out;
+}
+
+// Our EVE, the actor Lua's UEHelpers.GetPlayer gives: the pawn of the player controller pc (AController::Pawn, as
+// execK2_GetPawn 0x144723570 reads it), when live(pawn, &index, &serial) says it is a live object (index and serial
+// take its object item's) and is_a(pawn) that it is an ASBCharacter; else 0. The glue passes fight/pilot.h's live and
+// is_a, which this header cannot include (pilot.h reaches link/protocol.h, which includes this file).
+constexpr size_t kPawn = 0x2f8;
+template <class Read, class Live, class IsA>
+uint64_t eve(Read &&read, Live &&live, IsA &&is_a, uint64_t pc, int32_t &index, int32_t &serial) {
+  uint64_t pawn = 0;
+  return game::plausible(pc) && read(pc + kPawn, &pawn, sizeof pawn) && game::plausible(pawn) &&
+                 live(pawn, &index, &serial) && is_a(pawn)
+             ? pawn
+             : 0;
+}
+// The character played on (ch, its object item's index and serial at the play) is still that live object: one freed
+// whose address and item went to another object has another serial.
+template <class Live> bool alive(Live &&live, uint64_t ch, int32_t index, int32_t serial) {
+  int32_t i = 0, s = 0;
+  return ch && live(ch, &i, &s) && i == index && s == serial;
 }
 
 // The scalar arguments: from the start (0) to the end (-1: the whole clip) at rate 1, blended in and out over 0.25 s
@@ -157,7 +181,7 @@ class Track {
 public:
   // The call's answer for play id: playing with its FGuid and the slot's FName, or refused (game) without an FGuid.
   void played(uint32_t id, int32_t ret, const int32_t (&guid)[4], uint64_t name, uint64_t now) {
-    ret_ = ret, peak_ = 0, held_ = 0, since_ = now, name_ = name;
+    ret_ = ret, peak_ = 0, held_ = 0, since_ = now, last_ = now, unpaused_ = 0, name_ = name;
     std::memcpy(guid_, guid, sizeof guid_);
     set(id, any(guid) ? State::playing : State::refused, any(guid) ? Why::none : Why::game);
   }
@@ -166,16 +190,19 @@ public:
     set(id, State::refused, why);
   }
   // The watch, while ours plays: alive says the character is the one played on, still live. Ours while slot 0 plays
-  // with our FGuid; else ended. True when the caller must stop the slot: ours, but no weight in kNoWeightMs.
-  bool watch(bool alive, const Slot &s, uint64_t now) {
+  // with our FGuid; else ended. True when the caller must stop the slot: ours, but no weight in kNoWeightMs of a world
+  // that is not paused (paused: the time since the last watch does not count, as her tick did not run).
+  bool watch(bool alive, const Slot &s, uint64_t now, bool paused) {
     if (!live())
       return false;
     if (!alive || !s.playing || std::memcmp(s.guid, guid_, sizeof guid_) != 0) {
       end(now, State::ended, Why::none);
       return false;
     }
+    unpaused_ += paused ? 0 : now - last_;
+    last_ = now;
     peak_ = s.weight > peak_ ? s.weight : peak_;
-    if (peak_ > 0 || now - since_ < kNoWeightMs)
+    if (peak_ > 0 || unpaused_ < kNoWeightMs)
       return false;
     end(now, State::ended, Why::weight);
     return true;
@@ -205,10 +232,27 @@ private:
   }
   Word word_;
   int32_t guid_[4] = {};
-  uint64_t name_ = 0, since_ = 0, held_ = 0;
+  uint64_t name_ = 0, since_ = 0, held_ = 0, last_ = 0, unpaused_ = 0; // last_: the last watch; unpaused_: ms counted.
   int32_t ret_ = 0;
   float peak_ = 0;
 };
+
+// What the game thread does this frame (glue/tick/anim_game.inc's anim_tick). got: an ask taken this frame, stop: it
+// is a stop; blocked: coop off; drop: a new Lua load; live: ours plays; next: when the next watch is due. A play asked
+// is refused after coop off (why off), else played. While ours plays, a stop asked, a new Lua load or coop off stop it
+// (why: off, session or none), else the watch runs once next is due. Nothing otherwise: a stop with nothing of ours
+// playing has nothing to do.
+enum class Act : uint8_t { none, refuse, play, stop, watch };
+inline Act act(bool got, bool stop, bool blocked, bool drop, bool live, uint64_t now, uint64_t next, Why &why) {
+  why = blocked ? Why::off : drop ? Why::session : Why::none;
+  if (got && !stop)
+    return blocked ? Act::refuse : Act::play;
+  if (!live)
+    return Act::none;
+  if (got || drop || blocked)
+    return Act::stop;
+  return now >= next ? Act::watch : Act::none;
+}
 
 // The worker's log line for a change: what the game thread did with play id.
 inline std::string describe(const Word &w, int32_t ret, float peak, uint64_t held_ms) {
