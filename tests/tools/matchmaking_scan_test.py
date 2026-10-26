@@ -18,9 +18,9 @@ ADD_ROWS = {'nightop/probe.lua': 1}
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
 # coop nightop's one CreateActor (its spawn choke point), its shop's one ItemBucketItemAdd (its grant choke point), and
 # the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the probe's
-# answer and the header). coop lion and coop gardener fight: cut/enemy.lua's one CreateActor (their spawn choke point)
-# and its header, which also names SB's AddRow (the native part calls it) and UE4SS's (never called); cut/lion.lua's
-# header names SB's AddRow. coop scene: its guarded call (kind 6, its two theater
+# answer and the header). coop lion, coop gardener fight and coop tendril fight: cut/enemy.lua's one CreateActor (their
+# spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and UE4SS's (never called);
+# cut/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two theater
 # rows only), its header, its three log lines and one refusal. coop chainspin: its one Cheat request (SBApplyEffectMe
 # of its own effect on our EVE, its choke point) and its header.
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.

@@ -343,6 +343,14 @@ package.loaded['cut.gardener']={new=function(o)
         tick=function() gd.ticks=gd.ticks+1; if gd.says then return table.unpack(gd.says) end end,
         stop=function() gd.stops=gd.stops+1 end}
 end}
+-- coop tendril fight (cut/tendril.lua; tendril_test tests it): the same as the Gardener's.
+td={}
+package.loaded['cut.tendril']={new=function(o)
+    td.o=o
+    return {command=function(...) td.cmds[#td.cmds+1]=table.pack(...); return true,'td '..tostring((...)) end,
+        tick=function() td.ticks=td.ticks+1; if td.says then return table.unpack(td.says) end end,
+        stop=function() td.stops=td.stops+1 end}
+end}
 -- coop chainspin (cut/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
 cs={}
 package.loaded['cut.chainspin']={new=function(o)
@@ -581,6 +589,7 @@ function load_main(with_native,no_folder,source)
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
     li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
+    td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
     cs.o,cs.cmds=nil,{}
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
