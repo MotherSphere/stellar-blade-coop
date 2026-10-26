@@ -400,10 +400,10 @@ std::string slot_value(uint64_t value) {
     std::snprintf(text, sizeof text, "0x%llx outside the game", static_cast<unsigned long long>(value));
   return text;
 }
-// The slot's compare-and-swap from from to to, its page writable for the store only: what the slot held (from when
-// the swap was made), or false when the page's protection would not change.
-bool swap_slot(uint64_t from, uint64_t to, uint64_t &held) {
-  void *const slot = reinterpret_cast<void *>(base + (kSpawnSlot - game::kImageBase));
+// The compare-and-swap of a slot (its address as the decompiles name it) from from to to, its page writable for the
+// store only: what the slot held (from when the swap was made), or false when the page's protection would not change.
+bool swap_slot(uint64_t at, uint64_t from, uint64_t to, uint64_t &held) {
+  void *const slot = reinterpret_cast<void *>(base + (at - game::kImageBase));
   DWORD old = 0;
   if (!VirtualProtect(slot, sizeof(uint64_t), PAGE_READWRITE, &old))
     return false;
@@ -420,7 +420,7 @@ uint64_t hook_address() { return reinterpret_cast<uintptr_t>(&filter_execute); }
 void filter_install() {
   const uint64_t execute = execute_address();
   uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (kSpawnSlot - game::kImageBase));
-  const bool slot_ok = held == execute, page_ok = slot_ok && swap_slot(execute, hook_address(), held);
+  const bool slot_ok = held == execute, page_ok = slot_ok && swap_slot(kSpawnSlot, execute, hook_address(), held);
   const bool on = page_ok && held == execute;
   filter_state = on ? Filter::on : Filter::refused;
   fight_engine.blocks().installed = on;
@@ -442,7 +442,7 @@ void filter_undo(const char *why) {
   filter_state = Filter::off;
   fight_engine.blocks().installed = false;
   uint64_t held = 0;
-  if (!swap_slot(hook_address(), execute_address(), held))
+  if (!swap_slot(kSpawnSlot, hook_address(), execute_address(), held))
     say(std::string("spawn filter off (") + why + "): the page of " + kSlotName +
         " would not become writable; our filter stays in it and passes every spawn on");
   else if (held == hook_address())
