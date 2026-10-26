@@ -813,7 +813,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
-| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed (untested in game), or end it |
+| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes (untested in game), or end it |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -1386,10 +1386,11 @@ The log lines, in `UE4SS.log`:
 
 ### Cut scene lines: `coop lines`
 
-The game's files hold the subtitles of scenes that were cut before they were voiced. `coop lines <name>` shows one of
-these scenes in the chat's feed, line by line, at the times its level sequences give, with the speaker's name before
-each line. Nothing else plays: no camera, character or sound. It runs on any save and writes nothing. It has not been
-tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
+The game's files hold the subtitles of scenes that were cut before they were voiced, and voice takes that nothing
+plays. `coop lines <name>` shows one of these scenes in the chat's feed, line by line, at the times its level sequences
+give, with the speaker's name before each line. In `enya` the voice takes play, with the subtitles the game has for
+them. Nothing else plays: no camera, no character, and no sound in the other scenes. It runs on any save and writes
+nothing. It has not been tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
 
 | Name | Scene | Lines | Length |
 | --- | --- | --- | --- |
@@ -1397,6 +1398,7 @@ tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
 | `warrior` | Quest_Sub_015, a side quest after Raven's attack on Xion: Mann in the empty Presence Chamber, then Orcal's recorded last message | 47 (2 more have no text in the game) | 3 min 47 s |
 | `quinn` | Quinn, a Xion engineer who insists he is human, in three short barks | 10 | 27 s |
 | `skyhall` | Sky Hall, an earlier route where Lily leads EVE and Adam through a temple toward the Great Desert | 37 | 1 min 29 s |
+| `enya` | Quest_Sub_008, with Su and Enya in Xion: six takes of Enya's and one of Su's that the shipped scene leaves out, voiced, one after another | 7 (2 with a subtitle) | 29 s |
 
 - `coop lines` lists the scenes, and the one running.
 - `coop lines <name>` starts one. A second `coop lines <name>` replaces it.
@@ -1408,6 +1410,16 @@ lines in English and Korean, and Quinn's in Japanese too. In its other languages
 its source language, so the lines show in Korean and the command's answer says how many do. Getting English there would
 mean switching the whole game's language or copying the lines into the mod, and `coop lines` does neither. The Sky Hall
 lines are Korean placeholder text in every language, most with the speaker's name inside.
+
+The `enya` takes have no level sequence, so each one starts 1 s after the one before ends. They are the game's
+`/Game/Sound/Dialogue/Quest/Enya/Seq_Quest_Sub_008_02_05_VO` to `_16_VO` (05, 06, 09, 10, 15 and 16) and Su's
+`Seq_Quest_Sub_008_02_11_VO`, loaded when the scene starts. The game holds them in 10 voice languages, and the log
+line below tells which one plays. Only `02_10` and `02_11` have a subtitle in the game's table; the other five play
+with nothing in the feed. Each take plays as a 2D sound, not placed in the world. `coop lines stop`, a new scene and
+`coop off` cut the take playing; with the co-op UI off, the scene ends at its next take. The log gives each take's
+length and sound class when the scene starts
+(`take Seq_Quest_Sub_008_02_05_VO: 3.42 s, sound class Dialog_NPC`: `Dialog_NPC` is the Korean take, a class ending in
+`_En` the English one), and `enya line <n>: take not played (<why>)` for one that could not play.
 
 The lines need the chat's feed, which draws every script the game has (the notice line above EVE draws Latin letters
 only): without the Steam link or with the co-op UI off, the command answers `STOP`. While the chat box is closed, the

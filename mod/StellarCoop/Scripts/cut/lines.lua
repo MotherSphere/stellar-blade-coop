@@ -1,29 +1,38 @@
--- coop lines [adam|warrior|quinn|skyhall|stop]: the subtitles of four cut scenes that were never voiced, said line by
--- line in the co-op UI's feed (main.lua's say: session/chat.lua's feed, whose game font draws Korean and the game's
+-- coop lines [adam|warrior|quinn|skyhall|enya|stop]: the subtitles of four cut scenes that were never voiced, said line
+-- by line in the co-op UI's feed (main.lua's say: session/chat.lua's feed, whose game font draws Korean and the game's
 -- other scripts; the line above EVE draws Latin-1 only, so it is never used) at the times their level sequences give
--- them. The words come from the game at run time, never from the mod: the string-table scenes through
--- UKismetTextLibrary's TextFromStringTable on StringTable_Seq, their speakers from its Seq_Actor_* rows (rich text tags
--- dropped); Sky Hall's from the subtitle sections of its test sequences, loaded for that (inline texts, no table key).
--- Only the timing is here, read offline from the pak on 2026-10-23, as a section's range is not reflected: each scene's
--- sequences in order, GAP apart, and each line's start in its sequence with its key or its section's number. The game
+-- them; and enya, voice takes of Quest_Sub_008 that nothing plays, their voices played one after another with the
+-- subtitles the game has for them. The words come from the game at run time, never from the mod: the string-table
+-- scenes through UKismetTextLibrary's TextFromStringTable on StringTable_Seq, their speakers from its Seq_Actor_* rows
+-- (rich text tags dropped); Sky Hall's from the subtitle sections of its test sequences, loaded for that (inline texts,
+-- no table key). Only the timing is here, read offline from the pak on 2026-10-23, as a section's range is not
+-- reflected: each scene's sequences in order, GAP apart, and each line's start in its sequence with its key or its
+-- section's number; enya's takes have no sequence, so each starts GAP after the one before ends (their lengths are
+-- their SoundWaves' Duration, read when the scene starts, as each voice language has its own takes). The game
 -- holds the table lines in English (en, en-GB) and Korean, Quinn's in Japanese too. Its native culture is ko, so in its
 -- other languages TextFromStringTable gives the Korean source (no English fallback: that would take a language switch
 -- of the whole game, or copies in the mod), and the answer says how many lines show so. Sky Hall is Korean placeholder
 -- text in every language. Two of Quest_Sub_015's keys are missing from the game's table: those lines are skipped, as is
--- any line that cannot be read, each logged. Nothing is spawned, played, saved or sent to the friend; any save. A new
--- scene, coop lines stop, coop off, the feed going (the co-op UI off) and the next Lua load end one.
+-- any line that cannot be read, each logged. Nothing is spawned, saved or sent to the friend, and nothing played but
+-- enya's voices (UGameplayStatics' SpawnSound2D, a 2D sound of EVE's world); any save. A new scene, coop lines stop,
+-- coop off, the feed going (the co-op UI off) and the next Lua load end one, and all but the Lua load cut the voice
+-- playing.
+local UE=require('UEHelpers')
 local U=require('core.unreal')
 local valid,value_of,text,find=U.valid,U.value_of,U.text,U.find
 local Lines={}
 local TABLE='/Game/Local/Localize/StringTable_Seq.StringTable_Seq'
 local STRINGS,TEXTS='/Script/Engine.Default__KismetStringTableLibrary','/Script/Engine.Default__KismetTextLibrary'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
+local STATICS='/Script/Engine.Default__GameplayStatics'
 -- A subtitle section's place under its sequence (every Sky Hall sequence has one theater track, _0).
 local SECTION=':MovieScene_0.SBLevelSequenceTheaterTrack_0.SBLevelSequenceTheaterSubtitleSection_'
 local GAP=1 -- s between two sequences of a scene.
 -- The scenes, by console word, and their words in order. Each: title, note (said with it), parts ({seq=<package
 -- path>, length=<s>, lines={{at=<s into the sequence>, key=<StringTable_Seq key>, who=<its speaker's key, nil for
--- none>} or {at=, section=<number>}}}), keys (its lines are the table's), count and length (s, the gaps in).
+-- none>} or {at=, section=<number>}}} or {voice=<a SoundWave's object path>, lines={<one line at 0>}}), keys (its lines
+-- are the table's), voiced (its parts are voices), count and length (s, the gaps in; 0 for a voiced scene: its voices'
+-- lengths are read when it starts).
 Lines.SCENES,Lines.ORDER={},{}
 local function scene(name,title,note)
     local s={name=name,title=title,note=note,parts={},count=0,length=0}
@@ -98,6 +107,23 @@ part(SH,DIR..'06_02',6,nil,'1 0')
 part(SH,DIR..'07',5.967,nil,'1.004 0 3 1 4.733 3')
 part(SH,DIR..'07_02',5,nil,'0 0 2.5 2')
 part(SH,DIR..'08',10.033,nil,'0 0 2 1 4.5 2 7 3')
+-- Voice takes with no sequence, a part each: words are '<speaker> <number>' each, the take <dir><speaker>/<prefix>
+-- <number>_VO, its key <prefix><number> (a take the table has no key for plays alone) and its speaker
+-- Seq_Actor_<speaker>.
+local function voiced(s,dir,prefix,words)
+    for who,n in words:gmatch('(%S+) (%S+)') do
+        local name=prefix..n..'_VO'
+        s.parts[#s.parts+1]={voice=dir..who..'/'..name..'.'..name,lines={{at=0,who='Seq_Actor_'..who,key=prefix..n}}}
+        s.count=s.count+1
+    end
+    s.keys,s.voiced=true,true
+end
+-- Quest_Sub_008, with Su and Enya in Xion: six takes of Enya's and one of Su's that nothing imports, in all 10 voiced
+-- languages (the shipped scene, Dialogue_NPC_Su_Start_XionP51st, plays Enya's 008_01 takes and the other 008_02
+-- lines), in their numbers' order. Only 02_10 and 02_11 have a key in the table.
+local EN=scene('enya',"Enya's and Su's unused takes (Quest_Sub_008)")
+voiced(EN,'/Game/Sound/Dialogue/Quest/','Seq_Quest_Sub_008_','Enya 02_05 Enya 02_06 Enya 02_09 Enya 02_10 Su 02_11 '
+    ..'Enya 02_15 Enya 02_16')
 Lines.USE='Use: coop lines ['..table.concat(Lines.ORDER,'|')..'|stop]'
 
 local function name_of(path) return path:match('[^/]+$') end
@@ -125,6 +151,20 @@ local function entry(id,key,korean)
     local t=text(find(TEXTS):TextFromStringTable(id,key))
     return t,not korean and t==text(strings:GetTableEntrySourceString(id,key))
 end
+-- A take's SoundWave by its object path, loaded first when it is not in memory: the source path names the Korean take,
+-- and the engine loads the voice language's copy from /Game/L10N/ instead, as for the game's own takes (their facial
+-- animations have L10N copies too). {o=, full=<its full name, to know it again>, seconds=<its Duration>, class=<its
+-- sound class's name, which tells the language: Dialog_NPC for Korean, Dialogue_NPC_En for English>}. Raises when it
+-- cannot be had.
+local function take(path)
+    if not valid(StaticFindObject(path)) then pcall(LoadAsset,path) end
+    local o=valid(StaticFindObject(path))
+    if not o then error('not in the game',0) end
+    local seconds=tonumber(value_of(o.Duration))
+    if not (seconds and seconds>0) then error('no length',0) end
+    local ok,class=pcall(function() return text(valid(o.SoundClassObject):GetFName()) end)
+    return {o=o,full=text(o:GetFullName()),seconds=seconds,class=ok and class or '-'}
+end
 -- The text of section n of a Sky Hall sequence, loaded first by its object path; nil when the section is not found.
 local function section_text(seq,n)
     local path=seq..'.'..name_of(seq)
@@ -138,53 +178,90 @@ end
 function Lines.new(o)
     local log,say,ready=o.log,o.say,o.ready
     local self={}
-    local run -- {s=<its scene>, lines={{at=<s from its start>, text=}}, k=<the next line>, t0=<os.clock at its start>}
-    -- s's lines as said, with how many could not be read (each logged) and how many are the Korean source in another
-    -- language, and the game's language. Raises when a table scene cannot have StringTable_Seq.
+    local run -- {s=<its scene>, lines={{at=<s from its start>, text=<nil for a take with no subtitle>, voice=<take's,
+    -- nil for none>}}, k=<the next line>, t0=<os.clock at its start>, length=<s>, audio=<the voice playing's audio
+    -- component>, till=<os.clock its take ends>}
+    -- s's lines as said, with how many could not be read (each logged), how many are the Korean source in another
+    -- language, the game's language, the scene's length and how many are a voice with no subtitle. A part whose take
+    -- cannot be had is skipped whole, with no gap. Raises when a table scene cannot have StringTable_Seq.
     local function read(s)
         local got,culture=pcall(function() return text(find(LANGUAGE):GetCurrentLanguage()) end)
         culture=got and culture or '?'
         local korean=culture:find('^ko')~=nil
         local id=s.keys and table_id()
-        local out,missing,source,names,t0={},0,0,{},0
-        for k,p in ipairs(s.parts) do
-            if k>1 then t0=t0+GAP end
-            for _,l in ipairs(p.lines) do
-                local ok,said,raw=pcall(function()
-                    if not l.key then return section_text(p.seq,l.section) end
-                    local t,raw=entry(id,l.key,korean)
-                    if t and l.who then
-                        names[l.who]=names[l.who] or (entry(id,l.who,korean) or ''):gsub('<[^>]*>','')
-                        if names[l.who]~='' then t=names[l.who]..': '..t end
-                    end
-                    return t,raw
-                end)
-                if ok and said and said~='' then
-                    out[#out+1]={at=t0+l.at,text=said}
-                    if raw then source=source+1 end
-                else
-                    missing=missing+1
-                    log('missing: '..(l.key or name_of(p.seq)..' section '..l.section)
-                        ..(ok and (said and ' (empty)' or ' (not in the game)') or ' ('..tostring(said)..')'))
-                end
+        local out,missing,source,names,t0,alone={},0,0,{},0,0
+        for _,p in ipairs(s.parts) do
+            local voice,length,why=nil,p.length,nil
+            if p.voice then
+                local ok,v=pcall(take,p.voice)
+                if ok then
+                    voice,length=v,v.seconds
+                    log(string.format('take %s: %.2f s, sound class %s',p.voice:match('[^.]+$'),v.seconds,v.class))
+                else why=v end
             end
-            t0=t0+p.length
+            if why then
+                missing=missing+#p.lines
+                log('missing: '..p.voice:match('[^.]+$')..' ('..tostring(why)..')')
+            else
+                if t0>0 then t0=t0+GAP end -- None before the first part that plays: every part has a length.
+                for _,l in ipairs(p.lines) do
+                    local ok,said,raw=pcall(function()
+                        if not l.key then return section_text(p.seq,l.section) end
+                        local t,raw=entry(id,l.key,korean)
+                        if t and l.who then
+                            names[l.who]=names[l.who] or (entry(id,l.who,korean) or ''):gsub('<[^>]*>','')
+                            if names[l.who]~='' then t=names[l.who]..': '..t end
+                        end
+                        return t,raw
+                    end)
+                    if ok and said and said~='' then
+                        out[#out+1]={at=t0+l.at,text=said,voice=voice}
+                        if raw then source=source+1 end
+                    elseif voice then
+                        out[#out+1]={at=t0+l.at,voice=voice}
+                        alone=alone+1
+                    else
+                        missing=missing+1
+                        log('missing: '..(l.key or name_of(p.seq)..' section '..l.section)
+                            ..(ok and (said and ' (empty)' or ' (not in the game)') or ' ('..tostring(said)..')'))
+                    end
+                end
+                t0=t0+length
+            end
         end
-        return out,missing,source,culture
+        return out,missing,source,culture,t0,alone
+    end
+    -- The voice playing cut, while its take has not ended (the engine destroys the component once it has).
+    local function hush(r)
+        local a=r.audio
+        r.audio=nil
+        if a and os.clock()<r.till then pcall(function() a=valid(a); if a then a:Stop() end end) end
+    end
+    -- A line's take from its start, as a 2D sound of EVE's world, its audio component kept for hush. Only while it is
+    -- still the object read at the start: the engine's collector may have freed it meanwhile (a Lua reference holds
+    -- nothing). Raises when it cannot play.
+    local function speak(r,v,now)
+        local o=valid(v.o)
+        if not (o and text(o:GetFullName())==v.full) then error('freed before its turn',0) end
+        local eve=assert(valid(UE.GetPlayer()),'no EVE in the world')
+        r.audio,r.till=valid(find(STATICS):SpawnSound2D(eve,o,1,1,0,nil,false,true)),now+v.seconds
     end
     local function start(s)
         if not ready() then
             return false,"coop lines needs the co-op UI's feed (the Steam link, with the co-op UI on): the line above "
                 ..'EVE cannot draw every language the game has'
         end
-        local ok,lines,missing,source,culture=pcall(read,s)
+        local ok,lines,missing,source,culture,length,alone=pcall(read,s)
         if not ok then return false,s.title..': '..tostring(lines) end
         log(string.format('%s: %d of %d lines read, %d missing, %d in Korean as the game holds them (game language %s)',
             s.name,#lines,s.count,missing,source,culture))
         if #lines==0 then return false,'no line of '..s.title..' could be read; [LN] lines in this log' end
         local was=run and run.s.title
-        if was then log(run.s.name..' stopped (replaced)') end
-        run={s=s,lines=lines,k=1,t0=os.clock()}
+        if was then
+            hush(run)
+            log(run.s.name..' stopped (replaced)')
+        end
+        run={s=s,lines=lines,k=1,t0=os.clock(),length=length}
         local notes={}
         if source>0 then
             notes[#notes+1]=string.format('the game has no %s text for %d of them, so they show in Korean as it holds '
@@ -193,8 +270,10 @@ function Lines.new(o)
         if missing>0 then notes[#notes+1]=missing..' lines the game lacks skipped' end
         if s.note then notes[#notes+1]=s.note end
         notes[#notes+1]='coop lines stop ends it.'
-        return true,(was and was..' stopped. ' or '')..string.format('%s: %d lines over %s in the feed; %s',s.title,
-            #lines,duration(s.length),table.concat(notes,'; '))
+        local where=s.voiced and string.format(', voiced, %d of them with a subtitle in the feed',#lines-alone)
+            or ' in the feed'
+        return true,(was and was..' stopped. ' or '')..string.format('%s: %d lines over %s%s; %s',s.title,#lines,
+            duration(length),where,table.concat(notes,'; '))
     end
     function self.command(sub,a)
         if a~=nil then return false,Lines.USE end
@@ -202,7 +281,8 @@ function Lines.new(o)
             local list={}
             for _,name in ipairs(Lines.ORDER) do
                 local s=Lines.SCENES[name]
-                list[#list+1]=string.format('%s, %s (%d lines, %s)',name,s.title,s.count,duration(s.length))
+                list[#list+1]=string.format('%s, %s (%d lines, %s)',name,s.title,s.count,
+                    s.voiced and 'voiced' or duration(s.length))
             end
             return true,'Cut scene lines: '..table.concat(list,'; ')..(run and '; now '..run.s.name..', line '..run.k
                 ..' of '..#run.lines or '')..". coop lines <name> shows one in the co-op UI's feed, coop lines stop "
@@ -211,6 +291,7 @@ function Lines.new(o)
         if sub=='stop' then
             if not run then return true,'No cut scene lines are running.' end
             local s=run.s
+            hush(run)
             run=nil
             log(s.name..' stopped (coop lines stop)')
             return true,s.title..' stopped.'
@@ -219,8 +300,10 @@ function Lines.new(o)
         if s then return start(s) end
         return false,Lines.USE
     end
-    -- Each frame: the lines due said, in order (a hitch says several at once), the scene ended after its last
-    -- sequence. A line the feed refuses (the co-op UI off) or an error ends it: returns false, why.
+    -- Each frame: the lines due said, in order (a hitch says several at once), each with its take, the scene ended
+    -- after its last part. A take that cannot play is logged; its subtitle is said all the same. A line the feed
+    -- refuses (the co-op UI off; for a take with no subtitle, the feed not ready) or an error ends it: returns false,
+    -- why.
     function self.tick()
         local r=run
         if not r then return end
@@ -228,15 +311,23 @@ function Lines.new(o)
         while r.k<=#r.lines and now>=r.t0+r.lines[r.k].at do
             local line=r.lines[r.k]
             r.k=r.k+1
-            local ok,shown=pcall(say,line.text)
+            local ok,shown
+            if line.text then ok,shown=pcall(say,line.text) else ok,shown=pcall(ready) end
+            if ok and shown and line.voice then
+                local played,why=pcall(speak,r,line.voice,now)
+                if not played then
+                    log(string.format('%s line %d: take not played (%s)',r.s.name,r.k-1,tostring(why)))
+                end
+            end
             if not (ok and shown) then
+                hush(r)
                 run=nil
                 log(string.format('%s stopped at line %d: %s',r.s.name,r.k-1,
                     ok and 'the feed is gone' or tostring(shown)))
                 return false,r.s.title.." stopped: the co-op UI's feed cannot show its lines."
             end
         end
-        if r.k>#r.lines and now>=r.t0+r.s.length then
+        if r.k>#r.lines and now>=r.t0+r.length then
             run=nil
             log(r.s.name..' ended')
         end
@@ -244,6 +335,7 @@ function Lines.new(o)
     -- coop off.
     function self.stop()
         if not run then return end
+        hush(run)
         log(run.s.name..' stopped (coop off)')
         run=nil
     end

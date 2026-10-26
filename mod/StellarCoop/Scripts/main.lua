@@ -63,8 +63,8 @@
 -- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
 -- coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua).
 -- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op
--- save only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, on any save
--- (cut/lines.lua).
+-- save only). coop lines [<name>|stop] says the unvoiced lines of cut scenes in the chat's feed, and plays unused
+-- voice takes with the subtitles the game has for them, on any save (cut/lines.lua).
 -- coop glide on|off, EVE's cut glide while Jump is held in the air (cut/glide.lua; a test tool, left out of the usage
 -- line; on on a co-op save only).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
@@ -266,7 +266,8 @@ local wear=require('cut.wear').new({log=function(m) print('[StellarCoop][WR] '..
     store=link and link.store('coop-wear.txt'),paused=function() return kit~=nil and kit.paused(true) end})
 -- coop scene (cut/scene.lua), logging [SC] lines: two cut scenes through two of SB's theater rows.
 local scene=require('cut.scene').new({log=function(m) print('[StellarCoop][SC] '..tostring(m)..'\n') end})
--- coop lines (cut/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles, in the chat's feed only.
+-- coop lines (cut/lines.lua), logging [LN] lines: cut scenes' unvoiced subtitles in the chat's feed, and unused voice
+-- takes played as 2D sounds.
 local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][LN] '..tostring(m)..'\n') end,
     say=function(text) return box~=nil and box.say(text) end,ready=function() return kit~=nil and kit.ready() end})
 -- coop glide (cut/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.

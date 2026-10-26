@@ -15,7 +15,8 @@ function Cut.new(o)
     local self={}
     -- coop wear (cut/wear.lua, o.wear): every word to it, on any save, as nothing of it is saved.
     function self.wear(...) return o.wear.command(...) end
-    -- coop lines (cut/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed.
+    -- coop lines (cut/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed and plays
+    -- voice takes.
     function self.lines(...) return o.lines.command(...) end
     -- coop fly and coop slowmo (the native part's game/debug_keys.h, test tools left out of the usage line): SB's
     -- developer flight and slow motion. on is asked on a co-op save only, off anywhere; coop off and the next Lua load

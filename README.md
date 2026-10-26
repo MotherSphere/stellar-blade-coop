@@ -73,7 +73,8 @@ the Steam client that the game already runs, so the mod needs no other program a
 - `coop lines` shows the subtitles of four scenes cut before they were voiced in the chat's feed, timed as the game's
   sequences give them: the first meeting with Adam, Quest_Sub_015 with Mann and Orcal's last message, Quinn and Sky
   Hall. The text comes from your game, which has most of them in English and Korean only, so other languages show the
-  Korean (see [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
+  Korean. `coop lines enya` plays seven voice takes of Enya and Su that the game never uses (see
+  [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
 - `coop fly` and `coop slowmo` switch on the developer flight (a third press of the space bar in the air, or R2 held)
   and slow motion (R1) that the game ships turned off, on a co-op save (see
   [docs/usage.md](docs/usage.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo)).
