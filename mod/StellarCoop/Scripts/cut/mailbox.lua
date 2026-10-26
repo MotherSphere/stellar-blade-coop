@@ -27,13 +27,13 @@
 -- keeps each gift's key (her friend's SteamID and the id) in the mailbox and, once taken or refused, among the last
 -- KEEP keys, so a line that comes again never makes a second gift: it gets the first answer again.
 -- ponytail: when her answer is lost with the link right after her game kept the gift, the sender's items come back
--- and she keeps the gift too. The window is the reliable line in flight as the friend leaves; a two-step commit (her
--- gift held until the sender confirms) is the upgrade if a test shows it.
+-- and she keeps the gift too. The window is the reliable line in flight as the friend leaves, or while a lost link
+-- outlasts WAIT s; a two-step commit (her gift held until the sender confirms) is the upgrade if a test shows it.
 -- ITEMS are consumables only: the two potions, the Biotic Field Generator and the four grenades, all with SaveType Save
 -- in ItemTable. No key, story, quest or equipment item; not the Tumbler (Recovery_HP_Potion, whose charges are stats);
 -- not drone ammo (SaveType None: the game does not keep it as these items); not the cut stimpacks, whose rows only
 -- the shop adds. Their AchievementTable rows (Acquire_Item_Grenade, Ach_Reward_Acquire_Item_ConcussionGrenade and the
--- two category guides) lead to no trophy (ACHIEVEMENTS-SAFETY.md's rule: nothing here moves progress).
+-- two category guides) lead to no trophy (docs/how-it-works.md, Achievements: nothing here moves progress).
 -- The file, per SteamID and co-op slot like the shop's wallet: coop-gift-<steamid>-<index>.txt beside the mod, one
 -- entry a line, written whole through link.write_file:
 --   out <id> <alias> <count> <to> <at> <sent>   sent, waiting for her answer (to: her SteamID, 0 in the loopback; at

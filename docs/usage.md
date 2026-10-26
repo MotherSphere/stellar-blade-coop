@@ -315,10 +315,11 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (13) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (14) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
-The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
+The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
+you send with [`coop gift`](#cut-mailbox-coop-gift), which leave one co-op save and go into the other. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
 
 Achievements follow one rule: a shared enemy you fight together counts for both of you, and nothing done without you
@@ -937,7 +938,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 13). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 14). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -1547,22 +1548,32 @@ a stat), drone ammo and the cut stimpacks are left out, and none of the seven co
 - `coop loopback` with no friend linked sends a gift to yourself, for a test on one PC: the items leave, arrive in your
   own mailbox, and `coop gift take` puts them back.
 
-Two cases can still lose or double a gift. If your friend's answer is lost at the moment she leaves the session, the
-items come back to you and her gift stays in her mailbox. If the game stops (a crash, `coop off`, a Lua reload) in the
-second between the remove and the gift's entry in your file, the items are gone and nothing is sent. The log shows
-both: the first as a gift that came back after she kept it, the second as a `remove asked` line with no `sent` line
-after it.
+These cases can still lose or double a gift:
+
+- Your friend's answer is lost as she leaves the session, or her link stays lost for more than 60 s while the gift
+  line is on its way. The items come back to you, and her game keeps the gift if the line reaches it. The log shows
+  `gift <id> comes back: ...`, and an answer that arrives after it shows `answer a <id> for no gift waiting`.
+- The game stops (a crash, `coop off`, a Lua reload) after the remove and before the gift's entry in your file, which
+  can take up to the 10 s of play above plus 5 s for a read. The items are gone and nothing is sent: the log has a
+  `remove asked` line with no `sent` line after it.
+- The count does not fall by the gift's in those 10 s, because the game ran the remove later still or because an item
+  you picked up meanwhile hid the drop. Nothing is sent, and the notice says the items may be gone:
+  `Gift not sent: the count did not fall by 2 in 10 s of play (5 before, 4 now); the items may be gone`. Check your
+  inventory.
+- You use the same item between the remove request and the game's turn that runs it. The use can look like the drop,
+  so the gift goes, and the remove then takes only what is left.
 
 The mailbox is a file per Steam ID and co-op slot in the mod folder, `coop-gift-<steamid>-<index>.txt`, like the shop's
 points: restoring a save backup does not change it. Its lines go to `UE4SS.log` with the `[StellarCoop][GF]` tag:
 `remove asked: PulseGrenade x2 of 5 (guid 228)`, `sent <id>: PulseGrenade x2 to <SteamID> (had 5)`,
-`gift <id> kept by Kaanta`, `gift <id> comes back: your friend left`, `took <id>: HP_Potion x3 from <SteamID>`.
+`gift <id> kept by Kaanta: PulseGrenade x2`, `gift <id> comes back: your friend left`,
+`took <id>: HP_Potion x3 from <SteamID> (guid 228)`.
 `coop-link.log` has each gift line both ways (`gift line sent: s <id> PulseGrenade 2`,
 `gift line from Kaanta: a <id>`).
 
 Check in game that a send takes the items out of your inventory and that a take adds them, that the counts in
-`[GF]` lines match the inventory screen, that the toast shows its icon and whether it plays a sound, and that a gift refused or
-left unanswered comes back once.
+`[GF]` lines match the inventory screen, that the toast shows its icon and whether it plays a sound, and that a gift
+refused or left unanswered comes back once.
 
 ### Shared enemies (experimental)
 
@@ -2568,7 +2579,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=13 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=14 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
@@ -2586,7 +2597,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>
   travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
-  requests handled so far), and `nightop=on` or `nightop=rule` while the probe's poller runs.
+  requests handled so far), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
+  [`coop gift`](#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
+  `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another

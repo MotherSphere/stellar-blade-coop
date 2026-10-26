@@ -92,14 +92,14 @@ the Steam client that the game already runs, so the mod needs no other program a
   Operation's shop or send and take a `coop gift`, on a co-op save. It reads your saves only to make separate co-op
   copies of them (see [docs/saves.md](docs/saves.md)).
 
-The ghost is display only, and items are not shared. The experimental Shared enemies option (co-op menu, Options,
-Combat) is on by default and untested in game. It shares common enemies only while both players play a co-op save (see
-[docs/usage.md](docs/usage.md#shared-enemies-experimental)). Same place, same spawns and shared bosses build on it. They
-are experimental and on by default too, and the host's settings decide them for both games. As guest, the Same place row
-of your co-op menu can still turn same place off on your screen. The experimental Shared quests option (Options, Saves)
-is off by default and untested in game. While both players play a co-op save, it makes the quest steps that the host and
-the guest make together in the guest's game too, through the game's own quest functions (see
-[docs/usage.md](docs/usage.md#shared-quests-experimental)).
+The ghost is display only, and items are not shared, except the consumables sent with `coop gift`. The experimental
+Shared enemies option (co-op menu, Options, Combat) is on by default and untested in game. It shares common enemies only
+while both players play a co-op save (see [docs/usage.md](docs/usage.md#shared-enemies-experimental)). Same place, same
+spawns and shared bosses build on it. They are experimental and on by default too, and the host's settings decide them
+for both games. As guest, the Same place row of your co-op menu can still turn same place off on your screen. The
+experimental Shared quests option (Options, Saves) is off by default and untested in game. While both players play a
+co-op save, it makes the quest steps that the host and the guest make together in the guest's game too, through the
+game's own quest functions (see [docs/usage.md](docs/usage.md#shared-quests-experimental)).
 
 ## Night Operation
 
@@ -150,7 +150,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same mod protocol (13 in this version) and the same game build.
+- To play together, both players need the same mod protocol (14 in this version) and the same game build.
 
 ## Disclaimer
 

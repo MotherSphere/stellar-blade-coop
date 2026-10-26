@@ -75,12 +75,12 @@ build/host/pose_codec_test
 ```
 
 - Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `leviathan`, `lines`, `lion`,
-  `scene`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`, `quests`, `session_ui`, `settings`;
-  `nightop/`: `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`,
-  `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`,
-  `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS
-  objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/`
-  tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test` also covers
+  `mailbox`, `scene`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`, `quests`, `session_ui`,
+  `settings`; `nightop/`: `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`, `waves`; `partner/`:
+  `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`, `chat`,
+  `group`, `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with
+  fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE fails the test. The
+  `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test` also covers
   `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn probe`, the `spawn_filter` setting
   with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`, `bosses` and
   `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row; `main/fight_notices_test`
@@ -250,6 +250,11 @@ build/host/pose_codec_test
     gate's state logged from the first pass that read its ask, never from an earlier one; the level flight's hold: the
     flight key set again only while the controller's pawn flies with none held, never after a press of the jump key
     in that flight until it ends (a jump key held from before the flight counts only once let go and pressed again);
+  - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
+    CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
+    EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
+    chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
+    `unread`, never in a hang;
   - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
     diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
     stick's thresholds, View held 1 s, a disconnect,
@@ -362,6 +367,7 @@ Platform-free headers, tested on the build machine:
 | `fight/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
 | `game/photo_freeze.h` | The synced photo mode's pause |
 | `game/debug_keys.h` | `coop fly` and `coop slowmo`: the lookup of SB's two developer gates in its settings map and the passes that set them and put them back; the level flight's hold of the flight key |
+| `game/items.h` | `coop gift`'s inventory read: how many of one item EVE carries, through `ReadProcessMemory` along SB's item bucket manager and its hash sets |
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
@@ -372,5 +378,5 @@ The Windows side:
 | File | Contents |
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |
