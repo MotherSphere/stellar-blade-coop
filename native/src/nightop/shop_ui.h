@@ -6,10 +6,10 @@
 // child list, no parent, 0, an empty FString, 0; the new entry), then the shop logic (the entry's +0x60) takes the shop
 // alias, the instance alias (the same: the row keeps UnionLimitedItem) and the title tag (None, as the cut Night
 // Operation machine WLAN10_VendingMachine leaves it) through FUN_141f47130. A close goes through FUN_141fc5120 with the
-// entry's own type (the virtual at +0x38 of its +0x10), as that node closes an open shop. The guard is the one the
-// client tick checks before it opens a UI of its own (game/dev_panels.h on the devmenu branch): the client in game
-// (flow 2) and playing (phase 0xe); a shop screen already open refuses an open. The client is read from its global,
-// never through FUN_141a978c0, which allocates it when it is null.
+// entry's own type (the virtual at +0x38 of its +0x10), as that node closes an open shop. The client, its UI manager,
+// those three calls and the guard are coop devinfo's (game/dev_panels.h): the client in game (flow 2) and playing
+// (phase 0xe), as the client tick checks before it opens a UI of its own; a shop screen already open refuses an open.
+// The client is read from its global, never through FUN_141a978c0, which allocates it when it is null.
 // The game does the rest: the screen lists the shop's goods whose rows are in, prices them in Beta Seeds
 // (Money_NightOperation, ItemTable 9011, the same batch), and a purchase is SB's own local job (FSBActorBuyItem): it
 // checks the seeds in the bucket, removes them and adds the item, with no server in net mode 0. The seeds come from
@@ -25,16 +25,14 @@
 #include <cstdint>
 #include <string>
 
-#include "game/memory.h"
+#include "game/dev_panels.h"
 
 namespace coop::shopui {
 
-constexpr uint64_t kClientAt = 0x147032520, kWorldAt = 0x147032570;
-constexpr uint64_t kManager = 0x48, kFlow = 0xa00, kPhase = 0xb9c, kPlayerData = 0xe8;
-constexpr int32_t kInGame = 2, kPlaying = 0xe, kShopType = 0xab;
-constexpr uint64_t kFindUi = 0x141fc51d0, kOpenUi = 0x141fc4aa0, kCloseUi = 0x141fc5120, kShopInit = 0x141f47130;
-constexpr uint64_t kBucket = 0x141cc1d60, kCount = 0x141c3e6c0;
-constexpr size_t kEntryLogic = 0x60, kEntryWidget = 0x10, kTypeSlot = 0x38;
+constexpr uint64_t kWorldAt = 0x147032570, kPlayerData = 0xe8;
+constexpr int32_t kShopType = 0xab;
+constexpr uint64_t kShopInit = 0x141f47130, kBucket = 0x141cc1d60, kCount = 0x141c3e6c0;
+constexpr size_t kEntryLogic = 0x60;
 constexpr uint64_t kReadMs = 250;
 constexpr const char *kSeed = "Money_NightOperation";
 // link/protocol.h's ShopAsk, in its order: open, open bolt, close, and watch (no call: the reads start, which every
@@ -53,19 +51,15 @@ inline const char *why_word(Why w) {
   return size_t(w) < sizeof kWords / sizeof *kWords ? kWords[size_t(w)] : "?";
 }
 
-// What the game thread read before the calls.
-struct Reads {
-  uint64_t client = 0, manager = 0;
-  int32_t flow = 0, phase = 0;
-};
-// The first guard that fails, or Why::none.
-inline Why refuse(const Reads &r, bool opening) {
-  return !game::plausible(r.client)       ? Why::client
-         : !game::plausible(r.manager)    ? Why::manager
-         : opening && r.flow != kInGame   ? Why::flow
-         : opening && r.phase != kPlaying ? Why::phase
-                                          : Why::none;
-}
+// What the game thread read before the calls, and the first guard that fails (Why::none when none does): coop
+// devinfo's, whose whys up to phase are ours.
+using devinfo::Reads;
+static_assert(uint8_t(devinfo::Why::client) == uint8_t(Why::client) &&
+                  uint8_t(devinfo::Why::manager) == uint8_t(Why::manager) &&
+                  uint8_t(devinfo::Why::flow) == uint8_t(Why::flow) &&
+                  uint8_t(devinfo::Why::phase) == uint8_t(Why::phase),
+              "the guard's whys line up");
+inline Why refuse(const Reads &r, bool opening) { return Why(devinfo::refuse(r, opening)); }
 
 // The answer to the last ask the game thread handled, one word for the worker: asks 32-63, the ask 24-31, why 16-23,
 // done 0-7 (opened or closed).

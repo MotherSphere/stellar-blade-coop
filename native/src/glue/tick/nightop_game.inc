@@ -8,17 +8,8 @@ namespace {
 // under its own latch. Every kReadMs after the first ask (not after coop off), it reads whether a shop screen is open
 // and, inside the rows' gate (lion_gate: net mode 0, no logic task in flight, so no purchase runs meanwhile), the
 // bucket's Beta Seeds through the UI's own count. A close asked after coop off still runs (coop off asks it first). The
-// first fault ends the shop screen's calls for the run.
-using ShopFindUi = void *(*)(void *manager, int32_t type);
-struct ShopEmptyString { // An FString with no data, which the open copies and frees only when it holds data.
-  void *data;
-  int32_t num, max;
-};
-static_assert(sizeof(ShopEmptyString) == 16);
-using ShopOpenUi = void *(*)(void *manager, int32_t type, void *children, void *parent, uint64_t,
-                             ShopEmptyString *name, uint64_t);
-using ShopCloseUi = void (*)(void *manager, int32_t type);
-using ShopUiType = int32_t (*)(void *widget);
+// first fault ends the shop screen's calls for the run. The UI manager's find, open and close and ui_reads are coop
+// devinfo's (glue/tick/debug_game.inc).
 using ShopInit = void (*)(void *logic, const uint64_t *shop, const uint64_t *instance, const uint64_t *title);
 using ShopBucket = void *(*)(void *player_data);
 using ShopCount = int32_t (*)(void *bucket, const uint64_t *item);
@@ -33,32 +24,21 @@ std::atomic<int64_t> nightshop_seeds{-1};  // The bucket's Beta Seeds at the las
 uint32_t nightshop_taken = 0;              // The game thread's own.
 uint64_t nightshop_next_read = 0, nightshop_seed = 0;
 
-// The client and its UI manager, and the guard's reads.
-shopui::Reads nightshop_reads() {
-  shopui::Reads r;
-  r.client = at<uintptr_t>(base + (shopui::kClientAt - game::kImageBase));
-  if (game::plausible(r.client)) {
-    r.manager = at<uintptr_t>(r.client + shopui::kManager);
-    r.flow = at<int32_t>(r.client + shopui::kFlow);
-    r.phase = at<int32_t>(r.client + shopui::kPhase);
-  }
-  return r;
-}
 // One ask's calls. Out of line, since clang-cl catches a fault only in a function the __try calls.
 __declspec(noinline) shopui::Why nightshop_act(uint8_t ask) {
   if (ask == shopui::kWatch)
     return shopui::Why::none;
-  const shopui::Reads r = nightshop_reads();
+  const shopui::Reads r = ui_reads();
   if (const shopui::Why why = shopui::refuse(r, ask != shopui::kClose); why != shopui::Why::none)
     return why;
   void *manager = reinterpret_cast<void *>(r.manager);
-  void *entry = game_function<ShopFindUi>(shopui::kFindUi)(manager, shopui::kShopType);
+  void *entry = game_function<FindUi>(devinfo::kFindUi)(manager, shopui::kShopType);
   if (ask == shopui::kClose) {
     if (!entry)
       return shopui::Why::closed;
-    const uintptr_t widget = reinterpret_cast<uintptr_t>(entry) + shopui::kEntryWidget;
-    const auto type_of = reinterpret_cast<ShopUiType>(at<uintptr_t>(at<uintptr_t>(widget) + shopui::kTypeSlot));
-    game_function<ShopCloseUi>(shopui::kCloseUi)(manager, type_of(reinterpret_cast<void *>(widget)));
+    const uintptr_t widget = reinterpret_cast<uintptr_t>(entry) + devinfo::kEntryWidget;
+    const auto type_of = reinterpret_cast<UiType>(at<uintptr_t>(at<uintptr_t>(widget) + devinfo::kTypeSlot));
+    game_function<CloseUi>(devinfo::kCloseUi)(manager, type_of(reinterpret_cast<void *>(widget)));
     return shopui::Why::none;
   }
   if (entry)
@@ -69,8 +49,8 @@ __declspec(noinline) shopui::Why nightshop_act(uint8_t ask) {
   const uint64_t shop = g.name(shop_name, p.len, p.number), none = 0;
   if (!shop)
     return shopui::Why::name;
-  ShopEmptyString empty{};
-  void *opened = game_function<ShopOpenUi>(shopui::kOpenUi)(manager, shopui::kShopType, nullptr, nullptr, 0, &empty, 0);
+  EmptyName empty{};
+  void *opened = game_function<OpenUi>(devinfo::kOpenUi)(manager, shopui::kShopType, nullptr, nullptr, 0, &empty, 0);
   if (!opened)
     return shopui::Why::game;
   void *logic = reinterpret_cast<void *>(at<uintptr_t>(reinterpret_cast<uintptr_t>(opened) + shopui::kEntryLogic));
@@ -81,11 +61,11 @@ __declspec(noinline) shopui::Why nightshop_act(uint8_t ask) {
 }
 // The reads: a shop screen open, and inside the gate the bucket's seeds (unread otherwise, or with no player data).
 __declspec(noinline) void nightshop_read() {
-  const shopui::Reads r = nightshop_reads();
+  const shopui::Reads r = ui_reads();
   nightshop_open = shopui::refuse(r, false) != shopui::Why::none
                        ? -1
-                       : game_function<ShopFindUi>(shopui::kFindUi)(reinterpret_cast<void *>(r.manager),
-                                                                     shopui::kShopType) != nullptr;
+                       : game_function<FindUi>(devinfo::kFindUi)(reinterpret_cast<void *>(r.manager),
+                                                                  shopui::kShopType) != nullptr;
   uint32_t mode = 0;
   const uintptr_t world = at<uintptr_t>(base + (shopui::kWorldAt - game::kImageBase));
   const uintptr_t data = game::plausible(world) ? at<uintptr_t>(world + shopui::kPlayerData) : 0;

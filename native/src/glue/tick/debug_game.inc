@@ -116,7 +116,8 @@ void hold_input(void *pc, float dt, bool paused) {
 // The worker hands over the panel asked (or off) with an ask number; the next frame takes it with try_lock only, reads
 // the client and its UI manager, finds both panels, closes the one not wanted and opens the one asked, through the
 // game's own find, open and close, out of line under its own latch. It runs after coop off too, so coop off's own
-// devinfo off still closes them. The first fault ends coop devinfo for the run.
+// devinfo off still closes them. The first fault ends coop devinfo for the run. The UI calls and ui_reads serve the
+// Night Operation shop's screen too (glue/tick/nightop_game.inc).
 using FindUi = void *(*)(void *manager, int32_t type);
 struct EmptyName { // An FString with no data, which the open copies and frees only when it holds data.
   void *data;
@@ -127,6 +128,17 @@ using OpenUi = void *(*)(void *manager, int32_t type, void *children, void *pare
                          uint64_t);
 using CloseUi = void (*)(void *manager, int32_t type);
 using UiType = int32_t (*)(void *widget);
+// The client and its UI manager, and the guard's reads (game/dev_panels.h).
+devinfo::Reads ui_reads() {
+  devinfo::Reads r;
+  r.client = at<uintptr_t>(base + (devinfo::kClientAt - game::kImageBase));
+  if (game::plausible(r.client)) {
+    r.manager = at<uintptr_t>(r.client + devinfo::kManager);
+    r.flow = at<int32_t>(r.client + devinfo::kFlow);
+    r.phase = at<int32_t>(r.client + devinfo::kPhase);
+  }
+  return r;
+}
 std::atomic<bool> devinfo_faulted{false};
 std::atomic<uint64_t> devinfo_fault_code{0}, devinfo_fault_rva{0}, devinfo_fault_address{0};
 std::mutex devinfo_m; // The worker's ask: its number and the panel.
@@ -137,13 +149,7 @@ uint8_t devinfo_want = 0;
 std::atomic<uint64_t> devinfo_done{0};
 uint32_t devinfo_taken = 0; // The game thread's own.
 __declspec(noinline) devinfo::Why devinfo_body(devinfo::Panel want, uint8_t &opened, uint8_t &closed) {
-  devinfo::Reads r;
-  r.client = at<uintptr_t>(base + (devinfo::kClientAt - game::kImageBase));
-  if (game::plausible(r.client)) {
-    r.manager = at<uintptr_t>(r.client + devinfo::kManager);
-    r.flow = at<int32_t>(r.client + devinfo::kFlow);
-    r.phase = at<int32_t>(r.client + devinfo::kPhase);
-  }
+  const devinfo::Reads r = ui_reads();
   if (const devinfo::Why why = devinfo::refuse(r, want != devinfo::kOff); why != devinfo::Why::none)
     return why;
   void *manager = reinterpret_cast<void *>(r.manager);

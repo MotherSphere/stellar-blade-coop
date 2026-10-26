@@ -7,19 +7,20 @@
 using namespace coop::shopui;
 
 int main() {
-  // The guard: a client and its UI manager always; in game and playing for an open only.
+  // The guard: a client and its UI manager always; in game and playing for an open only. Called by its full name:
+  // devinfo::refuse takes the same Reads.
   Reads r;
-  assert(refuse(r, true) == Why::client && refuse(r, false) == Why::client);
+  assert(coop::shopui::refuse(r, true) == Why::client && coop::shopui::refuse(r, false) == Why::client);
   r.client = 0x20000;
-  assert(refuse(r, false) == Why::manager);
+  assert(coop::shopui::refuse(r, false) == Why::manager);
   r.manager = 0x30000;
-  assert(refuse(r, true) == Why::flow && refuse(r, false) == Why::none);
-  r.flow = kInGame;
-  assert(refuse(r, true) == Why::phase);
-  r.phase = kPlaying;
-  assert(refuse(r, true) == Why::none);
+  assert(coop::shopui::refuse(r, true) == Why::flow && coop::shopui::refuse(r, false) == Why::none);
+  r.flow = coop::devinfo::kInGame;
+  assert(coop::shopui::refuse(r, true) == Why::phase);
+  r.phase = coop::devinfo::kPlaying;
+  assert(coop::shopui::refuse(r, true) == Why::none);
   r.client = 0x20001; // Not 8-aligned: no client.
-  assert(refuse(r, false) == Why::client);
+  assert(coop::shopui::refuse(r, false) == Why::client);
 
   // The answer word round-trips.
   Answer a;

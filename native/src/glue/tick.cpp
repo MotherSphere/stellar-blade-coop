@@ -162,8 +162,8 @@
 #include "glue/tick/pilot_game.inc"
 #include "glue/tick/travel_game.inc"
 #include "glue/tick/lion_game.inc"
+#include "glue/tick/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "glue/tick/nightop_game.inc"
-#include "glue/tick/debug_game.inc"
 #include "glue/tick/anim_game.inc"
 #include "glue/tick/shortcut_game.inc"
 #include "glue/tick/worker.inc"
