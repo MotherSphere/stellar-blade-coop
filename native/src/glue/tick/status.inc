@@ -42,6 +42,9 @@ std::string status() {
          (travel_faulted ? std::string("refused:fault")
                          : travel::state_text(travel::State((w >> 8) & 0xff), travel::Why(w & 0xff))) +
          " travel_calls=" + std::to_string(w >> 32);
+  // coop gift's inventory read (cut/mailbox.lua): the last ask's answer, by its number.
+  if (!items_line.empty() && !blocked)
+    s += items_line;
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)

@@ -2728,6 +2728,78 @@ int main() {
     assert(!w.link.chat_waiting() && saw("race lines: 41 in, 41 out, 2 dropped") && !w.link.race("end 7"));
   }
 
+  // coop gift's lines (cut/mailbox.lua, through gift requests): reliable on channel 0 to the friend past the handshake,
+  // or back as hers in the loopback with no friend, 8 a second each way; each one in the log, ours and hers. A gift that
+  // cannot go (no session, past the rate, Steam refused it) comes back to Lua at once as her refusal, "gift n <id>
+  // nolink"; an answer that cannot go is only logged. Hers wait for Lua in the chat's inbox as "gift <payload>".
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("gift s 17 HP_Potion 3"); // No session.
+    assert(F.sent.empty() && (w.link.take_chat() == Texts{"gift n 17 nolink"}) &&
+           saw("gift line not sent: s 17 HP_Potion 3"));
+    w.tick("gift a 17");
+    assert(!w.link.chat_waiting() && saw("gift line not sent: a 17"));
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.members[5000].push_back(kFriend);
+    w.tick("", 0, 0, 600);
+    const std::string gift = "SBC" + std::to_string(kProtocol) + " gift ";
+    F.inbox.push_back({kFriend, gift_line("s 9 PulseGrenade 1")}); // Hers before the handshake: ignored.
+    w.tick();
+    assert(!w.link.chat_waiting() && !saw("gift line from"));
+    F.inbox.push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
+    F.inbox.push_back({kFriend, accept()});
+    w.tick();
+    assert(w.link.linked());
+    w.tick("gift s 18 HP_Potion 3");
+    assert(sent_to(kFriend, gift_line("s 18 HP_Potion 3")) == 1 && !w.link.chat_waiting());
+    for (auto &s : F.sent)
+      if (s.text.rfind(gift, 0) == 0)
+        assert(s.flags == kReliable && s.channel == kChannel && s.to == kFriend);
+    F.send_result = 25; // Refused by Steam: back to Lua at once.
+    w.tick("gift s 19 HP_Potion 1");
+    F.send_result = 1;
+    assert((w.link.take_chat() == Texts{"gift n 19 nolink"}));
+    // Hers, beside her chat lines, in order, each in the log; a line gift_ok() refuses is invalid, never Lua's.
+    F.inbox.push_back({kFriend, gift_line("a 18")});
+    F.inbox.push_back({kFriend, say_line("merci")});
+    F.inbox.push_back({kFriend, gift + "s 5 FlashGrenade 11"});
+    F.inbox.push_back({kFriend, gift_line("s 5 FlashGrenade 2")});
+    w.tick();
+    assert((w.link.take_chat() == Texts{"gift a 18", "in merci", "gift s 5 FlashGrenade 2"}));
+    assert(saw("gift line from Kaanta: a 18") && saw("gift line from Kaanta: s 5 FlashGrenade 2") &&
+           saw("invalid message from Kaanta"));
+    // Her flood: 8 a second kept, the rest dropped, each in the log.
+    w.tick("", 0, 0, 1000);
+    for (int i = 1; i <= 10; ++i)
+      F.inbox.push_back({kFriend, gift_line("a " + std::to_string(100 + i))});
+    for (int pass = 0; pass < 3; ++pass)
+      w.tick("", 0, 0, 0);
+    Texts got = w.link.take_chat();
+    assert(got.size() == 8 && got.front() == "gift a 101" && got.back() == "gift a 108");
+    assert(saw("gift line from Kaanta dropped (over the rate limit): a 110"));
+    // Ours: 8 a second, the 9th gift back to Lua at once.
+    w.tick("", 0, 0, 1000);
+    for (int i = 1; i <= 9; ++i)
+      w.tick("gift s " + std::to_string(200 + i) + " HP_Potion 1", 0, 0, 0);
+    assert(sent_to(kFriend, gift_line("s 208 HP_Potion 1")) == 1 && sent_to(kFriend, gift + "s 209") == 0);
+    assert((w.link.take_chat() == Texts{"gift n 209 nolink"}));
+  }
+  // coop loopback with no friend: our gift lines come back as hers.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.link.loopback(true);
+    w.tick();
+    w.tick("gift s 20 HP_Potion 2");
+    w.tick("gift a 20");
+    assert(F.sent.empty() && (w.link.take_chat() == Texts{"gift s 20 HP_Potion 2", "gift a 20"}));
+  }
+
   // who_can_join=code, one Link: an invisible lobby (joined by id) with no invite dialog, and its code on
   // the status (code= and refused=, while we host) and in a notice. The copy request hands the code to the caller once
   // (the clipboard is glue/steam.cpp's); with no code it says so. A lobby whose id has another high part gets no code:

@@ -107,6 +107,10 @@ std::string ask_travel(const coop::Request &request);
 // the Lion's fault, and not asked again once every row is in. Returns the line for the log; fight_pass logs the game
 // thread's answer.
 std::string ask_lion(const coop::Request &request);
+// Worker thread, coop gift (game/items.h): Lua's items request, how many of one item our EVE carries, read now through
+// ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build, after coop
+// off and with no EVE read. Returns the line for the log.
+std::string ask_items(const coop::Request &request);
 // Worker: coop-status.txt's lion line (lion/rows.h's status_line): "lion=off", or the state (waiting, rows, refused,
 // fault) with added=<n>/<N>, asks=<a>, spawns=<s> and that state's own fields.
 std::string lion_status();

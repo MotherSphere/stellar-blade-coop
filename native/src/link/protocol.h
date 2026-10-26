@@ -18,6 +18,8 @@
 //   guest, night_ok()).
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 //   SBC<protocol> race <text> (a Doro race line, race/model.lua's, printable ASCII; the link reads no further).
+//   SBC<protocol> gift <payload> (coop gift, cut/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept in the
+//   friend's mailbox, "n <id> <why>" refused; gift_ok()).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose/codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (fight/pilot.h). Channel 2 carries the shared enemies' text lines and
@@ -40,7 +42,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 13; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 14; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -53,7 +55,8 @@ constexpr int kProtocol = 13; // Bump on any wire change. 1 was the first link (
                               // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
                               // 2, and on channel 0 the photo line's c (the host's cutscene), the night line (Night
                               // Operation for two), the mark line and the race lines; 13 adds the pak lines (the mod
-                              // containers by name) before the paks line, which a protocol-12 peer would count invalid.
+                              // containers by name) before the paks line, which a protocol-12 peer would count invalid;
+                              // 14 adds the gift line (coop gift), which a protocol-13 peer would count invalid.
                               // An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
                               // v0.4.0-beta.1, 12: v0.5.0-beta.1) is told why: the lobby tag, then the hello's reject,
                               // name both.
@@ -168,7 +171,7 @@ inline Life life_of(const Vitals &v) {
 }
 
 enum class Kind {
-  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, camps_ask, camps, night, mark, race
+  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, camps_ask, camps, night, mark, race, gift
 };
 // The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
@@ -198,7 +201,7 @@ struct Message {
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. pak:
                          // the container's name, mod_name_ok(). camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
-                         // "race ", printable ASCII.
+                         // "race ", printable ASCII. gift: the payload, gift_ok().
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   std::string why;         // camps none: why.
   std::vector<Camp> camps; // camps: nearest first.
@@ -296,7 +299,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF13" for the shared fight, "SBQ13" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF14" for the shared fight, "SBQ14" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 
@@ -359,6 +362,29 @@ inline bool split(const std::string &text, std::string *fields, size_t count, st
   return true;
 }
 
+// coop gift's line (cut/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and not
+// 0, an item alias as alias_word() takes it, 1 to kMaxGiftCount items), "a <id>" (the gift is in the friend's mailbox)
+// or "n <id> <why>" (refused: why in 1 to 16 letters a-z). Lua checks the item against its own list; the link reads no
+// further.
+constexpr uint64_t kMaxGiftCount = 10;
+inline bool gift_ok(const std::string &payload) {
+  std::string f[4];
+  uint64_t v = 0;
+  const auto id = [&v](const std::string &w) { return number(w, v) && v; };
+  const auto why = [](const std::string &w) {
+    return w.size() <= 16 && std::all_of(w.begin(), w.end(), [](char c) { return c >= 'a' && c <= 'z'; });
+  };
+  if (split(payload, f, 4, nullptr) && f[0] == "s")
+    return id(f[1]) && alias_word(f[2]) && number(f[3], v) && v >= 1 && v <= kMaxGiftCount;
+  if (split(payload, f, 2, nullptr) && f[0] == "a")
+    return id(f[1]);
+  return split(payload, f, 3, nullptr) && f[0] == "n" && id(f[1]) && why(f[2]);
+}
+// Empty when the payload is no gift line (nothing to send).
+inline std::string gift_line(const std::string &payload) {
+  return gift_ok(payload) ? "SBC" + std::to_string(kProtocol) + " gift " + payload : std::string();
+}
+
 inline Message parse(const char *data, size_t size) {
   Message m;
   if (!data || size == 0 || size > kMaxMessage)
@@ -405,6 +431,11 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "race") {
     if (std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c <= 0x7e; })) {
       m.kind = Kind::race;
+      m.text = rest;
+    }
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "gift") {
+    if (gift_ok(rest)) {
+      m.kind = Kind::gift;
       m.text = rest;
     }
   } else if (split(text, f, 2 + m.vitals.size(), nullptr) && f[0] == versioned_tag && f[1] == "vit") {
@@ -527,14 +558,17 @@ inline uint64_t code_lobby(std::string_view text) {
 // (session/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
-// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); and for coop lion (cut/lion.lua) "lion rows
+// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (cut/mailbox.lua) "gift
+// <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName index> <FName number>" (how many of
+// that item our EVE carries, read by the worker, game/items.h: ask 1 to 65535, answered in the engine line's items=;
+// index above 0, both within 32 bits); and for coop lion (cut/lion.lua) "lion rows
 // <Table>=0x<address> ..." (the Lion's rows for SB's AddRow, glue/tick/lion_game.inc: one word for each of the
 // kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible). Lua finds the tables by their
 // fixed paths, so no console argument reaches an address, and the native part trusts none before it checked the
 // table's vtable and row size (lion/rows.h).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, lion, gate
+  remove, copy, quests, camps, travel, mark, lion, gate, gift, items
 };
 // The tables the Lion's rows and the cut items' go into (lion/rows.h's Table, in this order), as their assets are
 // named.
@@ -592,9 +626,10 @@ struct Request {
   uint16_t quest = 0;           // quests force: the QuestTable ID.
   std::string deny;             // quests on, probe, record: quest_deny's list, or empty.
   std::string line;             // camps: the wire line (link/protocol.h's camps_line), as the link sends it.
-  std::string alias;            // travel: the camp's alias (for the log), and its FName.
+  std::string alias;            // travel, items: the camp's or item's alias (for the log), and its FName.
   uint32_t index = 0, number = 0;
-  std::string text;             // mark: its text, or empty.
+  uint32_t ask = 0;             // items: Lua's number for its answer.
+  std::string text;             // mark: its text, or empty. gift: the payload.
   std::array<uint64_t, kLionTableCount> tables{}; // lion rows: the tables' addresses, in kLionTables' order.
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
@@ -750,7 +785,7 @@ inline Request parse_request(std::string text) {
   if (text.rfind("lion rows ", 0) == 0)
     return parse_lion(text.substr(10));
   Request r;
-  std::string f[4];
+  std::string f[5];
   if (text == "host" || text == "host code" || text == "host private") {
     r.command = Command::host;
     r.who = text.size() == 4 ? Who::friends : text[5] == 'c' ? Who::code : Who::invited;
@@ -801,6 +836,14 @@ inline Request parse_request(std::string text) {
                                               number(f[2], index) && index && index <= UINT32_MAX &&
                                               number(f[3], number_) && number_ <= UINT32_MAX) {
     r.command = Command::travel, r.alias = f[1];
+    r.index = static_cast<uint32_t>(index), r.number = static_cast<uint32_t>(number_);
+  } else if (text.rfind("gift ", 0) == 0 && gift_ok(text.substr(5))) {
+    r.command = Command::gift, r.text = text.substr(5);
+  } else if (uint64_t ask = 0, index = 0, number_ = 0;
+             split(text, f, 5, nullptr) && f[0] == "items" && number(f[1], ask) && ask && ask <= 65535 &&
+             alias_word(f[2]) && number(f[3], index) && index && index <= UINT32_MAX && number(f[4], number_) &&
+             number_ <= UINT32_MAX) {
+    r.command = Command::items, r.alias = f[2], r.ask = static_cast<uint32_t>(ask);
     r.index = static_cast<uint32_t>(index), r.number = static_cast<uint32_t>(number_);
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;

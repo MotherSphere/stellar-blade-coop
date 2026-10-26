@@ -78,6 +78,10 @@
 // flight), under its own SEH latch, reads them back through SB's lookups by ID and, once asked, reads the spawn
 // manager's counter every 250 ms; status() gives it all in the lion line, and the worker logs each answer.
 //
+// coop gift's inventory read (game/items.h) is the worker's alone: on Lua's items request it reads how many of one item
+// our EVE carries through ReadProcessMemory, her GUID the revive guard's, and status() puts the answer in the engine
+// line for cut/mailbox.lua.
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -99,6 +103,7 @@
 
 #include "fight/worker.h"
 #include "game/debug_keys.h"
+#include "game/items.h"
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
@@ -127,6 +132,7 @@
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
 #include "glue/tick/travel_worker.inc"
+#include "glue/tick/items_worker.inc"
 #include "glue/tick/quests_worker.inc"
 #include "glue/tick/freeze_worker.inc"
 #include "glue/tick/debug_worker.inc"

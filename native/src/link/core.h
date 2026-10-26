@@ -88,6 +88,8 @@ constexpr uint64_t kRacePerSecond = 40;
 constexpr size_t kChatInbox = 64;
 // Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.
 constexpr uint64_t kNightPerSecond = 8;
+// coop gift's lines a second, each way: a gift, its answer and a resend each 10 s are a few a minute.
+constexpr uint64_t kGiftPerSecond = 8;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
 // A guest who lost the host's lobby tries again this long after the loss, and gives up at kRejoinMs (D5.10).
@@ -287,6 +289,7 @@ struct Peer {
   Window say_window;       // Her chat lines.
   Window night_window;     // Her night lines.
   Window race_window;      // Her race lines.
+  Window gift_window;      // Her gift lines.
   // Her .pak mods beyond the base game's (game/pak_list.h) from her paks line, once one came; her mod containers by
   // name with their hashes, from the pak lines her last paks line ended (named: some came, or she loads no .pak mod;
   // mod_names=off on her side sends none), and the pak lines since then; the status lines comparing them with ours,
@@ -546,6 +549,25 @@ public:
     ++(ok ? race_out_ : race_dropped_);
     return ok;
   }
+  // coop gift's line (cut/mailbox.lua, through a gift request): reliable to the friend past the handshake, or back as
+  // hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one goes in
+  // the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, past the
+  // rate, Steam refused it) comes back to Lua at once as her refusal, "gift n <id> nolink", so the sender gets the
+  // items back without waiting for her answer. Worker thread, in tick().
+  void gift(const std::string &payload) {
+    const std::string line = gift_line(payload);
+    bool ok = chatting() && !line.empty() && !over_rate(gift_window_, 1, kGiftPerSecond, kGiftPerSecond * kMaxMessage);
+    if (ok && linked()) {
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          ok = false;
+    } else if (ok) {
+      ok = for_lua("gift " + payload);
+    }
+    event((ok ? "gift line sent: " : "gift line not sent: ") + payload);
+    if (!ok && payload.rfind("s ", 0) == 0)
+      for_lua("gift n " + payload.substr(2, payload.find(' ', 2) - 2) + " nolink");
+  }
   // Our vitals (glue/tick.cpp's local_vitals(), every 100 ms in a session, 500 after a slow read), unreliable to the
   // friend past the handshake on change (at most once each kVitalsEveryMs) and each kVitalsAgainMs, which also heals
   // reordering; in the loopback with no friend, hers. Kept in a session for our life= line, sent or not. Worker thread,
@@ -593,8 +615,8 @@ public:
         sent = true;
     return sent;
   }
-  // For coop-chat.txt (glue/steam.cpp), oldest first: "in <text>" (hers, chat_clean()), "fail" (ours could not go) and
-  // "race <text>" (her race line).
+  // For coop-chat.txt (glue/steam.cpp), oldest first: "in <text>" (hers, chat_clean()), "fail" (ours could not go),
+  // "race <text>" (her race line) and "gift <payload>" (her gift line, or our gift that could not go).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
 
@@ -944,6 +966,9 @@ private:
       event("sent " + r.line.substr(r.line.find(' ') + 1));
       break;
     }
+    case Command::gift:
+      gift(r.text);
+      break;
     case Command::mark: { // A test tool: unlike chat, its text goes to both logs and statuses on purpose.
       const std::string n = std::to_string(++marks_), said = r.text.empty() ? "" : ": " + r.text;
       event("mark " + n + said);
@@ -976,6 +1001,7 @@ private:
     case Command::travel:
     case Command::lion:
     case Command::gate:
+    case Command::items:
       break;
     case Command::none:
       event("unknown request");
@@ -1577,6 +1603,16 @@ private:
       }
       break;
     }
+    case Kind::gift: {
+      if (!peer.compatible || !peer.accepted)
+        break;
+      const char *why = over_rate(peer.gift_window, 1, kGiftPerSecond, kGiftPerSecond * kMaxMessage)
+                            ? "over the rate limit"
+                        : !for_lua("gift " + message.text) ? "too many waiting"
+                                                           : nullptr;
+      event("gift line from " + peer.name + (why ? std::string(" dropped (") + why + "): " : ": ") + message.text);
+      break;
+    }
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
@@ -1830,6 +1866,7 @@ private:
   // Race lines: this session's counts (ours out, hers in, dropped either way) and our rate window.
   uint64_t race_in_ = 0, race_out_ = 0, race_dropped_ = 0;
   Window race_window_;
+  Window gift_window_; // Our gift lines.
   Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
   // coop mark: our marks this run (one count a game process, never reset) and the last mark's status line, or empty.
   uint32_t marks_ = 0;
