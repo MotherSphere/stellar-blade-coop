@@ -125,6 +125,10 @@ build/host/pose_codec_test
     missing template, a taken ID or name, a wrong vtable, AddRow slot or row size), a later run skipping the rows
     already in, FName's number split, the read-back through the game's lookups by ID, the answer word, the `lion=`,
     `gardener=` and `tendril=` status lines and the log lines;
+  - `lion_shock_test`: the Shock Bolt's two lists against fake memory: both gun stances given the two fire commands
+    (through the game's grow or inside the capacity), the const ammo list and the slot manager's list given
+    `Bullet_Shock`, a second run writing nothing, no slot manager yet, the key found down its hash chain, each refusal
+    writing nothing, an allocation that fails, the answer word, the `shock=` line and the log line;
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves out,
     the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put back
     after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd control, taken
@@ -353,7 +357,8 @@ Platform-free headers, tested on the build machine:
 | `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose/record.h` | The recording, its check and its replay |
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
-| `lion/rows.h` | Three batches of rows (its data part written by a generator outside the repository): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13 and `coop tendril fight`'s 107; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=` and `tendril=` lines and the log lines |
+| `lion/rows.h` | Three batches of rows (its data part written by a generator outside the repository): `coop lion`'s 241, the Lion's 222, the cut stimpacks' 4, the cut Tachy ChainSpin's 11 and the cut Shock Bolt's 4, `coop gardener fight`'s 13 and `coop tendril fight`'s 107; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=` and `tendril=` lines and the log lines |
+| `lion/shock.h` | The Shock Bolt's two lists grown in place once the lion rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |

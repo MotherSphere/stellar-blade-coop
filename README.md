@@ -120,8 +120,9 @@ today. The mod never contacts the cut mode's online services (Shift Up's servers
 `coop nightop start` runs five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and
 a score, on a co-op save. With no Steam session it is a solo run. In a session the host types it, and both games get
 the same waves while both screens show one timer and one score; with shared enemies on, each wave monster has one HP
-bar and one death in both games. A run that ends in success or time up gives points for a console shop that sells four
-of the game's items. None of this has been tested in game yet (see
+bar and one death in both games. A run that ends in success or time up gives points for a console shop that sells seven
+items: four of the game's, and three cut items the mod adds back (two stimpacks and the Shock Bolt ammo for EVE's gun).
+None of this has been tested in game yet (see
 [docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs four short fights on the same
 code, one of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. The
 challenges are solo: they need a co-op save and no Steam session, and give no shop points. They have not been tested
