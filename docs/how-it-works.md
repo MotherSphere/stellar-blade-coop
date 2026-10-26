@@ -1771,6 +1771,56 @@ second). A failing frame puts it back and turns `coop glide` off with a line on 
 `bGlide`, a true value at the next Lua load can only come from an earlier load, so that load's first tick sets false
 on the player's EVE when it reads true. The property is transient: nothing of it reaches a save.
 
+## Developer menu and panels
+
+The game ships its developer cheat menu as assets only. The UI definition `/Game/Art/UI/Definition/DebugCommand` names
+`WB_DebugCommand_Master` with `ESBUILogicType_DebugCommand` (191), and the widget is a plain `SBUserWidget` whose list
+and buttons a native UI logic would fill. SB registers one prototype logic per type at startup (the static initializers
+that call `0x141fc33a0`); the open path (`0x141fc4aa0`, through `0x141fc4d20`) clones the prototype of the type asked
+(`0x141fc3220`). Of the 220 initializers, 218 resolve to a type through the getter at their vtable's `+0x10` (`mov eax,
+<type>`), and 191 is not among them, nor are the other debug panels (DebugViewer 193, HUDRealTimeDebug 194, the sound
+debuggers 195 and 196, FishingDebugger 49, BossChallengeDebugInfo 240). HUDQuestDebugger (51), DebugToastMessage (230)
+and DebugPlayerInfo (232) are.
+
+Each `CheatCommandTable` row is a console command for `USBCheatManager`. The class's native function table
+(`0x145dbc690`, 703 name and thunk pairs) points to 111 distinct thunks, and every thunk but one calls only the
+parameter readers (`FFrame::Step` and its typed helpers, `FMemory::Free`, the FString copy): the bodies are compiled
+out. 267 names share the empty thunk `0x141167170`. The one with a body, `SBLoadingScreenFadeAuto` (`0x14269e260`),
+is in no row. The 157 command words of the table include none with a body. The table's queue for game play progress
+cheats (`0x141c94fb0`) runs its rows through `APlayerController::ConsoleCommand` (vtable `+0xcd0`), so they end in the
+same stubs.
+
+What still runs is the controller's `ServerRequest_Cheat`, whose logic job (`FSBCheat::Simulate`, `0x141b11800`) knows
+`SBSuicide`, `SBPlayerRevival`, `SBPlayerSP`, `SBApplyEffectMe`, `SBLogPlayerLocation` and `SBPlayerMaxTachyGauge`.
+The table uses three: `SBApplyEffectMe` in 82 rows (64 effects, 62 of them in the shipped EffectTable), `SBPlayerSP`
+in 4 and `SBPlayerRevival` in 1. `coop devmenu` (`cut/devmenu.lua`) keeps 21 rows of 25 effects. Each is applied as
+the menu's rows would have been: `ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "<ID>")`, through
+`cut/chainspin.lua`'s one call (`ChainSpin.apply`) after its checks (`ChainSpin.target`: `warp=idle`, `me=` not 0,
+EVE in the world, the controller). The menu passes effect names, and the job reads a number, so the module reads the
+ID from the EffectTable row of that name (`FindRow`) at each use. Effects on enemies use the test target filter
+`TestEffect_Enemy_Target`, `clear` uses `TestEffect_All_Target`; the two dispels remove the `TestEffect` and `Groggy`
+flags, which every lasting row's effect carries but `nolockswitch`'s (flag `LockOnDelivery`, which `lockswitch`
+removes). No effect has `bEnableSave`. The rows left out: the enemy kills
+(`ImmediateDeath`) and HP cuts (a lethal drop would credit our EVE, see [Achievements](#achievements)), the TPS unlock
+(`ActorStatType_UnlockTPSMode`), the consumable stacks, `FishingGod`, `SBPlayerSP`, EVE's death and revival, the test
+stances, `Test_MaxHPUpAll` and `Test_MaxShieldUpAll` (all actors), and the three lasting effects no dispel row reaches.
+
+`coop devinfo` (`game/dev_panels.h`, run by `glue/tick/debug_game.inc`) opens the two registered read-only panels
+through the client's UI manager (`FSBUMGManager`, the client global `0x147032520` at `+0x48`). The quest debugger's
+logic (vtable `0x145c31fc8`) builds its text in its tick (`0x141e99710`, the vtable's `+0x48`, which the manager's tick
+`0x141fc5440` calls for each open UI) from the quest manager's quests, task groups and tasks, and sends it to the
+widget as a `LogMessage` notification. The player info's logic (vtable `0x145c209e8`) sets `PlayerTagName: %s` from
+the client's string at `+0xe0` once at its start (`0x141d854c0`). The cheats meant to show them
+(`SBQuestDebuggerShow`, `SBHUDPlayerInfoDetailToggle`) are on the empty thunk. The calls copy SB's own: find
+(`0x141fc51d0`, the open entry whose logic has that type), open (`0x141fc4aa0(manager, type, null, null, 0, &FString{},
+0)`, as the client tick `0x141cd2e50` opens type 235) and close (`0x141fc5120(manager, type)`, the type read through
+the virtual at `+0x38` of the entry's `+0x10`, as `0x141abe390` closes type 242). An open waits for the guard the client
+tick checks before its own open: flow 2 at `+0xa00` and phase `0xe` at `+0xb9c`. The client is read from its global,
+never through `0x141a978c0`, which allocates it. The worker hands the ask over with a number; the game thread takes it
+with `try_lock` at its next frame, under its own SEH latch, and hands back the number, the panel, the reason for a
+refusal and what it opened and closed. Lua's `coop off` asks `devinfo off` before `off`, and the game thread takes it
+after the block too.
+
 ## Achievements
 
 The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks

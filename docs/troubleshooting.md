@@ -248,6 +248,17 @@ while the on-screen UI is up.
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation.md](night-operation.md).
 
+### `coop devmenu` or `coop devinfo` does nothing
+
+- `coop devmenu <row>` says `runs only on a co-op save`: load a co-op save (see [saves.md](saves.md#co-op-saves)).
+  `... is not in this game's EffectTable: nothing asked` means a game update renamed or removed that effect.
+- `a respawn or a warp is under way` or `EVE's GUID reads 0`: wait until EVE stands in the world and try again.
+- An enemy row changed nothing: it reaches only the enemies near EVE. Move closer and run it again.
+- `devinfo quest refused: not playing` (or `not in game`) in `coop-link.log`: open it while you play, not on the title
+  screen, during a load or in a menu. `the game opened nothing` means the game refused the panel; send `coop-link.log`
+  and `UE4SS.log`.
+- `devinfo fault ...: coop devinfo off for the run`: the panels stay off until the game restarts. Send both logs.
+
 ### Photo mode still freezes everything with Scenery live
 
 - `UE4SS.log` has `[StellarCoop] photo pause: off until the mod reloads: <why>`: the game refused the console variable
