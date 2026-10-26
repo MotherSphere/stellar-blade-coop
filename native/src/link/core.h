@@ -1033,7 +1033,7 @@ private:
         notice("No join code to copy.");
       }
       break;
-    // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests' and the Lion's: the
+    // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests' and the rows': the
     // caller's.
     case Command::off:
     case Command::loopback:
@@ -1045,7 +1045,7 @@ private:
     case Command::saves:
     case Command::quests:
     case Command::travel:
-    case Command::lion:
+    case Command::rows:
     case Command::gate:
       break;
     case Command::none:

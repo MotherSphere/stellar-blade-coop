@@ -56,11 +56,15 @@
 -- turning the camera on, on a co-op save only); coop gardener, coop tendril, coop mann, coop nier, coop orcal and coop
 -- enya, the same words for the cut Naytibas 1 and 6 and four cut models, one of them shown at a time; coop lion
 -- [intro]|rows|control|brain skulling|lurker, the cut Lion spawned as an enemy to fight, its table rows added through
--- the native part (cut/lion.lua; left out of the usage line; the words that spawn on a co-op save only); coop
--- chainspin, EVE's cut Tachy Mode ChainSpin, its rows added with the Lion's and the skill started through SB's own
--- effect call while she is in Tachy Mode (cut/chainspin.lua; left out of the usage line; on a co-op save only). coop
--- off stops everything until the game restarts. An XInput pad, read by the native part, drives the co-op menu and the
--- co-op saves' question: View held 1 s opens or closes the menu. The console commands' handlers are in
+-- the native part (cut/lion.lua; left out of the usage line; the words that spawn on a co-op save only); coop gardener
+-- fight [intro|half|skulling|rows], the cut Gardener spawned as an enemy the same way (cut/gardener.lua; left out of
+-- the usage line; the words that spawn on a co-op save only); coop tendril fight [rows], the cut Tendril the same way,
+-- with the Shows of its clips built in memory first (cut/tendril.lua; left out of the usage line; the spawn on a co-op
+-- save only); coop chainspin, EVE's cut Tachy Mode ChainSpin, its rows
+-- added with the Lion's and the skill started through SB's own effect call while she is in Tachy Mode
+-- (cut/chainspin.lua; left out of the usage line; on a co-op save only). coop off stops everything until the game
+-- restarts. An XInput pad, read by the native part, drives the co-op menu and the co-op saves' question: View held 1 s
+-- opens or closes the menu. The console commands' handlers are in
 -- Scripts/commands/ (session, partner, nightop, race, fight and cut), all but coop ui and coop off, which stay here.
 -- coop wear [<name>|off [hair|suit]] puts cut hairs and suits on your EVE, display only and on any save (cut/wear.lua).
 -- coop scene [emil|orcal|stop] plays two cut scenes through the game's own theater (cut/scene.lua; a scene on a co-op
@@ -192,11 +196,12 @@ local function ask(line)
         return link.request(line)
     end
 end
--- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop lion's words that spawn, show
--- and cam turning the free camera on in coop leviathan and the other viewer commands, and a scene of coop scene run
--- only on a co-op save (D2, N9): the native part's slot=coop, from the start of its own line (a Steam name never starts
--- one), for a co-op copy (saves=coop) or the manual co-op slot that StellarCoopSlot.txt names. The ghost, the Steam
--- link and every other command are never locked to it.
+-- coop no, coop recruiter, coop fight, coop revive test, the Doro look and probe, coop lion's, coop gardener fight's
+-- and coop tendril fight's words that spawn, show and cam turning the free camera on in coop leviathan and the other
+-- viewer commands,
+-- and a scene of coop scene run only on a co-op save (D2, N9): the native part's slot=coop, from the start of its own
+-- line (a Steam name never starts one), for a co-op copy (saves=coop) or the manual co-op slot that StellarCoopSlot.txt
+-- names. The ghost, the Steam link and every other command are never locked to it.
 local function slot_line() return ('\n'..(link and link.status() or '')):match('\n(slot=[^\r\n]*)') end
 local function coop_slot(what)
     local line=slot_line()
@@ -209,6 +214,12 @@ local nightop=require('nightop.probe').new(function(m) print('[StellarCoop][NO] 
 -- coop lion (cut/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back. Built before
 -- Night Operation's run: the shop asks it for the cut items' rows (rows).
 local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
+-- coop gardener fight (cut/gardener.lua), logging [GD] lines: the same, for the cut Gardener's rows and spawn.
+local gardener=require('cut.gardener').new({log=function(m) print('[StellarCoop][GD] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
+-- coop tendril fight (cut/tendril.lua), logging [TD] lines: the same, for the cut Tendril's rows, Shows and spawn.
+local tendril=require('cut.tendril').new({log=function(m) print('[StellarCoop][TD] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
 -- Night Operation's run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
 -- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off. Its card and result panel
@@ -378,7 +389,8 @@ end
 -- only, so they are read at each call; coop fight off and coop quests off set fight_auto and quests_auto to false.
 local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=look,looks=looks,ask=ask,
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
-    lion=lion,group=function() return group end,travel=function() return travel end,
+    lion=lion,gardener=gardener,tendril=tendril,group=function() return group end,
+    travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
     story_dump=story_dump}
 -- coop fly's keys (cut/flight.lua), logging [FL] lines: R2 alone flies, Shift with a direction evades.
@@ -440,6 +452,10 @@ local commands={
         if not stopped then log('leviathan: '..tostring(e)) end
         stopped,e=pcall(lion.stop)
         if not stopped then log('lion: '..tostring(e)) end
+        stopped,e=pcall(gardener.stop)
+        if not stopped then log('gardener: '..tostring(e)) end
+        stopped,e=pcall(tendril.stop)
+        if not stopped then log('tendril: '..tostring(e)) end
         stopped,e=pcall(scene.stop) -- The Stop row: the game's camera, input and HUD back.
         if not stopped then log('scene: '..tostring(e)) end
         stopped,e=pcall(cut_lines.stop)
@@ -597,6 +613,10 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=leviathan.tick() -- Outside the doro column of the frame time line.
     if message then report(ok,message) end
     ok,message=lion.tick()
+    if message then report(ok,message) end
+    ok,message=gardener.tick()
+    if message then report(ok,message) end
+    ok,message=tendril.tick()
     if message then report(ok,message) end
     ok,message=scene.tick()
     if message then report(ok,message) end

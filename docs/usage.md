@@ -820,12 +820,14 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop) at one of four [levels](night-operation.md#levels), solo or, started by the host at his level, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
-| `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its six items (two cut stimpacks among them), and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
+| `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its seven items (two cut stimpacks and the cut [Shock Bolt](#cut-ammo-shock-bolt) ammo among them), and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
 | `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker`, `coop lion unfreeze [init]` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its tests it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions; put back the engine switches that can freeze its mesh (spawns on a co-op save only) |
+| `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
+| `coop tendril fight [rows]` | The [cut Tendril](#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
@@ -973,9 +975,10 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 - In a session, only the host starts a run, at his level, and it is for both players. The guest's game checks her
   side and joins without a question, or the host gets a notice with the reason she cannot. On the guest's game the
   command answers `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
-- `coop nightop shop` lists the points your runs gave and the six items, and `coop nightop buy <n> [count]` buys 1 to 10
-  of item n into the co-op save. Items 5 and 6, the cut Burst and Beta Stimpacks, need table rows the native part adds
-  with the Lion's (see [Cut boss](#cut-boss-coop-lion)): a buy of one asks for them first. Your points are in
+- `coop nightop shop` lists the points your runs gave and the seven items, and `coop nightop buy <n> [count]` buys 1 to
+  10 of item n into the co-op save. Items 5 to 7, the cut Burst and Beta Stimpacks and the cut
+  [Shock Bolt](#cut-ammo-shock-bolt) ammo, need table rows the native part adds with the Lion's (see
+  [Cut boss](#cut-boss-coop-lion)): a buy of one asks for them first. Your points are in
   `coop-night-<steamid>-<index>.txt` in the mod folder, one file per Steam ID and co-op slot. See
   [night-operation.md](night-operation.md#the-reward-shop).
 
@@ -983,8 +986,9 @@ The ghost, the link and every other command except `coop fight` (below), `coop r
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
 [viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
-`coop lion control`, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on` and `coop glide on`
-(below) run on any save.
+`coop lion control`, `coop gardener fight` with no word, `intro`, `half` or `skulling`, `coop tendril fight` with no
+word, `coop chainspin`, a scene of
+`coop scene`, `coop fly on`, `coop slowmo on` and `coop glide on` (below) run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
@@ -995,9 +999,10 @@ show three of them:
 - `coop leviathan`: Naytiba 10, the Leviathan, in `/Game/Art/Character/Monster/CH_M_NA_10/`.
 - `coop gardener`: Naytiba 1, the Gardener, in `/Game/Art/Character/Monster/CH_M_NA_01/`. It is an artillery Naytiba
   about 20 m tall at scale 1, with its own textures. The prologue shows its mesh far away as scenery; its fight and its
-  Data Bank entry were cut.
+  Data Bank entry were cut. [`coop gardener fight`](#cut-enemy-coop-gardener-fight) spawns it as an enemy.
 - `coop tendril`: Naytiba 6, the Tendril, in `/Game/Art/Character/Monster/CH_M_NA_06/`. It is a prototype mesh
   (`CH_M_NA_06_test`, about 7 m tall) with 44 animations and blend spaces and no material.
+  [`coop tendril fight`](#cut-enemy-coop-tendril-fight) spawns it as an enemy.
 
 The three commands take the same words, described below with `coop leviathan`, and share one display and one
 [free camera](#free-camera) with four more commands for
@@ -1128,8 +1133,9 @@ The game's files hold a boss that was cut before release: Naytiba 02, the Lion, 
 `/Game/Art/Character/Monster/CH_M_NA_02/`. Its blueprint, meshes, animations, hit data and skill presentations (Shows)
 ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 222 rows it lacks to the game's
 tables in memory and spawns it as an enemy to fight. The same batch starts with 4 rows for the cut stimpacks of the
-[reward shop](night-operation.md#the-reward-shop) and 11 for EVE's [cut ChainSpin](#cut-tachy-skill-coop-chainspin),
-237 rows in 14 tables, and a buy of a stimpack or `coop chainspin` asks for it as `coop lion rows` does. Every row of
+[reward shop](night-operation.md#the-reward-shop), 11 for EVE's [cut ChainSpin](#cut-tachy-skill-coop-chainspin) and 4
+for the cut [Shock Bolt](#cut-ammo-shock-bolt) ammo, 241 rows in 15 tables, and a buy of a cut item or `coop chainspin`
+asks for it as `coop lion rows` does. Every row of
 the Lion's is written for it: its stats, its skills, the timing of its hits and the moves that follow its own
 animations. It is a test command, left out of the usage line. Its lines go to `UE4SS.log` as `[StellarCoop][LI]`; the
 native part's go to `coop-link.log` as `lion rows ...`.
@@ -1142,8 +1148,8 @@ native part's go to `coop-link.log` as `lion rows ...`.
   more than 20 m away) and removes the copy as soon as the Lion is there. The copy is a display only, like the Doros of
   a race: it cannot fight or be hit. A copy that cannot be made skips the entrance and spawns at once. A map change
   during the entrance spawns nothing. Co-op save only.
-- `coop lion rows` adds the rows (the Lion's, the stimpacks' and the ChainSpin's) and reads them back, with no spawn.
-  Any save.
+- `coop lion rows` adds the rows (the Lion's, the stimpacks', the ChainSpin's and the Shock Bolt's) and reads them back,
+  with no spawn. Any save.
 - `coop lion control` spawns an Antlion (M_Antlion, 50110), a shipped Naytiba, through the same call and with no rows.
   If the Antlion comes and the Lion does not, the rows are at fault rather than the call. Co-op save only. The native
   part reads the game's spawn counter only once rows were asked in the game run, so run `coop lion rows` first if the
@@ -1209,11 +1215,11 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 14/14 found: CharacterTable=0x...` | The 14 tables found, with the addresses sent to the native part |
-| `lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
-| `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 1004500-6000101 23/23, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need (SkillTable: the Lion's 21 skills, the stimpacks' skill, 6000101, and the ChainSpin, 1004500) |
-| `rows read back through FindRow: 237/237 authored rows, 3178 fields as written (2156 differ from the template row)` | Every field the native part wrote reads as written; 2156 of them hold a value the shipped row it started from did not, and the other 1022 restate that row's value |
-| `rows already in (237/237; ...): not added again` | A later `coop lion` in the same game run |
+| `tables: 15/15 found: CharacterTable=0x...` | The 15 tables found, with the addresses sent to the native part |
+| `lion rows: 241/241 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 1003401-6000101 24/24, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need (SkillTable: the Lion's 21 skills, the stimpacks' skill, 6000101, the ChainSpin, 1004500, and the Shock Bolt's, 1003401) |
+| `rows read back through FindRow: 241/241 authored rows, 3265 fields as written (2178 differ from the template row)` | Every field the native part wrote reads as written; 2178 of them hold a value the shipped row it started from did not, and the other 1087 restate that row's value |
+| `rows already in (241/241; ...): not added again` | A later `coop lion` in the same game run |
 | `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
 | `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, hand moved 0 cm, battle 1, state 1, controller yes, spawn count -5, frame 16.7 ms (worst 24.1), lion Lua 0.4 ms/s, longest tick 0.3 ms (last pass: follow 0.2 ms, boss name 0.0 ms)` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), how far its left front paw (`Bip001-L-Hand`) moved in its own frame since the last line (0 cm while it runs or attacks: its pose does not play), battle mode, state, controller, the game's spawn counter, and over the last second the mean and worst frame time, the time this file's tick took and its longest single tick (to tell the Lion's cost from the mod's: a longest tick near the worst frame is the mod's), and what the last once-a-second pass took by part |
 | `before the spawn: frame 16.4 ms (worst 19.0), lion Lua 0.1 ms/s, longest tick 0.1 ms (last pass: none yet)` | The same frame part while the command waited, before the Lion was there: compare it with the follow lines |
@@ -1230,7 +1236,7 @@ The log lines, in `UE4SS.log` unless marked:
 | `lion 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
 | `entrance: ...` | What `coop lion intro` played, or why the entrance was skipped |
 
-A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; <n>/237 added`) and ends with a `STOP:`
+A refusal names its reason in `coop-link.log` (`lion rows refused <row>: <why>; <n>/241 added`) and ends with a `STOP:`
 line in `UE4SS.log`. Asking again skips the rows already added. Ask in a loaded save: on the title screen the native
 part can wait for a game state that never comes and refuse after 300 frames. See
 [how-it-works.md](how-it-works.md#the-cut-lion) for how the rows go in.
@@ -1243,6 +1249,139 @@ Lion's AnimBP nor the Behemoth's ran on any Lion mesh, while the single-node ins
 no such check. `coop lion` now runs the Lion's AnimBP on a hidden Behemoth mesh and draws the Lion's mesh on top,
 copying its pose bone by bone, so its skills and moves animate through the game's own system.
 
+### Cut enemy: `coop gardener fight`
+
+The Gardener, Naytiba 1 of the [viewer](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril), was cut
+with its fight. The game still ships its blueprint, its skill presentations (Shows), its shells, its appearance, death
+and detection rows and a whole skill kit, but no CharacterTable row and no behaviour tree, so it cannot spawn.
+`coop gardener fight` adds the 13 rows it lacks to the game's tables in memory, as a batch of their own next to the
+[Lion's](#cut-boss-coop-lion), and spawns it as an enemy to fight. Each row is a copy of a shipped one with a few
+fields changed. It is a test command, left out of the usage line. Its lines go to `UE4SS.log` as `[StellarCoop][GD]`;
+the native part's go to `coop-link.log` as `gardener rows ...`.
+
+- `coop gardener fight` spawns the Gardener (row `M_Gardener`, 50010) 25 m in front of EVE and 7.5 m above her feet,
+  facing her. The first time in a game run it asks the native part to add the rows and waits for the answer, 30 s at
+  most. Each time it reads the 13 rows back first and stops at the first value that differs, with no spawn. It runs
+  only on a [co-op save](#co-op-saves).
+- `coop gardener fight half` spawns `M_Gardener_Half` (50012), the same at half size, 12.5 m away. Co-op save only.
+- `coop gardener fight skulling` spawns `M_Gardener_Skulling` (50011), which runs the Lion's tree
+  (`M_Skulling_AI_Test`) instead of `M_Tentacle_AI`. Try it if the default Gardener never attacks. Co-op save only.
+- `coop gardener fight intro` first plays `Mon_Gardener_C_Appear` (15.5 s) on a copy of its mesh where it will stand,
+  then spawns the Gardener there and removes the copy as soon as the body is there. `coop gardener show` then
+  `coop gardener play appear` or `coop gardener play spawn` previews the spawn animations in the viewer. Co-op save
+  only.
+- `coop gardener fight rows` adds the rows and reads them back, with no spawn. Any save.
+
+The words that spawn first put away a viewer display and the free camera, so the viewer's model and the Gardener never
+stand in the same place. While a command waits for its rows, its body or its entrance, another `coop gardener fight`
+answers that it is busy. Every other `coop gardener` word is the viewer's.
+
+Try it on open, flat ground with 30 m clear in front of EVE and no Naytiba within 50 m: each shell kills any Naytiba
+within 2.3 m of where it lands.
+
+What to expect:
+
+- It is about 20 m tall and never walks: its stance moves at 0 cm/s, and it turns toward EVE at 100 degrees a second,
+  and in 0.3 s at the start of each attack. Its skeleton faces sideways compared with the game's monsters, so the mod
+  turns its mesh by 90 degrees once it spawns, and again if the game turns it back.
+- It has 37840 HP and 1455 shield (the Behemoth's) and attacks with a power of 930. Its rank is Elite and it is a boss
+  to the game, so the boss bar shows once it targets EVE, with the game's own name text for it (the album's
+  `Char_M_Gardener_AlbumName`, most likely "Gardener" in English).
+- It has three attacks, all shells fired from its mouth: SingleShot (shells on EVE and up to 3 m around her, then 15 and
+  18 m ahead of her), MultipleShot (three volleys, every 10 s at most) and ToxicBeam (its beam animation, then 8 shells
+  from EVE out to 15 m ahead of her within 0.7 s, every 15 s at most). No beam is drawn: the game ships no effect for
+  it. A shell marks where it will land 2 s before, explodes for 100 HP within 2.3 m and leaves a poison zone for 5 s (30
+  HP a second), before difficulty.
+- Its tree, `M_Tentacle_AI`, was made for monsters that stay put. It may play the Tentacle's 1 s battle-start animation
+  once a fight, which the Gardener's skeleton lacks: nothing shows, or a wrong pose for 1 s.
+- It never staggers, falls or goes groggy (it has no animations for them) and has no weak point.
+- At full size only its right foot is at sword height; the blaster reaches its body. At half size its legs come lower
+  if the game scales its hit boxes with its mesh, which is not checked yet.
+- When it dies it keeps its last pose (it has no physics for a ragdoll), then dissolves as the Cocoon does. It drops
+  nothing.
+- As for the Lion: no quest event runs for it, it unlocks no album entry, it should not come back from a save, the rows
+  stay in memory until the game exits, and only your game has it.
+
+The log lines, in `UE4SS.log` unless marked:
+
+| Line | What it answers |
+| --- | --- |
+| `tables: 15/15 found: CharacterTable=0x...` | The 15 tables found, with the addresses sent to the native part |
+| `gardener rows: 13/13 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `gardener rows by SB's lookups: CharacterTable 50010-50012 3/3, SkillTable 5001010-5001012 3/3, stance 500101 1/1` (`coop-link.log`) | The game's own lookups by ID find its three CharacterTable rows, its three skills and its stance |
+| `rows read back through FindRow: 13/13 authored rows, 279 fields as written (102 differ from the template row)` | Every field the native part wrote reads as written |
+| `rows already in (13/13; ...): not added again` | A later `coop gardener fight` in the same game run |
+| `spawn 50010: CreateActor returned; body CH_M_NA_01_BluePrint_C 25.9 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
+| `gardener 1: mesh yaw set to -90 (was 0)` | Its mesh turned to face EVE, or why the call failed |
+| `gardener 1 (50010): mesh yaw 0, not -90 (the game turned it back): set again` | The game turned the mesh back, and the mod turned it again |
+| `gardener 1 (50010): 25.9 m, xyz ..., speed 0, skill yes, ...` | Once a second while it lives, the same fields as the Lion's line |
+| `gardener 1 (50010) dead after 210 s (InteractionState 3, no controller); body gone after 16.0 s` | Its death and its body's despawn |
+| `gardener 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
+
+A refusal names its reason in `coop-link.log` (`gardener rows refused <row>: <why>; <n>/13 added`) and ends with a
+`STOP:` line in `UE4SS.log`. A refusal of the Gardener's rows leaves the Lion's batch alone, and the other way round.
+See [how-it-works.md](how-it-works.md#the-cut-gardener) for how the rows are made.
+
+### Cut enemy: `coop tendril fight`
+
+The Tendril, Naytiba 6 of the [viewer](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril), was cut
+early. Its files keep a test mesh with no material, a blueprint, an animation blueprint and 42 animations, but no table
+row and no skill presentation (Show) for any of them. `coop tendril fight` adds the 107 rows it needs to the game's
+tables in memory, as a batch of their own next to the [Lion's](#cut-boss-coop-lion) and the
+[Gardener's](#cut-enemy-coop-gardener-fight), builds the 12 Shows its attacks and its death play, also in memory, and
+spawns it as an enemy to fight. It is a test command, left out of the usage line, and it has not run in game yet. Its
+lines go to `UE4SS.log` as `[StellarCoop][TD]`; the native part's go to `coop-link.log` as `tendril rows ...`.
+
+- `coop tendril fight` spawns the Tendril (row `M_TendrilC`, 50060) 8 m in front of EVE, facing her. The first time in a
+  game run it asks the native part to add the rows and waits for the answer, 30 s at most. Each time it reads the 107
+  rows back and builds the Shows first, and a value that differs or a Show it cannot build stops it with no spawn. It
+  runs only on a [co-op save](#co-op-saves).
+- `coop tendril fight rows` adds the rows, reads them back and builds the Shows, with no spawn. Any save.
+
+The spawn first puts away a viewer display and the free camera. While a command waits for its rows or its body, another
+`coop tendril fight` answers that it is busy. Every other `coop tendril` word is the viewer's.
+
+What to expect:
+
+- It walks on its hands and feet, its head about 1.4 m up, and strikes with the four chains on its head. Its skeleton
+  faces sideways compared with its blueprint, so the mod turns its mesh by 90 degrees once it spawns (and again if the
+  game turns it back), and gives it the Hydra's tentacle material, as `coop tendril skin hydra` does in the viewer.
+- It has 64960 HP, 3720 shield and an attack power of 600 (the Gigas's numbers) and rank Boss, so the boss bar shows
+  once it targets EVE. The game has no text for its name and shows `<M_TendrilC>`; the mod writes `Tendril` there.
+- It has 11 attacks, each one of its own animations: two sweeps, two lashes and two diagonal swings with one chain, a
+  chop with both chains that lands 6.6 m ahead, a spin, and three combos (Rush, four hits, the last two slamming down
+  5.8 and 7.5 m ahead; Whip, three hits; Trace, two). Each hit strikes anyone in an arc in front of it, 4 to 7.5 m
+  deep, while its chains strike. Guard, parry and perfect parry work on every hit, as on the Lion.
+- It walks at 2 m/s, runs at 4 m/s and turns toward EVE at the start of each attack.
+- EVE's hits play its knock-back animation. It never goes groggy, falls or flies: the game's animation sets for those
+  states name animations it does not have.
+- When it dies it plays its death animation (6 s), then dissolves as the Cocoon does. It drops nothing.
+- As for the Lion: no quest event runs for it, it unlocks no album entry, it should not come back from a save, the rows
+  and the Shows stay in memory until the game exits, and only your game has it.
+
+The log lines, in `UE4SS.log` unless marked:
+
+| Line | What it answers |
+| --- | --- |
+| `tables: 15/15 found: CharacterTable=0x...` | The 15 tables found, with the addresses sent to the native part |
+| `tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable 5006000-5006010 11/11, stance 500600 1/1` (`coop-link.log`) | The game's own lookups by ID find its CharacterTable row, its 11 skills and its stance |
+| `rows read back through FindRow: 107/107 authored rows, 1281 fields as written (997 differ from the template row)` | Every field the native part wrote reads as written |
+| `shows: 12/12 ready (12 made, 0 found built), each with its own anim key on its clip and found by the path its steps name` | The Shows are built and the game can find them; after a Lua reload, `0 made, 12 found built` |
+| `not ready: M_TendrilC_SwingLeft: no anim key of its own: no spawn` | A Show (or its package, `/Game/Art/Show/StellarCoop/Tendril`) could not be built, and why |
+| `spawn 50060: CreateActor returned; body CH_M_NA_06_Blueprint_C 8.1 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
+| `tendril 1: mesh yaw set to 0 (was -90)` | Its mesh turned to face its front |
+| `tendril 1: material MI_M_NA_09_V03_Tentacle on its 1 slots` | The Hydra's material on its mesh, or why not |
+| `boss name: <M_TendrilC> -> Tendril` | The boss bar's name set |
+| `shows: M_TendrilC_Chop gone: built again` | The game dropped a Show while the Tendril lived, and the mod built it again |
+| `tendril 1 (50060): 8.1 m, xyz ..., speed 0, skill yes, anim alpha 1.00/0.00, ...` | Once a second while it lives, the same fields as the Lion's line; `anim alpha` above 0 while a skill runs means its animation plays |
+| `tendril 1 (50060) dead after 95 s (InteractionState 3, no controller); body gone after 22.0 s` | Its death and its body's despawn |
+| `tendril 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
+
+A refusal names its reason in `coop-link.log` (`tendril rows refused <row>: <why>; <n>/107 added`) and ends with a
+`STOP:` line in `UE4SS.log`. A refusal of one batch leaves the others alone. See
+[how-it-works.md](how-it-works.md#the-cut-tendril) for how the rows and the Shows are made.
+
 ### Cut Tachy skill: `coop chainspin`
 
 The game's files hold a Tachy Mode skill for EVE that was cut before release, the ChainSpin: her animation
@@ -1253,7 +1392,7 @@ skill presentation (Show) of EVE's uses them, so no button plays it. The prologu
 animation (3.25 s, nine steps) and takes the two moves.
 
 `coop chainspin` adds EVE's version to the game's tables in memory with the [cut Lion's rows](#cut-boss-coop-lion) (11
-of the 237: the skill `P_Eve_Tachy_Skill_ChainSpin1_1`, its nine steps and an effect), then asks the game to apply that
+of the 241: the skill `P_Eve_Tachy_Skill_ChainSpin1_1`, its nine steps and an effect), then asks the game to apply that
 effect on EVE. The effect starts the skill only while she is in Tachy Mode; outside it, nothing happens. It is a test
 command, left out of the usage line, and runs only on a [co-op save](#co-op-saves). Its lines go to `UE4SS.log` as
 `[StellarCoop][CS]`.
@@ -1282,6 +1421,54 @@ command, left out of the usage line, and runs only on a [co-op save](#co-op-save
 None of it has been tried in game yet. Check that EVE plays the spin in Tachy Mode and nothing outside it, that she
 travels with its two moves (7.5 m, then 2.9 m), that its four hits land on enemies around her, and that the game keeps
 running normally after it.
+
+### Cut ammo: Shock Bolt
+
+The game's files hold a third ammo for EVE's gun that was cut before release, the Shock Bolt. A hit stuns a common enemy
+for 10 s, or until it is hit again (the game's own stun effect, `ShockSlugStun`, which does nothing to animals, elites
+and bosses). Its fire commands, steps, consumable, projectile blueprint and stun ship, but it has no item, skill,
+projectile or hit result row, EVE's gun stances list only its failed shot, and the ammo selector stops at five types.
+
+The [reward shop](night-operation.md#the-reward-shop) sells it as item 7, 5 points a bolt: `coop nightop buy 7 10`. The
+buy gets the [cut Lion's rows](#cut-boss-coop-lion) in first, the Shock Bolt's 4 among them. In the same frame as the
+last row, the native part adds the two fire commands the game ships (`P_Eve_Gun_ShootShockSlug1_1` and `_1_2`) to
+EVE's gun stances and `Bullet_Shock` as a sixth entry of the game's ammo list, without replacing a row (see
+[how-it-works.md](how-it-works.md#the-cut-shock-bolt)). The buy goes through only when that worked.
+
+- EVE carries 30 bolts at most. A shot takes one, and the next shot waits 1.5 s. The game adds bolts only up to 30
+  and drops the rest, and the shop cannot read how many she holds, so the points of dropped bolts are not given back.
+  Check her count before a buy.
+- Aim to get the fire commands. If she was aiming when they went in, aim again.
+- The ammo selector builds its list when the HUD starts. If the Shock Bolt does not show there, load a save and look
+  again (when the HUD starts again is not known).
+- The slot stays for the game run, with or without bolts. With none, the trigger should play the failed shot, as with
+  the other ammo types.
+- Every save keeps the bolts and the selected slot, the game's autosaves at a camp or a zone change included. After a
+  restart the Shock Bolt's rows and the sixth slot are not in until a buy of a cut item or `coop lion rows`, so the save
+  loads into a game without them, with the mod installed as without it. The readers of the selected slot found so far
+  check it against their list's length, so slot 6 should read as no ammo, but the code that restores the slot from the
+  save was not traced, and how the game loads bolts it has no row for is not known. Keep a backup of the co-op save,
+  and switch to another ammo before you save or quit from the menu (which saves).
+- Only your game has it. What your friend sees of a shot in a session is untested.
+
+`coop-status.txt` has a `shock=` line: `shock=off` before, then `shock=in commands=24,24 added=4 list=6 slots=6` (both
+stances' command counts, the commands added, the ammo list's and the slot manager's entries; `slots=-` when the slot
+manager did not exist yet), or `shock=refused why=<word> at=<where>`, with nothing written unless `why=alloc` (see the
+table below).
+
+The log lines, in `UE4SS.log` (the shop's `[StellarCoop][NR]` lines) unless marked:
+
+| Line | What it answers |
+| --- | --- |
+| `shock bolt in: 4 fire commands added (P_Eve_Gun 24 commands, P_Eve_GunBlockSword 24), BulletItemSlotArray grown, 6 entries, the slot manager's list grown, 6 entries` (`coop-link.log`) | Both stances and both ammo lists grew |
+| `shock bolt refused at <where>: <why>; nothing written` (`coop-link.log`) | A check failed before any write: a stance row missing or with another ID, a list out of range, or an ammo list that is not the five the game ships |
+| `shock bolt refused at <where>: SB's allocator gave nothing; the writes before it stay` (`coop-link.log`) | The game's allocator gave no memory partway through the writes (`why=alloc`). What went in before it stays: the fire commands appended, and the ammo list's sixth entry when `<where>` is `slots`. The shop sells no Shock Bolt |
+| `shock bolt off: fault 0x... in ... reading 0x...; the rows stay, no Shock Bolt until the game restarts` (`coop-link.log`) | A fault in the native step. The rows and everything else keep running |
+| `buy Bullet_Shock x10: the gun cannot fire it (shock=...); no points taken` | A buy refused because the `shock=` line does not say `in` |
+
+None of it has been tried in game yet. Check that the Shock Bolt shows in the ammo selector with its icon and count,
+that EVE fires it and the count drops, that a hit stuns a common enemy and not an elite, and that the game keeps running
+normally after you switch ammo.
 
 ### Cut hairs and suits: `coop wear`
 

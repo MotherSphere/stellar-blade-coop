@@ -1,27 +1,32 @@
 -- coop nightop shop and coop nightop buy: Night Operation's reward shop, from the console, on a co-op save only. A run
 -- that ends in success or time up credits points to this player's wallet (nightop/run.lua credits only a run of ours
--- that went from its countdown to that end); the shop sells six items for them. The first four are the rows of the
+-- that went from its countdown to that end); the shop sells seven items for them. The first four are the rows of the
 -- game's cut Shop_NightOperation that every camp shop sells with no condition gate, at that table's prices, so a buy
--- skips no story gate. The last two are cut items whose ItemTable rows the game lacks, the Burst Stimpack (HP for
--- Burst gauge) and the Beta Stimpack (HP for Beta energy), at our own prices: the native part adds their rows with the
--- Lion's (cut/lion.lua's rows, the lion rows batch), so a buy of one asks for those rows first, waits for them when
--- they are not in yet, and grants only once they are (the answer then comes from coop lion's tick); rows that cannot
--- be added cost no point. The wallet is one file per SteamID and co-op slot beside the mod,
+-- skips no story gate. The last three are cut items whose ItemTable rows the game lacks, the Burst Stimpack (HP for
+-- Burst gauge), the Beta Stimpack (HP for Beta energy) and the Shock Bolt (ammo for EVE's gun that stuns a common
+-- enemy), at our own prices: the native part adds their rows with the Lion's (cut/lion.lua's rows, the lion rows
+-- batch), so a buy of one asks for those rows first, waits for them when they are not in yet, and grants only once
+-- they are (the answer then comes from coop lion's tick); rows that cannot be added cost no point. The Shock Bolt also
+-- needs the status's shock line to read in (the native part grew EVE's gun stances and the ammo list, lion/shock.h):
+-- ammo the gun cannot fire costs no point either. The wallet is one file per SteamID and co-op slot beside the mod,
 -- coop-night-<steamid>-<index>.txt, one line: the points. The game never reads it; a save restore does not take points
 -- back.
 -- Called here: the player controller's ItemBucketItemAdd request, once a buy, in grant() only: bucket type 1 (the
--- inventory), EVE's own GUID, one of the six aliases, 1 to 10 items. Never called here: an item remove, consume or
+-- inventory), EVE's own GUID, one of the seven aliases, 1 to 10 items. Never called here: an item remove, consume or
 -- equip, a save, a quest call, the game's own shops, anything online.
 local U=require('core.unreal')
 local W=require('nightop.waves')
 local N=require('nightop.probe')
 local Shop={}
 local MASK=0xFFFFFFFF
--- The item number is the row's place here. cut: the native part adds its rows (lion/rows.h's cut items) before a buy.
--- ponytail: the stimpacks' prices are starting values (a full normal run credits 42 points at most); tune them in game.
+-- The item number is the row's place here. cut: the native part adds its rows (lion/rows.h's cut items) before a buy;
+-- shock: the shock line must read in too (a price per bolt). SB's bucket add (FUN_141bda9d0) keeps a capped item only up
+-- to its MaxAmount (30 bolts) and drops the rest; EVE's count lives in SB's unreflected item bucket and is not read
+-- here, so a buy past the cap still costs the dropped bolts' points (the docs say so).
+-- ponytail: the cut items' prices are starting values (a full normal run credits 42 points at most); tune them in game.
 Shop.ITEMS={{alias='HP_Potion',price=15},{alias='HP_Potion_Small',price=10},{alias='PulseGrenade',price=6},
     {alias='ConcussionGrenade',price=8},{alias='HP2Burst_Potion',price=20,cut=true},
-    {alias='Buff_HP2MP',price=16,cut=true}}
+    {alias='Buff_HP2MP',price=16,cut=true},{alias='Bullet_Shock',price=5,cut=true,shock=true}}
 Shop.POINTS_PER=25 -- Score for one point. ponytail: a starting value; tune it after the two-PC test.
 Shop.MOST=10 -- Items in one buy.
 local BUY='Use: coop nightop buy <item 1-'..#Shop.ITEMS..'> [count 1-10]'
@@ -150,6 +155,14 @@ function Shop.new(o)
                 log(string.format('buy %s x%d: its rows are not in (%s); no points taken',item.alias,c,message))
                 return false,string.format('%s cannot be added to the game (%s): nothing bought, no points taken',
                     item.alias,message)
+            end
+            -- Published before the lion line said rows, so it reads its last state here.
+            local shock=item.shock and ('\n'..tostring(status() or '')):match('\nshock=([^\r\n]*)')
+            if item.shock and not (shock or ''):find('^in ') then
+                log(string.format('buy %s x%d: the gun cannot fire it (shock=%s); no points taken',item.alias,c,
+                    shock or 'missing'))
+                return false,string.format('%s cannot be fired in this game (shock=%s): nothing bought, no points '
+                    ..'taken',item.alias,shock or 'missing')
             end
             return grant(item,c)
         end)

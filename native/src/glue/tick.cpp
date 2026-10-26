@@ -73,10 +73,13 @@
 // and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
-// The Lion's rows (lion/rows.h, coop lion): the worker hands over the 12 tables' addresses from Lua's lion rows
-// request; the game thread adds the rows through SB's own AddRow once the gate holds (net mode 0, no logic task in
-// flight), under its own SEH latch, reads them back through SB's lookups by ID and, once asked, reads the spawn
-// manager's counter every 250 ms; status() gives it all in the lion line, and the worker logs each answer.
+// The Lion's rows, the Gardener's and the Tendril's (lion/rows.h's batches, coop lion, coop gardener fight and coop
+// tendril fight): the worker hands over the 15 tables' addresses from Lua's lion rows, gardener rows or tendril rows
+// request; the game thread adds that batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic
+// task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and, once asked, reads the
+// spawn manager's counter every 250 ms; status() gives it all in the lion, gardener and tendril lines, and the worker
+// logs each answer. Right after the lion rows batch's last row, in the same call, the Shock Bolt's two lists grow in
+// place (lion/shock.h) under a latch of their own; status() gives the shock line, and the worker logs it once.
 //
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
@@ -106,6 +109,7 @@
 #include "glue/tick.h"
 #include "link/protocol.h"
 #include "lion/rows.h"
+#include "lion/shock.h"
 #include "nightop/probe.h"
 #include "pose/codec.h"
 #include "pose/engine.h"
@@ -177,7 +181,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The follow's travel, its own latch: a new ask each frame, the watch each 250 ms; none after coop off or a fault.
   if (game_pinned && !travel_faulted && !blocked)
     travel_tick();
-  // The Lion's rows, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no call made.
+  // The rows of every batch, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no
+  // call made.
   if (game_pinned && !lion_faulted)
     lion_tick();
   // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.

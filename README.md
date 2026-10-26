@@ -57,14 +57,23 @@ the Steam client that the game already runs, so the mod needs no other program a
 - `coop leviathan` shows Leviathan, a Naytiba cut from the game whose models and animations are still in its files, as
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
   for two more cut Naytibas, the Gardener and the Tendril (see
-  [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)). None of them can be
-  fought: the game has no entry for them in its character table. `coop mann`, `coop nier`, `coop orcal` and `coop enya`
+  [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)). In the viewer none
+  of them can be fought: the game has no entry for them in its character table (`coop gardener fight` and
+  `coop tendril fight`, below, add the Gardener's and the Tendril's). `coop mann`, `coop nier`, `coop orcal` and
+  `coop enya`
   show the early Mann model, the NieR collaboration's three cut machines and prototype statues of Orcal and Enya the
   same way.
 - `coop lion` spawns the Lion, a boss cut from the game, as a real enemy to fight on a co-op save. The game's files keep
   its model, animations and attacks but no table row, so the mod adds the 78 rows it needs to the game's tables in
   memory. `coop lion intro` plays its entrance first. It writes nothing to a save, and only your game has it (see
   [docs/usage.md](docs/usage.md#cut-boss-coop-lion)).
+- `coop gardener fight` spawns the Gardener the same way: a cut artillery Naytiba about 20 m tall that never walks and
+  shells EVE from its mouth. The mod adds the 13 rows it lacks to the game's tables in memory. It is not tested in game
+  yet (see [docs/usage.md](docs/usage.md#cut-enemy-coop-gardener-fight)).
+- `coop tendril fight` spawns the Tendril the same way, a cut Naytiba that strikes with four chains on its head. The
+  game has no skill presentations for its animations either, so the mod builds them in memory from its own clips, and
+  adds the 107 rows it lacks. It is not tested in game yet (see
+  [docs/usage.md](docs/usage.md#cut-enemy-coop-tendril-fight)).
 - `coop wear` puts EVE in two cut hairs (mechanical cat ears and rabbit ears) and four cut suits, Gothic Rose among
   them, by changing the meshes drawn. Your equipment and saves stay as they are, and your friend's ghost of you shows
   the look too (see [docs/usage.md](docs/usage.md#cut-hairs-and-suits-coop-wear)).
@@ -117,7 +126,8 @@ a score, on a co-op save. `coop nightop start easy`, `hard` or `nightmare` chang
 all, 20 at normal), the time limit and the shop points. With no Steam session it is a solo run. In a session the host
 types it, at his level, and both games get the same waves while both screens show one timer and one score; with
 shared enemies on, each wave monster has one HP bar and one death in both games. A run that ends in success or time up
-gives points for a console shop that sells four of the game's items. None of this has been tested in game yet (see
+gives points for a console shop that sells seven items: four of the game's, and three cut items the mod adds back (two
+stimpacks and the Shock Bolt ammo for EVE's gun). None of this has been tested in game yet (see
 [docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs four short fights on the same
 code, one of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. The
 challenges are solo: they need a co-op save and no Steam session, and give no shop points. They have not been tested

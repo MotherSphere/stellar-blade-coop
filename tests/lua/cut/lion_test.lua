@@ -1,9 +1,10 @@
 -- cut/lion.lua with fake UE4SS objects. Its row list (cut/lion_rows.lua, generated with rows.h) matches
 -- native/src/lion/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
--- more), and its tables are kLionTables in order. The rows are the Lion's own: no value names a Behemoth row or asset
+-- more), and so do the Gardener's (R.GARDENER, kGardenerRecipe) and the Tendril's (R.TENDRIL, kTendrilRecipe); its
+-- tables are kLionTables in order. The rows are the Lion's own: no value names a Behemoth row or asset
 -- but the sound set, every reference lands on a Lion row or a shipped generic one, the steps' moves are Lion moves, the
 -- phase-2 stance turns at HP under 60% and starts the roar's effect, which uses the phase-2 roar skill. The lion line
--- parses in each of its forms. coop lion finds the 14 tables (a missing one, no EVE or no lion line asks nothing), asks
+-- parses in each of its forms. coop lion finds the 15 tables (a missing one, no EVE or no lion line asks nothing), asks
 -- the rows once with every address in the native order, waits for the answer (a waiting line, or a refusal from before
 -- the ask, is no answer; a map change, a refusal, a fault, 30 s or SB's lookups finding fewer rows stop it), reads
 -- every row back through FindRow (the first value that differs stops before any spawn), then makes the one spawn call:
@@ -54,7 +55,8 @@ package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerContro
 local L=require('cut.lion')
 
 -- Lion.ROWS against native/src/lion/rows.h: its kPatches entries (a field's name is the comment after the entry, or
--- the comment line just before it; a comment line naming an M_LionC row only heads a group) and kRecipe.
+-- the comment line just before it; a comment line naming an M_LionC or M_TendrilC row only heads a group) and
+-- kRecipe.
 do
     local f=assert(io.open('native/src/lion/rows.h'))
     local src=f:read('a')
@@ -65,7 +67,7 @@ do
     for n in assert(src:match('constexpr TableInfo kTables%[kTableCount%] = {(.-)\n};')):gmatch('{"(%a+)", 0x') do
         names[#names+1]=n
     end
-    assert(#enum==14 and #names==14,'14 tables')
+    assert(#enum==15 and #names==15,'15 tables')
     for i,n in ipairs(names) do assert(L.TABLES[i]==n,'kLionTables order: '..n) end
     local block=assert(src:match('constexpr Patch kPatches%[%] = {\n(.-)\n};'))
     local patches,pending,line,closed_at={},nil,1,nil
@@ -77,7 +79,9 @@ do
             local e=block:find('\n',i) or #block+1
             local c=block:sub(i+2,e-1):match('^%s*(.-)%s*$')
             if closed_at==line then patches[#patches].field=c
-            elseif not c:find('^M_LionC') and not c:find('^[%w_]+ %(%w+, [%a ]+%)$') then pending=c end -- No heading.
+            elseif not c:find('^M_LionC') and not c:find('^M_TendrilC') and not c:find('^[%w_]+ %(%w+, [%a ]+%)$') then
+                pending=c -- No heading.
+            end
             i=e
         elseif ch=='{' then
             local text,bare,depth,j,s='', '',0,i,nil
@@ -103,30 +107,48 @@ do
         else i=i+1 end
     end
     local KINDS={f32='f',i32='i',name='n',string='s',names='N',strings='S'}
-    local n=0
-    for t,name,_,id,first,count in src:gmatch('{Table::(%a+), "([%w_]+)", "([%w_]+)",%s+(%d+),%s+(%d+),%s+(%d+)}') do
-        n=n+1
-        local r=assert(L.ROWS[n],'Lion.ROWS lacks '..name)
-        local tn
-        for k,e in ipairs(enum) do if e==t then tn=names[k] end end
-        assert(r.table==tn and r.name==name,
-            string.format('row %d: %s %s, not %s %s',n,tostring(r.table),r.name,tn,name))
-        assert((r.id or 0)==tonumber(id),name..' ID')
-        assert(#r.checks==tonumber(count),name..': '..#r.checks..' checks, '..count..' patches')
-        for p=tonumber(first)+1,tonumber(first)+tonumber(count) do
-            local pt,found=patches[p],nil
-            for _,c in ipairs(r.checks) do if c[1]==pt.field then found=c end end
-            assert(found,name..' lacks '..tostring(pt.field))
-            -- A byte is a bool (b, 0 or 1) or an enum's number (e).
-            assert(found[2]==KINDS[pt.kind] or pt.kind=='u8' and (found[2]=='e' or found[2]=='b' and pt.f<=1),
-                name..' '..pt.field..' kind')
-            if pt.kind=='f32' then assert(math.abs(found[3]-pt.f)<1e-6,name..' '..pt.field)
-            elseif pt.kind=='i32' or pt.kind=='u8' then assert(found[3]==pt.f,name..' '..pt.field)
-            else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
+    -- One recipe array of rows.h against its Lua rows; returns how many it holds.
+    local function compare(array,rows)
+        local n=0
+        local recipe=assert(src:match('constexpr Row '..array..'%[%] = {\n(.-)\n};'),array)
+        local ROW='{Table::(%a+), "([%w_]+)", "([%w_]+)",%s+(%d+),%s+(%d+),%s+(%d+)}'
+        for t,name,_,id,first,count in recipe:gmatch(ROW) do
+            n=n+1
+            local r=assert(rows[n],array..' lacks '..name)
+            local tn
+            for k,e in ipairs(enum) do if e==t then tn=names[k] end end
+            assert(r.table==tn and r.name==name,
+                string.format('row %d: %s %s, not %s %s',n,tostring(r.table),r.name,tn,name))
+            assert((r.id or 0)==tonumber(id),name..' ID')
+            assert(#r.checks==tonumber(count),name..': '..#r.checks..' checks, '..count..' patches')
+            for p=tonumber(first)+1,tonumber(first)+tonumber(count) do
+                local pt,found=patches[p],nil
+                for _,c in ipairs(r.checks) do if c[1]==pt.field then found=c end end
+                assert(found,name..' lacks '..tostring(pt.field))
+                -- A byte is a bool (b, 0 or 1) or an enum's number (e).
+                assert(found[2]==KINDS[pt.kind] or pt.kind=='u8' and (found[2]=='e' or found[2]=='b' and pt.f<=1),
+                    name..' '..pt.field..' kind')
+                if pt.kind=='f32' then assert(math.abs(found[3]-pt.f)<1e-6,name..' '..pt.field)
+                elseif pt.kind=='i32' or pt.kind=='u8' then assert(found[3]==pt.f,name..' '..pt.field)
+                else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
+            end
         end
+        return n
     end
-    assert(n==237 and #L.ROWS==237 and #patches==3178,n..' rows, '..#patches..' patches')
-    assert(L.IN.added=='237/237' and L.IN.char=='2/2' and L.IN.skills=='23/23' and L.IN.stance=='2/2')
+    local n=compare('kRecipe',L.ROWS)
+    local gardener={}
+    for _,r in ipairs(require('cut.lion_rows').GARDENER) do
+        gardener[#gardener+1]={table=r[1],name=r[2],id=r[3],checks=r[4]}
+    end
+    local g=compare('kGardenerRecipe',gardener)
+    local tendril={}
+    for _,r in ipairs(require('cut.lion_rows').TENDRIL) do
+        tendril[#tendril+1]={table=r[1],name=r[2],id=r[3],checks=r[4]}
+    end
+    local t=compare('kTendrilRecipe',tendril)
+    assert(n==241 and #L.ROWS==241 and g==13 and #gardener==13 and t==107 and #tendril==107 and
+        #patches==3265+279+1281,n..' rows, '..g..' Gardener rows, '..t..' Tendril rows, '..#patches..' patches')
+    assert(L.IN.added=='241/241' and L.IN.char=='2/2' and L.IN.skills=='24/24' and L.IN.stance=='2/2')
 end
 -- The Lion's own rows: no value names a Behemoth row or asset but its sound set (the Lion has none of its own); each
 -- step's moves, a skill's first step and target filter, a command's skill, a stance's commands and a hit's results are
@@ -175,7 +197,7 @@ do
             assert(not f.StartEffect:find('MinimumHP_60p'),r.name)
         end
     end
-    assert(changed==2156,'Fields that differ from the template: '..changed) -- The other 1022 restate its value.
+    assert(changed==2178,'Fields that differ from the template: '..changed) -- The other 1087 restate its value.
     for _,name in ipairs({'M_LionC','M_LionC_Lurker'}) do
         local c=row('CharacterTable',name).field
         assert(c.LinkSkillRandomActiveStepFlagArray=='Common' and c.StanceAliasArray=='M_LionC_Phase2' and
@@ -267,6 +289,27 @@ do
     assert(effect.table=='EffectTable' and effect.name=='P_Eve_Tachy_Skill_ChainSpin1_Use' and effect.id==1004500)
     f=effect.field
     assert(f.Action1==69 and f.ActionValue1==CHAIN and f.ConditionActive_CheckEffectAliasArray=='P_Eve_TachyMode')
+end
+-- Then the Shock Bolt's 4 rows (nightop/shop.lua sells the ammo): its item over Bullet_Scatter with a cap of its own
+-- and no stat override or drop pool; the skill its consumable plays, on SB's shipped Shock steps, with no acquisition
+-- (SB's skill gate would refuse it); the projectile those steps fire, with the shock blueprint and its own hit result,
+-- which adds SB's shock stun.
+do
+    local want={{'ItemTable','Bullet_Shock',32},{'SkillTable','P_Eve_Gun_ShootShockSlug1_1',1003401},
+        {'ProjectileTable','P_Eve_Gun_ShootShockSlug1_Projectile1',1010051},
+        {'SkillResultTable','P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1',100200801}}
+    local f={}
+    for i,w in ipairs(want) do
+        local r=L.ROWS[15+i]
+        assert(r.table==w[1] and r.name==w[2] and r.id==w[3],'Shock Bolt row '..i)
+        f[i]=r.field
+    end
+    assert(f[1].BulletAlias=='Bullet_Shock' and f[1].ConsumableAlias=='Bullet_Shock_Consume' and f[1].MaxAmount==30
+        and f[1].MaxAmountOverrideActorStat==0 and f[1].ChargeOverrideActorStat==0 and f[1].IncludeDropPool==0)
+    assert(f[2].FirstSkillActiveAlias=='P_Eve_Gun_ShootShockSlug1_1_Cast1' and f[2].AcquisitionSkillAlias=='None')
+    assert(f[3].SkillResultAliasWhenProjectileHit==want[4][2]
+        and f[3].ResourcePath:find('/CH_P_EVE_01/Projectile/P_Eve_Gun_ShootShockSlug1_Projectile1$'))
+    assert(f[4].ResultTargetCommonEffect:find('{"Alias":"ShockSlugStun"}',1,true))
 end
 
 -- The lion line in each of its forms (lion/rows.h's status_line).
@@ -488,11 +531,11 @@ local function at(t) clock=t end
 local REQUEST='lion rows CharacterTable=0x%x CharacterAppearanceTable=0x%x CharacterDeadTable=0x%x '
     ..'CharacterStanceTable=0x%x CharacterAnimSetTable=0x%x SkillCommandTable=0x%x SkillTable=0x%x '
     ..'SkillActiveStepTable=0x%x CharacterMoveTable=0x%x TargetFilterTable=0x%x SkillResultTable=0x%x '
-    ..'EffectTable=0x%x ItemTable=0x%x ItemConsumableTable=0x%x'
+    ..'EffectTable=0x%x ItemTable=0x%x ItemConsumableTable=0x%x ProjectileTable=0x%x'
 local addresses={}
 for k,t in ipairs(L.TABLES) do addresses[k]=tables[t]:GetAddress() end
 REQUEST=REQUEST:format(table.unpack(addresses))
-local ROWS_IN='rows added=237/237 asks=%d spawns=%s char=2/2 skills=23/23 stance=2/2'
+local ROWS_IN='rows added=241/241 asks=%d spawns=%s char=2/2 skills=24/24 stance=2/2'
 local SPOT={X=1000,Y=0,Z=200}
 -- The call's body: the Lion with no controller, the Antlion with the game's own.
 local function spawns_lion(id,p)
@@ -515,42 +558,42 @@ player=eve
 present.SkillTable=false
 ok,why=lion.command('rows')
 assert(ok==false and why=='The game has no SkillTable loaded: nothing was asked.' and #asked==0,why)
-assert(last()=='tables: 13/14 found, missing SkillTable: nothing asked',last())
+assert(last()=='tables: 14/15 found, missing SkillTable: nothing asked',last())
 present.SkillTable=true
 status_text='mod=v\n'
 ok,why=lion.command()
 assert(ok==false and why:find('^coop%-status%.txt has no lion line') and #asked==0,why)
-assert(last():find('^tables: 14/14 found: CharacterTable=0x'),last())
+assert(last():find('^tables: 15/15 found: CharacterTable=0x'),last())
 refuse_ask='the Steam link needs the native part'
 lion_status('off')
 ok,why=lion.command('rows')
 assert(ok==false and why=='Lion rows not asked: the Steam link needs the native part' and #asked==0,why)
 refuse_ask=nil
 
--- coop lion rows: one ask with the 14 addresses in kLionTables' order, then the wait.
+-- coop lion rows: one ask with the 15 addresses in kLionTables' order, then the wait.
 at(100)
 ok,why=lion.command('rows')
 assert(ok and asked[1]==REQUEST and #asked==1,asked[1])
 assert(last()=='rows asked of the native part (lion=off): its answer is the next asks= past 0',last())
-assert(logged('^tables: 14/14 found: '..REQUEST:sub(11):gsub('%-','%%-')..'$'),'R1 with every address')
+assert(logged('^tables: 15/15 found: '..REQUEST:sub(11):gsub('%-','%%-')..'$'),'R1 with every address')
 ok,why=lion.command()
 assert(ok==false and why=='coop lion is busy (the wait for the Lion rows): try again in a few seconds',why)
 ok,why=lion.command('brain','lurker')
 assert(ok and why=='coop lion spawns 50021 (M_LionC_Lurker, the Lesser Lurker tree) until the mod reloads.',why)
 ok,why=lion.command('brain','skulling'); assert(ok and why:find('^coop lion spawns 50020 %(M_LionC, the Skulling'))
-lion_status('waiting added=10/237 asks=0 spawns=? why=busy ticks=3')
+lion_status('waiting added=10/241 asks=0 spawns=? why=busy ticks=3')
 at(100.1); assert(lion.tick()==nil and not logged('^rows wait'),'Not due before 0.25 s')
-at(100.25); assert(lion.tick()==nil and last()=='rows wait for the game thread: lion=waiting added=10/237 asks=0 '
+at(100.25); assert(lion.tick()==nil and last()=='rows wait for the game thread: lion=waiting added=10/241 asks=0 '
     ..'spawns=? why=busy ticks=3',last())
 local n=#lines
 at(100.5); lion.tick(); assert(#lines==n,'Said once')
 lion_status(ROWS_IN:format(1,'6'))
 at(100.75)
 ok,why=lion.tick()
-assert(ok and why=='Lion rows in: 237/237 added, SB finds them by ID (char 2/2, skills 23/23, stance 2/2) and they '
+assert(ok and why=='Lion rows in: 241/241 added, SB finds them by ID (char 2/2, skills 24/24, stance 2/2) and they '
     ..'read back as written; coop lion spawns one.',tostring(why))
 assert(lines[#lines-1]=='rows answer: lion='..ROWS_IN:format(1,'6') and last()=='rows read back through FindRow: '
-    ..'237/237 authored rows, 3178 fields as written (2156 differ from the template row)',last())
+    ..'241/241 authored rows, 3265 fields as written (2178 differ from the template row)',last())
 assert(#calls==0 and #asked==1,'Rows only: no spawn')
 
 -- coop lion with the rows in: no ask, the read-back, the spawn call, then the body after 0.3 s.
@@ -558,7 +601,7 @@ on_create=spawns_lion
 at(200)
 ok,why=lion.command()
 assert(ok and why=='M_LionC 50020 asked: [LI] lines follow.' and #asked==1,why)
-assert(logged("^rows already in %(237/237; SB's lookups by ID: char 2/2, skills 23/23, stance 2/2%): not added again$"))
+assert(logged("^rows already in %(241/241; SB's lookups by ID: char 2/2, skills 24/24, stance 2/2%): not added again$"))
 local c=calls[1]
 assert(c[1]==50020 and c[2].X==1000 and c[2].Y==0 and c[2].Z==200 and c[3].Yaw==180 and c[3].Pitch==0,
     'Ahead 10 m, 1 m up, facing EVE')
@@ -703,7 +746,7 @@ assert(why=='A Lion row reads back wrong (M_LionC_ClawAttackLeft_Hit1 AttackColl
     ..'Collision", "DelayTime":0}]"): no spawn.',why)
 local before=0 -- The rows ahead of the Hit step in the recipe: the effect, results, filters, moves and the Cast step.
 while L.ROWS[before+1].name~='M_LionC_ClawAttackLeft_Hit1' do before=before+1 end
-assert(last():find('^rows read back through FindRow: M_LionC_ClawAttackLeft_Hit1 .* %('..before..'/237 match before '
+assert(last():find('^rows read back through FindRow: M_LionC_ClawAttackLeft_Hit1 .* %('..before..'/241 match before '
     ..'it%): no spawn$'),last())
 hit.AttackCollisionGroupArray=good
 -- An FName reads in any case (the game's first casing wins); a missing row, a float off or an ID off stops.
@@ -727,10 +770,10 @@ ok,why=lion.command()
 assert(ok==false and why=='A Lion row reads back wrong (M_LionC is not in CharacterDeadTable): no spawn.',why)
 tables.CharacterDeadTable.rows.M_LionC=dead
 -- SB's lookups finding fewer rows: no spawn.
-lion_status('rows added=237/237 asks=1 spawns=6 char=1/2 skills=23/23 stance=2/2')
+lion_status('rows added=241/241 asks=1 spawns=6 char=1/2 skills=24/24 stance=2/2')
 ok,why=lion.command()
-assert(ok==false and why=='The Lion rows are not all usable: lion=rows added=237/237 asks=1 spawns=6 char=1/2 '
-    ..'skills=23/23 stance=2/2 (char=1/2, 2/2 expected): no spawn.' and #calls==1,why)
+assert(ok==false and why=='The Lion rows are not all usable: lion=rows added=241/241 asks=1 spawns=6 char=1/2 '
+    ..'skills=24/24 stance=2/2 (char=1/2, 2/2 expected): no spawn.' and #calls==1,why)
 
 -- brain lurker: 50021 through the same call; no body after 5 s stops (FindAllOf at 0.3, 1, 2, 3.5 and 5 s only).
 lion.command('brain','lurker')
@@ -792,6 +835,12 @@ lion_status('fault added=3/220 asks=1 spawns=6 where=SB.exe+0x10')
 at(800.25); ok,why=lion.tick(); assert(ok==false and why=='The Lion rows stopped on a fault (SB.exe+0x10).',why)
 ok,why=lion.command()
 assert(ok==false and why=='The Lion rows stopped on a fault this game run (SB.exe+0x10).' and #asked==3,why)
+-- Another batch's fault turns this line to fault with asks unchanged (the game thread never took our ask): it stops
+-- at once too, not after 30 s.
+lion_status('refused added=3/220 asks=3 spawns=6 why=net table=- row=- detail=1')
+at(850); assert(lion.command() and #asked==4)
+lion_status('fault added=3/220 asks=3 spawns=6 where=SB.exe+0x20')
+at(850.25); ok,why=lion.tick(); assert(ok==false and why=='The Lion rows stopped on a fault (SB.exe+0x20).',why)
 lion_status('off')
 at(900); assert(lion.command())
 at(929.9); assert(lion.tick()==nil)
@@ -989,23 +1038,26 @@ do
     lion_status(ROWS_IN:format(1,'6'))
     at(5000.25)
     ok,why=shopper.tick()
-    assert(ok and why:find('^shop: Lion rows in: 237/237 added') and said[1]==true and #calls==spawned,tostring(why))
+    assert(ok and why:find('^shop: Lion rows in: 241/241 added') and said[1]==true and #calls==spawned,tostring(why))
     ok,why,waiting=shopper.rows(function(o,m) return o,'at once: '..m end)
-    assert(ok and not waiting and why:find('^at once: Lion rows in: 237/237') and #asked==asks+1,tostring(why))
+    assert(ok and not waiting and why:find('^at once: Lion rows in: 241/241') and #asked==asks+1,tostring(why))
     player=nil
     ok,why=shopper.rows(function(o,m) return o,'no EVE: '..m end)
     assert(ok==false and why:find('^no EVE: no EVE in the world'),why)
     player=eve
 end
 
--- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
--- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn
--- and remove make and drop the display copy); its one destroy call drops the component it added itself, when the
--- leader fails.
+-- The source (cut/lion.lua and the flow it runs, cut/enemy.lua) names no achievement, reward, item, quest, save,
+-- possession, console command, destroy or row call of its own, and its only spawn words are its one CreateActor and
+-- its one SpawnDefaultController (race/doro.lua's spawn and remove make and drop the display copy); its one destroy
+-- call drops the component it added itself, when the leader fails.
 do
-    local f=assert(io.open('mod/StellarCoop/Scripts/cut/lion.lua','rb'))
-    local src=f:read('a')
-    f:close()
+    local src=''
+    for _,p in ipairs({'mod/StellarCoop/Scripts/cut/lion.lua','mod/StellarCoop/Scripts/cut/enemy.lua'}) do
+        local f=assert(io.open(p,'rb'))
+        src=src..f:read('a')
+        f:close()
+    end
     local allowed,seen={ServerRequest_CreateActor=true,SpawnDefaultController=true,K2_DestroyComponent=true},{}
     for call in src:gmatch('[:.]([%a_][%w_]*)%s*%(') do
         if allowed[call] then seen[call]=(seen[call] or 0)+1

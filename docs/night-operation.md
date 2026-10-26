@@ -2,9 +2,9 @@
 
 Night Operation is a multiplayer wave-survival mode that Shift Up prototyped and cut before Stellar Blade's release.
 Much of it is still in the game files. StellarCoop has a run of its waves, `coop nightop`, which you play alone or with
-a linked partner at one of four levels, a shop that sells six items (two of them cut items) for the points runs earn,
-and four solo challenges on the same code, `coop challenge`. Two research previews test other parts of the cut mode;
-they are not playable modes. The run, the shop and the challenges have not been tested in game yet.
+a linked partner at one of four levels, a shop that sells seven items (three of them cut items) for the points runs
+earn, and four solo challenges on the same code, `coop challenge`. Two research previews test other parts of the cut
+mode; they are not playable modes. The run, the shop and the challenges have not been tested in game yet.
 
 ## What the game files contain
 
@@ -63,7 +63,7 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 | `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
 | `coop nightop stop` | End the run that is on, Night Operation or a challenge, on any save. `coop off` ends it too |
 | `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world that show a wave key, each with its run number (8 at most are named). The game shows a monster's wave key only in a networked game, so this list is empty in practice |
-| `coop nightop shop` | Your points and the six items of the [reward shop](#the-reward-shop) |
+| `coop nightop shop` | Your points and the seven items of the [reward shop](#the-reward-shop) |
 | `coop nightop buy <n> [count]` | Buy 1 to 10 of item n with your points |
 
 ### Before your first run
@@ -339,10 +339,10 @@ gives none. A failed or aborted run gives nothing, and a guest whose game missed
 game credits only its own player: no line between the two games carries points. If the points cannot be written, a
 notice says so and `UE4SS.log` says why.
 
-`coop nightop shop` lists your points and the six items:
+`coop nightop shop` lists your points and the seven items:
 
 ```
-OK: Night Operation shop, 41 points: 1 HP_Potion 15, 2 HP_Potion_Small 10, 3 PulseGrenade 6, 4 ConcussionGrenade 8, 5 HP2Burst_Potion 20, 6 Buff_HP2MP 16. coop nightop buy <n> [count] buys up to 10.
+OK: Night Operation shop, 41 points: 1 HP_Potion 15, 2 HP_Potion_Small 10, 3 PulseGrenade 6, 4 ConcussionGrenade 8, 5 HP2Burst_Potion 20, 6 Buff_HP2MP 16, 7 Bullet_Shock 5. coop nightop buy <n> [count] buys up to 10.
 ```
 
 | # | Item | Points | At a camp |
@@ -353,35 +353,45 @@ OK: Night Operation shop, 41 points: 1 HP_Potion 15, 2 HP_Potion_Small 10, 3 Pul
 | 4 | `ConcussionGrenade` | 8 | 400 gold |
 | 5 | `HP2Burst_Potion` (Burst Stimpack) | 20 | not sold |
 | 6 | `Buff_HP2MP` (Beta Stimpack) | 16 | not sold |
+| 7 | `Bullet_Shock` (Shock Bolt) | 5 a bolt | not sold |
 
 Items 1 to 4 and their prices come from the cut mode's own shop table, `Shop_NightOperation`. It lists 12 items; these
 four are the ones every camp shop sells with no story condition, so a buy here skips no story gate.
 
-Items 5 and 6 are cut items. The game ships their effects, use conditions, icons and English text, but no ItemTable
+Items 5 to 7 are cut items. The game ships their effects, use conditions, icons and English text, but no ItemTable
 row, so it cannot hold them. Their prices are the mod's own starting values.
 
 - The Burst Stimpack takes 400 HP and fills the Burst gauge by 600. The game's use conditions refuse it when EVE has
   too little HP or a full Burst gauge.
 - The Beta Stimpack takes 20% of EVE's maximum HP and gives 50 Beta energy, refused the same way with too little HP or
   full Beta energy.
+- The Shock Bolt is ammo for EVE's gun. A hit stuns a common enemy for 10 s, or until it is hit again, with the game's
+  own stun effect, which does nothing to animals, elites or bosses. EVE carries 30 bolts at most; each shot takes one,
+  and the next shot waits 1.5 s. The game adds bolts only up to 30 and drops the rest, and the shop cannot read how
+  many she holds, so a buy past 30 costs the points of the dropped bolts.
 
-Both play the health potion's drinking animation and have a charge count of 2 that no upgrade raises, like the Heal
-Grenade. The native part adds their rows (two ItemTable rows, the Beta Stimpack's ItemConsumableTable row and the skill
-both play, which the game names but never shipped) in the same batch as the [cut Lion's](usage.md#cut-boss-coop-lion)
-rows, through the game's own AddRow, in memory for the game run. A buy of item 5 or 6 asks for those rows first. When
-they are already in, the buy goes through at once. Otherwise the answer is `OK: Buff_HP2MP x1: its rows are asked of the
-native part; the buy follows once they are in`, and the buy's own answer follows within 30 s, as an `OK:` or `STOP:`
-line of `coop lion`. Rows that cannot be added buy nothing and take no points: `STOP: Buff_HP2MP cannot be added to the
-game (...): nothing bought, no points taken`, with the reason in the parentheses.
+The two stimpacks play the health potion's drinking animation and have a charge count of 2 that no upgrade raises, like
+the Heal Grenade. The native part adds the rows of all three (two ItemTable rows, the Beta Stimpack's
+ItemConsumableTable row and the skill both play, which the game names but never shipped; the Shock Bolt's item, skill,
+projectile and hit result) in the same batch as the [cut Lion's](usage.md#cut-boss-coop-lion) rows, through the game's
+own AddRow, in memory for the game run. A buy of item 5, 6 or 7 asks for those rows first. When they are already in, the
+buy goes through at once. Otherwise the answer is `OK: Buff_HP2MP x1: its rows are asked of the native part; the buy
+follows once they are in`, and the buy's own answer follows within 30 s, as an `OK:` or `STOP:` line of `coop lion`.
+Rows that cannot be added buy nothing and take no points: `STOP: Buff_HP2MP cannot be added to the game (...): nothing
+bought, no points taken`, with the reason in the parentheses.
 
-None of this has been tried in game yet. Check that the items show with their names and icons, that using one plays
-the animation and changes HP and the gauge, and what happens to a stimpack left in the inventory when the game saves:
-after a restart the rows are not in until the next buy of a cut item (or `coop lion rows`), and how the game loads an
-item it has no row for is not known. Use them up or keep a backup of the co-op save.
+For the Shock Bolt the rows are not enough: EVE's two gun stances list only its failed shot, and the game's ammo list
+stops at five types. Right after the batch's rows go in, the native part adds the two fire commands the game ships to
+both stances and `Bullet_Shock` as a sixth ammo type, in place (see [usage.md](usage.md#cut-ammo-shock-bolt)). A buy of
+item 7 goes through only when `coop-status.txt` then reads `shock=in`. Otherwise it stops with
+`STOP: Bullet_Shock cannot be fired in this game (shock=...): nothing bought, no points taken`.
 
-The cut Shock Bolt ammo is not sold. The game has its bullet and consumable rows, but EVE's two gun stances list only
-its failed-shot command (`P_Eve_Gun_ShootShockSlugFail1_1`), so adding the item and its missing skill row would still
-not let her fire it. That would mean replacing stance rows EVE is using, and AddRow frees the old row as it replaces it.
+None of this has been tried in game yet. Check that the items show with their names and icons, that using a stimpack
+plays the animation and changes HP and the gauge, that the Shock Bolt shows in the ammo selector, fires and stuns, and
+what happens to a cut item left in the inventory when the game saves: after a restart the rows are not in until the next
+buy of a cut item (or `coop lion rows`), and how the game loads an item it has no row for is not known. Use them up or
+keep a backup of the co-op save. If the Shock Bolt is selected, switch to another ammo before you save or quit from the
+menu; the game's autosaves at a camp or a zone change keep the selected slot too.
 
 `coop nightop buy <n> [count]` buys 1 to 10 of item n, 1 when the count is left out. The answer reads
 `OK: bought 2 HP_Potion for 30 points; 11 left`. The game's own request for adding an item puts it in the inventory
