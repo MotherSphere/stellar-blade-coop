@@ -68,7 +68,10 @@
 // coop fly and coop slowmo (game/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
 // (on a co-op save; slow motion with no friend linked); every 250 ms the game thread sets each wanted gate's byte in
 // SB's settings map and puts back the value from before once it is no longer wanted (an off, coop off, the next Lua
-// load), under its own SEH latch; the worker logs each change and says a refusal or a fault on screen.
+// load), under its own SEH latch; the worker logs each change and says a refusal or a fault on screen. coop fly's level
+// flight swaps the two vtable slots of the player controller's input pass, once a run, for a hook that runs the pass
+// and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
+// the worker swaps them back at coop off and after a fault.
 //
 // The Lion's rows (lion/rows.h, coop lion): the worker hands over the 12 tables' addresses from Lua's lion rows
 // request; the game thread adds the rows through SB's own AddRow once the gate holds (net mode 0, no logic task in

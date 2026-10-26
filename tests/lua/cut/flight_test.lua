@@ -1,8 +1,8 @@
 -- coop fly's keys (cut/flight.lua) with fakes: the flight key list taking a third key (R2, Z, S) or not (S, Z), the
 -- four Shift evade mappings added once and taken out (and the first version's A and E ones), a climb or a descent each
--- frame only while EVE flies with Z or S held (none with both), the fly key held again with neither until the space bar
--- drops her, its line once a flight (held, or ended), the keys and mappings back at off, the restore once a load of
--- keys an earlier load left (never while on), and no player input (the game's keys stay).
+-- frame only while EVE flies with Z or S held (none with both), its line once a flight (held, or ended, none after the
+-- space bar), no hook of its own (the level flight is the native part's), the keys and mappings back at off, the
+-- restore once a load of keys an earlier load left (never while on), and no player input (the game's keys stay).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local function object(t)
@@ -15,12 +15,8 @@ local settings=object({AddActionMapping=function(_,m,rebuild) added[#added+1]={m
     RemoveActionMapping=function(_,m,rebuild) removed[#removed+1]={m,rebuild} end})
 local pc_class=object({})
 local cmc=object({MaxFlyingActionSpeed=1000})
-local hooks={} -- RegisterHook's: {name, callback}.
-RegisterHook=function(name,f) hooks[#hooks+1]={name,f} return 1,2 end
-local eve_class=object({GetFullName=function() return 'BlueprintGeneratedClass /Game/Art/Character/PC/CH_P_EVE_01/'
-    ..'CH_P_EVE_01_Blueprint.CH_P_EVE_01_Blueprint_C' end})
+RegisterHook=function() error('flight.lua registers no hook') end
 local eve=object({IsFlyingAction=function() return flying end,CharacterMovement=cmc,
-    GetClass=function() return eve_class end,
     AddMovementInput=function(_,v,scale,force) inputs[#inputs+1]={v.Z,scale,force} end})
 local handler=object({})
 local clock=0
@@ -66,24 +62,16 @@ held.Z,held.S=false,true; frame(); assert(math.abs(inputs[#inputs][1]-5/6)<1e-9 
 for _=1,12 do frame() end; assert(inputs[#inputs][1]==-1,'Down')
 held.Z,held.S=true,true; for _=1,6 do frame() end
 local n=#inputs; frame(); assert(#inputs==n,'Both: eased back to level, no input')
--- The hold: hooked once, at the first flight, on her blueprint's ReceiveTick; there, with no fly key held while she
--- flies, the key is set again; not with a key held, nor once her jump key dropped her, nor while she does not fly.
-assert(#hooks==1 and hooks[1][1]=='/Game/Art/Character/PC/CH_P_EVE_01/CH_P_EVE_01_Blueprint.CH_P_EVE_01_Blueprint_C:'
-    ..'ReceiveTick' and lines[#lines-0]~=nil)
-local hold=hooks[1][2]
+-- Neither held: still flying HOLD s later, said once a flight; the fly key is the native part's, never written here.
 held.Z,held.S=false,false; frame()
-handler.bPushedFlyingActionKey=false; hold(eve); assert(handler.bPushedFlyingActionKey==true,'Neither: held')
 clock=clock+0.5; f.tick(); assert(lines[#lines]:find('^level flight holds with no key held'),lines[#lines])
 n=#lines; clock=clock+2; f.tick(); assert(#lines==n,'Said once a flight')
-handler.bPushedJumpKey=true; handler.bPushedFlyingActionKey=false; hold(eve)
-handler.bPushedJumpKey=false; hold(eve); assert(handler.bPushedFlyingActionKey==false,'Dropped by her jump key')
-flying=false; hold(eve); flying=true; hold(eve); assert(handler.bPushedFlyingActionKey==true,'A new flight: held again')
-handler.bPushedFlyingActionKey=false; held.SpaceBar=true; f.tick(); held.SpaceBar=false; hold(eve)
-assert(handler.bPushedFlyingActionKey==false,'Dropped by the space bar read here too')
--- A new flight that ends right after the keys are let go: said.
+assert(handler.bPushedFlyingActionKey==nil,'Never written here')
+-- A new flight that ends right after the keys are let go: said; not after the space bar.
 flying=false; f.tick(); flying=true; clock=30; f.tick(); clock=30.1; flying=false; f.tick()
-assert(lines[#lines]=='level flight did not hold: the flight ended 0.10 s after the keys were let go (hook on)',
-    lines[#lines])
+assert(lines[#lines]=='level flight did not hold: the flight ended 0.10 s after the keys were let go',lines[#lines])
+n=#lines; flying=true; clock=40; f.tick(); held.SpaceBar=true; clock=40.1; f.tick(); held.SpaceBar=false
+clock=40.2; flying=false; f.tick(); assert(#lines==n,'Dropped by the space bar: not said')
 -- Off: R2 and Z back (Z in the third slot too), the mappings out (the A and E ones too); a tick then does nothing.
 f.off()
 assert(names()=='Gamepad_RightTrigger,Z,Z' and #removed==6 and removed[4][2]==true,names())

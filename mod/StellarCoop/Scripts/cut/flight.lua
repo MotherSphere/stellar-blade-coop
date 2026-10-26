@@ -7,15 +7,16 @@
 -- is on: Z or S in the air starts a flight (S joins the key list: R2 stays when the list takes a third key, as it did
 -- in game, else S takes its place); Z held climbs and S held descends, through a movement input straight up or down
 -- each frame while EVE flies; with neither held she flies level until the space bar (her jump key) drops her or the
--- game ends the flight (landing, its 90 s pool). The level flight sets bPushedFlyingActionKey again between the game's
--- input pass and the flight's check: from a hook on her blueprint's ReceiveTick, which her tick runs (this file's own
--- tick comes before the input pass: in game the flight ended 0.02 s after the keys were let go). Shift with Q, D, Z or
--- S fires the evade left, right, up or down, through four action mappings added to the input settings. The log says
--- once a flight whether the level flight held (HOLD s with no key). The game's flight sets its velocity whole each
--- frame, with no easing: the climb and the descent here ease in and out over RAMP s, and a flight starts at START of
--- MaxFlyingActionSpeed and reaches all of it in START_RAMP s (its value put back when the flight ends). coop fly off,
--- coop off and the next Lua load put the keys and the mappings back. Never called here: a save, the game's key settings
--- file, anything on another character.
+-- game ends the flight (landing, its 90 s pool). The level flight is the native part's (game/debug_keys.h's Hold): a
+-- hook on the player controller's input pass sets bPushedFlyingActionKey again after the pass, before EVE's tick reads
+-- it, and stops at her jump key (from Lua it came too early, before the pass, or too late, from her blueprint's
+-- ReceiveTick: in game the flight ended 0.02 s after the keys were let go). Shift with Q, D, Z or S fires the evade
+-- left, right, up or down, through four action mappings added to the input settings. The log says once a flight whether
+-- the level flight held (HOLD s with no key). The game's flight sets its velocity whole each frame, with no easing: the
+-- climb and the descent here ease in and out over RAMP s, and a flight starts at START of MaxFlyingActionSpeed and
+-- reaches all of it in START_RAMP s (its value put back when the flight ends). coop fly off, coop off and the next Lua
+-- load put the keys and the mappings back. Never called here: a save, the game's key settings file, anything on another
+-- character.
 local U=require('core.unreal')
 local Flight={}
 Flight.DEFAULT={'Gamepad_RightTrigger','Z'} -- DefaultInput.ini's DefinedFlyActionKeyLists.
@@ -36,28 +37,6 @@ function Flight.new(o)
     -- (os.clock at its first tick), last (at the last tick), v (the eased climb, -1 to 1), speed (the game's
     -- MaxFlyingActionSpeed, put back at its end), cmc (EVE's movement component).
     local fl=nil
-    -- The hook: registered once a Lua load at the first flight (nil until tried, then whether it took), the player
-    -- input it holds the key on, and whether the space bar dropped this flight.
-    local hooked,holder,dropped=nil,nil,false
-    local function hold(ctx)
-        if not on then return end
-        pcall(function()
-            local eve=U.valid(ctx)
-            if not (eve and eve:IsFlyingAction()==true) then dropped=false return end
-            local h=U.valid(holder)
-            if not h then return end
-            if h.bPushedJumpKey==true then dropped=true end
-            if not dropped and h.bPushedFlyingActionKey~=true then h.bPushedFlyingActionKey=true end
-        end)
-    end
-    local function hook(eve)
-        if hooked~=nil then return end
-        local fn=U.text(eve:GetClass():GetFullName()):match('^%S+ (.+)$')..':ReceiveTick'
-        local ok,why=pcall(RegisterHook,fn,function(ctx) hold(ctx) end)
-        hooked=ok
-        log(ok and 'flight hold hooked on '..fn or 'flight hold not hooked ('..tostring(why)..'): a flight ends once '
-            ..'no flight key is held')
-    end
     local function speed_back()
         if fl and fl.speed then pcall(function() fl.cmc.MaxFlyingActionSpeed=fl.speed end) end
     end
@@ -129,28 +108,25 @@ function Flight.new(o)
         local done,why=pcall(put_back,list)
         log(done and 'flight keys an earlier Lua load left, back: '..why or 'flight keys not put back: '..tostring(why))
     end
-    -- Each frame while on and EVE flies: Z or S held, a movement input straight up or down; neither, the fly key held
-    -- again (level), until the space bar drops her. Said once a flight: whether the level flight held.
+    -- Each frame while on and EVE flies: Z or S held, a movement input straight up or down. Said once a flight: whether
+    -- the native part's level flight held (none after the space bar).
     function self.tick()
         if not on then return end
         local ok,why=pcall(function()
-            local h,pc=handler()
+            local _,pc=handler()
             local eve=U.valid(pc:K2_GetPawn())
             local flying=eve and eve:IsFlyingAction()==true
-            holder=h
             if not flying then
-                dropped=false
                 speed_back()
                 if fl and fl.since and not fl.dropped and not fl.said then
-                    log(string.format('level flight did not hold: the flight ended %.2f s after the keys were let go '
-                        ..'(hook %s)',os.clock()-fl.since,hooked and 'on' or 'off'))
+                    log(string.format('level flight did not hold: the flight ended %.2f s after the keys were let go',
+                        os.clock()-fl.since))
                 end
                 fl=nil
                 return
             end
             local now=os.clock()
             if not fl then
-                hook(eve)
                 local cmc=U.valid(eve.CharacterMovement)
                 fl={at=now,last=now,v=0,cmc=cmc,speed=cmc and tonumber(cmc.MaxFlyingActionSpeed)}
             end
@@ -162,7 +138,7 @@ function Flight.new(o)
                 if share>=1 then fl.speed=nil end
             end
             local up,down=pc:IsInputKeyDown(key(Flight.UP))==true,pc:IsInputKeyDown(key(Flight.DOWN))==true
-            if pc:IsInputKeyDown(key(Flight.DROP))==true then fl.dropped,dropped=true,true end
+            if pc:IsInputKeyDown(key(Flight.DROP))==true then fl.dropped=true end
             local want=up==down and 0 or up and 1 or -1 -- The climb eases toward it.
             local step=dt/Flight.RAMP
             fl.v=fl.v<want and math.min(want,fl.v+step) or math.max(want,fl.v-step)

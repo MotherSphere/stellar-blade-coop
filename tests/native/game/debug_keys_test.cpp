@@ -10,7 +10,7 @@
 // a state from before the ask is never logged nor taken for a refusal (a pass that has not read the ask yet, its
 // writes already out included); the first pass that read it is logged even when its state is the same, so a re-ask
 // after a refusal is refused again from that pass only; a map built again with no other change says the gates were set
-// again.
+// again. The level flight's Hold: it sets the fly key only while the pawn flies with none set, until the jump key.
 #include "game/debug_keys.h"
 
 #include <cassert>
@@ -328,6 +328,45 @@ int main() {
     t.pass();
     seen = t.see();
     assert(seen.log == 1 && seen.refused == 1 && t.asks.asked == 0 && t.m.writes == 0);
+  }
+
+  // The level flight (Hold): a write only while the pawn flies with no fly key set and before the jump key; the jump
+  // key drops the flight until it ends; no pawn, a pawn on the ground or no input writes nothing.
+  {
+    constexpr uint64_t kPc = 0x30000000, kEve = 0x30010000, kInput = 0x30020000;
+    Mem m;
+    Hold hold;
+    hold.step(m, kPc);
+    assert(m.writes == 0 && "No pawn");
+    m.set(kPc + kPawn, kEve);
+    hold.step(m, kPc);
+    assert(m.writes == 0 && "On the ground");
+    m.set<uint8_t>(kEve + kFlyingAction, 1);
+    hold.step(m, kPc);
+    assert(m.writes == 0 && "No input");
+    m.set(kPc + kInputHandler, kInput);
+    hold.step(m, kPc);
+    assert(m.writes == 1 && m.u8(kInput + kFlyKey) == 1 && "Flying, no key: held");
+    hold.step(m, kPc);
+    assert(m.writes == 1 && "A key set already: no write");
+    m.set<uint8_t>(kInput + kFlyKey, 0);
+    m.set<uint8_t>(kInput + kJumpKey, 1);
+    hold.step(m, kPc);
+    assert(m.writes == 1 && m.u8(kInput + kFlyKey) == 0 && hold.dropped && "The jump key drops her");
+    m.set<uint8_t>(kInput + kJumpKey, 0);
+    hold.step(m, kPc);
+    assert(m.writes == 1 && "Dropped until the flight ends");
+    m.set<uint8_t>(kEve + kFlyingAction, 0);
+    hold.step(m, kPc);
+    assert(!hold.dropped && m.writes == 1 && "Landed");
+    m.set<uint8_t>(kEve + kFlyingAction, 1);
+    hold.step(m, kPc);
+    assert(m.writes == 2 && "A new flight: held again");
+    m.set<uint8_t>(kInput + kFlyKey, 0);
+    m.set<uint8_t>(kEve + kFlyingAction, 2);
+    hold.step(m, kPc);
+    assert(m.writes == 2 && "A byte that is no bool");
+    assert(kInputSlots[0] % 8 == 0 && kInputSlots[1] % 8 == 0);
   }
   std::puts("debug_keys_test ok");
   return 0;

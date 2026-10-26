@@ -61,5 +61,31 @@ void debug_tick() {
   }
   debug_holding = false;
 }
+
+// ---- coop fly's level flight (game/debug_keys.h's Hold), in the player controller's input pass ----
+// The worker swaps the pass's two vtable slots to hold_input once a run (debug_worker.inc) and back at coop off and
+// after a fault, and says whether both slots hold it (hold_live). Inert while the fly gate is not ours, so it stays in
+// between.
+using InputPass = void (*)(void *pc, float dt, bool paused); // FUN_1423c47a0 reads them from rcx, xmm1 and r8b.
+std::atomic<bool> hold_faulted{false}, hold_live{false};
+std::atomic<uint64_t> hold_fault_code{0}, hold_fault_rva{0}, hold_fault_address{0};
+debug::Hold debug_hold; // The game thread's.
+__declspec(noinline) void hold_step(void *pc) {
+  DebugMem m;
+  debug_hold.step(m, reinterpret_cast<uintptr_t>(pc));
+}
+// The game's pass as it would run, then Hold's step under its own latch, on the game thread, while both slots hold the
+// hook (not after coop off), the fly gate is ours and the pass set the keys (a paused game's pass leaves them as they
+// were), before the first fault. A fault in the game's own pass stays the game's: the pass runs outside the latch.
+void hold_input(void *pc, float dt, bool paused) {
+  game_function<InputPass>(debug::kInputPass)(pc, dt, paused);
+  if (paused || !hold_live || hold_faulted || !debug_gates.ours[debug::kFly])
+    return;
+  __try {
+    hold_step(pc);
+  } __except (fault_filter(GetExceptionInformation(), hold_fault_code, hold_fault_rva, hold_fault_address)) {
+    hold_faulted = true;
+  }
+}
 } // namespace
 } // namespace coop::pose

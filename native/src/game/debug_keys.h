@@ -204,4 +204,37 @@ struct Asks {
   }
 };
 
+// coop fly's level flight. The player controller's input pass (FUN_1423c47a0, its ProcessPlayerInput(dt, paused), in
+// the slots kInputSlots of two player controller vtables, called through them only: its other references, at
+// 0x1468ffe58, 0x1468ffeec, 0x1468ffefc and 0x1556e6600, are unwind data holding its RVA) sets USBPlayerInput's
+// bPushedFlyingActionKey each frame from the keys held (FUN_1423c86f0), and EVE's tick, which runs after it, ends her
+// flight once it reads false. glue/tick/debug_game.inc's hook in those slots runs the pass, then Hold's step while the
+// fly gate is ours: with the controller's pawn in flight, the flag is set again when no fly key set it, so she flies
+// level; her jump key (bPushedJumpKey, the space bar, which the same pass sets) drops her: no write until that flight
+// ends. The pass recomputes both flags each frame, so a write lasts one frame and nothing is put back.
+constexpr uint64_t kInputPass = 0x1423c47a0;
+constexpr uint64_t kInputSlots[] = {0x145cc74a8, 0x145cd37a8};
+// AController::Pawn, ASBPlayerController::InputHandler (a USBPlayerInput), ASBCharacter::bFlyingAction, and the
+// input's bPushedFlyingActionKey and bPushedJumpKey (the last three bools).
+constexpr size_t kPawn = 0x2f8, kInputHandler = 0x668, kFlyingAction = 0x1101, kFlyKey = 0x193, kJumpKey = 0x197;
+
+struct Hold {
+  bool dropped = false; // The jump key was pressed in this flight.
+
+  template <class Mem> void step(Mem &m, uint64_t pc) {
+    const uint64_t pawn = m.u64(pc + kPawn);
+    if (!game::plausible(pawn) || m.u8(pawn + kFlyingAction) != 1) {
+      dropped = false;
+      return;
+    }
+    const uint64_t input = m.u64(pc + kInputHandler);
+    if (!game::plausible(input))
+      return;
+    if (m.u8(input + kJumpKey))
+      dropped = true;
+    if (!dropped && !m.u8(input + kFlyKey))
+      m.put(input + kFlyKey, 1);
+  }
+};
+
 } // namespace coop::debug

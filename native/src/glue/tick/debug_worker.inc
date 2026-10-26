@@ -7,6 +7,53 @@ namespace {
 constexpr const char *kGateWords[debug::kGates] = {"fly", "slowmo"};
 uint64_t debug_gate_at = 0; // When the gates' save-slot check runs next.
 bool debug_fault_logged = false;
+
+// coop fly's level flight: both slots swapped from the game's input pass to hold_input, once a run, when the fly gate
+// is first wanted on the pinned build before coop off and a fault; each by a compare-and-swap from the pass only, so a
+// slot holding anything else (another mod's hook) refuses the hook and is never written.
+bool hold_tried = false, hold_on = false, hold_fault_logged = false;
+uint64_t pass_address() { return base + (debug::kInputPass - game::kImageBase); }
+uint64_t hold_address() { return reinterpret_cast<uintptr_t>(&hold_input); }
+void hold_install() {
+  hold_tried = true;
+  const uint64_t pass = pass_address();
+  for (const uint64_t slot : debug::kInputSlots)
+    if (const uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (slot - game::kImageBase));
+        held != pass) {
+      char at[24];
+      std::snprintf(at, sizeof at, "0x%llx", static_cast<unsigned long long>(slot));
+      say(std::string("level flight refused: ") + at + " holds " + slot_value(held) +
+          ", not the game's input pass (another mod's hook?); left as it is, a flight ends once no flight key is held");
+      return;
+    }
+  // The first slot goes back when the second will not swap; if it will not either, the hook stays there, inert
+  // without hold_live.
+  uint64_t held = 0;
+  size_t done = 0;
+  while (done < 2 && swap_slot(debug::kInputSlots[done], pass, hold_address(), held) && held == pass)
+    ++done;
+  const DWORD error = GetLastError();
+  if (done == 1)
+    swap_slot(debug::kInputSlots[0], hold_address(), pass, held);
+  hold_on = hold_live = done == 2;
+  say(hold_on ? "level flight on: 0x145cc74a8 and 0x145cd37a8 swapped from the game's input pass to our hook"
+              : "level flight refused: the input pass's slots would not swap (error " + std::to_string(error) +
+                    "); a flight ends once no flight key is held");
+}
+// Both slots back to the pass by a compare-and-swap from our hook only, at coop off and after a fault. A slot that
+// would not swap keeps the hook, which then does nothing past the pass (no hold_live).
+void hold_undo(const char *why) {
+  if (!hold_on)
+    return;
+  hold_on = hold_live = false;
+  int back = 0;
+  uint64_t held = 0;
+  for (const uint64_t slot : debug::kInputSlots)
+    back += swap_slot(slot, hold_address(), pass_address(), held) && held == hold_address();
+  say(std::string("level flight off (") + why + "): " + std::to_string(back) +
+      " of 2 slots hold the game's input pass" +
+      (back < 2 ? "; our hook stays in the other, doing nothing past the pass" : " again"));
+}
 } // namespace
 
 std::string ask_gate(const coop::Request &request) {
@@ -52,6 +99,18 @@ std::string debug_pass(bool linked, int marker, uint64_t now_ms) {
     if (seen.refused & (1u << g)) // A gate this build lays out otherwise: not asked again until the player asks.
       notice = std::string("coop ") + kGateWords[g] + " refused: " + debug::why_name(why) + ".";
   }
+  if (hold_faulted && !hold_fault_logged) {
+    hold_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text, "level flight fault 0x%08llx in %s reading 0x%llx: off for the run",
+                  static_cast<unsigned long long>(hold_fault_code.load()), fault_where(hold_fault_rva).c_str(),
+                  static_cast<unsigned long long>(hold_fault_address.load()));
+    say(text);
+    hold_undo("a fault");
+    notice = "coop fly's level flight stopped until the game restarts (a fault).";
+  }
+  if (!hold_tried && (debug_want & 1) && pinned && !blocked && !hold_faulted)
+    hold_install();
   if (debug_faulted && !debug_fault_logged) {
     debug_fault_logged = true;
     debug_asks.asked = 0;
