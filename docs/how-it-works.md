@@ -1847,7 +1847,9 @@ digits. The receiving game answers `gift a <id>` once the gift is in its file (`
 (`slot`, `full`, `item`, `store`). A refusal, no answer in 60 s, the friend gone from the lobby (not one whose link is
 lost and may come back) or the native part's own `n <id> nolink` turns the entry into `back <id> <alias> <count>`,
 and the next tick with EVE in the world and the game playing grants it through the shop's call
-(`ServerRequest_ItemBucketItemAdd`, nightop/shop.lua's `Shop.add`). A grant that raises is tried again after 10 s.
+(`ServerRequest_ItemBucketItemAdd`, nightop/shop.lua's `Shop.add`). The entry leaves the file before the grant, as a
+take's does, and goes back if the grant raises, so a file that cannot be written gives nothing back until it can. A
+grant that raises, or a write that fails, is tried again after 10 s.
 Until an answer, the gift line goes again every 10 s with the same id while the friend is linked.
 
 The receiver keys each gift by the sender's SteamID (the first peer line; 0 in the loopback) and the id. A key in its

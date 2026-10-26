@@ -322,20 +322,29 @@ function Mailbox.new(o)
                 changed=true
             end
         end
+        -- A gift coming back leaves the file before its grant, as a take does: a file that cannot be written gives
+        -- nothing, so a gift never comes back twice. A grant that raises puts it back.
         local r=st.back[1] and ready()
         for i=#st.back,1,-1 do
             local e=st.back[i]
             if r and (not tried[e.id] or t-tried[e.id]>=Mailbox.RETRY) then
-                local ok,ge=pcall(Shop.add,r.pc,r.guid,e.alias,e.count)
+                table.remove(st.back,i)
+                local saved,se=save(st)
+                local ok,ge=false,'the gift file was not written ('..tostring(se)..')'
+                if saved then
+                    changed=false -- The out entries' changes went with it.
+                    ok,ge=pcall(Shop.add,r.pc,r.guid,e.alias,e.count)
+                    if not ok then ge=why(ge) end
+                end
                 if ok then
-                    table.remove(st.back,i)
                     tried[e.id]=nil
-                    changed=true
                     log(string.format('gift %s came back: %s x%d',e.id,e.alias,e.count))
                     say(string.format('Gift returned: %d %s are back in your inventory.',e.count,e.alias))
                 else
+                    table.insert(st.back,i,e)
+                    if saved then changed=true end -- The file lost it: written again below.
                     tried[e.id]=t
-                    log(string.format('gift %s could not come back yet: %s',e.id,why(ge)))
+                    log(string.format('gift %s could not come back yet: %s',e.id,ge))
                 end
             end
         end

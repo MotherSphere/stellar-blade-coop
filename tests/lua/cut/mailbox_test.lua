@@ -296,6 +296,25 @@ loop=false
 tick()
 assert(#M.read(files[FILE]).out==0 and #adds==n+2,'The loopback gone: it comes back')
 peer_id=HER
+-- A gift coming back leaves the file before its grant: while the file cannot be written nothing comes back, however
+-- often the tick runs, and once it can, the gift comes back once.
+local waiting=sent('1','1',5) -- One gift still waits for her answer.
+id=sent('1','5',9)
+paused=true
+mail.receive('n '..id..' full')
+n=#adds
+write_fails='disk full'
+paused=false
+for _=1,8 do tick() end
+assert(#adds==n and #M.read(files[FILE]).back==1,'Not given while the file cannot be written')
+assert(logs[#logs]=='gift '..id..' could not come back yet: the gift file was not written (disk full)',logs[#logs])
+write_fails=nil
+tick(Mailbox.RETRY)
+assert(#adds==n+1 and adds[#adds][4]==5 and #M.read(files[FILE]).back==0)
+for _=1,8 do tick() end
+assert(#adds==n+1,'Once')
+mail.receive('a '..waiting)
+assert(#M.read(files[FILE]).out==0)
 
 -- 8. Her gifts: kept and answered, shown; a key seen before answered as before; refused off a co-op save, for an item
 -- not listed, with a full mailbox or a file that cannot be written.
