@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on` |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on` |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -68,8 +68,10 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
-| `cut/lion.lua` | `coop lion`: the cut Lion's rows asked of the native part and read back, its spawn, its entrance on a display copy, the lines that follow it ([The cut Lion](#the-cut-lion)) |
-| `cut/lion_rows.lua` | The Lion's rows as `lion/rows.h` writes them, for the read-back, and its Shows for the loaded line; written by the rows' generator |
+| `cut/enemy.lua` | The flow `coop lion` and `coop gardener fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the lines that follow the body ([The cut Lion](#the-cut-lion)) |
+| `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, the boss name, `unfreeze`, `brain`, `control`) |
+| `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
+| `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`) and the Gardener's (`R.GARDENER`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
@@ -77,14 +79,14 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-Doro look, the cut model display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
-while one is armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the `coop lines`
-scene's due lines, the `coop glide` check, the UI's open and close animations, the game's input given back after the
-menu or the chat box closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and
-your friend's marker and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat
-lines in and out, Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the
-menu's rows and status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote
-table.
+Doro look, the cut model display and free camera, `coop lion`'s and `coop gardener fight`'s waits and lines, a Doro
+race (with the incoming lines while one is armed), the notice line, the previews' follow-ups, the `coop wear` check
+(once a second), the `coop lines` scene's due lines, the `coop glide` check, the UI's open and close animations, the
+game's input given back after the menu or the chat box closes, the controller's events, the row under the mouse (every
+100 ms while the menu is open), and your friend's marker and gauges. The other runs every 250 ms: link status changes,
+session start, notices to show, chat lines in and out, Night Operation's run, the race's session and map checks, the
+UI's root and its focus watchdog, the menu's rows and status line, the phone booth scan, the chat's feed, your friend's
+card, the capture and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -1359,9 +1361,11 @@ is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/do
 (0.6.0-beta.1) it spawned, moved and hit EVE, but stayed in its idle pose. Its assets ship in
 `/Game/Art/Character/Monster/CH_M_NA_02/`: the blueprint `CH_M_NA_02_BluePrint_Large`, the mesh with its fur cloth, 138
 animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and 41 Shows. No table row
-names it. Four files do the work: `cut/lion.lua` (Lua), `cut/lion_rows.lua` (the rows as Lua reads them back),
+names it. Five files do the work: `cut/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) shares),
+`cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the rows as Lua reads them back),
 `lion/rows.h` (the rows and their build, free of Windows, tested on the build machine) and `glue/tick/lion_game.inc`
-(the game's calls).
+(the game's calls). The rows of one request form a batch: `lion/rows.h` holds two, the lion rows batch below and the
+Gardener's, each with its own request word, answer and status line.
 
 ### The rows
 
@@ -1521,7 +1525,8 @@ lion=fault added=<n>/237 asks=<a> spawns=<s> where=<text>
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
-so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
+so `core/link.lua` leaves the line (and the Gardener's `gardener=`) out of its change log and `cut/enemy.lua` logs
+what it reads. Lua then reads every row
 back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 3178 fields the patches
 write, from `cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree).
 2156 of those values differ from the template row's, so reading them back shows the patches landed; the other 1022
@@ -1675,6 +1680,89 @@ Only the game can settle these:
   inside the clip, still passes over an EVE nearer than that;
 - how far each skill's range lets EVE stand before the Lion uses it, and whether 160000 HP makes a fight of the right
   length.
+
+## The cut Gardener
+
+`coop gardener fight` spawns the cut Naytiba 1, the Gardener (`CH_M_NA_01`), as an enemy. The game ships its
+blueprint (`CH_M_NA_01_BluePrint`), mesh, 25 animations, three skill Shows, its projectile class and much of its cut
+level's data: 9 skills with their commands and 43 steps (SingleShot and MultipleShot, each in four versions, and one
+aimed at a marked ally), 37 projectile rows that all fire its own shell from the socket `SC_Shot`, a stance, two anim
+sets and its appearance (`M_Gardener`, 50010), dead and detection rows. It lacks a CharacterTable row and a behaviour
+tree. `cut/gardener.lua` holds its spec for `cut/enemy.lua`, the flow it shares with the Lion; its rows are the second
+batch of `lion/rows.h` (`kGardenerRecipe`) and `cut/lion_rows.lua` (`R.GARDENER`), from the same generator.
+
+### Its rows
+
+The 13 rows are near copies: each is a shipped row with every field it holds restated and a few changed (279 fields,
+102 of them changed).
+
+- No shipped tree picks a skill flagged `Pattern1` or `Pattern2`, so the three skills are copies flagged
+  `MeleeAttack`, which the flag trees (`M_Tentacle_AI`, `M_Skulling_AI_Test`) pick: `M_GardenerC_SingleShot`
+  (5001010, a copy of `M_Gardener_SingleShot_4`, whose shells land on EVE, up to 3 m around her, and 15 and 18 m ahead
+  of her), `M_GardenerC_MultipleShot` (5001011, of `M_Gardener_MultipleShot_1`: three volleys, cool time 10 s) and
+  `M_GardenerC_ToxicBeam` (5001012, cool time 15 s). The first two start the shipped steps, whose durations equal their
+  Shows' steps (1.3, 0.2 and 2.16 s; seven steps over 4.4 s). Each has a command row of the same name and ID.
+- `M_Gardener_ToxicBeam` is a Show with one animation (5.33 s of `Mon_Gardener_S_03_Toxic_Beam`) and no step array, and
+  no row names it. Three new steps play it: `Cast1` (500100043, 1.86 s, where most of the clip's beam notifies
+  start), `Hit1` (500100044, 0.2 s, a copy of the shipped SingleShot hit step with 8 of the Gardener's own shells,
+  which land from EVE to 15 m ahead of her over 0.7 s) and `Finish1` (500100045, 3.34 s): 5.4 s in all, the Show's
+  length. Whether the game
+  plays a Show with no step array across three table steps is not known.
+- The stance `M_GardenerC_Default` (500101) lists the three commands and sets every walk and run speed to 0: the
+  Gardener's run blend spaces hold one idle sample, so any move would slide the tower. It keeps the shipped anim sets
+  and its turn rate (100 degrees a second); every cast step turns it toward EVE in 0.3 s.
+- Three CharacterTable rows copy `M_Maelstrom`, the one boss that stays put (boss bar, Elite rank, its size fields):
+  `M_Gardener` (50010) and `M_Gardener_Half` (50012, `MeshScale` 0.5) run `M_Tentacle_AI`, the flag tree made for
+  monsters that never walk; `M_Gardener_Skulling` (50011) runs the Lion's `M_Skulling_AI_Test`. They take the
+  Behemoth's HP (37840) and shield (1455), the shipped dead, appearance and detection rows, the Cocoon's despawn
+  dissolve, the Maelstrom's sound set and the album's name key (`Char_M_Gardener_AlbumName`) for the boss bar. Their
+  effects are rank Elite, a fixed location and a rule-move block (it never moves), immunity to the reactions it has no
+  animation for and the Cocoon's two Show tags, no monster warp and immunity to back hits; the Maelstrom's own
+  effects, its three weak points, its death effect and its link flag are gone.
+
+The generator checks these rows with the Lion's batch (no name or ID of one meets the other) and against the dumps:
+every shell the three skills' steps fire is a projectile row whose class, target filter, hit result, arrival effects
+and landing marker exist, each skill's steps last as long as its Show (ToxicBeam's as long as all of it), the stance
+lists exactly the three commands at speed 0, the name key is in `CharacterStringTable`, and no weak point names a group
+missing from the collision data the blueprint uses (`CH_M_NA_02_Lion_Collision`: the Gardener's data started as a copy
+of the Lion prototype's).
+
+### Its batch in the native part
+
+The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 14 table words
+as the Lion's (`Request::batch` says which batch). Each batch has its own ask, answer word and builder (a `RowsJob` in
+`glue/tick/lion_game.inc`) and its own line in `coop-status.txt`, `gardener=` in the `lion=` line's format with its own
+counts (`added=<n>/13`, `char=<k>/3 skills=<k>/3 stance=<k>/1`). The gate, the block each row is built in, the spawn
+counter and the SEH latch are shared: one fault ends both batches' calls for the game run. A batch checks only the
+tables its rows go into, so a refusal in one leaves the other alone. This is a local request: the link protocol did not
+change.
+
+### Its spawn
+
+`cut/gardener.lua` spawns 50010 (50012 with `half`, 50011 with `skulling`) through the Lion's call, 25 m ahead of EVE
+(12.5 m at half size) and 7.5 m above her feet: the blueprint's capsule half-height (700 cm) plus 50 cm, so the capsule
+never starts underground. The body is the new `CH_M_NA_01_BluePrint_C` nearest the spot. Its skeleton faces +Y (its
+head at (0, 242, 1278) cm in the reference pose) where the game's monsters face +X, and the blueprint adds no turn, so
+once found the body's mesh gets a relative yaw of -90 degrees (`K2_SetRelativeRotation`), which brings its front and
+`SC_Shot` toward EVE. The follow line reads that yaw once a second and sets it again if the game turned it back.
+`coop gardener fight intro` plays `Mon_Gardener_C_Appear` on a display copy of `CH_M_NA_01` turned the same way. No
+Hide or UnHide plays: no Show plays those clips, and a clip on the real mesh would replace the anim instance the game
+plays its skills on.
+
+### Open questions
+
+Beyond the Lion's:
+
+- whether a Hit step fires every shell of its list or picks one, and whether the shells show in flight (their class's
+  Niagara and particle components name no asset);
+- whether `MeshScale` scales the capsule, the bones and the hit boxes or the mesh alone, and the hit boxes' heights in
+  its idle pose (from the reference pose, only the right foot box is at melee height at scale 1);
+- whether the game resets the mesh's relative yaw (the follow line says so if it does);
+- what the Tentacle tree's `MoveToHome` does for an actor with no spawn path, and what its battle-start Show, another
+  skeleton's clip, does on the Gardener;
+- how the flag pick chooses among the three skills, and whether EVE can walk into the tower (only its capsule blocks);
+- how the Cocoon's despawn dissolve applies to a mesh with two materials, and whether the English game shows
+  "Gardener" on the bar.
 
 ## Developer flight and slow motion
 

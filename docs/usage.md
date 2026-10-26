@@ -825,6 +825,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
 | `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker`, `coop lion unfreeze [init]` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its tests it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions; put back the engine switches that can freeze its mesh (spawns on a co-op save only) |
+| `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
@@ -980,8 +981,8 @@ The ghost, the link and every other command except `coop fight` (below), `coop r
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
 [viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
-`coop lion control`, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on` and `coop glide on`
-(below) run on any save.
+`coop lion control`, `coop gardener fight` with no word, `intro`, `half` or `skulling`, `coop chainspin`, a scene of
+`coop scene`, `coop fly on`, `coop slowmo on` and `coop glide on` (below) run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
@@ -992,7 +993,7 @@ show three of them:
 - `coop leviathan`: Naytiba 10, the Leviathan, in `/Game/Art/Character/Monster/CH_M_NA_10/`.
 - `coop gardener`: Naytiba 1, the Gardener, in `/Game/Art/Character/Monster/CH_M_NA_01/`. It is an artillery Naytiba
   about 20 m tall at scale 1, with its own textures. The prologue shows its mesh far away as scenery; its fight and its
-  Data Bank entry were cut.
+  Data Bank entry were cut. [`coop gardener fight`](#cut-enemy-coop-gardener-fight) spawns it as an enemy.
 - `coop tendril`: Naytiba 6, the Tendril, in `/Game/Art/Character/Monster/CH_M_NA_06/`. It is a prototype mesh
   (`CH_M_NA_06_test`, about 7 m tall) with 44 animations and blend spaces and no material.
 
@@ -1239,6 +1240,79 @@ while the skeleton they share with the Behemoth (`CH_M_NA_46_Skeleton`) hangs it
 Lion's AnimBP nor the Behemoth's ran on any Lion mesh, while the single-node instance (the entrance, the stand-in) has
 no such check. `coop lion` now runs the Lion's AnimBP on a hidden Behemoth mesh and draws the Lion's mesh on top,
 copying its pose bone by bone, so its skills and moves animate through the game's own system.
+
+### Cut enemy: `coop gardener fight`
+
+The Gardener, Naytiba 1 of the [viewer](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril), was cut
+with its fight. The game still ships its blueprint, its skill presentations (Shows), its shells, its appearance, death
+and detection rows and a whole skill kit, but no CharacterTable row and no behaviour tree, so it cannot spawn.
+`coop gardener fight` adds the 13 rows it lacks to the game's tables in memory, as a batch of their own next to the
+[Lion's](#cut-boss-coop-lion), and spawns it as an enemy to fight. Each row is a copy of a shipped one with a few
+fields changed. It is a test command, left out of the usage line. Its lines go to `UE4SS.log` as `[StellarCoop][GD]`;
+the native part's go to `coop-link.log` as `gardener rows ...`.
+
+- `coop gardener fight` spawns the Gardener (row `M_Gardener`, 50010) 25 m in front of EVE and 7.5 m above her feet,
+  facing her. The first time in a game run it asks the native part to add the rows and waits for the answer, 30 s at
+  most. Each time it reads the 13 rows back first and stops at the first value that differs, with no spawn. It runs
+  only on a [co-op save](#co-op-saves).
+- `coop gardener fight half` spawns `M_Gardener_Half` (50012), the same at half size, 12.5 m away. Co-op save only.
+- `coop gardener fight skulling` spawns `M_Gardener_Skulling` (50011), which runs the Lion's tree
+  (`M_Skulling_AI_Test`) instead of `M_Tentacle_AI`. Try it if the default Gardener never attacks. Co-op save only.
+- `coop gardener fight intro` first plays `Mon_Gardener_C_Appear` (15.5 s) on a copy of its mesh where it will stand,
+  then spawns the Gardener there and removes the copy as soon as the body is there. `coop gardener show` then
+  `coop gardener play appear` or `coop gardener play spawn` previews the spawn animations in the viewer. Co-op save
+  only.
+- `coop gardener fight rows` adds the rows and reads them back, with no spawn. Any save.
+
+The words that spawn first put away a viewer display and the free camera, so the viewer's model and the Gardener never
+stand in the same place. While a command waits for its rows, its body or its entrance, another `coop gardener fight`
+answers that it is busy. Every other `coop gardener` word is the viewer's.
+
+Try it on open, flat ground with 30 m clear in front of EVE and no Naytiba within 50 m: each shell kills any Naytiba
+within 2.3 m of where it lands.
+
+What to expect:
+
+- It is about 20 m tall and never walks: its stance moves at 0 cm/s, and it turns toward EVE at 100 degrees a second,
+  and in 0.3 s at the start of each attack. Its skeleton faces sideways compared with the game's monsters, so the mod
+  turns its mesh by 90 degrees once it spawns, and again if the game turns it back.
+- It has 37840 HP and 1455 shield (the Behemoth's) and attacks with a power of 930. Its rank is Elite and it is a boss
+  to the game, so the boss bar shows once it targets EVE, with the game's own name text for it (the album's
+  `Char_M_Gardener_AlbumName`, most likely "Gardener" in English).
+- It has three attacks, all shells fired from its mouth: SingleShot (shells on EVE and up to 3 m around her, then 15 and
+  18 m ahead of her), MultipleShot (three volleys, every 10 s at most) and ToxicBeam (its beam animation, then 8 shells
+  from EVE out to 15 m ahead of her within 0.7 s, every 15 s at most). No beam is drawn: the game ships no effect for
+  it. A shell marks where it will land 2 s before, explodes for 100 HP within 2.3 m and leaves a poison zone for 5 s (30
+  HP a second), before difficulty.
+- Its tree, `M_Tentacle_AI`, was made for monsters that stay put. It may play the Tentacle's 1 s battle-start animation
+  once a fight, which the Gardener's skeleton lacks: nothing shows, or a wrong pose for 1 s.
+- It never staggers, falls or goes groggy (it has no animations for them) and has no weak point.
+- At full size only its right foot is at sword height; the blaster reaches its body. At half size its legs come lower
+  if the game scales its hit boxes with its mesh, which is not checked yet.
+- When it dies it keeps its last pose (it has no physics for a ragdoll), then dissolves as the Cocoon does. It drops
+  nothing.
+- As for the Lion: no quest event runs for it, it unlocks no album entry, it should not come back from a save, the rows
+  stay in memory until the game exits, and only your game has it.
+
+The log lines, in `UE4SS.log` unless marked:
+
+| Line | What it answers |
+| --- | --- |
+| `tables: 14/14 found: CharacterTable=0x...` | The 14 tables found, with the addresses sent to the native part |
+| `gardener rows: 13/13 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `gardener rows by SB's lookups: CharacterTable 50010-50012 3/3, SkillTable 5001010-5001012 3/3, stance 500101 1/1` (`coop-link.log`) | The game's own lookups by ID find its three CharacterTable rows, its three skills and its stance |
+| `rows read back through FindRow: 13/13 authored rows, 279 fields as written (102 differ from the template row)` | Every field the native part wrote reads as written |
+| `rows already in (13/13; ...): not added again` | A later `coop gardener fight` in the same game run |
+| `spawn 50010: CreateActor returned; body CH_M_NA_01_BluePrint_C 25.9 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
+| `gardener 1: mesh yaw set to -90 (was 0)` | Its mesh turned to face EVE, or why the call failed |
+| `gardener 1 (50010): mesh yaw 0, not -90 (the game turned it back): set again` | The game turned the mesh back, and the mod turned it again |
+| `gardener 1 (50010): 25.9 m, xyz ..., speed 0, skill yes, ...` | Once a second while it lives, the same fields as the Lion's line |
+| `gardener 1 (50010) dead after 210 s (InteractionState 3, no controller); body gone after 16.0 s` | Its death and its body's despawn |
+| `gardener 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
+
+A refusal names its reason in `coop-link.log` (`gardener rows refused <row>: <why>; <n>/13 added`) and ends with a
+`STOP:` line in `UE4SS.log`. A refusal of the Gardener's rows leaves the Lion's batch alone, and the other way round.
+See [how-it-works.md](how-it-works.md#the-cut-gardener) for how the rows are made.
 
 ### Cut Tachy skill: `coop chainspin`
 
