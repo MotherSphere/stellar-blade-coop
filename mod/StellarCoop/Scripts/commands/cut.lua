@@ -27,7 +27,7 @@ function Cut.new(o)
             if sub=='on' then ok,why=coop_slot('coop '..name..' on') end
             if not ok then return false,why end
             ok,why=o.ask(name..' '..sub)()
-            if name=='fly' and o.flight then -- Its keys: A and E fly, Shift with a direction evades.
+            if name=='fly' and o.flight then -- Its keys: R2 only flies, Shift with a direction evades.
                 if sub=='off' then o.flight.off() elseif ok then why=tostring(why)..'; '..o.flight.on() end
             end
             return ok,why

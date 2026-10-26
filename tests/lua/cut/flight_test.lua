@@ -1,9 +1,10 @@
--- coop fly's keys (cut/flight.lua) with fakes: the flight key list taking a third key (R2, Z, S) or not (S, Z), the
--- four Shift evade mappings added once and taken out (and the first version's A and E ones), a climb or a descent each
--- frame only while EVE flies with Z or S held (none with both), its line once a flight (held, or ended, none after a
--- press of the space bar, said when it was held from before the flight), no hook of its own (the level flight is the
--- native part's), the keys and mappings back at off, the restore once a load of keys an earlier load left (never while
--- on), and no player input (the game's keys stay).
+-- coop fly's keys (cut/flight.lua) with fakes: R2 written over every slot of the flight key list (two, or three as an
+-- earlier version left it), the four Shift evade mappings added once and taken out (and the first version's A and E
+-- ones), a climb or a descent each frame only while EVE flies with Z or S held (none with both), its line once a flight
+-- (held, or ended, none after a press of the space bar, said when it was held from before the flight), no hook of its
+-- own (the start and the level flight are the native part's), the keys and mappings back at off, the restore once a
+-- load of keys an earlier load left (this version's R2 alone, S, or A and E; never while on, nothing for the game's
+-- own keys), and no player input (the game's keys stay).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local function object(t)
@@ -38,16 +39,18 @@ local lines={}
 local F=require('cut.flight')
 local function fresh() return F.new({log=function(m) lines[#lines+1]=m end}) end
 
--- On: R2, A, E; four Shift mappings, the keymaps rebuilt at the last.
+-- On: R2 alone; four Shift mappings, the keymaps rebuilt at the last.
 handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z')
 local f=fresh()
 local said=f.on()
-assert(names()=='Gamepad_RightTrigger,Z,S' and said:find('R2 too',1,true),names()..' / '..said)
+assert(names()=='Gamepad_RightTrigger,Gamepad_RightTrigger' and said:find('space three times',1,true),
+    names()..' / '..said)
 assert(#added==4 and added[1][1].ActionName:ToString()=='FlyingActionEvade_Left' and added[1][1].bShift==true
     and added[1][1].Key.KeyName:ToString()=='Q' and added[4][1].Key.KeyName:ToString()=='S' and added[4][2]==true
     and added[1][2]==false)
-assert(lines[#lines]=='flight keys: Gamepad_RightTrigger, Z, S (R2 too); evades Shift+Q, D, Z, S',lines[#lines])
-assert(f.on()=='flight keys already Z and S' and #added==4,'Once')
+assert(lines[#lines]=='flight keys: Gamepad_RightTrigger, Gamepad_RightTrigger (space three times in the air flies);'
+    ..' evades Shift+Q, D, Z, S',lines[#lines])
+assert(f.on()=='flight keys already R2 alone' and #added==4,'Once')
 -- Each frame: nothing on the ground; flying, Z climbs and S descends, each eased over 0.3 s (frames of 0.05 s here);
 -- the speed starts at 40 % and reaches all of it in 0.6 s, then the game's value is left alone.
 local function frame() clock=clock+0.05; f.tick() end
@@ -81,28 +84,29 @@ assert(lines[#lines]=='level flight did not hold: the flight ended 0.20 s after 
 held.SpaceBar=true; flying=true; clock=60; f.tick(); held.SpaceBar=false; clock=60.1; f.tick()
 n=#lines; held.SpaceBar=true; clock=60.2; f.tick(); held.SpaceBar=false
 clock=60.3; flying=false; f.tick(); assert(#lines==n,'Let go and pressed again: dropped, not said')
--- Off: R2 and Z back (Z in the third slot too), the mappings out (the A and E ones too); a tick then does nothing.
+-- Off: R2 and Z back, the mappings out (the A and E ones too); a tick then does nothing.
 f.off()
-assert(names()=='Gamepad_RightTrigger,Z,Z' and #removed==6 and removed[4][2]==true,names())
+assert(names()=='Gamepad_RightTrigger,Z' and #removed==6 and removed[4][2]==true,names())
 n=#inputs; flying=true; held.Z=true; f.tick(); assert(#inputs==n); held.Z=false
--- A list that takes no third key: E in R2's place.
-handler.DefinedFlyActionKeyLists=setmetatable({},{__index=keys('Gamepad_RightTrigger','Z'),
-    __newindex=function(t,i,v) if i>2 then error('no room') end rawset(t,i,v) end})
-local fixed=handler.DefinedFlyActionKeyLists
-local g=fresh()
-said=g.on()
-assert(fixed[1].KeyName:ToString()=='S' and fixed[2].KeyName:ToString()=='Z' and said:find('R2 no longer flies',1,true))
--- A later Lua load: keys an earlier one left go back once; never while on.
+-- A list with a third slot (the last version's R2, Z, S): R2 in all three, then Z in the second and third at off.
 handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z','S')
+local g=fresh()
+g.on(); assert(names()=='Gamepad_RightTrigger,Gamepad_RightTrigger,Gamepad_RightTrigger',names())
+g.off(); assert(names()=='Gamepad_RightTrigger,Z,Z',names())
+-- A later Lua load: keys an earlier one left go back once; never while on; the game's own keys stay.
+handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Gamepad_RightTrigger')
 local h=fresh()
 h.restore()
-assert(names()=='Gamepad_RightTrigger,Z,Z' and lines[#lines]:find('^flight keys an earlier Lua load left, back'),
-    names())
-handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z','S')
-h.restore(); assert(names()=='Gamepad_RightTrigger,Z,S','Once a load')
-local k=fresh(); k.on(); k.restore(); assert(names()=='Gamepad_RightTrigger,Z,S','Not while on')
-handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','A','E') -- The first version's keys go back too.
+assert(names()=='Gamepad_RightTrigger,Z' and lines[#lines]:find('^flight keys an earlier Lua load left, back'),names())
+handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Gamepad_RightTrigger')
+h.restore(); assert(names()=='Gamepad_RightTrigger,Gamepad_RightTrigger','Once a load')
+local k=fresh(); k.on(); k.restore(); assert(names()=='Gamepad_RightTrigger,Gamepad_RightTrigger','Not while on')
+handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z','S') -- The last version's keys go back too,
 fresh().restore(); assert(names()=='Gamepad_RightTrigger,Z,Z',names())
+handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','A','E') -- and the first version's.
+fresh().restore(); assert(names()=='Gamepad_RightTrigger,Z,Z',names())
+n=#lines; handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z')
+fresh().restore(); assert(names()=='Gamepad_RightTrigger,Z' and #lines==n,'The game\'s keys: nothing done')
 -- No player input: the game's keys stay, said.
 have_pc=false
 said=fresh().on()

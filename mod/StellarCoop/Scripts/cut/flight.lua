@@ -1,27 +1,26 @@
--- coop fly's keys, beside the native part's gate (game/debug_keys.h, through commands/cut.lua), logging [FL] lines.
--- SB's developer flight lasts while a key of USBPlayerInput's DefinedFlyActionKeyLists is held in the air (R2, or Z,
--- which also moves forward on an AZERTY keyboard): its input pass sets bPushedFlyingActionKey each frame, and EVE's
--- tick ends the flight once it reads false. It flies along the camera's heading at MaxFlyingActionSpeed, and its
--- velocity takes up and down only from the movement input's Z (FlyingActionVerticalMoveAttenuation), which no key
--- gives. Its four evades are bound to the pad's face buttons only (the flight research of 2026-10-24). While coop fly
--- is on: Z or S in the air starts a flight (S joins the key list: R2 stays when the list takes a third key, as it did
--- in game, else S takes its place); Z held climbs and S held descends, through a movement input straight up or down
--- each frame while EVE flies; with neither held she flies level until a press of the space bar (her jump key) drops
--- her or the game ends the flight (landing, its 90 s pool). A space bar still held from the jump before the flight
--- counts only once let go and pressed again. The level flight is the native part's (game/debug_keys.h's Hold): a
--- hook on the player controller's input pass sets bPushedFlyingActionKey again after the pass, before EVE's tick reads
--- it, and stops at a press of her jump key (from Lua it came too early, before the pass, or too late, from her
--- blueprint's ReceiveTick: in game the flight ended 0.02 s after the keys were let go). Shift with Q, D, Z or S fires
--- the evade left, right, up or down, through four action mappings added to the input settings. The log says once a
--- flight whether the level flight held (HOLD s with no key). The game's flight sets its velocity whole each frame,
--- with no easing: the climb and the descent here ease in and out over RAMP s, and a flight starts at START of
--- MaxFlyingActionSpeed and reaches all of it in START_RAMP s (its value put back when the flight ends). coop fly off,
--- coop off and the next Lua load put the keys and the mappings back. Never called here: a save, the game's key
--- settings file, anything on another character.
+-- coop fly's keys, beside the native part's gate and level flight (game/debug_keys.h, through commands/cut.lua),
+-- logging [FL] lines. SB's developer flight lasts while a key of USBPlayerInput's DefinedFlyActionKeyLists is held in
+-- the air (R2, or Z, which also moves forward on an AZERTY keyboard): its input pass sets bPushedFlyingActionKey each
+-- frame, and EVE's tick ends the flight once it reads false. It flies along the camera's heading at
+-- MaxFlyingActionSpeed, and its velocity takes up and down only from the movement input's Z
+-- (FlyingActionVerticalMoveAttenuation), which no key gives. Its four evades are bound to the pad's face buttons only
+-- (the flight research of 2026-10-24). While coop fly is on, the list holds R2 alone (R2 written over Z and over any
+-- third slot), so walking and jumping no longer take off. The start and the level flight are the native part's
+-- (game/debug_keys.h's Hold, in a hook on the player controller's input pass): the third press of the space bar (EVE's
+-- jump key) in the air starts a flight, which then holds with no key until the next press of it or the game's own end
+-- (landing, its 90 s pool). Here: Z held climbs and S held descends, through a movement input straight up or down each
+-- frame while EVE flies. Shift with Q, D, Z or S fires the evade left, right, up or down, through four action mappings
+-- added to the input settings. The log says once a flight whether the level flight held (HOLD s with Z and S up); a
+-- press of the space bar in the flight, which drops her, is seen here as the native part sees it (one still down from
+-- before the flight counts only once let go and pressed again), only to leave that line out. The game's flight sets its
+-- velocity whole each frame, with no easing: the climb and the descent here ease in and out over RAMP s, and a flight
+-- starts at START of MaxFlyingActionSpeed and reaches all of it in START_RAMP s (its value put back when the flight
+-- ends). coop fly off, coop off and the next Lua load put the keys and the mappings back. Never called here: a save,
+-- the game's key settings file, anything on another character.
 local U=require('core.unreal')
 local Flight={}
 Flight.DEFAULT={'Gamepad_RightTrigger','Z'} -- DefaultInput.ini's DefinedFlyActionKeyLists.
-Flight.KEYS={'Gamepad_RightTrigger','Z','S'}
+Flight.PAD='Gamepad_RightTrigger' -- The one fly key while on, in every slot.
 Flight.UP,Flight.DOWN,Flight.DROP='Z','S','SpaceBar'
 Flight.EVADES={{'FlyingActionEvade_Left','Q'},{'FlyingActionEvade_Right','D'},{'FlyingActionEvade_Up','Z'},
     {'FlyingActionEvade_Down','S'}}
@@ -53,7 +52,7 @@ function Flight.new(o)
         U.each(list,function(_,k) t[#t+1]=U.text(U.value_of(k).KeyName) end)
         return t
     end
-    -- Each name of want into the list, the last one appended where the array takes it; the names it then holds.
+    -- Each name of want into the list's slot of the same index; the names it then holds.
     local function write(want)
         local list=handler().DefinedFlyActionKeyLists
         for i,n in ipairs(want) do pcall(function() list[i]=key(n) end) end
@@ -78,15 +77,17 @@ function Flight.new(o)
         return table.concat(got,', ')
     end
     function self.on()
-        if on then return 'flight keys already Z and S' end
+        if on then return 'flight keys already R2 alone' end
         local ok,why=pcall(function()
-            local got=write(Flight.KEYS)
-            if got[3]~='S' then got=write({'S','Z'}) end -- The array took no third key: S in R2's place.
+            local want={}
+            for i=1,math.max(2,#names(handler().DefinedFlyActionKeyLists)) do want[i]=Flight.PAD end
+            local got=write(want)
             mappings(true,Flight.EVADES)
             on,failed,fl=true,nil,nil
-            local pad=got[1]=='Gamepad_RightTrigger' and 'R2 too' or 'R2 no longer flies'
-            log(string.format('flight keys: %s (%s); evades Shift+Q, D, Z, S',table.concat(got,', '),pad))
-            return string.format('Z climbs, S descends, neither flies level, space drops (%s); Shift+Q/D/Z/S evade',pad)
+            log(string.format('flight keys: %s (space three times in the air flies); evades Shift+Q, D, Z, S',
+                table.concat(got,', ')))
+            return 'space three times in the air flies (R2 too), Z climbs, S descends, neither flies level,'
+                ..' space drops; Shift+Q/D/Z/S evade'
         end)
         if not ok then log('flight keys not set: '..tostring(why)) end
         return ok and why or 'the flight keys stay the game\'s ('..tostring(why)..')'
@@ -98,20 +99,23 @@ function Flight.new(o)
         local ok,why=pcall(function() return put_back(handler().DefinedFlyActionKeyLists) end)
         log(ok and 'flight keys back: '..why or 'flight keys not put back: '..tostring(why))
     end
-    -- Once a Lua load, at the first tick with a player input: keys an earlier load left (S, or A and E, in the list)
-    -- go back.
+    -- Once a Lua load, at the first tick with a player input: keys an earlier load left (R2 over Z, or S, or A and E,
+    -- in the list) go back.
     function self.restore()
         if restored or on then return end
         local ok,list=pcall(function() return handler().DefinedFlyActionKeyLists end)
         if not ok then return end
         restored=true
-        local got=','..table.concat(names(list),',')..','
-        if not (got:find(',S,',1,true) or got:find(',A,',1,true) and got:find(',E,',1,true)) then return end
+        local n=names(list)
+        local got=','..table.concat(n,',')..','
+        if not (n[2]==Flight.PAD or got:find(',S,',1,true) or got:find(',A,',1,true) and got:find(',E,',1,true)) then
+            return
+        end
         local done,why=pcall(put_back,list)
         log(done and 'flight keys an earlier Lua load left, back: '..why or 'flight keys not put back: '..tostring(why))
     end
     -- Each frame while on and EVE flies: Z or S held, a movement input straight up or down. Said once a flight: whether
-    -- the native part's level flight held (none after the space bar).
+    -- the native part's level flight held (none after a press of the space bar, which drops her there).
     function self.tick()
         if not on then return end
         local ok,why=pcall(function()

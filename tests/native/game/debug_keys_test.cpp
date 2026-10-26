@@ -10,7 +10,8 @@
 // a state from before the ask is never logged nor taken for a refusal (a pass that has not read the ask yet, its
 // writes already out included); the first pass that read it is logged even when its state is the same, so a re-ask
 // after a refusal is refused again from that pass only; a map built again with no other change says the gates were set
-// again. The level flight's Hold: it sets the fly key only while the pawn flies with none set, until the jump key.
+// again. coop fly's Hold: the third press of the jump key in the air sets the fly key; in the flight it sets the fly
+// key while none is set, until the next press of the jump key.
 #include "game/debug_keys.h"
 
 #include <cassert>
@@ -330,60 +331,79 @@ int main() {
     assert(seen.log == 1 && seen.refused == 1 && t.asks.asked == 0 && t.m.writes == 0);
   }
 
-  // The level flight (Hold): a write only while the pawn flies with no fly key set and before the jump key; a press of
-  // the jump key (its flag's rise) drops the flight until it ends, a key held since before the flight only once let go
-  // and pressed again; no pawn, a pawn on the ground or no input writes nothing.
+  // coop fly's start and level flight (Hold): the jump key's presses counted since EVE left the ground (0 on the
+  // ground, 1 while the press she jumps with is down), the third in the air sets the fly key while it is down; in the
+  // flight the key is set while none is, the press that started it is no press, the next one drops her until the
+  // flight ends and the count starts over; a ledge fall counts from 0; no pawn, no input or no movement component
+  // writes nothing.
   {
-    constexpr uint64_t kPc = 0x30000000, kEve = 0x30010000, kInput = 0x30020000;
+    constexpr uint64_t kPc = 0x30000000, kEve = 0x30010000, kInput = 0x30020000, kCmc = 0x30030000;
     Mem m;
     Hold hold;
+    // One frame after the input pass, which leaves the fly key at 0 (no fly key held): the jump key down or not, EVE
+    // falling or walking, flying or not. True when the step set the fly key.
+    auto frame = [&](bool jump, bool air, uint8_t flying) {
+      m.set<uint8_t>(kInput + kJumpKey, jump);
+      m.set<uint8_t>(kCmc + kMovementMode, air ? kFalling : 1);
+      m.set<uint8_t>(kEve + kFlyingAction, flying);
+      m.set<uint8_t>(kInput + kFlyKey, 0);
+      hold.step(m, kPc);
+      return m.u8(kInput + kFlyKey) == 1;
+    };
     hold.step(m, kPc);
     assert(m.writes == 0 && "No pawn");
     m.set(kPc + kPawn, kEve);
-    hold.step(m, kPc);
-    assert(m.writes == 0 && "On the ground");
     m.set<uint8_t>(kEve + kFlyingAction, 1);
     hold.step(m, kPc);
     assert(m.writes == 0 && "No input");
     m.set(kPc + kInputHandler, kInput);
+    m.set(kEve + kCharacterMovement, kCmc);
+    assert(!frame(false, false, 0) && hold.presses == 0 && "On the ground, the key up");
+    // A jump (the press on the ground, still down when she leaves it a frame later), the double jump, then the third
+    // press: the fly key, for as long as it is down.
+    assert(!frame(true, false, 0) && !frame(true, false, 0) && hold.presses == 1);
+    assert(!frame(true, true, 0) && !frame(false, true, 0) && hold.presses == 1);
+    assert(!frame(true, true, 0) && !frame(false, true, 0) && hold.presses == 2);
+    assert(frame(true, true, 0) && hold.presses == 3 && "The third press");
+    assert(frame(true, true, 0) && "Still down: still set");
+    // The game starts the flight: held level, the starting press still down is no press, nor its release.
+    assert(frame(true, true, 1) && !hold.dropped && "The starting press does not drop her");
+    assert(frame(false, true, 1) && frame(false, true, 1) && !hold.dropped);
+    m.set<uint8_t>(kInput + kFlyKey, 1);
+    const int writes = m.writes;
     hold.step(m, kPc);
-    assert(m.writes == 1 && m.u8(kInput + kFlyKey) == 1 && "Flying, no key: held");
+    assert(m.writes == writes && "A fly key set already (R2): no write");
+    // The next press drops her until the flight ends; then the count starts over from 0.
+    assert(!frame(true, true, 1) && hold.dropped && "The next press drops her");
+    assert(!frame(false, true, 1) && !frame(true, true, 1) && "Dropped until the flight ends");
+    assert(!frame(true, true, 0) && !hold.dropped && hold.presses == 0 && "Ended, the drop's press still down");
+    assert(!frame(false, true, 0) && !frame(true, true, 0) && !frame(false, true, 0) && !frame(true, true, 0));
+    assert(!frame(false, true, 0) && hold.presses == 2 && frame(true, true, 0) && "Three presses after the drop");
+    // On the ground with the key up the count goes back to 0: two presses in the air, a landing, a jump and one press
+    // in the air make no flight.
+    assert(!frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0 && "Landed");
+    assert(!frame(true, false, 0) && !frame(false, true, 0) && !frame(true, true, 0) && hold.presses == 2);
+    assert(!frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0);
+    assert(!frame(true, false, 0) && !frame(false, false, 0) && !frame(true, false, 0) && !frame(false, false, 0) &&
+           hold.presses == 0 && "Taps on the ground count nothing");
+    // A ledge fall: she leaves the ground with the key up, so three presses in the air.
+    assert(!frame(false, true, 0) && hold.presses == 0);
+    assert(!frame(true, true, 0) && !frame(false, true, 0) && !frame(true, true, 0) && !frame(false, true, 0));
+    assert(frame(true, true, 0) && "A ledge fall: the third press in the air");
+    // A key still down on landing counts as one, as the press of a jump would.
+    assert(!frame(true, false, 0) && hold.presses == 1);
+    // A flying byte that is no bool is no flight; no movement component reads as the ground.
+    assert(!frame(false, false, 2) && hold.presses == 0);
+    m.set<uint64_t>(kEve + kCharacterMovement, 0);
+    assert(!frame(true, true, 0) && !frame(false, true, 0) && !frame(true, true, 0) && !frame(false, true, 0));
+    assert(!frame(true, true, 0) && hold.presses == 1 && "No movement component: the ground");
+    m.set<uint64_t>(kEve + kCharacterMovement, kCmc);
+    // No input mid-air: the count and the drop go, and a key down at the next step is no press.
+    m.set<uint64_t>(kPc + kInputHandler, 0);
     hold.step(m, kPc);
-    assert(m.writes == 1 && "A key set already: no write");
-    m.set<uint8_t>(kInput + kFlyKey, 0);
-    m.set<uint8_t>(kInput + kJumpKey, 1);
-    hold.step(m, kPc);
-    assert(m.writes == 1 && m.u8(kInput + kFlyKey) == 0 && hold.dropped && "The jump key drops her");
-    m.set<uint8_t>(kInput + kJumpKey, 0);
-    hold.step(m, kPc);
-    assert(m.writes == 1 && "Dropped until the flight ends");
-    m.set<uint8_t>(kEve + kFlyingAction, 0);
-    hold.step(m, kPc);
-    assert(!hold.dropped && m.writes == 1 && "Landed");
-    m.set<uint8_t>(kEve + kFlyingAction, 1);
-    hold.step(m, kPc);
-    assert(m.writes == 2 && "A new flight: held again");
-    m.set<uint8_t>(kInput + kFlyKey, 0);
-    m.set<uint8_t>(kEve + kFlyingAction, 2);
-    hold.step(m, kPc);
-    assert(m.writes == 2 && "A byte that is no bool");
-    m.set<uint8_t>(kEve + kFlyingAction, 0);
-    hold.step(m, kPc);
-    m.set<uint8_t>(kEve + kFlyingAction, 1);
-    m.set<uint8_t>(kInput + kJumpKey, 1);
-    hold.step(m, kPc);
-    assert(m.writes == 3 && !hold.dropped && "The jump key held from before the flight: still held");
-    m.set<uint8_t>(kInput + kFlyKey, 0);
-    hold.step(m, kPc);
-    assert(m.writes == 4 && !hold.dropped && "Still down: no press yet");
-    m.set<uint8_t>(kInput + kFlyKey, 0);
-    m.set<uint8_t>(kInput + kJumpKey, 0);
-    hold.step(m, kPc);
-    assert(m.writes == 5 && !hold.dropped && "Let go");
-    m.set<uint8_t>(kInput + kFlyKey, 0);
-    m.set<uint8_t>(kInput + kJumpKey, 1);
-    hold.step(m, kPc);
-    assert(m.writes == 5 && hold.dropped && "Pressed again: dropped");
+    assert(hold.presses == 0 && hold.jump_was);
+    m.set(kPc + kInputHandler, kInput);
+    assert(!frame(true, true, 0) && hold.presses == 0);
     assert(kInputSlots[0] % 8 == 0 && kInputSlots[1] % 8 == 0);
   }
   std::puts("debug_keys_test ok");

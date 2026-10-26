@@ -1705,23 +1705,33 @@ mode) and the time pool allows it (`RemainFlyingActionTime` at least `FlyingActi
 cooldown), and ends it when the key is released. With the slow-motion gate on, holding R1 sets the time dilation to
 `TimeControlKeyScale` (0.2), and every tick without it sets 1 again, so slow motion ends by itself.
 
-The level flight (`coop fly` with neither Z nor S held) sets the flight key's flag again each frame. The player
-controller's input pass (`0x1423c47a0`, its `ProcessPlayerInput(dt, paused)`) recomputes `USBPlayerInput`'s
+The start and the level flight (`Hold` in `game/debug_keys.h`) set the flight key's flag after the game's key pass.
+The player controller's input pass (`0x1423c47a0`, its `ProcessPlayerInput(dt, paused)`) recomputes `USBPlayerInput`'s
 `bPushedFlyingActionKey` (`+0x193`) and `bPushedJumpKey` (`+0x197`) from the keys held each frame, through
-`0x1423c86f0`, and EVE's tick, which runs after the controller's, ends the flight when the flight flag reads false. A
-write from Lua came before the pass, which cleared it, and one from a hook on EVE's blueprint `ReceiveTick` came after
-the character tick's check: both times the flight ended 0.02 s after the keys were let go. The pass is called only
-through two vtable slots, `0x145cc74a8` and `0x145cd37a8` (its other references are unwind data). At the first
-`coop fly on` of a run, the worker swaps each slot by a compare-and-swap from the game's function to a hook of ours,
-only after checking that both hold exactly that function. The hook calls the game's pass, then, on the game thread,
-while both slots hold it, the fly gate is ours and the game is not paused, reads the controller's pawn (`+0x2f8`) and
-input handler (`+0x668`): with the pawn's `bFlyingAction` (`+0x1101`) at 1 and the flight flag at 0, it writes 1. The
-jump flag is set on every frame a key of `DefinedJumpKeyLists` (`+0xF8`) is down (`0x1423c887e`), so the hook takes a
-press as the flag going from 0 to 1 during the flight, and it counts as 1 at the flight's first step: a space bar held
-since the jump counts only once let go and pressed again. A press stops the writes until the flight ends, so the space
-bar drops her. The reads go through
-`ReadProcessMemory`; the write runs under the hook's own SEH latch, and a fault puts both slots back for the run.
-`coop off` puts them back too. The pass recomputes both flags each frame, so nothing else needs putting back.
+`0x1423c86f0`, and EVE's tick, which runs after the controller's, starts a flight while the flight flag reads true in
+the air and ends it when the flag reads false. A write from Lua came before the pass, which cleared it, and one from a
+hook on EVE's blueprint `ReceiveTick` came after the character tick's check: both times the flight ended 0.02 s after
+the keys were let go. The pass is called only through two vtable slots, `0x145cc74a8` and `0x145cd37a8` (its other
+references are unwind data). At the first `coop fly on` of a run, the worker swaps each slot by a compare-and-swap from
+the game's function to a hook of ours, only after checking that both hold exactly that function. The hook calls the
+game's pass, then, on the game thread, while both slots hold it, the fly gate is ours and the game is not paused, reads
+the controller's pawn (`+0x2f8`) and input handler (`+0x668`). The jump flag is set on every frame a key of
+`DefinedJumpKeyLists` (`+0xF8`) is down (`0x1423c887e`), so the hook takes a press as the flag going from 0 to 1, and a
+key already down when the hook first reads it counts only once let go and pressed again.
+
+The hook counts the space bar's presses since EVE left the ground. She is on the ground when her movement component
+(`ACharacter`'s `+0x330`) has a `MovementMode` (`+0x19C`) other than falling (3): the pinned build's `IsFalling`
+(`0x1440a5b80`, in the movement component's vtable) compares that byte with 3. There the count is 0, or 1 while the
+press she jumps with is still down, since her jump may leave the ground a frame or more after the press. Each press in
+the air adds one. From the third press, while the space bar is down and her `bFlyingAction` (`+0x1101`) reads 0, the
+hook writes 1 into the flight flag, as a held R2 would, and the character tick starts the flight when its own checks
+allow it. With `bFlyingAction` at 1 and the flight flag at 0, it writes 1, so she flies level. The press that started
+the flight is still down when the flight begins, so it is no rise. The next press stops the writes until the flight
+ends, so the space bar drops her, and the count starts over at 0. While `coop fly` is on, `cut/flight.lua` writes R2
+over Z (and over any third slot) in `DefinedFlyActionKeyLists` (`+0xC0`), so Z and S, which walk forward and back on an
+AZERTY keyboard, no longer start a flight; it puts Z back at `off`, `coop off` and the next Lua load. The reads go
+through `ReadProcessMemory`; the write runs under the hook's own SEH latch, and a fault puts both slots back for the
+run. `coop off` puts them back too. The pass recomputes both flags each frame, so nothing else needs putting back.
 
 ## Cut glide
 

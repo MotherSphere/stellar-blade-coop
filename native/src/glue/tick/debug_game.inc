@@ -62,7 +62,7 @@ void debug_tick() {
   debug_holding = false;
 }
 
-// ---- coop fly's level flight (game/debug_keys.h's Hold), in the player controller's input pass ----
+// ---- coop fly's start and level flight (game/debug_keys.h's Hold), in the player controller's input pass ----
 // The worker swaps the pass's two vtable slots to hold_input once a run (debug_worker.inc) and back at coop off and
 // after a fault, and says whether both slots hold it (hold_live). Inert while the fly gate is not ours, so it stays in
 // between.

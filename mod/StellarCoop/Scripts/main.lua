@@ -377,7 +377,7 @@ local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=
     lion=lion,group=function() return group end,travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
     story_dump=story_dump}
--- coop fly's keys (cut/flight.lua), logging [FL] lines: A and E fly, Shift with a direction evades.
+-- coop fly's keys (cut/flight.lua), logging [FL] lines: R2 alone flies, Shift with a direction evades.
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide=wear,scene,cut_lines,flight,glide
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
