@@ -626,6 +626,22 @@ int main() {
   assert(parse_request("fly off").off && parse_request("slowmo on").gate == 1 && !parse_request("slowmo on").off);
   for (const char *bad : {"fly", "fly On", "fly on now", "flyon", "slowmo", "slowmo 1", "fly  on", "slow on"})
     assert(parse_request(bad).command == Command::none);
+  // coop emote's native clips: anim play <id> <path> once|loop, the id from 1 to 2^32-1, one of EVE's clip paths; or
+  // anim stop.
+  const std::string clip = "/Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/Clap.Clap";
+  Request an = parse_request("anim play 7 " + clip + " loop\r\n");
+  assert(an.command == Command::anim && an.id == 7 && an.path == clip && an.loop && !an.off);
+  an = parse_request("anim play 4294967295 " + clip + " once");
+  assert(an.command == Command::anim && an.id == 4294967295u && !an.loop);
+  an = parse_request("anim stop\n");
+  assert(an.command == Command::anim && an.off && an.path.empty());
+  for (const std::string &bad :
+       {"anim play 0 " + clip + " once", "anim play 4294967296 " + clip + " once", "anim play 1 " + clip,
+        "anim play 1 " + clip + " twice", "anim play 1 " + clip + " once x", "anim play x " + clip + " once",
+        std::string("anim play 1 /Game/Art/Character/NPC/CH_NPC_01/Animation/PhotoMode/Clap.Clap once"),
+        std::string("anim play 1 /Game/Art/Character/PC/CH_P_EVE_01/Animation/../X.X once"), "anim  play 1 " + clip +
+        " once", std::string("anim"), std::string("anim stop now"), std::string("anim play")})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");

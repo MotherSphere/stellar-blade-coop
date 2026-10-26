@@ -752,9 +752,11 @@ assert(gl.restores==gl.r+1 and gl.ticks==gl.t+1 and last()=='[StellarCoop] STOP:
     last())
 gl.says=nil
 -- coop emote: all its words to cut/emote.lua on any save; each frame its restore (done once, inside it) and its tick,
--- whose message is reported.
+-- whose message is reported. Its native requests go through the link, and it reads the native status the link holds.
 em.o.log('emote clap ended (movement input) after 2.0 s')
 assert(last()=='[StellarCoop][EM] emote clap ended (movement input) after 2.0 s\n',last())
+assert(em.o.status()==status_text,'The native status, as the link reads it')
+assert(em.o.ask('anim stop') and asked[#asked]=='anim stop',asked[#asked])
 coop('emote'); coop('emote','clap'); coop('emote','list','x')
 assert(#em.cmds==3 and em.cmds[1][1]==nil and em.cmds[2][1]=='clap' and em.cmds[3][1]=='list' and em.cmds[3][2]=='x',
     'All its words, on any save')

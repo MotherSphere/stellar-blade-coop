@@ -818,7 +818,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed (untested in game), or end it |
-| `coop emote [list\|<name>\|off]` | Hold one of [EVE's photo-mode poses](#emotes-coop-emote) until she moves (untested in game, and the pose may not show), list them or end it |
+| `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -1624,43 +1624,74 @@ feed shows each line for 8 s, 6 rows at most. A scene goes on while the game is 
 
 ### Emotes: `coop emote`
 
-`coop emote <name>` puts EVE in one of her photo-mode poses until she moves. The 31 poses are grouped under the six
-categories of the game's cut Social Action menu, whose own gestures never shipped. It runs on any save and writes
-nothing. It has not been tried in game yet.
+`coop emote <name>` plays one of EVE's animation clips on her. It runs on any save and writes nothing. It has not been
+tried in game yet.
 
 | Category | Names |
 | --- | --- |
-| Greetings | `salute`, `kungfu`, `toast` |
+| Greetings | `salute`, `kungfu`, `toast`, `wave`, `wave2` |
 | Expression | `clap`, `heart`, `thumbsup`, `victory`, `kiss` |
 | Orders | `bringiton`, `giveme`, `hush`, `reach` |
 | Emotion | `omg`, `what`, `worry`, `wish`, `wedidit` |
 | Pose | `charm`, `confident`, `cutie`, `sweetie`, `squat`, `stretch`, `warmup`, `walk`, `shutter1`, `shutter2`, `shutter3` |
 | Dance | `flow`, `nataraja`, `somersault` |
+| Cut | `chariotstruggle`, `chariotcounter`, `chariotfail`, `chariottakedown`, `kalitakedown`, `kaligrab` |
 
 - `coop emote` and `coop emote list` print the names by category.
 - `coop emote <name>` starts one, and a second name replaces it. It does not start while EVE is in the air or in the
   middle of an attack or a dodge.
-- Moving, a jump, a dodge or an attack ends it with a 0.25 s blend. So do `coop emote off`, `coop off`, a map change
-  and the game stopping the montage itself. A Lua reload (Ctrl+R) stops a pose the earlier load left playing.
+- Moving, a jump, a dodge or an attack ends it with a 0.25 s blend. So do `coop emote off`, `coop off`, a map change,
+  photo mode and the game ending the clip itself. A Lua reload (Ctrl+R) stops a clip the earlier load left playing.
 
-Each pose is a still of 0.2 s at most, played in a loop, so EVE takes the pose and keeps it. The selfie poses are left
-out: each one sits in a blend space that follows the selfie camera's direction. The game has no wave outside them, so
-there is no `hello`.
+The first six categories are those of the game's cut Social Action menu, whose own gestures never shipped. Their 31
+poses come from photo mode. Each one is a still of 0.2 s at most, played in a loop, so EVE takes the pose and keeps it
+until she moves. The other eight clips play once and end by themselves:
 
-The pose plays as an animation montage on EVE while her animation blueprint keeps running. That blueprint has no
-montage slot in the game files read for this version, so EVE may not take the pose at all. The start line in the log
-says whether the montage plays: if it does and EVE stays as she was, the poses need another way in. A linked friend
-sees what your EVE shows, through the pose stream the ghost already copies.
+- `wave` and `wave2` are the selfie mode's two waves (`Hello_Selfie_L` and `Hello_Selfie_R`, 3 s each). In selfie
+  mode they sit in a blend space that follows the camera's direction; here each one plays whole.
+- The Cut category holds clips of EVE's made for two enemies that have no character in the game files: no mesh, no
+  `CharacterTable` row and no name in the game's text. The Chariot was removed (a test spawn row and a despawn effect
+  still name it): its struggle (`chariotstruggle`, 14.8 s) and its two endings as the files name them,
+  `ConfrontAttack` (`chariotcounter`, 10.0 s) and `ConfrontFail` (`chariotfail`, 1.5 s), and her takedown on it
+  (`chariottakedown`, 4.9 s). Kali may be a cut enemy or an early name of one that shipped: her takedown on Kali
+  (`kalitakedown`, 5.6 s) and Kali's grab (`kaligrab`, 5.8 s). In all six, EVE acts alone.
 
-Its lines go to `UE4SS.log` with the `[StellarCoop][EM]` tag:
-`emote clap: Clap in DefaultSlot, montage AnimMontage /Engine/Transient.AnimMontage_0, playing yes` when one starts
-and `emote clap ended (movement input) after 4.2 s` when it ends, with `in the air`, `a skill runs`,
-`the montage no longer plays`, `her EVE changed` (a map change), `another emote`, `coop emote off`, `coop off` or
-`error` instead of `movement input`. After `error` comes `coop emote stopped: <why>`, repeated as
-`[StellarCoop] STOP: coop emote stopped: <why>`. A stop that fails adds `: not stopped (<why>)` to the end line.
-`emote clap: no montage made for Clap` means the game refused the montage. After a Lua reload,
-`emote restore: an earlier load's montage stopped` says the earlier pose was stopped, and `emote restore failed: <why>`
-says it could not be.
+The native part plays the clip through the game's own custom animation call, the one the game uses for EVE's flight
+start, so it goes through the custom animation nodes of her animation blueprint. Without the native part, on another
+game build or after a fault in that call, the clip goes in as an animation montage instead, which most likely shows
+nothing: her blueprint has no montage slot in the game files read for this version. A linked friend sees what your EVE
+shows, through the pose stream the ghost already copies.
+
+Its lines go to `UE4SS.log` with the `[StellarCoop][EM]` tag. With the native part:
+`emote clap: Clap asked of the native part (anim 482913, loop)` when one starts (`once` for the eight clips above),
+`emote clap: Clap plays (anim 482913)` once the game took it, and `emote clap ended (movement input) after 4.2 s` when
+it ends. Instead of `movement input` the end line can say `in the air`, `a skill runs`, `the clip ended`,
+`her animation blueprint showed nothing`, `the game refused it: <why>`, `no answer from the native part` (none in
+5 s), `the native clips stopped` (a fault), `her EVE changed` (a map change), `another emote`, `coop emote off`,
+`coop off` or `error`. When the clip did not show, a line also goes on screen and to the log as
+`[StellarCoop] STOP: ...`: `coop emote: EVE did not show Clap`, `coop emote: the game refused Clap (<why>)` or
+`coop emote stopped: <why>`.
+
+The native part's lines go to `coop-link.log`: `anim 482913 asked: <path> in a loop` (or `once`), then
+`anim 482913 playing: SB took the clip in EVE's custom animation slot 0 (ret 0)`, and at the end
+`anim 482913 ended after 4.9 s, weight up to 1.00` or `anim 482913 stopped after 4.2 s, weight up to 1.00`, with
+`(coop off)` or `(a new Lua load)` after the time when one of them stopped it. The weight says how much of the clip
+the blueprint blended in: 1.00 is all of it. `anim 482913 refused: no EVE of ours in the world`,
+`refused: EVE has no custom animation slot` and `refused: the game played nothing (ret -1: the clip did not load, or a
+clip of a higher priority holds the slot)` say why nothing played. A clip the blueprint takes no weight of for 1 s
+ends with `: the slot took no weight, so EVE's animation blueprint did not show the clip`. Time while the game is
+paused (`coop freeze`, or a host's photo mode holding the guest) does not count toward that second, since EVE's
+animation does not move then; the `after ... s` figure is still the clock's. A fault in the game's call
+logs `anim fault ...`, says on screen that the native clips stopped until the game restarts, and sends later emotes to
+the montage.
+
+Without the native part the start line is
+`emote clap: Clap in DefaultSlot, montage AnimMontage /Engine/Transient.AnimMontage_0, playing yes`, and
+`the montage no longer plays` replaces `the clip ended`. `emote clap: no montage made for Clap` means the game refused
+the montage. After a Lua reload, `emote restore: an earlier load's montage stopped` says the earlier montage was
+stopped, and `emote restore failed: <why>` says it could not be. In both cases, after `error` comes
+`coop emote stopped: <why>`, repeated as `[StellarCoop] STOP: coop emote stopped: <why>`, and a stop that fails adds
+`: not stopped (<why>)` to the end line.
 
 ### Debug flight and slow motion: `coop fly` and `coop slowmo`
 
@@ -2337,7 +2368,7 @@ back as it was), what `coop lion` is doing (a wait for its rows, its search, its
 Lion stays), the same for `coop gardener fight` and `coop tendril fight` (a living Gardener or Tendril stays), the
 `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene, the game's
 developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
-(`coop glide`: EVE's glide flag is cleared) and a `coop emote` pose (its montage stopped). Afterwards only
+(`coop glide`: EVE's glide flag is cleared) and a `coop emote` clip (it blends out). Afterwards only
 `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
 and so do the menu, host and leave keys. The race key does nothing.
 
@@ -2765,7 +2796,9 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>
   travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
-  requests handled so far), and `nightop=on` or `nightop=rule` while the probe's poller runs.
+  requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip the native part took and what
+  became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`, `refused:<why>` or `fault`, see
+  [Emotes](#emotes-coop-emote)), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another

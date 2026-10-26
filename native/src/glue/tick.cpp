@@ -82,6 +82,12 @@
 // row, in the same call, the Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status()
 // gives the shock line, and the worker logs it once.
 //
+// coop emote's native clips (game/anim.h): the worker hands over Lua's anim play (an id, one of EVE's clip paths, once
+// or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
+// SB's own custom animation call by path, or stops ours through SB's stop, under its own SEH latch, and reads her
+// custom animation slot every 100 ms while ours plays to tell when it ends. A new Lua load and coop off stop ours. status() puts the last
+// play's id and state in the engine line for cut/emote.lua, and the worker logs each change.
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -102,6 +108,7 @@
 #include <vector>
 
 #include "fight/worker.h"
+#include "game/anim.h"
 #include "game/debug_keys.h"
 #include "game/memory.h"
 #include "game/pad.h"
@@ -128,6 +135,7 @@
 #include "glue/tick/travel_game.inc"
 #include "glue/tick/lion_game.inc"
 #include "glue/tick/debug_game.inc"
+#include "glue/tick/anim_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
@@ -135,6 +143,7 @@
 #include "glue/tick/quests_worker.inc"
 #include "glue/tick/freeze_worker.inc"
 #include "glue/tick/debug_worker.inc"
+#include "glue/tick/anim_worker.inc"
 #include "glue/tick/status.inc"
 #include "glue/tick/pad_game.inc"
 
@@ -189,5 +198,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.
   if (game_pinned && !debug_faulted && (!blocked || debug_holding))
     debug_tick();
+  // coop emote's native clips, their own latch: an ask each frame, the watch each 100 ms while ours plays; after coop
+  // off only to stop ours.
+  if (game_pinned && !anim_faulted)
+    anim_tick();
   return 0;
 }

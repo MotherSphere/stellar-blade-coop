@@ -594,6 +594,10 @@ bool step() {
       event(coop::pose::ask_gate(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::anim: // coop emote's native clips: the game thread's too.
+      event(coop::pose::ask_anim(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::saves:
       if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());
@@ -725,6 +729,9 @@ bool step() {
     if (loaded && !said.empty())
       link->notice(said);
     said = coop::pose::debug_pass(linked, coop_marker, GetTickCount64());
+    if (loaded && !said.empty())
+      link->notice(said);
+    said = coop::pose::anim_pass();
     if (loaded && !said.empty())
       link->notice(said);
     // Channel 2 both ways: the shared quests take their SBQ lines out first, the shared fight's job gets the rest; the

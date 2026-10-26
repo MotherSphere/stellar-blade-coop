@@ -397,8 +397,8 @@ package.loaded['cut.glide']={new=function(o)
         tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
         stop=function() gl.stops=gl.stops+1 end}
 end}
--- coop emote (cut/emote.lua; emote_test tests it): what new got (log), its commands, restores, ticks and stops, what
--- a tick says.
+-- coop emote (cut/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks and
+-- stops, what a tick says.
 em={}
 package.loaded['cut.emote']={new=function(o)
     em.o=o
