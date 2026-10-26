@@ -20,13 +20,14 @@ ADD_ROWS = {'nightop/probe.lua': 1}
 # the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the probe's
 # answer and the header). coop lion: its one CreateActor (its spawn choke point) and its header, which also names SB's
 # AddRow (the native part calls it) and UE4SS's (never called). coop scene: its guarded call (kind 6, its two theater
-# rows only), its header, its three log lines and one refusal.
+# rows only), its header, its three log lines and one refusal. coop chainspin: its one Cheat request (SBApplyEffectMe
+# of its own effect on our EVE, its choke point) and its header.
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
 RATIONED = {'MultiplayTest_ZoneE_059': {'nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4, 'cut/scene.lua': 6},
             'AddRow': {'nightop/probe.lua': 3, 'cut/lion.lua': 2},
             'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 1,
-                               'session/group.lua': 7, 'cut/lion.lua': 2}}
+                               'session/group.lua': 7, 'cut/lion.lua': 2, 'cut/chainspin.lua': 2}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -104,6 +105,7 @@ def scan_of(files):
 N, M, H, W = f'{SCRIPTS}/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/link/core.h', 'tests/wine/smoke.cpp'
 R, NR, GR = f'{SCRIPTS}/nightop/recruiter.lua', f'{SCRIPTS}/nightop/run.lua', f'{SCRIPTS}/session/group.lua'
 NS, LI, SC = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/lion.lua', f'{SCRIPTS}/cut/scene.lua'
+CS = f'{SCRIPTS}/cut/chainspin.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
 
@@ -123,7 +125,8 @@ SHOP = padded('nightop/shop.lua',
               "pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})\n")
 LION = padded('cut/lion.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n")
 SCENE = padded('cut/scene.lua', GUARDED.replace('NightOp', 'Scene'))
-CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, SC: SCENE,
+CHAINSPIN = padded('cut/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))\n")
+CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, SC: SCENE, CS: CHAINSPIN,
          M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n'}
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.

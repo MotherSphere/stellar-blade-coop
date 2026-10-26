@@ -1,9 +1,11 @@
 // The Lion's rows on the build machine against fake memory laid out like the pinned build: the recipe itself (names
 // and IDs unique, every patch inside its struct and past its header, the step chains, skills, commands, stances, moves
-// and target filters pointing at the new rows, the cut items first and the CharacterTable rows last with the link flag
-// Common and the phase-2 stance, no field naming a Behemoth row or asset but the sound set); a whole run (the table checks, each row built
-// from its template with SB's lazy-init flag and Transient arrays reset, its ID, its patches of every kind read back,
-// the pool's strings among them, AddRow given the new name); a missing template, a taken ID, a taken name, a wrong
+// and target filters pointing at the new rows, the cut items first, then the Tachy ChainSpin's rows (their steps on the
+// Tachy NPC's Show and the shipped ChainSpin moves, their effect starting their skill in Tachy Mode), and the
+// CharacterTable rows last with the link flag Common and the phase-2 stance, no field naming a Behemoth row or asset
+// but the sound set); a whole run (the table checks, each row built from its template with SB's lazy-init flag and
+// Transient arrays reset, its ID, its patches of every kind read back, the pool's strings among them, AddRow given the
+// new name); a missing template, a taken ID, a taken name, a wrong
 // vtable (even with SB's AddRow in its slot), AddRow slot or row size, and no FName for a row's, a template's, a
 // patch's or a list item's text, refusing without calling AddRow, and a later run skipping the rows already in; the
 // pool's bound and a list item's FName length; FName's number split; the read-back through SB's lookups by ID (nothing
@@ -250,12 +252,12 @@ size_t row_index(const char *name, Table t) {
 
 int main() {
   // ---- The recipe ----
-  static_assert(kRows == 226, "the 4 cut items' rows, 21 commands, 21 skills, 80 steps, 61 moves, 25 target filters, 5 "
-                              "results, the effect, 2 anim sets, 2 stances, the dead and appearance rows and the two "
-                              "CharacterTable rows");
-  assert(rows_of(Table::step) == 80 && rows_of(Table::skill) == 22 && rows_of(Table::command) == 21 &&
+  static_assert(kRows == 237, "the 4 cut items' rows, the Tachy ChainSpin's 11, 21 commands, 21 skills, 80 steps, 61 "
+                              "moves, 25 target filters, 5 results, the effect, 2 anim sets, 2 stances, the dead and "
+                              "appearance rows and the two CharacterTable rows");
+  assert(rows_of(Table::step) == 89 && rows_of(Table::skill) == 23 && rows_of(Table::command) == 21 &&
          rows_of(Table::move) == 61 && rows_of(Table::filter) == 25 && rows_of(Table::result) == 5 &&
-         rows_of(Table::effect) == 1 && rows_of(Table::anim) == 2 && rows_of(Table::stance) == 2 &&
+         rows_of(Table::effect) == 2 && rows_of(Table::anim) == 2 && rows_of(Table::stance) == 2 &&
          rows_of(Table::dead) == 1 && rows_of(Table::appearance) == 1 && rows_of(Table::character) == 2 &&
          rows_of(Table::item) == 2 && rows_of(Table::consumable) == 1);
   // The cut items first, in the order each needs the one before: the skill the stimpacks play, the Beta Stimpack's
@@ -338,8 +340,11 @@ int main() {
     if (r.table == Table::step) {
       if (const char *next = patched(r, 0x34))
         assert(has(Table::step, next));
-      if (const char *moves = patched(r, 0x138)) // SelfMoveAliasArray: the Lion's own moves only.
-        each(moves, [&](const std::string &m) { assert(has(Table::move, m.c_str())); });
+      if (const char *moves = patched(r, 0x138)) // SelfMoveAliasArray: the Lion's own moves, the ChainSpin's shipped.
+        each(moves, [&](const std::string &m) {
+          assert(has(Table::move, m.c_str()) || (!std::strncmp(r.name, "P_Eve_Tachy_Skill_ChainSpin1_1_", 31) &&
+                                                 !m.compare(0, 33, "P_Eve_Tachy_Skill_ChainSpin1_Move")));
+        });
     }
     if (r.table == Table::skill && !std::strncmp(r.name, "M_LionC_", 8))
       assert(has(Table::step, patched(r, 0x100)) && std::strstr(patched(r, 0x100), r.name) == patched(r, 0x100) &&
@@ -380,6 +385,24 @@ int main() {
     const Row &roar = kRecipe[row_index("M_LionC_PhaseRoar", Table::effect)];
     assert(value(roar, 0x2fc) == 69 && !std::strcmp(patched(roar, 0x300), "M_LionC_RoarPhaseChange") &&
            has(Table::skill, "M_LionC_RoarPhaseChange"));
+  }
+  // EVE's Tachy ChainSpin after the cut items: its 9 steps (100450001-100450009, each a copy of a ChainStab1 step), the
+  // first playing the Tachy NPC's Show of EVE's clip (ShowPath +0x160), then the skill (1004500) that starts them
+  // (FirstSkillActiveAlias +0x100) with no acquisition (+0x17c), then the effect (1004500) whose action (+0x2fc,
+  // EffectAction_UseSkill 69) uses it (+0x300) only while EVE has P_Eve_TachyMode (+0x80, a condition of the effect).
+  {
+    for (size_t i = 0; i < 9; ++i)
+      assert(kRecipe[4 + i].table == Table::step && kRecipe[4 + i].id == 100450001 + i &&
+             !std::strncmp(kRecipe[4 + i].name, "P_Eve_Tachy_Skill_ChainSpin1_1_", 31) &&
+             !std::strncmp(kRecipe[4 + i].donor, "P_Eve_Tachy_Skill_Chainstab1_1_", 31));
+    assert(!std::strcmp(patched(kRecipe[4], 0x160), "CH_NPC_TachyNPC/Skill/N_TachyNPC_SwingChain"));
+    const Row &skill = kRecipe[13], &use = kRecipe[14];
+    assert(skill.table == Table::skill && skill.id == 1004500 &&
+           !std::strcmp(skill.name, "P_Eve_Tachy_Skill_ChainSpin1_1"));
+    assert(!std::strcmp(patched(skill, 0x100), "P_Eve_Tachy_Skill_ChainSpin1_1_Cast1") &&
+           !std::strcmp(patched(skill, 0x17c), "None"));
+    assert(use.table == Table::effect && use.id == 1004500 && value(use, 0x2fc) == 69 &&
+           !std::strcmp(patched(use, 0x300), skill.name) && !std::strcmp(patched(use, 0x80), "P_Eve_TachyMode"));
   }
   // A move of the Lion's own clip travel: the low jump's leap, up to 615.5 cm toward EVE (LocalAxis 6 at +0x3a,
   // InsideTargetOrSelf 3 at +0x3b, SelfToTarget 2 at +0x60, ForwardValue +0x94), stopping 150 cm short of her
@@ -484,14 +507,14 @@ int main() {
     assert(g.list_field(beta, 0x20, Kind::names) == "Item_Buff_HP2MP_ReduceHP|Item_Buff_HP2MP_GainMP" &&
            g.name_text(Game::field<uint64_t>(beta, 0x38)) == "P_Eve_Sword_Normal_Buff_1");
 
-    // SB's lookups by ID find our rows: both CharacterTable rows, the 22 skills, both stances' names.
+    // SB's lookups by ID find our rows: both CharacterTable rows, the 23 skills, both stances' names.
     Builder::ReadBack rb = Builder::read_back(g, g.tables);
-    assert(rb.character == 2 && rb.skills == 22 && rb.stance == 2);
+    assert(rb.character == 2 && rb.skills == 23 && rb.stance == 2);
     g.skill_override = 0x12345678, g.skill_override_id = 5002003;
     rb = Builder::read_back(g, g.tables);
-    assert(rb.skills == 21);
+    assert(rb.skills == 22);
     assert(describe_read(rb) == "lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable "
-                                "5002000-6000101 21/22, stance 500200-500201 2/2");
+                                "1004500-6000101 22/23, stance 500200-500201 2/2");
 
     // A second run adds nothing: every row is in.
     const Answer again = b.run(g, kBase, g.tables, g.block);
@@ -513,9 +536,9 @@ int main() {
     Builder b;
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::refused && a.why == Why::donor && a.row == first && a.added == first);
-    assert(g.adds.size() == first && !b.added(first) && first == 96);
+    assert(g.adds.size() == first && !b.added(first) && first == 107);
     assert(describe(a) == "lion rows refused M_LionC_ClawAttackLeft_Cast1: template M_Behemoth_ScratchLeft_Finish1 "
-                          "missing; 96/226 added");
+                          "missing; 107/237 added");
     g.rows[{g.tables[size_t(Table::step)], key}] = row;
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::rows && a.added == kRows && g.adds.size() == kRows); // Each row added once.
@@ -551,7 +574,7 @@ int main() {
     g.mem.put<uint64_t>(g.vtable_at + kAddRowSlot, rebased(kAddRow) + 0x10);
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::table && a.row == kRows - 2 && g.adds.empty()); // CharacterTable, checked first.
-    assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/226 added");
+    assert(describe(a) == "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/237 added");
   }
   {
     Game g; // Another vtable whose AddRow slot holds SB's AddRow: still not SB's UDataTable.
@@ -575,7 +598,8 @@ int main() {
       assert(describe(a).find(": the game made no FName; ") != std::string::npos);
     };
     refused_at("M_LionC_TurnAttackLeft_Cast1", row_index("M_LionC_TurnAttackLeft_Cast1", Table::step));
-    refused_at("M_Scarlet_CounterLinkStart", row_index("M_LionC_PhaseRoar", Table::effect)); // The effect's template.
+    // The effects' template: the ChainSpin's effect is the first to use it.
+    refused_at("M_Scarlet_CounterLinkStart", row_index("P_Eve_Tachy_Skill_ChainSpin1_Use", Table::effect));
     refused_at("HP_Potion", row_index("HP2Burst_Potion", Table::item)); // The stimpacks' template.
     refused_at("M_Behemoth_ScratchLeft_Move2", row_index("M_LionC_ClawAttackLeft_Turn", Table::move));
     // A Hit step's just-parry result, an FName patch.
@@ -610,7 +634,7 @@ int main() {
     Builder b;
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::size && a.detail == 0x2c8 && g.adds.empty());
-    assert(describe(a) == "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/226 added");
+    assert(describe(a) == "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/237 added");
     g.mem.put<int32_t>(rs + kPropertiesSize, 0x2d0);
     uint64_t tables[kTableCount];
     std::memcpy(tables, g.tables, sizeof tables);
@@ -631,26 +655,26 @@ int main() {
     assert(status_line(s) == "lion=off");
     a = Answer(), a.state = State::waiting, a.why = Why::busy;
     s.word = pack(a, 0), s.ticks = 41;
-    assert(status_line(s) == "lion=waiting added=0/226 asks=0 spawns=? why=busy ticks=41");
-    a = Answer(), a.state = State::rows, a.added = 226;
-    s.word = pack(a, 1), s.read = {2, 22, 2}, s.spawns_read = true, s.spawns = 7;
-    assert(status_line(s) == "lion=rows added=226/226 asks=1 spawns=7 char=2/2 skills=22/22 stance=2/2");
-    assert(describe(a) == "lion rows: 226/226 added through SB's AddRow 0x14417ba30, 0 refused");
+    assert(status_line(s) == "lion=waiting added=0/237 asks=0 spawns=? why=busy ticks=41");
+    a = Answer(), a.state = State::rows, a.added = 237;
+    s.word = pack(a, 1), s.read = {2, 23, 2}, s.spawns_read = true, s.spawns = 7;
+    assert(status_line(s) == "lion=rows added=237/237 asks=1 spawns=7 char=2/2 skills=23/23 stance=2/2");
+    assert(describe(a) == "lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused");
     a = Answer(), a.state = State::refused, a.why = Why::size, a.added = 0, a.row = uint8_t(kRows - 2),
     a.detail = 0x540;
     s.word = pack(a, 2);
     assert(status_line(s) ==
-           "lion=refused added=0/226 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
+           "lion=refused added=0/237 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
     a = Answer(), a.state = State::refused, a.why = Why::busy, a.added = 3, a.row = uint8_t(kRows);
     s.word = pack(a, 3);
-    assert(status_line(s) == "lion=refused added=3/226 asks=3 spawns=7 why=busy table=- row=-");
-    assert(describe(a) == "lion rows refused -: logic busy 300 frames; 3/226 added");
+    assert(status_line(s) == "lion=refused added=3/237 asks=3 spawns=7 why=busy table=- row=-");
+    assert(describe(a) == "lion rows refused -: logic busy 300 frames; 3/237 added");
     a.why = Why::net, a.detail = 3, s.word = pack(a, 4);
-    assert(status_line(s) == "lion=refused added=3/226 asks=4 spawns=7 why=net table=- row=- detail=3");
+    assert(status_line(s) == "lion=refused added=3/237 asks=4 spawns=7 why=net table=- row=- detail=3");
     a.why = Why::off, s.word = pack(a, 5);
-    assert(status_line(s) == "lion=refused added=3/226 asks=5 spawns=7 why=coop_off table=- row=-");
+    assert(status_line(s) == "lion=refused added=3/237 asks=5 spawns=7 why=coop_off table=- row=-");
     a = Answer(), a.state = State::fault, a.added = 30, s.word = pack(a, 6), s.fault = "the game at 0x14417ba30";
-    assert(status_line(s) == "lion=fault added=30/226 asks=6 spawns=7 where=the game at 0x14417ba30");
+    assert(status_line(s) == "lion=fault added=30/237 asks=6 spawns=7 where=the game at 0x14417ba30");
   }
 
   std::puts("lion_rows_test: ok");

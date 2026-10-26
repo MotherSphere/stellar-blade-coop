@@ -6,7 +6,9 @@
 -- (cut/scene.lua): a scene's name on a co-op save only; the list and stop on any. main.lua builds it with new(o) at
 -- each Lua load and merges it into its command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one
 -- command a creature), lion (cut/lion.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines (cut/lines.lua's)
--- flight (cut/flight.lua's keys for coop fly) and ask (a native request; coop fly and coop slowmo).
+-- flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's) and ask (a native request; coop fly and
+-- coop slowmo). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of the usage line), runs on a
+-- co-op save only.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -46,6 +48,11 @@ function Cut.new(o)
             if not ok then return false,why end
         end
         return lion.command(sub,a,b)
+    end
+    function self.chainspin(extra)
+        local ok,why=coop_slot('coop chainspin')
+        if not ok then return false,why end
+        return o.chainspin.command(extra)
     end
     function self.scene(sub,extra)
         if o.scene.SCENES[sub] then
