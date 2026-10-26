@@ -58,7 +58,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `core/settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
 | `core/ue4ss_settings.lua` | Checks `HookBeginPlay` and `bUseUObjectArrayCache` in `UE4SS-settings.ini` (read only) |
 | `nightop/probe.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
-| `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, and the night line's two formats, with no engine call |
+| `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, the pairing of new bodies with their spawn spots, and the night line's two formats, with no engine call |
 | `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
 | `nightop/shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
 | `nightop/challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |

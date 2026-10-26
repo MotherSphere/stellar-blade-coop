@@ -1,6 +1,7 @@
 -- The Night Operation run without the game: the monster pool and the wave schedule, the wave keys, the run byte, the
--- seeded gate order and the gate spots, the timer list, the score and the run's states over a fake clock. Then a run
--- read from another definition: waves that wait for a clear, its own limit, heals and bonus, and its own spots.
+-- seeded gate order and the gate spots, the bodies paired with slots by place, the timer list, the score and the run's
+-- states over a fake clock. Then a run read from another definition: waves that wait for a clear, its own limit, heals
+-- and bonus, and its own spots.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 
@@ -105,6 +106,29 @@ local further,yaw=W.spot(P0,90,{3,1,2,4},4)
 near(math.sqrt((further.X-gate.X)^2+(further.Y-gate.Y)^2),250,'Slot 4: 2.5 m from the gate of slot 0')
 near(turn(yaw-math.deg(math.atan(P0.Y-further.Y,P0.X-further.X))),0,'Faces P0')
 near(turn(bearing(gate)-(90+140)),0,'Order {3,...}: slot 0 at gate 3')
+
+-- Bodies to slots by place: nearest pairs first on the ground (height ignored), within the radius, one body a slot;
+-- ties in slot, then body order; a body too far, or left over, pairs with nothing.
+local function pt(x,y,z) return {at={X=x,Y=y,Z=z or 0}} end
+local function paired(out)
+    local t={}
+    for _,p in ipairs(out) do t[#t+1]=p.slot..'='..p.body end
+    return table.concat(t,' ')
+end
+local slots={pt(0,0),pt(250,0),pt(5000,0)} -- Two at one gate, 2.5 m apart, one far off.
+-- Body 1 fell 30 m but stands over slot 2; body 2 stands 1 m from slot 1; body 3 is 6 m from slot 3; body 4 stands
+-- 1.2 m from slot 1 and 1.3 m from slot 2, both taken by nearer bodies: left over.
+local out=W.match(slots,{pt(250,0,-3000),pt(100,0),pt(5600,0),pt(120,0)},500)
+assert(paired(out)=='2=1 1=2','Nearest first: '..paired(out))
+near(out[1].d,0,'On its spot')
+near(out[2].d,100,'1 m')
+-- Without body 2, body 4 takes slot 1, the nearer of the two left.
+assert(paired(W.match(slots,{pt(250,0,-3000),pt(120,0)},500))=='2=1 1=2','The next nearest')
+assert(#W.match(slots,{pt(5600,0)},500)==0,'6 m off: no pair')
+assert(paired(W.match(slots,{pt(5600,0)},600))=='3=1','On the radius: a pair')
+-- A tie: two slots on one spot, two bodies on it: slot order, then body order.
+assert(paired(W.match({pt(0,0),pt(0,0)},{pt(0,0),pt(0,0)},100))=='1=1 2=2','Ties in order')
+assert(#W.match({},{pt(0,0)},100)==0 and #W.match({pt(0,0)},{},100)==0,'Nothing to pair')
 
 -- The timer list: every entry due in a tick runs, in due order (ties in the order added); an entry added while the
 -- list drains runs on a later tick; nothing runs while the clock stands still.

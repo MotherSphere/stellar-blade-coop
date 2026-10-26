@@ -3,15 +3,15 @@
 -- while the game is paused (the IsValid crash and the pause rule). Covered: each start refusal with no spawn; the
 -- census line and its wave bodies; the run byte; the spawn choke point; a whole run from countdown to success (spawn
 -- arguments, one spawn a tick, the finds, aggro, the heals, the kill lines, the score and its time bonus, the result
--- and idle); the live-list guard (a freed body, a pause, a reused body, a new key, a killed body never read again); the
+-- and idle); the live-list guard (a freed body, a pause, a reused body, a killed body never read again); the
 -- death signals (executable, hidden, killed after down); a missing body; the default controller; the stuck rule and its
 -- two moves; noaggro and nomove; time up; every abort (stop, coop off, map change, EVE gone, 80 m, slot, link, death
 -- screen) with no body read in that tick; a Lua error in a tick. Also: the probe rule's row and a Steam link not ready
--- refuse; a signed key read; aggro after a new controller; a body near EVE far from the start is not moved; a refused
--- teleport; a load (slot=none) and a new world on the same map; a death screen first found playing; an error in the
--- result's 10 s. Challenges (coop challenge): Target Practice to a success and its best kept in coop-records.txt, a
--- Skull Squad wave that waits for the clear, the list, the stops and refusals, ends that write nothing. The HUD on a
--- fake kit: the card and the result panel at the top centre; the countdown, the wave, the
+-- refuse; a signed key read in the census; aggro after a new controller; a body near EVE far from the start is not
+-- moved; a refused teleport; a load (slot=none) and a new world on the same map; a death screen first found playing;
+-- an error in the result's 10 s. Challenges (coop challenge): Target Practice to a success and its best kept in
+-- coop-records.txt, a Skull Squad wave that waits for the clear, the list, the stops and refusals, ends that write
+-- nothing. The HUD on a fake kit: the card and the result panel at the top centre; the countdown, the wave, the
 -- next wave's countdown, the time left and the score in the game's language; hidden while paused; the result panel
 -- with the game's own heading when it can be read (none with ui_language=english), shown for 10 s of ticks it can be
 -- seen, after a respawn or a load too; notices at the start, each wave, each clear and the end with the kit off; a HUD
@@ -37,6 +37,9 @@
 -- Best. A challenge's HUD: its name as the card's title, the record line after a success that wrote its best, its stop
 -- line, Night Operation's own best, and with the kit off its notices with its name, then the record line after the end
 -- notice.
+-- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
+-- body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a corpse the game's pool
+-- brings back for a later wave.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 local T=1760000000
@@ -88,15 +91,18 @@ FName('SE_10_E_ActorEff_011')
 
 local function class(path) return uobject('Class',path,{}) end
 local SBCharacter,SBPC=class('/Script/SB.SBCharacter'),class('/Script/SB.SBNetworkPlayerController')
+local PCClass=class('/Script/Engine.PlayerController')
 local map='/Game/Art/BG/WorldMap/Level_P/F02.F02'
 local world=strict('World',{GetFullName=function() return 'World '..map end})
 local eve_at,eve_yaw={X=0,Y=0,Z=1000},30
 local eve=uobject('EVE','BP_PC_EVE_C /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0',{
     IsA=function(_,c) return c==SBCharacter end,K2_GetActorLocation=function() return eve_at end,
     K2_GetActorRotation=function() return {Pitch=0,Yaw=eve_yaw,Roll=0} end,GetWorld=function() return world end},
-    {BroadcastSpawnInfo={EventSpawnId=0,ActorGuid=0x51},InteractionState=0})
-local bodies={} -- What the game holds, in FindAllOf's order after EVE.
-local spawn_ai,fill_key,signed,teleport_ok=true,true,false,true
+    {BroadcastSpawnInfo={EventSpawnId=0,ActorGuid=0x51},InteractionState=0,bCharacterHiddenInGame=false})
+local bodies={} -- What the game holds, in the class hash's order after EVE.
+-- spawn_ok: the spawn call makes a body (false: it fails with no word, as a refused request would); pool: corpses the
+-- next spawns reuse, at the same address, as SB's character pool does.
+local spawn_ai,spawn_ok,signed,teleport_ok,pool=true,true,false,true,{}
 local function ai()
     return uobject('AI','AIController /Game/Map.Map:PersistentLevel.AI_C_1',{K2_SetFocus=function() end})
 end
@@ -118,14 +124,16 @@ local function monster(id,at,key,with_ai)
     m.obj=setmetatable({},{__index=function(_,k)
         if m.freed then violate('touched a freed body ('..k..')') end
         if paused then violate('read a body while paused ('..k..')') end
-        if k~='type' and k~='GetAddress' then m.reads=m.reads+1 end -- Beyond the live list's walk.
+        -- Beyond the live list's walk (the address, and IsValid on each actor it lists).
+        if k~='type' and k~='GetAddress' and k~='IsValid' then m.reads=m.reads+1 end
         local f=methods[k]
         if f then return function(self,...) record('M:'..k,m,...); return f(self,...) end end
         if k=='InteractionState' then return m.st end
         if k=='Controller' then return m.ctl or invalid end
         if k=='bCharacterHiddenInGame' then return m.hidden end
         if k=='BroadcastSpawnInfo' then -- signed: the int32 read of a key with its top bit set.
-            return {EventSpawnId=signed and m.key>=0x80000000 and m.key-0x100000000 or m.key}
+            local key=m.spawned and 0 or m.key -- The spawn's key never reaches a body in a standalone game.
+            return {EventSpawnId=signed and key>=0x80000000 and key-0x100000000 or key}
         end
         error('a monster has no '..tostring(k),2)
     end,__newindex=function(_,k) violate('wrote '..tostring(k)..' on a monster') end})
@@ -139,7 +147,13 @@ end
 local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.SBNetworkPlayerController_0',{
     IsA=function(_,c) return c==SBPC end,
     ServerRequest_CreateActor=function(_,id,at,_,_,_,_,key)
-        monster(id,at,fill_key and key or 0,spawn_ai)
+        if not spawn_ok then return end
+        local m=table.remove(pool,1)
+        if m then -- A corpse back from the pool: the same object and address, alive at the new spot.
+            m.id,m.at,m.key,m.st,m.hidden,m.battle=id,{X=at.X,Y=at.Y,Z=at.Z},key,0,false,false
+            m.ctl=spawn_ai and ai() or nil
+        else m=monster(id,at,key,spawn_ai) end
+        m.spawned=true
     end,
     ServerRequest_ItemBucketItemAdd=function() end})
 local player,controller=eve,pc
@@ -162,20 +176,31 @@ local by_path={['/Script/SB.SBCharacter']=SBCharacter,['/Script/SB.SBNetworkPlay
         assert(context==eve,'the clock reads EVE\'s world')
         if clock_fails then error(clock_fails) end
         return gt
+    end,GetAllActorsOfClass=function(_,context,cls,out) -- The class hash, which UE4SS fills into out.
+        assert(context==eve,'the characters of EVE\'s world')
+        if cls==PCClass then out[1]=pc; return end
+        assert(cls==SBCharacter,'GetAllActorsOfClass '..tostring(cls))
+        out[1]=eve
+        for _,m in ipairs(bodies) do out[#out+1]=m.obj end
     end}),
+    ['/Script/Engine.PlayerController']=PCClass,
     ['/Script/AIModule.Default__AISense_Damage']=uobject('Damage','AISense_Damage',{ReportDamageEvent=function() end}),
     ['/Script/AIModule.Default__AISense_Hearing']=uobject('Hearing','AISense_Hearing',
         {ReportNoiseEvent=function() end}),
     ['/Script/AIModule.Default__AIBlueprintHelperLibrary']=uobject('AIHelper','AIBlueprintHelperLibrary',
         {SimpleMoveToActor=function() end})}
 StaticFindObject=function(path) return assert(by_path[path],'unexpected StaticFindObject '..path) end
-FindAllOf=function(name)
+FindAllOf=function(name) -- The death screen's walk, and the class hash's proof (core/unreal.lua's actors_of).
     record('FindAllOf',name)
     if name=='WB_MainHUD_Master_C' then return huds end
-    assert(name=='SBCharacter','FindAllOf '..name)
-    local list={eve}
-    for _,m in ipairs(bodies) do list[#list+1]=m.obj end
-    return list
+    assert(name=='PlayerController','FindAllOf '..name)
+    return {pc}
+end
+-- The lists of the characters so far (the class hash, asked for SBCharacter).
+local function lists()
+    local n=0
+    for _,c in ipairs(calls) do if c.what=='GS:GetAllActorsOfClass' and c.args[2]==SBCharacter then n=n+1 end end
+    return n
 end
 local link_line,engine,slot_line='link=none lobby=0','engine=on remote=0 0 none','slot=coop index=4 marker=4'
 local unread=false -- The status file not read: status() gives nil.
@@ -278,6 +303,9 @@ monster(50110,{X=9000,Y=0,Z=0},W.key(byte0,2,3),false).st=1
 ok,message=run.command()
 assert(ok and message==string.format('census: 0 living within 40 m (nearest none); 1 wave bodies: 0xD8%02X0203 run %d',
     byte0,byte0),message)
+signed=true -- An int32 read of the key (top bit set) is the same key.
+assert(select(2,run.command())==message)
+signed=false
 assert(count('PC:ServerRequest_CreateActor')==0 and #lines==0)
 ok,message=run.command('stop'); assert(not ok and message=='no Night Operation run to stop')
 assert(not run.stop('coop off'))
@@ -332,10 +360,10 @@ for slot=0,3 do
     assert(last()==string.format('spawn 0x%08X M_Antlion at %.0f,%.0f,1100 yaw %.0f',key,at.X,at.Y,yaw),last())
 end
 assert(count('PC:ServerRequest_CreateActor')==4)
--- Found 1 s after the last call, by key; no FindAllOf on the way there.
-local finds=count('FindAllOf')
-tick(3); assert(count('FindAllOf')==finds,'No FindAllOf before the find')
-tick(); assert(last()=='wave 1 find +1 s: tracked 4/4' and count('FindAllOf')==finds+1,last())
+-- Found 1 s after the last call, by place (each body reads key 0, as in the game); no list on the way there.
+local finds=lists()
+tick(3); assert(lists()==finds,'No list before the find')
+tick(); assert(last()=='wave 1 find +1 s: tracked 4/4' and lists()==finds+1,last())
 local wave1={}
 for i=2,5 do wave1[#wave1+1]=bodies[i] end
 -- Aggro 0.6 s after: the two stimuli, then battle state, focus and move for a body not in battle.
@@ -347,10 +375,10 @@ local d=nil
 for _,c in ipairs(calls) do if c.what=='Damage:ReportDamageEvent' then d=c end end
 assert(d.args[1]==eve and d.args[3]==eve and d.args[4]==0.01 and d.args[2]~=eve)
 -- The live list once a second while bodies are tracked; the +2.5 s find.
-finds=count('FindAllOf')
+finds=lists()
 tick(6)
 assert(last()=='wave 1 find +2.5 s: tracked 4/4' or logged('wave 1 find +2.5 s: tracked 4/4'))
-assert(count('FindAllOf')-finds>=2 and count('FindAllOf')-finds<=3,count('FindAllOf')-finds)
+assert(lists()-finds>=2 and lists()-finds<=3,lists()-finds)
 -- The second aggro only for a body still not in battle: none here.
 tick(16)
 assert(count('Damage:ReportDamageEvent')==4,'In battle: no second aggro')
@@ -415,7 +443,7 @@ local after=#calls
 tick(39)
 for i=after+1,#calls do -- No body, no spawn, no FindAllOf: EVE and the clock only.
     local what=calls[i].what
-    assert(not what:find('^M:') and not what:find('^PC:') and what~='FindAllOf',what)
+    assert(not what:find('^M:') and not what:find('^PC:') and what~='GS:GetAllActorsOfClass',what)
 end
 ok,message=run.command()
 assert(ok and message:find('^census:'),message)
@@ -442,7 +470,7 @@ end
 
 -- 4. The guard. A body the game freed leaves at the next refresh with no touch (one freed between two refreshes can
 -- still be read once: the window the refresh interval sets); under a pause nothing is read, the first read after it
--- follows a refresh; another object at an address, or another key, leaves tracking.
+-- follows a refresh; another object at an address leaves tracking.
 local list=begin()
 tick(3) -- The find refreshed the list; the next refresh is due in one tick.
 free(list[1])
@@ -451,17 +479,16 @@ assert(logged(string.format('lost 0x%08X M_Antlion (not in the live list)',W.key
 paused=true
 local n=#calls
 for _=1,12 do run.tick() end -- The game's pause stops its clock too.
-for i=n+1,#calls do assert(calls[i].what~='FindAllOf' or calls[i].args[1]=='WB_MainHUD_Master_C','No read paused') end
+for i=n+1,#calls do assert(calls[i].what~='GS:GetAllActorsOfClass','No read paused') end
 free(list[2])
 paused=false
 tick()
 assert(logged(string.format('lost 0x%08X M_Antlion (not in the live list)',W.key(byte,1,1))),since(0))
-list[3].index=999
-list[4].key=W.key(byte,1,7)
+list[3].index,list[4].index=999,998
 tick()
 local clear=gt-t0
 assert(logged(string.format('lost 0x%08X M_Antlion (another object at its address)',W.key(byte,1,2))))
-assert(logged(string.format('lost 0x%08X M_Antlion (another key)',W.key(byte,1,3))))
+assert(logged(string.format('lost 0x%08X M_Antlion (another object at its address)',W.key(byte,1,3))))
 reads=list[3].reads+list[4].reads
 tick(8)
 assert(list[3].reads+list[4].reads==reads,'Tombstoned: never read again')
@@ -483,21 +510,66 @@ assert(count('AI:K2_SetFocus')==4 and count('AIHelper:SimpleMoveToActor')==4,'Th
 assert(logged(string.format('aggro 0x%08X: damage ok, noise ok, battle ok, focus ok, move ok',W.key(byte,1,0))))
 spawn_ai=true
 run.stop('stop')
--- An int32 read of the key (top bit set) is the same key: all four tracked, none missing or lost.
-signed=true
-list=begin()
-tick(8)
-assert(not since(0):find('missing',1,true) and not since(0):find('lost',1,true),since(0))
-signed=false
-run.stop('stop')
-fill_key=false
+
+-- 5b. Bodies found by place: each reads key 0, as in the game. A spawn that makes no body is missing, with no new body
+-- near; a living character on a spot before the wave is never taken, the wave's own body on that spot is, and EVE
+-- never is, even come from 70 m away once the wave began; a
+-- body 4 m off its spot is found, one 6 m off is missing with that distance; a corpse that the game's pool brings back
+-- at the same address for a later wave is that wave's body, and its kill scores for it; so is a living field enemy
+-- 100 m away that the pool takes for a spawn.
+spawn_ok=false
 bodies,lines={},{}
 ok,message=run.command('start')
+byte=tonumber(message:match('run 0x(%x+)'),16)
 tick(34)
-assert(logged(string.format('missing 0x%08X M_Antlion',W.key(byte,1,3))) and logged('wave 1 find +2.5 s: tracked 0/4'))
-fill_key=true
+assert(logged(string.format('missing 0x%08X M_Antlion (no new body)',W.key(byte,1,3)))
+    and logged('wave 1 find +2.5 s: tracked 0/4'),since(0))
+spawn_ok=true
 tick(40)
 assert(since(0):find('wave 2/5 at run time 13.5 s: 3 monsters',1,true),since(0))
+run.stop('stop')
+bodies,calls,lines={},{},{}
+ok,message=run.command('start')
+byte=tonumber(message:match('run 0x(%x+)'),16)
+local sw=W.new{run=byte,seed=W.seed(T,byte),now=gt}
+local spot0=W.spot({X=0,Y=0,Z=1000},30,sw.order[1],0)
+local spot3=W.spot({X=0,Y=0,Z=1000},30,sw.order[1],3)
+tick(4)
+local zone=monster(50110,spot0,0,true) -- A field enemy walks onto slot 0's spot in the countdown.
+eve_at={X=-4*spot3.X,Y=-4*spot3.Y,Z=1000} -- EVE 56 m out, 70 m from slot 3's spot, as wave 1 begins.
+tick(17) -- Wave 1 at run time 0, its first spawn call.
+eve_at={X=spot3.X,Y=spot3.Y,Z=1000} -- Then on slot 3's spot.
+tick(3) -- Its other three calls.
+assert(#bodies==5 and bodies[2].at.X==spot0.X and bodies[2].at.Y==spot0.Y,'Its own body on the same spot')
+bodies[3].at.X=bodies[3].at.X+600 -- Slot 1's body pushed 6 m off, slot 2's 4 m.
+bodies[4].at.Y=bodies[4].at.Y+400
+tick(4)
+assert(last()=='wave 1 find +1 s: tracked 3/4',since(0))
+tick(6)
+assert(logged(string.format('missing 0x%08X M_Antlion (nearest new body 6.0 m)',W.key(byte,1,1))),since(0))
+assert(last()=='wave 1 find +2.5 s: tracked 3/4',since(0))
+local battle={}
+for _,c in ipairs(calls) do if c.what=='M:Event_ChangeBattleState' then battle[c.args[1]]=true end end
+assert(battle[bodies[2]] and battle[bodies[4]] and battle[bodies[5]] and not battle[zone] and not battle[bodies[3]],
+    'The three found are aggroed, the field enemy and the one 6 m off are not')
+eve_at={X=0,Y=0,Z=1000}
+run.stop('stop')
+list=begin()
+for _,m in ipairs(list) do m.st,m.ctl=1,nil end
+tick()
+assert(logged(string.format('kill 0x%08X M_Antlion +10 = 40',W.key(byte,1,3))),since(0))
+local afar=monster(50110,{X=0,Y=-10000,Z=1000},0,true)
+pool={list[1],list[2],afar} -- Wave 2's three calls bring two corpses back, and take the field enemy.
+for _=1,100 do tick(); if logged('wave 2 find +1 s: tracked 3/3') then break end end
+assert(logged('wave 2 find +1 s: tracked 3/3') and #pool==0 and #bodies==5,since(0))
+assert(list[1].key==W.key(byte,2,0) and list[1].st==0,'The same object, alive for wave 2')
+tick(3)
+assert(afar.key==W.key(byte,2,2) and logged(string.format('aggro 0x%08X: damage ok, noise ok, battle ok, focus ok, '
+    ..'move ok',W.key(byte,2,2))),'The field enemy taken back is wave 2\'s: '..since(0))
+list[1].st,list[1].ctl=1,nil
+tick()
+assert(last()==string.format('kill 0x%08X M_SkullSwordAlone +40 = 80',W.key(byte,2,0)),last())
+assert(#violations==0,violations[1])
 run.stop('stop')
 
 -- 6. The stuck rule: 40 m from the start or 10 m below it, moved 7 m from EVE at most twice, 3 s apart, then written
@@ -643,7 +715,8 @@ clock_fails=nil
 n,before=#calls,#lines
 tick(4)
 for i=n+1,#calls do
-    assert(not calls[i].what:find('^M:') and not calls[i].what:find('^PC:') and calls[i].what~='FindAllOf','No retry')
+    assert(not calls[i].what:find('^M:') and not calls[i].what:find('^PC:') and calls[i].what~='GS:GetAllActorsOfClass',
+        'No retry')
 end
 assert(#lines==before)
 -- An error in the result's 10 s: one STOP line, then the run is gone.
@@ -674,27 +747,27 @@ assert(spawned==7,'Waves 1 and 2 up, wave 3 never fits under 8: '..spawned)
 tick(8)
 assert(count('PC:ServerRequest_CreateActor')==spawned and #bodies==7)
 assert(#violations==0,violations[1])
--- A success whose waves cleared with no fight: every spawn failed (no body carries its key), so every monster is
--- missing. Its time bonus pays no points.
+-- A success whose waves cleared with no fight: every spawn failed (no body came), so every monster is missing. Its
+-- time bonus pays no points.
 bodies,calls,lines={},{},{}
-fill_key=false
+spawn_ok=false
 ok,message=run.command('start')
 for _=1,2000 do
     tick()
     if result_line() then break end
 end
-fill_key=true
+spawn_ok=true
 local bonus_only=tonumber(result_line():match('^result: success waves=5/5 kills=0 score=(%d+) '))
 assert(bonus_only and bonus_only>=25,result_line())
 assert(logged('points: no time bonus (a monster never came)'),since(0))
 assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),last())
 -- Wave 1 missing, waves 2 to 5 fought: its kills still pay, only the time bonus goes.
 bodies,calls,lines={},{},{}
-fill_key=false
+spawn_ok=false
 ok,message=run.command('start')
 byte=tonumber(message:match('run 0x(%x+)'),16)
 for _=1,400 do tick(); if logged('wave 1 find +2.5 s: tracked 0/4') then break end end
-fill_key=true
+spawn_ok=true
 for k=2,5 do play(k) end
 assert(logged('points: no time bonus (a monster never came)'),since(0))
 assert(last()==string.format('credit +21 = %d (score 540, %s)',paid+21,WALLET),last())
@@ -879,13 +952,13 @@ do
     -- Successes that keep no best: every dummy missing (no body with its key: the spawn failed), then every dummy
     -- fallen and written off, so nothing is killed.
     file=kept
-    fill_key=false
+    spawn_ok=false
     run=start('targets','Target Practice')
     for _=1,400 do
         tk()
         if last():find('^result: ') then break end
     end
-    fill_key=true
+    spawn_ok=true
     assert(last():find('^result: success waves=3/3 kills=0 .* challenge=targets best='..first..' kept$'),last())
     assert(logged('record: not kept (a monster never came)') and writes==2,since(0))
     run=start('targets','Target Practice')
@@ -1422,8 +1495,9 @@ assert(state(Hs).phase=='countdown')
 running()
 kill_all(Hs,1) -- Nobody living near him: he may start again.
 Hs.drop=1000
+T=T+1 -- A second later, so another run byte: his first run's bodies read key 0, and the census cannot skip it.
 on(Hs,function() Hs.run.command('stop'); assert(Hs.run.command('start')) end)
-Hs.drop=0
+T,Hs.drop=T-1,0
 round(2)
 assert(Hs.told[#Hs.told]=='Kaanta cannot join the run: already in a run.',tostring(Hs.told[#Hs.told]))
 round(20)
@@ -1565,8 +1639,8 @@ local function lines_of(w,pattern)
     return n
 end
 -- Wave 1 found on both sides and both aggro rounds past, her fight and pilot lines as given. gone: the host's copy of
--- that slot is gone before his find (his spawn failed), so his line lacks its key. far: her copy of slot 3 is 60 m from
--- the start and 50 m from her EVE (the stuck rule's case).
+-- that slot is gone before his find (his spawn failed), so his line lacks its key. Once found, her copy of slot 3
+-- goes 60 m from the start and 50 m from her EVE (the stuck rule's case).
 local function shared(fight,pilot,gone)
     pair()
     Gs.fight=fight and pilot and fight..'\n'..pilot or fight or pilot
@@ -1578,8 +1652,14 @@ local function shared(fight,pilot,gone)
         assert(n<60,'Wave 1 on both')
     end
     if gone then table.remove(Hs.bodies,gone+1).freed=true end
+    n=0
+    while not (find(Hs.lines,'^wave 1 find %+1 s') and find(Gs.lines,'^wave 1 find %+1 s')) do
+        round()
+        n=n+1
+        assert(n<10,'Found on both')
+    end
     body(Gs,W.key(byte,1,3)).at={X=-6000,Y=0,Z=1000}
-    round(40)
+    round(40-n)
     assert(state(Hs).phase=='wave' and state(Gs).phase=='wave')
     return byte
 end

@@ -114,6 +114,35 @@ function W.spot(p0,yaw,order,slot,def)
     end
     return {X=x,Y=y,Z=p0.Z+UP},math.deg(math.atan(p0.Y-y,p0.X-x))
 end
+-- A wave's new bodies to its slots by place. The key a spawn gives never reaches the character in a standalone game:
+-- SB copies it to BroadcastSpawnInfo only in its spawn broadcast (FUN_1422707f0), under net mode 1 or 2, and InitActor
+-- clears it. slots: {at=} each, where its spawn call stood it; bodies: {at=} each; radius in cm. Nearest pairs first by
+-- ground distance (a body falls from its spot), within radius, each slot and each body in one pair at most; ties in
+-- slot, then body order. Returns {slot=, body=, d=} each (indexes, cm), in pairing order.
+-- ponytail: greedy, not an optimal assignment; two bodies of one gate (2.5 m apart) can swap slots, and a slot's key
+-- then names the other row, its points too. Read the class if the log shows swapped kills.
+function W.match(slots,bodies,radius)
+    local near={}
+    for i,s in ipairs(slots) do
+        for j,b in ipairs(bodies) do
+            local d=math.sqrt((s.at.X-b.at.X)^2+(s.at.Y-b.at.Y)^2)
+            if d<=radius then near[#near+1]={slot=i,body=j,d=d} end
+        end
+    end
+    table.sort(near,function(a,b)
+        if a.d~=b.d then return a.d<b.d end
+        if a.slot~=b.slot then return a.slot<b.slot end
+        return a.body<b.body
+    end)
+    local out,slot_used,body_used={},{},{}
+    for _,p in ipairs(near) do
+        if not slot_used[p.slot] and not body_used[p.body] then
+            slot_used[p.slot],body_used[p.body]=true,true
+            out[#out+1]=p
+        end
+    end
+    return out
+end
 -- The run's timers: add(due, action) on run time; drain(now) runs every entry due by now that was there when it began,
 -- in due order (ties in the order added), each as action(now). An entry added while it drains waits for a later drain.
 function W.timers()

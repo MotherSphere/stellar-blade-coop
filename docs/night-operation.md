@@ -60,7 +60,7 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 | `coop nightop start noaggro` | The same, but the monsters are not sent at EVE (a test switch) |
 | `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
 | `coop nightop stop` | End the run that is on, Night Operation or a challenge, on any save. `coop off` ends it too |
-| `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world, this run's included, each with its run number (8 at most are named) |
+| `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world that show a wave key, each with its run number (8 at most are named). The game shows a monster's wave key only in a networked game, so this list is empty in practice |
 | `coop nightop shop` | Your points and the six items of the [reward shop](#the-reward-shop) |
 | `coop nightop buy <n> [count]` | Buy 1 to 10 of item n with your points |
 
@@ -112,14 +112,23 @@ variants, which summon no Skullings. Each wave appears at four points 14 m from 
 picks the order of the points for each wave. A fifth monster stands 2.5 m from its point. Each monster faces the start
 point.
 
+The game does not keep a monster's wave key where the mod can read it (it copies the key to the character only in a
+networked game), so the mod finds each monster by where it stands. Just before a wave's first spawn, it lists the
+characters in the world and where each one stands. 1 s and 2.5 s after the wave's last spawn, it lists them again. A
+character that is alive and shown, is not EVE, is not one of the run's monsters already, and is not standing within
+50 m of where it stood before the wave counts as new, and becomes the monster of the nearest point of that wave within
+5 m. A field enemy that walked onto a point before the wave is never taken. The game reuses its characters, sometimes
+from far away, which is why the 50 m rule exists. A monster not found 2.5 s after its wave's last spawn is logged as
+`missing`, with the distance of the nearest new character left over (`missing 0xD82A0103 M_Antlion (nearest new body
+6.2 m)`, or `no new body`), and its wave does not wait for it.
+
 The mod then sends each new monster at EVE. 0.6 s after the monster is found, the mod reports a 0.01 damage event and
 a noise from EVE, puts the monster in battle state, and gives it EVE as focus and a move towards her; if it is still
 not fighting 4 s later, the mod does this again. A monster with no AI controller gets its default one first.
 
 From 2.5 s after it is found, and then every 3 s, a monster more than 10 m below both the start point and EVE, or more
 than 40 m from both, is moved to 7 m from EVE. This happens at most twice per monster. A monster still out after that
-no longer holds up its wave, and killing it later still scores. A monster not found 2.5 s after its wave's last spawn
-is logged as `missing`, and its wave does not wait for it.
+no longer holds up its wave, and killing it later still scores.
 
 Once wave 2 is down, and again once wave 4 is down, the mod fires the game's full heal (the probe's heal event,
 `SE_10_E_ActorEff_011`).
@@ -147,12 +156,15 @@ result: success waves=5/5 kills=20 score=731 time=5:28 find_ms=0.9/2.4 challenge
 ```
 
 `find_ms` is the mean and the longest time the mod took to list the game's characters, which it does once a second
-while monsters are tracked. A success that beats the best run kept in `coop-records.txt` is written there, and `best=`
-gives the best after the run (see [Best runs](#best-runs-coop-recordstxt)).
+while monsters are tracked, and at each wave's start and finds. It asks the engine for the characters of one class
+(`GetAllActorsOfClass`); up to 0.6.0-beta.3 the run used `FindAllOf`, which walks every object (25 to 80 ms in game).
+A success that beats the best run kept in `coop-records.txt` is written there, and `best=` gives the best after the run
+(see [Best runs](#best-runs-coop-recordstxt)).
 
 Monsters still alive when a run ends, written-off ones after a success included, stay in the world as ordinary enemies,
 and they no longer score. The mod has no safe way to remove them. Ctrl+R during a run ends it with no result, and its
-monsters stay too. The next run takes a run number that no monster in the world carries, so they never count for it.
+monsters stay too. They already stand in the world when the next run's waves begin, so that run never takes them for
+its own.
 
 Resting at a camp during a run is not supported: the rest resets the area's enemies, and the run loses track of its
 monsters.
@@ -209,7 +221,9 @@ the host gets as a notice, `<partner> cannot join the run: <reason>.`:
 | No monster left by an earlier run with the same run number is in her world | `monsters of an earlier run are still there` |
 
 With no answer within 5 s, the reason is `no answer`. A refused run is dropped with no result. After a refusal for
-monsters of an earlier run, the host's next starts skip that run number until the mod reloads.
+monsters of an earlier run, the host's next starts skip that run number until the mod reloads. That last check reads
+the wave keys the census lists, which the game does not show outside a networked game, so it does not refuse in
+practice.
 
 When she answers that she is ready, both cards count down from `STARTS IN 5`, and the guest gets the notice
 `<host> started Night Operation. It begins in <n> s.` From then on each game spawns its own copy of each monster.
