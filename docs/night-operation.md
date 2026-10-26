@@ -14,6 +14,11 @@ mode; they are not playable modes. The run, the shop and the challenges have not
 - A rule manager and a rule table, `MultiPlayRuleTable`, which ships empty. Its rows have fields for a duration, a
   number of lives, a respawn time and timed zone events. These fields describe a timed survival round.
 - Multiplayer test rows in the game's zone event, condition and spawn tables. The game's event system runs them.
+- A revive. An interaction graph, `Multi_NightOperation_Revive`, holds only its prompt, Resuscitate. The game's text
+  table has the mode's revive messages (a request to the other player, its receipt, Spectating, and Spend {Name} to
+  Self-Resuscitate). The item table's one revival item, the WB Pump ("Revives in the same place when killed in
+  combat"), is likely the {Name} that the self revive spent. The rule table's fields include a coma effect, the state
+  a downed player was in.
 - The online part. The recruiter's Join choice starts the mode's matchmaking: a request to Shift Up's online services,
   a matchmaking service and dedicated game servers hosted on Amazon.
 
@@ -28,6 +33,9 @@ parts exist:
 - The run, alone or for two linked players. Both games get the same waves, both screens show one timer and one score,
   and with shared enemies on, each wave monster has one HP bar and one death in both games
   (see [The co-op run](#the-co-op-run)).
+- The cut mode's revive in a co-op run, with the experimental `revive` setting on: a dead EVE waits 30 s for her
+  partner, who revives her with the interact key, or revives herself a few times a run (see
+  [Down and revive](#down-and-revive)).
 - The reward shop, on the console, with two cut items the game never sold (see [The reward shop](#the-reward-shop)).
 - The recruiter, as a preview: he stands next to Roxanne in Xion's Scrap Market, and his lines show in any of the
   game's 23 languages.
@@ -38,7 +46,7 @@ These parts do not exist yet:
 - The recruiter's Join choice starting StellarCoop's Steam friends matchmaking. Today the host types
   `coop nightop start`.
 - More players, up to six. The Steam link holds two.
-- A boss wave, and a revive for a fallen partner during a run.
+- A boss wave.
 
 The Steam link connects two players and shows each player the other's ghost (see [usage.md](usage.md)). The previews
 test how the cut mode's parts behave.
@@ -62,6 +70,7 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 | `coop nightop start noaggro` | The same, but the monsters are not sent at EVE (a test switch) |
 | `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
 | `coop nightop stop` | End the run that is on, Night Operation or a challenge, on any save. `coop off` ends it too |
+| `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run (see [Down and revive](#down-and-revive)) |
 | `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world that show a wave key, each with its run number (8 at most are named). The game shows a monster's wave key only in a networked game, so this list is empty in practice |
 | `coop nightop shop` | Your points and the seven items of the [reward shop](#the-reward-shop) |
 | `coop nightop buy <n> [count]` | Buy 1 to 10 of item n with your points |
@@ -176,7 +185,8 @@ A run ends in one of four ways:
 - Success: every monster of the five waves is down, written off, missing or no longer tracked. The score gets 1 point
   for each whole second left.
 - Time up: run time reaches the level's time limit, 8:00 at the normal level.
-- Failed: EVE dies. The game's death screen and respawn run as usual.
+- Failed: EVE dies. The game's death screen and respawn run as usual. A co-op run gives a dead EVE 30 s to be revived
+  first (see [Down and revive](#down-and-revive)).
 - Aborted: `coop nightop stop` or `coop off`; fast travel, a map change or a load; EVE more than 80 m from the start
   point for 10 s; a save that is no longer a co-op save; a Steam session that starts during a solo run; or an error in
   the run, which `UE4SS.log` names.
@@ -280,6 +290,64 @@ the run is on. Her notice and card do not.
   monsters keep fighting. Her pause stops only her spawns and reads; she spawns the waves she missed when it ends. Her
   card shows his run time plus half the ping's round trip, and moves only when it is more than 1 s off.
 
+### Down and revive
+
+In a co-op run a death does not end the run at once when the dead player has the experimental `revive` setting on
+(Options > Session > Friend can revive me, or `revive=on` in `coop-settings.txt`; off by default): the dead EVE is down.
+She lies where she fell with the game's death screen up, and the run goes on for her partner. The cut mode put a
+downed player in a coma that its rule set up; the rule table ships empty and the run starts no rule, so the mod keeps
+the game's death screen and revives with the game's in-place respawn. With `revive=off`, a death ends the run as it
+did before the revive.
+
+- She waits up to 30 s. Her card's title reads `Spectating` and the time left. The card hides while the game shows
+  one of its own screens, so whether it shows over the death screen is not known yet. Her screen shows
+  `Asked <partner> for a resuscitation.` and her partner's shows `<name> has requested resuscitation.`
+- Her partner revives her by standing next to her EVE (its ghost within 2 m across and 1 m up or down of the partner's
+  EVE) and holding the interact key, F or the pad's right trigger, for 3 s. The partner's card reads
+  `Resuscitate [F]` and her time left, then the percent of the hold. Letting go, stepping away or a pause starts the hold over. Only the game's
+  default interact keys count, not a key rebound in the game's options.
+- Once the hold is full, her game calls the game's in-place respawn on her EVE, the call that `coop revive test` makes
+  (see [usage.md](usage.md#revive-by-your-friend-experimental)). She gets up where she fell with full health and her
+  recovery items refilled, as after a camp respawn, and the zone does not reset. She reads `Revived by <partner>.`,
+  her partner reads `You revived <name>.` and `<name> has joined the game.`
+- She can revive herself with `coop nightop revive`: 3 times a run at easy, 2 at normal, 1 at hard and none at
+  nightmare. The answer is `OK: revive asked: 1 self revives left in this run`. `coop nightop` adds
+  `down 24 s, 1 self revives left` to the run's state while she is down. Nobody stands next to her body to show it
+  lies on ground she can get up on, so her own revive needs the body within 2 m across and 1 m up or down of the last
+  place where her EVE walked, or where her body now lies on a floor. A body that fell through the map, into a pit or
+  off a ledge is refused (`no revive: your EVE lies 0.4 m across and 6.2 m up or down from where she last walked`),
+  and the refusal spends no self revive.
+- One call is made per down. If she is not up 5 s after it, the call did not take: the down asks for no other, and
+  she waits out the 30 s or respawns at a camp, which both end the run as a death. Getting up within those 5 s counts
+  as the revive, even if it was the death screen's respawn.
+- The heal after waves 2 and 4 skips a downed EVE. The revive gives her full health.
+
+The words on the card and in these notices are the cut mode's own, in the game's language. With
+`ui_language=english`, or when the game's text table cannot be read, they are its English.
+
+The run fails when:
+
+- the 30 s run out with no revive (a call already made gets 5 s more for its result), or she gets up with no revive
+  asked or after a call that did not take, which is the death screen's own respawn at a camp. The lines are those of a
+  death in [How a co-op run ends](#how-a-co-op-run-ends);
+- both EVEs are down at once. Both screens then show the game's own `All players have died.`
+
+The down also needs each game's own life state, the `life=` line that `coop status` shows while a session holds.
+Without it, a death ends the run as in a solo run. A revive call also needs `revive=on` at the time of the call, the
+death screen up, a life state of 3 to 5, no respawn or warp under way, a standalone game and no `coop no` probe rule.
+During a run the [friend's revive](usage.md#revive-by-your-friend-experimental) (3 s next to the downed EVE with no
+key) and its notices stand aside, so a revive comes only from the run.
+
+`UE4SS.log` has `[StellarCoop][NR]` lines for each step: on the downed side `down (life 3): 30 s for a revive, 2 self
+revives left`, `revive asked (friend) after 6.5 s down`, `revive not asked (self): <why>`, `up: revived (friend)` and,
+for a call that did not take, `revive (friend) did not take: not up 5 s after the call`;
+on the partner's side `Kaanta is down`, `revive of Kaanta stopped at 50 %`, `revive of Kaanta: held for 3 s` and
+`Kaanta is up again`. The call's own lines are `[StellarCoop][GR] revive: ...` and `revive result (...)`.
+
+The game's achievement table has no row on a death, a respawn or a revival, so a revive counts toward no achievement
+and against none. Like the rest of the run, it happens only on a co-op save. None of this has been tried in game yet,
+and neither has the in-place respawn itself.
+
 ### How a co-op run ends
 
 The run ends on both screens, each with its result panel. The line under the heading says who ended the run:
@@ -288,8 +356,9 @@ The run ends on both screens, each with its result panel. The line under the hea
 | --- | --- | --- |
 | Success | none | none |
 | Time up | `Time is up.` | `Time is up.` |
-| The host's EVE died | `Your EVE died.` | `Your partner's EVE died.` |
-| The guest's EVE died | `Your partner's EVE died.` | `Your EVE died.` |
+| The host's EVE died and was not revived | `Your EVE died.` | `Your partner's EVE died.` |
+| The guest's EVE died and was not revived | `Your partner's EVE died.` | `Your EVE died.` |
+| Both EVEs down at once | `All players have died.` | `All players have died.` |
 | On the host's side: `coop nightop stop`, a map change or a load, 80 m from the start point for 10 s, a save that is no longer a co-op save, or an error | His reason, as in the solo run | `Your partner left the run.` |
 | The same on the guest's side | `Your partner left the run.` | Her reason, as in the solo run |
 | The session ended: `coop leave` (F8) or `coop off` on either side | `The link to your partner was lost.` | `The link to your partner was lost.` |
@@ -300,8 +369,8 @@ has not reached the other game for 5 s, the other player's run ends with `The li
 whose game stalled reads their own reason if their game found one first (`Ended by a map change or a load.` after a
 load), else the same lost line.
 
-A death on either side ends both runs as failed: there is no revive. The game's own `All players have died.` line is
-not used, since only one EVE died. A host who stops while he still waits for the guest's answer drops the run with no
+A death on either side ends both runs as failed once its down ends with no revive (see
+[Down and revive](#down-and-revive)). A host who stops while he still waits for the guest's answer drops the run with no
 result.
 
 ### Shared waves

@@ -183,13 +183,23 @@ int main() {
     assert(parse_text(bad).kind == Kind::invalid);
 
   // Night Operation's line, reliable: a full state of the run from the host ("h ...") or the guest ("g ..."), which Lua
-  // checks field by field. Here only its size, its characters, single spaces and its first word.
-  const std::string host_line = "h 7 42 3735928559 wave 2 81250 230 9 1 f0f 120 -340 5600 -90 /game/art/bg/f02 - hard";
+  // checks field by field. Here only its size, its characters, single spaces and its first word. Each side's line ends
+  // with its down time left and its revive of the other (digits, as every field but the words).
+  const std::string host_line =
+      "h 7 42 3735928559 wave 2 81250 230 9 1 f0f 120 -340 5600 -90 /game/art/bg/f02 - hard 0 58";
   assert(night_ok(host_line) && night_line(host_line) == p + " night " + host_line);
   m = parse_text(night_line(host_line));
   assert(m.kind == Kind::night && m.text == host_line);
-  m = parse_text(night_line("g 3 42 abort 0 0 0 stop"));
-  assert(m.kind == Kind::night && m.text == "g 3 42 abort 0 0 0 stop");
+  m = parse_text(night_line("g 3 42 run 2 f 0 - 24 0"));
+  assert(m.kind == Kind::night && m.text == "g 3 42 run 2 f 0 - 24 0");
+  m = parse_text(night_line("g 3 42 abort 0 0 0 stop 0 0"));
+  assert(m.kind == Kind::night && m.text == "g 3 42 abort 0 0 0 stop 0 0");
+  // The longest host line Lua writes, a 128-byte map and every number at its widest, both down words included.
+  const std::string longest_host =
+      "h 65535 255 4294967295 count 5 -10000 1620 40 5 ffffffffff -2147483648 -2147483648 -2147483648 -360 /" +
+      std::string(127, 'a') + " failed:both nightmare 30 100";
+  assert(longest_host.size() < kMaxNight && night_ok(longest_host) &&
+         parse_text(night_line(longest_host)).text == longest_host);
   const std::string widest = "g " + std::string(kMaxNight - 2, 'z');
   assert(kMaxNight == 300 && night_ok(widest) && parse_text(night_line(widest)).text == widest);
   for (const std::string &bad : {widest + "z", std::string("h 1 Wave"), std::string("g 1\x01"), std::string("h 1  2"),
@@ -240,9 +250,9 @@ int main() {
   // come. Protocol 13 refuses the link.
   // A v0.6.0-beta.3 peer runs protocol 13: it would refuse the host's night line with its level, so a co-op Night
   // Operation run would end as lost. Protocol 14 refuses the link.
-  static_assert(kProtocol == 14, "14 adds the night line's level; 13 the pak lines; 12 the shared quests' lines and "
-                                 "the race lines; 11 SBE and the show lines; 10 the fight's scale line; 9 pose deltas "
-                                 "(SBD); 8 say and vit; 7 is v0.2.0's");
+  static_assert(kProtocol == 14, "14 adds the night lines' level and down words; 13 the pak lines; 12 the shared "
+                                 "quests' lines and the race lines; 11 SBE and the show lines; 10 the fight's scale "
+                                 "line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
          lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
          lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856" &&

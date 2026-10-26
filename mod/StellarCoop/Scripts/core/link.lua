@@ -116,7 +116,8 @@ quest_deny=
 # Revive, experimental: on or off, off by default. Yours, for your own EVE: on, while you are on the death screen and
 # your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
 # recovery items refilled as at a camp. It needs the shared enemies running (shared_enemies=on, on a co-op save), and
-# never happens during a boss fight on your side.
+# never happens during a boss fight on your side. In a co-op Night Operation run, on also turns your death into a 30 s
+# down: your friend revives you by holding the interact key next to your EVE, or you type coop nightop revive.
 revive=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no

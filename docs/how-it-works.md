@@ -59,7 +59,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `core/ue4ss_settings.lua` | Checks `HookBeginPlay` and `bUseUObjectArrayCache` in `UE4SS-settings.ini` (read only) |
 | `nightop/probe.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
 | `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, the pairing of new bodies with their spawn spots, and the night line's two formats, with no engine call |
-| `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
+| `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, a co-op run's down and revive, the night line, its card and result panel |
 | `nightop/shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
 | `nightop/challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
 | `nightop/recruiter.lua` | The `coop recruiter` preview |
@@ -303,8 +303,8 @@ SBC14 paks <count> <hash>
 SBC14 camps? <id>
 SBC14 camps <id> <world> <camp>:<m> ...
 SBC14 camps <id> none <title|loading|nocamp|busy>
-SBC14 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level>
-SBC14 night g <n> <run> <state> <up> <killed> <done> <why>
+SBC14 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC14 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
 SBC14 mark <n> [<text>]
 SBC14 race <text>
 ```
@@ -378,12 +378,16 @@ The night line carries a Night Operation run between the two games (see
 one side, so a lost line is repaired by the next. The host's `h` line has a counter, the run number and seed, the
 phase (`ask`, `count`, `wave`, `rest` or `end`), the wave, the run time in milliseconds, the score, kills and waves
 cleared, the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, the outcome once
-the run ends (`success`, `time`, `failed:host`, `failed:guest` or `aborted:<reason>`), and the run's level (`easy`,
-`normal`, `hard` or `nightmare`), which the guest's run takes. A mask has one bit for each wave and slot, 8 slots a
-wave, so it covers the largest level's waves. The guest's `g` line has a counter, the run number, her state (`ready`,
-`refuse`, `run`, `dead` or `abort`), her monsters still up, masks of the ones killed and done in her world, and a
-refusal or abort word. Each game writes its line when it changes and at least once a second, never twice in one Lua
-tick, and logs each line out and in as `[StellarCoop][NR] night out: ...` and `night in: ...`.
+the run ends (`success`, `time`, `failed:host`, `failed:guest`, `failed:both` or `aborted:<reason>`), and the run's
+level (`easy`, `normal`, `hard` or `nightmare`), which the guest's run takes. A mask has one bit for each wave and slot,
+8 slots a wave, so it covers the largest level's waves. The guest's `g` line has a counter, the run number, her state
+(`ready`, `refuse`, `run`, `dead` or `abort`), her monsters still up, masks of the ones killed and done in her world,
+and a refusal or abort word. Both lines end with the [revive](night-operation.md#down-and-revive)'s two words: the
+seconds the side's downed EVE still waits (1 to 30, 0 while she stands) and the side's revive of the other, the percent
+of the 3 s its interact key has been held next to her (0 to 100). The downed game makes its call once the other line
+says 100, and the host's run fails as `failed:both` while his down word and hers are both above 0. Each game writes
+its line when it changes and at least once a second, never twice in one Lua tick, and logs each line out and in as
+`[StellarCoop][NR] night out: ...` and `night in: ...`.
 
 The native part checks only the bytes: 3 to 300 of `0-9`, `a-z`, `/`, `_`, `:` and `-` with single spaces between
 words, the first word `h` from the lobby owner and `g` from the guest. It sends an `h` line only while it owns the
@@ -466,7 +470,7 @@ instead of misread:
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
 | 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line, the mark line and the Doro races' race line on channel 0 |
 | 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders |
-| 14 | Night Operation's level on the host's night line, and night line masks for a level's extra monsters (this version) |
+| 14 | Night Operation's level on the host's night line, night line masks for a level's extra monsters, and each side's down time and revive progress on both night lines (this version) |
 
 ### Link health in the log
 
@@ -1163,6 +1167,14 @@ own state, the friend's vitals and the friend's ghost. The friend's game calls n
   in-game check.
 - With both players down, nobody can revive. Each respawns at a camp in their own game, each world resets on its own,
   and same spawns brings the guest's enemies back to the host's set.
+- During a Night Operation run (`nightop/run.lua`), the run owns the revive. The 3 s rule and the friend's notices
+  wait; the run says `You revived <name>.` itself when the partner's own hold was full. A death is a down only with
+  `revive=on`. The run asks `session/group.lua` for the call (`night_revive`) when the partner's night line says her
+  interact key was held next to the downed EVE for 3 s, or for `coop nightop revive`, which first needs the body
+  within 2 m across and 1 m up or down of the last place where the EVE's movement read walking. The call then has
+  `revive=on` and the guards of `coop revive test` (life 3 to 5, the death screen, `warp=idle`, standalone, no probe
+  rule), none of the friend's distance or the shared fight, and the same fallback, result line and hidden death
+  screen. See [Down and revive](night-operation.md#down-and-revive).
 
 ## Camp rests in a shared area
 

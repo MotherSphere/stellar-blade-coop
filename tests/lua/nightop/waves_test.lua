@@ -1,8 +1,9 @@
 -- The Night Operation run without the game: the monster pool and the wave schedule, the wave keys, the run byte, the
 -- seeded gate order and the gate spots, the bodies paired with slots by place, the timer list, the score and the run's
 -- states over a fake clock. Then a run read from another definition: waves that wait for a clear, its own limit, heals
--- and bonus, and its own spots. Then Night Operation's four levels: their waves, limits, points percents and highest
--- scores, a hard run and a nightmare wave held by the cap.
+-- and bonus, and its own spots. Then Night Operation's four levels: their waves, limits, points percents, self revives
+-- and highest scores, a hard run and a nightmare wave held by the cap. A co-op down: both lines carry each side's down
+-- time left and its revive of the other, and the host's run ends as failed (both) only while both are down.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 
@@ -319,7 +320,7 @@ for key in pairs(every) do every255[key&0xFF00FFFF|255<<16]=true end
 local NIGHTMARE=W.LEVEL.nightmare
 local host={n=65535,run=255,seed=4294967295,phase='end',wave=5,rt=-10000,score=W.most(NIGHTMARE),kills=40,clears=5,
     found=every255,x=-2147483648,y=2147483647,z=0,yaw=-180,map='/game/art/bg/worldmap/level_p/f02-a',outcome='aborted',
-    reason='lost',level='nightmare'}
+    reason='lost',level='nightmare',down=W.DOWN,help=100}
 local text=W.encode_host(host)
 assert(text:sub(1,2)=='h ' and #text<=300 and W.most(W.NIGHT)==1060 and W.most(NIGHTMARE)==1620,text)
 local back=W.decode_host(text)
@@ -327,9 +328,9 @@ for k,v in pairs(host) do
     if k=='found' then assert(same(back.found,every255)) else assert(back[k]==v,k..': '..tostring(back[k])) end
 end
 local base={n=0,run=1,seed=0,phase='wave',wave=1,rt=600000,score=0,kills=0,clears=0,found={},x=1,y=2,z=3,yaw=360,
-    map='/m',level='normal'}
+    map='/m',level='normal',down=0,help=0}
 assert(W.decode_host(W.encode_host(base)).outcome==nil)
-for _,ending in ipairs({'success','time','failed:host','failed:guest','aborted:stop','aborted:map','aborted:left',
+for _,ending in ipairs({'success','time','failed:host','failed:guest','failed:both','aborted:stop','aborted:map','aborted:left',
         'aborted:slot','aborted:error','aborted:lost','aborted:mate'}) do
     local h={}
     for k,v in pairs(base) do h[k]=v end
@@ -347,16 +348,16 @@ for _,bad in ipairs({{2,'65536'},{2,'-1'},{2,'1.5'},{3,'0'},{3,'256'},{4,'429496
         {5,'idle'},{6,'6'},{6,'-1'},{7,'600001'},{7,'-10001'},{8,'1061'},{9,'41'},{10,'6'},{11,'10000000000'},{11,'x'},
         {12,'2147483648'},{13,'-2147483649'},{14,'1e3'},{15,'361'},{15,'-361'},{16,'game'},{16,'/Game'},
         {16,'/'..('a'):rep(128)},{16,'/a b'},{17,'success'},{17,'aborted:link'},{1,'g'},{18,'night'},{18,'Hard'},
-        {18,'-'}}) do
+        {18,'-'},{19,'-1'},{19,tostring(W.DOWN+1)},{19,'x'},{20,'-1'},{20,'101'},{20,'50.5'}}) do
     assert(W.decode_host(host_with(bad[1],bad[2]))==nil,'Refused: field '..bad[1]..' = '..bad[2])
 end
 -- The score's bound is the line's level's: 1061 is past normal's, within hard's, and hard's own bound refuses one more.
-local hard=W.encode_host(base):gsub(' normal$',' hard')
+local hard=W.encode_host(base):gsub(' normal 0 0$',' hard 0 0')
 assert(W.decode_host(hard).level=='hard' and W.decode_host((hard:gsub(' 600000 0 ',' 600000 1061 '))).score==1061)
 assert(W.decode_host((hard:gsub(' 600000 0 ',string.format(' 600000 %d ',W.most(W.LEVEL.hard)+1))))==nil)
 local ended=W.encode_host(host)
 for _,bad in ipairs({ended:gsub(' aborted:lost ',' - '),ended:gsub(' aborted:lost ',' aborted:dance '),
-        ended:gsub(' aborted:lost ',' failed:both '),ended:gsub(' aborted:lost ',' success: '),
+        ended:gsub(' aborted:lost ',' failed:dance '),ended:gsub(' aborted:lost ',' success: '),
         ended:gsub(' aborted:lost ',' time:host '),ended:gsub(' aborted:lost ',' aborted '),ended..' x',
         ended:gsub(' %S+$',''),ended:gsub(' ','  ',1),ended..' ',' '..ended}) do
     assert(W.decode_host(bad)==nil,'Refused: '..bad)
@@ -364,24 +365,25 @@ end
 assert(W.decode_host(nil)==nil and W.decode_host('')==nil)
 
 -- The guest's line: each state with its word; a refusal word only with refuse, an abort reason only with abort.
-local mate={n=7,run=RUN,state='run',up=40,killed=set({W.key(RUN,1,0)}),done=every}
+local mate={n=7,run=RUN,state='run',up=40,killed=set({W.key(RUN,1,0)}),done=every,down=W.DOWN,help=100}
 text=W.encode_mate(mate)
-assert(text==string.format('g 7 %d run 40 1 %s -',RUN,W.mask(every,RUN)),text)
+assert(text==string.format('g 7 %d run 40 1 %s - %d 100',RUN,W.mask(every,RUN),W.DOWN),text)
 back=W.decode_mate(text)
 assert(back.n==7 and back.run==RUN and back.state=='run' and back.up==40 and back.why==nil)
-assert(same(back.killed,mate.killed) and same(back.done,every))
+assert(back.down==W.DOWN and back.help==100 and same(back.killed,mate.killed) and same(back.done,every))
 for _,case in ipairs({{'ready'},{'dead'},{'refuse','far'},{'refuse','map'},{'refuse','slot'},{'refuse','busy'},
         {'refuse','near'},{'refuse','taken'},{'abort','stop'},{'abort','map'},{'abort','left'},{'abort','slot'},
         {'abort','error'},{'abort','lost'}}) do
-    local d=W.decode_mate(W.encode_mate({n=1,run=2,state=case[1],up=0,killed={},done={},why=case[2]}))
-    assert(d and d.state==case[1] and d.why==case[2],case[1])
+    local d=W.decode_mate(W.encode_mate({n=1,run=2,state=case[1],up=0,killed={},done={},why=case[2],down=0,help=0}))
+    assert(d and d.state==case[1] and d.why==case[2] and d.down==0 and d.help==0,case[1])
 end
-for _,bad in ipairs({'g 65536 1 run 0 0 0 -','g 1 0 run 0 0 0 -','g 1 256 run 0 0 0 -','g 1 1 walk 0 0 0 -',
-        'g 1 1 run 41 0 0 -','g 1 1 run -1 0 0 -','g 1 1 run 0 10000000000 0 -','g 1 1 run 0 0 x -',
-        'g 1 1 run 0 0 0 far',
-        'g 1 1 refuse 0 0 0 -','g 1 1 refuse 0 0 0 stop','g 1 1 abort 0 0 0 far','g 1 1 abort 0 0 0 mate',
-        'g 1 1 ready 0 0 0 -  ','g 1 1 ready 0 0 0','g 1 1 ready 0 0 0 - x','h 1 1 ready 0 0 0 -',
-        'g 1  1 ready 0 0 0 -'}) do
+for _,bad in ipairs({'g 65536 1 run 0 0 0 - 0 0','g 1 0 run 0 0 0 - 0 0','g 1 256 run 0 0 0 - 0 0',
+        'g 1 1 walk 0 0 0 - 0 0','g 1 1 run 41 0 0 - 0 0','g 1 1 run -1 0 0 - 0 0','g 1 1 run 0 10000000000 0 - 0 0',
+        'g 1 1 run 0 0 x - 0 0','g 1 1 run 0 0 0 far 0 0','g 1 1 refuse 0 0 0 - 0 0','g 1 1 refuse 0 0 0 stop 0 0',
+        'g 1 1 abort 0 0 0 far 0 0','g 1 1 abort 0 0 0 mate 0 0','g 1 1 ready 0 0 0 - 0 0  ','g 1 1 ready 0 0 0 - 0',
+        'g 1 1 ready 0 0 0 - 0 0 x','h 1 1 ready 0 0 0 - 0 0','g 1  1 ready 0 0 0 - 0 0','g 1 1 run 0 0 0 -',
+        'g 1 1 run 0 0 0 - 31 0','g 1 1 run 0 0 0 - -1 0','g 1 1 run 0 0 0 - 0 101','g 1 1 run 0 0 0 - 0 -1',
+        'g 1 1 run 0 0 0 - 0 x'}) do
     assert(W.decode_mate(bad)==nil,'Refused: '..bad)
 end
 
@@ -422,6 +424,14 @@ assert(at(s,3,{dead=true,mate=her('run')})=='end failed host' and s.reason=='hos
 s=start()
 at(s,0,{mate=her('ready')})
 assert(at(s,3,{abort='stop',mate=her('dead')})=='end failed guest','Her death before his abort')
+-- Both down: his down while her line says she is down ends it as failed (both); either down alone ends nothing, and
+-- her line at down 0 (up again) does not either.
+local function down_her(left) local m=her('run'); m.down=left; return m end
+s=start()
+at(s,0,{mate=her('ready')})
+assert(at(s,3,{mate=down_her(30)})=='' and s.phase=='wave','Her down alone')
+assert(at(s,4,{down=true,mate=down_her(0)})=='' and s.phase=='wave','His down alone')
+assert(at(s,5,{down=true,mate=down_her(12)})=='end failed both' and s.outcome=='failed' and s.reason=='both')
 -- Success once both worlds are done, with the time bonus as solo.
 s=start()
 at(s,0,{mate=her('ready')})
@@ -468,7 +478,8 @@ assert(follow(g,nil,318.5)=='idle' and g.phase=='idle')
 -- His end words as she reads them: his own abort is her partner leaving, a lost link stays lost; a success keeps his
 -- score (its bonus in it) and time.
 for want,ending in pairs({['end aborted mate']={'aborted','stop'},['end aborted lost']={'aborted','lost'},
-        ['end success']={'success'},['end time']={'time'},['end failed guest']={'failed','guest'}}) do
+        ['end success']={'success'},['end time']={'time'},['end failed guest']={'failed','guest'},
+        ['end failed both']={'failed','both'}}) do
     g=start()
     follow(g,line(1,'count',0,-5000),100)
     assert(follow(g,line(2,'end',0,30000,{score=659,outcome=ending[1],reason=ending[2]}),131)==want,want)
@@ -596,6 +607,7 @@ for word,want in pairs({easy={'night_easy',540,50,'3 2 4 3 3',1030},normal={'nig
     assert(def.id==want[1] and def.limit==want[2] and def.pct==want[3] and table.concat(sizes,' ')==want[4],word)
     assert(W.most(def)==want[5],word..': '..W.most(def))
     for _,k in ipairs({'breather','heals','bonus','aggro','moves'}) do assert(def[k]==W.NIGHT[k],word..' '..k) end
+    assert(def.revives==({easy=3,normal=2,hard=1,nightmare=0})[word],word..': self revives')
     assert(not def.spots)
 end
 assert(table.concat(W.LEVEL.hard.waves[2].ids,' ')==table.concat({SW,SW,GU,SW,SW},' '),'Hard wave 2')

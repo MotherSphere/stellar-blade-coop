@@ -125,9 +125,11 @@ today. The mod never contacts the cut mode's online services (Shift Up's servers
 a score, on a co-op save. `coop nightop start easy`, `hard` or `nightmare` changes the number of monsters (15 to 40 in
 all, 20 at normal), the time limit and the shop points. With no Steam session it is a solo run. In a session the host
 types it, at his level, and both games get the same waves while both screens show one timer and one score; with
-shared enemies on, each wave monster has one HP bar and one death in both games. A run that ends in success or time up
-gives points for a console shop that sells seven items: four of the game's, and three cut items the mod adds back (two
-stimpacks and the Shock Bolt ammo for EVE's gun). None of this has been tested in game yet (see
+shared enemies on, each wave monster has one HP bar and one death in both games. With the experimental revive on, a
+dead EVE in such a run is down for 30 s: her partner revives her with the interact key, as the cut mode planned, or she
+revives herself a few times a run (`coop nightop revive`). A run that ends in success or time up gives points for a
+console shop that sells seven items: four of the game's, and three cut items the mod adds back (two stimpacks and the
+Shock Bolt ammo for EVE's gun). None of this has been tested in game yet (see
 [docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs four short fights on the same
 code, one of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. The
 challenges are solo: they need a co-op save and no Steam session, and give no shop points. They have not been tested

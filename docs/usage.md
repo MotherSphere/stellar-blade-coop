@@ -433,6 +433,10 @@ usual.
 The revive also needs shared enemies running (`shared_enemies=on`, both on co-op saves), your friend alive on your map,
 no boss fight on your side and no respawn under way. Only the downed player's setting counts.
 
+During a co-op Night Operation run this revive and its notices stand aside: with `revive=on` the run has its own
+revive, with the interact key and a 30 s limit (see [Down and revive](night-operation.md#down-and-revive)). With
+`revive=off` a death there ends the run.
+
 ### Camp rests in a shared area
 
 Either player can rest at a camp. While both play in one zone within 100 m of each other with same spawns on, only the
@@ -820,6 +824,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop) at one of four [levels](night-operation.md#levels), solo or, started by the host at his level, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
+| `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run ([Down and revive](night-operation.md#down-and-revive)) (untested in game, co-op save only) |
 | `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its seven items (two cut stimpacks and the cut [Shock Bolt](#cut-ammo-shock-bolt) ammo among them), and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
@@ -975,6 +980,9 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 - In a session, only the host starts a run, at his level, and it is for both players. The guest's game checks her
   side and joins without a question, or the host gets a notice with the reason she cannot. On the guest's game the
   command answers `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
+- In a co-op run, a dead EVE whose player has `revive=on` is down for 30 s. Her partner revives her by holding the
+  interact key (F, or the pad's right trigger) for 3 s next to her, or she types `coop nightop revive` (3 times a run
+  at easy, 2 at normal, 1 at hard, none at nightmare). See [Down and revive](night-operation.md#down-and-revive).
 - `coop nightop shop` lists the points your runs gave and the seven items, and `coop nightop buy <n> [count]` buys 1 to
   10 of item n into the co-op save. Items 5 and 6, the cut Burst and Beta Stimpacks, need table rows the native part
   adds with the Lion's (see [Cut boss](#cut-boss-coop-lion)), and item 7, the cut [Shock Bolt](#cut-ammo-shock-bolt)
@@ -2423,7 +2431,8 @@ quest_deny=
 # Revive, experimental: on or off, off by default. Yours, for your own EVE: on, while you are on the death screen and
 # your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
 # recovery items refilled as at a camp. It needs the shared enemies running (shared_enemies=on, on a co-op save), and
-# never happens during a boss fight on your side.
+# never happens during a boss fight on your side. In a co-op Night Operation run, on also turns your death into a 30 s
+# down: your friend revives you by holding the interact key next to your EVE, or you type coop nightop revive.
 revive=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
@@ -2502,7 +2511,7 @@ status_overlay=off
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
 | `shared_quests` | `on` or `off`: [shared quests](#shared-quests-experimental), experimental; both players need it on | `off` |
 | `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
-| `revive` | `on` or `off`: your friend may [revive](#revive-by-your-friend-experimental) your EVE where she fell, experimental | `off` |
+| `revive` | `on` or `off`: your friend may [revive](#revive-by-your-friend-experimental) your EVE where she fell, experimental; in a co-op Night Operation run, your death is a [down](night-operation.md#down-and-revive) | `off` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |

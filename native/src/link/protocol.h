@@ -55,7 +55,9 @@ constexpr int kProtocol = 14; // Bump on any wire change. 1 was the first link (
                               // Operation for two), the mark line and the race lines; 13 adds the pak lines (the mod
                               // containers by name) before the paks line, which a protocol-12 peer would count invalid;
                               // 14 adds Night Operation's level to the host's night line, which a protocol-13 guest
-                              // would refuse, as she would the masks of a level's extra monsters. An older peer (6:
+                              // would refuse, as she would the masks of a level's extra monsters, and each side's
+                              // down time left and revive progress at the end of both night lines (the co-op
+                              // revive), which a protocol-13 game would refuse too. An older peer (6:
                               // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
                               // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3) is told why: the lobby tag, then the
                               // hello's reject, name both.
