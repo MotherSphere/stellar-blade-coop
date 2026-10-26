@@ -68,9 +68,10 @@
 -- coop glide on|off, EVE's cut glide while Jump is held in the air (cut/glide.lua; a test tool, left out of the usage
 -- line; on on a co-op save only).
 -- coop devmenu [list|<row>], the rows of the game's developer cheat menu that still work, through the same Cheat
--- request as coop chainspin (cut/devmenu.lua; left out of the usage line; a row on a co-op save only). coop devinfo
--- quest|player|off, the game's quest debugger and player info panels, opened and closed by the native part through the
--- game's UI manager (game/dev_panels.h; left out of the usage line; any save, as both only read); coop off closes them.
+-- request as coop chainspin (cut/devmenu.lua; left out of the usage line; a row on a co-op save only; coop off runs
+-- its clear and lockswitch rows once more when a row ran). coop devinfo quest|player|off, the game's quest debugger
+-- and player info panels, opened and closed by the native part through the game's UI manager (game/dev_panels.h; left
+-- out of the usage line; any save, as both only read); coop off closes them.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -451,6 +452,8 @@ local commands={
         if not stopped then log('flight: '..tostring(e)) end
         stopped,e=pcall(glide.stop) -- bGlide false again on EVE.
         if not stopped then log('glide: '..tostring(e)) end
+        stopped,e=pcall(o.devmenu.stop) -- clear and lockswitch, while the engine line still names EVE.
+        if not stopped then log('devmenu: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         stopped,e=pcall(ask('devinfo off')) -- The game's developer panels closed, if open.
         if not stopped then log('devinfo: '..tostring(e)) end

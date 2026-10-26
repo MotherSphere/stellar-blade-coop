@@ -11,8 +11,8 @@
 -- added under a taken name frees the old one while EVE reads it). Nothing of it is saved: no acquisition, no skill
 -- slot, no trophy tag.
 -- Called here: ServerRequest_Cheat(EVE's GUID, 0, 'SBApplyEffectMe', an effect's ID) once a command, after the rows
--- are in, and for coop devmenu (cut/devmenu.lua) once for each effect of the row asked, from its fixed list. Never
--- called here: another cheat word.
+-- are in, and for coop devmenu (cut/devmenu.lua) once for each effect of the row asked, from its fixed list (its clear
+-- and lockswitch rows also at coop off). Never called here: another cheat word.
 local N=require('nightop.probe')
 local ChainSpin={}
 ChainSpin.EFFECT='P_Eve_Tachy_Skill_ChainSpin1_Use'

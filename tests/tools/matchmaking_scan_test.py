@@ -21,7 +21,8 @@ ADD_ROWS = {'nightop/probe.lua': 1}
 # answer and the header). coop lion: its one CreateActor (its spawn choke point) and its header, which also names SB's
 # AddRow (the native part calls it) and UE4SS's (never called). coop scene: its guarded call (kind 6, its two theater
 # rows only), its header, its three log lines and one refusal. coop chainspin: its one Cheat request (SBApplyEffectMe
-# of its own effect on our EVE, its choke point) and its header.
+# on our EVE, its choke point: its own effect, and the effects of coop devmenu's fixed list of 23 in cut/devmenu.lua,
+# which only reaches it through ChainSpin.apply) and its header.
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
 RATIONED = {'MultiplayTest_ZoneE_059': {'nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4, 'cut/scene.lua': 6},

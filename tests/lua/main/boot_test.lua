@@ -775,6 +775,8 @@ assert(wr.stops==1,'off gives EVE the game\'s meshes back')
 assert(sc.stops==1,'off stops a scene')
 assert(ln.stops==1,'off ends the cut scene lines')
 assert(gl.stops==1,'off puts bGlide back')
+assert(dm.stops==1 and asked[dm.asked_at_stop+1]=='devinfo off' and asked[dm.asked_at_stop+2]=='off',
+    'off clears the developer menu rows while the engine line still names EVE, before it asks the native part off')
 local written=#states
 takes=chat_takes
 ra.s=ra.slows
