@@ -1718,9 +1718,13 @@ game's pass, then, on the game thread, while both slots hold it, the fly gate is
 the controller's pawn (`+0x2f8`) and input handler (`+0x668`). The same pass sets `bPushedJumpKey` (`+0x197`) only
 from `DefinedJumpKeyLists` (`+0xF8`, at `0x1423c887e`), and `DefaultInput.ini` puts no key in that list, so the flag
 stays 0. The first version of the hook read it and counted no press in a test of 2026-10-26 (six presses in the air,
-no flight). The hook reads the space bar with `GetAsyncKeyState` instead, only while the game's window is in front, and
-takes a press as the key going down. A key already down when the hook first reads it counts only once let go and
-pressed again. A Jump key rebound in the game's settings is not followed.
+no flight). The hook asks the game whether the space bar is down instead, through `FUN_14231f470`, the check the pass
+runs on each key of its lists: it looks the key up in the player input's `KeyStateMap` (the controller's `PlayerInput`,
+`+0x3F0`). A space typed into the co-op chat, a Space select in the co-op menu or saves list (they take the game's input
+with `SetInputMode_UIOnlyEx` while the game runs) and a key pressed in the Steam overlay never reach that map, so none
+of them counts as a press or drops a flight. The build before read the keyboard with `GetAsyncKeyState`, which saw
+those keys too. A press is the key going down. A key already down when the hook first reads it counts only once let go
+and pressed again. A Jump key rebound in the game's settings is not followed.
 
 The hook counts the space bar's presses since EVE left the ground. She is on the ground when her movement component
 (`ACharacter`'s `+0x330`) has a `MovementMode` (`+0x19C`) other than falling (3): the pinned build's `IsFalling`

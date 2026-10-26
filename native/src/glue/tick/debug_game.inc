@@ -67,15 +67,30 @@ void debug_tick() {
 // after a fault, and says whether both slots hold it (hold_live). Inert while the fly gate is not ours, so it stays in
 // between.
 using InputPass = void (*)(void *pc, float dt, bool paused); // FUN_1423c47a0 reads them from rcx, xmm1 and r8b.
+// The space bar as the game sees it (SB fills no jump key list, so its jump flag stays 0): FUN_14231f470, the check the
+// pass runs on each key of its lists, finds the key in the first player controller's PlayerInput (+0x3f0) KeyStateMap
+// (FUN_14231b7a0) and reads its bDown. Keys typed into a UI-only widget (the co-op chat, menu and saves) or the Steam
+// overlay never reach that map, though GetAsyncKeyState sees them. It takes an FKey by value: 0x18 bytes, the FName,
+// then a TSharedPtr<FKeyDetails> it releases (null here, so nothing to release).
+constexpr uint64_t kKeyDown = 0x14231f470;
+struct KeyArg {
+  uint64_t name;
+  void *details, *controller;
+};
+static_assert(sizeof(KeyArg) == 0x18);
+using KeyDown = bool (*)(KeyArg *key);
 std::atomic<bool> hold_faulted{false}, hold_live{false};
 std::atomic<uint64_t> hold_fault_code{0}, hold_fault_rva{0}, hold_fault_address{0};
 std::atomic<uint32_t> hold_counts[debug::kCounts] = {}; // debug_hold's counts, for the worker's log.
-debug::Hold debug_hold; // The game thread's.
+debug::Hold debug_hold;  // The game thread's.
+uint64_t space_name = 0; // FName "SpaceBar" (ComparisonIndex, Number), made once.
 __declspec(noinline) void hold_step(void *pc, float dt) {
-  // The space bar, the game's window in front (as poll_pad): SB fills no jump key list, so its jump flag stays 0.
-  DWORD owner = 0;
-  const bool jump = (GetAsyncKeyState(VK_SPACE) & 0x8000) && GetWindowThreadProcessId(GetForegroundWindow(), &owner) &&
-                    owner == GetCurrentProcessId();
+  if (!space_name) {
+    const NameView name{L"SpaceBar", 8, false};
+    game_function<MakeName>(kMakeName)(&space_name, &name, 1, 0); // 1: FNAME_Add (EKeys made it at startup).
+  }
+  KeyArg space{space_name, nullptr, nullptr};
+  const bool jump = space_name && game_function<KeyDown>(kKeyDown)(&space);
   DebugMem m;
   debug_hold.step(m, reinterpret_cast<uintptr_t>(pc), dt, jump);
   for (uint8_t i = 0; i < debug::kCounts; ++i)
