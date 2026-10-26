@@ -132,5 +132,97 @@ void nightshop_tick() {
     }
   }
 }
+
+// ---- Roxanne's Night Operation choices (nightop/roxanne.h), the game thread's calls ----
+// The worker hands over on or off with its number; the game thread takes it with try_lock only and, once the rows'
+// gate holds (refused after lion::kGateTicks shut frames), points her list's entry in SB's select cache at our six
+// names or puts hers back, out of line under its own latch; reads go through safe_read, the find and the allocation are
+// SB's. Every kReadMs after the first ask it looks at the entry again (a game rebuild of the cache shows as off). After
+// coop off only off is taken (coop off asks it first). The first fault ends Roxanne's choices for the run, as they
+// stand.
+struct WinRoxanneGame : WinShockGame {
+  int32_t find(uint64_t map, uint64_t name) {
+    int32_t index = -1;
+    game_function<MapFind>(roxanne::kMapFind)(reinterpret_cast<const void *>(map), &index, name);
+    return index;
+  }
+};
+std::atomic<bool> roxanne_faulted{false};
+std::atomic<uint64_t> roxanne_fault_code{0}, roxanne_fault_rva{0}, roxanne_fault_address{0};
+std::mutex roxanne_m; // The worker's ask: its number and on or off.
+uint32_t roxanne_asked = 0;
+bool roxanne_want = false;
+// The game thread's word for the worker: asks 32-63, want 24, why 16-23, shape 8-15, waiting 0.
+std::atomic<uint64_t> roxanne_word{0};
+roxanne::Swap roxanne_swap; // The game thread's own, with the rest below.
+uint32_t roxanne_taken = 0, roxanne_waited = 0, roxanne_done = 0;
+bool roxanne_pending = false, roxanne_wanted = false;
+roxanne::Why roxanne_why = roxanne::Why::none;
+uint64_t roxanne_next_read = 0;
+void roxanne_publish(roxanne::Shape shape) {
+  roxanne_word = uint64_t(roxanne_done) << 32 | uint64_t(roxanne_wanted) << 24 | uint64_t(roxanne_why) << 16 |
+                 uint64_t(shape) << 8 | uint64_t(roxanne_pending);
+}
+// One try at the ask: the gate, then on or off. Out of line for the __try below.
+__declspec(noinline) roxanne::Why roxanne_body(bool on, bool &gated, roxanne::Shape &shape) {
+  uint32_t mode = 0;
+  const lion::Why gate = lion_gate(mode);
+  gated = gate == lion::Why::none;
+  WinRoxanneGame g;
+  if (!gated) {
+    shape = roxanne::shape(g, base, roxanne_swap);
+    return gate == lion::Why::busy ? roxanne::Why::busy : gate == lion::Why::net ? roxanne::Why::net
+                                                                                 : roxanne::Why::gate;
+  }
+  const roxanne::Why why = on ? roxanne::arm(g, base, roxanne_swap)
+                              : (roxanne::disarm(g, base, roxanne_swap), roxanne::Why::none);
+  shape = roxanne::shape(g, base, roxanne_swap);
+  return why;
+}
+__declspec(noinline) roxanne::Shape roxanne_look() {
+  WinRoxanneGame g;
+  return roxanne::shape(g, base, roxanne_swap);
+}
+void roxanne_tick() {
+  bool got = false, want = false;
+  uint32_t asked = 0;
+  if (roxanne_m.try_lock()) {
+    asked = roxanne_asked, want = roxanne_want;
+    roxanne_m.unlock();
+    got = asked != roxanne_taken;
+  }
+  if (got) {
+    roxanne_taken = asked, roxanne_wanted = want, roxanne_pending = true, roxanne_waited = 0;
+    if (blocked && want) // After coop off: only off.
+      roxanne_pending = false, roxanne_done = asked, roxanne_why = roxanne::Why::gate;
+  }
+  roxanne::Shape shape = roxanne::Shape::unread;
+  bool looked = false;
+  if (roxanne_pending) {
+    bool gated = false;
+    __try {
+      roxanne_why = roxanne_body(roxanne_wanted, gated, shape);
+    } __except (fault_filter(GetExceptionInformation(), roxanne_fault_code, roxanne_fault_rva,
+                             roxanne_fault_address)) {
+      roxanne_faulted = true;
+      return;
+    }
+    looked = true;
+    if (gated || ++roxanne_waited >= lion::kGateTicks)
+      roxanne_pending = false, roxanne_done = roxanne_taken;
+  } else if (const uint64_t now = GetTickCount64(); roxanne_taken && !blocked && now >= roxanne_next_read) {
+    roxanne_next_read = now + shopui::kReadMs;
+    __try {
+      shape = roxanne_look();
+    } __except (fault_filter(GetExceptionInformation(), roxanne_fault_code, roxanne_fault_rva,
+                             roxanne_fault_address)) {
+      roxanne_faulted = true;
+      return;
+    }
+    looked = true;
+  }
+  if (looked)
+    roxanne_publish(shape);
+}
 } // namespace
 } // namespace coop::pose

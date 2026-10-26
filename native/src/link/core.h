@@ -1048,6 +1048,7 @@ private:
     case Command::rows:
     case Command::gate:
     case Command::nightshop:
+    case Command::roxanne:
       break;
     case Command::none:
       event("unknown request");

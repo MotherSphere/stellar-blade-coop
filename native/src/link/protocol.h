@@ -541,11 +541,12 @@ inline uint64_t code_lobby(std::string_view text) {
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For the Night Operation shop in SB's own shop screen
 // (nightop/shop.lua, nightop/shop_ui.h) "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt"
-// (Shop_NightOperation_CoopBolt), "nightshop close" and "nightshop watch" (the reads only). No console argument
-// reaches it: the words are fixed.
+// (Shop_NightOperation_CoopBolt), "nightshop close" and "nightshop watch" (the reads only); for Roxanne's Night
+// Operation choices (nightop/roxanne.lua, nightop/roxanne.h) "roxanne on" and "roxanne off". No console argument
+// reaches either: the words are fixed.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, rows, gate, nightshop
+  remove, copy, quests, camps, travel, mark, rows, gate, nightshop, roxanne
 };
 // The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kShop), in
 // Request::batch's order.
@@ -586,6 +587,7 @@ struct Request {
   bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off.
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
+  bool on = false;                       // roxanne on (true) or off.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -836,6 +838,9 @@ inline Request parse_request(std::string text) {
              : text[10] == 'o' ? ShopAsk::open
              : text[10] == 'c' ? ShopAsk::close
                                : ShopAsk::watch;
+  } else if (text == "roxanne on" || text == "roxanne off") {
+    r.command = Command::roxanne;
+    r.on = text.size() == 10;
   } else if (text == "fly on" || text == "fly off" || text == "slowmo on" || text == "slowmo off") {
     r.command = Command::gate;
     r.gate = text[0] == 's' ? 1 : 0;

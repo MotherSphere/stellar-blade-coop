@@ -111,6 +111,11 @@ local function get(row,field,kind)
     return v,shown
 end
 local KNOWN,DIFFERS='%s is not the row we know at %s (%s): no recruiter','%s read back differs at %s (%s): no recruiter'
+-- Those two lines for another user of edit() (nightop/roxanne.lua): what stops instead of the recruiter.
+local function lines_for(what)
+    if not what then return KNOWN,DIFFERS end
+    return (KNOWN:gsub('no recruiter$','no '..what)),(DIFFERS:gsub('no recruiter$','no '..what))
+end
 local function check(key,row,checks,line,old) -- checks: {field, kind, set of accepted values}.
     for _,c in ipairs(checks) do
         local v,shown=get(row,c[1],c[2])
@@ -120,25 +125,26 @@ local function check(key,row,checks,line,old) -- checks: {field, kind, set of ac
 end
 -- One row edited in place: checked (else nothing is written), written field by field, then read back through a fresh
 -- FindRow, so a copy-returning FindRow or a write that does not stick stops here. writes: {field, kind, value, value
--- as compared when it differs}; keep: checks run again on the fresh row. Gives the STOP line, or nil and the values
--- read before.
-local function edit(path,key,known,writes,keep)
+-- as compared when it differs}; keep: checks run again on the fresh row; what: what stops (the recruiter when nil).
+-- Gives the STOP line, or nil and the values read before.
+local function edit(path,key,known,writes,keep,what)
+    local known_line,differs_line=lines_for(what)
     local dt=U.find(path)
     local row=dt:FindRow(key)
-    if row==nil then return string.format(KNOWN,key,'row','absent') end
+    if row==nil then return string.format(known_line,key,'row','absent') end
     local old={}
-    local stop=check(key,row,known,KNOWN,old)
+    local stop=check(key,row,known,known_line,old)
     if stop then return stop end
     local back={}
     for _,w in ipairs(writes) do
         local ok,e=pcall(function() row[w[1]]=w[3] end) -- An unsupported field type stops with its name.
-        if not ok then return string.format(DIFFERS,key,w[1],why(e)) end
+        if not ok then return string.format(differs_line,key,w[1],why(e)) end
         local want=w[4]
         if want==nil then want=w[3] end
         back[#back+1]={w[1],w[2],one(want)}
     end
     for _,c in ipairs(keep or {}) do back[#back+1]=c end
-    return check(key,dt:FindRow(key),back,DIFFERS),old
+    return check(key,dt:FindRow(key),back,differs_line),old
 end
 -- Engine text in a log line: printable ASCII, any other byte as \xNN, from at most 80 bytes, so the line reads the
 -- same whatever encoding the log gets under Proton, and a mangled string shows its bytes.
@@ -146,14 +152,17 @@ local function ascii(s)
     return (tostring(s):sub(1,80):gsub('[^ -~]',function(c) return string.format('\\x%02X',c:byte()) end))
 end
 local KOREAN=': nothing registered, his text stays Korean'
--- His 12 text keys (nightop/recruiter_text.lua) registered with the engine's localization in the 23 game languages, in
--- memory for the game run: the display string of those keys changes; no asset, row or other key does. Gives the text
--- line.
-local function register_text()
-    -- Absent or broken, he stays Korean: deleting the installed file is the off switch.
-    local loaded,data=pcall(require,'nightop.recruiter_text')
+-- A text module's keys (nightop/recruiter_text.lua's form: KEYS, TEXT, culture) registered with the engine's
+-- localization in the 23 game languages, in memory for the game run: the display string of those keys changes; no
+-- asset, row or other key does. rows: {row, line} of TheaterSelectDataTable read back after; named: those rows as the
+-- last line names them; korean: what stays when nothing is registered. Gives the text line.
+local function register(module,rows,named,korean)
+    -- Absent or broken, the text stays Korean: deleting the installed file is the off switch.
+    local KOREAN=korean
+    local loaded,data=pcall(require,module)
     if not loaded then
-        return 'STOP: text: nightop/recruiter_text.lua did not load ('..ascii(why(data))..')'..KOREAN..': TEXT=no'
+        return 'STOP: text: '..module:gsub('%.','/')..'.lua did not load ('..ascii(why(data))..')'..KOREAN
+            ..': TEXT=no'
     end
     local read,raw=pcall(function() return U.text(U.find(LANGUAGE_LIBRARY):GetCurrentLanguage()) end)
     local c=data.culture(read and raw or nil)
@@ -191,17 +200,24 @@ local function register_text()
         end
     end
     if wrong then return stop(#keys..'/'..#keys..' keys registered, but '..wrong) end
-    -- Copies loaded before the registration must follow it too: the two choice rows, read only.
-    for _,r in ipairs({{'TS_Xion01_MultiPlay_1','J'},{'TS_Xion01_MultiPlay_2','C'}}) do
+    -- Copies loaded before the registration must follow it too: the choice rows, read only.
+    for _,r in ipairs(rows) do
         local got,v=pcall(function() return U.text(U.find(CHOICES):FindRow(r[1]).DisplayText) end)
         if not (got and v==data.TEXT[c][r[2]]) then
             return stop(string.format('%d/%d keys registered and read back, but row %s reads %s, not its %s line',
                 #keys,#keys,r[1],got and '"'..ascii(v)..'"' or '?('..ascii(why(v))..')',c))
         end
     end
-    return string.format('%s%d/%d keys registered, each reads its %s line, and so do rows TS_Xion01_MultiPlay_1 and '
-        ..'_2: TEXT=yes',head,#keys,#keys,c)
+    return string.format('%s%d/%d keys registered, each reads its %s line, and so do %s: TEXT=yes',head,#keys,#keys,
+        c,named)
 end
+local function register_text()
+    return register('nightop.recruiter_text',{{'TS_Xion01_MultiPlay_1','J'},{'TS_Xion01_MultiPlay_2','C'}},
+        'rows TS_Xion01_MultiPlay_1 and _2',KOREAN)
+end
+-- For nightop/roxanne.lua: the same row edit and text registration, and the helpers its checks take.
+Recruiter.edit,Recruiter.register,Recruiter.one,Recruiter.find_name,Recruiter.index_of,Recruiter.ascii=edit,register,
+    one,find_name,index_of,ascii
 -- log(text) writes an [RC] line.
 function Recruiter.new(log)
     local pending=nil -- The one follow-up: {sub=, at=os.clock() when due, f=}.

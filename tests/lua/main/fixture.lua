@@ -428,6 +428,15 @@ package.loaded['race.run']={new=function(o)
         key=function() ra.keys=ra.keys+1; return ra.key_ok,ra.key_why end,
         armed=function() return ra.armed==true end,hud=function(h) ra.hud=h end}
 end}
+-- Roxanne's choices (nightop/roxanne.lua; roxanne_test tests them): what roxanne.new got (o), its ticks and stops, a
+-- booking cancel gives back (booked), a stop that raises.
+rx={o=nil,ticks=0,stops=0,booked=nil,raise=nil}
+package.loaded['nightop.roxanne']={new=function(o)
+    rx.o=o
+    return {tick=function() rx.ticks=rx.ticks+1 end,
+        stop=function() rx.stops=rx.stops+1; if rx.raise then error(rx.raise,0) end end,
+        cancel=function() local b=rx.booked; rx.booked=nil; return b end}
+end}
 rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
 package.loaded['nightop.recruiter']={new=function(log)
     rc_log=log
@@ -594,6 +603,7 @@ function load_main(with_native,no_folder,source)
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
+    rx.o,rx.ticks,rx.stops,rx.booked,rx.raise=nil,0,0,nil,nil
     nr.o,nr.runs,nr.chs,nr.ticks,nr.stops=nil,{},{},0,{}
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil

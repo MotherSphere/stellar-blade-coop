@@ -802,9 +802,24 @@ for _,bad in ipairs({{},{'HOST'},{'host','x'},{'probe'},{'probe','a','b'},{'go'}
     assert(tv.presses==2 and #tv.probes==1 and last()=='[StellarCoop] STOP: Use: coop travel host\n',last())
 end
 nr.ticked=nr.ticks
+rx.ticked=rx.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
+assert(rx.ticks==rx.ticked+1 and rx.stops==0,"Roxanne's choices tick every 250 ms too")
+-- Roxanne's picks go through coop nightop's own checks (the co-op slot, the race); coop nightop stop drops a booking.
+do
+    local runs=#nr.runs
+    local NOT_COOP='^coop nightop runs only on a co%-op save'
+    assert(select(2,rx.o.start('hard')):find(NOT_COOP) and #nr.runs==runs,
+        'A booked level starts through coop nightop start and its co-op save check')
+    assert(select(2,rx.o.shop()):find(NOT_COOP) and #nr.runs==runs,'The supplies open coop nightop shop, checked too')
+    rx.booked='hard'
+    coop('nightop','stop')
+    assert(last()=='[StellarCoop] OK: nightop stop; the hard run booked at Roxanne is dropped\n',last())
+    assert(rx.booked==nil and nr.runs[runs+1][1]=='stop')
+end
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
 assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
+assert(rx.stops==1,"off puts Roxanne's two choices back")
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 assert(gr.stops==1,'off gives back a death screen the revive hid')

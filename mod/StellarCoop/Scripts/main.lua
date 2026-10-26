@@ -438,6 +438,10 @@ local commands={
         if not stopped then log('recruiter: '..tostring(e)) end
         stopped,e=pcall(wear.stop) -- EVE's own meshes back.
         if not stopped then log('wear: '..tostring(e)) end
+        if o.roxanne then -- Her two choices back before the native part stops taking requests.
+            stopped,e=pcall(o.roxanne.stop)
+            if not stopped then log('roxanne: '..tostring(e)) end
+        end
         stopped,e=pcall(night.stop,'coop off') -- The shop's screen closes first.
         if not stopped then log('nightop: '..tostring(e)) end
         if group then -- A death screen the revive hid comes back.
@@ -477,6 +481,14 @@ for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide'
         commands[name]=handler
     end
 end
+-- Roxanne's Night Operation choices (nightop/roxanne.lua), logging [NR] lines: on a co-op save, once EVE is in Xion;
+-- a level picked is booked and started through coop nightop start, the supplies open coop nightop shop. Ticked in the
+-- 250 ms loop below (with the Steam link only); coop off puts her two choices back.
+o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
+    status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
+    paused=function() return kit~=nil and kit.paused(true) end,tell=tell,
+    start=function(level) return commands.nightop('start',level) end,
+    shop=function() return commands.nightop('shop') end})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
@@ -909,6 +921,7 @@ if link then
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         if not off then night.tick() end -- Night Operation's run, if any: it logs its own lines.
+        if not off then o.roxanne.tick() end -- Roxanne's Night Operation choices: likewise.
         chat_clock=chat_clock+0.25
         if not off then group.tick(chat_clock) end -- The friend's revive: it logs its own lines.
         if not off then travel.tick(chat_clock) end -- The follow: likewise.

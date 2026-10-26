@@ -86,8 +86,10 @@
 // nightshop open, open bolt or close; the next frame the game thread opens SB's shop screen on one of the shop rows
 // batch's two ShopTable rows, or closes it, with the calls SB's vending machine node makes, under its own SEH latch,
 // after coop off too for a close; every 250 ms after the first ask it reads whether a shop screen is open and, inside
-// the rows' gate, the bucket's Beta Seeds, for nightop/shop.lua's wallet; status() gives it in the nightshop line, and
-// the worker logs each answer.
+// the rows' gate, the bucket's Beta Seeds, for nightop/shop.lua's wallet. Roxanne's Night Operation choices
+// (nightop/roxanne.h): on Lua's roxanne on or off, once the rows' gate holds, her choice list's entry in SB's select
+// cache points at six names of ours (four test rows nightop/roxanne.lua edited, then her two) or back at hers, under a
+// latch of its own; status() gives both in the nightshop and roxanne lines, and the worker logs each answer.
 //
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
@@ -119,6 +121,7 @@
 #include "lion/rows.h"
 #include "lion/shock.h"
 #include "nightop/probe.h"
+#include "nightop/roxanne.h"
 #include "nightop/shop_ui.h"
 #include "pose/codec.h"
 #include "pose/engine.h"
@@ -199,9 +202,11 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.
   if (game_pinned && !debug_faulted && (!blocked || debug_holding))
     debug_tick();
-  // The Night Operation shop's screen, its own latch: an ask taken each frame, after coop off too (only a close is
-  // taken then), and its reads every 250 ms before it.
+  // The Night Operation shop's screen and Roxanne's choices, each its own latch: an ask taken each frame, after coop
+  // off too (only a close or an off is taken then), and their reads every 250 ms before it.
   if (game_pinned && !nightshop_faulted)
     nightshop_tick();
+  if (game_pinned && !roxanne_faulted)
+    roxanne_tick();
   return 0;
 }

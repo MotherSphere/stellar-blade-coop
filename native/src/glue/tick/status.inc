@@ -52,7 +52,7 @@ std::string status() {
 
 // coop-status.txt's lion, gardener, tendril, bolt and shop lines (lion/rows.h's status_line), from what the game
 // thread published, then the shock line (lion/shock.h's shock_line), read after the bolt line it was published before,
-// then the nightshop line (nightop_worker.inc's nightop_status).
+// then the nightshop and roxanne lines (nightop_worker.inc's nightop_status).
 std::string rows_status() {
   std::string lines;
   for (const RowsJob *j : kJobs) {

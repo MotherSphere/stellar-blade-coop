@@ -598,6 +598,10 @@ bool step() {
       event(coop::pose::ask_nightshop(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::roxanne: // Roxanne's Night Operation choices: the game thread's.
+      event(coop::pose::ask_roxanne(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::saves:
       if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());

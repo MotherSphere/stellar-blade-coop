@@ -897,15 +897,17 @@ int main() {
         "leviathan rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
     assert(parse_request(bad).command == Command::none);
 
-  // The Night Operation shop's screen: fixed words only.
+  // The Night Operation shop's screen and Roxanne's choices: fixed words only.
   assert(parse_request("nightshop open\r\n").command == Command::nightshop &&
          parse_request("nightshop open").shop == ShopAsk::open);
   assert(parse_request("nightshop open bolt").shop == ShopAsk::open_bolt &&
          parse_request("nightshop close\n").shop == ShopAsk::close &&
          parse_request("nightshop close").command == Command::nightshop &&
          parse_request("nightshop watch").shop == ShopAsk::watch);
+  assert(parse_request("roxanne on").command == Command::roxanne && parse_request("roxanne on").on &&
+         parse_request("roxanne off\n").command == Command::roxanne && !parse_request("roxanne off").on);
   for (const char *bad : {"nightshop", "nightshop open shock", "nightshop opens", "nightshop close bolt", "nightshop w",
-                          "nightshop  open", "Nightshop open"})
+                          "nightshop  open", "Nightshop open", "roxanne", "roxanne On", "roxanne on now", "roxane on"})
     assert(parse_request(bad).command == Command::none);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.
