@@ -69,10 +69,10 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
 | `cut/enemy.lua` | The flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](#the-cut-lion)) |
-| `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`) |
+| `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
-| `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`) and the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`); written by the rows' generator |
+| `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
 | `cut/emote.lua` | `coop emote`: one of EVE's photo-mode poses as a looped dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
@@ -1398,15 +1398,15 @@ names it. Six files do the work: `cut/enemy.lua` (the Lua flow, which [the Garde
 Tendril](#the-cut-tendril) share), `cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the rows as
 Lua reads them back), `lion/rows.h` (the rows and their build, free of Windows, tested on the build machine),
 `lion/shock.h` (the Shock Bolt's two lists, also free of Windows) and `glue/tick/lion_game.inc` (the game's calls).
-The rows of one request form a batch: `lion/rows.h` holds three, the lion rows batch below, the Gardener's and the
-Tendril's, each with its own request word, answer and status line.
+The rows of one request form a batch: `lion/rows.h` holds four, the lion rows batch below, the Gardener's, the
+Tendril's and the Shock Bolt's (see [The cut Shock Bolt](#the-cut-shock-bolt)), each with its own request word, answer
+and status line.
 
 ### The rows
 
-The native part adds 241 rows to 15 tables: 222 are the Lion's own, and before them come 4 for the cut stimpacks of the
-Night Operation shop (see [The cut stimpacks](#the-cut-stimpacks)), 11 for EVE's cut Tachy Mode ChainSpin (see
-[The cut ChainSpin](#the-cut-chainspin)) and 4 for the cut Shock Bolt ammo (see
-[The cut Shock Bolt](#the-cut-shock-bolt)). A generator kept outside the repository writes
+The native part adds 237 rows to 14 tables: 222 are the Lion's own, and before them come 4 for the cut stimpacks of the
+Night Operation shop (see [The cut stimpacks](#the-cut-stimpacks)) and 11 for EVE's cut Tachy Mode ChainSpin (see
+[The cut ChainSpin](#the-cut-chainspin)). A generator kept outside the repository writes
 every field of the Lion's rows from the Lion's assets and from offline measurements of its clips. A shipped row of each
 table is only the struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row
 holds, to the Lion's value or to empty. For 894 of the 2087 fields the template holds, the Lion's value is the
@@ -1552,21 +1552,22 @@ Then the native part reads the rows back through the game's own lookups by ID an
 
 ```
 lion=off
-lion=waiting added=<n>/241 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
-lion=rows added=241/241 asks=<a> spawns=<s> char=<k>/2 skills=<k>/24 stance=<k>/2
-lion=refused added=<n>/241 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
-lion=fault added=<n>/241 asks=<a> spawns=<s> where=<text>
+lion=waiting added=<n>/237 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+lion=rows added=237/237 asks=<a> spawns=<s> char=<k>/2 skills=<k>/23 stance=<k>/2
+lion=refused added=<n>/237 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
+lion=fault added=<n>/237 asks=<a> spawns=<s> where=<text>
 ```
 
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
-so `core/link.lua` leaves the line (and the Gardener's `gardener=` and the Tendril's `tendril=`) out of its change log
-and `cut/enemy.lua` logs what it reads. Lua then reads every row back through `FindRow` by field name (independent of
-the SDK's offsets): the ID and each of the 3265 fields the patches write, from `cut/lion_rows.lua`, which the generator
-writes with `lion/rows.h` (the Lua test checks the two agree). 2178 of those values differ from the template row's, so
-reading them back shows the patches landed; the other 1087 restate a value the template holds, which a read-back cannot
-tell from the copy. It spawns only when every value matches and the line says `char=2/2 skills=24/24 stance=2/2`. The
+so `core/link.lua` leaves the line (and the Gardener's `gardener=`, the Tendril's `tendril=` and the Shock Bolt's
+`bolt=`) out of its change log and `cut/enemy.lua` logs what it reads. Lua then reads every row back through `FindRow`
+by field name (independent of the SDK's offsets): the ID and each of the 3178 fields the patches write, from
+`cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree). 2156 of those
+values differ from the template row's, so reading them back shows the patches landed; the other 1022 restate a value
+the template holds, which a read-back cannot tell from the copy. It spawns only when every value matches and the line
+says `char=2/2 skills=23/23 stance=2/2`. The
 read-back runs in one frame, once per `coop lion`; how long that takes in game was not measured.
 
 ### The cut stimpacks
@@ -1642,7 +1643,8 @@ its skill's three steps (100340101 to 100340103: `Hit1` plays `CH_P_EVE_01/Skill
 `P_Eve_Gun_ShootShockSlug1_Projectile1`), its consumable (`Bullet_Shock_Consume`, 1027: the skill and a 1.5 s cool
 time), its ItemBulletTable row (1004), the projectile's blueprint, and the stun effect `ShockSlugStun` (4100056: 10 s of
 blocked behaviour and a skill cancel, not on an animal, elite or boss, ended by the next hit) with its Show and sounds.
-Four rows are missing. They come after the ChainSpin's in the batch, at free IDs in gaps of each table's numbering:
+Four rows are missing. They are a batch of their own (`kBoltRecipe`, request word `bolt`), at free IDs in gaps of each
+table's numbering:
 
 | Row | Table | ID | Copy of | Changed |
 | --- | --- | --- | --- | --- |
@@ -1651,15 +1653,23 @@ Four rows are missing. They come after the ChainSpin's in the batch, at free IDs
 | `P_Eve_Gun_ShootShockSlug1_Projectile1` | ProjectileTable | 1010051 | `P_Eve_Gun_ShootSlug1_Projectile1` | the shock blueprint and the hit result below |
 | `P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1` | SkillResultTable | 100200801 | `P_Eve_Gun_ShootSlug1_Projectile1_Hit1` | `ShockSlugStun` added to the effects on the target |
 
-ProjectileTable is the batch's fifteenth table. With no stat override (`ActorStatType_None`) the game reads the cap from
-the row's `MaxAmount`; all six `ItemStackBullet` stats belong to shipped ammo. The skill has no acquisition because the
-game refuses a skill whose acquisition the player lacks, and no Shock Bolt Magazine (`Drone_BulletAdd3_1`) ships. The
-generator checks that every projectile the skill's shipped steps fire is a row, and the projectile's blueprint, target
-filter and results.
+ProjectileTable is the fifteenth table every rows request names, and only this batch has a row in it. The batch is
+apart from the Lion's because nothing in it had run in game when it was added: a refusal stops a batch at its first
+row that fails, and the Lua read-back stops at its first value that differs, so in the lion rows batch a Shock Bolt row
+would have stopped `coop lion`, `coop chainspin` and the stimpack buys. Only a Shock Bolt buy (`nightop/shop.lua`,
+through `Lion.rows` with the word `bolt`) asks for it. Its line in `coop-status.txt` is `bolt=`, in the same forms as
+`lion=` (`bolt=rows added=4/4 asks=<a> spawns=<s> char=0/0 skills=<k>/1 stance=0/0`), and `cut/lion.lua` reads its 87
+fields back as it does the Lion's.
+
+With no stat override (`ActorStatType_None`) the game reads the cap from the row's `MaxAmount`; all six
+`ItemStackBullet` stats belong to shipped ammo. The skill has no acquisition because the game refuses a skill whose
+acquisition the player lacks, and no Shock Bolt Magazine (`Drone_BulletAdd3_1`) ships. The generator checks that every
+projectile the skill's shipped steps fire is a row, and the projectile's blueprint, target filter and results.
 
 The rows alone do not let EVE fire it: her two gun stances (`P_Eve_Gun`, 100104, and `P_Eve_GunBlockSword`, 100110)
 list only the failed shot, and the game's ammo list stops at five. `lion/shock.h` grows both in place, in the same
-game-thread call as the batch's last AddRow (so inside its gate), under a latch of its own:
+game-thread call as the bolt batch's last AddRow (so inside its gate), under a latch of its own. No other batch runs
+it, so `coop lion`, `coop chainspin` and the stimpack buys leave both lists as the game ships them:
 
 - The game reads a stance's `CommandArray` (a `TArray<FName>` at row `+0x90`) in one place: when the stance starts, it
   copies each command into nodes of its own and keeps no pointer into the array. The native part takes the row the
@@ -1690,7 +1700,7 @@ shock=fault where=<text>
 ```
 
 `slots=-` means the slot manager did not exist yet; it copies the list when it starts. The native part sets the line
-before the `lion=` line says `rows`, so whoever reads `rows` reads the final `shock=`. `nightop/shop.lua` grants Shock
+before the `bolt=` line says `rows`, so whoever reads `rows` reads the final `shock=`. `nightop/shop.lua` grants Shock
 Bolts only once it reads `shock=in`. Firing, the bolt count, the cool time and the stun are the game's own once the data
 is in. None of it has run in game, and how the HUD shows a sixth entry is the main unknown.
 

@@ -371,25 +371,28 @@ row, so it cannot hold them. Their prices are the mod's own starting values.
   many she holds, so a buy past 30 costs the points of the dropped bolts.
 
 The two stimpacks play the health potion's drinking animation and have a charge count of 2 that no upgrade raises, like
-the Heal Grenade. The native part adds the rows of all three (two ItemTable rows, the Beta Stimpack's
-ItemConsumableTable row and the skill both play, which the game names but never shipped; the Shock Bolt's item, skill,
-projectile and hit result) in the same batch as the [cut Lion's](usage.md#cut-boss-coop-lion) rows, through the game's
-own AddRow, in memory for the game run. A buy of item 5, 6 or 7 asks for those rows first. When they are already in, the
+the Heal Grenade. The native part adds the rows of all three through the game's own AddRow, in memory for the game
+run: the stimpacks' (two ItemTable rows, the Beta Stimpack's ItemConsumableTable row and the skill both play, which the
+game names but never shipped) in the same batch as the [cut Lion's](usage.md#cut-boss-coop-lion) rows, and the Shock
+Bolt's (its item, skill, projectile and hit result) in a batch of their own, so a Shock Bolt row the game refuses
+leaves the Lion and the stimpacks alone. A buy of item 5, 6 or 7 asks for its rows first. When they are already in, the
 buy goes through at once. Otherwise the answer is `OK: Buff_HP2MP x1: its rows are asked of the native part; the buy
 follows once they are in`, and the buy's own answer follows within 30 s, as an `OK:` or `STOP:` line of `coop lion`.
 Rows that cannot be added buy nothing and take no points: `STOP: Buff_HP2MP cannot be added to the game (...): nothing
 bought, no points taken`, with the reason in the parentheses.
 
 For the Shock Bolt the rows are not enough: EVE's two gun stances list only its failed shot, and the game's ammo list
-stops at five types. Right after the batch's rows go in, the native part adds the two fire commands the game ships to
-both stances and `Bullet_Shock` as a sixth ammo type, in place (see [usage.md](usage.md#cut-ammo-shock-bolt)). A buy of
-item 7 goes through only when `coop-status.txt` then reads `shock=in`. Otherwise it stops with
+stops at five types. Right after the Shock Bolt's rows go in, the native part adds the two fire commands the game
+ships to both stances and `Bullet_Shock` as a sixth ammo type, in place (see [usage.md](usage.md#cut-ammo-shock-bolt)).
+Only a Shock Bolt buy does this: a stimpack buy, `coop lion` and `coop chainspin` leave the gun as the game ships it.
+A buy of item 7 goes through only when `coop-status.txt` then reads `shock=in`. Otherwise it stops with
 `STOP: Bullet_Shock cannot be fired in this game (shock=...): nothing bought, no points taken`.
 
 None of this has been tried in game yet. Check that the items show with their names and icons, that using a stimpack
 plays the animation and changes HP and the gauge, that the Shock Bolt shows in the ammo selector, fires and stuns, and
 what happens to a cut item left in the inventory when the game saves: after a restart the rows are not in until the next
-buy of a cut item (or `coop lion rows`), and how the game loads an item it has no row for is not known. Use them up or
+buy of that item (or `coop lion rows` for the stimpacks), and how the game loads an item it has no row for is not
+known. Use them up or
 keep a backup of the co-op save. If the Shock Bolt is selected, switch to another ammo before you save or quit from the
 menu; the game's autosaves at a camp or a zone change keep the selected slot too.
 
