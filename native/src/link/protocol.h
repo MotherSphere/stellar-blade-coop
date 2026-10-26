@@ -18,8 +18,8 @@
 //   guest, night_ok()).
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 //   SBC<protocol> race <text> (a Doro race line, race/model.lua's, printable ASCII; the link reads no further).
-//   SBC<protocol> gift <payload> (coop gift, cut/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept in the
-//   friend's mailbox, "n <id> <why>" refused; gift_ok()).
+//   SBC<protocol> gift <payload> (coop gift, cut/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept in
+//   the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose/codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (fight/pilot.h). Channel 2 carries the shared enemies' text lines and
@@ -559,8 +559,8 @@ inline uint64_t code_lobby(std::string_view text) {
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
 // players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (cut/mailbox.lua) "gift
-// <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName index> <FName number>" (how many of
-// that item our EVE carries, read by the worker, game/items.h: ask 1 to 65535, answered in the engine line's items=;
+// <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName index> <FName number>" (how many
+// of that item our EVE carries, read by the worker, game/items.h: ask 1 to 65535, answered in the engine line's items=;
 // index above 0, both within 32 bits); and for coop lion (cut/lion.lua) "lion rows
 // <Table>=0x<address> ..." (the Lion's rows for SB's AddRow, glue/tick/lion_game.inc: one word for each of the
 // kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible). Lua finds the tables by their

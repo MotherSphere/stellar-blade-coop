@@ -1,5 +1,5 @@
-// coop gift's inventory read (cut/mailbox.lua): how many of one item our EVE carries, read through a read function
-// only (ReadProcessMemory on the worker, which fails rather than faults; a fake image in tests/native/game/items_test.cpp).
+// coop gift's inventory read (cut/mailbox.lua): how many of one item our EVE carries, read through a read function only
+// (ReadProcessMemory on the worker, which fails rather than faults; a fake image in tests/native/game/items_test.cpp).
 // It never calls the game and never writes. The game's own lookups, mirrored here, all on build 24463856:
 //   - the item bucket manager, SB's lazy singleton at 0x147032568 (its getter FUN_141a97b20 makes it when null, so a 0
 //     here is no inventory yet, never made by us);
@@ -11,10 +11,10 @@
 //     (FUN_142835af0), and the item's count at +0x6c, which the remove by alias lowers (FSBItemInstance's ItemCount
 //     +0x34, the instance at +0x38).
 // Every set is a TSet laid out the same way: its elements' array at +0, the array's count at +8, its free count at
-// +0x34 (equal: empty), its hash's inline bucket at +0x38, the hash's array at +0x40 when it has one, its size at +0x48;
-// each element holds its key, its value, then the next element's index in its bucket chain. A torn read while the game
-// changes a set (the worker reads while SB's logic thread runs) ends in unread, never in a loop: a chain longer than
-// its array or an index outside it stops the walk. No Windows types.
+// +0x34 (equal: empty), its hash's inline bucket at +0x38, the hash's array at +0x40 when it has one, its size at
+// +0x48; each element holds its key, its value, then the next element's index in its bucket chain. A torn read while
+// the game changes a set (the worker reads while SB's logic thread runs) ends in unread, never in a loop: a chain
+// longer than its array or an index outside it stops the walk. No Windows types.
 #pragma once
 
 #include <cstddef>

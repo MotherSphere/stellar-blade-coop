@@ -8,8 +8,8 @@
 -- command a creature), lion (cut/lion.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines (cut/lines.lua's)
 -- flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide (cut/glide.lua's) and ask (a
 -- native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
--- the usage line), runs on a co-op save only. coop gift, the cut mailbox as a co-op gift box (cut/mailbox.lua, o.mailbox,
--- built with the Steam link only), runs on a co-op save only: every word of it.
+-- the usage line), runs on a co-op save only. coop gift, the cut mailbox as a co-op gift box (cut/mailbox.lua,
+-- o.mailbox, built with the Steam link only), runs on a co-op save only: every word of it.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion

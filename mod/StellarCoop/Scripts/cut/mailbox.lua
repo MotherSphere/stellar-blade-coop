@@ -1,13 +1,14 @@
 -- coop gift: SB's cut in-game mailbox brought back as a co-op gift box, on a co-op save on both sides. A linked friend
 -- sends you consumables from her inventory, they wait in your mailbox, and you take them when you want.
 -- What SB kept of its mailbox: the widgets WB_MailBox_Set, _Detail, _ListSlot and _Toast_GetGift, their textures,
--- BP_MailBoxItemData, the sound UI_MailBox_GetGift and MailBoxGiftTable's two rows (they enable a mailbox on an actor of
--- an uncooked test map only). Its UI logic (ESBUILogicType_MailBox, FUN_141ef3850 and its handlers) is still compiled
--- in, unlike the Load Shortcut menu's load call, but it lists MailBoxGiftTable rows only, and taking one grants that
--- row's EventGiftTable gift through SB's event-gift path (FUN_141cfd8e0, then FUN_141cfde20 per item) and adds its
--- alias to the save's received-gift list. That is a second grant path and a write of mod data into the save, so this
--- file does not feed it. It shows the cut toast (WB_MailBox_Toast_GetGift, whose In animation plays its sound) when a
--- gift arrives and keeps the rest on the console:
+-- BP_MailBoxItemData, the sound UI_MailBox_GetGift and MailBoxGiftTable's two rows (they enable a mailbox on an actor
+-- of an uncooked test map only). Its UI logic (ESBUILogicType_MailBox, FUN_141ef3850 and its handlers) is still
+-- compiled in, unlike the Load Shortcut menu's load call, but it lists MailBoxGiftTable rows only, and taking one
+-- grants that row's EventGiftTable gift through SB's event-gift path (FUN_141cfd8e0, then FUN_141cfde20 per item) and
+-- adds its alias to the game data's received-gift list (+0x848), which the save most likely keeps
+-- (FSBSaveGameData_EventGiftInfo.GiftList). That is a second grant path and a write of mod data into the save, so this
+-- file does not feed it. It shows the cut toast (WB_MailBox_Toast_GetGift; its In animation calls its Toast In Play
+-- Sound) when a gift arrives and keeps the rest on the console:
 --   coop gift: what waits in your mailbox, what you sent that waits for an answer, and the items you can send;
 --   coop gift send <item> [count]: 1 to 10 of one of ITEMS (its number or its alias) to the linked friend;
 --   coop gift take [n]: every gift that waits, or the nth.
@@ -31,8 +32,8 @@
 -- not drone ammo (SaveType None: the game does not keep it as these items); not the cut stimpacks, whose rows only
 -- the shop adds. Their AchievementTable rows (Acquire_Item_Grenade, Ach_Reward_Acquire_Item_ConcussionGrenade and the
 -- two category guides) lead to no trophy (ACHIEVEMENTS-SAFETY.md's rule: nothing here moves progress).
--- The file, per SteamID and co-op slot like the shop's wallet: coop-gift-<steamid>-<index>.txt beside the mod, one entry
--- a line, written whole through link.write_file:
+-- The file, per SteamID and co-op slot like the shop's wallet: coop-gift-<steamid>-<index>.txt beside the mod, one
+-- entry a line, written whole through link.write_file:
 --   out <id> <alias> <count> <to> <at> <sent>   sent, waiting for her answer (to: her SteamID, 0 in the loopback; at
 --                                               and sent: os.time() of the first and the last send)
 --   back <id> <alias> <count>                   coming back at the next chance
@@ -40,8 +41,9 @@
 --                                               spaces)
 --   seen <from> <id> <a|n>                      taken (a) or refused (n)
 -- Called here: the player controller's ItemBucketItemRemove request (a send) and its ItemBucketItemAdd request through
--- Shop.add (a take, or a gift coming back), both on bucket type 1 (the inventory), EVE's GUID, an alias of ITEMS and 1 to
--- 10 items. Never called here: a save, a consume, an equip, a quest or achievement call, the game's own mailbox logic.
+-- Shop.add (a take, or a gift coming back), both on bucket type 1 (the inventory), EVE's GUID, an alias of ITEMS and 1
+-- to 10 items. Never called here: a save, a consume, an equip, a quest or achievement call, the game's own mailbox
+-- logic.
 local Shop=require('nightop.shop')
 local N=require('nightop.probe')
 local U=require('core.unreal')
@@ -149,8 +151,8 @@ end
 -- o: log(text) writes a [GF] line; say(text) puts a notice on screen; status() is the native part's status text;
 -- request(line) asks the native part (link.request); read(name) and write(name, text) are link.read_file and
 -- link.write_file; friend() is link.friend (her name, linked, lost); loopback() whether coop loopback runs; paused()
--- whether the game is paused or shows one of its screens; name(alias) the FName this game holds for an alias,
--- {index=, number=}, or nil; clock() seconds (os.clock); now() whole seconds that survive a reload (os.time); toast(text)
+-- whether the game is paused or shows one of its screens; name(alias) the FName this game holds for an alias, {index=,
+-- number=}, or nil; clock() seconds (os.clock); now() whole seconds that survive a reload (os.time); toast(text)
 -- Mailbox.toast unless given.
 function Mailbox.new(o)
     local log,say,status,request,read,write=o.log,o.say,o.status,o.request,o.read,o.write
@@ -194,8 +196,8 @@ function Mailbox.new(o)
         pending=#st.out>0 or #st.back>0
         return ok,e
     end
-    -- What a call into the inventory needs: the game playing, EVE with her GUID, her controller. Returns them, or nil and
-    -- why.
+    -- What a call into the inventory needs: the game playing, EVE with her GUID, her controller. Returns them, or nil
+    -- and why.
     local function ready()
         if paused() then return nil,'the game is paused or shows one of its screens' end
         local eve,pc=N.her(),N.controller()
@@ -351,7 +353,8 @@ function Mailbox.new(o)
         sending=nil
         if untoast then pcall(untoast); untoast=nil end
     end
-    -- Her gift: kept in the mailbox and answered a, or refused with n and why. A key already seen gets its first answer.
+    -- Her gift: kept in the mailbox and answered a, or refused with n and why. A key already seen gets its first
+    -- answer.
     local function keep(m)
         local function answer(word)
             request(word=='a' and 'gift a '..m.id or 'gift n '..m.id..' '..word)

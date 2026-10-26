@@ -1,6 +1,6 @@
 // coop gift's inventory read (game/items.h) against a fake memory image laid out like the pinned build: the manager's
-// bucket map, the owner's bucket, the alias map and the instance map, each a TSet with its hash chains. Covered: the two
-// hashes against the game's (CityHash64 emulated in Ghidra on FUN_142835af0; the FName hash as FUN_140ecc610 writes
+// bucket map, the owner's bucket, the alias map and the instance map, each a TSet with its hash chains. Covered: the
+// two hashes against the game's (CityHash64 emulated in Ghidra on FUN_142835af0; the FName hash as FUN_140ecc610 writes
 // it); a count over two instances and over chains with collisions; an alias she does not carry; no bucket, no owner, no
 // manager; an instance the manager no longer holds; and hostile memory (a chain that loops, an index past the array, a
 // hash size that is no power of two, an unreadable item) ending in unread, never in a hang.
@@ -46,7 +46,8 @@ struct Image {
     return true;
   }
   Count count(uint32_t owner, uint64_t name) {
-    return coop::items::count(kBase, owner, name, [this](uint64_t at, void *out, size_t n) { return read(at, out, n); });
+    return coop::items::count(kBase, owner, name,
+                              [this](uint64_t at, void *out, size_t n) { return read(at, out, n); });
   }
 };
 
@@ -93,7 +94,8 @@ Image full() {
   m.map(kAt, 8);
   m.put(kAt, kMgr);
   m.map(kMgr, 0x700);
-  for (uint64_t r : {kTypes, kOwners, kOwnerHash, kBucket, kAliasData, kAliasHash, kGuids, kInstData, kInstHash, kItems})
+  for (uint64_t r :
+       {kTypes, kOwners, kOwnerHash, kBucket, kAliasData, kAliasHash, kGuids, kInstData, kInstHash, kItems})
     m.map(r, 0x1000);
   std::vector<uint8_t> type;
   at<uint32_t>(type, 0, kInventory);

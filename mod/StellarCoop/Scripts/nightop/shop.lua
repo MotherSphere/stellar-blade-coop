@@ -10,8 +10,8 @@
 -- coop-night-<steamid>-<index>.txt, one line: the points. The game never reads it; a save restore does not take points
 -- back.
 -- Called here: the player controller's ItemBucketItemAdd request, once a buy, in grant() only (through Shop.add, which
--- coop gift's grants share): bucket type 1 (the inventory), EVE's own GUID, one of the six aliases, 1 to 10 items. Never called here: an item remove, consume or
--- equip, a save, a quest call, the game's own shops, anything online.
+-- coop gift's grants share): bucket type 1 (the inventory), EVE's own GUID, one of the six aliases, 1 to 10 items.
+-- Never called here: an item remove, consume or equip, a save, a quest call, the game's own shops, anything online.
 local U=require('core.unreal')
 local W=require('nightop.waves')
 local N=require('nightop.probe')

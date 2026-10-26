@@ -298,7 +298,8 @@ peer_id=HER
 -- not listed, with a full mailbox or a file that cannot be written.
 asked={}
 mail.receive('s 900 HP_Potion 3')
-assert(asked[1]=='gift a 900' and says[#says]=='Kaanta sent you 3 HP_Potion: coop gift take puts them in your inventory.')
+assert(asked[1]=='gift a 900'
+    and says[#says]=='Kaanta sent you 3 HP_Potion: coop gift take puts them in your inventory.')
 assert(toasts[1]=='Kaanta: 3 HP_Potion')
 st=M.read(files[FILE])
 assert(#st.box==1 and st.box[1].from==HER and st.box[1].name=='Kaanta' and st.box[1].count==3)
