@@ -20,7 +20,9 @@ local N=require('nightop.probe')
 local Shop={}
 local MASK=0xFFFFFFFF
 -- The item number is the row's place here. cut: the native part adds its rows (lion/rows.h's cut items) before a buy;
--- shock: the shock line must read in too (a price per bolt).
+-- shock: the shock line must read in too (a price per bolt). SB's bucket add (FUN_141bda9d0) keeps a capped item only up
+-- to its MaxAmount (30 bolts) and drops the rest; EVE's count lives in SB's unreflected item bucket and is not read
+-- here, so a buy past the cap still costs the dropped bolts' points (the docs say so).
 -- ponytail: the cut items' prices are starting values (a full run credits 42 points at most); tune them in game.
 Shop.ITEMS={{alias='HP_Potion',price=15},{alias='HP_Potion_Small',price=10},{alias='PulseGrenade',price=6},
     {alias='ConcussionGrenade',price=8},{alias='HP2Burst_Potion',price=20,cut=true},

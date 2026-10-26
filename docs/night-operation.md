@@ -327,7 +327,8 @@ row, so it cannot hold them. Their prices are the mod's own starting values.
   full Beta energy.
 - The Shock Bolt is ammo for EVE's gun. A hit stuns a common enemy for 10 s, or until it is hit again, with the game's
   own stun effect, which does nothing to animals, elites or bosses. EVE carries 30 bolts at most; each shot takes one,
-  and the next shot waits 1.5 s.
+  and the next shot waits 1.5 s. The game adds bolts only up to 30 and drops the rest, and the shop cannot read how
+  many she holds, so a buy past 30 costs the points of the dropped bolts.
 
 The two stimpacks play the health potion's drinking animation and have a charge count of 2 that no upgrade raises, like
 the Heal Grenade. The native part adds the rows of all three (two ItemTable rows, the Beta Stimpack's
@@ -349,7 +350,8 @@ None of this has been tried in game yet. Check that the items show with their na
 plays the animation and changes HP and the gauge, that the Shock Bolt shows in the ammo selector, fires and stuns, and
 what happens to a cut item left in the inventory when the game saves: after a restart the rows are not in until the next
 buy of a cut item (or `coop lion rows`), and how the game loads an item it has no row for is not known. Use them up or
-keep a backup of the co-op save, and switch to another ammo before saving if the Shock Bolt is selected.
+keep a backup of the co-op save. If the Shock Bolt is selected, switch to another ammo before you save or quit from the
+menu; the game's autosaves at a camp or a zone change keep the selected slot too.
 
 `coop nightop buy <n> [count]` buys 1 to 10 of item n, 1 when the count is left out. The answer reads
 `OK: bought 2 HP_Potion for 30 points; 11 left`. The game's own request for adding an item puts it in the inventory

@@ -1432,14 +1432,20 @@ last row, the native part adds the two fire commands the game ships (`P_Eve_Gun_
 EVE's gun stances and `Bullet_Shock` as a sixth entry of the game's ammo list, without replacing a row (see
 [how-it-works.md](how-it-works.md#the-cut-shock-bolt)). The buy goes through only when that worked.
 
-- EVE carries 30 bolts at most. A shot takes one, and the next shot waits 1.5 s.
+- EVE carries 30 bolts at most. A shot takes one, and the next shot waits 1.5 s. The game adds bolts only up to 30
+  and drops the rest, and the shop cannot read how many she holds, so the points of dropped bolts are not given back.
+  Check her count before a buy.
 - Aim to get the fire commands. If she was aiming when they went in, aim again.
 - The ammo selector builds its list when the HUD starts. If the Shock Bolt does not show there, load a save and look
   again (when the HUD starts again is not known).
 - The slot stays for the game run, with or without bolts. With none, the trigger should play the failed shot, as with
   the other ammo types.
-- Before saving a game you may load without the mod, switch to another ammo. The save keeps the selected slot, which
-  the game without the mod reads as no ammo, and how it loads bolts it has no row for is not known.
+- Every save keeps the bolts and the selected slot, the game's autosaves at a camp or a zone change included. After a
+  restart the Shock Bolt's rows and the sixth slot are not in until a buy of a cut item or `coop lion rows`, so the save
+  loads into a game without them, with the mod installed as without it. The readers of the selected slot found so far
+  check it against their list's length, so slot 6 should read as no ammo, but the code that restores the slot from the
+  save was not traced, and how the game loads bolts it has no row for is not known. Keep a backup of the co-op save,
+  and switch to another ammo before you save or quit from the menu (which saves).
 - Only your game has it. What your friend sees of a shot in a session is untested.
 
 `coop-status.txt` has a `shock=` line: `shock=off` before, then `shock=in commands=24,24 added=4 list=6 slots=6` (both
