@@ -1363,8 +1363,9 @@ names it. Four files do the work: `cut/lion.lua` (Lua), `cut/lion_rows.lua` (the
 
 ### The rows
 
-The native part adds 226 rows to 14 tables: 222 are the Lion's own, and 4 that come first are for the cut stimpacks of
-the Night Operation shop (see [The cut stimpacks](#the-cut-stimpacks)). A generator kept outside the repository writes
+The native part adds 237 rows to 14 tables: 222 are the Lion's own, and before them come 4 for the cut stimpacks of the
+Night Operation shop (see [The cut stimpacks](#the-cut-stimpacks)) and 11 for EVE's cut Tachy Mode ChainSpin (see
+[The cut ChainSpin](#the-cut-chainspin)). A generator kept outside the repository writes
 every field of the Lion's rows from the Lion's assets and from offline measurements of its clips. A shipped row of each
 table is only the struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row
 holds, to the Lion's value or to empty. For 894 of the 2087 fields the template holds, the Lion's value is the
@@ -1509,21 +1510,21 @@ Then the native part reads the rows back through the game's own lookups by ID an
 
 ```
 lion=off
-lion=waiting added=<n>/226 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
-lion=rows added=226/226 asks=<a> spawns=<s> char=<k>/2 skills=<k>/22 stance=<k>/2
-lion=refused added=<n>/226 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
-lion=fault added=<n>/226 asks=<a> spawns=<s> where=<text>
+lion=waiting added=<n>/237 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+lion=rows added=237/237 asks=<a> spawns=<s> char=<k>/2 skills=<k>/23 stance=<k>/2
+lion=refused added=<n>/237 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
+lion=fault added=<n>/237 asks=<a> spawns=<s> where=<text>
 ```
 
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
 so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
-back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 3056 fields the patches
+back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 3178 fields the patches
 write, from `cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree).
-2117 of those values differ from the template row's, so reading them back shows the patches landed; the other 939
+2156 of those values differ from the template row's, so reading them back shows the patches landed; the other 1022
 restate a value the template holds, which a read-back cannot tell from the copy. It spawns
-only when every value matches and the line says `char=2/2 skills=22/22 stance=2/2`. The read-back runs in one frame,
+only when every value matches and the line says `char=2/2 skills=23/23 stance=2/2`. The read-back runs in one frame,
 once per `coop lion`; how long that takes in game was not measured.
 
 ### The cut stimpacks
@@ -1552,6 +1553,51 @@ missing SkillTable row `P_Eve_Gun_ShootShockSlug1_1` would be two more copies, b
 those stance rows while EVE uses them, and AddRow's RemoveRow frees the row it replaces. All six `ItemStackBullet` stats
 are also taken by the shipped ammo, and the drone upgrade that names the Shock Bolt Magazine (`Drone_BulletAdd3_1`) has
 no row.
+
+### The cut ChainSpin
+
+EVE's four shipped Tachy Mode skills (ChainStab1, ScrewAttack1, SwordAura1 and ParrySlash1) each have a SkillTable row
+(`P_Eve_Tachy_Skill_<name>_1`, IDs 1004501 to 1004504) that names its first step and its AcquisitionSkillTable row
+(`TachyMode_<name>`), a SkillCommandTable row of the same name on one of the Beta skill commands
+(`SkillCommandState_BetaSkill1` to `4`, a press, `GlobalCommand` set), a place in the `P_Eve_Tachy` stance's
+`CommandArray` (the stance runs while EVE has the effect `P_Eve_TachyMode`), and an acquisition row that puts it in its
+fixed slot (`ESBSkillSlotType_TachySlot_1` to `4`) and skill tree box. Their steps play Shows under
+`CH_P_EVE_01/Skill/`.
+
+The ChainSpin has none of these. The game ships EVE's clip `P_Eve_Tachy_Skill_ChainSpin1` with its root motion data,
+the wing clip `P_Eve_TachyWing_Skill_ChainSpin1`, two CharacterMoveTable rows (`P_Eve_Tachy_Skill_ChainSpin1_Move1`,
+750 cm forward over 0.8 s, and `_Move2`, 290 cm after 0.2 s; IDs 1004500 and 1004501, next to ChainStab's block) with
+their curves, and the icon `SI_TachyMode_ChainSpin1`. No step of EVE's names those moves and no Show of hers plays the
+clip. The prologue's Tachy NPC kept them: its skill `N_TachyNPC_SwingChain` plays the Show
+`CH_NPC_TachyNPC/Skill/N_TachyNPC_SwingChain`, whose one anim key plays EVE's clip by its absolute path (3.25 s in nine
+steps, with trail and rule move keys), and its Hit1 and Cast4 steps take the two moves. That Show has no wing anim key.
+
+The 11 rows after the stimpacks' build EVE's version from it, each a copy of a shipped row with a few fields changed:
+
+| Row | Table | ID | Copy of | Changed |
+| --- | --- | --- | --- | --- |
+| `P_Eve_Tachy_Skill_ChainSpin1_1_Cast1` to `_Finish1` (9 steps) | SkillActiveStepTable | 100450001 to 100450009 | ChainStab1's `Cast1`, `Cast2`, `Hit1`, `Hit5` and `Finish1` steps | the Tachy NPC's durations (0.5, 0.15, 0.1, 0.1, 0.15, 0.1, 0.8, 0.1 and 1.25 s), the chain of step names, the Show on `Cast1`, `Move1` on `Hit1` and `Move2` on `Cast4`; on the four hits ChainStab's results `Hit1`, `Hit2`, `Hit3` and `Hit5` (a 1.5 s stun), a quarter of the damage each and the 1000 cm hit area `P_Eve_Sword_1000_360_500_HitArea`, as the NPC's |
+| `P_Eve_Tachy_Skill_ChainSpin1_1` | SkillTable | 1004500 | `P_Eve_Tachy_Skill_ChainStab1_1` | its first step; no Tachy Fusion branch, no acquisition, no achievement tag (`TachySkill`), so a use moves no trophy counter |
+| `P_Eve_Tachy_Skill_ChainSpin1_Use` | EffectTable | 1004500 | `M_Scarlet_CounterLinkStart` | `EffectAction_UseSkill` of the skill above, with the condition `P_Eve_TachyMode` |
+
+The steps keep ChainStab's hit collision (`Collision_WeaponAndRightArm`, which EVE's collision data has) and its step
+effects. The generator checks that the step chain from `Cast1` lasts as long as the Show's own steps, one for one, that
+every clip the Show plays is in the pak listing, that the steps' moves are rows of the dump and that the effect's
+condition names a shipped effect. There is no SkillCommandTable or AcquisitionSkillTable row: the four Beta skill
+commands are taken in Tachy Mode, and a fifth command would have to go into the `P_Eve_Tachy` stance row, which the
+native part could only replace while EVE uses it (AddRow frees the row it replaces).
+
+`coop chainspin` (`cut/chainspin.lua`) starts it. It gets the rows in through `Lion.rows`, as the shop does, then calls
+`ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "1004500")` on the player controller. The request's
+implementation queues an `FSBCheat` logic request (`0x141afe5e0`); its `Simulate` (`0x141b11800`) finds the actor by
+GUID, reads the first argument as a number and calls the effect function `0x141ad08b0` (the one the shared fight's job
+calls) with the actor as target and caster. The effect's action 69 turns its `ActionValue1` into an FName, finds the
+SkillTable row by that name (`0x141a9a620`) and calls `FSBActorLogicObject::UseSkill` (`0x141ba23c0`) with the row's ID.
+The effect's condition keeps all of it to Tachy Mode. Two other ways were ruled out in the disassembly:
+`ServerRequest_UseSkill` builds an `FSBUseSkill` request whose `Simulate` looks for a command node in the actor's
+stance and global command lists and does nothing without one ("skillCommandNode is null"), and the cheat manager's
+`SBPlayerUseSkill` only reads its argument in this build. EVE's GUID comes from the engine line's `me=` (the key of the
+world's player map, which the revive uses too); nothing is asked while `warp=` says busy. None of this has run in game.
 
 ### The spawn
 
