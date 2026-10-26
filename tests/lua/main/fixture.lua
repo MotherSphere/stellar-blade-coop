@@ -334,6 +334,15 @@ package.loaded['cut.lion']={new=function(o)
         tick=function() li.ticks=li.ticks+1; if li.says then return table.unpack(li.says) end end,
         stop=function() li.stops=li.stops+1 end}
 end}
+-- coop gardener fight (cut/gardener.lua; gardener_test tests it): what new got (log, ask, status), its commands,
+-- ticks and stops, what a tick says.
+gd={}
+package.loaded['cut.gardener']={new=function(o)
+    gd.o=o
+    return {command=function(...) gd.cmds[#gd.cmds+1]=table.pack(...); return true,'gd '..tostring((...)) end,
+        tick=function() gd.ticks=gd.ticks+1; if gd.says then return table.unpack(gd.says) end end,
+        stop=function() gd.stops=gd.stops+1 end}
+end}
 -- coop chainspin (cut/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
 cs={}
 package.loaded['cut.chainspin']={new=function(o)
@@ -571,6 +580,7 @@ function load_main(with_native,no_folder,source)
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
     li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
+    gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     cs.o,cs.cmds=nil,{}
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil

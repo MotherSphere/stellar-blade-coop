@@ -26,12 +26,12 @@
 --
 -- spec: word (the status line's, the request's and the follow lines' word: lion, gardener), name (its messages: Lion),
 -- command (its console words: coop lion), tag (its log tag: [LI]), rows (its batch, as Enemy.rows gives them), ids
--- ({[id]=row name}: the only IDs the spawn call takes), class (its body's blueprint class), ahead(id) (cm ahead of EVE),
--- up (cm above her middle, or above her feet with feet true), mesh_yaw (degrees the body's mesh turns once found; nil:
--- none), entrance ({mesh, clip, scale, yaw (degrees the copy turns from facing EVE), seconds (when the clip's length is
--- unread)}), skipped (why the entrance is off by default, for its log line), and optional hooks: follow(f, c, mesh)
--- (once a second before the follow line, the mesh line said), frame(f) (each frame for each followed body) and alive
--- ({name, run(now)}: once a second while a spawned body lives, timed in the frame part).
+-- ({[id]=row name}: the only IDs the spawn call takes), class (its body's blueprint class), ahead(id) (cm ahead of
+-- EVE), up (cm above her middle, or above her feet with feet true), mesh_yaw (degrees the body's mesh turns once found;
+-- nil: none), entrance ({mesh, clip, scale, yaw (degrees the copy turns from facing EVE), seconds (when the clip's
+-- length is unread)}), skipped (why the entrance is off by default, for its log line), and optional hooks: follow(f, c,
+-- mesh) (once a second before the follow line, the mesh line said), frame(f) (each frame for each followed body) and
+-- alive ({name, run(now)}: once a second while a spawned body lives, timed in the frame part).
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local Doro=require('race.doro')
@@ -158,9 +158,9 @@ function Enemy.new(o,spec)
     local followed={} -- The bodies spawned this Lua load and not let go: {n=, id=, obj=, path=, since=, before=, ...}.
     local spawned,next_follow=0,0
     -- The frame time while a command runs or a body lives (UGameplayStatics' world delta, read each frame), and what
-    -- this file's tick costs (os.clock is wall time in the game's CRT), its longest tick, and what the last once-a-second
-    -- pass took by part (parts): the follow line's frame part, and the spawn's before line to compare with. gs: the
-    -- GameplayStatics default object; ctx: its world context (EVE).
+    -- this file's tick costs (os.clock is wall time in the game's CRT), its longest tick, and what the last
+    -- once-a-second pass took by part (parts): the follow line's frame part, and the spawn's before line to compare
+    -- with. gs: the GameplayStatics default object; ctx: its world context (EVE).
     local perf,gs,ctx={frames=0,sum=0,worst=0,lua=0,tick=0},nil,nil
     local parts='none yet'
     local function perf_take() -- The frame part since the last take, then the counters back to 0.
@@ -503,7 +503,9 @@ function Enemy.new(o,spec)
         if s and (s.state=='rows' or s.asks>j.asks and (s.state=='refused' or s.state=='fault')) then
             log('rows answer: '..s.line)
             if s.state=='rows' then return rows_in(j,s,now) end
-            if s.state=='fault' then return false,'The '..name..' rows stopped on a fault ('..tostring(s.where)..').' end
+            if s.state=='fault' then
+                return false,'The '..name..' rows stopped on a fault ('..tostring(s.where)..').'
+            end
             return false,string.format('The native part refused the %s rows (why=%s, table=%s, row=%s): '
                 ..'coop-link.log says why; asking again skips the rows already in.',name,tostring(s.why),
                 tostring(s.table),tostring(s.row))
@@ -572,8 +574,8 @@ function Enemy.new(o,spec)
         return true,string.format('%s %d asked: %s lines follow.',spec.ids[id],id,tag)
     end
     -- The rows only, for another file's own use of them (the Night Operation shop's cut items, nightop/shop.lua): the
-    -- rows-only steps (the tables, the rows already in or the ask, the wait, the read-back), then done(ok, message) with
-    -- how they ended; what done returns is the end said. Returns done's ok, message when it ends at once, or ok,
+    -- rows-only steps (the tables, the rows already in or the ask, the wait, the read-back), then done(ok, message)
+    -- with how they ended; what done returns is the end said. Returns done's ok, message when it ends at once, or ok,
     -- message, true while it waits: done then follows from tick() (not after coop off, which drops the wait).
     function self.rows(done,id)
         if job then return done(false,self.busy()) end

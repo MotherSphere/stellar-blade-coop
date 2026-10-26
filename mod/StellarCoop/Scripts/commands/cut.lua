@@ -2,13 +2,16 @@
 -- cut models with a free camera to film them (cut/leviathan.lua; test tools, left out of the usage line): show and cam
 -- turning the camera on (not off, not its speed) on a co-op save only, as coop race probe doro. coop lion, the cut Lion
 -- spawned as an enemy to fight (cut/lion.lua, left out of the usage line too): the words that spawn (none, intro,
--- control) on a co-op save only; rows and brain on any. coop scene, two cut scenes through the game's theater
--- (cut/scene.lua): a scene's name on a co-op save only; the list and stop on any. main.lua builds it with new(o) at
--- each Lua load and merges it into its command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one
--- command a creature), lion (cut/lion.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines (cut/lines.lua's)
--- flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide (cut/glide.lua's) and ask (a
--- native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
--- the usage line), runs on a co-op save only.
+-- control) on a co-op save only; rows and brain on any. coop gardener fight, the cut Gardener spawned as an enemy
+-- (cut/gardener.lua; every other coop gardener word is the viewer's): the words that spawn (none, intro, half,
+-- skulling) on a co-op save only, after the viewer's display and free camera are put away, so the two models never
+-- stand in the same place; rows on any. coop scene, two cut scenes through the game's theater (cut/scene.lua): a
+-- scene's name on a co-op save only; the list and stop on any. main.lua builds it with new(o) at each Lua load and
+-- merges it into its command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one command a creature),
+-- lion (cut/lion.lua's), gardener (cut/gardener.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines
+-- (cut/lines.lua's), flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide
+-- (cut/glide.lua's) and ask (a native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode
+-- ChainSpin (a test tool, left out of the usage line), runs on a co-op save only.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -50,6 +53,16 @@ function Cut.new(o)
             end
             return command(sub,a,b,c,d,e)
         end
+    end
+    local view=self.gardener -- The viewer's coop gardener, for every word but fight.
+    function self.gardener(sub,a,b,c,d,e)
+        if sub~='fight' then return view(sub,a,b,c,d,e) end
+        if (a==nil or a=='intro' or a=='half' or a=='skulling') and b==nil then
+            local ok,why=coop_slot('coop gardener fight'..(a and ' '..a or ''))
+            if not ok then return false,why end
+            view('off')
+        end
+        return o.gardener.command(a,b)
     end
     function self.lion(sub,a,b)
         if sub==nil or sub=='intro' or sub=='control' then

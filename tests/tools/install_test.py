@@ -170,7 +170,7 @@ with tempfile.TemporaryDirectory() as tmp:
                  for name in ('commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
                               'commands/session', 'commands/story', 'core/keybind', 'core/link', 'core/settings_file', 'core/unreal',
                               'core/ue4ss_settings', 'cut/chainspin', 'cut/enemy', 'cut/flight', 'cut/glide',
-                              'cut/leviathan',
+                              'cut/gardener', 'cut/leviathan',
                               'cut/lines', 'cut/lion', 'cut/lion_rows',
                               'cut/scene', 'cut/wear', 'main',
                               'nightop/challenges',

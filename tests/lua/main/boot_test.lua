@@ -17,8 +17,10 @@
 -- turning it off and cam's speed on any; restored and ticked every frame, ended by coop off), coop gardener, coop
 -- tendril, coop mann, coop nier, coop orcal and coop enya reach it too, each as its own creature's command, coop lion
 -- reaches cut/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by coop off), coop
--- chainspin reaches cut/chainspin.lua on the co-op save slot only (its rows through coop lion's), coop wear reaches cut/wear.lua with all its words on any slot (restored and ticked every frame, waiting while the game is
--- paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
+-- gardener fight reaches cut/gardener.lua (the words that spawn on the co-op save slot only, after the viewer's off;
+-- ticked every frame, ended by coop off), coop chainspin reaches cut/chainspin.lua on the co-op save slot only (its
+-- rows through coop lion's), coop wear reaches cut/wear.lua with all its words on any slot (restored and ticked every
+-- frame, waiting while the game is paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
 -- coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop glide reaches cut/glide.lua
@@ -596,6 +598,34 @@ loops[1].f()
 assert(li.ticks==li.t+1 and last()=='[StellarCoop] OK: M_LionC 50020 is here, 9.8 m from EVE: lion 1 in the [LI] '
     ..'lines.\n',last())
 li.says=nil
+-- coop gardener fight: out of the usage line too. The words that spawn (none, intro, half, skulling) reach
+-- cut/gardener.lua on a co-op save only, after the viewer's off (its display and free camera put away); rows on any,
+-- and any other word reaches it to be refused there. Every other coop gardener word stays the viewer's. Its asks are
+-- native requests and its status the link's; each frame its tick, whose message is reported.
+gd.o.log('tables: 14/14 found'); assert(last()=='[StellarCoop][GD] tables: 14/14 found\n',last())
+assert(gd.o.status()==status_text,'The native status, as the link reads it')
+assert(gd.o.ask('gardener rows SkillTable=0x10000') and asked[#asked]=='gardener rows SkillTable=0x10000',asked[#asked])
+local viewed=#lv.cmds
+for _,words in ipairs({{},{'intro'},{'half'},{'skulling'}}) do
+    coop('gardener','fight',table.unpack(words))
+    assert(#gd.cmds==0 and #lv.cmds==viewed and last():find('^%[StellarCoop%] STOP: coop gardener fight'
+        ..(words[1] and ' '..words[1] or '')..' runs only on a co%-op save'),last())
+end
+coop('gardener','fight','rows'); assert(gd.cmds[1][1]=='rows' and last()=='[StellarCoop] OK: gd rows\n',last())
+coop('gardener','fight','half','x'); assert(gd.cmds[2][1]=='half' and gd.cmds[2][2]=='x','Refused there')
+assert(#lv.cmds==viewed,'No spawn word: the viewer untouched')
+status_text=COOP
+coop('gardener','fight'); coop('gardener','fight','skulling')
+assert(#gd.cmds==4 and gd.cmds[3].n==2 and gd.cmds[3][1]==nil and gd.cmds[4][1]=='skulling','On a co-op save')
+assert(#lv.cmds==viewed+2 and lv.cmds[viewed+1].who=='gardener' and lv.cmds[viewed+1][1]=='off'
+    and lv.cmds[viewed+2][1]=='off','The viewer\'s display and camera away before each spawn')
+coop('gardener','list'); assert(#gd.cmds==4 and lv.cmds[viewed+3][1]=='list','The viewer\'s word')
+status_text=plain
+gd.t,gd.says=gd.ticks,{true,'M_Gardener 50010 is here, 24.8 m from EVE: gardener 1 in the [GD] lines.'}
+loops[1].f()
+assert(gd.ticks==gd.t+1 and last()=='[StellarCoop] OK: M_Gardener 50010 is here, 24.8 m from EVE: gardener 1 in the '
+    ..'[GD] lines.\n',last())
+gd.says=nil
 -- coop chainspin: out of the usage line too, on a co-op save only. Its rows come through coop lion's Lion.rows, its
 -- status is the link's and its lines are [CS] lines.
 cs.o.log('asked'); assert(last()=='[StellarCoop][CS] asked\n',last())
@@ -745,6 +775,7 @@ assert(dr.calls[#dr.calls]=='stop','off ends the Doro look and probe')
 assert(ra.stops==1,'off ends the race')
 assert(lv.stops==1,'off removes the Leviathan display')
 assert(li.stops==1,'off ends what coop lion does')
+assert(gd.stops==1,'off ends what coop gardener fight does')
 assert(wr.stops==1,'off gives EVE the game\'s meshes back')
 assert(sc.stops==1,'off stops a scene')
 assert(ln.stops==1,'off ends the cut scene lines')
@@ -774,11 +805,12 @@ assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop]
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 dr.t,ra.t,ra.s,lv.t,li.t,wr.t,sc.t,ln.t=dr.ticks,ra.ticks,ra.steers,lv.ticks,li.ticks,wr.ticks,sc.ticks,ln.ticks
-gl.t=gl.ticks
-loops[1].f(); assert(ticks==13 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+gl.t,gd.t=gl.ticks,gd.ticks
+loops[1].f(); assert(ticks==14 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
 assert(lv.ticks==lv.t,'No Leviathan tick after coop off')
 assert(li.ticks==li.t,'No Lion tick after coop off')
+assert(gd.ticks==gd.t,'No Gardener tick after coop off')
 assert(wr.ticks==wr.t,'No coop wear tick after coop off')
 assert(sc.ticks==sc.t,'No coop scene tick after coop off')
 assert(ln.ticks==ln.t,'No coop lines tick after coop off')
@@ -786,7 +818,7 @@ assert(gl.ticks==gl.t,'No coop glide tick after coop off')
 assert(ra.ticks==ra.t and ra.steers==ra.s,'No race tick nor driving after coop off')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
-assert(ticks==14 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
+assert(ticks==15 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')
