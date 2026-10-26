@@ -73,6 +73,9 @@ int main() {
     assert(refuse(x) == c.why);
     assert(std::strcmp(why_name(c.why), "none") != 0);
   }
+  Reads rest = good(); // The world's respawn state at rest after a load is 1: no respawn in flight.
+  rest.respawn = 1;
+  assert(refuse(rest) == Why::none);
   Reads half = good(); // The death screen's camp request asked but not yet waiting, or the reverse: no respawn yet.
   half.asked = 1;
   assert(refuse(half) == Why::none);

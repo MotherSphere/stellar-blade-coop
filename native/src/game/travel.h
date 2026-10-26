@@ -73,6 +73,9 @@ inline const char *why_name(Why w) {
 }
 
 constexpr bool plausible(uint64_t p) { return p >= 0x10000 && p < 0x7fffffff0000 && !(p & 7); }
+// The world's respawn state (+0x1c4) reads 1 at rest once a save has loaded (read in game on 2026-10-26) and 2 from a
+// respawn request on: only 2 and up is a respawn in flight.
+constexpr bool respawning(int32_t state) { return state >= 2; }
 // What the game thread read right before the call, in the order it reads them.
 struct Reads {
   uint32_t index = 0; // The camp's FName index, from Lua's FNAME_Find.
@@ -94,7 +97,7 @@ inline Why refuse(const Reads &r) {
          : r.phase != kPlaying       ? Why::phase
          : r.warp                    ? Why::warp
          : r.asked && r.waits        ? Why::camp
-         : r.respawn                 ? Why::respawn
+         : respawning(r.respawn)     ? Why::respawn
          : !r.player                 ? Why::player
                                      : Why::none;
 }
