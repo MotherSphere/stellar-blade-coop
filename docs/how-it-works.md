@@ -420,9 +420,11 @@ other screen.
 - Your table goes to your friend at once, again 5 s later, and then at waits that double while nothing changes, up to
   60 s: 5, 10, 20, 40, 60, 60 s. A table lost with a broken session, or sent before they accepted, arrives with a
   later resend. An identical table is ignored. A changed capture (a new outfit, the blade drawn) goes at once, and the
-  next resend comes 5 s after it. A hello of theirs, or their session read as broken, brings the next resend within
-  5 s, since their side may have lost what was on the way. When a loopback or a replay ends while you are linked, your
-  game sends a hello again for that reason: it removed their table and needs it back.
+  next resend comes 5 s after it. A pose of theirs that comes after a second or more without one brings the next
+  resend within 5 s. Such a gap comes with a broken session, which stops their poses too, and with their loopback or
+  replay, which removes your table and sends you nothing until it ends. Their game does the same for their table. An
+  older protocol 13 build (v0.6.0-beta.1 to beta.3) still sends its table every 5 s, so with one of those both tables
+  also come back within 5 s.
 - A table of theirs that needs a new ghost (a new generation or layout) is taken at most once every 2 s. One that comes
   sooner is refused (the stream line's `tables: ... refused`) and their next resend brings it.
 - Poses go 60 a second by default (`send_rate`, 10 to 60), at most one per game frame: a game running at 45 fps

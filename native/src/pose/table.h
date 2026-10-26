@@ -89,10 +89,11 @@ struct Display {
 // before her accept, or refused as too soon (her 2 s between new ghosts); she ignores an identical one. The first goes
 // at once to a new friend, the next kTableAgainMs later, and each wait doubles while nothing happens, up to
 // kTableAgainMaxMs: 5, 10, 20, 40, 60, 60 s. A changed table (sent at once on its own path) brings the next resend
-// kTableAgainMs after it; a sign that her session started over (her hello, a session read broken: Link::restarts())
-// brings it within kTableAgainMs, never later than planned, so a flood of hellos sends no more than one each 5 s.
-// Worker thread.
-constexpr uint64_t kTableAgainMs = 5000, kTableAgainMaxMs = 60000;
+// kTableAgainMs after it. A pose of hers after kPoseGapMs without one brings it within kTableAgainMs, never later than
+// planned: such a gap comes with every way her side loses our table (a broken session, which stops her poses too;
+// her loopback or replay, which removed it and sent us nothing meanwhile; her rejoin), whatever StellarCoop version
+// she runs, and at most one a second. Worker thread.
+constexpr uint64_t kTableAgainMs = 5000, kTableAgainMaxMs = 60000, kPoseGapMs = 1000;
 class TableResend {
 public:
   // Whether a resend is due at now; if so, the next one is planned.
@@ -105,6 +106,12 @@ public:
   }
   void changed(uint64_t now_ms) { plan(now_ms + kTableAgainMs); }
   void restarted(uint64_t now_ms) { plan(std::min(next_, now_ms + kTableAgainMs)); }
+  // A pose (SBP or SBD) of hers came at now_ms.
+  void heard(uint64_t now_ms) {
+    if (heard_ && now_ms - heard_ >= kPoseGapMs)
+      restarted(now_ms);
+    heard_ = now_ms;
+  }
 
 private:
   void plan(uint64_t at) {
@@ -112,6 +119,7 @@ private:
     wait_ = 2 * kTableAgainMs;
   }
   uint64_t next_ = 0, wait_ = kTableAgainMs; // A new one: due at once.
+  uint64_t heard_ = 0;                       // Her last pose; 0: none yet.
 };
 
 // The pose message's size: pose/codec.h writes the layout, but a table whose poses would not fit is refused here.

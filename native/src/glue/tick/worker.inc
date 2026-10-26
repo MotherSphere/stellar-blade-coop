@@ -59,8 +59,6 @@ const char *remote_source = "loopback";
 void (*peer_send)(const uint8_t *, size_t, bool) = nullptr; // Set by peer() each pass, before peer_on can be true.
 uint64_t last_renewal_us = 0;
 TableResend table_resend; // Our table's resends to the linked friend.
-uint64_t restarts_seen = 0; // Link::restarts() as peer() last saw it.
-bool linked_before = false; // peer()'s linked at its last pass.
 // Link::pose_cap() as peer() last had it (60, the highest send_rate: none): the send interval is under it and the rate.
 uint32_t link_cap = 60;
 // Night Operation probe (Phase 6): read-only, its own latch (pinned && !blocked), so a pose fault leaves it running.
@@ -665,39 +663,36 @@ bool worker_stream() {
   return loopback_on || record_on || replay.on() || peer_on; // Every 5 ms only while something streams.
 }
 
-bool peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool), uint64_t restarts, uint32_t cap) {
+void peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool), uint32_t cap) {
   peer_send = send;
   if (cap != link_cap) { // Logged by the link, with its reason.
     link_cap = cap;
     send_us = 1'000'000 / std::min(lua.rate, cap);
   }
   bool on = linked && peer_open(), was = peer_on.exchange(on);
-  const bool back = on && !was && linked_before; // Linked all along: a loopback or replay ended.
-  linked_before = linked;
   if (was != on)
     say(on ? "peer linked: poses and tables go over Steam" : "peer unlinked");
   if (was && !on && remote_source == kPeer)
     drop_remote(); // She left, or a loopback or replay took over.
   if (!on)
-    return false;
-  // At once to a new friend, whatever take_capture planned while she was not linked: a capture change in the pass
-  // that completes the handshake went before her.
+    return;
+  // At once to a new friend, whatever take_capture or peer_receive planned while she was not linked: a capture change
+  // in the pass that completes the handshake went before her.
   if (!was)
     table_resend = TableResend();
-  else if (restarts != restarts_seen)
-    table_resend.restarted(now_ms);
-  restarts_seen = restarts;
   // At once, then 5, 10, 20, 40 and 60 s apart (pose/table.h TableResend). To her only: never looped back or recorded.
   if (!sent_table.empty() && table_resend.due(now_ms))
     send(reinterpret_cast<const uint8_t *>(sent_table.data()), sent_table.size(), true);
-  return back;
 }
 
 // Gated on peer_open, not peer_on: a table that follows the accept in the tick that completes the handshake comes
 // before this pass's peer(), and the link already checked the handshake.
 void peer_receive(const uint8_t *data, size_t size) {
-  if (peer_open())
-    wire_receive(data, size, clock_us());
+  if (!peer_open())
+    return;
+  if (size >= 3 && (!std::memcmp(data, "SBP", 3) || !std::memcmp(data, "SBD", 3)))
+    table_resend.heard(GetTickCount64()); // peer()'s clock. Her poses back after a gap: she may have lost our table.
+  wire_receive(data, size, clock_us());
 }
 
 std::string ask_loopback(bool on, uint32_t delay_ms, uint32_t jitter_ms, uint32_t loss_percent) {
