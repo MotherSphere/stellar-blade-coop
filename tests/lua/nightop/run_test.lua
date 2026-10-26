@@ -1369,12 +1369,15 @@ local Hs,Gs
 local function side(name,mate_name,x,t)
     local w={bodies={},gt=t,eve_at={X=x,Y=0,Z=1000},map='/Game/Art/BG/WorldMap/Level_P/F02.F02',
         link=name=='host' and 'link=host lobby=7' or 'link=guest lobby=7',friend='friend=1 0 '..mate_name,
-        slot='slot=coop index=4 marker=4',dying=false,lines={},told={},sent={},ticks={},drop=0,revives={},
+        slot='slot=coop index=4 marker=4',dying=false,lines={},told={},told_fr={},sent={},ticks={},drop=0,revives={},
         steamid=name=='host' and '76561198000000001' or '76561198000000002'}
     w.wallet='coop-night-'..w.steamid..'-4.txt'
     w.run=Run.new({log=function(text) w.lines[#w.lines+1]=text end,status=status,paused=function() return w.paused end,
         store=store,records={read=function() return '' end,write=function() w.writes=(w.writes or 0)+1 return true end},
-        tell=function(build) w.told[#w.told+1]=build(Tx.en) end,friend=function() return mate_name end,
+        tell=function(build) -- main.lua's: the screen's words (French here), and English for the line above EVE.
+            w.told_fr[#w.told_fr+1]=build(Tx.fr)
+            w.told[#w.told+1]=build(Tx.en)
+        end,friend=function() return mate_name end,
         revive=function(by) -- session/group.lua's night_revive: its answer, and what was asked.
             w.revives[#w.revives+1]=by
             if w.revive_no then return false,w.revive_no end
@@ -1601,7 +1604,8 @@ local function hud_of(w)
     w.run.hud({kit=k,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=k.settings})
     return k
 end
-game_words.UI_Night_Watching='Spectateur (jeu)' -- The game's own word for it, its table loaded.
+game_words.UI_Night_Watching='Spectateur (jeu)' -- The game's own words for these two, its table loaded.
+game_words.UI_Night_Message_RequestRevive_Receive='{Name} demande (jeu)'
 lives()
 local Hk,Gk=hud_of(Hs),hud_of(Gs)
 fall(Gs)
@@ -1612,6 +1616,8 @@ assert(Hk.groups.night.line.text:find('^VAGUE 1/5 '),'The line stays the run\'s'
 assert(not find(Gs.lines,'^result: ') and not find(Hs.lines,'^result: '),'A down ends nothing')
 assert(find(Gs.lines,'^down %(life 3%): 30 s for a revive, 2 self revives left$'),Gs.lines[#Gs.lines])
 assert(has(Gs.told,'Asked Me for a resuscitation.') and has(Hs.told,'Kaanta has requested resuscitation.'))
+assert(has(Hs.told_fr,'Kaanta demande (jeu)') and has(Gs.told_fr,'Asked Me for a resuscitation.'),
+    'The screen\'s notice in the game\'s words when it has them, the English one in English')
 assert(has(Hs.lines,'Kaanta is down') and state(Gs).down>=28 and state(Gs).revives==2 and state(Hs).phase=='wave')
 assert(Gs.sent[#Gs.sent]:find(string.format(' run %%d+ %%x+ %%x+ %%- 2[89] 0$')),Gs.sent[#Gs.sent])
 -- The key alone, and near alone: nothing.

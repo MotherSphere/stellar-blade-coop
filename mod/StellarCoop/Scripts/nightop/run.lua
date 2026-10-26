@@ -605,13 +605,16 @@ function Run.new(o)
         return playing and was~=true
     end
     -- The cut mode's own words (CUT) in the game's language, from its StringTable_UI, read once a run each; its English
-    -- with ui_language=english or when the table gives none. named: with the partner's name for {Name}.
+    -- with ui_language=english or when the table gives none. named: a notice's, with the partner's name for {Name}, in
+    -- English when the notice is built in English (main.lua's tell builds one for the line above EVE).
     local function cut(key)
         if hud and hud.settings.ui_language=='english' then return CUT[key] end
         if r.cut[key]==nil then r.cut[key]=game_text(key) or false end
         return r.cut[key] or CUT[key]
     end
-    local function named(key) return (cut(key):gsub('{Name}',function() return friend() or '?' end)) end
+    local function named(key,w)
+        return ((w==T.en and CUT[key] or cut(key)):gsub('{Name}',function() return friend() or '?' end))
+    end
     -- Our down's seconds left, as the line and the card give it (at least 1 while a call's result is awaited), or 0.
     local function down_left()
         local d=r.down
@@ -651,7 +654,7 @@ function Run.new(o)
             d={at=r.ticks}
             r.down=d
             log(string.format('down (life %d): %d s for a revive, %d self revives left',life,W.DOWN,r.revives))
-            if tell then tell(function() return named('UI_Night_Message_RequestRevive') end) end
+            if tell then tell(function(w) return named('UI_Night_Message_RequestRevive',w) end) end
         end
         input.dead=nil
         d.seen=d.seen or dying
@@ -690,10 +693,10 @@ function Run.new(o)
             local name=friend() or '?'
             if down then
                 log(name..' is down')
-                if tell then tell(function() return named('UI_Night_Message_RequestRevive_Receive') end) end
+                if tell then tell(function(w) return named('UI_Night_Message_RequestRevive_Receive',w) end) end
             elseif peer.state~='dead' and peer.phase~='end' then
                 log(name..' is up again')
-                if tell then tell(function() return named('UI_Night_Message_ComeBackFriend') end) end
+                if tell then tell(function(w) return named('UI_Night_Message_ComeBackFriend',w) end) end
             end
         end
         if not down or r.down then r.held=0; return end
