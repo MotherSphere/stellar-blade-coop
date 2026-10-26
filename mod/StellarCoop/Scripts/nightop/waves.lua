@@ -2,7 +2,8 @@
 -- the seeded gate order and the spot of each monster, the score, the timer list and the run's states, solo or for two
 -- linked players (the night line's two codecs, the host's merge of her world, the guest's run following his). A run
 -- reads its waves and rules from a definition (W.NIGHT, one of Night Operation's other levels in W.LEVELS, or a
--- challenge from nightop/challenges.lua; a challenge is solo). The game side (spawns, bodies, the HUD, the line) reads
+-- challenge from nightop/challenges.lua; a challenge is solo unless it says coop). The game side (spawns, bodies, the
+-- HUD, the line) reads
 -- and feeds it; tests/lua/nightop/waves_test.lua covers it with lua5.4 alone.
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
@@ -303,8 +304,9 @@ end
 
 -- The night line (core/link.lua's self.night out, the status's night= line in): each side's whole state, written on
 -- change and at least once a second, so a lost line is repaired by the next. The native part checks its bytes and sides
--- only; these codecs check every field and refuse the whole line on any bad one. Only Night Operation (W.LEVELS) runs
--- for two, so the masks and bounds are its levels'.
+-- only; these codecs check every field and refuse the whole line on any bad one. Night Operation (W.LEVELS) and the
+-- challenges marked coop run for two; the masks are the levels', which cover 5 waves of 8, so such a challenge's waves
+-- stay within them (tests/lua/nightop/challenges_test.lua checks it).
 -- A mask: one bit per key a level's waves hold, (wave - 1) * 8 + slot, as lowercase hex (40 bits at most). A mask does
 -- not say the level: a key past the run's wave size is no body of it (own() leaves it out).
 local function bit(k,slot) return 1<<((k-1)*8+slot) end
@@ -357,22 +359,25 @@ local INT=0x7FFFFFFF
 -- h <n> <run> <seed> <phase> <wave> <rt> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level>. h:
 -- {n, run, seed, phase (ask, count, wave, rest, end), wave, rt (run time, ms), score (at most the level's W.most),
 -- kills, clears, found (the keys his run tracks and has not done), x, y, z (his start point, whole cm), yaw (whole
--- degrees), map (U.map_of), outcome and reason once ended, level (a word of W.LEVEL)}.
+-- degrees), map (U.map_of), outcome and reason once ended, level (a word of W.LEVEL, or a co-op challenge's id)}.
+-- decode_host's words map each word it takes to its definition (W.LEVEL when nil); wave and clears stay within that
+-- definition's waves.
 function W.encode_host(h)
     local ending=h.outcome and h.outcome..(h.reason and ':'..h.reason or '') or '-'
     return string.format('h %d %d %d %s %d %d %d %d %d %s %d %d %d %d %s %s %s',h.n,h.run,h.seed,h.phase,h.wave,h.rt,
         h.score,h.kills,h.clears,W.mask(h.found,h.run),h.x,h.y,h.z,h.yaw,h.map,ending,h.level)
 end
-function W.decode_host(text)
+function W.decode_host(text,defs)
     local f=words(text,18)
     if not f or f[1]~='h' then return nil end
-    local level=W.LEVEL[f[18]]
+    local level=(defs or W.LEVEL)[f[18]]
+    if not level then return nil end
     local h={n=whole(f[2],0,65535),run=whole(f[3],1,255),seed=whole(f[4],0,MASK),phase=PHASES[f[5]] and f[5],
-        wave=whole(f[6],0,#W.SCHEDULE),rt=whole(f[7],-10000,600000),score=level and whole(f[8],0,W.most(level)),
-        kills=whole(f[9],0,40),clears=whole(f[10],0,#W.SCHEDULE),x=whole(f[12],-INT-1,INT),y=whole(f[13],-INT-1,INT),
+        wave=whole(f[6],0,#level.waves),rt=whole(f[7],-10000,600000),score=whole(f[8],0,W.most(level)),
+        kills=whole(f[9],0,40),clears=whole(f[10],0,#level.waves),x=whole(f[12],-INT-1,INT),y=whole(f[13],-INT-1,INT),
         z=whole(f[14],-INT-1,INT),yaw=whole(f[15],-360,360),
         map=#f[16]<=128 and f[16]:match('^/[a-z0-9_/%-]*$') or nil, -- U.map_of's characters and length.
-        level=level and level.level}
+        level=f[18]}
     for _,k in ipairs({'n','run','seed','phase','wave','rt','score','kills','clears','x','y','z','yaw','map',
             'level'}) do
         if h[k]==nil then return nil end

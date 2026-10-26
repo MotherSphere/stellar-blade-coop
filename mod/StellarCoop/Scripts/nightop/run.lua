@@ -1,8 +1,9 @@
 -- coop nightop: Night Operation's run on a co-op save (commands/nightop.lua checks the slot), on the game thread. Five
 -- timed waves of the game's base monsters come at EVE where she stands, at one of four levels (nightop/waves.lua's
 -- W.LEVELS: the monsters a wave holds, the time limit, the shop points; the host's level in a co-op run, which his
--- night line carries). coop challenge runs the challenges of nightop/challenges.lua the same way, solo only, each with
--- its best run in coop-records.txt. nightop/waves.lua holds
+-- night line carries). coop challenge runs the challenges of nightop/challenges.lua the same way, each with its best
+-- run in coop-records.txt, solo only but the Shooting Range, which the host can also run for both players (its id in
+-- place of the level on his line). nightop/waves.lua holds
 -- the waves, the keys and the run's states, read from the run's definition; this file is the game side: the start
 -- checks and the census, the one spawn call, the bodies it tracks, their aggro and stuck moves, the abort watch and the
 -- end, and what the player sees: a card at the top centre and a result panel on the Uplink kit (ui/kit.lua), or notices
@@ -29,6 +30,11 @@ local T=require('ui.text')
 local Shop=require('nightop.shop')
 local C=require('nightop.challenges')
 local Run={}
+-- The definitions a co-op run can carry, by the word on the host's night line: Night Operation's levels and each
+-- challenge marked coop, under its id.
+local WIRE={}
+for word,def in pairs(W.LEVEL) do WIRE[word]=def end
+for _,def in ipairs(C.LIST) do if def.coop then WIRE[def.id]=def end end
 local MASK=0xFFFFFFFF
 local XION='/game/art/bg/worldmap/level_p/e04' -- Its people and quest scripts stay out of a fight.
 local TICK=0.25 -- Seconds between two ticks (main.lua's loop). The abort watch counts ticks: game time stops in a load.
@@ -588,7 +594,8 @@ function Run.new(o)
             r.now=eve and clock(eve) or r.now
             r.s.t0,r.s.phase,r.quiet,r.mate=r.now+W.COUNTDOWN,'countdown',0,line
             log(string.format('%s is ready: run 0x%02X starts in %d s',name,r.s.run,W.COUNTDOWN))
-            notify(function(w) return w.night.start_notice:format(W.COUNTDOWN) end)
+            local def=r.s.def
+            notify(function(w) return notice(def,w,'start_notice',W.COUNTDOWN) end)
             return
         end
         local why=line and line.state=='refuse' and line.why or (r.asked>=ASK or mode and mode~='host') and 'none'
@@ -605,7 +612,8 @@ function Run.new(o)
             local name=friend() or '?'
             local left=math.max(0,math.ceil(-line.rt/1000))
             log(string.format('%s started run 0x%02X: it begins in %d s',name,r.s.run,left))
-            if tell then tell(function(w) return w.night.coop_notice:format(name,left) end) end
+            local def=r.s.def
+            if tell then tell(function(w) return notice(def,w,'coop_notice',name,left) end) end
             return true
         end
         r.asked=r.asked+1
@@ -699,8 +707,8 @@ function Run.new(o)
     -- A challenge's name, or Night Operation's with its level when it is not normal: Night Operation (hard).
     local function name_of(def) return def.name or 'Night Operation'..(def~=W.NIGHT and ' ('..def.level..')' or '') end
     -- A run of def (Night Operation's normal level when nil, or another of W.LEVELS); flag: Night Operation's noaggro
-    -- or nomove. A challenge is solo: it starts only without a Steam session. The best so far is read from the records
-    -- file once the run is on.
+    -- or nomove. A challenge is solo unless it says coop: it starts only without a Steam session. The best so far is
+    -- read from the records file once the run is on.
     local function start(flag,def)
         def=def or W.NIGHT
         if r and r.s.phase~='result' then
@@ -709,7 +717,7 @@ function Run.new(o)
         local raw='\n'..(status() or '')
         local linked=raw:match('\nlink=(%a+)')
         if not linked then return false,'the Steam link is not ready yet: try again in a moment' end
-        if not def.level and linked~='none' then
+        if not def.level and not def.coop and linked~='none' then
             return false,name_of(def)..' is solo for now: leave the Steam session first (coop leave)'
         end
         if linked=='guest' then return false,'the host starts a co-op run' end
@@ -777,10 +785,11 @@ function Run.new(o)
             log(string.format('ask for run 0x%02X refused: %s%s',h.run,why,text))
             return
         end
-        begin(h.run,h.seed,clock(eve),{X=h.x,Y=h.y,Z=h.z},h.yaw,h.map,nil,W.LEVEL[h.level])
+        local def=WIRE[h.level]
+        begin(h.run,h.seed,clock(eve),{X=h.x,Y=h.y,Z=h.z},h.yaw,h.map,nil,def)
         r.role,r.s.role,r.s.phase='guest','guest','ask'
-        log(string.format('join: run 0x%02X seed 0x%08X at %s yaw %d map %s level %s%s',h.run,h.seed,xyz(r.p0),h.yaw,
-            h.map,h.level,text))
+        log(string.format('join: run 0x%02X seed 0x%08X at %s yaw %d map %s %s %s%s',h.run,h.seed,xyz(r.p0),h.yaw,
+            h.map,def.level and 'level' or 'challenge',h.level,text))
     end
     -- Ends the run that is on as aborted; the name of what it ran, or nil when none was on. The host's ask has no run
     -- yet: dropped, with no result. The guest's ask ends as an abort, so her line tells a host already counting down
@@ -819,7 +828,8 @@ function Run.new(o)
             for key in pairs(r.seen) do if not s.done[key] then found[key]=true end end
             return {run=s.run,seed=r.seed,phase=PHASE[s.phase],wave=s.wave,rt=math.max(-10000,
                 math.min(600000,math.floor(rt*1000+0.5))),score=s.score,kills=s.kills,clears=s.clears,found=found,
-                x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason,level=s.def.level}
+                x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason,
+                level=s.def.level or s.def.id}
         end
         if r and r.role=='guest' then
             local s=r.s
@@ -854,7 +864,7 @@ function Run.new(o)
         if text==heard then return nil end
         heard=text
         if not text then return nil end
-        local line=mode=='host' and W.decode_mate(text) or mode=='guest' and W.decode_host(text) or nil
+        local line=mode=='host' and W.decode_mate(text) or mode=='guest' and W.decode_host(text,WIRE) or nil
         log('night in: '..text..(line and '' or ' (refused)'))
         return line
     end

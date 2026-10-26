@@ -39,7 +39,8 @@
 -- notice.
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
--- sides' spots and wallets.
+-- sides' spots and wallets. The Shooting Range for two: the host's ask, his line's range word, her run's waves and
+-- notices, the same dummies on the same spots, one score, no points and no best.
 -- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
 -- body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a corpse the game's pool
 -- brings back for a later wave.
@@ -893,7 +894,7 @@ do
     local function win(run) for k=1,3 do round(run,k,#targets.waves[k].ids) end end
     bodies,calls,lines,spawn_ai={},{},{},false -- The dummies come with no controller.
     -- Refusals: no game call, no line, no record read for a word that is not a challenge.
-    for _,word in ipairs({'night','0','5','x','TARGETS','start','swarm2'}) do
+    for _,word in ipairs({'night','0','6','x','TARGETS','start','swarm2','hard'}) do
         ok,message=ch.challenge(word)
         assert(not ok and message=='unknown challenge: coop challenge lists them',word..': '..tostring(message))
     end
@@ -906,11 +907,14 @@ do
     link_line='link=host lobby=7'
     ok,message=ch.challenge('targets')
     assert(not ok and message=='Target Practice is solo for now: leave the Steam session first (coop leave)',message)
+    ok,message=ch.challenge('range') -- Not solo: the host starts it for both once the partner is linked.
+    assert(not ok and message=='no partner linked yet: a co-op run starts once they are',message)
     link_line='link=none lobby=0'
     assert(#calls==0 and #lines==0 and writes==0,'Refusals call nothing')
-    -- The list: the four with their bests (none but the stored Skull Squad one), then Night Operation.
+    -- The list: the five with their bests (none but the stored Skull Squad one), then Night Operation.
     local LIST='1 swarm Antlion Swarm: 3 waves, 3:00, no best yet\n2 skulls Skull Squad: 3 waves, 6:00, best 300 in '
         ..'3:20\n3 gauntlet Gauntlet: 8 waves, 12:00, no best yet\n4 targets Target Practice: 3 waves, 1:30, %s\n'
+        ..'5 range Shooting Range: 3 waves, 2:00, no best yet\n'
         ..'night_easy: Night Operation easy (coop nightop start easy), no best yet\n'
         ..'night: Night Operation (coop nightop start), no best yet\n'
         ..'night_hard: Night Operation hard (coop nightop start hard), no best yet\n'
@@ -1727,6 +1731,73 @@ do
         assert(w.told[#w.told]==string.format('Night Operation: +%d points, %d in all.',got,points+got),w.told[#w.told])
     end
     points=points+got
+    assert(#violations==0,violations[1])
+end
+-- The Shooting Range for two: her coop challenge range refuses (the host starts it); his starts the ask and his line
+-- carries range in place of a level; her join line names the challenge and her run takes its waves; each notice names
+-- it; the same dummies on the same spots around his start point in both worlds, with no aggro; a kill in her world
+-- scores once for both cards and the round waits for his copies too; a success ends both runs with one score and one
+-- time, credits no points and keeps no best on either side.
+do
+    pair()
+    spawn_ai,calls=false,{} -- The dummies come with no controller.
+    local ok3,text3=on(Gs,function() return Gs.run.challenge('range') end)
+    assert(not ok3 and text3=='the host starts a co-op run',text3)
+    ok3,text3=on(Hs,function() return Hs.run.challenge('range') end)
+    local byte=tonumber(text3:match('run 0x(%x+)'),16)
+    assert(ok3 and text3==string.format('Shooting Range: waiting for Kaanta to join (run 0x%02X)',byte),text3)
+    round(2)
+    assert(Hs.sent[1]:find(' range$'),Hs.sent[1])
+    assert(find(Gs.lines,string.format('^join: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map %%S+ challenge range; '
+        ..'census: ',byte,W.seed(T,byte))),Gs.lines[2])
+    assert(Hs.told[#Hs.told]=='Shooting Range starts in 5 s.',Hs.told[#Hs.told])
+    assert(Gs.told[#Gs.told]=='Shooting Range: Me started the challenge. It begins in 5 s.',Gs.told[#Gs.told])
+    local function score(w)
+        local _,t=on(w,function() return w.run.command() end)
+        return tonumber(t:match(' challenge range: %a+, wave %d/3, run time %-?%d+ s, score (%d+),'))
+    end
+    local range=require('nightop.challenges').find('range')
+    for k=1,3 do
+        local found_k,n=string.format('^wave %d find %%+1 s',k),0
+        while not (find(Hs.lines,found_k) and find(Gs.lines,found_k)) do
+            round()
+            n=n+1
+            assert(n<400,'Range round '..k..' on both')
+        end
+        local spots,m={},0
+        for _,b in ipairs(Hs.bodies) do if select(2,W.decode(b.key))==k then spots[b.key]=b end end
+        for _,b in ipairs(Gs.bodies) do
+            if select(2,W.decode(b.key))==k then
+                local a=spots[b.key]
+                local d=math.sqrt(b.at.X^2+b.at.Y^2)/100
+                assert(a and a.at.X==b.at.X and a.at.Y==b.at.Y and b.id==40010 and a.id==40010,'The same dummy spot')
+                assert(math.abs(d-15)<1e-6 or math.abs(d-20)<1e-6,d)
+                m=m+1
+            end
+        end
+        assert(m==#range.waves[k].ids,m)
+        kill_all(Gs,k)
+        round(3)
+        local want=40*({3,7,12})[k] -- 40 a dummy, each scored once.
+        assert(score(Hs)==want and score(Gs)==want,score(Hs))
+        assert(not find(Hs.lines,string.format('^wave %d/3 ',k+1)),'Round '..k..' waits for his copies')
+        kill_all(Hs,k)
+        round(3)
+        assert(k==3 or score(Hs)==want,'His copies of her kills score nothing more') -- After round 3: the result.
+    end
+    round(2)
+    local hr,gr=find(Hs.lines,'^result: '),find(Gs.lines,'^result: ')
+    assert(hr and hr:find('^result: success waves=3/3 kills=12 score=%d+ .* challenge=range best=none$'),hr)
+    assert(gr and gr:match('^(.- time=%S+)')==hr:match('^(.- time=%S+)'),gr)
+    assert(tonumber(hr:match(' score=(%d+) '))>480,'12 dummies and the time left')
+    for _,w in ipairs({Hs,Gs}) do
+        assert(has(w.lines,'record: not kept (a co-op run)') and w.writes==nil,w.lines[#w.lines])
+        assert(files[w.wallet]==points..'\n' and not find(w.lines,'^credit ') and not find(w.lines,'^no points'),
+            w.wallet)
+        assert(has(w.told,'Shooting Range: wave 3 cleared.'),w.told[#w.told])
+    end
+    assert(count('Damage:ReportDamageEvent')==0 and count('M:SpawnDefaultController')==0,'No aggro')
+    spawn_ai=true
     assert(#violations==0,violations[1])
 end
 
