@@ -3,11 +3,12 @@
 -- made native). Its 222 rows, each authored for it (cut/lion_rows.lua lists them), go into SB's tables through the
 -- native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight),
 -- after the 4 rows of the cut items the Night Operation shop sells (2 ItemTable rows, an ItemConsumableTable row and
--- the SkillTable row they play), the 11 of EVE's cut Tachy ChainSpin (its skill, 9 steps and the effect that starts
--- it) and the 4 of the Shock Bolt ammo the shop sells too (its item, skill, projectile and hit result), 241 rows in 15
--- tables: the lion rows batch. The shop and coop chainspin ask for them through Lion.rows (nightop/shop.lua,
--- cut/chainspin.lua); once they are in, the native part also grows EVE's gun stances and the ammo list for the Shock
--- Bolt (lion/shock.h, the status's shock line).
+-- the SkillTable row they play) and the 11 of EVE's cut Tachy ChainSpin (its skill, 9 steps and the effect that starts
+-- it), 237 rows: the lion rows batch. The shop and coop chainspin ask for them through Lion.rows (nightop/shop.lua,
+-- cut/chainspin.lua). The 4 rows of the Shock Bolt ammo the shop sells too (its item, skill, projectile and hit result)
+-- are a batch of their own, the bolt rows batch, which only a Shock Bolt buy asks for through Lion.rows, so they never
+-- stand in front of the Lion's; once they are in, the native part also grows EVE's gun stances and the ammo list for
+-- the Shock Bolt (lion/shock.h, the status's shock line).
 -- The flow is cut/enemy.lua's, which coop gardener fight shares: the tables, the lion rows request, the wait on the
 -- lion line, the read-back, the one spawn call (10 m ahead of EVE and 1 m up, facing her) and the lines that follow
 -- the body. This file holds the Lion's spec and its own parts. The IDs: 50020 (M_LionC, the Skulling test tree), 50021
@@ -71,6 +72,9 @@ Lion.ROWS=Enemy.rows(require('cut.lion_rows').ROWS)
 Lion.IN=Enemy.counts(Lion.ROWS)
 -- The lion line (glue's rows_status) as fields (Enemy.parse).
 function Lion.parse(status) return Enemy.parse(status,'lion') end
+-- The Shock Bolt's 4 rows, the bolt rows batch: cut/lion_rows.lua's R.BOLT (lion_test checks it against rows.h's
+-- kBoltRecipe), in Enemy.rows' form.
+Lion.BOLT=Enemy.rows(require('cut.lion_rows').BOLT)
 
 -- o: log (the [LI] lines), ask(line) the native request (ok, message), status() the native status text.
 function Lion.new(o)
@@ -239,6 +243,9 @@ function Lion.new(o)
         skipped='off by default: the Lion AnimBP has no montage slot, and a clip on its mesh would replace the anim '
             ..'instance SB plays its skills on; coop lion intro plays it on a display copy before the spawn',
         boss={shown=BOSS_SHOWN,name=BOSS_NAME},follow=follow,frame=frame})
+    -- The bolt rows batch through the same flow, rows only, on a job of its own; its [LI] lines start with bolt.
+    local bolt=Enemy.new({log=function(m) log('bolt '..m) end,ask=o.ask,status=o.status},
+        {word='bolt',name='Shock Bolt',command='coop nightop buy',tag='[LI]',rows=Lion.BOLT,ids={}})
     -- coop lion unfreeze [init]: on each living Lion, every engine switch that can hold a mesh's pose put back to its
     -- running value (component tick, anim pause, the rate scale, skeleton updates, the visibility-based and
     -- rate-optimized ticking, the actor's time dilation), then its mesh line again; init also builds its anim instance
@@ -276,8 +283,8 @@ function Lion.new(o)
             n>1 and 's' or '')
     end
     -- Lion.rows, for the Night Operation shop's cut items (nightop/shop.lua) and coop chainspin: cut/enemy.lua's rows
-    -- with the lion rows batch.
-    function self.rows(done) return e.rows(done,brain) end
+    -- with the lion rows batch, or with word bolt the bolt rows batch (the shop's Shock Bolt only).
+    function self.rows(done,word) return (word=='bolt' and bolt or e).rows(done,brain) end
     -- brain sets the ID of the next spawns, even while a command runs; the others wait for it.
     function self.command(sub,a,extra)
         if extra~=nil then return false,USE end
@@ -298,7 +305,18 @@ function Lion.new(o)
         end
         return e.start(brain,sub=='intro',false)
     end
-    self.tick,self.stop=e.tick,e.stop
+    -- Each frame, both flows: what ended, both messages when both ended in the same frame.
+    function self.tick()
+        local ok,message=e.tick()
+        local bolt_ok,bolt_message=bolt.tick()
+        if not message then return bolt_ok,bolt_message end
+        if bolt_message then return ok and bolt_ok,message..' '..bolt_message end
+        return ok,message
+    end
+    function self.stop()
+        e.stop()
+        bolt.stop()
+    end
     return self
 end
 return Lion

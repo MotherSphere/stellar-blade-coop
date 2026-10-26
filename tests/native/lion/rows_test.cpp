@@ -1,11 +1,12 @@
-// The Lion's rows, the Gardener's and the Tendril's on the build machine against fake memory laid out like the pinned
-// build: the recipes themselves (names and IDs unique across the batches, every patch inside its struct and past its
-// header, the
+// The Lion's rows, the Gardener's, the Tendril's and the Shock Bolt's on the build machine against fake memory laid out
+// like the pinned build: the recipes themselves (names and IDs unique across the batches, every patch inside its struct
+// and past its header, the
 // step chains, skills, commands, stances, moves and target filters pointing at the new rows, the cut items first, then
 // the Tachy ChainSpin's rows (their steps on the Tachy NPC's Show and the shipped ChainSpin moves, their effect
-// starting their skill in Tachy Mode), the Shock Bolt's 4 (its item, skill, projectile and stun hit result), and the
-// CharacterTable rows last with the link flag Common and the phase-2
-// stance, no field naming a Behemoth row or asset but the sound set; the Gardener's ToxicBeam steps lasting its Show's
+// starting their skill in Tachy Mode), and the CharacterTable rows last with the link flag Common and the phase-2
+// stance, no field naming a Behemoth row or asset but the sound set; the Shock Bolt's 4 in a batch of their own (its
+// item, skill, projectile and stun hit result), whose ProjectileTable the Lion's batch never reads; the Gardener's
+// ToxicBeam steps lasting its Show's
 // 5.4 s, its skills on its shipped steps, a stance with its 3 commands at speed 0 and its 3 CharacterTable rows last,
 // with their trees, scales, the shipped dead and appearance rows and the album's name key; the Tendril's skills each
 // playing a run-time Show from its first step, its Hit steps hitting through its own areas, its stance with its 11
@@ -124,6 +125,7 @@ struct Game {
     donor_rows(kLion);
     donor_rows(kGardener);
     donor_rows(kTendril);
+    donor_rows(kBolt);
   }
   uint64_t vtable_at = 0;
 
@@ -266,15 +268,15 @@ size_t row_index(const char *name, Table t, const Batch &b = kLion) {
 
 int main() {
   // ---- The recipe ----
-  static_assert(kRows == 241, "the 4 cut items' rows, the Tachy ChainSpin's 11, the Shock Bolt's 4, 21 commands, 21 "
-                              "skills, 80 steps, 61 moves, 25 target filters, 5 results, the effect, 2 anim sets, 2 "
-                              "stances, the dead and appearance rows and the two CharacterTable rows");
+  static_assert(kRows == 237, "the 4 cut items' rows, the Tachy ChainSpin's 11, 21 commands, 21 skills, 80 steps, 61 "
+                              "moves, 25 target filters, 5 results, the effect, 2 anim sets, 2 stances, the dead and "
+                              "appearance rows and the two CharacterTable rows");
   const auto rows_of = [](Table t) { return coop::lion::rows_of(kLion, t); };
-  assert(rows_of(Table::step) == 89 && rows_of(Table::skill) == 24 && rows_of(Table::command) == 21 &&
-         rows_of(Table::move) == 61 && rows_of(Table::filter) == 25 && rows_of(Table::result) == 6 &&
+  assert(rows_of(Table::step) == 89 && rows_of(Table::skill) == 23 && rows_of(Table::command) == 21 &&
+         rows_of(Table::move) == 61 && rows_of(Table::filter) == 25 && rows_of(Table::result) == 5 &&
          rows_of(Table::effect) == 2 && rows_of(Table::anim) == 2 && rows_of(Table::stance) == 2 &&
          rows_of(Table::dead) == 1 && rows_of(Table::appearance) == 1 && rows_of(Table::character) == 2 &&
-         rows_of(Table::item) == 3 && rows_of(Table::consumable) == 1 && rows_of(Table::projectile) == 1);
+         rows_of(Table::item) == 2 && rows_of(Table::consumable) == 1 && rows_of(Table::projectile) == 0);
   // The Gardener's batch: ToxicBeam's 3 steps, 3 skills and their commands, its stance, 3 CharacterTable rows.
   static_assert(kGardenerRows == 13, "the Gardener's 13 rows");
   assert(coop::lion::rows_of(kGardener, Table::step) == 3 && coop::lion::rows_of(kGardener, Table::skill) == 3 &&
@@ -289,6 +291,9 @@ int main() {
            of(Table::result) == 5 && of(Table::move) == 1 && of(Table::anim) == 2 && of(Table::stance) == 1 &&
            of(Table::dead) == 1 && of(Table::appearance) == 1 && of(Table::character) == 1);
   }
+  // The Shock Bolt's batch: its 4 rows alone, so none of them stands in front of a Lion row, and the lion rows batch
+  // goes into no ProjectileTable.
+  static_assert(kBoltRows == 4, "the Shock Bolt's 4 rows");
   // The cut items first, in the order each needs the one before: the skill the stimpacks play, the Beta Stimpack's
   // consumable, then the two items (ItemTable ID, ConsumableAlias +0x14c). The skill is the health potion's under the
   // name HP2Burst_Potion gives (FirstSkillActiveAlias +0x100: the potion's own steps).
@@ -316,6 +321,7 @@ int main() {
   std::vector<Row> all(kRecipe, kRecipe + kRows); // Every batch, in kPatches' order.
   all.insert(all.end(), kGardenerRecipe, kGardenerRecipe + kGardenerRows);
   all.insert(all.end(), kTendrilRecipe, kTendrilRecipe + kTendrilRows);
+  all.insert(all.end(), kBoltRecipe, kBoltRecipe + kBoltRows);
   for (size_t t = 0; t < kTableCount; ++t) { // Names and IDs unique in each table across the batches.
     std::set<std::string> names;
     std::set<uint32_t> ids;
@@ -445,10 +451,10 @@ int main() {
     assert(use.table == Table::effect && use.id == 1004500 && value(use, 0x2fc) == 69 &&
            !std::strcmp(patched(use, 0x300), skill.name) && !std::strcmp(patched(use, 0x80), "P_Eve_TachyMode"));
   }
-  // The Shock Bolt's 4 rows after the ChainSpin's, the item first: Bullet_Shock (32) over its consumable and bullet
-  // (+0x14c, +0x180) with its own cap (MaxAmount +0x84) and no stat override (+0x88, +0x90), the skill (1003401) on
-  // SB's shipped Shock steps with no acquisition (+0x17c), the projectile (1010051) with the shock blueprint
-  // (ResourcePath +0x18) and its own hit result (+0xcc), the result (100200801) with SB's shock stun (+0x28).
+  // The Shock Bolt's own batch, the item first: Bullet_Shock (32) over its consumable and bullet (+0x14c, +0x180) with
+  // its own cap (MaxAmount +0x84) and no stat override (+0x88, +0x90), the skill (1003401) on SB's shipped Shock steps
+  // with no acquisition (+0x17c), the projectile (1010051) with the shock blueprint (ResourcePath +0x18) and its own
+  // hit result (+0xcc), the result (100200801) with SB's shock stun (+0x28).
   {
     const char *const kShock[] = {"Bullet_Shock", "P_Eve_Gun_ShootShockSlug1_1",
                                   "P_Eve_Gun_ShootShockSlug1_Projectile1",
@@ -456,9 +462,9 @@ int main() {
     const Table kShockTables[] = {Table::item, Table::skill, Table::projectile, Table::result};
     const uint32_t kShockIds[] = {32, 1003401, 1010051, 100200801};
     for (size_t i = 0; i < 4; ++i)
-      assert(kRecipe[15 + i].table == kShockTables[i] && !std::strcmp(kRecipe[15 + i].name, kShock[i]) &&
-             kRecipe[15 + i].id == kShockIds[i]);
-    const Row &item = kRecipe[15], &skill = kRecipe[16], &shot = kRecipe[17], &hit = kRecipe[18];
+      assert(kBoltRecipe[i].table == kShockTables[i] && !std::strcmp(kBoltRecipe[i].name, kShock[i]) &&
+             kBoltRecipe[i].id == kShockIds[i]);
+    const Row &item = kBoltRecipe[0], &skill = kBoltRecipe[1], &shot = kBoltRecipe[2], &hit = kBoltRecipe[3];
     assert(!std::strcmp(patched(item, 0x14c), "Bullet_Shock_Consume") &&
            !std::strcmp(patched(item, 0x180), "Bullet_Shock") && value(item, 0x84) == 30 && value(item, 0x88) == 0 &&
            value(item, 0x90) == 0);
@@ -678,20 +684,20 @@ int main() {
     assert(g.list_field(beta, 0x20, Kind::names) == "Item_Buff_HP2MP_ReduceHP|Item_Buff_HP2MP_GainMP" &&
            g.name_text(Game::field<uint64_t>(beta, 0x38)) == "P_Eve_Sword_Normal_Buff_1");
 
-    // SB's lookups by ID find our rows: both CharacterTable rows, the 24 skills, both stances' names.
+    // SB's lookups by ID find our rows: both CharacterTable rows, the 23 skills, both stances' names.
     Builder::ReadBack rb = b.read_back(g, g.tables);
-    assert(rb.character == 2 && rb.skills == 24 && rb.stance == 2);
+    assert(rb.character == 2 && rb.skills == 23 && rb.stance == 2);
     g.skill_override = 0x12345678, g.skill_override_id = 5002003;
     rb = b.read_back(g, g.tables);
-    assert(rb.skills == 23);
+    assert(rb.skills == 22);
     assert(describe_read(kLion, rb) == "lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable "
-                                       "1003401-6000101 23/24, stance 500200-500201 2/2");
+                                       "1004500-6000101 22/23, stance 500200-500201 2/2");
 
     // A second run adds nothing: every row is in.
     const Answer again = b.run(g, kBase, g.tables, g.block);
     assert(again.state == State::rows && again.added == kRows && g.adds.size() == kRows);
 
-    // The Gardener's batch in the same game, on its own Builder: its 13 rows after the 241, none of them meeting
+    // The Gardener's batch in the same game, on its own Builder: its 13 rows after the 237, none of them meeting
     // another; SB's lookups find its 3 CharacterTable rows, 3 skills and its stance.
     Builder gb(kGardener);
     const Answer ga = gb.run(g, kBase, g.tables, g.block);
@@ -721,6 +727,20 @@ int main() {
     assert(rb.character == 1 && rb.skills == 11 && rb.stance == 1);
     assert(describe_read(kTendril, rb) == "tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable "
                                           "5006000-5006010 11/11, stance 500600 1/1");
+
+    // The Shock Bolt's batch last, on its own Builder: its 4 rows; SB's lookups find its one skill, and the line names
+    // no ID for the tables it has no row in.
+    Builder ob(kBolt);
+    const Answer oa = ob.run(g, kBase, g.tables, g.block);
+    const size_t bolts = before + kTendrilRows;
+    assert(oa.state == State::rows && oa.added == kBoltRows && g.adds.size() == bolts + kBoltRows);
+    verify(g, ob, kBolt, bolts);
+    assert(Game::field<int32_t>(g.adds[bolts], 0x84) == 30 &&
+           Game::field<uint32_t>(g.adds[bolts + 2], kIdAt) == 1010051);
+    rb = ob.read_back(g, g.tables);
+    assert(rb.character == 0 && rb.skills == 1 && rb.stance == 0);
+    assert(describe_read(kBolt, rb) ==
+           "bolt rows by SB's lookups: CharacterTable - 0/0, SkillTable 1003401 1/1, stance - 0/0");
   }
   {
     // The Gardener's run reads only the tables its rows go into: an appearance table that is not SB's stops the Lion's
@@ -730,6 +750,19 @@ int main() {
     Builder lb(kLion), gb(kGardener);
     assert(lb.run(g, kBase, g.tables, g.block).why == Why::table && g.adds.empty());
     assert(gb.run(g, kBase, g.tables, g.block).state == State::rows && g.adds.size() == kGardenerRows);
+  }
+  {
+    // A ProjectileTable whose row size is not the SDK's stops the Shock Bolt's batch only: the Lion's never reads it.
+    Game g;
+    const uint64_t rs = g.mem.get<uint64_t>(g.tables[size_t(Table::projectile)] + kRowStruct);
+    g.mem.put<int32_t>(rs + kPropertiesSize, 0x390);
+    Builder ob(kBolt), lb(kLion);
+    const Answer a = ob.run(g, kBase, g.tables, g.block);
+    assert(a.state == State::refused && a.why == Why::size && a.detail == 0x390 && g.adds.empty());
+    assert(describe(kBolt, a) ==
+           "bolt rows refused P_Eve_Gun_ShootShockSlug1_Projectile1: ProjectileTable's row size 0x390 not 0x398; "
+           "0/4 added");
+    assert(lb.run(g, kBase, g.tables, g.block).state == State::rows && g.adds.size() == kRows);
   }
   {
     Game g; // A taken ID stops the Gardener's batch at its row; the Lion's goes on.
@@ -756,10 +789,10 @@ int main() {
     Builder b(kLion);
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::refused && a.why == Why::donor && a.row == first && a.added == first);
-    assert(g.adds.size() == first && !b.added(first) && first == 111);
+    assert(g.adds.size() == first && !b.added(first) && first == 107);
     assert(describe(kLion, a) ==
            "lion rows refused M_LionC_ClawAttackLeft_Cast1: template M_Behemoth_ScratchLeft_Finish1 "
-           "missing; 111/241 added");
+           "missing; 107/237 added");
     g.rows[{g.tables[size_t(Table::step)], key}] = row;
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.state == State::rows && a.added == kRows && g.adds.size() == kRows); // Each row added once.
@@ -796,7 +829,7 @@ int main() {
     a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::table && a.row == kRows - 2 && g.adds.empty()); // CharacterTable, checked first.
     assert(describe(kLion, a) ==
-           "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/241 added");
+           "lion rows refused M_LionC_Lurker: CharacterTable is not SB's UDataTable; 0/237 added");
   }
   {
     Game g; // Another vtable whose AddRow slot holds SB's AddRow: still not SB's UDataTable.
@@ -857,7 +890,7 @@ int main() {
     Answer a = b.run(g, kBase, g.tables, g.block);
     assert(a.why == Why::size && a.detail == 0x2c8 && g.adds.empty());
     assert(describe(kLion, a) ==
-           "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/241 added");
+           "lion rows refused M_LionC: CharacterDeadTable's row size 0x2c8 not 0x2d0; 0/237 added");
     g.mem.put<int32_t>(rs + kPropertiesSize, 0x2d0);
     uint64_t tables[kTableCount];
     std::memcpy(tables, g.tables, sizeof tables);
@@ -878,26 +911,26 @@ int main() {
     assert(status_line(kLion, s) == "lion=off");
     a = Answer(), a.state = State::waiting, a.why = Why::busy;
     s.word = pack(a, 0), s.ticks = 41;
-    assert(status_line(kLion, s) == "lion=waiting added=0/241 asks=0 spawns=? why=busy ticks=41");
-    a = Answer(), a.state = State::rows, a.added = 241;
-    s.word = pack(a, 1), s.read = {2, 24, 2}, s.spawns_read = true, s.spawns = 7;
-    assert(status_line(kLion, s) == "lion=rows added=241/241 asks=1 spawns=7 char=2/2 skills=24/24 stance=2/2");
-    assert(describe(kLion, a) == "lion rows: 241/241 added through SB's AddRow 0x14417ba30, 0 refused");
+    assert(status_line(kLion, s) == "lion=waiting added=0/237 asks=0 spawns=? why=busy ticks=41");
+    a = Answer(), a.state = State::rows, a.added = 237;
+    s.word = pack(a, 1), s.read = {2, 23, 2}, s.spawns_read = true, s.spawns = 7;
+    assert(status_line(kLion, s) == "lion=rows added=237/237 asks=1 spawns=7 char=2/2 skills=23/23 stance=2/2");
+    assert(describe(kLion, a) == "lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused");
     a = Answer(), a.state = State::refused, a.why = Why::size, a.added = 0, a.row = uint8_t(kRows - 2),
     a.detail = 0x540;
     s.word = pack(a, 2);
     assert(status_line(kLion, s) ==
-           "lion=refused added=0/241 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
+           "lion=refused added=0/237 asks=2 spawns=7 why=size table=CharacterTable row=M_LionC_Lurker detail=0x540");
     a = Answer(), a.state = State::refused, a.why = Why::busy, a.added = 3, a.row = uint8_t(kRows);
     s.word = pack(a, 3);
-    assert(status_line(kLion, s) == "lion=refused added=3/241 asks=3 spawns=7 why=busy table=- row=-");
-    assert(describe(kLion, a) == "lion rows refused -: logic busy 300 frames; 3/241 added");
+    assert(status_line(kLion, s) == "lion=refused added=3/237 asks=3 spawns=7 why=busy table=- row=-");
+    assert(describe(kLion, a) == "lion rows refused -: logic busy 300 frames; 3/237 added");
     a.why = Why::net, a.detail = 3, s.word = pack(a, 4);
-    assert(status_line(kLion, s) == "lion=refused added=3/241 asks=4 spawns=7 why=net table=- row=- detail=3");
+    assert(status_line(kLion, s) == "lion=refused added=3/237 asks=4 spawns=7 why=net table=- row=- detail=3");
     a.why = Why::off, s.word = pack(a, 5);
-    assert(status_line(kLion, s) == "lion=refused added=3/241 asks=5 spawns=7 why=coop_off table=- row=-");
+    assert(status_line(kLion, s) == "lion=refused added=3/237 asks=5 spawns=7 why=coop_off table=- row=-");
     a = Answer(), a.state = State::fault, a.added = 30, s.word = pack(a, 6), s.fault = "the game at 0x14417ba30";
-    assert(status_line(kLion, s) == "lion=fault added=30/241 asks=6 spawns=7 where=the game at 0x14417ba30");
+    assert(status_line(kLion, s) == "lion=fault added=30/237 asks=6 spawns=7 where=the game at 0x14417ba30");
     // The Gardener's line: its word, its own counts.
     Status gs;
     assert(status_line(kGardener, gs) == "gardener=off");
@@ -917,6 +950,13 @@ int main() {
     ts.word = pack(a, 1), ts.read = {1, 11, 1}, ts.spawns_read = true, ts.spawns = 5;
     assert(status_line(kTendril, ts) == "tendril=rows added=107/107 asks=1 spawns=5 char=1/1 skills=11/11 stance=1/1");
     assert(describe(kTendril, a) == "tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused");
+    // The Shock Bolt's line: its word (the shock line is lion/shock.h's), its own counts, none of CharacterTable or
+    // stance rows.
+    Status bs;
+    assert(status_line(kBolt, bs) == "bolt=off");
+    a = Answer(), a.state = State::rows, a.added = 4;
+    bs.word = pack(a, 1), bs.read = {0, 1, 0};
+    assert(status_line(kBolt, bs) == "bolt=rows added=4/4 asks=1 spawns=? char=0/0 skills=1/1 stance=0/0");
   }
 
   std::puts("lion_rows_test: ok");

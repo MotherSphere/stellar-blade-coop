@@ -220,9 +220,9 @@ end
 -- shows one of its screens (the UI kit's), when no body is read; tell(build) a notice that build(words) puts together
 -- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off and for
 -- what the partner did; send(line) writes our night line (core/link.lua's night); friend() the partner's Steam name;
--- store(name) core/link.lua's one-line file, for the shop's wallet; rows(done) cut/lion.lua's Lion.rows, for the shop's
--- cut items. records: {read() the text of coop-records.txt, nil when there is none (it raises when the file cannot be
--- read), write(text) true once written}, or nil for no bests.
+-- store(name) core/link.lua's one-line file, for the shop's wallet; rows(done, word) cut/lion.lua's Lion.rows, for the
+-- shop's cut items. records: {read() the text of coop-records.txt, nil when there is none (it raises when the file
+-- cannot be read), write(text) true once written}, or nil for no bests.
 function Run.new(o)
     local log,status,paused,tell,records=o.log,o.status,o.paused,o.tell,o.records
     local send,friend=o.send,o.friend or function() return nil end

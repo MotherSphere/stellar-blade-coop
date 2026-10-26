@@ -239,6 +239,7 @@ assert(#nr.runs==3 and nr.runs[2][1]==nil and nr.runs[3][2]=='x' and nr.runs[3][
 nr.o.log('start: x'); assert(last()=='[StellarCoop][NR] start: x\n',last())
 assert(nr.o.status()==status_text and nr.o.paused()==false)
 assert(select(2,nr.o.rows(function(ok,m) return ok,'shop: '..m end))=='shop: li rows','The shop reaches Lion.rows')
+assert(select(2,nr.o.rows(function(ok,m) return ok,m end,'bolt'))=='li rows bolt','With the Shock Bolt\'s batch word')
 kit_paused=true; assert(nr.o.paused()==true); kit_paused=false
 kit_off,kit_paused=true,true; assert(nr.o.paused()==true,'The kit off'); kit_off,kit_paused=false,false
 -- Its HUD on the kit with the theme and the settings; its notices through tell, in the menu's words and in English.

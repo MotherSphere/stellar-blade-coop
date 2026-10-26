@@ -1,4 +1,4 @@
-// EVE's cut Shock Bolt ammo made usable once its rows are in (lion/rows.h's lion rows batch: ItemTable Bullet_Shock,
+// EVE's cut Shock Bolt ammo made usable once its rows are in (lion/rows.h's bolt rows batch: ItemTable Bullet_Shock,
 // SkillTable P_Eve_Gun_ShootShockSlug1_1, its projectile and its hit result), free of Windows:
 // tests/native/lion/shock_test.cpp checks it on the build machine against fake memory. What the rows cannot do is make
 // the ammo selectable and the gun fire it. Two of SB's lists do that, and each is grown in place, never through AddRow:
@@ -29,9 +29,9 @@
 // Num and Max in range, each FName made, the const list and the slot manager's list exactly the five SB ships (or those
 // five and Bullet_Shock: grown already, left as it is), every element read. Then the writes, in that order; an
 // allocation that fails stops there and keeps the writes before it (an array left longer than its Num, never an entry
-// half written). Runs once a game run, on the game thread in the lion rows' gate (glue/tick/lion_game.inc: no logic
-// task in flight, and none can start before the call returns), right after the lion rows batch's last row went in,
-// under a latch of its own.
+// half written). Runs once a game run, on the game thread in the rows' gate (glue/tick/lion_game.inc: no logic task in
+// flight, and none can start before the call returns), right after the bolt rows batch's last row went in, under a
+// latch of its own. Only a Shock Bolt buy asks for that batch (nightop/shop.lua), so no other command grows the lists.
 #pragma once
 
 #include <cstddef>

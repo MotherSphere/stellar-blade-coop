@@ -233,7 +233,7 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell,send=function(line) if link then return link.night(line) end end,
     friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end,
-    rows=function(done) return lion.rows(done) end,
+    rows=function(done,word) return lion.rows(done,word) end,
     records=folder and {
         read=function()
             local text,e,code=require('core.link').files.read(folder..'\\coop-records.txt')

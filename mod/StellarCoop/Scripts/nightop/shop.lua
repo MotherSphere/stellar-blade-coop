@@ -4,11 +4,12 @@
 -- game's cut Shop_NightOperation that every camp shop sells with no condition gate, at that table's prices, so a buy
 -- skips no story gate. The last three are cut items whose ItemTable rows the game lacks, the Burst Stimpack (HP for
 -- Burst gauge), the Beta Stimpack (HP for Beta energy) and the Shock Bolt (ammo for EVE's gun that stuns a common
--- enemy), at our own prices: the native part adds their rows with the Lion's (cut/lion.lua's rows, the lion rows
--- batch), so a buy of one asks for those rows first, waits for them when they are not in yet, and grants only once
--- they are (the answer then comes from coop lion's tick); rows that cannot be added cost no point. The Shock Bolt also
--- needs the status's shock line to read in (the native part grew EVE's gun stances and the ammo list, lion/shock.h):
--- ammo the gun cannot fire costs no point either. The wallet is one file per SteamID and co-op slot beside the mod,
+-- enemy), at our own prices: the native part adds the stimpacks' rows with the Lion's (the lion rows batch) and the
+-- Shock Bolt's in a batch of their own (the bolt rows batch), both through cut/lion.lua's rows, so a buy of one asks
+-- for its rows first, waits for them when they are not in yet, and grants only once they are (the answer then comes
+-- from coop lion's tick); rows that cannot be added cost no point. The Shock Bolt also needs the status's shock line
+-- to read in (once its rows are in, the native part grew EVE's gun stances and the ammo list, lion/shock.h): ammo the
+-- gun cannot fire costs no point either. The wallet is one file per SteamID and co-op slot beside the mod,
 -- coop-night-<steamid>-<index>.txt, one line: the points. The game never reads it; a save restore does not take points
 -- back.
 -- Called here: the player controller's ItemBucketItemAdd request, once a buy, in grant() only: bucket type 1 (the
@@ -20,9 +21,10 @@ local N=require('nightop.probe')
 local Shop={}
 local MASK=0xFFFFFFFF
 -- The item number is the row's place here. cut: the native part adds its rows (lion/rows.h's cut items) before a buy;
--- shock: the shock line must read in too (a price per bolt). SB's bucket add (FUN_141bda9d0) keeps a capped item only up
--- to its MaxAmount (30 bolts) and drops the rest; EVE's count lives in SB's unreflected item bucket and is not read
--- here, so a buy past the cap still costs the dropped bolts' points (the docs say so).
+-- shock: its rows are the bolt rows batch, and the shock line must read in too (a price per bolt). SB's bucket add
+-- (FUN_141bda9d0) keeps a capped item only up to its MaxAmount (30 bolts) and drops the rest; EVE's count lives in SB's
+-- unreflected item bucket and is not read here, so a buy past the cap still costs the dropped bolts' points (the docs
+-- say so).
 -- ponytail: the cut items' prices are starting values (a full normal run credits 42 points at most); tune them in game.
 Shop.ITEMS={{alias='HP_Potion',price=15},{alias='HP_Potion_Small',price=10},{alias='PulseGrenade',price=6},
     {alias='ConcussionGrenade',price=8},{alias='HP2Burst_Potion',price=20,cut=true},
@@ -44,8 +46,9 @@ function Shop.grant(pc,guid,alias,count)
 end
 -- log(text) writes an [NR] line; status() is the native part's status text; store(name) core/link.lua's one-line file;
 -- paused() whether the game is paused or shows one of its screens; busy() whether a run of ours is on (not in its
--- result); rows(done) cut/lion.lua's Lion.rows (nil: no cut item sells), which gets the cut items' rows in, then calls
--- done(ok, message) and returns what done returns, or returns ok, message, true while it waits (done follows).
+-- result); rows(done, word) cut/lion.lua's Lion.rows (nil: no cut item sells), which gets the cut items' rows in (the
+-- Shock Bolt's with word bolt), then calls done(ok, message) and returns what done returns, or returns ok, message,
+-- true while it waits (done follows).
 function Shop.new(o)
     local log,status,store=o.log,o.status,o.store or function() return nil end
     local paused,busy,rows=o.paused,o.busy,o.rows
@@ -156,7 +159,7 @@ function Shop.new(o)
                 return false,string.format('%s cannot be added to the game (%s): nothing bought, no points taken',
                     item.alias,message)
             end
-            -- Published before the lion line said rows, so it reads its last state here.
+            -- Published before the bolt line said rows, so it reads its last state here.
             local shock=item.shock and ('\n'..tostring(status() or '')):match('\nshock=([^\r\n]*)')
             if item.shock and not (shock or ''):find('^in ') then
                 log(string.format('buy %s x%d: the gun cannot fire it (shock=%s); no points taken',item.alias,c,
@@ -165,7 +168,7 @@ function Shop.new(o)
                     ..'taken',item.alias,shock or 'missing')
             end
             return grant(item,c)
-        end)
+        end,item.shock and 'bolt' or nil)
         if not waiting then return ok,said end
         log(string.format("buy %s x%d waits for the cut items' rows (%s)",item.alias,c,said))
         return true,string.format('%s x%d: its rows are asked of the native part; the buy follows once they are in',

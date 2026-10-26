@@ -967,13 +967,14 @@ assert(link.night('h 2 42 count') and files[NIGHT]=='h 2 42 count\n','The newest
 files[NIGHT]=nil
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nnight=g 3 42 run 0 0 0 -\n'
 for _,line in ipairs(fresh.changes()) do assert(not line:find('^night='),'night= stays out of the log') end
--- coop lion's line, coop gardener fight's and coop tendril fight's too: their spawns= moves with every enemy that
--- spawns or goes, and cut/enemy.lua logs what it reads for each.
+-- coop lion's line, coop gardener fight's, coop tendril fight's and the Shock Bolt's too: their spawns= moves with
+-- every enemy that spawns or goes, and cut/enemy.lua logs what it reads for each.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nlion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1\n'
     ..'gardener=waiting added=0/13 asks=0 spawns=7 why=busy ticks=2\ntendril=off\n'
+    ..'bolt=rows added=4/4 asks=1 spawns=7 char=0/0 skills=1/1 stance=0/0\n'
 for _,line in ipairs(fresh.changes()) do
-    assert(not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril='),
-        'lion=, gardener= and tendril= stay out of the log')
+    assert(not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
+        and not line:find('^bolt='),'lion=, gardener=, tendril= and bolt= stay out of the log')
 end
 files[STATUS]=nil
 

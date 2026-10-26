@@ -530,8 +530,9 @@ inline uint64_t code_lobby(std::string_view text) {
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
 // players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); and for coop lion (cut/lion.lua) "lion rows
-// <Table>=0x<address> ...", for coop gardener fight (cut/gardener.lua) "gardener rows <Table>=0x<address> ..." and
-// for coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ..."
+// <Table>=0x<address> ...", for coop gardener fight (cut/gardener.lua) "gardener rows <Table>=0x<address> ...", for
+// coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ..." and for the shop's Shock Bolt (through
+// cut/lion.lua) "bolt rows <Table>=0x<address> ..."
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each of the kLionTables, in any
 // order, each once, its address in 1 to 16 hex digits and plausible; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
@@ -540,9 +541,10 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate
 };
-// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril), in Request::batch's order.
-constexpr size_t kRowWordCount = 3;
-constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril"};
+// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt), in Request::batch's
+// order.
+constexpr size_t kRowWordCount = 4;
+constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt"};
 // The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 15;
 constexpr const char *kLionTables[kLionTableCount] = {

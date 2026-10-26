@@ -827,8 +827,8 @@ int main() {
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
 
-  // coop lion's rows (batch 0), coop gardener fight's (batch 1) and coop tendril fight's (batch 2): one
-  // <Table>=0x<address> word for each of the 15
+  // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2) and the Shock Bolt's
+  // (batch 3): one <Table>=0x<address> word for each of the 15
   // tables, in any order, each once; the addresses in 1 to 16 hex digits of either case, plausible (user space,
   // 8-aligned). The longest request Lua writes (%x, so 12 digits at most under plausible's bound) fits its 512-byte
   // request file. Anything off is refused.
@@ -841,6 +841,7 @@ int main() {
   const auto lion = [&rows](const std::vector<std::string> &words) { return rows("lion", words); };
   const auto gardener = [&rows](const std::vector<std::string> &words) { return rows("gardener", words); };
   const auto tendril = [&rows](const std::vector<std::string> &words) { return rows("tendril", words); };
+  const auto bolt = [&rows](const std::vector<std::string> &words) { return rows("bolt", words); };
   std::vector<std::string> words;
   for (size_t i = 0; i < kLionTableCount; ++i) {
     char word[64];
@@ -859,6 +860,8 @@ int main() {
   assert(gd.command == Command::rows && gd.batch == 1 && gd.tables == li.tables);
   Request td = parse_request(tendril(shuffled));
   assert(td.command == Command::rows && td.batch == 2 && td.tables == li.tables);
+  Request bo = parse_request(bolt(shuffled));
+  assert(bo.command == Command::rows && bo.batch == 3 && bo.tables == li.tables);
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
     tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
@@ -885,6 +888,7 @@ int main() {
         gardener(one_short), gardener(with(2, "CharacterDeadTable=0xfff8")), gardener(words) + " extra",
         std::string("gardener rows"), std::string("gardener"), "Gardener rows" + lion(words).substr(9),
         tendril(one_short), tendril(words) + " extra", std::string("tendril rows"), "Tendril rows" + lion(words).substr(9),
+        bolt(one_short), bolt(words) + " extra", std::string("bolt rows"), "shock rows" + lion(words).substr(9),
         "leviathan rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
     assert(parse_request(bad).command == Command::none);
 

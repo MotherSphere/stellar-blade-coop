@@ -491,11 +491,11 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's, coop gardener fight's and coop tendril fight's rows (Lua's lion rows, gardener rows and tendril rows
-// requests): the 15 tables' addresses for the game thread, which adds that batch's rows at the first frame its gate
-// holds. An ask it has not taken yet is
-// replaced. Refused off the pinned build, after coop off and after the rows' fault; once every row of a batch is in,
-// nothing more is asked of it (the rows stay for the game run).
+// coop lion's, coop gardener fight's, coop tendril fight's and the shop's Shock Bolt's rows (Lua's lion rows, gardener
+// rows, tendril rows and bolt rows requests): the 15 tables' addresses for the game thread, which adds that batch's
+// rows at the first frame its gate holds. An ask it has not taken yet is replaced. Refused off the pinned build, after
+// coop off and after the rows' fault; once every row of a batch is in, nothing more is asked of it (the rows stay for
+// the game run).
 std::string ask_rows(const coop::Request &request) {
   RowsJob &j = *kJobs[request.batch < kRowWordCount ? request.batch : 0];
   const std::string word = j.batch.word, n = std::to_string(j.batch.count);
@@ -520,7 +520,7 @@ std::string ask_rows(const coop::Request &request) {
 namespace {
 // Each worker pass: one line for each answer the game thread finished for a batch (the R2 line, and with every row
 // in the R3 line of SB's own lookups), and the rows' fault once, by the batch that ran into it or first answered it;
-// the Shock Bolt's line once, after the lion rows' (its fault with where it was).
+// the Shock Bolt's line once, after the bolt rows' (its fault with where it was).
 uint32_t rows_logged[kRowWordCount] = {};
 bool lion_fault_logged = false, shock_logged = false;
 void lion_pass() {
@@ -551,8 +551,8 @@ void lion_pass() {
     }
   }
   uint32_t asks = 0;
-  const uint64_t w = shock_word; // Published before the lion line said rows.
-  if (w && lion::unpack(lion_job.word, asks).state == lion::State::rows && !std::exchange(shock_logged, true)) {
+  const uint64_t w = shock_word; // Published before the bolt line said rows.
+  if (w && lion::unpack(bolt_job.word, asks).state == lion::State::rows && !std::exchange(shock_logged, true)) {
     if (!shock_faulted) {
       say(lion::describe_shock(w));
       return;

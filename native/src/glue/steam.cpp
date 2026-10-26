@@ -580,7 +580,7 @@ bool step() {
       event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::rows: // coop lion's, coop gardener fight's and coop tendril fight's rows: the game thread's.
+    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
       request.clear();
       break;

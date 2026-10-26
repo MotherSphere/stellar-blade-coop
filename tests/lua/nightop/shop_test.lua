@@ -30,11 +30,15 @@ for i,item in ipairs(Shop.ITEMS) do
 end
 assert(#Shop.ITEMS==7 and Shop.ITEMS[1].price==15 and Shop.ITEMS[2].price==10 and Shop.ITEMS[3].price==6
     and Shop.ITEMS[4].price==8,'The cut table prices')
--- The cut items are the ItemTable rows the native part adds (cut/lion_rows.lua, generated with lion/rows.h).
+-- The cut items are the ItemTable rows the native part adds (cut/lion_rows.lua, generated with lion/rows.h): the
+-- Shock Bolt's in the bolt rows batch, the others in the lion rows batch.
 do
-    local added={}
-    for _,r in ipairs(require('cut.lion_rows').ROWS) do if r[1]=='ItemTable' then added[r[2]]=true end end
-    for _,item in ipairs(Shop.ITEMS) do assert(not item.cut or added[item.alias],item.alias) end
+    local R,added=require('cut.lion_rows'),{}
+    for _,r in ipairs(R.ROWS) do if r[1]=='ItemTable' then added[r[2]]='lion' end end
+    for _,r in ipairs(R.BOLT) do if r[1]=='ItemTable' then added[r[2]]='bolt' end end
+    for _,item in ipairs(Shop.ITEMS) do
+        assert(not item.cut or added[item.alias]==(item.shock and 'bolt' or 'lion'),item.alias)
+    end
 end
 for _,bad in ipairs({{'Money_NightOperation',1},{'Bullet_Normal',1},{'TrapGrenade',1},{'FlashGrenade',1},
         {'HealGrenade',1},{'hp_potion',1},{'HP_Potion ',1},{nil,1},{'HP_Potion',0},{'HP_Potion',11},{'HP_Potion',1.5},
@@ -236,12 +240,13 @@ status_with('slot=coop index=4 marker=4',A)
 files[FILE]='100\n'
 ok,text=shop.buy('5')
 assert(not ok and text=='HP2Burst_Potion is a cut item and coop lion is not loaded: nothing bought' and #calls==5,text)
--- Lion.rows: answer 'in' or 'refused' at once, or 'wait' (true, its message, true) and keep done for later.
-local answer,asks,later='in',0,nil
+-- Lion.rows: answer 'in' or 'refused' at once, or 'wait' (true, its message, true) and keep done for later; word: the
+-- batch the last buy asked for (nil: the lion rows batch).
+local answer,asks,later,word='in',0,nil,nil
 local cut=Shop.new({log=function(text) lines[#lines+1]=text end,status=function() return status_text end,
     store=store,paused=function() return paused end,busy=function() return busy end,
-    rows=function(done)
-        asks=asks+1
+    rows=function(done,batch)
+        asks,word=asks+1,batch
         if answer=='in' then return done(true,'Lion rows in') end
         if answer=='refused' then return done(false,'The native part refused the Lion rows (why=id)') end
         later=done
@@ -252,7 +257,7 @@ ok,text=cut.buy('5','6')
 assert(not ok and text=='HP2Burst_Potion x6 needs 120 points; you have 100' and asks==0,text)
 -- Rows in: granted at once.
 ok,text=cut.buy('5','2')
-assert(ok and text=='bought 2 HP2Burst_Potion for 40 points; 60 left' and asks==1,text)
+assert(ok and text=='bought 2 HP2Burst_Potion for 40 points; 60 left' and asks==1 and word==nil,text)
 assert(#calls==6 and calls[6][3]:ToString()=='HP2Burst_Potion' and calls[6][4]==2 and files[FILE]=='60\n')
 -- Rows refused: nothing bought, no point taken, said and logged.
 answer='refused'
@@ -279,11 +284,12 @@ assert(ok and asks==5,text)
 ok,text=later(false,'No answer on the Lion rows in 30 s')
 assert(not ok and text:find('^HP2Burst_Potion cannot be added to the game %(No answer') and #calls==7 and
     files[FILE]=='100\n',text)
--- The Shock Bolt: its rows in, then the shock line read; anything but in (none, refused, a fault) buys nothing.
+-- The Shock Bolt: its rows in (the bolt rows batch, not the Lion's), then the shock line read; anything but in (none,
+-- refused, a fault) buys nothing.
 answer='in'
 ok,text=cut.buy('7','4')
 assert(not ok and text=='Bullet_Shock cannot be fired in this game (shock=missing): nothing bought, no points taken'
-    and #calls==7 and files[FILE]=='100\n',text)
+    and #calls==7 and files[FILE]=='100\n' and word=='bolt',text)
 assert(lines[#lines]=='buy Bullet_Shock x4: the gun cannot fire it (shock=missing); no points taken',lines[#lines])
 local plain=status_text
 status_text=plain..'shock=refused why=list at=BulletItemSlotArray\n'

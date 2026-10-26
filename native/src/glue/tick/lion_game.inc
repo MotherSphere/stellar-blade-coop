@@ -2,7 +2,8 @@
 
 namespace coop::pose {
 namespace {
-// ---- The Lion's rows, the Gardener's and the Tendril's (lion/rows.h's batches), the game thread's calls ----
+// ---- The Lion's rows, the Gardener's, the Tendril's and the Shock Bolt's (lion/rows.h's batches), the game thread's
+// calls ----
 // SB's functions on the pinned build (the Lion study, plan A): InitializeStruct through the row struct's vtable +0x2a8
 // and CopyScriptStruct (0x1429d8830), as AddRow itself calls them; FName's MakeWithNumber with FNAME_Add (the photo
 // pause's kMakeName); a table's row by name, through its RowMap (+0x30, GetRowMap's own lea at vtable +0x280) and
@@ -54,8 +55,8 @@ struct RowsJob {
   bool pending = false;
 };
 // In link/protocol.h's kRowWords order: Request::batch indexes it.
-RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril};
-RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job};
+RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril}, bolt_job{lion::kBolt};
+RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
 // Shared: the spawn manager's counter (INT64_MIN until read) and the latch.
 std::atomic<int64_t> lion_spawns{INT64_MIN};
@@ -155,12 +156,13 @@ void lion_count() {
       safe_read(manager + kSpawnCount, &n, 4))
     lion_spawns = n;
 }
-// ---- The Shock Bolt's lists (lion/shock.h), once the lion rows batch is in ----
+// ---- The Shock Bolt's lists (lion/shock.h), once the bolt rows batch is in ----
 // SB's functions for them on the pinned build: the registry's stance row by name (FUN_141a9cd20, read-only, the lookup
 // the stance change itself makes), SB's grow of an 8-byte TArray (FUN_140e47f00), the const store's key hash
 // (FUN_14117c1f0) and GMalloc (the FMalloc whose pointer is at 0x14706b500: Malloc at vtable +0x10, Realloc at +0x20).
-// Run in the same game-thread call as the batch's last AddRow, so inside the gate that call checked, under a latch of
-// its own: a fault there leaves every batch's rows as they are and only turns the Shock Bolt off for the run.
+// Run in the same game-thread call as the bolt batch's last AddRow, so inside the gate that call checked, under a latch
+// of its own: a fault there leaves every batch's rows as they are and only turns the Shock Bolt off for the run. Only a
+// Shock Bolt buy asks for that batch, so no other command grows SB's lists.
 constexpr uint64_t kStanceByName = 0x141a9cd20, kGrowNames = 0x140e47f00, kConstHash = 0x14117c1f0,
                    kGMalloc = 0x14706b500;
 constexpr size_t kMallocSlot = 0x10, kReallocSlot = 0x20;
@@ -215,7 +217,7 @@ __declspec(noinline) lion::ShockAnswer shock_body() {
     g.registry = 0;
   return lion::shock(g, base);
 }
-// The one run, published before the lion line says rows (lion_finish follows it), so whoever reads rows reads this.
+// The one run, published before the bolt line says rows (lion_finish follows it), so whoever reads rows reads this.
 void shock_step() {
   shock_ran = true;
   lion::ShockAnswer a;
@@ -277,7 +279,7 @@ void rows_step(RowsJob &j) {
     return;
   }
   if (why == lion::Why::none) {
-    if (&j == &lion_job && a.state == lion::State::rows && !shock_ran)
+    if (&j == &bolt_job && a.state == lion::State::rows && !shock_ran)
       shock_step();
     lion_finish(j, a);
   } else if (++j.waited >= lion::kGateTicks) {
