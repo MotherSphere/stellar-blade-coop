@@ -1524,9 +1524,11 @@ Only these consumables can be sent. Key, story and quest items, equipment, the T
 a stat), drone ammo and the cut stimpacks are left out, and none of the seven counts toward a trophy.
 
 - A send checks how many of the item you carry and refuses when you have fewer than the count. The game then takes the
-  items out of your inventory with its own remove request, and the gift goes only once a second read shows they left
-  (3 s at most). `OK: reading how many PulseGrenade you carry; the gift of 2 follows` answers the command, then a notice
-  says `Gift sent: 2 PulseGrenade. It waits for your friend's answer.` or why it was not sent.
+  items out of your inventory with its own remove request, and the gift goes only once a second read shows they left.
+  That wait lasts 10 s of play at most: time with the game paused or in photo mode (yours, or your friend's when it
+  pauses your game) does not count, since the game runs the remove only once it plays again.
+  `OK: reading how many PulseGrenade you carry; the gift of 2 follows` answers the command, then a notice says
+  `Gift sent: 2 PulseGrenade. It waits for your friend's answer.` or why it was not sent.
 - Your friend's game keeps the gift in her mailbox and answers, and you get `Kaanta got your 2 PulseGrenade.` She gets
   `<your name> sent you 2 PulseGrenade: coop gift take puts them in your inventory.` and the cut toast for 4 s.
 - Her game refuses a gift when she is not on a co-op save, when 20 gifts already wait in her mailbox, or when it cannot

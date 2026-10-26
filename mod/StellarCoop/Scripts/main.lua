@@ -388,11 +388,13 @@ o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][C
 -- coop gift (cut/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link only. Its
 -- tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save only
 -- (commands/cut.lua). An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.
+-- Paused also covers our photo mode and the friend's photo mode that pauses our game: SB's logic stops in both.
 local mailbox=link and require('cut.mailbox').new({log=function(m) print('[StellarCoop][GF] '..tostring(m)..'\n') end,
     say=function(text) say(text) end,status=function() return link.status() end,
     request=function(line) return link.request(line) end,read=function(name) return link.read_file(name) end,
     write=function(name,text) return link.write_file(name,text) end,friend=function() return link.friend() end,
-    loopback=function() return link.loopback() end,paused=function() return kit~=nil and kit.paused(true) end,
+    loopback=function() return link.loopback() end,
+    paused=function() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end,
     name=function(alias)
         local n=U.value_of(FName(alias,EFindName.FNAME_Find))
         local index=n:GetComparisonIndex()

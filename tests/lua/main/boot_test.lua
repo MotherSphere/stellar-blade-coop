@@ -22,7 +22,8 @@
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
 -- coop gift reaches cut/mailbox.lua on the co-op save slot only (her gift lines in coop-chat.txt to it, ticked every
--- 250 ms, its toast off at coop off), coop fly and coop slowmo ask the native part (on from the co-op save slot only),
+-- 250 ms, paused with the game, photo mode or the friend's, its toast off at coop
+-- off), coop fly and coop slowmo ask the native part (on from the co-op save slot only),
 -- coop glide reaches cut/glide.lua
 -- (on from the co-op save slot only, its own check on that slot; restored and ticked every frame, ended by coop off),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
@@ -433,7 +434,9 @@ in_world=true; loops[2].f()
 assert(photos[#photos]=='1 both 600' and veils[#veils]==true)
 assert(photo_veils[#photo_veils][1]==false and photo_veils[#photo_veils][2]==true,'The ghost stays, its tag goes')
 selfie_mode=true; loops[2].f(); assert(photos[#photos]=='s both 600' and veils[#veils]==true)
+assert(gf.o.paused()==true,'coop gift counts photo mode as paused')
 selfie_mode,photo_mode=false,false; loops[2].f()
+assert(gf.o.paused()==false)
 assert(photos[#photos]=='0 both 600' and veils[#veils]==false and photo_veils[#photo_veils][2]==false)
 assert(#asked==before,'The state only')
 -- A getter that fails: one log line, then '0' and no read until the mod reloads.
@@ -621,6 +624,11 @@ link_files['coop-gift-1-4.txt']=nil
 before=#asked
 assert(gf.o.request('items 1 HP_Potion 9 0') and asked[before+1]=='items 1 HP_Potion 9 0')
 assert(gf.o.paused()==false,'Not paused while the kit says so')
+kit_paused=true; assert(gf.o.paused()==true); kit_paused=false
+local link_paused=fake_link.paused
+fake_link.paused=function() return true end
+assert(gf.o.paused()==true,"While the friend's photo mode pauses our game")
+fake_link.paused=link_paused
 coop('gift')
 assert(#gf.cmds==0 and last():find('^%[StellarCoop%] STOP: coop gift runs only on a co%-op save'),last())
 status_text=COOP

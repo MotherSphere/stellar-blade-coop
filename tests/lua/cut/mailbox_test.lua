@@ -214,13 +214,32 @@ ask=start('1','3')
 with_items(ask,'9')
 tick()
 assert(#removes==1)
-for _=1,12 do
+for _=1,Mailbox.SETTLE*4 do
     tick(0.25)
     local a=asked[#asked]:match('^items (%d+) ')
     with_items(a,'9')
 end
-assert(says[#says]=='Gift not sent: the game did not take the items out (9 before, 9 now)',says[#says])
+assert(says[#says]=='Gift not sent: the count did not fall by 3 in 10 s of play (9 before, 9 now); the items may be '
+    ..'gone',says[#says])
 assert(#M.read(files[FILE]).out==0 and not asked[#asked]:find('^gift'),'Nothing in the file, no line')
+-- Paused after the remove (the game's menu, photo mode): SB's logic and its remove wait, and that time does not count.
+ask=start('1','3')
+with_items(ask,'9')
+tick()
+local said=#says
+paused=true
+for _=1,Mailbox.SETTLE*4+8 do
+    tick(0.25)
+    with_items(asked[#asked]:match('^items (%d+) '),'9')
+end
+paused=false
+assert(#says==said and #removes==1,'Still waiting')
+tick(0.25)
+with_items(asked[#asked]:match('^items (%d+) '),'6')
+tick(0.25)
+assert(says[#says]=="Gift sent: 3 HP_Potion. It waits for your friend's answer.",says[#says])
+mail.receive('a '..asked[#asked]:match('^gift s (%d+) '))
+assert(#M.read(files[FILE]).out==0)
 -- The file cannot be written after the remove: the items come back at once through the shop's grant.
 ask=start('2','1')
 with_items(ask,'4')

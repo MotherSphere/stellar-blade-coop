@@ -15,8 +15,10 @@
 -- A send: the native part reads how many she carries (its items request, game/items.h, answered in the engine line's
 -- items=); the game's own remove request takes them out (ServerRequest_ItemBucketItemRemove, FUN_1423ba230, which
 -- queues SB's remove by alias for its logic thread: asked for more than she has, that remove takes what there is, so
--- the count comes first); the native part reads again until the count fell by the gift's (SETTLE s at most, else
--- nothing is sent); the gift goes into the file, then its line ("s <id> <alias> <count>", link/protocol.h's gift line).
+-- the count comes first); the native part reads again until the count fell by the gift's (SETTLE s of play at most:
+-- SB's logic, and its remove with it, stops while the game is paused or in photo mode, so that time does not count;
+-- else nothing is sent and the items may be gone); the gift goes into the file, then its line ("s <id> <alias>
+-- <count>", link/protocol.h's gift line).
 -- Her game answers "a <id>" (kept in her mailbox) or "n <id> <why>": slot (not on a co-op save), full (BOX gifts wait
 -- already), item (not one of ITEMS), store (her file cannot be read or written). A refusal, no answer in WAIT s, a
 -- friend who left the lobby (not one whose link is lost and coming back), or a line the native part could not send
@@ -52,9 +54,10 @@ Mailbox.ITEMS={'HP_Potion','HP_Potion_Small','HealGrenade','PulseGrenade','Concu
     'FlashGrenade'}
 Mailbox.MOST=Shop.MOST -- Items in one gift: link/protocol.h's kMaxGiftCount.
 Mailbox.BOX,Mailbox.KEEP=20,64
--- Seconds: her answer at most; between two sends of one gift; the game's remove at most; between two reads after it;
--- the native part's answer to a read at most; the toast on screen; between two tries of a gift coming back that failed.
-Mailbox.WAIT,Mailbox.AGAIN,Mailbox.SETTLE,Mailbox.POLL,Mailbox.READ,Mailbox.TOAST,Mailbox.RETRY=60,10,3,0.5,5,4,10
+-- Seconds: her answer at most; between two sends of one gift; the game's remove at most, time paused not counted;
+-- between two reads after it; the native part's answer to a read at most; the toast on screen; between two tries of a
+-- gift coming back that failed.
+Mailbox.WAIT,Mailbox.AGAIN,Mailbox.SETTLE,Mailbox.POLL,Mailbox.READ,Mailbox.TOAST,Mailbox.RETRY=60,10,10,0.5,5,4,10
 local MASK=0xFFFFFFFF
 local USE='Use: coop gift [send <item> [count 1-'..Mailbox.MOST..']|take [n]]'
 local TOAST='/Game/Art/UI/Widget/GameMenu/MailBox/WB_MailBox_Toast_GetGift.WB_MailBox_Toast_GetGift_C'
@@ -152,9 +155,9 @@ end
 -- o: log(text) writes a [GF] line; say(text) puts a notice on screen; status() is the native part's status text;
 -- request(line) asks the native part (link.request); read(name) and write(name, text) are link.read_file and
 -- link.write_file; friend() is link.friend (her name, linked, lost); loopback() whether coop loopback runs; paused()
--- whether the game is paused or shows one of its screens; name(alias) the FName this game holds for an alias, {index=,
--- number=}, or nil; clock() seconds (os.clock); now() whole seconds that survive a reload (os.time); toast(text)
--- Mailbox.toast unless given.
+-- whether the game is paused (photo mode included, ours or the friend's that pauses ours) or shows one of its screens;
+-- name(alias) the FName this game holds for an alias, {index=, number=}, or nil; clock() seconds (os.clock); now()
+-- whole seconds that survive a reload (os.time); toast(text) Mailbox.toast unless given.
 function Mailbox.new(o)
     local log,say,status,request,read,write=o.log,o.say,o.status,o.request,o.read,o.write
     local friend,loopback,paused,name_of=o.friend,o.loopback,o.paused,o.name
@@ -274,6 +277,10 @@ function Mailbox.new(o)
     -- taken (the log keeps the counts).
     local function step(raw,t)
         local s=sending
+        if s.step=='gone' then -- Time paused does not count: SB's logic, which runs the remove, stops with the game.
+            if not paused() then s.played=s.played+t-s.last end
+            s.last=t
+        end
         local line=engine(raw)
         local have,none=line:match(' items='..s.ask..' (%d+)'),line:match(' items='..s.ask..' none (%a+)')
         if not have and not none then
@@ -295,11 +302,12 @@ function Mailbox.new(o)
             local called,ce=pcall(Mailbox.remove,r.pc,r.guid,s.alias,s.count)
             if not called then return fail('the game call failed: '..why(ce)) end
             log(string.format('remove asked: %s x%d of %d (guid %d)',s.alias,s.count,have,r.guid))
-            s.step,s.before,s.removed,s.next='gone',have,t,t+Mailbox.POLL
+            s.step,s.before,s.played,s.last,s.next='gone',have,0,t,t+Mailbox.POLL
         elseif have<=s.before-s.count then
             return dispatch(s)
-        elseif t-s.removed>=Mailbox.SETTLE then
-            return fail(string.format('the game did not take the items out (%d before, %d now)',s.before,have))
+        elseif s.played>=Mailbox.SETTLE then
+            return fail(string.format('the count did not fall by %d in %d s of play (%d before, %d now); the items may '
+                ..'be gone',s.count,Mailbox.SETTLE,s.before,have))
         end
         if t>=s.next then -- The count has not fallen yet: read again.
             s.ask,s.at,s.next=next_ask(raw),t,t+Mailbox.POLL
@@ -372,7 +380,8 @@ function Mailbox.new(o)
         if pending and file then settle(raw,t) end
     end
     -- coop off: the toast goes. A send between its remove and its entry in the file stops here with its items gone.
-    -- ponytail: so does one when Lua reloads in that second or so; an entry written before the remove is the upgrade.
+    -- ponytail: so does one when Lua reloads in that wait (SETTLE s of play at most); an entry written before the
+    -- remove is the upgrade.
     function self.stop()
         sending=nil
         if untoast then pcall(untoast); untoast=nil end
