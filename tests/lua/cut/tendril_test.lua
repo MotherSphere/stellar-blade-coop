@@ -4,7 +4,7 @@
 -- Show's clip and whose Hit steps hit through areas of its own; its stance lists the 11 commands; its dead row plays
 -- the run-time death Show; its CharacterTable row names its stance, dead, appearance and the Skulling test tree, with
 -- no link flag and no name. R.TENDRIL_SHOWS lists exactly the Shows the rows name. The tendril line parses apart from
--- the others. coop tendril fight asks "tendril rows" with the 17 addresses, reads the 107 rows back, builds the 12
+-- the others. coop tendril fight asks "tendril rows" with the 19 addresses, reads the 107 rows back, builds the 12
 -- Shows (each a rooted copy of the template Show in the mod's own package, made once with no outer, with its own anim
 -- key set to its clip and length, found by its steps' path; a Lua reload finds them built; a copy whose key is the
 -- template's stops the spawn), then
@@ -116,7 +116,7 @@ local s=T.parse(all)
 assert(s.state=='refused' and s.added=='5/107' and s.asks==1 and s.row=='M_TendrilC_SwingLeft_HitArea1')
 assert(Enemy.parse(all,'gardener').state=='off' and T.parse('lion=off\n')==nil and T.parse(nil)==nil)
 
--- The world: EVE at the origin facing +X, her player controller, the 17 tables with the Tendril's rows, the template
+-- The world: EVE at the origin facing +X, her player controller, the 19 tables with the Tendril's rows, the template
 -- Show in its package (its one anim key on the Gardener's clip), no package of the mod's yet, the Hydra's material and
 -- the boss bar's TextBlocks.
 local CLASS='CH_M_NA_06_Blueprint_C'
@@ -318,7 +318,7 @@ local ok,why=td.command()
 assert(ok==false and why=='coop-status.txt has no tendril line: the native part is off, or older than coop tendril '
     ..'fight (coop-link.log): nothing was asked' and #asked==0,why)
 
--- coop tendril fight rows: one tendril rows request with the 17 addresses, then the wait, the read-back and the Shows,
+-- coop tendril fight rows: one tendril rows request with the 19 addresses, then the wait, the read-back and the Shows,
 -- each a rooted copy of the template with its own anim key on its clip and length, found by its steps' path.
 tendril_status('off')
 local from=#names+1 -- The FNames the command makes.

@@ -113,7 +113,7 @@ assert(M.find_map(PAKS,read)==MODS)
 where,why=M.find_map(nil,read)
 assert(where==nil and why:find('game folder is unknown',1,true))
 
--- The world: EVE, the 17 tables with Matrix XIII's rows as the native part writes them, the follow.
+-- The world: EVE, the 19 tables with Matrix XIII's rows as the native part writes them, the follow.
 local world=object({GetFullName=function() return 'World /Game/Art/BG/WorldMap/Dungeon_P/Matrix_XI.Matrix_XI' end})
 local eve=object({IsA=is('/Script/SB.SBCharacter')})
 eve.GetWorld=function() return world end
@@ -192,7 +192,7 @@ ok,why=new(nil).command()
 assert(ok==false and why:find('game folder is unknown',1,true),why)
 assert(#asked==0 and #looked==0 and #probes==0,'Nothing asked, nothing looked up')
 
--- With everything there: the checks line, the 17 tables, one ask, then the wait.
+-- With everything there: the checks line, the 19 tables, one ask, then the wait.
 put(LOGIC)
 reads={}
 clock=100
@@ -201,7 +201,7 @@ assert(ok and why=='Matrix XIII rows asked of the native part: the read-back fol
     and #asked==1 and asked[1]==REQUEST,tostring(why))
 assert(#reads==4 and logged('checks: solo on a co-op save, the native travel idle, '..LOGIC..' holds '
     ..'WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas'))
-assert(logged('tables: 17/17 found: '..REQUEST:sub(12)),'R1 with every address')
+assert(logged('tables: 19/19 found: '..REQUEST:sub(12)),'R1 with every address')
 for _,p in ipairs(looked) do assert(not p:find('MXIII',1,true),'No StaticFindObject of the map: '..p) end
 ok,why=mx.command(); assert(ok==false and why=='coop mxiii is busy (the wait for the Matrix XIII rows): try again in a '
     ..'few seconds',why)

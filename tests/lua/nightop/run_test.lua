@@ -1295,22 +1295,24 @@ end
 -- The fifth row, Best: '-' with none kept, else its score and time. The record line only after a success that wrote
 -- it; a challenge's stop (coop off too) in the challenge's words, its other ends in Night Operation's.
 assert(rows[5][1]=='Best' and rows[5][2]=='-' and #rows==5,tostring(rows[5][2]))
-local kept,new={score=1250,s=37},{score=1059,s=400,new=true}
-head,line,rows=Run.result(ended('success'),Tx.en,game,new)
-assert(line=='New personal best.' and rows[5][2]=='1059  6:40',line)
-head,line,rows=Run.result(ended('success'),Tx.en,game,kept)
-assert(line=='' and rows[5][2]=='1250  0:37',rows[5][2])
-for _,outcome in ipairs({'failed','time'}) do
-    assert(select(2,Run.result(ended(outcome),Tx.en,game,new))~=Tx.en.challenge.record,outcome)
-end
-local function ended_challenge(reason)
-    local s=ended('aborted',reason)
-    s.def=require('nightop.challenges').find('swarm')
-    return s
-end
-for reason,line in pairs({stop=Tx.en.challenge.stopped,['coop off']=Tx.en.challenge.stopped,
-        ['map change']=Tx.en.night.why.map,link=Tx.en.night.why.link}) do
-    assert(select(2,Run.result(ended_challenge(reason),Tx.en,game,kept))==line,reason)
+do -- Its locals in a block: the main chunk is at Lua's 200 locals.
+    local kept,new={score=1250,s=37},{score=1059,s=400,new=true}
+    head,line,rows=Run.result(ended('success'),Tx.en,game,new)
+    assert(line=='New personal best.' and rows[5][2]=='1059  6:40',line)
+    head,line,rows=Run.result(ended('success'),Tx.en,game,kept)
+    assert(line=='' and rows[5][2]=='1250  0:37',rows[5][2])
+    for _,outcome in ipairs({'failed','time'}) do
+        assert(select(2,Run.result(ended(outcome),Tx.en,game,new))~=Tx.en.challenge.record,outcome)
+    end
+    local function ended_challenge(reason)
+        local s=ended('aborted',reason)
+        s.def=require('nightop.challenges').find('swarm')
+        return s
+    end
+    for reason,line in pairs({stop=Tx.en.challenge.stopped,['coop off']=Tx.en.challenge.stopped,
+            ['map change']=Tx.en.night.why.map,link=Tx.en.night.why.link}) do
+        assert(select(2,Run.result(ended_challenge(reason),Tx.en,game,kept))==line,reason)
+    end
 end
 -- The card's title: the challenge's name as ui_text writes it, Night Operation's own.
 assert(Run.card({phase='countdown',t0=10,def=require('nightop.challenges').find('targets')},6,Tx.fr)
