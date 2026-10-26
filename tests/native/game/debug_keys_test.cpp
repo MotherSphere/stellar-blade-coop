@@ -10,8 +10,9 @@
 // a state from before the ask is never logged nor taken for a refusal (a pass that has not read the ask yet, its
 // writes already out included); the first pass that read it is logged even when its state is the same, so a re-ask
 // after a refusal is refused again from that pass only; a map built again with no other change says the gates were set
-// again. coop fly's Hold: the third press of the jump key in the air sets the fly key; in the flight it sets the fly
-// key while none is set, until the next press of the jump key.
+// again. coop fly's Hold: the third press of the jump key in the air arms the fly key, set each frame, held or not,
+// until the flight starts or she lands; in the flight it sets the fly key while none is set, until the next press of
+// the jump key; its counts.
 #include "game/debug_keys.h"
 
 #include <cassert>
@@ -332,11 +333,11 @@ int main() {
   }
 
   // coop fly's start and level flight (Hold): the jump key's presses counted since EVE left the ground (0 on the
-  // ground, 1 while the press she jumps with is down or under kGroundPress s old), the third in the air sets the fly
-  // key while it is down; in the
-  // flight the key is set while none is, the press that started it is no press, the next one drops her until the
-  // flight ends and the count starts over; a ledge fall counts from 0; no pawn, no input or no movement component
-  // writes nothing.
+  // ground, 1 while the press she jumps with is down or under kGroundPress s old), the third in the air arms the fly
+  // key, set each frame she does not fly, held or not, until the flight starts or she lands; in the flight the key is
+  // set while none is, the press that armed it is no press, the next one drops her until the flight ends and the count
+  // starts over; a ledge fall counts from 0; no pawn, no input or no movement component writes nothing; forget() drops
+  // the arm; the counts.
   {
     constexpr uint64_t kPc = 0x30000000, kEve = 0x30010000, kInput = 0x30020000, kCmc = 0x30030000;
     Mem m;
@@ -345,24 +346,23 @@ int main() {
     // One frame after the input pass, which leaves the fly key at 0 (no fly key held): the jump key down or not, EVE
     // falling or walking, flying or not. True when the step set the fly key.
     auto frame = [&](bool jump, bool air, uint8_t flying) {
-      m.set<uint8_t>(kInput + kJumpKey, jump);
       m.set<uint8_t>(kCmc + kMovementMode, air ? kFalling : 1);
       m.set<uint8_t>(kEve + kFlyingAction, flying);
       m.set<uint8_t>(kInput + kFlyKey, 0);
-      hold.step(m, kPc, kDt);
+      hold.step(m, kPc, kDt, jump);
       return m.u8(kInput + kFlyKey) == 1;
     };
-    hold.step(m, kPc, kDt);
+    hold.step(m, kPc, kDt, false);
     assert(m.writes == 0 && "No pawn");
     m.set(kPc + kPawn, kEve);
     m.set<uint8_t>(kEve + kFlyingAction, 1);
-    hold.step(m, kPc, kDt);
+    hold.step(m, kPc, kDt, false);
     assert(m.writes == 0 && "No input");
     m.set(kPc + kInputHandler, kInput);
     m.set(kEve + kCharacterMovement, kCmc);
     assert(!frame(false, false, 0) && hold.presses == 0 && "On the ground, the key up");
     // A jump (the press on the ground, still down when she leaves it a frame later), the double jump, then the third
-    // press: the fly key, for as long as it is down.
+    // press: the fly key.
     assert(!frame(true, false, 0) && !frame(true, false, 0) && hold.presses == 1);
     assert(!frame(true, true, 0) && !frame(false, true, 0) && hold.presses == 1);
     assert(!frame(true, true, 0) && !frame(false, true, 0) && hold.presses == 2);
@@ -372,8 +372,8 @@ int main() {
     assert(frame(true, true, 1) && !hold.dropped && "The starting press does not drop her");
     assert(frame(false, true, 1) && frame(false, true, 1) && !hold.dropped);
     m.set<uint8_t>(kInput + kFlyKey, 1);
-    const int writes = m.writes;
-    hold.step(m, kPc, kDt);
+    int writes = m.writes;
+    hold.step(m, kPc, kDt, false);
     assert(m.writes == writes && "A fly key set already (R2): no write");
     // The next press drops her until the flight ends; then the count starts over from 0.
     assert(!frame(true, true, 1) && hold.dropped && "The next press drops her");
@@ -381,16 +381,18 @@ int main() {
     assert(!frame(true, true, 0) && !hold.dropped && hold.presses == 0 && "Ended, the drop's press still down");
     assert(!frame(false, true, 0) && !frame(true, true, 0) && !frame(false, true, 0) && !frame(true, true, 0));
     assert(!frame(false, true, 0) && hold.presses == 2 && frame(true, true, 0) && "Three presses after the drop");
-    // On the ground with the key up the count goes back to 0: two presses in the air, a landing, a jump and one press
-    // in the air make no flight.
-    assert(!frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0 && "Landed");
+    // Armed: let go, the fly key is still set while the game refuses the start; a landing disarms. On the ground with
+    // the key up the count goes back to 0: two presses in the air, a landing, a jump and one press in the air make no
+    // flight.
+    assert(frame(false, true, 0) && frame(false, true, 0) && "Let go: still armed");
+    assert(!frame(false, false, 0) && hold.presses == 0 && "Landed: disarmed");
     assert(!frame(true, false, 0) && !frame(false, true, 0) && !frame(true, true, 0) && hold.presses == 2);
     assert(!frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0);
     // A short tap let go before she leaves the ground still counts as the jump's press.
     assert(!frame(true, false, 0) && !frame(false, false, 0) && !frame(false, false, 0) && !frame(false, false, 0));
     assert(!frame(false, true, 0) && hold.presses == 1 && "Tap, let go, then she leaves the ground: one");
     assert(!frame(true, true, 0) && !frame(false, true, 0) && frame(true, true, 0) && "Two presses in the air fly");
-    assert(!frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0 && "Landed");
+    assert(frame(false, true, 0) && !frame(false, false, 0) && hold.presses == 0 && "Landed");
     // A tap on the ground with no jump counts for kGroundPress s only.
     assert(!frame(true, false, 0) && hold.presses == 1);
     for (int i = 0; i < 17; ++i)
@@ -412,10 +414,35 @@ int main() {
     m.set<uint64_t>(kEve + kCharacterMovement, kCmc);
     // No input mid-air: the count and the drop go, and a key down at the next step is no press.
     m.set<uint64_t>(kPc + kInputHandler, 0);
-    hold.step(m, kPc, kDt);
+    hold.step(m, kPc, kDt, true);
     assert(hold.presses == 0 && hold.jump_was);
     m.set(kPc + kInputHandler, kInput);
     assert(!frame(true, true, 0) && hold.presses == 0);
+    // forget() (the fly gate not ours): an arm in the air is dropped, and a key down at the next step is no press.
+    assert(!frame(false, true, 0) && !frame(true, true, 0) && !frame(false, true, 0) && !frame(true, true, 0));
+    assert(!frame(false, true, 0) && frame(true, true, 0) && hold.presses == 3);
+    hold.forget();
+    assert(!frame(true, true, 0) && !frame(false, true, 0) && hold.presses == 0 && "Forgotten: no arm");
+    assert(!frame(false, false, 0) && hold.presses == 0);
+
+    // The counts, from a fresh Hold: a jump, the double jump, the third press arms (a write), two frames refused with
+    // the key up (two writes), a fourth press while armed (no new arm, a write), the flight starts with it still down
+    // (a takeoff, no drop: level writes are no armed writes), the next press drops her, the flight ends.
+    hold = Hold{};
+    assert(!frame(false, false, 0) && !frame(true, false, 0) && !frame(false, true, 0));
+    assert(!frame(true, true, 0) && !frame(false, true, 0) && frame(true, true, 0) && hold.counts[kArmed] == 1);
+    assert(frame(false, true, 0) && frame(false, true, 0) && "The game refuses the start: still set, the key up");
+    assert(frame(true, true, 0) && hold.presses == 3 && hold.counts[kArmed] == 1 && "A fourth press: still armed");
+    m.set<uint8_t>(kInput + kFlyKey, 1);
+    writes = m.writes;
+    hold.step(m, kPc, kDt, true);
+    assert(m.writes == writes && hold.counts[kArmedWrites] == 4 && "Armed with R2 held: no write");
+    assert(frame(true, true, 1) && !hold.dropped && hold.counts[kTakeoffs] == 1 && "Takes off on the fourth press");
+    assert(frame(false, true, 1) && !frame(true, true, 1) && hold.dropped && !frame(false, true, 0));
+    const uint32_t counted[kCounts] = {14, 5, 1, 4, 1};
+    assert(std::memcmp(hold.counts, counted, sizeof counted) == 0);
+    hold.forget();
+    assert(std::memcmp(hold.counts, counted, sizeof counted) == 0 && "forget() keeps the counts");
     assert(kInputSlots[0] % 8 == 0 && kInputSlots[1] % 8 == 0);
   }
   std::puts("debug_keys_test ok");

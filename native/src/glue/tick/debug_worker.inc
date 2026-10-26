@@ -12,6 +12,8 @@ bool debug_fault_logged = false;
 // is first wanted on the pinned build before coop off and a fault; each by a compare-and-swap from the pass only, so a
 // slot holding anything else (another mod's hook) refuses the hook and is never written.
 bool hold_tried = false, hold_on = false, hold_fault_logged = false;
+uint64_t hold_log_at = 0;                  // When Hold's counts are read for the log next.
+uint32_t hold_logged[debug::kCounts] = {}; // Hold's counts as last logged.
 uint64_t pass_address() { return base + (debug::kInputPass - game::kImageBase); }
 uint64_t hold_address() { return reinterpret_cast<uintptr_t>(&hold_input); }
 void hold_install() {
@@ -111,6 +113,24 @@ std::string debug_pass(bool linked, int marker, uint64_t now_ms) {
   }
   if (!hold_tried && (debug_want & 1) && pinned && !blocked && !hold_faulted)
     hold_install();
+  // Hold's counts, at most once a second: at its first steps, then when a press, an arm, a write or a takeoff changed.
+  if (now_ms >= hold_log_at) {
+    hold_log_at = now_ms + 1000;
+    uint32_t c[debug::kCounts];
+    bool changed = false;
+    for (uint8_t i = 0; i < debug::kCounts; ++i) {
+      c[i] = hold_counts[i].load(std::memory_order_relaxed);
+      changed = changed || (i == debug::kSteps ? c[i] && !hold_logged[i] : c[i] != hold_logged[i]);
+    }
+    if (changed) {
+      std::copy(c, c + debug::kCounts, hold_logged);
+      char text[160];
+      std::snprintf(text, sizeof text, "fly hold: %u steps, %u presses, %u armed, %u armed writes, %u takeoffs",
+                    c[debug::kSteps], c[debug::kPresses], c[debug::kArmed], c[debug::kArmedWrites],
+                    c[debug::kTakeoffs]);
+      say(text);
+    }
+  }
   if (debug_faulted && !debug_fault_logged) {
     debug_fault_logged = true;
     debug_asks.asked = 0;

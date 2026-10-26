@@ -1418,26 +1418,29 @@ The game's code holds two developer tools that it ships switched off: a flight m
 waits on a setting of the game's (`UseFlyingActionKey`, `UseTimeControlKey`) that only a cheat command sets, and that
 command does nothing in the released game. `coop fly on` and `coop slowmo on` have the native part set the setting in
 the game's memory, and `off` puts the game's value back. These test commands are left out of the usage line, need the
-native part and run on a [co-op save](#co-op-saves) only. The flight was tried in game once, with the game's Z key;
-the space bar start below has not been tried in game.
+native part and run on a [co-op save](#co-op-saves) only. The flight was tried in game once, with the game's Z key.
+The first space bar start was tried on 2026-10-26 and started no flight, since it read a flag the game never sets; the
+current one has not been tried in game.
 
 - `coop fly on`: press the space bar a third time while EVE is in the air, and she flies. The jump and the double jump
   are the first two presses, as in the game, and holding the second one still glides with `coop glide on`. After a
   fall from a ledge, it takes three presses in the air. Z and S no longer start a flight; R2 held on a pad still does,
   as in the game. The game's flight carries her along the camera's heading at 10 m/s: turn the camera to steer. Z held
   climbs, S held descends, and with neither she flies level until you press the space bar again or the flight ends on
-  its own (landing, or its time pool). The press that starts the flight does not drop her, even if you keep it held.
-  After a drop the count starts over, and with `coop glide on` the space bar held after the drop glides. Flight time
-  comes from a pool of 90 s that drains while she flies and refills at 1 s per second, the game's own values. During a
-  flight the face buttons dodge up, down, left and right, and so do Shift with Z, S, Q or D on the keyboard (up, down,
-  left, right). `coop fly on` writes R2 over Z (and over any third slot) in the game's flight key list and adds the four
+  its own (landing, or its time pool). The third press does not need to stay held: if the game is not ready to start
+  the flight yet (an action still playing, or less than 0.5 s since the last flight), it starts as soon as it is,
+  unless she lands first. The press that starts the flight does not drop her, even if you keep it held. After a drop
+  the count starts over, and with `coop glide on` the space bar held after the drop glides. Flight time comes from a
+  pool of 90 s that drains while she flies and refills at 1 s per second, the game's own values. During a flight the
+  face buttons dodge up, down, left and right, and so do Shift with Z, S, Q or D on the keyboard (up, down, left,
+  right). `coop fly on` writes R2 over Z (and over any third slot) in the game's flight key list and adds the four
   Shift keys to the input settings. The game itself ends a flight once no flight key is held. The native part hooks
-  the player controller's key pass and, right after it, counts the space bar's presses since EVE left the ground. At
-  the third one it sets the flight key while the space bar is down, and the game starts the flight if its own checks
-  allow it. While EVE flies with no flight key held, it sets the key again each frame, until the next press. The
-  log's `[FL]` lines say once a flight whether the level flight held. The game sets the flight's velocity whole each
-  frame, with no easing: the mod eases the climb and the descent in and out over 0.3 s, and starts a flight at 40 % of
-  its speed, full after 0.6 s. Turns follow the camera at once, as in the game.
+  the player controller's key pass and, right after it, counts the space bar's presses since EVE left the ground. From
+  the third one it sets the flight key each frame until the game starts the flight or she lands. While EVE flies with
+  no flight key held, it sets the key again each frame, until the next press. The log's `[FL]` lines say once a flight
+  whether the level flight held. The game sets the flight's velocity whole each frame, with no easing: the mod eases
+  the climb and the descent in and out over 0.3 s, and starts a flight at 40 % of its speed, full after 0.6 s. Turns
+  follow the camera at once, as in the game.
 - `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
   keyboard key to it. It waits while a friend is linked, since the slow time would be your game's alone.
 - `coop fly off`, `coop slowmo off`, `coop off` and a Lua reload (Ctrl+R) put the game's values back. On a save that is
@@ -1450,11 +1453,14 @@ can carry EVE past places the game expects her to reach on foot, and the next sa
 saves only.
 
 The native part's lines go to `coop-link.log`: `coop fly on: UseFlyingActionKey set at the game thread's next pass`,
-then `gate fly: on, ours, 1 writes` once the setting is set. When the game's memory does not hold the setting the way
-the pinned build does, the native part writes nothing, logs why and says `coop fly refused: ...` on screen. The level
-flight's hook goes in at the first `coop fly on` of a game run (`level flight on: 0x145cc74a8 and 0x145cd37a8 swapped
-from the game's input pass to our hook`) and stays until `coop off` (`level flight off (coop off): 2 of 2 slots hold
-the game's input pass again`); in between it does nothing while `coop fly` is off. If another mod already changed
+then `gate fly: on, ours, 1 writes` once the setting is set. Once a second, when one of its counts changed, the hook
+logs a line such as `fly hold: 5400 steps, 7 presses, 1 armed, 12 armed writes, 1 takeoffs`: how many frames it ran,
+the space bar presses it saw, the third presses in the air, the frames it set the flight key before a takeoff and the
+flights it saw start. When the game's memory does not hold the setting the way the pinned build does, the native part
+writes nothing, logs why and says `coop fly refused: ...` on screen. The level flight's hook goes in at the first
+`coop fly on` of a game run (`level flight on: 0x145cc74a8 and 0x145cd37a8 swapped from the game's input pass to our
+hook`) and stays until `coop off` (`level flight off (coop off): 2 of 2 slots hold the game's input pass again`); in
+between it does nothing while `coop fly` is off. If another mod already changed
 those slots, it logs `level flight refused: ...` and leaves them alone: the space bar then starts no flight, and R2
 flies only while held. A fault in the hook takes the hook out for the rest of the run and says so on screen.
 

@@ -69,18 +69,27 @@ void debug_tick() {
 using InputPass = void (*)(void *pc, float dt, bool paused); // FUN_1423c47a0 reads them from rcx, xmm1 and r8b.
 std::atomic<bool> hold_faulted{false}, hold_live{false};
 std::atomic<uint64_t> hold_fault_code{0}, hold_fault_rva{0}, hold_fault_address{0};
+std::atomic<uint32_t> hold_counts[debug::kCounts] = {}; // debug_hold's counts, for the worker's log.
 debug::Hold debug_hold; // The game thread's.
 __declspec(noinline) void hold_step(void *pc, float dt) {
+  // The space bar, the game's window in front (as poll_pad): SB fills no jump key list, so its jump flag stays 0.
+  DWORD owner = 0;
+  const bool jump = (GetAsyncKeyState(VK_SPACE) & 0x8000) && GetWindowThreadProcessId(GetForegroundWindow(), &owner) &&
+                    owner == GetCurrentProcessId();
   DebugMem m;
-  debug_hold.step(m, reinterpret_cast<uintptr_t>(pc), dt);
+  debug_hold.step(m, reinterpret_cast<uintptr_t>(pc), dt, jump);
+  for (uint8_t i = 0; i < debug::kCounts; ++i)
+    hold_counts[i].store(debug_hold.counts[i], std::memory_order_relaxed);
 }
 // The game's pass as it would run, then Hold's step under its own latch, on the game thread, while both slots hold the
 // hook (not after coop off), the fly gate is ours and the pass set the keys (a paused game's pass leaves them as they
 // were), before the first fault. A fault in the game's own pass stays the game's: the pass runs outside the latch.
 void hold_input(void *pc, float dt, bool paused) {
   game_function<InputPass>(debug::kInputPass)(pc, dt, paused);
-  if (paused || !hold_live || hold_faulted || !debug_gates.ours[debug::kFly])
+  if (paused || !hold_live || hold_faulted)
     return;
+  if (!debug_gates.ours[debug::kFly])
+    return debug_hold.forget(); // coop fly off: its next on starts from no press.
   __try {
     hold_step(pc, dt);
   } __except (fault_filter(GetExceptionInformation(), hold_fault_code, hold_fault_rva, hold_fault_address)) {
