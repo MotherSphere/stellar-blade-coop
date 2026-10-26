@@ -12,9 +12,11 @@
 // (FUN_141fc4aa0: the manager, the type, no child list, no parent, 0, an empty FString it frees when it holds data, 0;
 // the new entry, or null), as the client tick (FUN_141cd2e50) opens type 235, and close (FUN_141fc5120: the manager and
 // the entry's own type, read through the virtual at +0x38 of the entry's +0x10), as FUN_141abe390 closes type 242. The
-// guard is the one the client tick checks before its open: the client in game (flow 2) and playing (phase 0xe), the
-// reads of game/travel.h. A close needs only the client and its manager. The client is read from its global, never
-// through FUN_141a978c0, which allocates it when it is null.
+// guard is part of what the client tick checks before its open: the client in game (flow 2) and playing (phase 0xe),
+// the reads of game/travel.h. The tick also wants +0xa21 not 1, not both +0xb60 and +0xb61, the local player's +0x25
+// at 3 (FUN_141cff700) and FUN_141cf0580 true; their meaning is unknown and they are not read here, so a panel may open
+// where the game would not open its own. A close needs only the client and its manager. The client is read from its
+// global, never through FUN_141a978c0, which allocates it when it is null.
 // Pure, so tests/native/game/dev_panels_test.cpp checks the guard and the plan; glue/tick/debug_game.inc makes the
 // calls on the game thread under its own SEH latch, on the pinned build only.
 #pragma once

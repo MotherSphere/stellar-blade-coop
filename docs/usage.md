@@ -1497,11 +1497,13 @@ starts and `glide ended (landed) after 2.4 s` when it ends, with `Jump released`
 
 The game's files still hold the cheat menu the developers used (`WB_DebugCommand_Master`), its data table of 7,139
 rows over 18 tabs, and a few debug panels. The menu cannot open in the released game: the code that fills it is not in
-the build, and 702 of the 703 cheat commands its rows call only read their arguments and return. The game's own cheat
-request still runs six words, and 87 rows use three of them (`SBApplyEffectMe`, `SBPlayerSP`, `SBPlayerRevival`).
-Both commands are test commands, left out of the usage line, and neither has been tried in game yet.
+the build, and every row's command goes to the game's cheat manager, where 702 of the 703 commands only read their
+arguments and return. The game's own cheat request still runs six words, and 87 rows use three of them
+(`SBApplyEffectMe`, `SBPlayerSP`, `SBPlayerRevival`). Both commands are test commands, left out of the usage line, and
+neither has been tried in game yet.
 
-`coop devmenu` gives back the rows among those 87 that grant nothing. `coop devmenu` or `coop devmenu list` lists them,
+`coop devmenu` gives back the rows among those 87 that grant nothing by themselves and whose lasting effects a row of
+its own can end. `coop devmenu` or `coop devmenu list` lists them,
 and `coop devmenu <row>` runs one, on a [co-op save](#co-op-saves) only. The mod reads each effect's ID from the
 game's EffectTable by name and asks the game to apply it on EVE, through the same request as
 [`coop chainspin`](#cut-tachy-skill-coop-chainspin). Its lines go to `UE4SS.log` as `[StellarCoop][DM]`, one per
@@ -1512,7 +1514,7 @@ effect: `devmenu attack30: SBApplyEffectMe Test_ShieldDamageUpMe30 (9000178) on 
 | `nodamage` | EVE takes no damage |
 | `stealth` | EVE is hidden from enemies (the game's stealth state) |
 | `speed150`, `speed200` | EVE moves 1.5 or 2 times as fast |
-| `attack5`, `attack30` | EVE deals 5 or 30 times the damage, to health and shield |
+| `attack5`, `attack30` | EVE deals 5 or 30 times the damage, to health and shield (each run adds to the last) |
 | `gauges` | The Beta and Burst gauges refill on their own |
 | `tachy` | The Tachy gauge refills on its own |
 | `tachyfull` | The Tachy gauge fills, once |
@@ -1521,30 +1523,37 @@ effect: `devmenu attack30: SBApplyEffectMe Test_ShieldDamageUpMe30 (9000178) on 
 | `nolockswitch`, `lockswitch` | The lock-on stays off when its target dies, or moves to the next target again (the game's way) |
 | `enemynodamage` | Enemies near EVE take no damage |
 | `enemynoai` | Enemies near EVE stop acting |
-| `enemygroggy` | Enemies near EVE stay stunned |
 | `enemyimmortal` | Enemies near EVE cannot die |
 | `enemyshield1`, `enemybalance1` | Enemies near EVE drop to 1 shield or 1 balance, once |
-| `enemyclear` | The lasting effects above come off the enemies near EVE |
+| `enemyclear` | The lasting effects above come off the enemies near EVE, and most likely off EVE too |
 | `clear` | The lasting effects above come off EVE and the enemies near her |
 
 - "Near EVE" is the range the game's test effects use. Run the row again after you move to reach other enemies.
-- Only your game runs a row. With [shared enemies](#shared-enemies-experimental) on, an enemy row changes your copies
-  only, so they may act differently from your friend's.
-- Effects that last stay until `clear` (or `enemyclear`; `nolockswitch` until `lockswitch`), a save load or the
-  game's exit. Running a lasting row twice does not turn it off. Nothing of it is saved.
+- Only your game runs a row. With [shared enemies](#shared-enemies-experimental) on, the health that `attack5` and
+  `attack30` take off a shared enemy and the balance that `enemybalance1` takes come off its shared HP bar and balance
+  gauge, so they count in your friend's game too, and a shared enemy that dies that way gives your friend the kill if
+  they took part in its fight (`kill_credit`). The other enemy rows change your copies only, so they may act
+  differently from your friend's.
+- Effects that last stay until `clear` (or `enemyclear`; `nolockswitch` until `lockswitch`), `coop off` or the game's
+  exit. A save load should end them too, but that has not been checked. `coop off` runs `clear` and `lockswitch` once
+  more when a row ran since the mod loaded. Nothing of it is saved.
+- Running a lasting row twice does not turn it off. `attack5` and `attack30` add up at each run: `attack30` twice
+  gives about 59 times the damage, and `attack5` then `attack30` about 34 times. The speed rows do not add up.
 - Left out: the rows that kill enemies or cut their health (EVE would get the kill, its rewards and its trophies
   without the fight), the ranged mode unlock, the consumable stacks, the fishing cheat, the skill points, EVE's death
-  and revival, the test stances and skills, the effects on every actor, and three effects that `clear` cannot remove
-  (the full immunity, the 80 % damage cuts and the scanner without cooldown).
-- The rows change what EVE can do, not what she has earned. Kills she makes with `attack30` or the refilling gauges
-  are her own, so they count toward the kill and skill trophies like any other kill, in the co-op save.
+  and revival, the test stances and skills, the effects on every actor, and the effects no row can remove: the full
+  immunity, the two 80 % damage cuts, the scanner without cooldown and the menu's endless stun of the enemies
+  (`Test_EnemyEffectGroggy`, which neither dispel ends).
+- No row grants an item, a skill point, a quest step or a trophy by itself. Kills made with the help of the attack,
+  gauge or enemy rows are still EVE's kills: they count toward the kill and skill trophies in the co-op save, as any
+  other kill does.
 
 Which tabs of the menu still do something:
 
 | Tab | Rows | Rows the cheat request still runs | In `coop devmenu` |
 | --- | --- | --- | --- |
-| Common | 225 | 53 | 29 |
-| Battle | 207 | 12 | 10 |
+| Common | 225 | 53 | 25 |
+| Battle | 207 | 12 | 7 |
 | CombatTestMapMk2 | 23 | 4 | 2 |
 | System | 4,679 | 17 | 1 |
 | Level | 1,514 | 1 | 0 |
@@ -1556,11 +1565,12 @@ the menu.
 
 `coop devinfo quest` opens the game's quest debugger: a list of every quest the game holds, with its task groups and
 tasks, which the game writes again each frame while it is open. `coop devinfo player` opens the player info panel,
-whose one line reads `PlayerTagName:` and a name the game keeps for tests (maybe empty). Opening one closes the other,
-and `coop devinfo off` closes both. The native part opens and closes them through the game's own UI manager, as the
-game opens its menus. Both panels only read, so they run on any save. They open only when the game is in play, the
-check the game makes before it opens its own panels: on the title screen or during a load the line says `not in game`
-or `not playing`. `coop off` closes them. The boss challenge debug panel cannot open: like the menu's, its code is not
+whose one line reads `PlayerTagName:` and a text from the game's client whose contents are not known yet. Opening one
+closes the other, and `coop devinfo off` closes both. The native part opens and closes them through the game's own UI
+manager, as the game opens its menus. Both panels only read, so they run on any save. They open only when the game is
+in play, which is part of the check the game makes before it opens one of its own panels (the mod does not read the
+rest of that check): on the title screen or during a load the line says `not in game` or `not playing`. `coop off`
+closes them. The boss challenge debug panel cannot open: like the menu's, its code is not
 in the build. The native part's lines go to `coop-link.log`: `coop devinfo quest asked: at the game thread's next
 frame`, then `devinfo quest: 0 closed, 1 opened`, or `devinfo quest refused: not playing, 0 closed`.
 

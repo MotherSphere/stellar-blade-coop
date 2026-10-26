@@ -1793,17 +1793,33 @@ same stubs.
 What still runs is the controller's `ServerRequest_Cheat`, whose logic job (`FSBCheat::Simulate`, `0x141b11800`) knows
 `SBSuicide`, `SBPlayerRevival`, `SBPlayerSP`, `SBApplyEffectMe`, `SBLogPlayerLocation` and `SBPlayerMaxTachyGauge`.
 The table uses three: `SBApplyEffectMe` in 82 rows (64 effects, 62 of them in the shipped EffectTable), `SBPlayerSP`
-in 4 and `SBPlayerRevival` in 1. `coop devmenu` (`cut/devmenu.lua`) keeps 21 rows of 25 effects. Each is applied as
-the menu's rows would have been: `ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "<ID>")`, through
-`cut/chainspin.lua`'s one call (`ChainSpin.apply`) after its checks (`ChainSpin.target`: `warp=idle`, `me=` not 0,
-EVE in the world, the controller). The menu passes effect names, and the job reads a number, so the module reads the
-ID from the EffectTable row of that name (`FindRow`) at each use. Effects on enemies use the test target filter
-`TestEffect_Enemy_Target`, `clear` uses `TestEffect_All_Target`; the two dispels remove the `TestEffect` and `Groggy`
-flags, which every lasting row's effect carries but `nolockswitch`'s (flag `LockOnDelivery`, which `lockswitch`
-removes). No effect has `bEnableSave`. The rows left out: the enemy kills
-(`ImmediateDeath`) and HP cuts (a lethal drop would credit our EVE, see [Achievements](#achievements)), the TPS unlock
-(`ActorStatType_UnlockTPSMode`), the consumable stacks, `FishingGod`, `SBPlayerSP`, EVE's death and revival, the test
-stances, `Test_MaxHPUpAll` and `Test_MaxShieldUpAll` (all actors), and the three lasting effects no dispel row reaches.
+in 4 and `SBPlayerRevival` in 1. `coop devmenu` (`cut/devmenu.lua`) keeps 20 rows of 23 effects, which 35 table rows
+call (Common 25, Battle 7, CombatTestMapMk2 2, System 1). Each is applied as the menu's rows would have been:
+`ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "<ID>")`, through `cut/chainspin.lua`'s one call
+(`ChainSpin.apply`) after its checks (`ChainSpin.target`: `warp=idle`, `me=` not 0, EVE in the world, the
+controller). The menu passes effect names, and the job reads a number, so the module reads the ID from the
+EffectTable row of that name (`FindRow`) at each use. Effects on enemies use the test target filter
+`TestEffect_Enemy_Target`, `clear` uses `TestEffect_All_Target`. The attack rows are `EffectOverlap_Overlap` (+4 or
++29 to `PhysicAttackPowerRate` and `ShieldAttackPowerRate` at each run), so they add up; the speed rows are
+`EffectOverlap_Unique`. With shared enemies on, the attack rows' damage and the balance `enemybalance1` takes reach
+the shared HP and balance like any hit, and so the friend's game; the other enemy rows act on the local copies only.
+
+Both dispels (`Test_EffectDispelEnemy`, `Test_EffectDispelAll`) hand their targets `Test_EffectDispelAll_Effect`
+(target `Self`, `DispelFlagsArray` `TestEffect`), which removes the `TestEffect` flag that every lasting row's effect
+carries but `nolockswitch`'s (flag `LockOnDelivery`, which `lockswitch` removes). Their own `DispelFlagsArray`
+(`TestEffect`, and `Groggy` for `clear`) most likely acts on the effect's owner, EVE: the game's
+`P_Eve_Stance_GunTutorial_End` targets `Ally_Drone` yet lists EVE's stance flags, and hands the drone a child effect
+of its own. So `enemyclear` probably ends EVE's lasting rows too, and no row removes the menu's
+`Test_EnemyEffectGroggy` (its `Test_GroggyInfinite` on the enemies has flag `Groggy` and `EffectLifeType_Infinite`).
+No effect has `bEnableSave`; that a save load ends them is expected, not checked. `coop off` calls the module's stop
+before it asks the native part off, while the engine line still has `warp=` and `me=`: when a row reached the game in
+this Lua load, it runs `clear` and `lockswitch` once more.
+
+The rows left out: the enemy kills (`ImmediateDeath`) and the thirteen HP cuts (a lethal drop would credit our EVE,
+see [Achievements](#achievements)), the TPS unlock (`ActorStatType_UnlockTPSMode`), the consumable stacks,
+`FishingGod`, `SBPlayerSP`, EVE's death and revival, the test stances, `Test_MaxHPUpAll` and `Test_MaxShieldUpAll`
+(all actors), and the five lasting effects no dispel row reaches (`NoDamageNoHitImmuneAbnormal_Infinite`, the two
+`Test_Final*DamageReduce_080p`, `T_Drone_NoCoolScan` and `Test_EnemyEffectGroggy`).
 
 `coop devinfo` (`game/dev_panels.h`, run by `glue/tick/debug_game.inc`) opens the two registered read-only panels
 through the client's UI manager (`FSBUMGManager`, the client global `0x147032520` at `+0x48`). The quest debugger's
@@ -1814,8 +1830,11 @@ the client's string at `+0xe0` once at its start (`0x141d854c0`). The cheats mea
 (`SBQuestDebuggerShow`, `SBHUDPlayerInfoDetailToggle`) are on the empty thunk. The calls copy SB's own: find
 (`0x141fc51d0`, the open entry whose logic has that type), open (`0x141fc4aa0(manager, type, null, null, 0, &FString{},
 0)`, as the client tick `0x141cd2e50` opens type 235) and close (`0x141fc5120(manager, type)`, the type read through
-the virtual at `+0x38` of the entry's `+0x10`, as `0x141abe390` closes type 242). An open waits for the guard the client
-tick checks before its own open: flow 2 at `+0xa00` and phase `0xe` at `+0xb9c`. The client is read from its global,
+the virtual at `+0x38` of the entry's `+0x10`, as `0x141abe390` closes type 242). An open waits for part of the guard
+the client tick checks before its own open: flow 2 at `+0xa00` and phase `0xe` at `+0xb9c`. The tick also needs
+`+0xa21` not 1, not both `+0xb60` and `+0xb61`, the local player's `+0x25` at 3 (`0x141cff700`) and `0x141cf0580`
+true; their meaning is unknown and the mod does not read them, so a panel may open where the game would not open its
+own. Both panels are untested in game. The client is read from its global,
 never through `0x141a978c0`, which allocates it. The worker hands the ask over with a number; the game thread takes it
 with `try_lock` at its next frame, under its own SEH latch, and hands back the number, the panel, the reason for a
 refusal and what it opened and closed. Lua's `coop off` asks `devinfo off` before `off`, and the game thread takes it
