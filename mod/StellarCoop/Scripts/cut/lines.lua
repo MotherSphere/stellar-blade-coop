@@ -237,9 +237,11 @@ function Lines.new(o)
         r.audio=nil
         if a and os.clock()<r.till then pcall(function() a=valid(a); if a then a:Stop() end end) end
     end
-    -- A line's take from its start, as a 2D sound of EVE's world, its audio component kept for hush. The engine's
-    -- collector may have freed the take since the start (a Lua reference holds nothing): it is loaded again then, a
-    -- synchronous load at its turn, logged. Raises when it cannot play.
+    -- A line's take from its start, as a 2D sound of EVE's world, its audio component kept for hush. Once it plays,
+    -- the take before it is cut: after a hitch several lines are due at once, and a take that started late runs past
+    -- the next one's start, so one voice plays and hush knows it. The engine's collector may have freed the take since
+    -- the start (a Lua reference holds nothing): it is loaded again then, a synchronous load at its turn, logged.
+    -- Raises when it cannot play, the take before left playing.
     local function speak(r,v,now)
         local o=valid(v.o)
         if not (o and text(o:GetFullName())==v.full) then
@@ -248,7 +250,9 @@ function Lines.new(o)
             log('take '..v.path:match('[^.]+$')..' loaded again: freed before its turn')
         end
         local eve=assert(valid(UE.GetPlayer()),'no EVE in the world')
-        r.audio,r.till=valid(find(STATICS):SpawnSound2D(eve,o,1,1,0,nil,false,true)),now+v.seconds
+        local a=valid(find(STATICS):SpawnSound2D(eve,o,1,1,0,nil,false,true))
+        hush(r)
+        r.audio,r.till=a,now+v.seconds
     end
     local function start(s)
         if not ready() then
@@ -304,10 +308,10 @@ function Lines.new(o)
         if s then return start(s) end
         return false,Lines.USE
     end
-    -- Each frame: the lines due said, in order (a hitch says several at once), each with its take, the scene ended
-    -- after its last part. A take that cannot play is logged; its subtitle is said all the same. A line the feed
-    -- refuses (the co-op UI off; for a take with no subtitle, the feed not ready) or an error ends it: returns false,
-    -- why.
+    -- Each frame: the lines due said, in order (a hitch says several at once, each take cutting the one before), each
+    -- with its take, the scene ended after its last part. A take that cannot play is logged; its subtitle is said all
+    -- the same. A line the feed refuses (the co-op UI off; for a take with no subtitle, the feed not ready) or an error
+    -- ends it: returns false, why.
     function self.tick()
         local r=run
         if not r then return end

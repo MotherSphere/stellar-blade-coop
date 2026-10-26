@@ -9,9 +9,10 @@
 -- start, plays each from EVE as a 2D sound GAP after the one before ends (their lengths the takes' own), says the
 -- subtitle the table has for one with it and nothing for the others, skips a take not in the game with no gap, logs
 -- one it cannot play and still says its subtitle, loads one the engine freed meanwhile again, and cuts the voice at
--- coop lines stop, a new scene and coop off, never once its take has ended; the co-op UI going off ends it at its next
--- take. The timing table holds every line in order within its sequence, and the source names no save, quest, item,
--- spawn but its sounds' or console call.
+-- coop lines stop, a new scene and coop off, never once its take has ended; after a hitch each take due cuts the one
+-- before, so one plays and coop lines stop cuts it; the co-op UI going off ends it at its next take. The timing table
+-- holds every line in order within its sequence, and the source names no save, quest, item, spawn but its sounds' or
+-- console call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -262,12 +263,12 @@ entries.Seq_Actor_Enya={'<Enya>엔야</>','<Enya>Enya</>'}
 entries.Seq_Actor_Su={'<Su>수</>','<Su>Su</>'}
 entries.Seq_Quest_Sub_008_02_10={'선지자님이...','Enya line'}
 entries.Seq_Quest_Sub_008_02_11={'선지자께서...','Su line'}
-local sounds,stops={},0
+local sounds,stops,fail={},0,{[w10]=true,[w16]=true} -- Each call's arguments, stopped=true once its sound is cut.
 by_path['/Script/Engine.Default__GameplayStatics']=object({SpawnSound2D=function(_,...)
     local a={...}
-    if a[2]==w16 then error('no audio device',0) end
+    if fail[a[2]] then error('no audio device',0) end
     sounds[#sounds+1]=a
-    return object({Stop=function() stops=stops+1 end})
+    return object({Stop=function() stops,a.stopped=stops+1,true end})
 end})
 said,logs,loads={},{},{}
 clock=800
@@ -277,7 +278,8 @@ assert(ok and why=="Enya's and Su's unused takes (Quest_Sub_008): 6 lines over 2
 assert(#loads==7 and logged('take Seq_Quest_Sub_008_02_05_VO: 3.42 s, sound class Dialogue_NPC_En')
     and logged('missing: Seq_Quest_Sub_008_02_09_VO (not in the game)')
     and logged('enya: 6 of 7 lines read, 1 missing, 0 in Korean as the game holds them (game language en)'),#loads)
--- 02_05 at once, from EVE, its voice alone; 02_06 1 s after it ends; 02_10 (02_09 skipped, no gap) with its subtitle.
+-- 02_05 at once, from EVE, its voice alone; 02_06 1 s after it ends; then 02_10 (02_09 skipped, no gap), whose take
+-- cannot play: logged, its subtitle said all the same.
 ln.tick()
 local a=sounds[1]
 assert(#sounds==1 and a[1]==eve and a[2]==w05 and a[3]==1 and a[4]==1 and a[5]==0 and a[6]==nil and a[7]==false
@@ -285,34 +287,49 @@ assert(#sounds==1 and a[1]==eve and a[2]==w05 and a[3]==1 and a[4]==1 and a[5]==
 clock=800+4.41; ln.tick(); assert(#sounds==1,'Not before the gap ends')
 clock=800+4.42; ln.tick(); assert(#sounds==2 and #said==0)
 clock=800+7.42; ln.tick()
-assert(#sounds==3 and sounds[3][2]==w10 and said[1]=='Enya: Enya line',said[1])
+assert(#sounds==2 and said[1]=='Enya: Enya line' and logged('enya line 3: take not played (no audio device)'),said[1])
+fail[w10]=nil
 -- Su's take freed meanwhile (another object at its address): loaded again at its turn, logged, then played.
 w11.GetFullName=function() return fstring('SoundWave /Game/Other.Other') end
 by_path[p11]=nil
 local w11b=wave('Su','02_11',4)
 clock=800+10.29; ln.tick()
-assert(#sounds==4 and sounds[4][2]==w11b and said[2]=='Su: Su line' and loads[#loads]==p11
+assert(#sounds==3 and sounds[3][2]==w11b and said[2]=='Su: Su line' and loads[#loads]==p11
     and logged('take Seq_Quest_Sub_008_02_11_VO loaded again: freed before its turn'),logs[#logs])
--- A call that raises is logged; the scene goes on and ends after the last take.
+-- 02_15 and 02_16 due at once; 02_16's call raises, cutting nothing; the scene goes on and ends after the last take.
 clock=800+18.79; ln.tick()
-assert(#sounds==5 and logged('enya line 6: take not played (no audio device)') and not logged('enya ended'))
+assert(#sounds==4 and sounds[4][2]~=w16 and logged('enya line 6: take not played (no audio device)')
+    and not logged('enya ended'))
 clock=800+21.79; ln.tick()
 assert(logged('enya ended') and #said==2 and stops==0)
--- coop lines stop cuts the take playing; once it has ended, nothing is cut.
+-- coop lines stop cuts the take playing, and so does coop off; once it has ended, nothing is cut.
 ln.command('enya')
 ln.tick()
 ln.command('stop')
-assert(stops==1 and logged('enya stopped (coop lines stop)'))
+assert(stops==1 and sounds[#sounds].stopped and logged('enya stopped (coop lines stop)'))
+ln.command('enya')
+ln.tick()
+clock=clock+1
+ln.stop()
+assert(stops==2 and sounds[#sounds].stopped and logs[#logs]=='enya stopped (coop off)',logs[#logs])
 ln.command('enya')
 ln.tick()
 clock=clock+3.5
 ln.stop()
-assert(stops==1 and logged('enya stopped (coop off)'),'Its take had ended')
+assert(stops==2 and logs[#logs]=='enya stopped (coop off)','Its take had ended')
 -- A new scene cuts it too.
 ln.command('enya')
 ln.tick()
 ln.command('quinn')
-assert(stops==2 and logged('enya stopped (replaced)'))
+assert(stops==3 and logged('enya stopped (replaced)'))
+-- A hitch: 02_05 and 02_06 due at once start in order, 02_06 cutting 02_05, and coop lines stop cuts 02_06.
+ln.command('enya')
+local before=#sounds
+clock=clock+4.42; ln.tick()
+assert(#sounds==before+2 and sounds[before+1][2]==w05 and sounds[before+1].stopped and not sounds[before+2].stopped
+    and stops==4)
+ln.command('stop')
+assert(stops==5 and sounds[before+2].stopped)
 -- The co-op UI going off ends it at its next line, a take with no subtitle too, and that take never plays.
 ln.command('enya')
 ln.tick()
