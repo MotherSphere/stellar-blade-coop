@@ -407,8 +407,11 @@ function Travel.new(o)
         if not any and (type(alias)~='string' or not CAMP[alias]) then
             return 'not one of the 120 travel camps: '..tostring(alias)
         end
-        if not native() then return 'no travel in the native part (engine off, or coop off)' end
-        if req then return 'a travel is under way' end
+        local state=native()
+        if not state then return 'no travel in the native part (engine off, or coop off)' end
+        if state=='refused:fault' then return 'the native travel stopped by a fault (coop-link.log)' end
+        if req or state=='pending' or state=='warping' then return 'a travel is under way' end
+        if now-accepted<WAIT then return 'the last travel was under 10 s ago' end
     end
     -- coop mxiii's check before it adds its rows: true, or false and why a probe would be refused now.
     function self.ready()

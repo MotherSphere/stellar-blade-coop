@@ -10,7 +10,8 @@
 -- with follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place the travel
 -- brought her to, and his next move offered again after it. The guards, each refusing on its own (silent, busy or
 -- failed), again right before the call; the stuck warp; and coop travel probe: solo, on a co-op save only, any of the
--- 120 camps, and for coop mxiii its guards alone (ready) and a camp in no table.
+-- 120 camps, and for coop mxiii its guards alone (ready: also the native warp, the 10 s after a travel SB took and the
+-- travel's fault) and a camp in no table.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local W -- The world of one case.
@@ -518,9 +519,19 @@ ok,why=t.probe('DLC02_10_Camp_01',true)
 assert(ok and last(W.requests)=='travel DLC02_10_Camp_01 77 0',why)
 ok,why=t.ready()
 assert(ok==false and why=='a travel is under way','One at a time')
+-- Once SB took it: the native warp, then the 10 s the native part waits after an accepted call.
+W.travel,W.calls='warping',1
+run(t,0.25)
+assert(logged('travel accepted: DLC02_10_Camp_01'))
+ok,why=t.ready(); assert(ok==false and why=='a travel is under way','The native warp: '..tostring(why))
+W.travel='arrived'
+ok,why=t.ready(); assert(ok==false and why=='the last travel was under 10 s ago',tostring(why))
+run(t,10)
+ok,why=t.ready(); assert(ok==true,tostring(why))
 for _,case in ipairs({{function(w) w.mode='guest' end,'solo only'},{function(w) w.mode=nil end,'not ready'},
     {function(w) w.slot='slot=main index=1 marker=4 saves=main' end,'co-op save only'},
-    {function(w) w.engine='engine=off reason=coop_off' end,'no travel in the native part'}}) do
+    {function(w) w.engine='engine=off reason=coop_off' end,'no travel in the native part'},
+    {function(w) w.travel='refused:fault' end,'stopped by a fault'}}) do
     t=world(function(w) w.mode='none'; w.linked=false; w.names={DLC02_10_Camp_01=77}; case[1](w) end)
     ok,why=t.ready()
     assert(ok==false and why:find(case[2],1,true) and #W.requests==0,case[2]..': '..tostring(why))
