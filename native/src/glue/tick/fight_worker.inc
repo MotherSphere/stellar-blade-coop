@@ -1,6 +1,6 @@
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // The shared fight's worker side: the gates, same-place enemies' asks and pass, the spawn filter's hook and fight_pass;
-// and the Lion's ask and log (lion/rows.h), whose game-thread calls share the take-over's gate.
+// and the rows' asks and log (lion/rows.h's two batches), whose game-thread calls share the take-over's gate.
 
 namespace coop::pose {
 
@@ -491,55 +491,62 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's rows (Lua's lion rows request): the 12 tables' addresses for the game thread, which adds the rows at the
-// first frame its gate holds. An ask it has not taken yet is replaced. Refused off the pinned build, after coop off and
-// after the Lion's fault; once every row is in, nothing more is asked (the rows stay for the game run).
-std::string ask_lion(const coop::Request &request) {
+// coop lion's and coop gardener fight's rows (Lua's lion rows and gardener rows requests): the 14 tables' addresses
+// for the game thread, which adds that batch's rows at the first frame its gate holds. An ask it has not taken yet is
+// replaced. Refused off the pinned build, after coop off and after the rows' fault; once every row of a batch is in,
+// nothing more is asked of it (the rows stay for the game run).
+std::string ask_rows(const coop::Request &request) {
+  RowsJob &j = *kJobs[request.batch < kRowWordCount ? request.batch : 0];
+  const std::string word = j.batch.word, n = std::to_string(j.batch.count);
   if (!game_pinned || blocked || lion_faulted)
-    return "lion rows refused: " + (blocked        ? std::string("coop off")
-                                    : lion_faulted ? std::string("the Lion's rows stopped for this run (a fault)")
-                                                   : engine_reason);
+    return word + " rows refused: " +
+           (blocked        ? std::string("coop off")
+            : lion_faulted ? std::string("the rows stopped for this run (a fault)")
+                           : engine_reason);
   uint32_t asks = 0;
-  if (lion::unpack(lion_word, asks).state == lion::State::rows)
-    return "lion rows already in: " + std::to_string(lion::kRows) + "/" + std::to_string(lion::kRows) +
-           ", not added again";
+  if (lion::unpack(j.word, asks).state == lion::State::rows)
+    return word + " rows already in: " + n + "/" + n + ", not added again";
   {
-    std::lock_guard<std::mutex> lock(lion_m);
-    ++lion_asked;
-    std::copy(request.tables.begin(), request.tables.end(), lion_ask_tables);
+    std::lock_guard<std::mutex> lock(j.m);
+    ++j.asked;
+    std::copy(request.tables.begin(), request.tables.end(), j.ask_tables);
   }
-  return "lion rows asked: the game thread adds " + std::to_string(lion::kRows) +
+  return word + " rows asked: the game thread adds " + n +
          " rows through SB's AddRow at the first frame with net mode 0 and no logic task in flight (at most " +
          std::to_string(lion::kGateTicks) + " frames)";
 }
 
 namespace {
-// Each worker pass: one line for each answer the game thread finished (the R2 line, and with every row in the R3 line
-// of SB's own lookups), and the Lion's fault once.
-uint32_t lion_logged = 0;
+// Each worker pass: one line for each answer the game thread finished for a batch (the R2 line, and with every row
+// in the R3 line of SB's own lookups), and the rows' fault once, by the batch that ran into it or first answered it.
+uint32_t rows_logged[kRowWordCount] = {};
 bool lion_fault_logged = false;
 void lion_pass() {
-  uint32_t asks = 0;
-  const lion::Answer a = lion::unpack(lion_word, asks);
-  if (asks == lion_logged)
-    return;
-  lion_logged = asks;
-  if (a.state == lion::State::fault && !lion_fault_logged) {
-    lion_fault_logged = true;
-    char text[300];
-    std::snprintf(text, sizeof text,
-                  "lion rows off: fault 0x%08llx in %s reading 0x%llx after %u of %u rows; no Lion rows until the "
-                  "game restarts",
-                  static_cast<unsigned long long>(lion_fault_code.load()), fault_where(lion_fault_rva).c_str(),
-                  static_cast<unsigned long long>(lion_fault_address.load()), unsigned(a.added),
-                  unsigned(lion::kRows));
-    say(text);
-    return;
-  }
-  say(lion::describe(a));
-  if (a.state == lion::State::rows) {
-    const uint32_t r = lion_read;
-    say(lion::describe_read({uint8_t(r), uint8_t(r >> 8), uint8_t(r >> 16)}));
+  for (size_t k = 0; k < kRowWordCount; ++k) {
+    const RowsJob &j = *kJobs[k];
+    uint32_t asks = 0;
+    const lion::Answer a = lion::unpack(j.word, asks);
+    if (asks == rows_logged[k])
+      continue;
+    rows_logged[k] = asks;
+    if (a.state == lion::State::fault) {
+      if (std::exchange(lion_fault_logged, true))
+        continue;
+      char text[300];
+      std::snprintf(text, sizeof text,
+                    "%s rows off: fault 0x%08llx in %s reading 0x%llx after %u of %u rows; no rows of either batch "
+                    "until the game restarts",
+                    j.batch.word, static_cast<unsigned long long>(lion_fault_code.load()),
+                    fault_where(lion_fault_rva).c_str(), static_cast<unsigned long long>(lion_fault_address.load()),
+                    unsigned(a.added), unsigned(j.batch.count));
+      say(text);
+      continue;
+    }
+    say(lion::describe(j.batch, a));
+    if (a.state == lion::State::rows) {
+      const uint32_t r = j.read;
+      say(lion::describe_read(j.batch, {uint8_t(r), uint8_t(r >> 8), uint8_t(r >> 16)}));
+    }
   }
 }
 } // namespace
@@ -547,7 +554,7 @@ void lion_pass() {
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool), coop::Life mate) {
   fight_send = send;
-  lion_pass(); // The Lion's answers, logged here at every pass whatever the fight does.
+  lion_pass(); // The rows' answers, logged here at every pass whatever the fight does.
   if (fight_faulted && !fight_fault_logged) {
     fight_fault_logged = true;
     char text[400];

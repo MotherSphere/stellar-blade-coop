@@ -75,7 +75,7 @@ std::string ask_fight(const coop::Request &request, int marker);
 // its events, its probe census, a fault and a stats line each second its counts move; starts, pauses or stops it for
 // the gates (on waits for a co-op save; the solo tools stop off one), tells her our state while we do not share, and
 // leaves it off until asked again once it latched. mate: her life (Link::mate_life()), for the job's group rules. True
-// while the job runs (the worker then passes every 5 ms, not 50). Also logs the Lion's answers (ask_lion's).
+// while the job runs (the worker then passes every 5 ms, not 50). Also logs the rows' answers (ask_rows').
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool), coop::Life mate);
 // Worker: coop-status.txt's fight line (fight/engine.h's Worker::detail).
@@ -102,14 +102,15 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
 // frame, which calls SB's fast travel once game/travel.h's guard passes. Refused off the pinned build, after coop off
 // and after the travel latch's fault. Returns the line for the log; the call's own line follows from worker_poll.
 std::string ask_travel(const coop::Request &request);
-// Worker thread, coop lion (lion/rows.h): Lua's lion rows request, the 12 tables' addresses for the game thread, which
-// adds the Lion's rows through SB's AddRow once its gate holds. Refused off the pinned build, after coop off and after
-// the Lion's fault, and not asked again once every row is in. Returns the line for the log; fight_pass logs the game
-// thread's answer.
-std::string ask_lion(const coop::Request &request);
-// Worker: coop-status.txt's lion line (lion/rows.h's status_line): "lion=off", or the state (waiting, rows, refused,
-// fault) with added=<n>/<N>, asks=<a>, spawns=<s> and that state's own fields.
-std::string lion_status();
+// Worker thread, coop lion and coop gardener fight (lion/rows.h): Lua's lion rows or gardener rows request, the 14
+// tables' addresses for the game thread, which adds that batch's rows through SB's AddRow once its gate holds. Refused
+// off the pinned build, after coop off and after the rows' fault, and not asked again once every row of the batch is
+// in. Returns the line for the log; fight_pass logs the game thread's answer.
+std::string ask_rows(const coop::Request &request);
+// Worker: coop-status.txt's lion and gardener lines (lion/rows.h's status_line), one per batch, joined by a line
+// break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>, asks=<a>, spawns=<s> and that
+// state's own fields.
+std::string rows_status();
 // Worker: coop-status.txt's shared quests lines (quest/engine.h's Worker::status), each ending in a line break.
 std::string quest_status();
 // Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",

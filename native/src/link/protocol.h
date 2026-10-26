@@ -36,7 +36,7 @@
 #include <string_view>
 #include <vector>
 
-#include "game/memory.h" // plausible: the lion rows request's addresses
+#include "game/memory.h" // plausible: the rows requests' addresses
 #include "game/pak_list.h"
 
 namespace coop {
@@ -528,16 +528,19 @@ inline uint64_t code_lobby(std::string_view text) {
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
 // players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); and for coop lion (cut/lion.lua) "lion rows
-// <Table>=0x<address> ..." (the Lion's rows for SB's AddRow, glue/tick/lion_game.inc: one word for each of the
-// kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible). Lua finds the tables by their
-// fixed paths, so no console argument reaches an address, and the native part trusts none before it checked the
-// table's vtable and row size (lion/rows.h).
+// <Table>=0x<address> ..." and for coop gardener fight (cut/gardener.lua) "gardener rows <Table>=0x<address> ..."
+// (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each of the kLionTables, in any
+// order, each once, its address in 1 to 16 hex digits and plausible; Request::batch says which). Lua finds the tables
+// by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
+// the table's vtable and row size (lion/rows.h).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, lion, gate
+  remove, copy, quests, camps, travel, mark, rows, gate
 };
-// The tables the Lion's rows and the cut items' go into (lion/rows.h's Table, in this order), as their assets are
-// named.
+// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener), in Request::batch's order.
+constexpr size_t kRowWordCount = 2;
+constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener"};
+// The tables the rows of both batches go into (lion/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 14;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
@@ -595,7 +598,8 @@ struct Request {
   std::string alias;            // travel: the camp's alias (for the log), and its FName.
   uint32_t index = 0, number = 0;
   std::string text;             // mark: its text, or empty.
-  std::array<uint64_t, kLionTableCount> tables{}; // lion rows: the tables' addresses, in kLionTables' order.
+  std::array<uint64_t, kLionTableCount> tables{}; // rows: the tables' addresses, in kLionTables' order.
+  uint8_t batch = 0;                               // rows: which batch, its word's index in kRowWords.
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -715,8 +719,8 @@ inline Request parse_quests(const std::string &text) {
   r.deny = deny;
   return r;
 }
-// What follows "lion rows ". Command::none when anything is off.
-inline Request parse_lion(const std::string &text) {
+// What follows "<word> rows ". Command::none when anything is off.
+inline Request parse_rows(const std::string &text) {
   std::string w[kLionTableCount];
   if (!split(text, w, kLionTableCount, nullptr))
     return Request();
@@ -737,7 +741,7 @@ inline Request parse_lion(const std::string &text) {
       return Request();
     r.tables[size_t(name - kLionTables)] = v;
   }
-  r.command = Command::lion;
+  r.command = Command::rows;
   return r;
 }
 inline Request parse_request(std::string text) {
@@ -747,8 +751,12 @@ inline Request parse_request(std::string text) {
     return parse_fight(text.substr(6));
   if (text.rfind("quests ", 0) == 0)
     return parse_quests(text.substr(7));
-  if (text.rfind("lion rows ", 0) == 0)
-    return parse_lion(text.substr(10));
+  for (uint8_t b = 0; b < kRowWordCount; ++b)
+    if (const std::string head = std::string(kRowWords[b]) + " rows "; text.rfind(head, 0) == 0) {
+      Request r = parse_rows(text.substr(head.size()));
+      r.batch = b;
+      return r;
+    }
   Request r;
   std::string f[4];
   if (text == "host" || text == "host code" || text == "host private") {

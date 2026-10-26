@@ -25,6 +25,13 @@
 // shipped Show of EVE's own ChainSpin clip and take SB's shipped ChainSpin moves) and the EffectTable row
 // P_Eve_Tachy_Skill_ChainSpin1_Use (1004500), whose UseSkill action starts the skill while EVE is in Tachy Mode.
 //
+// A second batch, the cut Gardener's (coop gardener fight, cut/gardener.lua; kGardenerRecipe), goes in on its own ask,
+// so a refusal in one batch never stops the other: 13 near copies of shipped rows (the 3 steps of its ToxicBeam, its 3
+// skills and their commands, a stance that never moves and 3 CharacterTable rows over M_Maelstrom: M_Gardener 50010,
+// M_Gardener_Skulling 50011 and the half-scale M_Gardener_Half 50012). A Batch names its rows and the word its status
+// line, log lines and request start with ("lion", "gardener"); both share the table checks, the block and the rules
+// below, and each keeps its own Builder.
+//
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
 // (glue/tick/lion_game.inc's gate: no lock guards the tables). For each row not added yet, in order: the table must be
@@ -32,9 +39,9 @@
 // free in the table's ID map; the template is found by name; then the row is built in a block the glue owns
 // (InitializeStruct, CopyScriptStruct from the template, the ID at +0x10, the patches) and handed to AddRow, which
 // removes any row of that name, copies ours into its own allocation and fills the ID and index maps. The first refusal
-// stops the run before any later row, and the CharacterTable rows come last, so NewActor finds 50020 only once every
-// other row is in. A row is added once a run: a later run skips it, so AddRow's RemoveRow never frees a row a Lion
-// still reads.
+// stops the run before any later row of its batch, and each batch's CharacterTable rows come last, so NewActor finds
+// 50020 (or 50010) only once every other row of its batch is in. A row is added once a run: a later run skips it, so
+// AddRow's RemoveRow never frees a row a Lion (or a Gardener) still reads.
 //
 // SB parses a row's JSON strings (StartEffect, AttackCollisionGroupArray, AttackerEffectWhenDead, a hit result's
 // effects...) into Transient arrays the first time it uses the row (row +8 is 0 until then; every lookup site sets it
@@ -68,7 +75,8 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 14 tables, in coop::kLionTables' order (link/protocol.h): Lua's lion rows request names each with its address.
+// The 14 tables, in coop::kLionTables' order (link/protocol.h): Lua's lion rows and gardener rows requests name each
+// with its address.
 enum class Table : uint8_t {
   character,
   appearance,
@@ -3883,6 +3891,326 @@ constexpr Patch kPatches[] = {
     // OverrideCharacterSoundSet
     {0x520, Kind::string, 0,
      "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_46_BEHEMOTH.CSS_MON_46_BEHEMOTH'"},
+    // M_GardenerC_ToxicBeam_Cast1 (SkillActiveStepTable, Gardener)
+    {0x018, Kind::f32, 1.86f, nullptr},                   // Duration
+    {0x034, Kind::name, 0, "M_GardenerC_ToxicBeam_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam"}, // ShowPath
+    {0x1f9, Kind::u8, 1, nullptr},                                            // bLookAtTarget
+    {0x1fc, Kind::f32, 0.3f, nullptr},                                        // LookAtTargetRotationTime
+    {0x200, Kind::f32, 360.0f, nullptr},                                      // LookAtTargetLeftMaxAngle
+    {0x204, Kind::f32, 360.0f, nullptr},                                      // LookAtTargetRightMaxAngle
+    // M_GardenerC_ToxicBeam_Hit1 (SkillActiveStepTable, Gardener)
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.2f, nullptr},                       // Duration
+    {0x020, Kind::f32, 1.0f, nullptr},                       // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                       // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_GardenerC_ToxicBeam_Finish1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    // UsableNonTargetProjectileAliasArray
+    {0x178, Kind::names, 0,
+     "M_Gardener_SingleShot_Projectile1|M_Gardener_SingleShot_Projectile2|M_Gardener_MultipleShot_Projectile14|"
+     "M_Gardener_MultipleShot_Projectile15|M_Gardener_MultipleShot_Projectile16|"
+     "M_Gardener_MultipleShot_Projectile17|M_Gardener_MultipleShot_Projectile18|"
+     "M_Gardener_MultipleShot_Projectile19"},
+    // UsableTargetProjectileAliasArray
+    {0x190, Kind::names, 0,
+     "M_Gardener_SingleShot_Projectile1|M_Gardener_SingleShot_Projectile2|M_Gardener_MultipleShot_Projectile14|"
+     "M_Gardener_MultipleShot_Projectile15|M_Gardener_MultipleShot_Projectile16|"
+     "M_Gardener_MultipleShot_Projectile17|M_Gardener_MultipleShot_Projectile18|"
+     "M_Gardener_MultipleShot_Projectile19"},
+    {0x272, Kind::u8, 1, nullptr}, // bIgnoreHitStop
+    // M_GardenerC_ToxicBeam_Finish1 (SkillActiveStepTable, Gardener)
+    {0x018, Kind::f32, 3.34f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    // M_GardenerC_SingleShot (SkillTable, Gardener)
+    {0x070, Kind::i32, 3, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x0b4, Kind::name, 0, "M_Gardener_SingleShot_1_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_Gardener_SingleShot_4_Cast1"},  // FirstSkillActiveAlias
+    {0x140, Kind::f32, 2.5f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2c8, Kind::u8, 1, nullptr},                            // bApplyOffScreenIndicator
+    // M_GardenerC_MultipleShot (SkillTable, Gardener)
+    {0x070, Kind::i32, 3, nullptr},                             // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                              // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                              // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                      // AISkillFlag
+    {0x0b4, Kind::name, 0, "M_Gardener_MultipleShot_1_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_Gardener_MultipleShot_1_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},                         // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},                          // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                          // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                              // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                              // bSwitchBattleMode
+    {0x2c8, Kind::u8, 1, nullptr},                              // bApplyOffScreenIndicator
+    // M_GardenerC_ToxicBeam (SkillTable, Gardener)
+    {0x070, Kind::i32, 3, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x0b4, Kind::name, 0, "M_Gardener_SingleShot_1_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_GardenerC_ToxicBeam_Cast1"},    // FirstSkillActiveAlias
+    {0x124, Kind::f32, 15.0f, nullptr},                       // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2c8, Kind::u8, 1, nullptr},                            // bApplyOffScreenIndicator
+    // M_GardenerC_SingleShot (SkillCommandTable, Gardener)
+    {0x018, Kind::name, 0, "M_GardenerC_SingleShot"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                    // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                    // bFly
+    {0x053, Kind::u8, 1, nullptr},                    // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                 // AICommandActivationRate
+    // M_GardenerC_MultipleShot (SkillCommandTable, Gardener)
+    {0x018, Kind::name, 0, "M_GardenerC_MultipleShot"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                      // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                      // bFly
+    {0x053, Kind::u8, 1, nullptr},                      // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                   // AICommandActivationRate
+    // M_GardenerC_ToxicBeam (SkillCommandTable, Gardener)
+    {0x018, Kind::name, 0, "M_GardenerC_ToxicBeam"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                   // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                   // bFly
+    {0x053, Kind::u8, 1, nullptr},                   // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                // AICommandActivationRate
+    // M_GardenerC_Default (CharacterStanceTable, Gardener)
+    {0x01a, Kind::u8, 1, nullptr}, // bDetectCloakingTarget
+    {0x08d, Kind::u8, 1, nullptr}, // bInfiniteStance
+    {0x090, Kind::names, 0, "M_GardenerC_SingleShot|M_GardenerC_MultipleShot|M_GardenerC_ToxicBeam"}, // CommandArray
+    {0x0a8, Kind::f32, 0.0f, nullptr},                                                                // WalkSpeed
+    {0x0ac, Kind::f32, 0.0f, nullptr},                                                                // RunSpeed
+    {0x0b0, Kind::f32, 0.0f, nullptr},                                                                // LockOnRunSpeed
+    {0x0b4, Kind::f32, 0.0f, nullptr},                                                                // LockOnWalkSpeed
+    {0x0bc, Kind::f32, 100.0f, nullptr},           // RotateAnglePerSecond
+    {0x150, Kind::name, 0, "M_Gardener_Peaceful"}, // AnimSet_Peaceful_UpperBody
+    {0x158, Kind::name, 0, "M_Gardener_Peaceful"}, // AnimSet_Peaceful_LowerBody
+    {0x160, Kind::name, 0, "M_Gardener_Battle"},   // AnimSet_Battle_UpperBody
+    {0x168, Kind::name, 0, "M_Gardener_Battle"},   // AnimSet_Battle_LowerBody
+    {0x170, Kind::name, 0, "Groggy"},              // AnimSet_Groggy_UpperBody
+    {0x178, Kind::name, 0, "Groggy"},              // AnimSet_Groggy_LowerBody
+    {0x180, Kind::name, 0, "Down"},                // AnimSet_Down_UpperBody
+    {0x188, Kind::name, 0, "Down"},                // AnimSet_Down_LowerBody
+    {0x190, Kind::name, 0, "Dead"},                // AnimSet_Dead_UpperBody
+    {0x198, Kind::name, 0, "Dead"},                // AnimSet_Dead_LowerBody
+    {0x1a0, Kind::name, 0, "Airborne"},            // AnimSet_Airborne_UpperBody
+    {0x1a8, Kind::name, 0, "Airborne"},            // AnimSet_Airborne_LowerBody
+    // M_Gardener_Skulling (CharacterTable, Gardener)
+    {0x014, Kind::name, 0, "Elite"},        // Rank
+    {0x020, Kind::string, 0, "M_Gardener"}, // Type
+    {0x030, Kind::name, 0, "Monster"},      // Tribe
+    {0x050, Kind::names, 0, "Monster"},     // Tags
+    {0x060, Kind::names, 0, ""},            // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Gardener"},     // Flag
+    {0x078, Kind::i32, 37840, nullptr},     // MaxHP
+    {0x07c, Kind::i32, 1455, nullptr},      // MaxShield
+    {0x084, Kind::f32, 930.0f, nullptr},    // PhysicAttackPower
+    {0x088, Kind::f32, 930.0f, nullptr},    // RangeAttackPower
+    {0x08c, Kind::f32, 120.0f, nullptr},    // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},      // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},      // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},      // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 80, nullptr},        // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},         // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},      // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},      // CriticalValueRate
+    {0x148, Kind::names, 0, ""},            // EffectAliasWhenZeroHPArray
+    {0x168, Kind::names, 0, "Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"}, // EffectAliasWhenZeroStaminaArray
+    {0x1f8, Kind::u8, 6, nullptr},                                                  // WeightType
+    {0x1fc, Kind::f32, 1.0f, nullptr},                                              // MeshScale
+    {0x200, Kind::f32, 291.0f, nullptr},                                            // TargetFilterRadius
+    {0x204, Kind::f32, 300.0f, nullptr},                                            // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 341.0f, nullptr},                                            // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 1700.0f, nullptr},                                           // RuleMoveBlockAreaZHeight
+    {0x21c, Kind::f32, 291.0f, nullptr},                                            // RuleMoveBlockCheckRadius
+    // DefaultEffectArray
+    {0x220, Kind::names, 0,
+     "Rank_Elite|M_Common_FixedLocation|BlockRuleMove_Infinite|M_Common_ImmuneAbnormal|ShowTag_NoHitAni_Infinite|"
+     "ShowTag_AdditiveNoPlay_Infinite|DisableMonsterWarp|M_Common_BackHitImmune"},
+    {0x270, Kind::name, 0, "MonsterElite"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadElite\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_Gardener"},                               // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_Cocoon_Despawn"},               // DespawnShow
+    {0x2f8, Kind::name, 0, "None"},                                     // CollisionGroupName1
+    {0x300, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge1
+    {0x308, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero1
+    {0x318, Kind::name, 0, "None"},                                     // CollisionGroupName2
+    {0x320, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge2
+    {0x328, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero2
+    {0x338, Kind::name, 0, "None"},                                     // CollisionGroupName3
+    {0x340, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge3
+    {0x348, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero3
+    {0x3a8, Kind::name, 0, "M_GardenerC_Default"},                      // DefaultStanceAlias
+    {0x3b0, Kind::f32, 1.5f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 2.0f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
+    {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Skulling_AI_Test"}, // BehaviorTreeRes
+    {0x3f8, Kind::name, 0, "M_Gardener"},                                                        // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_Gardener"},                                                        // NarrowDetectAIAlias
+    {0x410, Kind::f32, 150.0f, nullptr},                   // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},                     // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},                     // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},                         // ActorType
+    {0x420, Kind::name, 0, "M_Gardener"},                  // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},                        // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr},                   // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},                         // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},                         // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},                         // ScanDisplayType
+    {0x508, Kind::string, 0, "Char_M_Gardener_AlbumName"}, // Name
+    // OverrideCharacterSoundSet
+    {0x520, Kind::string, 0,
+     "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_36_MaelStrom.CSS_MON_36_MaelStrom'"},
+    // M_Gardener_Half (CharacterTable, Gardener)
+    {0x014, Kind::name, 0, "Elite"},        // Rank
+    {0x020, Kind::string, 0, "M_Gardener"}, // Type
+    {0x030, Kind::name, 0, "Monster"},      // Tribe
+    {0x050, Kind::names, 0, "Monster"},     // Tags
+    {0x060, Kind::names, 0, ""},            // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Gardener"},     // Flag
+    {0x078, Kind::i32, 37840, nullptr},     // MaxHP
+    {0x07c, Kind::i32, 1455, nullptr},      // MaxShield
+    {0x084, Kind::f32, 930.0f, nullptr},    // PhysicAttackPower
+    {0x088, Kind::f32, 930.0f, nullptr},    // RangeAttackPower
+    {0x08c, Kind::f32, 120.0f, nullptr},    // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},      // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},      // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},      // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 80, nullptr},        // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},         // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},      // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},      // CriticalValueRate
+    {0x148, Kind::names, 0, ""},            // EffectAliasWhenZeroHPArray
+    {0x168, Kind::names, 0, "Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"}, // EffectAliasWhenZeroStaminaArray
+    {0x1f8, Kind::u8, 6, nullptr},                                                  // WeightType
+    {0x1fc, Kind::f32, 0.5f, nullptr},                                              // MeshScale
+    {0x200, Kind::f32, 291.0f, nullptr},                                            // TargetFilterRadius
+    {0x204, Kind::f32, 300.0f, nullptr},                                            // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 341.0f, nullptr},                                            // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 1700.0f, nullptr},                                           // RuleMoveBlockAreaZHeight
+    {0x21c, Kind::f32, 291.0f, nullptr},                                            // RuleMoveBlockCheckRadius
+    // DefaultEffectArray
+    {0x220, Kind::names, 0,
+     "Rank_Elite|M_Common_FixedLocation|BlockRuleMove_Infinite|M_Common_ImmuneAbnormal|ShowTag_NoHitAni_Infinite|"
+     "ShowTag_AdditiveNoPlay_Infinite|DisableMonsterWarp|M_Common_BackHitImmune"},
+    {0x270, Kind::name, 0, "MonsterElite"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadElite\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_Gardener"},                               // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_Cocoon_Despawn"},               // DespawnShow
+    {0x2f8, Kind::name, 0, "None"},                                     // CollisionGroupName1
+    {0x300, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge1
+    {0x308, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero1
+    {0x318, Kind::name, 0, "None"},                                     // CollisionGroupName2
+    {0x320, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge2
+    {0x328, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero2
+    {0x338, Kind::name, 0, "None"},                                     // CollisionGroupName3
+    {0x340, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge3
+    {0x348, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero3
+    {0x3a8, Kind::name, 0, "M_GardenerC_Default"},                      // DefaultStanceAlias
+    {0x3b0, Kind::f32, 1.5f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 2.0f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
+    {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Tentacle_AI"}, // BehaviorTreeRes
+    {0x3f8, Kind::name, 0, "M_Gardener"},                                                   // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_Gardener"},                                                   // NarrowDetectAIAlias
+    {0x410, Kind::f32, 150.0f, nullptr},                                                    // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},                                                      // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},                                                      // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},                                                          // ActorType
+    {0x420, Kind::name, 0, "M_Gardener"},                                                   // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},                                                         // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr},                                                    // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},                                                          // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},                         // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},                         // ScanDisplayType
+    {0x508, Kind::string, 0, "Char_M_Gardener_AlbumName"}, // Name
+    // OverrideCharacterSoundSet
+    {0x520, Kind::string, 0,
+     "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_36_MaelStrom.CSS_MON_36_MaelStrom'"},
+    // M_Gardener (CharacterTable, Gardener)
+    {0x014, Kind::name, 0, "Elite"},        // Rank
+    {0x020, Kind::string, 0, "M_Gardener"}, // Type
+    {0x030, Kind::name, 0, "Monster"},      // Tribe
+    {0x050, Kind::names, 0, "Monster"},     // Tags
+    {0x060, Kind::names, 0, ""},            // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Gardener"},     // Flag
+    {0x078, Kind::i32, 37840, nullptr},     // MaxHP
+    {0x07c, Kind::i32, 1455, nullptr},      // MaxShield
+    {0x084, Kind::f32, 930.0f, nullptr},    // PhysicAttackPower
+    {0x088, Kind::f32, 930.0f, nullptr},    // RangeAttackPower
+    {0x08c, Kind::f32, 120.0f, nullptr},    // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},      // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},      // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},      // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 80, nullptr},        // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},         // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},      // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},      // CriticalValueRate
+    {0x148, Kind::names, 0, ""},            // EffectAliasWhenZeroHPArray
+    {0x168, Kind::names, 0, "Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"}, // EffectAliasWhenZeroStaminaArray
+    {0x1f8, Kind::u8, 6, nullptr},                                                  // WeightType
+    {0x1fc, Kind::f32, 1.0f, nullptr},                                              // MeshScale
+    {0x200, Kind::f32, 291.0f, nullptr},                                            // TargetFilterRadius
+    {0x204, Kind::f32, 300.0f, nullptr},                                            // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 341.0f, nullptr},                                            // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 1700.0f, nullptr},                                           // RuleMoveBlockAreaZHeight
+    {0x21c, Kind::f32, 291.0f, nullptr},                                            // RuleMoveBlockCheckRadius
+    // DefaultEffectArray
+    {0x220, Kind::names, 0,
+     "Rank_Elite|M_Common_FixedLocation|BlockRuleMove_Infinite|M_Common_ImmuneAbnormal|ShowTag_NoHitAni_Infinite|"
+     "ShowTag_AdditiveNoPlay_Infinite|DisableMonsterWarp|M_Common_BackHitImmune"},
+    {0x270, Kind::name, 0, "MonsterElite"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadElite\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_Gardener"},                               // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_Cocoon_Despawn"},               // DespawnShow
+    {0x2f8, Kind::name, 0, "None"},                                     // CollisionGroupName1
+    {0x300, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge1
+    {0x308, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero1
+    {0x318, Kind::name, 0, "None"},                                     // CollisionGroupName2
+    {0x320, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge2
+    {0x328, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero2
+    {0x338, Kind::name, 0, "None"},                                     // CollisionGroupName3
+    {0x340, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge3
+    {0x348, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero3
+    {0x3a8, Kind::name, 0, "M_GardenerC_Default"},                      // DefaultStanceAlias
+    {0x3b0, Kind::f32, 1.5f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 2.0f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
+    {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Tentacle_AI"}, // BehaviorTreeRes
+    {0x3f8, Kind::name, 0, "M_Gardener"},                                                   // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_Gardener"},                                                   // NarrowDetectAIAlias
+    {0x410, Kind::f32, 150.0f, nullptr},                                                    // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},                                                      // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},                                                      // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},                                                          // ActorType
+    {0x420, Kind::name, 0, "M_Gardener"},                                                   // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},                                                         // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr},                                                    // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},                                                          // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},                         // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},                         // ScanDisplayType
+    {0x508, Kind::string, 0, "Char_M_Gardener_AlbumName"}, // Name
+    // OverrideCharacterSoundSet
+    {0x520, Kind::string, 0,
+     "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_36_MaelStrom.CSS_MON_36_MaelStrom'"},
 };
 constexpr Row kRecipe[] = {
     {Table::skill, "P_Eve_Sword_Normal_Buff_1", "P_Eve_Sword_Normal_Potion_1", 6000101, 0, 8},
@@ -4124,9 +4452,38 @@ constexpr Row kRecipe[] = {
     {Table::character, "M_LionC_Lurker", "M_Behemoth", 50021, 3068, 55},
     {Table::character, "M_LionC", "M_Behemoth", 50020, 3123, 55},
 };
+// The Gardener's own batch (coop gardener fight), added on its own ask after its own checks: 13 near copies of
+// shipped rows (character 3, stance 1, command 3, skill 3, step 3), 279 fields, 102 of them changed from the
+// template's value. M_Gardener_Skulling (50011) with M_Skulling_AI_Test, M_Gardener_Half (50012) with
+// M_Tentacle_AI, M_Gardener (50010) with M_Tentacle_AI. Its three skills run on the shipped steps of SingleShot_4
+// and MultipleShot_1 and on ToxicBeam's three new steps.
+constexpr Row kGardenerRecipe[] = {
+    {Table::step, "M_GardenerC_ToxicBeam_Cast1", "M_Gardener_SingleShot_1_Cast1", 500100043, 3178, 8},
+    {Table::step, "M_GardenerC_ToxicBeam_Hit1", "M_Gardener_SingleShot_1_Hit1", 500100044, 3186, 10},
+    {Table::step, "M_GardenerC_ToxicBeam_Finish1", "M_Gardener_SingleShot_1_Finish1", 500100045, 3196, 2},
+    {Table::skill, "M_GardenerC_SingleShot", "M_Gardener_SingleShot_4", 5001010, 3198, 11},
+    {Table::skill, "M_GardenerC_MultipleShot", "M_Gardener_MultipleShot_1", 5001011, 3209, 12},
+    {Table::skill, "M_GardenerC_ToxicBeam", "M_Gardener_SingleShot_1", 5001012, 3221, 12},
+    {Table::command, "M_GardenerC_SingleShot", "M_Gardener_SingleShot_1", 5001010, 3233, 5},
+    {Table::command, "M_GardenerC_MultipleShot", "M_Gardener_SingleShot_1", 5001011, 3238, 5},
+    {Table::command, "M_GardenerC_ToxicBeam", "M_Gardener_SingleShot_1", 5001012, 3243, 5},
+    {Table::stance, "M_GardenerC_Default", "M_Gardener_Default", 500101, 3248, 20},
+    {Table::character, "M_Gardener_Skulling", "M_Maelstrom", 50011, 3268, 63},
+    {Table::character, "M_Gardener_Half", "M_Maelstrom", 50012, 3331, 63},
+    {Table::character, "M_Gardener", "M_Maelstrom", 50010, 3394, 63},
+};
 // ---- End of the generated part ----
 
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
+constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe[0];
+// A batch: its rows (their patches in kPatches) and its word, which starts its status line, its log lines and Lua's
+// request for it (link/protocol.h's kRowWords).
+struct Batch {
+  const char *word;
+  const Row *rows;
+  size_t count;
+};
+constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -4166,10 +4523,10 @@ struct Answer {
   State state = State::off;
   Why why = Why::none;
   uint8_t added = 0;   // Rows in so far.
-  uint8_t row = 0;     // refused: the row it stopped at, kRows for the gate or coop off.
+  uint8_t row = 0;     // refused: the row it stopped at, the batch's count for the gate or coop off.
   uint32_t detail = 0; // size: the size read (24 bits); net: the net mode read.
 };
-static_assert(kRows < 256, "a row index fits a byte");
+static_assert(kRows < 256 && kGardenerRows < 256, "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
 inline uint64_t pack(const Answer &a, uint32_t asks) {
@@ -4184,11 +4541,11 @@ inline Answer unpack(uint64_t w, uint32_t &asks) {
   return a;
 }
 
-// The rows of one table kind in the recipe.
-inline uint32_t rows_of(Table t) {
+// The rows of one table kind in a batch.
+inline uint32_t rows_of(const Batch &b, Table t) {
   uint32_t n = 0;
-  for (const Row &r : kRecipe)
-    n += r.table == t;
+  for (size_t i = 0; i < b.count; ++i)
+    n += b.rows[i].table == t;
   return n;
 }
 
@@ -4203,17 +4560,21 @@ inline uint32_t rows_of(Table t) {
 // (FUN_141a2cef0).
 class Builder {
 public:
-  // One run over the recipe (see the top of this file). tables: the 14 tables' addresses as Lua found them, in Table's
+  explicit Builder(const Batch &batch) : batch_(batch) {}
+  // One run over the batch (see the top of this file). tables: the 14 tables' addresses as Lua found them, in Table's
   // order; block: kBlock bytes of the glue's, 16-aligned; base: SB's image base. Runs every row not added yet and
   // stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
     Answer a;
     a.state = State::refused;
     uint64_t structs[kTableCount] = {}, add_row = base + (kAddRow - kImageBase);
-    for (size_t t = 0; t < kTableCount; ++t) { // Every table before any row: a wrong address adds nothing.
+    // Every table the batch's rows go into before any row (a wrong address adds nothing); the others are never read.
+    for (size_t t = 0; t < kTableCount; ++t) {
       uint64_t vtable = 0, slot = 0;
       int32_t size = 0;
       a.row = first_row(Table(t));
+      if (a.row == batch_.count)
+        continue;
       if (!g.read(tables[t], &vtable, 8) || vtable != base + (kTableVtable - kImageBase) ||
           !g.read(vtable + kAddRowSlot, &slot, 8) || slot != add_row ||
           !g.read(tables[t] + kRowStruct, &structs[t], 8) || !structs[t])
@@ -4221,11 +4582,11 @@ public:
       if (!g.read(structs[t] + kPropertiesSize, &size, 4) || uint32_t(size) != kTables[t].size)
         return a.why = Why::size, a.detail = uint32_t(size) & 0xffffff, a.added = uint8_t(count_), a;
     }
-    for (size_t i = 0; i < kRows; ++i) {
+    for (size_t i = 0; i < batch_.count; ++i) {
       if (added_[i])
         continue;
       a.row = uint8_t(i);
-      const Row &r = kRecipe[i];
+      const Row &r = batch_.rows[i];
       const TableInfo &info = kTables[size_t(r.table)];
       const uint64_t table = tables[size_t(r.table)], rs = structs[size_t(r.table)];
       const uint64_t name = make(g, r.name), donor_name = make(g, r.donor);
@@ -4260,15 +4621,16 @@ public:
     return a;
   }
 
-  // What SB's own lookups by ID give back for our rows (glue's R3 log line, the status's char=, skills= and stance=):
-  // how many of the CharacterTable and SkillTable rows its registry lookups find as the row of our name, and how many
-  // stance IDs give our row name.
+  // What SB's own lookups by ID give back for the batch's rows (glue's R3 log line, the status's char=, skills= and
+  // stance=): how many of the CharacterTable and SkillTable rows its registry lookups find as the row of our name, and
+  // how many stance IDs give our row name.
   struct ReadBack {
     uint8_t character = 0, skills = 0, stance = 0;
   };
-  template <class Game> static ReadBack read_back(Game &g, const uint64_t (&tables)[kTableCount]) {
+  template <class Game> ReadBack read_back(Game &g, const uint64_t (&tables)[kTableCount]) const {
     ReadBack b;
-    for (const Row &r : kRecipe) {
+    for (size_t i = 0; i < batch_.count; ++i) {
+      const Row &r = batch_.rows[i];
       const uint64_t name = make(g, r.name), table = tables[size_t(r.table)];
       if (r.table == Table::character)
         b.character += name && g.character(r.id) == g.find(table, name) && g.character(r.id);
@@ -4284,11 +4646,11 @@ public:
   uint32_t count() const { return count_; }
 
 private:
-  static uint8_t first_row(Table t) {
-    for (size_t i = 0; i < kRows; ++i)
-      if (kRecipe[i].table == t)
+  uint8_t first_row(Table t) const {
+    for (size_t i = 0; i < batch_.count; ++i)
+      if (batch_.rows[i].table == t)
         return uint8_t(i);
-    return uint8_t(kRows);
+    return uint8_t(batch_.count);
   }
   template <class Game> static uint64_t make(Game &g, const char *text) {
     const NameParts p = split_number(text);
@@ -4394,17 +4756,18 @@ public: // For the test's pool and FName cases, which the recipe's own data neve
   }
 
 private:
-  bool added_[kRows] = {};
+  const Batch &batch_;
+  bool added_[256] = {};
   uint32_t count_ = 0;
 };
 
-// coop-status.txt's lion line (cut/lion.lua reads it), from the answer word, the read-back, the frames an ask waited,
-// the spawn manager's counter and, after the latch, where the fault was:
-//   lion=off
-//   lion=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
-//   lion=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>
-//   lion=refused added=<n>/<N> asks=<a> spawns=<s> why=<word> table=<Table|-> row=<Row|->[ detail=<value>]
-//   lion=fault added=<n>/<N> asks=<a> spawns=<s> where=<text, maybe with spaces>
+// coop-status.txt's line for a batch (cut/lion.lua reads lion=, cut/gardener.lua gardener=), from its answer word, its
+// read-back, the frames its ask waited, the spawn manager's counter and, after the latch, where the fault was:
+//   <word>=off
+//   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+//   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>
+//   <word>=refused added=<n>/<N> asks=<a> spawns=<s> why=<word> table=<Table|-> row=<Row|->[ detail=<value>]
+//   <word>=fault added=<n>/<N> asks=<a> spawns=<s> where=<text, maybe with spaces>
 // asks: the asks the game thread finished (a new answer when it grows); spawns: the int32 at the spawn manager's
 // +0x198, "?" until read. detail: the size read as 0x<hex> (why=size) or the net mode read (why=net).
 struct Status {
@@ -4415,26 +4778,26 @@ struct Status {
   int32_t spawns = 0;
   std::string fault; // Where, once the latch closed.
 };
-inline std::string status_line(const Status &s) {
+inline std::string status_line(const Batch &b, const Status &s) {
   uint32_t asks = 0;
   const Answer a = unpack(s.word, asks);
   if (a.state == State::off)
-    return "lion=off";
+    return std::string(b.word) + "=off";
   static const char *const kStates[] = {"off", "waiting", "rows", "refused", "fault"};
-  std::string line = std::string("lion=") + kStates[size_t(a.state)] + " added=" + std::to_string(a.added) + "/" +
-                     std::to_string(kRows) + " asks=" + std::to_string(asks) +
+  std::string line = std::string(b.word) + "=" + kStates[size_t(a.state)] + " added=" + std::to_string(a.added) + "/" +
+                     std::to_string(b.count) + " asks=" + std::to_string(asks) +
                      " spawns=" + (s.spawns_read ? std::to_string(s.spawns) : std::string("?"));
-  const auto count = [](uint32_t k, Table t) { return std::to_string(k) + "/" + std::to_string(rows_of(t)); };
+  const auto count = [&b](uint32_t k, Table t) { return std::to_string(k) + "/" + std::to_string(rows_of(b, t)); };
   if (a.state == State::waiting)
     line += std::string(" why=") + why_word(a.why) + " ticks=" + std::to_string(s.ticks);
   else if (a.state == State::rows)
     line += " char=" + count(s.read.character, Table::character) + " skills=" + count(s.read.skills, Table::skill) +
             " stance=" + count(s.read.stance, Table::stance);
   else if (a.state == State::refused) {
-    const bool row = a.row < kRows;
+    const bool row = a.row < b.count;
     line += std::string(" why=") + why_word(a.why) +
-            " table=" + (row ? kTables[size_t(kRecipe[a.row].table)].name : "-") +
-            " row=" + (row ? kRecipe[a.row].name : "-");
+            " table=" + (row ? kTables[size_t(b.rows[a.row].table)].name : "-") +
+            " row=" + (row ? b.rows[a.row].name : "-");
     char detail[24] = "";
     if (a.why == Why::size)
       std::snprintf(detail, sizeof detail, " detail=0x%x", unsigned(a.detail));
@@ -4445,15 +4808,15 @@ inline std::string status_line(const Status &s) {
     line += " where=" + s.fault;
   return line;
 }
-// The log line for an answer (coop-link.log), as the test campaign's R2 reads it.
-inline std::string describe(const Answer &a) {
-  const std::string added = std::to_string(a.added) + "/" + std::to_string(kRows);
+// The log line for a batch's answer (coop-link.log), as the test campaign's R2 reads it.
+inline std::string describe(const Batch &b, const Answer &a) {
+  const std::string added = std::to_string(a.added) + "/" + std::to_string(b.count);
   if (a.state == State::rows)
-    return "lion rows: " + added + " added through SB's AddRow 0x14417ba30, 0 refused";
+    return std::string(b.word) + " rows: " + added + " added through SB's AddRow 0x14417ba30, 0 refused";
   if (a.state != State::refused)
-    return "lion rows: " + added + " added";
-  const bool row = a.row < kRows;
-  const Row &r = kRecipe[row ? a.row : 0];
+    return std::string(b.word) + " rows: " + added + " added";
+  const bool row = a.row < b.count;
+  const Row &r = b.rows[row ? a.row : 0];
   char why[160];
   switch (a.why) {
   case Why::table: std::snprintf(why, sizeof why, "%s is not SB's UDataTable", kTables[size_t(r.table)].name); break;
@@ -4478,19 +4841,21 @@ inline std::string describe(const Answer &a) {
   case Why::off: std::snprintf(why, sizeof why, "coop off"); break;
   default: std::snprintf(why, sizeof why, "?"); break;
   }
-  return std::string("lion rows refused ") + (row ? r.name : "-") + ": " + why + "; " + added + " added";
+  return std::string(b.word) + " rows refused " + (row ? r.name : "-") + ": " + why + "; " + added + " added";
 }
-// The log line for the read-back (the campaign's R3): the IDs asked of each lookup and how many gave our row.
-inline std::string describe_read(const Builder::ReadBack &b) {
-  const auto ids = [](Table t) {
+// The log line for a batch's read-back (the campaign's R3): the IDs asked of each lookup and how many gave our row.
+inline std::string describe_read(const Batch &batch, const Builder::ReadBack &b) {
+  const auto ids = [&batch](Table t) {
     uint32_t low = UINT32_MAX, high = 0;
-    for (const Row &r : kRecipe)
-      if (r.table == t)
+    for (size_t i = 0; i < batch.count; ++i)
+      if (const Row &r = batch.rows[i]; r.table == t)
         low = r.id < low ? r.id : low, high = r.id > high ? r.id : high;
     return low == high ? std::to_string(low) : std::to_string(low) + "-" + std::to_string(high);
   };
-  const auto count = [](uint32_t k, Table t) { return std::to_string(k) + "/" + std::to_string(rows_of(t)); };
-  return "lion rows by SB's lookups: CharacterTable " + ids(Table::character) + " " +
+  const auto count = [&batch](uint32_t k, Table t) {
+    return std::to_string(k) + "/" + std::to_string(rows_of(batch, t));
+  };
+  return std::string(batch.word) + " rows by SB's lookups: CharacterTable " + ids(Table::character) + " " +
          count(b.character, Table::character) + ", SkillTable " + ids(Table::skill) + " " +
          count(b.skills, Table::skill) + ", stance " + ids(Table::stance) + " " + count(b.stance, Table::stance);
 }

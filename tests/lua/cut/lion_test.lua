@@ -1,6 +1,6 @@
 -- cut/lion.lua with fake UE4SS objects. Its row list (cut/lion_rows.lua, generated with rows.h) matches
 -- native/src/lion/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
--- more), and its tables are kLionTables in order. The rows are the Lion's own: no value names a Behemoth row or asset
+-- more), and so does the Gardener's (R.GARDENER, kGardenerRecipe); its tables are kLionTables in order. The rows are the Lion's own: no value names a Behemoth row or asset
 -- but the sound set, every reference lands on a Lion row or a shipped generic one, the steps' moves are Lion moves, the
 -- phase-2 stance turns at HP under 60% and starts the roar's effect, which uses the phase-2 roar skill. The lion line
 -- parses in each of its forms. coop lion finds the 14 tables (a missing one, no EVE or no lion line asks nothing), asks
@@ -103,29 +103,42 @@ do
         else i=i+1 end
     end
     local KINDS={f32='f',i32='i',name='n',string='s',names='N',strings='S'}
-    local n=0
-    for t,name,_,id,first,count in src:gmatch('{Table::(%a+), "([%w_]+)", "([%w_]+)",%s+(%d+),%s+(%d+),%s+(%d+)}') do
-        n=n+1
-        local r=assert(L.ROWS[n],'Lion.ROWS lacks '..name)
-        local tn
-        for k,e in ipairs(enum) do if e==t then tn=names[k] end end
-        assert(r.table==tn and r.name==name,
-            string.format('row %d: %s %s, not %s %s',n,tostring(r.table),r.name,tn,name))
-        assert((r.id or 0)==tonumber(id),name..' ID')
-        assert(#r.checks==tonumber(count),name..': '..#r.checks..' checks, '..count..' patches')
-        for p=tonumber(first)+1,tonumber(first)+tonumber(count) do
-            local pt,found=patches[p],nil
-            for _,c in ipairs(r.checks) do if c[1]==pt.field then found=c end end
-            assert(found,name..' lacks '..tostring(pt.field))
-            -- A byte is a bool (b, 0 or 1) or an enum's number (e).
-            assert(found[2]==KINDS[pt.kind] or pt.kind=='u8' and (found[2]=='e' or found[2]=='b' and pt.f<=1),
-                name..' '..pt.field..' kind')
-            if pt.kind=='f32' then assert(math.abs(found[3]-pt.f)<1e-6,name..' '..pt.field)
-            elseif pt.kind=='i32' or pt.kind=='u8' then assert(found[3]==pt.f,name..' '..pt.field)
-            else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
+    -- One recipe array of rows.h against its Lua rows; returns how many it holds.
+    local function compare(array,rows)
+        local n=0
+        local recipe=assert(src:match('constexpr Row '..array..'%[%] = {\n(.-)\n};'),array)
+        local ROW='{Table::(%a+), "([%w_]+)", "([%w_]+)",%s+(%d+),%s+(%d+),%s+(%d+)}'
+        for t,name,_,id,first,count in recipe:gmatch(ROW) do
+            n=n+1
+            local r=assert(rows[n],array..' lacks '..name)
+            local tn
+            for k,e in ipairs(enum) do if e==t then tn=names[k] end end
+            assert(r.table==tn and r.name==name,
+                string.format('row %d: %s %s, not %s %s',n,tostring(r.table),r.name,tn,name))
+            assert((r.id or 0)==tonumber(id),name..' ID')
+            assert(#r.checks==tonumber(count),name..': '..#r.checks..' checks, '..count..' patches')
+            for p=tonumber(first)+1,tonumber(first)+tonumber(count) do
+                local pt,found=patches[p],nil
+                for _,c in ipairs(r.checks) do if c[1]==pt.field then found=c end end
+                assert(found,name..' lacks '..tostring(pt.field))
+                -- A byte is a bool (b, 0 or 1) or an enum's number (e).
+                assert(found[2]==KINDS[pt.kind] or pt.kind=='u8' and (found[2]=='e' or found[2]=='b' and pt.f<=1),
+                    name..' '..pt.field..' kind')
+                if pt.kind=='f32' then assert(math.abs(found[3]-pt.f)<1e-6,name..' '..pt.field)
+                elseif pt.kind=='i32' or pt.kind=='u8' then assert(found[3]==pt.f,name..' '..pt.field)
+                else assert(found[3]==pt.text,name..' '..pt.field..': '..found[3]..' vs '..pt.text) end
+            end
         end
+        return n
     end
-    assert(n==237 and #L.ROWS==237 and #patches==3178,n..' rows, '..#patches..' patches')
+    local n=compare('kRecipe',L.ROWS)
+    local gardener={}
+    for _,r in ipairs(require('cut.lion_rows').GARDENER) do
+        gardener[#gardener+1]={table=r[1],name=r[2],id=r[3],checks=r[4]}
+    end
+    local g=compare('kGardenerRecipe',gardener)
+    assert(n==237 and #L.ROWS==237 and g==13 and #gardener==13 and #patches==3178+279,
+        n..' rows, '..g..' Gardener rows, '..#patches..' patches')
     assert(L.IN.added=='237/237' and L.IN.char=='2/2' and L.IN.skills=='23/23' and L.IN.stance=='2/2')
 end
 -- The Lion's own rows: no value names a Behemoth row or asset but its sound set (the Lion has none of its own); each
