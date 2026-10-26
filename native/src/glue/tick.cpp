@@ -73,12 +73,13 @@
 // and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
-// The Lion's rows, the Gardener's, the Tendril's and the Shock Bolt's (lion/rows.h's batches, coop lion, coop gardener
-// fight, coop tendril fight and the shop's Shock Bolt): the worker hands over the 15 tables' addresses from Lua's lion
-// rows, gardener rows, tendril rows or bolt rows request; the game thread adds that batch's rows through SB's own
-// AddRow once the gate holds (net mode 0, no logic task in flight), under one SEH latch for all, reads them back
-// through SB's lookups by ID and, once asked, reads the spawn manager's counter every 250 ms; status() gives it all in
-// the lion, gardener, tendril and bolt lines, and the worker logs each answer. Right after the bolt rows batch's last
+// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's and Matrix XIII's (lion/rows.h's batches, coop lion,
+// coop gardener fight, coop tendril fight, the shop's Shock Bolt and coop mxiii): the worker hands over the 17 tables'
+// addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows or mxiii rows request; the game thread adds
+// that batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic task in flight), under one SEH
+// latch for all, reads them back through SB's lookups by ID and, once asked, reads the spawn manager's counter every
+// 250 ms; status() gives it all in the lion, gardener, tendril, bolt and mxiii lines, and the worker logs each answer.
+// Right after the bolt rows batch's last
 // row, in the same call, the Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status()
 // gives the shock line, and the worker logs it once.
 //

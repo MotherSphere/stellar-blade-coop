@@ -38,10 +38,14 @@
 // the SkillTable row its consumable plays, P_Eve_Gun_ShootShockSlug1_1 (1003401, Scatter's skill on SB's shipped Shock
 // steps), the projectile those steps fire, ProjectileTable P_Eve_Gun_ShootShockSlug1_Projectile1 (1010051, the normal
 // slug's), and its hit result with SB's shock stun (SkillResultTable 100200801). What makes the ammo selectable and the
-// gun fire it is no row: lion/shock.h grows two lists in place once these rows are in. A Batch names its rows and the
-// word its status line, log lines and request start with ("lion", "gardener", "tendril", "bolt": coop-status.txt's
-// shock line is lion/shock.h's); every batch shares the table checks, the block and the rules below, and each keeps
-// its own Builder.
+// gun fire it is no row: lion/shock.h grows two lists in place once these rows are in. A fifth, Matrix XIII's
+// (kMxiiiRecipe, written by hand below the generated part with its own patches), holds the 2 rows the cut dungeon's
+// first zone lacks for SB's camp travel (coop mxiii, cut/mxiii.lua): ZoneCampTable DLC02_10_Camp_01 (280001, a copy of
+// ME01_Camp_03 never shown on the world map) and ZoneEnvSpawnTable DLC02_10_EnvS_900 (2800032900, a copy of the
+// DLC02_10 camp kit's DLC02_10_EnvS_425, in Zone_DLC02_10, whose TargetCamp names that camp), in the two zone tables
+// only it writes. A Batch names its rows, its patches and the word its status line, log lines and request start with
+// ("lion", "gardener", "tendril", "bolt", "mxiii": coop-status.txt's shock line is lion/shock.h's); every batch shares
+// the table checks, the block and the rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
@@ -86,8 +90,9 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 15 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt)
-// name each with its address.
+// The 17 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// mxiii) name each with its address. The generated kTables describes the first kGeneratedTables, kZoneTables the two
+// zone tables after them, camp (ZoneCampTable) and env (ZoneEnvSpawnTable); table_info() reads either.
 enum class Table : uint8_t {
   character,
   appearance,
@@ -103,9 +108,11 @@ enum class Table : uint8_t {
   effect,
   item,
   consumable,
-  projectile
+  projectile,
+  camp,
+  env
 };
-constexpr size_t kTableCount = 15;
+constexpr size_t kTableCount = 17, kGeneratedTables = 15;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -6218,19 +6225,54 @@ constexpr Row kBoltRecipe[] = {
 };
 // ---- End of the generated part ----
 
+// ---- Matrix XIII's batch (coop mxiii), written by hand: the generator holds no zone table ----
+// Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13, whose map no pak ships: the zMXIII_P test pak adds it) has no camp,
+// so SB's camp travel (game/travel.h) cannot reach it. These 2 rows give it one: the camp, then the ZoneEnvSpawnTable
+// row whose TargetCamp names it, so that the camp's first env-spawn row leads to Zone_DLC02_10 and that zone's world.
+// Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK (stellar-sdk-647527f); neither
+// struct has a Transient field.
+constexpr TableInfo kZoneTables[] = {
+    {"ZoneCampTable", 0xa8, true, {}},      // SBZoneCampTableProperty
+    {"ZoneEnvSpawnTable", 0x508, true, {}}, // SBZoneEnvSpawnTableProperty
+};
+static_assert(sizeof kZoneTables / sizeof kZoneTables[0] == kTableCount - kGeneratedTables, "a zone table each");
+static_assert(kTables[kGeneratedTables - 1].name && !kTables[kGeneratedTables].name,
+              "the generated kTables fills the first kGeneratedTables entries only");
+// A table's info: kTables' for the generated tables, kZoneTables' for the two after them.
+constexpr const TableInfo &table_info(Table t) {
+  return size_t(t) < kGeneratedTables ? kTables[size_t(t)] : kZoneTables[size_t(t) - kGeneratedTables];
+}
+// The camp is ME01_Camp_03 (a Matrix 11 FullCamp) with its world map display off; the env-spawn row is the DLC02_10
+// camp kit's activation-only row DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) with its own actor name and the new camp.
+constexpr Patch kMxiiiPatches[] = {
+    // DLC02_10_Camp_01 (ZoneCampTable, Matrix XIII)
+    {0x28, Kind::u8, 3, nullptr}, // CampType
+    {0x6c, Kind::u8, 5, nullptr}, // CampDisplayType
+    // DLC02_10_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_900"}, // EnvActorName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+};
+constexpr Row kMxiiiRecipe[] = {
+    {Table::camp, "DLC02_10_Camp_01", "ME01_Camp_03", 280001, 0, 2},
+    {Table::env, "DLC02_10_EnvS_900", "DLC02_10_EnvS_425", 2800032900u, 2, 2},
+};
+
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
 constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe[0];
 constexpr size_t kTendrilRows = sizeof kTendrilRecipe / sizeof kTendrilRecipe[0];
 constexpr size_t kBoltRows = sizeof kBoltRecipe / sizeof kBoltRecipe[0];
-// A batch: its rows (their patches in kPatches) and its word, which starts its status line, its log lines and Lua's
-// request for it (link/protocol.h's kRowWords).
+constexpr size_t kMxiiiRows = sizeof kMxiiiRecipe / sizeof kMxiiiRecipe[0];
+// A batch: its rows, the patches their first and count index (the generated kPatches unless said) and its word, which
+// starts its status line, its log lines and Lua's request for it (link/protocol.h's kRowWords).
 struct Batch {
   const char *word;
   const Row *rows;
   size_t count;
+  const Patch *patches = kPatches;
 };
 constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows},
-    kTendril{"tendril", kTendrilRecipe, kTendrilRows}, kBolt{"bolt", kBoltRecipe, kBoltRows};
+    kTendril{"tendril", kTendrilRecipe, kTendrilRows}, kBolt{"bolt", kBoltRecipe, kBoltRows},
+    kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -6273,7 +6315,8 @@ struct Answer {
   uint8_t row = 0;     // refused: the row it stopped at, the batch's count for the gate or coop off.
   uint32_t detail = 0; // size: the size read (24 bits); net: the net mode read.
 };
-static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256, "a row index fits a byte");
+static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256 && kMxiiiRows < 256,
+              "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
 inline uint64_t pack(const Answer &a, uint32_t asks) {
@@ -6308,7 +6351,7 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
-  // One run over the batch (see the top of this file). tables: the 15 tables' addresses as Lua found them, in Table's
+  // One run over the batch (see the top of this file). tables: the 17 tables' addresses as Lua found them, in Table's
   // order; block: kBlock bytes of the glue's, 16-aligned; base: SB's image base. Runs every row not added yet and
   // stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
@@ -6326,7 +6369,7 @@ public:
           !g.read(vtable + kAddRowSlot, &slot, 8) || slot != add_row ||
           !g.read(tables[t] + kRowStruct, &structs[t], 8) || !structs[t])
         return a.why = Why::table, a.added = uint8_t(count_), a;
-      if (!g.read(structs[t] + kPropertiesSize, &size, 4) || uint32_t(size) != kTables[t].size)
+      if (!g.read(structs[t] + kPropertiesSize, &size, 4) || uint32_t(size) != table_info(Table(t)).size)
         return a.why = Why::size, a.detail = uint32_t(size) & 0xffffff, a.added = uint8_t(count_), a;
     }
     for (size_t i = 0; i < batch_.count; ++i) {
@@ -6334,7 +6377,7 @@ public:
         continue;
       a.row = uint8_t(i);
       const Row &r = batch_.rows[i];
-      const TableInfo &info = kTables[size_t(r.table)];
+      const TableInfo &info = table_info(r.table);
       const uint64_t table = tables[size_t(r.table)], rs = structs[size_t(r.table)];
       const uint64_t name = make(g, r.name), donor_name = make(g, r.donor);
       if (!name || !donor_name)
@@ -6358,7 +6401,7 @@ public:
           g.write(block + at, kEmpty, sizeof kEmpty);
       uint64_t pool = block + kRowBytes;
       for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
-        if (const Why why = patch(g, block, kPatches[p], pool, block + kBlock); why != Why::none)
+        if (const Why why = patch(g, block, batch_.patches[p], pool, block + kBlock); why != Why::none)
           return a.why = why, a.added = uint8_t(count_), a;
       g.add(add_row, table, name, block);
       added_[i] = true;
@@ -6509,7 +6552,8 @@ private:
 };
 
 // coop-status.txt's line for a batch (cut/lion.lua reads lion= and bolt=, cut/gardener.lua gardener=, cut/tendril.lua
-// tendril=), from its answer word, its read-back, the frames its ask waited, the spawn manager's counter and, after
+// tendril=, cut/mxiii.lua mxiii=), from its answer word, its read-back, the frames its ask waited, the spawn manager's
+// counter and, after
 // the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
@@ -6544,7 +6588,7 @@ inline std::string status_line(const Batch &b, const Status &s) {
   else if (a.state == State::refused) {
     const bool row = a.row < b.count;
     line += std::string(" why=") + why_word(a.why) +
-            " table=" + (row ? kTables[size_t(b.rows[a.row].table)].name : "-") +
+            " table=" + (row ? table_info(b.rows[a.row].table).name : "-") +
             " row=" + (row ? b.rows[a.row].name : "-");
     char detail[24] = "";
     if (a.why == Why::size)
@@ -6565,17 +6609,15 @@ inline std::string describe(const Batch &b, const Answer &a) {
     return std::string(b.word) + " rows: " + added + " added";
   const bool row = a.row < b.count;
   const Row &r = b.rows[row ? a.row : 0];
+  const TableInfo &info = table_info(r.table);
   char why[160];
   switch (a.why) {
-  case Why::table: std::snprintf(why, sizeof why, "%s is not SB's UDataTable", kTables[size_t(r.table)].name); break;
+  case Why::table: std::snprintf(why, sizeof why, "%s is not SB's UDataTable", info.name); break;
   case Why::size:
-    std::snprintf(why, sizeof why, "%s's row size 0x%x not 0x%x", kTables[size_t(r.table)].name, unsigned(a.detail),
-                  unsigned(kTables[size_t(r.table)].size));
+    std::snprintf(why, sizeof why, "%s's row size 0x%x not 0x%x", info.name, unsigned(a.detail), unsigned(info.size));
     break;
   case Why::fname: std::snprintf(why, sizeof why, "the game made no FName"); break;
-  case Why::name:
-    std::snprintf(why, sizeof why, "a row of that name is already in %s", kTables[size_t(r.table)].name);
-    break;
+  case Why::name: std::snprintf(why, sizeof why, "a row of that name is already in %s", info.name); break;
   case Why::id: std::snprintf(why, sizeof why, "ID %u taken", unsigned(r.id)); break;
   case Why::donor: std::snprintf(why, sizeof why, "template %s missing", r.donor); break;
   case Why::pool: std::snprintf(why, sizeof why, "its strings overflow the pool"); break;
