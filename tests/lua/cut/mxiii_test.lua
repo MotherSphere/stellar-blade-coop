@@ -1,6 +1,7 @@
 -- cut/mxiii.lua with fake UE4SS objects and a fake follow. Its 2 rows match native/src/lion/rows.h's kMxiiiRecipe and
 -- kMxiiiPatches (names, templates, IDs, each patched field's kind and value, no field more). The Paks folder comes from
--- the mod folder; the test pak counts only when its .utoc in ~mods or LogicMods names MXIII_P.umap. coop mxiii: usage;
+-- the mod folder; the test pak counts only when its .utoc in ~mods or LogicMods names WorldMap_DLC_01, Level_P and
+-- MXIII_P.umap, with its .pak and .ucas beside it. coop mxiii: usage;
 -- busy; without the follow, with a follow guard failing or without the test pak it asks nothing (the pak looked for
 -- once a command, by its file, never by StaticFindObject); with all of them it asks the mxiii rows with the 17
 -- addresses, waits for the mxiii line, reads both rows back, then asks the follow's probe for DLC02_10_Camp_01 (a camp
@@ -73,24 +74,41 @@ end
 assert(M.paks_of('C:\\G\\SB\\Binaries\\Win64\\ue4ss\\Mods\\StellarCoop')=='C:\\G\\SB\\Content\\Paks')
 assert(M.paks_of('D:/Steam/SB/Binaries/Win64/Mods/StellarCoop')=='D:/Steam/SB\\Content\\Paks')
 assert(M.paks_of('mod/StellarCoop')==nil and M.paks_of(nil)==nil)
--- The test pak: its .utoc in ~mods, else LogicMods, naming the map in its directory index.
+-- The test pak: its .utoc in ~mods, else LogicMods, naming the map's folders and the map in its directory index, with
+-- its .pak and .ucas beside it.
 local PAKS='C:\\G\\SB\\Content\\Paks'
 local MODS,LOGIC=PAKS..'\\~mods\\zMXIII_P.utoc',PAKS..'\\LogicMods\\zMXIII_P.utoc'
 local UTOC='-==--==--==--==-\0\0../../../\0SB\0Content\0WorldMap_DLC_01\0Level_P\0MXIII_P.umap\0SubLevel\0'
 local files,reads={},{}
 local function read(path,limit)
     reads[#reads+1]=path
-    assert(limit and limit>=4096,'A bounded read')
+    assert(limit and limit>=1,'A bounded read')
     return files[path]
+end
+local function put(utoc,text) -- The three files of the container, or its .utoc alone with text nil.
+    files[utoc]=text or UTOC
+    if not text then files[utoc:sub(1,-6)..'.pak'],files[utoc:sub(1,-6)..'.ucas']='',('\0'):rep(16) end
 end
 local where,why=M.find_map(PAKS,read)
 assert(where==nil and why=='no '..MODS..' or '..LOGIC and #reads==2,why)
 files[LOGIC]=UTOC
-assert(M.find_map(PAKS,read)==LOGIC)
-files[MODS]='-==--==--==--==-\0Matrix_XI.umap\0'
 where,why=M.find_map(PAKS,read)
-assert(where==nil and why==MODS..' does not hold MXIII_P.umap','~mods first: a container of that name without the map')
-files[MODS]=UTOC
+assert(where==nil and why=='no '..PAKS..'\\LogicMods\\zMXIII_P.pak beside '..LOGIC,'A .utoc without its .pak: '..why)
+files[PAKS..'\\LogicMods\\zMXIII_P.pak']=''
+where,why=M.find_map(PAKS,read)
+assert(where==nil and why=='no '..PAKS..'\\LogicMods\\zMXIII_P.ucas beside '..LOGIC,'Nor without its .ucas: '..why)
+put(LOGIC)
+assert(M.find_map(PAKS,read)==LOGIC)
+put(MODS,'-==--==--==--==-\0Matrix_XI.umap\0')
+where,why=M.find_map(PAKS,read)
+assert(where==nil and why==MODS..' does not hold WorldMap_DLC_01','~mods first: a container of that name without the map')
+put(MODS,'-==--==--==--==-\0SB\0Content\0WorldMap\0Dungeon_P\0MXIII_P.umap\0')
+where,why=M.find_map(PAKS,read)
+assert(where==nil and why==MODS..' does not hold WorldMap_DLC_01','The map under another folder: '..why)
+put(MODS,'-==--==--==--==-\0SB\0Content\0WorldMap_DLC_01\0Level\0MXIII_P.umap\0')
+where,why=M.find_map(PAKS,read)
+assert(where==nil and why==MODS..' does not hold Level_P','The map under another level folder: '..why)
+put(MODS)
 assert(M.find_map(PAKS,read)==MODS)
 where,why=M.find_map(nil,read)
 assert(where==nil and why:find('game folder is unknown',1,true))
@@ -175,13 +193,14 @@ assert(ok==false and why:find('game folder is unknown',1,true),why)
 assert(#asked==0 and #looked==0 and #probes==0,'Nothing asked, nothing looked up')
 
 -- With everything there: the checks line, the 17 tables, one ask, then the wait.
-files[LOGIC]=UTOC
+put(LOGIC)
 reads={}
 clock=100
 ok,why=mx.command()
 assert(ok and why=='Matrix XIII rows asked of the native part: the read-back follows once they are in ([MX] lines).'
     and #asked==1 and asked[1]==REQUEST,tostring(why))
-assert(#reads==2 and logged('checks: solo on a co-op save, the native travel idle, '..LOGIC..' holds MXIII_P.umap'))
+assert(#reads==4 and logged('checks: solo on a co-op save, the native travel idle, '..LOGIC..' holds '
+    ..'WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas'))
 assert(logged('tables: 17/17 found: '..REQUEST:sub(12)),'R1 with every address')
 for _,p in ipairs(looked) do assert(not p:find('MXIII',1,true),'No StaticFindObject of the map: '..p) end
 ok,why=mx.command(); assert(ok==false and why=='coop mxiii is busy (the wait for the Matrix XIII rows): try again in a '

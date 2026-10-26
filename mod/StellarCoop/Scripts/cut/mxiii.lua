@@ -11,13 +11,18 @@
 -- A warp into a world the save has never been in may write that world into the save: main.lua lets it run on a co-op
 -- save only. The rows stay for the game run; a second coop mxiii reads them back and travels again.
 -- The test pak's check makes no StaticFindObject (a package that is not loaded is never found that way, and each miss
--- costs 4 to 35 ms): the container's .utoc in SB/Content/Paks/~mods or LogicMods, read once a command, must name
--- MXIII_P.umap in its directory index (plain text in a .utoc that is not encrypted, as retoc writes it).
+-- costs 4 to 35 ms): the container's .utoc in SB/Content/Paks/~mods or LogicMods, read once a command, must name the
+-- map's folders and MXIII_P.umap in its directory index (plain text in a .utoc that is not encrypted, as retoc writes
+-- it), with its .pak and .ucas beside it (UE 4.26 mounts an IoStore container through its .pak).
+-- shortcut: the live folder, not what the engine mounted at start, so a pak copied in while the game runs passes;
+-- upgrade to the native part's start list (game/pak_list.h) if that happens in a test.
 local Enemy=require('cut.enemy')
 local Mxiii={}
 Mxiii.CAMP='DLC02_10_Camp_01'
 Mxiii.PAK='zMXIII_P'
 Mxiii.MAP='MXIII_P.umap'
+-- The directory index's names of the WorldTable path /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, the map last.
+Mxiii.INDEX={'WorldMap_DLC_01','Level_P',Mxiii.MAP}
 Mxiii.DIRS={'~mods','LogicMods'}
 local LIMIT=1<<20 -- Bytes read of a .utoc: its directory index comes last, under 1 KB for the test pak's two maps.
 -- SB lists every camp's env-spawn rows in FSBGameWorld::Init (FUN_141c97ca0 makes the zone manager, whose setup runs
@@ -38,7 +43,7 @@ function Mxiii.paks_of(folder)
     local sb=type(folder)=='string' and folder:match('^(.*)[\\/][Bb]inaries[\\/][Ww]in64[\\/]')
     return sb and sb..'\\Content\\Paks' or nil
 end
--- The test pak's .utoc that names the map, or nil and why. paks: SB/Content/Paks (nil: unknown); read(path, limit):
+-- The test pak's .utoc that names the map, beside its .pak and .ucas, or nil and why. paks: SB/Content/Paks (nil: unknown); read(path, limit):
 -- core/link.lua's files.read (the text, or nil when the file cannot be opened).
 function Mxiii.find_map(paks,read)
     if not paks then return nil,'the game folder is unknown (the mod folder is not under SB\\Binaries\\Win64)' end
@@ -47,8 +52,14 @@ function Mxiii.find_map(paks,read)
         local path=paks..'\\'..dir..'\\'..Mxiii.PAK..'.utoc'
         local text=read(path,LIMIT)
         if text then
-            if text:find(Mxiii.MAP,1,true) then return path end
-            return nil,path..' does not hold '..Mxiii.MAP
+            for _,name in ipairs(Mxiii.INDEX) do
+                if not text:find(name,1,true) then return nil,path..' does not hold '..name end
+            end
+            for _,ext in ipairs({'.pak','.ucas'}) do
+                local other=path:sub(1,-6)..ext
+                if not read(other,1) then return nil,'no '..other..' beside '..path end
+            end
+            return path
         end
         tried[#tried+1]=path
     end
@@ -90,7 +101,8 @@ function Mxiii.new(o)
             return false,'coop mxiii needs the zMXIII_P test pak in Paks\\~mods or Paks\\LogicMods ('..missing
                 ..'): nothing was asked'
         end
-        log('checks: solo on a co-op save, the native travel idle, '..map..' holds '..Mxiii.MAP)
+        log('checks: solo on a co-op save, the native travel idle, '..map..' holds '..table.concat(Mxiii.INDEX,'/')
+            ..' beside its .pak and .ucas')
         return e.rows(warp)
     end
     self.tick,self.stop=e.tick,e.stop
