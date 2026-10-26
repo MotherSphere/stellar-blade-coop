@@ -813,7 +813,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
-| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes (untested in game), or end it |
+| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
