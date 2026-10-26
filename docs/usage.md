@@ -1815,7 +1815,9 @@ The map is where the save starts, with its world's name in the game's tables, an
 F02's three files are the three numbered start points of the game's cheat list (Eidos 7, Matrix 11, Spire 4). A
 summary follows, which also reaches `UE4SS.log` as a `link: last=` line: `shortcut saves: 15 of 16 found: B07 1
 SE_01_EnvS_049, ..., G03 2 = F02 1, ...; each one's line is in coop-link.log; loading one is held back`. A second
-`coop shortcut` before the list ends answers `shortcut list refused: a list is under way`.
+`coop shortcut` before the list ends still answers `OK: asked the native part: shortcut list: ...` on the console; the
+refusal, `shortcut list refused: a list is under way`, shows in `coop-link.log` and in `UE4SS.log` as a `link: last=`
+line.
 
 Loading one is held back. These are saves of development builds from 2021 and 2022. Two of them (F02 2 and 3, and
 their copies G03 3 and 4) hold six boss achievements as already done, and loading one could give those Steam
@@ -2584,8 +2586,14 @@ back as it was), what `coop lion` is doing (a wait for its rows, its search, its
 Lion stays), the same for `coop gardener fight` and `coop tendril fight` (a living Gardener or Tendril stays), the
 `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene, the game's
 developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
-(`coop glide`: EVE's glide flag is cleared) and a `coop emote` clip (it blends out). Afterwards only
-`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
+(`coop glide`: EVE's glide flag is cleared), a `coop emote` clip (it blends out), the game's developer panels
+(`coop devinfo`: closed), a `coop shortcut` list under way and the gift toast (taken off the screen). When a
+`coop devmenu` row ran, `coop off` runs its `clear` and `lockswitch` rows once more, but that `clear` reaches only the
+enemies near EVE at that moment, and both are skipped while a respawn or a warp is under way (see
+[Developer menu](#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after the items left your
+inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift lines from your
+friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and `coop report`
+answer. Every other command answers `STOP: coop off is active until the game restarts`,
 and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
