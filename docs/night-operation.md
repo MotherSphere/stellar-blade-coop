@@ -2,9 +2,9 @@
 
 Night Operation is a multiplayer wave-survival mode that Shift Up prototyped and cut before Stellar Blade's release.
 Much of it is still in the game files. StellarCoop has a run of its waves, `coop nightop`, which you play alone or with
-a linked partner, a shop that sells six items (two of them cut items) for the points runs earn, and four solo
-challenges on the same code, `coop challenge`. Two research previews test other parts of the cut mode; they are not
-playable modes. The run, the shop and the challenges have not been tested in game yet.
+a linked partner at one of four levels, a shop that sells six items (two of them cut items) for the points runs earn,
+and four solo challenges on the same code, `coop challenge`. Two research previews test other parts of the cut mode;
+they are not playable modes. The run, the shop and the challenges have not been tested in game yet.
 
 ## What the game files contain
 
@@ -45,10 +45,11 @@ test how the cut mode's parts behave.
 
 ## The solo run (`coop nightop`)
 
-`coop nightop start` sends five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and
-a score. It runs on a co-op save. With no Steam session it is a solo run, described in this section; with a partner
-linked, see [The co-op run](#the-co-op-run). It has not been tested in game yet. Each step is logged in `UE4SS.log` as
-`[StellarCoop][NR]` lines.
+`coop nightop start` sends five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and a
+score. That is the normal level; three other levels change the number of monsters, the time limit and the shop points
+(see [Levels](#levels)). It runs on a co-op save. With no Steam session it is a solo run, described in this section;
+with a partner linked, see [The co-op run](#the-co-op-run). It has not been tested in game yet. Each step is logged in
+`UE4SS.log` as `[StellarCoop][NR]` lines.
 
 The run keeps its own timer in the mod. It adds no row to the game's rule table and starts none of the cut mode's
 rules, so a death goes through the game's usual death screen and respawn. Parts of the run adapt code from Survival
@@ -56,7 +57,8 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 
 | Command | What it does |
 | --- | --- |
-| `coop nightop start` | Start a run where EVE stands |
+| `coop nightop start` | Start a run where EVE stands, at the normal level |
+| `coop nightop start <level>` | The same at a level: `easy`, `normal`, `hard` or `nightmare` (see [Levels](#levels)). A test switch may follow it: `coop nightop start hard noaggro` |
 | `coop nightop start noaggro` | The same, but the monsters are not sent at EVE (a test switch) |
 | `coop nightop start nomove` | The same, but stuck or fallen monsters are not moved (a test switch) |
 | `coop nightop stop` | End the run that is on, Night Operation or a challenge, on any save. `coop off` ends it too |
@@ -78,8 +80,9 @@ progress like any co-op save, and your own saves are not touched.
 ### Starting a run
 
 Go to open ground outside Xion, with no enemy or other character within 40 m of EVE, and type `coop nightop start`.
-The answer is `OK: Night Operation starts in 5 s (run 0x2A)`, where `0x2A` is the run's number. The command refuses
-with one `STOP:` line, and changes nothing, when:
+The answer is `OK: Night Operation starts in 5 s (run 0x2A)`, where `0x2A` is the run's number, or
+`OK: Night Operation (hard) starts in 5 s (run 0x2A)` at another level. The command refuses with one `STOP:` line, and
+changes nothing, when:
 
 - the save is not a co-op save;
 - the Steam link is not ready yet;
@@ -133,6 +136,35 @@ no longer holds up its wave, and killing it later still scores.
 Once wave 2 is down, and again once wave 4 is down, the mod fires the game's full heal (the probe's heal event,
 `SE_10_E_ActorEff_011`).
 
+### Levels
+
+The word after `coop nightop start` sets how many monsters each wave holds, the time limit and the shop points a run
+earns. With no word the level is normal, the run described above.
+
+| Level | Monsters in waves 1 to 5 | In all | Time limit | Shop points |
+| --- | --- | --- | --- | --- |
+| `easy` | 3, 2, 4, 3, 3 | 15 | 9:00 | 50 % |
+| `normal` | 4, 3, 5, 4, 4 | 20 | 8:00 | 100 % |
+| `hard` | 6, 5, 7, 6, 6 | 30 | 7:30 | 150 % |
+| `nightmare` | 8, 8, 8, 8, 8 | 40 | 7:00 | 200 % |
+
+A larger wave takes more of its own monsters: it goes through the wave's list in [The waves](#the-waves) again from
+its first monster. Hard's wave 2 is `M_SkullSwordAlone`, `M_SkullSwordAlone`, `M_SkullGunnerAlone`,
+`M_SkullSwordAlone`, `M_SkullSwordAlone`, and nightmare's wave 5 has two `M_SkullHammerAlone`. Easy drops the last
+monsters of each wave, so its wave 2 has no `M_SkullGunnerAlone`. The extra monsters come through the same spawn
+request and stand at the same four points, the fifth to the eighth of a wave 2.5 m from a point. They are found, sent
+at EVE, moved back and scored like the others. The waves keep their run times, the 10 s after a clear, the heals and
+the cap of 8, so a nightmare wave starts only once every monster of the waves before it is down.
+
+A monster's HP and damage are the game's at every level: the mod has no way to change them in a solo game. In a co-op
+run with shared enemies on, the host's `enemy_hp_scale` and `enemy_balance_scale` apply at every level, as they do to
+any shared enemy (see [Shared waves](#shared-waves)).
+
+The card counts down the level's time limit but does not name the level, and neither do the notices. The start
+answer, `coop nightop` (`run 0x2A level hard: wave, wave 2/5, ...`), the `start:` line in `UE4SS.log`
+(`... map <map> level hard; census: ...`) and the `result:` line (`challenge=night_hard`) name it. Each level keeps its
+own best run (see [Best runs](#best-runs-coop-recordstxt)).
+
 ### Score and the end of a run
 
 Each kill scores by the monster's rank: 10 for `M_Antlion`, 20 for `M_SkullGunnerAlone` and `M_LurkerA`, 40 for
@@ -143,7 +175,7 @@ A run ends in one of four ways:
 
 - Success: every monster of the five waves is down, written off, missing or no longer tracked. The score gets 1 point
   for each whole second left.
-- Time up: run time reaches 8:00.
+- Time up: run time reaches the level's time limit, 8:00 at the normal level.
 - Failed: EVE dies. The game's death screen and respawn run as usual.
 - Aborted: `coop nightop stop` or `coop off`; fast travel, a map change or a load; EVE more than 80 m from the start
   point for 10 s; a save that is no longer a co-op save; a Steam session that starts during a solo run; or an error in
@@ -188,7 +220,8 @@ With `coop ui off`, the same facts come as notices: the start, each wave, each w
 A run spawns its monsters with the same game request as the probe's `coop no actor`. Each monster carries a wave key
 from `0xD8000000` to `0xD8FFFFFF`, a range that none of the game's spawn rows uses. The heal is the only zone event a
 run fires. A run adds or edits no table row, starts no rule, writes no save, and never hides or removes a monster. No
-word typed after `start` reaches a game call: `noaggro` and `nomove` only turn off the mod's own steps.
+word typed after `start` reaches a game call: the level only picks the wave sizes, the time limit and the points, and
+`noaggro` and `nomove` only turn off the mod's own steps.
 
 Each kill most likely counts toward the game's general kill achievements, as any kill does: the ones for 10 and 1500
 kills and the ones for kills with each kind of skill. A run can unlock one of them if your save is close to its count.
@@ -197,16 +230,17 @@ Restoring a backup does not take an unlocked achievement back.
 ## The co-op run
 
 With a partner linked over the Steam link, the host starts the run for both players. Each game spawns the same waves
-at the same points around the host's start point, and both cards show one timer and one score. The waves, the score
-for each kill, the heals and the 8-minute limit are those of the solo run. The Steam link holds two players, so a run
-has two at most, each on a co-op save.
+at the same points around the host's start point, and both cards show one timer and one score. The host's level is
+the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. The
+Steam link holds two players, so a run has two at most, each on a co-op save.
 
 ### Starting a run together
 
-Both players stand together on open ground outside Xion. The host types `coop nightop start`. His game makes the
-checks of [Starting a run](#starting-a-run) on his side and answers
-`OK: Night Operation: waiting for <partner> to join (run 0x2A)`, and his card reads `WAITING FOR PARTNER`. On the
-guest's game the same command answers `STOP: the host starts a co-op run`.
+Both players stand together on open ground outside Xion. The host types `coop nightop start`, with a level if he
+wants one (`coop nightop start hard`). His game makes the checks of [Starting a run](#starting-a-run) on his side and
+answers `OK: Night Operation: waiting for <partner> to join (run 0x2A)`, or at another level
+`OK: Night Operation (hard): waiting for <partner> to join (run 0x2A)`, and his card reads `WAITING FOR PARTNER`. On
+the guest's game the same command answers `STOP: the host starts a co-op run`.
 
 The guest's game asks her nothing. It checks her side at once, and the first check that fails gives the reason that
 the host gets as a notice, `<partner> cannot join the run: <reason>.`:
@@ -227,6 +261,10 @@ practice.
 
 When she answers that she is ready, both cards count down from `STARTS IN 5`, and the guest gets the notice
 `<host> started Night Operation. It begins in <n> s.` From then on each game spawns its own copy of each monster.
+
+His night line carries the level, and her game builds its waves from it. Her `join:` line in `UE4SS.log` names it
+(`join: run 0x2A seed 0x... at ... map <map> level hard; census: ...`), and so does `coop nightop` on her side while
+the run is on. Her notice and card do not.
 
 ### During the run
 
@@ -291,13 +329,15 @@ wave starts, the timer and the score are still shared.
 
 ## The reward shop
 
-A run of yours that goes from its countdown to a success or a time up gives you points: 1 for each 25 of its final
-score, at most 42 a run. A full run with a score of about 730 gives 29. Your game adds them to your own points and shows
-`Night Operation: +29 points, 41 in all.` A success where a monster never came (its spawn failed) or nothing was killed
-pays for its kills only, without the bonus for the time left. A solo run counts too; a challenge gives none. A failed or
-aborted run gives nothing, and a guest whose game missed the countdown gets nothing either. Each game credits only its
-own player: no line between the two games carries points. If the points cannot be written, a notice says so and
-`UE4SS.log` says why.
+A run of yours that goes from its countdown to a success or a time up gives you points: 1 for each 25 of its final score
+at the normal level, times the level's percent at the others (50 % at easy, 150 % at hard, 200 % at nightmare), rounded
+down. The score counts up to the highest its level allows, so a run gives at most 20 points at easy, 42 at normal, 83 at
+hard and 129 at nightmare. A normal run with a score of about 730 gives 29, a hard one 43. Your game adds them to your
+own points and shows `Night Operation: +29 points, 41 in all.` A success where a monster never came (its spawn failed)
+or nothing was killed pays for its kills only, without the bonus for the time left. A solo run counts too; a challenge
+gives none. A failed or aborted run gives nothing, and a guest whose game missed the countdown gets nothing either. Each
+game credits only its own player: no line between the two games carries points. If the points cannot be written, a
+notice says so and `UE4SS.log` says why.
 
 `coop nightop shop` lists your points and the six items:
 
@@ -377,7 +417,7 @@ game yet.
 
 | Command | What it does |
 | --- | --- |
-| `coop challenge` | List the challenges and Night Operation with each one's best run, then the run that is on, if any |
+| `coop challenge` | List the challenges and Night Operation's four levels with each one's best run, then the run that is on, if any |
 | `coop challenge <name>` | Start that challenge where EVE stands. Its number in the list works too: `coop challenge 4` is `coop challenge targets` |
 | `coop challenge stop` | End the run that is on, a challenge or Night Operation, on any save. `coop nightop stop` and `coop off` end a challenge too |
 
@@ -388,7 +428,10 @@ OK: 1 swarm Antlion Swarm: 3 waves, 3:00, no best yet
 2 skulls Skull Squad: 3 waves, 6:00, no best yet
 3 gauntlet Gauntlet: 8 waves, 12:00, no best yet
 4 targets Target Practice: 3 waves, 1:30, no best yet
+night_easy: Night Operation easy (coop nightop start easy), no best yet
 night: Night Operation (coop nightop start), no best yet
+night_hard: Night Operation hard (coop nightop start hard), no best yet
+night_nightmare: Night Operation nightmare (coop nightop start nightmare), no best yet
 ```
 
 A start runs the checks of `coop nightop start` and refuses for the same reasons, with one `STOP:` line (see
@@ -503,8 +546,8 @@ a `New personal best.` notice.
 ### Best runs (`coop-records.txt`)
 
 Best runs are kept in `Mods/StellarCoop/coop-records.txt`, one line per challenge in the form
-`best_<name>=<score> <seconds>`. Night Operation's line is `best_night`. After a first Target Practice best, the file
-reads:
+`best_<name>=<score> <seconds>`. Night Operation's lines are `best_night` for the normal level, `best_night_easy`,
+`best_night_hard` and `best_night_nightmare`. After a first Target Practice best, the file reads:
 
 ```
 # StellarCoop: your best challenge runs on this PC (score and seconds).

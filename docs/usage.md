@@ -818,7 +818,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
-| `coop nightop [start [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop), solo or, started by the host, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
+| `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop) at one of four [levels](night-operation.md#levels), solo or, started by the host at his level, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
 | `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its six items (two cut stimpacks among them), and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
@@ -966,10 +966,12 @@ with the same `STOP:` line under their own names, except `coop nightop stop` and
 any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop) and
 [Challenges](night-operation.md#challenges-coop-challenge).
 
-- With no Steam session, `coop nightop start` starts a solo run.
-- In a session, only the host starts a run, and it is for both players. The guest's game checks her side and joins
-  without a question, or the host gets a notice with the reason she cannot. On the guest's game the command answers
-  `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
+- With no Steam session, `coop nightop start` starts a solo run. A level may follow `start`: `easy`, `normal` (the
+  same as none), `hard` or `nightmare`. It sets the number of monsters in each wave (15 to 40 in all), the time limit
+  (9:00 to 7:00) and the shop points (50 % to 200 %). See [Levels](night-operation.md#levels).
+- In a session, only the host starts a run, at his level, and it is for both players. The guest's game checks her
+  side and joins without a question, or the host gets a notice with the reason she cannot. On the guest's game the
+  command answers `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
 - `coop nightop shop` lists the points your runs gave and the six items, and `coop nightop buy <n> [count]` buys 1 to 10
   of item n into the co-op save. Items 5 and 6, the cut Burst and Beta Stimpacks, need table rows the native part adds
   with the Lion's (see [Cut boss](#cut-boss-coop-lion)): a buy of one asks for them first. Your points are in
