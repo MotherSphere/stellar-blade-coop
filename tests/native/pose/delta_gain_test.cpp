@@ -1,13 +1,14 @@
 // What the sender's delta tolerance (pose/codec.h kTolerance) saves, measured on a recording. Each table, keyframe and
 // delta of a coop-record.bin is read back to the full poses that were sent (a delta rebuilt on its keyframe), and the
 // poses go again through KeyedEncoder with no tolerance and with kTolerance: keyframes, deltas, their mean sizes and
-// the stream's KiB/s over the recording's span, for each. A recording made by a sender that already used the
-// tolerance holds its keyframe values, so its "no tolerance" line is lower than such a sender's stream was.
+// the stream's KiB/s over the recording's span, for each. coop-record.bin holds the stream we sent, so make it with a
+// build that sends no tolerance (v0.6.0-beta.3 or older): a recording from a build with the tolerance already holds
+// the keyframe's values within it, and both lines come out the same.
 //
 //   build/host/pose_delta_gain_test path/to/coop-record.bin
 //
 // tools/install.py builds and runs it with no argument, like every test: then it measures two synthetic recordings
-// (idle and running, below) made by the real sender, checks that the tolerance never costs bytes, and prints both.
+// (idle and running, below) made by the real sender, checks that the tolerance saves bytes on both, and prints both.
 // Synthetic motion says how the tool works, not what a real outfit saves: measure a recording for that.
 #include "pose/record.h"
 
@@ -91,9 +92,9 @@ std::pair<uint64_t, uint64_t> report(const char *name, const Recording &r) {
 }
 
 // A synthetic recording: 10 s at 60 poses a second of a 4.8 KB pose (a body of 260 bones, the face, the hair of 2),
-// sent as today's sender would have sent it (no tolerance). Of the bones, 40 % never move, 30 % sway slowly (0.05 to
-// 0.3 degrees at 0.25 Hz, with float noise of 1e-7 on each component, as an animation blend leaves it) and 30 % turn
-// up to amplitude degrees at hz; the body's root bone bobs 1 cm at hz; the world moves 3 m a second.
+// sent as a sender without the tolerance (v0.6.0-beta.3 and older) sent it. Of the bones, 40 % never move, 30 % sway
+// slowly (0.05 to 0.3 degrees at 0.25 Hz, with float noise of 1e-7 on each component, as an animation blend leaves it)
+// and 30 % turn up to amplitude degrees at hz; the body's root bone bobs 1 cm at hz; the world moves 3 m a second.
 std::string synthetic(double hz, double amplitude) {
   const std::string text = "SBT " + std::to_string(coop::kProtocol) +
                            "\ngeneration 9\nmap /game/art/bg/worldmap/level_p/e04\npart 0 - - - 1 260 Body -\nnames 0" +
@@ -192,7 +193,7 @@ int main(int argc, char **argv) {
     Recording r;
     assert(!parse_recording(synthetic(hz, amplitude), r) && r.poses == 600);
     const auto [base, with] = report(name, r);
-    assert(with <= base);
+    assert(with < base); // Their noise is within the tolerance: equal would mean a tolerance lost on the way.
   }
   std::puts("pose_delta_gain_test: all passed");
 }

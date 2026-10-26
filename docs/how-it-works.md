@@ -557,8 +557,10 @@ keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° 
 (1/32 cm) and 1 step of scale (1/4096). Until it moves further, the receiver keeps the keyframe's value, for 250 ms
 at most. This drops the fields that only flip their last step from float noise, and needs no change on the receiving
 side. The test build `build/host/pose_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes,
-deltas and KiB/s with and without the tolerance: `build/host/pose_delta_gain_test coop-record.bin`. With no file it
-measures two synthetic recordings; they show how the tool works, not what a real outfit saves.
+deltas and KiB/s with and without the tolerance: `build/host/pose_delta_gain_test coop-record.bin`. A recording holds
+the stream you sent, so make it with a build that has no tolerance (v0.6.0-beta.3 or older). A recording from a build
+with the tolerance already holds the keyframe's values for those fields, so both lines show the same KiB/s. With no
+file the tool measures two synthetic recordings; they show how the tool works, not what a real outfit saves.
 
 ### 4. Playback clock and interpolation
 
