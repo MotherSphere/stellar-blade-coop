@@ -134,8 +134,8 @@ function Mailbox.remove(pc,guid,alias,count)
     pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)
 end
 -- The cut toast on screen with text as its title, through UMG's own Create on SB's player controller: a function that
--- takes it off, false with no controller (a load), or nil and why. Its class is loaded the first time a gift arrives
--- (LoadAsset, synchronous).
+-- takes it off and the widget's object path, false with no controller (a load), or nil and why. Its class is loaded
+-- the first time a gift arrives (LoadAsset, synchronous).
 function Mailbox.toast(text)
     local class=U.valid(StaticFindObject(TOAST))
     if not class then
@@ -150,23 +150,36 @@ function Mailbox.toast(text)
     w.Text_Title:SetText(FText(text))
     w:AddToViewport(TOAST_Z)
     w:Play()
-    return function() if U.valid(w) then w:RemoveFromParent() end end
+    return function() if U.valid(w) then w:RemoveFromParent() end end,U.text(w:GetFullName()):match('^%S+ (.+)$')
+end
+-- A toast an earlier Lua load left on screen, by its object path: taken off. True when it was there. The widget has
+-- no removal of its own (its graph plays the In animation and the sound only), so only a Lua load takes it off.
+function Mailbox.sweep(path)
+    local w=U.valid(StaticFindObject(path))
+    if not (w and U.text(w:GetFullName()):find('^WB_MailBox_Toast_GetGift_C ') and w:IsInViewport()) then
+        return false
+    end
+    w:RemoveFromParent()
+    return true
 end
 -- o: log(text) writes a [GF] line; say(text) puts a notice on screen; status() is the native part's status text;
 -- request(line) asks the native part (link.request); read(name) and write(name, text) are link.read_file and
 -- link.write_file; friend() is link.friend (her name, linked, lost); loopback() whether coop loopback runs; paused()
 -- whether the game is paused (photo mode included, ours or the friend's that pauses ours) or shows one of its screens;
 -- name(alias) the FName this game holds for an alias, {index=, number=}, or nil; clock() seconds (os.clock); now()
--- whole seconds that survive a reload (os.time); toast(text) Mailbox.toast unless given.
+-- whole seconds that survive a reload (os.time); toast(text) Mailbox.toast unless given; store (coop-gift-toast.txt
+-- through link.store) keeps the toast's path while it is up, so the next Lua load's first tick takes it off through
+-- sweep(path), Mailbox.sweep unless given.
 function Mailbox.new(o)
     local log,say,status,request,read,write=o.log,o.say,o.status,o.request,o.read,o.write
     local friend,loopback,paused,name_of=o.friend,o.loopback,o.paused,o.name
-    local clock,now,toast=o.clock or os.clock,o.now or os.time,o.toast or Mailbox.toast
+    local clock,now,toast,sweep=o.clock or os.clock,o.now or os.time,o.toast or Mailbox.toast,o.sweep or Mailbox.sweep
+    local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local self={}
     local sending=nil -- A send under way (Lua memory only: nothing has left the inventory before its remove).
     local pending,last_file=true,nil -- out or back entries may wait in the file named last_file.
     local tried={} -- A gift coming back whose grant raised: when, by id, so it is tried again after RETRY s only.
-    local untoast,toast_until,toast_off=nil,nil,false
+    local untoast,toast_until,toast_off,swept=nil,nil,false,false
     local asks,seq=0,math.random(0,999)
     local function engine(raw) return ('\n'..(raw or '')):match('\nengine=([^\r\n]*)') or '' end
     -- The next ask's number, never the one the engine line answers now: that answer may be an earlier Lua load's, so
@@ -224,11 +237,21 @@ function Mailbox.new(o)
         if not guid then return nil,"EVE's ActorGuid reads 0" end
         return {pc=pc,guid=guid}
     end
+    local function unshow()
+        if not untoast then return end
+        pcall(untoast)
+        untoast=nil
+        store.clear()
+    end
     local function show(text)
         if toast_off then return end
-        if untoast then pcall(untoast) end
+        unshow()
         local ok,off,e=pcall(toast,text)
-        if ok and off then untoast,toast_until=off,clock()+Mailbox.TOAST; return end
+        if ok and off then
+            untoast,toast_until=off,clock()+Mailbox.TOAST
+            if e then store.save(e) end
+            return
+        end
         if ok and off==false then return end -- No controller now: the next gift tries again.
         toast_off=true -- The first failure: no toast for this Lua load.
         log('toast off until the mod reloads: '..why(ok and e or off))
@@ -366,13 +389,21 @@ function Mailbox.new(o)
         if changed then save(st) else pending=#st.out>0 or #st.back>0 end
     end
     -- Each 250 ms: the toast's end, a send under way, the file's waiting entries (read again when the co-op slot or the
-    -- SteamID changed, so a gift sent from another slot comes back once that slot is loaded).
+    -- SteamID changed, so a gift sent from another slot comes back once that slot is loaded). The first tick takes off
+    -- a toast an earlier Lua load left (a reload within TOAST s of a gift).
     function self.tick()
         local t=clock()
-        if untoast and t>=toast_until then
-            pcall(untoast)
-            untoast=nil
+        if not swept then
+            swept=true
+            local left=store.load()
+            if left then
+                store.clear()
+                local ok,gone=pcall(sweep,left)
+                if not ok then log('the toast an earlier Lua load left was not taken off: '..why(gone))
+                elseif gone then log('took off the toast an earlier Lua load left') end
+            end
         end
+        if untoast and t>=toast_until then unshow() end
         local raw=status()
         local file=where(raw)
         if file~=last_file then last_file,pending=file,true end
@@ -384,7 +415,7 @@ function Mailbox.new(o)
     -- remove is the upgrade.
     function self.stop()
         sending=nil
-        if untoast then pcall(untoast); untoast=nil end
+        unshow()
     end
     -- Her gift: kept in the mailbox and answered a, or refused with n and why. A key already seen gets its first
     -- answer.

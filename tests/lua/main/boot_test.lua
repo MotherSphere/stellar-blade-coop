@@ -22,7 +22,7 @@
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
 -- coop gift reaches cut/mailbox.lua on the co-op save slot only (her gift lines in coop-chat.txt to it, ticked every
--- 250 ms, paused with the game, photo mode or the friend's, its toast off at coop
+-- 250 ms, paused with the game, photo mode or the friend's, its toast's path in coop-gift-toast.txt and off at coop
 -- off), coop fly and coop slowmo ask the native part (on from the co-op save slot only),
 -- coop glide reaches cut/glide.lua
 -- (on from the co-op save slot only, its own check on that slot; restored and ticked every frame, ended by coop off),
@@ -629,6 +629,7 @@ local link_paused=fake_link.paused
 fake_link.paused=function() return true end
 assert(gf.o.paused()==true,"While the friend's photo mode pauses our game")
 fake_link.paused=link_paused
+assert(gf.o.store=='store coop-gift-toast.txt','The toast\'s path through the link')
 coop('gift')
 assert(#gf.cmds==0 and last():find('^%[StellarCoop%] STOP: coop gift runs only on a co%-op save'),last())
 status_text=COOP

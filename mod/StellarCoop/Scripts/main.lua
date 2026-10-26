@@ -393,7 +393,7 @@ local mailbox=link and require('cut.mailbox').new({log=function(m) print('[Stell
     say=function(text) say(text) end,status=function() return link.status() end,
     request=function(line) return link.request(line) end,read=function(name) return link.read_file(name) end,
     write=function(name,text) return link.write_file(name,text) end,friend=function() return link.friend() end,
-    loopback=function() return link.loopback() end,
+    loopback=function() return link.loopback() end,store=link.store('coop-gift-toast.txt'),
     paused=function() return kit~=nil and kit.paused(true) or photo_state()~='0' or link.paused() end,
     name=function(alias)
         local n=U.value_of(FName(alias,EFindName.FNAME_Find))

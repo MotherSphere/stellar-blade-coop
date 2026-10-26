@@ -2,13 +2,15 @@
 -- file in memory, the requests to the native part, the friend and the loopback, EVE and the player controller with its
 -- remove and add requests, the clocks and the toast. Covered: the line shapes link/protocol.h takes and the file's;
 -- the remove call's five arguments; a send's refusals with nothing asked, its read, the remove, the reads until the
--- count fell, the entry written before its line, and every way it stops with the items still there; her answers (kept,
--- refused, nolink, late); sends again every AGAIN s with the same id, the items coming back after WAIT s, when the
--- friend left (not while her link is lost) or with the loopback gone, through the shop's grant, tried again after
+-- count fell (time paused not counted), the entry written before its line, and every way it stops with the items still
+-- there or maybe gone; her answers (kept, refused, nolink, late); sends again every AGAIN s with the same id, the items
+-- coming back after WAIT s, when the friend left (not while her link is lost) or with the loopback gone, through the
+-- shop's grant, written out of the file before it (nothing given while the file cannot be written), tried again after
 -- RETRY s when it raises; her gifts kept, answered and shown, refused when off a co-op save, unknown, the mailbox full
 -- or the file not written, and a key seen before answered as before; take, all or one, written before its grant and put
--- back when the grant raises; the toast's end and its first failure; a gift sent from another co-op slot coming back
--- once that slot loads.
+-- back when the grant raises; the toast's end, its path kept for the next Lua load's sweep, and its first failure; a
+-- gift sent from another co-op slot coming back once that slot loads; a save whose rename failed, written once the file
+-- itself is gone.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(text) return {ToString=function() return text end} end
 local removes,adds,remove_raise,add_raise={},{},nil,nil
@@ -96,9 +98,10 @@ end
 local asked,logs,says,toasts,untoasts={},{},{},{},0
 local linked,lost,loop,paused,clock,now=true,false,false,false,100,5000
 local toast_fails,no_controller=nil,false
+local stored,swept=nil,{} -- coop-gift-toast.txt, and the paths swept.
 local names={}
 for i,alias in ipairs(M.ITEMS) do names[alias]={index=4000+i,number=0} end
-local mail=M.new({log=function(t) logs[#logs+1]=t end,say=function(t) says[#says+1]=t end,status=status,
+local opts={log=function(t) logs[#logs+1]=t end,say=function(t) says[#says+1]=t end,status=status,
     request=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
     read=read,write=write,friend=function() if peer_id then return 'Kaanta',linked,lost end end,
     loopback=function() return loop end,paused=function() return paused end,name=function(a) return names[a] end,
@@ -107,8 +110,11 @@ local mail=M.new({log=function(t) logs[#logs+1]=t end,say=function(t) says[#says
         if toast_fails then return nil,toast_fails end
         if no_controller then return false end
         toasts[#toasts+1]=t
-        return function() untoasts=untoasts+1 end
-    end})
+        return function() untoasts=untoasts+1 end,'/Engine/Transient.Toast_'..#toasts
+    end,
+    store={save=function(path) stored=path end,load=function() return stored end,clear=function() stored=nil end},
+    sweep=function(path) swept[#swept+1]=path; return true end}
+local mail=M.new(opts)
 local FILE='coop-gift-'..ME..'-4.txt'
 local function with_items(ask,answer) engine='engine=on warp=idle me=81 items='..ask..' '..answer end
 local function tick(seconds) clock=clock+(seconds or 0.25); now=now+math.floor(seconds or 0); mail.tick() end
@@ -348,7 +354,7 @@ asked={}
 mail.receive('s 900 HP_Potion 3')
 assert(asked[1]=='gift a 900'
     and says[#says]=='Kaanta sent you 3 HP_Potion: coop gift take puts them in your inventory.')
-assert(toasts[1]=='Kaanta: 3 HP_Potion')
+assert(toasts[1]=='Kaanta: 3 HP_Potion' and stored=='/Engine/Transient.Toast_1','Its path for the next Lua load')
 st=M.read(files[FILE])
 assert(#st.box==1 and st.box[1].from==HER and st.box[1].name=='Kaanta' and st.box[1].count==3)
 mail.receive('s 900 HP_Potion 3')
@@ -373,7 +379,7 @@ assert(asked[7]=='gift n 904 full','A refusal kept: the same answer')
 -- The toast goes after TOAST s; its first failure turns it off for the load.
 local u=untoasts
 tick(Mailbox.TOAST)
-assert(untoasts==u+1)
+assert(untoasts==u+1 and stored==nil)
 st=M.read(files[FILE])
 st.box={st.box[1]}
 files[FILE]=M.write(st)
@@ -445,4 +451,18 @@ write_beside=nil
 assert(asked[#asked]=='gift a 909' and files[FILE2]==nil and #M.read(files[FILE2..'.tmp']).box==2,asked[#asked])
 assert(logs[#logs-1]=='gift file left as its .tmp: cannot write '..FILE2..': Permission denied',logs[#logs-1])
 mail.stop()
+-- A Lua reload while the toast is up: the next load's first tick takes it off, once; that load's own toast goes at
+-- coop off.
+stored='/Engine/Transient.Toast_9'
+local again=M.new(opts)
+again.tick()
+assert(swept[1]=='/Engine/Transient.Toast_9' and stored==nil and logs[#logs]=='took off the toast an earlier Lua load '
+    ..'left',logs[#logs])
+again.tick()
+assert(#swept==1)
+again.receive('s 910 HealGrenade 1')
+assert(toasts[#toasts]=='Kaanta: 1 HealGrenade' and stored=='/Engine/Transient.Toast_'..#toasts)
+u=untoasts
+again.stop()
+assert(untoasts==u+1 and stored==nil)
 print('cut_mailbox_test ok')

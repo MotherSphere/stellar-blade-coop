@@ -1807,7 +1807,9 @@ Feeding it would mean rows in two tables, a second grant path and a mod alias in
 keeps its own list on disk and only shows the cut toast: `WidgetBlueprintLibrary::Create` with
 `WB_MailBox_Toast_GetGift_C`, its `Text_Title` set, `AddToViewport` and its `Play` function. `Play` starts its `In`
 animation, whose event track calls the widget's `Toast In Play Sound` (from the offline dump of the widget; what that
-function plays is not read). The toast comes off after 4 s, and its first failure turns it off for the Lua load.
+function plays is not read). The toast comes off after 4 s, and its first failure turns it off for the Lua load. The
+widget has no removal of its own, so while it shows its object path waits in `coop-gift-toast.txt`, and the next Lua
+load's first tick takes off a toast an earlier load left on screen.
 
 ### The inventory read
 

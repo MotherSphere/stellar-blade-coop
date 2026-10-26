@@ -1530,7 +1530,8 @@ a stat), drone ammo and the cut stimpacks are left out, and none of the seven co
   `OK: reading how many PulseGrenade you carry; the gift of 2 follows` answers the command, then a notice says
   `Gift sent: 2 PulseGrenade. It waits for your friend's answer.` or why it was not sent.
 - Your friend's game keeps the gift in her mailbox and answers, and you get `Kaanta got your 2 PulseGrenade.` She gets
-  `<your name> sent you 2 PulseGrenade: coop gift take puts them in your inventory.` and the cut toast for 4 s.
+  `<your name> sent you 2 PulseGrenade: coop gift take puts them in your inventory.` and the cut toast for 4 s. A Lua
+  reload (Ctrl+R) in those 4 s takes the toast off at once.
 - Her game refuses a gift when she is not on a co-op save, when 20 gifts already wait in her mailbox, or when it cannot
   write its mailbox file. The items then come back to you: `Gift refused (full): the 2 PulseGrenade come back.`
 - The items also come back when she leaves the session before answering, when no answer came in 60 s, or when the
@@ -2658,6 +2659,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |
 | `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [night-operation.md](night-operation.md#the-reward-shop)) |
 | `coop-gift-<steamid>-<index>.txt` | Lua | Your mailbox on that co-op slot: the gifts that wait, the ones you sent that wait for an answer or come back, and the last 64 gifts taken (see [Cut mailbox](#cut-mailbox-coop-gift)) |
+| `coop-gift-toast.txt` | Lua | While a gift's toast shows: its object path, so the next Lua load (Ctrl+R) can take it off |
 | `coop-race.txt` | Lua | Your [Doro race](#doro-races) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
