@@ -1890,8 +1890,8 @@ for _,word in ipairs({'targets','swarm'}) do
     pair()
     host_start()
     round(1,Hs)
-    local ask=Hs.sent[1]:gsub(' normal$',' '..word)
-    assert(ask:find(' '..word..'$'),ask)
+    local ask=Hs.sent[1]:gsub(' normal 0 0$',' '..word..' 0 0')
+    assert(ask:find(' '..word..' 0 0$'),ask)
     Gs.night=ask
     round(2,Gs)
     assert(has(Gs.lines,'night in: '..ask..' (refused)') and not find(Gs.lines,'^join:') and #Gs.sent==0,Gs.lines[1])
@@ -2041,7 +2041,7 @@ do
     local byte=tonumber(text3:match('run 0x(%x+)'),16)
     assert(ok3 and text3==string.format('Shooting Range: waiting for Kaanta to join (run 0x%02X)',byte),text3)
     round(2)
-    assert(Hs.sent[1]:find(' range$'),Hs.sent[1])
+    assert(Hs.sent[1]:find(' range 0 0$'),Hs.sent[1])
     assert(find(Gs.lines,string.format('^join: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map %%S+ challenge range; '
         ..'census: ',byte,W.seed(T,byte))),Gs.lines[2])
     assert(Hs.told[#Hs.told]=='Shooting Range starts in 5 s.',Hs.told[#Hs.told])

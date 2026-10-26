@@ -368,7 +368,7 @@ assert(W.decode_host(nil)==nil and W.decode_host('')==nil)
 -- level word not in the words is refused too.
 local three={id='three',waves={{at=0,ids={40010,40010,40010}},{ids={40010}},{ids={40010}}},limit=120,bonus=10}
 local words={three=three}
-local t3=W.encode_host(base):gsub(' normal$',' three')
+local t3=W.encode_host(base):gsub(' normal 0 0$',' three 0 0')
 assert(W.decode_host(t3)==nil and W.decode_host(W.encode_host(base),words)==nil,'Another set of words')
 assert(W.decode_host(t3,words).level=='three' and W.most(three)==1400)
 assert(W.decode_host((t3:gsub(' 600000 0 ',' 600000 1400 ')),words).score==1400)

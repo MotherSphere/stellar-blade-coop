@@ -86,7 +86,7 @@ for _,def in ipairs(C.LIST) do
         for key in pairs(back) do assert(set[key],def.id..': a key the mask added'); m=m+1 end
         assert(m==n,def.id..': a key the mask lost')
         local line=W.encode_host({n=1,run=7,seed=9,phase='end',wave=#def.waves,rt=30000,score=W.most(def),kills=n,
-            clears=#def.waves,found={},x=0,y=0,z=0,yaw=0,map='/game/x',outcome='success',level=def.id})
+            clears=#def.waves,found={},x=0,y=0,z=0,yaw=0,map='/game/x',outcome='success',level=def.id,down=0,help=0})
         local h=W.decode_host(line,{[def.id]=def})
         assert(h and h.level==def.id and h.score==W.most(def),def.id..': '..line)
     end
