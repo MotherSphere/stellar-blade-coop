@@ -552,14 +552,13 @@ result and with `coop ui off`. When the widget cannot be made, `UE4SS.log` has o
 ### The Shooting Range for two
 
 With a partner linked, the host types `coop challenge range` (or `coop challenge 5`). The run then starts, plays and
-ends as a co-op Night Operation run does (see [The co-op run](#the-co-op-run)), with these differences:
+ends as a co-op Night Operation run does (see [The co-op run](#the-co-op-run)). The dummies are wave monsters there
+too: with shared enemies on, the two copies of a dummy pair as [Shared waves](#shared-waves) says. The differences:
 
 - His night line carries `range` in place of a level. Her `join:` line in `UE4SS.log` names it
   (`... challenge range; census: ...`), and her notice reads `Shooting Range: <host> started the challenge. It begins
   in 5 s.`
 - `coop challenge range` on the guest's side answers `STOP: the host starts a co-op run`.
-- Each game has its own copy of each dummy, on the same spot. A dummy scores once, for the player whose copy goes down
-  first, and a round ends once the copies in both games are down. Both players shoot every dummy in their own game.
 - There is no heal. A co-op run gives no shop points and keeps no best on either PC.
 
 ### Score
