@@ -2144,6 +2144,68 @@ reads `Montage_IsPlaying` each frame and calls `Montage_Stop(0.25)` at the same 
 montage under `/Engine/Transient` (a dynamic one; the game's montages come from its packages) left on the player's
 EVE. Nothing new travels between the two games: the ghost copies the bones the pose stream carries.
 
+## The cut Load Shortcut menu
+
+`coop shortcut` (`save/shortcut.h`, `glue/tick/shortcut_game.inc`, not tested in game yet) lists the saves of a cut
+chapter loader. What the pinned build keeps of it:
+
+- The title screen's widget `WB_Lobby_Menu_Set` has a `WB_Lobby_Menu_Btn_ShortCut` button, collapsed, whose text key
+  `UI_Lobby_ShortCut` is in no string table. The lobby's set-up (`FUN_141ef0e70`) gives a click handler to 14 named
+  buttons, and this one is not among them.
+- The `ShortcutGame` menu (UI logic 130, constructor `FUN_141f5efd0`) lists slots 1 to 4 of one map, the one the
+  constant `ShortCutMapPath` names (`FUN_141f60140`). `FUN_1422907c0` builds each path as `"%s%s%s/%s%02d.sav"`
+  (`FUN_142324b70`: the project's content folder, `ShortCutRootFolderPath`, the map, `ShortCut`, the slot), reads the
+  file the way `FFileHelper::LoadFileToArray` does, turns it into a save object and keeps a few fields of it for the
+  slot.
+- The menu's Accept branch (`FUN_141f5f9b0`) copies the chosen slot, calls `GetBestSaveSlotNum` (`0x142290b50`) and
+  drops its result, then asks for the lobby's UI logic and drops that too: the load itself was compiled out. The
+  cheats `SBLoadFromShortcut` and `SBLoadShortcutData` read their parameters and return.
+- The paks hold 15 such saves under `SB/Content/System/Waypoint/`: B07 4, F02 3, G03 4 and Matrix_XI 4. G03's slots
+  2 to 4 are byte for byte F02's 1 to 3.
+
+The list makes the menu's own calls, on the game thread, one file a frame, under its own SEH latch. It reads the file
+manager object that `IFileManager::Get()` (`FUN_142820e70`) returns, a function-local static at `0x14710a7a8`, and
+checks its vtable (`0x145f5c9a0`). It calls `CreateFileReader` at vtable `+0x18` (`FUN_142811eb0`) with the path
+`../../../SB/Content/System/Waypoint/<map>/ShortCut0<n>.sav` and flags 0, so a missing file returns null instead of a
+fatal error. On the reader it checks the vtable (`FArchiveFileReaderGeneric`, `0x145f5bc60`), then calls `TotalSize`
+(`+0x30`), `Serialize` into a buffer of ours (`+0x150`), `Close` (`+0x1b8`, false after a read error) and the deleting
+destructor (`+0`). The bytes go to `shortcut::parse()` and are then dropped. It reads the GVAS header's engine branch,
+`MapName` and `CampAlias` in the map property `DataMap_FString`, and `DateTime` in `DataMap_int64`, each searched only
+within its own map's bytes. An EVAS header is stripped first when there is one, as the game's slot loader does.
+Nothing is written. The worker logs a line per file and a summary, which reaches `UE4SS.log` as the status's `last=`
+line. A fault ends `coop shortcut` for the run.
+
+### Why no load
+
+The mod loads no shortcut save, not even into a co-op save slot. A study of the 15 files against a save of the
+released game (2026-10-26) found:
+
+- Format. The files are bare GVAS, with no EVAS header and no CRC. Eleven come from UE 4.26 (package version 522) and
+  Matrix_XI's four from 4.25 (518), against 525 for the released game's saves. Their dates run from March 2021 to July
+  2022. The game's slot loader (`FUN_141cd5e10`) would take either form: it strips an EVAS header when there is one,
+  and its account check (`FUN_1421d1390`) passes a save with no `OnlineAccountInfo`.
+- Missing fields. None of the 15 has `NewGameCreateTime`, `LevelActorStorage`, `UIStorage`, `EventGiftInfo`,
+  `NikkeStageInfo`, `SaveFileVersionInfo`, `OnlineAccountInfo` or a `GameDifficulty`, and only G03 1 has
+  `GamePlayProgressRecordData`.
+- Content the game no longer has. Nine of the 12 distinct files hold items with no `ItemTable` row (`betacrystal`,
+  `PT_crowd`, `DesignPattern_Blue_Suit`, `BS_Attacker`, `Buff_HP2MP`, `dronecore` and others). Matrix_XI 1 has three
+  quests with no `QuestTable` row (`SQ_ME_KillTumblerDrone`, `SQ_ME01_GetFusionCell01` and `02`), and F02 1 and 2
+  name task groups in an older form (`CQ_DED01_KillTumblerDrone_T01`).
+- Achievements. F02 2 holds `DED_Opener_KillCharacter`, `DED_GrubShooter_KillCharacter` and
+  `DED_Gigas_KillCharacter` as done, which are trophies 3, 4 and 5 in `TrophyTable`. F02 3 holds those and
+  `ME_Stalker_KillCharacter`, `ME_Juggernaut_KillCharacter` and `ME_Tachy_KillCharacter` (trophies 8, 9 and 10), with
+  progress toward trophies 28 to 31 and 43. G03 3 and 4 are the same files. The game has save fix-ups
+  (`FUN_1421def10`'s nine passes) that walk a loaded save's achievement list and queue achievement events from it
+  (`FUN_1421e1ff0` does it for `Trophy_KillCharacter_AllNative`), and it writes trophies to Steam from pending
+  achievement events (`FSBAchievementContainer::ProgressCompleteAchievementEvent`, `FUN_141a329a0`, then
+  `FUN_14229a730`). Which saves those passes run on was not traced. Every other file carries a developer's skills,
+  items and camps, which count toward the collection trophies once the player adds to them.
+
+A Steam achievement cannot be taken back, and a test of whether a load unlocks one would itself risk it. The rule in
+[Achievements](#achievements), that nothing done without a player reaches that player's achievements, rules out a load
+until a loader drops the achievement list, the developer's progress and the unknown items first, and that has been
+tested on an account whose achievements do not matter. The lobby's ShortCut button stays hidden for the same reason.
+
 ## Achievements
 
 The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks
@@ -2202,6 +2264,8 @@ claim the host accepts):
   or save function.
 - A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is
   that player's, like any Naytiba's.
+- `coop shortcut` lists the cut Load Shortcut menu's developer saves and loads none of them, since two hold boss
+  achievements as done ([Why no load](#why-no-load)).
 
 ## Safety design
 

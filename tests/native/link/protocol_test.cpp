@@ -642,6 +642,10 @@ int main() {
         std::string("anim play 1 /Game/Art/Character/PC/CH_P_EVE_01/Animation/../X.X once"), "anim  play 1 " + clip +
         " once", std::string("anim"), std::string("anim stop now"), std::string("anim play")})
     assert(parse_request(bad).command == Command::none);
+  // coop shortcut: the list, nothing else.
+  assert(parse_request("shortcut list\r\n").command == Command::shortcut);
+  for (const char *bad : {"shortcut", "shortcut List", "shortcut list now", "shortcut load F02 1", "shortcutlist"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");

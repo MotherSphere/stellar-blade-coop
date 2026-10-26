@@ -542,10 +542,12 @@ inline uint64_t code_lobby(std::string_view text) {
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
 // of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
-// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays).
+// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays); and for coop shortcut "shortcut list" (the cut
+// Load Shortcut menu's saves, read through the game's file manager on the game thread and named in the log,
+// save/shortcut.h).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, rows, gate, anim
+  remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut
 };
 // The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt), in Request::batch's
 // order.
@@ -784,6 +786,8 @@ inline Request parse_request(std::string text) {
     r.command = Command::report;
   else if (text == "off")
     r.command = Command::off;
+  else if (text == "shortcut list")
+    r.command = Command::shortcut;
   else if (text == "mark" || text.rfind("mark ", 0) == 0) {
     r.command = Command::mark;
     r.text = chat_clean(std::string_view(text).substr(4), kMaxMark);

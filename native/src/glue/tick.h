@@ -114,6 +114,13 @@ std::string ask_rows(const coop::Request &request);
 // by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>, asks=<a>,
 // spawns=<s> and that state's own fields; then the shock line (lion/shock.h's shock_line: off, in, refused or fault).
 std::string rows_status();
+// Worker thread, coop shortcut (save/shortcut.h): Lua's shortcut list request, which the game thread serves by
+// reading the cut Load Shortcut menu's 16 paths through SB's file manager, one a frame. Refused off the pinned build,
+// after coop off, after the list's fault and while a list is under way. Returns the line for the log.
+std::string ask_shortcut();
+// Worker, every pass: the lines of what the game thread read since the last pass (each file's, then the summary once
+// all 16 are read, or why the list stopped), for the log; none when no list is under way.
+std::vector<std::string> shortcut_pass();
 // Worker: coop-status.txt's shared quests lines (quest/engine.h's Worker::status), each ending in a line break.
 std::string quest_status();
 // Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",

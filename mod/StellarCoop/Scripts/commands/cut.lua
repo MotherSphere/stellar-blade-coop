@@ -12,9 +12,9 @@
 -- coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion (cut/lion.lua's), gardener
 -- (cut/gardener.lua's), tendril (cut/tendril.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines
 -- (cut/lines.lua's), flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide
--- (cut/glide.lua's) and ask (a native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode
--- ChainSpin (a test tool, left out of the usage line), runs on a co-op save only. coop emote, one of EVE's clips
--- (cut/emote.lua, o.emote), runs on any save.
+-- (cut/glide.lua's) and ask (a native request; coop fly, coop slowmo and coop shortcut). coop chainspin, EVE's cut
+-- Tachy Mode ChainSpin (a test tool, left out of the usage line), runs on a co-op save only. coop emote, one of EVE's
+-- clips (cut/emote.lua, o.emote), runs on any save.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -40,6 +40,15 @@ function Cut.new(o)
             end
             return ok,why
         end
+    end
+    -- coop shortcut (the native part's save/shortcut.h, left out of the usage line): the cut Load Shortcut menu's
+    -- saves, read from the game's paks and listed in coop-link.log, on any save, as nothing is written. Loading one
+    -- is held back (docs/how-it-works.md: developer saves with boss achievements already done).
+    function self.shortcut(a)
+        if a~=nil then return false,'Use: coop shortcut (the list; loading a shortcut save is held back)' end
+        local ok,why=o.ask('shortcut list')()
+        if ok then why=tostring(why)..': the list goes to coop-link.log, its summary to this log' end
+        return ok,why
     end
     -- coop glide (cut/glide.lua, o.glide, a test tool left out of the usage line): EVE's cut glide, on asked on a co-op
     -- save only, off anywhere (cut/glide.lua checks the save again once a second while on).
