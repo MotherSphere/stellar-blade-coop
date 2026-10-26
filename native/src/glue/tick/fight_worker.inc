@@ -1,6 +1,6 @@
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // The shared fight's worker side: the gates, same-place enemies' asks and pass, the spawn filter's hook and fight_pass;
-// and the rows' asks and log (lion/rows.h's two batches), whose game-thread calls share the take-over's gate.
+// and the rows' asks and log (lion/rows.h's batches), whose game-thread calls share the take-over's gate.
 
 namespace coop::pose {
 
@@ -491,8 +491,9 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's and coop gardener fight's rows (Lua's lion rows and gardener rows requests): the 14 tables' addresses
-// for the game thread, which adds that batch's rows at the first frame its gate holds. An ask it has not taken yet is
+// coop lion's, coop gardener fight's and coop tendril fight's rows (Lua's lion rows, gardener rows and tendril rows
+// requests): the 14 tables' addresses for the game thread, which adds that batch's rows at the first frame its gate
+// holds. An ask it has not taken yet is
 // replaced. Refused off the pinned build, after coop off and after the rows' fault; once every row of a batch is in,
 // nothing more is asked of it (the rows stay for the game run).
 std::string ask_rows(const coop::Request &request) {
@@ -534,8 +535,8 @@ void lion_pass() {
         continue;
       char text[300];
       std::snprintf(text, sizeof text,
-                    "%s rows off: fault 0x%08llx in %s reading 0x%llx after %u of %u rows; no rows of either batch "
-                    "until the game restarts",
+                    "%s rows off: fault 0x%08llx in %s reading 0x%llx after %u of %u rows; no rows of any batch until "
+                    "the game restarts",
                     j.batch.word, static_cast<unsigned long long>(lion_fault_code.load()),
                     fault_where(lion_fault_rva).c_str(), static_cast<unsigned long long>(lion_fault_address.load()),
                     unsigned(a.added), unsigned(j.batch.count));

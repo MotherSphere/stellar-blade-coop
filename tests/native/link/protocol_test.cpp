@@ -820,7 +820,8 @@ int main() {
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
 
-  // coop lion's rows (batch 0) and coop gardener fight's (batch 1): one <Table>=0x<address> word for each of the 14
+  // coop lion's rows (batch 0), coop gardener fight's (batch 1) and coop tendril fight's (batch 2): one
+  // <Table>=0x<address> word for each of the 14
   // tables, in any order, each once; the addresses in 1 to 16 hex digits of either case, plausible (user space,
   // 8-aligned). The longest request Lua writes (%x, so 12 digits at most under plausible's bound) fits its 512-byte
   // request file. Anything off is refused.
@@ -832,6 +833,7 @@ int main() {
   };
   const auto lion = [&rows](const std::vector<std::string> &words) { return rows("lion", words); };
   const auto gardener = [&rows](const std::vector<std::string> &words) { return rows("gardener", words); };
+  const auto tendril = [&rows](const std::vector<std::string> &words) { return rows("tendril", words); };
   std::vector<std::string> words;
   for (size_t i = 0; i < kLionTableCount; ++i) {
     char word[64];
@@ -848,6 +850,8 @@ int main() {
   assert(li.command == Command::rows && li.tables[7] == 0x1f4a2b3c0700ull && li.tables[0] == 0x1f4a2b3c0000ull);
   Request gd = parse_request(gardener(shuffled) + "\n");
   assert(gd.command == Command::rows && gd.batch == 1 && gd.tables == li.tables);
+  Request td = parse_request(tendril(shuffled));
+  assert(td.command == Command::rows && td.batch == 2 && td.tables == li.tables);
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
     tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
@@ -873,7 +877,8 @@ int main() {
         std::string("lion rows "), std::string("lion"), "lion rows  " + lion(words).substr(10),
         gardener(one_short), gardener(with(2, "CharacterDeadTable=0xfff8")), gardener(words) + " extra",
         std::string("gardener rows"), std::string("gardener"), "Gardener rows" + lion(words).substr(9),
-        "tendril rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
+        tendril(one_short), tendril(words) + " extra", std::string("tendril rows"), "Tendril rows" + lion(words).substr(9),
+        "leviathan rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
     assert(parse_request(bad).command == Command::none);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.

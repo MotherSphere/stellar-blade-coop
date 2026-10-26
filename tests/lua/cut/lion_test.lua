@@ -1,6 +1,7 @@
 -- cut/lion.lua with fake UE4SS objects. Its row list (cut/lion_rows.lua, generated with rows.h) matches
 -- native/src/lion/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
--- more), and so does the Gardener's (R.GARDENER, kGardenerRecipe); its tables are kLionTables in order. The rows are the Lion's own: no value names a Behemoth row or asset
+-- more), and so do the Gardener's (R.GARDENER, kGardenerRecipe) and the Tendril's (R.TENDRIL, kTendrilRecipe); its
+-- tables are kLionTables in order. The rows are the Lion's own: no value names a Behemoth row or asset
 -- but the sound set, every reference lands on a Lion row or a shipped generic one, the steps' moves are Lion moves, the
 -- phase-2 stance turns at HP under 60% and starts the roar's effect, which uses the phase-2 roar skill. The lion line
 -- parses in each of its forms. coop lion finds the 14 tables (a missing one, no EVE or no lion line asks nothing), asks
@@ -54,7 +55,8 @@ package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerContro
 local L=require('cut.lion')
 
 -- Lion.ROWS against native/src/lion/rows.h: its kPatches entries (a field's name is the comment after the entry, or
--- the comment line just before it; a comment line naming an M_LionC row only heads a group) and kRecipe.
+-- the comment line just before it; a comment line naming an M_LionC or M_TendrilC row only heads a group) and
+-- kRecipe.
 do
     local f=assert(io.open('native/src/lion/rows.h'))
     local src=f:read('a')
@@ -77,7 +79,9 @@ do
             local e=block:find('\n',i) or #block+1
             local c=block:sub(i+2,e-1):match('^%s*(.-)%s*$')
             if closed_at==line then patches[#patches].field=c
-            elseif not c:find('^M_LionC') and not c:find('^[%w_]+ %(%w+, [%a ]+%)$') then pending=c end -- No heading.
+            elseif not c:find('^M_LionC') and not c:find('^M_TendrilC') and not c:find('^[%w_]+ %(%w+, [%a ]+%)$') then
+                pending=c -- No heading.
+            end
             i=e
         elseif ch=='{' then
             local text,bare,depth,j,s='', '',0,i,nil
@@ -137,8 +141,13 @@ do
         gardener[#gardener+1]={table=r[1],name=r[2],id=r[3],checks=r[4]}
     end
     local g=compare('kGardenerRecipe',gardener)
-    assert(n==237 and #L.ROWS==237 and g==13 and #gardener==13 and #patches==3178+279,
-        n..' rows, '..g..' Gardener rows, '..#patches..' patches')
+    local tendril={}
+    for _,r in ipairs(require('cut.lion_rows').TENDRIL) do
+        tendril[#tendril+1]={table=r[1],name=r[2],id=r[3],checks=r[4]}
+    end
+    local t=compare('kTendrilRecipe',tendril)
+    assert(n==237 and #L.ROWS==237 and g==13 and #gardener==13 and t==107 and #tendril==107 and
+        #patches==3178+279+1281,n..' rows, '..g..' Gardener rows, '..t..' Tendril rows, '..#patches..' patches')
     assert(L.IN.added=='237/237' and L.IN.char=='2/2' and L.IN.skills=='23/23' and L.IN.stance=='2/2')
 end
 -- The Lion's own rows: no value names a Behemoth row or asset but its sound set (the Lion has none of its own); each

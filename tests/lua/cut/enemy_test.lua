@@ -17,7 +17,7 @@ do
         assert(Enemy.TABLES[n]==t,'kLionTables order: '..t)
     end
     assert(n==14 and #Enemy.TABLES==14)
-    assert(src:find('kRowWords%[kRowWordCount%] = {"lion", "gardener"}'),'Both words, the batches\' order')
+    assert(src:find('kRowWords%[kRowWordCount%] = {"lion", "gardener", "tendril"}'),'The words, the batches\' order')
 end
 
 local status='mod=v\npeer=1 name=gardener=rows added=13/13\n'

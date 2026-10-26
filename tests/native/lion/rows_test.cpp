@@ -1,12 +1,16 @@
-// The Lion's rows and the Gardener's on the build machine against fake memory laid out like the pinned build: the
-// recipes themselves (names and IDs unique across both batches, every patch inside its struct and past its header, the
+// The Lion's rows, the Gardener's and the Tendril's on the build machine against fake memory laid out like the pinned
+// build: the recipes themselves (names and IDs unique across the batches, every patch inside its struct and past its
+// header, the
 // step chains, skills, commands, stances, moves and target filters pointing at the new rows, the cut items first, then
 // the Tachy ChainSpin's rows (their steps on the Tachy NPC's Show and the shipped ChainSpin moves, their effect
 // starting their skill in Tachy Mode), and the CharacterTable rows last with the link flag Common and the phase-2
 // stance, no field naming a Behemoth row or asset but the sound set; the Gardener's ToxicBeam steps lasting its Show's
 // 5.4 s, its skills on its shipped steps, a stance with its 3 commands at speed 0 and its 3 CharacterTable rows last,
-// with their trees, scales, the shipped dead and appearance rows and the album's name key); a whole run of each batch
-// (the Gardener's reading only the tables its rows go into) (the table checks, each row built from its template with
+// with their trees, scales, the shipped dead and appearance rows and the album's name key; the Tendril's skills each
+// playing a run-time Show from its first step, its Hit steps hitting through its own areas, its stance with its 11
+// commands, its dead row on its run-time death Show and its CharacterTable row last, on the Skulling test tree, with
+// no link flag and no name); a whole run of each batch (the Gardener's reading only the tables its rows go into) (the
+// table checks, each row built from its template with
 // SB's lazy-init flag and Transient arrays reset, its ID, its patches of every kind read back, the pool's strings among
 // them, AddRow given the new name); a missing template, a taken ID, a taken name, a wrong vtable (even with SB's AddRow
 // in its slot), AddRow slot or row size, and no FName for a row's, a template's, a patch's or a list item's text,
@@ -118,6 +122,7 @@ struct Game {
     block = mem.alloc(kBlock);
     donor_rows(kLion);
     donor_rows(kGardener);
+    donor_rows(kTendril);
   }
   uint64_t vtable_at = 0;
 
@@ -274,6 +279,15 @@ int main() {
   assert(coop::lion::rows_of(kGardener, Table::step) == 3 && coop::lion::rows_of(kGardener, Table::skill) == 3 &&
          coop::lion::rows_of(kGardener, Table::command) == 3 && coop::lion::rows_of(kGardener, Table::stance) == 1 &&
          coop::lion::rows_of(kGardener, Table::character) == 3);
+  // The Tendril's batch: 11 skills with their commands and 45 steps, 28 target filters, 5 results, its turn, 2 anim
+  // sets, its stance, its dead, appearance and CharacterTable rows.
+  static_assert(kTendrilRows == 107, "the Tendril's 107 rows");
+  {
+    const auto of = [](Table t) { return coop::lion::rows_of(kTendril, t); };
+    assert(of(Table::step) == 45 && of(Table::skill) == 11 && of(Table::command) == 11 && of(Table::filter) == 28 &&
+           of(Table::result) == 5 && of(Table::move) == 1 && of(Table::anim) == 2 && of(Table::stance) == 1 &&
+           of(Table::dead) == 1 && of(Table::appearance) == 1 && of(Table::character) == 1);
+  }
   // The cut items first, in the order each needs the one before: the skill the stimpacks play, the Beta Stimpack's
   // consumable, then the two items (ItemTable ID, ConsumableAlias +0x14c). The skill is the health potion's under the
   // name HP2Burst_Potion gives (FirstSkillActiveAlias +0x100: the potion's own steps).
@@ -294,12 +308,17 @@ int main() {
          !std::strcmp(kGardenerRecipe[kGardenerRows - 1].name, "M_Gardener") &&
          kGardenerRecipe[kGardenerRows - 1].id == 50010 && kGardenerRecipe[kGardenerRows - 2].id == 50012 &&
          kGardenerRecipe[kGardenerRows - 3].id == 50011);
-  std::vector<Row> both(kRecipe, kRecipe + kRows); // Both batches, in kPatches' order.
-  both.insert(both.end(), kGardenerRecipe, kGardenerRecipe + kGardenerRows);
-  for (size_t t = 0; t < kTableCount; ++t) { // Names and IDs unique in each table across both batches.
+  // Its CharacterTable row last, M_TendrilC (50060).
+  assert(kTendrilRecipe[kTendrilRows - 1].table == Table::character &&
+         !std::strcmp(kTendrilRecipe[kTendrilRows - 1].name, "M_TendrilC") &&
+         kTendrilRecipe[kTendrilRows - 1].id == 50060);
+  std::vector<Row> all(kRecipe, kRecipe + kRows); // Every batch, in kPatches' order.
+  all.insert(all.end(), kGardenerRecipe, kGardenerRecipe + kGardenerRows);
+  all.insert(all.end(), kTendrilRecipe, kTendrilRecipe + kTendrilRows);
+  for (size_t t = 0; t < kTableCount; ++t) { // Names and IDs unique in each table across the batches.
     std::set<std::string> names;
     std::set<uint32_t> ids;
-    for (const Row &r : both)
+    for (const Row &r : all)
       if (size_t(r.table) == t) {
         assert(names.insert(r.name).second);
         assert(kTables[t].id ? r.id && ids.insert(r.id).second : r.id == 0);
@@ -307,7 +326,7 @@ int main() {
       }
   }
   size_t patches = 0;
-  for (const Row &r : both) {
+  for (const Row &r : all) {
     const TableInfo &info = kTables[size_t(r.table)];
     assert(r.first == patches && r.count > 0);
     patches += r.count;
@@ -484,6 +503,58 @@ int main() {
       assert(std::strstr(patched(c, 0x220), "M_Common_FixedLocation") && !std::strstr(patched(c, 0x220), "Maelstrom"));
     }
   }
+  // The Tendril's: each skill (MeleeAttack +0x80, its own first step +0x100 and range +0xb4) starts a step chain whose
+  // first step plays its run-time Show (ShowPath +0x160: the template Show's package, a dot, the Show cut/tendril.lua
+  // builds) and turns it toward EVE (SelfMoveAliasArray +0x138), and whose Hit steps hit through a target filter
+  // (HitDetectionType +0x1a5, 1) of their own (OverrideTargetFilterAlias +0x1b4). Each command's skill (+0x18) is its
+  // own; the stance (+0x90) lists the 11 in order. The dead row plays the run-time death Show (+0x10), the
+  // CharacterTable row names its stance, dead row and appearance (+0x3a8, +0x298, +0x420), the Skulling test tree
+  // (+0x3e8), 64960 HP (+0x78), immunity to the states it has no anim set for (+0x220), no link flag (+0x60) and no
+  // name
+  // (+0x508).
+  {
+    const auto has_t = [](Table t, const char *name) {
+      for (const Row &r : kTendrilRecipe)
+        if (r.table == t && !std::strcmp(r.name, name))
+          return true;
+      return false;
+    };
+    const auto at = [](const char *name, Table t) -> const Row & {
+      return kTendrilRecipe[row_index(name, t, kTendril)];
+    };
+    const std::string kShows = "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.";
+    std::string commands;
+    size_t hits = 0;
+    for (const Row &skill : kTendrilRecipe) {
+      if (skill.table != Table::skill)
+        continue;
+      assert(!std::strcmp(patched(skill, 0x80), "MeleeAttack") && has_t(Table::filter, patched(skill, 0xb4)));
+      const Row *step = &at(patched(skill, 0x100), Table::step);
+      assert(patched(*step, 0x160) == kShows + skill.name && !std::strcmp(patched(*step, 0x138), "M_TendrilC_Turn") &&
+             has_t(Table::move, "M_TendrilC_Turn"));
+      for (const char *next = patched(*step, 0x34);; next = patched(*step, 0x34)) {
+        if (value(*step, 0x14) == 1) { // A Hit step.
+          ++hits;
+          assert(value(*step, 0x1a5) == 1 && has_t(Table::filter, patched(*step, 0x1b4)) &&
+                 std::strstr(patched(*step, 0x1b4), "_HitArea"));
+        }
+        if (!next)
+          break;
+        step = &at(next, Table::step);
+        assert(!patched(*step, 0x160)); // Only the first step plays the Show, across the chain.
+      }
+      const Row &command = at(skill.name, Table::command);
+      assert(command.id == skill.id && !std::strcmp(patched(command, 0x18), skill.name));
+      commands += (commands.empty() ? "" : "|") + std::string(skill.name);
+    }
+    assert(hits == 17 && commands == patched(at("M_TendrilC_Default", Table::stance), 0x90));
+    assert(patched(at("M_TendrilC", Table::dead), 0x10) == kShows + "M_TendrilC_Dead");
+    const Row &c = kTendrilRecipe[kTendrilRows - 1];
+    assert(!std::strcmp(patched(c, 0x3a8), "M_TendrilC_Default") && !std::strcmp(patched(c, 0x298), "M_TendrilC") &&
+           !std::strcmp(patched(c, 0x420), "M_TendrilC") && std::strstr(patched(c, 0x3e8), "M_Skulling_AI_Test") &&
+           value(c, 0x78) == 64960 && std::strstr(patched(c, 0x220), "M_Common_ImmuneAbnormal") &&
+           !std::strcmp(patched(c, 0x60), "") && !std::strcmp(patched(c, 0x508), ""));
+  }
 
   // ---- FName's number split, as UE 4.26's ParseNumber ----
   const auto split = [](const char *text, size_t len, uint32_t number) {
@@ -610,6 +681,21 @@ int main() {
     assert(describe_read(kGardener, rb) == "gardener rows by SB's lookups: CharacterTable 50010-50012 3/3, SkillTable "
                                            "5001010-5001012 3/3, stance 500101 1/1");
     assert(gb.run(g, kBase, g.tables, g.block).added == kGardenerRows && g.adds.size() == kRows + kGardenerRows);
+
+    // The Tendril's batch after both, on its own Builder: its 107 rows, none of them meeting another; SB's lookups find
+    // its CharacterTable row, its 11 skills and its stance.
+    Builder tb(kTendril);
+    const Answer ta = tb.run(g, kBase, g.tables, g.block);
+    const size_t before = kRows + kGardenerRows;
+    assert(ta.state == State::rows && ta.added == kTendrilRows && g.adds.size() == before + kTendrilRows);
+    verify(g, tb, kTendril, before);
+    const Game::Add &tendril = g.adds[before + kTendrilRows - 1];
+    assert(Game::field<int32_t>(tendril, 0x78) == 64960 && Game::field<uint32_t>(tendril, kIdAt) == 50060 &&
+           g.string_field(tendril, 0x508).empty());
+    rb = tb.read_back(g, g.tables);
+    assert(rb.character == 1 && rb.skills == 11 && rb.stance == 1);
+    assert(describe_read(kTendril, rb) == "tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable "
+                                          "5006000-5006010 11/11, stance 500600 1/1");
   }
   {
     // The Gardener's run reads only the tables its rows go into: an appearance table that is not SB's stops the Lion's
@@ -799,6 +885,13 @@ int main() {
            "gardener=refused added=3/13 asks=2 spawns=6 why=donor table=SkillTable row=M_GardenerC_SingleShot");
     assert(describe(kGardener, a) ==
            "gardener rows refused M_GardenerC_SingleShot: template M_Gardener_SingleShot_4 missing; 3/13 added");
+    // The Tendril's line: its word, its own counts.
+    Status ts;
+    assert(status_line(kTendril, ts) == "tendril=off");
+    a = Answer(), a.state = State::rows, a.added = 107;
+    ts.word = pack(a, 1), ts.read = {1, 11, 1}, ts.spawns_read = true, ts.spawns = 5;
+    assert(status_line(kTendril, ts) == "tendril=rows added=107/107 asks=1 spawns=5 char=1/1 skills=11/11 stance=1/1");
+    assert(describe(kTendril, a) == "tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused");
   }
 
   std::puts("lion_rows_test: ok");

@@ -73,11 +73,12 @@
 // and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
-// The Lion's rows and the Gardener's (lion/rows.h's two batches, coop lion and coop gardener fight): the worker hands
-// over the 14 tables' addresses from Lua's lion rows or gardener rows request; the game thread adds that batch's rows
-// through SB's own AddRow once the gate holds (net mode 0, no logic task in flight), under one SEH latch for both,
-// reads them back through SB's lookups by ID and, once asked, reads the spawn manager's counter every 250 ms; status()
-// gives it all in the lion and gardener lines, and the worker logs each answer.
+// The Lion's rows, the Gardener's and the Tendril's (lion/rows.h's batches, coop lion, coop gardener fight and coop
+// tendril fight): the worker hands over the 14 tables' addresses from Lua's lion rows, gardener rows or tendril rows
+// request; the game thread adds that batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic
+// task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and, once asked, reads the
+// spawn manager's counter every 250 ms; status() gives it all in the lion, gardener and tendril lines, and the worker
+// logs each answer.
 //
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
@@ -178,7 +179,7 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The follow's travel, its own latch: a new ask each frame, the watch each 250 ms; none after coop off or a fault.
   if (game_pinned && !travel_faulted && !blocked)
     travel_tick();
-  // The rows of both batches, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no
+  // The rows of every batch, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no
   // call made.
   if (game_pinned && !lion_faulted)
     lion_tick();

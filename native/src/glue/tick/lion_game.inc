@@ -2,7 +2,7 @@
 
 namespace coop::pose {
 namespace {
-// ---- The Lion's rows and the Gardener's (lion/rows.h's two batches), the game thread's calls ----
+// ---- The Lion's rows, the Gardener's and the Tendril's (lion/rows.h's batches), the game thread's calls ----
 // SB's functions on the pinned build (the Lion study, plan A): InitializeStruct through the row struct's vtable +0x2a8
 // and CopyScriptStruct (0x1429d8830), as AddRow itself calls them; FName's MakeWithNumber with FNAME_Add (the photo
 // pause's kMakeName); a table's row by name, through its RowMap (+0x30, GetRowMap's own lea at vtable +0x280) and
@@ -17,7 +17,7 @@ namespace {
 // logic task starts and reads a map AddRow grows before our call returns, and SB's game-thread HUD reads CharacterTable
 // on this thread only. A shut gate tries again at the next frame and gives up after lion::kGateTicks frames, with why.
 // Each batch has its own ask, answer and Builder (a RowsJob); the gate, the block, the spawn counter and the SEH latch
-// are shared: the first fault in SB's table calls ends both batches' calls for the run (whichever batch ran into it)
+// are shared: the first fault in SB's table calls ends every batch's calls for the run (whichever batch ran into it)
 // and leaves the rest of the mod running.
 constexpr uint64_t kCopyStruct = 0x1429d8830, kMapFind = 0x140e8c5f0, kIdName = 0x141a2ce50,
                    kCharacterById = 0x141a9de20, kSkillById = 0x141a9d900, kStanceName = 0x141a2cef0;
@@ -54,8 +54,8 @@ struct RowsJob {
   bool pending = false;
 };
 // In link/protocol.h's kRowWords order: Request::batch indexes it.
-RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener};
-RowsJob *const kJobs[] = {&lion_job, &gardener_job};
+RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril};
+RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
 // Shared: the spawn manager's counter (INT64_MIN until read) and the latch.
 std::atomic<int64_t> lion_spawns{INT64_MIN};

@@ -26,10 +26,14 @@
 // P_Eve_Tachy_Skill_ChainSpin1_Use (1004500), whose UseSkill action starts the skill while EVE is in Tachy Mode.
 //
 // A second batch, the cut Gardener's (coop gardener fight, cut/gardener.lua; kGardenerRecipe), goes in on its own ask,
-// so a refusal in one batch never stops the other: 13 near copies of shipped rows (the 3 steps of its ToxicBeam, its 3
+// so a refusal in one batch never stops another: 13 near copies of shipped rows (the 3 steps of its ToxicBeam, its 3
 // skills and their commands, a stance that never moves and 3 CharacterTable rows over M_Maelstrom: M_Gardener 50010,
-// M_Gardener_Skulling 50011 and the half-scale M_Gardener_Half 50012). A Batch names its rows and the word its status
-// line, log lines and request start with ("lion", "gardener"); both share the table checks, the block and the rules
+// M_Gardener_Skulling 50011 and the half-scale M_Gardener_Half 50012). A third, the cut Tendril's (coop tendril fight,
+// cut/tendril.lua; kTendrilRecipe), is authored as the Lion's: 107 rows over the Lion's templates (11 skills on its own
+// clips with their commands and 45 steps, 28 target filters, 5 hit results, its turn toward EVE, 2 anim sets, a
+// stance, the dead and appearance rows and M_TendrilC 50060). Its steps and its death name Shows no pak holds, which
+// cut/tendril.lua builds in memory before a spawn. A Batch names its rows and the word its status line, log lines and
+// request start with ("lion", "gardener", "tendril"); every batch shares the table checks, the block and the rules
 // below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
@@ -40,8 +44,8 @@
 // (InitializeStruct, CopyScriptStruct from the template, the ID at +0x10, the patches) and handed to AddRow, which
 // removes any row of that name, copies ours into its own allocation and fills the ID and index maps. The first refusal
 // stops the run before any later row of its batch, and each batch's CharacterTable rows come last, so NewActor finds
-// 50020 (or 50010) only once every other row of its batch is in. A row is added once a run: a later run skips it, so
-// AddRow's RemoveRow never frees a row a Lion (or a Gardener) still reads.
+// 50020 (or 50010, 50060) only once every other row of its batch is in. A row is added once a run: a later run skips
+// it, so AddRow's RemoveRow never frees a row a Lion (or a Gardener, a Tendril) still reads.
 //
 // SB parses a row's JSON strings (StartEffect, AttackCollisionGroupArray, AttackerEffectWhenDead, a hit result's
 // effects...) into Transient arrays the first time it uses the row (row +8 is 0 until then; every lookup site sets it
@@ -75,8 +79,8 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 14 tables, in coop::kLionTables' order (link/protocol.h): Lua's lion rows and gardener rows requests name each
-// with its address.
+// The 14 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril) name
+// each with its address.
 enum class Table : uint8_t {
   character,
   appearance,
@@ -4211,6 +4215,1496 @@ constexpr Patch kPatches[] = {
     // OverrideCharacterSoundSet
     {0x520, Kind::string, 0,
      "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_36_MaelStrom.CSS_MON_36_MaelStrom'"},
+    // M_TendrilC_Result_Light
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Light\"}]"},
+    {0x038, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.5}]"}, // HitLevelResultTargetCommonEffect
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack"},        // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_050_100"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Light\"}]"},
+    {0x2d8, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.5}]"}, // HitLevelResultTargetEventMovingEffect
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                      // FileSuffix
+    // M_TendrilC_Result_Strong
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Strong\"}]"},
+    {0x038, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.8}]"}, // HitLevelResultTargetCommonEffect
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack"},       // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_080_300"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Strong\"}]"},
+    {0x2d8, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.8}]"},  // HitLevelResultTargetEventMovingEffect
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                       // FileSuffix
+    // M_TendrilC_Result_KnockDown
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactBlunt_Strong\"}]"},
+    // HitLevelResultTargetCommonEffect
+    {0x038, Kind::string, 0,
+     "[{\"Alias\":\"HitStun\", \"Time\":1.5}, {\"Alias\":\"KnockDownForward_Eve\"}, "
+     "{\"Alias\":\"KnockDownBackward_Eve\"}]"},
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack"},       // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_080_300"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactBlunt_Strong\"}]"},
+    // HitLevelResultTargetEventMovingEffect
+    {0x2d8, Kind::string, 0,
+     "[{\"Alias\":\"HitStun\", \"Time\":1.5}, {\"Alias\":\"KnockDownForward_Eve\"}, "
+     "{\"Alias\":\"KnockDownBackward_Eve\"}]"},
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                       // FileSuffix
+    // M_TendrilC_Result_Guard
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamageWhenGuard_Melee\"}, {\"Alias\":\"BlockAction\", \"Time\":0.3}]"},
+    {0x058, Kind::string, 0, "Result/Result_Guard_Back"}, // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_040_100"},           // HitLevelResultTargetCommonMoveAlias
+    {0x318, Kind::name, 0, "None"},                       // FileSuffix
+    // M_TendrilC_Result_Parry
+    {0x058, Kind::string, 0, "Result/Result_Parry_Back"}, // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_020_150"},           // HitLevelResultTargetCommonMoveAlias
+    {0x318, Kind::name, 0, "None"},                       // FileSuffix
+    // M_TendrilC_SwingLeft_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 420.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 150.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_SwingLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 260.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_SwingRight_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 410.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 160.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_SwingRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 260.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_WhipLeft_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 470.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 160.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -70.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_WhipLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 280.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_WhipRight_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 510.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 130.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 50.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_WhipRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 300.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_DiagonalLeft_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 400.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 140.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -20.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_DiagonalLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 240.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_DiagonalRight_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 400.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 190.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 20.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_DiagonalRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 250.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Chop_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 660.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 60.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Chop_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 400.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Spin_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 400.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 340.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Spin_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 240.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 360.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 480.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 160.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -20.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_HitArea2
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 530.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 200.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 30.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_HitArea3
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 580.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 60.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_HitArea4
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 750.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 60.0f, nullptr},  // TargetCheckValue1
+    {0x044, Kind::f32, -10.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 270.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Whip_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 560.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 60.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Whip_HitArea2
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 530.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 210.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -10.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Whip_HitArea3
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 580.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 200.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -10.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Whip_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 340.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Trace_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 420.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 260.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Trace_HitArea2
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 430.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 200.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 60.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Trace_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 250.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Turn
+    {0x014, Kind::i32, 100, nullptr},  // Priority
+    {0x03a, Kind::u8, 0, nullptr},     // MoveType
+    {0x060, Kind::u8, 2, nullptr},     // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.3f, nullptr}, // Time
+    {0x094, Kind::f32, 0.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 0.3f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},     // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},     // bIndependentRotation
+    {0x0f2, Kind::u8, 1, nullptr},     // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},     // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},     // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},     // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},    // FileSuffix
+    // M_TendrilC_SwingLeft_Cast1
+    {0x018, Kind::f32, 0.8667f, nullptr},                // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_SwingLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_SwingLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                                // FileSuffix
+    // M_TendrilC_SwingLeft_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 1, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_SwingLeft_Finish1"},     // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                             // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                           // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                           // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                           // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_SwingLeft_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                           // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                           // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                          // FileSuffix
+    // M_TendrilC_SwingLeft_Finish1
+    {0x018, Kind::f32, 1.2f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_SwingLeft
+    {0x070, Kind::i32, 1, nullptr},                        // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                         // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                         // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                 // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                         // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_SwingLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_SwingLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 5.0f, nullptr},                     // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                     // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                     // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                         // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                         // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                        // FileSuffix
+    // M_TendrilC_SwingRight_Cast1
+    {0x018, Kind::f32, 0.8f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_SwingRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},              // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"}, // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_SwingRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                                  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                                 // FileSuffix
+    // M_TendrilC_SwingRight_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_SwingRight_Finish1"},    // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                              // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                            // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                            // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                            // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_SwingRight_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                            // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_TendrilC_SwingRight_Finish1
+    {0x018, Kind::f32, 1.0333f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_SwingRight
+    {0x070, Kind::i32, 1, nullptr},                         // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                          // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                          // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                  // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                          // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_SwingRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_SwingRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 5.0f, nullptr},                      // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                      // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                      // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                          // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                          // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                         // FileSuffix
+    // M_TendrilC_WhipLeft_Cast1
+    {0x018, Kind::f32, 0.3333f, nullptr},               // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_WhipLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                                // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                                   // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_WhipLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                                // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                               // FileSuffix
+    // M_TendrilC_WhipLeft_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3333f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_WhipLeft_Finish1"},      // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                            // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                          // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                          // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                          // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_WhipLeft_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                          // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                          // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                         // FileSuffix
+    // M_TendrilC_WhipLeft_Finish1
+    {0x018, Kind::f32, 1.3333f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_WhipLeft
+    {0x070, Kind::i32, 1, nullptr},                       // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                        // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                        // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                        // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_WhipLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_WhipLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 4.0f, nullptr},                    // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                    // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                    // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                        // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                        // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                       // FileSuffix
+    // M_TendrilC_WhipRight_Cast1
+    {0x018, Kind::f32, 0.4f, nullptr},                   // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_WhipRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_WhipRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                                // FileSuffix
+    // M_TendrilC_WhipRight_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_WhipRight_Finish1"},     // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                             // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                           // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                           // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                           // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_WhipRight_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                           // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                           // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                          // FileSuffix
+    // M_TendrilC_WhipRight_Finish1
+    {0x018, Kind::f32, 1.3f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_WhipRight
+    {0x070, Kind::i32, 1, nullptr},                        // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                         // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                         // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                 // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                         // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_WhipRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_WhipRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 4.0f, nullptr},                     // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                     // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                     // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                         // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                         // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                        // FileSuffix
+    // M_TendrilC_DiagonalLeft_Cast1
+    {0x018, Kind::f32, 1.0f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_DiagonalLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},              // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"}, // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_DiagonalLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                                    // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                                   // FileSuffix
+    // M_TendrilC_DiagonalLeft_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 1, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_DiagonalLeft_Finish1"},  // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                                // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                              // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                              // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                              // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_DiagonalLeft_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                              // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                              // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                             // FileSuffix
+    // M_TendrilC_DiagonalLeft_Finish1
+    {0x018, Kind::f32, 1.3333f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_DiagonalLeft
+    {0x070, Kind::i32, 1, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                            // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_DiagonalLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_DiagonalLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 8.0f, nullptr},                        // CoolTime
+    {0x140, Kind::f32, 1.2f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 1.2f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                           // FileSuffix
+    // M_TendrilC_DiagonalRight_Cast1
+    {0x018, Kind::f32, 0.9333f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_DiagonalRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},              // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"}, // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_DiagonalRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                                     // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                                    // FileSuffix
+    // M_TendrilC_DiagonalRight_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_DiagonalRight_Finish1"}, // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                                 // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                               // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                               // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                               // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_DiagonalRight_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                               // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                               // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                              // FileSuffix
+    // M_TendrilC_DiagonalRight_Finish1
+    {0x018, Kind::f32, 1.3667f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_DiagonalRight
+    {0x070, Kind::i32, 1, nullptr},                            // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                             // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                             // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                     // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                             // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_DiagonalRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_DiagonalRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 8.0f, nullptr},                         // CoolTime
+    {0x140, Kind::f32, 1.2f, nullptr},                         // AttackDamageRate
+    {0x144, Kind::f32, 1.2f, nullptr},                         // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                             // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                             // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                            // FileSuffix
+    // M_TendrilC_Chop_Cast1
+    {0x018, Kind::f32, 1.9667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Chop_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                               // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Chop"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                           // FileSuffix
+    // M_TendrilC_Chop_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Chop_Finish1"},          // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Chop_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Chop_Finish1
+    {0x018, Kind::f32, 2.0667f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Chop
+    {0x070, Kind::i32, 1, nullptr},                   // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                    // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                    // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},            // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                    // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Chop_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Chop_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 12.0f, nullptr},               // CoolTime
+    {0x140, Kind::f32, 1.5f, nullptr},                // AttackDamageRate
+    {0x144, Kind::f32, 1.5f, nullptr},                // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                    // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                    // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                   // FileSuffix
+    // M_TendrilC_Spin_Cast1
+    {0x018, Kind::f32, 1.9667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Spin_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                               // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Spin"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                           // FileSuffix
+    // M_TendrilC_Spin_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.5667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Spin_Finish1"},          // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Spin_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Spin_Finish1
+    {0x018, Kind::f32, 2.8667f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Spin
+    {0x070, Kind::i32, 1, nullptr},                   // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                    // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                    // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},            // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                    // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Spin_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Spin_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},               // CoolTime
+    {0x140, Kind::f32, 1.3f, nullptr},                // AttackDamageRate
+    {0x144, Kind::f32, 1.3f, nullptr},                // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                    // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                    // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                   // FileSuffix
+    // M_TendrilC_Rush_Cast1
+    {0x018, Kind::f32, 0.6667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                               // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Rush"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                           // FileSuffix
+    // M_TendrilC_Rush_Hit1
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.2333f, nullptr},               // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.2f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.2f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Cast2"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},  // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Rush_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Rush_Cast2
+    {0x018, Kind::f32, 0.2333f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Rush_Hit2
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.4f, nullptr},                  // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.2f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.2f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Cast3"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},  // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Rush_HitArea2"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Rush_Cast3
+    {0x018, Kind::f32, 1.2667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Hit3"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Rush_Hit3
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.1667f, nullptr},               // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.25f, nullptr},                 // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                 // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Cast4"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"}, // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Rush_HitArea3"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Rush_Cast4
+    {0x018, Kind::f32, 0.1333f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Hit4"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Rush_Hit4
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.35f, nullptr},                         // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.35f, nullptr},                         // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Finish1"},          // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_KnockDown"},      // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Rush_HitArea4"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Rush_Finish1
+    {0x018, Kind::f32, 1.0667f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Rush
+    {0x070, Kind::i32, 1, nullptr},                   // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                    // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                    // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},            // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                    // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Rush_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Rush_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 20.0f, nullptr},               // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},                // AttackDamageRate
+    {0x144, Kind::f32, 2.5f, nullptr},                // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                    // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                    // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                   // FileSuffix
+    // M_TendrilC_Whip_Cast1
+    {0x018, Kind::f32, 0.8667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                            // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                               // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Whip"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                            // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                           // FileSuffix
+    // M_TendrilC_Whip_Hit1
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.1f, nullptr},                  // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.3f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.3f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Cast2"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},  // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Whip_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Whip_Cast2
+    {0x018, Kind::f32, 0.7333f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Whip_Hit2
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.5333f, nullptr},               // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.3f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.3f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Cast3"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"}, // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Whip_HitArea2"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Whip_Cast3
+    {0x018, Kind::f32, 1.1333f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Hit3"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Whip_Hit3
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.4f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.4f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Finish1"},          // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Whip_HitArea3"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Whip_Finish1
+    {0x018, Kind::f32, 1.4333f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Whip
+    {0x070, Kind::i32, 1, nullptr},                   // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                    // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                    // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},            // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                    // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Whip_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Whip_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 15.0f, nullptr},               // CoolTime
+    {0x140, Kind::f32, 2.0f, nullptr},                // AttackDamageRate
+    {0x144, Kind::f32, 2.0f, nullptr},                // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                    // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                    // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                   // FileSuffix
+    // M_TendrilC_Trace_Cast1
+    {0x018, Kind::f32, 0.7f, nullptr},               // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Trace_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                                             // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                                // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Trace"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                                             // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                                            // FileSuffix
+    // M_TendrilC_Trace_Hit1
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.4f, nullptr},                  // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.5f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.5f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Trace_Cast2"},   // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},  // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                         // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                       // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                       // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                       // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Trace_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                       // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                       // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                      // FileSuffix
+    // M_TendrilC_Trace_Cast2
+    {0x018, Kind::f32, 0.6333f, nullptr},            // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Trace_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Trace_Hit2
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.5f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.5f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Trace_Finish1"},         // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                         // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                       // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                       // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                       // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Trace_HitArea2"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                       // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                       // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                      // FileSuffix
+    // M_TendrilC_Trace_Finish1
+    {0x018, Kind::f32, 1.4f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Trace
+    {0x070, Kind::i32, 1, nullptr},                    // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                     // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                     // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},             // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                     // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Trace_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Trace_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 12.0f, nullptr},                // CoolTime
+    {0x140, Kind::f32, 1.5f, nullptr},                 // AttackDamageRate
+    {0x144, Kind::f32, 1.5f, nullptr},                 // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                     // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                     // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                    // FileSuffix
+    // M_TendrilC_SwingLeft
+    {0x018, Kind::name, 0, "M_TendrilC_SwingLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                  // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                  // bFly
+    {0x053, Kind::u8, 1, nullptr},                  // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},               // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                 // FileSuffix
+    // M_TendrilC_SwingRight
+    {0x018, Kind::name, 0, "M_TendrilC_SwingRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                   // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                   // bFly
+    {0x053, Kind::u8, 1, nullptr},                   // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                  // FileSuffix
+    // M_TendrilC_WhipLeft
+    {0x018, Kind::name, 0, "M_TendrilC_WhipLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                 // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                 // bFly
+    {0x053, Kind::u8, 1, nullptr},                 // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},              // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                // FileSuffix
+    // M_TendrilC_WhipRight
+    {0x018, Kind::name, 0, "M_TendrilC_WhipRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                  // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                  // bFly
+    {0x053, Kind::u8, 1, nullptr},                  // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},               // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                 // FileSuffix
+    // M_TendrilC_DiagonalLeft
+    {0x018, Kind::name, 0, "M_TendrilC_DiagonalLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                     // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                     // bFly
+    {0x053, Kind::u8, 1, nullptr},                     // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                  // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                    // FileSuffix
+    // M_TendrilC_DiagonalRight
+    {0x018, Kind::name, 0, "M_TendrilC_DiagonalRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                      // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                      // bFly
+    {0x053, Kind::u8, 1, nullptr},                      // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                   // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Chop
+    {0x018, Kind::name, 0, "M_TendrilC_Chop"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},             // bJumping
+    {0x04f, Kind::u8, 1, nullptr},             // bFly
+    {0x053, Kind::u8, 1, nullptr},             // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},          // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},            // FileSuffix
+    // M_TendrilC_Spin
+    {0x018, Kind::name, 0, "M_TendrilC_Spin"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},             // bJumping
+    {0x04f, Kind::u8, 1, nullptr},             // bFly
+    {0x053, Kind::u8, 1, nullptr},             // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},          // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},            // FileSuffix
+    // M_TendrilC_Rush
+    {0x018, Kind::name, 0, "M_TendrilC_Rush"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},             // bJumping
+    {0x04f, Kind::u8, 1, nullptr},             // bFly
+    {0x053, Kind::u8, 1, nullptr},             // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},          // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},            // FileSuffix
+    // M_TendrilC_Whip
+    {0x018, Kind::name, 0, "M_TendrilC_Whip"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},             // bJumping
+    {0x04f, Kind::u8, 1, nullptr},             // bFly
+    {0x053, Kind::u8, 1, nullptr},             // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},          // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},            // FileSuffix
+    // M_TendrilC_Trace
+    {0x018, Kind::name, 0, "M_TendrilC_Trace"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},              // bJumping
+    {0x04f, Kind::u8, 1, nullptr},              // bFly
+    {0x053, Kind::u8, 1, nullptr},              // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},           // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},             // FileSuffix
+    // M_TendrilC_Peaceful
+    {0x018, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunBlendSpace
+    {0x028, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunTiltBlendSpace
+    {0x038, Kind::u8, 0, nullptr},                                        // IdleAnimType
+    {0x0a0, Kind::string, 0, ""},                                         // LockOnRunBlendSpace
+    {0x0f0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Fall
+    {0x270, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle_L
+    {0x280, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle_R
+    {0x290, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle
+    {0x2d0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle_L
+    {0x2e0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle_R
+    {0x2f0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle
+    {0x330, Kind::string, 0, "Animation/Run_Start"},                      // RunStart
+    {0x340, Kind::string, 0, "Animation/Run_Start"},                      // RunStartAfterEvade
+    {0x350, Kind::string, 0, ""},                                         // RunTurn_L
+    {0x360, Kind::string, 0, ""},                                         // RunTurn_R
+    {0x370, Kind::string, 0, ""},                                         // WalkTurn_L
+    {0x380, Kind::string, 0, ""},                                         // WalkTurn_R
+    {0x970, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Left
+    {0x980, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Right
+    {0x990, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Back
+    {0x9a0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Front
+    {0x9b0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Left
+    {0x9c0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Right
+    {0x9e0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Front
+    {0x9f0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Left
+    {0xa00, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Right
+    {0xa10, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Back
+    {0xa20, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Front
+    {0xa30, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Left
+    {0xa40, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Right
+    {0xa60, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Front
+    {0xa70, Kind::string, 0, "Animation/Result_State_Groggy_S"},          // Custom_Groggy_Start
+    {0xa80, Kind::string, 0, "Animation/Result_State_Groggy_L"},          // Custom_Groggy_Loop
+    {0xa90, Kind::string, 0, "Animation/Result_State_Groggy_E"},          // Custom_Groggy_End
+    {0xaa0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Custom_Airborne_Loop
+    {0xab0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_S"},    // Custom_KnockDown_Start_Front
+    {0xac0, Kind::string, 0, "Animation/Result_State_KnockDown_Bw_S"},    // Custom_KnockDown_Start_Back
+    {0xad0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_L"},    // Custom_KnockDown_Loop
+    {0xae0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_E"},    // Custom_KnockDown_End
+    {0xb10, Kind::string, 0, ""},                                         // Custom_HitSwordNormalLinkAttack1
+    {0xb20, Kind::string, 0, ""},                                         // Custom_HitSwordNormalFinishLinkAttack1
+    {0xb50, Kind::string, 0, "Animation/Parry"},                          // Custom_Anim1
+    {0xb60, Kind::string, 0, ""},                                         // Custom_Anim2
+    {0xb70, Kind::string, 0, ""},                                         // Custom_Anim3
+    {0xb80, Kind::string, 0, "Animation/Parry"},                          // Custom_Anim4
+    // M_TendrilC_Battle
+    {0x018, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunBlendSpace
+    {0x028, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunTiltBlendSpace
+    {0x038, Kind::u8, 1, nullptr},                                        // IdleAnimType
+    {0x0a0, Kind::string, 0, "Animation/BlendSpace/LockOn_BS"},           // LockOnRunBlendSpace
+    {0x0f0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Fall
+    {0x270, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle_L
+    {0x280, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle_R
+    {0x290, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle
+    {0x2d0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle_L
+    {0x2e0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle_R
+    {0x2f0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle
+    {0x330, Kind::string, 0, "Animation/Run_Start"},                      // RunStart
+    {0x340, Kind::string, 0, "Animation/Run_Start"},                      // RunStartAfterEvade
+    {0x350, Kind::string, 0, ""},                                         // RunTurn_L
+    {0x360, Kind::string, 0, ""},                                         // RunTurn_R
+    {0x370, Kind::string, 0, ""},                                         // WalkTurn_L
+    {0x380, Kind::string, 0, ""},                                         // WalkTurn_R
+    {0x970, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Left
+    {0x980, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Right
+    {0x990, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Back
+    {0x9a0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Front
+    {0x9b0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Left
+    {0x9c0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Right
+    {0x9e0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Front
+    {0x9f0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Left
+    {0xa00, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Right
+    {0xa10, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Back
+    {0xa20, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Front
+    {0xa30, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Left
+    {0xa40, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Right
+    {0xa60, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Front
+    {0xa70, Kind::string, 0, "Animation/Result_State_Groggy_S"},          // Custom_Groggy_Start
+    {0xa80, Kind::string, 0, "Animation/Result_State_Groggy_L"},          // Custom_Groggy_Loop
+    {0xa90, Kind::string, 0, "Animation/Result_State_Groggy_E"},          // Custom_Groggy_End
+    {0xaa0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Custom_Airborne_Loop
+    {0xab0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_S"},    // Custom_KnockDown_Start_Front
+    {0xac0, Kind::string, 0, "Animation/Result_State_KnockDown_Bw_S"},    // Custom_KnockDown_Start_Back
+    {0xad0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_L"},    // Custom_KnockDown_Loop
+    {0xae0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_E"},    // Custom_KnockDown_End
+    {0xb10, Kind::string, 0, ""},                                         // Custom_HitSwordNormalLinkAttack1
+    {0xb20, Kind::string, 0, ""},                                         // Custom_HitSwordNormalFinishLinkAttack1
+    {0xb50, Kind::string, 0, "Animation/Parry"},                          // Custom_Anim1
+    {0xb60, Kind::string, 0, ""},                                         // Custom_Anim2
+    {0xb70, Kind::string, 0, ""},                                         // Custom_Anim3
+    {0xb80, Kind::string, 0, "Animation/Parry"},                          // Custom_Anim4
+    // M_TendrilC_Default
+    {0x01a, Kind::u8, 1, nullptr}, // bDetectCloakingTarget
+    {0x08d, Kind::u8, 1, nullptr}, // bInfiniteStance
+    // CommandArray
+    {0x090, Kind::names, 0,
+     "M_TendrilC_SwingLeft|M_TendrilC_SwingRight|M_TendrilC_WhipLeft|M_TendrilC_WhipRight|M_TendrilC_DiagonalLeft|"
+     "M_TendrilC_DiagonalRight|M_TendrilC_Chop|M_TendrilC_Spin|M_TendrilC_Rush|M_TendrilC_Whip|M_TendrilC_Trace"},
+    {0x0a8, Kind::f32, 200.0f, nullptr},                                            // WalkSpeed
+    {0x0ac, Kind::f32, 400.0f, nullptr},                                            // RunSpeed
+    {0x0b0, Kind::f32, 400.0f, nullptr},                                            // LockOnRunSpeed
+    {0x0b4, Kind::f32, 200.0f, nullptr},                                            // LockOnWalkSpeed
+    {0x0bc, Kind::f32, 180.0f, nullptr},                                            // RotateAnglePerSecond
+    {0x110, Kind::string, 0, "[{\"Alias\":\"M_Common_HitProjectileCheckCount\"}]"}, // StartEffect
+    {0x150, Kind::name, 0, "M_TendrilC_Peaceful"},                                  // AnimSet_Peaceful_UpperBody
+    {0x158, Kind::name, 0, "M_TendrilC_Peaceful"},                                  // AnimSet_Peaceful_LowerBody
+    {0x160, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Battle_UpperBody
+    {0x168, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Battle_LowerBody
+    {0x170, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Groggy_UpperBody
+    {0x178, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Groggy_LowerBody
+    {0x180, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Down_UpperBody
+    {0x188, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Down_LowerBody
+    {0x1a0, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Airborne_UpperBody
+    {0x1a8, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Airborne_LowerBody
+    // M_TendrilC
+    {0x010, Kind::strings, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // DefaultDeadShowArray
+    {0x020, Kind::i32, 6000, nullptr},                              // DefaultDeadRewardDelayTime
+    {0x038, Kind::string, 0, "Dead/Dead_Monster_EffectType_Stand"}, // StandDeadShow
+    {0x048, Kind::i32, 300, nullptr},                               // StandDeadRewardDelayTime
+    {0x058, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Step0DeadShow
+    {0x068, Kind::i32, 6000, nullptr}, // Step0DeadRewardDelayTime
+    {0x078, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Step1DeadShow
+    {0x088, Kind::i32, 6000, nullptr}, // Step1DeadRewardDelayTime
+    {0x098, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Step2DeadShow
+    {0x0a8, Kind::i32, 6000, nullptr}, // Step2DeadRewardDelayTime
+    {0x0b8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Step3DeadShow
+    {0x0c8, Kind::i32, 6000, nullptr}, // Step3DeadRewardDelayTime
+    {0x0d8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Explosion1DeadShow
+    {0x0e8, Kind::i32, 6000, nullptr}, // Explosion1DeadRewardDelayTime
+    {0x0f8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Explosion2DeadShow
+    {0x108, Kind::i32, 6000, nullptr}, // Explosion2DeadRewardDelayTime
+    {0x118, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Custom1DeadShow
+    {0x178, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Custom4DeadShow
+    {0x188, Kind::i32, 6000, nullptr}, // Custom4DeadRewardDelayTime
+    {0x1b8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Custom6DeadShow
+    {0x1c8, Kind::i32, 6000, nullptr},                                   // Custom6DeadRewardDelayTime
+    {0x1d8, Kind::string, 0, "Dead/Dead_Monster_EffectType_ZoneEffect"}, // Custom7DeadShow
+    {0x1f8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Custom8DeadShow
+    {0x208, Kind::i32, 6000, nullptr},                         // Custom8DeadRewardDelayTime
+    {0x258, Kind::string, 0, "Dead/Dead_Monster_StandCommon"}, // DownDeadShow
+    {0x278, Kind::string, 0, "Dead/Dead_Monster_StandCommon"}, // AirborneDeadShow
+    {0x298, Kind::string, 0, "Dead/Dead_Monster_StandCommon"}, // SwimmingDeadShow
+    // M_TendrilC
+    // CharacterAssetPath
+    {0x014, Kind::name, 0, "/Game/Art/Character/Monster/CH_M_NA_06/Blueprints/CH_M_NA_06_Blueprint"},
+    {0x0e0, Kind::name, 0, "None"}, // AirborneToDownShowPath
+    // M_TendrilC
+    {0x014, Kind::name, 0, "Boss"},         // Rank
+    {0x020, Kind::string, 0, "M_TendrilC"}, // Type
+    {0x030, Kind::name, 0, "Monster"},      // Tribe
+    {0x060, Kind::names, 0, ""},            // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Tendril"},      // Flag
+    {0x078, Kind::i32, 64960, nullptr},     // MaxHP
+    {0x07c, Kind::i32, 3720, nullptr},      // MaxShield
+    {0x080, Kind::i32, 12, nullptr},        // MaxStamina
+    {0x084, Kind::f32, 600.0f, nullptr},    // PhysicAttackPower
+    {0x088, Kind::f32, 600.0f, nullptr},    // RangeAttackPower
+    {0x08c, Kind::f32, 103.0f, nullptr},    // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},      // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},      // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},      // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 100, nullptr},       // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},         // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},      // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},      // CriticalValueRate
+    // EffectAliasWhenZeroStaminaArray
+    {0x168, Kind::names, 0, "M_LinkAttackDelay_10|Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"},
+    {0x1f8, Kind::u8, 5, nullptr},                                      // WeightType
+    {0x1fc, Kind::f32, 1.0f, nullptr},                                  // MeshScale
+    {0x200, Kind::f32, 110.0f, nullptr},                                // TargetFilterRadius
+    {0x204, Kind::f32, 180.0f, nullptr},                                // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 140.0f, nullptr},                                // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 800.0f, nullptr},                                // RuleMoveBlockAreaZHeight
+    {0x210, Kind::f32, 30.0f, nullptr},                                 // RuleMoveBlockAreaOffsetX
+    {0x21c, Kind::f32, 110.0f, nullptr},                                // RuleMoveBlockCheckRadius
+    {0x220, Kind::names, 0, "Rank_Boss|M_Common_ImmuneAbnormal"},       // DefaultEffectArray
+    {0x270, Kind::name, 0, "MonsterAlpha"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadAlpha\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_TendrilC"},                               // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_Cocoon_Despawn"},               // DespawnShow
+    {0x3a8, Kind::name, 0, "M_TendrilC_Default"},                       // DefaultStanceAlias
+    {0x3b0, Kind::f32, 2.0f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 3.5f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
+    {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Skulling_AI_Test"}, // BehaviorTreeRes
+    {0x3f8, Kind::name, 0, "M_DetectCommon20m360"},                                              // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_DetectCommon20m360"},                                              // NarrowDetectAIAlias
+    {0x410, Kind::f32, 200.0f, nullptr},  // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},    // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},    // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},        // ActorType
+    {0x420, Kind::name, 0, "M_TendrilC"}, // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},       // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr},  // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},        // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},        // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},        // ScanDisplayType
+    {0x508, Kind::string, 0, ""},         // Name
+    // OverrideCharacterSoundSet
+    {0x520, Kind::string, 0,
+     "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_05_Gigas.CSS_MON_05_Gigas'"},
 };
 constexpr Row kRecipe[] = {
     {Table::skill, "P_Eve_Sword_Normal_Buff_1", "P_Eve_Sword_Normal_Potion_1", 6000101, 0, 8},
@@ -4472,10 +5966,141 @@ constexpr Row kGardenerRecipe[] = {
     {Table::character, "M_Gardener_Half", "M_Maelstrom", 50012, 3331, 63},
     {Table::character, "M_Gardener", "M_Maelstrom", 50010, 3394, 63},
 };
+// The Tendril's own batch (coop tendril fight), added on its own ask after its own checks: 107 rows (character 1,
+// appearance 1, dead 1, stance 1, anim 2, command 11, skill 11, step 45, move 1, filter 28, result 5), 1281 fields,
+// every field authored over the Lion's template rows. M_TendrilC (50060) with M_Skulling_AI_Test. Its 11 skills
+// play its own clips through Shows cut/tendril.lua builds in memory (copies of
+// CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam, named after the dot of each first step's ShowPath); each Hit step
+// is a window of the clip where its chain ends strike (2500 cm/s or faster, 250 cm or farther out) and hits by
+// area, a 3D arc 200 cm high. Per skill, its range (straight ahead, the first hit's reach times 0.6087) and each
+// hit: its time in the clip, its reach and its arc (degrees wide, around degrees right of the front):
+//   SwingLeft: range 260 cm; 0.867-1.333 s 420 cm 150 around 0
+//   SwingRight: range 260 cm; 0.800-1.267 s 410 cm 160 around 0
+//   WhipLeft: range 280 cm; 0.333-0.667 s 470 cm 160 around -70
+//   WhipRight: range 300 cm; 0.400-0.700 s 510 cm 130 around 50
+//   DiagonalLeft: range 240 cm; 1.000-1.367 s 400 cm 140 around -20
+//   DiagonalRight: range 250 cm; 0.933-1.333 s 400 cm 190 around 20
+//   Chop: range 400 cm; 1.967-2.267 s 660 cm 60 around 0
+//   Spin: range 240 cm; 1.967-2.533 s 400 cm 340 around 0
+//   Rush: range 270 cm; 0.667-0.900 s 480 cm 160 around -20; 1.133-1.533 s 530 cm 200 around 30; 2.800-2.967 s 580 cm
+//   60 around 0; 3.100-3.400 s 750 cm 60 around -10
+//   Whip: range 340 cm; 0.867-0.967 s 560 cm 60 around 0; 1.700-2.233 s 530 cm 210 around -10; 3.367-3.667 s 580 cm
+//   200 around -10
+//   Trace: range 250 cm; 0.700-1.100 s 420 cm 260 around 0; 1.733-2.200 s 430 cm 200 around 60
+constexpr Row kTendrilRecipe[] = {
+    {Table::result, "M_TendrilC_Result_Light", "M_Behemoth_ScratchLeft_Parry1", 500600000, 3457, 14},
+    {Table::result, "M_TendrilC_Result_Strong", "M_Behemoth_ScratchLeft_Parry1", 500600001, 3471, 14},
+    {Table::result, "M_TendrilC_Result_KnockDown", "M_Behemoth_ScratchLeft_Parry1", 500600002, 3485, 14},
+    {Table::result, "M_TendrilC_Result_Guard", "M_Behemoth_ScratchLeft_Parry1", 500600003, 3499, 4},
+    {Table::result, "M_TendrilC_Result_Parry", "M_Behemoth_ScratchLeft_Parry1", 500600004, 3503, 3},
+    {Table::filter, "M_TendrilC_SwingLeft_HitArea1", "M_Behemoth_HitArea", 5006000, 3506, 8},
+    {Table::filter, "M_TendrilC_SwingLeft_Target", "M_Behemoth_HitArea", 5006001, 3514, 8},
+    {Table::filter, "M_TendrilC_SwingRight_HitArea1", "M_Behemoth_HitArea", 5006002, 3522, 8},
+    {Table::filter, "M_TendrilC_SwingRight_Target", "M_Behemoth_HitArea", 5006003, 3530, 8},
+    {Table::filter, "M_TendrilC_WhipLeft_HitArea1", "M_Behemoth_HitArea", 5006004, 3538, 9},
+    {Table::filter, "M_TendrilC_WhipLeft_Target", "M_Behemoth_HitArea", 5006005, 3547, 8},
+    {Table::filter, "M_TendrilC_WhipRight_HitArea1", "M_Behemoth_HitArea", 5006006, 3555, 9},
+    {Table::filter, "M_TendrilC_WhipRight_Target", "M_Behemoth_HitArea", 5006007, 3564, 8},
+    {Table::filter, "M_TendrilC_DiagonalLeft_HitArea1", "M_Behemoth_HitArea", 5006008, 3572, 9},
+    {Table::filter, "M_TendrilC_DiagonalLeft_Target", "M_Behemoth_HitArea", 5006009, 3581, 8},
+    {Table::filter, "M_TendrilC_DiagonalRight_HitArea1", "M_Behemoth_HitArea", 5006010, 3589, 9},
+    {Table::filter, "M_TendrilC_DiagonalRight_Target", "M_Behemoth_HitArea", 5006011, 3598, 8},
+    {Table::filter, "M_TendrilC_Chop_HitArea1", "M_Behemoth_HitArea", 5006012, 3606, 8},
+    {Table::filter, "M_TendrilC_Chop_Target", "M_Behemoth_HitArea", 5006013, 3614, 8},
+    {Table::filter, "M_TendrilC_Spin_HitArea1", "M_Behemoth_HitArea", 5006014, 3622, 8},
+    {Table::filter, "M_TendrilC_Spin_Target", "M_Behemoth_HitArea", 5006015, 3630, 8},
+    {Table::filter, "M_TendrilC_Rush_HitArea1", "M_Behemoth_HitArea", 5006016, 3638, 9},
+    {Table::filter, "M_TendrilC_Rush_HitArea2", "M_Behemoth_HitArea", 5006017, 3647, 9},
+    {Table::filter, "M_TendrilC_Rush_HitArea3", "M_Behemoth_HitArea", 5006018, 3656, 8},
+    {Table::filter, "M_TendrilC_Rush_HitArea4", "M_Behemoth_HitArea", 5006019, 3664, 9},
+    {Table::filter, "M_TendrilC_Rush_Target", "M_Behemoth_HitArea", 5006020, 3673, 8},
+    {Table::filter, "M_TendrilC_Whip_HitArea1", "M_Behemoth_HitArea", 5006021, 3681, 8},
+    {Table::filter, "M_TendrilC_Whip_HitArea2", "M_Behemoth_HitArea", 5006022, 3689, 9},
+    {Table::filter, "M_TendrilC_Whip_HitArea3", "M_Behemoth_HitArea", 5006023, 3698, 9},
+    {Table::filter, "M_TendrilC_Whip_Target", "M_Behemoth_HitArea", 5006024, 3707, 8},
+    {Table::filter, "M_TendrilC_Trace_HitArea1", "M_Behemoth_HitArea", 5006025, 3715, 8},
+    {Table::filter, "M_TendrilC_Trace_HitArea2", "M_Behemoth_HitArea", 5006026, 3723, 9},
+    {Table::filter, "M_TendrilC_Trace_Target", "M_Behemoth_HitArea", 5006027, 3732, 8},
+    {Table::move, "M_TendrilC_Turn", "M_Behemoth_ScratchLeft_Move2", 5006000, 3740, 16},
+    {Table::step, "M_TendrilC_SwingLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600002, 3756, 8},
+    {Table::step, "M_TendrilC_SwingLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600003, 3764, 24},
+    {Table::step, "M_TendrilC_SwingLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600004, 3788, 5},
+    {Table::skill, "M_TendrilC_SwingLeft", "M_Behemoth_ScratchLeft", 5006000, 3793, 13},
+    {Table::step, "M_TendrilC_SwingRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600102, 3806, 8},
+    {Table::step, "M_TendrilC_SwingRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600103, 3814, 24},
+    {Table::step, "M_TendrilC_SwingRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600104, 3838, 5},
+    {Table::skill, "M_TendrilC_SwingRight", "M_Behemoth_ScratchLeft", 5006001, 3843, 13},
+    {Table::step, "M_TendrilC_WhipLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600202, 3856, 8},
+    {Table::step, "M_TendrilC_WhipLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600203, 3864, 24},
+    {Table::step, "M_TendrilC_WhipLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600204, 3888, 5},
+    {Table::skill, "M_TendrilC_WhipLeft", "M_Behemoth_ScratchLeft", 5006002, 3893, 13},
+    {Table::step, "M_TendrilC_WhipRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600302, 3906, 8},
+    {Table::step, "M_TendrilC_WhipRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600303, 3914, 24},
+    {Table::step, "M_TendrilC_WhipRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600304, 3938, 5},
+    {Table::skill, "M_TendrilC_WhipRight", "M_Behemoth_ScratchLeft", 5006003, 3943, 13},
+    {Table::step, "M_TendrilC_DiagonalLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600402, 3956, 8},
+    {Table::step, "M_TendrilC_DiagonalLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600403, 3964, 24},
+    {Table::step, "M_TendrilC_DiagonalLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600404, 3988, 5},
+    {Table::skill, "M_TendrilC_DiagonalLeft", "M_Behemoth_ScratchLeft", 5006004, 3993, 13},
+    {Table::step, "M_TendrilC_DiagonalRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600502, 4006, 8},
+    {Table::step, "M_TendrilC_DiagonalRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600503, 4014, 24},
+    {Table::step, "M_TendrilC_DiagonalRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600504, 4038, 5},
+    {Table::skill, "M_TendrilC_DiagonalRight", "M_Behemoth_ScratchLeft", 5006005, 4043, 13},
+    {Table::step, "M_TendrilC_Chop_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600602, 4056, 8},
+    {Table::step, "M_TendrilC_Chop_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600603, 4064, 24},
+    {Table::step, "M_TendrilC_Chop_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600604, 4088, 5},
+    {Table::skill, "M_TendrilC_Chop", "M_Behemoth_ScratchLeft", 5006006, 4093, 13},
+    {Table::step, "M_TendrilC_Spin_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600702, 4106, 8},
+    {Table::step, "M_TendrilC_Spin_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600703, 4114, 24},
+    {Table::step, "M_TendrilC_Spin_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600704, 4138, 5},
+    {Table::skill, "M_TendrilC_Spin", "M_Behemoth_ScratchLeft", 5006007, 4143, 13},
+    {Table::step, "M_TendrilC_Rush_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600802, 4156, 8},
+    {Table::step, "M_TendrilC_Rush_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600803, 4164, 23},
+    {Table::step, "M_TendrilC_Rush_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500600804, 4187, 6},
+    {Table::step, "M_TendrilC_Rush_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500600805, 4193, 23},
+    {Table::step, "M_TendrilC_Rush_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500600806, 4216, 6},
+    {Table::step, "M_TendrilC_Rush_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500600807, 4222, 23},
+    {Table::step, "M_TendrilC_Rush_Cast4", "M_Behemoth_ScratchLeft_Finish1", 500600808, 4245, 6},
+    {Table::step, "M_TendrilC_Rush_Hit4", "M_Behemoth_ScratchLeft_Finish1", 500600809, 4251, 24},
+    {Table::step, "M_TendrilC_Rush_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600810, 4275, 5},
+    {Table::skill, "M_TendrilC_Rush", "M_Behemoth_ScratchLeft", 5006008, 4280, 13},
+    {Table::step, "M_TendrilC_Whip_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600902, 4293, 8},
+    {Table::step, "M_TendrilC_Whip_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600903, 4301, 23},
+    {Table::step, "M_TendrilC_Whip_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500600904, 4324, 6},
+    {Table::step, "M_TendrilC_Whip_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500600905, 4330, 23},
+    {Table::step, "M_TendrilC_Whip_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500600906, 4353, 6},
+    {Table::step, "M_TendrilC_Whip_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500600907, 4359, 24},
+    {Table::step, "M_TendrilC_Whip_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600908, 4383, 5},
+    {Table::skill, "M_TendrilC_Whip", "M_Behemoth_ScratchLeft", 5006009, 4388, 13},
+    {Table::step, "M_TendrilC_Trace_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500601002, 4401, 8},
+    {Table::step, "M_TendrilC_Trace_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500601003, 4409, 23},
+    {Table::step, "M_TendrilC_Trace_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500601004, 4432, 6},
+    {Table::step, "M_TendrilC_Trace_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500601005, 4438, 24},
+    {Table::step, "M_TendrilC_Trace_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500601006, 4462, 5},
+    {Table::skill, "M_TendrilC_Trace", "M_Behemoth_ScratchLeft", 5006010, 4467, 13},
+    {Table::command, "M_TendrilC_SwingLeft", "M_Behemoth_ScratchLeft", 5006000, 4480, 6},
+    {Table::command, "M_TendrilC_SwingRight", "M_Behemoth_ScratchLeft", 5006001, 4486, 6},
+    {Table::command, "M_TendrilC_WhipLeft", "M_Behemoth_ScratchLeft", 5006002, 4492, 6},
+    {Table::command, "M_TendrilC_WhipRight", "M_Behemoth_ScratchLeft", 5006003, 4498, 6},
+    {Table::command, "M_TendrilC_DiagonalLeft", "M_Behemoth_ScratchLeft", 5006004, 4504, 6},
+    {Table::command, "M_TendrilC_DiagonalRight", "M_Behemoth_ScratchLeft", 5006005, 4510, 6},
+    {Table::command, "M_TendrilC_Chop", "M_Behemoth_ScratchLeft", 5006006, 4516, 6},
+    {Table::command, "M_TendrilC_Spin", "M_Behemoth_ScratchLeft", 5006007, 4522, 6},
+    {Table::command, "M_TendrilC_Rush", "M_Behemoth_ScratchLeft", 5006008, 4528, 6},
+    {Table::command, "M_TendrilC_Whip", "M_Behemoth_ScratchLeft", 5006009, 4534, 6},
+    {Table::command, "M_TendrilC_Trace", "M_Behemoth_ScratchLeft", 5006010, 4540, 6},
+    {Table::anim, "M_TendrilC_Peaceful", "M_Behemoth_Battle", 500600, 4546, 45},
+    {Table::anim, "M_TendrilC_Battle", "M_Behemoth_Battle", 500601, 4591, 45},
+    {Table::stance, "M_TendrilC_Default", "M_Behemoth_Default", 500600, 4636, 19},
+    {Table::dead, "M_TendrilC", "M_Behemoth", 0, 4655, 27},
+    {Table::appearance, "M_TendrilC", "M_Behemoth", 50060, 4682, 2},
+    {Table::character, "M_TendrilC", "M_Behemoth", 50060, 4684, 54},
+};
 // ---- End of the generated part ----
 
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
 constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe[0];
+constexpr size_t kTendrilRows = sizeof kTendrilRecipe / sizeof kTendrilRecipe[0];
 // A batch: its rows (their patches in kPatches) and its word, which starts its status line, its log lines and Lua's
 // request for it (link/protocol.h's kRowWords).
 struct Batch {
@@ -4483,7 +6108,8 @@ struct Batch {
   const Row *rows;
   size_t count;
 };
-constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows};
+constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows},
+    kTendril{"tendril", kTendrilRecipe, kTendrilRows};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -4526,7 +6152,7 @@ struct Answer {
   uint8_t row = 0;     // refused: the row it stopped at, the batch's count for the gate or coop off.
   uint32_t detail = 0; // size: the size read (24 bits); net: the net mode read.
 };
-static_assert(kRows < 256 && kGardenerRows < 256, "a row index fits a byte");
+static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256, "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
 inline uint64_t pack(const Answer &a, uint32_t asks) {
@@ -4761,8 +6387,9 @@ private:
   uint32_t count_ = 0;
 };
 
-// coop-status.txt's line for a batch (cut/lion.lua reads lion=, cut/gardener.lua gardener=), from its answer word, its
-// read-back, the frames its ask waited, the spawn manager's counter and, after the latch, where the fault was:
+// coop-status.txt's line for a batch (cut/lion.lua reads lion=, cut/gardener.lua gardener=, cut/tendril.lua
+// tendril=), from its answer word, its read-back, the frames its ask waited, the spawn manager's counter and, after
+// the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
 //   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>
