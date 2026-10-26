@@ -2032,8 +2032,14 @@ the bucket as Beta Seeds, minus any seeds already there (or takes the surplus ou
 `Money_NightOperation` only, and asks for the open once the count matches. While the screen is open, each new count is
 written to the wallet. After the close, the wallet keeps the last count and the seeds leave the bucket. So the seeds
 exist in the save only while the screen is open: a game that restarts without the rows never loads one, and a save
-restore does not change the points, as before. The run's start refuses while the screen runs, so no credit lands while
-seeds are out.
+restore does not change the points, as before. The run's start refuses while the screen runs, and so does a guest's
+answer to the host's run, so no credit lands while seeds are out. Lua asks for the close only once the game opened the
+screen for it, never after a refused open, when the screen up may be the game's own. When the screen ends early
+(`coop off`, a fault, a step that times out), the seeds that go are the last count read once open, and before that at
+least the count Lua added, since a read from before the add still says the old count. After a fault the native part
+no longer reads or closes the screen, so those seeds leave the bucket at once and a screen left open sells nothing.
+After a Lua reload, the first tick that reads seeds in the bucket takes the screen over as open: only the screen adds
+Beta Seeds, so they are this wallet's.
 
 ## Roxanne's Night Operation choices
 
@@ -2055,21 +2061,27 @@ either.
    reload goes on.
 3. The list: `nightop/roxanne.h` (free of Windows, tested against fake memory) and `glue/tick/nightop_game.inc` point
    her entry at a new array of six FNames, the four rows then her two, allocated with the game's GMalloc
-   (`0x14706b500`, Malloc at its vtable's `+0x10`) so the game may free it like its own. The entry is changed only
-   while it holds exactly her two rows in her order; the old array is kept, and off puts the old pointer, count and max
-   back only while the entry still points at the new array. The entry is found again by name at every step. The writes
-   run on the game thread inside the rows' gate under their own SEH latch: the pointer before the count when the list
-   grows, the count before the pointer when it shrinks. All six rows read priority 0, so End Conversation stays last
-   whether the choice box sorts by priority with a stable order or not, and the cancel input, which picks the last
-   slot, still ends the talk. The `roxanne=` status line gives the entry's shape every 250 ms after the first request;
-   Lua asks again when it reads `off` while it wants it on (a rebuilt cache).
+   (`0x14706b500`, Malloc at its vtable's `+0x10`) so the game may free it like its own. From the moment the entry
+   points at it, the array is the game's: it is used again only after off took it back, and an entry the game rebuilt
+   meanwhile gets a new one (the shape check compares the count too, as GMalloc may hand a freed array out again). The
+   entry is changed only while it holds exactly her two rows in her order; the old array is kept, and off puts the old
+   pointer, count and max back only while the entry still points at the new array. The entry is found again by name
+   at every step. The writes run on the game thread inside the rows' gate under their own SEH latch: the pointer
+   before the count when the list grows, the count before the pointer when it shrinks. All six rows read priority 0,
+   so End Conversation stays last whether the choice box sorts by priority with a stable order or not, and the cancel
+   input, which picks the last slot, still ends the talk. The `roxanne=` status line gives the entry's shape every
+   250 ms after the first request; Lua asks again when it reads `off` while it wants it on (a rebuilt cache).
 4. The pick: Lua finds the choice box (`SBSequencerInteractionSelectWidget`) through UMG's `GetAllWidgetsOfClass` (the
    engine's class lookup, not a walk over every object) while EVE is in Xion, and reads its `SelectIndex` every 250 ms.
    A change from -1 to a line is a pick; the line's `DisplayText` (from `DataArray`) is matched against the labels in
    every language. A level is booked and started through `coop nightop start <level>` once EVE is out of Xion (every
    5 s, with that command's co-op save and race checks); the supplies call `coop nightop shop` 5 s after the pick.
-5. Off: on `coop off` and on a save that is not a co-op save, `roxanne off` first, then the rows' shipped values. The
-   text keys keep their labels until the game exits; the rows that carry them are listed nowhere else.
+5. Off: on `coop off` and on a save that is not a co-op save, `roxanne off`, asked again every 10 s while the
+   `roxanne=` line reads `on` (Lua's tick goes on after `coop off` for that alone, and the native part still takes an
+   off then). The rows get their shipped values only once the line reads `off` after an off it took, or `absent`: while
+   her entry may still list them, they keep `Success2`, which only plays her goodbye, and after a fault they keep it
+   until the game exits. The text keys keep their labels until the game exits; the rows that carry them are listed
+   nowhere else.
 
 Not checked offline: who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild), the
 choice box's sort, and that `GetAllWidgetsOfClass` finds the box in this build.

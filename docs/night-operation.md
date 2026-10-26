@@ -439,11 +439,16 @@ answers with one `STOP:` line and opens nothing when the save is not a co-op sav
 a run is on, the game is paused or shows one of its screens, the screen is already open, `coop-status.txt` has no
 `nightshop` line (an older DLL) or reads a fault there, or the wallet holds more than 999999 points.
 
-If a later step fails (the shop's rows refused, the seeds not counted within 5 s, the game not opening the screen),
-the seeds leave the inventory, the wallet stays as it was, the log has a `STOP: shop:` line with the reason, and a
-notice says `The Night Operation shop could not open. UE4SS.log says why.` While the screen runs, no run starts and
-`coop nightop buy` refuses. `coop off` closes it first, writes the last seed count to the wallet and takes the seeds
-out; a purchase made in the last 250 ms before `coop off` is not counted.
+If a later step fails (the shop's rows refused, the seeds not counted within 5 s, the game paused or showing one of its
+screens once they are, the game not opening the screen), the seeds leave the inventory, the wallet stays as it was,
+the log has a `STOP: shop:` line with the reason, and a notice says `The Night Operation shop could not open.
+UE4SS.log says why.` A shop screen the game already had open stays open. After a fault in the native part's shop
+calls, the mod can no longer read or close the screen: the seeds it counted last leave the inventory, so a screen left
+open sells nothing more, and you close it yourself. While the screen runs, no run starts, a guest turns down the host's
+run, and `coop nightop buy` refuses. `coop off` closes it first, writes the last seed count to the wallet and takes the
+seeds out (before the screen opened, the seeds the mod added); a purchase made in the last 250 ms before `coop off` is
+not counted. After a Lua reload while the screen is open, or before its seeds went back, the mod takes it over at its
+first tick, so purchases still reach the wallet and the seeds leave after the close.
 
 The rows are a fifth rows batch of the native part, `shop` (`native/src/lion/rows.h`), added through the game's own
 AddRow in memory for the game run, as the Lion's are:
@@ -526,9 +531,11 @@ Once EVE is in Xion on a co-op save, the mod gives the four rows' text keys thei
 back: InteractionGraphExec `Success2`, the one her End Conversation uses, and NextTaskTagName `None`), then asks the
 native part to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). A pick is
 read from the game's choice box: its selected line turning from none to one, and that line's text matched against the
-labels. Everything goes back on `coop off` and on a save that is not a co-op save: the choice list first, then the
-rows' shipped values. Nothing is saved, and a game restart undoes it too. Talking to her still runs her own graph, so
-her first meeting and her side quest start as without the mod. No quest, item, achievement or save call is added.
+labels. Everything goes back on `coop off` and on a save that is not a co-op save: the choice list first (asked again
+every 10 s until the native part has put it back), then the rows' shipped values. Until the list is back, and after a
+fault in its calls, the rows keep the goodbye, which ends the talk on any save. Nothing is saved, and a game restart
+undoes it too. Talking to her still runs her own graph, so her first meeting and her side quest start as without the
+mod. No quest, item, achievement or save call is added.
 
 `UE4SS.log` has `[StellarCoop][NR]` lines for each step, for example:
 
@@ -538,7 +545,8 @@ her first meeting and her side quest start as without the mod. No quest, item, a
 [StellarCoop][NR] roxanne: hard booked: it starts once EVE is out of Xion with no one within 40 m
 [StellarCoop][NR] roxanne: the booked hard run waits: census: 1 living within 40 m (nearest 23.4 m); 0 wave bodies: go where no one is within 40 m
 [StellarCoop][NR] roxanne: the booked hard run: Night Operation (hard) starts in 5 s (run 0x2A)
-[StellarCoop][NR] roxanne off (coop off): her two choices back, the 4 rows shipped
+[StellarCoop][NR] roxanne off (coop off): asked the native part: roxanne off; the 4 rows go back once her list reads off
+[StellarCoop][NR] roxanne: her two choices back, the 4 rows shipped
 ```
 
 A step that fails logs a `STOP: roxanne` line and leaves her two choices as the game ships them until the next Lua
