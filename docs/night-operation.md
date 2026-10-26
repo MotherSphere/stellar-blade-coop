@@ -3,8 +3,10 @@
 Night Operation is a multiplayer wave-survival mode that Shift Up prototyped and cut before Stellar Blade's release.
 Much of it is still in the game files. StellarCoop has a run of its waves, `coop nightop`, which you play alone or with
 a linked partner at one of four levels, a shop that sells seven items (three of them cut items) for the points runs
-earn, and four solo challenges on the same code, `coop challenge`. Two research previews test other parts of the cut
-mode; they are not playable modes. The run, the shop and the challenges have not been tested in game yet.
+earn, in the game's own shop screen with the cut Beta Seed as its currency, Night Operation choices in Roxanne's
+dialogue in Xion, and four solo challenges on the same code, `coop challenge`. Two research previews test other parts
+of the cut mode; they are not playable modes. The run, the shop, Roxanne's choices and the challenges have not been
+tested in game yet.
 
 ## What the game files contain
 
@@ -80,6 +82,8 @@ progress like any co-op save, and your own saves are not touched.
 ### Starting a run
 
 Go to open ground outside Xion, with no enemy or other character within 40 m of EVE, and type `coop nightop start`.
+On a co-op save you can also pick the level from Roxanne in Xion: see
+[Night Operation at Roxanne's](#night-operation-at-roxannes).
 The answer is `OK: Night Operation starts in 5 s (run 0x2A)`, where `0x2A` is the run's number, or
 `OK: Night Operation (hard) starts in 5 s (run 0x2A)` at another level. The command refuses with one `STOP:` line, and
 changes nothing, when:
@@ -219,9 +223,9 @@ With `coop ui off`, the same facts come as notices: the start, each wave, each w
 
 A run spawns its monsters with the same game request as the probe's `coop no actor`. Each monster carries a wave key
 from `0xD8000000` to `0xD8FFFFFF`, a range that none of the game's spawn rows uses. The heal is the only zone event a
-run fires. A run adds or edits no table row, starts no rule, writes no save, and never hides or removes a monster. No
-word typed after `start` reaches a game call: the level only picks the wave sizes, the time limit and the points, and
-`noaggro` and `nomove` only turn off the mod's own steps.
+run fires. A run itself adds or edits no table row (the shop and Roxanne's choices do, see their sections), starts no
+rule, writes no save, and never hides or removes a monster. No word typed after `start` reaches a game call: the level
+only picks the wave sizes, the time limit and the points, and `noaggro` and `nomove` only turn off the mod's own steps.
 
 Each kill most likely counts toward the game's general kill achievements, as any kill does: the ones for 10 and 1500
 kills and the ones for kills with each kind of skill. A run can unlock one of them if your save is close to its count.
@@ -339,13 +343,10 @@ gives none. A failed or aborted run gives nothing, and a guest whose game missed
 game credits only its own player: no line between the two games carries points. If the points cannot be written, a
 notice says so and `UE4SS.log` says why.
 
-`coop nightop shop` lists your points and the seven items:
+The shop sells seven items. `coop nightop shop` opens them in the game's own shop screen (below), and
+`coop nightop buy` sells them from the console, the way the shop worked before the screen.
 
-```
-OK: Night Operation shop, 41 points: 1 HP_Potion 15, 2 HP_Potion_Small 10, 3 PulseGrenade 6, 4 ConcussionGrenade 8, 5 HP2Burst_Potion 20, 6 Buff_HP2MP 16, 7 Bullet_Shock 5. coop nightop buy <n> [count] buys up to 10.
-```
-
-| # | Item | Points | At a camp |
+| # | Item | Points (Beta Seeds) | At a camp |
 | --- | --- | --- | --- |
 | 1 | `HP_Potion` | 15 | 400 gold |
 | 2 | `HP_Potion_Small` | 10 | 300 gold |
@@ -384,17 +385,97 @@ bought, no points taken`, with the reason in the parentheses.
 For the Shock Bolt the rows are not enough: EVE's two gun stances list only its failed shot, and the game's ammo list
 stops at five types. Right after the Shock Bolt's rows go in, the native part adds the two fire commands the game
 ships to both stances and `Bullet_Shock` as a sixth ammo type, in place (see [usage.md](usage.md#cut-ammo-shock-bolt)).
-Only a Shock Bolt buy does this: a stimpack buy, `coop lion` and `coop chainspin` leave the gun as the game ships it.
-A buy of item 7 goes through only when `coop-status.txt` then reads `shock=in`. Otherwise it stops with
-`STOP: Bullet_Shock cannot be fired in this game (shock=...): nothing bought, no points taken`.
+Only the shop does this, through a Shock Bolt buy or `coop nightop shop`: a stimpack buy, `coop lion` and
+`coop chainspin` leave the gun as the game ships it. A buy of item 7 goes through only when `coop-status.txt` then
+reads `shock=in`. Otherwise it stops with
+`STOP: Bullet_Shock cannot be fired in this game (shock=...): nothing bought, no points taken`, and the shop screen
+leaves the Shock Bolt out.
 
 None of this has been tried in game yet. Check that the items show with their names and icons, that using a stimpack
 plays the animation and changes HP and the gauge, that the Shock Bolt shows in the ammo selector, fires and stuns, and
 what happens to a cut item left in the inventory when the game saves: after a restart the rows are not in until the next
-buy of that item (or `coop lion rows` for the stimpacks), and how the game loads an item it has no row for is not
-known. Use them up or
+buy of that item or the next `coop nightop shop` (or `coop lion rows` for the stimpacks), and how the game loads an
+item it has no row for is not known. Use them up or
 keep a backup of the co-op save. If the Shock Bolt is selected, switch to another ammo before you save or quit from the
 menu; the game's autosaves at a camp or a zone change keep the selected slot too.
+
+### The shop screen (`coop nightop shop`)
+
+`coop nightop shop` opens the game's own shop screen, the one its vending machines use, with the items of the table
+above. It shows each item's icon, price, Available and Stored counts, and its Purchase button buys through the game's
+own purchase. While the screen is open your points are Beta Seeds, the cut mode's currency: the top of the screen
+shows how many you hold, every price is in Beta Seeds (one seed for one point), and a purchase takes them out of the
+inventory. The screen also caps a purchase as the game's vending machines do: at most what your seeds pay for, what
+the item's carry limit leaves (30 Shock Bolts) and 99.
+
+What the command does, in order:
+
+1. It checks the co-op save, your Steam ID, that no run is on and that the game plays (no pause, no menu screen).
+2. It asks the native part for three rows batches at once, through `coop lion`'s flow (their `[LI]` lines start with
+   `shop`, `lion` and `bolt`): the shop's own 6 rows, the stimpacks' (the lion rows batch) and the Shock Bolt's (which
+   also grows EVE's gun lists, as a Shock Bolt buy does). Only the shop's batch has to go in. Without the other two,
+   the screen leaves the stimpacks or the Shock Bolt out.
+3. It puts as many Beta Seeds in the inventory as your wallet holds (seeds left over from a crash are taken out first),
+   waits until the native part counts them, then asks it to open the screen. The Shock Bolt is on sale only when its
+   rows are in and `coop-status.txt` reads `shock=in`.
+4. While the screen is open, each change of the seed count is written to your wallet at once.
+5. When you close the screen, the wallet keeps what is left and the seeds leave the inventory.
+
+A Beta Seed is in the inventory only while the screen is open, so a save made at any other time holds none, and a game
+that restarts without the shop's rows never loads one. Each step logs a `[StellarCoop][NR]` line in `UE4SS.log`:
+
+```
+[StellarCoop][NR] shop: 41 points; its rows asked
+[StellarCoop][NR] shop: rows in (stimpacks in, Shock Bolt in)
+[StellarCoop][NR] shop: wallet 41, the bucket held 0 Beta Seeds: +41
+[StellarCoop][NR] shop: SB's shop screen open with 41 Beta Seeds, the Shock Bolt sold
+[StellarCoop][NR] shop: 26 Beta Seeds, wallet written
+[StellarCoop][NR] shop: closed: 26 Beta Seeds back in the wallet; 26 Beta Seeds left the inventory
+```
+
+The command answers at once with
+`OK: Night Operation shop: 41 points as Beta Seeds; SB's shop screen opens once its rows are in ([NR] lines)`. It
+answers with one `STOP:` line and opens nothing when the save is not a co-op save, the Steam link has no Steam ID yet,
+a run is on, the game is paused or shows one of its screens, the screen is already open, `coop-status.txt` has no
+`nightshop` line (an older DLL) or reads a fault there, or the wallet holds more than 999999 points.
+
+If a later step fails (the shop's rows refused, the seeds not counted within 5 s, the game not opening the screen),
+the seeds leave the inventory, the wallet stays as it was, the log has a `STOP: shop:` line with the reason, and a
+notice says `The Night Operation shop could not open. UE4SS.log says why.` While the screen runs, no run starts and
+`coop nightop buy` refuses. `coop off` closes it first, writes the last seed count to the wallet and takes the seeds
+out; a purchase made in the last 250 ms before `coop off` is not counted.
+
+The rows are a fifth rows batch of the native part, `shop` (`native/src/lion/rows.h`), added through the game's own
+AddRow in memory for the game run, as the Lion's are:
+
+| Table | Row | ID | Copy of |
+| --- | --- | --- | --- |
+| ItemTable | `Money_NightOperation` (Beta Seed) | 9011 | `FishingPoint`, Clyde's currency |
+| ShopItemTable | `NightOperation_HP2Burst_Potion_Buy`, 20 seeds | 3571 | `NightOperation_HP_Potion_Buy` |
+| ShopItemTable | `NightOperation_Buff_HP2MP_Buy`, 16 seeds | 3572 | `NightOperation_HP_Potion_Buy` |
+| ShopItemTable | `NightOperation_Bullet_Shock_Buy`, 5 seeds | 3573 | `NightOperation_Bullet_Scatter_Buy` |
+| ShopTable | `Shop_NightOperation_Coop` | 1061 | `Shop_NightOperation` |
+| ShopTable | `Shop_NightOperation_CoopBolt` | 1062 | `Shop_NightOperation` |
+
+The Beta Seed keeps the name, function and lore text the game ships for it ("Beta Seed", "Used for trading with
+Roxanne") and uses BetaCore's icon, since no seed icon ships. The two shops have the Beta Seed as their currency and no
+shop tag; the first lists items 1 to 6 (the shipped rows of items 1 to 4 and the two new stimpack rows), the second the
+same and the Shock Bolt. No shipped row changes. A purchase takes Beta Seeds, which none of the game's achievement
+rows names, in a shop with no tag. The gold-spending trophy needs gold spent in a shop tagged `AllShop`, so a purchase
+here cannot move it.
+
+Check in game: the screen opens with the seed count at the top and the items with their icons and prices; a purchase
+takes the seeds, adds the item and writes the wallet; the screen stops the Shock Bolt at 30; the seeds are gone from
+the inventory after the close; whether the screen takes the game's input and keeps EVE still with no vending machine
+behind it; a save made while it is open and loaded again gives the same count.
+
+### Buying from the console (`coop nightop buy`)
+
+`coop nightop buy` with no number lists your points and the seven items:
+
+```
+OK: Night Operation shop, 41 points: 1 HP_Potion 15, 2 HP_Potion_Small 10, 3 PulseGrenade 6, 4 ConcussionGrenade 8, 5 HP2Burst_Potion 20, 6 Buff_HP2MP 16, 7 Bullet_Shock 5. coop nightop buy <n> [count] buys up to 10.
+```
 
 `coop nightop buy <n> [count]` buys 1 to 10 of item n, 1 when the count is left out. The answer reads
 `OK: bought 2 HP_Potion for 30 points; 11 left`. The game's own request for adding an item puts it in the inventory
@@ -402,7 +483,7 @@ of the co-op save, with the game's pickup message. The buy takes no points and a
 
 - the save is not a co-op save, or the Steam link has not given the mod your Steam ID yet;
 - the item number or the count is not a whole number in range, or a word follows them;
-- a run is on;
+- a run is on, or the shop screen is open;
 - the game is paused or shows one of its screens;
 - EVE or the player controller is not in the world, or EVE's GUID reads 0;
 - you have too few points, for example `STOP: HP_Potion x1 needs 15 points; you have 11`;
@@ -419,6 +500,54 @@ away. `coop off` leaves the file as it is, an install never removes it, and `too
 with the mod's other files. While the file cannot be opened (another program holds it, or access is denied), a run's
 points are not credited and `coop nightop shop` and `buy` refuse with `wallet not read:`, so the total in the file stays
 as it is.
+
+## Night Operation at Roxanne's
+
+On a co-op save, Roxanne in Xion's Scrap Market offers Night Operation in her dialogue. Talk to her as usual: above
+her Shop and End Conversation choices, the list shows Night Operation (Easy), Night Operation (Normal), Night Operation
+(Hard) and Night Operation supplies, in the game's language. The game ships no such dialogue. Her graph's one dormant
+Night Operation branch only greets a customer who paid her in Beta Seeds, and nothing reaches it. So the mod lends her
+four of the game's test choice rows, which no story dialogue lists.
+
+- A level: she says one of her goodbyes and the run is booked, with the notice
+  `Night Operation starts once you leave Xion and no one is within 40 m.` A run never starts in Xion, so it starts on
+  its own once EVE is out of Xion, the game plays and no one is within 40 m, as `coop nightop start <level>` would
+  (the mod tries every 5 s, through that command's own checks). `coop nightop stop` drops the booking. In a Steam
+  session only the host's pick books a run; a guest's pick shows `In a co-op session, only the host starts Night
+  Operation.`
+- Night Operation supplies: she says goodbye, and 5 s later the shop screen opens, as with `coop nightop shop`.
+- Shop and End Conversation work as before, and the cancel input still ends the talk.
+
+Nightmare is not in her list: the choice box has six slots, and her own two choices take two of them.
+`coop nightop start nightmare` starts it.
+
+Once EVE is in Xion on a co-op save, the mod gives the four rows' text keys their labels in the game's 23 languages
+(after the same Korean text check the recruiter's text uses), edits the rows in place (each checked first, then read
+back: InteractionGraphExec `Success2`, the one her End Conversation uses, and NextTaskTagName `None`), then asks the
+native part to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). A pick is
+read from the game's choice box: its selected line turning from none to one, and that line's text matched against the
+labels. Everything goes back on `coop off` and on a save that is not a co-op save: the choice list first, then the
+rows' shipped values. Nothing is saved, and a game restart undoes it too. Talking to her still runs her own graph, so
+her first meeting and her side quest start as without the mod. No quest, item, achievement or save call is added.
+
+`UE4SS.log` has `[StellarCoop][NR]` lines for each step, for example:
+
+```
+[StellarCoop][NR] roxanne text: game language fr-FR -> fr; 4/4 keys registered, each reads its fr line, and so do rows Temp_TS_Select_Test_1 to _3 and TS_GoToTest_1: TEXT=yes
+[StellarCoop][NR] roxanne: 4 rows read back as ours; asked the native part: roxanne on
+[StellarCoop][NR] roxanne: hard booked: it starts once EVE is out of Xion with no one within 40 m
+[StellarCoop][NR] roxanne: the booked hard run waits: census: 1 living within 40 m (nearest 23.4 m); 0 wave bodies: go where no one is within 40 m
+[StellarCoop][NR] roxanne: the booked hard run: Night Operation (hard) starts in 5 s (run 0x2A)
+[StellarCoop][NR] roxanne off (coop off): her two choices back, the 4 rows shipped
+```
+
+A step that fails logs a `STOP: roxanne` line and leaves her two choices as the game ships them until the next Lua
+load (a row that is not the one known is put back, and nothing is asked of the native part). `coop-status.txt`'s
+`roxanne=` line is described in [usage.md](usage.md#night-operations-shop-screen-and-roxannes-choices).
+
+Check in game: the six choices in this order, End Conversation last; each level books its run and the run starts out
+of Xion; the supplies open the shop screen after her goodbye; Shop and End Conversation as before; `coop off` gives her
+two choices back.
 
 ## Challenges (`coop challenge`)
 
