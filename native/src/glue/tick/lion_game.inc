@@ -2,8 +2,8 @@
 
 namespace coop::pose {
 namespace {
-// ---- The Lion's rows, the Gardener's, the Tendril's and the Shock Bolt's (lion/rows.h's batches), the game thread's
-// calls ----
+// ---- The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's and Matrix XIII's (lion/rows.h's batches), the
+// game thread's calls ----
 // SB's functions on the pinned build (the Lion study, plan A): InitializeStruct through the row struct's vtable +0x2a8
 // and CopyScriptStruct (0x1429d8830), as AddRow itself calls them; FName's MakeWithNumber with FNAME_Add (the photo
 // pause's kMakeName); a table's row by name, through its RowMap (+0x30, GetRowMap's own lea at vtable +0x280) and
@@ -37,7 +37,7 @@ using RowById = void *(*)(void *registry, uint64_t unused, int32_t id);
 using StanceName = uint64_t *(*)(void *registry, uint64_t *out, int32_t table, int32_t id);
 
 static_assert(lion::kTableCount == kLionTableCount, "the rows requests name each of lion/rows.h's tables");
-// One batch's ask and answer. The worker's side: the ask, its number and the 15 tables, taken by the game thread with
+// One batch's ask and answer. The worker's side: the ask, its number and the 17 tables, taken by the game thread with
 // try_lock only. What the game thread did, for the worker: the answer (lion::pack, with the asks finished), the
 // read-back (character, skills and stance counts, a byte each) and the frames the waiting ask waited. The game thread's
 // own: the rows added so far, the ask being served and its tables, the asks finished.
@@ -55,8 +55,9 @@ struct RowsJob {
   bool pending = false;
 };
 // In link/protocol.h's kRowWords order: Request::batch indexes it.
-RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril}, bolt_job{lion::kBolt};
-RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job};
+RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril}, bolt_job{lion::kBolt},
+    mxiii_job{lion::kMxiii};
+RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job, &mxiii_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
 // Shared: the spawn manager's counter (INT64_MIN until read) and the latch.
 std::atomic<int64_t> lion_spawns{INT64_MIN};

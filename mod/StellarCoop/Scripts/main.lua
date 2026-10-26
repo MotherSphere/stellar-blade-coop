@@ -266,6 +266,12 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
             -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
             return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
         end} or nil})
+-- coop mxiii (cut/mxiii.lua), logging [MX] lines: Matrix XIII's 2 rows asked of the native part, then the follow's camp
+-- travel (read at each call: built below), once the zMXIII_P test pak is found under SB/Content/Paks.
+local mxiii=require('cut.mxiii').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
+    travel=function() return travel end,paks=require('cut.mxiii').paks_of(folder),
+    read=require('core.link').files.read})
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('nightop.recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- The UI kit's lines.
@@ -408,7 +414,7 @@ end
 -- only, so they are read at each call; coop fight off and coop quests off set fight_auto and quests_auto to false.
 local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=look,looks=looks,ask=ask,
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
-    lion=lion,gardener=gardener,tendril=tendril,group=function() return group end,
+    lion=lion,gardener=gardener,tendril=tendril,mxiii=mxiii,group=function() return group end,
     travel=function() return travel end,
     fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
     story_dump=story_dump}
@@ -495,6 +501,8 @@ local commands={
         if not stopped then log('gardener: '..tostring(e)) end
         stopped,e=pcall(tendril.stop)
         if not stopped then log('tendril: '..tostring(e)) end
+        stopped,e=pcall(mxiii.stop)
+        if not stopped then log('mxiii: '..tostring(e)) end
         stopped,e=pcall(scene.stop) -- The Stop row: the game's camera, input and HUD back.
         if not stopped then log('scene: '..tostring(e)) end
         stopped,e=pcall(cut_lines.stop)
@@ -668,6 +676,8 @@ LoopInGameThreadWithDelay(1,function()
     ok,message=gardener.tick()
     if message then report(ok,message) end
     ok,message=tendril.tick()
+    if message then report(ok,message) end
+    ok,message=mxiii.tick()
     if message then report(ok,message) end
     ok,message=scene.tick()
     if message then report(ok,message) end

@@ -351,6 +351,16 @@ package.loaded['cut.tendril']={new=function(o)
         tick=function() td.ticks=td.ticks+1; if td.says then return table.unpack(td.says) end end,
         stop=function() td.stops=td.stops+1 end}
 end}
+-- coop mxiii (cut/mxiii.lua; mxiii_test tests it): what new got (log, ask, status, travel, paks, read), the folder
+-- paks_of was given, its commands, ticks and stops, what a tick says.
+mx={}
+package.loaded['cut.mxiii']={paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end,
+    new=function(o)
+        mx.o=o
+        return {command=function(...) mx.cmds[#mx.cmds+1]=table.pack(...); return true,'mx '..tostring((...)) end,
+            tick=function() mx.ticks=mx.ticks+1; if mx.says then return table.unpack(mx.says) end end,
+            stop=function() mx.stops=mx.stops+1 end}
+    end}
 -- coop chainspin (cut/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
 cs={}
 package.loaded['cut.chainspin']={new=function(o)
@@ -619,6 +629,7 @@ function load_main(with_native,no_folder,source)
     li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
+    mx.o,mx.folder,mx.cmds,mx.ticks,mx.stops,mx.says=nil,nil,{},0,0,nil
     cs.o,cs.cmds=nil,{}
     dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
     gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0

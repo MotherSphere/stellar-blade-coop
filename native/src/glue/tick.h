@@ -104,14 +104,14 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
 // frame, which calls SB's fast travel once game/travel.h's guard passes. Refused off the pinned build, after coop off
 // and after the travel latch's fault. Returns the line for the log; the call's own line follows from worker_poll.
 std::string ask_travel(const coop::Request &request);
-// Worker thread, coop lion, coop gardener fight, coop tendril fight and the shop's Shock Bolt (lion/rows.h): Lua's
-// lion rows, gardener rows, tendril rows or bolt rows request, the 15 tables' addresses for the game thread, which adds
-// that batch's rows through SB's AddRow once its gate holds. Refused off the pinned build, after coop off and after the
-// rows' fault, and not asked again once every row of the batch is in. Returns the line for the log; fight_pass logs the
-// game thread's answer.
+// Worker thread, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt and coop mxiii
+// (lion/rows.h): Lua's lion rows, gardener rows, tendril rows, bolt rows or mxiii rows request, the 17 tables'
+// addresses for the game thread, which adds that batch's rows through SB's AddRow once its gate holds. Refused off the
+// pinned build, after coop off and after the rows' fault, and not asked again once every row of the batch is in.
+// Returns the line for the log; fight_pass logs the game thread's answer.
 std::string ask_rows(const coop::Request &request);
-// Worker: coop-status.txt's lion, gardener, tendril and bolt lines (lion/rows.h's status_line), one per batch, joined
-// by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>, asks=<a>,
+// Worker: coop-status.txt's lion, gardener, tendril, bolt and mxiii lines (lion/rows.h's status_line), one per batch,
+// joined by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>, asks=<a>,
 // spawns=<s> and that state's own fields; then the shock line (lion/shock.h's shock_line: off, in, refused or fault).
 std::string rows_status();
 // Worker thread, coop shortcut (save/shortcut.h): Lua's shortcut list request, which the game thread serves by

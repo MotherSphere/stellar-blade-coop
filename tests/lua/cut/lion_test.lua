@@ -5,7 +5,7 @@
 -- a Behemoth row or asset
 -- but the sound set, every reference lands on a Lion row or a shipped generic one, the steps' moves are Lion moves, the
 -- phase-2 stance turns at HP under 60% and starts the roar's effect, which uses the phase-2 roar skill. The lion line
--- parses in each of its forms. coop lion finds the 15 tables (a missing one, no EVE or no lion line asks nothing), asks
+-- parses in each of its forms. coop lion finds the 17 tables (a missing one, no EVE or no lion line asks nothing), asks
 -- the rows once with every address in the native order, waits for the answer (a waiting line, or a refusal from before
 -- the ask, is no answer; a map change, a refusal, a fault, 30 s or SB's lookups finding fewer rows stop it), reads
 -- every row back through FindRow (the first value that differs stops before any spawn), then makes the one spawn call:
@@ -69,7 +69,11 @@ do
     for n in assert(src:match('constexpr TableInfo kTables%[kTableCount%] = {(.-)\n};')):gmatch('{"(%a+)", 0x') do
         names[#names+1]=n
     end
-    assert(#enum==15 and #names==15,'15 tables')
+    assert(#names==15,'15 generated tables')
+    for n in assert(src:match('constexpr TableInfo kZoneTables%[%] = {(.-)\n};')):gmatch('{"(%a+)", 0x') do
+        names[#names+1]=n
+    end
+    assert(#enum==17 and #names==17,'17 tables')
     for i,n in ipairs(names) do assert(L.TABLES[i]==n,'kLionTables order: '..n) end
     local block=assert(src:match('constexpr Patch kPatches%[%] = {\n(.-)\n};'))
     local patches,pending,line,closed_at={},nil,1,nil
@@ -539,7 +543,8 @@ local function at(t) clock=t end
 local REQUEST='lion rows CharacterTable=0x%x CharacterAppearanceTable=0x%x CharacterDeadTable=0x%x '
     ..'CharacterStanceTable=0x%x CharacterAnimSetTable=0x%x SkillCommandTable=0x%x SkillTable=0x%x '
     ..'SkillActiveStepTable=0x%x CharacterMoveTable=0x%x TargetFilterTable=0x%x SkillResultTable=0x%x '
-    ..'EffectTable=0x%x ItemTable=0x%x ItemConsumableTable=0x%x ProjectileTable=0x%x'
+    ..'EffectTable=0x%x ItemTable=0x%x ItemConsumableTable=0x%x ProjectileTable=0x%x ZoneCampTable=0x%x '
+    ..'ZoneEnvSpawnTable=0x%x'
 local addresses={}
 for k,t in ipairs(L.TABLES) do addresses[k]=tables[t]:GetAddress() end
 REQUEST=REQUEST:format(table.unpack(addresses))
@@ -566,24 +571,24 @@ player=eve
 present.SkillTable=false
 ok,why=lion.command('rows')
 assert(ok==false and why=='The game has no SkillTable loaded: nothing was asked.' and #asked==0,why)
-assert(last()=='tables: 14/15 found, missing SkillTable: nothing asked',last())
+assert(last()=='tables: 16/17 found, missing SkillTable: nothing asked',last())
 present.SkillTable=true
 status_text='mod=v\n'
 ok,why=lion.command()
 assert(ok==false and why:find('^coop%-status%.txt has no lion line') and #asked==0,why)
-assert(last():find('^tables: 15/15 found: CharacterTable=0x'),last())
+assert(last():find('^tables: 17/17 found: CharacterTable=0x'),last())
 refuse_ask='the Steam link needs the native part'
 lion_status('off')
 ok,why=lion.command('rows')
 assert(ok==false and why=='Lion rows not asked: the Steam link needs the native part' and #asked==0,why)
 refuse_ask=nil
 
--- coop lion rows: one ask with the 15 addresses in kLionTables' order, then the wait.
+-- coop lion rows: one ask with the 17 addresses in kLionTables' order, then the wait.
 at(100)
 ok,why=lion.command('rows')
 assert(ok and asked[1]==REQUEST and #asked==1,asked[1])
 assert(last()=='rows asked of the native part (lion=off): its answer is the next asks= past 0',last())
-assert(logged('^tables: 15/15 found: '..REQUEST:sub(11):gsub('%-','%%-')..'$'),'R1 with every address')
+assert(logged('^tables: 17/17 found: '..REQUEST:sub(11):gsub('%-','%%-')..'$'),'R1 with every address')
 ok,why=lion.command()
 assert(ok==false and why=='coop lion is busy (the wait for the Lion rows): try again in a few seconds',why)
 ok,why=lion.command('brain','lurker')
@@ -1054,7 +1059,7 @@ do
     assert(ok==false and why:find('^no EVE: no EVE in the world'),why)
     player=eve
 end
--- Lion.rows with word bolt, the shop's Shock Bolt: the bolt rows request with the same 15 addresses, read on the bolt
+-- Lion.rows with word bolt, the shop's Shock Bolt: the bolt rows request with the same 17 addresses, read on the bolt
 -- line, on a job of its own (a lion rows ask meanwhile is not busy), its 4 rows read back, its [LI] lines starting with
 -- bolt; a frame where both jobs end says both, one where the bolt's alone ends says its own; coop off ends its wait.
 do

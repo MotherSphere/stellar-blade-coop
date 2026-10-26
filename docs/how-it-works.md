@@ -69,10 +69,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
-| `cut/enemy.lua` | The flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](#the-cut-lion)) |
+| `cut/enemy.lua` | The flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](#the-cut-lion)); `coop mxiii` uses its rows part |
 | `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
+| `cut/mxiii.lua` | `coop mxiii`: the test pak's check, Matrix XIII's 2 rows through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01` ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
@@ -1551,7 +1552,7 @@ clip the Lion has, and no move may travel over 17 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
-its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 15 tables
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 17 tables
 by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
 
 ```
@@ -1559,11 +1560,13 @@ lion rows CharacterTable=0x<address> CharacterAppearanceTable=0x<address> Charac
 CharacterStanceTable=0x<address> CharacterAnimSetTable=0x<address> SkillCommandTable=0x<address>
 SkillTable=0x<address> SkillActiveStepTable=0x<address> CharacterMoveTable=0x<address>
 TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address> ItemTable=0x<address>
-ItemConsumableTable=0x<address> ProjectileTable=0x<address>
+ItemConsumableTable=0x<address> ProjectileTable=0x<address> ZoneCampTable=0x<address>
+ZoneEnvSpawnTable=0x<address>
 ```
 
-It is one line in `coop-request.txt` (499 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
-address, 503 for the Gardener's `gardener rows`, under the file's 512). Each of the 15 words comes once, in any order.
+It is one line in `coop-request.txt` (561 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
+address and its line end, 565 for the Gardener's `gardener rows`; the native part reads up to 1024 bytes of that file).
+Each of the 17 words comes once, in any order.
 Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console
 word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
 slot and its row size.
@@ -1857,7 +1860,7 @@ of the Lion prototype's).
 
 ### Its batch in the native part
 
-The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 15 table words as
+The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 17 table words as
 the Lion's (`Request::batch` says which batch). Each batch has its own ask, answer word and builder (a `RowsJob` in
 `glue/tick/lion_game.inc`) and its own line in `coop-status.txt`, `gardener=` in the `lion=` line's format with its own
 counts (`added=<n>/13`, `char=<k>/3 skills=<k>/3 stance=<k>/1`). The gate, the block each row is built in, the spawn
@@ -2002,6 +2005,66 @@ Beyond the Lion's:
 - whether the chains strike where the areas reach, and whether 2 m is the right height for the arcs;
 - whether EVE's sword reaches it through the Gigas's hurt boxes, which sit on `Bip001` bones the Tendril shares;
 - how the Hydra's material looks on the Tendril's mesh, and which hit sounds the Gigas's sound set gives.
+
+## The cut Matrix XIII dungeon (experimental)
+
+WorldTable row `DLCMatrix13` (ID 2800) points to `/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P`, a map that no pak of
+build 24463856 holds. ZoneTable keeps its four zones (`Zone_DLC02_10` to `Zone_DLC02_40`, IDs 2800 to 2815) and
+EventSpawnTable 92 spawn rows for them, but no camp, zone warp, world transition or cheat row leads there. `coop mxiii`
+tests one way in. The zMXIII_P test pak, built outside the repository from shipped Matrix 11 levels and never in the
+mod's zip, puts a map at that path with a spawn point named `DLC02_10_Camp_01`. The mod adds the two rows the game's
+camp travel needs to reach `Zone_DLC02_10`, then calls that travel.
+
+### Its rows
+
+The camp travel (`FUN_141cdd7b0`, see [Following the host](#following-the-host)) looks the camp up in the zone
+manager's camp list, takes the camp's first ZoneEnvSpawnTable row, then that row's zone and the zone's world. The mxiii
+rows batch, written by hand in `lion/rows.h` after the generated part and with patches of its own, gives it both:
+
+| Row | Table | ID | Template | Changes |
+| --- | --- | --- | --- | --- |
+| `DLC02_10_Camp_01` | ZoneCampTable | 280001 | `ME01_Camp_03` | `CampDisplayType` Never (5), so no world map shows it; `CampType` stays FullCamp |
+| `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`, `EnvActorName` its own name; `ZoneList` stays `Zone_DLC02_10` |
+
+The template is the activation-only row of the DLC02_10 camp kit, whose rows all point at existing camps
+(`WLB10_Camp_05`, `SE02_Camp_02`). The two zone tables join the 15 that every rows request names (`kLionTables`), and
+only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, and neither struct has
+a Transient field. The batch's line is `mxiii=`, in the `lion=` line's forms
+(`mxiii=rows added=2/2 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads its 4 patched
+fields back. The read-back compares an ID on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or
+not.
+
+### The command
+
+`cut/mxiii.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for `coop travel probe`'s
+guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under way and no travel
+accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
+`SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain
+text in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
+IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the game started passes the
+check although the engine mounts paks only at start. It reads that file once a command and never looks the map up with
+`StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss. Then the rows go in through
+`cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for `DLC02_10_Camp_01`, a
+camp in none of its tables (`probe(alias, true)`). The native side is the follow's: the guard, the count and the watch
+of `game/travel.h`. The travel's result comes in `[TR]` lines.
+
+### The camp list
+
+`FSBGameWorld::Init` (`FUN_141c97ca0`, named by its own log line) makes a new zone manager at the world's `+0xe0`. Its
+setup (`FUN_141d1a520`, `FUN_141d1af70`) runs `FUN_141d18100`, which goes over every ZoneEnvSpawnTable row with a
+`TargetCamp` and adds the row's name under that camp at `+0x4a8`; `FUN_141d1a700` clears the list. Rows added after the
+current world started are then missing from its list, and the first `coop mxiii` should end in
+`SB refused DLC02_10_Camp_01`. After the next world start (a save loaded, a travel to a camp), a second `coop mxiii`
+reads the rows back without asking again and travels. This comes from reading the code; it has not run in game.
+
+### Open questions
+
+- whether the game loads `MXIII_P` from a mod container, and whether it accepts retoc's zen output of a renamed map;
+- whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d18100` lists the camps of every world;
+- whether the camp arrival (`FUN_141a8afe0`) finds the spawn point named `DLC02_10_Camp_01` in the test map;
+- what the world map, the region name and the loading screen do with a world that has no map data;
+- what entering `Zone_DLC02_10` writes into the save. Its 15 spawn rows are `EnterZone` rows, so 14 Antlions and a
+  data drone should appear.
 
 ## Developer flight and slow motion
 

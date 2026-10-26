@@ -130,7 +130,8 @@ std::string utc_stamp() {
 
 // The whole file (its first max bytes), then deleted; empty when there is none, or when it cannot be deleted (Lua's
 // busy check holds it open, say): taken at a later pass, never twice. Lua writes it beside and renames it, so it is
-// complete. 512 by default: a request, a chat line or a night line (link/protocol.h's kMaxNight) and its line end.
+// complete. 512 by default: a chat line or a night line (link/protocol.h's kMaxNight) and its line end; a request takes
+// link/protocol.h's kMaxRequestFile.
 // Deleted on close, not by path after it: a request Lua renames in once the handle is closed is never deleted unread.
 std::string take_text(const std::wstring &path, DWORD max = 512) {
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ | DELETE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_DELETE_ON_CLOSE,
@@ -536,7 +537,7 @@ bool step() {
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
-    std::string request = take_text(folder + L"coop-request.txt");
+    std::string request = take_text(folder + L"coop-request.txt", DWORD(coop::kMaxRequestFile));
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
     // Night Operation's line (nightop/run.lua), taken at every pass too: the newest state goes, an old one never waits.
@@ -585,7 +586,7 @@ bool step() {
       event(coop::pose::ask_items(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt: the game thread's.
+    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
       request.clear();
       break;
