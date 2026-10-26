@@ -547,15 +547,17 @@ function Enemy.new(o,spec)
         end)
         if not ok then return false,'No spawn: '..why(e) end
     end
-    -- The wait for the native part's answer: the rows in, or a refusal or a fault finished after the ask (asks grown).
-    -- A waiting line goes on waiting even with asks grown: an earlier ask finished, then the game thread took ours.
+    -- The wait for the native part's answer: the rows in, a refusal finished after the ask (asks grown), or a fault with
+    -- or without asks grown (the latch holds for the game run and turns every batch not in to fault, also one whose ask
+    -- the game thread never took; start() asks only while the line reads no fault). A waiting line goes on waiting
+    -- even with asks grown: an earlier ask finished, then the game thread took ours.
     local function wait(j,now)
         local eve=her()
         if not eve or U.map_of(eve)~=j.map then
             return false,'The map changed while the '..name..' rows were asked: no spawn.'
         end
         local s=my_line()
-        if s and (s.state=='rows' or s.asks>j.asks and (s.state=='refused' or s.state=='fault')) then
+        if s and (s.state=='rows' or s.state=='fault' or s.asks>j.asks and s.state=='refused') then
             log('rows answer: '..s.line)
             if s.state=='rows' then return rows_in(j,s,now) end
             if s.state=='fault' then

@@ -835,6 +835,12 @@ lion_status('fault added=3/220 asks=1 spawns=6 where=SB.exe+0x10')
 at(800.25); ok,why=lion.tick(); assert(ok==false and why=='The Lion rows stopped on a fault (SB.exe+0x10).',why)
 ok,why=lion.command()
 assert(ok==false and why=='The Lion rows stopped on a fault this game run (SB.exe+0x10).' and #asked==3,why)
+-- Another batch's fault turns this line to fault with asks unchanged (the game thread never took our ask): it stops
+-- at once too, not after 30 s.
+lion_status('refused added=3/220 asks=3 spawns=6 why=net table=- row=- detail=1')
+at(850); assert(lion.command() and #asked==4)
+lion_status('fault added=3/220 asks=3 spawns=6 where=SB.exe+0x20')
+at(850.25); ok,why=lion.tick(); assert(ok==false and why=='The Lion rows stopped on a fault (SB.exe+0x20).',why)
 lion_status('off')
 at(900); assert(lion.command())
 at(929.9); assert(lion.tick()==nil)

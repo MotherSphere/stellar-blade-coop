@@ -17,8 +17,8 @@ namespace {
 // logic task starts and reads a map AddRow grows before our call returns, and SB's game-thread HUD reads CharacterTable
 // on this thread only. A shut gate tries again at the next frame and gives up after lion::kGateTicks frames, with why.
 // Each batch has its own ask, answer and Builder (a RowsJob); the gate, the block, the spawn counter and the SEH latch
-// are shared: the first fault in SB's table calls ends every batch's calls for the run (whichever batch ran into it)
-// and leaves the rest of the mod running.
+// are shared: the first fault in SB's table calls ends every batch's calls for the run (whichever batch ran into it),
+// turns every batch not in yet to fault and leaves the rest of the mod running.
 constexpr uint64_t kCopyStruct = 0x1429d8830, kMapFind = 0x140e8c5f0, kIdName = 0x141a2ce50,
                    kCharacterById = 0x141a9de20, kSkillById = 0x141a9d900, kStanceName = 0x141a2cef0;
 constexpr size_t kInitializeSlot = 0x2a8;
@@ -234,7 +234,9 @@ void lion_finish(RowsJob &j, lion::Answer a) {
   j.word = lion::pack(a, ++j.done);
 }
 // One job each frame: a new ask taken, a waiting one tried (refused at once after coop off, and after kGateTicks shut
-// frames). A fault in the rows' calls closes the latch and answers this ask and every other waiting one with it.
+// frames). A fault in the rows' calls closes the latch and answers this ask and every other taken one with it; every
+// other batch not in yet reads fault too, its asks count unchanged (so the worker logs the fault once, by a batch that
+// was asked), and Lua's wait takes that as the end.
 void rows_step(RowsJob &j) {
   bool got = false;
   if (j.m.try_lock()) {
@@ -262,11 +264,16 @@ void rows_step(RowsJob &j) {
     lion_faulted = true;
   }
   if (lion_faulted) {
-    for (RowsJob *k : kJobs)
-      if (k->pending) {
-        a = lion::Answer(), a.state = lion::State::fault;
+    for (RowsJob *k : kJobs) {
+      uint32_t asks = 0;
+      if (lion::unpack(k->word, asks).state == lion::State::rows)
+        continue; // Its rows are all in and stay usable.
+      a = lion::Answer(), a.state = lion::State::fault;
+      if (k->pending)
         lion_finish(*k, a);
-      }
+      else
+        a.added = uint8_t(k->builder.count()), k->word = lion::pack(a, k->done);
+    }
     return;
   }
   if (why == lion::Why::none) {

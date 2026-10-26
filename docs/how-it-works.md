@@ -1784,13 +1784,14 @@ of the Lion prototype's).
 
 ### Its batch in the native part
 
-The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 15 table words
-as the Lion's (`Request::batch` says which batch). Each batch has its own ask, answer word and builder (a `RowsJob` in
+The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 15 table words as
+the Lion's (`Request::batch` says which batch). Each batch has its own ask, answer word and builder (a `RowsJob` in
 `glue/tick/lion_game.inc`) and its own line in `coop-status.txt`, `gardener=` in the `lion=` line's format with its own
 counts (`added=<n>/13`, `char=<k>/3 skills=<k>/3 stance=<k>/1`). The gate, the block each row is built in, the spawn
-counter and the SEH latch are shared: one fault ends both batches' calls for the game run. A batch checks only the
-tables its rows go into, so a refusal in one leaves the other alone. This is a local request: the link protocol did not
-change.
+counter and the SEH latch are shared: one fault ends every batch's calls for the game run, and every batch whose rows
+are not all in then reads `fault`, also one that was never asked or whose ask the game thread had not taken (its `asks`
+count unchanged; Lua's wait takes a `fault` line as the end either way). A batch checks only the tables its rows go
+into, so a refusal in one leaves the other alone. This is a local request: the link protocol did not change.
 
 ### Its spawn
 
