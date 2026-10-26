@@ -316,6 +316,8 @@ assert(lines[#lines-1]=='gardener 1 (50010): mesh yaw 0, not -90 (the game turne
     lines[#lines-1])
 assert(#tower.Mesh.turns==2 and tower.Mesh.RelativeRotation.Yaw==-90)
 at(204.5); gd.tick(); assert(#tower.Mesh.turns==2,'Left alone while it stays turned')
+tower.Mesh.RelativeRotation={Pitch=0,Yaw=270,Roll=0}
+at(205.5); gd.tick(); assert(#tower.Mesh.turns==2,'270 is -90 once round')
 -- Its death, then its despawn: D1 and D2.
 tower.InteractionState,tower.Controller=3,nil
 at(250.5); gd.tick()

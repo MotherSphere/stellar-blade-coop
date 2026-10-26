@@ -293,10 +293,11 @@ function Enemy.new(o,spec)
         local state=mesh_state(c)
         if state~=f.mesh then log(string.format('%s mesh: %s',said,state)) end
         f.mesh=state
-        -- The game turning the mesh back: turned again, said each time.
+        -- The game turning the mesh back: turned again, said each time (270 reads as -90 turned once round).
         if spec.mesh_yaw and f.turned then
             local fine,yaw=pcall(function() return tonumber(value_of(valid(c.Mesh).RelativeRotation).Yaw) end)
-            if fine and yaw and math.abs(yaw-spec.mesh_yaw)>1 then
+            local off=fine and yaw and (yaw-spec.mesh_yaw)%360
+            if off and off>1 and off<359 then
                 local turned,e=pcall(turn,c)
                 log(string.format('%s: mesh yaw %.0f, not %d (the game turned it back): %s',said,yaw,spec.mesh_yaw,
                     turned and 'set again' or 'not set again ('..why(e)..')'))
