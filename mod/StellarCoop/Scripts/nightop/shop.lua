@@ -100,6 +100,10 @@ function Shop.new(o)
             local ok,g=pcall(function() return math.tointeger(U.valid(pc.PlayerState).ActorNetGuid) end)
             guid=ok and g and g&MASK or guid
         end
+        if not guid or guid==0 then -- Read 0 there too in game: the native part's, its engine line's me=.
+            local me=('\n'..tostring(status and status() or '')):match('\nengine=[^\r\n]* me=(%d+)')
+            guid=me and math.tointeger(tonumber(me)) or guid
+        end
         if not guid or guid==0 then return nil,"EVE's ActorGuid reads 0: nothing bought" end
         local price=item.price*c
         if w.points<price then
