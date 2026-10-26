@@ -73,6 +73,11 @@
 // and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
+// coop devinfo (game/dev_panels.h): the worker hands over the developer panel Lua asked for (the quest debugger or the
+// player info) or off; the next frame the game thread finds both through SB's UI manager, closes the one not wanted and
+// opens the one asked with the game's own calls, under its own SEH latch, after coop off too (coop off asks off first);
+// the worker logs each answer.
+//
 // The Lion's rows (lion/rows.h, coop lion): the worker hands over the 12 tables' addresses from Lua's lion rows
 // request; the game thread adds the rows through SB's own AddRow once the gate holds (net mode 0, no logic task in
 // flight), under its own SEH latch, reads them back through SB's lookups by ID and, once asked, reads the spawn
@@ -99,6 +104,7 @@
 
 #include "fight/worker.h"
 #include "game/debug_keys.h"
+#include "game/dev_panels.h"
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
@@ -183,5 +189,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.
   if (game_pinned && !debug_faulted && (!blocked || debug_holding))
     debug_tick();
+  // SB's developer panels, their own latch: an ask taken each frame, after coop off too (only off is asked then).
+  if (game_pinned && !devinfo_faulted)
+    devinfo_tick();
   return 0;
 }

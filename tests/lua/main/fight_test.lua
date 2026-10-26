@@ -265,7 +265,8 @@ load_main(true)
 status_text=plain; coop('fight','off'); status_text=COOP; loops[2].f()
 assert(#asked==1 and asked[1]=='fight off','Only the off')
 load_main(true)
-coop('off'); loops[2].f(); assert(#asked==1 and asked[1]=='off','Nothing after coop off')
+coop('off'); loops[2].f()
+assert(#asked==2 and asked[1]=='devinfo off' and asked[2]=='off','The developer panels closed, then nothing after coop off')
 -- shared_enemies=on (the default, as in an empty file) with fight_chars=auto, or empty as in a file written before
 -- auto: asked with no ids.
 for _,text in ipairs({'','shared_enemies=on\n','shared_enemies=on\nfight_chars=auto\n',

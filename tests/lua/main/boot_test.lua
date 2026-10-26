@@ -608,6 +608,32 @@ coop('chainspin'); coop('chainspin','x')
 assert(#cs.cmds==2 and cs.cmds[1].n==1 and cs.cmds[1][1]==nil and cs.cmds[2][1]=='x'
     and last()=='[StellarCoop] OK: cs x\n','On a co-op save: its word reaches it, an extra one to be refused there')
 status_text=plain
+-- coop devmenu: out of the usage line, its lines are [DM] lines and its status is the link's; a row on a co-op save
+-- only, the list, an unknown word and an extra word on any (cut/devmenu.lua answers them).
+dm.o.log('asked'); assert(last()=='[StellarCoop][DM] asked\n',last())
+assert(dm.o.status()==status_text,'The native status, as the link reads it')
+coop('devmenu','heal')
+assert(#dm.cmds==0 and last():find('^%[StellarCoop%] STOP: coop devmenu heal runs only on a co%-op save'),last())
+coop('devmenu'); coop('devmenu','list'); coop('devmenu','nope'); coop('devmenu','heal','x')
+assert(#dm.cmds==4 and dm.cmds[1].n==2 and dm.cmds[1][1]==nil and dm.cmds[2][1]=='list' and dm.cmds[3][1]=='nope'
+    and dm.cmds[4][2]=='x','The rest on any save')
+status_text=COOP
+coop('devmenu','heal')
+assert(#dm.cmds==5 and dm.cmds[5][1]=='heal' and last()=='[StellarCoop] OK: dm heal\n',last())
+status_text=plain
+-- coop devinfo: quest, player and off asked of the native part on any save; anything else its usage.
+for _,word in ipairs({'quest','player','off'}) do
+    coop('devinfo',word)
+    assert(asked[#asked]=='devinfo '..word and last()=='[StellarCoop] OK: asked the native part: devinfo '..word..'\n',
+        last())
+end
+do
+    local n=#asked
+    for _,bad in ipairs({{},{'Quest'},{'quest','x'},{'boss'}}) do
+        coop('devinfo',table.unpack(bad))
+        assert(#asked==n and last()=='[StellarCoop] STOP: Use: coop devinfo quest|player|off\n',last())
+    end
+end
 -- coop wear: all its words to cut/wear.lua on any save, coop-wear.txt through the link; each frame its restore (done
 -- once, inside it) and its tick, whose message is reported; it waits while the game is paused or shows a screen.
 assert(wr.o.store=='store coop-wear.txt' and wr.o.log,'coop-wear.txt through the link')

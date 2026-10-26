@@ -594,6 +594,10 @@ bool step() {
       event(coop::pose::ask_gate(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::devinfo: // coop devinfo: the game thread's too.
+      event(coop::pose::ask_devinfo(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::saves:
       if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());

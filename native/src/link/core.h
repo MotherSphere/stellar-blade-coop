@@ -976,6 +976,7 @@ private:
     case Command::travel:
     case Command::lion:
     case Command::gate:
+    case Command::devinfo:
       break;
     case Command::none:
       event("unknown request");

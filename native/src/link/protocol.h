@@ -518,7 +518,8 @@ inline uint64_t code_lobby(std::string_view text) {
 // test bstart|phase|finish|summon" (stage 5's solo probes on the frozen boss copy of a replay);
 // for the synced photo mode's solo tests "freeze
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for SB's two developer gates
-// (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for the co-op saves (save/slot.h,
+// (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
+// (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for the co-op saves (save/slot.h,
 // save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
 // slot's copy replaced by a new copy of the player's save, the old one backed up first); for the shared quests
@@ -534,7 +535,7 @@ inline uint64_t code_lobby(std::string_view text) {
 // table's vtable and row size (lion/rows.h).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, lion, gate
+  remove, copy, quests, camps, travel, mark, lion, gate, devinfo
 };
 // The tables the Lion's rows and the cut items' go into (lion/rows.h's Table, in this order), as their assets are
 // named.
@@ -567,6 +568,7 @@ struct Request {
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off.
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
+  uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -809,6 +811,9 @@ inline Request parse_request(std::string text) {
     r.command = Command::gate;
     r.gate = text[0] == 's' ? 1 : 0;
     r.off = text.back() == 'f';
+  } else if (text == "devinfo quest" || text == "devinfo player" || text == "devinfo off") {
+    r.command = Command::devinfo;
+    r.panel = text[8] == 'q' ? 1 : text[8] == 'p' ? 2 : 0;
   } else if (text == "loopback off" || text == "freeze off") {
     r.command = text[0] == 'l' ? Command::loopback : Command::freeze;
     r.off = true;
