@@ -73,15 +73,24 @@
 // and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
-// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's and Matrix XIII's (lion/rows.h's batches, coop lion,
-// coop gardener fight, coop tendril fight, the shop's Shock Bolt and coop mxiii): the worker hands over the 17 tables'
-// addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows or mxiii rows request; the game thread adds
-// that batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic task in flight), under one SEH
-// latch for all, reads them back through SB's lookups by ID and, once asked, reads the spawn manager's counter every
-// 250 ms; status() gives it all in the lion, gardener, tendril, bolt and mxiii lines, and the worker logs each answer.
-// Right after the bolt rows batch's last
-// row, in the same call, the Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status()
-// gives the shock line, and the worker logs it once.
+// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's and the Night Operation shop's
+// (lion/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii and the
+// shop): the worker hands over the 19 tables' addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows,
+// mxiii rows or shop rows request; the game thread adds that batch's rows through SB's own AddRow once the gate holds
+// (net mode 0, no logic task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and,
+// once asked, reads the spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril,
+// bolt, mxiii and shop lines, and the worker logs each answer. Right after the bolt rows batch's last row, in the same
+// call, the Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status() gives the shock
+// line, and the worker logs it once.
+//
+// The Night Operation shop in SB's own shop screen (nightop/shop_ui.h, coop nightop shop): the worker hands over Lua's
+// nightshop open, open bolt or close; the next frame the game thread opens SB's shop screen on one of the shop rows
+// batch's two ShopTable rows, or closes it, with the calls SB's vending machine node makes, under its own SEH latch,
+// after coop off too for a close; every 250 ms after the first ask it reads whether a shop screen is open and, inside
+// the rows' gate, the bucket's Beta Seeds, for nightop/shop.lua's wallet. Roxanne's Night Operation choices
+// (nightop/roxanne.h): on Lua's roxanne on or off, once the rows' gate holds, her choice list's entry in SB's select
+// cache points at six names of ours (four test rows nightop/roxanne.lua edited, then her two) or back at hers, under a
+// latch of its own; status() gives both in the nightshop and roxanne lines, and the worker logs each answer.
 //
 // coop emote's native clips (game/anim.h): the worker hands over Lua's anim play (an id, one of EVE's clip paths, once
 // or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
@@ -135,6 +144,8 @@
 #include "lion/rows.h"
 #include "lion/shock.h"
 #include "nightop/probe.h"
+#include "nightop/roxanne.h"
+#include "nightop/shop_ui.h"
 #include "pose/codec.h"
 #include "pose/engine.h"
 #include "pose/record.h"
@@ -151,12 +162,14 @@
 #include "glue/tick/pilot_game.inc"
 #include "glue/tick/travel_game.inc"
 #include "glue/tick/lion_game.inc"
+#include "glue/tick/nightop_game.inc"
 #include "glue/tick/debug_game.inc"
 #include "glue/tick/anim_game.inc"
 #include "glue/tick/shortcut_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
+#include "glue/tick/nightop_worker.inc"
 #include "glue/tick/travel_worker.inc"
 #include "glue/tick/shortcut_worker.inc"
 #include "glue/tick/items_worker.inc"
@@ -228,5 +241,11 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer panels, their own latch: an ask taken each frame, after coop off too (only off is asked then).
   if (game_pinned && !devinfo_faulted)
     devinfo_tick();
+  // The Night Operation shop's screen and Roxanne's choices, each its own latch: an ask taken each frame, after coop
+  // off too (only a close or an off is taken then), and their reads every 250 ms before it.
+  if (game_pinned && !nightshop_faulted)
+    nightshop_tick();
+  if (game_pinned && !roxanne_faulted)
+    roxanne_tick();
   return 0;
 }

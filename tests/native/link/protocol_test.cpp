@@ -915,10 +915,11 @@ int main() {
     assert(parse_request(bad).command == Command::none);
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
-  // (batch 3) and coop mxiii's (batch 4): one <Table>=0x<address> word for each of the 17 tables, in any order, each
-  // once; the addresses in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request
-  // Lua writes (%x, so 12 digits at most under plausible's bound) is 565 bytes with its line end; the longest one parsed
-  // (16 digits each) fits the native part's read of its request file (kMaxRequestFile). Anything off is refused.
+  // (batch 3), coop mxiii's (batch 4) and the Night Operation shop's (batch 5): one <Table>=0x<address> word for each
+  // of the 19 tables, in any order, each once; the addresses in 1 to 16 hex digits of either case, plausible (user
+  // space, 8-aligned). The longest request Lua writes (%x, so 12 digits at most under plausible's bound) is 619 bytes
+  // with its line end; the longest one parsed (16 digits each) fits the native part's read of its request file
+  // (kMaxRequestFile). Anything off is refused.
   const auto rows = [](const char *word, const std::vector<std::string> &words) {
     std::string text = std::string(word) + " rows";
     for (const std::string &w : words)
@@ -930,6 +931,7 @@ int main() {
   const auto tendril = [&rows](const std::vector<std::string> &words) { return rows("tendril", words); };
   const auto bolt = [&rows](const std::vector<std::string> &words) { return rows("bolt", words); };
   const auto mxiii = [&rows](const std::vector<std::string> &words) { return rows("mxiii", words); };
+  const auto shop = [&rows](const std::vector<std::string> &words) { return rows("shop", words); };
   std::vector<std::string> words;
   for (size_t i = 0; i < kLionTableCount; ++i) {
     char word[64];
@@ -952,11 +954,15 @@ int main() {
   assert(bo.command == Command::rows && bo.batch == 3 && bo.tables == li.tables);
   Request mx = parse_request(mxiii(shuffled));
   assert(mx.command == Command::rows && mx.batch == 4 && mx.tables == li.tables);
-  assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable"));
+  Request so = parse_request(shop(shuffled));
+  assert(so.command == Command::rows && so.batch == 5 && so.tables == li.tables && kLionTableCount == 19 &&
+         li.tables[17] == 0x1f4a2b3c1100ull && li.tables[18] == 0x1f4a2b3c1200ull);
+  assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
+         !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable"));
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
     tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
-  assert(gardener(tables_longest).size() + 1 == 565 &&
+  assert(gardener(tables_longest).size() + 1 == 619 &&
          parse_request(gardener(tables_longest)).command == Command::rows);
   assert(parse_request(lion(tables_longest)).command == Command::rows);
   tables_longest[0] = "CharacterTable=0x00007ffffffefff8"; // Leading zeros Lua never writes: still parsed.
@@ -985,7 +991,21 @@ int main() {
         tendril(one_short), tendril(words) + " extra", std::string("tendril rows"), "Tendril rows" + lion(words).substr(9),
         bolt(one_short), bolt(words) + " extra", std::string("bolt rows"), "shock rows" + lion(words).substr(9),
         mxiii(one_short), mxiii(words) + " extra", std::string("mxiii rows"), "MXIII rows" + lion(words).substr(9),
+        shop(one_short), shop(words) + " extra", std::string("shop rows"), "Shop rows" + lion(words).substr(9),
         "leviathan rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
+    assert(parse_request(bad).command == Command::none);
+
+  // The Night Operation shop's screen and Roxanne's choices: fixed words only.
+  assert(parse_request("nightshop open\r\n").command == Command::nightshop &&
+         parse_request("nightshop open").shop == ShopAsk::open);
+  assert(parse_request("nightshop open bolt").shop == ShopAsk::open_bolt &&
+         parse_request("nightshop close\n").shop == ShopAsk::close &&
+         parse_request("nightshop close").command == Command::nightshop &&
+         parse_request("nightshop watch").shop == ShopAsk::watch);
+  assert(parse_request("roxanne on").command == Command::roxanne && parse_request("roxanne on").on &&
+         parse_request("roxanne off\n").command == Command::roxanne && !parse_request("roxanne off").on);
+  for (const char *bad : {"nightshop", "nightshop open shock", "nightshop opens", "nightshop close bolt", "nightshop w",
+                          "nightshop  open", "Nightshop open", "roxanne", "roxanne On", "roxanne on now", "roxane on"})
     assert(parse_request(bad).command == Command::none);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.

@@ -586,7 +586,8 @@ bool step() {
       event(coop::pose::ask_items(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii: the game thread's.
+    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii, the
+                              // shop: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
       request.clear();
       break;
@@ -610,6 +611,14 @@ bool step() {
       break;
     case coop::Command::devinfo: // coop devinfo: the game thread's too.
       event(coop::pose::ask_devinfo(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::nightshop: // The Night Operation shop's screen: the game thread's.
+      event(coop::pose::ask_nightshop(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::roxanne: // Roxanne's Night Operation choices: the game thread's.
+      event(coop::pose::ask_roxanne(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::saves:

@@ -230,10 +230,11 @@ end
 local link_line,engine,slot_line='link=none lobby=0','engine=on remote=0 0 none','slot=coop index=4 marker=4'
 local unread=false -- The status file not read: status() gives nil.
 local steam_id='76561198000000009'
+local shop_line=nil -- The native part's nightshop line, when it has one.
 local function status()
     if unread then return nil end
     return 'mod=v proto=9 steam=ready steamid='..steam_id..'\n'..link_line..'\n'..engine..'\n'..slot_line
-        ..'\nlast=#1 ready\n'
+        ..'\nlast=#1 ready\n'..(shop_line and shop_line..'\n' or '')
 end
 -- What link.store wrote, by file name: the shop's wallets. faults: a wallet's save that raises ('raise') or fails (the
 -- reason it gives).
@@ -260,8 +261,8 @@ local function since(i) return table.concat(lines,'\n',i+1) end
 local ok,message
 
 -- 1. Refusals: one reason each, nothing spawned, no run; junk words reach nothing.
-local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | revive | shop | buy <n> '
-    ..'[count]]'
+local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | revive | shop | buy [<n> '
+    ..'[count]]]'
 for _,args in ipairs({{'start','x'},{'start','noaggro','x'},{'go'},{'stop','x'},{'START'},{nil,'x'},{'shop','x'},
         {'SHOP'},{'start','HARD'},{'start','hard','x'},{'start','noaggro','hard'},{'start','hard','nomove','x'},
         {'start','hard','hard'},{'stop','hard'}}) do
@@ -269,9 +270,30 @@ for _,args in ipairs({{'start','x'},{'start','noaggro','x'},{'go'},{'stop','x'},
     assert(not ok and message==USE,tostring(message))
 end
 assert(#calls==0,'Junk words call nothing')
--- The shop's words reach it: the list, a buy (its own words checked there), no grant call.
-ok,message=run.command('shop')
+-- While coop nightop shop runs SB's shop screen (here still waiting for its rows), no run starts; coop off ends it.
+do
+    shop_line='nightshop=off'
+    local asks={}
+    local other=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+        store=store,rows=function() return true,'asked',true end,
+        ask=function(line) asks[#asks+1]=line; return true end})
+    ok,message=other.command('shop')
+    assert(ok and message:find("^Night Operation shop: 0 points as Beta Seeds; SB's shop screen opens once its rows"),
+        message)
+    ok,message=other.command('start')
+    assert(not ok and message=="the Night Operation shop's screen is open: close it first",message)
+    other.stop('coop off')
+    assert(last()=='shop: coop off: the screen closed',last())
+    assert(#asks==1 and asks[1]=='nightshop watch','Only the reads asked: no open, nothing to close')
+    shop_line=nil
+    for k in pairs(lines) do lines[k]=nil end
+end
+-- The shop's words reach it: the list (buy alone), a buy (its own words checked there), no grant call; shop opens its
+-- screen, which needs the native part's nightshop line.
+ok,message=run.command('buy')
 assert(ok and message:find('^Night Operation shop, 0 points: 1 HP_Potion 15, '),message)
+ok,message=run.command('shop')
+assert(not ok and message:find('^coop%-status%.txt has no nightshop line'),message)
 ok,message=run.command('buy','1','x')
 assert(not ok and message=='Use: coop nightop buy <item 1-7> [count 1-10]',message)
 ok,message=run.command('buy','1','2','3')
@@ -458,7 +480,7 @@ assert(lines[#lines-1]==result,lines[#lines-1]..' / '..result)
 local paid=math.min((580+bonus)//25,42)
 assert(last()==string.format('credit +%d = %d (score %d, %s)',paid,paid,580+bonus,WALLET),last())
 assert(files[WALLET]==paid..'\n')
-ok,message=run.command('shop')
+ok,message=run.command('buy')
 assert(ok and message:find(string.format('^Night Operation shop, %d points:',paid)),message)
 -- The result's 10 s: the run is over, so the shop sells.
 ok,message=run.command('buy','3')
@@ -1400,6 +1422,7 @@ local function side(name,mate_name,x,t)
             return true
         end,
         ghost=function() return w.ghost end,
+        rows=function() return true,'asked',true end,ask=function() return true,'asked' end,
         send=function(line)
             w.sent[#w.sent+1]=line
             if w.link:find('none') then return true end -- The native part sends nothing outside a session.
@@ -1877,6 +1900,11 @@ refused_with('Kaanta cannot join the run: already in a run.',function() -- Pause
     on(Gs,function() monster(50110,{X=3000,Y=0,Z=1000},0,true) end)
 end)
 assert(#violations==0,violations[1])
+refused_with('Kaanta cannot join the run: already in a run.',function() -- Her shop's screen runs: its seeds are out.
+    shop_line='nightshop=off'
+    on(Gs,function() assert(Gs.run.command('shop')) end)
+end)
+shop_line=nil
 refused_with('Kaanta cannot join the run: monsters of an earlier run are still there.',function()
     on(Gs,function() monster(50110,{X=9000,Y=0,Z=0},W.key(byte1,1,0),false).st=1 end)
 end)

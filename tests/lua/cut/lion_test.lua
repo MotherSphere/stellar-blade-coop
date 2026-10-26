@@ -1,7 +1,8 @@
 -- cut/lion.lua with fake UE4SS objects. Its row list (cut/lion_rows.lua, generated with rows.h) matches
 -- native/src/lion/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
--- more), and so do the Gardener's (R.GARDENER, kGardenerRecipe), the Tendril's (R.TENDRIL, kTendrilRecipe) and the
--- Shock Bolt's (R.BOLT, kBoltRecipe); its tables are kLionTables in order. The rows are the Lion's own: no value names
+-- more), and so do the Gardener's (R.GARDENER, kGardenerRecipe), the Tendril's (R.TENDRIL, kTendrilRecipe), the
+-- Shock Bolt's (R.BOLT, kBoltRecipe) and the Night Operation shop's (R.SHOP, kShopRecipe); its tables are kLionTables
+-- in order. The rows are the Lion's own: no value names
 -- a Behemoth row or asset
 -- but the sound set, every reference lands on a Lion row or a shipped generic one, the steps' moves are Lion moves, the
 -- phase-2 stance turns at HP under 60% and starts the roar's effect, which uses the phase-2 roar skill. The lion line
@@ -11,7 +12,8 @@
 -- every row back through FindRow (the first value that differs stops before any spawn), then makes the one spawn call:
 -- 50020 (50021 after brain lurker, 50110 for control, no rows needed) 10 m ahead and 1 m up, facing EVE, cheat on, key
 -- 0. Rows already in are read back without an ask. Lion.rows with word bolt runs the Shock Bolt's batch the same way
--- on a job of its own, and a frame where both end says both. The body is the new one nearest the spot (or one SB sent
+-- on a job of its own, and a frame where both end says both; with word shop, the Night Operation shop's batch. The
+-- body is the new one nearest the spot (or one SB sent
 -- far away and moved back, whose old follow ends as recycled), given its default controller when it still has none
 -- 1.5 s after the call, then followed: a line a second (its place, anim speed, skill and custom anim alphas, a failed read as ?),
 -- its death and its body's despawn with the spawn counts; none after 5 s stops. While a Lion lives, the boss name (only the live TextBlock_BossName reading <M_LionC> set to Lion, again after the game writes it back;
@@ -69,11 +71,7 @@ do
     for n in assert(src:match('constexpr TableInfo kTables%[kTableCount%] = {(.-)\n};')):gmatch('{"(%a+)", 0x') do
         names[#names+1]=n
     end
-    assert(#names==15,'15 generated tables')
-    for n in assert(src:match('constexpr TableInfo kZoneTables%[%] = {(.-)\n};')):gmatch('{"(%a+)", 0x') do
-        names[#names+1]=n
-    end
-    assert(#enum==17 and #names==17,'17 tables')
+    assert(#enum==19 and #names==19,'19 tables')
     for i,n in ipairs(names) do assert(L.TABLES[i]==n,'kLionTables order: '..n) end
     local block=assert(src:match('constexpr Patch kPatches%[%] = {\n(.-)\n};'))
     local patches,pending,line,closed_at={},nil,1,nil
@@ -153,9 +151,11 @@ do
     end
     local t=compare('kTendrilRecipe',tendril)
     local b=compare('kBoltRecipe',L.BOLT)
+    local sh=compare('kShopRecipe',L.SHOP)
     assert(n==237 and #L.ROWS==237 and g==13 and #gardener==13 and t==107 and #tendril==107 and b==4 and #L.BOLT==4
-        and #patches==3178+279+1281+87,
-        n..' rows, '..g..' Gardener rows, '..t..' Tendril rows, '..b..' Shock Bolt rows, '..#patches..' patches')
+        and sh==6 and #L.SHOP==6 and #patches==3178+279+1281+87+33,
+        n..' rows, '..g..' Gardener rows, '..t..' Tendril rows, '..b..' Shock Bolt rows, '..sh..' shop rows, '
+        ..#patches..' patches')
     assert(L.IN.added=='237/237' and L.IN.char=='2/2' and L.IN.skills=='23/23' and L.IN.stance=='2/2')
 end
 -- The Lion's own rows: no value names a Behemoth row or asset but its sound set (the Lion has none of its own); each
@@ -322,6 +322,29 @@ do
     assert(f[4].ResultTargetCommonEffect:find('{"Alias":"ShockSlugStun"}',1,true))
 end
 
+-- The Night Operation shop's 6 rows, a batch of their own: the Beta Seed's ItemTable row first (Clyde's currency's
+-- shape, the seed's own text keys, no drop pool), three shop items priced in Beta Seeds with no gate, and two shops
+-- with the seed as currency and no tag, the second also selling the Shock Bolt; no other batch holds a shop row.
+do
+    for _,r in ipairs(L.ROWS) do assert(r.table~='ShopTable' and r.table~='ShopItemTable',r.name) end
+    local f={}
+    for i,r in ipairs(L.SHOP) do
+        f[i]={}
+        for _,c in ipairs(r.checks) do f[i][c[1]]=c[3] end
+    end
+    local seed,coop,bolt=L.SHOP[1],L.SHOP[5],L.SHOP[6]
+    assert(seed.table=='ItemTable' and seed.name=='Money_NightOperation' and seed.id==9011)
+    assert(f[1].Name=='Item_Money_NightOperation_Name' and f[1].MaxAmount==999999 and f[1].IncludeDropPool==0)
+    for i=2,4 do
+        assert(L.SHOP[i].table=='ShopItemTable' and f[i].MoneyItemAlias1=='Money_NightOperation'
+            and f[i].MoneyItemCount1>0 and f[i].CheckConditionGroup==nil,L.SHOP[i].name)
+    end
+    assert(coop.table=='ShopTable' and coop.name=='Shop_NightOperation_Coop' and coop.id==1061 and f[5].Tags==''
+        and f[5].CurrencyItemAlias=='Money_NightOperation' and not f[5].ShopItems:find('Shock'))
+    assert(bolt.name=='Shop_NightOperation_CoopBolt' and bolt.id==1062 and f[6].Tags==''
+        and f[6].ShopItems==f[5].ShopItems..'|NightOperation_Bullet_Shock_Buy')
+end
+
 -- The lion line in each of its forms (lion/rows.h's status_line).
 assert(L.parse('mod=v\nfight=off\n')==nil and L.parse(nil)==nil,'No line: nil')
 local s=L.parse('mod=v\nlion=off\nlast=x\n')
@@ -451,6 +474,7 @@ end
 local tables,present={},{}
 local both={table.unpack(L.ROWS)}
 for _,r in ipairs(L.BOLT) do both[#both+1]=r end
+for _,r in ipairs(L.SHOP) do both[#both+1]=r end
 local function fresh_rows(t)
     local rows={}
     for _,r in ipairs(both) do
@@ -544,7 +568,7 @@ local REQUEST='lion rows CharacterTable=0x%x CharacterAppearanceTable=0x%x Chara
     ..'CharacterStanceTable=0x%x CharacterAnimSetTable=0x%x SkillCommandTable=0x%x SkillTable=0x%x '
     ..'SkillActiveStepTable=0x%x CharacterMoveTable=0x%x TargetFilterTable=0x%x SkillResultTable=0x%x '
     ..'EffectTable=0x%x ItemTable=0x%x ItemConsumableTable=0x%x ProjectileTable=0x%x ZoneCampTable=0x%x '
-    ..'ZoneEnvSpawnTable=0x%x'
+    ..'ZoneEnvSpawnTable=0x%x ShopTable=0x%x ShopItemTable=0x%x'
 local addresses={}
 for k,t in ipairs(L.TABLES) do addresses[k]=tables[t]:GetAddress() end
 REQUEST=REQUEST:format(table.unpack(addresses))
@@ -1103,6 +1127,25 @@ do
     other.stop()
     assert(last()=='bolt coop off: the wait for the Shock Bolt rows ended',last())
     at(6230); assert(other.tick()==nil,'No answer after coop off')
+end
+-- Lion.rows with word shop, the Night Operation shop's screen: the shop rows request with the same 17 addresses, read
+-- on the shop line, on a job of its own, its 6 rows read back, its [LI] lines starting with shop.
+do
+    local shopper=new()
+    local SHOP_REQUEST='shop'..REQUEST:sub(5)
+    local asks,said=#asked,nil
+    status_text='mod=v\nslot=coop\nlion=off\nshop=off\n'
+    at(6300)
+    local ok,why,waiting=shopper.rows(function(o,m) said={o,m} end,'shop')
+    assert(ok and waiting and said==nil and #asked==asks+1 and asked[#asked]==SHOP_REQUEST,tostring(asked[#asked]))
+    assert(last()=='shop rows asked of the native part (shop=off): its answer is the next asks= past 0',last())
+    status_text='mod=v\nslot=coop\nlion=off\nshop=rows added=6/6 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n'
+    at(6300.25)
+    ok,why=shopper.tick()
+    assert(ok==nil and why==nil and said[1]==true and said[2]:find('^Night Operation shop rows in: 6/6 added'),
+        tostring(said and said[2]))
+    assert(logged('^shop rows read back through FindRow: 6/6 authored rows, 33 fields as written %(17 differ from the '
+        ..'template row%)$'),'R4 of the shop rows')
 end
 
 -- The source (cut/lion.lua and the flow it runs, cut/enemy.lua) names no achievement, reward, item, quest, save,

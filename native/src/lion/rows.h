@@ -43,9 +43,14 @@
 // first zone lacks for SB's camp travel (coop mxiii, cut/mxiii.lua): ZoneCampTable DLC02_10_Camp_01 (280001, a copy of
 // ME01_Camp_03 never shown on the world map) and ZoneEnvSpawnTable DLC02_10_EnvS_900 (2800032900, a copy of the
 // DLC02_10 camp kit's DLC02_10_EnvS_425, in Zone_DLC02_10, whose TargetCamp names that camp), in the two zone tables
-// only it writes. A Batch names its rows, its patches and the word its status line, log lines and request start with
-// ("lion", "gardener", "tendril", "bolt", "mxiii": coop-status.txt's shock line is lion/shock.h's); every batch shares
-// the table checks, the block and the rules below, and each keeps its own Builder.
+// only it writes. A sixth, the Night Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it
+// (nightop/shop.lua asks for it before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011,
+// over Clyde's currency FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and
+// the Shock Bolt (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop
+// (1061) and _CoopBolt (1062, the same with the Shock Bolt), over the cut Shop_NightOperation with the Beta Seed as
+// currency and no tag. A Batch names its rows, its patches and the word its status line, log lines and request start
+// with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop": coop-status.txt's shock line is lion/shock.h's); every
+// batch shares the table checks, the block and the rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
@@ -90,9 +95,9 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 17 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii) name each with its address. The generated kTables describes the first kGeneratedTables, kZoneTables the two
-// zone tables after them, camp (ZoneCampTable) and env (ZoneEnvSpawnTable); table_info() reads either.
+// The 19 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// mxiii, shop) name each with its address. The generated kTables describes them all, the two zone tables camp
+// (ZoneCampTable) and env (ZoneEnvSpawnTable) too, though only Matrix XIII's hand-written batch writes them.
 enum class Table : uint8_t {
   character,
   appearance,
@@ -110,9 +115,11 @@ enum class Table : uint8_t {
   consumable,
   projectile,
   camp,
-  env
+  env,
+  shop,
+  shopitem
 };
-constexpr size_t kTableCount = 17, kGeneratedTables = 15;
+constexpr size_t kTableCount = 19;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -149,7 +156,7 @@ struct Row {
 // command 21, skill 23, step 89, move 61, filter 25, result 5, effect 2, item 2, consumable 1), 3178 fields. 2271
 // of them set a field the template row held, 1022 of those to the value it held (the new row's value is the same:
 // every field of a near copy but the few it changes); the other 907 fill fields it left empty. From the offline
-// reader's dumps of the 15 tables, the Lion Shows, the ChainSpin Show, the Large blueprint and its
+// reader's dumps of the 17 tables, the Lion Shows, the ChainSpin Show, the Large blueprint and its
 // CH_M_NA_02_LionC_Collision, the pak listing, the Dumper-7 SDK (stellar-sdk-647527f) and the Lion's animation
 // points (lion-points.json).
 // Hit steps that follow their Show where the striking peak sits just outside:
@@ -265,6 +272,10 @@ constexpr TableInfo kTables[kTableCount] = {
     {"ItemTable", 0x1c0, true, {}},          // SBItemTableProperty
     {"ItemConsumableTable", 0x58, true, {}}, // SBItemConsumableTableProperty
     {"ProjectileTable", 0x398, true, {0x328, 0x338, 0x348, 0x358, 0x368, 0x378, 0x388}}, // SBProjectileTableProperty
+    {"ZoneCampTable", 0xa8, true, {}},                                                   // SBZoneCampTableProperty
+    {"ZoneEnvSpawnTable", 0x508, true, {}},                                              // SBZoneEnvSpawnTableProperty
+    {"ShopTable", 0xa8, true, {}},                                                       // SBShopTableProperty
+    {"ShopItemTable", 0xa0, true, {}},                                                   // SBShopItemTableProperty
 };
 constexpr Patch kPatches[] = {
     // P_Eve_Sword_Normal_Buff_1 (SkillTable, cut item)
@@ -5821,6 +5832,52 @@ constexpr Patch kPatches[] = {
     {0x2a8, Kind::string, 0,
      "[{\"Alias\":\"Show_ResultHitWeakPoint\"},{\"Alias\":\"Show_ResultHitWeakPoint_Maelstrom\"}]"},
     {0x318, Kind::name, 0, "Eve"}, // FileSuffix
+    // Money_NightOperation (ItemTable, Night Operation shop)
+    {0x01c, Kind::i32, 5, nullptr},                                          // InventoryPriority
+    {0x030, Kind::string, 0, "Item_Money_NightOperation_Name"},              // Name
+    {0x050, Kind::string, 0, "Item_Money_NightOperation_Function"},          // DescFunction
+    {0x060, Kind::string, 0, "Item_Money_NightOperation_Content"},           // DescContent
+    {0x070, Kind::u8, 20, nullptr},                                          // Category
+    {0x07c, Kind::u8, 1, nullptr},                                           // Rarity
+    {0x07e, Kind::u8, 0, nullptr},                                           // IncludeDropPool
+    {0x084, Kind::i32, 999999, nullptr},                                     // MaxAmount
+    {0x094, Kind::i32, 1, nullptr},                                          // RequireLevel
+    {0x0cc, Kind::f32, 1.0f, nullptr},                                       // Asset3DScale
+    {0x0d0, Kind::string, 0, "/Game/Art/UI/Texture/Item/betacore.betacore"}, // Asset2D
+    {0x189, Kind::u8, 2, nullptr},                                           // NotiType
+    {0x1a4, Kind::u8, 1, nullptr},                                           // bMaintainNewGamePlus
+    // NightOperation_HP2Burst_Potion_Buy (ShopItemTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // ShopType
+    {0x018, Kind::name, 0, "HP2Burst_Potion"},      // ItemAlias
+    {0x02c, Kind::name, 0, "Money_NightOperation"}, // MoneyItemAlias1
+    {0x034, Kind::i32, 20, nullptr},                // MoneyItemCount1
+    // NightOperation_Buff_HP2MP_Buy (ShopItemTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // ShopType
+    {0x018, Kind::name, 0, "Buff_HP2MP"},           // ItemAlias
+    {0x02c, Kind::name, 0, "Money_NightOperation"}, // MoneyItemAlias1
+    {0x034, Kind::i32, 16, nullptr},                // MoneyItemCount1
+    // NightOperation_Bullet_Shock_Buy (ShopItemTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // ShopType
+    {0x018, Kind::name, 0, "Bullet_Shock"},         // ItemAlias
+    {0x02c, Kind::name, 0, "Money_NightOperation"}, // MoneyItemAlias1
+    {0x034, Kind::i32, 5, nullptr},                 // MoneyItemCount1
+    // Shop_NightOperation_Coop (ShopTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // UnionLimitedItem
+    {0x020, Kind::name, 0, "Money_NightOperation"}, // CurrencyItemAlias
+    {0x028, Kind::names, 0, ""},                    // Tags
+    // ShopItems
+    {0x038, Kind::names, 0,
+     "NightOperation_HP_Potion_Buy|NightOperation_HP_Potion_Small_Buy|NightOperation_PulseGrenade_Buy|"
+     "NightOperation_ConcussionGrenade_Buy|NightOperation_HP2Burst_Potion_Buy|NightOperation_Buff_HP2MP_Buy"},
+    // Shop_NightOperation_CoopBolt (ShopTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // UnionLimitedItem
+    {0x020, Kind::name, 0, "Money_NightOperation"}, // CurrencyItemAlias
+    {0x028, Kind::names, 0, ""},                    // Tags
+    // ShopItems
+    {0x038, Kind::names, 0,
+     "NightOperation_HP_Potion_Buy|NightOperation_HP_Potion_Small_Buy|NightOperation_PulseGrenade_Buy|"
+     "NightOperation_ConcussionGrenade_Buy|NightOperation_HP2Burst_Potion_Buy|NightOperation_Buff_HP2MP_Buy|"
+     "NightOperation_Bullet_Shock_Buy"},
 };
 constexpr Row kRecipe[] = {
     {Table::skill, "P_Eve_Sword_Normal_Buff_1", "P_Eve_Sword_Normal_Potion_1", 6000101, 0, 8},
@@ -6223,25 +6280,28 @@ constexpr Row kBoltRecipe[] = {
     {Table::result, "P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1", "P_Eve_Gun_ShootSlug1_Projectile1_Hit1", 100200801,
      4812, 13},
 };
+// The Night Operation shop's own batch (nightop/shop.lua asks for it before it opens SB's shop screen), added on
+// its own ask after its own checks: 6 near copies of shipped rows (item 1, shop 2, shopitem 3), 33 fields, 17 of
+// them changed from the template's value. The Beta Seed first, the two ShopTable rows last, once every row they
+// name is in.
+constexpr Row kShopRecipe[] = {
+    {Table::item, "Money_NightOperation", "FishingPoint", 9011, 4825, 13},
+    {Table::shopitem, "NightOperation_HP2Burst_Potion_Buy", "NightOperation_HP_Potion_Buy", 3571, 4838, 4},
+    {Table::shopitem, "NightOperation_Buff_HP2MP_Buy", "NightOperation_HP_Potion_Buy", 3572, 4842, 4},
+    {Table::shopitem, "NightOperation_Bullet_Shock_Buy", "NightOperation_Bullet_Scatter_Buy", 3573, 4846, 4},
+    {Table::shop, "Shop_NightOperation_Coop", "Shop_NightOperation", 1061, 4850, 4},
+    {Table::shop, "Shop_NightOperation_CoopBolt", "Shop_NightOperation", 1062, 4854, 4},
+};
 // ---- End of the generated part ----
 
 // ---- Matrix XIII's batch (coop mxiii), written by hand: the generator holds no zone table ----
 // Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13, whose map no pak ships: the zMXIII_P test pak adds it) has no camp,
 // so SB's camp travel (game/travel.h) cannot reach it. These 2 rows give it one: the camp, then the ZoneEnvSpawnTable
 // row whose TargetCamp names it, so that the camp's first env-spawn row leads to Zone_DLC02_10 and that zone's world.
-// Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK (stellar-sdk-647527f); neither
-// struct has a Transient field.
-constexpr TableInfo kZoneTables[] = {
-    {"ZoneCampTable", 0xa8, true, {}},      // SBZoneCampTableProperty
-    {"ZoneEnvSpawnTable", 0x508, true, {}}, // SBZoneEnvSpawnTableProperty
-};
-static_assert(sizeof kZoneTables / sizeof kZoneTables[0] == kTableCount - kGeneratedTables, "a zone table each");
-static_assert(kTables[kGeneratedTables - 1].name && !kTables[kGeneratedTables].name,
-              "the generated kTables fills the first kGeneratedTables entries only");
-// A table's info: kTables' for the generated tables, kZoneTables' for the two after them.
-constexpr const TableInfo &table_info(Table t) {
-  return size_t(t) < kGeneratedTables ? kTables[size_t(t)] : kZoneTables[size_t(t) - kGeneratedTables];
-}
+// Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK (stellar-sdk-647527f), which
+// the generated kTables reads too; neither struct has a Transient field.
+static_assert(kTables[kTableCount - 1].name, "the generated kTables describes every table");
+constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
 // The camp is ME01_Camp_03 (a Matrix 11 FullCamp) with its world map display off; the env-spawn row is the DLC02_10
 // camp kit's activation-only row DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) with its own actor name and the new camp.
 constexpr Patch kMxiiiPatches[] = {
@@ -6262,6 +6322,7 @@ constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe
 constexpr size_t kTendrilRows = sizeof kTendrilRecipe / sizeof kTendrilRecipe[0];
 constexpr size_t kBoltRows = sizeof kBoltRecipe / sizeof kBoltRecipe[0];
 constexpr size_t kMxiiiRows = sizeof kMxiiiRecipe / sizeof kMxiiiRecipe[0];
+constexpr size_t kShopRows = sizeof kShopRecipe / sizeof kShopRecipe[0];
 // A batch: its rows, the patches their first and count index (the generated kPatches unless said) and its word, which
 // starts its status line, its log lines and Lua's request for it (link/protocol.h's kRowWords).
 struct Batch {
@@ -6272,7 +6333,7 @@ struct Batch {
 };
 constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows},
     kTendril{"tendril", kTendrilRecipe, kTendrilRows}, kBolt{"bolt", kBoltRecipe, kBoltRows},
-    kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches};
+    kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches}, kShop{"shop", kShopRecipe, kShopRows};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -6315,7 +6376,8 @@ struct Answer {
   uint8_t row = 0;     // refused: the row it stopped at, the batch's count for the gate or coop off.
   uint32_t detail = 0; // size: the size read (24 bits); net: the net mode read.
 };
-static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256 && kMxiiiRows < 256,
+static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256 && kMxiiiRows < 256 &&
+                  kShopRows < 256,
               "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
@@ -6351,7 +6413,7 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
-  // One run over the batch (see the top of this file). tables: the 17 tables' addresses as Lua found them, in Table's
+  // One run over the batch (see the top of this file). tables: the 19 tables' addresses as Lua found them, in Table's
   // order; block: kBlock bytes of the glue's, 16-aligned; base: SB's image base. Runs every row not added yet and
   // stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
@@ -6551,10 +6613,9 @@ private:
   uint32_t count_ = 0;
 };
 
-// coop-status.txt's line for a batch (cut/lion.lua reads lion= and bolt=, cut/gardener.lua gardener=, cut/tendril.lua
-// tendril=, cut/mxiii.lua mxiii=), from its answer word, its read-back, the frames its ask waited, the spawn manager's
-// counter and, after
-// the latch, where the fault was:
+// coop-status.txt's line for a batch (cut/lion.lua reads lion=, bolt= and shop=, cut/gardener.lua gardener=,
+// cut/tendril.lua tendril=, cut/mxiii.lua mxiii=), from its answer word, its read-back, the frames its ask waited, the
+// spawn manager's counter and, after the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
 //   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>
@@ -6587,8 +6648,7 @@ inline std::string status_line(const Batch &b, const Status &s) {
             " stance=" + count(s.read.stance, Table::stance);
   else if (a.state == State::refused) {
     const bool row = a.row < b.count;
-    line += std::string(" why=") + why_word(a.why) +
-            " table=" + (row ? table_info(b.rows[a.row].table).name : "-") +
+    line += std::string(" why=") + why_word(a.why) + " table=" + (row ? table_info(b.rows[a.row].table).name : "-") +
             " row=" + (row ? b.rows[a.row].name : "-");
     char detail[24] = "";
     if (a.why == Why::size)

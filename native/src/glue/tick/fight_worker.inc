@@ -491,11 +491,11 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's and coop mxiii's rows (Lua's lion
-// rows, gardener rows, tendril rows, bolt rows and mxiii rows requests): the 17 tables' addresses for the game thread,
-// which adds that batch's rows at the first frame its gate holds. An ask it has not taken yet is replaced. Refused off
-// the pinned build, after coop off and after the rows' fault; once every row of a batch is in, nothing more is asked of
-// it (the rows stay for the game run).
+// coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's, coop mxiii's and the Night
+// Operation shop's rows (Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows and shop rows requests):
+// the 19 tables' addresses for the game thread, which adds that batch's rows at the first frame its gate holds. An ask
+// it has not taken yet is replaced. Refused off the pinned build, after coop off and after the rows' fault; once every
+// row of a batch is in, nothing more is asked of it (the rows stay for the game run).
 std::string ask_rows(const coop::Request &request) {
   RowsJob &j = *kJobs[request.batch < kRowWordCount ? request.batch : 0];
   const std::string word = j.batch.word, n = std::to_string(j.batch.count);
@@ -521,9 +521,11 @@ namespace {
 // Each worker pass: one line for each answer the game thread finished for a batch (the R2 line, and with every row
 // in the R3 line of SB's own lookups), and the rows' fault once, by the batch that ran into it or first answered it;
 // the Shock Bolt's line once, after the bolt rows' (its fault with where it was).
+void nightop_pass(); // nightop_worker.inc's, after this part.
 uint32_t rows_logged[kRowWordCount] = {};
 bool lion_fault_logged = false, shock_logged = false;
 void lion_pass() {
+  nightop_pass(); // The Night Operation shop screen's and Roxanne's answers too.
   for (size_t k = 0; k < kRowWordCount; ++k) {
     const RowsJob &j = *kJobs[k];
     uint32_t asks = 0;

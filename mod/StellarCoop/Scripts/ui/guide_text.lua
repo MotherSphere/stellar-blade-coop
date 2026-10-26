@@ -33,7 +33,8 @@ G.en={
          body='Night Operation is a wave survival mode that Shift Up cut before release. A run has five timed '
             ..'waves. When the host starts it during a session, you share the timer and the score. Points from a '
             ..'run buy items.\nType these in the console (F10 or ~) on a co-op save:\ncoop nightop start: start a '
-            ..'run\ncoop nightop shop: list the items\ncoop nightop buy <n>: buy item n\ncoop challenge: graded '
+            ..'run\ncoop nightop shop: open the shop screen\n'
+            ..'coop nightop buy: list the items\ncoop nightop buy <n>: buy item n\ncoop challenge: graded '
             ..'challenges'},
         {title='Doro races',
          body='In a Doro race both EVEs turn into Doro. Record a track first, then race on it:\ncoop race record '
@@ -88,7 +89,8 @@ G.fr={
             .."opération compte cinq vagues chronométrées. Quand l'hôte la lance pendant une session, vous partagez "
             .."le chrono et le score. Les points d'une opération servent à acheter des objets.\nTapez ces commandes "
             ..'dans la console (F10 ou ~) sur une sauvegarde co-op :\ncoop nightop start : lancer une '
-            .."opération\ncoop nightop shop : lister les objets\ncoop nightop buy <n> : acheter l'objet n\ncoop "
+            .."opération\ncoop nightop shop : ouvrir l'écran de la boutique\n"
+            .."coop nightop buy : lister les objets\ncoop nightop buy <n> : acheter l'objet n\ncoop "
             ..'challenge : défis notés'},
         {title='Courses de Doro',
          body="Dans une course de Doro, les deux EVE se changent en Doro. Enregistrez d'abord un circuit, puis "
@@ -136,7 +138,9 @@ G.ar={
         {title='التشغيل الليلي',
          body='التشغيل الليلي طور بقاء بالموجات حذفته Shift Up قبل الإصدار. يتكون كل تشغيل من خمس موجات محددة الوقت. '
             ..'عندما يبدأه المضيف أثناء جلسة، تتشاركان المؤقت والنقاط. وبنقاط التشغيل تشتري عناصر.\nاكتب هذه الأوامر '
-            ..'في سطر الأوامر (F10 أو ~) على حفظ تعاوني:\ncoop nightop start: بدء تشغيل\ncoop nightop shop: عرض '
+            ..'في سطر الأوامر (F10 أو ~) على حفظ تعاوني:\ncoop nightop start: بدء تشغيل\n'
+            ..'coop nightop shop: فتح شاشة المتجر\n'
+            ..'coop nightop buy: عرض '
             ..'العناصر\ncoop nightop buy <n>: شراء العنصر n\ncoop challenge: تحديات بتقييم'},
         {title='سباقات دورو',
          body='في سباق دورو تتحول EVE لدى كل منكما إلى دورو. سجّل مسارًا أولًا، ثم تسابق عليه:\ncoop race record <name>: '
@@ -186,7 +190,8 @@ G.da={
          body='Natmission er en overlevelsestilstand med bølger, som Shift Up fjernede før udgivelsen. En mission '
             ..'har fem bølger på tid. Når værten starter den under en session, deler I tiden og pointene. Pointene '
             ..'fra en mission bruges til at købe genstande.\nSkriv disse i konsollen (F10 eller ~) på et gemt '
-            ..'co-op-spil:\ncoop nightop start: start en mission\ncoop nightop shop: vis genstandene\ncoop nightop '
+            ..'co-op-spil:\ncoop nightop start: start en mission\ncoop nightop shop: åbn butiksskærmen\n'
+            ..'coop nightop buy: vis genstandene\ncoop nightop '
             ..'buy <n>: køb genstand n\ncoop challenge: udfordringer med bedømmelse'},
         {title='Doro-løb',
          body='I et Doro-løb bliver begge spilleres EVE til Doro. Optag først en rute, og kør derefter løbet på '
@@ -238,7 +243,9 @@ G.de={
          body='Der nächtliche Einsatz ist ein Überlebensmodus in Wellen, den Shift Up vor dem Release gestrichen '
             ..'hat. Ein Einsatz hat fünf Wellen mit Zeitlimit. Startet der Host ihn in einer Sitzung, teilt ihr Zeit '
             ..'und Punkte. Mit den Punkten aus Einsätzen kaufst du Gegenstände.\nGib in der Konsole (F10 oder ~) auf '
-            ..'einem Koop-Speicherstand ein:\ncoop nightop start: Einsatz starten\ncoop nightop shop: Gegenstände '
+            ..'einem Koop-Speicherstand ein:\ncoop nightop start: Einsatz starten\n'
+            ..'coop nightop shop: Shop-Bildschirm öffnen\n'
+            ..'coop nightop buy: Gegenstände '
             ..'auflisten\ncoop nightop buy <n>: Gegenstand n kaufen\ncoop challenge: Herausforderungen mit '
             ..'Wertung'},
         {title='Doro-Rennen',
@@ -294,7 +301,8 @@ G.es={
             ..'lanzamiento. Una operación tiene cinco oleadas con tiempo límite. Si el anfitrión la inicia durante '
             ..'una sesión, compartís el tiempo y la puntuación. Los puntos de una operación sirven para comprar '
             ..'objetos.\nEscribe esto en la consola (F10 o ~) en una partida co-op:\ncoop nightop start: iniciar una '
-            ..'operación\ncoop nightop shop: ver los objetos\ncoop nightop buy <n>: comprar el objeto n\ncoop '
+            ..'operación\ncoop nightop shop: abrir la pantalla de la tienda\n'
+            ..'coop nightop buy: ver los objetos\ncoop nightop buy <n>: comprar el objeto n\ncoop '
             ..'challenge: desafíos con nota'},
         {title='Carreras de Doro',
          body='En una carrera de Doro, las dos EVE se convierten en Doro. Primero graba un circuito y luego corre en '
@@ -347,7 +355,9 @@ G['es-MX']={
          body='La operación nocturna es un modo de supervivencia por oleadas que Shift Up quitó antes del lanzamiento. '
             ..'Cada operación tiene cinco oleadas con tiempo límite. Si el anfitrión la inicia durante una sesión, '
             ..'comparten el tiempo y los puntos. Con los puntos de una operación compras objetos.\nEscribe esto en la '
-            ..'consola (F10 o ~) con una partida co-op:\ncoop nightop start: iniciar una operación\ncoop nightop shop: '
+            ..'consola (F10 o ~) con una partida co-op:\ncoop nightop start: iniciar una operación\n'
+            ..'coop nightop shop: abrir la pantalla de la tienda\n'
+            ..'coop nightop buy: '
             ..'ver los objetos\ncoop nightop buy <n>: comprar el objeto n\ncoop challenge: desafíos con '
             ..'calificación'},
         {title='Carreras de Doro',
@@ -401,7 +411,8 @@ G.fi={
          body='Yöoperaatio on aaltoihin perustuva selviytymistila, jonka Shift Up poisti ennen julkaisua. '
             ..'Operaatiossa on viisi ajastettua aaltoa. Kun isäntä aloittaa sen istunnon aikana, jaatte ajastimen ja '
             ..'pisteet. Operaatioiden pisteillä ostetaan tavaroita.\nKirjoita nämä konsoliin (F10 tai ~) '
-            ..'co-op-tallennuksella:\ncoop nightop start: aloita operaatio\ncoop nightop shop: näytä tavarat\ncoop '
+            ..'co-op-tallennuksella:\ncoop nightop start: aloita operaatio\ncoop nightop shop: avaa kaupan näkymä\n'
+            ..'coop nightop buy: näytä tavarat\ncoop '
             ..'nightop buy <n>: osta tavara n\ncoop challenge: arvosteltuja haasteita'},
         {title='Doro-kilvat',
          body='Doro-kilvassa kummankin pelaajan EVE muuttuu Doroksi. Tallenna ensin rata ja kilpaile sitten '
@@ -454,7 +465,9 @@ G.it={
          body="L'operazione notturna è una modalità di sopravvivenza a ondate che Shift Up ha tagliato prima "
             .."dell'uscita. Un'operazione ha cinque ondate a tempo. Se l'host la avvia durante una sessione, "
             ..'condividete timer e punteggio. Con i punti delle operazioni compri oggetti.\nScrivi nella console '
-            .."(F10 o ~) su un salvataggio co-op:\ncoop nightop start: avvia un'operazione\ncoop nightop shop: "
+            .."(F10 o ~) su un salvataggio co-op:\ncoop nightop start: avvia un'operazione\n"
+            .."coop nightop shop: apri la schermata del negozio\n"
+            .."coop nightop buy: "
             .."elenca gli oggetti\ncoop nightop buy <n>: compra l'oggetto n\ncoop challenge: sfide con "
             ..'valutazione'},
         {title='Gare di Doro',
@@ -508,7 +521,7 @@ G.ja={
             ..'1回のオペレーションは、制限時間付きの5ウェーブです。セッション中にホストが開始すると、'
             ..'タイマーとスコアを共有します。オペレーションで得たポイントでアイテムを買えます。'
             ..'\n協力プレイ用セーブで、コンソール（F10か~）に次のコマンドを入力します：\ncoop nightop start：'
-            ..'オペレーションを開始\ncoop nightop shop：アイテム一覧\ncoop nightop buy <n>：アイテムnを購入\ncoop '
+            ..'オペレーションを開始\ncoop nightop shop：ショップ画面を開く\ncoop nightop buy：アイテム一覧\ncoop nightop buy <n>：アイテムnを購入\ncoop '
             ..'challenge：評価付きのチャレンジ'},
         {title='ドロレース',
          body='ドロレースでは、2人のEVEがドロに変身します。まずコースを記録し、そのコースでレースします：\ncoop race '
@@ -556,7 +569,8 @@ G.ko={
          body='야간 작전은 Shift Up이 출시 전에 삭제한 웨이브 생존 모드입니다. 한 번의 작전은 제한 시간이 있는 웨이브 '
             ..'5개로 이루어집니다. 세션 중에 호스트가 시작하면 타이머와 점수를 공유합니다. 작전에서 얻은 포인트로 '
             ..'아이템을 삽니다.\n코옵 세이브에서 콘솔(F10 또는 ~)에 다음을 입력하세요:\ncoop nightop start: 작전 '
-            ..'시작\ncoop nightop shop: 아이템 목록\ncoop nightop buy <n>: n번 아이템 구매\ncoop challenge: 등급이 '
+            ..'시작\ncoop nightop shop: 상점 화면 열기\n'
+            ..'coop nightop buy: 아이템 목록\ncoop nightop buy <n>: n번 아이템 구매\ncoop challenge: 등급이 '
             ..'매겨지는 도전'},
         {title='도로 레이스',
          body="도로 레이스에서는 두 EVE가 모두 도로로 변합니다. 먼저 코스를 기록한 뒤 그 코스에서 레이스하세요:\ncoop "
@@ -607,7 +621,9 @@ G.nl={
          body='De nachtelijke missie is een survivalmodus met golven die Shift Up vóór de release heeft geschrapt. '
             ..'Een missie heeft vijf golven op tijd. Als de host er een start tijdens een sessie, delen jullie de '
             ..'timer en de score. Met de punten uit een missie koop je items.\nTyp deze in de console (F10 of ~) op '
-            ..'een opgeslagen co-opgame:\ncoop nightop start: een missie starten\ncoop nightop shop: de items '
+            ..'een opgeslagen co-opgame:\ncoop nightop start: een missie starten\n'
+            ..'coop nightop shop: het winkelscherm openen\n'
+            ..'coop nightop buy: de items '
             ..'tonen\ncoop nightop buy <n>: item n kopen\ncoop challenge: uitdagingen met beoordeling'},
         {title='Dororaces',
          body="In een Dororace veranderen beide EVE's in Doro. Neem eerst een route op en race daar dan op:\ncoop "
@@ -658,7 +674,8 @@ G.no={
          body='Nattoperasjon er en overlevelsesmodus i bølger som Shift Up kuttet før lansering. En operasjon har '
             ..'fem bølger på tid. Når verten starter den under en økt, deler dere tiden og poengene. For poengene '
             ..'fra en operasjon kjøper du gjenstander.\nSkriv dette i konsollen (F10 eller ~) på en '
-            ..'co-op-lagring:\ncoop nightop start: start en operasjon\ncoop nightop shop: vis gjenstandene\ncoop '
+            ..'co-op-lagring:\ncoop nightop start: start en operasjon\ncoop nightop shop: åpne butikkskjermen\n'
+            ..'coop nightop buy: vis gjenstandene\ncoop '
             ..'nightop buy <n>: kjøp gjenstand n\ncoop challenge: utfordringer med karakter'},
         {title='Doro-løp',
          body='I et Doro-løp blir begge EVE-ene til Doro. Ta først opp en løype, og løp den etterpå:\ncoop race '
@@ -709,7 +726,8 @@ G.pl={
          body='Nocna operacja to tryb przetrwania z falami wrogów, który Shift Up wyciął przed premierą. Operacja to '
             ..'pięć fal na czas. Gdy host rozpocznie ją podczas sesji, dzielicie licznik czasu i punkty. Za punkty z '
             ..'operacji kupujesz przedmioty.\nWpisz te komendy w konsoli (F10 lub ~) na zapisie co-op:\ncoop nightop '
-            ..'start: rozpocznij operację\ncoop nightop shop: lista przedmiotów\ncoop nightop buy <n>: kup przedmiot '
+            ..'start: rozpocznij operację\ncoop nightop shop: otwórz ekran sklepu\n'
+            ..'coop nightop buy: lista przedmiotów\ncoop nightop buy <n>: kup przedmiot '
             ..'n\ncoop challenge: oceniane wyzwania'},
         {title='Wyścigi Doro',
          body='W wyścigu Doro obie EVE zmieniają się w Doro. Najpierw nagraj trasę, potem ścigaj się na niej:\ncoop '
@@ -761,7 +779,9 @@ G.pt={
          body='A operação noturna é um modo de sobrevivência por vagas que a Shift Up cortou antes do lançamento. Cada '
             ..'operação tem cinco vagas cronometradas. Se o anfitrião a iniciar durante uma sessão, partilham o '
             ..'cronómetro e a pontuação. Com os pontos de uma operação compras objetos.\nEscreve isto na consola (F10 '
-            ..'ou ~) com dados guardados co-op:\ncoop nightop start: iniciar uma operação\ncoop nightop shop: ver os '
+            ..'ou ~) com dados guardados co-op:\ncoop nightop start: iniciar uma operação\n'
+            ..'coop nightop shop: abrir o ecrã da loja\n'
+            ..'coop nightop buy: ver os '
             ..'objetos\ncoop nightop buy <n>: comprar o objeto n\ncoop challenge: desafios com classificação'},
         {title='Corridas de Doro',
          body='Numa corrida de Doro, as duas EVE transformam-se em Doro. Primeiro grava um percurso e depois corre '
@@ -814,7 +834,8 @@ G['pt-BR']={
             ..'operação tem cinco ondas cronometradas. Quando o anfitrião inicia uma durante a sessão, vocês dividem '
             ..'o cronômetro e a pontuação. Os pontos de uma operação servem para comprar itens.\nDigite estes '
             ..'comandos no console (F10 ou ~) em um jogo salvo co-op:\ncoop nightop start: iniciar uma '
-            ..'operação\ncoop nightop shop: listar os itens\ncoop nightop buy <n>: comprar o item n\ncoop challenge: '
+            ..'operação\ncoop nightop shop: abrir a tela da loja\n'
+            ..'coop nightop buy: listar os itens\ncoop nightop buy <n>: comprar o item n\ncoop challenge: '
             ..'desafios com nota'},
         {title='Corridas de Doro',
          body='Na corrida de Doro, as duas EVEs viram Doro. Grave um percurso primeiro e depois corra nele:\ncoop '
@@ -867,7 +888,8 @@ G.ru={
          body='Ночная операция — режим выживания против волн врагов, который Shift Up вырезала до релиза. В операции '
             ..'пять волн на время. Если хост запускает ее во время сессии, у вас общие таймер и очки. За очки из '
             ..'операций можно купить предметы.\nВведите в консоли (F10 или ~) на кооперативном сохранении:\ncoop '
-            ..'nightop start: начать операцию\ncoop nightop shop: список предметов\ncoop nightop buy <n>: купить '
+            ..'nightop start: начать операцию\ncoop nightop shop: открыть экран магазина\n'
+            ..'coop nightop buy: список предметов\ncoop nightop buy <n>: купить '
             ..'предмет n\ncoop challenge: испытания с оценкой'},
         {title='Гонки Доро',
          body='В гонке Доро обе EVE превращаются в Доро. Сначала запишите трассу, затем проведите на ней '
@@ -919,7 +941,8 @@ G.sv={
          body='Nattinsatsen är ett överlevnadsläge med vågor som Shift Up tog bort före lanseringen. En insats har '
             ..'fem tidsbegränsade vågor. När värden startar den under en session delar ni tiden och poängen. För '
             ..'poängen från en insats kan du köpa föremål.\nSkriv detta i konsolen (F10 eller ~) på en '
-            ..'co-op-sparfil:\ncoop nightop start: starta en insats\ncoop nightop shop: visa föremålen\ncoop nightop '
+            ..'co-op-sparfil:\ncoop nightop start: starta en insats\ncoop nightop shop: öppna butiksskärmen\n'
+            ..'coop nightop buy: visa föremålen\ncoop nightop '
             ..'buy <n>: köp föremål n\ncoop challenge: betygsatta utmaningar'},
         {title='Dorolopp',
          body='I ett Dorolopp förvandlas båda EVE till Doro. Spela först in en bana och kör sedan på den:\ncoop race '
@@ -963,7 +986,8 @@ G.th={
         {title='ปฏิบัติการกลางคืน',
          body='ปฏิบัติการกลางคืนคือโหมดเอาชีวิตรอดแบบเป็นคลื่นที่ Shift Up ตัดออกก่อนวางจำหน่าย หนึ่งรอบมี 5 คลื่นแบบจับเวลา '
             ..'เมื่อโฮสต์เริ่มระหว่างเซสชัน คุณทั้งสองจะใช้ตัวจับเวลาและคะแนนร่วมกัน แต้มจากแต่ละรอบใช้ซื้อไอเท็ม\nพิมพ์คำสั่งเหล่านี้ในคอนโซล '
-            ..'(F10 หรือ ~) บนเซฟ co-op:\ncoop nightop start: เริ่มรอบ\ncoop nightop shop: ดูรายการไอเท็ม\ncoop nightop buy '
+            ..'(F10 หรือ ~) บนเซฟ co-op:\ncoop nightop start: เริ่มรอบ\ncoop nightop shop: เปิดหน้าจอร้านค้า\n'
+            ..'coop nightop buy: ดูรายการไอเท็ม\ncoop nightop buy '
             ..'<n>: ซื้อไอเท็มลำดับ n\ncoop challenge: ชาเลนจ์ที่ให้เกรด'},
         {title='โดโรเรซ',
          body='ในโดโรเรซ EVE ทั้งสองคนจะกลายเป็นโดโร บันทึกเส้นทางก่อน แล้วแข่งบนเส้นทางนั้น:\ncoop race record <name>: '
@@ -1010,7 +1034,8 @@ G.tr={
          body="Gece Operasyonu, Shift Up'ın oyun çıkmadan önce kaldırdığı, dalgalara karşı hayatta kalma modudur. "
             ..'Bir operasyonda süreli beş dalga vardır. Ev sahibi oturum sırasında başlatınca süreyi ve puanı '
             ..'paylaşırsınız. Operasyondan kazanılan puanlarla eşya alınır.\nBunları bir co-op kaydındayken konsola '
-            ..'(F10 ya da ~) yaz:\ncoop nightop start: operasyon başlat\ncoop nightop shop: eşyaları listele\ncoop '
+            ..'(F10 ya da ~) yaz:\ncoop nightop start: operasyon başlat\ncoop nightop shop: mağaza ekranını aç\n'
+            ..'coop nightop buy: eşyaları listele\ncoop '
             ..'nightop buy <n>: n numaralı eşyayı al\ncoop challenge: puanlanan meydan okumalar'},
         {title='Doro yarışları',
          body="Doro yarışında iki oyuncunun EVE'si de Doro'ya dönüşür. Önce bir parkur kaydet, sonra o parkurda "
@@ -1054,7 +1079,8 @@ G['zh-Hans']={
         {title='暗夜行动',
          body='暗夜行动是Shift Up在发售前删减的波次生存模式。一次行动有五个限时波次。房主在房间中发起行动时，'
             ..'你们共享计时和得分。行动获得的点数可以购买物品。\n在合作存档中，于控制台（F10或~）输入：\ncoop '
-            ..'nightop start：开始一次行动\ncoop nightop shop：列出物品\ncoop nightop buy <n>：购买第n件物品\ncoop '
+            ..'nightop start：开始一次行动\ncoop nightop shop：打开商店界面\n'
+            ..'coop nightop buy：列出物品\ncoop nightop buy <n>：购买第n件物品\ncoop '
             ..'challenge：评级挑战'},
         {title='Doro竞速',
          body='在Doro竞速中，两名EVE都会变成Doro。先录制赛道，再在赛道上比赛：\ncoop race record <name>：开始录制\n'
@@ -1096,7 +1122,8 @@ G['zh-Hant']={
         {title='夜間行動',
          body='夜間行動是Shift Up在發售前刪除的波次生存模式。一場行動有五個限時波次。在房間中由主機發起時，'
             ..'你們共享計時與得分。行動獲得的點數可用來購買道具。\n在合作存檔中，於主控台（F10或~）輸入：\ncoop '
-            ..'nightop start：開始一場行動\ncoop nightop shop：列出道具\ncoop nightop buy <n>：購買第n項道具\ncoop '
+            ..'nightop start：開始一場行動\ncoop nightop shop：打開商店介面\n'
+            ..'coop nightop buy：列出道具\ncoop nightop buy <n>：購買第n項道具\ncoop '
             ..'challenge：有評分的挑戰'},
         {title='Doro競速',
          body='在Doro競速中，兩位EVE都會變成Doro。先錄製賽道，再在賽道上比賽：\ncoop race record <name>：'

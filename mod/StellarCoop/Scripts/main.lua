@@ -200,7 +200,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -250,7 +250,7 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
     settings=settings,
     tell=tell,send=function(line) if link then return link.night(line) end end,
     friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end,
-    rows=function(done,word) return lion.rows(done,word) end,
+    rows=function(done,word) return lion.rows(done,word) end,ask=function(line) return ask(line)() end,
     revive=function(by) if not group then return false,'no Steam link' end return group.night_revive(by) end,
     ghost=function() return select(2,puppet.anchor()) end,
     records=folder and {
@@ -483,7 +483,11 @@ local commands={
         if not stopped then log('recruiter: '..tostring(e)) end
         stopped,e=pcall(wear.stop) -- EVE's own meshes back.
         if not stopped then log('wear: '..tostring(e)) end
-        stopped,e=pcall(night.stop,'coop off')
+        if o.roxanne then -- Her two choices back before the native part stops taking requests.
+            stopped,e=pcall(o.roxanne.stop)
+            if not stopped then log('roxanne: '..tostring(e)) end
+        end
+        stopped,e=pcall(night.stop,'coop off') -- The shop's screen closes first.
         if not stopped then log('nightop: '..tostring(e)) end
         if group then -- A death screen the revive hid comes back.
             stopped,e=pcall(group.stop)
@@ -532,6 +536,14 @@ for _,file in ipairs({'session','partner','nightop','race','fight','cut','guide'
         commands[name]=handler
     end
 end
+-- Roxanne's Night Operation choices (nightop/roxanne.lua), logging [NR] lines: on a co-op save, once EVE is in Xion;
+-- a level picked is booked and started through coop nightop start, the supplies open coop nightop shop. Ticked in the
+-- 250 ms loop below (with the Steam link only), after coop off too: coop off puts her two choices back.
+o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
+    status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
+    paused=function() return kit~=nil and kit.paused(true) end,tell=tell,
+    start=function(level) return commands.nightop('start',level) end,
+    shop=function() return commands.nightop('shop') end})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
@@ -970,6 +982,9 @@ if link then
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
         if not off then night.tick() end -- Night Operation's run, if any: it logs its own lines.
+        -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
+        local ticked,te=pcall(o.roxanne.tick,off)
+        if not ticked then log('roxanne: '..tostring(te)) end
         chat_clock=chat_clock+0.25
         if not off then group.tick(chat_clock) end -- The friend's revive: it logs its own lines.
         if not off then travel.tick(chat_clock) end -- The follow: likewise.

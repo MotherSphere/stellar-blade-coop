@@ -826,7 +826,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop) at one of four [levels](night-operation.md#levels), solo or, started by the host at his level, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
 | `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run ([Down and revive](night-operation.md#down-and-revive)) (untested in game, co-op save only) |
-| `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its seven items (two cut stimpacks and the cut [Shock Bolt](#cut-ammo-shock-bolt) ammo among them), and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
+| `coop nightop shop` | Night Operation's [reward shop](night-operation.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](#cut-ammo-shock-bolt) ammo among them) (untested in game, co-op save only) |
+| `coop nightop buy [<n> [count]]` | The same shop from the console: your points and its seven items, or a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 5), or the end of the run that is on (untested in game, co-op save only; solo but the [Shooting Range](night-operation.md#shooting-range), which the host can start for both players; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
@@ -989,17 +990,20 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 - In a co-op run, a dead EVE whose player has `revive=on` is down for 30 s. Her partner revives her by holding the
   interact key (F, or the pad's right trigger) for 3 s next to her, or she types `coop nightop revive` (3 times a run
   at easy, 2 at normal, 1 at hard, none at nightmare). See [Down and revive](night-operation.md#down-and-revive).
-- `coop nightop shop` lists the points your runs gave and the seven items, and `coop nightop buy <n> [count]` buys 1 to
-  10 of item n into the co-op save. Items 5 and 6, the cut Burst and Beta Stimpacks, need table rows the native part
-  adds with the Lion's (see [Cut boss](#cut-boss-coop-lion)), and item 7, the cut [Shock Bolt](#cut-ammo-shock-bolt)
-  ammo, rows of its own: a buy of one asks for them first. Your points are in
-  `coop-night-<steamid>-<index>.txt` in the mod folder, one file per Steam ID and co-op slot. See
-  [night-operation.md](night-operation.md#the-reward-shop).
+- `coop nightop shop` opens the game's own shop screen with the seven items, your points as Beta Seeds while it is
+  open (see [below](#night-operations-shop-screen-and-roxannes-choices)). `coop nightop buy` lists the points your runs
+  gave and the seven items, and `coop nightop buy <n> [count]` buys 1 to 10 of item n into the co-op save. Items 5 and
+  6, the cut Burst and Beta Stimpacks, need table rows the native part adds with the Lion's (see
+  [Cut boss](#cut-boss-coop-lion)), and item 7, the cut [Shock Bolt](#cut-ammo-shock-bolt) ammo, rows of its own: a buy
+  of one asks for them first, and the screen asks for both. Your points are in `coop-night-<steamid>-<index>.txt` in the
+  mod folder, one file per Steam ID and co-op slot. See [night-operation.md](night-operation.md#the-reward-shop).
 - `coop challenge range` (or `coop challenge 5`) starts the Shooting Range: three rounds of 3, 4 and 5 of the game's
   target dummies, all around EVE, in 2:00. It is made for the drone's ranged mode, which needs the gun the story
   unlocks; the sword reaches the dummies too. Alone it needs no Steam session; in a session the host starts it for
   both players, as a co-op Night Operation run. Its score also shows on the cut test widget `WB_ShootingTrainingTest`.
   See [night-operation.md](night-operation.md#shooting-range).
+- On a co-op save, Roxanne in Xion offers Night Operation (Easy, Normal, Hard) and its supplies in her dialogue. See
+  [night-operation.md](night-operation.md#night-operation-at-roxannes).
 
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
@@ -1009,6 +1013,45 @@ The ghost, the link and every other command except `coop fight` (below), `coop r
 word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`, `coop glide on`, a row of
 `coop devmenu` and `coop gift` (below) run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
+
+### Night Operation's shop screen and Roxanne's choices
+
+`coop nightop shop` and Roxanne's choices are described in
+[night-operation.md](night-operation.md#the-shop-screen-coop-nightop-shop) and
+[night-operation.md](night-operation.md#night-operation-at-roxannes). Both run on a co-op save only. The native part
+reports them in `coop-status.txt`:
+
+- `shop=`, the shop's rows batch, in the same forms as the `lion=` line (see [Cut boss](#cut-boss-coop-lion)):
+  `shop=off` before an ask, `shop=rows added=6/6 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0` once the 6 rows are
+  in.
+- `nightshop=`, the shop screen: `nightshop=off` before the first ask, then
+  `nightshop=<open|closed|?> seeds=<n|?> asks=<a> last=<ask>:<why>`, where `open` means a shop screen is open (any,
+  the game's own too), `seeds` is the inventory's Beta Seeds (`?` while unread: no player data yet, or the game's logic
+  busy that moment), `asks` the requests handled so far and `last` the last one (`open`, `open_bolt`, `close` or
+  `watch`) with why it did nothing (`none` when it did): `client` or `manager` (no game client or UI manager yet),
+  `flow` or `phase` (not in game, or not playing), `open` (a shop screen is already open), `game` or `logic` (the
+  game's open gave nothing), `closed` (nothing to close), `name` (no FName). `nightshop=fault asks=<a> where=<where>`
+  after a fault in its calls.
+- `roxanne=`, her choice list: `roxanne=<unread|absent|on|off|other> asks=<a> want=<on|off> why=<word>`. `on` is the
+  list of six, `off` her own two, `other` a list the mod does not know and never touches, `absent` no list of hers in
+  the game's cache, `unread` the cache not read yet. `why` is `none`, or why the last request did nothing: `unread`,
+  `absent`, `other`, `name`, `alloc` (the game's allocator gave nothing), or `busy`, `net` and `gate` (the rows' gate
+  stayed shut for 300 frames: the game's logic busy, a net mode other than 0, or its globals unread).
+  `roxanne=fault asks=<a> where=<where>` after a fault.
+
+The native part's own lines, in `coop-link.log`:
+
+| Line | What it answers |
+| --- | --- |
+| `shop rows: 6/6 added through SB's AddRow 0x14417ba30, 0 refused` | The shop's 6 rows are in |
+| `nightshop watch: the shop screen and the Beta Seeds read every 250 ms` | The reads started (the screen's first request) |
+| `nightshop open_bolt: SB's shop screen opened on Shop_NightOperation_CoopBolt` | The game opened its shop screen on the shop that sells the Shock Bolt (`open` and `Shop_NightOperation_Coop` without it) |
+| `nightshop open refused: phase` | The screen did not open: the game was not playing (the other words as in the `nightshop=` line) |
+| `nightshop fault 0x... in ... reading 0x...: no Night Operation shop screen until the game restarts (coop nightop buy still works)` | A fault in the screen's calls. Everything else keeps running |
+| `roxanne on: her list reads on` | Her choice list now holds the six rows |
+| `roxanne off: her list reads off` | Her two choices are back |
+| `roxanne on refused: other, her list reads other` | Her list was not the two rows the mod knows, so it changed nothing |
+| `roxanne fault 0x... in ... reading 0x...: Roxanne's choices stay as they are until the game restarts` | A fault in the list's calls |
 
 ### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
 
@@ -1449,13 +1492,14 @@ for 10 s, or until it is hit again (the game's own stun effect, `ShockSlugStun`,
 and bosses). Its fire commands, steps, consumable, projectile blueprint and stun ship, but it has no item, skill,
 projectile or hit result row, EVE's gun stances list only its failed shot, and the ammo selector stops at five types.
 
-The [reward shop](night-operation.md#the-reward-shop) sells it as item 7, 5 points a bolt: `coop nightop buy 7 10`. The
-buy gets the Shock Bolt's 4 rows in first, a batch of their own (`bolt rows`), apart from the
+The [reward shop](night-operation.md#the-reward-shop) sells it as item 7, 5 points a bolt: `coop nightop buy 7 10`, or
+on the shop screen of `coop nightop shop`. The buy (or the screen) gets the Shock Bolt's 4 rows in first, a batch of
+their own (`bolt rows`), apart from the
 [cut Lion's rows](#cut-boss-coop-lion). In the same frame as the last of the 4, the native part adds the two fire
 commands the game ships (`P_Eve_Gun_ShootShockSlug1_1` and `_1_2`) to EVE's gun stances and `Bullet_Shock` as a sixth
 entry of the game's ammo list, without replacing a row (see [how-it-works.md](how-it-works.md#the-cut-shock-bolt)).
-The buy goes through only when that worked. Nothing else adds these rows or the sixth slot: `coop lion`,
-`coop chainspin` and the stimpack buys leave EVE's gun as the game ships it.
+The buy goes through only when that worked, and the screen sells the Shock Bolt only then. Nothing else adds these
+rows or the sixth slot: `coop lion`, `coop chainspin` and the stimpack buys leave EVE's gun as the game ships it.
 
 - EVE carries 30 bolts at most. A shot takes one, and the next shot waits 1.5 s. The game adds bolts only up to 30
   and drops the rest, and the shop cannot read how many she holds, so the points of dropped bolts are not given back.
@@ -1466,7 +1510,8 @@ The buy goes through only when that worked. Nothing else adds these rows or the 
 - The slot stays for the game run, with or without bolts. With none, the trigger should play the failed shot, as with
   the other ammo types.
 - Every save keeps the bolts and the selected slot, the game's autosaves at a camp or a zone change included. After a
-  restart the Shock Bolt's rows and the sixth slot are not in until the next Shock Bolt buy, so the save loads into a
+  restart the Shock Bolt's rows and the sixth slot are not in until the next Shock Bolt buy or `coop nightop shop`, so
+  the save loads into a
   game without them, with the mod installed as without it. The readers of the selected slot found so far check it
   against their list's length, so slot 6 should read as no ammo, but the code that restores the slot from the save was
   not traced, and how the game loads bolts it has no row for is not known. Keep a backup of the co-op save, and switch
@@ -2630,7 +2675,9 @@ reads: it logs what it finds of your quests in `coop-quests.log` and makes no st
 loopback, a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the co-op menu,
 the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
 run or a challenge (it ends as aborted, and so does the partner's co-op run; your shop points stay as they are), the
-Night Operation poller, a recruiter (despawned if one was requested, in Xion), the shared quests, the photo pause
+Night Operation poller, the Night Operation shop screen (closed, its seeds back in your wallet), Roxanne's Night
+Operation choices (her own two back, and a run booked at her dropped), a recruiter (despawned if one was requested, in
+Xion), the shared quests, the photo pause
 (released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
 drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes

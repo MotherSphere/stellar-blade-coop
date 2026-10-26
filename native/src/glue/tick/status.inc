@@ -60,8 +60,9 @@ std::string status() {
   return s; // Stable between events, the recording's seconds aside: per-frame counts go into the 60 s lines instead.
 }
 
-// coop-status.txt's lion, gardener, tendril, bolt and mxiii lines (lion/rows.h's status_line), from what the game
-// thread published, then the shock line (lion/shock.h's shock_line), read after the bolt line it was published before.
+// coop-status.txt's lion, gardener, tendril, bolt, mxiii and shop lines (lion/rows.h's status_line), from what the
+// game thread published, then the shock line (lion/shock.h's shock_line), read after the bolt line it was published
+// before, then the nightshop and roxanne lines (nightop_worker.inc's nightop_status).
 std::string rows_status() {
   std::string lines;
   for (const RowsJob *j : kJobs) {
@@ -77,7 +78,8 @@ std::string rows_status() {
       s.fault = fault_where(lion_fault_rva);
     lines += (lines.empty() ? "" : "\n") + lion::status_line(j->batch, s);
   }
-  return lines + "\n" + lion::shock_line(shock_word, shock_faulted ? fault_where(shock_fault_rva) : std::string());
+  return lines + "\n" + lion::shock_line(shock_word, shock_faulted ? fault_where(shock_fault_rva) : std::string()) +
+         "\n" + nightop_status();
 }
 
 } // namespace coop::pose

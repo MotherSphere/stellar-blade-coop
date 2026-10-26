@@ -253,11 +253,11 @@ end
 -- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off and for
 -- what the partner did; send(line) writes our night line (core/link.lua's night); friend() the partner's Steam name;
 -- store(name) core/link.lua's one-line file, for the shop's wallet; rows(done, word) cut/lion.lua's Lion.rows, for the
--- shop's cut items. records: {read() the text of coop-records.txt, nil when there is none (it raises when the file
--- cannot be read), write(text) true once written}, or nil for no bests. revive(by) asks session/group.lua for the
--- in-place respawn of our downed EVE, by 'friend' or 'self': true, or false and why not; ghost() the partner's ghost
--- feet in our world (partner/puppet.lua's anchor), or nil; settings: main.lua's (revive: a co-op run's down needs it
--- on), or nil.
+-- shop's cut items and its screen's rows; ask(line) the native part's request, for the shop's screen. records: {read()
+-- the text of coop-records.txt, nil when there is none (it raises when the file cannot be read), write(text) true once
+-- written}, or nil for no bests. revive(by) asks session/group.lua for the in-place respawn of our downed EVE, by
+-- 'friend' or 'self': true, or false and why not; ghost() the partner's ghost feet in our world (partner/puppet.lua's
+-- anchor), or nil; settings: main.lua's (revive: a co-op run's down needs it on), or nil.
 function Run.new(o)
     local log,status,paused,tell,records,settings=o.log,o.status,o.paused,o.tell,o.records,o.settings
     local send,friend=o.send,o.friend or function() return nil end
@@ -282,7 +282,7 @@ function Run.new(o)
         if more then notify(function(w) return select(2,Run.result(s,w,no_text,best)) end) end
     end
     local r=nil -- The run, nil when idle: s is nightop/waves.lua's state; role 'host' or 'guest' in a co-op run.
-    local shop=Shop.new({log=log,status=status,store=o.store,paused=paused,rows=o.rows,
+    local shop=Shop.new({log=log,status=status,store=o.store,paused=paused,rows=o.rows,ask=o.ask,tell=tell,
         busy=function() return r~=nil and r.s.phase~='result' end})
     -- The night line. Ours: n (one up a line), the last line's words but n and rt, ticks since it went. Hers: the last
     -- night= text read. Each (run byte, seed) the guest answered, her refusal while she sends it, and the run bytes she
@@ -873,8 +873,8 @@ function Run.new(o)
         end
         step(input)
     end
-    local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | revive | shop | buy <n> '
-        ..'[count]]'
+    local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | revive | shop | buy [<n> '
+        ..'[count]]]'
     -- A new run of def (Night Operation's when nil) at game time now around at (whole cm) facing yaw (whole degrees):
     -- the run byte and seed give the gate order, so the host's and the guest's runs put each monster on the same spot.
     -- Its best so far is read from this PC's records file.
@@ -897,6 +897,7 @@ function Run.new(o)
         if r and r.s.phase~='result' then
             return false,'a run is on: coop '..(def.level and 'nightop' or 'challenge')..' stop ends it'
         end
+        if shop.busy() then return false,"the Night Operation shop's screen is open: close it first" end
         local raw='\n'..(status() or '')
         local linked=raw:match('\nlink=(%a+)')
         if not linked then return false,'the Steam link is not ready yet: try again in a moment' end
@@ -954,7 +955,8 @@ function Run.new(o)
         answered[id]=true
         local eve,why,text=N.her(),nil,''
         if raw:match('\nslot=(%a+)')~='coop' then why='slot'
-        elseif r and r.s.phase~='result' or paused() then why='busy' -- Paused: no body is read for the census.
+        -- Paused: no body is read for the census. The shop's screen: no run while its seeds are out.
+        elseif r and r.s.phase~='result' or paused() or shop.busy() then why='busy'
         elseif not eve or not N.controller() or U.map_of(eve)~=h.map then why='map'
         elseif metres(location(eve),{X=h.x,Y=h.y,Z=h.z})>FAR then why='far'
         else
@@ -1051,8 +1053,8 @@ function Run.new(o)
         return line
     end
     local self={}
-    -- start [level] [noaggro|nomove], stop, revive, shop, buy <n> [count], or nothing: the run's state, if any, and the
-    -- census.
+    -- start [level] [noaggro|nomove], stop, revive, shop (SB's shop screen), buy [<n> [count]] (the list without a
+    -- number), or nothing: the run's state, if any, and the census.
     function self.command(sub,flag,extra,more)
         if sub=='buy' then return shop.buy(flag,extra,more) end
         if sub=='start' and more==nil then
@@ -1070,7 +1072,7 @@ function Run.new(o)
             if not name then return false,'no Night Operation run to stop' end
             return true,name..' stopped'
         end
-        if sub=='shop' then return shop.list() end
+        if sub=='shop' then return shop.open() end
         if sub=='revive' then -- The cut mode's self revive, the level's count a run, in a co-op run's down only.
             if not r or r.s.phase=='result' then return false,'no Night Operation run' end
             if not r.role then return false,'a solo run has no revive: a death ends it' end
@@ -1202,6 +1204,7 @@ function Run.new(o)
         end
         local sent,se=pcall(night_out)
         if not sent then log('STOP: night line: '..why(se)) end
+        shop.tick() -- The shop's screen, if coop nightop shop runs it: it logs its own lines.
         if not hud then return end
         local ok,e=pcall(draw)
         if not ok then
@@ -1237,9 +1240,11 @@ function Run.new(o)
             return v
         end)
     end
-    -- coop off (or any reason): the run ends as aborted; true when one was on. The board goes now, the result's too:
-    -- after coop off no tick comes to hide it, and kit.stop takes only the kit's own root.
+    -- coop off (or any reason): the shop's screen closed and its seeds back in the wallet, and the run ends as aborted;
+    -- true when one was on. The board goes now, the result's too: after coop off no tick comes to hide it, and
+    -- kit.stop takes only the kit's own root.
     function self.stop(reason)
+        shop.stop()
         board.set(nil)
         return stop(reason or 'stop')~=nil
     end

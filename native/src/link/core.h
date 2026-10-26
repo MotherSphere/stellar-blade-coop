@@ -1076,6 +1076,8 @@ private:
     case Command::shortcut:
     case Command::devinfo:
     case Command::items:
+    case Command::nightshop:
+    case Command::roxanne:
       break;
     case Command::none:
       event("unknown request");

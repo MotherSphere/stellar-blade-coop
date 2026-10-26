@@ -85,11 +85,13 @@ local function notices(w)
         w.chat.off,w.chat.ui_off,w.join.bad}) do lines[#lines+1]=text end
     -- Night Operation's notices (nightop/run.lua, with the UI off): the start, a wave, a clear, the end and why; for
     -- two players, her notice of his start and his of each refusal, and whose EVE died; the points a run earned, or
-    -- could not credit.
+    -- could not credit; a level picked from Roxanne, by the host or alone and by a guest (nightop/roxanne.lua); the
+    -- shop's screen that could not open (nightop/shop.lua).
     local n=w.night
     for _,text in ipairs({n.start_notice:format(5),n.wave_notice:format(5,5),n.clear_notice:format(5),n.died,
         n.time_up,n.end_notice:format(n.success,5,5,20,9999,'8:00'),n.end_notice:format(n.fail,5,5,20,9999,'8:00'),
-        n.coop_notice:format(NAME,5),n.mate_died,n.you_died,n.earned:format(42,999999999),n.unpaid}) do
+        n.coop_notice:format(NAME,5),n.mate_died,n.you_died,n.earned:format(42,999999999),n.unpaid,n.booked,
+        n.host_only,n.shop_failed}) do
         lines[#lines+1]=text
     end
     for _,text in pairs(n.why) do lines[#lines+1]=text end

@@ -7,7 +7,13 @@
 -- when a failed rename left only that, and refused with nothing written when it cannot be opened; the credit, its
 -- cap and each level's percent; a cut item granted only once its rows are in (at once or after the wait, with every
 -- check again then), refused with no point taken when they cannot be added, and not asked for before the buy's own
--- checks pass; the Shock Bolt granted only once the status's shock line reads in as well.
+-- checks pass; the Shock Bolt granted only once the status's shock line reads in as well; buy alone gives the list.
+-- The screen (coop nightop shop): the seed call's checks and arguments; the nightshop line's fields; open's refusals;
+-- its three rows batches asked at once, the seeds filled up to the wallet (leftovers taken out), the open asked (with
+-- the Shock Bolt only once shock reads in), each new count written to the wallet, the seeds taken back after the
+-- close; its failures (rows, a refused open, a fault, no answer, a game screen up before the open) leaving the wallet
+-- as it was, with the notice, the seeds out, and only a screen that opened for us closed; coop off, also before the
+-- added seeds read; no console buy and no run while it runs; a screen an earlier Lua load left, taken over.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -173,12 +179,14 @@ refused('9','99','the shop opens on a co-op save only')
 status_with('slot=coop index=4 marker=4',nil)
 refused('9','99','the Steam link is not ready yet: try again in a moment')
 status_with('slot=coop index=4 marker=4',A)
-for _,args in ipairs({{'9'},{'0'},{'8'},{'x'},{'1.5'},{'-1'},{nil},{'1','0'},{'1','11'},{'1','x'},{'1','2.0'},
+for _,args in ipairs({{'9'},{'0'},{'8'},{'x'},{'1.5'},{'-1'},{'1','0'},{'1','11'},{'1','x'},{'1','2.0'},
         {'1',' 2'},{'99999999999999999999'}}) do
     refused(args[1],args[2],BUY)
 end
 ok,text=shop.buy('1','2','3') -- A word after the count.
 assert(not ok and text==BUY and #calls==0 and files[FILE]=='113\n',text)
+ok,text=shop.buy() -- No number: the list.
+assert(ok and text:find('^Night Operation shop, 113 points: 1 HP_Potion 15') and #calls==0,text)
 refused('1','2','a Night Operation run is on: buy once it ends')
 busy=false
 refused('1','2','the game is paused or shows one of its screens: buy once it plays')
@@ -304,4 +312,218 @@ ok,text=cut.buy('7','4')
 assert(ok and text=='bought 4 Bullet_Shock for 20 points; 80 left' and #calls==8 and files[FILE]=='80\n',text)
 assert(calls[8][3]:ToString()=='Bullet_Shock' and calls[8][4]==4 and calls[8][1]==1)
 status_text=plain
+
+-- 6. The screen. The seed call: a whole count of 1 to 999999 either way and a GUID; an add with no pickup message, a
+-- remove from any pocket.
+local removes={}
+pc.ServerRequest_ItemBucketItemRemove=function(_,...) removes[#removes+1]=table.pack(...) end
+for _,bad in ipairs({0,1000000,-1000000,1.5,'3'}) do assert(not pcall(Shop.seeds,pc,guid,bad),tostring(bad)) end
+for _,g in ipairs({0,-1,0x100000000}) do assert(not pcall(Shop.seeds,pc,g,5),tostring(g)) end
+calls={}
+Shop.seeds(pc,guid,999999)
+Shop.seeds(pc,guid,-7)
+a=calls[1]
+assert(#calls==1 and a.n==9 and a[1]==1 and a[2]==guid and a[3]:ToString()=='Money_NightOperation' and a[4]==999999
+    and a[5]==0 and a[6]==false and a[7]==false and a[8]==false and next(a[9])==nil,'The add, no pickup message')
+a=removes[1]
+assert(#removes==1 and a.n==5 and a[1]==1 and a[2]==guid and a[3]:ToString()=='Money_NightOperation' and a[4]==7
+    and a[5]==-1,'The remove, from any pocket')
+-- The nightshop line's fields.
+assert(Shop.line('mod=v\n')==nil)
+local s=Shop.line('x\nnightshop=open seeds=42 asks=3 last=open:none\r\nroxanne=on asks=1')
+assert(s.state=='open' and s.seeds==42 and s.asks==3 and s.last=='open:none' and s.line:find('^nightshop=open '))
+s=Shop.line('nightshop=? seeds=? asks=1 last=open:phase')
+assert(s.state=='?' and s.seeds==nil and s.last=='open:phase')
+s=Shop.line('nightshop=fault asks=2 where=SB-Win64-Shipping.exe+0x1f4 (a b)')
+assert(s.state=='fault' and s.where=='SB-Win64-Shipping.exe+0x1f4 (a b)' and s.asks==2)
+assert(Shop.line('nightshop=off').state=='off' and Shop.line('nightshop=off').asks==0)
+-- A shop with rows, asks and notices: rows keeps each batch's done until the test answers it; nightshop the line the
+-- native part writes.
+calls,removes={},{}
+local done_of,said_to,told={},{},0
+local nightshop='nightshop=off'
+local screen=Shop.new({log=function(text) lines[#lines+1]=text end,
+    status=function() return status_text..nightshop..'\n' end,store=store,paused=function() return paused end,
+    busy=function() return busy end,tell=function(build) told=told+1; assert(build({night={shop_failed='x'}})=='x') end,
+    rows=function(done,batch) done_of[batch or 'lion']=done; return true,'asked',true end,
+    ask=function(line) said_to[#said_to+1]=line; return true,'asked the native part: '..line end})
+local function nightshop_is(state,seeds,asks,last) nightshop=string.format('nightshop=%s seeds=%s asks=%d last=%s',
+    state,seeds,asks,last) end
+-- Refusals, in order, with nothing asked.
+status_with('slot=main index=0 marker=4',A)
+ok,text=screen.open(); assert(not ok and text=='the shop opens on a co-op save only',text)
+status_with('slot=coop index=4 marker=4',A)
+busy=true
+ok,text=screen.open(); assert(not ok and text=='a Night Operation run is on: open the shop once it ends',text)
+busy,paused=false,true
+ok,text=screen.open()
+assert(not ok and text=='the game is paused or shows one of its screens: open the shop once it plays',text)
+paused=false
+local had=nightshop
+nightshop='nightshop_none=1'
+ok,text=screen.open(); assert(not ok and text:find('^coop%-status%.txt has no nightshop line'),text)
+nightshop='nightshop=fault asks=1 where=here'
+ok,text=screen.open(); assert(not ok and text:find('^the shop screen stopped on a fault this game run %(here%)'),text)
+nightshop=had
+files[FILE]='1000000\n'
+ok,text=screen.open(); assert(not ok and text=='1000000 points: the screen holds 999999 at most',text)
+assert(next(done_of)==nil and #said_to==0 and #calls==0 and #removes==0,'Nothing asked')
+files[FILE]='113\n'
+ok,text=Shop.new({log=function() end,status=function() return status_text..nightshop..'\n' end,store=store,
+    paused=function() return paused end,busy=function() return busy end}).open() -- No rows and no ask.
+assert(not ok and text=='coop lion is not loaded: no shop rows; coop nightop buy still works',text)
+-- The whole screen: 113 points, the three batches asked at once.
+files[FILE]='113\n'
+ok,text=screen.open()
+assert(ok and text=="Night Operation shop: 113 points as Beta Seeds; SB's shop screen opens once its rows are in "
+    ..'([NR] lines)',text)
+assert(done_of.shop and done_of.lion and done_of.bolt,'The shop, lion and bolt rows asked')
+ok,text=screen.open(); assert(not ok and text=="the Night Operation shop's screen is already opening",text)
+ok,text=screen.buy('1'); assert(not ok and text=="the Night Operation shop's screen is open: buy there",text)
+screen.tick()
+assert(#calls==0 and #said_to==1 and said_to[1]=='nightshop watch','Waiting for the rows, the reads asked')
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+status_text=plain..'shock=in commands=24,24 added=4 list=6 slots=6\n'
+nightshop_is('closed','?',0,'close:none')
+screen.tick()
+assert(lines[#lines]=='shop: rows in (stimpacks in, Shock Bolt in)',lines[#lines])
+screen.tick(); assert(#calls==0,'The seeds wait for a count')
+nightshop_is('closed','0',0,'close:none')
+screen.tick()
+assert(#calls==1 and calls[1][4]==113 and lines[#lines]=='shop: wallet 113, the bucket held 0 Beta Seeds: +113',
+    lines[#lines])
+screen.tick(); assert(#said_to==1,'The open waits for the seeds to show')
+nightshop_is('closed','113',0,'close:none')
+screen.tick()
+assert(said_to[2]=='nightshop open bolt','The Shock Bolt is sold: shock reads in')
+nightshop_is('open','113',1,'open_bolt:none')
+screen.tick()
+assert(lines[#lines]=="shop: SB's shop screen open with 113 Beta Seeds, the Shock Bolt sold",lines[#lines])
+assert(files[FILE]=='113\n','The wallet as it was')
+-- A purchase: the new count written at once.
+nightshop_is('open','98',1,'open_bolt:none')
+screen.tick()
+assert(files[FILE]=='98\n' and lines[#lines]=='shop: 98 Beta Seeds, wallet written',lines[#lines])
+ok,text=screen.open(); assert(not ok and text=="the Night Operation shop's screen is already open",text)
+-- The close: the count after it, then the seeds out.
+nightshop_is('closed','98',1,'open_bolt:none')
+screen.tick()
+assert(#removes==1 and removes[1][4]==98 and files[FILE]=='98\n' and told==0)
+assert(lines[#lines]=='shop: closed: 98 Beta Seeds back in the wallet; 98 Beta Seeds left the inventory',
+    lines[#lines])
+ok,text=screen.buy('2','1'); assert(ok,text) -- The console's buy again.
+-- Leftover seeds in the bucket (a crash while the screen was open): the difference taken out first; the Shock Bolt
+-- not sold while shock does not read in, nor while its rows are not in.
+calls,removes,said_to,done_of={},{},{},{}
+files[FILE]='3\n'
+status_text=plain..'shock=off\n'
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(false,'busy'); done_of.bolt(true,'in')
+nightshop_is('closed','5',1,'open_bolt:none')
+screen.tick(); screen.tick()
+assert(#removes==1 and removes[1][4]==2 and #calls==0,'5 in the bucket, 3 in the wallet: 2 out')
+nightshop_is('closed','3',1,'open_bolt:none')
+screen.tick()
+assert(said_to[2]=='nightshop open','No Shock Bolt: shock reads off')
+-- The open refused (the game not playing): the seeds out, the wallet as it was, the notice.
+nightshop_is('closed','3',2,'open:phase')
+screen.tick()
+assert(#removes==2 and removes[2][4]==3 and files[FILE]=='3\n' and told==1)
+assert(lines[#lines]=="STOP: shop: SB's shop screen did not open (open:phase); 3 Beta Seeds left the inventory",
+    lines[#lines])
+assert(#said_to==2,'No close: a screen of the game may be the one open')
+-- The shop rows refused: nothing asked of the bucket or the screen.
+calls,removes,said_to,done_of={},{},{},{}
+assert(screen.open())
+done_of.shop(false,'The native part refused the Night Operation shop rows (why=size)')
+screen.tick()
+assert(#calls==0 and #removes==0 and #said_to==1 and told==2)
+assert(lines[#lines]=='STOP: shop: its rows are not in (The native part refused the Night Operation shop rows '
+    ..'(why=size)): coop nightop buy still works',lines[#lines])
+-- A fault while open: the screen closed, the seeds out.
+files[FILE]='40\n'
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(false,'refused')
+nightshop_is('closed','0',2,'open:phase')
+screen.tick(); screen.tick()
+nightshop_is('closed','40',2,'open:phase')
+screen.tick()
+nightshop_is('open','40',3,'open:none')
+screen.tick()
+nightshop='nightshop=fault asks=3 where=there'
+screen.tick()
+assert(said_to[#said_to]=='nightshop close' and told==3 and files[FILE]=='40\n')
+-- The fault line has no count: the last one read goes, so the screen, which may stay open, sells nothing more.
+assert(#removes==1 and removes[1][4]==40 and lines[#lines]=='STOP: shop: the shop screen stopped on a fault (there); '
+    ..'40 Beta Seeds left the inventory',lines[#lines])
+-- coop off while open (another game run: no fault): the close asked, the wallet at the last count, the seeds out.
+calls,removes,said_to,done_of={},{},{},{}
+nightshop_is('closed','0',3,'close:none')
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+nightshop_is('closed','0',3,'open:none')
+screen.tick(); screen.tick()
+nightshop_is('closed','40',3,'open:none')
+screen.tick()
+nightshop_is('open','40',4,'open:none')
+screen.tick()
+nightshop_is('open','25',4,'open:none')
+screen.stop()
+assert(said_to[#said_to]=='nightshop close' and files[FILE]=='25\n' and #removes==1 and removes[1][4]==25)
+assert(lines[#lines]=='shop: coop off: the screen closed; 25 Beta Seeds left the inventory',lines[#lines])
+assert(not screen.busy(),'Ended')
+screen.stop() -- Nothing to do.
+-- coop off between the fill and the next read (the line still reads the count before the add): the seeds added go.
+calls,removes,said_to,done_of={},{},{},{}
+files[FILE]='50\n'
+nightshop_is('closed','0',4,'close:none')
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+screen.tick(); screen.tick()
+assert(#calls==1 and calls[1][4]==50)
+screen.stop()
+assert(#removes==1 and removes[1][4]==50 and files[FILE]=='50\n' and #said_to==1,'The 50 added, out')
+-- A game screen up once the seeds show: no open asked, the seeds out, nothing closed.
+calls,removes,said_to,done_of={},{},{},{}
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+screen.tick(); screen.tick()
+nightshop_is('closed','50',4,'close:none')
+paused=true
+screen.tick()
+paused=false
+assert(#said_to==1 and #removes==1 and removes[1][4]==50 and files[FILE]=='50\n' and not screen.busy())
+assert(lines[#lines]=='STOP: shop: the game is paused or shows one of its screens: open the shop once it plays; 50 '
+    ..'Beta Seeds left the inventory',lines[#lines])
+-- A screen an earlier Lua load left open (a reload): taken over at the first tick, a purchase written, the seeds out
+-- after the close. Another left closed with its seeds: the wallet set to them, the seeds out at once.
+calls,removes,said_to={},{},{}
+files[FILE]='100\n'
+local function reloaded() return Shop.new({log=function(text) lines[#lines+1]=text end,
+    status=function() return status_text..nightshop..'\n' end,store=store,paused=function() return paused end,
+    busy=function() return busy end,rows=function() return true,'asked',true end,
+    ask=function(line) said_to[#said_to+1]=line; return true end}) end
+local after=reloaded()
+nightshop_is('open','100',5,'open:none')
+after.tick()
+assert(after.busy() and lines[#lines]=='shop: 100 Beta Seeds left from an earlier load (screen open): taken over',
+    lines[#lines])
+ok,text=after.buy('1'); assert(not ok and text=="the Night Operation shop's screen is open: buy there",text)
+nightshop_is('open','70',5,'open:none')
+after.tick(); assert(files[FILE]=='70\n','The purchase written')
+nightshop_is('closed','70',5,'open:none')
+after.tick()
+assert(not after.busy() and #removes==1 and removes[1][4]==70 and files[FILE]=='70\n' and #said_to==0)
+files[FILE]='100\n'
+after=reloaded()
+nightshop_is('closed','40',5,'open:none')
+after.tick()
+assert(not after.busy() and #removes==2 and removes[2][4]==40 and files[FILE]=='40\n')
+-- Looked for once a load: no seeds at the first look, none taken over later.
+after=reloaded()
+nightshop_is('closed','0',5,'close:none')
+after.tick()
+nightshop_is('closed','40',5,'close:none')
+after.tick()
+assert(not after.busy() and #removes==2)
 print('nightop_shop_test ok')
