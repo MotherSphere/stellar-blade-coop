@@ -39,10 +39,12 @@ function Glide.new(o)
     local self={}
     local on=false
     local s={held=0}
-    local set=nil -- The EVE whose bGlide is ours (true), until put back.
+    -- EVEs are told apart by address: UE4SS gives a new wrapper at each read, and nothing here shows two wrappers of
+    -- one object comparing equal (partner/capture.lua compares addresses too).
+    local set,set_at=nil,nil -- The EVE whose bGlide is ours (true), until put back, and her address.
     local since=0 -- Her world time when the glide began.
     local t=nil -- Her world time at the last frame, nil after a frame without her.
-    local seen=nil -- The EVE of the last frame.
+    local seen=nil -- The address of the last frame's EVE.
     local slot_at,slot_ok=-math.huge,false
     local restored=false
     local fkeys={}
@@ -50,7 +52,7 @@ function Glide.new(o)
     local function back(why,now)
         local e=set
         if not e then return end
-        set=nil
+        set,set_at=nil,nil
         local ok,err=pcall(function() if valid(e) then e.bGlide=false end end)
         log(('glide ended (%s) after %.1f s%s'):format(why,math.max((now or since)-since,0),
             ok and '' or ': bGlide not put back ('..why_of(err)..')'))
@@ -66,8 +68,9 @@ function Glide.new(o)
     local function step()
         if os.clock()>=slot_at then slot_at,slot_ok=os.clock()+SLOT_EVERY,slot()==true end
         local e=her(valid(UE.GetPlayer()))
-        if set and set~=e then back('her EVE changed',t) end
-        if e~=seen then seen,t,s.held=e,nil,0 end -- Another EVE (a map change): her own time, a new hold.
+        local at=e and U.address(e)
+        if set and set_at~=at then back('her EVE changed',t) end
+        if at~=seen then seen,t,s.held=at,nil,0 end -- Another EVE (a map change): her own time, a new hold.
         if not e or not slot_ok then
             back('not a co-op save',t) -- Without her, ours went back just above.
             t,s.held=nil,0
@@ -86,9 +89,9 @@ function Glide.new(o)
         else
             Glide.want(s,dt,false,false,false,false)
         end
-        if glide and set~=e then
+        if glide and not set then -- A set one is this EVE: another went back above.
             e.bGlide=true
-            set,since=e,now
+            set,set_at,since=e,at,now
             log(('glide on EVE (velocity Z %.0f cm/s)'):format(vz))
         elseif not glide and set then
             back(not falling and 'landed' or s.held==0 and 'Jump released' or 'flight or rising',now)

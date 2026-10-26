@@ -4,7 +4,7 @@
 -- or rises, her EVE changes, the save is not a co-op one (checked once a second) or the controller is gone; the pause
 -- menu (her time standing still) never completes a hold; coop glide off and coop off put it back; a failing frame puts
 -- it back and turns coop glide off with a line for the screen; the next Lua load's restore clears a bGlide left on,
--- once; and coop glide's words.
+-- once; and coop glide's words. GetPlayer gives a new wrapper at each call, as UE4SS does, so EVE is told by address.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -20,9 +20,13 @@ local function uobj(o)
     o.IsValid=function(self) return not self.gone end
     return o
 end
--- EVE: her world time, velocity, movement (falling or not), the flight flag and every write of bGlide.
+-- EVE: her world time, velocity, movement (falling or not), the flight flag, her address and every write of bGlide.
+local addresses=0
 local function make_eve()
-    local e=uobj({time=10,velocity={X=0,Y=0,Z=500},bFlyingAction=false,writes={},reads=0})
+    addresses=addresses+1
+    local address=addresses
+    local e=uobj({time=10,velocity={X=0,Y=0,Z=500},bFlyingAction=false,writes={},reads=0,
+        GetAddress=function() return address end})
     local m=uobj({falling=false})
     function m:IsFalling() return self.falling end
     local glide=false
@@ -46,7 +50,9 @@ local down={}
 local pc=uobj({IsInputKeyDown=function(_,key) return down[key.KeyName:ToString()]==true end,
     IsA=function(_,c) return c==PCC end})
 local gets=0
-package.loaded.UEHelpers={GetPlayer=function() gets=gets+1; return eve end,
+-- A fresh wrapper over the same EVE at each call: reads, writes and methods reach her, but no two calls are equal.
+local function wrapper(o) return o and setmetatable({},{__index=o,__newindex=o}) end
+package.loaded.UEHelpers={GetPlayer=function() gets=gets+1; return wrapper(eve) end,
     GetPlayerController=function() return pc end}
 local Glide=require('cut.glide')
 local logs={}
