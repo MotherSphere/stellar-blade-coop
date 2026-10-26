@@ -19,8 +19,9 @@
 -- [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]], Night Operation's run at a level
 -- (nightop/run.lua, revive: a downed player's own revive in a co-op run) and its reward shop
 -- (nightop/shop.lua), on a co-op save only (stop anywhere); coop challenge
--- [<name>|stop], the solo challenge runs on the same code (nightop/challenges.lua), with each one's best run in
--- coop-records.txt, on a co-op save only (stop anywhere); coop recruiter [off], the cut Night Operation recruiter on a
+-- [<name>|stop], the challenge runs on the same code (nightop/challenges.lua), solo but the Shooting Range, with each
+-- one's best run in coop-records.txt, on a co-op save only (stop anywhere); coop recruiter [off], the cut Night
+-- Operation recruiter on a
 -- Xion guard near Roxanne (nightop/recruiter.lua), on a co-op save only; the friend's revive (session/group.lua, revive
 -- in coop-settings.txt or the co-op menu, off by default), with coop revive test, its solo probe at the death screen
 -- (co-op saves only, not in the usage line), and the guest's wait while the host watches a cutscene (session/group.lua

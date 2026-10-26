@@ -36,10 +36,13 @@
 -- raising is a notice, and his end line still goes. The panel's fifth row,
 -- Best. A challenge's HUD: its name as the card's title, the record line after a success that wrote its best, its stop
 -- line, Night Operation's own best, and with the kit off its notices with its name, then the record line after the end
--- notice.
+-- notice. The Shooting Range's board beside the card: made once, its score set on a change, hidden while paused, after
+-- the result, with the kit off, at coop off and after a HUD error, and never for another challenge.
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
--- sides' spots and wallets.
+-- sides' spots and wallets. The Shooting Range for two: the host's ask, his line's range word, her run's waves and
+-- notices, the same dummies on the same spots, one score, no points and no best; a host ask that names a solo
+-- challenge (targets, swarm) refused, with no join.
 -- The co-op down and revive, with each side's life read and revive=on: a death is a down on both lines and both cards
 -- (the cut mode's words, the game's when its table reads, its English with ui_language=english), with each side's
 -- notice; the friend's interact key held next to the ghost fills the revive in 3 s (key alone, near alone, too high, a
@@ -164,7 +167,8 @@ local function free(m) -- The game releases it: out of FindAllOf, and any touch 
 end
 local keys_down={} -- The keys held now, by name (the revive's interact key).
 local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.SBNetworkPlayerController_0',{
-    IsA=function(_,c) return c==SBPC end,IsInputKeyDown=function(_,key) return keys_down[key.KeyName:ToString()]==true end,
+    IsA=function(_,c) return c==SBPC or c==PCClass end,
+    IsInputKeyDown=function(_,key) return keys_down[key.KeyName:ToString()]==true end,
     ServerRequest_CreateActor=function(_,id,at,_,_,_,_,key)
         if not spawn_ok then return end
         local m=table.remove(pool,1)
@@ -910,7 +914,7 @@ do
     local function win(run) for k=1,3 do round(run,k,#targets.waves[k].ids) end end
     bodies,calls,lines,spawn_ai={},{},{},false -- The dummies come with no controller.
     -- Refusals: no game call, no line, no record read for a word that is not a challenge.
-    for _,word in ipairs({'night','0','5','x','TARGETS','start','swarm2'}) do
+    for _,word in ipairs({'night','0','6','x','TARGETS','start','swarm2','hard'}) do
         ok,message=ch.challenge(word)
         assert(not ok and message=='unknown challenge: coop challenge lists them',word..': '..tostring(message))
     end
@@ -923,11 +927,14 @@ do
     link_line='link=host lobby=7'
     ok,message=ch.challenge('targets')
     assert(not ok and message=='Target Practice is solo for now: leave the Steam session first (coop leave)',message)
+    ok,message=ch.challenge('range') -- Not solo: the host starts it for both once the partner is linked.
+    assert(not ok and message=='no partner linked yet: a co-op run starts once they are',message)
     link_line='link=none lobby=0'
     assert(#calls==0 and #lines==0 and writes==0,'Refusals call nothing')
-    -- The list: the four with their bests (none but the stored Skull Squad one), then Night Operation.
+    -- The list: the five with their bests (none but the stored Skull Squad one), then Night Operation.
     local LIST='1 swarm Antlion Swarm: 3 waves, 3:00, no best yet\n2 skulls Skull Squad: 3 waves, 6:00, best 300 in '
         ..'3:20\n3 gauntlet Gauntlet: 8 waves, 12:00, no best yet\n4 targets Target Practice: 3 waves, 1:30, %s\n'
+        ..'5 range Shooting Range: 3 waves, 2:00, no best yet\n'
         ..'night_easy: Night Operation easy (coop nightop start easy), no best yet\n'
         ..'night: Night Operation (coop nightop start), no best yet\n'
         ..'night_hard: Night Operation hard (coop nightop start hard), no best yet\n'
@@ -1878,6 +1885,17 @@ round(1)
 Gs.night='h 1 1 dance'
 round(1,Gs)
 assert(has(Gs.lines,'night in: h 1 1 dance (refused)'))
+-- So is a host ask that names a solo challenge in place of the level: only a challenge marked coop goes on the line.
+for _,word in ipairs({'targets','swarm'}) do
+    pair()
+    host_start()
+    round(1,Hs)
+    local ask=Hs.sent[1]:gsub(' normal$',' '..word)
+    assert(ask:find(' '..word..'$'),ask)
+    Gs.night=ask
+    round(2,Gs)
+    assert(has(Gs.lines,'night in: '..ask..' (refused)') and not find(Gs.lines,'^join:') and #Gs.sent==0,Gs.lines[1])
+end
 -- A status not read for a tick ends nothing: not his ask, not hers, not a run on either side.
 pair()
 host_start()
@@ -2007,6 +2025,73 @@ do
         assert(w.told[#w.told]==string.format('Night Operation: +%d points, %d in all.',got,points+got),w.told[#w.told])
     end
     points=points+got
+    assert(#violations==0,violations[1])
+end
+-- The Shooting Range for two: her coop challenge range refuses (the host starts it); his starts the ask and his line
+-- carries range in place of a level; her join line names the challenge and her run takes its waves; each notice names
+-- it; the same dummies on the same spots around his start point in both worlds, with no aggro; a kill in her world
+-- scores once for both cards and the round waits for his copies too; a success ends both runs with one score and one
+-- time, credits no points and keeps no best on either side.
+do
+    pair()
+    spawn_ai,calls=false,{} -- The dummies come with no controller.
+    local ok3,text3=on(Gs,function() return Gs.run.challenge('range') end)
+    assert(not ok3 and text3=='the host starts a co-op run',text3)
+    ok3,text3=on(Hs,function() return Hs.run.challenge('range') end)
+    local byte=tonumber(text3:match('run 0x(%x+)'),16)
+    assert(ok3 and text3==string.format('Shooting Range: waiting for Kaanta to join (run 0x%02X)',byte),text3)
+    round(2)
+    assert(Hs.sent[1]:find(' range$'),Hs.sent[1])
+    assert(find(Gs.lines,string.format('^join: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map %%S+ challenge range; '
+        ..'census: ',byte,W.seed(T,byte))),Gs.lines[2])
+    assert(Hs.told[#Hs.told]=='Shooting Range starts in 5 s.',Hs.told[#Hs.told])
+    assert(Gs.told[#Gs.told]=='Shooting Range: Me started the challenge. It begins in 5 s.',Gs.told[#Gs.told])
+    local function score(w)
+        local _,t=on(w,function() return w.run.command() end)
+        return tonumber(t:match(' challenge range: %a+, wave %d/3, run time %-?%d+ s, score (%d+),'))
+    end
+    local range=require('nightop.challenges').find('range')
+    for k=1,3 do
+        local found_k,n=string.format('^wave %d find %%+1 s',k),0
+        while not (find(Hs.lines,found_k) and find(Gs.lines,found_k)) do
+            round()
+            n=n+1
+            assert(n<400,'Range round '..k..' on both')
+        end
+        local spots,m={},0
+        for _,b in ipairs(Hs.bodies) do if select(2,W.decode(b.key))==k then spots[b.key]=b end end
+        for _,b in ipairs(Gs.bodies) do
+            if select(2,W.decode(b.key))==k then
+                local a=spots[b.key]
+                local d=math.sqrt(b.at.X^2+b.at.Y^2)/100
+                assert(a and a.at.X==b.at.X and a.at.Y==b.at.Y and b.id==40010 and a.id==40010,'The same dummy spot')
+                assert(math.abs(d-15)<1e-6 or math.abs(d-20)<1e-6,d)
+                m=m+1
+            end
+        end
+        assert(m==#range.waves[k].ids,m)
+        kill_all(Gs,k)
+        round(3)
+        local want=40*({3,7,12})[k] -- 40 a dummy, each scored once.
+        assert(score(Hs)==want and score(Gs)==want,score(Hs))
+        assert(not find(Hs.lines,string.format('^wave %d/3 ',k+1)),'Round '..k..' waits for his copies')
+        kill_all(Hs,k)
+        round(3)
+        assert(k==3 or score(Hs)==want,'His copies of her kills score nothing more') -- After round 3: the result.
+    end
+    round(2)
+    local hr,gr=find(Hs.lines,'^result: '),find(Gs.lines,'^result: ')
+    assert(hr and hr:find('^result: success waves=3/3 kills=12 score=%d+ .* challenge=range best=none$'),hr)
+    assert(gr and gr:match('^(.- time=%S+)')==hr:match('^(.- time=%S+)'),gr)
+    assert(tonumber(hr:match(' score=(%d+) '))>480,'12 dummies and the time left')
+    for _,w in ipairs({Hs,Gs}) do
+        assert(has(w.lines,'record: not kept (a co-op run)') and w.writes==nil,w.lines[#w.lines])
+        assert(files[w.wallet]==points..'\n' and not find(w.lines,'^credit ') and not find(w.lines,'^no points'),
+            w.wallet)
+        assert(has(w.told,'Shooting Range: wave 3 cleared.'),w.told[#w.told])
+    end
+    assert(count('Damage:ReportDamageEvent')==0 and count('M:SpawnDefaultController')==0,'No aggro')
+    spawn_ai=true
     assert(#violations==0,violations[1])
 end
 
@@ -2243,6 +2328,111 @@ do
             tostring(told[2]))
     end
     assert(lines[#lines]=='STOP: HUD: boom',lines[#lines])
+    assert(#violations==0,violations[1])
+end
+
+-- 12. The Shooting Range's board (nightop/board.lua) beside the card on the fake kit (fr-FR): the cut shooting test's
+-- widget made once, for the player controller, at the first tick of the run, its Score text in the card's words and
+-- set only on a change (each round's kills, then the final score with the time bonus on the result panel); collapsed
+-- while the game is paused and once the result's 10 s are over; collapsed with the kit off; never made for another
+-- challenge; collapsed at coop off, during a run or in its result, and after a HUD error. One local table: the main
+-- chunk is near Lua's 200 locals.
+do
+    local B={class='/Game/Art/UI/Widget/Test/WB_ShootingTrainingTest.WB_ShootingTrainingTest_C',shown={},texts={},
+        made=0,range=require('nightop.challenges').find('range')}
+    local score=uobject('Score','TextBlock /Engine/Transient.WB_1.Score',
+        {SetText=function(_,t) B.texts[#B.texts+1]=t.text end})
+    B.widget=uobject('Board','WB_ShootingTrainingTest_C /Engine/Transient.WB_ShootingTrainingTest_C_1',{
+        SetVisibility=function(_,v) B.shown[#B.shown+1]=v end,SetRenderTransformPivot=function() end,
+        SetRenderScale=function() end,AddToViewport=function() end,RemoveFromParent=function() end},{Score=score})
+    by_path[B.class]=uobject('WBClass','WidgetBlueprintGeneratedClass '..B.class,{})
+    by_path['/Script/UMG.Default__WidgetBlueprintLibrary']=uobject('WBL','WidgetBlueprintLibrary',{
+        Create=function(_,context,class,owner)
+            assert(context==pc and class==by_path[B.class] and owner==pc,'CreateWidget for the player controller')
+            B.made=B.made+1
+            return B.widget
+        end})
+    FText=function(t) return {text=t} end
+    B.ch=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+        tell=function(build) told[#told+1]=build(Tx.en) end,records={read=function() return '' end,
+        write=function() return true end}})
+    kit.groups,kit.shown,kit.is_off,kit.up,kit.away,kit.raise={},{},false,true,false,nil
+    B.ch.hud({kit=kit,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=settings})
+    card,res=kit.groups.night.view,kit.groups.night_result.view
+    function B.tk(k) for _=1,k or 1 do gt=gt+0.25; B.ch.tick() end end
+    bodies,lines,told,calls,spawn_ai={},{},{},{},false
+    ok,message=B.ch.challenge('range')
+    assert(ok and message:find('^Shooting Range starts in 5 s '),message)
+    B.run=tonumber(message:match('%(run 0x(%x+)%)$'),16)
+    B.tk()
+    assert(B.made==1 and B.texts[1]=='SCORE 0' and B.shown[#B.shown]==3 and card.title.text=='Stand de tir',
+        tostring(B.texts[1]))
+    assert(logged('board: WB_ShootingTrainingTest shows the score'),since(0))
+    B.tk(10)
+    assert(#B.texts==1 and B.made==1,'No call without a change')
+    -- Paused: collapsed; back: shown, with no new text.
+    kit.away=true
+    B.tk()
+    assert(B.shown[#B.shown]==1 and not kit.shown.night,'Collapsed while paused')
+    kit.away=false
+    B.tk()
+    assert(B.shown[#B.shown]==3 and #B.texts==1,'Shown again')
+    for k=1,3 do
+        local n=#B.range.waves[k].ids
+        local found=string.format('wave %d find +1 s: tracked %d/%d',k,n,n)
+        for _=1,400 do
+            if logged(found) then break end
+            B.tk()
+        end
+        assert(logged(found),since(0))
+        for _,m in ipairs(bodies) do
+            local r,w=W.decode(m.key)
+            if r==B.run and w==k then m.st,m.ctl=1,nil end
+        end
+        B.tk()
+        if k<3 then assert(B.texts[#B.texts]==string.format('SCORE %d',40*({3,7})[k]),B.texts[#B.texts]) end
+    end
+    B.final=tonumber(last():match(' score=(%d+) '))
+    assert(last():find('^result: success waves=3/3 kills=12 .* challenge=range ') and B.final>480,last())
+    B.tk()
+    assert(kit.shown.night_result and B.texts[#B.texts]=='SCORE '..B.final,B.texts[#B.texts])
+    B.tk(45)
+    assert(not kit.shown.night_result and B.shown[#B.shown]==1,'Collapsed after the result')
+    -- The kit off during a run: collapsed. Another challenge: no new widget, no text.
+    ok,message=B.ch.challenge('range')
+    B.tk()
+    assert(B.shown[#B.shown]==3,'Shown for the next run')
+    kit.is_off=true
+    B.tk()
+    assert(B.shown[#B.shown]==1,'Collapsed with the kit off')
+    kit.is_off=false
+    B.ch.challenge('stop')
+    B.tk(45)
+    B.before=#B.texts+#B.shown
+    ok,message=B.ch.challenge('targets')
+    B.tk(30)
+    assert(B.made==1 and #B.texts+#B.shown==B.before,'Target Practice has no board')
+    B.ch.challenge('stop')
+    B.tk(45)
+    -- coop off during a run, then in its result's 10 s: collapsed at once, as no tick comes after coop off.
+    ok,message=B.ch.challenge('range')
+    B.tk()
+    assert(B.shown[#B.shown]==3,'Shown for a run')
+    assert(B.ch.stop('coop off') and B.shown[#B.shown]==1,'Collapsed at coop off')
+    B.tk()
+    assert(kit.shown.night_result and B.shown[#B.shown]==3,'Shown with the result')
+    assert(not B.ch.stop('coop off') and B.shown[#B.shown]==1,'Collapsed at coop off in the result')
+    B.tk(45)
+    -- A HUD error during a run: collapsed with the card, after its STOP line.
+    ok,message=B.ch.challenge('range')
+    B.tk()
+    assert(B.shown[#B.shown]==3,'Shown for a run')
+    kit.raise='boom'
+    B.tk()
+    kit.raise=nil
+    assert(last()=='STOP: HUD: boom' and B.shown[#B.shown]==1 and not kit.shown.night,'Collapsed after a HUD error')
+    B.ch.challenge('stop')
+    spawn_ai=true
     assert(#violations==0,violations[1])
 end
 print('nightop_run_test ok')

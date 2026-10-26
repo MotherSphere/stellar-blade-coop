@@ -130,10 +130,11 @@ dead EVE in such a run is down for 30 s: her partner revives her with the intera
 revives herself a few times a run (`coop nightop revive`). A run that ends in success or time up gives points for a
 console shop that sells seven items: four of the game's, and three cut items the mod adds back (two stimpacks and the
 Shock Bolt ammo for EVE's gun). None of this has been tested in game yet (see
-[docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs four short fights on the same
-code, one of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. The
-challenges are solo: they need a co-op save and no Steam session, and give no shop points. They have not been tested
-in game yet either (see [docs/night-operation.md](docs/night-operation.md#challenges-coop-challenge)). Two research
+[docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs five short fights on the same
+code, two of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. They need a
+co-op save and give no shop points. Four are solo. The fifth, the Shooting Range, rebuilds the game's cut shooting
+test with its score widget, and the host can start it for both players. They have not been tested in game yet either
+(see [docs/night-operation.md](docs/night-operation.md#challenges-coop-challenge)). Two research
 previews also run only on a co-op save. `coop recruiter` brings back the cut recruiter near Roxanne, and you can talk
 to him. `coop no` tests parts of the cut mode in a solo game. Neither preview is a playable mode.
 

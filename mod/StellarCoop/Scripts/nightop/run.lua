@@ -1,8 +1,10 @@
 -- coop nightop: Night Operation's run on a co-op save (commands/nightop.lua checks the slot), on the game thread. Five
 -- timed waves of the game's base monsters come at EVE where she stands, at one of four levels (nightop/waves.lua's
 -- W.LEVELS: the monsters a wave holds, the time limit, the shop points; the host's level in a co-op run, which his
--- night line carries). coop challenge runs the challenges of nightop/challenges.lua the same way, solo only, each with
--- its best run in coop-records.txt. nightop/waves.lua holds
+-- night line carries). coop challenge runs the challenges of nightop/challenges.lua the same way, each with its best
+-- run in coop-records.txt, solo only but the Shooting Range, which the host can also run for both players (its id in
+-- place of the level on his line); its score also goes to the cut shooting test's widget (nightop/board.lua).
+-- nightop/waves.lua holds
 -- the waves, the keys and the run's states, read from the run's definition; this file is the game side: the start
 -- checks and the census, the one spawn call, the bodies it tracks, their aggro and stuck moves, the abort watch and the
 -- end, and what the player sees: a card at the top centre and a result panel on the Uplink kit (ui/kit.lua), or notices
@@ -25,7 +27,8 @@
 -- heal, EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip or quest call,
 -- RegisterHook, NotifyOnNewObject. No console word reaches a game call here: start's words only set flags, a
 -- challenge's name only picks a definition; buy's words go through nightop/shop.lua's checked grant. Beyond the kit
--- (ui/kit.lua), the HUD calls the game for one thing only: its own result words (StringTable_UI).
+-- (ui/kit.lua) and the board (nightop/board.lua), the HUD calls the game for one thing only: its own result words
+-- (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
 local U=require('core.unreal')
@@ -34,7 +37,13 @@ local N=require('nightop.probe')
 local T=require('ui.text')
 local Shop=require('nightop.shop')
 local C=require('nightop.challenges')
+local Board=require('nightop.board')
 local Run={}
+-- The definitions a co-op run can carry, by the word on the host's night line: Night Operation's levels and each
+-- challenge marked coop, under its id.
+local WIRE={}
+for word,def in pairs(W.LEVEL) do WIRE[word]=def end
+for _,def in ipairs(C.LIST) do if def.coop then WIRE[def.id]=def end end
 local MASK=0xFFFFFFFF
 local XION='/game/art/bg/worldmap/level_p/e04' -- Its people and quest scripts stay out of a fight.
 local TICK=0.25 -- Seconds between two ticks (main.lua's loop). The abort watch counts ticks: game time stops in a load.
@@ -255,6 +264,7 @@ function Run.new(o)
     local revive=o.revive or function() return false,'no Steam link' end
     local ghost=o.ghost or function() return nil end
     local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
+    local board=Board.new({log=log}) -- The cut shooting test's score, for a run whose definition says board.
     -- The result panel: {s=the ended run's state, left=ticks it still shows}; it counts only the ticks it is seen.
     local panel=nil
     -- What the HUD shows goes to the notices instead while there is no kit or it is off.
@@ -752,7 +762,8 @@ function Run.new(o)
             r.now=eve and clock(eve) or r.now
             r.s.t0,r.s.phase,r.quiet,r.mate=r.now+W.COUNTDOWN,'countdown',0,line
             log(string.format('%s is ready: run 0x%02X starts in %d s',name,r.s.run,W.COUNTDOWN))
-            notify(function(w) return w.night.start_notice:format(W.COUNTDOWN) end)
+            local def=r.s.def
+            notify(function(w) return notice(def,w,'start_notice',W.COUNTDOWN) end)
             return
         end
         local why=line and line.state=='refuse' and line.why or (r.asked>=ASK or mode and mode~='host') and 'none'
@@ -769,7 +780,8 @@ function Run.new(o)
             local name=friend() or '?'
             local left=math.max(0,math.ceil(-line.rt/1000))
             log(string.format('%s started run 0x%02X: it begins in %d s',name,r.s.run,left))
-            if tell then tell(function(w) return w.night.coop_notice:format(name,left) end) end
+            local def=r.s.def
+            if tell then tell(function(w) return notice(def,w,'coop_notice',name,left) end) end
             return true
         end
         r.asked=r.asked+1
@@ -873,8 +885,8 @@ function Run.new(o)
     -- A challenge's name, or Night Operation's with its level when it is not normal: Night Operation (hard).
     local function name_of(def) return def.name or 'Night Operation'..(def~=W.NIGHT and ' ('..def.level..')' or '') end
     -- A run of def (Night Operation's normal level when nil, or another of W.LEVELS); flag: Night Operation's noaggro
-    -- or nomove. A challenge is solo: it starts only without a Steam session. The best so far is read from the records
-    -- file once the run is on.
+    -- or nomove. A challenge is solo unless it says coop: it starts only without a Steam session. The best so far is
+    -- read from the records file once the run is on.
     local function start(flag,def)
         def=def or W.NIGHT
         if r and r.s.phase~='result' then
@@ -883,7 +895,7 @@ function Run.new(o)
         local raw='\n'..(status() or '')
         local linked=raw:match('\nlink=(%a+)')
         if not linked then return false,'the Steam link is not ready yet: try again in a moment' end
-        if not def.level and linked~='none' then
+        if not def.level and not def.coop and linked~='none' then
             return false,name_of(def)..' is solo for now: leave the Steam session first (coop leave)'
         end
         if linked=='guest' then return false,'the host starts a co-op run' end
@@ -951,10 +963,11 @@ function Run.new(o)
             log(string.format('ask for run 0x%02X refused: %s%s',h.run,why,text))
             return
         end
-        begin(h.run,h.seed,clock(eve),{X=h.x,Y=h.y,Z=h.z},h.yaw,h.map,nil,W.LEVEL[h.level])
+        local def=WIRE[h.level]
+        begin(h.run,h.seed,clock(eve),{X=h.x,Y=h.y,Z=h.z},h.yaw,h.map,nil,def)
         r.role,r.s.role,r.s.phase='guest','guest','ask'
-        log(string.format('join: run 0x%02X seed 0x%08X at %s yaw %d map %s level %s%s',h.run,h.seed,xyz(r.p0),h.yaw,
-            h.map,h.level,text))
+        log(string.format('join: run 0x%02X seed 0x%08X at %s yaw %d map %s %s %s%s',h.run,h.seed,xyz(r.p0),h.yaw,
+            h.map,def.level and 'level' or 'challenge',h.level,text))
     end
     -- Ends the run that is on as aborted; the name of what it ran, or nil when none was on. The host's ask has no run
     -- yet: dropped, with no result. The guest's ask ends as an abort, so her line tells a host already counting down
@@ -994,8 +1007,8 @@ function Run.new(o)
             for key in pairs(r.seen) do if not s.done[key] then found[key]=true end end
             return {run=s.run,seed=r.seed,phase=PHASE[s.phase],wave=s.wave,rt=math.max(-10000,
                 math.min(600000,math.floor(rt*1000+0.5))),score=s.score,kills=s.kills,clears=s.clears,found=found,
-                x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason,level=s.def.level,
-                down=down_left(),help=help_pct()}
+                x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason,
+                level=s.def.level or s.def.id,down=down_left(),help=help_pct()}
         end
         if r and r.role=='guest' then
             local s=r.s
@@ -1030,7 +1043,7 @@ function Run.new(o)
         if text==heard then return nil end
         heard=text
         if not text then return nil end
-        local line=mode=='host' and W.decode_mate(text) or mode=='guest' and W.decode_host(text) or nil
+        local line=mode=='host' and W.decode_mate(text) or mode=='guest' and W.decode_host(text,WIRE) or nil
         log('night in: '..text..(line and '' or ' (refused)'))
         return line
     end
@@ -1102,11 +1115,13 @@ function Run.new(o)
     -- The HUD each tick, after the run's: the card while a run is on, else the result panel until it was seen for its
     -- 10 s (a death screen, a pause or a load hide it meanwhile), both hidden while the game is paused or shows one of
     -- its screens, as the partner card. The words follow the game's language unless ui_language=english, picked again
-    -- at each build of the kit's root; the panel reads the game's own heading once for those words.
+    -- at each build of the kit's root; the panel reads the game's own heading once for those words. A run whose
+    -- definition says board also shows its score on the board while its card or panel shows, in the card's words.
     local picked,lang,words=nil,nil,nil
     local function draw()
         local kit=hud.kit
         if kit.off() then -- The notices say it, and the result the panel still held.
+            board.set(nil)
             if panel then notify_end(panel.s,panel.best) end
             panel=nil
             return
@@ -1117,7 +1132,7 @@ function Run.new(o)
         local result=panel~=nil and not running and not away and res~=nil
         kit.show('night',running and not away)
         kit.show('night_result',result)
-        if not (card and (running and not away or result)) then return end
+        if not (card and (running and not away or result)) then return board.set(nil) end
         if card~=picked or hud.settings.ui_language~=lang then
             picked,lang=card,hud.settings.ui_language
             words=T.pick(kit.language(),lang)
@@ -1133,7 +1148,7 @@ function Run.new(o)
             local title,line=Run.card(r.s,r.now,words,rv)
             card.title.set(title)
             card.line.set(line)
-            return
+            return board.set(r.s.def.board and words.night.score:format(r.s.score) or nil)
         end
         if panel.words~=words then
             panel.words,panel.head,panel.sub,panel.rows=words,
@@ -1146,6 +1161,7 @@ function Run.new(o)
             res.rows[i].label.set(v[1])
             res.rows[i].value.set(v[2])
         end
+        board.set(panel.s.def.board and words.night.score:format(panel.s.score) or nil)
         panel.left=panel.left-1
         if panel.left<=0 then panel=nil end
     end
@@ -1188,6 +1204,7 @@ function Run.new(o)
         if not ok then
             log('STOP: HUD: '..why(e))
             pcall(function() hud.kit.show('night',false); hud.kit.show('night_result',false) end)
+            board.set(nil)
             hud=nil
             local p=panel
             panel=nil
@@ -1217,8 +1234,12 @@ function Run.new(o)
             return v
         end)
     end
-    -- coop off (or any reason): the run ends as aborted; true when one was on.
-    function self.stop(reason) return stop(reason or 'stop')~=nil end
+    -- coop off (or any reason): the run ends as aborted; true when one was on. The board goes now, the result's too:
+    -- after coop off no tick comes to hide it, and kit.stop takes only the kit's own root.
+    function self.stop(reason)
+        board.set(nil)
+        return stop(reason or 'stop')~=nil
+    end
     -- A run is under way (its result panel aside): the follow's travel waits for its end, and a Doro race refuses to
     -- arm meanwhile.
     function self.running() return r~=nil and r.s.phase~='result' end

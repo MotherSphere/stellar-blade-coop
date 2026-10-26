@@ -363,6 +363,21 @@ for _,bad in ipairs({ended:gsub(' aborted:lost ',' - '),ended:gsub(' aborted:los
     assert(W.decode_host(bad)==nil,'Refused: '..bad)
 end
 assert(W.decode_host(nil)==nil and W.decode_host('')==nil)
+-- Other words: decode_host's words name the definitions it takes (W.LEVEL when none). A three-wave definition under
+-- its id: refused without it, taken with it, its own W.most bounds the score and its waves bound wave and clears; a
+-- level word not in the words is refused too.
+local three={id='three',waves={{at=0,ids={40010,40010,40010}},{ids={40010}},{ids={40010}}},limit=120,bonus=10}
+local words={three=three}
+local t3=W.encode_host(base):gsub(' normal$',' three')
+assert(W.decode_host(t3)==nil and W.decode_host(W.encode_host(base),words)==nil,'Another set of words')
+assert(W.decode_host(t3,words).level=='three' and W.most(three)==1400)
+assert(W.decode_host((t3:gsub(' 600000 0 ',' 600000 1400 ')),words).score==1400)
+assert(W.decode_host((t3:gsub(' 600000 0 ',' 600000 1401 ')),words)==nil)
+assert(W.decode_host((t3:gsub('^h 0 1 0 wave 1 ','h 0 1 0 wave 3 ')),words).wave==3)
+local past={(t3:gsub('^h 0 1 0 wave 1 ','h 0 1 0 wave 4 ')),(t3:gsub(' 0 0 0 0 1 2 3 ',' 0 0 4 0 1 2 3 '))}
+for _,bad in ipairs(past) do
+    assert(W.decode_host(bad,words)==nil,'Past its waves: '..bad)
+end
 
 -- The guest's line: each state with its word; a refusal word only with refuse, an abort reason only with abort.
 local mate={n=7,run=RUN,state='run',up=40,killed=set({W.key(RUN,1,0)}),done=every,down=W.DOWN,help=100}

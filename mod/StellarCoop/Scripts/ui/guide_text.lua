@@ -33,7 +33,7 @@ G.en={
          body='Night Operation is a wave survival mode that Shift Up cut before release. A run has five timed '
             ..'waves. When the host starts it during a session, you share the timer and the score. Points from a '
             ..'run buy items.\nType these in the console (F10 or ~) on a co-op save:\ncoop nightop start: start a '
-            ..'run\ncoop nightop shop: list the items\ncoop nightop buy <n>: buy item n\ncoop challenge: four graded '
+            ..'run\ncoop nightop shop: list the items\ncoop nightop buy <n>: buy item n\ncoop challenge: graded '
             ..'challenges'},
         {title='Doro races',
          body='In a Doro race both EVEs turn into Doro. Record a track first, then race on it:\ncoop race record '
@@ -89,7 +89,7 @@ G.fr={
             .."le chrono et le score. Les points d'une opération servent à acheter des objets.\nTapez ces commandes "
             ..'dans la console (F10 ou ~) sur une sauvegarde co-op :\ncoop nightop start : lancer une '
             .."opération\ncoop nightop shop : lister les objets\ncoop nightop buy <n> : acheter l'objet n\ncoop "
-            ..'challenge : quatre défis notés'},
+            ..'challenge : défis notés'},
         {title='Courses de Doro',
          body="Dans une course de Doro, les deux EVE se changent en Doro. Enregistrez d'abord un circuit, puis "
             .."faites la course dessus :\ncoop race record <name> : lancer l'enregistrement\nF9 : poser un point de "
@@ -137,7 +137,7 @@ G.ar={
          body='التشغيل الليلي طور بقاء بالموجات حذفته Shift Up قبل الإصدار. يتكون كل تشغيل من خمس موجات محددة الوقت. '
             ..'عندما يبدأه المضيف أثناء جلسة، تتشاركان المؤقت والنقاط. وبنقاط التشغيل تشتري عناصر.\nاكتب هذه الأوامر '
             ..'في سطر الأوامر (F10 أو ~) على حفظ تعاوني:\ncoop nightop start: بدء تشغيل\ncoop nightop shop: عرض '
-            ..'العناصر\ncoop nightop buy <n>: شراء العنصر n\ncoop challenge: أربعة تحديات بتقييم'},
+            ..'العناصر\ncoop nightop buy <n>: شراء العنصر n\ncoop challenge: تحديات بتقييم'},
         {title='سباقات دورو',
          body='في سباق دورو تتحول EVE لدى كل منكما إلى دورو. سجّل مسارًا أولًا، ثم تسابق عليه:\ncoop race record <name>: '
             ..'بدء التسجيل\nF9: إضافة نقطة تفتيش حيث تقف\ncoop race save: حفظ المسار\ncoop race start <name>: بدء '
@@ -187,7 +187,7 @@ G.da={
             ..'har fem bølger på tid. Når værten starter den under en session, deler I tiden og pointene. Pointene '
             ..'fra en mission bruges til at købe genstande.\nSkriv disse i konsollen (F10 eller ~) på et gemt '
             ..'co-op-spil:\ncoop nightop start: start en mission\ncoop nightop shop: vis genstandene\ncoop nightop '
-            ..'buy <n>: køb genstand n\ncoop challenge: fire udfordringer med bedømmelse'},
+            ..'buy <n>: køb genstand n\ncoop challenge: udfordringer med bedømmelse'},
         {title='Doro-løb',
          body='I et Doro-løb bliver begge spilleres EVE til Doro. Optag først en rute, og kør derefter løbet på '
             ..'den:\ncoop race record <name>: start optagelsen\nF9: sæt et checkpoint, hvor du står\ncoop race save: '
@@ -239,7 +239,7 @@ G.de={
             ..'hat. Ein Einsatz hat fünf Wellen mit Zeitlimit. Startet der Host ihn in einer Sitzung, teilt ihr Zeit '
             ..'und Punkte. Mit den Punkten aus Einsätzen kaufst du Gegenstände.\nGib in der Konsole (F10 oder ~) auf '
             ..'einem Koop-Speicherstand ein:\ncoop nightop start: Einsatz starten\ncoop nightop shop: Gegenstände '
-            ..'auflisten\ncoop nightop buy <n>: Gegenstand n kaufen\ncoop challenge: vier Herausforderungen mit '
+            ..'auflisten\ncoop nightop buy <n>: Gegenstand n kaufen\ncoop challenge: Herausforderungen mit '
             ..'Wertung'},
         {title='Doro-Rennen',
          body='In einem Doro-Rennen werden beide EVEs zu Doro. Zeichne zuerst eine Strecke auf und tritt dann darauf '
@@ -295,7 +295,7 @@ G.es={
             ..'una sesión, compartís el tiempo y la puntuación. Los puntos de una operación sirven para comprar '
             ..'objetos.\nEscribe esto en la consola (F10 o ~) en una partida co-op:\ncoop nightop start: iniciar una '
             ..'operación\ncoop nightop shop: ver los objetos\ncoop nightop buy <n>: comprar el objeto n\ncoop '
-            ..'challenge: cuatro desafíos con nota'},
+            ..'challenge: desafíos con nota'},
         {title='Carreras de Doro',
          body='En una carrera de Doro, las dos EVE se convierten en Doro. Primero graba un circuito y luego corre en '
             ..'él:\ncoop race record <name>: empezar a grabar\nF9: poner un punto de control donde estás\ncoop race '
@@ -348,7 +348,7 @@ G['es-MX']={
             ..'Cada operación tiene cinco oleadas con tiempo límite. Si el anfitrión la inicia durante una sesión, '
             ..'comparten el tiempo y los puntos. Con los puntos de una operación compras objetos.\nEscribe esto en la '
             ..'consola (F10 o ~) con una partida co-op:\ncoop nightop start: iniciar una operación\ncoop nightop shop: '
-            ..'ver los objetos\ncoop nightop buy <n>: comprar el objeto n\ncoop challenge: cuatro desafíos con '
+            ..'ver los objetos\ncoop nightop buy <n>: comprar el objeto n\ncoop challenge: desafíos con '
             ..'calificación'},
         {title='Carreras de Doro',
          body='En una carrera de Doro, las dos EVE se convierten en Doro. Primero graba un circuito y luego compite en '
@@ -402,7 +402,7 @@ G.fi={
             ..'Operaatiossa on viisi ajastettua aaltoa. Kun isäntä aloittaa sen istunnon aikana, jaatte ajastimen ja '
             ..'pisteet. Operaatioiden pisteillä ostetaan tavaroita.\nKirjoita nämä konsoliin (F10 tai ~) '
             ..'co-op-tallennuksella:\ncoop nightop start: aloita operaatio\ncoop nightop shop: näytä tavarat\ncoop '
-            ..'nightop buy <n>: osta tavara n\ncoop challenge: neljä arvosteltua haastetta'},
+            ..'nightop buy <n>: osta tavara n\ncoop challenge: arvosteltuja haasteita'},
         {title='Doro-kilvat',
          body='Doro-kilvassa kummankin pelaajan EVE muuttuu Doroksi. Tallenna ensin rata ja kilpaile sitten '
             ..'sillä:\ncoop race record <name>: aloita tallennus\nF9: lisää rastipiste kohtaan, jossa seisot\ncoop '
@@ -455,7 +455,7 @@ G.it={
             .."dell'uscita. Un'operazione ha cinque ondate a tempo. Se l'host la avvia durante una sessione, "
             ..'condividete timer e punteggio. Con i punti delle operazioni compri oggetti.\nScrivi nella console '
             .."(F10 o ~) su un salvataggio co-op:\ncoop nightop start: avvia un'operazione\ncoop nightop shop: "
-            .."elenca gli oggetti\ncoop nightop buy <n>: compra l'oggetto n\ncoop challenge: quattro sfide con "
+            .."elenca gli oggetti\ncoop nightop buy <n>: compra l'oggetto n\ncoop challenge: sfide con "
             ..'valutazione'},
         {title='Gare di Doro',
          body='In una gara di Doro entrambe le EVE diventano Doro. Prima registra un percorso, poi gareggiaci '
@@ -509,7 +509,7 @@ G.ja={
             ..'タイマーとスコアを共有します。オペレーションで得たポイントでアイテムを買えます。'
             ..'\n協力プレイ用セーブで、コンソール（F10か~）に次のコマンドを入力します：\ncoop nightop start：'
             ..'オペレーションを開始\ncoop nightop shop：アイテム一覧\ncoop nightop buy <n>：アイテムnを購入\ncoop '
-            ..'challenge：評価付きの4つのチャレンジ'},
+            ..'challenge：評価付きのチャレンジ'},
         {title='ドロレース',
          body='ドロレースでは、2人のEVEがドロに変身します。まずコースを記録し、そのコースでレースします：\ncoop race '
             ..'record <name>：記録を開始\nF9：今いる場所にチェックポイントを設置\ncoop race save：コースを保存\ncoop '
@@ -557,7 +557,7 @@ G.ko={
             ..'5개로 이루어집니다. 세션 중에 호스트가 시작하면 타이머와 점수를 공유합니다. 작전에서 얻은 포인트로 '
             ..'아이템을 삽니다.\n코옵 세이브에서 콘솔(F10 또는 ~)에 다음을 입력하세요:\ncoop nightop start: 작전 '
             ..'시작\ncoop nightop shop: 아이템 목록\ncoop nightop buy <n>: n번 아이템 구매\ncoop challenge: 등급이 '
-            ..'매겨지는 도전 4종'},
+            ..'매겨지는 도전'},
         {title='도로 레이스',
          body="도로 레이스에서는 두 EVE가 모두 도로로 변합니다. 먼저 코스를 기록한 뒤 그 코스에서 레이스하세요:\ncoop "
             .."race record <name>: 기록 시작\nF9: 서 있는 곳에 체크포인트 추가\ncoop race save: 코스 저장\ncoop race "
@@ -608,7 +608,7 @@ G.nl={
             ..'Een missie heeft vijf golven op tijd. Als de host er een start tijdens een sessie, delen jullie de '
             ..'timer en de score. Met de punten uit een missie koop je items.\nTyp deze in de console (F10 of ~) op '
             ..'een opgeslagen co-opgame:\ncoop nightop start: een missie starten\ncoop nightop shop: de items '
-            ..'tonen\ncoop nightop buy <n>: item n kopen\ncoop challenge: vier uitdagingen met beoordeling'},
+            ..'tonen\ncoop nightop buy <n>: item n kopen\ncoop challenge: uitdagingen met beoordeling'},
         {title='Dororaces',
          body="In een Dororace veranderen beide EVE's in Doro. Neem eerst een route op en race daar dan op:\ncoop "
             ..'race record <name>: opname starten\nF9: checkpoint plaatsen waar je staat\ncoop race save: route '
@@ -659,7 +659,7 @@ G.no={
             ..'fem bølger på tid. Når verten starter den under en økt, deler dere tiden og poengene. For poengene '
             ..'fra en operasjon kjøper du gjenstander.\nSkriv dette i konsollen (F10 eller ~) på en '
             ..'co-op-lagring:\ncoop nightop start: start en operasjon\ncoop nightop shop: vis gjenstandene\ncoop '
-            ..'nightop buy <n>: kjøp gjenstand n\ncoop challenge: fire utfordringer med karakter'},
+            ..'nightop buy <n>: kjøp gjenstand n\ncoop challenge: utfordringer med karakter'},
         {title='Doro-løp',
          body='I et Doro-løp blir begge EVE-ene til Doro. Ta først opp en løype, og løp den etterpå:\ncoop race '
             ..'record <name>: start opptaket\nF9: sett et sjekkpunkt der du står\ncoop race save: lagre løypa\ncoop '
@@ -710,7 +710,7 @@ G.pl={
             ..'pięć fal na czas. Gdy host rozpocznie ją podczas sesji, dzielicie licznik czasu i punkty. Za punkty z '
             ..'operacji kupujesz przedmioty.\nWpisz te komendy w konsoli (F10 lub ~) na zapisie co-op:\ncoop nightop '
             ..'start: rozpocznij operację\ncoop nightop shop: lista przedmiotów\ncoop nightop buy <n>: kup przedmiot '
-            ..'n\ncoop challenge: cztery oceniane wyzwania'},
+            ..'n\ncoop challenge: oceniane wyzwania'},
         {title='Wyścigi Doro',
          body='W wyścigu Doro obie EVE zmieniają się w Doro. Najpierw nagraj trasę, potem ścigaj się na niej:\ncoop '
             ..'race record <name>: zacznij nagrywanie\nF9: dodaj punkt kontrolny tam, gdzie stoisz\ncoop race save: '
@@ -762,7 +762,7 @@ G.pt={
             ..'operação tem cinco vagas cronometradas. Se o anfitrião a iniciar durante uma sessão, partilham o '
             ..'cronómetro e a pontuação. Com os pontos de uma operação compras objetos.\nEscreve isto na consola (F10 '
             ..'ou ~) com dados guardados co-op:\ncoop nightop start: iniciar uma operação\ncoop nightop shop: ver os '
-            ..'objetos\ncoop nightop buy <n>: comprar o objeto n\ncoop challenge: quatro desafios com classificação'},
+            ..'objetos\ncoop nightop buy <n>: comprar o objeto n\ncoop challenge: desafios com classificação'},
         {title='Corridas de Doro',
          body='Numa corrida de Doro, as duas EVE transformam-se em Doro. Primeiro grava um percurso e depois corre '
             ..'nele:\ncoop race record <name>: começar a gravar\nF9: colocar um ponto de controlo onde estás\ncoop '
@@ -815,7 +815,7 @@ G['pt-BR']={
             ..'o cronômetro e a pontuação. Os pontos de uma operação servem para comprar itens.\nDigite estes '
             ..'comandos no console (F10 ou ~) em um jogo salvo co-op:\ncoop nightop start: iniciar uma '
             ..'operação\ncoop nightop shop: listar os itens\ncoop nightop buy <n>: comprar o item n\ncoop challenge: '
-            ..'quatro desafios com nota'},
+            ..'desafios com nota'},
         {title='Corridas de Doro',
          body='Na corrida de Doro, as duas EVEs viram Doro. Grave um percurso primeiro e depois corra nele:\ncoop '
             ..'race record <name>: começar a gravar\nF9: colocar um checkpoint onde você está\ncoop race save: '
@@ -868,7 +868,7 @@ G.ru={
             ..'пять волн на время. Если хост запускает ее во время сессии, у вас общие таймер и очки. За очки из '
             ..'операций можно купить предметы.\nВведите в консоли (F10 или ~) на кооперативном сохранении:\ncoop '
             ..'nightop start: начать операцию\ncoop nightop shop: список предметов\ncoop nightop buy <n>: купить '
-            ..'предмет n\ncoop challenge: четыре испытания с оценкой'},
+            ..'предмет n\ncoop challenge: испытания с оценкой'},
         {title='Гонки Доро',
          body='В гонке Доро обе EVE превращаются в Доро. Сначала запишите трассу, затем проведите на ней '
             ..'гонку:\ncoop race record <name>: начать запись\nF9: поставить контрольную точку там, где вы '
@@ -920,7 +920,7 @@ G.sv={
             ..'fem tidsbegränsade vågor. När värden startar den under en session delar ni tiden och poängen. För '
             ..'poängen från en insats kan du köpa föremål.\nSkriv detta i konsolen (F10 eller ~) på en '
             ..'co-op-sparfil:\ncoop nightop start: starta en insats\ncoop nightop shop: visa föremålen\ncoop nightop '
-            ..'buy <n>: köp föremål n\ncoop challenge: fyra betygsatta utmaningar'},
+            ..'buy <n>: köp föremål n\ncoop challenge: betygsatta utmaningar'},
         {title='Dorolopp',
          body='I ett Dorolopp förvandlas båda EVE till Doro. Spela först in en bana och kör sedan på den:\ncoop race '
             ..'record <name>: börja spela in\nF9: sätt en checkpoint där du står\ncoop race save: spara banan\ncoop '
@@ -964,7 +964,7 @@ G.th={
          body='ปฏิบัติการกลางคืนคือโหมดเอาชีวิตรอดแบบเป็นคลื่นที่ Shift Up ตัดออกก่อนวางจำหน่าย หนึ่งรอบมี 5 คลื่นแบบจับเวลา '
             ..'เมื่อโฮสต์เริ่มระหว่างเซสชัน คุณทั้งสองจะใช้ตัวจับเวลาและคะแนนร่วมกัน แต้มจากแต่ละรอบใช้ซื้อไอเท็ม\nพิมพ์คำสั่งเหล่านี้ในคอนโซล '
             ..'(F10 หรือ ~) บนเซฟ co-op:\ncoop nightop start: เริ่มรอบ\ncoop nightop shop: ดูรายการไอเท็ม\ncoop nightop buy '
-            ..'<n>: ซื้อไอเท็มลำดับ n\ncoop challenge: ชาเลนจ์ 4 แบบที่ให้เกรด'},
+            ..'<n>: ซื้อไอเท็มลำดับ n\ncoop challenge: ชาเลนจ์ที่ให้เกรด'},
         {title='โดโรเรซ',
          body='ในโดโรเรซ EVE ทั้งสองคนจะกลายเป็นโดโร บันทึกเส้นทางก่อน แล้วแข่งบนเส้นทางนั้น:\ncoop race record <name>: '
             ..'เริ่มบันทึก\nF9: เพิ่มเช็กพอยต์ตรงที่คุณยืน\ncoop race save: บันทึกเส้นทาง\ncoop race start <name>: เริ่มการแข่ง (เซฟ '
@@ -1011,7 +1011,7 @@ G.tr={
             ..'Bir operasyonda süreli beş dalga vardır. Ev sahibi oturum sırasında başlatınca süreyi ve puanı '
             ..'paylaşırsınız. Operasyondan kazanılan puanlarla eşya alınır.\nBunları bir co-op kaydındayken konsola '
             ..'(F10 ya da ~) yaz:\ncoop nightop start: operasyon başlat\ncoop nightop shop: eşyaları listele\ncoop '
-            ..'nightop buy <n>: n numaralı eşyayı al\ncoop challenge: puanlanan dört meydan okuma'},
+            ..'nightop buy <n>: n numaralı eşyayı al\ncoop challenge: puanlanan meydan okumalar'},
         {title='Doro yarışları',
          body="Doro yarışında iki oyuncunun EVE'si de Doro'ya dönüşür. Önce bir parkur kaydet, sonra o parkurda "
             ..'yarış:\ncoop race record <name>: kaydı başlat\nF9: durduğun yere kontrol noktası koy\ncoop race save: '
@@ -1055,7 +1055,7 @@ G['zh-Hans']={
          body='暗夜行动是Shift Up在发售前删减的波次生存模式。一次行动有五个限时波次。房主在房间中发起行动时，'
             ..'你们共享计时和得分。行动获得的点数可以购买物品。\n在合作存档中，于控制台（F10或~）输入：\ncoop '
             ..'nightop start：开始一次行动\ncoop nightop shop：列出物品\ncoop nightop buy <n>：购买第n件物品\ncoop '
-            ..'challenge：四项评级挑战'},
+            ..'challenge：评级挑战'},
         {title='Doro竞速',
          body='在Doro竞速中，两名EVE都会变成Doro。先录制赛道，再在赛道上比赛：\ncoop race record <name>：开始录制\n'
             ..'F9：在你所站的位置设置检查点\ncoop race save：保存赛道\ncoop race start <name>：开始比赛（合作存档）\n'
@@ -1097,7 +1097,7 @@ G['zh-Hant']={
          body='夜間行動是Shift Up在發售前刪除的波次生存模式。一場行動有五個限時波次。在房間中由主機發起時，'
             ..'你們共享計時與得分。行動獲得的點數可用來購買道具。\n在合作存檔中，於主控台（F10或~）輸入：\ncoop '
             ..'nightop start：開始一場行動\ncoop nightop shop：列出道具\ncoop nightop buy <n>：購買第n項道具\ncoop '
-            ..'challenge：四個有評分的挑戰'},
+            ..'challenge：有評分的挑戰'},
         {title='Doro競速',
          body='在Doro競速中，兩位EVE都會變成Doro。先錄製賽道，再在賽道上比賽：\ncoop race record <name>：'
             ..'開始錄製\nF9：在你站的位置設置檢查點\ncoop race save：儲存賽道\ncoop race start <name>：'

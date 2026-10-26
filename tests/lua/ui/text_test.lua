@@ -6,7 +6,8 @@
 -- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, the co-op
 -- saves' question, with its invite line, within its 5 rows (Chat.wrap), Night Operation's card and result panel within
 -- their columns, the challenges' words: a name for each of nightop/challenges.lua's ids, as the card's title, the Best
--- row and the lines under the heading within their columns, the notices with the longest name within 200 bytes, the
+-- row and the lines under the heading within their columns, the notices with the longest name within 200 bytes (the
+-- co-op one with a partner's 32-byte name too), the
 -- co-op line's hint and sentences within theirs, the status strip's rows (partner/hud.lua): the second with every fact
 -- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
 -- without its prefix, the race's panel, marker, banner and results within theirs, and no Thai word that ends on a
@@ -97,7 +98,7 @@ local function notices(w)
     local c,long=w.challenge,''
     for _,def in ipairs(C.LIST) do if #c.names[def.id]>#long then long=c.names[def.id] end end
     for _,text in ipairs({c.start_notice:format(long,5),c.wave_notice:format(long,8,8),c.clear_notice:format(long,8),
-        c.record,c.stopped}) do
+        c.record,c.stopped,c.coop_notice:format(long,NAME,5)}) do
         lines[#lines+1]=text
     end
     -- The race's notices (race/run.lua): its banners too, which come as notices with the UI off.
