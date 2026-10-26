@@ -738,10 +738,14 @@ bool step() {
         linked ? link->mate_life() : coop::Life::unknown);
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
-    coop::pose::peer(linked, GetTickCount64(), [](const uint8_t *d, size_t n, bool reliable) {
-      if (api.user_handle())
-        link->send_binary(d, n, reliable);
-    });
+    if (coop::pose::peer(
+            linked, GetTickCount64(),
+            [](const uint8_t *d, size_t n, bool reliable) {
+              if (api.user_handle())
+                link->send_binary(d, n, reliable);
+            },
+            linked ? link->restarts() : 0))
+      link->greet_again();
     std::string text = status_text();
     if (text != written && write_text(folder + L"coop-status.txt", text))
       written = text;

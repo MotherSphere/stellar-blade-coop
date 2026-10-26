@@ -419,6 +419,18 @@ public:
   // This account's SteamID: 0 until Steam is ready.
   uint64_t me() const { return me_; }
 
+  // Counts the signs that a friend's session started over and lost what was in flight to her: each hello of hers that
+  // passes the version check, and each time her session past the handshake reads broken (4 closed by peer, 5 problem
+  // detected; the next reliable send restarts it). The pose path sends its table again soon after one (TableResend).
+  uint64_t restarts() const { return restarts_; }
+  // The pose path takes a linked friend's data again after coop loopback or replay, which dropped her table: our hello
+  // goes to her again at the next pass, which her side counts in its restarts(), so her table comes within 5 s.
+  void greet_again() {
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted)
+        p.hello_sent = false;
+  }
+
   // The pose path's table (reliable), pose or SBE (unreliable), on channel 1 to every friend past the handshake only.
   // Worker thread, like tick().
   // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s
@@ -1411,6 +1423,7 @@ private:
         return;
       }
       peer.compatible = true;
+      ++restarts_;
       peer.photo_sent.clear(); // Her session may be new: our photo line goes again once she accepts.
       if (peer.paks_at)        // The same for our pak lines and paks line (send_paks); hers start again too.
         peer.paks_again = true;
@@ -1701,7 +1714,10 @@ private:
     for (auto &peer : peers_) {
       alignas(8) unsigned char quick[512] = {}; // SteamNetConnectionRealTimeStatus_t: state, then ping.
       Identity who = identity(peer.id);
+      const int was = peer.session_state;
       peer.session_state = api_.session_info(msgs_, &who, nullptr, quick);
+      restarts_ += peer.compatible && peer.accepted && peer.session_state != was &&
+                   (peer.session_state == 4 || peer.session_state == 5);
       int32_t ping_ms = 0;
       for (int b = 3; b >= 0; --b)
         ping_ms = static_cast<int32_t>((static_cast<uint32_t>(ping_ms) << 8) | quick[4 + b]);
@@ -1792,6 +1808,7 @@ private:
   std::set<uint64_t> allowed_;
   std::map<uint64_t, uint64_t> refused_;
   uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;
+  uint64_t restarts_ = 0; // restarts()
   int relay_ = 0;
   bool relay_known_ = false, overlay_ = false;
   std::deque<std::string> notices_; // The last kNotices, oldest first; notice_count_ numbers the newest.

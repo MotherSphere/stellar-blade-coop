@@ -57,7 +57,10 @@ uint64_t remote_count = 0;
 const char kPeer[] = "peer";
 const char *remote_source = "loopback";
 void (*peer_send)(const uint8_t *, size_t, bool) = nullptr; // Set by peer() each pass, before peer_on can be true.
-uint64_t next_table_ms = 0, last_renewal_us = 0;
+uint64_t last_renewal_us = 0;
+TableResend table_resend; // Our table's resends to the linked friend.
+uint64_t restarts_seen = 0; // Link::restarts() as peer() last saw it.
+bool linked_before = false; // peer()'s linked at its last pass.
 // Night Operation probe (Phase 6): read-only, its own latch (pinned && !blocked), so a pose fault leaves it running.
 bool pinned = false, nightop_on = false;
 // pinned for the game thread's pause, pilot, quest, revive and travel calls; each keeps its own *_faulted latch.
@@ -244,8 +247,8 @@ void take_table(const uint8_t *data, size_t size) {
     return;
   bool renewed = t->generation != remote.generation || !same_layout(*t, remote);
   const char *source = replay.on() ? "replay" : loopback_on ? "loopback" : kPeer; // The sources exclude each other.
-  // ROADMAP 4.7: one new ghost per 2 s from her at most (a LoadAsset hitch and new FNames each); her resend every 5 s
-  // brings the newest table later.
+  // ROADMAP 4.7: one new ghost per 2 s from her at most (a LoadAsset hitch and new FNames each); her resend 5 s after
+  // her last change brings the newest table later.
   uint64_t now = clock_us();
   if (renewed && source == kPeer && now - last_renewal_us < 2'000'000) {
     ++window_tables_refused;
@@ -332,8 +335,9 @@ void drop_remote() {
 }
 
 // coop-components.txt, when it changed: EVE's capture, sent on whenever its wire form changes (a part hung elsewhere
-// keeps the generation and the Live); a new generation, or none, is a new Live.
-void take_capture() {
+// keeps the generation and the Live), with its next resend to the friend 5 s later; a new generation, or none, is a
+// new Live.
+void take_capture(uint64_t now_ms) {
   bool exists = false;
   std::string text = read_file(dir + L"coop-components.txt", exists, kMaxTable);
   if (text == capture_text)
@@ -351,8 +355,10 @@ void take_capture() {
   std::string wire = capture.generation ? format_table(capture) : std::string();
   if (wire != sent_table) {
     sent_table = std::move(wire);
-    if (!sent_table.empty())
+    if (!sent_table.empty()) {
       send_table();
+      table_resend.changed(now_ms);
+    }
   }
   if (!renewed)
     return;
@@ -530,7 +536,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     debug_asks.asked = 0; // And SB's developer gates go back to the game's values.
     event("new Lua session: capture and ghost dropped");
   }
-  take_capture();
+  take_capture(now_ms);
   take_display();
   // A missing or bad file keeps the previous values: Lua's put() removes the old file before it renames the new one in,
   // so the worker can find none in between.
@@ -657,23 +663,26 @@ bool worker_stream() {
   return loopback_on || record_on || replay.on() || peer_on; // Every 5 ms only while something streams.
 }
 
-void peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool)) {
+bool peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool), uint64_t restarts) {
   peer_send = send;
   bool on = linked && peer_open(), was = peer_on.exchange(on);
+  const bool back = on && !was && linked_before; // Linked all along: a loopback or replay ended.
+  linked_before = linked;
   if (was != on)
     say(on ? "peer linked: poses and tables go over Steam" : "peer unlinked");
   if (was && !on && remote_source == kPeer)
     drop_remote(); // She left, or a loopback or replay took over.
   if (!on) {
-    next_table_ms = 0;
-    return;
+    table_resend = TableResend(); // At once to the next friend.
+    return false;
   }
-  // At once, then every 5 s: heals a table lost with a broken session, sent before her accept, or refused as too soon.
-  // To her only: never looped back or recorded. She ignores an identical text.
-  if (now_ms >= next_table_ms && !sent_table.empty()) {
+  if (restarts != restarts_seen && was) // At the link the table goes at once anyway.
+    table_resend.restarted(now_ms);
+  restarts_seen = restarts;
+  // At once, then 5, 10, 20, 40 and 60 s apart (pose/table.h TableResend). To her only: never looped back or recorded.
+  if (!sent_table.empty() && table_resend.due(now_ms))
     send(reinterpret_cast<const uint8_t *>(sent_table.data()), sent_table.size(), true);
-    next_table_ms = now_ms + 5000;
-  }
+  return back;
 }
 
 // Gated on peer_open, not peer_on: a table that follows the accept in the tick that completes the handshake comes

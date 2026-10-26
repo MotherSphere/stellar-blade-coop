@@ -101,8 +101,8 @@ For the host:
 - `ghost=hidden map`, or the notice `<name> is in <map>, you are in <map>.`: you are on different maps. The ghost
   shows once you are on the same map.
 - `ghost=waiting`: no table has arrived yet, or the ghost is being built, or your EVE has been in the world for less
-  than 2 s. A table that needs a new ghost is taken at most once every 2 s; your friend's next resend (every 5 s)
-  brings it.
+  than 2 s. A table that needs a new ghost is taken at most once every 2 s; your friend's next resend (5 s after
+  their table changed) brings it.
 - The ghost appears and disappears: it hides after a second without a pose, so poses are arriving with gaps. Look
   at the `<name>, last 60 s:` line in `coop-link.log` (RTT, drops, Steam's session quality).
 - `engine=off reason=...` in `coop status`: the native pose path is off. On a game build other than 24463856 it never

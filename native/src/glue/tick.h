@@ -24,8 +24,10 @@ coop::State lua_state();
 // the replay have due to the receiving side, and stops a recording at its cap. True while the loopback, a recording, a
 // replay or a linked friend runs (the worker then passes every 5 ms, not 50).
 bool worker_stream();
-// Worker, every pass after the link's tick: whether a friend passed the handshake both ways, and how to reach her.
-void peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool));
+// Worker, every pass after the link's tick: whether a friend passed the handshake both ways, how to reach her, and
+// Link::restarts() (a change sends our table again within 5 s). True when the pose path takes her data again after
+// the loopback or the replay, which dropped her table: the caller asks for it (Link::greet_again).
+bool peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool), uint64_t restarts);
 // Worker, from the link's channel-1 receive (a handshaken lobby member only): her table or pose.
 void peer_receive(const uint8_t *data, size_t size);
 // Worker thread. Each returns the line for the log: what was asked, or why not. The loopback and the replay never run

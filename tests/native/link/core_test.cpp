@@ -1090,6 +1090,7 @@ int main() {
     w.tick("", 0, 0, 1000);
     w.tick("", 0, 0, 600);
     assert(sent_to(kFriend, "SBC hello ") == 2);
+    assert(w.link.restarts() == 0); // A session broken before the handshake is no restart for the pose path.
   }
 
   // Race at T1: she joins, her session request and her hello arrive in the same pass. Her peer exists before receive()
@@ -2314,6 +2315,7 @@ int main() {
     w.tick();
     assert(sent_to(kFriend, paks_line(2, 77)) == 1 && w.status().find("\npaks=differ 2 1\n") != std::string::npos);
     assert(saw("Kaanta loads 1 .pak mods, not the same as ours (2 here)"));
+    assert(w.link.restarts() == 1); // Her hello.
     assert(w.status().find("\nmods_") == std::string::npos); // A .pak mod and no name: her mod_names=off.
     F.inbox.push_back({kFriend, paks_line(1, 5)}); // The same again: no new log line.
     w.tick();
@@ -2336,6 +2338,26 @@ int main() {
     assert(sent_to(kFriend, paks_line(2, 77)) == 3);
     w.tick();
     assert(sent_to(kFriend, paks_line(2, 77)) == 3 && !saw("Kaanta silent for 10 s: lost"));
+    // Each of her hellos counts as a restart for the pose path (it plans our table's resend, never more than one each
+    // 5 s), and so does her session read broken past the handshake, once per break.
+    assert(w.link.restarts() == 102);
+    F.session_state = 4;
+    w.to(w.now + 1000);
+    w.to(w.now + 1000);
+    assert(w.link.restarts() == 103);
+    F.session_state = 3;
+    w.to(w.now + 1000);
+    F.session_state = 5;
+    w.to(w.now + 1000);
+    F.session_state = 3;
+    w.to(w.now + 1000);
+    assert(w.link.restarts() == 104);
+    // Our pose path back after a loopback or a replay (greet_again): our hello goes to her once, at the next pass.
+    const int hellos = sent_to(kFriend, "SBC hello ");
+    w.link.greet_again();
+    w.tick();
+    w.tick();
+    assert(sent_to(kFriend, "SBC hello ") == hellos + 1);
     // Her pak lines past the handshake, more than kMaxMods: the first kMaxMods names are kept once her paks line ends
     // them, and the status lists hers we lack (all of them: we gave no names) within 400 bytes, the count first.
     for (size_t i = 0; i < kMaxMods + 10; ++i)
