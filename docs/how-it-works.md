@@ -530,9 +530,16 @@ Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A 
 its keyframe in microseconds, the world transform, one bit for each bone rotation, translation, scale and effect slot,
 and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every 250 ms, and
 whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and decodes it
-like a keyframe, so a delta gives exactly the same pose. A delta whose keyframe was lost on the way is dropped and
-counted as keyless; the ghost waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to
-41 % (combat) of the full pose.
+like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the ghost waits for the
+next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full pose.
+
+A bone's rotation, translation or scale counts as changed only when it is more than a small tolerance away from the
+keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° at most), 1 step of translation
+(1/32 cm) and 1 step of scale (1/4096). Until it moves further, the receiver keeps the keyframe's value, for 250 ms
+at most. This drops the fields that only flip their last step from float noise, and needs no change on the receiving
+side. The test build `build/host/pose_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes,
+deltas and KiB/s with and without the tolerance: `build/host/pose_delta_gain_test coop-record.bin`. With no file it
+measures two synthetic recordings; they show how the tool works, not what a real outfit saves.
 
 ### 4. Playback clock and interpolation
 

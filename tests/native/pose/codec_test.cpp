@@ -1,7 +1,8 @@
 // The pose codec on the build machine: round trips within NetPose's bounds (effect slots too), the decoder's refusals
 // one defect at a time, and fuzzed input (random and mutated messages) that must never crash or yield a non-finite
-// value. Codec v2's deltas: exact rebuilds, their refusals, fuzzed deltas, which keyframe the receiver holds, the
-// sender's keyframe choice and byte budget, and a lossy stream that never decodes a wrong pose.
+// value. Codec v2's deltas: rebuilds within the sender's tolerance and at its edge, their refusals, fuzzed deltas,
+// which keyframe the receiver holds, the sender's keyframe choice and byte budget, and a lossy stream that never
+// decodes a pose past the tolerance.
 #include "pose/codec.h"
 
 #include <algorithm>
@@ -23,6 +24,8 @@ Table table() {
   return t;
 }
 constexpr size_t kLeaderBones = 8; // 5 + 3: the follower carries none.
+// A rotation step moves a rotation 0.01714 degrees at most (the four components near 0.5): kTolerance's 2 steps.
+constexpr double kNearDegrees = 0.01715 * kTolerance.rotation;
 
 // The angle between two rotations, in degrees: 4 atan2(|a - b|, |a + b|) with b on a's side, stable for tiny angles
 // (acos of a dot product near 1 is not).
@@ -363,6 +366,27 @@ int main() {
       return h.generation == o.h.generation && h.publication == o.h.publication && h.sequence == o.h.sequence &&
              h.map == o.h.map && !std::memcmp(root, o.root, sizeof root) && bones == o.bones;
     }
+    // The same but for the bones, each within kTolerance of o's: what a delta may give for the pose it was made of.
+    bool near(const Decoded &o) const {
+      Decoded same = o;
+      same.bones = bones;
+      if (!(*this == same))
+        return false;
+      for (size_t b = 0; b < kLeaderBones; ++b) {
+        float f[12], g[12];
+        std::memcpy(f, bones.data() + b * kTransformBytes, sizeof f);
+        std::memcpy(g, o.bones.data() + b * kTransformBytes, sizeof g);
+        if (angle(f, g) > kNearDegrees)
+          return false;
+        for (int k = 4; k < 7; ++k)
+          if (std::fabs(f[k] - g[k]) > kTolerance.translation / 32.0 + 1e-4)
+            return false;
+        for (int k = 8; k < 11; ++k)
+          if (std::fabs(f[k] - g[k]) > kTolerance.scale / 4096.0 + 1e-6)
+            return false;
+      }
+      return true;
+    }
   };
   auto decoded_full = [&](const std::vector<uint8_t> &full) {
     Decoded d;
@@ -370,12 +394,38 @@ int main() {
     return d;
   };
   std::vector<uint8_t> delta(kMaxPose), rebuilt(pose_size(t));
+  // Bone unit u (u < 24: a bone's rotation, translation or scale by u % 3) of an encoded pose moved in its quantized
+  // steps: each component by its own step in steps, sign at random, turned back where it would leave the range.
+  auto nudge = [&](std::vector<uint8_t> &pose, size_t u, const int (&steps)[3]) {
+    uint8_t *p = pose.data() + units[u].first;
+    const uint8_t *in = p;
+    if (u % 3 == 0) {
+      const uint64_t bits = codec::get(in, 6);
+      uint64_t out = bits >> 45 << 45;
+      for (int k = 0, shift = 0; k < 3; ++k, shift += 15) {
+        const int c = int(bits >> shift & 0x7fff), d = any_byte(rng) % 2 ? steps[k] : -steps[k];
+        out |= uint64_t(c + d < 0 || c + d > 32766 ? c - d : c + d) << shift;
+      }
+      codec::put(p, out, 6);
+      return;
+    }
+    for (int k = 0; k < 3; ++k) {
+      const int c = int16_t(codec::get(in, 2)), d = any_byte(rng) % 2 ? steps[k] : -steps[k];
+      codec::put(p, uint16_t(int16_t(c + d < -32768 || c + d > 32767 ? c - d : c + d)), 2);
+    }
+  };
+  auto edge = [](size_t u) { // kTolerance for bone unit u.
+    return u % 3 == 0 ? kTolerance.rotation : u % 3 == 1 ? kTolerance.translation : kTolerance.scale;
+  };
 
-  // Exact round trips: a keyframe, the next pose with from every unit to about one in eight changed, its delta. The
-  // delta is the fixed part plus exactly the changed units' bytes, or none when that is not smaller than the pose; the
-  // pose rebuilt from the keyframe and the delta is the sender's, byte for byte, and decodes to the same values.
+  // Round trips: a keyframe, the next pose with from every unit to about one in eight changed, and of the bone fields
+  // left as they were, about one in three moved within kTolerance (every component at its edge) and one in three just
+  // past it (one component a step beyond); its delta. The delta is the fixed part plus exactly the changed units' and
+  // the moved-past units' bytes, or none when that is not smaller than the pose. The pose rebuilt from the keyframe and
+  // the delta is the sender's but for the units moved within the tolerance, which keep the keyframe's bytes, and it
+  // decodes to values within kTolerance of the sender's (Decoded::near).
   {
-    size_t deltas = 0, not_smaller = 0;
+    size_t deltas = 0, not_smaller = 0, held = 0;
     for (int round = 0; round < 4000; ++round) {
       Pose a, b;
       random_pose(a);
@@ -390,10 +440,25 @@ int main() {
         if (any_byte(rng) % odds == 0)
           new_slot(e);
       const uint64_t key_at = 5'000'000, at = key_at + 1 + uint64_t(any_byte(rng)) * 1000;
-      const std::vector<uint8_t> key = encode(a, 10, key_at), full = encode(b, 11, at);
+      const std::vector<uint8_t> key = encode(a, 10, key_at);
+      std::vector<uint8_t> full = encode(b, 11, at);
+      std::vector<bool> within(units.size());
+      for (size_t u = 0; u < kLeaderBones * 3; ++u) {
+        if (std::memcmp(key.data() + units[u].first, full.data() + units[u].first, 6))
+          continue;
+        const int e = edge(u), beyond = any_byte(rng) % 3;
+        if (any_byte(rng) % 3 == 0) {
+          nudge(full, u, {e, e, e});
+          within[u] = true;
+        } else if (any_byte(rng) % 2 == 0) {
+          nudge(full, u, {beyond == 0 ? e + 1 : 0, beyond == 1 ? e + 1 : 0, beyond == 2 ? e + 1 : 0});
+        }
+      }
       size_t want = delta_fixed(t);
-      for (auto [o, n] : units)
-        want += std::memcmp(key.data() + o, full.data() + o, n) ? n : 0;
+      for (size_t u = 0; u < units.size(); ++u)
+        want += !within[u] && std::memcmp(key.data() + units[u].first, full.data() + units[u].first, units[u].second)
+                    ? units[u].second
+                    : 0;
       const size_t n = encode_delta(t, key.data(), full.data(), uint32_t(at - key_at), delta.data(), full.size());
       if (want >= full.size()) {
         assert(n == 0);
@@ -403,13 +468,52 @@ int main() {
       assert(n == want && !std::memcmp(delta.data(), "SBD", 3) && !std::memcmp(delta.data() + 3, full.data() + 3, 26));
       ++deltas;
       assert(!apply_delta(t, key.data(), key_at, delta.data(), n, rebuilt.data()));
-      assert(rebuilt == full);
+      for (size_t u = 0; u < units.size(); ++u) {
+        const std::vector<uint8_t> &from = within[u] ? key : full;
+        assert(!std::memcmp(rebuilt.data() + units[u].first, from.data() + units[u].first, units[u].second));
+        held += within[u] && std::memcmp(key.data() + units[u].first, full.data() + units[u].first, 6);
+      }
       Decoded d;
       assert(!decode_pose(t, rebuilt.data(), rebuilt.size(), d.h, d.root, d.bones.data(), d.fx));
-      assert(d == decoded_full(full));
+      assert(d.near(decoded_full(full)));
     }
-    std::fprintf(stderr, "codec: %zu deltas rebuilt exactly, %zu not smaller than the pose\n", deltas, not_smaller);
-    assert(deltas > 3000 && not_smaller > 300); // Both ways, often: about 3600 and 390.
+    std::fprintf(stderr, "codec: %zu deltas rebuilt within the tolerance (%zu fields held), %zu not smaller\n", deltas,
+                 held, not_smaller);
+    assert(deltas > 3000 && not_smaller > 300 && held > 10000); // About 3600, 390 and 21000.
+  }
+
+  // The tolerance at its edge, on every bone field at once: a rotation's three components each 2 steps off, a
+  // translation's and a scale's each 1 step off, count as unchanged (the delta carries no bone field), and decode within
+  // kTolerance; a step more on any one component counts. With no tolerance, any step counts; another largest component
+  // always does.
+  {
+    Pose p;
+    random_pose(p);
+    const std::vector<uint8_t> key = encode(p, 10, 5'000'000);
+    std::vector<uint8_t> moved = encode(p, 11, 5'016'667);
+    for (size_t u = 0; u < kLeaderBones * 3; ++u)
+      nudge(moved, u, {edge(u), edge(u), edge(u)});
+    assert(encode_delta(t, key.data(), moved.data(), 16667, delta.data(), moved.size()) == delta_fixed(t));
+    assert(!apply_delta(t, key.data(), 5'000'000, delta.data(), delta_fixed(t), rebuilt.data()));
+    Decoded d;
+    assert(!decode_pose(t, rebuilt.data(), rebuilt.size(), d.h, d.root, d.bones.data(), d.fx));
+    assert(d.near(decoded_full(moved)) && !(d == decoded_full(moved)));
+    assert(encode_delta(t, key.data(), moved.data(), 16667, delta.data(), moved.size(), Tolerance{}) ==
+           delta_fixed(t) + kLeaderBones * 3 * 6);
+    for (size_t u = 0; u < kLeaderBones * 3; ++u)
+      for (int c = 0; c < 3; ++c) {
+        std::vector<uint8_t> past = encode(p, 11, 5'016'667);
+        int steps[3] = {0, 0, 0};
+        steps[c] = edge(u) + 1;
+        nudge(past, u, steps);
+        assert(strays(key.data() + units[u].first, past.data() + units[u].first, int(u % 3), kTolerance));
+        assert(encode_delta(t, key.data(), past.data(), 16667, delta.data(), past.size()) == delta_fixed(t) + 6);
+      }
+    uint8_t x[6], y[6], *at = x;
+    codec::put(at, uint64_t(1) << 45 | 1000, 6); // Largest component 1, the others 0, 0 and 1000.
+    at = y;
+    codec::put(at, uint64_t(2) << 45 | 1000, 6); // The same bits under another largest one.
+    assert(strays(x, y, 0, Tolerance{100, 100, 100}) && !strays(x, x, 0, Tolerance{}));
   }
 
   // A delta's refusals, one defect each, from a good delta (bone 2's rotation, bone 6's translation, slot 1 changed).
@@ -651,9 +755,11 @@ int main() {
     }
   }
 
-  // A stream with loss: 60 s at 60 a second of a moving pose (three units and now and then a slot change each frame),
-  // one message in ten lost, through KeyedEncoder and KeyedDecoder. Every pose decoded is the pose sent, bit for bit; a
-  // delta is refused (key) exactly while the keyframe it names is lost, and the next keyframe ends that.
+  // A stream with loss: 60 s at 60 a second of a moving pose (three units and now and then a slot change each frame,
+  // and one bone turning and sliding slowly, about half a step a frame), one message in ten lost, through KeyedEncoder
+  // and KeyedDecoder. Every pose decoded is within kTolerance of the pose sent (exact once the slow bone strays past it
+  // and at each keyframe); a delta is refused (key) exactly while the keyframe it names is lost, and the next keyframe
+  // ends that.
   {
     KeyedEncoder sender;
     KeyedDecoder receiver;
@@ -663,12 +769,23 @@ int main() {
     random_pose(p);
     std::vector<uint8_t> buf(kMaxPose);
     bool holding = false;
-    size_t keyframes = 0, deltas = 0, lost = 0, decoded_ok = 0, keyless = 0;
+    size_t keyframes = 0, deltas = 0, lost = 0, decoded_ok = 0, keyless = 0, inexact = 0;
     for (uint32_t k = 1; k <= 3600; ++k) {
       const uint64_t publication = 1'000'000 + k * 16667ull;
       move_root(p);
       for (int c = 0; c < 3; ++c)
         bone_field(p, size_t(any_byte(rng)) % kLeaderBones, any_byte(rng) % 3);
+      {
+        float f[12];
+        uint8_t *slow = p.bones.data() + (k / 600) * kTransformBytes; // Another slow bone every 10 s.
+        std::memcpy(f, slow, sizeof f);
+        f[0] += 2e-5f; // A rotation step is 4.3e-5 of a component.
+        const float norm = std::sqrt(f[0] * f[0] + f[1] * f[1] + f[2] * f[2] + f[3] * f[3]);
+        for (int c = 0; c < 4; ++c)
+          f[c] /= norm;
+        f[4] += 0.015f; // Half a translation step.
+        std::memcpy(slow, f, sizeof f);
+      }
       if (k % 50 == 0)
         new_slot(p.fx[k / 50 % kEffectSlots]);
       const std::vector<uint8_t> f = encode(p, k, publication);
@@ -689,12 +806,15 @@ int main() {
         ++keyless;
         continue;
       }
-      assert(holding && d == decoded_full(f));
+      assert(holding && d.near(decoded_full(f)));
+      inexact += !(d == decoded_full(f));
       ++decoded_ok;
     }
-    std::printf("codec: stream with loss: %zu keyframes, %zu deltas, %zu lost, %zu decoded exactly, %zu keyless\n",
-                keyframes, deltas, lost, decoded_ok, keyless);
+    std::printf("codec: stream with loss: %zu keyframes, %zu deltas, %zu lost, %zu decoded (%zu within the tolerance, "
+                "not exact), %zu keyless\n",
+                keyframes, deltas, lost, decoded_ok, inexact, keyless);
     assert(keyframes >= 240 && keyframes < 300 && keyless > 0 && decoded_ok + keyless + lost == 3600);
+    assert(inexact > 300 && inexact < decoded_ok); // About 730 of 2900.
   }
 
   // A table over 16 KB has no pose size: the caller refuses to stream it.
