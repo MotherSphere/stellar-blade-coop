@@ -12,9 +12,14 @@
 -- answer, his clock, waves, score and end, and her world's kills and bodies, so both worlds run the same seeded waves
 -- around his start point and both cards show one timer and one score. Each world fights its own monsters, unless the
 -- shared fight pairs their copies by key: then the guest leaves the aggro and stuck moves of a key the host tracks and
--- has not done to the pilot while same-place enemies draw at least one copy. A run of ours that went from its countdown
--- to a success or a time up credits its final score as points to this player's wallet (a challenge credits none); coop
--- nightop shop and buy spend them (nightop/shop.lua, which holds the one grant call). Never called here:
+-- has not done to the pilot while same-place enemies draw at least one copy. In a co-op run a death is a down, the cut
+-- mode's revive: the line carries each side's down time left and its revive of the other (the interact key held next to
+-- the downed EVE's ghost), and the downed side asks session/group.lua for the game's in-place respawn, which a friend's
+-- full hold or coop nightop revive (the level's self revives) starts; both down, or the time out, ends the run as a
+-- death did. The card and the notices use the cut mode's own words for it (StringTable_UI). A solo run keeps the death.
+-- A run of ours that went from its countdown to a success or a time up credits its final score as points to this
+-- player's wallet (a challenge credits none); coop nightop shop and buy spend them (nightop/shop.lua, which holds the
+-- one grant call). Never called here:
 -- a table row added, a rule or remain-time request, EndRule, ResetZone, a zone event other than nightop/probe.lua's
 -- heal, EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip or quest call,
 -- RegisterHook, NotifyOnNewObject. No console word reaches a game call here: start's words only set flags, a
@@ -61,6 +66,18 @@ local WHY={['map change']='map',left='left',slot='slot',link='link',error='error
 -- same before the link counts as lost, ticks between two lines that say the same, and metres the guest may stand from
 -- his start point to join.
 local ASK,QUIET,EVERY_LINE,FAR=20,20,4,50
+-- The revive: cm from our EVE's mesh to the downed partner's ghost feet, across and up or down (session/group.lua's
+-- reach), and seconds a revive call keeps the down open past W.DOWN (group.lua's 2 s, its fallback's 2 s, a read).
+local ACROSS,UP,CALL=200,100,5
+-- The game's default Interaction_Key (DefaultInput.ini), read through the player controller's IsInputKeyDown.
+-- ponytail: the default keys only; a rebound interact key is not followed. Read the player's mappings if that matters.
+local KEYS={'F','Gamepad_RightTrigger'}
+-- The cut mode's words for the revive in StringTable_UI, with the game's English for each (no table, or
+-- ui_language=english). {Name} is the partner's name.
+local CUT={UI_Night_Watching='Spectating',UI_Night_Revive='Resuscitate',
+    UI_Night_Message_RequestRevive='Asked {Name} for a resuscitation.',
+    UI_Night_Message_RequestRevive_Receive='{Name} has requested resuscitation.',
+    UI_Night_Message_ComeBackFriend='{Name} has joined the game.'}
 local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
 local function xyz(v) return string.format('%.0f,%.0f,%.0f',v.X,v.Y,v.Z) end
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
@@ -168,11 +185,13 @@ end
 -- The card's title and line for the run's state s at game time now, in words w (ui/text.lua's): Night Operation's
 -- title or the challenge's name, then the host's wait for her answer, the countdown (hers from her answer on), then
 -- the wave or, once it is down, the next one's countdown (the wave again once it is due and the cap holds it), each
--- with the run time left and the score.
-function Run.card(s,now,w)
+-- with the run time left and the score. rv, while one EVE is down in a co-op run: {title=, left=whole seconds, pct=},
+-- whose title takes the card's, followed by the revive's percent once it is above 0, else the time left.
+function Run.card(s,now,w,rv)
     local n=w.night
     local title=s.def.level and n.title or w.challenge.names[s.def.id]
     if s.phase=='ask' and s.role=='host' then return title,n.waiting end
+    if rv then title=rv.title..'  '..(rv.pct>0 and rv.pct..' %' or clock_text(rv.left)) end
     if s.phase=='countdown' or s.phase=='ask' then return title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
     local rt=now-s.t0
     local wait=s.phase=='breather' and s.next_at and math.ceil(s.next_at-rt)
@@ -182,14 +201,15 @@ end
 -- An ended run's heading, the line under it and its five rows {label, value}, in words w. best: the best run of its
 -- definition ({score, s=whole seconds, new=true when this run wrote it}), or nil for none. The line: why the run
 -- ended, or after a success the record line when this run wrote its best, else ''. game(key): the game's own text for
--- a StringTable_UI key, or nil; read for the heading and a solo death's line only. A co-op run (s.role 'host' or
--- 'guest') says whose EVE died: its reason names the side.
+-- a StringTable_UI key, or nil; read for the heading and the line of a solo death or of both EVEs down. A co-op run
+-- (s.role 'host' or 'guest') says whose EVE died: its reason names the side.
 function Run.result(s,w,game,best)
     local n,c=w.night,w.challenge
     local won=s.outcome=='success'
     local head=game(won and 'UI_Night_OperationSuccess' or 'UI_Night_OperationFail') or (won and n.success or n.fail)
     local sub=''
     if won then sub=best and best.new and c.record or ''
+    elseif s.outcome=='failed' and s.reason=='both' then sub=game('UI_Night_OperationFail_Des') or n.died
     elseif s.outcome=='failed' and s.reason then sub=s.reason==s.role and n.you_died or n.mate_died
     elseif s.outcome=='failed' then sub=game('UI_Night_OperationFail_Des') or n.died
     elseif s.outcome=='time' then sub=n.time_up
@@ -222,10 +242,14 @@ end
 -- what the partner did; send(line) writes our night line (core/link.lua's night); friend() the partner's Steam name;
 -- store(name) core/link.lua's one-line file, for the shop's wallet; rows(done) cut/lion.lua's Lion.rows, for the shop's
 -- cut items. records: {read() the text of coop-records.txt, nil when there is none (it raises when the file cannot be
--- read), write(text) true once written}, or nil for no bests.
+-- read), write(text) true once written}, or nil for no bests. revive(by) asks session/group.lua for the in-place
+-- respawn of our downed EVE, by 'friend' or 'self': true, or false and why not; ghost() the partner's ghost feet in our
+-- world (partner/puppet.lua's anchor), or nil.
 function Run.new(o)
     local log,status,paused,tell,records=o.log,o.status,o.paused,o.tell,o.records
     local send,friend=o.send,o.friend or function() return nil end
+    local revive=o.revive or function() return false,'no Steam link' end
+    local ghost=o.ghost or function() return nil end
     local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
     -- The result panel: {s=the ended run's state, left=ticks it still shows}; it counts only the ticks it is seen.
     local panel=nil
@@ -488,6 +512,7 @@ function Run.new(o)
     local function finish()
         local s=r.s
         r.bodies,r.queue,r.timers,r.live,r.screen={},{},W.timers(),{},nil
+        r.down,r.held=nil,0 -- The end line says nobody waits for a revive.
         if s.outcome=='success' and records then
             local no=r.role and 'a co-op run' or (r.noaggro or r.nomove) and 'a test switch was on'
                 or r.missing and 'a monster never came' or s.kills==0 and 'no kill'
@@ -579,6 +604,112 @@ function Run.new(o)
         r.playing=playing
         return playing and was~=true
     end
+    -- The cut mode's own words (CUT) in the game's language, from its StringTable_UI, read once a run each; its English
+    -- with ui_language=english or when the table gives none. named: with the partner's name for {Name}.
+    local function cut(key)
+        if hud and hud.settings.ui_language=='english' then return CUT[key] end
+        if r.cut[key]==nil then r.cut[key]=game_text(key) or false end
+        return r.cut[key] or CUT[key]
+    end
+    local function named(key) return (cut(key):gsub('{Name}',function() return friend() or '?' end)) end
+    -- Our down's seconds left, as the line and the card give it (at least 1 while a call's result is awaited), or 0.
+    local function down_left()
+        local d=r.down
+        return d and math.max(1,math.min(W.DOWN,math.ceil(W.DOWN-(r.ticks-d.at)*TICK))) or 0
+    end
+    local function help_pct() return math.min(100,math.floor(r.held*TICK*100/W.HOLD)) end
+    -- One revive call a down, through session/group.lua's guards (the death screen, life 3 to 5, no respawn or warp in
+    -- flight, a standalone game, no probe rule). A refusal is logged once a reason; the friend's is asked again each
+    -- tick while her line holds 100.
+    local function ask(by)
+        local d=r.down
+        local ok,done,no=pcall(revive,by)
+        if ok and done then
+            d.called,d.call_at=by,r.ticks
+            log(string.format('revive asked (%s) after %.1f s down',by,(r.ticks-d.at)*TICK))
+            return true
+        end
+        no=ok and tostring(no or 'refused') or why(done)
+        if no~=d.said then
+            d.said=no
+            log('revive not asked ('..by..'): '..no)
+        end
+        return false,no
+    end
+    -- A co-op run's death is a down while life= reads (our vitals, read in a session only): the death screen's start,
+    -- or life 3 to 5 that its watch missed. With no life read, the death ends the run as in a solo run. A down lasts
+    -- W.DOWN s of ticks (a pause does not hold it), plus CALL s past it once a call went, and input.down tells the
+    -- host's states (both down: failed 'both'). The partner's line at help 100 asks for the call. Up again (life 1 or
+    -- 6, once 3 to 5 was read in this down): revived when a call went, else the death screen's respawn at a camp,
+    -- which ends the run as the death it was. The time running out ends it so too.
+    local function downed(raw,input)
+        local life=math.tointeger(tonumber(raw:match('\nlife=(%d+) ') or ''))
+        local dying=life~=nil and life>=3 and life<=5
+        local d=r.down
+        if not d then
+            if not (input.dead or dying) or not life then return end
+            d={at=r.ticks}
+            r.down=d
+            log(string.format('down (life %d): %d s for a revive, %d self revives left',life,W.DOWN,r.revives))
+            if tell then tell(function() return named('UI_Night_Message_RequestRevive') end) end
+        end
+        input.dead=nil
+        d.seen=d.seen or dying
+        if d.seen and (life==1 or life==6) then
+            r.down=nil
+            if d.called then return log('up: revived ('..d.called..')') end
+            input.dead=true
+            return log('up with no revive asked (a respawn at a camp): the run ends as a death')
+        end
+        if (r.ticks-d.at)*TICK>=W.DOWN and not (d.call_at and (r.ticks-d.call_at)*TICK<CALL) then
+            r.down,input.dead=nil,true
+            return log(string.format('down %d s with no revive: the run ends as a death',W.DOWN))
+        end
+        input.down=true
+        if r.peer and r.peer.help>=100 and not d.called then ask('friend') end
+    end
+    local fkeys={}
+    local function held()
+        local pc=N.controller()
+        if not pc then return false end
+        for _,name in ipairs(KEYS) do
+            fkeys[name]=fkeys[name] or {KeyName=FName(name)}
+            if pc:IsInputKeyDown(fkeys[name])==true then return true end
+        end
+        return false
+    end
+    -- The partner's down as her line says it: a notice when it starts (her request, in the cut mode's words) and when
+    -- she is up again with the run still on. Then our revive of her: our EVE up, its mesh within ACROSS cm across and
+    -- UP up or down of her ghost's feet, the interact key held, counts ticks to W.HOLD s; a release, a step away, a
+    -- pause or her getting up starts it over. Full, it stays full while she is down: her game makes the call.
+    local function helping(eve)
+        local peer=r.peer
+        local down=peer~=nil and peer.down>0
+        if down~=(r.mate_down==true) then
+            r.mate_down=down
+            local name=friend() or '?'
+            if down then
+                log(name..' is down')
+                if tell then tell(function() return named('UI_Night_Message_RequestRevive_Receive') end) end
+            elseif peer.state~='dead' and peer.phase~='end' then
+                log(name..' is up again')
+                if tell then tell(function() return named('UI_Night_Message_ComeBackFriend') end) end
+            end
+        end
+        if not down or r.down then r.held=0; return end
+        if help_pct()>=100 then return end
+        local near=false
+        if eve and not paused() then
+            local feet,mesh=ghost(),U.valid(eve.Mesh)
+            local m=feet and mesh and U.value_of(mesh:K2_GetComponentLocation())
+            near=m~=nil and (feet.X-m.X)^2+(feet.Y-m.Y)^2<=ACROSS^2 and math.abs(feet.Z-m.Z)<=UP
+        end
+        local was=r.held
+        r.held=near and held() and r.held+1 or 0
+        if r.held==0 and was>0 then log(string.format('revive of %s stopped at %d %%',friend() or '?',
+            math.min(100,math.floor(was*TICK*100/W.HOLD)))) end
+        if help_pct()>=100 then log('revive of '..(friend() or '?')..': held for '..W.HOLD..' s') end
+    end
     -- The host's ask: her ready within ASK ticks starts the countdown; her refusal, or silence, drops the run with no
     -- result and a notice that says why. A run byte she found taken is skipped from then on.
     local function host_ask(eve,mode,line)
@@ -628,6 +759,7 @@ function Run.new(o)
         local line=r.role and fresh and fresh.run==r.s.run and (r.role=='host' or fresh.seed==r.seed) and fresh or nil
         if r.role then r.quiet=line and 0 or r.quiet+1 end
         if r.role=='host' and line then r.mate=line end
+        if line then r.peer=line end -- The partner's last line, his or hers: her down and her revive of ours.
         if r.s.phase=='ask' then
             if r.role=='host' then return host_ask(eve,mode,line) end
             if not guest_ask(mode,line) then return end
@@ -674,6 +806,10 @@ function Run.new(o)
             end
             r.now=now
         end
+        if r.role and not input.abort then -- A death is a down first (it ends the run only as downed() says).
+            downed(raw,input)
+            helping(eve)
+        end
         if not (input.abort or input.dead) then
             if not eve or paused() then r.stale=true
             else
@@ -685,14 +821,15 @@ function Run.new(o)
         end
         step(input)
     end
-    local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | shop | buy <n> [count]]'
+    local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | revive | shop | buy <n> '
+        ..'[count]]'
     -- A new run of def (Night Operation's when nil) at game time now around at (whole cm) facing yaw (whole degrees):
     -- the run byte and seed give the gate order, so the host's and the guest's runs put each monster on the same spot.
     local function begin(run,seed,now,at,yaw,map,flag,def)
         r={s=W.new{run=run,seed=seed,now=now,def=def},seed=seed,p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
             nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},before={},
             live_at=-math.huge,now=now,found={},ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},asked=0,
-            quiet=0}
+            quiet=0,held=0,revives=(def or W.NIGHT).revives or 0,cut={}}
         panel=nil
         pcall(died) -- The death screen's first look, while EVE lives.
     end
@@ -801,16 +938,17 @@ function Run.new(o)
     local function state()
         if not r or r.s.phase=='result' then return nil end
         local s=r.s
-        return string.format('run 0x%02X%s: %s, wave %d/%d, run time %.0f s, score %d, kills %d',s.run,
+        return string.format('run 0x%02X%s: %s, wave %d/%d, run time %.0f s, score %d, kills %d%s',s.run,
             s.def==W.NIGHT and '' or s.def.level and ' level '..s.def.level or ' challenge '..s.def.id,s.phase,s.wave,
-            #s.def.waves,r.now-s.t0,s.score,s.kills)
+            #s.def.waves,r.now-s.t0,s.score,s.kills,
+            r.down and string.format(', down %d s, %d self revives left',down_left(),r.revives) or '')
     end
     -- Our side of the night line as W.encode_host's or W.encode_mate's table (n and rt left to night_out), or nil when
     -- we have none to send: the guest's refusal while she sends it (a host who asks has left any run of hers behind),
     -- else the host's run until it goes idle, the guest's too.
     local PHASE={ask='ask',countdown='count',wave='wave',breather='rest',result='end'}
     local function ours()
-        if answer then return {run=answer.run,state='refuse',up=0,killed={},done={},why=answer.why} end
+        if answer then return {run=answer.run,state='refuse',up=0,killed={},done={},why=answer.why,down=0,help=0} end
         if r and r.role=='host' then
             local s=r.s
             local reason=s.outcome=='aborted' and (WHY[s.reason] or 'stop') or s.reason
@@ -819,7 +957,8 @@ function Run.new(o)
             for key in pairs(r.seen) do if not s.done[key] then found[key]=true end end
             return {run=s.run,seed=r.seed,phase=PHASE[s.phase],wave=s.wave,rt=math.max(-10000,
                 math.min(600000,math.floor(rt*1000+0.5))),score=s.score,kills=s.kills,clears=s.clears,found=found,
-                x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason,level=s.def.level}
+                x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason,level=s.def.level,
+                down=down_left(),help=help_pct()}
         end
         if r and r.role=='guest' then
             local s=r.s
@@ -827,7 +966,7 @@ function Run.new(o)
             if s.phase=='ask' then state='ready'
             elseif s.outcome=='failed' and s.reason=='guest' then state='dead'
             elseif s.outcome=='aborted' and s.reason~='mate' then state,why='abort',WHY[s.reason] or 'stop' end
-            return {run=s.run,state=state,up=s.up,killed=s.killed,done=s.done,why=why}
+            return {run=s.run,state=state,up=s.up,killed=s.killed,done=s.done,why=why,down=down_left(),help=help_pct()}
         end
     end
     -- The night line goes when what it says changes and at least once a second, never twice in a tick; n counts the
@@ -859,7 +998,8 @@ function Run.new(o)
         return line
     end
     local self={}
-    -- start [level] [noaggro|nomove], stop, shop, buy <n> [count], or nothing: the run's state, if any, and the census.
+    -- start [level] [noaggro|nomove], stop, revive, shop, buy <n> [count], or nothing: the run's state, if any, and the
+    -- census.
     function self.command(sub,flag,extra,more)
         if sub=='buy' then return shop.buy(flag,extra,more) end
         if sub=='start' and more==nil then
@@ -878,6 +1018,17 @@ function Run.new(o)
             return true,name..' stopped'
         end
         if sub=='shop' then return shop.list() end
+        if sub=='revive' then -- The cut mode's self revive, the level's count a run, in a co-op run's down only.
+            if not r or r.s.phase=='result' then return false,'no Night Operation run' end
+            if not r.role then return false,'a solo run has no revive: a death ends it' end
+            if not r.down then return false,'your EVE is not down' end
+            if r.down.called then return false,'a revive is under way: its result follows in this log' end
+            if r.revives<1 then return false,'no self revive left in this run' end
+            local asked,no=ask('self')
+            if not asked then return false,'no revive: '..no end
+            r.revives=r.revives-1
+            return true,string.format('revive asked: %d self revives left in this run',r.revives)
+        end
         if sub~=nil then return false,USE end
         local eve=N.her()
         if not eve then return false,'no EVE in the world' end
@@ -929,7 +1080,14 @@ function Run.new(o)
             words=T.pick(kit.language(),lang)
         end
         if running then
-            local title,line=Run.card(r.s,r.now,words)
+            -- A down in a co-op run: ours, Spectating with our time left (or her revive's percent); hers, Resuscitate and
+            -- the interact key with her time left (or our revive's percent).
+            local rv=nil
+            if r.down then rv={title=cut('UI_Night_Watching'),left=down_left(),pct=r.peer and r.peer.help or 0}
+            elseif r.role and r.peer and r.peer.down>0 then
+                rv={title=cut('UI_Night_Revive')..' [F]',left=r.peer.down,pct=help_pct()}
+            end
+            local title,line=Run.card(r.s,r.now,words,rv)
             card.title.set(title)
             card.line.set(line)
             return

@@ -9,6 +9,9 @@
 local W={}
 local MASK=0xFFFFFFFF
 W.COUNTDOWN,W.LIMIT,W.BREATHER,W.RESULT=5,480,10,10 -- Seconds of game time.
+-- A co-op run's down (nightop/run.lua): seconds a downed EVE waits for a revive (Lua ticks, so a pause does not hold
+-- it), and seconds the friend holds the interact key next to her for one.
+W.DOWN,W.HOLD=30,3
 W.CAP=8 -- A wave starts only while the bodies still up plus its own size stay at or under this.
 W.HEALS={[2]=true,[4]=true} -- A full heal once these waves are down.
 W.REFRESH=1 -- Seconds between two refreshes of the live list while bodies are tracked; 2 if the log shows slow ones.
@@ -42,20 +45,21 @@ W.SCHEDULE={
 -- one before it is down. limit: run time before time up; heals: the waves after which EVE is healed; bonus: points per
 -- second left on a success; aggro: bodies sent at EVE; moves: stuck-rule moves per body; spots: nil for the four gates,
 -- else {degrees from the start yaw, metres from P0} each. Night Operation's levels only: level, its word (coop nightop
--- start <level>, the night line), and pct, the shop points its score gives in percent of normal's.
+-- start <level>, the night line), pct, the shop points its score gives in percent of normal's, and revives, the self
+-- revives (coop nightop revive) each downed player has in a co-op run.
 W.NIGHT={id='night',level='normal',waves=W.SCHEDULE,limit=W.LIMIT,breather=W.BREATHER,heals=W.HEALS,bonus=1,
-    aggro=true,moves=2,pct=100}
+    aggro=true,moves=2,pct=100,revives=2}
 -- Night Operation's four levels in order, W.NIGHT (normal) among them, and W.LEVEL[word]. Each other level is W.NIGHT
--- with its own id (its best in coop-records.txt), limit, pct and number of monsters in each wave: a wave keeps the
--- schedule's rows in order and repeats them from its first for the extra ones (wave 2 at 5 is Sword, Sword, Gunner,
+-- with its own id (its best in coop-records.txt), limit, pct, revives and number of monsters in each wave: a wave keeps
+-- the schedule's rows in order and repeats them from its first for the extra ones (wave 2 at 5 is Sword, Sword, Gunner,
 -- Sword, Sword), or drops its last ones. Their keys, spots, finds, aggro and score are a wave's like any other; 8, the
 -- cap, is the most a wave holds. Starting values, to tune after the first in-game runs.
 W.LEVELS,W.LEVEL={},{}
-for _,l in ipairs({{'easy',{3,2,4,3,3},540,50},{'normal'},{'hard',{6,5,7,6,6},450,150},
-        {'nightmare',{8,8,8,8,8},420,200}}) do
+for _,l in ipairs({{'easy',{3,2,4,3,3},540,50,3},{'normal'},{'hard',{6,5,7,6,6},450,150,1},
+        {'nightmare',{8,8,8,8,8},420,200,0}}) do
     local def=W.NIGHT
     if l[2] then
-        def={id='night_'..l[1],level=l[1],waves={},limit=l[3],pct=l[4]}
+        def={id='night_'..l[1],level=l[1],waves={},limit=l[3],pct=l[4],revives=l[5]}
         for k,v in pairs(W.NIGHT) do if def[k]==nil then def[k]=v end end
         for k,wave in ipairs(W.SCHEDULE) do
             local ids={}
@@ -258,9 +262,10 @@ end
 -- One tick. input: {killed={key,...}, done={key,...}, dead=EVE died, abort=a reason}, each body reported at least once;
 -- in a co-op run on the host, also mate, her last line of this run (W.decode_mate): her kills score, a key is done once
 -- it is done in both worlds, and her death or abort ends the run (failed 'guest', aborted 'mate', or 'lost' when his
--- line stopped in her world; his own death is then failed 'host'). Returns the events, in order: {what='heal',wave=k},
--- {what='wave',wave=k} (spawn it), {what='end',outcome='success'|'time'|'failed'|'aborted',reason=}, {what='idle'} once
--- the 10 s result is over. s holds phase, wave, score, kills, clears, up, next_at (the next wave's run time, nil after
+-- line stopped in her world; his own death is then failed 'host'), and down (his EVE is down, waiting for a revive):
+-- down while her line says she is down too ends it as failed 'both'. Returns the events, in order:
+-- {what='heal',wave=k}, {what='wave',wave=k} (spawn it), {what='end',outcome='success'|'time'|'failed'|'aborted',
+-- reason=}, {what='idle'} once the 10 s result is over. s holds phase, wave, score, kills, clears, up, next_at (the next wave's run time, nil after
 -- the last wave or while it waits for a clear) and, once ended, outcome, reason and time (run time at the end).
 function W.step(s,input,now)
     local out={}
@@ -284,6 +289,7 @@ function W.step(s,input,now)
     -- Kills seen in the tick of a death or a stop still count, but no heal fires for a run that ends.
     if input.dead then return finish(s,{},now,'failed',s.mate_done and 'host' or nil) end
     if mate and mate.state=='dead' then return finish(s,{},now,'failed','guest') end
+    if input.down and mate and mate.down>0 then return finish(s,{},now,'failed','both') end
     if input.abort then return finish(s,{},now,'aborted',input.abort) end
     if mate and mate.state=='abort' then return finish(s,{},now,'aborted',mate.why=='lost' and 'lost' or 'mate') end
     local waves=s.def.waves
@@ -354,17 +360,19 @@ local ENDS={stop=true,map=true,left=true,slot=true,error=true,lost=true,mate=tru
 local ABORTS={stop=true,map=true,left=true,slot=true,error=true,lost=true}
 local REFUSALS={far=true,map=true,slot=true,busy=true,near=true,taken=true}
 local INT=0x7FFFFFFF
--- h <n> <run> <seed> <phase> <wave> <rt> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level>. h:
--- {n, run, seed, phase (ask, count, wave, rest, end), wave, rt (run time, ms), score (at most the level's W.most),
--- kills, clears, found (the keys his run tracks and has not done), x, y, z (his start point, whole cm), yaw (whole
--- degrees), map (U.map_of), outcome and reason once ended, level (a word of W.LEVEL)}.
+-- h <n> <run> <seed> <phase> <wave> <rt> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down>
+-- <help>. h: {n, run, seed, phase (ask, count, wave, rest, end), wave, rt (run time, ms), score (at most the level's
+-- W.most), kills, clears, found (the keys his run tracks and has not done), x, y, z (his start point, whole cm), yaw
+-- (whole degrees), map (U.map_of), outcome and reason once ended, level (a word of W.LEVEL), down (whole seconds his
+-- downed EVE still waits for a revive, 1 to W.DOWN; 0 while she stands), help (his revive of her: percent of the
+-- W.HOLD s his interact key was held next to her downed EVE, 0 to 100)}. The guest's line ends with the same two.
 function W.encode_host(h)
     local ending=h.outcome and h.outcome..(h.reason and ':'..h.reason or '') or '-'
-    return string.format('h %d %d %d %s %d %d %d %d %d %s %d %d %d %d %s %s %s',h.n,h.run,h.seed,h.phase,h.wave,h.rt,
-        h.score,h.kills,h.clears,W.mask(h.found,h.run),h.x,h.y,h.z,h.yaw,h.map,ending,h.level)
+    return string.format('h %d %d %d %s %d %d %d %d %d %s %d %d %d %d %s %s %s %d %d',h.n,h.run,h.seed,h.phase,h.wave,
+        h.rt,h.score,h.kills,h.clears,W.mask(h.found,h.run),h.x,h.y,h.z,h.yaw,h.map,ending,h.level,h.down,h.help)
 end
 function W.decode_host(text)
-    local f=words(text,18)
+    local f=words(text,20)
     if not f or f[1]~='h' then return nil end
     local level=W.LEVEL[f[18]]
     local h={n=whole(f[2],0,65535),run=whole(f[3],1,255),seed=whole(f[4],0,MASK),phase=PHASES[f[5]] and f[5],
@@ -372,9 +380,9 @@ function W.decode_host(text)
         kills=whole(f[9],0,40),clears=whole(f[10],0,#W.SCHEDULE),x=whole(f[12],-INT-1,INT),y=whole(f[13],-INT-1,INT),
         z=whole(f[14],-INT-1,INT),yaw=whole(f[15],-360,360),
         map=#f[16]<=128 and f[16]:match('^/[a-z0-9_/%-]*$') or nil, -- U.map_of's characters and length.
-        level=level and level.level}
+        level=level and level.level,down=whole(f[19],0,W.DOWN),help=whole(f[20],0,100)}
     for _,k in ipairs({'n','run','seed','phase','wave','rt','score','kills','clears','x','y','z','yaw','map',
-            'level'}) do
+            'level','down','help'}) do
         if h[k]==nil then return nil end
     end
     h.found=W.unmask(f[11],h.run)
@@ -383,24 +391,26 @@ function W.decode_host(text)
     local outcome,reason=f[17]:match('^(%a+):(%a+)$')
     outcome=outcome or f[17]
     if h.phase=='end' and (not reason and (outcome=='success' or outcome=='time')
-        or outcome=='failed' and (reason=='host' or reason=='guest') or outcome=='aborted' and ENDS[reason]) then
+        or outcome=='failed' and (reason=='host' or reason=='guest' or reason=='both')
+        or outcome=='aborted' and ENDS[reason]) then
         h.outcome,h.reason=outcome,reason
         return h
     end
     return nil
 end
--- g <n> <run> <state> <up> <killed> <done> <why>. m: {n, run, state (ready, refuse, run, dead, abort), up (her bodies
--- of this run not done), killed and done (her world's sets), why (a refusal with refuse, a reason with abort, else
--- nil)}.
+-- g <n> <run> <state> <up> <killed> <done> <why> <down> <help>. m: {n, run, state (ready, refuse, run, dead, abort), up
+-- (her bodies of this run not done), killed and done (her world's sets), why (a refusal with refuse, a reason with
+-- abort, else nil), down and help (as the host's line's: her downed EVE's seconds left, her revive of him)}.
 function W.encode_mate(m)
-    return string.format('g %d %d %s %d %s %s %s',m.n,m.run,m.state,m.up,W.mask(m.killed,m.run),W.mask(m.done,m.run),
-        m.why or '-')
+    return string.format('g %d %d %s %d %s %s %s %d %d',m.n,m.run,m.state,m.up,W.mask(m.killed,m.run),
+        W.mask(m.done,m.run),m.why or '-',m.down,m.help)
 end
 function W.decode_mate(text)
-    local f=words(text,8)
+    local f=words(text,10)
     if not f or f[1]~='g' then return nil end
-    local m={n=whole(f[2],0,65535),run=whole(f[3],1,255),state=f[4],up=whole(f[5],0,40)}
-    if not (m.n and m.run and m.up) then return nil end
+    local m={n=whole(f[2],0,65535),run=whole(f[3],1,255),state=f[4],up=whole(f[5],0,40),down=whole(f[9],0,W.DOWN),
+        help=whole(f[10],0,100)}
+    if not (m.n and m.run and m.up and m.down and m.help) then return nil end
     m.killed,m.done=W.unmask(f[6],m.run),W.unmask(f[7],m.run)
     if not (m.killed and m.done) then return nil end
     local why=f[8]

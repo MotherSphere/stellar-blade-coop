@@ -533,7 +533,7 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
     ..'no [heal|rule|spawnpt|actor] | '
-    ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|shop|buy <n> [count]] | '
+    ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
     ..'recruiter [off] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'

@@ -16,8 +16,8 @@
 -- object the game holds and its story lines, read only (story/dump.lua, a test tool to compare with tools/story.py,
 -- left out of the usage line); coop no [heal|rule|spawnpt|actor],
 -- the Night Operation probe of the T6 test only (nightop/probe.lua), on a co-op save only; coop nightop [start
--- [easy|normal|hard|nightmare] [noaggro|nomove]|stop|shop|buy <n> [count]], Night Operation's run at a level
--- (nightop/run.lua) and its reward shop
+-- [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]], Night Operation's run at a level
+-- (nightop/run.lua, revive: a downed player's own revive in a co-op run) and its reward shop
 -- (nightop/shop.lua), on a co-op save only (stop anywhere); coop challenge
 -- [<name>|stop], the solo challenge runs on the same code (nightop/challenges.lua), with each one's best run in
 -- coop-records.txt, on a co-op save only (stop anywhere); coop recruiter [off], the cut Night Operation recruiter on a
@@ -184,7 +184,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -209,6 +209,9 @@ local nightop=require('nightop.probe').new(function(m) print('[StellarCoop][NO] 
 -- Night Operation's run: the shop asks it for the cut items' rows (rows).
 local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
+-- The friend's revive (session/group.lua) and the follow (session/travel.lua), with the Steam link only: built and
+-- ticked below.
+local group,travel=nil,nil
 -- Night Operation's run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
 -- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off. Its card and result panel
 -- go on the kit (night.hud, below); with the kit off, what they show comes as notices (tell). Linked, its night line
@@ -216,12 +219,15 @@ local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..
 -- commands.challenge starts the challenges on the same run. Their best runs go in coop-records.txt in the mod folder
 -- (none when it is unknown). No such file is no best yet; a file that cannot be opened raises, so nothing is written
 -- over it. It is written through a temporary file: a write that fails before the old file is deleted leaves it as it
--- was, one that fails after leaves the new text in coop-records.txt.tmp.
+-- was, one that fails after leaves the new text in coop-records.txt.tmp. In a co-op run, a downed player's revive
+-- goes through the friend's revive (group), and the partner's ghost feet come from the puppet.
 local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell,send=function(line) if link then return link.night(line) end end,
     friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end,
     rows=function(done) return lion.rows(done) end,
+    revive=function(by) if not group then return false,'no Steam link' end return group.night_revive(by) end,
+    ghost=function() return select(2,puppet.anchor()) end,
     records=folder and {
         read=function()
             local text,e,code=require('core.link').files.read(folder..'\\coop-records.txt')
@@ -235,9 +241,6 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
             -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
             return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
         end} or nil})
--- The friend's revive (session/group.lua) and the follow (session/travel.lua), with the Steam link only: built and
--- ticked below.
-local group,travel=nil,nil
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('nightop.recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- The UI kit's lines.
@@ -688,7 +691,7 @@ if link then
         return name~='' and name or w.fight.friend
     end
     group=require('session.group').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,
-        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end})
+        log=function(m) print('[StellarCoop][GR] '..tostring(m)..'\n') end,night=function() return night.running() end})
     -- The follow waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and
     -- during a cutscene in our game.
     travel=require('session.travel').new({link=link,puppet=puppet,settings=settings,tell=tell,name=her_name,

@@ -22,6 +22,10 @@
 -- ghost. Her revive setting reaches no line, so the down notice shows whatever it says.
 -- coop revive test, the solo probe: refused while linked, it makes the same call at the death screen with life 3 to 5,
 -- with the same lines (commands/session.lua runs it on a co-op save only).
+-- During a Night Operation run (o.night()), the run owns the revive (nightop/run.lua): the 3 s rule and its notices
+-- wait, and night_revive(by) makes the call with coop revive test's guards, when her interact key was held next to our
+-- EVE ('friend', on her night line) or for coop nightop revive ('self'), with the same fallback, result line and
+-- hidden death screen; the revived notice only after the friend's revive.
 -- The host's cutscene, on both PCs once a second while linked: one FindAllOf of SB's theater observers; a cutscene
 -- plays while one of them has a valid player whose IsPlaying() is true (on and off logged with its sequence's name).
 -- The host's photo state goes to the native part as 'c' while it plays and the host's own is '0' (photo()), so its
@@ -46,13 +50,15 @@ local function feet()
     local v=U.value_of(mesh:K2_GetComponentLocation())
     return {X=v.X,Y=v.Y,Z=v.Z}
 end
--- o: {link=, puppet=, settings= (revive), tell(build), name(words) (her name, or the words' friend), log(text)}.
+-- o: {link=, puppet=, settings= (revive), tell(build), name(words) (her name, or the words' friend), log(text), night()
+-- (a Night Operation run is on; nil: never)}.
 function G.new(o)
     local link,puppet,settings,log=o.link,o.puppet,o.settings,o.log
     local function tell(key) o.tell(function(w) return w.group[key]:format(o.name(w)) end) end
     local self,now,off={},0,{}
     local screen,look_at,hidden=nil,-math.huge,nil -- hidden: {widget=, was=} while we hide the death screen.
-    local d=nil -- This death of ours: {since=, waited=, said=, call=, before=, fallback=, probe=}.
+    local d=nil -- This death of ours: {since=, waited=, said=, call=, before=, fallback=, probe=, night=}.
+    local function night() return o.night~=nil and o.night()==true end
     local hers=nil -- Her death as we saw it: {said=}.
     local scene={playing=false,next=0,told=false} -- A cutscene: as of the last read, the next read, our notice.
     local function engine() return ('\n'..(link.status() or '')):match('\nengine=([^\r\n]*)') or '' end
@@ -122,7 +128,9 @@ function G.new(o)
         return {life=life and life.state or '?',hp=life and life.hp or '?',
             screen=s and (s:IsAnyAnimationPlaying()==true and 'up' or 'off') or 'gone',pawn=eve and U.address(eve)}
     end
-    local function who() return d.probe and 'coop revive test' or (link.friend()) or '?' end
+    local function who()
+        return d.probe and 'coop revive test' or d.night=='self' and 'coop nightop revive' or (link.friend()) or '?'
+    end
     local function call(me,pc,where)
         d.call,d.me,d.before=now,me,snapshot()
         local b=d.before
@@ -136,7 +144,7 @@ function G.new(o)
     local function after()
         local life=link.life()
         if not d.fallback and not d.moved and life and life.state==d.before.life then
-            local reason=blocker(d.probe)
+            local reason=blocker(d.probe or d.night~=nil)
             if not reason then
                 d.fallback,d.call=true,now
                 log(string.format('revive: life still %d 2 s after the respawn: ServerRequest_ActorRevival(%d, false) '
@@ -161,7 +169,7 @@ function G.new(o)
             screen_now,not a.pawn and 'gone' or a.pawn==b.pawn and 'same' or 'new'))
         d.call=nil
         d.done=true
-        if not d.probe and (up or d.moved) then tell('revived') end
+        if not d.probe and d.night~='self' and (up or d.moved) then tell('revived') end
         if d.moved and not up then d=nil end
     end
     local function downed(linked)
@@ -179,7 +187,7 @@ function G.new(o)
             if now-d.call>=AFTER then after() end
             return
         end
-        if d.done or not linked then d.since=nil; return end
+        if d.done or not linked or night() then d.since=nil; return end
         local reason,me,pc,where=blocker(false)
         if reason~=d.said then
             d.said=reason
@@ -200,7 +208,7 @@ function G.new(o)
             local life=link.life()
             if not hers.said and not (life and life.state>=3 and life.state<=5) and same_map() and boss_free() then
                 hers.said=true
-                tell('down')
+                if not night() then tell('down') end -- The run gives its own: her key, not 3 s near.
             end
         elseif hers and alive(m) then
             hers=nil
@@ -292,6 +300,26 @@ function G.new(o)
     end
     -- coop off: the death screen we hid comes back.
     function self.stop() if hidden then show('coop off') end end
+    -- The Night Operation run's revive of our EVE (nightop/run.lua), by 'friend' or 'self': coop revive test's guards
+    -- (life 3 to 5, the death screen, no respawn or warp in flight, no probe rule, standalone), then the call. true,
+    -- or false and why not; a Lua error turns the revive off for the run.
+    function self.night_revive(by)
+        if off.revive then return false,'the revive is off for this run (see the log)' end
+        if d and d.call then return false,'a revive call is under way' end
+        local ok,reason,me,pc=pcall(blocker,true)
+        if not ok then return false,why(reason) end
+        if reason then return false,reason end
+        if not d and hidden then show('a new death') end
+        d=d or {}
+        d.night=by
+        ok,reason=pcall(call,me,pc)
+        if not ok then
+            off.revive=true
+            log('revive off for this run: '..why(reason))
+            return false,why(reason)
+        end
+        return true
+    end
     -- coop revive test (the console): true and what was asked, or false and why not.
     function self.test()
         if off.revive then return false,'the revive is off for this run (see the log)' end

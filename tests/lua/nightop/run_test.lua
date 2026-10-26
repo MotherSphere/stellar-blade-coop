@@ -40,6 +40,11 @@
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
 -- sides' spots and wallets.
+-- The co-op down and revive, with each side's life read: a death is a down on both lines and both cards (the cut mode's
+-- words, the game's when its table reads, its English with ui_language=english), with each side's notice; the
+-- friend's interact key held next to the ghost fills the revive in 3 s (key alone, near alone, too high, a release:
+-- none), and her game asks once; up again goes on; the self revive and its count by level; both down, 30 s down, and up
+-- with no revive asked end the run as a death; a call keeps the down open for its result; no revive in a solo run.
 -- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
 -- body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a corpse the game's pool
 -- brings back for a later wave.
@@ -98,10 +103,14 @@ local PCClass=class('/Script/Engine.PlayerController')
 local map='/Game/Art/BG/WorldMap/Level_P/F02.F02'
 local world=strict('World',{GetFullName=function() return 'World '..map end})
 local eve_at,eve_yaw={X=0,Y=0,Z=1000},30
+-- Her mesh's place is her feet (the revive's reach reads it): 90 cm below the actor.
+local eve_mesh=uobject('Mesh','SkeletalMeshComponent /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0.Mesh',{
+    K2_GetComponentLocation=function() return {X=eve_at.X,Y=eve_at.Y,Z=eve_at.Z-90} end})
 local eve=uobject('EVE','BP_PC_EVE_C /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0',{
     IsA=function(_,c) return c==SBCharacter end,K2_GetActorLocation=function() return eve_at end,
     K2_GetActorRotation=function() return {Pitch=0,Yaw=eve_yaw,Roll=0} end,GetWorld=function() return world end},
-    {BroadcastSpawnInfo={EventSpawnId=0,ActorGuid=0x51},InteractionState=0,bCharacterHiddenInGame=false})
+    {BroadcastSpawnInfo={EventSpawnId=0,ActorGuid=0x51},InteractionState=0,bCharacterHiddenInGame=false,
+        Mesh=eve_mesh})
 local bodies={} -- What the game holds, in the class hash's order after EVE.
 -- spawn_ok: the spawn call makes a body (false: it fails with no word, as a refused request would); pool: corpses the
 -- next spawns reuse, at the same address, as SB's character pool does.
@@ -147,8 +156,9 @@ local function free(m) -- The game releases it: out of FindAllOf, and any touch 
     for i,b in ipairs(bodies) do if b==m then table.remove(bodies,i); break end end
     m.freed=true
 end
+local keys_down={} -- The keys held now, by name (the revive's interact key).
 local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.SBNetworkPlayerController_0',{
-    IsA=function(_,c) return c==SBPC end,
+    IsA=function(_,c) return c==SBPC end,IsInputKeyDown=function(_,key) return keys_down[key.KeyName:ToString()]==true end,
     ServerRequest_CreateActor=function(_,id,at,_,_,_,_,key)
         if not spawn_ok then return end
         local m=table.remove(pool,1)
@@ -238,7 +248,8 @@ local function since(i) return table.concat(lines,'\n',i+1) end
 local ok,message
 
 -- 1. Refusals: one reason each, nothing spawned, no run; junk words reach nothing.
-local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | shop | buy <n> [count]]'
+local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | revive | shop | buy <n> '
+    ..'[count]]'
 for _,args in ipairs({{'start','x'},{'start','noaggro','x'},{'go'},{'stop','x'},{'START'},{nil,'x'},{'shop','x'},
         {'SHOP'},{'start','HARD'},{'start','hard','x'},{'start','noaggro','hard'},{'start','hard','nomove','x'},
         {'start','hard','hard'},{'stop','hard'}}) do
@@ -1217,6 +1228,12 @@ assert(table.concat({Run.card({phase='wave',t0=0,wave=1,score=0,def=W.LEVEL.hard
 -- The ask: the host waits for her; her card counts down from her answer.
 assert(select(2,Run.card({phase='ask',role='host',t0=10,def=W.NIGHT},7,Tx.en))=='WAITING FOR PARTNER')
 assert(select(2,Run.card({phase='ask',role='guest',t0=10,def=W.NIGHT},7,Tx.en))=='STARTS IN 3')
+-- A down: the revive's title in the card's place, with the time left, or the revive's percent once above 0; the line
+-- stays the run's.
+assert(table.concat({Run.card({phase='wave',t0=0,wave=1,score=0,def=W.NIGHT},10,Tx.en,
+    {title='Spectating',left=24,pct=0})},'|')=='Spectating  0:24|WAVE 1/5  7:50  SCORE 0')
+assert(Run.card({phase='wave',t0=0,wave=1,score=0,def=W.NIGHT},10,Tx.en,{title='Resuscitate [F]',left=9,pct=58})
+    =='Resuscitate [F]  58 %')
 -- Run.result alone: a success's heading from the game and no line under it, time up, each abort reason's line (coop
 -- off as a stop), the rows.
 local function ended(outcome,reason)
@@ -1228,6 +1245,12 @@ assert(head=='Won (game)' and line=='' and rows[1][1]=='Waves cleared' and rows[
 assert(rows[3][1]=='Score' and rows[3][2]=='1059' and rows[4][1]=='Time' and rows[4][2]=='6:40')
 head,line=Run.result(ended('time'),Tx.en,game)
 assert(head=='Operation Failed' and line=='Time is up.')
+-- Both EVEs down: the game's own all-dead line when it reads, else ui/text.lua's.
+local both=ended('failed','both')
+both.role='guest'
+assert(select(2,Run.result(both,Tx.en,game))=='All players have died.')
+assert(select(2,Run.result(both,Tx.en,function(key) return key=='UI_Night_OperationFail_Des' and 'Dead (game)' end))
+    =='Dead (game)')
 for reason,word in pairs({stop='stop',['coop off']='stop',['map change']='map',left='left',slot='slot',link='link',
         error='error'}) do
     assert(select(2,Run.result(ended('aborted',reason),Tx.en,game))==Tx.en.night.why[word],reason)
@@ -1346,12 +1369,18 @@ local Hs,Gs
 local function side(name,mate_name,x,t)
     local w={bodies={},gt=t,eve_at={X=x,Y=0,Z=1000},map='/Game/Art/BG/WorldMap/Level_P/F02.F02',
         link=name=='host' and 'link=host lobby=7' or 'link=guest lobby=7',friend='friend=1 0 '..mate_name,
-        slot='slot=coop index=4 marker=4',dying=false,lines={},told={},sent={},ticks={},drop=0,
+        slot='slot=coop index=4 marker=4',dying=false,lines={},told={},sent={},ticks={},drop=0,revives={},
         steamid=name=='host' and '76561198000000001' or '76561198000000002'}
     w.wallet='coop-night-'..w.steamid..'-4.txt'
     w.run=Run.new({log=function(text) w.lines[#w.lines+1]=text end,status=status,paused=function() return w.paused end,
         store=store,records={read=function() return '' end,write=function() w.writes=(w.writes or 0)+1 return true end},
         tell=function(build) w.told[#w.told+1]=build(Tx.en) end,friend=function() return mate_name end,
+        revive=function(by) -- session/group.lua's night_revive: its answer, and what was asked.
+            w.revives[#w.revives+1]=by
+            if w.revive_no then return false,w.revive_no end
+            return true
+        end,
+        ghost=function() return w.ghost end,
         send=function(line)
             w.sent[#w.sent+1]=line
             if w.link:find('none') then return true end -- The native part sends nothing outside a session.
@@ -1365,6 +1394,8 @@ local function enter(w)
     link_line=w.link..'\n'..w.friend..'\npeer=9 name=x hello=1 accepted=1 compatible=1 lost=0 invalid=0 rtt_ms='
         ..(w.rtt or 40)..' session=3 session_ping=20'
         ..(w.night and not w.link:find('none') and '\nnight='..w.night or '')..(w.fight and '\n'..w.fight or '')
+        ..(w.life and '\nlife='..w.life or '')
+    keys_down={F=w.key}
 end
 local function leave(w) w.bodies,w.gt,w.eve_at,w.map,w.dying=bodies,gt,eve_at,map,dying end
 local function on(w,f)
@@ -1373,6 +1404,7 @@ local function on(w,f)
     leave(w)
     link_line,slot_line,map,eve_at,dying,paused,steam_id='link=none lobby=0','slot=coop index=4 marker=4',
         '/Game/Art/BG/WorldMap/Level_P/F02.F02',{X=0,Y=0,Z=1000},false,false,'76561198000000009'
+    keys_down={}
     return a,b
 end
 local function pair()
@@ -1395,9 +1427,11 @@ end
 local function state(w)
     local _,text=on(w,function() return w.run.command() end)
     local phase,wave,rt,score,kills=text:match('^run 0x%x+: (%a+), wave (%d)/5, run time (%-?%d+) s, score (%d+), '
-        ..'kills (%d+);')
+        ..'kills (%d+)[;,]')
     if not phase then return nil end
-    return {phase=phase,wave=tonumber(wave),rt=tonumber(rt),score=tonumber(score),kills=tonumber(kills)}
+    local down,revives=text:match(', down (%d+) s, (%d+) self revives left;')
+    return {phase=phase,wave=tonumber(wave),rt=tonumber(rt),score=tonumber(score),kills=tonumber(kills),
+        down=tonumber(down),revives=tonumber(revives)}
 end
 local function host_start(level)
     local ok2,text=on(Hs,function() return Hs.run.command('start',level) end)
@@ -1425,8 +1459,8 @@ assert(not ok2 and text=='the host starts a co-op run')
 round()
 local seed=W.seed(T,run)
 assert(Hs.sent[1]==string.format('h 1 %d %d ask 0 -5000 0 0 0 0 0 0 1000 30 /game/art/bg/worldmap/level_p/f02 - '
-    ..'normal',run,seed),Hs.sent[1])
-assert(Gs.sent[1]==string.format('g 1 %d ready 0 0 0 -',run),Gs.sent[1])
+    ..'normal 0 0',run,seed),Hs.sent[1])
+assert(Gs.sent[1]==string.format('g 1 %d ready 0 0 0 - 0 0',run),Gs.sent[1])
 assert(has(Gs.lines,'night in: '..Hs.sent[1]) and has(Hs.lines,'night out: '..Hs.sent[1]))
 assert(find(Gs.lines,string.format('^join: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map '
     ..'/game/art/bg/worldmap/level_p/f02 level normal; census: ',run,seed)),Gs.lines[2])
@@ -1531,6 +1565,173 @@ round(1)
 assert(find(Hs.lines,'^result: aborted %(lost%) ') and Hs.told[#Hs.told]=='The link to your partner was lost.',
     Hs.lines[#Hs.lines])
 
+-- 10b. The down and the revive, with each side's life read (life=, our vitals in a session). Her death is a down: the
+-- run goes on, both lines carry her time left, each side gets the cut mode's notice in its English, and coop nightop
+-- says it. His interact key held next to her ghost fills his revive in 3 s (a release starts it over, and so does a
+-- step away or the key alone); full, it rides his line and her game asks for the friend's revive once; up again, the
+-- run goes on and he reads that she is back.
+do
+local ALIVE,DEAD='1 1600','3 0'
+local function lives()
+    running()
+    Hs.life,Gs.life=ALIVE,ALIVE
+    round(1)
+end
+local function fall(w) w.dying,w.life=true,DEAD end
+local function rise(w) w.dying,w.life=false,ALIVE end
+-- A kit of its own on a side (fr-FR): the card's title, and the settings it reads.
+local function hud_of(w)
+    local k={groups={},shown={},settings={ui_language='game'}}
+    function k.add(name,_,build)
+        local b={}
+        function b.panel() end
+        function b.text(_,_,str)
+            local e={text=str}
+            function e.set(t) e.text=t end
+            function e.color() end
+            return e
+        end
+        k.groups[name]=build(b)
+    end
+    function k.view(name) return k.groups[name] end
+    function k.show(name,on) k.shown[name]=on==true end
+    function k.off() return false end
+    function k.paused() return false end
+    function k.language() return 'fr-FR' end
+    w.run.hud({kit=k,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=k.settings})
+    return k
+end
+game_words.UI_Night_Watching='Spectateur (jeu)' -- The game's own word for it, its table loaded.
+lives()
+local Hk,Gk=hud_of(Hs),hud_of(Gs)
+fall(Gs)
+round(5)
+assert(Gk.groups.night.title.text:find('^Spectateur %(jeu%)  0:[23]%d$'),Gk.groups.night.title.text)
+assert(Hk.groups.night.title.text:find('^Resuscitate %[F%]  0:[23]%d$'),Hk.groups.night.title.text)
+assert(Hk.groups.night.line.text:find('^VAGUE 1/5 '),'The line stays the run\'s')
+assert(not find(Gs.lines,'^result: ') and not find(Hs.lines,'^result: '),'A down ends nothing')
+assert(find(Gs.lines,'^down %(life 3%): 30 s for a revive, 2 self revives left$'),Gs.lines[#Gs.lines])
+assert(has(Gs.told,'Asked Me for a resuscitation.') and has(Hs.told,'Kaanta has requested resuscitation.'))
+assert(has(Hs.lines,'Kaanta is down') and state(Gs).down>=28 and state(Gs).revives==2 and state(Hs).phase=='wave')
+assert(Gs.sent[#Gs.sent]:find(string.format(' run %%d+ %%x+ %%x+ %%- 2[89] 0$')),Gs.sent[#Gs.sent])
+-- The key alone, and near alone: nothing.
+Hs.key=true
+round(4)
+assert(Hs.sent[#Hs.sent]:find(' 0 0$') and #Gs.revives==0,'Far from her ghost')
+Hs.key,Hs.ghost=false,{X=Hs.eve_at.X+150,Y=Hs.eve_at.Y,Z=Hs.eve_at.Z-90}
+round(4)
+assert(Hs.sent[#Hs.sent]:find(' 0 0$') and #Gs.revives==0,'No key')
+-- Half a hold, a release: it starts over.
+Hs.key=true
+round(6)
+assert(Hs.sent[#Hs.sent]:find(' 0 50$'),Hs.sent[#Hs.sent])
+assert(Hk.groups.night.title.text=='Resuscitate [F]  50 %' and Gk.groups.night.title.text=='Spectateur (jeu)  50 %')
+Hs.key=false
+round(1)
+assert(has(Hs.lines,'revive of Kaanta stopped at 50 %') and Hs.sent[#Hs.sent]:find(' 0 0$') and #Gs.revives==0)
+Gk.settings.ui_language='english'
+round(1)
+assert(Gk.groups.night.title.text:find('^Spectating  0:2%d$'),'ui_language=english: the game\'s English')
+-- Up or down 1.2 m: too far.
+Hs.key,Hs.ghost.Z=true,Hs.eve_at.Z-90+120
+round(4)
+assert(Hs.sent[#Hs.sent]:find(' 0 0$'),'Too high')
+Hs.ghost.Z=Hs.eve_at.Z-90+50
+round(12)
+assert(has(Hs.lines,'revive of Kaanta: held for 3 s') and Hs.sent[#Hs.sent]:find(' 0 100$'),Hs.sent[#Hs.sent])
+round(2)
+assert(#Gs.revives==1 and Gs.revives[1]=='friend' and find(Gs.lines,'^revive asked %(friend%) after '),'Asked once')
+Hs.key=false -- Full stays full while she is down.
+round(4)
+assert(#Gs.revives==1 and Hs.sent[#Hs.sent]:find(' 0 100$'))
+rise(Gs)
+round(3)
+assert(has(Gs.lines,'up: revived (friend)') and has(Hs.lines,'Kaanta is up again'),Gs.lines[#Gs.lines])
+assert(Hs.told[#Hs.told]=='Kaanta has joined the game.' and not state(Gs).down and state(Gs).phase=='wave')
+assert(Hs.sent[#Hs.sent]:find(' 0 0$') and Gs.sent[#Gs.sent]:find(' 0 0$'),'Both lines: nobody down')
+assert(Hk.groups.night.title.text=='OPÉRATION NOCTURNE' and Gk.groups.night.title.text=='NIGHT OPERATION')
+assert(not find(Gs.lines,'^result: ') and not find(Hs.lines,'^result: '))
+-- His own revive (coop nightop revive): the level's count a run, one call a down; refused while he is up, and once
+-- none is left. His game's refusal is logged once and spends none.
+assert(select(2,on(Hs,function() return Hs.run.command('revive') end))=='your EVE is not down')
+fall(Hs)
+round(5)
+assert(has(Gs.told,'Me has requested resuscitation.') and state(Hs).down)
+Hs.revive_no='a respawn or a warp is under way'
+local okr,said=on(Hs,function() return Hs.run.command('revive') end)
+assert(not okr and said=='no revive: a respawn or a warp is under way' and state(Hs).revives==2,said)
+assert(has(Hs.lines,'revive not asked (self): a respawn or a warp is under way'))
+Hs.revive_no=nil
+okr,said=on(Hs,function() return Hs.run.command('revive') end)
+assert(okr and said=='revive asked: 1 self revives left in this run',said)
+okr,said=on(Hs,function() return Hs.run.command('revive') end)
+assert(not okr and said=='a revive is under way: its result follows in this log',said)
+rise(Hs)
+round(3)
+assert(has(Hs.lines,'up: revived (self)') and Gs.told[#Gs.told]=='Me has joined the game.')
+fall(Hs)
+round(5)
+assert(on(Hs,function() return Hs.run.command('revive') end))
+rise(Hs)
+round(3)
+fall(Hs)
+round(5)
+assert(select(2,on(Hs,function() return Hs.run.command('revive') end))=='no self revive left in this run')
+assert(not find(Hs.lines,'^result: '))
+-- Both down: his run ends as failed (both), and hers by his line, each panel with the game's own all-dead line.
+fall(Gs)
+round(5)
+assert(find(Hs.lines,'^result: failed %(both%) ') and find(Gs.lines,'^result: failed %(both%) '),Hs.lines[#Hs.lines])
+assert(Hk.groups.night_result.sub.text=='Tous morts (jeu)' and Gk.groups.night_result.sub.text=='All players have died.',
+    Gk.groups.night_result.sub.text) -- Hers with ui_language=english.
+assert(Hs.sent[#Hs.sent]:find(' failed:both normal 0 0$'),Hs.sent[#Hs.sent])
+-- 30 s down with no revive: the run ends as her death did before.
+lives()
+fall(Gs)
+round(119)
+assert(not find(Gs.lines,'^result: '),'Not yet')
+round(4)
+assert(find(Gs.lines,'^down 30 s with no revive: the run ends as a death$') and find(Gs.lines,'^result: failed %(guest%) '))
+round(2)
+assert(find(Hs.lines,'^result: failed %(guest%) ') and Hs.told[#Hs.told]=="Your partner's EVE died.")
+-- A call keeps the down open up to 5 s past the 30 s, for its result.
+lives()
+fall(Gs)
+round(117)
+on(Gs,function() return Gs.run.command('revive') end)
+round(10)
+assert(not find(Gs.lines,'^result: '),'The call is still awaited')
+rise(Gs)
+round(2)
+assert(has(Gs.lines,'up: revived (self)') and not find(Gs.lines,'^result: '))
+-- Up with no revive asked (the death screen's respawn at a camp): the run ends as the death it was.
+lives()
+fall(Gs)
+round(5)
+rise(Gs)
+round(3)
+assert(has(Gs.lines,'up with no revive asked (a respawn at a camp): the run ends as a death'))
+assert(find(Gs.lines,'^result: failed %(guest%) ') and find(Hs.lines,'^result: failed %(guest%) '))
+-- No self revive at nightmare, and none in a solo run (its death ends it, as before).
+pair()
+host_start('nightmare')
+round(30)
+Hs.life,Gs.life=ALIVE,ALIVE
+round(1)
+fall(Gs)
+round(5)
+assert(select(2,on(Gs,function() return Gs.run.command('revive') end))=='no self revive left in this run')
+assert(select(2,on(Gs,function() return Gs.run.command('revive','x') end))==USE)
+bodies={}
+local solo=Run.new({log=function() end,status=status,paused=function() return false end,store=store})
+ok,message=solo.command('start')
+assert(ok,message)
+assert(select(2,solo.command('revive'))=='a solo run has no revive: a death ends it')
+solo.command('stop')
+assert(select(2,solo.command('revive'))=='no Night Operation run')
+assert(#violations==0,violations[1])
+end
+
 -- Her checks, in order, each refusal word said to him as a notice; his run is dropped with no result.
 local function refused_with(text_want,setup)
     pair()
@@ -1629,7 +1830,7 @@ assert(on(Gs,function() return Gs.run.command('stop') end))
 round(2)
 assert(find(Gs.lines,'^result: aborted %(stop%) waves=0/5 '),Gs.lines[#Gs.lines])
 assert(Gs.told[#Gs.told]=='Stopped with coop nightop stop.',tostring(Gs.told[#Gs.told]))
-assert(Gs.sent[#Gs.sent]:find(string.format('^g %%d+ %d abort 0 0 0 stop$',run)),Gs.sent[#Gs.sent])
+assert(Gs.sent[#Gs.sent]:find(string.format('^g %%d+ %d abort 0 0 0 stop 0 0$',run)),Gs.sent[#Gs.sent])
 assert(find(Hs.lines,'^result: aborted %(mate%) waves=0/5 '),Hs.lines[#Hs.lines])
 assert(Hs.told[#Hs.told]=='Your partner left the run.' and #Hs.bodies==0,tostring(Hs.told[#Hs.told]))
 -- A success on both screens: one score and one time, though her round trip (2 s) moves her clock on; each wave's
@@ -1706,7 +1907,7 @@ assert(files[Gs.wallet]==points..'\n','Her wallet unchanged')
 -- same spots, one score and one time end both runs, and each game credits its own wallet at hard's 150 %.
 do
     both_succeed('hard')
-    assert(Hs.sent[1]:find(' hard$') and find(Gs.lines,' level hard; census: '),Hs.sent[1])
+    assert(Hs.sent[1]:find(' hard 0 0$') and find(Gs.lines,' level hard; census: '),Hs.sent[1])
     local spots={}
     for _,m in ipairs(Hs.bodies) do if select(2,W.decode(m.key))==1 then spots[m.key]=m.at.X..','..m.at.Y end end
     local n=0
