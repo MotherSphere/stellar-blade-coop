@@ -1,7 +1,8 @@
 -- The Night Operation run without the game: the monster pool and the wave schedule, the wave keys, the run byte, the
 -- seeded gate order and the gate spots, the bodies paired with slots by place, the timer list, the score and the run's
 -- states over a fake clock. Then a run read from another definition: waves that wait for a clear, its own limit, heals
--- and bonus, and its own spots.
+-- and bonus, and its own spots. Then Night Operation's four levels: their waves, limits, points percents and highest
+-- scores, a hard run and a nightmare wave held by the cap.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 
@@ -289,7 +290,8 @@ at(s,2400,{abort='map'})
 assert(said(W.step(s,{},5))=='idle' and s.phase=='idle')
 
 
--- Masks: one bit per key of the schedule, (wave-1)*8+slot, as hex; another run's key or a slot past its wave is no bit.
+-- Masks: one bit per key a level's waves hold, (wave-1)*8+slot, as hex; another run's key, or a slot past every
+-- level's wave, is no bit. Nightmare's waves hold 8 each, so every slot under the cap of the five waves has its bit.
 local function set(list) local out={} for _,k in ipairs(list) do out[k]=true end return out end
 local function same(a,b)
     for k in pairs(a) do if not b[k] then return false end end
@@ -302,26 +304,30 @@ local every={}
 for k=1,5 do for slot=0,size(k)-1 do every[W.key(RUN,k,slot)]=true end end
 assert(#W.mask(every,RUN)<=10 and same(W.unmask(W.mask(every,RUN),RUN),every),'Round trip of a full run')
 assert(same(W.unmask('0',RUN),{}) and same(W.unmask('201',RUN),set({W.key(RUN,1,0),W.key(RUN,2,1)})))
-for _,bad in ipairs({'','-1','1g','F','0x1',' 1','10000000000',string.format('%x',1<<4),string.format('%x',1<<40),
-        string.format('%x',1<<39)}) do -- Slot 4 of wave 1 and slot 7 of wave 5 are no body.
+for _,bad in ipairs({'','-1','1g','F','0x1',' 1','10000000000',string.format('%x',1<<40)}) do -- No wave 6.
     assert(W.unmask(bad,RUN)==nil,'Refused mask: '..bad)
 end
+local filled={}
+for k=1,5 do for slot=0,7 do filled[W.key(RUN,k,slot)]=true end end
+assert(W.mask(filled,RUN)=='ffffffffff' and same(W.unmask('ffffffffff',RUN),filled),'Nightmare: every slot')
+assert(W.mask(set({W.key(RUN,6,0)}),RUN)=='0','Wave 6 is no bit')
 
 -- The host's line: every field round-trips; every field out of range, a word too many or too few, a double space,
 -- refuses the whole line.
 local every255={}
 for key in pairs(every) do every255[key&0xFF00FFFF|255<<16]=true end
-local host={n=65535,run=255,seed=4294967295,phase='end',wave=5,rt=-10000,score=W.MAX_SCORE,kills=40,clears=5,
+local NIGHTMARE=W.LEVEL.nightmare
+local host={n=65535,run=255,seed=4294967295,phase='end',wave=5,rt=-10000,score=W.most(NIGHTMARE),kills=40,clears=5,
     found=every255,x=-2147483648,y=2147483647,z=0,yaw=-180,map='/game/art/bg/worldmap/level_p/f02-a',outcome='aborted',
-    reason='lost'}
+    reason='lost',level='nightmare'}
 local text=W.encode_host(host)
-assert(text:sub(1,2)=='h ' and #text<=300 and W.MAX_SCORE==1060,text)
+assert(text:sub(1,2)=='h ' and #text<=300 and W.most(W.NIGHT)==1060 and W.most(NIGHTMARE)==1620,text)
 local back=W.decode_host(text)
 for k,v in pairs(host) do
     if k=='found' then assert(same(back.found,every255)) else assert(back[k]==v,k..': '..tostring(back[k])) end
 end
 local base={n=0,run=1,seed=0,phase='wave',wave=1,rt=600000,score=0,kills=0,clears=0,found={},x=1,y=2,z=3,yaw=360,
-    map='/m'}
+    map='/m',level='normal'}
 assert(W.decode_host(W.encode_host(base)).outcome==nil)
 for _,ending in ipairs({'success','time','failed:host','failed:guest','aborted:stop','aborted:map','aborted:left',
         'aborted:slot','aborted:error','aborted:lost','aborted:mate'}) do
@@ -338,15 +344,20 @@ local function host_with(field,value)
     return table.concat(words,' ')
 end
 for _,bad in ipairs({{2,'65536'},{2,'-1'},{2,'1.5'},{3,'0'},{3,'256'},{4,'4294967296'},{4,'-1'},{5,'count2'},
-        {5,'idle'},{6,'6'},{6,'-1'},{7,'600001'},{7,'-10001'},{8,'1061'},{9,'41'},{10,'6'},{11,'10'},{11,'x'},
+        {5,'idle'},{6,'6'},{6,'-1'},{7,'600001'},{7,'-10001'},{8,'1061'},{9,'41'},{10,'6'},{11,'10000000000'},{11,'x'},
         {12,'2147483648'},{13,'-2147483649'},{14,'1e3'},{15,'361'},{15,'-361'},{16,'game'},{16,'/Game'},
-        {16,'/'..('a'):rep(128)},{16,'/a b'},{17,'success'},{17,'aborted:link'},{1,'g'}}) do
+        {16,'/'..('a'):rep(128)},{16,'/a b'},{17,'success'},{17,'aborted:link'},{1,'g'},{18,'night'},{18,'Hard'},
+        {18,'-'}}) do
     assert(W.decode_host(host_with(bad[1],bad[2]))==nil,'Refused: field '..bad[1]..' = '..bad[2])
 end
+-- The score's bound is the line's level's: 1061 is past normal's, within hard's, and hard's own bound refuses one more.
+local hard=W.encode_host(base):gsub(' normal$',' hard')
+assert(W.decode_host(hard).level=='hard' and W.decode_host((hard:gsub(' 600000 0 ',' 600000 1061 '))).score==1061)
+assert(W.decode_host((hard:gsub(' 600000 0 ',string.format(' 600000 %d ',W.most(W.LEVEL.hard)+1))))==nil)
 local ended=W.encode_host(host)
-for _,bad in ipairs({ended:gsub(' aborted:lost$',' -'),ended:gsub(' aborted:lost$',' aborted:dance'),
-        ended:gsub(' aborted:lost$',' failed:both'),ended:gsub(' aborted:lost$',' success:'),
-        ended:gsub(' aborted:lost$',' time:host'),ended:gsub(' aborted:lost$',' aborted'),ended..' x',
+for _,bad in ipairs({ended:gsub(' aborted:lost ',' - '),ended:gsub(' aborted:lost ',' aborted:dance '),
+        ended:gsub(' aborted:lost ',' failed:both '),ended:gsub(' aborted:lost ',' success: '),
+        ended:gsub(' aborted:lost ',' time:host '),ended:gsub(' aborted:lost ',' aborted '),ended..' x',
         ended:gsub(' %S+$',''),ended:gsub(' ','  ',1),ended..' ',' '..ended}) do
     assert(W.decode_host(bad)==nil,'Refused: '..bad)
 end
@@ -366,7 +377,8 @@ for _,case in ipairs({{'ready'},{'dead'},{'refuse','far'},{'refuse','map'},{'ref
     assert(d and d.state==case[1] and d.why==case[2],case[1])
 end
 for _,bad in ipairs({'g 65536 1 run 0 0 0 -','g 1 0 run 0 0 0 -','g 1 256 run 0 0 0 -','g 1 1 walk 0 0 0 -',
-        'g 1 1 run 41 0 0 -','g 1 1 run -1 0 0 -','g 1 1 run 0 10 0 -','g 1 1 run 0 0 x -','g 1 1 run 0 0 0 far',
+        'g 1 1 run 41 0 0 -','g 1 1 run -1 0 0 -','g 1 1 run 0 10000000000 0 -','g 1 1 run 0 0 x -',
+        'g 1 1 run 0 0 0 far',
         'g 1 1 refuse 0 0 0 -','g 1 1 refuse 0 0 0 stop','g 1 1 abort 0 0 0 far','g 1 1 abort 0 0 0 mate',
         'g 1 1 ready 0 0 0 -  ','g 1 1 ready 0 0 0','g 1 1 ready 0 0 0 - x','h 1 1 ready 0 0 0 -',
         'g 1  1 ready 0 0 0 -'}) do
@@ -427,7 +439,7 @@ assert(s.phase=='result' and s.outcome=='success' and s.score==580+399 and s.tim
 -- his clear; the end is his outcome, with his time and score. Her own bodies are kept for her line, never scored here.
 local function line(n,phase,wave,rt,extra)
     local h={n=n,run=RUN,seed=0x12345678,phase=phase,wave=wave,rt=rt,score=0,kills=0,clears=0,found={},x=0,y=0,z=0,
-        yaw=0,map='/m'}
+        yaw=0,map='/m',level='normal'}
     for k,v in pairs(extra or {}) do h[k]=v end
     return h
 end
@@ -561,5 +573,54 @@ end
 local g1,y1=W.spot(P0,90,{3,1,2,4},0,DEF)
 local g2,y2=W.spot(P0,90,{3,1,2,4},0)
 assert(g1.X==g2.X and g1.Y==g2.Y and g1.Z==g2.Z and y1==y2)
+
+-- Night Operation's levels: easy, normal (W.NIGHT itself), hard and nightmare, each with its own id, limit, points
+-- percent and wave sizes; a wave keeps the schedule's rows and repeats them from its first, or drops its last ones;
+-- every other rule is normal's.
+local words={}
+for i,def in ipairs(W.LEVELS) do words[i]=def.level; assert(W.LEVEL[def.level]==def) end
+assert(table.concat(words,' ')=='easy normal hard nightmare' and W.LEVEL.normal==W.NIGHT and W.NIGHT.pct==100)
+local SW,GU,BO,LU,SP,HA=50173,50193,50440,50450,50183,50161
+for word,want in pairs({easy={'night_easy',540,50,'3 2 4 3 3',1030},normal={'night',480,100,'4 3 5 4 4',1060},
+        hard={'night_hard',450,150,'6 5 7 6 6',1390},nightmare={'night_nightmare',420,200,'8 8 8 8 8',1620}}) do
+    local def=W.LEVEL[word]
+    local sizes={}
+    for k,wave in ipairs(def.waves) do
+        sizes[k]=#wave.ids
+        assert(wave.at==W.SCHEDULE[k].at and #wave.ids<=W.CAP,word..' wave '..k)
+        for slot,id in ipairs(wave.ids) do
+            local ids=W.SCHEDULE[k].ids
+            assert(id==ids[(slot-1)%#ids+1],word..': the wave\'s own rows, in turn')
+        end
+    end
+    assert(def.id==want[1] and def.limit==want[2] and def.pct==want[3] and table.concat(sizes,' ')==want[4],word)
+    assert(W.most(def)==want[5],word..': '..W.most(def))
+    for _,k in ipairs({'breather','heals','bonus','aggro','moves'}) do assert(def[k]==W.NIGHT[k],word..' '..k) end
+    assert(not def.spots)
+end
+assert(table.concat(W.LEVEL.hard.waves[2].ids,' ')==table.concat({SW,SW,GU,SW,SW},' '),'Hard wave 2')
+assert(table.concat(W.LEVEL.easy.waves[2].ids,' ')==table.concat({SW,SW},' '),'Easy wave 2: no Gunner')
+assert(table.concat(W.LEVEL.nightmare.waves[3].ids,' ')==table.concat({BO,BO,BO,LU,LU,BO,BO,BO},' '))
+assert(table.concat(W.LEVEL.nightmare.waves[5].ids,' ')==table.concat({HA,SW,SW,GU,HA,SW,SW,GU},' '))
+assert(W.LEVEL.hard.waves[4].ids[5]==SP)
+-- A hard run: wave 1 is six Antlions, keys 0 to 5; a seventh key scores nothing; the six clear the wave; time up at
+-- its 450 s, not 480.
+s=start_def(W.LEVEL.hard)
+assert(at(s,0)=='wave 1' and s.left[1]==6 and s.up==6)
+assert(at(s,5,{killed={W.key(RUN,1,6)}})=='' and s.kills==0,'Slot 6 is no body of a wave of six')
+assert(at(s,6,{killed=keys(1,0,5)})=='' and s.kills==6 and s.score==60 and s.phase=='breather')
+assert(at(s,449.75)~='end time' and s.phase~='result')
+assert(said(W.step(s,{},105+450))=='end time' and s.time==450)
+-- Nightmare: waves of 8 fill the cap, so wave 2 waits past its 75 s until wave 1 is down, then comes 10 s after.
+s=start_def(W.LEVEL.nightmare)
+at(s,0)
+assert(at(s,80,{killed=keys(1,0,6)})=='' and s.wave==1 and s.up==1,'7 down: 1 + 8 > 8')
+assert(at(s,81,{killed=keys(1,7,7)})=='wave 2' and s.up==8,'The last one down: 0 + 8 fits')
+-- Slots 4 to 7 stand 2.5 m from the gates of slots 0 to 3.
+for slot=4,7 do
+    local gate4=W.spot(P0,90,{3,1,2,4},slot-4)
+    local extra=W.spot(P0,90,{3,1,2,4},slot)
+    near(math.sqrt((extra.X-gate4.X)^2+(extra.Y-gate4.Y)^2),250,'Slot '..slot)
+end
 
 print('nightop_waves_test: ok')

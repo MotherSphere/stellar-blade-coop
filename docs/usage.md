@@ -315,7 +315,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (13) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (14) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
@@ -818,7 +818,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
-| `coop nightop [start [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop), solo or, started by the host, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
+| `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop) at one of four [levels](night-operation.md#levels), solo or, started by the host at his level, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
 | `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its six items (two cut stimpacks among them), and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
@@ -936,7 +936,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 13). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 14). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -966,10 +966,12 @@ with the same `STOP:` line under their own names, except `coop nightop stop` and
 any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop) and
 [Challenges](night-operation.md#challenges-coop-challenge).
 
-- With no Steam session, `coop nightop start` starts a solo run.
-- In a session, only the host starts a run, and it is for both players. The guest's game checks her side and joins
-  without a question, or the host gets a notice with the reason she cannot. On the guest's game the command answers
-  `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
+- With no Steam session, `coop nightop start` starts a solo run. A level may follow `start`: `easy`, `normal` (the
+  same as none), `hard` or `nightmare`. It sets the number of monsters in each wave (15 to 40 in all), the time limit
+  (9:00 to 7:00) and the shop points (50 % to 200 %). See [Levels](night-operation.md#levels).
+- In a session, only the host starts a run, at his level, and it is for both players. The guest's game checks her
+  side and joins without a question, or the host gets a notice with the reason she cannot. On the guest's game the
+  command answers `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
 - `coop nightop shop` lists the points your runs gave and the six items, and `coop nightop buy <n> [count]` buys 1 to 10
   of item n into the co-op save. Items 5 and 6, the cut Burst and Beta Stimpacks, need table rows the native part adds
   with the Lion's (see [Cut boss](#cut-boss-coop-lion)): a buy of one asks for them first. Your points are in
@@ -2495,7 +2497,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=13 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=14 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code

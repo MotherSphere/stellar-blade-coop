@@ -111,7 +111,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC13 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC14 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -126,7 +126,7 @@ int main() {
                                  race + "end\r", race + "\xff", p + " race", race})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
-  for (const char *other : {"SBC12 race cp 7 1 2 3", "SBC14 race cp 7 1 2 3", "SBC race end 7"})
+  for (const char *other : {"SBC13 race cp 7 1 2 3", "SBC15 race cp 7 1 2 3", "SBC race end 7"})
     assert(parse_text(other).kind == Kind::invalid);
   for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
     m = parse_text(race + "x" + static_cast<char>(c) + "x");
@@ -184,7 +184,7 @@ int main() {
 
   // Night Operation's line, reliable: a full state of the run from the host ("h ...") or the guest ("g ..."), which Lua
   // checks field by field. Here only its size, its characters, single spaces and its first word.
-  const std::string host_line = "h 7 42 3735928559 wave 2 81250 230 9 1 f0f 120 -340 5600 -90 /game/art/bg/f02 -";
+  const std::string host_line = "h 7 42 3735928559 wave 2 81250 230 9 1 f0f 120 -340 5600 -90 /game/art/bg/f02 - hard";
   assert(night_ok(host_line) && night_line(host_line) == p + " night " + host_line);
   m = parse_text(night_line(host_line));
   assert(m.kind == Kind::night && m.text == host_line);
@@ -218,7 +218,7 @@ int main() {
   assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
   for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
                                  p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
-                                 std::string("SBC12 mark 3 x"), std::string("SBC mark 3"), std::string("SBC14 mark 3")})
+                                 std::string("SBC13 mark 3 x"), std::string("SBC mark 3"), std::string("SBC15 mark 3")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
@@ -238,12 +238,19 @@ int main() {
   // reach that guest. Protocol 12 refuses the link.
   // A v0.5.0-beta.1 peer runs protocol 12: it would count the pak lines as invalid, so her list of mods would never
   // come. Protocol 13 refuses the link.
-  static_assert(kProtocol == 13, "13 adds the pak lines; 12 the shared quests' lines and the race lines; 11 SBE and "
-                                 "the show lines; 10 the fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is "
-                                 "v0.2.0's");
+  // A v0.6.0-beta.3 peer runs protocol 13: it would refuse the host's night line with its level, so a co-op Night
+  // Operation run would end as lost. Protocol 14 refuses the link.
+  static_assert(kProtocol == 14, "14 adds the night line's level; 13 the pak lines; 12 the shared quests' lines and "
+                                 "the race lines; 11 SBE and the show lines; 10 the fight's scale line; 9 pose deltas "
+                                 "(SBD); 8 say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
          lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
-         lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856");
+         lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856" &&
+         lobby_tag(24463856) != "13:24463856");
+  assert(parse_text("SBC13 ping 1 2").kind == Kind::invalid &&
+         parse_text("SBC13 night " + host_line).kind == Kind::invalid);
+  m = parse_text("SBC hello 13 v0.6.0-beta.3 24463856"); // Answered too, and rejected by its number.
+  assert(m.kind == Kind::hello && m.a == 13 && m.text == "v0.6.0-beta.3");
   assert(parse_text("SBC12 ping 1 2").kind == Kind::invalid && parse_text("SBC12 paks 1 5").kind == Kind::invalid);
   m = parse_text("SBC hello 12 v0.5.0-beta.1 24463856"); // Answered too, and rejected by its number.
   assert(m.kind == Kind::hello && m.a == 12 && m.text == "v0.5.0-beta.1");

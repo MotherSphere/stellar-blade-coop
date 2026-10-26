@@ -62,13 +62,19 @@ for _,junk in ipairs({'','0','5','01','1.0',' 1','Targets','night','stop','targe
 end
 assert(C.find(nil)==nil)
 
--- The console list line: number, id, English name, waves, limit, best run or none; Night Operation's own line.
+-- The console list line: number, id, English name, waves, limit, best run or none; Night Operation's own lines.
 assert(C.line(C.LIST[4],1250,37)=='4 targets Target Practice: 3 waves, 1:30, best 1250 in 0:37')
 assert(C.line(C.LIST[1],314,46)=='1 swarm Antlion Swarm: 3 waves, 3:00, best 314 in 0:46')
 assert(C.line(C.LIST[2])=='2 skulls Skull Squad: 3 waves, 6:00, no best yet')
 assert(C.line(C.LIST[3])=='3 gauntlet Gauntlet: 8 waves, 12:00, no best yet')
 assert(C.line(W.NIGHT)=='night: Night Operation (coop nightop start), no best yet')
 assert(C.line(W.NIGHT,659,401)=='night: Night Operation (coop nightop start), best 659 in 6:41')
+-- Each other level of Night Operation under its own id, with its word in the name and the command.
+assert(C.line(W.LEVEL.hard,900,300)=='night_hard: Night Operation hard (coop nightop start hard), best 900 in 5:00')
+assert(C.line(W.LEVEL.easy)=='night_easy: Night Operation easy (coop nightop start easy), no best yet')
+assert(C.line(W.LEVEL.nightmare)
+    =='night_nightmare: Night Operation nightmare (coop nightop start nightmare), no best yet')
+for _,def in ipairs(W.LEVELS) do assert(not C.find(def.id),def.id..' is no challenge') end
 
 -- Records: best_<id>=<score> <whole seconds>, read the way the mod reads its settings (the last line naming the key).
 local file='# mine\nbest_targets=1250 37\r\nbest_swarm = 314 46\nbest_skulls=12\nbest_gauntlet=a b\n'

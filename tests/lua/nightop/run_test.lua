@@ -37,6 +37,9 @@
 -- Best. A challenge's HUD: its name as the card's title, the record line after a success that wrote its best, its stop
 -- line, Night Operation's own best, and with the kit off its notices with its name, then the record line after the end
 -- notice.
+-- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
+-- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
+-- sides' spots and wallets.
 -- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
 -- body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a corpse the game's pool
 -- brings back for a later wave.
@@ -235,10 +238,11 @@ local function since(i) return table.concat(lines,'\n',i+1) end
 local ok,message
 
 -- 1. Refusals: one reason each, nothing spawned, no run; junk words reach nothing.
-local USE='Use: coop nightop [start [noaggro|nomove] | stop | shop | buy <n> [count]]'
+local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | shop | buy <n> [count]]'
 for _,args in ipairs({{'start','x'},{'start','noaggro','x'},{'go'},{'stop','x'},{'START'},{nil,'x'},{'shop','x'},
-        {'SHOP'}}) do
-    ok,message=run.command(table.unpack(args,1,3))
+        {'SHOP'},{'start','HARD'},{'start','hard','x'},{'start','noaggro','hard'},{'start','hard','nomove','x'},
+        {'start','hard','hard'},{'stop','hard'}}) do
+    ok,message=run.command(table.unpack(args,1,4))
     assert(not ok and message==USE,tostring(message))
 end
 assert(#calls==0,'Junk words call nothing')
@@ -334,7 +338,8 @@ ok,message=run.command('start')
 local byte=byte0+1
 assert(ok and message==string.format('Night Operation starts in 5 s (run 0x%02X)',byte),message)
 assert(lines[1]==string.format('start: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map '
-    ..'/game/art/bg/worldmap/level_p/f02; census: 0 living within 40 m (nearest none); 1 wave bodies: 0xD8%02X0100 run '
+    ..'/game/art/bg/worldmap/level_p/f02 level normal; census: 0 living within 40 m (nearest none); 1 wave bodies: '
+    ..'0xD8%02X0100 run '
     ..'%d',byte,W.seed(T,byte),byte0,byte0),lines[1])
 ok,message=run.command('start')
 assert(not ok and message=='a run is on: coop nightop stop ends it')
@@ -620,6 +625,16 @@ list=begin('noaggro')
 tick(40)
 assert(count('Damage:ReportDamageEvent')==0 and count('M:Event_ChangeBattleState')==0,'noaggro')
 run.stop('stop')
+-- A level word before the switch (coop nightop start hard noaggro) keeps both.
+bodies,calls,lines={},{},{}
+ok,message=run.command('start','hard','noaggro')
+assert(ok,message)
+assert(lines[1]:find(' noaggro level hard; census: ',1,true),lines[1])
+for _=1,100 do tick(); if logged('wave 1 find +1 s: tracked 6/6') then break end end
+assert(logged('wave 1 find +1 s: tracked 6/6'),since(0))
+tick(40)
+assert(count('Damage:ReportDamageEvent')==0 and count('M:Event_ChangeBattleState')==0,'hard noaggro')
+run.stop('stop')
 
 -- 7. Aborts. Each drops every handle without a read in its tick.
 local function no_read_in(f)
@@ -783,6 +798,59 @@ end
 assert(result_line():find('^result: success waves=5/5 kills=0 '),result_line())
 assert(logged('points: no time bonus (no kill)'),since(0))
 assert(last()==string.format('credit +0 = %d (score 0, %s)',paid,WALLET),last())
+-- 8b. A hard run (coop nightop start hard): wave 1 is six Antlions, the two extra ones 2.5 m from the gates of slots 0
+-- and 1 through the same spawn call; each one found by place and sent at EVE like the others; the extra Swords of wave
+-- 2 score as Swords; the state, the start and the result lines name the level, and its points come at 150 %.
+do
+    bodies,calls,lines={},{},{}
+    ok,message=run.command('start','hard')
+    assert(ok,message)
+    byte=tonumber(message:match('run 0x(%x+)'),16)
+    assert(ok and message==string.format('Night Operation (hard) starts in 5 s (run 0x%02X)',byte),message)
+    assert(lines[1]:find(' level hard; census: ',1,true),lines[1])
+    local hard=W.LEVEL.hard
+    local sh=W.new{run=byte,seed=W.seed(T,byte),now=gt,def=hard}
+    for _=1,100 do tick(); if logged('wave 1 find +1 s: tracked 6/6') then break end end
+    assert(logged('wave 1/5 at run time 0.0 s: 6 monsters') and logged('wave 1 find +1 s: tracked 6/6'),since(0))
+    for slot=4,5 do
+        local key=W.key(byte,1,slot)
+        local at,yaw=W.spot({X=0,Y=0,Z=1000},30,sh.order[1],slot)
+        local gate=W.spot({X=0,Y=0,Z=1000},30,sh.order[1],slot-4)
+        assert(math.abs(math.sqrt((at.X-gate.X)^2+(at.Y-gate.Y)^2)-250)<1e-6,'2.5 m from its gate')
+        assert(logged(string.format('spawn 0x%08X M_Antlion at %.0f,%.0f,1100 yaw %.0f',key,at.X,at.Y,yaw)),since(0))
+    end
+    tick(3)
+    for slot=0,5 do
+        local key=W.key(byte,1,slot)
+        assert(logged(string.format('aggro 0x%08X: damage ok, noise ok, battle ok, focus ok, move ok',key)),slot)
+    end
+    assert(count('Damage:ReportDamageEvent')==6 and count('AIHelper:SimpleMoveToActor')==6)
+    ok,message=run.command()
+    assert(ok and message:find(string.format('^run 0x%02X level hard: wave, wave 1/5, run time ',byte)),message)
+    for k=1,5 do
+        local n=#hard.waves[k].ids
+        local found=string.format('wave %d find +2.5 s: tracked %d/%d',k,n,n)
+        for _=1,400 do
+            if logged(found) then break end
+            tick()
+        end
+        assert(logged(found),since(0))
+        for _,m in ipairs(bodies) do
+            local r,w=W.decode(m.key)
+            if r==byte and w==k then m.st,m.ctl=1,nil end
+        end
+        tick()
+    end
+    assert(since(0):find(string.format('\nkill 0x%08X M_SkullSwordAlone %%+40 = ',W.key(byte,2,4))),since(0))
+    local hard_score=tonumber(result_line():match('^result: success waves=5/5 kills=30 score=(%d+) time=%d+:%d%d '
+        ..'find_ms=%S+ challenge=night_hard best=none$'))
+    assert(hard_score and hard_score>940,result_line())
+    local hard_points=math.min(hard_score,W.most(hard))*150//2500
+    assert(last()==string.format('credit +%d = %d (score %d, hard 150%%, %s)',hard_points,paid+hard_points,hard_score,
+        WALLET),last())
+    paid=paid+hard_points
+    assert(#violations==0,violations[1])
+end
 
 -- 10. Challenges (coop challenge) on the same fakes, with coop-records.txt in memory. The refusals (junk words, an
 -- unknown name, a Steam link, a run on); the list with and without a run; Target Practice to a success with no aggro
@@ -843,7 +911,10 @@ do
     -- The list: the four with their bests (none but the stored Skull Squad one), then Night Operation.
     local LIST='1 swarm Antlion Swarm: 3 waves, 3:00, no best yet\n2 skulls Skull Squad: 3 waves, 6:00, best 300 in '
         ..'3:20\n3 gauntlet Gauntlet: 8 waves, 12:00, no best yet\n4 targets Target Practice: 3 waves, 1:30, %s\n'
-        ..'night: Night Operation (coop nightop start), no best yet'
+        ..'night_easy: Night Operation easy (coop nightop start easy), no best yet\n'
+        ..'night: Night Operation (coop nightop start), no best yet\n'
+        ..'night_hard: Night Operation hard (coop nightop start hard), no best yet\n'
+        ..'night_nightmare: Night Operation nightmare (coop nightop start nightmare), no best yet'
     ok,message=ch.challenge()
     assert(ok and message==LIST:format('no best yet'),message)
     -- Target Practice, by its number. The start line names it; the list adds the run's state.
@@ -1140,6 +1211,9 @@ assert(res.head.c=='warn','A failure in the warning colour, after a success')
 local held={phase='breather',t0=0,wave=2,next_at=90,score=40,def=W.NIGHT}
 assert(select(2,Run.card(held,85,Tx.en))=='NEXT WAVE IN 5  6:35  SCORE 40',select(2,Run.card(held,85,Tx.en)))
 assert(select(2,Run.card(held,95,Tx.en))=='WAVE 2/5  6:25  SCORE 40',select(2,Run.card(held,95,Tx.en)))
+-- Another level: Night Operation's title, its own time limit (hard: 7:30).
+assert(table.concat({Run.card({phase='wave',t0=0,wave=1,score=0,def=W.LEVEL.hard},10,Tx.en)},'|')
+    =='NIGHT OPERATION|WAVE 1/5  7:20  SCORE 0')
 -- The ask: the host waits for her; her card counts down from her answer.
 assert(select(2,Run.card({phase='ask',role='host',t0=10,def=W.NIGHT},7,Tx.en))=='WAITING FOR PARTNER')
 assert(select(2,Run.card({phase='ask',role='guest',t0=10,def=W.NIGHT},7,Tx.en))=='STARTS IN 3')
@@ -1325,8 +1399,8 @@ local function state(w)
     if not phase then return nil end
     return {phase=phase,wave=tonumber(wave),rt=tonumber(rt),score=tonumber(score),kills=tonumber(kills)}
 end
-local function host_start()
-    local ok2,text=on(Hs,function() return Hs.run.command('start') end)
+local function host_start(level)
+    local ok2,text=on(Hs,function() return Hs.run.command('start',level) end)
     assert(ok2,text)
     return tonumber(text:match('run 0x(%x+)'),16),text
 end
@@ -1350,11 +1424,12 @@ ok2,text=on(Gs,function() return Gs.run.command('start') end)
 assert(not ok2 and text=='the host starts a co-op run')
 round()
 local seed=W.seed(T,run)
-assert(Hs.sent[1]==string.format('h 1 %d %d ask 0 -5000 0 0 0 0 0 0 1000 30 /game/art/bg/worldmap/level_p/f02 -',run,
-    seed),Hs.sent[1])
+assert(Hs.sent[1]==string.format('h 1 %d %d ask 0 -5000 0 0 0 0 0 0 1000 30 /game/art/bg/worldmap/level_p/f02 - '
+    ..'normal',run,seed),Hs.sent[1])
 assert(Gs.sent[1]==string.format('g 1 %d ready 0 0 0 -',run),Gs.sent[1])
 assert(has(Gs.lines,'night in: '..Hs.sent[1]) and has(Hs.lines,'night out: '..Hs.sent[1]))
-assert(find(Gs.lines,string.format('^join: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map ',run,seed)),Gs.lines[2])
+assert(find(Gs.lines,string.format('^join: run 0x%02X seed 0x%08X at 0,0,1000 yaw 30 map '
+    ..'/game/art/bg/worldmap/level_p/f02 level normal; census: ',run,seed)),Gs.lines[2])
 assert(state(Hs).phase=='ask' and state(Gs).phase=='ask')
 round()
 assert(Hs.sent[2]:find(string.format('^h 2 %d %d count 0 %%-5000 ',run,seed)),Hs.sent[2])
@@ -1562,10 +1637,10 @@ assert(Hs.told[#Hs.told]=='Your partner left the run.' and #Hs.bodies==0,tostrin
 -- says so; no run before this one (deaths, stops, travels, lost links, refusals) credited any.
 assert(not files['coop-night-76561198000000001-4.txt'] and not files['coop-night-76561198000000002-4.txt'],
     'Nothing for an end that is not a success or a time up')
-local function both_succeed()
+local function both_succeed(level)
     pair()
     Gs.rtt=2000
-    host_start()
+    host_start(level)
     for k=1,5 do
         local found_k,n=string.format('^wave %d find %%+2%%.5 s',k),0
         while not (find(Hs.lines,found_k) and find(Gs.lines,found_k)) do
@@ -1627,6 +1702,33 @@ round(1,Gs)
 assert(find(Gs.lines,'^result: success '),Gs.lines[#Gs.lines])
 assert(Gs.lines[#Gs.lines]=='no points: this run did not go through its countdown',Gs.lines[#Gs.lines])
 assert(files[Gs.wallet]==points..'\n','Her wallet unchanged')
+-- The host's level: his line carries hard, her run takes it, both worlds spawn the six Antlions of its wave 1 on the
+-- same spots, one score and one time end both runs, and each game credits its own wallet at hard's 150 %.
+do
+    both_succeed('hard')
+    assert(Hs.sent[1]:find(' hard$') and find(Gs.lines,' level hard; census: '),Hs.sent[1])
+    local spots={}
+    for _,m in ipairs(Hs.bodies) do if select(2,W.decode(m.key))==1 then spots[m.key]=m.at.X..','..m.at.Y end end
+    local n=0
+    for _,m in ipairs(Gs.bodies) do
+        if select(2,W.decode(m.key))==1 then
+            n=n+1
+            assert(spots[m.key]==m.at.X..','..m.at.Y,'The same key on the same spot')
+        end
+    end
+    assert(n==6,n)
+    hr,gr=find(Hs.lines,'^result: '),find(Gs.lines,'^result: ')
+    assert(hr:find('^result: success waves=5/5 kills=30 score=%d+ .* challenge=night_hard ') and gr
+        and gr:match('^(.- time=%S+)')==hr:match('^(.- time=%S+)'),hr)
+    local hard_score=tonumber(hr:match(' score=(%d+) '))
+    local got=math.min(hard_score,W.most(W.LEVEL.hard))*150//2500
+    for _,w in ipairs({Hs,Gs}) do
+        assert(files[w.wallet]==(points+got)..'\n',w.wallet)
+        assert(w.told[#w.told]==string.format('Night Operation: +%d points, %d in all.',got,points+got),w.told[#w.told])
+    end
+    points=points+got
+    assert(#violations==0,violations[1])
+end
 
 -- Shared waves. Her status as the shared fight writes it: its line on as the guest, the pilot's line on.
 local FIGHT='fight=on mode=on role=guest pairs=4 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 maxhp=0'

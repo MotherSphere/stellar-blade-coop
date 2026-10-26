@@ -1,8 +1,8 @@
 -- coop challenge's list without a game call: the definitions nightop/waves.lua runs (the fields are listed above
--- W.NIGHT there), the lookup by id or number, the console list line, and each one's best run in coop-records.txt, one
--- line best_<id>=<score> <whole seconds> read and rewritten through core/settings_file.lua. Starting values, to tune
--- after the first in-game runs. tests/lua/nightop/challenges_test.lua covers it with lua5.4 alone, the definitions'
--- rules included.
+-- W.NIGHT there), the lookup by id or number, the console list line, and each one's best run, Night Operation's levels'
+-- too, in coop-records.txt, one line best_<id>=<score> <whole seconds> read and rewritten through
+-- core/settings_file.lua. Starting values, to tune after the first in-game runs. tests/lua/nightop/challenges_test.lua
+-- covers it with lua5.4 alone, the definitions' rules included.
 local W=require('nightop.waves')
 local F=require('core.settings_file')
 local C={}
@@ -37,10 +37,14 @@ function C.find(word)
 end
 -- m:ss from seconds, a run's float time cut to whole seconds.
 local function clock(s) s=math.floor(s) return string.format('%d:%02d',s//60,s%60) end
--- The console list line of a definition and its best run (score and seconds, or nil).
+-- The console list line of a definition, a challenge or a level of Night Operation (W.LEVELS), and its best run (score
+-- and seconds, or nil).
 function C.line(def,score,s)
     local best=score and string.format('best %d in %s',score,clock(s)) or 'no best yet'
-    if def==W.NIGHT then return 'night: Night Operation (coop nightop start), '..best end
+    if def.level then
+        local word=def==W.NIGHT and '' or ' '..def.level
+        return string.format('%s: Night Operation%s (coop nightop start%s), %s',def.id,word,word,best)
+    end
     for n,d in ipairs(C.LIST) do
         if d==def then return string.format('%d %s %s: %d waves, %s, %s',n,d.id,d.name,#d.waves,clock(d.limit),best) end
     end

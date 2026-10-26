@@ -12,7 +12,8 @@ friend's revive, the cutscene wait, kills that count only for a player who took 
 challenges, Doro races, the co-op line at camp phone booths and the controller in the co-op menu. The Leviathan viewer
 and its free camera ran in game on one PC on 2026-10-22. None of the 0.6 additions has run in game yet: the first-launch
 guide, the .pak mod list and CNS outfits over the link, the UE4SS settings warning, `coop lion`, `coop wear`,
-`coop gardener` and `coop tendril`. 0.6 uses link protocol 13, so both players need 0.6.
+`coop gardener` and `coop tendril`. 0.6.0-beta.1 to beta.3 use link protocol 13. Later releases use protocol 14
+and do not link with them.
 
 Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
 the Steam client that the game already runs, so the mod needs no other program and no server of its own.
@@ -109,10 +110,11 @@ back for friends over Steam, started from the recruiter's Join choice, for up to
 today. The mod never contacts the cut mode's online services (Shift Up's servers).
 
 `coop nightop start` runs five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and
-a score, on a co-op save. With no Steam session it is a solo run. In a session the host types it, and both games get
-the same waves while both screens show one timer and one score; with shared enemies on, each wave monster has one HP
-bar and one death in both games. A run that ends in success or time up gives points for a console shop that sells four
-of the game's items. None of this has been tested in game yet (see
+a score, on a co-op save. `coop nightop start easy`, `hard` or `nightmare` changes the number of monsters (15 to 40 in
+all, 20 at normal), the time limit and the shop points. With no Steam session it is a solo run. In a session the host
+types it, at his level, and both games get the same waves while both screens show one timer and one score; with
+shared enemies on, each wave monster has one HP bar and one death in both games. A run that ends in success or time up
+gives points for a console shop that sells four of the game's items. None of this has been tested in game yet (see
 [docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs four short fights on the same
 code, one of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. The
 challenges are solo: they need a co-op save and no Steam session, and give no shop points. They have not been tested
@@ -150,7 +152,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same mod protocol (13 in this version) and the same game build.
+- To play together, both players need the same mod protocol (14 in this version) and the same game build.
 
 ## Disclaimer
 

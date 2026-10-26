@@ -4,9 +4,10 @@
 -- 1-10 reach the grant call, with its nine arguments; the list;
 -- each refusal of a buy, in order, with no call and no point taken; points taken and written only after a call that
 -- returned, and kept when the call raises; a signed GUID read; one wallet per SteamID and co-op slot, read from its .tmp
--- when a failed rename left only that, and refused with nothing written when it cannot be opened; the credit and its
--- cap; a cut item granted only once its rows are in (at once or after the wait, with every check again then), refused
--- with no point taken when they cannot be added, and not asked for before the buy's own checks pass.
+-- when a failed rename left only that, and refused with nothing written when it cannot be opened; the credit, its
+-- cap and each level's percent; a cut item granted only once its rows are in (at once or after the wait, with every
+-- check again then), refused with no point taken when they cannot be added, and not asked for before the buy's own
+-- checks pass.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -74,16 +75,27 @@ local A,B='76561198000000001','76561198000000002'
 status_with('slot=coop index=4 marker=4',A)
 local FILE='coop-night-'..A..'-4.txt'
 
--- 2. Credit: floor(score / 25), at most floor(W.MAX_SCORE / 25) a run, added to this player's wallet on this slot.
-assert(Shop.POINTS_PER==25 and W.MAX_SCORE//25==42)
+-- 2. Credit: floor(score / 25), the score counted up to W.most (1060: 42 points at most a run), added to this player's
+-- wallet on this slot.
+assert(Shop.POINTS_PER==25 and W.most(W.NIGHT)//25==42)
 local got,total=shop.credit(730)
 assert(got==29 and total==29 and files[FILE]=='29\n',tostring(got))
 assert(lines[#lines]=='credit +29 = 29 (score 730, '..FILE..')',lines[#lines])
 got,total=shop.credit(24); assert(got==0 and total==29)
-got,total=shop.credit(W.MAX_SCORE); assert(got==42 and total==71)
+got,total=shop.credit(W.most(W.NIGHT)); assert(got==42 and total==71)
 got,total=shop.credit(100000); assert(got==42 and total==113,'Capped whatever the line said')
 got,total=shop.credit(-50); assert(got==0 and total==113)
 assert(files[FILE]=='113\n')
+-- Another level: its percent of those points, the score counted up to its own W.most. Hard: 730 x 1.5 / 25 = 43.8;
+-- nightmare at most 1620 x 2 / 25 = 129.6; easy 730 x 0.5 / 25 = 14.6; normal named as such is the default.
+got,total=shop.credit(730,W.LEVEL.hard); assert(got==43 and total==156,tostring(got))
+assert(lines[#lines]=='credit +43 = 156 (score 730, hard 150%, '..FILE..')',lines[#lines])
+got,total=shop.credit(100000,W.LEVEL.nightmare); assert(got==129 and total==285,tostring(got))
+got,total=shop.credit(730,W.LEVEL.easy); assert(got==14 and total==299,tostring(got))
+got,total=shop.credit(730,W.LEVEL.normal); assert(got==29 and total==328)
+assert(lines[#lines]=='credit +29 = 328 (score 730, '..FILE..')',lines[#lines])
+got,total=shop.credit(-50,W.LEVEL.nightmare); assert(got==0 and total==328)
+files[FILE]='113\n' -- The total the checks below start from.
 -- One wallet per SteamID and co-op slot.
 status_with('slot=coop index=3 marker=3',A)
 got,total=shop.credit(250); assert(got==10 and total==10 and files['coop-night-'..A..'-3.txt']=='10\n')
