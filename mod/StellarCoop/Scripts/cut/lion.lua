@@ -11,8 +11,8 @@
 -- the body. This file holds the Lion's spec and its own parts. The IDs: 50020 (M_LionC, the Skulling test tree), 50021
 -- after coop lion brain lurker (M_LionC_Lurker, the Lesser Lurker tree), or for coop lion control 50110 (M_Antlion, a
 -- shipped Naytiba, which tells a broken call from broken rows), its body the nearest new SB character. While a Lion
--- lives, one more line a second: the boss bar's name, which the game shows as <M_LionC> (no Lion text in
--- CharacterStringTable), set to Lion. coop lion unfreeze puts the mesh's engine switches back to their running values
+-- lives, cut/enemy.lua sets the boss bar's name, which the game shows as <M_LionC> (no Lion text in
+-- CharacterStringTable), to Lion. coop lion unfreeze puts the mesh's engine switches back to their running values
 -- on each living Lion (the test of a body whose pose stays on frame 1); a body whose mesh has no anim instance runs the
 -- Lion's AnimBP on a hidden Behemoth mesh that the Lion's mesh copies (LEADER_MESH says why), or a single-node stand-in
 -- when that fails.
@@ -23,7 +23,7 @@
 local U=require('core.unreal')
 local Doro=require('race.doro')
 local Enemy=require('cut.enemy')
-local valid,value_of,text,why=U.valid,U.value_of,U.text,Enemy.why
+local valid,value_of,why=U.valid,U.value_of,Enemy.why
 local Lion={}
 Lion.TABLES=Enemy.TABLES -- The 14 tables, in the native part's order (link/protocol.h's kLionTables).
 -- The only IDs the spawn call takes, with what each is; the brains are the Lion's two CharacterTable rows.
@@ -58,12 +58,9 @@ local ANIM_CLASSES={
         package=DIR..'BluePrints/CH_M_NA_02_AnimBP.CH_M_NA_02_AnimBP'},
     {name='CH_M_NA_46_AnimBP_C',class=BEHEMOTH..'CH_M_NA_46_AnimBP.CH_M_NA_46_AnimBP_C',
         package=BEHEMOTH..'CH_M_NA_46_AnimBP.CH_M_NA_46_AnimBP'}}
--- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4c3f0, through FText::FromStringTable on the
--- row's Name), the text it shows for the Lion, and ours. FindAllOf('TextBlock') walks every object: the live blocks
--- found (under /Engine/Transient, not a widget class's template) are kept, and looked for again at most every BOSS_LOOK
--- s while none is held.
-local BOSS_TEXT,BOSS_SHOWN,BOSS_NAME,BOSS_LOOK='TextBlock_BossName','^<M_LionC[%w_]*>$','Lion',10
-local LIVE='/Engine/Transient'
+-- The boss bar's name: the text the game shows for the Lion (its row name, as CharacterStringTable has no Lion text),
+-- and ours (cut/enemy.lua writes it).
+local BOSS_SHOWN,BOSS_NAME='^<M_LionC[%w_]*>$','Lion'
 
 -- The rows as the native part writes them: cut/lion_rows.lua's R.ROWS, which the generator of lion/rows.h writes from
 -- the same recipe (tests/lua/cut/lion_test.lua checks the two agree), in Enemy.rows' form.
@@ -78,7 +75,6 @@ function Lion.new(o)
     local log=o.log
     local self={}
     local brain=BRAINS.skulling
-    local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
     local e -- cut/enemy.lua's, made below with the hooks that use it.
     -- A mesh with no anim instance gets one: with its own anim class, then each of ANIM_CLASSES (found by path, its
     -- package loaded first when it is not yet), the class written into AnimClass, then SetAnimationMode 1 and 0, until
@@ -230,28 +226,6 @@ function Lion.new(o)
             end)
         end
     end
-    -- While a Lion lives, once a second: the boss bar's name as BOSS_NAME where it reads <M_LionC> (SB writes it again
-    -- at its next boss bind, and this puts it back).
-    local function boss_name(now)
-        local held=false
-        for _,t in ipairs(boss) do held=held or valid(t)~=nil end
-        if not held and now>=next_boss then
-            next_boss,boss=now+BOSS_LOOK,{}
-            U.each(FindAllOf('TextBlock') or {},function(_,t)
-                t=valid(t)
-                if t and text(t:GetFName())==BOSS_TEXT and text(t:GetFullName()):find(LIVE,1,true) then
-                    boss[#boss+1]=t
-                end
-            end)
-        end
-        for _,t in ipairs(boss) do
-            local shown=valid(t) and text(t:GetText())
-            if shown and shown:find(BOSS_SHOWN) then
-                t:SetText(FText(BOSS_NAME))
-                log(string.format('boss name: %s -> %s',shown,BOSS_NAME))
-            end
-        end
-    end
     e=Enemy.new(o,{word='lion',name='Lion',command='coop lion',tag='[LI]',rows=Lion.ROWS,ids=Lion.IDS,
         class='CH_M_NA_02_BluePrint_Large_C', -- The Large blueprint, the Lion's appearance row.
         -- cm: the spot ahead of EVE and above her middle, so the body lands (the probe's 1 m).
@@ -262,7 +236,7 @@ function Lion.new(o)
             clip=DIR..'Animation/Mon_LionC_Scene01_Appearance.Mon_LionC_Scene01_Appearance',scale=1.5,yaw=0,seconds=13},
         skipped='off by default: the Lion AnimBP has no montage slot, and a clip on its mesh would replace the anim '
             ..'instance SB plays its skills on; coop lion intro plays it on a display copy before the spawn',
-        follow=follow,frame=frame,alive={name='boss name',run=boss_name}})
+        boss={shown=BOSS_SHOWN,name=BOSS_NAME},follow=follow,frame=frame})
     -- coop lion unfreeze [init]: on each living Lion, every engine switch that can hold a mesh's pose put back to its
     -- running value (component tick, anim pause, the rate scale, skeleton updates, the visibility-based and
     -- rate-optimized ticking, the actor's time dilation), then its mesh line again; init also builds its anim instance

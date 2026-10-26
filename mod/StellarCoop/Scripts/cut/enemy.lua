@@ -1,37 +1,44 @@
--- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion (cut/lion.lua) and coop
--- gardener fight (cut/gardener.lua) share, each giving its own spec. The monster's rows are a batch of the native part
--- (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight). This file
--- finds the 14 tables by their fixed paths and sends their addresses (the spec's "<word> rows" request: no console
--- word reaches an address), waits for the answer in coop-status.txt's <word> line, then reads every row of the batch
--- back through FindRow by field name, independent of the SDK's offsets, and stops at the first value that differs.
--- Then one spawn call, nightop/run.lua's ServerRequest_CreateActor with cheat on and key 0 (no EventSpawn row: no zone
--- storage, no quest event, no respawn, nothing saved), the spec's distance ahead of EVE and height, facing her, for one
--- of the spec's CharacterTable IDs only. Its body is the new character nearest the spot (of the spec's blueprint
--- class), or a body SB sent far away and moved back there (it reuses one: a Lion at 466 m came back for the next spawn
--- on 2026-10-23), given its default controller when it has none, its mesh turned by the spec's yaw when it has one
--- (turned again, and said, if the game turns it back), then followed: a line a second while it lives (distance, place,
--- the anim graph's speed, a skill running, the custom anim alphas the AnimBP blends a Show's clip by, how far a hand
--- moved in the body's own frame, with its mesh's engine switches before the first line and at each change), its death
--- (InteractionState and Controller, as run.lua reads them) and its body's despawn, with the spawn manager's counter
--- (the line's spawns=) before, while it lives and after. Nothing looks its Shows or clips up: a StaticFindObject of
--- one took about 30 ms here, a 50 ms frame each second (the frame rate check of 2026-10-24). Never called here: UE4SS's
--- AddRow or RemoveRow (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call.
--- The monster goes when it dies or with the map; the rows stay for the game run, and a later command only reads them
--- back. coop off ends what this file does (a wait, a search, the lines) and leaves a living monster to the game.
--- The entrance: a single-node clip on the real mesh would replace the anim instance SB plays its skills on while its
--- AI runs, so the spawn comes at once, or, with intro, after the spec's entrance clip played on a display copy
--- (race/doro.lua's plain actor with the spec's mesh, as cut/leviathan.lua shows its meshes); the monster then spawns
--- where the copy's root ended and the copy goes as soon as the body shows. A map change during the entrance spawns
--- nothing.
+-- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion (cut/lion.lua), coop gardener
+-- fight (cut/gardener.lua) and coop tendril fight (cut/tendril.lua) share, each giving its own spec. The monster's rows
+-- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
+-- logic task in flight). This file finds the 14 tables by their fixed paths and sends their addresses (the spec's
+-- "<word> rows" request: no console word reaches an address), waits for the answer in coop-status.txt's <word> line,
+-- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
+-- the first value that differs, then runs the spec's prepare (the Tendril's Shows). Then one spawn call,
+-- nightop/run.lua's ServerRequest_CreateActor with cheat on and key 0 (no EventSpawn row: no zone storage, no quest
+-- event, no respawn, nothing saved), the spec's distance ahead of EVE and height, facing her, for one of the spec's
+-- CharacterTable IDs only. Its body is the new character nearest the spot (of the spec's blueprint class), or a body SB
+-- sent far away and moved back there (it reuses one: a Lion at 466 m came back for the next spawn on 2026-10-23), given
+-- its default controller when it has none, its mesh turned by the spec's yaw when it has one (turned again, and said,
+-- if the game turns it back) and given the spec's material on every slot when it has one, then followed: a line a
+-- second while it lives (distance, place, the anim graph's speed, a skill running, the custom anim alphas the AnimBP
+-- blends a Show's clip by, how far a hand moved in the body's own frame, with its mesh's engine switches before the
+-- first line and at each change), its death (InteractionState and Controller, as run.lua reads them) and its body's
+-- despawn, with the spawn manager's counter (the line's spawns=) before, while it lives and after. While one lives,
+-- once a second, the boss bar's name where it reads <row name> (no text of the monster in CharacterStringTable) set to
+-- the spec's (the TextBlock SB writes once a boss bind, through FText::FromStringTable on the row's Name;
+-- FindAllOf('TextBlock') walks every object, so the live blocks found are kept and looked for again at most every
+-- BOSS_LOOK s while none is held). Nothing looks its Shows or clips up: a StaticFindObject of one took about 30 ms
+-- here, a 50 ms frame each second (the frame rate check of 2026-10-24). Never called here: UE4SS's AddRow or RemoveRow
+-- (a raw RowMap insert or free that SB's ID maps miss), a despawn, a save, quest or inventory call. The monster goes
+-- when it dies or with the map; the rows stay for the game run, and a later command only reads them back. coop off ends
+-- what this file does (a wait, a search, the lines) and leaves a living monster to the game. The entrance: a
+-- single-node clip on the real mesh would replace the anim instance SB plays its skills on while its AI runs, so the
+-- spawn comes at once, or, with intro, after the spec's entrance clip played on a display copy (race/doro.lua's plain
+-- actor with the spec's mesh, as cut/leviathan.lua shows its meshes); the monster then spawns where the copy's root
+-- ended and the copy goes as soon as the body shows. A map change during the entrance spawns nothing.
 --
--- spec: word (the status line's, the request's and the follow lines' word: lion, gardener), name (its messages: Lion),
--- command (its console words: coop lion), tag (its log tag: [LI]), rows (its batch, as Enemy.rows gives them), ids
--- ({[id]=row name}: the only IDs the spawn call takes), class (its body's blueprint class), ahead(id) (cm ahead of
--- EVE), up (cm above her middle, or above her feet with feet true), mesh_yaw (degrees the body's mesh turns once found;
--- nil: none), entrance ({mesh, clip, scale, yaw (degrees the copy turns from facing EVE), seconds (when the clip's
--- length is unread)}), skipped (why the entrance is off by default, for its log line), and optional hooks: follow(f, c,
--- mesh) (once a second before the follow line, the mesh line said), frame(f) (each frame for each followed body) and
--- alive ({name, run(now)}: once a second while a spawned body lives, timed in the frame part).
+-- spec: word (the status line's, the request's and the follow lines' word: lion, gardener, tendril), name (its
+-- messages: Lion), command (its console words: coop lion), tag (its log tag: [LI]), rows (its batch, as Enemy.rows
+-- gives them), ids ({[id]=row name}: the only IDs the spawn call takes), class (its body's blueprint class), ahead(id)
+-- (cm ahead of EVE), up (cm above her middle, or above her feet with feet true), mesh_yaw (degrees the body's mesh
+-- turns once found; nil: none), material (a material's object path set on every slot of the body's mesh once found;
+-- nil: none), boss ({shown, name}: a Lua pattern of the boss bar's text and the name written over it; nil: none),
+-- entrance ({mesh, clip, scale, yaw (degrees the copy turns from facing EVE), seconds (when the clip's length is
+-- unread)}; nil: none), skipped (why the entrance is off, for its log line), and optional hooks: prepare() (once the
+-- rows read back, before the spawn or the end of a rows-only command; its error stops the spawn), follow(f, c, mesh)
+-- (once a second before the follow line, the mesh line said), frame(f) (each frame for each followed body) and alive
+-- ({name, run(now)}: once a second while a spawned body lives, timed in the frame part).
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local Doro=require('race.doro')
@@ -58,6 +65,11 @@ local MASK=0xFFFFFFFF
 -- keeps it still while the body runs and attacks (the in-game test of 2026-10-24: frame 1 of its idle, alphas 0). The
 -- Lion's and the Gardener's skeletons both have it.
 local BONE='Bip001-L-Hand'
+-- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4c3f0), the live ones (under
+-- /Engine/Transient, not a widget class's template), and how often (s) the blocks are looked for again while none is
+-- held.
+local BOSS_TEXT,BOSS_LOOK,LIVE='TextBlock_BossName',10,'/Engine/Transient'
+local MATERIAL='/Script/Engine.MaterialInterface'
 
 function Enemy.why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 local why=Enemy.why
@@ -171,7 +183,8 @@ function Enemy.new(o,spec)
         return said
     end
     local frame_said=string.format('frame ? ms, %s Lua 0.0 ms/s',word) -- The last second's, for each follow line.
-    local failed={} -- The alive hook's last error, said once.
+    local failed={} -- The boss name's and the alive hook's last errors, each said once.
+    local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
     local function my_line() return Enemy.parse(status and status(),word) end
     local her=N.her
     -- The 14 tables by name, and those missing.
@@ -250,6 +263,36 @@ function Enemy.new(o,spec)
             read(function() return c.CustomTimeDilation end),read(function() return c.bSequencerAnimMode end))
     end
     local mesh_state=self.mesh_state
+    -- While a body lives, once a second: the boss bar's name as the spec's where it reads its pattern (SB writes it
+    -- again at its next boss bind, and this puts it back).
+    local function boss_name(now)
+        local held=false
+        for _,t in ipairs(boss) do held=held or valid(t)~=nil end
+        if not held and now>=next_boss then
+            next_boss,boss=now+BOSS_LOOK,{}
+            U.each(FindAllOf('TextBlock') or {},function(_,t)
+                t=valid(t)
+                if t and text(t:GetFName())==BOSS_TEXT and text(t:GetFullName()):find(LIVE,1,true) then
+                    boss[#boss+1]=t
+                end
+            end)
+        end
+        for _,t in ipairs(boss) do
+            local shown=valid(t) and text(t:GetText())
+            if shown and shown:find(spec.boss.shown) then
+                t:SetText(FText(spec.boss.name))
+                log(string.format('boss name: %s -> %s',shown,spec.boss.name))
+            end
+        end
+    end
+    -- The spec's material on every slot of a body's mesh: how many slots.
+    local function paint(c)
+        local m=valid(c.Mesh)
+        local material=assert(Doro.resolve(spec.material,MATERIAL),spec.material:match('[^/]+$')..' does not load')
+        local n=math.floor(tonumber(value_of(m:GetNumMaterials())) or 0)
+        for i=0,n-1 do m:SetMaterial(i,material) end
+        return n
+    end
     -- The spec's mesh yaw on a body (its mesh's relative rotation, a turn about its root): what it read before.
     local function turn(c)
         local m=valid(c.Mesh)
@@ -379,6 +422,11 @@ function Enemy.new(o,spec)
             log(string.format('%s %d: mesh yaw set to %d (was %s)',word,f.n,spec.mesh_yaw,turned and was or '?')..
                 (turned and '' or ': the call failed ('..why(was)..')'))
         end
+        if spec.material and not j.control then
+            local painted,n=pcall(paint,best)
+            log(string.format('%s %d: %s',word,f.n,painted and string.format('material %s on its %d slots',
+                spec.material:match('[^.]+$'),n) or 'material not set ('..why(n)..')'))
+        end
         if not j.intro and not j.control then log('entrance: skipped ('..spec.skipped..')') end
         followed[#followed+1]=f
         if not followed[2] then next_follow=now+FOLLOW end -- Its first line a second from now.
@@ -411,7 +459,7 @@ function Enemy.new(o,spec)
         local ahead=spec.ahead(id)
         return {X=at.X+ahead*math.cos(yaw),Y=at.Y+ahead*math.sin(yaw),Z=(spec.feet and feet.Z or at.Z)+spec.up},feet.Z
     end
-    local clip_name=spec.entrance.clip:match('%.([%w_]+)$')
+    local clip_name=spec.entrance and spec.entrance.clip:match('%.([%w_]+)$')
     -- The entrance's end: the monster spawned where the copy's root is now (its bone 0, on the spot's height), or at
     -- the spot when that is unread or more than ROOT_FAR away; the copy stays on its last frame until the body shows.
     -- A map change meanwhile: no spawn (the spot is the old map's).
@@ -482,6 +530,13 @@ function Enemy.new(o,spec)
         end
         log(string.format('rows read back through FindRow: %d/%d authored rows, %d fields as written (%d differ from '
             ..'the template row)',n,#spec.rows,fields,changed))
+        if spec.prepare then
+            local ready,e=pcall(spec.prepare)
+            if not ready then
+                log('not ready: '..why(e)..': no spawn')
+                return false,string.format('The %s rows are in, but %s: no spawn.',name,why(e))
+            end
+        end
         if j.rows_only then
             return true,string.format('%s rows in: %s added, SB finds them by ID (char %s, skills %s, stance %s) and '
                 ..'they read back as written; %s spawns one.',name,s.added,s.char,s.skills,s.stance,command)
@@ -630,13 +685,17 @@ function Enemy.new(o,spec)
             took[1]=string.format('follow %.1f ms',(os.clock()-t)*1000)
             local lives=false
             for _,f in ipairs(followed) do lives=lives or (not f.control and not f.dead) end
-            if lives and spec.alive then
-                t=os.clock()
-                local fine,e=pcall(spec.alive.run,now)
-                took[2]=string.format('%s %.1f ms',spec.alive.name,(os.clock()-t)*1000)
-                e=not fine and string.format('%s: unread (%s)',spec.alive.name,why(e))
-                if e and e~=failed.alive then log(e) end
-                failed.alive=e
+            -- The boss name, then the spec's own pass, each timed and its error said once.
+            for _,part in ipairs({spec.boss and {name='boss name',run=boss_name,key='boss'} or false,
+                spec.alive and {name=spec.alive.name,run=spec.alive.run,key='alive'} or false}) do
+                if lives and part then
+                    t=os.clock()
+                    local fine,e=pcall(part.run,now)
+                    took[#took+1]=string.format('%s %.1f ms',part.name,(os.clock()-t)*1000)
+                    e=not fine and string.format('%s: unread (%s)',part.name,why(e))
+                    if e and e~=failed[part.key] then log(e) end
+                    failed[part.key]=e
+                end
             end
             parts=table.concat(took,', ')
         end
