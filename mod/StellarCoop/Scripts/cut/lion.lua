@@ -3,9 +3,11 @@
 -- made native). Its 222 rows, each authored for it (cut/lion_rows.lua lists them), go into SB's tables through the
 -- native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no logic task in flight),
 -- after the 4 rows of the cut items the Night Operation shop sells (2 ItemTable rows, an ItemConsumableTable row and
--- the SkillTable row they play) and the 11 of EVE's cut Tachy ChainSpin (its skill, 9 steps and the effect that starts
--- it), 237 rows in 14 tables: the lion rows batch. The shop and coop chainspin ask for them through Lion.rows
--- (nightop/shop.lua, cut/chainspin.lua).
+-- the SkillTable row they play), the 11 of EVE's cut Tachy ChainSpin (its skill, 9 steps and the effect that starts
+-- it) and the 4 of the Shock Bolt ammo the shop sells too (its item, skill, projectile and hit result), 241 rows in 15
+-- tables: the lion rows batch. The shop and coop chainspin ask for them through Lion.rows (nightop/shop.lua,
+-- cut/chainspin.lua); once they are in, the native part also grows EVE's gun stances and the ammo list for the Shock
+-- Bolt (lion/shock.h, the status's shock line).
 -- The flow is cut/enemy.lua's, which coop gardener fight shares: the tables, the lion rows request, the wait on the
 -- lion line, the read-back, the one spawn call (10 m ahead of EVE and 1 m up, facing her) and the lines that follow
 -- the body. This file holds the Lion's spec and its own parts. The IDs: 50020 (M_LionC, the Skulling test tree), 50021
@@ -25,7 +27,7 @@ local Doro=require('race.doro')
 local Enemy=require('cut.enemy')
 local valid,value_of,why=U.valid,U.value_of,Enemy.why
 local Lion={}
-Lion.TABLES=Enemy.TABLES -- The 14 tables, in the native part's order (link/protocol.h's kLionTables).
+Lion.TABLES=Enemy.TABLES -- The 15 tables, in the native part's order (link/protocol.h's kLionTables).
 -- The only IDs the spawn call takes, with what each is; the brains are the Lion's two CharacterTable rows.
 Lion.IDS={[50020]='M_LionC',[50021]='M_LionC_Lurker',[50110]='M_Antlion'}
 local BRAINS={skulling=50020,lurker=50021}

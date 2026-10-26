@@ -36,7 +36,7 @@ using RowById = void *(*)(void *registry, uint64_t unused, int32_t id);
 using StanceName = uint64_t *(*)(void *registry, uint64_t *out, int32_t table, int32_t id);
 
 static_assert(lion::kTableCount == kLionTableCount, "the rows requests name each of lion/rows.h's tables");
-// One batch's ask and answer. The worker's side: the ask, its number and the 14 tables, taken by the game thread with
+// One batch's ask and answer. The worker's side: the ask, its number and the 15 tables, taken by the game thread with
 // try_lock only. What the game thread did, for the worker: the answer (lion::pack, with the asks finished), the
 // read-back (character, skills and stance counts, a byte each) and the frames the waiting ask waited. The game thread's
 // own: the rows added so far, the ask being served and its tables, the asks finished.

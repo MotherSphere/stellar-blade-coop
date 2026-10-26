@@ -1,4 +1,4 @@
--- cut/enemy.lua's parts that need no world (lion_test and gardener_test run its flow through both specs): its 14 tables
+-- cut/enemy.lua's parts that need no world (lion_test and gardener_test run its flow through both specs): its 15 tables
 -- are link/protocol.h's kLionTables in order, a batch's line parses by its word only (from the start of its own line,
 -- each of its forms), the generated rows take their named form, the counts a batch's line gives once its rows are in,
 -- and an error's text loses its file and line.
@@ -16,7 +16,7 @@ do
         n=n+1
         assert(Enemy.TABLES[n]==t,'kLionTables order: '..t)
     end
-    assert(n==14 and #Enemy.TABLES==14)
+    assert(n==15 and #Enemy.TABLES==15)
     assert(src:find('kRowWords%[kRowWordCount%] = {"lion", "gardener", "tendril"}'),'The words, the batches\' order')
 end
 

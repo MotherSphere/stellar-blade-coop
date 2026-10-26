@@ -821,7 +821,7 @@ int main() {
     assert(parse_request(bad).command == Command::none);
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1) and coop tendril fight's (batch 2): one
-  // <Table>=0x<address> word for each of the 14
+  // <Table>=0x<address> word for each of the 15
   // tables, in any order, each once; the addresses in 1 to 16 hex digits of either case, plausible (user space,
   // 8-aligned). The longest request Lua writes (%x, so 12 digits at most under plausible's bound) fits its 512-byte
   // request file. Anything off is refused.
