@@ -491,8 +491,9 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's, coop gardener fight's, coop tendril fight's and the shop's Shock Bolt's rows (Lua's lion rows, gardener
-// rows, tendril rows and bolt rows requests): the 15 tables' addresses for the game thread, which adds that batch's
+// coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's and the Night Operation shop's rows
+// (Lua's lion rows, gardener rows, tendril rows, bolt rows and shop rows requests): the 17 tables' addresses for the
+// game thread, which adds that batch's
 // rows at the first frame its gate holds. An ask it has not taken yet is replaced. Refused off the pinned build, after
 // coop off and after the rows' fault; once every row of a batch is in, nothing more is asked of it (the rows stay for
 // the game run).

@@ -61,6 +61,8 @@ constexpr int kProtocol = 14; // Bump on any wire change. 1 was the first link (
                               // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
+// coop-request.txt's bytes read at most: a rows request names 17 tables with their addresses (about 560 bytes).
+constexpr size_t kMaxRequest = 1024;
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
 
 // Lobby data under kLobbyKey: protocol and Steam build of the game, both must match to join.
@@ -531,8 +533,9 @@ inline uint64_t code_lobby(std::string_view text) {
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
 // players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); and for coop lion (cut/lion.lua) "lion rows
 // <Table>=0x<address> ...", for coop gardener fight (cut/gardener.lua) "gardener rows <Table>=0x<address> ...", for
-// coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ..." and for the shop's Shock Bolt (through
-// cut/lion.lua) "bolt rows <Table>=0x<address> ..."
+// coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt (through
+// cut/lion.lua) "bolt rows <Table>=0x<address> ..." and for the Night Operation shop's screen (nightop/shop.lua,
+// through cut/lion.lua) "shop rows <Table>=0x<address> ..."
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each of the kLionTables, in any
 // order, each once, its address in 1 to 16 hex digits and plausible; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
@@ -541,17 +544,18 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate
 };
-// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt), in Request::batch's
-// order.
-constexpr size_t kRowWordCount = 4;
-constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt"};
+// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kShop), in
+// Request::batch's order.
+constexpr size_t kRowWordCount = 5;
+constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt", "shop"};
 // The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
-constexpr size_t kLionTableCount = 15;
+constexpr size_t kLionTableCount = 17;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
     "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable",
     "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable",
-    "ItemTable",             "ItemConsumableTable",      "ProjectileTable"};
+    "ItemTable",             "ItemConsumableTable",      "ProjectileTable",    "ShopTable",
+    "ShopItemTable"};
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).

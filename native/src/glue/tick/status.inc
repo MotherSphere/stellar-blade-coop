@@ -50,8 +50,9 @@ std::string status() {
   return s; // Stable between events, the recording's seconds aside: per-frame counts go into the 60 s lines instead.
 }
 
-// coop-status.txt's lion, gardener, tendril and bolt lines (lion/rows.h's status_line), from what the game thread
-// published, then the shock line (lion/shock.h's shock_line), read after the bolt line it was published before.
+// coop-status.txt's lion, gardener, tendril, bolt and shop lines (lion/rows.h's status_line), from what the game
+// thread published, then the shock line (lion/shock.h's shock_line), read after the bolt line it was published
+// before.
 std::string rows_status() {
   std::string lines;
   for (const RowsJob *j : kJobs) {

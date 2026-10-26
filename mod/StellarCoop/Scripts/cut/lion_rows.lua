@@ -2700,6 +2700,35 @@ R.BOLT={
         {'ResultTargetWeakpointHitEffect','s','[{"Alias":"Show_ResultHitWeakPoint"},{"Alias":"Show_ResultHitWeakPoint'..
             '_Maelstrom"}]'},{'FileSuffix','n','Eve'},}},
 }
+-- The Night Operation shop's batch (rows.h's kShopRecipe, the same recipe; tests/lua/cut/lion_test.lua checks the
+-- two agree), for cut/lion.lua's read-back of it before nightop/shop.lua opens SB's shop screen, in the same form
+-- (33 checks, 17 of them changed).
+R.SHOP={
+    {'ItemTable','Money_NightOperation',9011,{{'InventoryPriority','i',5},
+        {'Name','s','Item_Money_NightOperation_Name',true},
+        {'DescFunction','s','Item_Money_NightOperation_Function',true},
+        {'DescContent','s','Item_Money_NightOperation_Content',true},{'Category','e',20},{'Rarity','e',1},
+        {'IncludeDropPool','b',0,true},{'MaxAmount','i',999999},{'RequireLevel','i',1},{'Asset3DScale','f',1.0},
+        {'Asset2D','s','/Game/Art/UI/Texture/Item/betacore.betacore',true},{'NotiType','e',2},
+        {'bMaintainNewGamePlus','b',1},}},
+    {'ShopItemTable','NightOperation_HP2Burst_Potion_Buy',3571,{{'ShopType','e',1},
+        {'ItemAlias','n','HP2Burst_Potion',true},{'MoneyItemAlias1','n','Money_NightOperation'},
+        {'MoneyItemCount1','i',20,true},}},
+    {'ShopItemTable','NightOperation_Buff_HP2MP_Buy',3572,{{'ShopType','e',1},{'ItemAlias','n','Buff_HP2MP',true},
+        {'MoneyItemAlias1','n','Money_NightOperation'},{'MoneyItemCount1','i',16,true},}},
+    {'ShopItemTable','NightOperation_Bullet_Shock_Buy',3573,{{'ShopType','e',1},{'ItemAlias','n','Bullet_Shock',true},
+        {'MoneyItemAlias1','n','Money_NightOperation'},{'MoneyItemCount1','i',5,true},}},
+    {'ShopTable','Shop_NightOperation_Coop',1061,{{'UnionLimitedItem','b',1},
+        {'CurrencyItemAlias','n','Money_NightOperation',true},{'Tags','N','',true},
+        {'ShopItems','N','NightOperation_HP_Potion_Buy|NightOperation_HP_Potion_Small_Buy|'..
+            'NightOperation_PulseGrenade_Buy|NightOperation_ConcussionGrenade_Buy|NightOperation_HP2Burst_Potion_Buy|'..
+            'NightOperation_Buff_HP2MP_Buy',true},}},
+    {'ShopTable','Shop_NightOperation_CoopBolt',1062,{{'UnionLimitedItem','b',1},
+        {'CurrencyItemAlias','n','Money_NightOperation',true},{'Tags','N','',true},
+        {'ShopItems','N','NightOperation_HP_Potion_Buy|NightOperation_HP_Potion_Small_Buy|'..
+            'NightOperation_PulseGrenade_Buy|NightOperation_ConcussionGrenade_Buy|NightOperation_HP2Burst_Potion_Buy|'..
+            'NightOperation_Buff_HP2MP_Buy|NightOperation_Bullet_Shock_Buy',true},}},
+}
 -- The Tendril's Shows, which no pak holds: cut/tendril.lua builds each before a spawn, a copy of template (a
 -- ShowPath: /Game/Art/Show/<template>.<its last word> is the object) in the package /Game/Art/Show/<package>, under
 -- name, with its own copy of the anim key key set to play folder..clip for seconds; its steps and death name it as

@@ -842,6 +842,7 @@ int main() {
   const auto gardener = [&rows](const std::vector<std::string> &words) { return rows("gardener", words); };
   const auto tendril = [&rows](const std::vector<std::string> &words) { return rows("tendril", words); };
   const auto bolt = [&rows](const std::vector<std::string> &words) { return rows("bolt", words); };
+  const auto shop = [&rows](const std::vector<std::string> &words) { return rows("shop", words); };
   std::vector<std::string> words;
   for (size_t i = 0; i < kLionTableCount; ++i) {
     char word[64];
@@ -862,10 +863,13 @@ int main() {
   assert(td.command == Command::rows && td.batch == 2 && td.tables == li.tables);
   Request bo = parse_request(bolt(shuffled));
   assert(bo.command == Command::rows && bo.batch == 3 && bo.tables == li.tables);
+  Request so = parse_request(shop(shuffled));
+  assert(so.command == Command::rows && so.batch == 4 && so.tables == li.tables && kLionTableCount == 17 &&
+         li.tables[15] == 0x1f4a2b3c0f00ull && li.tables[16] == 0x1f4a2b3c1000ull);
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
     tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
-  assert(gardener(tables_longest).size() + 1 <= 512 &&
+  assert(gardener(tables_longest).size() + 1 <= kMaxRequest &&
          parse_request(gardener(tables_longest)).command == Command::rows);
   assert(parse_request(lion(tables_longest)).command == Command::rows);
   tables_longest[0] = "CharacterTable=0x00007ffffffefff8"; // Leading zeros Lua never writes: still parsed.
@@ -889,6 +893,7 @@ int main() {
         std::string("gardener rows"), std::string("gardener"), "Gardener rows" + lion(words).substr(9),
         tendril(one_short), tendril(words) + " extra", std::string("tendril rows"), "Tendril rows" + lion(words).substr(9),
         bolt(one_short), bolt(words) + " extra", std::string("bolt rows"), "shock rows" + lion(words).substr(9),
+        shop(one_short), shop(words) + " extra", std::string("shop rows"), "Shop rows" + lion(words).substr(9),
         "leviathan rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
     assert(parse_request(bad).command == Command::none);
 

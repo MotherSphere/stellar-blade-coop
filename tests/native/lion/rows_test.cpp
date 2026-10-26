@@ -68,7 +68,7 @@ struct Memory {
   }
 };
 
-// One game: SB's 15 tables (its UDataTable vtable with AddRow in slot +0x2b0, each row struct with its size), the
+// One game: SB's 17 tables (its UDataTable vtable with AddRow in slot +0x2b0, each row struct with its size), the
 // template rows every recipe row names (filled with a pattern, their lazy-init flag set, their Transient arrays
 // holding junk as after SB parsed them), FNames interned by text and number, the RowMap and ID maps as AddRow fills
 // them, and the registry's lookups by ID over them.
@@ -126,6 +126,7 @@ struct Game {
     donor_rows(kGardener);
     donor_rows(kTendril);
     donor_rows(kBolt);
+    donor_rows(kShop);
   }
   uint64_t vtable_at = 0;
 
@@ -294,6 +295,20 @@ int main() {
   // The Shock Bolt's batch: its 4 rows alone, so none of them stands in front of a Lion row, and the lion rows batch
   // goes into no ProjectileTable.
   static_assert(kBoltRows == 4, "the Shock Bolt's 4 rows");
+  // The Night Operation shop's batch: the Beta Seed's item first (the shop items and shops name it), the two ShopTable
+  // rows last, once every row they name is in.
+  static_assert(kShopRows == 6, "the Night Operation shop's 6 rows");
+  {
+    const Table kShopTables[] = {Table::item,     Table::shopitem, Table::shopitem,
+                                 Table::shopitem, Table::shop,     Table::shop};
+    const uint32_t kShopIds[] = {9011, 3571, 3572, 3573, 1061, 1062};
+    for (size_t i = 0; i < kShopRows; ++i)
+      assert(kShopRecipe[i].table == kShopTables[i] && kShopRecipe[i].id == kShopIds[i]);
+    assert(!std::strcmp(kShopRecipe[0].name, "Money_NightOperation") &&
+           !std::strcmp(kShopRecipe[4].name, "Shop_NightOperation_Coop") &&
+           !std::strcmp(kShopRecipe[5].name, "Shop_NightOperation_CoopBolt") &&
+           !std::strcmp(kShopRecipe[5].donor, "Shop_NightOperation"));
+  }
   // The cut items first, in the order each needs the one before: the skill the stimpacks play, the Beta Stimpack's
   // consumable, then the two items (ItemTable ID, ConsumableAlias +0x14c). The skill is the health potion's under the
   // name HP2Burst_Potion gives (FirstSkillActiveAlias +0x100: the potion's own steps).
@@ -322,6 +337,7 @@ int main() {
   all.insert(all.end(), kGardenerRecipe, kGardenerRecipe + kGardenerRows);
   all.insert(all.end(), kTendrilRecipe, kTendrilRecipe + kTendrilRows);
   all.insert(all.end(), kBoltRecipe, kBoltRecipe + kBoltRows);
+  all.insert(all.end(), kShopRecipe, kShopRecipe + kShopRows);
   for (size_t t = 0; t < kTableCount; ++t) { // Names and IDs unique in each table across the batches.
     std::set<std::string> names;
     std::set<uint32_t> ids;
@@ -741,6 +757,48 @@ int main() {
     assert(rb.character == 0 && rb.skills == 1 && rb.stance == 0);
     assert(describe_read(kBolt, rb) ==
            "bolt rows by SB's lookups: CharacterTable - 0/0, SkillTable 1003401 1/1, stance - 0/0");
+
+    // The Night Operation shop's batch after them, on its own Builder: its 6 rows; the Beta Seed caps at 999999
+    // (MaxAmount +0x84) with its own text key (Name +0x30) and no drop pool (+0x7e), the shop items price in it
+    // (MoneyItemAlias1 +0x2c, count +0x34), and the two shops list their goods (ShopItems +0x38) with no tag (Tags
+    // +0x28) and the seed as currency (+0x20).
+    Builder sb(kShop);
+    const Answer sa = sb.run(g, kBase, g.tables, g.block);
+    const size_t shops = bolts + kBoltRows;
+    assert(sa.state == State::rows && sa.added == kShopRows && g.adds.size() == shops + kShopRows);
+    verify(g, sb, kShop, shops);
+    const Game::Add &seed = g.adds[shops], &stim = g.adds[shops + 1], &coop = g.adds[shops + 4],
+                    &with_bolt = g.adds[shops + 5];
+    assert(seed.table == size_t(Table::item) && Game::field<int32_t>(seed, 0x84) == 999999 &&
+           g.string_field(seed, 0x30) == "Item_Money_NightOperation_Name" && Game::field<uint8_t>(seed, 0x7e) == 0);
+    assert(stim.table == size_t(Table::shopitem) &&
+           g.name_text(Game::field<uint64_t>(stim, 0x18)) == "HP2Burst_Potion" &&
+           g.name_text(Game::field<uint64_t>(stim, 0x2c)) == "Money_NightOperation" &&
+           Game::field<int32_t>(stim, 0x34) == 20);
+    assert(coop.table == size_t(Table::shop) && Game::field<uint32_t>(coop, kIdAt) == 1061 &&
+           g.name_text(Game::field<uint64_t>(coop, 0x20)) == "Money_NightOperation" &&
+           g.list_field(coop, 0x28, Kind::names).empty() &&
+           g.list_field(coop, 0x38, Kind::names) ==
+               "NightOperation_HP_Potion_Buy|NightOperation_HP_Potion_Small_Buy|NightOperation_PulseGrenade_Buy|"
+               "NightOperation_ConcussionGrenade_Buy|NightOperation_HP2Burst_Potion_Buy|NightOperation_Buff_HP2MP_Buy");
+    assert(g.list_field(with_bolt, 0x38, Kind::names) ==
+           g.list_field(coop, 0x38, Kind::names) + "|NightOperation_Bullet_Shock_Buy");
+    rb = sb.read_back(g, g.tables);
+    assert(describe_read(kShop, rb) ==
+           "shop rows by SB's lookups: CharacterTable - 0/0, SkillTable - 0/0, stance - 0/0");
+  }
+  {
+    // A ShopTable whose row size is not the SDK's stops the shop's batch before any row (every table it uses is
+    // checked first); the Lion's never reads it.
+    Game g;
+    const uint64_t rs = g.mem.get<uint64_t>(g.tables[size_t(Table::shop)] + kRowStruct);
+    g.mem.put<int32_t>(rs + kPropertiesSize, 0xa0);
+    Builder sb(kShop), lb(kLion);
+    const Answer a = sb.run(g, kBase, g.tables, g.block);
+    assert(a.state == State::refused && a.why == Why::size && a.detail == 0xa0 && a.row == 4 && g.adds.empty());
+    assert(describe(kShop, a) ==
+           "shop rows refused Shop_NightOperation_Coop: ShopTable's row size 0xa0 not 0xa8; 0/6 added");
+    assert(lb.run(g, kBase, g.tables, g.block).state == State::rows && g.adds.size() == kRows);
   }
   {
     // The Gardener's run reads only the tables its rows go into: an appearance table that is not SB's stops the Lion's
@@ -957,6 +1015,12 @@ int main() {
     a = Answer(), a.state = State::rows, a.added = 4;
     bs.word = pack(a, 1), bs.read = {0, 1, 0};
     assert(status_line(kBolt, bs) == "bolt=rows added=4/4 asks=1 spawns=? char=0/0 skills=1/1 stance=0/0");
+    // The Night Operation shop's line: its word, no CharacterTable, skill or stance row.
+    Status ss;
+    assert(status_line(kShop, ss) == "shop=off");
+    a = Answer(), a.state = State::rows, a.added = 6;
+    ss.word = pack(a, 2);
+    assert(status_line(kShop, ss) == "shop=rows added=6/6 asks=2 spawns=? char=0/0 skills=0/0 stance=0/0");
   }
 
   std::puts("lion_rows_test: ok");

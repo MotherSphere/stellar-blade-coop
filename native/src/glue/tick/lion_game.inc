@@ -2,8 +2,8 @@
 
 namespace coop::pose {
 namespace {
-// ---- The Lion's rows, the Gardener's, the Tendril's and the Shock Bolt's (lion/rows.h's batches), the game thread's
-// calls ----
+// ---- The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's and the Night Operation shop's (lion/rows.h's
+// batches), the game thread's calls ----
 // SB's functions on the pinned build (the Lion study, plan A): InitializeStruct through the row struct's vtable +0x2a8
 // and CopyScriptStruct (0x1429d8830), as AddRow itself calls them; FName's MakeWithNumber with FNAME_Add (the photo
 // pause's kMakeName); a table's row by name, through its RowMap (+0x30, GetRowMap's own lea at vtable +0x280) and
@@ -55,8 +55,9 @@ struct RowsJob {
   bool pending = false;
 };
 // In link/protocol.h's kRowWords order: Request::batch indexes it.
-RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril}, bolt_job{lion::kBolt};
-RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job};
+RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril}, bolt_job{lion::kBolt},
+    shop_job{lion::kShop};
+RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job, &shop_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
 // Shared: the spawn manager's counter (INT64_MIN until read) and the latch.
 std::atomic<int64_t> lion_spawns{INT64_MIN};

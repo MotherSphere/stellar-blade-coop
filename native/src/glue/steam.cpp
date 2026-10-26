@@ -535,7 +535,7 @@ bool step() {
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
-    std::string request = take_text(folder + L"coop-request.txt");
+    std::string request = take_text(folder + L"coop-request.txt", DWORD(coop::kMaxRequest));
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
     // Night Operation's line (nightop/run.lua), taken at every pass too: the newest state goes, an old one never waits.
@@ -580,7 +580,7 @@ bool step() {
       event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt: the game thread's.
+    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the shop: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
       request.clear();
       break;
