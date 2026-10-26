@@ -1375,6 +1375,7 @@ local function side(name,mate_name,x,t)
     w.run=Run.new({log=function(text) w.lines[#w.lines+1]=text end,status=status,paused=function() return w.paused end,
         store=store,records={read=function() return '' end,write=function() w.writes=(w.writes or 0)+1 return true end},
         tell=function(build) w.told[#w.told+1]=build(Tx.en) end,friend=function() return mate_name end,
+        rows=function() return true,'asked',true end,ask=function() return true,'asked' end,
         send=function(line)
             w.sent[#w.sent+1]=line
             if w.link:find('none') then return true end -- The native part sends nothing outside a session.
@@ -1580,6 +1581,11 @@ refused_with('Kaanta cannot join the run: already in a run.',function() -- Pause
     on(Gs,function() monster(50110,{X=3000,Y=0,Z=1000},0,true) end)
 end)
 assert(#violations==0,violations[1])
+refused_with('Kaanta cannot join the run: already in a run.',function() -- Her shop's screen runs: its seeds are out.
+    shop_line='nightshop=off'
+    on(Gs,function() assert(Gs.run.command('shop')) end)
+end)
+shop_line=nil
 refused_with('Kaanta cannot join the run: monsters of an earlier run are still there.',function()
     on(Gs,function() monster(50110,{X=9000,Y=0,Z=0},W.key(byte1,1,0),false).st=1 end)
 end)

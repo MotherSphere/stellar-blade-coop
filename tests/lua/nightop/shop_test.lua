@@ -11,8 +11,9 @@
 -- The screen (coop nightop shop): the seed call's checks and arguments; the nightshop line's fields; open's refusals;
 -- its three rows batches asked at once, the seeds filled up to the wallet (leftovers taken out), the open asked (with
 -- the Shock Bolt only once shock reads in), each new count written to the wallet, the seeds taken back after the
--- close; its failures (rows, a refused open, a fault, no answer) leaving the wallet as it was, with the notice and the
--- screen closed; coop off; no console buy and no run while it runs.
+-- close; its failures (rows, a refused open, a fault, no answer, a game screen up before the open) leaving the wallet
+-- as it was, with the notice, the seeds out, and only a screen that opened for us closed; coop off, also before the
+-- added seeds read; no console buy and no run while it runs; a screen an earlier Lua load left, taken over.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -430,6 +431,7 @@ screen.tick()
 assert(#removes==2 and removes[2][4]==3 and files[FILE]=='3\n' and told==1)
 assert(lines[#lines]=="STOP: shop: SB's shop screen did not open (open:phase); 3 Beta Seeds left the inventory",
     lines[#lines])
+assert(#said_to==2,'No close: a screen of the game may be the one open')
 -- The shop rows refused: nothing asked of the bucket or the screen.
 calls,removes,said_to,done_of={},{},{},{}
 assert(screen.open())
@@ -451,6 +453,9 @@ screen.tick()
 nightshop='nightshop=fault asks=3 where=there'
 screen.tick()
 assert(said_to[#said_to]=='nightshop close' and told==3 and files[FILE]=='40\n')
+-- The fault line has no count: the last one read goes, so the screen, which may stay open, sells nothing more.
+assert(#removes==1 and removes[1][4]==40 and lines[#lines]=='STOP: shop: the shop screen stopped on a fault (there); '
+    ..'40 Beta Seeds left the inventory',lines[#lines])
 -- coop off while open (another game run: no fault): the close asked, the wallet at the last count, the seeds out.
 calls,removes,said_to,done_of={},{},{},{}
 nightshop_is('closed','0',3,'close:none')
@@ -468,4 +473,57 @@ assert(said_to[#said_to]=='nightshop close' and files[FILE]=='25\n' and #removes
 assert(lines[#lines]=='shop: coop off: the screen closed; 25 Beta Seeds left the inventory',lines[#lines])
 assert(not screen.busy(),'Ended')
 screen.stop() -- Nothing to do.
+-- coop off between the fill and the next read (the line still reads the count before the add): the seeds added go.
+calls,removes,said_to,done_of={},{},{},{}
+files[FILE]='50\n'
+nightshop_is('closed','0',4,'close:none')
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+screen.tick(); screen.tick()
+assert(#calls==1 and calls[1][4]==50)
+screen.stop()
+assert(#removes==1 and removes[1][4]==50 and files[FILE]=='50\n' and #said_to==1,'The 50 added, out')
+-- A game screen up once the seeds show: no open asked, the seeds out, nothing closed.
+calls,removes,said_to,done_of={},{},{},{}
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+screen.tick(); screen.tick()
+nightshop_is('closed','50',4,'close:none')
+paused=true
+screen.tick()
+paused=false
+assert(#said_to==1 and #removes==1 and removes[1][4]==50 and files[FILE]=='50\n' and not screen.busy())
+assert(lines[#lines]=='STOP: shop: the game is paused or shows one of its screens: open the shop once it plays; 50 '
+    ..'Beta Seeds left the inventory',lines[#lines])
+-- A screen an earlier Lua load left open (a reload): taken over at the first tick, a purchase written, the seeds out
+-- after the close. Another left closed with its seeds: the wallet set to them, the seeds out at once.
+calls,removes,said_to={},{},{}
+files[FILE]='100\n'
+local function reloaded() return Shop.new({log=function(text) lines[#lines+1]=text end,
+    status=function() return status_text..nightshop..'\n' end,store=store,paused=function() return paused end,
+    busy=function() return busy end,rows=function() return true,'asked',true end,
+    ask=function(line) said_to[#said_to+1]=line; return true end}) end
+local after=reloaded()
+nightshop_is('open','100',5,'open:none')
+after.tick()
+assert(after.busy() and lines[#lines]=='shop: 100 Beta Seeds left from an earlier load (screen open): taken over',
+    lines[#lines])
+ok,text=after.buy('1'); assert(not ok and text=="the Night Operation shop's screen is open: buy there",text)
+nightshop_is('open','70',5,'open:none')
+after.tick(); assert(files[FILE]=='70\n','The purchase written')
+nightshop_is('closed','70',5,'open:none')
+after.tick()
+assert(not after.busy() and #removes==1 and removes[1][4]==70 and files[FILE]=='70\n' and #said_to==0)
+files[FILE]='100\n'
+after=reloaded()
+nightshop_is('closed','40',5,'open:none')
+after.tick()
+assert(not after.busy() and #removes==2 and removes[2][4]==40 and files[FILE]=='40\n')
+-- Looked for once a load: no seeds at the first look, none taken over later.
+after=reloaded()
+nightshop_is('closed','0',5,'close:none')
+after.tick()
+nightshop_is('closed','40',5,'close:none')
+after.tick()
+assert(not after.busy() and #removes==2)
 print('nightop_shop_test ok')

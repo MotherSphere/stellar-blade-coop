@@ -768,7 +768,8 @@ function Run.new(o)
         answered[id]=true
         local eve,why,text=N.her(),nil,''
         if raw:match('\nslot=(%a+)')~='coop' then why='slot'
-        elseif r and r.s.phase~='result' or paused() then why='busy' -- Paused: no body is read for the census.
+        -- Paused: no body is read for the census. The shop's screen: no run while its seeds are out.
+        elseif r and r.s.phase~='result' or paused() or shop.busy() then why='busy'
         elseif not eve or not N.controller() or U.map_of(eve)~=h.map then why='map'
         elseif metres(location(eve),{X=h.x,Y=h.y,Z=h.z})>FAR then why='far'
         else

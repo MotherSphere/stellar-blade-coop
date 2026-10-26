@@ -221,13 +221,22 @@ function Shop.new(o)
             item.alias,c)
     end
     -- ---- The screen ----
-    -- Its end: a screen this opened (or asked) is closed, the seeds the bucket still holds go (the wallet already holds
-    -- that count, or never changed), ui is cleared and the line is logged; failed: the notice too. n: the bucket's
-    -- count, when known.
+    -- The Beta Seeds the bucket holds, as far as we know (s: the nightshop line's fields, or nil): none added before the
+    -- fill; from the fill until the open, the wallet's count (or more, when the line reads more; a count read before
+    -- the add lands reads less); once open, the last count read.
+    local function held(u,s)
+        local seen=s and s.seeds
+        if u.phase=='open' then return seen or u.kept end
+        if u.phase=='filled' or u.phase=='opening' then return math.max(seen or 0,u.w.points) end
+        return nil
+    end
+    -- Its end: a screen that opened for us is closed (never one the game showed when our open was refused), the seeds
+    -- the bucket still holds go (the wallet already holds that count, or never changed), ui is cleared and the line is
+    -- logged; failed: the notice too. n: the bucket's count, when known.
     local function finish(ok,text,n)
         local u=ui
         ui=nil
-        if not ok and (u.phase=='open' or u.phase=='opening') then pcall(ask,'nightshop close') end
+        if not ok and u.phase=='open' then pcall(ask,'nightshop close') end
         if n and n>0 then
             local gone,e=pcall(Shop.seeds,u.pc,u.guid,-n)
             text=text..(gone and string.format('; %d Beta Seeds left the inventory',n)
@@ -250,9 +259,8 @@ function Shop.new(o)
     local function step()
         local now=os.clock()
         local s=Shop.line(status())
-        if s and s.state=='fault' then
-            return finish(false,'the shop screen stopped on a fault ('..tostring(s.where)..')',
-                ui.phase~='rows' and s.seeds or nil)
+        if s and s.state=='fault' then -- No more reads or closes: the seeds go, so a screen left open sells nothing.
+            return finish(false,'the shop screen stopped on a fault ('..tostring(s.where)..')',held(ui,s))
         end
         if ui.phase=='rows' then
             local shop=ui.got.shop
@@ -289,24 +297,28 @@ function Shop.new(o)
             if s.seeds~=ui.w.points then
                 if now-ui.at>Shop.WAIT then
                     return finish(false,string.format('the bucket holds %s Beta Seeds, not %d',tostring(s.seeds),
-                        ui.w.points),s.seeds)
+                        ui.w.points),held(ui,s))
                 end
                 return
             end
+            if paused() then -- A screen of the game's (its own shop's, maybe) came up meanwhile.
+                return finish(false,'the game is paused or shows one of its screens: open the shop once it plays',
+                    held(ui,s))
+            end
             local asked,said=ask('nightshop open'..(ui.bolt and ' bolt' or ''))
-            if not asked then return finish(false,'the open was not asked: '..tostring(said),s.seeds) end
+            if not asked then return finish(false,'the open was not asked: '..tostring(said),held(ui,s)) end
             ui.phase,ui.at,ui.asks='opening',now,s.asks
             return
         end
         if ui.phase=='opening' then
             if s.asks<=ui.asks then
                 if now-ui.at>Shop.WAIT then
-                    return finish(false,'no answer from the native part ('..s.line..')',s.seeds)
+                    return finish(false,'no answer from the native part ('..s.line..')',held(ui,s))
                 end
                 return
             end
             if not (s.last or ''):find(':none$') then
-                return finish(false,"SB's shop screen did not open ("..tostring(s.last)..')',s.seeds)
+                return finish(false,"SB's shop screen did not open ("..tostring(s.last)..')',held(ui,s))
             end
             ui.phase,ui.kept,ui.at='open',ui.w.points,now
             log(string.format("shop: SB's shop screen open with %d Beta Seeds%s",ui.w.points,
@@ -321,7 +333,7 @@ function Shop.new(o)
         end
         if now-ui.at>Shop.WAIT then
             return finish(false,string.format('the screen state stays unread (%s): the wallet keeps %d',s.line,
-                ui.kept),s.seeds)
+                ui.kept),held(ui,s))
         end
     end
     -- coop nightop shop: SB's shop screen with this player's wallet in Beta Seeds, once the rows are in. Checked here:
@@ -365,28 +377,51 @@ function Shop.new(o)
         return true,string.format("Night Operation shop: %d points as Beta Seeds; SB's shop screen opens once its "
             ..'rows are in ([NR] lines)',w.points)
     end
+    -- A screen an earlier Lua load ran (a reload while it was open, or before its seeds went back), looked for at the
+    -- first tick that reads the nightshop line: Beta Seeds in the bucket are ours (only the screen adds them), so it is
+    -- taken over as open, and step() writes the count to the wallet and takes the seeds back after the close.
+    local looked=false
+    local function adopt()
+        local s=Shop.line(status())
+        if not s then return end
+        looked=true
+        if ui or not (s.state=='open' or s.state=='closed') or (s.seeds or 0)<=0 then return end
+        local w,e=wallet()
+        local pc,guid
+        if w then pc,guid=who() end
+        if not pc then
+            return log(string.format('STOP: shop: %d Beta Seeds left from an earlier load, not taken over: %s',s.seeds,
+                tostring(w and guid or e)))
+        end
+        ui={phase='open',at=os.clock(),w=w,pc=pc,guid=guid,kept=w.points}
+        log(string.format('shop: %d Beta Seeds left from an earlier load (screen %s): taken over',s.seeds,s.state))
+    end
     -- Each tick of the run (250 ms): the screen's steps; an error ends it, the seeds taken back.
     function self.tick()
+        if not looked then
+            local adopted,ae=pcall(adopt)
+            if not adopted then log('STOP: shop: an earlier load\'s screen: '..why(ae)) end
+        end
         if not ui then return end
         local ok,e=pcall(step)
         if not ok and ui then
             local s=Shop.line(status())
-            finish(false,'error: '..why(e),s and s.seeds)
+            finish(false,'error: '..why(e),held(ui,s))
         end
     end
     -- Whether the screen runs (from the open to the seeds taken back): no run starts meanwhile.
     function self.busy() return ui~=nil end
     -- coop off: the screen closed (the native part takes the close before coop off's own request), the wallet at the
-    -- last count read (a purchase in the last 250 ms is not in it), the seeds taken back.
+    -- last count read (a purchase in the last 250 ms is not in it), the seeds taken back (from the fill on, at least
+    -- the count added, whatever the last read said).
     function self.stop()
         if not ui then return end
-        local s=Shop.line(status())
-        local n=s and s.seeds or ui.kept
+        local n=held(ui,Shop.line(status()))
         if ui.phase=='open' or ui.phase=='opening' then
             pcall(ask,'nightshop close')
             if ui.phase=='open' and n then keep(n) end
         end
-        finish(true,'coop off: the screen closed',ui.phase~='rows' and ui.phase~='fill' and n or nil)
+        finish(true,'coop off: the screen closed',n)
     end
     return self
 end
