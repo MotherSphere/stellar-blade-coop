@@ -10,7 +10,7 @@
 -- start asks anim play with a new id, the path and once or loop, no montage made; only the answer for its id counts:
 -- playing (logged once), ended (nothing to stop), ended:weight and refused (a line for the screen), none in 5 s (anim
 -- stop asked); the end rule, another emote, coop emote off, coop off and another EVE ask anim stop; a fault sends the
--- next start to the montage. GetPlayer gives a new wrapper at each call, as UE4SS does, so EVE is told by address.
+-- next start to the montage; once it plays, the status is read every 0.1 s, not each frame. GetPlayer gives a new wrapper at each call, as UE4SS does, so EVE is told by address.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -373,4 +373,20 @@ good,message=nat.tick()
 assert(good==false and message=='coop emote stopped: the native clips stopped' and #asked==before,tostring(message))
 nat.command('clap')
 assert(#asked==before and #eve.anim.plays==1 and eve.anim.plays[1].loops==1048576,'The montage after a fault')
+-- Once it plays, the status file is read every 0.1 s, not each frame: an end shows at the next read.
+local reads,read_status=0,nil
+local counted=Emote.new({log=log,ask=ask,status=function() reads=reads+1; return read_status end})
+read_status='engine=on warp=idle me=4 anim=idle anim_id=0'
+counted.command('clap')
+local counted_id=tonumber(asked[#asked]:match('^anim play (%d+) '))
+read_status='engine=on warp=idle me=4 anim=playing anim_id='..counted_id
+assert(counted.tick()==nil and counted.active() and reads==2,'Read at the start and at the first frame: it plays')
+for _=1,50 do assert(counted.tick()==nil) end
+assert(reads==2,'No read within 0.1 s')
+read_status='engine=on warp=idle me=4 anim=ended anim_id='..counted_id
+assert(counted.tick()==nil and counted.active() and reads==2,'The end waits for the next read')
+clock=clock+0.05
+assert(counted.tick()==nil and counted.active() and reads==2,'Still within 0.1 s')
+clock=clock+0.06
+assert(counted.tick()==nil and not counted.active() and reads==3,'Ended at the next read')
 print('emote_test: ok')

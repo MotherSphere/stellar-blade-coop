@@ -2151,8 +2151,8 @@ The engine status line carries `anim=<state> anim_id=<id>` for the last play the
 `ended`, `ended:weight`, `stopped`, `refused:<eve|slots|game|off|session>` or `fault`). Lua sends a start only while
 that field is there and not `fault`, and acts only on its own id: `ended` and the refusals end the emote with nothing
 to stop, and no answer in 5 s ends it with `anim stop` asked anyway. Each frame while one plays, the module reads that
-field, `GetLastMovementInputVector`, the movement's `IsFalling` and `IsRunningSkill`, and asks `anim stop` at movement
-input longer than 0.1, in the air or at a skill.
+field (every 0.1 s once it says `playing`), `GetLastMovementInputVector`, the movement's `IsFalling` and
+`IsRunningSkill`, and asks `anim stop` at movement input longer than 0.1, in the air or at a skill.
 
 Without that field (no native part, another game build) or after its fault, the module calls
 `PlaySlotAnimationAsDynamicMontage(clip, DefaultSlot, 0.25, 0.25, 1.0, loops, -1, 0)` on the animation instance of

@@ -24,7 +24,7 @@
 -- on its command (in memory, else LoadAsset: Doro.resolve), never in the frame: a path not in memory costs 25 to 35 ms.
 -- Called here: the anim request or PlaySlotAnimationAsDynamicMontage at a command, anim stop or Montage_Stop at its
 -- end, and each frame while one plays GetLastMovementInputVector, IsFalling, IsRunningSkill and the status line's
--- anim field or Montage_IsPlaying. The native part stops a clip an earlier Lua load left playing; the next Lua load
+-- anim field (every 0.1 s once the native part says it plays) or Montage_IsPlaying. The native part stops a clip an earlier Lua load left playing; the next Lua load
 -- stops a montage an earlier one left (restore, at its first tick).
 local UE=require('UEHelpers')
 local U=require('core.unreal')
@@ -38,6 +38,9 @@ local BLEND=0.25 -- s, in and out.
 local LOOPS=1048576 -- A still looped this often holds for hours (a loop count of 0 would end it at once).
 local STICK=0.1 -- Movement input longer than this ends an emote.
 local ANSWER=5 -- s: a native play still unanswered after this ends the emote.
+-- s: once our native clip plays, the status file is read at most this often, not each frame (a pose can hold for
+-- minutes); the native part's watch reads her slot every 100 ms.
+local POLL=0.1
 Emote.USE='Use: coop emote [list|<name>|off]'
 -- The categories in the menu's order, each with its folder under ANIM and its emotes: the command's name, the clip's,
 -- and true for a clip played once (the poses loop).
@@ -170,8 +173,12 @@ function Emote.new(o)
         return true,'emote '..name..': move, jump, dodge or attack to stop it'
     end
     -- The native part's answer for the native emote: nil while it plays or waits, else why it ended and whether
-    -- something is left to stop, and a line for the screen when the clip never showed.
+    -- something is left to stop, and a line for the screen when the clip never showed. Read each frame until it plays,
+    -- then every POLL.
     local function answer(c)
+        local now=os.clock()
+        if c.playing and now-c.read<POLL then return nil end
+        c.read=now
         local state,id=native()
         if not state then return 'the native clips stopped',true,'coop emote stopped: the native clips stopped' end
         if id~=c.id then
