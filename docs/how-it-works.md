@@ -80,14 +80,14 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-Doro look, the cut model display and free camera, `coop lion`'s and `coop gardener fight`'s waits and lines, a Doro
-race (with the incoming lines while one is armed), the notice line, the previews' follow-ups, the `coop wear` check
-(once a second), the `coop lines` scene's due lines, the `coop glide` check, the UI's open and close animations, the
-game's input given back after the menu or the chat box closes, the controller's events, the row under the mouse (every
-100 ms while the menu is open), and your friend's marker and gauges. The other runs every 250 ms: link status changes,
-session start, notices to show, chat lines in and out, Night Operation's run, the race's session and map checks, the
-UI's root and its focus watchdog, the menu's rows and status line, the phone booth scan, the chat's feed, your friend's
-card, the capture and the remote table.
+Doro look, the cut model display and free camera, `coop lion`'s, `coop gardener fight`'s and `coop tendril fight`'s
+waits and lines, a Doro race (with the incoming lines while one is armed), the notice line, the previews' follow-ups,
+the `coop wear` check (once a second), the `coop lines` scene's due lines, the `coop glide` check, the UI's open and
+close animations, the game's input given back after the menu or the chat box closes, the controller's events, the row
+under the mouse (every 100 ms while the menu is open), and your friend's marker and gauges. The other runs every 250 ms:
+link status changes, session start, notices to show, chat lines in and out, Night Operation's run, the race's session
+and map checks, the UI's root and its focus watchdog, the menu's rows and status line, the phone booth scan, the chat's
+feed, your friend's card, the capture and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -1587,8 +1587,8 @@ The steps keep ChainStab's hit collision (`Collision_WeaponAndRightArm`, which E
 effects. The generator checks that the step chain from `Cast1` lasts as long as the Show's own steps, one for one, that
 every clip the Show plays is in the pak listing, that the steps' moves are rows of the dump and that the effect's
 condition names a shipped effect. There is no SkillCommandTable or AcquisitionSkillTable row: the four Beta skill
-commands are taken in Tachy Mode, and a fifth command would have to go into the `P_Eve_Tachy` stance row, which the
-native part could only replace while EVE uses it (AddRow frees the row it replaces).
+commands are taken in Tachy Mode. A fifth command would go into the `P_Eve_Tachy` stance row; it could be appended in
+place, as `lion/shock.h` does for the gun stances (see [The cut Shock Bolt](#the-cut-shock-bolt)), and was not added.
 
 `coop chainspin` (`cut/chainspin.lua`) starts it. It gets the rows in through `Lion.rows`, as the shop does, then calls
 `ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "1004500")` on the player controller. The request's
@@ -1677,13 +1677,12 @@ at the call and stands within 30 m of it after counts as the new one; its old fo
 
 While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend space
 reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the animation
-blueprint blends a Show's clip by (`GetCurrentCustomAnimAlpha(0)` and `(1)`). Two more checks run once a second. The
-loaded line looks for the 20 Lion Shows of the kit and the clip each one's first anim key plays, with
-`StaticFindObject`, two paths a second (a call costs about 4 ms), each until first seen: the game loads a Show when a
-step plays it, and the Show's anim key loads its clip. The boss name (`cut/enemy.lua`'s, for any spec that names one)
-looks for the live `TextBlock_BossName` (under `/Engine/Transient`; `FindAllOf` again at most every 10 s while none is
-held) and sets it to `Lion` where it reads `<M_LionC>`. The game writes that block once per boss bind
-(`FText::FromStringTable` on the row's `Name`), so the check puts the name back after each bind.
+blueprint blends a Show's clip by (`GetCurrentCustomAnimAlpha(0)` and `(1)`). Nothing looks the Shows or their clips up:
+a `StaticFindObject` of one took about 30 ms in game, a 50 ms frame each second (2026-10-24). One more check runs once a
+second. The boss name (`cut/enemy.lua`'s, for any spec that names one) looks for the live `TextBlock_BossName` (under
+`/Engine/Transient`; `FindAllOf` again at most every 10 s while none is held) and sets it to `Lion` where it reads
+`<M_LionC>`. The game writes that block once per boss bind (`FText::FromStringTable` on the row's `Name`), so the check
+puts the name back after each bind.
 
 `coop lion intro` first plays `Mon_LionC_Scene01_Appearance` (13 s, the clip of the cut boss intro
 `DesertedCity_LionBossIntro`) on a display copy: `race/doro.lua`'s plain actor with the `CH_M_NA_02_Large` mesh at the
@@ -1716,8 +1715,8 @@ Only the game can settle these:
 - whether the game's lookups by ID see the rows and the read-back matches on this build;
 - whether the stance's command list builds the Lion's command set and `M_Skulling_AI_Test` runs on it;
 - why the Lion stays in its idle pose: the game never plays its Shows on that body, the Shows play and their clips do
-  not load, or the clips load and the animation blueprint does not blend them in (the follow and loaded lines tell
-  these apart, and `coop lion control` tells the spawn call from the rows);
+  not load, or the clips load and the animation blueprint does not blend them in (the follow line's skill flag and anim
+  alphas narrow it down, and `coop lion control` tells the spawn call from the rows);
 - why `InteractionState` reads 1 (executable) from the first second of the fight;
 - whether the Lion walks to EVE or stands while she moves around it (the follow line now logs its place);
 - where the lock-on marker sits, whether its feet meet the ground and whether its hit sounds play;
