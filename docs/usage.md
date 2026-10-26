@@ -1363,7 +1363,7 @@ The log lines, in `UE4SS.log` unless marked:
 | `tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable 5006000-5006010 11/11, stance 500600 1/1` (`coop-link.log`) | The game's own lookups by ID find its CharacterTable row, its 11 skills and its stance |
 | `rows read back through FindRow: 107/107 authored rows, 1281 fields as written (997 differ from the template row)` | Every field the native part wrote reads as written |
 | `shows: 12/12 ready (12 made, 0 found built), each with its own anim key on its clip and found by the path its steps name` | The Shows are built and the game can find them; after a Lua reload, `0 made, 12 found built` |
-| `not ready: M_TendrilC_SwingLeft: no anim key of its own: no spawn` | A Show could not be built, and why |
+| `not ready: M_TendrilC_SwingLeft: no anim key of its own: no spawn` | A Show (or its package, `/Game/Art/Show/StellarCoop/Tendril`) could not be built, and why |
 | `spawn 50060: CreateActor returned; body CH_M_NA_06_Blueprint_C 8.1 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
 | `tendril 1: mesh yaw set to 0 (was -90)` | Its mesh turned to face its front |
 | `tendril 1: material MI_M_NA_09_V03_Tentacle on its 1 slots` | The Hydra's material on its mesh, or why not |

@@ -4570,11 +4570,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},                                                                 // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                                    // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_SwingLeft"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                                 // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                                // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                      // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                         // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_SwingLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                      // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                     // FileSuffix
     // M_TendrilC_SwingLeft_Hit1
     {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.4667f, nullptr},                       // Duration
@@ -4629,11 +4629,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},              // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"}, // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_SwingRight"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                                  // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                                 // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                       // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                          // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_SwingRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                       // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                      // FileSuffix
     // M_TendrilC_SwingRight_Hit1
     {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.4667f, nullptr},                       // Duration
@@ -4688,11 +4688,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},                                                                // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                                   // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_WhipLeft"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                                // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                               // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                     // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                        // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_WhipLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                     // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                    // FileSuffix
     // M_TendrilC_WhipLeft_Hit1
     {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.3333f, nullptr},                       // Duration
@@ -4747,11 +4747,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},                                                                 // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                                    // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_WhipRight"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                                 // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                                // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                      // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                         // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_WhipRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                      // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                     // FileSuffix
     // M_TendrilC_WhipRight_Hit1
     {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
@@ -4806,11 +4806,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},              // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"}, // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_DiagonalLeft"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                                    // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                                   // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                         // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                            // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_DiagonalLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                         // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                        // FileSuffix
     // M_TendrilC_DiagonalLeft_Hit1
     {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.3667f, nullptr},                       // Duration
@@ -4865,11 +4865,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},              // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"}, // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_DiagonalRight"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                                     // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                                    // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                          // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                             // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_DiagonalRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                          // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                         // FileSuffix
     // M_TendrilC_DiagonalRight_Hit1
     {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.4f, nullptr},                          // Duration
@@ -4924,11 +4924,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},                                                            // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                               // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Chop"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                            // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                           // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Chop"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
     // M_TendrilC_Chop_Hit1
     {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
@@ -4983,11 +4983,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},                                                            // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                               // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Spin"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                            // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                           // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Spin"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
     // M_TendrilC_Spin_Hit1
     {0x014, Kind::u8, 1, nullptr},                              // Type
     {0x018, Kind::f32, 0.5667f, nullptr},                       // Duration
@@ -5042,11 +5042,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},                                                            // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                               // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Rush"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                            // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                           // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Rush"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
     // M_TendrilC_Rush_Hit1
     {0x014, Kind::u8, 1, nullptr},                      // Type
     {0x018, Kind::f32, 0.2333f, nullptr},               // Duration
@@ -5206,11 +5206,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},                                                            // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                               // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Whip"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                            // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                           // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Whip"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
     // M_TendrilC_Whip_Hit1
     {0x014, Kind::u8, 1, nullptr},                      // Type
     {0x018, Kind::f32, 0.1f, nullptr},                  // Duration
@@ -5335,11 +5335,11 @@ constexpr Patch kPatches[] = {
     // StartSelfEffect
     {0x110, Kind::string, 0,
      "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
-    {0x130, Kind::u8, 1, nullptr},                                                             // StopSelfMove
-    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                                                // SelfMoveAliasArray
-    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Trace"}, // ShowPath
-    {0x240, Kind::u8, 0, nullptr},                                                             // CanCutoff
-    {0x2f8, Kind::name, 0, "None"},                                                            // FileSuffix
+    {0x130, Kind::u8, 1, nullptr},                                  // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                     // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Trace"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                 // FileSuffix
     // M_TendrilC_Trace_Hit1
     {0x014, Kind::u8, 1, nullptr},                      // Type
     {0x018, Kind::f32, 0.4f, nullptr},                  // Duration
@@ -5616,33 +5616,33 @@ constexpr Patch kPatches[] = {
     {0x1a0, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Airborne_UpperBody
     {0x1a8, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Airborne_LowerBody
     // M_TendrilC
-    {0x010, Kind::strings, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // DefaultDeadShowArray
-    {0x020, Kind::i32, 6000, nullptr},                              // DefaultDeadRewardDelayTime
-    {0x038, Kind::string, 0, "Dead/Dead_Monster_EffectType_Stand"}, // StandDeadShow
-    {0x048, Kind::i32, 300, nullptr},                               // StandDeadRewardDelayTime
-    {0x058, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Step0DeadShow
-    {0x068, Kind::i32, 6000, nullptr}, // Step0DeadRewardDelayTime
-    {0x078, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Step1DeadShow
-    {0x088, Kind::i32, 6000, nullptr}, // Step1DeadRewardDelayTime
-    {0x098, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Step2DeadShow
-    {0x0a8, Kind::i32, 6000, nullptr}, // Step2DeadRewardDelayTime
-    {0x0b8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Step3DeadShow
-    {0x0c8, Kind::i32, 6000, nullptr}, // Step3DeadRewardDelayTime
-    {0x0d8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Explosion1DeadShow
-    {0x0e8, Kind::i32, 6000, nullptr}, // Explosion1DeadRewardDelayTime
-    {0x0f8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Explosion2DeadShow
-    {0x108, Kind::i32, 6000, nullptr}, // Explosion2DeadRewardDelayTime
-    {0x118, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Custom1DeadShow
-    {0x178, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Custom4DeadShow
-    {0x188, Kind::i32, 6000, nullptr}, // Custom4DeadRewardDelayTime
-    {0x1b8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Custom6DeadShow
+    {0x010, Kind::strings, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},    // DefaultDeadShowArray
+    {0x020, Kind::i32, 6000, nullptr},                                   // DefaultDeadRewardDelayTime
+    {0x038, Kind::string, 0, "Dead/Dead_Monster_EffectType_Stand"},      // StandDeadShow
+    {0x048, Kind::i32, 300, nullptr},                                    // StandDeadRewardDelayTime
+    {0x058, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Step0DeadShow
+    {0x068, Kind::i32, 6000, nullptr},                                   // Step0DeadRewardDelayTime
+    {0x078, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Step1DeadShow
+    {0x088, Kind::i32, 6000, nullptr},                                   // Step1DeadRewardDelayTime
+    {0x098, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Step2DeadShow
+    {0x0a8, Kind::i32, 6000, nullptr},                                   // Step2DeadRewardDelayTime
+    {0x0b8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Step3DeadShow
+    {0x0c8, Kind::i32, 6000, nullptr},                                   // Step3DeadRewardDelayTime
+    {0x0d8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Explosion1DeadShow
+    {0x0e8, Kind::i32, 6000, nullptr},                                   // Explosion1DeadRewardDelayTime
+    {0x0f8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Explosion2DeadShow
+    {0x108, Kind::i32, 6000, nullptr},                                   // Explosion2DeadRewardDelayTime
+    {0x118, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Custom1DeadShow
+    {0x178, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Custom4DeadShow
+    {0x188, Kind::i32, 6000, nullptr},                                   // Custom4DeadRewardDelayTime
+    {0x1b8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Custom6DeadShow
     {0x1c8, Kind::i32, 6000, nullptr},                                   // Custom6DeadRewardDelayTime
     {0x1d8, Kind::string, 0, "Dead/Dead_Monster_EffectType_ZoneEffect"}, // Custom7DeadShow
-    {0x1f8, Kind::string, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.M_TendrilC_Dead"}, // Custom8DeadShow
-    {0x208, Kind::i32, 6000, nullptr},                         // Custom8DeadRewardDelayTime
-    {0x258, Kind::string, 0, "Dead/Dead_Monster_StandCommon"}, // DownDeadShow
-    {0x278, Kind::string, 0, "Dead/Dead_Monster_StandCommon"}, // AirborneDeadShow
-    {0x298, Kind::string, 0, "Dead/Dead_Monster_StandCommon"}, // SwimmingDeadShow
+    {0x1f8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Custom8DeadShow
+    {0x208, Kind::i32, 6000, nullptr},                                   // Custom8DeadRewardDelayTime
+    {0x258, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // DownDeadShow
+    {0x278, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // AirborneDeadShow
+    {0x298, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // SwimmingDeadShow
     // M_TendrilC
     // CharacterAssetPath
     {0x014, Kind::name, 0, "/Game/Art/Character/Monster/CH_M_NA_06/Blueprints/CH_M_NA_06_Blueprint"},
@@ -5970,10 +5970,10 @@ constexpr Row kGardenerRecipe[] = {
 // appearance 1, dead 1, stance 1, anim 2, command 11, skill 11, step 45, move 1, filter 28, result 5), 1281 fields,
 // every field authored over the Lion's template rows. M_TendrilC (50060) with M_Skulling_AI_Test. Its 11 skills
 // play its own clips through Shows cut/tendril.lua builds in memory (copies of
-// CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam, named after the dot of each first step's ShowPath); each Hit step
-// is a window of the clip where its chain ends strike (2500 cm/s or faster, 250 cm or farther out) and hits by
-// area, a 3D arc 200 cm high. Per skill, its range (straight ahead, the first hit's reach times 0.6087) and each
-// hit: its time in the clip, its reach and its arc (degrees wide, around degrees right of the front):
+// CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam in StellarCoop/Tendril, a package of its own); each Hit step is a
+// window of the clip where its chain ends strike (2500 cm/s or faster, 250 cm or farther out) and hits by area, a
+// 3D arc 200 cm high. Per skill, its range (straight ahead, the first hit's reach times 0.6087) and each hit: its
+// time in the clip, its reach and its arc (degrees wide, around degrees right of the front):
 //   SwingLeft: range 260 cm; 0.867-1.333 s 420 cm 150 around 0
 //   SwingRight: range 260 cm; 0.800-1.267 s 410 cm 160 around 0
 //   WhipLeft: range 280 cm; 0.333-0.667 s 470 cm 160 around -70

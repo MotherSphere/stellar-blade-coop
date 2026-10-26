@@ -5,8 +5,9 @@
 -- the run-time death Show; its CharacterTable row names its stance, dead, appearance and the Skulling test tree, with
 -- no link flag and no name. R.TENDRIL_SHOWS lists exactly the Shows the rows name. The tendril line parses apart from
 -- the others. coop tendril fight asks "tendril rows" with the 14 addresses, reads the 107 rows back, builds the 12
--- Shows (each a copy of the template Show in its package, rooted, with its own anim key set to its clip and length,
--- found by its steps' path; a Lua reload finds them built; a copy whose key is the template's stops the spawn), then
+-- Shows (each a rooted copy of the template Show in the mod's own package, made once with no outer, with its own anim
+-- key set to its clip and length, found by its steps' path; a Lua reload finds them built; a copy whose key is the
+-- template's stops the spawn), then
 -- makes the one spawn call for 50060 8 m ahead of EVE and 1 m above her middle, facing her, cheat on, key 0. The body's
 -- mesh turns to yaw 0 and takes the Hydra's tentacle material once found; the boss bar's <M_TendrilC> reads Tendril; a
 -- Show the game collected is built again; the body is followed until its death and despawn. Usage, busy and coop off
@@ -62,14 +63,14 @@ end
 local function row(t,name) return assert(by[t..'.'..name],t..' '..name).field end
 local S=T.SHOWS
 assert(S.template=='CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam' and S.key=='SBShowAnimKey_0'
-    and S.folder=='/Game/Art/Character/Monster/CH_M_NA_06/Animation/' and #S==12)
+    and S.package=='StellarCoop/Tendril' and S.folder=='/Game/Art/Character/Monster/CH_M_NA_06/Animation/' and #S==12)
 local shown,commands={},{}
 for _,r in ipairs(T.ROWS) do
     if r.table=='SkillTable' then
         local s=r.field
         assert(s.AISkillFlag=='MeleeAttack' and row('SkillCommandTable',r.name).SkillAlias==r.name,r.name)
         local step=row('SkillActiveStepTable',s.FirstSkillActiveAlias)
-        assert(step.ShowPath==S.template..'.'..r.name and step.SelfMoveAliasArray=='M_TendrilC_Turn',r.name)
+        assert(step.ShowPath==S.package..'.'..r.name and step.SelfMoveAliasArray=='M_TendrilC_Turn',r.name)
         local seconds,hits=0,0
         local name=s.FirstSkillActiveAlias
         while name and name~='None' do
@@ -97,7 +98,7 @@ for _,s in ipairs(S) do -- Exactly the Shows the rows name, each as long as the 
     end
 end
 assert(next(shown)==nil,'A skill whose Show is not listed')
-assert(row('CharacterDeadTable','M_TendrilC').DefaultDeadShowArray==S.template..'.M_TendrilC_Dead')
+assert(row('CharacterDeadTable','M_TendrilC').DefaultDeadShowArray==S.package..'.M_TendrilC_Dead')
 local c=row('CharacterTable','M_TendrilC')
 assert(c.BehaviorTreeRes:find('M_Skulling_AI_Test',1,true) and c.DeadAlias=='M_TendrilC'
     and c.RefAppearance=='M_TendrilC' and c.DefaultStanceAlias=='M_TendrilC_Default' and c.Name==''
@@ -116,10 +117,13 @@ assert(s.state=='refused' and s.added=='5/107' and s.asks==1 and s.row=='M_Tendr
 assert(Enemy.parse(all,'gardener').state=='off' and T.parse('lion=off\n')==nil and T.parse(nil)==nil)
 
 -- The world: EVE at the origin facing +X, her player controller, the 14 tables with the Tendril's rows, the template
--- Show in its package (its one anim key on the Gardener's clip), the Hydra's material and the boss bar's TextBlocks.
+-- Show in its package (its one anim key on the Gardener's clip), no package of the mod's yet, the Hydra's material and
+-- the boss bar's TextBlocks.
 local CLASS='CH_M_NA_06_Blueprint_C'
 local SHOW_CLASS,KEY_CLASS=class('/Script/SB.SBShowData'),class('/Script/SB.SBShowAnimKey')
+local PACKAGE_CLASS=class('/Script/CoreUObject.Package')
 local TEMPLATE_PATH='/Game/Art/Show/'..S.template..'.M_Gardener_ToxicBeam'
+local PACKAGE_PATH='/Game/Art/Show/'..S.package
 local HYDRA='/Game/Art/Character/Monster/CH_M_NA_09/Materials/MI_M_NA_09_V03_Tentacle.MI_M_NA_09_V03_Tentacle'
 local package_object=object({GetFullName=function() return 'Package /Game/Art/Show/'..S.template end})
 local inners={} -- Objects by outer address and name, as UE's StaticFindObject in an outer finds them.
@@ -139,15 +143,22 @@ place(template_key,template,S.key,TEMPLATE_PATH..':'..S.key)
 local material=object({IsA=is('/Script/Engine.MaterialInterface'),
     GetFullName=function() return 'MaterialInstanceConstant '..HYDRA end})
 paths[HYDRA]=material
-local constructed,share_key={},false
+local constructed,share_key,mod_package={},false,nil
 StaticConstructObject=function(cls,outer,name,flags,internal,copy,assume,from)
     engine()
-    assert(cls==SHOW_CLASS and outer==package_object and from==template and flags==0x1 and internal==0x40000000
-        and copy==false and assume==false,'A rooted copy of the template in its package')
+    if cls==PACKAGE_CLASS then -- The mod's package: no outer (an invalid object's null), rooted.
+        assert(outer==invalid and name:ToString()==PACKAGE_PATH and flags==0x1 and internal==0x40000000 and from==nil
+            and not mod_package,'One rooted package of the mod\'s own, with no outer')
+        mod_package=object({GetFullName=function() return 'Package '..PACKAGE_PATH end})
+        paths[PACKAGE_PATH]=mod_package
+        return mod_package
+    end
+    assert(cls==SHOW_CLASS and outer==mod_package and from==template and flags==0x1 and internal==0x40000000
+        and copy==false and assume==false,'A rooted copy of the template in the mod\'s package')
     local n=name:ToString()
     local show=object({IsA=is('/Script/SB.SBShowData'),EndTime=from.EndTime,bUseStep=from.bUseStep})
     show.GetClass=function() return SHOW_CLASS end
-    local path='/Game/Art/Show/'..S.template..'.'..n
+    local path=PACKAGE_PATH..'.'..n
     place(show,outer,n,path)
     if not share_key then -- UE instances the template's anim key under the copy, with the same name.
         local key=object({AnimResourcePath=template_key.AnimResourcePath,PlayEndTime=5.3333,Duration=5.3333,
@@ -339,7 +350,7 @@ for _,x in ipairs(S) do show_names[x.name]=true end
 for i=from,#names do
     if show_names[names[i][1]] then assert(names[i][2]==1,'A Show\'s name added, not only found: '..names[i][1]) end
 end
-assert(full_finds==0,'No path that is not in memory looked up')
+assert(full_finds==1,'Only the package looked up while not in memory, once')
 -- A Lua reload: the Shows are found where they were built, none made again.
 local td2=new()
 tendril_status(ROWS_IN:format(1,'6'))
@@ -396,8 +407,7 @@ assert(lines[#lines-1]=='tendril 1 (50060) dead after 39 s (InteractionState 3, 
 assert(last()=='tendril 1 spawn count: before 6, alive 7, after death 6',last())
 
 -- A copy whose anim key is the template's stops the spawn, and the template's key is left alone.
-for k in pairs(inners) do if not k:find('^'..package_object:GetAddress()..'/M_Gardener') and k:find('/M_TendrilC_')
-    then inners[k]=nil end end
+for k in pairs(inners) do if k:find('/M_TendrilC_') then inners[k]=nil end end
 share_key=true
 local td3=new()
 at(300)
@@ -416,7 +426,7 @@ at(406); assert(td3.tick()==nil and #calls==2,'Nothing after coop off')
 
 -- The source names no spawn, destroy, save, quest, item, reward, achievement, possession, console, object walk or row
 -- call of its own: its one spawn call and controller are cut/enemy.lua's (lion_test counts those), and its object calls
--- are the Shows' own (StaticConstructObject, StaticFindObject).
+-- are the Shows' and their package's (StaticConstructObject, StaticFindObject).
 do
     local f=assert(io.open('mod/StellarCoop/Scripts/cut/tendril.lua','rb'))
     local src=f:read('a')
@@ -427,7 +437,7 @@ do
             assert(not call:find(word),'cut/tendril: '..call)
         end
     end
-    assert(not src:find('FindAllOf',1,true) and select(2,src:gsub('StaticConstructObject%(',''))==1,
-        'One construction, no object walk')
+    assert(not src:find('FindAllOf',1,true) and select(2,src:gsub('StaticConstructObject%(',''))==2,
+        'Two constructions (the package, a Show), no object walk')
 end
 print('tendril_test: ok')

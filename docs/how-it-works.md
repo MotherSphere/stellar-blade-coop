@@ -1771,7 +1771,7 @@ Beyond the Lion's:
 (`CH_M_NA_06_Blueprint`, which borrows the Gigas's collision data `CH_M_NA_05_Gorilla_Collision`), an animation
 blueprint built on the game's custom anim nodes (`SBAnimInstance` with three `SBAnimGraphNode_SequenceBlendedPlayer`)
 and 42 clips. No table row names it and no Show plays any of its clips. `cut/tendril.lua` holds its spec for
-`cut/enemy.lua` and builds its Shows; its rows are the third batch of `lion/rows.h` (`kTendrilRecipe`) and
+`cut/enemy.lua` and builds its Shows in memory; its rows are the third batch of `lion/rows.h` (`kTendrilRecipe`) and
 `cut/lion_rows.lua` (`R.TENDRIL`, the Shows in `R.TENDRIL_SHOWS`), from the same generator.
 
 ### Its rows
@@ -1822,23 +1822,28 @@ nothing else, and the blueprint turns its mesh as the measurements and `cut/tend
 ### Its Shows
 
 A step names its Show in `ShowPath`. No pak holds a Show of a Tendril clip, so after the read-back and before the
-spawn `cut/tendril.lua` builds the 12 the rows name, one per skill and one for its death. Each is a copy of the
-Gardener's one-clip Show `M_Gardener_ToxicBeam`, made by `StaticConstructObject` with that Show as its template, of its
-class, in its package, named after the skill (`M_TendrilC_Chop`...) and in the root set, so the game never collects it.
+spawn `cut/tendril.lua` builds the 12 the rows name, one per skill and one for its death, in a package of the mod's own,
+`/Game/Art/Show/StellarCoop/Tendril`. The package is made once a game run by `StaticConstructObject` with no outer, as
+UE's `CreatePackage` makes one: the outer passed is the invalid object of the lookup that missed it, whose null pointer
+UE4SS hands on. Each Show is a copy of the Gardener's one-clip Show `M_Gardener_ToxicBeam`, made by
+`StaticConstructObject` with that Show as its template, of its class, in that package, named after the skill
+(`M_TendrilC_Chop`...). The package and the Shows go in the root set, so the game never collects them, and no shipped
+package is held in memory by them: a Show of the paks that the game drops while its package stays could no longer load.
 UE copies the template's properties and gives the copy its own anim key (`SBShowAnimKey_0`). The script then sets that
 key's clip (`/Game/Art/Character/Monster/CH_M_NA_06/Animation/<clip>`, an absolute path), its lengths and the Show's
 end time, with no step array, and reads each one back: the key must be the copy's own (its outer is the copy), every
-value as written, and `/Game/Art/Show/CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.<name>` must find the copy.
+value as written, and `/Game/Art/Show/StellarCoop/Tendril.<name>` must find the copy.
 
-That path is the one the game loads. The steps' `ShowPath` is `CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.<name>`.
-The game's Show loader (`0x1422853e0`) puts `/Game/Art/Show/` in front of it, keeps a path that already has an extension
-as it is (`0x14202c500` appends `.<last word>` only when there is none) and calls `StaticLoadObject` (`0x142b920d0`,
-through `0x1422b03e0`). `StaticLoadObject` finds a package already in memory, then the object in it, before it reads any
-file, so it returns the copy. A Show with no step array plays across the whole chain of steps its first step starts, as
-the game's own flash grenade and fishing skills do.
+That path is the one the game loads. The steps' `ShowPath` is `StellarCoop/Tendril.<name>`. The game's Show loaders
+(`0x1422853e0` and the six others that use the same `/Game/Art/Show/` string) put `/Game/Art/Show/` in front of it, keep
+a path that already has an extension as it is (`0x14202c500` appends `.<last word>` only when there is none) and call
+`StaticLoadObject` (`0x142b920d0`), synchronously. `StaticLoadObject` finds a package already in memory, then the object
+in it, before it reads any file, so it returns the copy; no pak holds a package of that name, which the generator
+checks. A Show with no step array plays across the whole chain of steps its first step starts, as the game's own flash
+grenade and fishing skills do.
 
-A Lua reload finds the Shows already built and sets them again. Once a second while a Tendril lives, a Show that is
-gone (the root set flag did not hold) is built again, and the log says so.
+A Lua reload finds the package and the Shows already built and sets the Shows again. Once a second while a Tendril
+lives, a Show that is gone (the root set flag did not hold) is built again, and the log says so.
 
 ### Its batch in the native part
 
@@ -1861,8 +1866,8 @@ hydra` does in the viewer. The boss bar reads `<M_TendrilC>` (no Tendril text in
 
 Beyond the Lion's:
 
-- whether `StaticConstructObject` in UE4SS 3.0.1 passes the template and the root set flag through, and whether the
-  copy gets its own anim key;
+- whether `StaticConstructObject` in UE4SS 3.0.1 makes the package with no outer and passes the template and the
+  root set flag through, and whether the copy gets its own anim key;
 - whether the game plays a Show built at run time, and a Show with no step array across the three to nine steps of a
   skill;
 - whether the chains strike where the areas reach, and whether 2 m is the right height for the arcs;

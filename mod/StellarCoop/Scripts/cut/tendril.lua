@@ -6,12 +6,14 @@
 -- rows (M_TendrilC, 50060, the Lion's Skulling test tree).
 -- No pak holds a Show of its clips, so before a spawn this file builds the 12 Shows its steps and its death name
 -- (R.TENDRIL_SHOWS): each a copy of the Gardener's one-clip Show M_Gardener_ToxicBeam, made by StaticConstructObject
--- with that Show as its template, in that Show's package and in the root set (never collected), with its own copy of
--- the anim key set to play one Tendril clip for its length. A step names one as "<that package>.<its name>"; SB loads
--- a step's Show through StaticLoadObject("/Game/Art/Show/" + ShowPath), which finds an object of a package in memory
--- before it reads a file. Each Show is read back: its own anim key (not the template's), the clip and lengths as set,
--- and found by the path its steps name. A Lua reload finds the Shows already built and sets them again. Once a second
--- while a Tendril lives, a Show the game collected is built again.
+-- with that Show as its template and in the root set (never collected), with its own copy of the anim key set to play
+-- one Tendril clip for its length. They go in a package of the mod's own, /Game/Art/Show/StellarCoop/Tendril, made
+-- the same way (with no outer, as UE's CreatePackage makes one), so no shipped package is held in memory. A step names
+-- one as "StellarCoop/Tendril.<its name>"; SB loads a step's Show through StaticLoadObject("/Game/Art/Show/" +
+-- ShowPath), which finds a package in memory, then its object, before it reads a file. Each Show is read back: its own
+-- anim key (not the template's), the clip and lengths as set, and found by the path its steps name. A Lua reload finds
+-- the package and the Shows already built and sets them again. Once a second while a Tendril lives, a Show the game
+-- collected is built again.
 -- The flow is cut/enemy.lua's, as coop lion's: the tables, the tendril rows request, the wait on the tendril line, the
 -- read-back, the Shows, then one spawn call 8 m ahead of EVE and 1 m above her middle, facing her, and the lines that
 -- follow the body. Once found, its mesh turns to yaw 0: its skeleton faces +X (its head in front of its pelvis, a
@@ -33,13 +35,13 @@ local ROWS=require('cut.lion_rows')
 -- against rows.h's kTendrilRecipe), in Enemy.rows' form, and the tendril line's counts once they are in.
 Tendril.ROWS=Enemy.rows(ROWS.TENDRIL)
 Tendril.IN=Enemy.counts(Tendril.ROWS)
--- The Shows to build: {template=<a ShowPath>, key=<its anim key's name>, folder=<the clips'>, {name, clip, seconds},
--- ...}.
+-- The Shows to build: {template=<a ShowPath>, key=<its anim key's name>, package=<theirs, as a ShowPath>,
+-- folder=<the clips'>, {name, clip, seconds}, ...}.
 Tendril.SHOWS=ROWS.TENDRIL_SHOWS
 -- The tendril line (glue's rows_status) as fields (Enemy.parse).
 function Tendril.parse(status) return Enemy.parse(status,'tendril') end
 local SHOWS='/Game/Art/Show/'
-local SHOW_CLASS,KEY_CLASS='/Script/SB.SBShowData','/Script/SB.SBShowAnimKey'
+local SHOW_CLASS,KEY_CLASS,PACKAGE='/Script/SB.SBShowData','/Script/SB.SBShowAnimKey','/Script/CoreUObject.Package'
 local PUBLIC,ROOT_SET=0x1,0x40000000 -- RF_Public; EInternalObjectFlags::RootSet: the game never collects it.
 local HYDRA='/Game/Art/Character/Monster/CH_M_NA_09/Materials/MI_M_NA_09_V03_Tentacle.MI_M_NA_09_V03_Tentacle'
 
@@ -55,15 +57,23 @@ function Tendril.new(o)
         if ok then return valid(found) end
         return valid(StaticFindObject(path))
     end
-    -- One Show: found where it was built (rooted, it outlives a Lua reload), else made from the template; its own anim
-    -- key set to its clip and length, and everything read back. Returns whether it was made now.
-    local function build(template,s)
-        local path=SHOWS..T.template..'.'..s.name
-        local show=inside(template:GetClass(),template:GetOuter(),s.name,path)
+    -- The Shows' package: found (rooted, it outlives a Lua reload; a miss of this lookup, once a game run, takes 25 to
+    -- 35 ms), else made with that miss's invalid object as its outer, whose null UE4SS hands on: a package has none.
+    local function package()
+        local path=SHOWS..T.package
+        local found=StaticFindObject(path)
+        return valid(found) or assert(valid(StaticConstructObject(U.find(PACKAGE),found,FName(path,1),PUBLIC,ROOT_SET)),
+            path..' not made')
+    end
+    -- One Show in the package: found where it was built, else made from the template; its own anim key set to its
+    -- clip and length, and everything read back. Returns whether it was made now.
+    local function build(template,outer,s)
+        local path=SHOWS..T.package..'.'..s.name
+        local show=inside(template:GetClass(),outer,s.name,path)
         local made=show==nil
         if made then
-            show=assert(valid(StaticConstructObject(template:GetClass(),template:GetOuter(),FName(s.name,1),PUBLIC,
-                ROOT_SET,false,false,template)),'not made')
+            show=assert(valid(StaticConstructObject(template:GetClass(),outer,FName(s.name,1),PUBLIC,ROOT_SET,false,
+                false,template)),'not made')
         end
         local key=inside(U.find(KEY_CLASS),show,T.key,path..':'..T.key)
         assert(key and U.address(key:GetOuter())==U.address(show),'no anim key of its own')
@@ -87,16 +97,17 @@ function Tendril.new(o)
         built[s.name]=show
         return made
     end
-    -- Every Show not built yet, or gone: the template Show (in memory, else loaded) first. Returns how many it made
-    -- and how many it found built before; raises at the first that fails, naming it.
+    -- Every Show not built yet, or gone: the template Show (in memory, else loaded) and the package first. Returns how
+    -- many it made and how many it found built before; raises at the first that fails, naming it.
     local function ready()
         local made,kept=0,0
-        local template
+        local template,outer
         for _,s in ipairs(T) do
             if not valid(built[s.name]) then
                 template=template or assert(Doro.resolve(SHOWS..T.template..'.'..T.template:match('[^/]+$'),
                     SHOW_CLASS),T.template..' does not load')
-                local fine,new=pcall(build,template,s)
+                outer=outer or package()
+                local fine,new=pcall(build,template,outer,s)
                 if not fine then error(s.name..': '..why(new),0) end
                 if new then made=made+1 else kept=kept+1 end
             end
