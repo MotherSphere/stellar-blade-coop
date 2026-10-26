@@ -29,7 +29,8 @@
 -- command removes it, a failed removal is named by the creature its mesh belongs to.
 -- coop mann, coop nier, coop orcal and coop enya: the early Mann plays the clips of his skeleton; a NieR machine (a
 -- word a mesh) and a prototype statue play none, the NieR blend spaces listed as assets and never played; a statue
--- whose lowest point is below its root stands with that point at EVE's feet.
+-- whose lowest point is below its root stands with that point at EVE's feet; Orcal's test mesh, which names no
+-- skeleton, shows with no clip.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -1020,6 +1021,15 @@ ok,why=orcal('show','native')
 assert(ok and why=='NieR machine removed: one cut model is shown at a time. Orcal prototype native shown 3 m ahead, '
     ..'1.3 m up, scale 1, 0 clips in turn'..NO_CAM..'; [LV] lines in this log.',why)
 assert(close(newest().components[1].at.Y,20+300) and newest().components[1].at.Z==-87+127)
+-- The XE test mesh names no skeleton: shown all the same, with no clip, 1.6 radii ahead as it is wider than 3 m.
+assert(L.CREATURES.orcal.USE:find('show [test1|test2|native|preview] ',1,true),L.CREATURES.orcal.USE)
+asset('CH_NPC_XE_testmesh',MESH,{ExtendedBounds={SphereRadius=232,Origin={X=-6,Y=-108,Z=89},
+    BoxExtent={X=105,Y=185,Z=92}}},'orcal')
+ok,why=orcal('show','preview')
+assert(ok and why=='Orcal prototype preview shown 3.7 m ahead, 0 m up, scale 1, 0 clips in turn'..NO_CAM
+    ..'; [LV] lines in this log.',why)
+assert(table.concat(newest().components[1].calls,'|')=='mesh CH_NPC_XE_testmesh|scale 1|collision 0|mode 1|scale 1',
+    table.concat(newest().components[1].calls,'|'))
 ok,why=enya('list')
 assert(ok and why=='Enya prototype list: 0 of 6 assets found, 0 CharacterTable rows name it; [LV] lines in this log.',
     why)

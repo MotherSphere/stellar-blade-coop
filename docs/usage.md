@@ -1069,12 +1069,13 @@ has been tried in game yet.
 | --- | --- | --- |
 | `coop mann` | `body` | The early Mann, `CH_NPC_Mann` in `/Game/Art/Character/NPC/Mann/`, about 3.5 m tall, with his 4 animations: 3 idles and a run. The shipped Mann uses another mesh, `CH_NPC_Mann_Body` in `CH_NPC_Mann_01/`. |
 | `coop nier` | `square` (the default), `squareb`, `cylinder`, `cylinderb`, `cylinderc`, `sphere`, `sphereb` | The NieR collaboration's three cut machines, `CH_M_NA_951` to `CH_M_NA_953` in `/Game/DLC_1/Art/Character/Monster/`, with their TypeB and TypeC variants: blockout shapes of 32 to 810 vertices with no material, drawn in the engine's grey |
-| `coop orcal` | `test1` (the default), `test2`, `native` | Orcal prototypes in `/Game/Art/Character/NPC/CH_NPC_XionElder/`: `OrcalTest_01`, `OrcalTest_02` (both about 1 m tall) and `XionElder_Native_Preview` |
+| `coop orcal` | `test1` (the default), `test2`, `native`, `preview` | Orcal prototypes in `/Game/Art/Character/NPC/CH_NPC_XionElder/`: `OrcalTest_01`, `OrcalTest_02` (both about 1 m tall), `XionElder_Native_Preview` and `PreviewMesh/CH_NPC_XE_testmesh` (1.8 m tall and 3.7 m wide) |
 | `coop enya` | `mech` (the default), `enya05` | Enya prototypes in `/Game/Art/Character/NPC/CH_NPC_Enya/Temp/`: `CH_NPC_Enya_Mech` and `Enya_05`, 1.6 and 1.7 m tall |
 
 - Only the early Mann plays animations. The NieR machines have none: their blend spaces hold no samples, so `list`
   reads them as `list asset` lines and nothing plays them. The Orcal and Enya meshes have one bone each, in a fixed
-  pose.
+  pose. `CH_NPC_XE_testmesh` names no skeleton in its file, so the engine draws it in its reference pose and `list`
+  reads `skeleton=-` for it.
 - `auto` puts each model's lowest point at EVE's feet, 1.6 times its bounding sphere radius away and at least 6 m
   (3 m for the Orcal and Enya statues).
 - `skin` takes `default` only.
