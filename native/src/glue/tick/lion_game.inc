@@ -53,7 +53,7 @@ struct RowsJob {
   uint32_t taken = 0, done = 0, waited = 0;
   bool pending = false;
 };
-// In link/protocol.h's kRowWords order: Request::rows indexes it.
+// In link/protocol.h's kRowWords order: Request::batch indexes it.
 RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener};
 RowsJob *const kJobs[] = {&lion_job, &gardener_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
