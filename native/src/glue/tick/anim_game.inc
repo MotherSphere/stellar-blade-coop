@@ -156,7 +156,7 @@ void anim_tick() {
     anim_next = now + anim::kWatchMs;
   if (anim_faulted) {
     __try {
-      if (anim_track.live())
+      if (anim_track.live() && anim_alive()) // Only on the live object played on: never a stale pointer.
         game_function<StopAnim>(anim::kStop)(reinterpret_cast<void *>(anim_ch), 0, 0.f, anim_track.name(), 1);
     } __except (passed_on(GetExceptionCode()) ? EXCEPTION_CONTINUE_SEARCH : EXCEPTION_EXECUTE_HANDLER) {
     }
