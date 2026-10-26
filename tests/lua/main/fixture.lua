@@ -363,6 +363,16 @@ package.loaded['cut.lines']={new=function(o)
         tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
         stop=function() ln.stops=ln.stops+1 end}
 end}
+-- coop glide (cut/glide.lua; glide_test tests it): what new got (log, slot), its commands, restores, ticks and stops,
+-- what a tick says.
+gl={}
+package.loaded['cut.glide']={new=function(o)
+    gl.o=o
+    return {command=function(...) gl.cmds[#gl.cmds+1]={...}; return true,'gl '..tostring((...)) end,
+        restore=function() gl.restores=gl.restores+1 end,
+        tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
+        stop=function() gl.stops=gl.stops+1 end}
+end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
 package.loaded['race.drive']={new=function(o)
@@ -557,6 +567,7 @@ function load_main(with_native,no_folder,source)
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
+    gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}

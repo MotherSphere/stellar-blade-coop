@@ -826,6 +826,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
 | `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker`, `coop lion unfreeze [init]` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its tests it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions; put back the engine switches that can freeze its mesh (spawns on a co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) (test commands, untested in game; on on a co-op save only) |
+| `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -976,7 +977,8 @@ The ghost, the link and every other command except `coop fight` (below), `coop r
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
 [viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
-`coop lion control`, a scene of `coop scene`, `coop fly on` and `coop slowmo on` (below) run on any save.
+`coop lion control`, a scene of `coop scene`, `coop fly on`, `coop slowmo on` and `coop glide on` (below) run on any
+save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
@@ -1389,6 +1391,33 @@ reach on foot, and the next save keeps where she is: hence the co-op saves only.
 The native part's lines go to `coop-link.log`: `coop fly on: UseFlyingActionKey set at the game thread's next pass`,
 then `gate fly: on, ours, 1 writes` once the setting is set. When the game's memory does not hold the setting the way
 the pinned build does, the native part writes nothing, logs why and says `coop fly refused: ...` on screen.
+
+### Cut glide: `coop glide`
+
+EVE's movement code still holds the end of a glide that was cut: a flag that makes her fall at a tenth of the normal
+gravity while it is set. Nothing in the game sets the flag any more. Its config keeps a Jump hold time for it (0.2 s)
+that no code reads, so no setting or cheat turns it on. `coop glide on` has the mod set the flag itself, with that hold
+time. This test command is left out of the usage line, runs on a [co-op save](#co-op-saves) only and has not been tried
+in game yet.
+
+- With `coop glide on`, hold Jump (Space, or A/Cross on a controller) in the air. Once Jump has been held for 0.2 s and
+  EVE is past the top of her jump, she glides until you release Jump or she lands. To glide after a double jump, hold
+  the second press.
+- A glide does not stop a fall. EVE keeps the downward speed she had when it started and gains speed ten times more
+  slowly, so a glide started right after the top of a jump is the slowest. Her air control stays the game's.
+- Only the game's default Jump keys count. A Jump key changed in the game's settings is not followed.
+- She does not glide during the developer flight (`coop fly`), whose own gravity the glide would replace.
+- How it looks is unknown. The game has three glide animations (`Proto_Glide`, `Proto_Glide_1`, `Proto_Glide_Start`),
+  but whether its animation graph still plays them is not known, so EVE may glide in her fall pose.
+- `coop glide off`, `coop off` and a Lua reload (Ctrl+R) clear the flag. On a save that is not a co-op one, she does
+  not glide until you are back on one. Nothing of it is saved.
+
+As with the flight, a glide can carry EVE to places the game expects her to reach another way, and the next save keeps
+where she is. That is why it runs on co-op saves only.
+
+Its lines go to `UE4SS.log` with the `[StellarCoop][GL]` tag: `glide on EVE (velocity Z -120 cm/s)` when a glide
+starts and `glide ended (landed) after 2.4 s` when it ends, with `Jump released` or `flight or rising` instead of
+`landed` when that is what ended it.
 
 ### Shared enemies (experimental)
 
@@ -1984,7 +2013,8 @@ movement values put back), the drive probe, a race track being recorded (dropped
 drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes
 back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living
 Lion stays), the `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene and the game's
-developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back). Afterwards only
+developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), and the cut glide
+(`coop glide`: EVE's glide flag is cleared). Afterwards only
 `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
 and so do the menu, host and leave keys. The race key does nothing.
 
