@@ -8,8 +8,8 @@
 -- command a creature), lion (cut/lion.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines (cut/lines.lua's)
 -- flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide (cut/glide.lua's) and ask (a
 -- native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
--- the usage line), runs on a co-op save only. coop emote, one of EVE's photo-mode poses (cut/emote.lua, o.emote), runs
--- on any save.
+-- the usage line), runs on a co-op save only. coop emote, one of EVE's clips (cut/emote.lua, o.emote), runs on any
+-- save.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion

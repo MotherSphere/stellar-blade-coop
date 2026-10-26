@@ -67,7 +67,8 @@
 -- (cut/lines.lua).
 -- coop glide on|off, EVE's cut glide while Jump is held in the air (cut/glide.lua; a test tool, left out of the usage
 -- line; on on a co-op save only).
--- coop emote [list|<name>|off] holds one of EVE's photo-mode poses on her until she moves, on any save (cut/emote.lua).
+-- coop emote [list|<name>|off] plays one of EVE's clips on her (a photo-mode pose held until she moves, a wave, or a cut
+-- enemy's clip played once), on any save (cut/emote.lua, through the native part's custom animation call).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -273,8 +274,10 @@ local cut_lines=require('cut.lines').new({log=function(m) print('[StellarCoop][L
 -- coop glide (cut/glide.lua), logging [GL] lines: EVE's bGlide set while Jump is held in the air, on a co-op save.
 local glide=require('cut.glide').new({log=function(m) print('[StellarCoop][GL] '..tostring(m)..'\n') end,
     slot=function() return coop_slot('coop glide') end})
--- coop emote (cut/emote.lua), logging [EM] lines: one of EVE's photo-mode poses until she moves.
-local emote=require('cut.emote').new({log=function(m) print('[StellarCoop][EM] '..tostring(m)..'\n') end})
+-- coop emote (cut/emote.lua), logging [EM] lines: one of EVE's clips until she moves, played by the native part (its
+-- anim request and the status line's anim field), else as a montage.
+local emote=require('cut.emote').new({log=function(m) print('[StellarCoop][EM] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
 -- Doro races (race/run.lua), logging [DR] lines: the look above on EVE and the ghost's Doro mode while one runs, and
 -- the driving from GO. Its start and the guest's answer need a co-op save; it never arms during a Night Operation run.
 local race=require('race.run').new({log=doro.log,link=link,puppet=puppet,look=doro,drive=drive,tell=tell,
@@ -447,7 +450,7 @@ local commands={
         if not stopped then log('flight: '..tostring(e)) end
         stopped,e=pcall(glide.stop) -- bGlide false again on EVE.
         if not stopped then log('glide: '..tostring(e)) end
-        stopped,e=pcall(emote.stop) -- Her pose's montage stopped.
+        stopped,e=pcall(emote.stop) -- Her clip stopped: anim stop, asked before off, or the montage's stop.
         if not stopped then log('emote: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
         return ask('off')()
