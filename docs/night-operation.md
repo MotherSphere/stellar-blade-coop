@@ -642,6 +642,9 @@ too: with shared enemies on, the two copies of a dummy pair as [Shared waves](#s
   in 5 s.`
 - `coop challenge range` on the guest's side answers `STOP: the host starts a co-op run`.
 - There is no heal. A co-op run gives no shop points and keeps no best on either PC.
+- A death is a down as in a co-op Night Operation run (see [Down and revive](#down-and-revive)), but the range gives
+  no self revive: `coop nightop revive` answers `STOP: no self revive left in this run`, and only the partner's hold
+  gets a downed EVE up.
 
 ### Score
 
