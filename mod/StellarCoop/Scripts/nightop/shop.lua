@@ -12,6 +12,7 @@
 -- Called here: the player controller's ItemBucketItemAdd request, once a buy, in grant() only: bucket type 1 (the
 -- inventory), EVE's own GUID, one of the six aliases, 1 to 10 items. Never called here: an item remove, consume or
 -- equip, a save, a quest call, the game's own shops, anything online.
+local U=require('core.unreal')
 local W=require('nightop.waves')
 local N=require('nightop.probe')
 local Shop={}
@@ -95,6 +96,10 @@ function Shop.new(o)
         if not pc then return nil,'no SB player controller' end
         local guid=math.tointeger(eve.BroadcastSpawnInfo.ActorGuid)
         guid=guid and guid&MASK
+        if not guid or guid==0 then -- Her spawn info holds none (read 0 in game, 2026-10-26): the player state's.
+            local ok,g=pcall(function() return math.tointeger(U.valid(pc.PlayerState).ActorNetGuid) end)
+            guid=ok and g and g&MASK or guid
+        end
         if not guid or guid==0 then return nil,"EVE's ActorGuid reads 0: nothing bought" end
         local price=item.price*c
         if w.points<price then

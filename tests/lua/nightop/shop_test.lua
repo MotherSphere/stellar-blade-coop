@@ -168,6 +168,10 @@ her=eve
 refused('1','2','no SB player controller')
 controller=pc
 refused('1','2',"EVE's ActorGuid reads 0: nothing bought")
+-- Her spawn info reading 0 (as in game): the player state's GUID instead; the next check is the points.
+pc.PlayerState={type=function() return 'UObject' end,IsValid=function() return true end,ActorNetGuid=guid}
+refused('1','8','HP_Potion x8 needs 120 points; you have 113')
+pc.PlayerState=nil
 eve.BroadcastSpawnInfo.ActorGuid=guid
 refused('1','8','HP_Potion x8 needs 120 points; you have 113')
 assert(#calls==0)
