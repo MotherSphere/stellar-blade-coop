@@ -1863,9 +1863,12 @@ effect: `devmenu attack30: SBApplyEffectMe Test_ShieldDamageUpMe30 (9000178) on 
   gauge, so they count in your friend's game too, and a shared enemy that dies that way gives your friend the kill if
   they took part in its fight (`kill_credit`). The other enemy rows change your copies only, so they may act
   differently from your friend's.
-- Effects that last stay until `clear` (or `enemyclear`; `nolockswitch` until `lockswitch`), `coop off` or the game's
-  exit. A save load should end them too, but that has not been checked. `coop off` runs `clear` and `lockswitch` once
-  more when a row ran since the mod loaded. Nothing of it is saved.
+- Effects that last stay until `clear` (or `enemyclear`; `nolockswitch` until `lockswitch`) or the game's exit. A save
+  load should end them too, but that has not been checked. `coop off` runs `clear` and `lockswitch` once more when a
+  row ran, even before a Lua reload (Ctrl+R; `coop-devmenu.txt` keeps that). That `clear` reaches only the enemies near
+  EVE at that moment, and both rows are skipped while a respawn or a warp is under way or no EVE is in the world: the
+  log then has `coop off: devmenu clear not asked: <why>`. After `coop off` no `coop devmenu` row runs, so run `clear`
+  near the enemies you changed before it. Nothing of it is saved.
 - Running a lasting row twice does not turn it off. `attack5` and `attack30` add up at each run: `attack30` twice
   gives about 59 times the damage, and `attack5` then `attack30` about 34 times. The speed rows do not add up.
 - Left out: the rows that kill enemies or cut their health (EVE would get the kill, its rewards and its trophies
@@ -3093,6 +3096,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
+| `coop-devmenu.txt` | Lua | After a `coop devmenu` row reached the game, until `coop off`: one line, so `coop off` runs `clear` and `lockswitch` even after a Lua reload (Ctrl+R) |
 | `coop-wear.txt` | Lua | While `coop wear` puts a look on: your EVE's object path and, for her hair and her suit, the worn mesh's path and her own look (the mesh's path, the hair's animation Blueprint class, the hair's physics asset and the materials the game set on its slots), so the next Lua load (Ctrl+R) can give it back |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,

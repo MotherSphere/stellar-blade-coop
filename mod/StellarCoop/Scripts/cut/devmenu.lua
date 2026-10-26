@@ -22,7 +22,8 @@
 -- removes the TestEffect flag on each; every lasting row's effect has that flag but nolockswitch's (LockOnDelivery,
 -- which lockswitch removes). Their own flag lists (TestEffect, and Groggy for clear) most likely act on EVE, the
 -- effect's owner, as the game's P_Eve_Stance_GunTutorial_End does (it targets the drone and removes EVE's stances), so
--- enemyclear probably ends EVE's lasting rows too. coop off runs clear and lockswitch once more (stop, below).
+-- enemyclear probably ends EVE's lasting rows too. coop off runs clear and lockswitch once more (stop, below), even
+-- after a Lua reload (coop-devmenu.txt).
 local U=require('core.unreal')
 local ChainSpin=require('cut.chainspin')
 local DevMenu={}
@@ -70,12 +71,17 @@ function DevMenu.list()
     for _,r in ipairs(DevMenu.ROWS) do out[#out+1]=r[1]..': '..r[3] end
     return table.concat(out,'; ')
 end
--- o: log(text) writes a [DM] line; status() is the native part's status text. coop devmenu's slot check is
--- commands/cut.lua's.
+-- o: log(text) writes a [DM] line; status() is the native part's status text; store (coop-devmenu.txt through
+-- link.store; nil without the native part) keeps across Lua loads that a row reached the game. coop devmenu's slot
+-- check is commands/cut.lua's.
 function DevMenu.new(o)
     local log,status=o.log,o.status
+    local store=o.store or {save=function() end,load=function() end,clear=function() end}
     local self={row=DevMenu.row}
-    local asked=false -- A row reached the game in this Lua load, so stop has something to end.
+    -- A row reached the game in this Lua load or an earlier one, so stop has something to end. shortcut: the file
+    -- outlives a game exit without coop off (the effects do not), so the next run's first coop off dispels once with
+    -- nothing to remove; a per-run token would end that.
+    local asked=store.load()~=nil
     -- One row by name: every ID first, so a row runs whole or not at all, then the target and the calls.
     local function run(name)
         local row=BY[name]
@@ -94,7 +100,10 @@ function DevMenu.new(o)
                 log('devmenu '..name..' failed at '..row[2][i]..': '..why(e))
                 return false,'the game call failed: '..why(e)
             end
-            asked=true
+            if not asked then
+                asked=true
+                store.save('asked')
+            end
             log(string.format('devmenu %s: SBApplyEffectMe %s (%d) on EVE (guid %d)',name,row[2][i],id,guid))
         end
         return true,'devmenu '..name..' asked of the game: '..row[3]
@@ -106,8 +115,9 @@ function DevMenu.new(o)
         return run(name)
     end
     -- coop off, before it asks the native part off (the engine line still reads warp= and me=; after it no command
-    -- reaches this file): clear and lockswitch once, when a row was asked in this Lua load. A dispel with nothing to
-    -- remove changes nothing, so any row counts.
+    -- reaches this file): clear and lockswitch once, when a row was asked in this Lua load or an earlier one. A dispel
+    -- with nothing to remove changes nothing, so any row counts. One try: refused (a warp under way, no EVE), the
+    -- effects stay until a save load or the game's end, and clear reaches only the enemies near EVE then.
     function self.stop()
         if not asked then return end
         for _,name in ipairs({'clear','lockswitch'}) do
@@ -115,6 +125,7 @@ function DevMenu.new(o)
             if not ok then log('coop off: devmenu '..name..' not asked: '..said) end
         end
         asked=false
+        store.clear()
     end
     return self
 end

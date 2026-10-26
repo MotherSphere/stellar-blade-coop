@@ -2265,7 +2265,9 @@ of its own. So `enemyclear` probably ends EVE's lasting rows too, and no row rem
 `Test_EnemyEffectGroggy` (its `Test_GroggyInfinite` on the enemies has flag `Groggy` and `EffectLifeType_Infinite`).
 No effect has `bEnableSave`; that a save load ends them is expected, not checked. `coop off` calls the module's stop
 before it asks the native part off, while the engine line still has `warp=` and `me=`: when a row reached the game in
-this Lua load, it runs `clear` and `lockswitch` once more.
+this Lua load or an earlier one (`coop-devmenu.txt`, written at the first row and deleted by that stop), it runs
+`clear` and `lockswitch` once more. That try goes through the same checks, so a warp under way skips it, and `clear`
+reaches only the enemies near EVE then.
 
 The rows left out: the enemy kills (`ImmediateDeath`) and the thirteen HP cuts (a lethal drop would credit our EVE,
 see [Achievements](#achievements)), the TPS unlock (`ActorStatType_UnlockTPSMode`), the consumable stacks,

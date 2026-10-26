@@ -671,6 +671,7 @@ status_text=plain
 -- only, the list, an unknown word and an extra word on any (cut/devmenu.lua answers them).
 dm.o.log('asked'); assert(last()=='[StellarCoop][DM] asked\n',last())
 assert(dm.o.status()==status_text,'The native status, as the link reads it')
+assert(dm.o.store=='store coop-devmenu.txt','coop-devmenu.txt through the link')
 coop('devmenu','heal')
 assert(#dm.cmds==0 and last():find('^%[StellarCoop%] STOP: coop devmenu heal runs only on a co%-op save'),last())
 coop('devmenu'); coop('devmenu','list'); coop('devmenu','nope'); coop('devmenu','heal','x')

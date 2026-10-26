@@ -79,7 +79,7 @@
 -- any save (left out of the usage line); loading one is held back.
 -- coop devmenu [list|<row>], the rows of the game's developer cheat menu that still work, through the same Cheat
 -- request as coop chainspin (cut/devmenu.lua; left out of the usage line; a row on a co-op save only; coop off runs
--- its clear and lockswitch rows once more when a row ran). coop devinfo quest|player|off, the game's quest debugger
+-- its clear and lockswitch rows once more when a row ran, even before a Lua reload). coop devinfo quest|player|off, the game's quest debugger
 -- and player info panels, opened and closed by the native part through the game's UI manager (game/dev_panels.h; left
 -- out of the usage line; any save, as both only read); coop off closes them.
 -- coop gift [send <item> [count]|take [n]], SB's cut mailbox as a co-op gift box: consumables sent to the linked
@@ -420,7 +420,7 @@ o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][C
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
 -- coop devmenu (cut/devmenu.lua), logging [DM] lines: the developer menu's working rows, through the same call.
 o.devmenu=require('cut.devmenu').new({log=function(m) print('[StellarCoop][DM] '..tostring(m)..'\n') end,
-    status=function() return link and link.status() end})
+    status=function() return link and link.status() end,store=link and link.store('coop-devmenu.txt')})
 -- coop gift (cut/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link only. Its
 -- tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save only
 -- (commands/cut.lua). An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.

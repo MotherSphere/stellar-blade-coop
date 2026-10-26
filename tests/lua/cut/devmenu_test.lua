@@ -5,7 +5,8 @@
 -- word ask nothing; a row sends SBApplyEffectMe with each of its effects' IDs as read from the table, on EVE's GUID, in
 -- the menu's order; a row with an effect the table lacks, or a table that cannot be read, asks nothing; ChainSpin's
 -- target refusals ask nothing; a call that raises stops the row there; an ID of 0 or below from the table never
--- reaches the game; stop (coop off) asks clear then lockswitch once after a row reached the game, and nothing before.
+-- reaches the game; stop (coop off) asks clear then lockswitch once after a row reached the game, and nothing before;
+-- the store keeps that across Lua loads, so a new instance's stop still asks them, and stop clears it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local calls,raise={},nil
 local pc={ServerRequest_Cheat=function(_,...)
@@ -127,4 +128,28 @@ status_text='mod=v\nengine=off\n'
 fresh.stop()
 assert(#calls==4 and lines[#lines-1]=='coop off: devmenu clear not asked: the native status has no warp read yet: '
     ..'try again in a moment' and lines[#lines]:find('^coop off: devmenu lockswitch not asked: '),lines[#lines])
+
+-- 4. Across Lua loads (coop-devmenu.txt through link.store): a row that reached the game is saved once; a new
+-- instance over the same file stops it at coop off, and that stop clears the file, whether its rows ran or not.
+status_with('idle',228)
+calls={}
+local file,saves=nil,0
+local store={save=function(v) saves=saves+1; file=v; return true end,load=function() return file end,
+    clear=function() file=nil end}
+local first=D.new({log=function(m) lines[#lines+1]=m end,status=function() return status_text end,store=store})
+D.new({log=function() end,status=function() return status_text end,store=store}).stop()
+assert(#calls==0 and saves==0 and file==nil,'An empty file: nothing to end')
+assert(not first.command('nope') and #calls==0 and file==nil,'Nothing asked: nothing saved')
+assert(first.command('attack30') and first.command('heal') and #calls==3 and saves==1 and file=='asked',
+    'Saved once, at the first row that reached the game')
+local reloaded=D.new({log=function(m) lines[#lines+1]=m end,status=function() return status_text end,store=store})
+reloaded.stop()
+assert(#calls==5 and calls[4][4]=='9000029' and calls[5][4]=='2000805' and file==nil,
+    'The new Lua load ends what the last one asked, then clears the file')
+reloaded.stop(); assert(#calls==5,'Once')
+assert(reloaded.command('heal') and file=='asked' and saves==2,'Its own row saved again after the stop')
+status_with('busy',228)
+D.new({log=function(m) lines[#lines+1]=m end,status=function() return status_text end,store=store}).stop()
+assert(#calls==6 and file==nil and lines[#lines]:find('^coop off: devmenu lockswitch not asked: a respawn'),
+    'Refused at coop off: one try, the file cleared all the same')
 print('devmenu_test: ok')
