@@ -1491,6 +1491,9 @@ the usage line, and runs only alone (not in a session) on a [co-op save](#co-op-
    `SB/Content/Paks/LogicMods`).
 2. Load a co-op save you can lose. Entering a world the save has never been in may write that world, its zone and its
    enemies into the save; `coop saves refresh <0-4>` at the title replaces a co-op copy with a new copy of your save.
+   Once the game saves inside the dungeon, that co-op save loads only while zMXIII_P is installed, and the camp is
+   gone at the next game start (its row lives in memory only). Before you remove the pak, replace that copy with
+   `coop saves refresh <0-4>`.
 3. Type `coop mxiii`. It checks the pak and the travel's conditions, adds two rows to the game's tables in memory (the
    camp `DLC02_10_Camp_01` and the row that puts it in the dungeon's first zone, `Zone_DLC02_10`), then asks the game's
    own camp travel to go there, as `coop travel probe` does for a known camp.
@@ -1498,8 +1501,13 @@ the usage line, and runs only alone (not in a session) on a [co-op save](#co-op-
    rows went in. Load the save again (or travel to any camp), then type `coop mxiii` again: the rows stay until the
    game exits, so the second time it only travels.
 
-- The pak check reads `zMXIII_P.utoc` once per command and looks for `MXIII_P.umap` in it. A pak under another name is
-  not found.
+- The pak check reads `zMXIII_P.utoc` once per command and looks for `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap`
+  in it, with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it. A pak under another name is not found. The check reads the
+  folder as it is now: it cannot tell whether the game mounted the pak at start, and the game mounts paks only at
+  start. Copy the files in with the game closed.
+- The rows go in through the same native calls as `coop lion` and the shop's cut items. A fault in those calls during
+  `coop mxiii` stops them all until the game restarts: `coop lion`, `coop gardener fight`, `coop tendril fight`, and
+  the shop's stimpacks, ChainSpin and Shock Bolt that are not in yet then answer that the rows stopped on a fault.
 - The camp never shows on the world map, and the mod adds nothing else: no zone warp, no quest step, no item.
 - What you find there depends on the test pak. The dungeon's first zone spawns its enemies as you enter it (14 Antlions
   and a data drone in the game's spawn table).
@@ -1507,9 +1515,10 @@ the usage line, and runs only alone (not in a session) on a [co-op save](#co-op-
 
 | Line | What it answers |
 | --- | --- |
-| `[StellarCoop][MX] checks: solo on a co-op save, the native travel idle, <path> holds MXIII_P.umap` | The checks passed and the test pak holds the map |
+| `[StellarCoop][MX] checks: solo on a co-op save, the native travel idle, <path> holds WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas` | The checks passed and the test pak holds the map |
 | `[StellarCoop][MX] refused: no test pak: no <path> or <path>` | No test pak in either folder: nothing was asked |
-| `[StellarCoop][MX] refused: <why>` | A condition of the travel failed (a session, another save, a travel under way): nothing was asked |
+| `[StellarCoop][MX] refused: no test pak: <path> does not hold <name>` or `no <path> beside <path>` | The `.utoc` names the map under another folder or not at all, or its `.pak` or `.ucas` is missing: nothing was asked |
+| `[StellarCoop][MX] refused: <why>` | A condition of the travel failed (a session, another save, a travel under way or under 10 s ago, the native travel stopped by a fault): nothing was asked |
 | `mxiii rows: 2/2 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added the 2 rows |
 | `mxiii rows refused <row>: <why>; <n>/2 added` (`coop-link.log`) | A row the native part would not add, and why: no travel |
 | `[StellarCoop][MX] rows read back through FindRow: 2/2 authored rows, 4 fields as written (3 differ from the template row)` | Every field the native part wrote reads as written |

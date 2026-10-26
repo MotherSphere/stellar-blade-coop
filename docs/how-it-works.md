@@ -2006,9 +2006,12 @@ not.
 ### The command
 
 `cut/mxiii.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for `coop travel probe`'s
-guards (solo, a co-op save, the native travel there and idle), then looks for the test pak: `zMXIII_P.utoc` in
-`SB/Content/Paks/~mods` or `SB/Content/Paks/LogicMods`, whose directory index must name `MXIII_P.umap` (plain text in a
-container that is not encrypted). It reads that file once a command and never looks the map up with
+guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under way and no travel
+accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
+`SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain
+text in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
+IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the game started passes the
+check although the engine mounts paks only at start. It reads that file once a command and never looks the map up with
 `StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss. Then the rows go in through
 `cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for `DLC02_10_Camp_01`, a
 camp in none of its tables (`probe(alias, true)`). The native side is the follow's: the guard, the count and the watch
