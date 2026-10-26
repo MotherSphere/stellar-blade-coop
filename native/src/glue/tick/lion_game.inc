@@ -155,6 +155,79 @@ void lion_count() {
       safe_read(manager + kSpawnCount, &n, 4))
     lion_spawns = n;
 }
+// ---- The Shock Bolt's lists (lion/shock.h), once the lion rows batch is in ----
+// SB's functions for them on the pinned build: the registry's stance row by name (FUN_141a9cd20, read-only, the lookup
+// the stance change itself makes), SB's grow of an 8-byte TArray (FUN_140e47f00), the const store's key hash
+// (FUN_14117c1f0) and GMalloc (the FMalloc whose pointer is at 0x14706b500: Malloc at vtable +0x10, Realloc at +0x20).
+// Run in the same game-thread call as the batch's last AddRow, so inside the gate that call checked, under a latch of
+// its own: a fault there leaves every batch's rows as they are and only turns the Shock Bolt off for the run.
+constexpr uint64_t kStanceByName = 0x141a9cd20, kGrowNames = 0x140e47f00, kConstHash = 0x14117c1f0,
+                   kGMalloc = 0x14706b500;
+constexpr size_t kMallocSlot = 0x10, kReallocSlot = 0x20;
+using StanceByName = void *(*)(void *registry, uint64_t unused, uint64_t name); // The FName by value.
+using GrowNames = void (*)(void *array);
+using ConstHash = uint32_t (*)(const wchar_t *text);
+using Malloc = void *(*)(void *gmalloc, size_t n, uint32_t alignment); // Alignment 0: the default.
+using Realloc = void *(*)(void *gmalloc, void *p, size_t n, uint32_t alignment);
+std::atomic<uint64_t> shock_word{0}; // lion/shock.h's pack, 0 until the run.
+std::atomic<bool> shock_faulted{false};
+std::atomic<uint64_t> shock_fault_code{0}, shock_fault_rva{0}, shock_fault_address{0};
+bool shock_ran = false;
+// lion/shock.h's Game: lion/rows.h's (reads through safe_read, the registry), its writes now into SB's own arrays.
+struct WinShockGame : WinLionGame {
+  uint64_t stance_row(uint64_t name) {
+    return registry ? reinterpret_cast<uintptr_t>(game_function<StanceByName>(kStanceByName)(
+                          reinterpret_cast<void *>(registry), 0, name))
+                    : 0;
+  }
+  void grow(uint64_t array) { game_function<GrowNames>(kGrowNames)(reinterpret_cast<void *>(array)); }
+  uint32_t hash(const char *text) {
+    wchar_t wide[64];
+    size_t k = 0;
+    for (; text[k] && k + 1 < sizeof wide / sizeof wide[0]; ++k)
+      wide[k] = wchar_t(uint8_t(text[k]));
+    wide[k] = 0;
+    return game_function<ConstHash>(kConstHash)(wide);
+  }
+  uintptr_t gmalloc() {
+    const uintptr_t m = at<uintptr_t>(base + (kGMalloc - game::kImageBase));
+    return game::plausible(m) ? m : 0;
+  }
+  uint64_t malloc(size_t n) {
+    const uintptr_t m = gmalloc();
+    return m ? reinterpret_cast<uintptr_t>(reinterpret_cast<Malloc>(at<uintptr_t>(at<uintptr_t>(m) + kMallocSlot))(
+                   reinterpret_cast<void *>(m), n, 0))
+             : 0;
+  }
+  uint64_t realloc(uint64_t p, size_t n) {
+    const uintptr_t m = gmalloc();
+    return m ? reinterpret_cast<uintptr_t>(reinterpret_cast<Realloc>(at<uintptr_t>(at<uintptr_t>(m) + kReallocSlot))(
+                   reinterpret_cast<void *>(m), reinterpret_cast<void *>(p), n, 0))
+             : 0;
+  }
+};
+// Out of line, as lion_body is, for the __try below.
+__declspec(noinline) lion::ShockAnswer shock_body() {
+  WinShockGame g;
+  const uintptr_t holder = at<uintptr_t>(base + (fight::kTables - game::kImageBase));
+  g.registry = game::plausible(holder) ? at<uintptr_t>(holder + fight::kTablesAt) : 0;
+  if (!game::plausible(g.registry))
+    g.registry = 0;
+  return lion::shock(g, base);
+}
+// The one run, published before the lion line says rows (lion_finish follows it), so whoever reads rows reads this.
+void shock_step() {
+  shock_ran = true;
+  lion::ShockAnswer a;
+  __try {
+    a = shock_body();
+  } __except (fault_filter(GetExceptionInformation(), shock_fault_code, shock_fault_rva, shock_fault_address)) {
+    shock_faulted = true;
+  }
+  if (shock_faulted)
+    a = lion::ShockAnswer(), a.state = lion::ShockState::fault;
+  shock_word = lion::pack(a);
+}
 void lion_finish(RowsJob &j, lion::Answer a) {
   j.pending = false;
   a.added = uint8_t(j.builder.count());
@@ -197,6 +270,8 @@ void rows_step(RowsJob &j) {
     return;
   }
   if (why == lion::Why::none) {
+    if (&j == &lion_job && a.state == lion::State::rows && !shock_ran)
+      shock_step();
     lion_finish(j, a);
   } else if (++j.waited >= lion::kGateTicks) {
     a = lion::Answer(), a.state = lion::State::refused, a.why = why, a.row = uint8_t(j.batch.count);

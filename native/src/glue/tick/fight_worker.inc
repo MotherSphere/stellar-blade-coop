@@ -519,9 +519,10 @@ std::string ask_rows(const coop::Request &request) {
 
 namespace {
 // Each worker pass: one line for each answer the game thread finished for a batch (the R2 line, and with every row
-// in the R3 line of SB's own lookups), and the rows' fault once, by the batch that ran into it or first answered it.
+// in the R3 line of SB's own lookups), and the rows' fault once, by the batch that ran into it or first answered it;
+// the Shock Bolt's line once, after the lion rows' (its fault with where it was).
 uint32_t rows_logged[kRowWordCount] = {};
-bool lion_fault_logged = false;
+bool lion_fault_logged = false, shock_logged = false;
 void lion_pass() {
   for (size_t k = 0; k < kRowWordCount; ++k) {
     const RowsJob &j = *kJobs[k];
@@ -548,6 +549,21 @@ void lion_pass() {
       const uint32_t r = j.read;
       say(lion::describe_read(j.batch, {uint8_t(r), uint8_t(r >> 8), uint8_t(r >> 16)}));
     }
+  }
+  uint32_t asks = 0;
+  const uint64_t w = shock_word; // Published before the lion line said rows.
+  if (w && lion::unpack(lion_job.word, asks).state == lion::State::rows && !std::exchange(shock_logged, true)) {
+    if (!shock_faulted) {
+      say(lion::describe_shock(w));
+      return;
+    }
+    char text[300];
+    std::snprintf(text, sizeof text,
+                  "shock bolt off: fault 0x%08llx in %s reading 0x%llx; the rows stay, no Shock Bolt until the game "
+                  "restarts",
+                  static_cast<unsigned long long>(shock_fault_code.load()), fault_where(shock_fault_rva).c_str(),
+                  static_cast<unsigned long long>(shock_fault_address.load()));
+    say(text);
   }
 }
 } // namespace

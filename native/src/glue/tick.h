@@ -109,7 +109,7 @@ std::string ask_travel(const coop::Request &request);
 std::string ask_rows(const coop::Request &request);
 // Worker: coop-status.txt's lion, gardener and tendril lines (lion/rows.h's status_line), one per batch, joined by a
 // line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>, asks=<a>, spawns=<s> and
-// that state's own fields.
+// that state's own fields; then the shock line (lion/shock.h's shock_line: off, in, refused or fault).
 std::string rows_status();
 // Worker: coop-status.txt's shared quests lines (quest/engine.h's Worker::status), each ending in a line break.
 std::string quest_status();
