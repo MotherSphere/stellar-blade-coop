@@ -357,6 +357,15 @@ package.loaded['cut.chainspin']={new=function(o)
     cs.o=o
     return {command=function(...) cs.cmds[#cs.cmds+1]=table.pack(...); return true,'cs '..tostring((...)) end}
 end}
+-- coop devmenu (cut/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and how
+-- many native asks there were at its last stop; heal is its one row here.
+dm={}
+package.loaded['cut.devmenu']={new=function(o)
+    dm.o=o
+    return {row=function(name) return name=='heal' and {} or nil end,
+        command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
+        stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end}
+end}
 -- coop wear (cut/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks and
 -- stops, what a tick says.
 wr={}
@@ -602,6 +611,7 @@ function load_main(with_native,no_folder,source)
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
     cs.o,cs.cmds=nil,{}
+    dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil

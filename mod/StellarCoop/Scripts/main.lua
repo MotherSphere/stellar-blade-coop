@@ -77,6 +77,11 @@
 -- clip of the Cut category played once), on any save (cut/emote.lua, through the native part's custom animation call).
 -- coop shortcut lists the cut Load Shortcut menu's developer saves, read from the game's paks by the native part, on
 -- any save (left out of the usage line); loading one is held back.
+-- coop devmenu [list|<row>], the rows of the game's developer cheat menu that still work, through the same Cheat
+-- request as coop chainspin (cut/devmenu.lua; left out of the usage line; a row on a co-op save only; coop off runs
+-- its clear and lockswitch rows once more when a row ran). coop devinfo quest|player|off, the game's quest debugger
+-- and player info panels, opened and closed by the native part through the game's UI manager (game/dev_panels.h; left
+-- out of the usage line; any save, as both only read); coop off closes them.
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -411,6 +416,9 @@ o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glid
 -- coop chainspin (cut/chainspin.lua), logging [CS] lines: the cut ChainSpin's rows through coop lion, then the request.
 o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][CS] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,rows=function(done) return lion.rows(done) end})
+-- coop devmenu (cut/devmenu.lua), logging [DM] lines: the developer menu's working rows, through the same call.
+o.devmenu=require('cut.devmenu').new({log=function(m) print('[StellarCoop][DM] '..tostring(m)..'\n') end,
+    status=function() return link and link.status() end})
 -- coop ui and coop off stay here: they reach the UI objects built below and the photo pause above.
 local commands={
     -- reset, the escape hatch (UI-DESIGN 7.5): the menu and the chat's box closed, the game's input back now; off
@@ -478,7 +486,11 @@ local commands={
         if not stopped then log('glide: '..tostring(e)) end
         stopped,e=pcall(emote.stop) -- Her clip stopped: anim stop, asked before off, or the montage's stop.
         if not stopped then log('emote: '..tostring(e)) end
+        stopped,e=pcall(o.devmenu.stop) -- clear and lockswitch, while the engine line still names EVE.
+        if not stopped then log('devmenu: '..tostring(e)) end
         if not link then return true,'everything is off until the game restarts' end
+        stopped,e=pcall(ask('devinfo off')) -- The game's developer panels closed, if open.
+        if not stopped then log('devinfo: '..tostring(e)) end
         return ask('off')()
     end,
 }

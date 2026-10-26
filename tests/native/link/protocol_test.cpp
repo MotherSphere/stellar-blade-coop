@@ -646,6 +646,16 @@ int main() {
   assert(parse_request("shortcut list\r\n").command == Command::shortcut);
   for (const char *bad : {"shortcut", "shortcut List", "shortcut list now", "shortcut load F02 1", "shortcutlist"})
     assert(parse_request(bad).command == Command::none);
+  // coop devinfo: a panel or off, nothing else.
+  Request d = parse_request("devinfo quest\n");
+  assert(d.command == Command::devinfo && d.panel == 1);
+  d = parse_request("devinfo player\r\n");
+  assert(d.command == Command::devinfo && d.panel == 2);
+  d = parse_request("devinfo off");
+  assert(d.command == Command::devinfo && d.panel == 0);
+  for (const char *bad : {"devinfo", "devinfo Quest", "devinfo quest now", "devinfoquest", "devinfo  off", "devinfo on",
+                          "devinfo boss"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");

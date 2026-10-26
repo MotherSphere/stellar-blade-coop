@@ -92,6 +92,11 @@
 // 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
 // lines. It writes nothing and keeps no bytes.
 //
+// coop devinfo (game/dev_panels.h): the worker hands over the developer panel Lua asked for (the quest debugger or the
+// player info) or off; the next frame the game thread finds both through SB's UI manager, closes the one not wanted and
+// opens the one asked with the game's own calls, under its own SEH latch, after coop off too (coop off asks off first);
+// the worker logs each answer.
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -114,6 +119,7 @@
 #include "fight/worker.h"
 #include "game/anim.h"
 #include "game/debug_keys.h"
+#include "game/dev_panels.h"
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
@@ -212,5 +218,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // coop shortcut's list, its own latch: a file a frame while a list is under way; none after coop off or a fault.
   if (game_pinned && !shortcut_faulted && !blocked)
     shortcut_tick();
+  // SB's developer panels, their own latch: an ask taken each frame, after coop off too (only off is asked then).
+  if (game_pinned && !devinfo_faulted)
+    devinfo_tick();
   return 0;
 }

@@ -143,9 +143,14 @@ std::string ask_freeze(bool on, uint64_t ms, uint64_t now_ms);
 // until off, coop off or the next Lua load; refused off the pinned build, after coop off and after the gates' fault.
 // Returns the line for the log.
 std::string ask_gate(const coop::Request &request);
+// SB's developer panels (game/dev_panels.h), worker thread. The coop devinfo request (Command::devinfo): the quest
+// debugger or the player info opened (the other closed), or both closed, at the game thread's next frame; refused off
+// the pinned build and after the panels' fault, and after coop off unless it is off. Returns the line for the log;
+// debug_pass logs the game thread's answer.
+std::string ask_devinfo(const coop::Request &request);
 // Every pass after the link's tick: hands the game thread the gates to set (the asks, on a co-op save, slow motion with
-// no friend linked; marker: the slot StellarCoopSlot.txt names), logs what its passes did and returns a line for the
-// player's screen (a refusal, a fault), or empty.
+// no friend linked; marker: the slot StellarCoopSlot.txt names), logs what its passes did (and coop devinfo's answers)
+// and returns a line for the player's screen (a refusal, a fault), or empty.
 std::string debug_pass(bool linked, int marker, uint64_t now_ms);
 // coop emote's native clips (game/anim.h), worker thread. Lua's anim request (Command::anim): a play of one of EVE's
 // clips by path, once or in a loop, or a stop of ours, for the game thread's next frame; refused off the pinned build,

@@ -1049,6 +1049,7 @@ private:
     case Command::gate:
     case Command::anim:
     case Command::shortcut:
+    case Command::devinfo:
       break;
     case Command::none:
       event("unknown request");
