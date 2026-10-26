@@ -828,7 +828,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
-| `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-chapter-loader-coop-shortcut) in `coop-link.log` (test command, untested in game, any save; loading one is held back) |
+| `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save; loading one is held back) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -1492,7 +1492,7 @@ Its lines go to `UE4SS.log` with the `[StellarCoop][GL]` tag: `glide on EVE (vel
 starts and `glide ended (landed) after 2.4 s` when it ends, with `Jump released` or `flight or rising` instead of
 `landed` when that is what ended it.
 
-### Cut chapter loader: `coop shortcut`
+### Cut Load Shortcut saves: `coop shortcut`
 
 The game still holds a cut menu, Load Shortcut, that started a developer save at a set point of the story. Its button
 never shows on the title screen, and the menu loads nothing: its load call was removed. The saves it lists are still in
