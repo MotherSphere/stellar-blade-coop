@@ -258,6 +258,64 @@ private:
   std::deque<std::string> recent_;
 };
 
+// The adaptive pose rate: Steam's view of a friend's session, read once a second, caps the poses we send a second, so a
+// link that cannot carry them does not queue them (Steam never expires a queued unreliable message: each one waits its
+// turn and the ghost falls behind). Two readings in a row with Steam's queue time at 100 ms or more, or 64 KiB or more
+// of unreliable bytes pending, step the cap down to the next one of 60, 30 and 20 below the rate that goes now (the
+// player's send_rate under the cap); none below 20. After 10 calm readings (queue under 20 ms and pending under 16 KiB)
+// with none over the line since the last step, it steps up one cap; a reading in between neither counts nor resets.
+// A step up undone within that wait doubles the wait (10, 20, 40, 80 s), so on a link that carries 30 but not 60 the
+// cap returns to 60 less and less often; a step up that holds for its wait brings the wait back to 10 s. A 16 KiB
+// keyframe drains in 62.5 ms at Steam's default send rate (256 KiB/s) and a 64 KiB table in 250 ms: the line and the
+// second reading keep those from counting.
+// tests/native/link/pose_cap_test.cpp checks it.
+constexpr uint32_t kPoseCaps[] = {60, 30, 20};
+constexpr size_t kPoseCapCount = sizeof kPoseCaps / sizeof kPoseCaps[0];
+constexpr int64_t kQueueOverUs = 100'000, kQueueCalmUs = 20'000;
+constexpr int32_t kPendingOver = 65536, kPendingCalm = 16384;
+constexpr int kOverReadings = 2, kCalmReadings = 10, kCalmMaxReadings = 80;
+struct PoseCap {
+  enum class Step { none, down, up };
+  size_t level = 0; // kPoseCaps[level] is the cap.
+  // Readings in a row over the line; calm readings since the last one over it or the last step.
+  int over = 0, calm = 0;
+  int wait = kCalmReadings; // Calm readings before a step up.
+  int trial = -1;           // Readings since the last step up, while a step down would undo it; -1: none.
+  uint32_t cap() const { return kPoseCaps[level]; }
+  // One reading, with the player's send_rate.
+  Step read(uint32_t rate, int64_t queue_us, int32_t pending) {
+    const bool over_line = queue_us >= kQueueOverUs || pending >= kPendingOver;
+    if (trial >= 0 && ++trial >= wait) { // The last step up held.
+      trial = -1;
+      wait = kCalmReadings;
+    }
+    over = over_line ? over + 1 : 0;
+    calm = over_line ? 0 : calm + (queue_us < kQueueCalmUs && pending < kPendingCalm);
+    if (over >= kOverReadings) {
+      const uint32_t going = rate < cap() ? rate : cap(); // Not std::min: windows.h may define min (glue/steam.cpp).
+      size_t next = level + 1;
+      while (next < kPoseCapCount && kPoseCaps[next] >= going)
+        ++next;
+      if (next == kPoseCapCount) // At 20 a second or less already.
+        return Step::none;
+      level = next;
+      over = calm = 0;
+      if (trial >= 0) {
+        wait = 2 * wait < kCalmMaxReadings ? 2 * wait : kCalmMaxReadings;
+        trial = -1;
+      }
+      return Step::down;
+    }
+    if (level && calm >= wait) {
+      --level;
+      calm = 0;
+      trial = 0;
+      return Step::up;
+    }
+    return Step::none;
+  }
+};
+
 // One second of a member's messages on a channel that passed the rate limit.
 struct Window {
   uint64_t at = 0, count = 0, bytes = 0;
@@ -308,10 +366,11 @@ struct Peer {
   int last_result = 1;      // The last failed send's EResult.
   bool drop_logged = false;  // One drop line per 60 s line.
   bool fight_logged = false; // The same for channel 2, whose lines the 60 s line does not count.
-  // Steam's view of the session, read once a second, logged only.
+  // Steam's view of the session, read once a second: logged, and its queue and pending bytes cap our pose rate.
   float quality_local = -1, quality_remote = -1;
   int32_t send_rate = 0, pending = 0;
   int64_t queue_us = 0;
+  PoseCap cap;
 };
 
 // Callback counters, kept by the caller (they are bumped on the game's Steam thread).
@@ -419,10 +478,22 @@ public:
   // This account's SteamID: 0 until Steam is ready.
   uint64_t me() const { return me_; }
 
+  // The player's send_rate (10 to 60 poses a second), for the pose cap's steps down; and the cap: the lowest of the
+  // friends' past the handshake (PoseCap), kPoseCaps[0] with none. The pose path sends at the lower of the two.
+  void pose_rate(uint32_t rate) { pose_rate_ = rate; }
+  uint32_t pose_cap() const {
+    uint32_t cap = kPoseCaps[0];
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted)
+        cap = p.cap.cap() < cap ? p.cap.cap() : cap;
+    return cap;
+  }
+
   // The pose path's table (reliable), pose or SBE (unreliable), on channel 1 to every friend past the handshake only.
   // Worker thread, like tick().
   // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s
-  // line's queue). Over 100 ms, add NoDelay (4) or SendRateMin/Max through SetConfigValue.
+  // line's queue). PoseCap lowers the pose rate past 100 ms of queue; if the queue still grows at 20 a second, add
+  // NoDelay (4) or SendRateMin/Max through SetConfigValue.
   void send_binary(const uint8_t *data, size_t size, bool reliable) {
     for (auto &p : peers_) {
       if (!p.compatible || !p.accepted)
@@ -1706,13 +1777,31 @@ private:
       for (int b = 3; b >= 0; --b)
         ping_ms = static_cast<int32_t>((static_cast<uint32_t>(ping_ms) << 8) | quick[4 + b]);
       peer.session_ping = ping_ms;
-      // Log-only, as the SDK 1.59 layout puts them: quality local and remote, send rate, pending unreliable bytes,
-      // queue time in us.
+      // As the SDK 1.59 layout puts them: quality local and remote, send rate, pending unreliable bytes, queue time in
+      // us. The last two cap our pose rate (PoseCap), each step logged once.
       std::memcpy(&peer.quality_local, quick + 8, 4);
       std::memcpy(&peer.quality_remote, quick + 12, 4);
       std::memcpy(&peer.send_rate, quick + 32, 4);
       std::memcpy(&peer.pending, quick + 36, 4);
       std::memcpy(&peer.queue_us, quick + 48, 8);
+      if (peer.compatible && peer.accepted) {
+        const PoseCap::Step step = peer.cap.read(pose_rate_, peer.queue_us, peer.pending);
+        char line[320];
+        if (step == PoseCap::Step::down)
+          std::snprintf(line, sizeof line,
+                        "pose rate cap %u a second for %s: Steam's queue %.1f ms, %d B pending (2 s at 100 ms or 64 "
+                        "KiB or more); send rate %d B/s, quality %.2f/%.2f; up again after %d s calm",
+                        unsigned(peer.cap.cap()), peer.name.c_str(), peer.queue_us / 1000.0, int(peer.pending),
+                        int(peer.send_rate), double(peer.quality_local), double(peer.quality_remote), peer.cap.wait);
+        else if (step == PoseCap::Step::up)
+          std::snprintf(line, sizeof line,
+                        "pose rate cap %u a second for %s: %d s calm (queue under 20 ms, pending under 16 KiB), now "
+                        "%.1f ms, %d B",
+                        unsigned(peer.cap.cap()), peer.name.c_str(), peer.cap.wait, peer.queue_us / 1000.0,
+                        int(peer.pending));
+        if (step != PoseCap::Step::none)
+          event(line);
+      }
       // A first connection that failed (4 closed by peer, 5 problem detected) took both hellos with it: greet again,
       // which restarts the session (kReliable has AutoRestartBrokenSession). Still no hello of hers kHelloAgainMs after
       // ours: greet again too, as a repeat she had to leave unanswered is answered once her wait is over.
@@ -1792,6 +1881,7 @@ private:
   std::set<uint64_t> allowed_;
   std::map<uint64_t, uint64_t> refused_;
   uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;
+  uint32_t pose_rate_ = kPoseCaps[0]; // The player's send_rate (Lua's coop-state.txt).
   int relay_ = 0;
   bool relay_known_ = false, overlay_ = false;
   std::deque<std::string> notices_; // The last kNotices, oldest first; notice_count_ numbers the newest.

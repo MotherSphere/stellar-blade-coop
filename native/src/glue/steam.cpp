@@ -647,6 +647,7 @@ bool step() {
                   lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max,
                   lua.cut);
       link->mod_names(lua.names);
+      link->pose_rate(lua.rate);
       link->loopback(coop::pose::loopback());
     }
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
@@ -738,10 +739,13 @@ bool step() {
         linked ? link->mate_life() : coop::Life::unknown);
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
-    coop::pose::peer(linked, GetTickCount64(), [](const uint8_t *d, size_t n, bool reliable) {
-      if (api.user_handle())
-        link->send_binary(d, n, reliable);
-    });
+    coop::pose::peer(
+        linked, GetTickCount64(),
+        [](const uint8_t *d, size_t n, bool reliable) {
+          if (api.user_handle())
+            link->send_binary(d, n, reliable);
+        },
+        linked ? link->pose_cap() : coop::kPoseCaps[0]);
     std::string text = status_text();
     if (text != written && write_text(folder + L"coop-status.txt", text))
       written = text;

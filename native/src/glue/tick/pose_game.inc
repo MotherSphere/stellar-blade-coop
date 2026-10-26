@@ -100,7 +100,7 @@ bool out_ready = false; // out_back holds a pose the worker has not been handed 
 std::array<Message, kInbox> game_inbox;
 size_t game_inbox_count = 0;
 // The send interval: 20 poses a second (N4) until coop-state.txt says otherwise (send_rate, 10 to 60; Lua's default is
-// 60). The worker stores it, the game thread reads it.
+// 60), and never more than the link's cap (link/core.h PoseCap). The worker stores it, the game thread reads it.
 std::atomic<uint64_t> send_us{50'000};
 // GFrameCounter (PHASE2-RE.md): incremented once per frame by FEngineLoop::Tick, and on some loading paths; compare
 // "different from the last call", never "last + 1".

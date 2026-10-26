@@ -419,15 +419,22 @@ without Nagle delay). Same-place enemies add a binary message starting `SBE` and
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
 other screen.
 
-- Your table goes to your friend at once and again every 5 s, so a table lost with a broken session, or sent before
-  they accepted, arrives with a later resend. An identical table is ignored. A changed capture (a new outfit, the
-  blade drawn) goes at once.
+- Your table goes to your friend at once, again 5 s later, and then at waits that double while nothing changes, up to
+  60 s: 5, 10, 20, 40, 60, 60 s. A table lost with a broken session, or sent before they accepted, arrives with a
+  later resend. An identical table is ignored. A changed capture (a new outfit, the blade drawn) goes at once, and the
+  next resend comes 5 s after it. A pose of theirs that comes after a second or more without one brings the next
+  resend within 5 s. Such a gap comes with a broken session, which stops their poses too, and with their loopback or
+  replay, which removes your table and sends you nothing until it ends. Their game does the same for their table. An
+  older protocol 13 build (v0.6.0-beta.1 to beta.3) still sends its table every 5 s, so with one of those both tables
+  also come back within 5 s.
 - A table of theirs that needs a new ghost (a new generation or layout) is taken at most once every 2 s. One that comes
   sooner is refused (the stream line's `tables: ... refused`) and their next resend brings it.
 - Poses go 60 a second by default (`send_rate`, 10 to 60), at most one per game frame: a game running at 45 fps
   sends 45. With deltas, 60 a second took 89 to 131 KiB/s in tests with simulated idle, running and combat motion on a
   5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s
-  (176 KiB/s while it also sends `SBE`), under Steam's default send rate of 256 KiB/s.
+  (176 KiB/s while it also sends `SBE`), under Steam's default send rate of 256 KiB/s. When Steam's queue to the
+  friend shows that the link cannot keep up, the rate drops to 30 or 20 a second until the link is calm again (see
+  [link health](#link-health-in-the-log)).
 - Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 240 messages
   and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
   (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`). A non-member's data is
@@ -462,6 +469,18 @@ Every 60 s, `coop-link.log` has one line per linked friend (`<name>, last 60 s: 
 channel 1, drops, failed sends with the last Steam result (25 means its send buffer is full), the ping's RTT average
 and maximum, pings sent and pongs received (the difference is ping loss), and Steam's view of the session: quality
 local and remote, send rate, pending unreliable bytes and queue time.
+
+The same view, read once a second, caps the poses sent a second. Steam keeps an unreliable message queued until it
+goes, so a link slower than the stream would make the ghost fall further and further behind. Two readings in a row
+with a queue time of 100 ms or more, or 64 KiB or more of unreliable bytes pending, lower the cap: 60, then 30, then
+20, never below 20, and never to a value that changes nothing under your `send_rate` (at `send_rate=30` it goes
+straight to 20). Ten calm readings (queue under 20 ms and pending under 16 KiB) with none over the limit raise it one
+step; readings in between neither count nor reset. When a step up is undone before its wait is over, the next wait
+doubles (10, 20, 40, then 80 s), so on a link that carries 30 but not 60 the cap returns to 60 less and less often.
+Each step writes one line, for example `pose rate cap 30 a second for <name>: Steam's queue 150.0 ms, 70000 B pending
+(2 s at 100 ms or 64 KiB or more); send rate 131072 B/s, quality 0.91/0.93; up again after 10 s calm`. The stream
+line shows the cap in force as `link cap <n>`. A single 16 KiB keyframe takes 62.5 ms to leave at Steam's default send
+rate and a 64 KiB table 250 ms, which is why one reading over the limit is not enough.
 
 ## The ghost pipeline
 
@@ -532,9 +551,18 @@ Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A 
 its keyframe in microseconds, the world transform, one bit for each bone rotation, translation, scale and effect slot,
 and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every 250 ms, and
 whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and decodes it
-like a keyframe, so a delta gives exactly the same pose. A delta whose keyframe was lost on the way is dropped and
-counted as keyless; the ghost waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to
-41 % (combat) of the full pose.
+like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the ghost waits for the
+next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full pose.
+
+A bone's rotation, translation or scale counts as changed only when it is more than a small tolerance away from the
+keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° at most), 1 step of translation
+(1/32 cm) and 1 step of scale (1/4096). Until it moves further, the receiver keeps the keyframe's value, for 250 ms
+at most. This drops the fields that only flip their last step from float noise, and needs no change on the receiving
+side. The test build `build/host/pose_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes,
+deltas and KiB/s with and without the tolerance: `build/host/pose_delta_gain_test coop-record.bin`. A recording holds
+the stream you sent, so make it with a build that has no tolerance (v0.6.0-beta.3 or older). A recording from a build
+with the tolerance already holds the keyframe's values for those fields, so both lines show the same KiB/s. With no
+file the tool measures two synthetic recordings; they show how the tool works, not what a real outfit saves.
 
 ### 4. Playback clock and interpolation
 

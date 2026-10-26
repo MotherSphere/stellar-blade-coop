@@ -944,8 +944,8 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   shield and gauges stand in for theirs on the partner card (`mate=` in `coop status`).
 - The loopback and the replay never run together. Either one replaces a linked friend until it is off: nothing is sent
   to the friend meanwhile, what they send is ignored, and their ghost is removed. When it stops, you are linked again:
-  your table goes to them at once and theirs comes back with their next resend. A recording can run at the same time
-  as either one.
+  your table goes to them at once, and theirs comes back within 5 s: their game sends it again when your poses reach
+  them after the gap. A recording can run at the same time as either one.
 
 See [how-it-works.md](how-it-works.md#loopback-record-and-replay) for the parts of the pipeline each one tests.
 
@@ -2245,7 +2245,7 @@ status_overlay=off
 | `who_can_join` | `friends`, `code` or `private`: who can join a session you host (`code`: anyone with your [join code](#join-codes); `private`: only the friends you invite) | `friends` |
 | `auto_coop_save` | `ask`, `always` or `off`: the [co-op saves](#co-op-saves) at the title | `ask` |
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
-| `send_rate` | `10` to `60` poses sent a second | `60` |
+| `send_rate` | `10` to `60` poses sent a second at most (a link that cannot keep up lowers it to 30 or 20 for a while: [link health](how-it-works.md#link-health-in-the-log)) | `60` |
 | `cloth` | `on` or `off`: her ponytail as cloth on the ghost you see | `on` |
 | `dyes` | `on` or `off` | `off` |
 | `effects` | `on` or `off` | `off` |
