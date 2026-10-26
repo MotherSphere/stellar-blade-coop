@@ -171,11 +171,15 @@ eve.stick={X=0.6,Y=0,Z=0}
 assert(em.tick()==nil and not em.active())
 assert(eve.anim.stops[1].blend==0.25 and eve.anim.stops[1].m.n==1)
 assert(last()=='emote clap ended (movement input) after 1.5 s',last())
+-- Along Y alone too: the length counts every axis.
+em.command('clap')
+eve.stick={X=0,Y=0.6,Z=0}
+assert(em.tick()==nil and not em.active() and last()=='emote clap ended (movement input) after 0.0 s',last())
 eve.stick={X=0,Y=0,Z=0}
 -- Played again: from the cache, no load and no lookup.
 finds=0
 em.command('clap')
-assert(#loads==2 and finds==0 and eve.anim.plays[2].asset==memory[DIR..'Clap.Clap'],'Cached: '..finds)
+assert(#loads==2 and finds==0 and eve.anim.plays[#eve.anim.plays].asset==memory[DIR..'Clap.Clap'],'Cached: '..finds)
 -- A jump, a skill, and a montage that no longer plays end it.
 eve.move.falling=true
 em.tick()
