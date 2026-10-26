@@ -1,12 +1,13 @@
 -- coop nightop shop and buy (nightop/shop.lua) over fakes: a status text, a wallet store in memory, EVE and the player
 -- controller (nightop/probe.lua's her and controller), the controller's grant call, recorded or raising, and Lion.rows
--- (in at once, refused, or waiting with its answer later). Covered: only the six catalogue aliases, a GUID and a count of
--- 1-10 reach the grant call, with its nine arguments; the list;
+-- (in at once, refused, or waiting with its answer later). Covered: only the seven catalogue aliases, a GUID and a
+-- count of 1-10 reach the grant call, with its nine arguments; the list;
 -- each refusal of a buy, in order, with no call and no point taken; points taken and written only after a call that
 -- returned, and kept when the call raises; a signed GUID read; one wallet per SteamID and co-op slot, read from its .tmp
 -- when a failed rename left only that, and refused with nothing written when it cannot be opened; the credit and its
 -- cap; a cut item granted only once its rows are in (at once or after the wait, with every check again then), refused
--- with no point taken when they cannot be added, and not asked for before the buy's own checks pass.
+-- with no point taken when they cannot be added, and not asked for before the buy's own checks pass; the Shock Bolt
+-- granted only once the status's shock line reads in as well.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -22,9 +23,12 @@ package.loaded['nightop.probe']={her=function() return her end,controller=functi
 local Shop=require('nightop.shop')
 
 -- 1. The grant: an alias of the catalogue, a GUID and 1-10 items only; nothing else reaches the call.
-local ALIASES={'HP_Potion','HP_Potion_Small','PulseGrenade','ConcussionGrenade','HP2Burst_Potion','Buff_HP2MP'}
-for i,item in ipairs(Shop.ITEMS) do assert(item.alias==ALIASES[i] and (item.cut==true)==(i>4)) end
-assert(#Shop.ITEMS==6 and Shop.ITEMS[1].price==15 and Shop.ITEMS[2].price==10 and Shop.ITEMS[3].price==6
+local ALIASES={'HP_Potion','HP_Potion_Small','PulseGrenade','ConcussionGrenade','HP2Burst_Potion','Buff_HP2MP',
+    'Bullet_Shock'}
+for i,item in ipairs(Shop.ITEMS) do
+    assert(item.alias==ALIASES[i] and (item.cut==true)==(i>4) and (item.shock==true)==(i==7))
+end
+assert(#Shop.ITEMS==7 and Shop.ITEMS[1].price==15 and Shop.ITEMS[2].price==10 and Shop.ITEMS[3].price==6
     and Shop.ITEMS[4].price==8,'The cut table prices')
 -- The cut items are the ItemTable rows the native part adds (cut/lion_rows.lua, generated with lion/rows.h).
 do
@@ -40,7 +44,7 @@ end
 for _,g in ipairs({0,-1,0x100000000,7.0,'7'}) do assert(not pcall(Shop.grant,pc,g,'HP_Potion',1),tostring(g)) end
 assert(#calls==0,'Nothing reached the call')
 for _,alias in ipairs(ALIASES) do Shop.grant(pc,7,alias,10) end
-assert(#calls==6)
+assert(#calls==7)
 local a=calls[1]
 assert(a.n==9 and a[1]==1 and a[2]==7 and a[3]:ToString()=='HP_Potion' and a[4]==10 and a[5]==0 and a[6]==true
     and a[7]==false and a[8]==false and type(a[9])=='table' and next(a[9])==nil,'The nine arguments')
@@ -112,7 +116,8 @@ write_fails=nil
 assert(#lines==before,'No credit line for a refused credit')
 local ok,text=shop.list()
 assert(ok and text=='Night Operation shop, 113 points: 1 HP_Potion 15, 2 HP_Potion_Small 10, 3 PulseGrenade 6, '
-    ..'4 ConcussionGrenade 8, 5 HP2Burst_Potion 20, 6 Buff_HP2MP 16. coop nightop buy <n> [count] buys up to 10.',text)
+    ..'4 ConcussionGrenade 8, 5 HP2Burst_Potion 20, 6 Buff_HP2MP 16, 7 Bullet_Shock 5. coop nightop buy <n> [count] '
+    ..'buys up to 10.',text)
 files[FILE]='junk\n'
 ok,text=shop.list(); assert(ok and text:find('^Night Operation shop, 0 points:'),'Junk reads 0')
 -- No wallet file but its .tmp: core/link.lua's put removed the file, then its rename failed. The .tmp holds the newest
@@ -139,7 +144,7 @@ files[FILE]='113\n'
 
 -- 3. A buy's refusals, in order: each with no call and no point taken. Every check fails at first; each fix moves the
 -- refusal to the next one.
-local BUY='Use: coop nightop buy <item 1-6> [count 1-10]'
+local BUY='Use: coop nightop buy <item 1-7> [count 1-10]'
 local function refused(n,count,want)
     local was=#calls
     ok,text=shop.buy(n,count)
@@ -263,4 +268,23 @@ assert(ok and asks==5,text)
 ok,text=later(false,'No answer on the Lion rows in 30 s')
 assert(not ok and text:find('^HP2Burst_Potion cannot be added to the game %(No answer') and #calls==7 and
     files[FILE]=='100\n',text)
+-- The Shock Bolt: its rows in, then the shock line read; anything but in (none, refused, a fault) buys nothing.
+answer='in'
+ok,text=cut.buy('7','4')
+assert(not ok and text=='Bullet_Shock cannot be fired in this game (shock=missing): nothing bought, no points taken'
+    and #calls==7 and files[FILE]=='100\n',text)
+assert(lines[#lines]=='buy Bullet_Shock x4: the gun cannot fire it (shock=missing); no points taken',lines[#lines])
+local plain=status_text
+status_text=plain..'shock=refused why=list at=BulletItemSlotArray\n'
+ok,text=cut.buy('7','4')
+assert(not ok and text=='Bullet_Shock cannot be fired in this game (shock=refused why=list at=BulletItemSlotArray): '
+    ..'nothing bought, no points taken' and #calls==7,text)
+status_text=plain..'shock=off\n'
+ok,text=cut.buy('7')
+assert(not ok and text:find('%(shock=off%)') and #calls==7,text)
+status_text=plain..'shock=in commands=24,24 added=4 list=6 slots=6\n'
+ok,text=cut.buy('7','4')
+assert(ok and text=='bought 4 Bullet_Shock for 20 points; 80 left' and #calls==8 and files[FILE]=='80\n',text)
+assert(calls[8][3]:ToString()=='Bullet_Shock' and calls[8][4]==4 and calls[8][1]==1)
+status_text=plain
 print('nightop_shop_test ok')
