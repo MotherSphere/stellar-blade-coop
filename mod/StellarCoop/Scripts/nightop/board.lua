@@ -12,8 +12,10 @@
 -- its path as ui/kit.lua sweeps its root if a test shows it.
 local U=require('core.unreal')
 local Board={}
-local PACKAGE='/Game/Art/UI/Widget/Test/WB_ShootingTrainingTest'
-local CLASS=PACKAGE..'.WB_ShootingTrainingTest_C'
+-- LoadAsset takes the Blueprint's object path (<package>.<asset>): UE4SS looks it up in the asset registry, where a
+-- package path finds nothing.
+local ASSET='/Game/Art/UI/Widget/Test/WB_ShootingTrainingTest.WB_ShootingTrainingTest'
+local CLASS=ASSET..'_C'
 local WIDGETS='/Script/UMG.Default__WidgetBlueprintLibrary'
 local Z=99 -- Under the Uplink kit's root (ui/kit.lua's 100).
 local COLLAPSED,HIT_TEST_INVISIBLE=1,3 -- ESlateVisibility.
@@ -34,7 +36,7 @@ function Board.new(o)
         if not pc then return nil end
         local class=U.valid(StaticFindObject(CLASS))
         if not class then
-            pcall(LoadAsset,PACKAGE)
+            pcall(LoadAsset,ASSET)
             class=assert(U.valid(StaticFindObject(CLASS)),'WB_ShootingTrainingTest is not in this game build')
         end
         x=assert(U.valid(U.find(WIDGETS):Create(pc,class,pc)),'CreateWidget gave nothing')

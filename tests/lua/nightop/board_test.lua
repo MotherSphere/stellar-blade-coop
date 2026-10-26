@@ -70,9 +70,11 @@ StaticFindObject=function(path)
     assert(path==CLASS,'unexpected StaticFindObject '..path)
     return class_in_memory and class or missing
 end
+-- UE4SS's LoadAsset looks its argument up in the asset registry by object path (<package>.<asset>): a package path
+-- finds nothing and loads nothing.
 LoadAsset=function(path)
     record('LoadAsset',path)
-    assert(path=='/Game/Art/UI/Widget/Test/WB_ShootingTrainingTest')
+    assert(path=='/Game/Art/UI/Widget/Test/WB_ShootingTrainingTest.WB_ShootingTrainingTest','LoadAsset '..path)
     if class_in_build then class_in_memory=true end
 end
 FText=function(s) return {text=s} end
