@@ -12,7 +12,8 @@ friend's revive, the cutscene wait, kills that count only for a player who took 
 challenges, Doro races, the co-op line at camp phone booths and the controller in the co-op menu. The Leviathan viewer
 and its free camera ran in game on one PC on 2026-10-22. None of the 0.6 additions has run in game yet: the first-launch
 guide, the .pak mod list and CNS outfits over the link, the UE4SS settings warning, `coop lion`, `coop wear`,
-`coop gardener` and `coop tendril`. 0.6 uses link protocol 13, so both players need 0.6.
+`coop gardener` and `coop tendril`. 0.6.0-beta.1 to beta.3 use link protocol 13. Later releases use protocol 14
+and do not link with them.
 
 Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
 the Steam client that the game already runs, so the mod needs no other program and no server of its own.
@@ -151,7 +152,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same mod protocol (13 in this version) and the same game build.
+- To play together, both players need the same mod protocol (14 in this version) and the same game build.
 
 ## Disclaimer
 
