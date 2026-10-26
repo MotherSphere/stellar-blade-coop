@@ -296,7 +296,8 @@ death screen up, and the run goes on for her partner. The cut mode put a downed 
 the rule table ships empty and the run starts no rule, so the mod keeps the game's death screen and revives with the
 game's in-place respawn.
 
-- She waits up to 30 s. Her card's title reads `Spectating` and the time left. Her screen shows
+- She waits up to 30 s. Her card's title reads `Spectating` and the time left. The card hides while the game shows
+  one of its own screens, so whether it shows over the death screen is not known yet. Her screen shows
   `Asked <partner> for a resuscitation.` and her partner's shows `<name> has requested resuscitation.`
 - Her partner revives her by standing next to her EVE (its ghost within 2 m across and 1 m up or down of the partner's
   EVE) and holding the interact key, F or the pad's right trigger, for 3 s. The partner's card reads
