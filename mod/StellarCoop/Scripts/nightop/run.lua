@@ -221,8 +221,9 @@ end
 -- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off and for
 -- what the partner did; send(line) writes our night line (core/link.lua's night); friend() the partner's Steam name;
 -- store(name) core/link.lua's one-line file, for the shop's wallet; rows(done, word) cut/lion.lua's Lion.rows, for the
--- shop's cut items. records: {read() the text of coop-records.txt, nil when there is none (it raises when the file
--- cannot be read), write(text) true once written}, or nil for no bests.
+-- shop's cut items and its screen's rows; ask(line) the native part's request, for the shop's screen. records: {read()
+-- the text of coop-records.txt, nil when there is none (it raises when the file cannot be read), write(text) true once
+-- written}, or nil for no bests.
 function Run.new(o)
     local log,status,paused,tell,records=o.log,o.status,o.paused,o.tell,o.records
     local send,friend=o.send,o.friend or function() return nil end
@@ -244,7 +245,7 @@ function Run.new(o)
         if more then notify(function(w) return select(2,Run.result(s,w,no_text,best)) end) end
     end
     local r=nil -- The run, nil when idle: s is nightop/waves.lua's state; role 'host' or 'guest' in a co-op run.
-    local shop=Shop.new({log=log,status=status,store=o.store,paused=paused,rows=o.rows,
+    local shop=Shop.new({log=log,status=status,store=o.store,paused=paused,rows=o.rows,ask=o.ask,tell=tell,
         busy=function() return r~=nil and r.s.phase~='result' end})
     -- The night line. Ours: n (one up a line), the last line's words but n and rt, ticks since it went. Hers: the last
     -- night= text read. Each (run byte, seed) the guest answered, her refusal while she sends it, and the run bytes she
@@ -685,7 +686,8 @@ function Run.new(o)
         end
         step(input)
     end
-    local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | shop | buy <n> [count]]'
+    local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | shop | buy [<n> '
+        ..'[count]]]'
     -- A new run of def (Night Operation's when nil) at game time now around at (whole cm) facing yaw (whole degrees):
     -- the run byte and seed give the gate order, so the host's and the guest's runs put each monster on the same spot.
     local function begin(run,seed,now,at,yaw,map,flag,def)
@@ -706,6 +708,7 @@ function Run.new(o)
         if r and r.s.phase~='result' then
             return false,'a run is on: coop '..(def.level and 'nightop' or 'challenge')..' stop ends it'
         end
+        if shop.busy() then return false,"the Night Operation shop's screen is open: close it first" end
         local raw='\n'..(status() or '')
         local linked=raw:match('\nlink=(%a+)')
         if not linked then return false,'the Steam link is not ready yet: try again in a moment' end
@@ -859,7 +862,8 @@ function Run.new(o)
         return line
     end
     local self={}
-    -- start [level] [noaggro|nomove], stop, shop, buy <n> [count], or nothing: the run's state, if any, and the census.
+    -- start [level] [noaggro|nomove], stop, shop (SB's shop screen), buy [<n> [count]] (the list without a number),
+    -- or nothing: the run's state, if any, and the census.
     function self.command(sub,flag,extra,more)
         if sub=='buy' then return shop.buy(flag,extra,more) end
         if sub=='start' and more==nil then
@@ -877,7 +881,7 @@ function Run.new(o)
             if not name then return false,'no Night Operation run to stop' end
             return true,name..' stopped'
         end
-        if sub=='shop' then return shop.list() end
+        if sub=='shop' then return shop.open() end
         if sub~=nil then return false,USE end
         local eve=N.her()
         if not eve then return false,'no EVE in the world' end
@@ -982,6 +986,7 @@ function Run.new(o)
         end
         local sent,se=pcall(night_out)
         if not sent then log('STOP: night line: '..why(se)) end
+        shop.tick() -- The shop's screen, if coop nightop shop runs it: it logs its own lines.
         if not hud then return end
         local ok,e=pcall(draw)
         if not ok then
@@ -1016,8 +1021,12 @@ function Run.new(o)
             return v
         end)
     end
-    -- coop off (or any reason): the run ends as aborted; true when one was on.
-    function self.stop(reason) return stop(reason or 'stop')~=nil end
+    -- coop off (or any reason): the shop's screen closed and its seeds back in the wallet, and the run ends as aborted;
+    -- true when one was on.
+    function self.stop(reason)
+        shop.stop()
+        return stop(reason or 'stop')~=nil
+    end
     -- A run is under way (its result panel aside): the follow's travel waits for its end, and a Doro race refuses to
     -- arm meanwhile.
     function self.running() return r~=nil and r.s.phase~='result' end

@@ -113,8 +113,14 @@ std::string ask_travel(const coop::Request &request);
 std::string ask_rows(const coop::Request &request);
 // Worker: coop-status.txt's lion, gardener, tendril, bolt and shop lines (lion/rows.h's status_line), one per batch,
 // joined by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>, asks=<a>,
-// spawns=<s> and that state's own fields; then the shock line (lion/shock.h's shock_line: off, in, refused or fault).
+// spawns=<s> and that state's own fields; then the shock line (lion/shock.h's shock_line: off, in, refused or fault),
+// then the nightshop line (nightop/shop_ui.h's).
 std::string rows_status();
+// Worker thread, the Night Operation shop's screen (nightop/shop_ui.h): Lua's nightshop request, SB's shop screen
+// opened on Shop_NightOperation_Coop or _CoopBolt, or closed, at the game thread's next frame. Refused off the pinned
+// build and after its latch's fault; after coop off, only a close. Returns the line for the log; fight_pass logs the
+// game thread's answer.
+std::string ask_nightshop(const coop::Request &request);
 // Worker: coop-status.txt's shared quests lines (quest/engine.h's Worker::status), each ending in a line break.
 std::string quest_status();
 // Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",

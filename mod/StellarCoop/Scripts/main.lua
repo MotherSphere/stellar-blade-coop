@@ -189,7 +189,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -233,7 +233,7 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell,send=function(line) if link then return link.night(line) end end,
     friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end,
-    rows=function(done,word) return lion.rows(done,word) end,
+    rows=function(done,word) return lion.rows(done,word) end,ask=function(line) return ask(line)() end,
     records=folder and {
         read=function()
             local text,e,code=require('core.link').files.read(folder..'\\coop-records.txt')
@@ -438,7 +438,7 @@ local commands={
         if not stopped then log('recruiter: '..tostring(e)) end
         stopped,e=pcall(wear.stop) -- EVE's own meshes back.
         if not stopped then log('wear: '..tostring(e)) end
-        stopped,e=pcall(night.stop,'coop off')
+        stopped,e=pcall(night.stop,'coop off') -- The shop's screen closes first.
         if not stopped then log('nightop: '..tostring(e)) end
         if group then -- A death screen the revive hid comes back.
             stopped,e=pcall(group.stop)

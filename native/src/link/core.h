@@ -1047,6 +1047,7 @@ private:
     case Command::travel:
     case Command::rows:
     case Command::gate:
+    case Command::nightshop:
       break;
     case Command::none:
       event("unknown request");

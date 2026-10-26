@@ -539,10 +539,13 @@ inline uint64_t code_lobby(std::string_view text) {
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each of the kLionTables, in any
 // order, each once, its address in 1 to 16 hex digits and plausible; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
-// the table's vtable and row size (lion/rows.h).
+// the table's vtable and row size (lion/rows.h). For the Night Operation shop in SB's own shop screen
+// (nightop/shop.lua, nightop/shop_ui.h) "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt"
+// (Shop_NightOperation_CoopBolt), "nightshop close" and "nightshop watch" (the reads only). No console argument
+// reaches it: the words are fixed.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, rows, gate
+  remove, copy, quests, camps, travel, mark, rows, gate, nightshop
 };
 // The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kShop), in
 // Request::batch's order.
@@ -556,6 +559,9 @@ constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable",
     "ItemTable",             "ItemConsumableTable",      "ProjectileTable",    "ShopTable",
     "ShopItemTable"};
+// nightshop: what nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
+// Shop_NightOperation_CoopBolt, closed, or no call but the reads.
+enum class ShopAsk : uint8_t { open, open_bolt, close, watch };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).
@@ -579,6 +585,7 @@ struct Request {
                                          // the seconds in ms.
   bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off.
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
+  ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -822,6 +829,13 @@ inline Request parse_request(std::string text) {
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;
+  } else if (text == "nightshop open" || text == "nightshop open bolt" || text == "nightshop close" ||
+             text == "nightshop watch") {
+    r.command = Command::nightshop;
+    r.shop = text.size() == 19 ? ShopAsk::open_bolt
+             : text[10] == 'o' ? ShopAsk::open
+             : text[10] == 'c' ? ShopAsk::close
+                               : ShopAsk::watch;
   } else if (text == "fly on" || text == "fly off" || text == "slowmo on" || text == "slowmo off") {
     r.command = Command::gate;
     r.gate = text[0] == 's' ? 1 : 0;

@@ -16,7 +16,8 @@ SITES = {'cut/scene.lua', 'nightop/probe.lua', 'nightop/recruiter.lua'}
 ADD_ROWS = {'nightop/probe.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
-# coop nightop's one CreateActor (its spawn choke point), its shop's one ItemBucketItemAdd (its grant choke point), and
+# coop nightop's one CreateActor (its spawn choke point), its shop's one ItemBucketItemAdd (its grant choke point) and
+# the Beta Seeds' ItemBucketItemAdd and ItemBucketItemRemove (the shop screen's one seed choke point), and
 # the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the probe's
 # answer and the header). coop lion, coop gardener fight and coop tendril fight: cut/enemy.lua's one CreateActor (their
 # spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and UE4SS's (never called);
@@ -27,7 +28,7 @@ ADD_ROWS = {'nightop/probe.lua': 1}
 RATIONED = {'MultiplayTest_ZoneE_059': {'nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4, 'cut/scene.lua': 6},
             'AddRow': {'nightop/probe.lua': 3, 'cut/enemy.lua': 2, 'cut/lion.lua': 1},
-            'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 1,
+            'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 3,
                                'session/group.lua': 7, 'cut/enemy.lua': 2, 'cut/chainspin.lua': 2}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is

@@ -82,6 +82,13 @@
 // Right after the bolt rows batch's last row, in the same call, the Shock Bolt's two lists grow in place
 // (lion/shock.h) under a latch of their own; status() gives the shock line, and the worker logs it once.
 //
+// The Night Operation shop in SB's own shop screen (nightop/shop_ui.h, coop nightop shop): the worker hands over Lua's
+// nightshop open, open bolt or close; the next frame the game thread opens SB's shop screen on one of the shop rows
+// batch's two ShopTable rows, or closes it, with the calls SB's vending machine node makes, under its own SEH latch,
+// after coop off too for a close; every 250 ms after the first ask it reads whether a shop screen is open and, inside
+// the rows' gate, the bucket's Beta Seeds, for nightop/shop.lua's wallet; status() gives it in the nightshop line, and
+// the worker logs each answer.
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -112,6 +119,7 @@
 #include "lion/rows.h"
 #include "lion/shock.h"
 #include "nightop/probe.h"
+#include "nightop/shop_ui.h"
 #include "pose/codec.h"
 #include "pose/engine.h"
 #include "pose/record.h"
@@ -127,10 +135,12 @@
 #include "glue/tick/pilot_game.inc"
 #include "glue/tick/travel_game.inc"
 #include "glue/tick/lion_game.inc"
+#include "glue/tick/nightop_game.inc"
 #include "glue/tick/debug_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
+#include "glue/tick/nightop_worker.inc"
 #include "glue/tick/travel_worker.inc"
 #include "glue/tick/quests_worker.inc"
 #include "glue/tick/freeze_worker.inc"
@@ -189,5 +199,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.
   if (game_pinned && !debug_faulted && (!blocked || debug_holding))
     debug_tick();
+  // The Night Operation shop's screen, its own latch: an ask taken each frame, after coop off too (only a close is
+  // taken then), and its reads every 250 ms before it.
+  if (game_pinned && !nightshop_faulted)
+    nightshop_tick();
   return 0;
 }

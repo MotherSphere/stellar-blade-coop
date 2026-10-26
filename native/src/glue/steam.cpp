@@ -594,6 +594,10 @@ bool step() {
       event(coop::pose::ask_gate(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::nightshop: // The Night Operation shop's screen: the game thread's.
+      event(coop::pose::ask_nightshop(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::saves:
       if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());
