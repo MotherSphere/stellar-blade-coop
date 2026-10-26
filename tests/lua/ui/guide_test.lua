@@ -30,6 +30,8 @@ assert(G.en.pages[1].title=='Welcome to Stellar Blade Online' and G.en.pages[9].
 assert(G.en.pages[9].body:find('discord.gg/tvFApEEVfj',1,true) and G.en.pages[9].body:find('coop-report.txt',1,true)
     and G.en.pages[9].body:find('\nMother Sphere art by timediffer24.$'),'The last page credits the art')
 assert(G.en.pages[5].body:find('coop nightop buy <n>',1,true) and G.en.pages[8].body:find('coop-settings.txt',1,true))
+assert(G.en.pages[5].body:find('\ncoop nightop shop: open the shop screen\ncoop nightop buy: list the items\n',1,true),
+    'shop opens the screen; buy alone lists')
 -- A table for each language ui/text.lua has, and no other; each with G.en's keys at every level and its placeholders.
 local function specs(s)
     local list={}
