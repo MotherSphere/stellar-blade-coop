@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on` |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on` |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -68,10 +68,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
-| `cut/enemy.lua` | The flow `coop lion` and `coop gardener fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the lines that follow the body ([The cut Lion](#the-cut-lion)) |
-| `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, the boss name, `unfreeze`, `brain`, `control`) |
+| `cut/enemy.lua` | The flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](#the-cut-lion)) |
+| `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
-| `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`) and the Gardener's (`R.GARDENER`); written by the rows' generator |
+| `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
+| `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`) and the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
@@ -1361,11 +1362,11 @@ is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/do
 (0.6.0-beta.1) it spawned, moved and hit EVE, but stayed in its idle pose. Its assets ship in
 `/Game/Art/Character/Monster/CH_M_NA_02/`: the blueprint `CH_M_NA_02_BluePrint_Large`, the mesh with its fur cloth, 138
 animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and 41 Shows. No table row
-names it. Five files do the work: `cut/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) shares),
-`cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the rows as Lua reads them back),
-`lion/rows.h` (the rows and their build, free of Windows, tested on the build machine) and `glue/tick/lion_game.inc`
-(the game's calls). The rows of one request form a batch: `lion/rows.h` holds two, the lion rows batch below and the
-Gardener's, each with its own request word, answer and status line.
+names it. Five files do the work: `cut/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and [the
+Tendril](#the-cut-tendril) share), `cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the rows as
+Lua reads them back), `lion/rows.h` (the rows and their build, free of Windows, tested on the build machine) and
+`glue/tick/lion_game.inc` (the game's calls). The rows of one request form a batch: `lion/rows.h` holds three, the lion
+rows batch below, the Gardener's and the Tendril's, each with its own request word, answer and status line.
 
 ### The rows
 
@@ -1525,14 +1526,13 @@ lion=fault added=<n>/237 asks=<a> spawns=<s> where=<text>
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
-so `core/link.lua` leaves the line (and the Gardener's `gardener=`) out of its change log and `cut/enemy.lua` logs
-what it reads. Lua then reads every row
-back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 3178 fields the patches
-write, from `cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree).
-2156 of those values differ from the template row's, so reading them back shows the patches landed; the other 1022
-restate a value the template holds, which a read-back cannot tell from the copy. It spawns
-only when every value matches and the line says `char=2/2 skills=23/23 stance=2/2`. The read-back runs in one frame,
-once per `coop lion`; how long that takes in game was not measured.
+so `core/link.lua` leaves the line (and the Gardener's `gardener=` and the Tendril's `tendril=`) out of its change log
+and `cut/enemy.lua` logs what it reads. Lua then reads every row back through `FindRow` by field name (independent of
+the SDK's offsets): the ID and each of the 3178 fields the patches write, from `cut/lion_rows.lua`, which the generator
+writes with `lion/rows.h` (the Lua test checks the two agree). 2156 of those values differ from the template row's, so
+reading them back shows the patches landed; the other 1022 restate a value the template holds, which a read-back cannot
+tell from the copy. It spawns only when every value matches and the line says `char=2/2 skills=23/23 stance=2/2`. The
+read-back runs in one frame, once per `coop lion`; how long that takes in game was not measured.
 
 ### The cut stimpacks
 
@@ -1619,15 +1619,15 @@ after the call gets its default one (`SpawnDefaultController`, as `nightop/run.l
 it for the next spawn (a Lion 466 m away came back on 2026-10-23), so a body that stood more than 100 m from the spot
 at the call and stands within 30 m of it after counts as the new one; its old follow line ends as recycled.
 
-While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend
-space reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the
-animation blueprint blends a Show's clip by (`GetCurrentCustomAnimAlpha(0)` and `(1)`). Two more checks run once a
-second. The loaded line looks for the 20 Lion Shows of the kit and the clip each one's first anim key plays, with
+While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend space
+reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the animation
+blueprint blends a Show's clip by (`GetCurrentCustomAnimAlpha(0)` and `(1)`). Two more checks run once a second. The
+loaded line looks for the 20 Lion Shows of the kit and the clip each one's first anim key plays, with
 `StaticFindObject`, two paths a second (a call costs about 4 ms), each until first seen: the game loads a Show when a
-step plays it, and the Show's anim key loads its clip. The boss name looks for the live `TextBlock_BossName` (under
-`/Engine/Transient`; `FindAllOf` again at most every 10 s while none is held) and sets it to `Lion` where it reads
-`<M_LionC>`. The game writes that block once per boss bind (`FText::FromStringTable` on the row's `Name`), so the check
-puts the name back after each bind.
+step plays it, and the Show's anim key loads its clip. The boss name (`cut/enemy.lua`'s, for any spec that names one)
+looks for the live `TextBlock_BossName` (under `/Engine/Transient`; `FindAllOf` again at most every 10 s while none is
+held) and sets it to `Lion` where it reads `<M_LionC>`. The game writes that block once per boss bind
+(`FText::FromStringTable` on the row's `Name`), so the check puts the name back after each bind.
 
 `coop lion intro` first plays `Mon_LionC_Scene01_Appearance` (13 s, the clip of the cut boss intro
 `DesertedCity_LionBossIntro`) on a display copy: `race/doro.lua`'s plain actor with the `CH_M_NA_02_Large` mesh at the
@@ -1763,6 +1763,111 @@ Beyond the Lion's:
 - how the flag pick chooses among the three skills, and whether EVE can walk into the tower (only its capsule blocks);
 - how the Cocoon's despawn dissolve applies to a mesh with two materials, and whether the English game shows
   "Gardener" on the bar.
+
+## The cut Tendril
+
+`coop tendril fight` spawns the cut Naytiba 6, the Tendril (`CH_M_NA_06`), as an enemy. The game ships a test mesh
+(`CH_M_NA_06_test`, 166 bones, its one material slot empty), its skeleton, its physics asset, its blueprint
+(`CH_M_NA_06_Blueprint`, which borrows the Gigas's collision data `CH_M_NA_05_Gorilla_Collision`), an animation
+blueprint built on the game's custom anim nodes (`SBAnimInstance` with three `SBAnimGraphNode_SequenceBlendedPlayer`)
+and 42 clips. No table row names it and no Show plays any of its clips. `cut/tendril.lua` holds its spec for
+`cut/enemy.lua` and builds its Shows; its rows are the third batch of `lion/rows.h` (`kTendrilRecipe`) and
+`cut/lion_rows.lua` (`R.TENDRIL`, the Shows in `R.TENDRIL_SHOWS`), from the same generator.
+
+### Its rows
+
+107 rows, authored as the Lion's are: every field stated over the Lion's template rows (1281 fields, 997 of them set to
+a value other than the template's).
+
+- 11 skills (5006000 to 5006010), their commands and 45 steps. Each skill plays one Tendril clip from its first step
+  to its end: `SwingLeft` and `SwingRight` (`M_Tendril_SwingAttack_L`, `_R`), `WhipLeft` and `WhipRight`
+  (`M_Tendril_WhipAttack_L`, `_R`), `DiagonalLeft` and `DiagonalRight` (`M_Tendril_DiagonalAttack_L`, `_R`), `Chop`
+  (`M_Tendril_ChopAttack`), `Spin` (`M_Tendrill_TurnAttack`), `Rush` (`M_Tendril_RushAttack`, four hits), `Whip`
+  (`M_Tendril_WhipAttack`, three hits) and `Trace` (`M_Tendril_TraceAttackSlow`, two hits). All are flagged
+  `MeleeAttack`, which the Skulling test tree picks, with cool times of 4 to 20 s.
+- The steps follow the clip: a Cast step up to each hit, the Hit step, and a Finish step to the clip's end, so a
+  skill's steps last as long as its clip. Its first step turns the Tendril toward EVE in 0.3 s (the one move,
+  `M_TendrilC_Turn`). The Tendril strikes with the four chains on its head (`Bone_Chain_L01`, `L02`, `R01`, `R02`),
+  which every attack clip animates. A Hit step is a window of the clip where the chains' last bones move at 2500 cm/s
+  or more, 250 cm or more out from the root and no more than 2 m above it. The generator measures them in the clips
+  decoded offline (`tendril_points.py`, forward kinematics on the bone tracks); the 17 hits strike 4 to 7.5 m out.
+- Each Hit step hits by area (`HitDetectionType` TargetFilter, as the Lion's slams): a 3D arc 2 m high over the reach
+  and the arc of the chain ends during its window, 400 to 750 cm deep and 60 to 340 degrees wide. The collision data
+  the blueprint borrows tracks no Tendril clip, so a hit through its attack groups would not follow the chains. Every
+  arc covers the front, since the first step turned the Tendril toward EVE. A skill's range is its first hit's reach
+  straight ahead times the Lion's calibration (0.61): 240 to 400 cm.
+- 5 hit results, the Lion's values under the Tendril's names (light, strong, knockdown, guard, parry). A perfect parry
+  on a skill's last hit goes to the shipped step `M_Common_Result_ParryJust_Center`, which plays `Custom_Anim1` of the
+  anim set: its `Parry` clip.
+- Two anim sets (500600 and 500601) with its own clips: its one blend space (`IdleRun_BS_Peaceful`: idle, walk and run
+  at 0, 200 and 400 cm/s), `LockOn_BS` in battle, `Run_Start` and `Run_End`, its one hit clip
+  (`Result_Hit_KnockBack`, 1.5 s) in every hit slot, its groggy, knock-down and airborne clips, and `Parry` for both
+  just-parry slots.
+- The stance `M_TendrilC_Default` (500600): the 11 commands, walk 200 and run 400 cm/s (the blend space's samples),
+  turn 180 degrees a second. The game's generic Groggy, Down and Airborne anim sets name blend spaces and clips its
+  folder lacks (`Groggy_BS`, `Down_BS`, `Result_State_KnockDown_S_Fw` where it has `Result_State_KnockDown_Fw_S`), so
+  the Tendril is immune to those states (`M_Common_ImmuneAbnormal`) and its stance names its battle set for them.
+- The dead row plays its `Dead` clip (6 s) for every kind of kill, then the Cocoon's dissolve; the appearance row
+  (50060) names its blueprint.
+- `M_TendrilC` (50060), last: the Gigas's (`M_GorillaB`) numbers (64960 HP, 3720 shield, 600 attack, rank Boss, the
+  `MonsterAlpha` difficulty group, actor type BossMonster for the boss bar) and sound set (`CSS_MON_05_Gigas`: none
+  ships for the Tendril), the Lion's sizes at the ratio of their capsules (90 against 150 cm: a 110 cm target filter
+  radius), the Skulling test tree, no link flag (EVE's link Shows play a target clip it lacks) and no `Name`.
+
+The generator checks these rows with the other two batches (no name or ID of one meets another) and against the dumps:
+every reference lands, each skill's steps last as long as its clip, every hit holds a strike and its arc covers the
+front, the anim sets name clips of its folder, the stance lists its commands, the template Show has one anim key and
+nothing else, and the blueprint turns its mesh as the measurements and `cut/tendril.lua` expect.
+
+### Its Shows
+
+A step names its Show in `ShowPath`. No pak holds a Show of a Tendril clip, so after the read-back and before the
+spawn `cut/tendril.lua` builds the 12 the rows name, one per skill and one for its death. Each is a copy of the
+Gardener's one-clip Show `M_Gardener_ToxicBeam`, made by `StaticConstructObject` with that Show as its template, of its
+class, in its package, named after the skill (`M_TendrilC_Chop`...) and in the root set, so the game never collects it.
+UE copies the template's properties and gives the copy its own anim key (`SBShowAnimKey_0`). The script then sets that
+key's clip (`/Game/Art/Character/Monster/CH_M_NA_06/Animation/<clip>`, an absolute path), its lengths and the Show's
+end time, with no step array, and reads each one back: the key must be the copy's own (its outer is the copy), every
+value as written, and `/Game/Art/Show/CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.<name>` must find the copy.
+
+That path is the one the game loads. The steps' `ShowPath` is `CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam.<name>`.
+The game's Show loader (`0x1422853e0`) puts `/Game/Art/Show/` in front of it, keeps a path that already has an extension
+as it is (`0x14202c500` appends `.<last word>` only when there is none) and calls `StaticLoadObject` (`0x142b920d0`,
+through `0x1422b03e0`). `StaticLoadObject` finds a package already in memory, then the object in it, before it reads any
+file, so it returns the copy. A Show with no step array plays across the whole chain of steps its first step starts, as
+the game's own flash grenade and fishing skills do.
+
+A Lua reload finds the Shows already built and sets them again. Once a second while a Tendril lives, a Show that is
+gone (the root set flag did not hold) is built again, and the log says so.
+
+### Its batch in the native part
+
+The Tendril's rows go in on their own request, `tendril rows <Table>=0x<address> ...`, with their own job, answer and
+`tendril=` line in the `lion=` line's format (`added=<n>/107`, `char=<k>/1 skills=<k>/11 stance=<k>/1`). The gate, the
+block, the spawn counter and the SEH latch are shared with the other two batches. This is a local request: the link
+protocol did not change.
+
+### Its spawn
+
+`cut/tendril.lua` spawns 50060 through the Lion's call, 8 m ahead of EVE (out of its strikes' reach) and 1 m above her
+middle, facing her. The body is the new `CH_M_NA_06_Blueprint_C` nearest the spot. Its skeleton faces +X (its head is
+in front of its pelvis, and a planted foot slides toward -X in its walk clip), while its blueprint turns the mesh -90
+degrees as for a skeleton facing +Y, so once found the body's mesh gets a relative yaw of 0, and again if the game
+turns it back. Its one material slot is empty, so the mesh takes the Hydra's tentacle material, as `coop tendril skin
+hydra` does in the viewer. The boss bar reads `<M_TendrilC>` (no Tendril text in CharacterStringTable), and
+`cut/enemy.lua` writes `Tendril` there as it writes `Lion` for the Lion. There is no entrance: none of its clips is one.
+
+### Open questions
+
+Beyond the Lion's:
+
+- whether `StaticConstructObject` in UE4SS 3.0.1 passes the template and the root set flag through, and whether the
+  copy gets its own anim key;
+- whether the game plays a Show built at run time, and a Show with no step array across the three to nine steps of a
+  skill;
+- whether the chains strike where the areas reach, and whether 2 m is the right height for the arcs;
+- whether EVE's sword reaches it through the Gigas's hurt boxes, which sit on `Bip001` bones the Tendril shares;
+- how the Hydra's material looks on the Tendril's mesh, and which hit sounds the Gigas's sound set gives.
 
 ## Developer flight and slow motion
 

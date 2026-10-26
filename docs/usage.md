@@ -826,6 +826,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
 | `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker`, `coop lion unfreeze [init]` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its tests it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions; put back the engine switches that can freeze its mesh (spawns on a co-op save only) |
 | `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
+| `coop tendril fight [rows]` | The [cut Tendril](#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
@@ -981,7 +982,8 @@ The ghost, the link and every other command except `coop fight` (below), `coop r
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
 [viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
-`coop lion control`, `coop gardener fight` with no word, `intro`, `half` or `skulling`, `coop chainspin`, a scene of
+`coop lion control`, `coop gardener fight` with no word, `intro`, `half` or `skulling`, `coop tendril fight` with no
+word, `coop chainspin`, a scene of
 `coop scene`, `coop fly on`, `coop slowmo on` and `coop glide on` (below) run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
@@ -996,6 +998,7 @@ show three of them:
   Data Bank entry were cut. [`coop gardener fight`](#cut-enemy-coop-gardener-fight) spawns it as an enemy.
 - `coop tendril`: Naytiba 6, the Tendril, in `/Game/Art/Character/Monster/CH_M_NA_06/`. It is a prototype mesh
   (`CH_M_NA_06_test`, about 7 m tall) with 44 animations and blend spaces and no material.
+  [`coop tendril fight`](#cut-enemy-coop-tendril-fight) spawns it as an enemy.
 
 The three commands take the same words, described below with `coop leviathan`, and share one display and one
 [free camera](#free-camera) with four more commands for
@@ -1313,6 +1316,66 @@ The log lines, in `UE4SS.log` unless marked:
 A refusal names its reason in `coop-link.log` (`gardener rows refused <row>: <why>; <n>/13 added`) and ends with a
 `STOP:` line in `UE4SS.log`. A refusal of the Gardener's rows leaves the Lion's batch alone, and the other way round.
 See [how-it-works.md](how-it-works.md#the-cut-gardener) for how the rows are made.
+
+### Cut enemy: `coop tendril fight`
+
+The Tendril, Naytiba 6 of the [viewer](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril), was cut
+early. Its files keep a test mesh with no material, a blueprint, an animation blueprint and 42 animations, but no table
+row and no skill presentation (Show) for any of them. `coop tendril fight` adds the 107 rows it needs to the game's
+tables in memory, as a batch of their own next to the [Lion's](#cut-boss-coop-lion) and the
+[Gardener's](#cut-enemy-coop-gardener-fight), builds the 12 Shows its attacks and its death play, also in memory, and
+spawns it as an enemy to fight. It is a test command, left out of the usage line, and it has not run in game yet. Its
+lines go to `UE4SS.log` as `[StellarCoop][TD]`; the native part's go to `coop-link.log` as `tendril rows ...`.
+
+- `coop tendril fight` spawns the Tendril (row `M_TendrilC`, 50060) 8 m in front of EVE, facing her. The first time in a
+  game run it asks the native part to add the rows and waits for the answer, 30 s at most. Each time it reads the 107
+  rows back and builds the Shows first, and a value that differs or a Show it cannot build stops it with no spawn. It
+  runs only on a [co-op save](#co-op-saves).
+- `coop tendril fight rows` adds the rows, reads them back and builds the Shows, with no spawn. Any save.
+
+The spawn first puts away a viewer display and the free camera. While a command waits for its rows or its body, another
+`coop tendril fight` answers that it is busy. Every other `coop tendril` word is the viewer's.
+
+What to expect:
+
+- It walks on its hands and feet, its head about 1.4 m up, and strikes with the four chains on its head. Its skeleton
+  faces sideways compared with its blueprint, so the mod turns its mesh by 90 degrees once it spawns (and again if the
+  game turns it back), and gives it the Hydra's tentacle material, as `coop tendril skin hydra` does in the viewer.
+- It has 64960 HP, 3720 shield and an attack power of 600 (the Gigas's numbers) and rank Boss, so the boss bar shows
+  once it targets EVE. The game has no text for its name and shows `<M_TendrilC>`; the mod writes `Tendril` there.
+- It has 11 attacks, each one of its own animations: two sweeps, two lashes and two diagonal swings with one chain, a
+  chop with both chains that lands 6.6 m ahead, a spin, and three combos (Rush, four hits, the last two slamming down
+  5.8 and 7.5 m ahead; Whip, three hits; Trace, two). Each hit strikes anyone in an arc in front of it, 4 to 7.5 m
+  deep, while its chains strike. Guard, parry and perfect parry work on every hit, as on the Lion.
+- It walks at 2 m/s, runs at 4 m/s and turns toward EVE at the start of each attack.
+- EVE's hits play its knock-back animation. It never goes groggy, falls or flies: the game's animation sets for those
+  states name animations it does not have.
+- When it dies it plays its death animation (6 s), then dissolves as the Cocoon does. It drops nothing.
+- As for the Lion: no quest event runs for it, it unlocks no album entry, it should not come back from a save, the rows
+  and the Shows stay in memory until the game exits, and only your game has it.
+
+The log lines, in `UE4SS.log` unless marked:
+
+| Line | What it answers |
+| --- | --- |
+| `tables: 14/14 found: CharacterTable=0x...` | The 14 tables found, with the addresses sent to the native part |
+| `tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable 5006000-5006010 11/11, stance 500600 1/1` (`coop-link.log`) | The game's own lookups by ID find its CharacterTable row, its 11 skills and its stance |
+| `rows read back through FindRow: 107/107 authored rows, 1281 fields as written (997 differ from the template row)` | Every field the native part wrote reads as written |
+| `shows: 12/12 ready (12 made, 0 found built), each with its own anim key on its clip and found by the path its steps name` | The Shows are built and the game can find them; after a Lua reload, `0 made, 12 found built` |
+| `not ready: M_TendrilC_SwingLeft: no anim key of its own: no spawn` | A Show could not be built, and why |
+| `spawn 50060: CreateActor returned; body CH_M_NA_06_Blueprint_C 8.1 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
+| `tendril 1: mesh yaw set to 0 (was -90)` | Its mesh turned to face its front |
+| `tendril 1: material MI_M_NA_09_V03_Tentacle on its 1 slots` | The Hydra's material on its mesh, or why not |
+| `boss name: <M_TendrilC> -> Tendril` | The boss bar's name set |
+| `shows: M_TendrilC_Chop gone: built again` | The game dropped a Show while the Tendril lived, and the mod built it again |
+| `tendril 1 (50060): 8.1 m, xyz ..., speed 0, skill yes, anim alpha 1.00/0.00, ...` | Once a second while it lives, the same fields as the Lion's line; `anim alpha` above 0 while a skill runs means its animation plays |
+| `tendril 1 (50060) dead after 95 s (InteractionState 3, no controller); body gone after 22.0 s` | Its death and its body's despawn |
+| `tendril 1 spawn count: before 6, alive 7, after death 6` | The game's spawn counter before the spawn, while it lived and after |
+
+A refusal names its reason in `coop-link.log` (`tendril rows refused <row>: <why>; <n>/107 added`) and ends with a
+`STOP:` line in `UE4SS.log`. A refusal of one batch leaves the others alone. See
+[how-it-works.md](how-it-works.md#the-cut-tendril) for how the rows and the Shows are made.
 
 ### Cut Tachy skill: `coop chainspin`
 

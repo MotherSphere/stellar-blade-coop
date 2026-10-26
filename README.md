@@ -57,8 +57,9 @@ the Steam client that the game already runs, so the mod needs no other program a
   a display-only model in front of EVE, with a free camera for filming. `coop gardener` and `coop tendril` do the same
   for two more cut Naytibas, the Gardener and the Tendril (see
   [docs/usage.md](docs/usage.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)). In the viewer none
-  of them can be fought: the game has no entry for them in its character table (`coop gardener fight`, below, adds the
-  Gardener's). `coop mann`, `coop nier`, `coop orcal` and `coop enya`
+  of them can be fought: the game has no entry for them in its character table (`coop gardener fight` and
+  `coop tendril fight`, below, add the Gardener's and the Tendril's). `coop mann`, `coop nier`, `coop orcal` and
+  `coop enya`
   show the early Mann model, the NieR collaboration's three cut machines and prototype statues of Orcal and Enya the
   same way.
 - `coop lion` spawns the Lion, a boss cut from the game, as a real enemy to fight on a co-op save. The game's files keep
@@ -68,6 +69,10 @@ the Steam client that the game already runs, so the mod needs no other program a
 - `coop gardener fight` spawns the Gardener the same way: a cut artillery Naytiba about 20 m tall that never walks and
   shells EVE from its mouth. The mod adds the 13 rows it lacks to the game's tables in memory. It is not tested in game
   yet (see [docs/usage.md](docs/usage.md#cut-enemy-coop-gardener-fight)).
+- `coop tendril fight` spawns the Tendril the same way, a cut Naytiba that strikes with four chains on its head. The
+  game has no skill presentations for its animations either, so the mod builds them in memory from its own clips, and
+  adds the 107 rows it lacks. It is not tested in game yet (see
+  [docs/usage.md](docs/usage.md#cut-enemy-coop-tendril-fight)).
 - `coop wear` puts EVE in two cut hairs (mechanical cat ears and rabbit ears) and four cut suits, Gothic Rose among
   them, by changing the meshes drawn. Your equipment and saves stay as they are, and your friend's ghost of you shows
   the look too (see [docs/usage.md](docs/usage.md#cut-hairs-and-suits-coop-wear)).
