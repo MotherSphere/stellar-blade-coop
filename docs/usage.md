@@ -433,6 +433,10 @@ usual.
 The revive also needs shared enemies running (`shared_enemies=on`, both on co-op saves), your friend alive on your map,
 no boss fight on your side and no respawn under way. Only the downed player's setting counts.
 
+During a co-op Night Operation run this revive and its `is down` notice stand aside, whatever your setting: the run has
+its own revive, with the interact key and a 30 s limit (see
+[Down and revive](night-operation.md#down-and-revive)).
+
 ### Camp rests in a shared area
 
 Either player can rest at a camp. While both play in one zone within 100 m of each other with same spawns on, only the
@@ -819,6 +823,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop) at one of four [levels](night-operation.md#levels), solo or, started by the host at his level, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
+| `coop nightop revive` | In a co-op run, while your EVE is down: revive her yourself, a few times a run ([Down and revive](night-operation.md#down-and-revive)) |
 | `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its six items (two cut stimpacks among them), and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
@@ -972,6 +977,9 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 - In a session, only the host starts a run, at his level, and it is for both players. The guest's game checks her
   side and joins without a question, or the host gets a notice with the reason she cannot. On the guest's game the
   command answers `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
+- In a co-op run a dead EVE is down for 30 s. Her partner revives her by holding the interact key (F, or the pad's right
+  trigger) for 3 s next to her, or she types `coop nightop revive` (3 times a run at easy, 2 at normal, 1 at hard, none
+  at nightmare). See [Down and revive](night-operation.md#down-and-revive).
 - `coop nightop shop` lists the points your runs gave and the six items, and `coop nightop buy <n> [count]` buys 1 to 10
   of item n into the co-op save. Items 5 and 6, the cut Burst and Beta Stimpacks, need table rows the native part adds
   with the Lion's (see [Cut boss](#cut-boss-coop-lion)): a buy of one asks for them first. Your points are in
