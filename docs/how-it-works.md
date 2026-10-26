@@ -2142,14 +2142,15 @@ played on: another FGuid, a cleared playing byte or a gone EVE end it, and a slo
 node is not playing it, so its time would never move) is freed and reported as `ended:weight`. Only time in a world
 that is not paused counts toward that second: the weight moves in her tick (`0x1420a7fd0`, the only caller of
 `UpdateCustomAnimWeight`), which a paused world does not run, so while the slot has no weight yet each watch asks the
-photo pause's read of the WorldSettings' `PauserPlayerState`. A new Lua load and `coop off` stop ours. All of it runs
-on the pinned build under its own SEH latch; the first fault tries once to stop ours and turns the native clips off
-for the run.
+photo pause's read of the WorldSettings' `PauserPlayerState`. A new Lua load and `coop off` stop ours. A play taken
+while ours still plays stops ours first, and a play taken in the same frame as a new Lua load or after `coop off` is
+refused (`session` or `off`), so no clip of ours goes unwatched. All of it runs on the pinned build under its own SEH
+latch; the first fault tries once to stop ours and turns the native clips off for the run.
 
 The engine status line carries `anim=<state> anim_id=<id>` for the last play the game thread took (`idle`, `playing`,
-`ended`, `ended:weight`, `stopped`, `refused:<eve|slots|game|off>` or `fault`). Lua sends a start only while that
-field is there and not `fault`, and acts only on its own id: `ended` and the refusals end the emote with nothing to
-stop, and no answer in 5 s ends it with `anim stop` asked anyway. Each frame while one plays, the module reads that
+`ended`, `ended:weight`, `stopped`, `refused:<eve|slots|game|off|session>` or `fault`). Lua sends a start only while
+that field is there and not `fault`, and acts only on its own id: `ended` and the refusals end the emote with nothing
+to stop, and no answer in 5 s ends it with `anim stop` asked anyway. Each frame while one plays, the module reads that
 field, `GetLastMovementInputVector`, the movement's `IsFalling` and `IsRunningSkill`, and asks `anim stop` at movement
 input longer than 0.1, in the air or at a skill.
 

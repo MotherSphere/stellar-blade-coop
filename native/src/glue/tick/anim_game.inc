@@ -126,8 +126,8 @@ void anim_publish() {
   anim_word = anim_track.word(); // Last: the worker reads the others once the word changed.
 }
 // Each frame on the pinned build until the latch, while coop off has not come or ours still plays: a new ask taken
-// and run, ours stopped at a new Lua load and at coop off, the watch every anim::kWatchMs. The first fault closes the
-// latch, after one try to stop ours.
+// and run (ours stopped first when it still plays), ours stopped at a new Lua load and at coop off, the watch every
+// anim::kWatchMs. The first fault closes the latch, after one try to stop ours.
 void anim_tick() {
   const uint64_t now = GetTickCount64();
   bool got = false;
@@ -145,6 +145,8 @@ void anim_tick() {
     return;
   const uint64_t was = anim_track.word();
   __try {
+    if (anim::stop_first(act, anim_track.live()))
+      anim_watch(true, why, now);
     if (act == anim::Act::refuse)
       anim_track.refused(anim_now.id, why);
     else if (act == anim::Act::play)

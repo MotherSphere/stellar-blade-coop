@@ -239,20 +239,24 @@ private:
 
 // What the game thread does this frame (glue/tick/anim_game.inc's anim_tick). got: an ask taken this frame, stop: it
 // is a stop; blocked: coop off; drop: a new Lua load; live: ours plays; next: when the next watch is due. A play asked
-// is refused after coop off (why off), else played. While ours plays, a stop asked, a new Lua load or coop off stop it
+// is refused after coop off or at a new Lua load (why off or session: the Lua load that asked is gone), else played;
+// while ours plays, it stops first (stop_first). While ours plays, a stop asked, a new Lua load or coop off stop it
 // (why: off, session or none), else the watch runs once next is due. Nothing otherwise: a stop with nothing of ours
 // playing has nothing to do.
 enum class Act : uint8_t { none, refuse, play, stop, watch };
 inline Act act(bool got, bool stop, bool blocked, bool drop, bool live, uint64_t now, uint64_t next, Why &why) {
   why = blocked ? Why::off : drop ? Why::session : Why::none;
   if (got && !stop)
-    return blocked ? Act::refuse : Act::play;
+    return blocked || drop ? Act::refuse : Act::play;
   if (!live)
     return Act::none;
   if (got || drop || blocked)
     return Act::stop;
   return now >= next ? Act::watch : Act::none;
 }
+// A play's answer, or its refusal, overwrites the track: taken while ours plays, ours would then go unwatched and
+// never be stopped (not at a new Lua load, not at coop off). So the caller stops ours first, with act's why.
+inline bool stop_first(Act a, bool live) { return live && (a == Act::play || a == Act::refuse); }
 
 // The worker's log line for a change: what the game thread did with play id.
 inline std::string describe(const Word &w, int32_t ret, float peak, uint64_t held_ms) {
@@ -280,6 +284,8 @@ inline std::string describe(const Word &w, int32_t ret, float peak, uint64_t hel
       return id + " refused: EVE has no custom animation slot";
     case Why::off:
       return id + " refused: coop off";
+    case Why::session:
+      return id + " refused: a new Lua load";
     default:
       return id + " refused: the game played nothing (ret " + std::to_string(ret) +
              (ret < 0 ? ": the clip did not load, or a clip of a higher priority holds the slot)"

@@ -1,7 +1,8 @@
 // game/anim.h on the build machine: which clip paths pass, the FString the call reads, the call's scalars, slot 0 as
 // read, and the track: an answer with and without an FGuid, the watch (ours, another clip, EVE gone, a slot that takes
 // no weight, a paused world), the stop, the fault, the word packed for the worker and the status line, and the log
-// lines. Then our EVE and the alive check over fake memory with fight/pilot.h's live and is_a, and each frame's act.
+// lines. Then our EVE and the alive check over fake memory with fight/pilot.h's live and is_a, each frame's act, and a
+// play taken while ours plays (ours stopped first, then the answer, refused or taken).
 #include "game/anim.h"
 
 #include "fight/pilot.h" // live and is_a, which the glue hands to eve and alive
@@ -196,6 +197,9 @@ int main() {
   assert(describe(unpack(t.word()), 0, 0, 0) == "anim 13 refused: no EVE of ours in the world");
   t.refused(14, Why::slots);
   assert(describe(unpack(t.word()), 0, 0, 0) == "anim 14 refused: EVE has no custom animation slot");
+  t.refused(17, Why::session);
+  w = unpack(t.word());
+  assert(describe(w, 0, 0, 0) == "anim 17 refused: a new Lua load" && state_text(w.state, w.why) == "refused:session");
   t.refused(15, Why::off);
   w = unpack(t.word());
   assert(describe(w, 0, 0, 0) == "anim 15 refused: coop off" && state_text(w.state, w.why) == "refused:off");
@@ -237,13 +241,15 @@ int main() {
     assert(!alive(live, eve_at, 2, 40));
   }
 
-  // Each frame: a play asked is played, or refused after coop off; with ours playing, a stop, a new Lua load or coop
-  // off stop it with why, else the watch once due; nothing without ours playing.
+  // Each frame: a play asked is played, or refused after coop off or at a new Lua load; with ours playing, a stop, a
+  // new Lua load or coop off stop it with why, else the watch once due; nothing without ours playing.
   {
     Why why = Why::weight;
     assert(act(true, false, false, false, false, 0, 0, why) == Act::play && why == Why::none);
-    assert(act(true, false, false, true, true, 0, 0, why) == Act::play);
+    assert(act(true, false, false, true, true, 0, 0, why) == Act::refuse && why == Why::session);
+    assert(act(true, false, false, true, false, 0, 0, why) == Act::refuse && why == Why::session);
     assert(act(true, false, true, false, false, 0, 0, why) == Act::refuse && why == Why::off);
+    assert(act(true, false, true, true, true, 0, 0, why) == Act::refuse && why == Why::off);
     assert(act(true, true, false, false, true, 0, 500, why) == Act::stop && why == Why::none);
     assert(act(false, false, false, true, true, 0, 500, why) == Act::stop && why == Why::session);
     assert(act(false, false, true, true, true, 0, 500, why) == Act::stop && why == Why::off);
@@ -253,6 +259,46 @@ int main() {
       for (bool blocked : {false, true})
         for (bool drop : {false, true})
           assert(act(got, true, blocked, drop, false, 900, 500, why) == Act::none);
+    // A play or a refusal answered while ours plays stops ours first; nothing to stop otherwise.
+    for (Act a : {Act::play, Act::refuse})
+      assert(stop_first(a, true) && !stop_first(a, false));
+    for (Act a : {Act::none, Act::stop, Act::watch})
+      assert(!stop_first(a, true));
+  }
+
+  // A play taken while ours plays, as anim_tick runs it: ours stopped first, then the answer. Refused, nothing of ours
+  // is left unwatched; taken, the new clip is the one watched.
+  {
+    const int32_t first[4] = {1, 2, 3, 4}, second[4] = {5, 6, 7, 8}, nothing[4] = {};
+    for (bool taken : {false, true}) {
+      Track u;
+      u.played(20, 0, first, 0x20, 1000);
+      Why why = Why::weight;
+      const Act a = act(true, false, false, false, u.live(), 1050, 1100, why);
+      assert(a == Act::play && stop_first(a, u.live()));
+      u.stopped(1050, why);
+      w = unpack(u.word());
+      assert(w.id == 20 && w.state == State::stopped && w.why == Why::none && u.held() == 50);
+      u.played(21, taken ? 0 : -1, taken ? second : nothing, 0x21, 1050);
+      w = unpack(u.word());
+      assert(w.id == 21 && u.live() == taken && w.state == (taken ? State::playing : State::refused));
+      if (taken) // The watch follows the new clip's FGuid, and the old one's is another clip's.
+        assert(!u.watch(true, ours(second, 1.0f), 1150, false) && u.live() &&
+               !u.watch(true, ours(first, 1.0f), 1250, false) && !u.live());
+    }
+    // Refused at a new Lua load or coop off while ours plays: ours stopped with that why, then the play refused.
+    for (bool blocked : {false, true}) {
+      Track u;
+      u.played(22, 0, first, 0x22, 0);
+      Why why = Why::none;
+      const Act a = act(true, false, blocked, true, u.live(), 10, 100, why);
+      assert(a == Act::refuse && stop_first(a, u.live()));
+      u.stopped(10, why);
+      assert(unpack(u.word()).why == (blocked ? Why::off : Why::session));
+      u.refused(23, why);
+      w = unpack(u.word());
+      assert(w.id == 23 && w.state == State::refused && !u.live());
+    }
   }
 
   // The word round trip, and the changes count wrapping at 16 bits.
