@@ -47,7 +47,7 @@ inline std::wstring path(int file) {
 
 struct Entry {
   bool found = false;    // The file manager opened it.
-  const char *why = "";  // Why a file found could not be read, or empty.
+  const char *why = "";  // Why it could not be read, or empty (found false: the file manager is not the pinned one).
   bool gvas = false;     // GVAS bytes, once an EVAS header is stripped.
   uint64_t size = 0;     // The file's bytes.
   uint32_t crc = 0;      // Their CRC-32, to tell copies apart.
@@ -152,10 +152,10 @@ inline std::string name(int file) { return std::string(map_of(file)) + " " + std
 inline std::string line(const Entry *entries, int file) {
   const Entry &e = entries[file];
   std::string s = "shortcut " + name(file) + ": ";
-  if (!e.found)
-    return s + "none";
   if (*e.why)
     return s + e.why;
+  if (!e.found)
+    return s + "none";
   if (const int k = copy_of(entries, file); k >= 0)
     return s + "the same bytes as " + name(k);
   if (!e.gvas)
@@ -171,15 +171,15 @@ inline std::string line(const Entry *entries, int file) {
          (e.branch.empty() ? std::string("?") : e.branch) + ", " + std::to_string(e.size) + " bytes";
 }
 // The list in one line (the status's last= line, and so UE4SS.log): each file found with its camp or the file it
-// copies, and how many there were.
+// copies, each one unread, and how many were found.
 inline std::string summary(const Entry *entries, int count) {
   std::string items;
   int found = 0;
   for (int file = 0; file < count; ++file) {
     const Entry &e = entries[file];
-    if (!e.found)
+    if (!e.found && !*e.why)
       continue;
-    ++found;
+    found += e.found;
     const int k = *e.why ? -1 : copy_of(entries, file);
     items += (items.empty() ? "" : ", ") + name(file) + " " +
              (*e.why ? std::string("unread") : k >= 0 ? "= " + name(k) : e.camp.empty() ? std::string("?") : e.camp);

@@ -36,7 +36,7 @@ __declspec(noinline) void shortcut_read(int file, shortcut::Entry &e) {
   e = shortcut::Entry();
   const uintptr_t manager = base + (kFileManager - game::kImageBase);
   if (at<uintptr_t>(manager) != base + (kFileManagerVtable - game::kImageBase)) {
-    e.found = true, e.why = "unread: the file manager is not the pinned build's";
+    e.why = "unread: the file manager is not the pinned build's"; // Nothing opened: not counted as found.
     return;
   }
   const std::wstring path = shortcut::path(file);
