@@ -18,8 +18,8 @@
 -- mode's revive, when the downed player's revive setting is on: the line carries each side's down time left and its
 -- revive of the other (the interact key held next to the downed EVE's ghost), and the downed side asks
 -- session/group.lua for the game's in-place respawn, which a friend's full hold or coop nightop revive (the level's
--- self revives, for a body that lies where EVE last walked) starts; both down, or the time out, ends the run as a
--- death did. The card and the notices use the cut mode's own words for it (StringTable_UI). A solo run keeps the death.
+-- self revives, for a body that lies where EVE last walked) starts; both down with no revive call that can still
+-- land, or the time out, ends the run as a death did. The card and the notices use the cut mode's own words for it (StringTable_UI). A solo run keeps the death.
 -- A run of ours that went from its countdown to a success or a time up credits its final score as points to this
 -- player's wallet (a challenge credits none); coop nightop shop and buy spend them (nightop/shop.lua, which holds the
 -- one grant call). Never called here:
@@ -672,10 +672,10 @@ function Run.new(o)
     -- A co-op run's death is a down while life= reads (our vitals, read in a session only) and revive=on (the
     -- downed player's opt-in to the in-place respawn, off by default): the death screen's start, or life 3 to 5 that
     -- its watch missed. Else the death ends the run as in a solo run. A down lasts W.DOWN s of ticks (a pause does not
-    -- hold it), plus CALL s past it once a call went, and input.down tells the host's states (both down: failed
-    -- 'both'). The partner's line at help 100 asks for the call. Up again (life 1 or 6, once 3 to 5 was read in this
-    -- down): revived when it comes within CALL s of the call, else the death screen's respawn at a camp, which ends the
-    -- run as the death it was. A call with no up within CALL s did not take, and the down asks no other. The time
+    -- hold it), plus CALL s past it once a call went, and input.down tells the host's states that both downs held
+    -- with no call that can still land (failed 'both'). The partner's line at help 100 asks for the call. Up again
+    -- (life 1 or 6, once 3 to 5 was read in this down): revived when it comes within CALL s of the call, else the death
+    -- screen's respawn at a camp, which ends the run as the death it was. A call with no up within CALL s did not take, and the down asks no other. The time
     -- running out ends the run as a death too.
     local function downed(raw,input)
         local life=math.tointeger(tonumber(raw:match('\nlife=(%d+) ') or ''))
@@ -705,8 +705,11 @@ function Run.new(o)
             r.down,input.dead=nil,true
             return log(string.format('down %d s with no revive: the run ends as a death',W.DOWN))
         end
-        input.down=true
         if r.peer and r.peer.help>=100 and not (d.called or d.missed) then ask('friend') end
+        -- Both down with no call of ours under way, held CALL s and one more: her line says down until her life reads
+        -- up, so a call of hers it does not show has that long to land and her line to say so.
+        d.both=not d.called and r.peer and r.peer.down>0 and (d.both or r.ticks) or nil
+        input.down=d.both~=nil and (r.ticks-d.both)*TICK>=CALL+1
     end
     local fkeys={}
     local function held()

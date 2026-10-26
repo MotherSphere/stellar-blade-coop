@@ -263,8 +263,9 @@ end
 -- One tick. input: {killed={key,...}, done={key,...}, dead=EVE died, abort=a reason}, each body reported at least once;
 -- in a co-op run on the host, also mate, her last line of this run (W.decode_mate): her kills score, a key is done once
 -- it is done in both worlds, and her death or abort ends the run (failed 'guest', aborted 'mate', or 'lost' when his
--- line stopped in her world; his own death is then failed 'host'), and down (his EVE is down, waiting for a revive):
--- down while her line says she is down too ends it as failed 'both'. Returns the events, in order:
+-- line stopped in her world; his own death is then failed 'host'), and down (his EVE and hers have been down long
+-- enough that no revive call can still land, as nightop/run.lua counts it): down while her line says she is down too
+-- ends it as failed 'both'. Returns the events, in order:
 -- {what='heal',wave=k}, {what='wave',wave=k} (spawn it), {what='end',outcome='success'|'time'|'failed'|'aborted',
 -- reason=}, {what='idle'} once the 10 s result is over. s holds phase, wave, score, kills, clears, up, next_at (the next wave's run time, nil after
 -- the last wave or while it waits for a clear) and, once ended, outcome, reason and time (run time at the end).

@@ -386,8 +386,9 @@ range's three rounds. The guest's `g` line has a counter, the run number, her st
 or `abort`), her monsters still up, masks of the ones killed and done in her world, and a refusal or abort word. Both
 lines end with the [revive](night-operation.md#down-and-revive)'s two words: the seconds the side's downed EVE still
 waits (1 to 30, 0 while she stands) and the side's revive of the other, the percent of the 3 s its interact key has
-been held next to her (0 to 100). The downed game makes its call once the other line says 100, and the host's run
-fails as `failed:both` while his down word and hers are both above 0. Each game writes its line when it changes and
+been held next to her (0 to 100). The downed game makes its call once the other line says 100. The host's run fails
+as `failed:both` once his down and her down word above 0 have held together for 6 s with no call of his under way:
+her line does not show a call of hers, which has 5 s to get her up. Each game writes its line when it changes and
 at least once a second, never twice in one Lua tick, and logs each line out and in as
 `[StellarCoop][NR] night out: ...` and `night in: ...`.
 

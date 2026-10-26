@@ -41,14 +41,16 @@
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
 -- sides' spots and wallets. The Shooting Range for two: the host's ask, his line's range word, her run's waves and
--- notices, the same dummies on the same spots, one score, no points and no best; a host ask that names a solo
+-- notices, the same dummies on the same spots, one score, no points, no best written and each panel's Best row read
+-- from its own PC's records; a host ask that names a solo
 -- challenge (targets, swarm) refused, with no join.
 -- The co-op down and revive, with each side's life read and revive=on: a death is a down on both lines and both cards
 -- (the cut mode's words, the game's when its table reads, its English with ui_language=english), with each side's
 -- notice; the friend's interact key held next to the ghost fills the revive in 3 s (key alone, near alone, too high, a
 -- release: none), and her game asks once; up again goes on, with his revived notice; the self revive and its count by
--- level, refused for a body 4 m below where EVE last walked, with no revived notice for the partner; both down, 30 s
--- down, and up with no revive asked end the run as a death; a call keeps the down open for its result; a call with no
+-- level, refused for a body 4 m below where EVE last walked, with no revived notice for the partner; both down for 6 s,
+-- 30 s down, and up with no revive asked end the run as a death, but both down while her friend call or his own call is
+-- under way does not; a call keeps the down open for its result; a call with no
 -- up in 5 s did not take (no other call, and a later up is a death); a wave's heal skips a downed EVE; a stop while
 -- down is no getting up; with revive=off a death ends the run at once; no revive in a solo run.
 -- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
@@ -1708,13 +1710,43 @@ fall(Hs)
 round(5)
 assert(select(2,on(Hs,function() return Hs.run.command('revive') end))=='no self revive left in this run')
 assert(not find(Hs.lines,'^result: '))
--- Both down: his run ends as failed (both), and hers by his line, each panel with the game's own all-dead line.
+-- Both down: his run ends as failed (both) once both downs held 6 s (her line does not show a call of hers, which has
+-- 5 s to bring her up, then a line to say so), and hers by his line, each panel with the game's own all-dead line.
 fall(Gs)
 round(5)
+assert(not find(Hs.lines,'^result: '),'Not yet: a call of hers may still land')
+round(24)
 assert(find(Hs.lines,'^result: failed %(both%) ') and find(Gs.lines,'^result: failed %(both%) '),Hs.lines[#Hs.lines])
 assert(Hk.groups.night_result.sub.text=='Tous morts (jeu)' and Gk.groups.night_result.sub.text=='All players have died.',
     Gk.groups.night_result.sub.text) -- Hers with ui_language=english.
 assert(Hs.sent[#Hs.sent]:find(' failed:both normal 0 0$'),Hs.sent[#Hs.sent])
+-- His full hold made her friend call, then he goes down: no both while it lands. She is up and the run goes on.
+lives()
+fall(Gs)
+round(5)
+Hs.key,Hs.ghost=true,{X=Hs.eve_at.X+150,Y=Hs.eve_at.Y,Z=Hs.eve_at.Z-90}
+round(14)
+assert(#Gs.revives==1 and Gs.revives[1]=='friend' and state(Gs).down,'Her call is under way')
+Hs.key=false
+fall(Hs)
+round(8)
+assert(state(Hs).down and not find(Hs.lines,'^result: '),Hs.lines[#Hs.lines])
+rise(Gs)
+round(3)
+assert(has(Gs.lines,'up: revived (friend)') and has(Hs.lines,'Kaanta is up again') and state(Hs).down)
+assert(not find(Hs.lines,'^result: ') and not find(Gs.lines,'^result: '))
+-- Both down 4 s, then his own call: no both while it lands, past the 6 s. He is up and the run goes on.
+lives()
+fall(Hs)
+round(5)
+fall(Gs)
+round(16)
+assert(on(Hs,function() return Hs.run.command('revive') end))
+round(12)
+assert(state(Gs).down and not find(Hs.lines,'^result: '),Hs.lines[#Hs.lines])
+rise(Hs)
+round(3)
+assert(has(Hs.lines,'up: revived (self)') and state(Gs).down and not find(Hs.lines,'^result: '))
 -- 30 s down with no revive: the run ends as her death did before.
 lives()
 fall(Gs)

@@ -331,7 +331,9 @@ The run fails when:
 - the 30 s run out with no revive (a call already made gets 5 s more for its result), or she gets up with no revive
   asked or after a call that did not take, which is the death screen's own respawn at a camp. The lines are those of a
   death in [How a co-op run ends](#how-a-co-op-run-ends);
-- both EVEs are down at once. Both screens then show the game's own `All players have died.`
+- both EVEs are down at once for 6 s, with no revive call of the host's under way. The guest's line does not say
+  when she has made a call, and a call has 5 s to get her up, so the host's game waits that long and one second more
+  for her line. Both screens then show the game's own `All players have died.`
 
 The down also needs each game's own life state, the `life=` line that `coop status` shows while a session holds.
 Without it, a death ends the run as in a solo run. A revive call also needs `revive=on` at the time of the call, the
@@ -359,7 +361,7 @@ The run ends on both screens, each with its result panel. The line under the hea
 | Time up | `Time is up.` | `Time is up.` |
 | The host's EVE died and was not revived | `Your EVE died.` | `Your partner's EVE died.` |
 | The guest's EVE died and was not revived | `Your partner's EVE died.` | `Your EVE died.` |
-| Both EVEs down at once | `All players have died.` | `All players have died.` |
+| Both EVEs down at once for 6 s | `All players have died.` | `All players have died.` |
 | On the host's side: `coop nightop stop`, a map change or a load, 80 m from the start point for 10 s, a save that is no longer a co-op save, or an error | His reason, as in the solo run | `Your partner left the run.` |
 | The same on the guest's side | `Your partner left the run.` | Her reason, as in the solo run |
 | The session ended: `coop leave` (F8) or `coop off` on either side | `The link to your partner was lost.` | `The link to your partner was lost.` |
