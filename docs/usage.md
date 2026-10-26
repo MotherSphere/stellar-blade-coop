@@ -1444,7 +1444,8 @@ EVE's gun stances and `Bullet_Shock` as a sixth entry of the game's ammo list, w
 
 `coop-status.txt` has a `shock=` line: `shock=off` before, then `shock=in commands=24,24 added=4 list=6 slots=6` (both
 stances' command counts, the commands added, the ammo list's and the slot manager's entries; `slots=-` when the slot
-manager did not exist yet), or `shock=refused why=<word> at=<where>` with nothing written.
+manager did not exist yet), or `shock=refused why=<word> at=<where>`, with nothing written unless `why=alloc` (see the
+table below).
 
 The log lines, in `UE4SS.log` (the shop's `[StellarCoop][NR]` lines) unless marked:
 
@@ -1452,6 +1453,7 @@ The log lines, in `UE4SS.log` (the shop's `[StellarCoop][NR]` lines) unless mark
 | --- | --- |
 | `shock bolt in: 4 fire commands added (P_Eve_Gun 24 commands, P_Eve_GunBlockSword 24), BulletItemSlotArray grown, 6 entries, the slot manager's list grown, 6 entries` (`coop-link.log`) | Both stances and both ammo lists grew |
 | `shock bolt refused at <where>: <why>; nothing written` (`coop-link.log`) | A check failed before any write: a stance row missing or with another ID, a list out of range, or an ammo list that is not the five the game ships |
+| `shock bolt refused at <where>: SB's allocator gave nothing; the writes before it stay` (`coop-link.log`) | The game's allocator gave no memory partway through the writes (`why=alloc`). What went in before it stays: the fire commands appended, and the ammo list's sixth entry when `<where>` is `slots`. The shop sells no Shock Bolt |
 | `shock bolt off: fault 0x... in ... reading 0x...; the rows stay, no Shock Bolt until the game restarts` (`coop-link.log`) | A fault in the native step. The rows and everything else keep running |
 | `buy Bullet_Shock x10: the gun cannot fire it (shock=...); no points taken` | A buy refused because the `shock=` line does not say `in` |
 

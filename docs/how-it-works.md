@@ -1646,7 +1646,9 @@ game-thread call as the batch's last AddRow (so inside its gate), under a latch 
 
 Every value is checked before the first write: both rows and their IDs, each array's count and capacity, and both ammo
 lists holding exactly the five shipped entries (or those and `Bullet_Shock`: grown already, left as they are). A
-refusal writes nothing. The status gets a `shock=` line:
+refusal writes nothing, except `why=alloc`: the game's allocator gave nothing partway through the writes, and what went
+in before it stays (the fire commands appended, and the ammo list's sixth entry when the slot manager's list is the one
+that failed). The status gets a `shock=` line:
 
 ```
 shock=off

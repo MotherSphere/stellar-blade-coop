@@ -25,12 +25,13 @@
 // HUD and tick reader of the slot index checks it against its list's length, so a list one entry short of the other is
 // read as no bullet, never past its end.
 //
-// Every write is checked first, and a refusal writes nothing: the two rows found with their IDs, each array's Num and
-// Max in range, each FName made, the const list and the slot manager's list exactly the five SB ships (or those five
-// and Bullet_Shock: grown already, left as it is), every element read. Then the writes, in that order; an allocation
-// that fails stops there (an array left longer than its Num, never an entry half written). Runs once a game run, on the
-// game thread in the lion rows' gate (glue/tick/lion_game.inc: no logic task in flight, and none can start before the
-// call returns), right after the lion rows batch's last row went in, under a latch of its own.
+// Every write is checked first, and a check's refusal writes nothing: the two rows found with their IDs, each array's
+// Num and Max in range, each FName made, the const list and the slot manager's list exactly the five SB ships (or those
+// five and Bullet_Shock: grown already, left as it is), every element read. Then the writes, in that order; an
+// allocation that fails stops there and keeps the writes before it (an array left longer than its Num, never an entry
+// half written). Runs once a game run, on the game thread in the lion rows' gate (glue/tick/lion_game.inc: no logic
+// task in flight, and none can start before the call returns), right after the lion rows batch's last row went in,
+// under a latch of its own.
 #pragma once
 
 #include <cstddef>
