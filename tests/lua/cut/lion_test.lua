@@ -941,6 +941,31 @@ assert(follower.destroyed and led.Mesh.main==true and led.Mesh.shadow==true and 
     and led.Mesh.SkeletalMesh:GetFName():ToString()=='CH_M_NA_02_Large','The Lion drawn again, the component gone')
 follower_fails=nil
 
+-- Lion.rows, the shop's way to the cut items' rows: asked like coop lion rows, waiting (true, its message, true) while
+-- busy for anything else, then done with the end once they are in, its answer the tick's; with the rows in, the
+-- read-back and done at once; a refusal before any ask goes to done too.
+do
+    local shopper=new()
+    local asks,spawned,said=#asked,#calls,nil
+    lion_status('off')
+    at(5000)
+    local waiting
+    ok,why,waiting=shopper.rows(function(o,m) said={o,m}; return o,'shop: '..m end)
+    assert(ok and waiting and said==nil and #asked==asks+1 and asked[#asked]==REQUEST,tostring(why))
+    ok,why=shopper.rows(function(o,m) return o,'busy: '..m end)
+    assert(ok==false and why=='busy: coop lion is busy (the wait for the Lion rows): try again in a few seconds',why)
+    lion_status(ROWS_IN:format(1,'6'))
+    at(5000.25)
+    ok,why=shopper.tick()
+    assert(ok and why:find('^shop: Lion rows in: 226/226 added') and said[1]==true and #calls==spawned,tostring(why))
+    ok,why,waiting=shopper.rows(function(o,m) return o,'at once: '..m end)
+    assert(ok and not waiting and why:find('^at once: Lion rows in: 226/226') and #asked==asks+1,tostring(why))
+    player=nil
+    ok,why=shopper.rows(function(o,m) return o,'no EVE: '..m end)
+    assert(ok==false and why:find('^no EVE: no EVE in the world'),why)
+    player=eve
+end
+
 -- The source names no achievement, reward, item, quest, save, possession, console command, destroy or row call of its
 -- own, and its only spawn words are its one CreateActor and its one SpawnDefaultController (race/doro.lua's spawn
 -- and remove make and drop the display copy); its one destroy call drops the component it added itself, when the

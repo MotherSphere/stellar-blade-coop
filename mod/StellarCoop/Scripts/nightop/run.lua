@@ -203,8 +203,9 @@ end
 -- shows one of its screens (the UI kit's), when no body is read; tell(build) a notice that build(words) puts together
 -- (main.lua's: the chat's feed, else the line above EVE), for what the HUD would show while the kit is off and for
 -- what the partner did; send(line) writes our night line (core/link.lua's night); friend() the partner's Steam name;
--- store(name) core/link.lua's one-line file, for the shop's wallet. records: {read() the text of coop-records.txt, nil
--- when there is none (it raises when the file cannot be read), write(text) true once written}, or nil for no bests.
+-- store(name) core/link.lua's one-line file, for the shop's wallet; rows(done) cut/lion.lua's Lion.rows, for the shop's
+-- cut items. records: {read() the text of coop-records.txt, nil when there is none (it raises when the file cannot be
+-- read), write(text) true once written}, or nil for no bests.
 function Run.new(o)
     local log,status,paused,tell,records=o.log,o.status,o.paused,o.tell,o.records
     local send,friend=o.send,o.friend or function() return nil end
@@ -226,7 +227,7 @@ function Run.new(o)
         if more then notify(function(w) return select(2,Run.result(s,w,no_text,best)) end) end
     end
     local r=nil -- The run, nil when idle: s is nightop/waves.lua's state; role 'host' or 'guest' in a co-op run.
-    local shop=Shop.new({log=log,status=status,store=o.store,paused=paused,
+    local shop=Shop.new({log=log,status=status,store=o.store,paused=paused,rows=o.rows,
         busy=function() return r~=nil and r.s.phase~='result' end})
     -- The night line. Ours: n (one up a line), the last line's words but n and rt, ticks since it went. Hers: the last
     -- night= text read. Each (run byte, seed) the guest answered, her refusal while she sends it, and the run bytes she

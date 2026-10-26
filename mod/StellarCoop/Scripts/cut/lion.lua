@@ -761,6 +761,19 @@ function Lion.new(o)
         return true,string.format('unfreeze on %d Lion%s: see its mesh and hand moved lines ([LI] lines).',n,
             n>1 and 's' or '')
     end
+    -- Lion.rows, for the Night Operation shop's cut items (nightop/shop.lua): coop lion rows' steps (the tables, the
+    -- rows already in or the ask, the wait, the read-back), then done(ok, message) with how they ended; what done
+    -- returns is the end said. Returns done's ok, message when it ends at once, or ok, message, true while it waits:
+    -- done then follows from tick() (not after coop off, which drops the wait).
+    function self.rows(done)
+        if job then return done(false,'coop lion is busy ('..job.what..'): try again in a few seconds') end
+        local ok,message=start(false,true)
+        if job and ok then
+            job.done=done
+            return ok,message,true
+        end
+        return done(ok,message)
+    end
     -- brain sets the ID of the next spawns, even while a command runs; the others wait for it.
     function self.command(sub,a,extra)
         if extra~=nil then return false,USE end
@@ -798,6 +811,10 @@ function Lion.new(o)
                 ok,message=false,'coop lion stopped on an error: '..why(done)
             elseif done~=nil then ok,message=done,said end
             if ok~=nil and job==j then job=nil end
+            if ok~=nil and j.done then -- Lion.rows' caller says the end.
+                local fine,a,b=pcall(j.done,ok,message)
+                if fine then ok,message=a,b else ok,message=false,'after the Lion rows: '..why(a) end
+            end
         end
         -- The leaders, dead ones included (their death plays on it): AlwaysTickPoseAndRefreshBones each frame, in case
         -- the engine stops counting a mesh drawn in no pass as rendered. Only while the body is still the one met.

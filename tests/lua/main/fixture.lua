@@ -325,11 +325,12 @@ package.loaded['cut.leviathan']={new=function(o)
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
 end}
 -- coop lion (cut/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops, what a
--- tick says.
+-- tick says; its rows (the shop's cut items) answer done at once.
 li={}
 package.loaded['cut.lion']={new=function(o)
     li.o=o
     return {command=function(...) li.cmds[#li.cmds+1]={...}; return true,'li '..tostring((...)) end,
+        rows=function(done) return done(true,'li rows') end,
         tick=function() li.ticks=li.ticks+1; if li.says then return table.unpack(li.says) end end,
         stop=function() li.stops=li.stops+1 end}
 end}

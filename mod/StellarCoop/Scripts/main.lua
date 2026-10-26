@@ -200,6 +200,10 @@ end
 -- Its one entry, commands.no, runs only on a co-op save (coop_slot).
 local nightop=require('nightop.probe').new(function(m) print('[StellarCoop][NO] '..tostring(m)..'\n') end,
     function(line) return ask(line)() end,function() return link and link.status() end)
+-- coop lion (cut/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back. Built before
+-- Night Operation's run: the shop asks it for the cut items' rows (rows).
+local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
+    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
 -- Night Operation's run: commands.nightop starts it on a co-op save only; stop and coop off end it anywhere. It
 -- ticks every 250 ms and logs [NR] lines; the game's pause is read even with the UI kit off. Its card and result panel
 -- go on the kit (night.hud, below); with the kit off, what they show comes as notices (tell). Linked, its night line
@@ -212,6 +216,7 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
     status=function() return link and link.status() end,paused=function() return kit~=nil and kit.paused(true) end,
     tell=tell,send=function(line) if link then return link.night(line) end end,
     friend=function() return link and (link.friend()) end,store=function(name) return link and link.store(name) end,
+    rows=function(done) return lion.rows(done) end,
     records=folder and {
         read=function()
             local text,e,code=require('core.link').files.read(folder..'\\coop-records.txt')
@@ -243,9 +248,6 @@ local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoo
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
             or saves_ui.is_open())
     end})
--- coop lion (cut/lion.lua), logging [LI] lines: its rows asked of the native part, its status read back.
-local lion=require('cut.lion').new({log=function(m) print('[StellarCoop][LI] '..tostring(m)..'\n') end,
-    ask=function(line) return ask(line)() end,status=function() return link and link.status() end})
 -- The live story dump (story/dump.lua, a test tool): coop story [dump|find], the save object the running game holds
 -- and its story lines, read only, in the lines tools/story.py prints from a save file; coop-story.txt in the mod folder
 -- asks for one once, in a loaded world.
