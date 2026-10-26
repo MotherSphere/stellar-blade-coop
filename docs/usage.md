@@ -829,6 +829,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
 | `coop tendril fight [rows]` | The [cut Tendril](#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
+| `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](#cut-dungeon-coop-mxiii-experimental) (experimental test command, untested in game; needs the zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
@@ -1215,7 +1216,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 15/15 found: CharacterTable=0x...` | The 15 tables found, with the addresses sent to the native part |
+| `tables: 17/17 found: CharacterTable=0x...` | The 17 tables found, with the addresses sent to the native part |
 | `lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 1004500-6000101 23/23, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need (SkillTable: the Lion's 21 skills, the stimpacks' skill, 6000101, and the ChainSpin, 1004500) |
 | `rows read back through FindRow: 237/237 authored rows, 3178 fields as written (2156 differ from the template row)` | Every field the native part wrote reads as written; 2156 of them hold a value the shipped row it started from did not, and the other 1022 restate that row's value |
@@ -1306,7 +1307,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 15/15 found: CharacterTable=0x...` | The 15 tables found, with the addresses sent to the native part |
+| `tables: 17/17 found: CharacterTable=0x...` | The 17 tables found, with the addresses sent to the native part |
 | `gardener rows: 13/13 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `gardener rows by SB's lookups: CharacterTable 50010-50012 3/3, SkillTable 5001010-5001012 3/3, stance 500101 1/1` (`coop-link.log`) | The game's own lookups by ID find its three CharacterTable rows, its three skills and its stance |
 | `rows read back through FindRow: 13/13 authored rows, 279 fields as written (102 differ from the template row)` | Every field the native part wrote reads as written |
@@ -1363,7 +1364,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 15/15 found: CharacterTable=0x...` | The 15 tables found, with the addresses sent to the native part |
+| `tables: 17/17 found: CharacterTable=0x...` | The 17 tables found, with the addresses sent to the native part |
 | `tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable 5006000-5006010 11/11, stance 500600 1/1` (`coop-link.log`) | The game's own lookups by ID find its CharacterTable row, its 11 skills and its stance |
 | `rows read back through FindRow: 107/107 authored rows, 1281 fields as written (997 differ from the template row)` | Every field the native part wrote reads as written |
@@ -1476,6 +1477,48 @@ The log lines, in `UE4SS.log` (the shop's `[StellarCoop][NR]` lines) unless mark
 None of it has been tried in game yet. Check that the Shock Bolt shows in the ammo selector with its icon and count,
 that EVE fires it and the count drops, that a hit stuns a common enemy and not an elite, and that the game keeps running
 normally after you switch ammo.
+
+### Cut dungeon: `coop mxiii` (experimental)
+
+The game's tables keep a dungeon that was cut before release, Matrix XIII (world `DLCMatrix13`), with four zones and
+the enemies of each, but no pak holds its map and no camp or warp leads there. `coop mxiii` tests one way in. It needs
+the zMXIII_P test pak, which does not come with the mod: a map at the path the game's world table names, built from
+shipped Matrix 11 levels. Without that pak the command refuses and changes nothing. It is a test command, left out of
+the usage line, and runs only alone (not in a session) on a [co-op save](#co-op-saves). Its lines go to `UE4SS.log` as
+`[StellarCoop][MX]`, the travel's as `[StellarCoop][TR]`.
+
+1. With the game closed, put `zMXIII_P.utoc`, `zMXIII_P.ucas` and `zMXIII_P.pak` in `SB/Content/Paks/~mods` (or
+   `SB/Content/Paks/LogicMods`).
+2. Load a co-op save you can lose. Entering a world the save has never been in may write that world, its zone and its
+   enemies into the save; `coop saves refresh <0-4>` at the title replaces a co-op copy with a new copy of your save.
+3. Type `coop mxiii`. It checks the pak and the travel's conditions, adds two rows to the game's tables in memory (the
+   camp `DLC02_10_Camp_01` and the row that puts it in the dungeon's first zone, `Zone_DLC02_10`), then asks the game's
+   own camp travel to go there, as `coop travel probe` does for a known camp.
+4. If the log says `travel: SB refused DLC02_10_Camp_01`, the game listed its camps when the map started, before the
+   rows went in. Load the save again (or travel to any camp), then type `coop mxiii` again: the rows stay until the
+   game exits, so the second time it only travels.
+
+- The pak check reads `zMXIII_P.utoc` once per command and looks for `MXIII_P.umap` in it. A pak under another name is
+  not found.
+- The camp never shows on the world map, and the mod adds nothing else: no zone warp, no quest step, no item.
+- What you find there depends on the test pak. The dungeon's first zone spawns its enemies as you enter it (14 Antlions
+  and a data drone in the game's spawn table).
+- `coop off` ends the wait for the rows. A travel the game already took goes on.
+
+| Line | What it answers |
+| --- | --- |
+| `[StellarCoop][MX] checks: solo on a co-op save, the native travel idle, <path> holds MXIII_P.umap` | The checks passed and the test pak holds the map |
+| `[StellarCoop][MX] refused: no test pak: no <path> or <path>` | No test pak in either folder: nothing was asked |
+| `[StellarCoop][MX] refused: <why>` | A condition of the travel failed (a session, another save, a travel under way): nothing was asked |
+| `mxiii rows: 2/2 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added the 2 rows |
+| `mxiii rows refused <row>: <why>; <n>/2 added` (`coop-link.log`) | A row the native part would not add, and why: no travel |
+| `[StellarCoop][MX] rows read back through FindRow: 2/2 authored rows, 4 fields as written (3 differ from the template row)` | Every field the native part wrote reads as written |
+| `[StellarCoop][MX] travel to DLC02_10_Camp_01 asked: ...` | The camp travel went to the native part |
+| `[StellarCoop][TR] travel accepted: DLC02_10_Camp_01` | The game took the travel: the fade and the load follow |
+| `[StellarCoop][TR] travel: SB refused DLC02_10_Camp_01` | The game did not find the camp (see step 4) |
+
+None of it has been tried in game yet. Check that the second try loads the map, that EVE stands on its floor at the
+camp's spawn point, which enemies appear, and that the game keeps running and saves normally after you leave.
 
 ### Cut hairs and suits: `coop wear`
 

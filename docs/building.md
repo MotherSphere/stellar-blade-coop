@@ -75,12 +75,12 @@ build/host/pose_codec_test
 ```
 
 - Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `enemy`, `gardener`,
-  `leviathan`, `lines`, `lion`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`,
-  `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`,
-  `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`:
-  `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `kit`, `model`, `notice`, `text`) run
-  the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
-  fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test`
+  `leviathan`, `lines`, `lion`, `mxiii`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`,
+  `input`, `menu`, `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`, `recruiter`,
+  `recruiter_text`, `run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`,
+  `drive_model`, `model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`;
+  `ui/`: `kit`, `model`, `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine.
+  In the capture test, any write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test`
   also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn probe`, the
   `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`,
   `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row;
@@ -93,10 +93,10 @@ build/host/pose_codec_test
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
-    and the boss tests included; `lion rows`, `gardener rows`, `tendril rows` and `bolt rows` with their 15 table words
-    and bad addresses; `fly` and `slowmo` on or off), Night Operation's night line (its round trip, its refusals and a
-    fuzz seed), and the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character
-    typos the check turns away);
+    and the boss tests included; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows` and `mxiii rows` with their
+    17 table words and bad addresses, the longest of them 565 bytes; `fly` and `slowmo` on or off), Night Operation's
+    night line (its round trip, its refusals and a fuzz seed), and the join codes (both real lobby ids, loose typing,
+    malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, joining
     with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a
@@ -114,18 +114,20 @@ build/host/pose_codec_test
     write, the manifest, the backup before the first copy, torn reads and failed writes, and the requests and the
     switch against a fake game;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
-  - `lion_rows_test`: the Lion's, the Gardener's, the Tendril's and the Shock Bolt's rows against fake memory laid out
-    like the pinned build: the recipes (unique names and IDs across the batches, every patch inside its struct, the
-    steps, skills, commands, stances, moves and target filters pointing at the new rows, the CharacterTable rows last
-    with the link flag Common and the phase-2 stance, no value naming a Behemoth row or asset but the sound set; the
-    Gardener's ToxicBeam steps, skills, stance at speed 0 and CharacterTable rows; the Tendril's skills on their
-    run-time Shows, its Hit steps on its own areas, its stance, dead and CharacterTable rows; the Shock Bolt's 4 rows),
-    a whole run of each batch (each row built from its template with the game's lazy-init flag and parsed arrays reset,
-    its ID and patches of every kind, AddRow given the new name; the Gardener's reading only the tables its rows go
-    into, and a ProjectileTable of another row size stopping the Shock Bolt's batch, not the Lion's), the refusals that
-    call no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size), a later run
-    skipping the rows already in, FName's number split, the read-back through the game's lookups by ID, the answer
-    word, the `lion=`, `gardener=`, `tendril=` and `bolt=` status lines and the log lines;
+  - `lion_rows_test`: the Lion's, the Gardener's, the Tendril's, the Shock Bolt's and Matrix XIII's rows against fake
+    memory laid out like the pinned build: the recipes (unique names and IDs across the batches, every patch inside
+    its struct, the steps, skills, commands, stances, moves and target filters pointing at the new rows, the
+    CharacterTable rows last with the link flag Common and the phase-2 stance, no value naming a Behemoth row or asset
+    but the sound set; the Gardener's ToxicBeam steps, skills, stance at speed 0 and CharacterTable rows; the
+    Tendril's skills on their run-time Shows, its Hit steps on its own areas, its stance, dead and CharacterTable rows;
+    the Shock Bolt's 4 rows; Matrix XIII's camp and the env-spawn row naming it), a whole run of each batch (each row
+    built from its template with the game's lazy-init flag and parsed arrays reset, its ID and patches of every kind,
+    AddRow given the new name; the Gardener's reading only the tables its rows go into, a ProjectileTable of another
+    row size stopping the Shock Bolt's batch, not the Lion's, and Matrix XIII's two rows from patches of their own in
+    the two zone tables, a ZoneEnvSpawnTable of another row size or a taken camp ID stopping that batch alone), the
+    refusals that call no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size), a
+    later run skipping the rows already in, FName's number split, the read-back through the game's lookups by ID, the
+    answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=` and `mxiii=` status lines and the log lines;
   - `lion_shock_test`: the Shock Bolt's two lists against fake memory: both gun stances given the two fire commands
     (through the game's grow or inside the capacity), the const ammo list and the slot manager's list given
     `Bullet_Shock`, a second run writing nothing, no slot manager yet, the key found down its hash chain, each refusal
@@ -325,7 +327,7 @@ mod/StellarCoop/            the UE4SS mod folder
     nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
     race/                   Doro races: the run, the track model, the Doro look, the driving
     cut/                    the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
-                            fight, wear, scene and lines
+                            fight, mxiii, wear, scene and lines
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side
@@ -358,7 +360,7 @@ Platform-free headers, tested on the build machine:
 | `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose/record.h` | The recording, its check and its replay |
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
-| `lion/rows.h` | Four batches of rows (its data part written by a generator outside the repository): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107 and the cut Shock Bolt's 4; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=` and `bolt=` lines and the log lines |
+| `lion/rows.h` | Five batches of rows (the data part of the first four written by a generator outside the repository): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4 and `coop mxiii`'s 2, written by hand; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=` and `mxiii=` lines and the log lines |
 | `lion/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
