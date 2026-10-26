@@ -565,17 +565,17 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
   with it count as both keyless and missing.
 - `<name>, last 60 s: ...`, per linked friend: channel 1 traffic, drops, failed sends with the last Steam result (25
   means its send buffer is full), ping RTT and loss, and Steam's view of the session.
-
-Between those, `pose rate cap <n> a second for <name>: ...` marks each change of the cap on the poses you send. A cap
-of 30 or 20 means Steam's queue to that friend reached 100 ms, or 64 KiB waited to be sent, two seconds in a row: the
-ghost they see moves with fewer poses a second, still interpolated, instead of falling behind. The line gives the
-queue time, the pending bytes, Steam's send rate and the session quality at that moment. The cap goes up one step
-after 10 s calm (`10 s calm (queue under 20 ms, pending under 16 KiB)`); if it keeps coming back down, the wait before
-the next try grows to 80 s. A cap that stays at 20 points at the connection itself: compare the send rate and quality
-in the `<name>, last 60 s:` line on both PCs.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
+
+Between the 60 s lines, `pose rate cap <n> a second for <name>: ...` marks each change of the cap on the poses you
+send. A cap of 30 or 20 means Steam's queue to that friend reached 100 ms, or 64 KiB waited to be sent, two seconds in
+a row: the ghost they see moves with fewer poses a second, still interpolated, instead of falling behind. The line
+gives the queue time, the pending bytes, Steam's send rate and the session quality at that moment. The cap goes up one
+step after 10 s calm (`10 s calm (queue under 20 ms, pending under 16 KiB)`); if it keeps coming back down, the wait
+before the next step up grows to 80 s. A cap that stays at 20 points at the connection itself: compare the send rate
+and quality in the `<name>, last 60 s:` line on both PCs.
 
 `UE4SS.log` gets one more line each minute while the on-screen UI is up: `[StellarCoop] Lua frame time, last 60 s:
 ghost <x> ms, doro <d> ms, race <r> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the

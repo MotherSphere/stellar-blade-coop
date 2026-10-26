@@ -474,11 +474,11 @@ with a queue time of 100 ms or more, or 64 KiB or more of unreliable bytes pendi
 20, never below 20, and never to a value that changes nothing under your `send_rate` (at `send_rate=30` it goes
 straight to 20). Ten calm readings (queue under 20 ms and pending under 16 KiB) with none over the limit raise it one
 step; readings in between neither count nor reset. When a step up is undone before its wait is over, the next wait
-doubles (10, 20, 40, then 80 s), so a link that carries 30 but not 60 tries 60 less and less often. Each step writes
-one line, for example `pose rate cap 30 a second for <name>: Steam's queue 150.0 ms, 70000 B pending (2 s at 100 ms
-or 64 KiB or more); send rate 131072 B/s, quality 0.91/0.93; up again after 10 s calm`. The stream line shows the
-cap in force as `link cap <n>`. A single 16 KB keyframe takes 61 ms to leave at Steam's default send rate and a
-64 KiB table 250 ms, which is why one reading over the limit is not enough.
+doubles (10, 20, 40, then 80 s), so on a link that carries 30 but not 60 the cap returns to 60 less and less often.
+Each step writes one line, for example `pose rate cap 30 a second for <name>: Steam's queue 150.0 ms, 70000 B pending
+(2 s at 100 ms or 64 KiB or more); send rate 131072 B/s, quality 0.91/0.93; up again after 10 s calm`. The stream
+line shows the cap in force as `link cap <n>`. A single 16 KiB keyframe takes 62.5 ms to leave at Steam's default send
+rate and a 64 KiB table 250 ms, which is why one reading over the limit is not enough.
 
 ## The ghost pipeline
 

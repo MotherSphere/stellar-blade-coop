@@ -264,9 +264,10 @@ private:
 // of unreliable bytes pending, step the cap down to the next one of 60, 30 and 20 below the rate that goes now (the
 // player's send_rate under the cap); none below 20. After 10 calm readings (queue under 20 ms and pending under 16 KiB)
 // with none over the line since the last step, it steps up one cap; a reading in between neither counts nor resets.
-// A step up undone within that wait doubles the wait (10, 20, 40, 80 s), so a link that carries 30 but not 60 tries 60
-// less and less often; a step up that holds for its wait brings the wait back to 10 s. A 16 KB keyframe drains in 61 ms
-// at Steam's default send rate and a 64 KiB table in 250 ms: the line and the second reading keep those from counting.
+// A step up undone within that wait doubles the wait (10, 20, 40, 80 s), so on a link that carries 30 but not 60 the
+// cap returns to 60 less and less often; a step up that holds for its wait brings the wait back to 10 s. A 16 KiB
+// keyframe drains in 62.5 ms at Steam's default send rate (256 KiB/s) and a 64 KiB table in 250 ms: the line and the
+// second reading keep those from counting.
 // tests/native/link/pose_cap_test.cpp checks it.
 constexpr uint32_t kPoseCaps[] = {60, 30, 20};
 constexpr size_t kPoseCapCount = sizeof kPoseCaps / sizeof kPoseCaps[0];
