@@ -40,7 +40,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 13; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 14; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -53,10 +53,12 @@ constexpr int kProtocol = 13; // Bump on any wire change. 1 was the first link (
                               // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
                               // 2, and on channel 0 the photo line's c (the host's cutscene), the night line (Night
                               // Operation for two), the mark line and the race lines; 13 adds the pak lines (the mod
-                              // containers by name) before the paks line, which a protocol-12 peer would count invalid.
-                              // An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
-                              // v0.4.0-beta.1, 12: v0.5.0-beta.1) is told why: the lobby tag, then the hello's reject,
-                              // name both.
+                              // containers by name) before the paks line, which a protocol-12 peer would count invalid;
+                              // 14 adds Night Operation's level to the host's night line, which a protocol-13 guest
+                              // would refuse, as she would the masks of a level's extra monsters. An older peer (6:
+                              // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
+                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3) is told why: the lobby tag, then the
+                              // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -296,7 +298,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF13" for the shared fight, "SBQ13" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF14" for the shared fight, "SBQ14" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 

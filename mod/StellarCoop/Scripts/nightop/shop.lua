@@ -18,13 +18,12 @@ local N=require('nightop.probe')
 local Shop={}
 local MASK=0xFFFFFFFF
 -- The item number is the row's place here. cut: the native part adds its rows (lion/rows.h's cut items) before a buy.
--- ponytail: the stimpacks' prices are starting values (a full run credits 42 points at most); tune them in game.
+-- ponytail: the stimpacks' prices are starting values (a full normal run credits 42 points at most); tune them in game.
 Shop.ITEMS={{alias='HP_Potion',price=15},{alias='HP_Potion_Small',price=10},{alias='PulseGrenade',price=6},
     {alias='ConcussionGrenade',price=8},{alias='HP2Burst_Potion',price=20,cut=true},
     {alias='Buff_HP2MP',price=16,cut=true}}
 Shop.POINTS_PER=25 -- Score for one point. ponytail: a starting value; tune it after the two-PC test.
 Shop.MOST=10 -- Items in one buy.
-Shop.CAP=W.MAX_SCORE//Shop.POINTS_PER -- Points one run credits at most (42), whatever line its score came from.
 local BUY='Use: coop nightop buy <item 1-'..#Shop.ITEMS..'> [count 1-10]'
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 local function whole(text) return type(text)=='string' and text:match('^%d+$') and math.tointeger(tonumber(text)) end
@@ -66,14 +65,18 @@ function Shop.new(o)
         return {name=name,points=points,save=function(n) return file.save(tostring(n)) end}
     end
     local self={}
-    -- A run's final score as points for this wallet: got and the new total, or nil and why.
-    function self.credit(score)
+    -- A run's final score as points for this wallet: got and the new total, or nil and why. def: the run's level
+    -- (W.NIGHT when nil): one point for each POINTS_PER of the score times its pct, the score counted up to its W.most
+    -- whatever line it came from (42 points at most a normal run, 129 a nightmare one).
+    function self.credit(score,def)
+        def=def or W.NIGHT
         local w,e=wallet()
         if not w then return nil,e end
-        local got=math.min(math.max(0,math.floor(score/Shop.POINTS_PER)),Shop.CAP)
+        local got=math.min(math.max(0,math.floor(score)),W.most(def))*def.pct//(100*Shop.POINTS_PER)
         local saved,se=w.save(w.points+got)
         if not saved then return nil,'points not written: '..tostring(se) end
-        log(string.format('credit +%d = %d (score %d, %s)',got,w.points+got,score,w.name))
+        log(string.format('credit +%d = %d (score %d%s, %s)',got,w.points+got,score,
+            def==W.NIGHT and '' or ', '..def.level..' '..def.pct..'%',w.name))
         return got,w.points+got
     end
     function self.list()

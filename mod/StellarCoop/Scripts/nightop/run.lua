@@ -1,6 +1,8 @@
 -- coop nightop: Night Operation's run on a co-op save (commands/nightop.lua checks the slot), on the game thread. Five
--- timed waves of the game's base monsters come at EVE where she stands. coop challenge runs the challenges of
--- nightop/challenges.lua the same way, solo only, each with its best run in coop-records.txt. nightop/waves.lua holds
+-- timed waves of the game's base monsters come at EVE where she stands, at one of four levels (nightop/waves.lua's
+-- W.LEVELS: the monsters a wave holds, the time limit, the shop points; the host's level in a co-op run, which his
+-- night line carries). coop challenge runs the challenges of nightop/challenges.lua the same way, solo only, each with
+-- its best run in coop-records.txt. nightop/waves.lua holds
 -- the waves, the keys and the run's states, read from the run's definition; this file is the game side: the start
 -- checks and the census, the one spawn call, the bodies it tracks, their aggro and stuck moves, the abort watch and the
 -- end, and what the player sees: a card at the top centre and a result panel on the Uplink kit (ui/kit.lua), or notices
@@ -160,7 +162,7 @@ local function clock_text(seconds) return string.format('%d:%02d',seconds//60,se
 -- A notice about a run of def in words w: Night Operation's own (night.<key>), or the challenge's (challenge.<key>)
 -- with its name first.
 local function notice(def,w,key,...)
-    if def==W.NIGHT then return w.night[key]:format(...) end
+    if def.level then return w.night[key]:format(...) end
     return w.challenge[key]:format(w.challenge.names[def.id],...)
 end
 -- The card's title and line for the run's state s at game time now, in words w (ui/text.lua's): Night Operation's
@@ -169,7 +171,7 @@ end
 -- with the run time left and the score.
 function Run.card(s,now,w)
     local n=w.night
-    local title=s.def==W.NIGHT and n.title or w.challenge.names[s.def.id]
+    local title=s.def.level and n.title or w.challenge.names[s.def.id]
     if s.phase=='ask' and s.role=='host' then return title,n.waiting end
     if s.phase=='countdown' or s.phase=='ask' then return title,n.starts:format(math.max(0,math.ceil(s.t0-now))) end
     local rt=now-s.t0
@@ -193,7 +195,7 @@ function Run.result(s,w,game,best)
     elseif s.outcome=='time' then sub=n.time_up
     elseif s.outcome=='aborted' then
         local key=WHY[s.reason] or 'stop'
-        sub=key=='stop' and s.def~=W.NIGHT and c.stopped or n.why[key]
+        sub=key=='stop' and not s.def.level and c.stopped or n.why[key]
     end
     return head,sub,{{n.waves,s.clears..'/'..#s.def.waves},{n.kills,tostring(s.kills)},{n.points,tostring(s.score)},
         {n.time,clock_text(math.floor(s.time))},
@@ -508,7 +510,7 @@ function Run.new(o)
     local function earn()
         local s=r.s
         if s.outcome~='success' and s.outcome~='time' then return end
-        if s.def~=W.NIGHT then return end -- A challenge gives none.
+        if not s.def.level then return end -- A challenge gives none.
         if not r.counted then return log('no points: this run did not go through its countdown') end
         -- A success whose waves cleared without a fight pays its kills only: the time bonus nightop/waves.lua's finish
         -- added goes.
@@ -518,7 +520,7 @@ function Run.new(o)
             score=math.max(0,score-math.floor((s.def.limit-s.time)*s.def.bonus))
             log('points: no time bonus ('..no..')')
         end
-        local got,total=shop.credit(score)
+        local got,total=shop.credit(score,s.def)
         if not got then return unpaid('no points: '..total) end
         if tell then tell(function(w) return w.night.earned:format(got,total) end) end
     end
@@ -683,7 +685,7 @@ function Run.new(o)
         end
         step(input)
     end
-    local USE='Use: coop nightop [start [noaggro|nomove] | stop | shop | buy <n> [count]]'
+    local USE='Use: coop nightop [start [easy|normal|hard|nightmare] [noaggro|nomove] | stop | shop | buy <n> [count]]'
     -- A new run of def (Night Operation's when nil) at game time now around at (whole cm) facing yaw (whole degrees):
     -- the run byte and seed give the gate order, so the host's and the guest's runs put each monster on the same spot.
     local function begin(run,seed,now,at,yaw,map,flag,def)
@@ -694,18 +696,20 @@ function Run.new(o)
         panel=nil
         pcall(died) -- The death screen's first look, while EVE lives.
     end
-    local function name_of(def) return def.name or 'Night Operation' end
-    -- A run of def (Night Operation's when nil); flag: Night Operation's noaggro or nomove. A challenge is solo: it
-    -- starts only without a Steam session. The best so far is read from the records file once the run is on.
+    -- A challenge's name, or Night Operation's with its level when it is not normal: Night Operation (hard).
+    local function name_of(def) return def.name or 'Night Operation'..(def~=W.NIGHT and ' ('..def.level..')' or '') end
+    -- A run of def (Night Operation's normal level when nil, or another of W.LEVELS); flag: Night Operation's noaggro
+    -- or nomove. A challenge is solo: it starts only without a Steam session. The best so far is read from the records
+    -- file once the run is on.
     local function start(flag,def)
         def=def or W.NIGHT
         if r and r.s.phase~='result' then
-            return false,'a run is on: coop '..(def==W.NIGHT and 'nightop' or 'challenge')..' stop ends it'
+            return false,'a run is on: coop '..(def.level and 'nightop' or 'challenge')..' stop ends it'
         end
         local raw='\n'..(status() or '')
         local linked=raw:match('\nlink=(%a+)')
         if not linked then return false,'the Steam link is not ready yet: try again in a moment' end
-        if def~=W.NIGHT and linked~='none' then
+        if not def.level and linked~='none' then
             return false,name_of(def)..' is solo for now: leave the Steam session first (coop leave)'
         end
         if linked=='guest' then return false,'the host starts a co-op run' end
@@ -735,21 +739,21 @@ function Run.new(o)
         local at={X=math.floor(v.X+0.5),Y=math.floor(v.Y+0.5),Z=math.floor(v.Z+0.5)} -- As the night line carries it.
         local yaw=math.floor(U.value_of(eve:K2_GetActorRotation()).Yaw+0.5)
         begin(run,W.seed(t,run),now,at,yaw,map,flag,def)
-        log(string.format('start: run 0x%02X seed 0x%08X at %s yaw %.0f map %s%s%s; %s',run,W.seed(t,run),xyz(at),
-            yaw,map,flag and ' '..flag or '',def~=W.NIGHT and ' challenge '..def.id or '',c.text))
+        log(string.format('start: run 0x%02X seed 0x%08X at %s yaw %.0f map %s%s %s; %s',run,W.seed(t,run),xyz(at),
+            yaw,map,flag and ' '..flag or '',def.level and 'level '..def.level or 'challenge '..def.id,c.text))
         local score,secs=C.best(stored(),def.id)
         r.best=score and {score=score,s=secs} or nil
         if linked=='host' then
             local name=friend() or '?'
             r.role,r.s.role,r.s.phase='host','host','ask'
             log(string.format('co-op with %s: waiting for their answer',name))
-            return true,string.format('Night Operation: waiting for %s to join (run 0x%02X)',name,run)
+            return true,string.format('%s: waiting for %s to join (run 0x%02X)',name_of(def),name,run)
         end
         notify(function(w) return notice(def,w,'start_notice',W.COUNTDOWN) end)
         return true,string.format('%s starts in %d s (run 0x%02X)',name_of(def),W.COUNTDOWN,run)
     end
     -- The guest's side of the host's ask, once per run byte and seed: her checks in order, the first that fails refuses
-    -- with its word; else she is ready, and her run takes his run byte, seed, start point and yaw.
+    -- with its word; else she is ready, and her run takes his run byte, seed, start point, yaw and level.
     local function join(h,raw)
         if answer and (h.run~=answer.run or h.seed~=answer.seed or h.phase~='ask') then answer=nil end
         if r and r.role=='guest' and r.s.phase=='ask' and (h.run~=r.s.run or h.seed~=r.seed) then
@@ -773,10 +777,10 @@ function Run.new(o)
             log(string.format('ask for run 0x%02X refused: %s%s',h.run,why,text))
             return
         end
-        begin(h.run,h.seed,clock(eve),{X=h.x,Y=h.y,Z=h.z},h.yaw,h.map)
+        begin(h.run,h.seed,clock(eve),{X=h.x,Y=h.y,Z=h.z},h.yaw,h.map,nil,W.LEVEL[h.level])
         r.role,r.s.role,r.s.phase='guest','guest','ask'
-        log(string.format('join: run 0x%02X seed 0x%08X at %s yaw %d map %s%s',h.run,h.seed,xyz(r.p0),h.yaw,h.map,
-            text))
+        log(string.format('join: run 0x%02X seed 0x%08X at %s yaw %d map %s level %s%s',h.run,h.seed,xyz(r.p0),h.yaw,
+            h.map,h.level,text))
     end
     -- Ends the run that is on as aborted; the name of what it ran, or nil when none was on. The host's ask has no run
     -- yet: dropped, with no result. The guest's ask ends as an abort, so her line tells a host already counting down
@@ -793,12 +797,13 @@ function Run.new(o)
         step({killed={},done={},abort=reason})
         return name
     end
-    -- The state of the run that is on, or nil.
+    -- The state of the run that is on, or nil: its level when it is not normal, or its challenge.
     local function state()
         if not r or r.s.phase=='result' then return nil end
         local s=r.s
         return string.format('run 0x%02X%s: %s, wave %d/%d, run time %.0f s, score %d, kills %d',s.run,
-            s.def~=W.NIGHT and ' challenge '..s.def.id or '',s.phase,s.wave,#s.def.waves,r.now-s.t0,s.score,s.kills)
+            s.def==W.NIGHT and '' or s.def.level and ' level '..s.def.level or ' challenge '..s.def.id,s.phase,s.wave,
+            #s.def.waves,r.now-s.t0,s.score,s.kills)
     end
     -- Our side of the night line as W.encode_host's or W.encode_mate's table (n and rt left to night_out), or nil when
     -- we have none to send: the guest's refusal while she sends it (a host who asks has left any run of hers behind),
@@ -814,7 +819,7 @@ function Run.new(o)
             for key in pairs(r.seen) do if not s.done[key] then found[key]=true end end
             return {run=s.run,seed=r.seed,phase=PHASE[s.phase],wave=s.wave,rt=math.max(-10000,
                 math.min(600000,math.floor(rt*1000+0.5))),score=s.score,kills=s.kills,clears=s.clears,found=found,
-                x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason}
+                x=r.p0.X,y=r.p0.Y,z=r.p0.Z,yaw=r.yaw,map=r.map,outcome=s.outcome,reason=reason,level=s.def.level}
         end
         if r and r.role=='guest' then
             local s=r.s
@@ -854,11 +859,18 @@ function Run.new(o)
         return line
     end
     local self={}
-    -- start [noaggro|nomove], stop, shop, buy <n> [count], or nothing: the run's state, if any, and the census.
+    -- start [level] [noaggro|nomove], stop, shop, buy <n> [count], or nothing: the run's state, if any, and the census.
     function self.command(sub,flag,extra,more)
         if sub=='buy' then return shop.buy(flag,extra,more) end
+        if sub=='start' and more==nil then
+            local def=W.LEVEL[flag or '']
+            local switch=flag
+            if def then switch=extra end
+            if (def or extra==nil) and (switch==nil or switch=='noaggro' or switch=='nomove') then
+                return start(switch,def)
+            end
+        end
         if extra~=nil then return false,USE end
-        if sub=='start' and (flag==nil or flag=='noaggro' or flag=='nomove') then return start(flag) end
         if flag~=nil then return false,USE end
         if sub=='stop' then
             local name=stop('stop')
@@ -872,8 +884,9 @@ function Run.new(o)
         local text,on=census(eve).text,state()
         return true,on and on..'; '..text or text
     end
-    -- Nothing: the challenges and Night Operation with each one's best, then the run that is on, if any. A challenge's
-    -- name or number: its start, with Night Operation's checks. stop: ends any run, a challenge or Night Operation.
+    -- Nothing: the challenges and Night Operation's levels with each one's best, then the run that is on, if any. A
+    -- challenge's name or number: its start, with Night Operation's checks. stop: ends any run, a challenge or Night
+    -- Operation.
     function self.challenge(sub,extra)
         if extra~=nil then return false,'Use: coop challenge [<name>|stop]' end
         if sub=='stop' then
@@ -888,7 +901,7 @@ function Run.new(o)
         end
         local text,out=stored(),{}
         for _,def in ipairs(C.LIST) do out[#out+1]=C.line(def,C.best(text,def.id)) end
-        out[#out+1]=C.line(W.NIGHT,C.best(text,W.NIGHT.id))
+        for _,def in ipairs(W.LEVELS) do out[#out+1]=C.line(def,C.best(text,def.id)) end
         out[#out+1]=state()
         return true,table.concat(out,'\n')
     end

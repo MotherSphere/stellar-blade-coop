@@ -1,9 +1,9 @@
 -- Night Operation's run without a game call: the monster pool and the five-wave schedule, the wave keys, the run byte,
 -- the seeded gate order and the spot of each monster, the score, the timer list and the run's states, solo or for two
 -- linked players (the night line's two codecs, the host's merge of her world, the guest's run following his). A run
--- reads its waves and rules from a definition (W.NIGHT, or a challenge from nightop/challenges.lua; a challenge is
--- solo). The game side (spawns, bodies, the HUD, the line) reads and feeds it; tests/lua/nightop/waves_test.lua covers
--- it with lua5.4 alone.
+-- reads its waves and rules from a definition (W.NIGHT, one of Night Operation's other levels in W.LEVELS, or a
+-- challenge from nightop/challenges.lua; a challenge is solo). The game side (spawns, bodies, the HUD, the line) reads
+-- and feeds it; tests/lua/nightop/waves_test.lua covers it with lua5.4 alone.
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
 local W={}
@@ -12,7 +12,6 @@ W.COUNTDOWN,W.LIMIT,W.BREATHER,W.RESULT=5,480,10,10 -- Seconds of game time.
 W.CAP=8 -- A wave starts only while the bodies still up plus its own size stay at or under this.
 W.HEALS={[2]=true,[4]=true} -- A full heal once these waves are down.
 W.REFRESH=1 -- Seconds between two refreshes of the live list while bodies are tracked; 2 if the log shows slow ones.
-W.MAX_SCORE=1060 -- The schedule's 580 kill points, plus 1 a second left at most.
 -- The rows a run may spawn: none has a reward group or a species kill row. The Skull rows are the Alone ones: the base
 -- rows summon Skullings the run would not track. The dummies are the game's own target rows (flag Dummy); the shipped
 -- game spawns M_DummyC in two DLC zones.
@@ -42,8 +41,36 @@ W.SCHEDULE={
 -- A run's definition. waves: {ids=, at=run time or nil}, wave 1 at 0; a wave with no at comes only a breather after the
 -- one before it is down. limit: run time before time up; heals: the waves after which EVE is healed; bonus: points per
 -- second left on a success; aggro: bodies sent at EVE; moves: stuck-rule moves per body; spots: nil for the four gates,
--- else {degrees from the start yaw, metres from P0} each.
-W.NIGHT={id='night',waves=W.SCHEDULE,limit=W.LIMIT,breather=W.BREATHER,heals=W.HEALS,bonus=1,aggro=true,moves=2}
+-- else {degrees from the start yaw, metres from P0} each. Night Operation's levels only: level, its word (coop nightop
+-- start <level>, the night line), and pct, the shop points its score gives in percent of normal's.
+W.NIGHT={id='night',level='normal',waves=W.SCHEDULE,limit=W.LIMIT,breather=W.BREATHER,heals=W.HEALS,bonus=1,
+    aggro=true,moves=2,pct=100}
+-- Night Operation's four levels in order, W.NIGHT (normal) among them, and W.LEVEL[word]. Each other level is W.NIGHT
+-- with its own id (its best in coop-records.txt), limit, pct and number of monsters in each wave: a wave keeps the
+-- schedule's rows in order and repeats them from its first for the extra ones (wave 2 at 5 is Sword, Sword, Gunner,
+-- Sword, Sword), or drops its last ones. Their keys, spots, finds, aggro and score are a wave's like any other; 8, the
+-- cap, is the most a wave holds. Starting values, to tune after the first in-game runs.
+W.LEVELS,W.LEVEL={},{}
+for _,l in ipairs({{'easy',{3,2,4,3,3},540,50},{'normal'},{'hard',{6,5,7,6,6},450,150},
+        {'nightmare',{8,8,8,8,8},420,200}}) do
+    local def=W.NIGHT
+    if l[2] then
+        def={id='night_'..l[1],level=l[1],waves={},limit=l[3],pct=l[4]}
+        for k,v in pairs(W.NIGHT) do if def[k]==nil then def[k]=v end end
+        for k,wave in ipairs(W.SCHEDULE) do
+            local ids={}
+            for slot=1,l[2][k] do ids[slot]=wave.ids[(slot-1)%#wave.ids+1] end
+            def.waves[k]={at=wave.at,ids=ids}
+        end
+    end
+    W.LEVELS[#W.LEVELS+1],W.LEVEL[l[1]]=def,def
+end
+-- The highest score a run of def can make: every kill, and its bonus for each second of its limit (1060 for W.NIGHT).
+function W.most(def)
+    local n=def.limit*def.bonus
+    for _,wave in ipairs(def.waves) do for _,id in ipairs(wave.ids) do n=n+W.points(id) end end
+    return n
+end
 -- A monster's EventSpawnId: 0xD8000000 | run << 16 | wave << 8 | slot, a range no EventSpawnTable row uses (its
 -- highest is 0xD42B5F51) below the shared enemies' extras (0xE...) and summons (0xF...).
 local BASE=0xD8000000
@@ -276,28 +303,32 @@ end
 
 -- The night line (core/link.lua's self.night out, the status's night= line in): each side's whole state, written on
 -- change and at least once a second, so a lost line is repaired by the next. The native part checks its bytes and sides
--- only; these codecs check every field and refuse the whole line on any bad one. Only Night Operation (W.NIGHT) runs
--- for two, so the masks and bounds are its schedule's.
--- A mask: one bit per key of the schedule, (wave - 1) * 8 + slot, as lowercase hex (40 bits at most).
+-- only; these codecs check every field and refuse the whole line on any bad one. Only Night Operation (W.LEVELS) runs
+-- for two, so the masks and bounds are its levels'.
+-- A mask: one bit per key a level's waves hold, (wave - 1) * 8 + slot, as lowercase hex (40 bits at most). A mask does
+-- not say the level: a key past the run's wave size is no body of it (own() leaves it out).
+local function bit(k,slot) return 1<<((k-1)*8+slot) end
 local FULL=0
-for k,wave in ipairs(W.SCHEDULE) do for slot=0,#wave.ids-1 do FULL=FULL|1<<((k-1)*8+slot) end end
+for _,def in ipairs(W.LEVELS) do
+    for k,wave in ipairs(def.waves) do for slot=0,#wave.ids-1 do FULL=FULL|bit(k,slot) end end
+end
 function W.mask(set,run)
     local m=0
     for key in pairs(set) do
         local r,k,slot=W.decode(key)
-        if r==run and k>=1 and k<=#W.SCHEDULE and slot<#W.SCHEDULE[k].ids then m=m|1<<((k-1)*8+slot) end
+        if r==run and k>=1 and k<=#W.SCHEDULE and slot<W.CAP and FULL&bit(k,slot)~=0 then m=m|bit(k,slot) end
     end
     return string.format('%x',m)
 end
--- The set of keys a mask names, or nil: only hex, and only the schedule's bodies.
+-- The set of keys a mask names, or nil: only hex, and only bodies a level's waves hold.
 function W.unmask(text,run)
     if type(text)~='string' or not text:match('^[0-9a-f]+$') or #text>10 then return nil end
     local m=tonumber(text,16)
     if m&~FULL~=0 then return nil end
     local set={}
-    for k,wave in ipairs(W.SCHEDULE) do
-        for slot=0,#wave.ids-1 do
-            if m&1<<((k-1)*8+slot)~=0 then set[W.key(run,k,slot)]=true end
+    for k=1,#W.SCHEDULE do
+        for slot=0,W.CAP-1 do
+            if m&bit(k,slot)~=0 then set[W.key(run,k,slot)]=true end
         end
     end
     return set
@@ -323,24 +354,27 @@ local ENDS={stop=true,map=true,left=true,slot=true,error=true,lost=true,mate=tru
 local ABORTS={stop=true,map=true,left=true,slot=true,error=true,lost=true}
 local REFUSALS={far=true,map=true,slot=true,busy=true,near=true,taken=true}
 local INT=0x7FFFFFFF
--- h <n> <run> <seed> <phase> <wave> <rt> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end>. h: {n, run,
--- seed, phase (ask, count, wave, rest, end), wave, rt (run time, ms), score, kills, clears, found (the keys his run
--- tracks and has not done), x, y, z (his start point, whole cm), yaw (whole degrees), map (U.map_of), outcome and
--- reason once ended}.
+-- h <n> <run> <seed> <phase> <wave> <rt> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level>. h:
+-- {n, run, seed, phase (ask, count, wave, rest, end), wave, rt (run time, ms), score (at most the level's W.most),
+-- kills, clears, found (the keys his run tracks and has not done), x, y, z (his start point, whole cm), yaw (whole
+-- degrees), map (U.map_of), outcome and reason once ended, level (a word of W.LEVEL)}.
 function W.encode_host(h)
     local ending=h.outcome and h.outcome..(h.reason and ':'..h.reason or '') or '-'
-    return string.format('h %d %d %d %s %d %d %d %d %d %s %d %d %d %d %s %s',h.n,h.run,h.seed,h.phase,h.wave,h.rt,
-        h.score,h.kills,h.clears,W.mask(h.found,h.run),h.x,h.y,h.z,h.yaw,h.map,ending)
+    return string.format('h %d %d %d %s %d %d %d %d %d %s %d %d %d %d %s %s %s',h.n,h.run,h.seed,h.phase,h.wave,h.rt,
+        h.score,h.kills,h.clears,W.mask(h.found,h.run),h.x,h.y,h.z,h.yaw,h.map,ending,h.level)
 end
 function W.decode_host(text)
-    local f=words(text,17)
+    local f=words(text,18)
     if not f or f[1]~='h' then return nil end
+    local level=W.LEVEL[f[18]]
     local h={n=whole(f[2],0,65535),run=whole(f[3],1,255),seed=whole(f[4],0,MASK),phase=PHASES[f[5]] and f[5],
-        wave=whole(f[6],0,#W.SCHEDULE),rt=whole(f[7],-10000,600000),score=whole(f[8],0,W.MAX_SCORE),
+        wave=whole(f[6],0,#W.SCHEDULE),rt=whole(f[7],-10000,600000),score=level and whole(f[8],0,W.most(level)),
         kills=whole(f[9],0,40),clears=whole(f[10],0,#W.SCHEDULE),x=whole(f[12],-INT-1,INT),y=whole(f[13],-INT-1,INT),
         z=whole(f[14],-INT-1,INT),yaw=whole(f[15],-360,360),
-        map=#f[16]<=128 and f[16]:match('^/[a-z0-9_/%-]*$') or nil} -- U.map_of's characters and length.
-    for _,k in ipairs({'n','run','seed','phase','wave','rt','score','kills','clears','x','y','z','yaw','map'}) do
+        map=#f[16]<=128 and f[16]:match('^/[a-z0-9_/%-]*$') or nil, -- U.map_of's characters and length.
+        level=level and level.level}
+    for _,k in ipairs({'n','run','seed','phase','wave','rt','score','kills','clears','x','y','z','yaw','map',
+            'level'}) do
         if h[k]==nil then return nil end
     end
     h.found=W.unmask(f[11],h.run)
@@ -378,7 +412,7 @@ function W.decode_mate(text)
     return m
 end
 
--- The guest's run (her s from W.new with his run byte and seed, its phase 'ask' until his countdown) follows the
+-- The guest's run (her s from W.new with his run byte, seed and level, its phase 'ask' until his countdown) follows the
 -- host's line h (W.decode_host, nil when no new line came; its rt already moved on by half the round trip): his
 -- waves spawn here once each, in order, several at once if she missed one; his clears' heals come here too; phase,
 -- score, kills and clears are his; the end is his outcome, read from her side (his own abort is her partner leaving:

@@ -16,7 +16,8 @@
 -- object the game holds and its story lines, read only (story/dump.lua, a test tool to compare with tools/story.py,
 -- left out of the usage line); coop no [heal|rule|spawnpt|actor],
 -- the Night Operation probe of the T6 test only (nightop/probe.lua), on a co-op save only; coop nightop [start
--- [noaggro|nomove]|stop|shop|buy <n> [count]], Night Operation's run (nightop/run.lua) and its reward shop
+-- [easy|normal|hard|nightmare] [noaggro|nomove]|stop|shop|buy <n> [count]], Night Operation's run at a level
+-- (nightop/run.lua) and its reward shop
 -- (nightop/shop.lua), on a co-op save only (stop anywhere); coop challenge
 -- [<name>|stop], the solo challenge runs on the same code (nightop/challenges.lua), with each one's best run in
 -- coop-records.txt, on a co-op save only (stop anywhere); coop recruiter [off], the cut Night Operation recruiter on a
@@ -183,7 +184,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | no [heal|rule|spawnpt|actor] | nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|shop|buy <n> [count]] | challenge [<name>|stop] | recruiter [off] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end

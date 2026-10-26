@@ -213,7 +213,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 - `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`12:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
+  (`14:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
 - The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
   to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
@@ -289,20 +289,20 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC13 ping <seq> <ms>
-SBC13 pong <seq> <ms>
-SBC13 photo <0|1|s|c> <both|notice>
-SBC13 say <text>
-SBC13 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC13 pak <hash> <name>
-SBC13 paks <count> <hash>
-SBC13 camps? <id>
-SBC13 camps <id> <world> <camp>:<m> ...
-SBC13 camps <id> none <title|loading|nocamp|busy>
-SBC13 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end>
-SBC13 night g <n> <run> <state> <up> <killed> <done> <why>
-SBC13 mark <n> [<text>]
-SBC13 race <text>
+SBC14 ping <seq> <ms>
+SBC14 pong <seq> <ms>
+SBC14 photo <0|1|s|c> <both|notice>
+SBC14 say <text>
+SBC14 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC14 pak <hash> <name>
+SBC14 paks <count> <hash>
+SBC14 camps? <id>
+SBC14 camps <id> <world> <camp>:<m> ...
+SBC14 camps <id> none <title|loading|nocamp|busy>
+SBC14 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level>
+SBC14 night g <n> <run> <state> <up> <killed> <done> <why>
+SBC14 mark <n> [<text>]
+SBC14 race <text>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -373,12 +373,13 @@ The night line carries a Night Operation run between the two games (see
 [night-operation.md](night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of
 one side, so a lost line is repaired by the next. The host's `h` line has a counter, the run number and seed, the
 phase (`ask`, `count`, `wave`, `rest` or `end`), the wave, the run time in milliseconds, the score, kills and waves
-cleared, the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, and the outcome
-once the run ends (`success`, `time`, `failed:host`, `failed:guest` or `aborted:<reason>`). The guest's `g` line has a
-counter, the run number, her state (`ready`, `refuse`, `run`, `dead` or `abort`), her monsters still up, masks of the
-ones killed and done in her world, and a refusal or abort word. Each game writes its line when it changes and at least
-once a second, never twice in one Lua tick, and logs each line out and in as `[StellarCoop][NR] night out: ...` and
-`night in: ...`.
+cleared, the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, the outcome once
+the run ends (`success`, `time`, `failed:host`, `failed:guest` or `aborted:<reason>`), and the run's level (`easy`,
+`normal`, `hard` or `nightmare`), which the guest's run takes. A mask has one bit for each wave and slot, 8 slots a
+wave, so it covers the largest level's waves. The guest's `g` line has a counter, the run number, her state (`ready`,
+`refuse`, `run`, `dead` or `abort`), her monsters still up, masks of the ones killed and done in her world, and a
+refusal or abort word. Each game writes its line when it changes and at least once a second, never twice in one Lua
+tick, and logs each line out and in as `[StellarCoop][NR] night out: ...` and `night in: ...`.
 
 The native part checks only the bytes: 3 to 300 of `0-9`, `a-z`, `/`, `_`, `:` and `-` with single spaces between
 words, the first word `h` from the lobby owner and `g` from the guest. It sends an `h` line only while it owns the
@@ -386,7 +387,8 @@ lobby and a `g` line only as a guest, and a received line from the wrong side co
 second go each way; the rest are dropped, with one log line a minute. The last line received is the `night=` line of
 `coop-status.txt` while the session holds, and is cleared when the friend is lost or the session ends. Lua checks every
 field and refuses the whole line on one bad field. A co-op run ends as lost once the friend's counter has not moved for
-5 s. No line carries points: each game turns its own run's final score into points, at most 42 a run.
+5 s. No line carries points: each game turns its own run's final score into points, at most 42 a run at the normal
+level and 129 at nightmare.
 
 The mark line is one `coop mark`, sent reliable to each friend past the handshake: its number in the sender's game
 (from 1, one count per game process) and its text, cleaned as a say line is and cut to 100 bytes, maybe empty. A longer
@@ -454,7 +456,8 @@ instead of misread:
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
 | 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line, the mark line and the Doro races' race line on channel 0 |
-| 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders (this version) |
+| 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders |
+| 14 | Night Operation's level on the host's night line, and night line masks for a level's extra monsters (this version) |
 
 ### Link health in the log
 
@@ -675,7 +678,7 @@ enemies: the same pairs, the same host and the same Steam channel 2. Each pair h
 the enemy's AI and moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner.
 HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
-- The host's `same_place` decides for both games. The host sends it as `SBF13 place <gen> <0|1>` after its world line
+- The host's `same_place` decides for both games. The host sends it as `SBF14 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
@@ -688,12 +691,12 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   an AI task runs on the owner's copy, during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the
   host draws a copy that the game froze before the mod did (below: its AI would not run once the host owns it); the
   start of a takedown is the exception (below). Each change moves the owner epoch one up and goes to her as
-  `SBF13 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
-  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF13 aggro <gen> <game|host>`.
+  `SBF14 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
+  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF14 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
   except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
-  `SBF13 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `SBF14 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
   `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
   other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
   pauses.
@@ -732,7 +735,7 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF13 exec <gen> <hguid> 1`, and `SBF13 exec <gen> <hguid> 0` once her copy has held
+  with `aggro=game`, she sends `SBF14 exec <gen> <hguid> 1`, and `SBF14 exec <gen> <hguid> 0` once her copy has held
   none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
   one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
   holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
@@ -778,16 +781,16 @@ pairs through its spawn key like any other.
 - Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
 - Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
   manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
-  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF13
+  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF14
   epoch <gen> <zone> <n>` at each change and every 5 s, so a line lost on the way stalls nothing for long, and each
   side drops a line of another epoch.
 - The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
   spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
-  `SBF13 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
-  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF13 spawn <gen> <n> <spawnId> <idx>
+  `SBF14 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF14 spawn <gen> <n> <spawnId> <idx>
   <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
   the host's world; never a dying one), where it stands in whole
-  centimetres, and `SBF13 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+  centimetres, and `SBF14 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
   her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
   function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's despawn
@@ -931,13 +934,13 @@ The log lines are in [usage.md](usage.md#extra-enemies-experimental).
 Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
 any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
-game. The host sends `SBF13 bosses <gen> <percent>` with its list.
+game. The host sends `SBF14 bosses <gen> <percent>` with its list.
 
 With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
 battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
 applies them to her copy:
 
-- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF13 bstart <gen> <hguid>` when it turns on,
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF14 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
   once while the copy stays in battle mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on,
   then `0, 0, 0, 1`. The fifth argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs
@@ -952,7 +955,7 @@ applies them to her copy:
   copy gets no call. The host's next bstart for that copy calls it again.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
-  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF13 phase <gen> <hguid> <oe>
+  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF14 phase <gen> <hguid> <oe>
   <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
   does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
   game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
@@ -969,7 +972,7 @@ applies them to her copy:
   effect's GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward
   dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
   EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
-  shared list under it. After its up the host sends `SBF13 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
+  shared list under it. After its up the host sends `SBF14 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
   hguid> <row>`, with epoch 1 when same spawns do not run, and sends it again every second while it follows the
   summon: her game takes a repeat as one it has, and a line it refused for a passing reason (its boss not paired yet)
   can go through later. The guest makes it through `NewActor`, as for extra enemies,
@@ -1008,11 +1011,11 @@ player's quest unit (the quest manager at `0x147032588`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470634f0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ13 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ14 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
 - The host only reads. Each quest whose state changed goes to the guest as one reliable line on channel 2 with the
-  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ13 q <gen> <seq> <id> <state>
+  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ14 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables.
 - Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
@@ -1321,7 +1324,7 @@ race are the ones to put back; the 250 ms check catches a write the search misse
 
 The host owns a race. Its game sends the track and the start, each game times its own racer from its own GO, and the
 host's game sends the ranking. The guest's game checks each line against fixed bounds before using it, and sends only
-its own racer's lines. Each line travels as `SBC13 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
+its own racer's lines. Each line travels as `SBC14 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
 with whole numbers only, in centimetres and milliseconds. `<id>` is the host's race number:
 
 | Line | From | Meaning |
