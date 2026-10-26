@@ -1388,7 +1388,8 @@ local function side(name,mate_name,x,t)
         steamid=name=='host' and '76561198000000001' or '76561198000000002',settings={revive=true}}
     w.wallet='coop-night-'..w.steamid..'-4.txt'
     w.run=Run.new({log=function(text) w.lines[#w.lines+1]=text end,status=status,paused=function() return w.paused end,
-        store=store,records={read=function() return '' end,write=function() w.writes=(w.writes or 0)+1 return true end},
+        store=store,records={read=function() return w.records or '' end,
+            write=function() w.writes=(w.writes or 0)+1 return true end},
         settings=w.settings,tell=function(build) -- main.lua's: the screen's words (French here), and English for the line above EVE.
             w.told_fr[#w.told_fr+1]=build(Tx.fr)
             w.told[#w.told+1]=build(Tx.en)
@@ -2063,9 +2064,10 @@ end
 -- carries range in place of a level; her join line names the challenge and her run takes its waves; each notice names
 -- it; the same dummies on the same spots around his start point in both worlds, with no aggro; a kill in her world
 -- scores once for both cards and the round waits for his copies too; a success ends both runs with one score and one
--- time, credits no points and keeps no best on either side.
+-- time, credits no points and keeps no best on either side; each result shows the best its own PC keeps.
 do
     pair()
+    Hs.records,Gs.records='best_range=1250 37\n','best_range=1100 45\n'
     spawn_ai,calls=false,{} -- The dummies come with no controller.
     local ok3,text3=on(Gs,function() return Gs.run.challenge('range') end)
     assert(not ok3 and text3=='the host starts a co-op run',text3)
@@ -2113,8 +2115,8 @@ do
     end
     round(2)
     local hr,gr=find(Hs.lines,'^result: '),find(Gs.lines,'^result: ')
-    assert(hr and hr:find('^result: success waves=3/3 kills=12 score=%d+ .* challenge=range best=none$'),hr)
-    assert(gr and gr:match('^(.- time=%S+)')==hr:match('^(.- time=%S+)'),gr)
+    assert(hr and hr:find('^result: success waves=3/3 kills=12 score=%d+ .* challenge=range best=1250/37 kept$'),hr)
+    assert(gr and gr:match('^(.- time=%S+)')==hr:match('^(.- time=%S+)') and gr:find(' best=1100/45 kept$'),gr)
     assert(tonumber(hr:match(' score=(%d+) '))>480,'12 dummies and the time left')
     for _,w in ipairs({Hs,Gs}) do
         assert(has(w.lines,'record: not kept (a co-op run)') and w.writes==nil,w.lines[#w.lines])

@@ -877,19 +877,21 @@ function Run.new(o)
         ..'[count]]'
     -- A new run of def (Night Operation's when nil) at game time now around at (whole cm) facing yaw (whole degrees):
     -- the run byte and seed give the gate order, so the host's and the guest's runs put each monster on the same spot.
+    -- Its best so far is read from this PC's records file.
     local function begin(run,seed,now,at,yaw,map,flag,def)
         r={s=W.new{run=run,seed=seed,now=now,def=def},seed=seed,p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
             nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},before={},
             live_at=-math.huge,now=now,found={},ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},asked=0,
             quiet=0,held=0,revives=(def or W.NIGHT).revives or 0,cut={}}
+        local score,secs=C.best(stored(),r.s.def.id)
+        r.best=score and {score=score,s=secs} or nil
         panel=nil
         pcall(died) -- The death screen's first look, while EVE lives.
     end
     -- A challenge's name, or Night Operation's with its level when it is not normal: Night Operation (hard).
     local function name_of(def) return def.name or 'Night Operation'..(def~=W.NIGHT and ' ('..def.level..')' or '') end
     -- A run of def (Night Operation's normal level when nil, or another of W.LEVELS); flag: Night Operation's noaggro
-    -- or nomove. A challenge is solo unless it says coop: it starts only without a Steam session. The best so far is
-    -- read from the records file once the run is on.
+    -- or nomove. A challenge is solo unless it says coop: it starts only without a Steam session.
     local function start(flag,def)
         def=def or W.NIGHT
         if r and r.s.phase~='result' then
@@ -930,8 +932,6 @@ function Run.new(o)
         begin(run,W.seed(t,run),now,at,yaw,map,flag,def)
         log(string.format('start: run 0x%02X seed 0x%08X at %s yaw %.0f map %s%s %s; %s',run,W.seed(t,run),xyz(at),
             yaw,map,flag and ' '..flag or '',def.level and 'level '..def.level or 'challenge '..def.id,c.text))
-        local score,secs=C.best(stored(),def.id)
-        r.best=score and {score=score,s=secs} or nil
         if linked=='host' then
             local name=friend() or '?'
             r.role,r.s.role,r.s.phase='host','host','ask'
