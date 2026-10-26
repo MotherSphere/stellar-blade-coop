@@ -37,7 +37,7 @@
 -- Best. A challenge's HUD: its name as the card's title, the record line after a success that wrote its best, its stop
 -- line, Night Operation's own best, and with the kit off its notices with its name, then the record line after the end
 -- notice. The Shooting Range's board beside the card: made once, its score set on a change, hidden while paused, after
--- the result and with the kit off, and never for another challenge.
+-- the result, with the kit off, at coop off and after a HUD error, and never for another challenge.
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
 -- sides' spots and wallets. The Shooting Range for two: the host's ask, his line's range word, her run's waves and
@@ -2042,7 +2042,8 @@ end
 -- widget made once, for the player controller, at the first tick of the run, its Score text in the card's words and
 -- set only on a change (each round's kills, then the final score with the time bonus on the result panel); collapsed
 -- while the game is paused and once the result's 10 s are over; collapsed with the kit off; never made for another
--- challenge. One local table: the main chunk is near Lua's 200 locals.
+-- challenge; collapsed at coop off, during a run or in its result, and after a HUD error. One local table: the main
+-- chunk is near Lua's 200 locals.
 do
     local B={class='/Game/Art/UI/Widget/Test/WB_ShootingTrainingTest.WB_ShootingTrainingTest_C',shown={},texts={},
         made=0,range=require('nightop.challenges').find('range')}
@@ -2118,6 +2119,25 @@ do
     ok,message=B.ch.challenge('targets')
     B.tk(30)
     assert(B.made==1 and #B.texts+#B.shown==B.before,'Target Practice has no board')
+    B.ch.challenge('stop')
+    B.tk(45)
+    -- coop off during a run, then in its result's 10 s: collapsed at once, as no tick comes after coop off.
+    ok,message=B.ch.challenge('range')
+    B.tk()
+    assert(B.shown[#B.shown]==3,'Shown for a run')
+    assert(B.ch.stop('coop off') and B.shown[#B.shown]==1,'Collapsed at coop off')
+    B.tk()
+    assert(kit.shown.night_result and B.shown[#B.shown]==3,'Shown with the result')
+    assert(not B.ch.stop('coop off') and B.shown[#B.shown]==1,'Collapsed at coop off in the result')
+    B.tk(45)
+    -- A HUD error during a run: collapsed with the card, after its STOP line.
+    ok,message=B.ch.challenge('range')
+    B.tk()
+    assert(B.shown[#B.shown]==3,'Shown for a run')
+    kit.raise='boom'
+    B.tk()
+    kit.raise=nil
+    assert(last()=='STOP: HUD: boom' and B.shown[#B.shown]==1 and not kit.shown.night,'Collapsed after a HUD error')
     B.ch.challenge('stop')
     spawn_ai=true
     assert(#violations==0,violations[1])

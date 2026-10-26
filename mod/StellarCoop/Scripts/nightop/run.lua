@@ -1034,8 +1034,12 @@ function Run.new(o)
             return v
         end)
     end
-    -- coop off (or any reason): the run ends as aborted; true when one was on.
-    function self.stop(reason) return stop(reason or 'stop')~=nil end
+    -- coop off (or any reason): the run ends as aborted; true when one was on. The board goes now, the result's too:
+    -- after coop off no tick comes to hide it, and kit.stop takes only the kit's own root.
+    function self.stop(reason)
+        board.set(nil)
+        return stop(reason or 'stop')~=nil
+    end
     -- A run is under way (its result panel aside): the follow's travel waits for its end, and a Doro race refuses to
     -- arm meanwhile.
     function self.running() return r~=nil and r.s.phase~='result' end
