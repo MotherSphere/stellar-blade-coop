@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on` |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on` |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -72,6 +72,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion_rows.lua` | The Lion's rows as `lion/rows.h` writes them, for the read-back, and its Shows for the loaded line; written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
+| `cut/emote.lua` | `coop emote`: one of EVE's photo-mode poses as a looped dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
@@ -79,12 +80,12 @@ Both games run the same pipeline in both directions, so each player sees the oth
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
 Doro look, the cut model display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
 while one is armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the `coop lines`
-scene's due lines, the `coop glide` check, the UI's open and close animations, the game's input given back after the
-menu or the chat box closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and
-your friend's marker and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat
-lines in and out, Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the
-menu's rows and status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote
-table.
+scene's due lines, the `coop glide` and `coop emote` checks, the UI's open and close animations, the game's input given
+back after the menu or the chat box closes, the controller's events, the row under the mouse (every 100 ms while the
+menu is open), and your friend's marker and gauges. The other runs every 250 ms: link status changes, session start,
+notices to show, chat lines in and out, Night Operation's run, the race's session and map checks, the UI's root and its
+focus watchdog, the menu's rows and status line, the phone booth scan, the chat's feed, your friend's card, the capture
+and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -1801,6 +1802,26 @@ The module writes `bGlide` only when a glide starts or ends, on the player's own
 second). A failing frame puts it back and turns `coop glide` off with a line on screen. Since no code of the game sets
 `bGlide`, a true value at the next Lua load can only come from an earlier load, so that load's first tick sets false
 on the player's EVE when it reads true. The property is transient: nothing of it reaches a save.
+
+## Emotes
+
+`coop emote` (`cut/emote.lua`, not tested in game yet) plays one of the 31 clips of
+`/Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/` that are not in `Bear/` and not a `_Selfie` file. Each is a
+still: 7 frames over 0.2 s, or 2 frames over 0.033 s. The command loads its clip (`Doro.resolve`: in memory, else
+`LoadAsset`) and calls `PlaySlotAnimationAsDynamicMontage(clip, DefaultSlot, 0.25, 0.25, 1.0, 1048576, -1, 0)` on the
+animation instance of EVE's main mesh. The loop count holds the still for hours; 0 would end it at once. Each frame
+while it plays, the module reads `Montage_IsPlaying`, `GetLastMovementInputVector`, the movement's `IsFalling` and
+`IsRunningSkill`, and calls `Montage_Stop(0.25)` at movement input longer than 0.1, in the air or at a skill. A start
+is refused in the air or during a skill. The next Lua load stops a montage under `/Engine/Transient` (a dynamic one;
+the game's montages come from its packages) left on the player's EVE.
+
+The montage may not show. `CH_P_EVE_01_AnimBP_New`, EVE's animation blueprint, has no slot node and no montage in the
+2026-10-06 extract: SB plays her clips through its own custom animation nodes (`ASBCharacter::PlayCustomAnim`,
+`0x1420ae740`), which no reflected function reaches. Photo mode itself does not play these clips either: its pose
+setter (`0x1420f12f0`) writes `PoseName_PhotoMode` and hands a pose snapshot baked from them to the animation instance,
+which the blueprint reads only in photo mode. The start line logs the montage and whether it plays, so one try in game
+tells whether the slot route shows anything. Nothing new travels between the two games: the ghost copies the bones the
+pose stream carries.
 
 ## Achievements
 

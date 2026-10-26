@@ -814,6 +814,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed (untested in game), or end it |
+| `coop emote [list\|<name>\|off]` | Hold one of [EVE's photo-mode poses](#emotes-coop-emote) until she moves (untested in game, and the pose may not show), list them or end it |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -1413,6 +1414,46 @@ lines are Korean placeholder text in every language, most with the speaker's nam
 The lines need the chat's feed, which draws every script the game has (the notice line above EVE draws Latin letters
 only): without the Steam link or with the co-op UI off, the command answers `STOP`. While the chat box is closed, the
 feed shows each line for 8 s, 6 rows at most. A scene goes on while the game is paused.
+
+### Emotes: `coop emote`
+
+`coop emote <name>` puts EVE in one of her photo-mode poses until she moves. The 31 poses are grouped under the six
+categories of the game's cut Social Action menu, whose own gestures never shipped. It runs on any save and writes
+nothing. It has not been tried in game yet.
+
+| Category | Names |
+| --- | --- |
+| Greetings | `salute`, `kungfu`, `toast` |
+| Expression | `clap`, `heart`, `thumbsup`, `victory`, `kiss` |
+| Orders | `bringiton`, `giveme`, `hush`, `reach` |
+| Emotion | `omg`, `what`, `worry`, `wish`, `wedidit` |
+| Pose | `charm`, `confident`, `cutie`, `sweetie`, `squat`, `stretch`, `warmup`, `walk`, `shutter1`, `shutter2`, `shutter3` |
+| Dance | `flow`, `nataraja`, `somersault` |
+
+- `coop emote` and `coop emote list` print the names by category.
+- `coop emote <name>` starts one, and a second name replaces it. It does not start while EVE is in the air or in the
+  middle of an attack or a dodge.
+- Moving, a jump, a dodge or an attack ends it with a 0.25 s blend. So do `coop emote off`, `coop off`, a map change
+  and the game stopping the montage itself. A Lua reload (Ctrl+R) stops a pose the earlier load left playing.
+
+Each pose is a still of 0.2 s at most, played in a loop, so EVE takes the pose and keeps it. The selfie poses are left
+out: each one sits in a blend space that follows the selfie camera's direction. The game has no wave outside them, so
+there is no `hello`.
+
+The pose plays as an animation montage on EVE while her animation blueprint keeps running. That blueprint has no
+montage slot in the game files read for this version, so EVE may not take the pose at all. The start line in the log
+says whether the montage plays: if it does and EVE stays as she was, the poses need another way in. A linked friend
+sees what your EVE shows, through the pose stream the ghost already copies.
+
+Its lines go to `UE4SS.log` with the `[StellarCoop][EM]` tag:
+`emote clap: Clap in DefaultSlot, montage AnimMontage /Engine/Transient.AnimMontage_0, playing yes` when one starts
+and `emote clap ended (movement input) after 4.2 s` when it ends, with `in the air`, `a skill runs`,
+`the montage no longer plays`, `her EVE changed` (a map change), `another emote`, `coop emote off`, `coop off` or
+`error` instead of `movement input`. After `error` comes `coop emote stopped: <why>`, repeated as
+`[StellarCoop] STOP: coop emote stopped: <why>`. A stop that fails adds `: not stopped (<why>)` to the end line.
+`emote clap: no montage made for Clap` means the game refused the montage. After a Lua reload,
+`emote restore: an earlier load's montage stopped` says the earlier pose was stopped, and `emote restore failed: <why>`
+says it could not be.
 
 ### Debug flight and slow motion: `coop fly` and `coop slowmo`
 
@@ -2086,9 +2127,9 @@ Night Operation poller, a recruiter (despawned if one was requested, in Xion), t
 movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
 drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes
 back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living
-Lion stays), the `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene and the game's
-developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), and the cut glide
-(`coop glide`: EVE's glide flag is cleared). Afterwards only
+Lion stays), the `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene, the game's
+developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
+(`coop glide`: EVE's glide flag is cleared) and a `coop emote` pose (its montage stopped). Afterwards only
 `coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
 and so do the menu, host and leave keys. The race key does nothing.
 

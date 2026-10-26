@@ -8,7 +8,8 @@
 -- command a creature), lion (cut/lion.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines (cut/lines.lua's)
 -- flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide (cut/glide.lua's) and ask (a
 -- native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
--- the usage line), runs on a co-op save only.
+-- the usage line), runs on a co-op save only. coop emote, one of EVE's photo-mode poses (cut/emote.lua, o.emote), runs
+-- on any save.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -17,6 +18,8 @@ function Cut.new(o)
     function self.wear(...) return o.wear.command(...) end
     -- coop lines (cut/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed.
     function self.lines(...) return o.lines.command(...) end
+    -- coop emote (cut/emote.lua, o.emote): every word to it, on any save, as nothing of it is saved.
+    function self.emote(...) return o.emote.command(...) end
     -- coop fly and coop slowmo (the native part's game/debug_keys.h, test tools left out of the usage line): SB's
     -- developer flight and slow motion. on is asked on a co-op save only, off anywhere; coop off and the next Lua load
     -- end both in the native part.
