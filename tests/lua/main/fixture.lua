@@ -370,6 +370,14 @@ package.loaded['cut.lines']={new=function(o)
         tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
         stop=function() ln.stops=ln.stops+1 end}
 end}
+-- coop gift (cut/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and stops.
+gf={}
+package.loaded['cut.mailbox']={new=function(o)
+    gf.o=o
+    return {command=function(...) gf.cmds[#gf.cmds+1]=table.pack(...); return true,'gf '..tostring((...)) end,
+        receive=function(line) gf.received[#gf.received+1]=line end,tick=function() gf.ticks=gf.ticks+1 end,
+        stop=function() gf.stops=gf.stops+1 end}
+end}
 -- coop glide (cut/glide.lua; glide_test tests it): what new got (log, slot), its commands, restores, ticks and stops,
 -- what a tick says.
 gl={}
@@ -536,6 +544,7 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
     ..'recruiter [off] | '
+    ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
@@ -572,6 +581,7 @@ function load_main(with_native,no_folder,source)
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
     li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
     cs.o,cs.cmds=nil,{}
+    gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil

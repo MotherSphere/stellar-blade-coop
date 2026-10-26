@@ -21,7 +21,9 @@
 -- paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
--- coop fly and coop slowmo ask the native part (on from the co-op save slot only), coop glide reaches cut/glide.lua
+-- coop gift reaches cut/mailbox.lua on the co-op save slot only (her gift lines in coop-chat.txt to it, ticked every
+-- 250 ms, its toast off at coop off), coop fly and coop slowmo ask the native part (on from the co-op save slot only),
+-- coop glide reaches cut/glide.lua
 -- (on from the co-op save slot only, its own check on that slot; restored and ticked every frame, ended by coop off),
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
@@ -608,6 +610,29 @@ coop('chainspin'); coop('chainspin','x')
 assert(#cs.cmds==2 and cs.cmds[1].n==1 and cs.cmds[1][1]==nil and cs.cmds[2][1]=='x'
     and last()=='[StellarCoop] OK: cs x\n','On a co-op save: its word reaches it, an extra one to be refused there')
 status_text=plain
+-- coop gift: every word to cut/mailbox.lua on a co-op save only; its lines are [GF] lines, its notices go on screen,
+-- its status, requests, files and friend are the link's; her gift lines in coop-chat.txt reach it, and it ticks every
+-- 250 ms.
+gf.o.log('sent 1'); assert(last()=='[StellarCoop][GF] sent 1\n',last())
+assert(gf.o.status()==status_text and gf.o.friend()=='Kaanta' and select(2,gf.o.friend())==true)
+gf.o.write('coop-gift-1-4.txt','box 1 HP_Potion 3 2 5 Kaanta\n')
+assert(gf.o.read('coop-gift-1-4.txt')=='box 1 HP_Potion 3 2 5 Kaanta\n','Its file through the link')
+link_files['coop-gift-1-4.txt']=nil
+before=#asked
+assert(gf.o.request('items 1 HP_Potion 9 0') and asked[before+1]=='items 1 HP_Potion 9 0')
+assert(gf.o.paused()==false,'Not paused while the kit says so')
+coop('gift')
+assert(#gf.cmds==0 and last():find('^%[StellarCoop%] STOP: coop gift runs only on a co%-op save'),last())
+status_text=COOP
+coop('gift'); coop('gift','send','3','2'); coop('gift','take','1')
+assert(#gf.cmds==3 and gf.cmds[1][1]==nil and gf.cmds[2][1]=='send' and gf.cmds[2][2]=='3' and gf.cmds[2][3]=='2'
+    and gf.cmds[3][1]=='take' and gf.cmds[3][2]=='1' and last()=='[StellarCoop] OK: gf take\n',last())
+status_text=plain
+local gift_ticks=gf.ticks
+chat_lines={{gift='s 17 HP_Potion 3'},{gift='a 9'}}
+loops[2].f()
+assert(gf.received[1]=='s 17 HP_Potion 3' and gf.received[2]=='a 9' and gf.ticks==gift_ticks+1,
+    'Her gift lines to it, and its tick every 250 ms')
 -- coop wear: all its words to cut/wear.lua on any save, coop-wear.txt through the link; each frame its restore (done
 -- once, inside it) and its tick, whose message is reported; it waits while the game is paused or shows a screen.
 assert(wr.o.store=='store coop-wear.txt' and wr.o.log,'coop-wear.txt through the link')
@@ -738,6 +763,8 @@ nr.ticked=nr.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 coop('off'); assert(asked[#asked]=='off' and toggles==2 and not active,'off removes the ghost and tells the native part')
 assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
+assert(gf.stops==1,'off takes the gift toast off')
+local gift_ticks_off=gf.ticks
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 assert(gr.stops==1,'off gives back a death screen the revive hid')
@@ -752,11 +779,13 @@ assert(gl.stops==1,'off puts bGlide back')
 local written=#states
 takes=chat_takes
 ra.s=ra.slows
+chat_lines={{gift='s 18 HP_Potion 1'}}
 loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after coop off')
 assert(ra.slows==ra.s,'No race check after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
 assert(#gr.ticks==gr.count+3,'No revive tick after coop off')
 assert(#tv.ticks==tv.count+2,'No follow tick after coop off')
+assert(gf.ticks==gift_ticks_off and #gf.received==2,'No gift tick nor gift line after coop off')
 assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')
 assert(table.concat(chat_calls,'|',#chat_calls-1)=='clear|session false','coop off clears the chat and ends it')
 chatting=true; loops[2].f(); chatting=false
