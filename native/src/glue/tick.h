@@ -114,6 +114,17 @@ std::string ask_rows(const coop::Request &request);
 // by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>, asks=<a>,
 // spawns=<s> and that state's own fields; then the shock line (lion/shock.h's shock_line: off, in, refused or fault).
 std::string rows_status();
+// Worker thread, coop shortcut (save/shortcut.h): Lua's shortcut list request, which the game thread serves by
+// reading the cut Load Shortcut menu's 16 paths through SB's file manager, one a frame. Refused off the pinned build,
+// after coop off, after the list's fault and while a list is under way. Returns the line for the log.
+std::string ask_shortcut();
+// Worker, every pass: the lines of what the game thread read since the last pass (each file's, then the summary once
+// all 16 are read, or why the list stopped), for the log; none when no list is under way.
+std::vector<std::string> shortcut_pass();
+// Worker thread, coop gift (game/items.h): Lua's items request, how many of one item our EVE carries, read now through
+// ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build, after coop
+// off and with no EVE read. Returns the line for the log.
+std::string ask_items(const coop::Request &request);
 // Worker: coop-status.txt's shared quests lines (quest/engine.h's Worker::status), each ending in a line break.
 std::string quest_status();
 // Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",
@@ -136,14 +147,27 @@ std::string ask_freeze(bool on, uint64_t ms, uint64_t now_ms);
 // until off, coop off or the next Lua load; refused off the pinned build, after coop off and after the gates' fault.
 // Returns the line for the log.
 std::string ask_gate(const coop::Request &request);
+// SB's developer panels (game/dev_panels.h), worker thread. The coop devinfo request (Command::devinfo): the quest
+// debugger or the player info opened (the other closed), or both closed, at the game thread's next frame; refused off
+// the pinned build and after the panels' fault, and after coop off unless it is off. Returns the line for the log;
+// debug_pass logs the game thread's answer.
+std::string ask_devinfo(const coop::Request &request);
 // Every pass after the link's tick: hands the game thread the gates to set (the asks, on a co-op save, slow motion with
-// no friend linked; marker: the slot StellarCoopSlot.txt names), logs what its passes did and returns a line for the
-// player's screen (a refusal, a fault), or empty.
+// no friend linked; marker: the slot StellarCoopSlot.txt names), logs what its passes did (and coop devinfo's answers)
+// and returns a line for the player's screen (a refusal, a fault), or empty.
 std::string debug_pass(bool linked, int marker, uint64_t now_ms);
+// coop emote's native clips (game/anim.h), worker thread. Lua's anim request (Command::anim): a play of one of EVE's
+// clips by path, once or in a loop, or a stop of ours, for the game thread's next frame; refused off the pinned build,
+// after coop off and after the clips' fault. Returns the line for the log.
+std::string ask_anim(const coop::Request &request);
+// Every pass: logs each change the game thread made (a play taken or refused, ours ended or stopped) and returns a
+// line for the player's screen (the fault's), or empty.
+std::string anim_pass();
 // "engine=on" (plus " loopback=on <delay> <jitter> <loss>" or " loopback=waiting", " record=on", " replay=on",
 // " remote=<generation> <tables written> <loopback|replay|peer>") or "engine=off reason=...", then " fight=on <count>",
-// " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " nightop=on"
-// or " nightop=rule" (once the rule was asked) last while the poller runs: no per-frame counters.
+// " fight=probe", " fight=waiting" or " fight=stopped" while the shared fight is asked or latched, then " anim=<state>
+// anim_id=<id>" (game/anim.h's state_text, of the last play asked) on the pinned build before coop off, then
+// " nightop=on" or " nightop=rule" (once the rule was asked) last while the poller runs: no per-frame counters.
 std::string status();
 // A complete file: written beside it, then renamed over it (glue/steam.cpp).
 bool write_text(const std::wstring &path, const std::string &bytes);

@@ -421,8 +421,12 @@ int main() {
   m.put(kObject + 0x86c, int32_t(2));
   auto read = [&m](uint64_t at, void *out, size_t size) { return m.read(at, out, size); };
   assert(field(kBase, read, kLoadMode) == 2);
+  // Our EVE's GUID at client +0x58, coop gift's owner for its inventory read.
+  m.put(kObject + 0x58, int32_t(0x51));
+  assert(field(kBase, read, kPlayerGuid) == 0x51);
   m.put(kAt, uint64_t(0));
   assert(field(kBase, read, kLoadMode) == kUnread);
+  assert(field(kBase, read, kPlayerGuid) == kUnread);
 
   std::puts("save_slot_test: ok");
 }

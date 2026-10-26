@@ -82,6 +82,25 @@
 // row, in the same call, the Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status()
 // gives the shock line, and the worker logs it once.
 //
+// coop emote's native clips (game/anim.h): the worker hands over Lua's anim play (an id, one of EVE's clip paths, once
+// or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
+// SB's own custom animation call by path, or stops ours through SB's stop, under its own SEH latch, and reads her
+// custom animation slot every 100 ms while ours plays to tell when it ends. A new Lua load and coop off stop ours. status() puts the last
+// play's id and state in the engine line for cut/emote.lua, and the worker logs each change.
+//
+// coop shortcut (save/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
+// 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
+// lines. It writes nothing and keeps no bytes.
+//
+// coop devinfo (game/dev_panels.h): the worker hands over the developer panel Lua asked for (the quest debugger or the
+// player info) or off; the next frame the game thread finds both through SB's UI manager, closes the one not wanted and
+// opens the one asked with the game's own calls, under its own SEH latch, after coop off too (coop off asks off first);
+// the worker logs each answer.
+//
+// coop gift's inventory read (game/items.h) is the worker's alone: on Lua's items request it reads how many of one item
+// our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
+// line for cut/mailbox.lua.
+//
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
 // what the parts before it declare, and the game thread's parts share one anonymous namespace. Each part is named
 // for the thread it runs on: *_game.inc for the game (or SB's logic) thread, *_worker.inc for our worker.
@@ -102,7 +121,10 @@
 #include <vector>
 
 #include "fight/worker.h"
+#include "game/anim.h"
 #include "game/debug_keys.h"
+#include "game/dev_panels.h"
+#include "game/items.h"
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
@@ -117,6 +139,7 @@
 #include "pose/record.h"
 #include "pose/stream.h"
 #include "quest/engine.h"
+#include "save/shortcut.h"
 #include "save/slot.h"
 
 #include "glue/tick/pose_game.inc"
@@ -128,13 +151,18 @@
 #include "glue/tick/travel_game.inc"
 #include "glue/tick/lion_game.inc"
 #include "glue/tick/debug_game.inc"
+#include "glue/tick/anim_game.inc"
+#include "glue/tick/shortcut_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
 #include "glue/tick/travel_worker.inc"
+#include "glue/tick/shortcut_worker.inc"
+#include "glue/tick/items_worker.inc"
 #include "glue/tick/quests_worker.inc"
 #include "glue/tick/freeze_worker.inc"
 #include "glue/tick/debug_worker.inc"
+#include "glue/tick/anim_worker.inc"
 #include "glue/tick/status.inc"
 #include "glue/tick/pad_game.inc"
 
@@ -189,5 +217,15 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer gates, their own latch: a pass each 250 ms while one is wanted, after coop off while one is ours.
   if (game_pinned && !debug_faulted && (!blocked || debug_holding))
     debug_tick();
+  // coop emote's native clips, their own latch: an ask each frame, the watch each 100 ms while ours plays; after coop
+  // off only to stop ours.
+  if (game_pinned && !anim_faulted)
+    anim_tick();
+  // coop shortcut's list, its own latch: a file a frame while a list is under way; none after coop off or a fault.
+  if (game_pinned && !shortcut_faulted && !blocked)
+    shortcut_tick();
+  // SB's developer panels, their own latch: an ask taken each frame, after coop off too (only off is asked then).
+  if (game_pinned && !devinfo_faulted)
+    devinfo_tick();
   return 0;
 }

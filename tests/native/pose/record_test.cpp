@@ -261,7 +261,7 @@ int main() {
   protocol_9[3] = 9;   // v0.3.0's: the same bytes, made before the shared enemies' scale line.
   protocol_10[3] = 10; // Stage 2's: the same bytes, made before SBE and the show lines.
   protocol_12[3] = 12; // v0.5.0-beta.1's: the same bytes, made before the pak lines.
-  protocol_13[3] = 13; // v0.6.0-beta.3's: the same bytes, made before the night line's level.
+  protocol_13[3] = 13; // v0.6.0-beta.3's: the same bytes, made before the night line's level and the gift line.
   std::memset(&d_age_0[kPoseHeader], 0, 4);
   const std::string bd_k1 = delta(b, pose(b, 30, 2'000'000), pose(b, 31, 2'016'667)); // Its age leads to k1's time.
   bad_byte_3[3] = char(coop::kProtocol + 1);

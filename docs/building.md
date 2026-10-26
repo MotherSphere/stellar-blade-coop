@@ -74,8 +74,8 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.
 build/host/pose_codec_test
 ```
 
-- Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `enemy`, `gardener`,
-  `leviathan`, `lines`, `lion`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`,
+- Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `enemy`, `gardener`, `leviathan`,
+  `lines`, `lion`, `mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`,
   `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`,
   `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`:
   `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `kit`, `model`, `notice`, `text`) run
@@ -94,9 +94,10 @@ build/host/pose_codec_test
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
     and the boss tests included; `lion rows`, `gardener rows`, `tendril rows` and `bolt rows` with their 15 table words
-    and bad addresses; `fly` and `slowmo` on or off), Night Operation's night line (its round trip, its refusals and a
-    fuzz seed), and the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character
-    typos the check turns away);
+    and bad addresses; `fly` and `slowmo` on or off; `anim play` with its id, path and `once` or `loop`, and
+    `anim stop`; `shortcut list`), Night Operation's night line (its round trip, its refusals and a fuzz seed), and the
+    join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns
+    away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, joining
     with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a
@@ -113,6 +114,9 @@ build/host/pose_codec_test
   - `save_twins_test`: the co-op save copies on a temporary folder: the game's save check, the name check on every
     write, the manifest, the backup before the first copy, torn reads and failed writes, and the requests and the
     switch against a fake game;
+  - `save_shortcut_test`: `coop shortcut`'s paths and its read of built GVAS bytes (the engine branch, `MapName`,
+    `CampAlias` and `DateTime` within their maps, an EVAS header stripped, short and bad bytes), its copies, lines and
+    summary;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `lion_rows_test`: the Lion's, the Gardener's, the Tendril's and the Shock Bolt's rows against fake memory laid out
     like the pinned build: the recipes (unique names and IDs across the batches, every patch inside its struct, the
@@ -259,6 +263,17 @@ build/host/pose_codec_test
     gate's state logged from the first pass that read its ask, never from an earlier one; the level flight's hold: the
     flight key set again only while the controller's pawn flies with none held, never after a press of the jump key
     in that flight until it ends (a jump key held from before the flight counts only once let go and pressed again);
+  - `anim_test`: `coop emote`'s native clips: the clip paths that pass, the game's string built from one, the call's
+    arguments, the custom animation slot as read, and the track (a play answered with or without an id, the watch on
+    our clip, another clip, a cleared slot, a gone EVE and a slot that takes no weight, with paused time left out,
+    the stops, the fault, the status word and the log lines), our EVE as the controller's pawn and the check that she
+    is still the object played on, over fake memory (no pawn, a pawn of another class, a pending kill, a new serial),
+    and what each frame does;
+  - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
+    CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
+    EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
+    chain that loops, an index past the array, a hash size that is no power of two, an unreadable item) ending in
+    `unread`, never in a hang;
   - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
     diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
     stick's thresholds, View held 1 s, a disconnect,
@@ -363,6 +378,7 @@ Platform-free headers, tested on the build machine:
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
+| `save/shortcut.h` | `coop shortcut`: the cut Load Shortcut menu's 16 paths, the read of each save's map, camp and date, and the lines |
 | `fight/sync.h` | The shared enemies' host and guest rules, and channel 2's text |
 | `fight/engine.h` | The shared enemies' side inside the game (`Engine`), and the vitals read for the partner card. The class holds the declarations; the bodies are in `fight/engine_run.h` (settings, arming, the turn), `engine_read.h` (reads of the game), `engine_write.h` (stat writes, crowd controls, captures), `engine_pilot.h` (same-place enemies), `engine_spawns.h` (same spawns, extra enemies), `engine_bosses.h` (shared bosses), `engine_trial.h` (the solo boss trial) and `engine_lines.h` (her lines) |
 | `fight/types.h` | The types around `Engine`: the pair table, the job, its counts and snapshot, the logic actors, the ring queues |
@@ -373,9 +389,11 @@ Platform-free headers, tested on the build machine:
 | `fight/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
 | `game/photo_freeze.h` | The synced photo mode's pause |
 | `game/debug_keys.h` | `coop fly` and `coop slowmo`: the lookup of SB's two developer gates in its settings map and the passes that set them and put them back; the level flight's hold of the flight key |
+| `game/items.h` | `coop gift`'s inventory read: how many of one item EVE carries, through `ReadProcessMemory` along SB's item bucket manager and its hash sets |
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
+| `game/anim.h` | `coop emote`'s native clips: which clip paths pass, the path as the game's string, the call's arguments, the custom animation slot as read, our EVE and the check that she is still the object played on, what each frame does, and the track of the last play (its answer, the watch, the stop) with its log lines |
 | `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare |
 
 The Windows side:
@@ -383,5 +401,5 @@ The Windows side:
 | File | Contents |
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`glue/tick/anim_game.inc`); `coop shortcut`'s reads through the game's file manager (`glue/tick/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

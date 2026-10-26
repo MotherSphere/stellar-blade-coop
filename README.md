@@ -83,15 +83,21 @@ the Steam client that the game already runs, so the mod needs no other program a
 - `coop lines` shows the subtitles of four scenes cut before they were voiced in the chat's feed, timed as the game's
   sequences give them: the first meeting with Adam, Quest_Sub_015 with Mann and Orcal's last message, Quinn and Sky
   Hall. The text comes from your game, which has most of them in English and Korean only, so other languages show the
-  Korean (see [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
+  Korean. `coop lines enya` plays seven voice takes of Enya and Su that the game never uses. Neither has been tried in
+  game yet (see [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
 - `coop fly` and `coop slowmo` switch on the developer flight (a third press of the space bar in the air, or R2 held)
   and slow motion (R1) that the game ships turned off, on a co-op save (see
   [docs/usage.md](docs/usage.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo)).
 - `coop glide` brings back EVE's cut glide: with Jump held in the air, she falls at a tenth of the normal gravity, on a
   co-op save (see [docs/usage.md](docs/usage.md#cut-glide-coop-glide)).
-- `coop emote <name>` holds one of EVE's 31 photo-mode poses until she moves, grouped under the categories of the
-  game's cut Social Action menu. It has not been tried in game and the pose may not show yet (see
-  [docs/usage.md](docs/usage.md#emotes-coop-emote)).
+- `coop emote <name>` plays one of EVE's clips through the game's own animation call: 31 photo-mode poses held until
+  she moves (grouped under the categories of the game's cut Social Action menu), two waves, and six clips of hers made
+  for two enemies with no character in the game files: the Chariot, which was cut (its struggle and her takedown on
+  it), and Kali, possibly an early name of a shipped enemy (her takedown on Kali and Kali's grab). It has not been
+  tried in game yet (see [docs/usage.md](docs/usage.md#emotes-coop-emote)).
+- `coop shortcut` lists the 15 developer saves of the cut Load Shortcut menu, read from the game's files: the map and
+  camp each one starts at. It loads none of them, since two hold boss achievements as already done. It has not been
+  tried in game yet (see [docs/usage.md](docs/usage.md#cut-load-shortcut-saves-coop-shortcut)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS
@@ -101,18 +107,18 @@ the Steam client that the game already runs, so the mod needs no other program a
   game when EVE lets go of a movable crate (see [docs/troubleshooting.md](docs/troubleshooting.md)).
 - Solo test tools run the whole ghost pipeline on one PC: a network loopback, and a recording with its replay.
   `coop where` compares positions between two PCs.
-- The mod never writes your own saves, unlocks or equipment. It adds to the inventory only when you buy in Night
-  Operation's shop, on a co-op save. It reads your saves only to make separate co-op copies of them (see
-  [docs/saves.md](docs/saves.md)).
+- The mod never writes your own saves, unlocks or equipment. It changes the inventory only when you buy in Night
+  Operation's shop or send and take a `coop gift`, on a co-op save. It reads your saves only to make separate co-op
+  copies of them (see [docs/saves.md](docs/saves.md)).
 
-The ghost is display only, and items are not shared. The experimental Shared enemies option (co-op menu, Options,
-Combat) is on by default and untested in game. It shares common enemies only while both players play a co-op save (see
-[docs/usage.md](docs/usage.md#shared-enemies-experimental)). Same place, same spawns and shared bosses build on it. They
-are experimental and on by default too, and the host's settings decide them for both games. As guest, the Same place row
-of your co-op menu can still turn same place off on your screen. The experimental Shared quests option (Options, Saves)
-is off by default and untested in game. While both players play a co-op save, it makes the quest steps that the host and
-the guest make together in the guest's game too, through the game's own quest functions (see
-[docs/usage.md](docs/usage.md#shared-quests-experimental)).
+The ghost is display only, and items are not shared, except the consumables sent with `coop gift`. The experimental
+Shared enemies option (co-op menu, Options, Combat) is on by default and untested in game. It shares common enemies only
+while both players play a co-op save (see [docs/usage.md](docs/usage.md#shared-enemies-experimental)). Same place, same
+spawns and shared bosses build on it. They are experimental and on by default too, and the host's settings decide them
+for both games. As guest, the Same place row of your co-op menu can still turn same place off on your screen. The
+experimental Shared quests option (Options, Saves) is off by default and untested in game. While both players play a
+co-op save, it makes the quest steps that the host and the guest make together in the guest's game too, through the
+game's own quest functions (see [docs/usage.md](docs/usage.md#shared-quests-experimental)).
 
 ## Night Operation
 

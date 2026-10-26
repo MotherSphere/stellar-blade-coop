@@ -357,6 +357,15 @@ package.loaded['cut.chainspin']={new=function(o)
     cs.o=o
     return {command=function(...) cs.cmds[#cs.cmds+1]=table.pack(...); return true,'cs '..tostring((...)) end}
 end}
+-- coop devmenu (cut/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and how
+-- many native asks there were at its last stop; heal is its one row here.
+dm={}
+package.loaded['cut.devmenu']={new=function(o)
+    dm.o=o
+    return {row=function(name) return name=='heal' and {} or nil end,
+        command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
+        stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end}
+end}
 -- coop wear (cut/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks and
 -- stops, what a tick says.
 wr={}
@@ -387,6 +396,14 @@ package.loaded['cut.lines']={new=function(o)
         tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
         stop=function() ln.stops=ln.stops+1 end}
 end}
+-- coop gift (cut/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and stops.
+gf={}
+package.loaded['cut.mailbox']={new=function(o)
+    gf.o=o
+    return {command=function(...) gf.cmds[#gf.cmds+1]=table.pack(...); return true,'gf '..tostring((...)) end,
+        receive=function(line) gf.received[#gf.received+1]=line end,tick=function() gf.ticks=gf.ticks+1 end,
+        stop=function() gf.stops=gf.stops+1 end}
+end}
 -- coop glide (cut/glide.lua; glide_test tests it): what new got (log, slot), its commands, restores, ticks and stops,
 -- what a tick says.
 gl={}
@@ -397,8 +414,8 @@ package.loaded['cut.glide']={new=function(o)
         tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
         stop=function() gl.stops=gl.stops+1 end}
 end}
--- coop emote (cut/emote.lua; emote_test tests it): what new got (log), its commands, restores, ticks and stops, what
--- a tick says.
+-- coop emote (cut/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks and
+-- stops, what a tick says.
 em={}
 package.loaded['cut.emote']={new=function(o)
     em.o=o
@@ -564,6 +581,7 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]] | '
     ..'challenge [<name>|stop] | '
     ..'recruiter [off] | '
+    ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
     ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
@@ -602,6 +620,8 @@ function load_main(with_native,no_folder,source)
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
     cs.o,cs.cmds=nil,{}
+    dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
+    gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil

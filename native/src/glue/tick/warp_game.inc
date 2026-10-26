@@ -9,8 +9,7 @@ namespace {
 // respawn state at +0x1c4 (1 at rest, 2 from the request on, then ResetZone and the respawn: travel::respawning). Our GUID: client +0x58, the key the
 // world's player map holds for the local player. Every 250 ms, under its own latch: the first fault ends the reads for
 // the run, and the engine line then has no warp= (Lua's revive then waits forever).
-constexpr uint64_t kWarpBlock = 0xa20, kCampAsked = 0xb60, kCampWaits = 0xb61, kPlayerGuid = 0x58,
-                   kRespawnState = 0x1c4;
+constexpr uint64_t kWarpBlock = 0xa20, kCampAsked = 0xb60, kCampWaits = 0xb61, kRespawnState = 0x1c4;
 std::atomic<bool> warp_faulted{false};
 std::atomic<int> warp_state{-1}; // -1: no read (no client or world yet, or the latch); 0 idle; 1 busy.
 std::atomic<uint32_t> warp_me{0};
@@ -31,7 +30,7 @@ __declspec(noinline) void warp_body() {
   }
   const bool busy = warp_busy(at<uint8_t>(client + kWarpBlock), at<uint8_t>(client + kCampAsked),
                               at<uint8_t>(client + kCampWaits), at<int32_t>(world + kRespawnState));
-  warp_me = at<uint32_t>(client + kPlayerGuid);
+  warp_me = at<uint32_t>(client + slot::kPlayerGuid);
   warp_state = busy ? 1 : 0;
 }
 void warp_tick() {

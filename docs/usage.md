@@ -318,7 +318,8 @@ More about sessions:
 - Both players need the same protocol (14) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
-The ghost is display only. Items, unlocks and progress are not copied between your two games. The experimental
+The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
+you send with [`coop gift`](#cut-mailbox-coop-gift), which leave one co-op save and go into the other. The experimental
 [shared enemies](#shared-enemies-experimental) are on by default and run on [co-op saves](#co-op-saves) only.
 
 Achievements follow one rule: a shared enemy you fight together counts for both of you, and nothing done without you
@@ -817,8 +818,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
-| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed (untested in game), or end it |
-| `coop emote [list\|<name>\|off]` | Hold one of [EVE's photo-mode poses](#emotes-coop-emote) until she moves (untested in game, and the pose may not show), list them or end it |
+| `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
+| `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -836,6 +837,10 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
+| `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save; loading one is held back) |
+| `coop devmenu [list\|<row>]` | The rows of the game's [developer menu](#developer-menu-coop-devmenu-and-coop-devinfo) that still work: the list, or one row on EVE or the enemies near her (test command, untested in game; a row on a co-op save only) |
+| `coop devinfo quest\|player\|off` | The game's [quest debugger or player info panel](#developer-menu-coop-devmenu-and-coop-devinfo), opened or closed (test command, untested in game, any save) |
+| `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
@@ -1000,8 +1005,8 @@ The ghost, the link and every other command except `coop fight` (below), `coop r
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
 [viewer commands](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,
 `coop lion control`, `coop gardener fight` with no word, `intro`, `half` or `skulling`, `coop tendril fight` with no
-word, `coop chainspin`, a scene of
-`coop scene`, `coop fly on`, `coop slowmo on` and `coop glide on` (below) run on any save.
+word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`, `coop glide on`, a row of
+`coop devmenu` and `coop gift` (below) run on any save.
 `coop fight pilot` runs on any save too, since same place only moves enemies while shared enemies run.
 
 ### Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
@@ -1090,12 +1095,13 @@ has been tried in game yet.
 | --- | --- | --- |
 | `coop mann` | `body` | The early Mann, `CH_NPC_Mann` in `/Game/Art/Character/NPC/Mann/`, about 3.5 m tall, with his 4 animations: 3 idles and a run. The shipped Mann uses another mesh, `CH_NPC_Mann_Body` in `CH_NPC_Mann_01/`. |
 | `coop nier` | `square` (the default), `squareb`, `cylinder`, `cylinderb`, `cylinderc`, `sphere`, `sphereb` | The NieR collaboration's three cut machines, `CH_M_NA_951` to `CH_M_NA_953` in `/Game/DLC_1/Art/Character/Monster/`, with their TypeB and TypeC variants: blockout shapes of 32 to 810 vertices with no material, drawn in the engine's grey |
-| `coop orcal` | `test1` (the default), `test2`, `native` | Orcal prototypes in `/Game/Art/Character/NPC/CH_NPC_XionElder/`: `OrcalTest_01`, `OrcalTest_02` (both about 1 m tall) and `XionElder_Native_Preview` |
+| `coop orcal` | `test1` (the default), `test2`, `native`, `preview` | Orcal prototypes in `/Game/Art/Character/NPC/CH_NPC_XionElder/`: `OrcalTest_01`, `OrcalTest_02` (both about 1 m tall), `XionElder_Native_Preview` and `PreviewMesh/CH_NPC_XE_testmesh` (1.8 m tall and 3.7 m wide) |
 | `coop enya` | `mech` (the default), `enya05` | Enya prototypes in `/Game/Art/Character/NPC/CH_NPC_Enya/Temp/`: `CH_NPC_Enya_Mech` and `Enya_05`, 1.6 and 1.7 m tall |
 
 - Only the early Mann plays animations. The NieR machines have none: their blend spaces hold no samples, so `list`
   reads them as `list asset` lines and nothing plays them. The Orcal and Enya meshes have one bone each, in a fixed
-  pose.
+  pose. `CH_NPC_XE_testmesh` names no skeleton in its file, so the engine draws it in its reference pose and `list`
+  reads `skeleton=-` for it.
 - `auto` puts each model's lowest point at EVE's feet, 1.6 times its bounding sphere radius away and at least 6 m
   (3 m for the Orcal and Enya statues).
 - `skin` takes `default` only.
@@ -1595,10 +1601,11 @@ The log lines, in `UE4SS.log`:
 
 ### Cut scene lines: `coop lines`
 
-The game's files hold the subtitles of scenes that were cut before they were voiced. `coop lines <name>` shows one of
-these scenes in the chat's feed, line by line, at the times its level sequences give, with the speaker's name before
-each line. Nothing else plays: no camera, character or sound. It runs on any save and writes nothing. It has not been
-tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
+The game's files hold the subtitles of scenes that were cut before they were voiced, and voice takes that nothing
+plays. `coop lines <name>` shows one of these scenes in the chat's feed, line by line, at the times its level sequences
+give, with the speaker's name before each line. In `enya` the voice takes play, with the subtitles the game has for
+them. Nothing else plays: no camera, no character, and no sound in the other scenes. It runs on any save and writes
+nothing. It has not been tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
 
 | Name | Scene | Lines | Length |
 | --- | --- | --- | --- |
@@ -1606,6 +1613,7 @@ tried in game yet. Its lines go to `UE4SS.log` as `[StellarCoop][LN]`.
 | `warrior` | Quest_Sub_015, a side quest after Raven's attack on Xion: Mann in the empty Presence Chamber, then Orcal's recorded last message | 47 (2 more have no text in the game) | 3 min 47 s |
 | `quinn` | Quinn, a Xion engineer who insists he is human, in three short barks | 10 | 27 s |
 | `skyhall` | Sky Hall, an earlier route where Lily leads EVE and Adam through a temple toward the Great Desert | 37 | 1 min 29 s |
+| `enya` | Quest_Sub_008, with Su and Enya in Xion: six takes of Enya's and one of Su's that the shipped scene leaves out, voiced, one after another | 7 (2 with a subtitle) | 29 s |
 
 - `coop lines` lists the scenes, and the one running.
 - `coop lines <name>` starts one. A second `coop lines <name>` replaces it.
@@ -1618,49 +1626,93 @@ its source language, so the lines show in Korean and the command's answer says h
 mean switching the whole game's language or copying the lines into the mod, and `coop lines` does neither. The Sky Hall
 lines are Korean placeholder text in every language, most with the speaker's name inside.
 
+The `enya` takes have no level sequence, so each one starts 1 s after the one before ends. They are the game's
+`/Game/Sound/Dialogue/Quest/Enya/Seq_Quest_Sub_008_02_05_VO` to `_16_VO` (05, 06, 09, 10, 15 and 16) and Su's
+`Seq_Quest_Sub_008_02_11_VO`, loaded when the scene starts. The game holds them in 10 voice languages, and the log
+line below tells which one plays. Only `02_10` and `02_11` have a subtitle in the game's table; the other five play
+with nothing in the feed. Each take plays as a 2D sound, not placed in the world. `coop lines stop`, a new scene and
+`coop off` cut the take playing; with the co-op UI off, the scene ends at its next take. The log gives each take's
+length and sound class when the scene starts
+(`take Seq_Quest_Sub_008_02_05_VO: 3.42 s, sound class Dialog_NPC`: `Dialog_NPC` is the Korean take, a class ending in
+`_En` the English one), and `enya line <n>: take not played (<why>)` for one that could not play. A take the engine
+unloaded after the start is loaded again at its turn, with a short stutter, and logged as
+`take <name> loaded again: freed before its turn`.
+
 The lines need the chat's feed, which draws every script the game has (the notice line above EVE draws Latin letters
 only): without the Steam link or with the co-op UI off, the command answers `STOP`. While the chat box is closed, the
 feed shows each line for 8 s, 6 rows at most. A scene goes on while the game is paused.
 
 ### Emotes: `coop emote`
 
-`coop emote <name>` puts EVE in one of her photo-mode poses until she moves. The 31 poses are grouped under the six
-categories of the game's cut Social Action menu, whose own gestures never shipped. It runs on any save and writes
-nothing. It has not been tried in game yet.
+`coop emote <name>` plays one of EVE's animation clips on her. It runs on any save and writes nothing. It has not been
+tried in game yet.
 
 | Category | Names |
 | --- | --- |
-| Greetings | `salute`, `kungfu`, `toast` |
+| Greetings | `salute`, `kungfu`, `toast`, `wave`, `wave2` |
 | Expression | `clap`, `heart`, `thumbsup`, `victory`, `kiss` |
 | Orders | `bringiton`, `giveme`, `hush`, `reach` |
 | Emotion | `omg`, `what`, `worry`, `wish`, `wedidit` |
 | Pose | `charm`, `confident`, `cutie`, `sweetie`, `squat`, `stretch`, `warmup`, `walk`, `shutter1`, `shutter2`, `shutter3` |
 | Dance | `flow`, `nataraja`, `somersault` |
+| Cut | `chariotstruggle`, `chariotcounter`, `chariotfail`, `chariottakedown`, `kalitakedown`, `kaligrab` |
 
 - `coop emote` and `coop emote list` print the names by category.
 - `coop emote <name>` starts one, and a second name replaces it. It does not start while EVE is in the air or in the
   middle of an attack or a dodge.
-- Moving, a jump, a dodge or an attack ends it with a 0.25 s blend. So do `coop emote off`, `coop off`, a map change
-  and the game stopping the montage itself. A Lua reload (Ctrl+R) stops a pose the earlier load left playing.
+- Moving, a jump, a dodge or an attack ends it with a 0.25 s blend. So do `coop emote off`, `coop off`, a map change,
+  photo mode and the game ending the clip itself. A Lua reload (Ctrl+R) stops a clip the earlier load left playing.
 
-Each pose is a still of 0.2 s at most, played in a loop, so EVE takes the pose and keeps it. The selfie poses are left
-out: each one sits in a blend space that follows the selfie camera's direction. The game has no wave outside them, so
-there is no `hello`.
+The first six categories are those of the game's cut Social Action menu, whose own gestures never shipped. Their 31
+poses come from photo mode. Each one is a still of 0.2 s at most, played in a loop, so EVE takes the pose and keeps it
+until she moves. The other eight clips play once and end by themselves:
 
-The pose plays as an animation montage on EVE while her animation blueprint keeps running. That blueprint has no
-montage slot in the game files read for this version, so EVE may not take the pose at all. The start line in the log
-says whether the montage plays: if it does and EVE stays as she was, the poses need another way in. A linked friend
-sees what your EVE shows, through the pose stream the ghost already copies.
+- `wave` and `wave2` are the selfie mode's two waves (`Hello_Selfie_L` and `Hello_Selfie_R`, 3 s each). In selfie
+  mode they sit in a blend space that follows the camera's direction; here each one plays whole.
+- The Cut category holds clips of EVE's made for two enemies that have no character in the game files: no mesh, no
+  `CharacterTable` row and no name in the game's text. The Chariot was removed (a test spawn row and a despawn effect
+  still name it): its struggle (`chariotstruggle`, 14.8 s) and its two endings as the files name them,
+  `ConfrontAttack` (`chariotcounter`, 10.0 s) and `ConfrontFail` (`chariotfail`, 1.5 s), and her takedown on it
+  (`chariottakedown`, 4.9 s). Kali may be a cut enemy or an early name of one that shipped: her takedown on Kali
+  (`kalitakedown`, 5.6 s) and Kali's grab (`kaligrab`, 5.8 s). In all six, EVE acts alone.
 
-Its lines go to `UE4SS.log` with the `[StellarCoop][EM]` tag:
-`emote clap: Clap in DefaultSlot, montage AnimMontage /Engine/Transient.AnimMontage_0, playing yes` when one starts
-and `emote clap ended (movement input) after 4.2 s` when it ends, with `in the air`, `a skill runs`,
-`the montage no longer plays`, `her EVE changed` (a map change), `another emote`, `coop emote off`, `coop off` or
-`error` instead of `movement input`. After `error` comes `coop emote stopped: <why>`, repeated as
-`[StellarCoop] STOP: coop emote stopped: <why>`. A stop that fails adds `: not stopped (<why>)` to the end line.
-`emote clap: no montage made for Clap` means the game refused the montage. After a Lua reload,
-`emote restore: an earlier load's montage stopped` says the earlier pose was stopped, and `emote restore failed: <why>`
-says it could not be.
+The native part plays the clip through the game's own custom animation call, the one the game uses for EVE's flight
+start, so it goes through the custom animation nodes of her animation blueprint. Without the native part, on another
+game build or after a fault in that call, the clip goes in as an animation montage instead, which most likely shows
+nothing: her blueprint has no montage slot in the game files read for this version. A linked friend sees what your EVE
+shows, through the pose stream the ghost already copies.
+
+Its lines go to `UE4SS.log` with the `[StellarCoop][EM]` tag. With the native part:
+`emote clap: Clap asked of the native part (anim 482913, loop)` when one starts (`once` for the eight clips above),
+`emote clap: Clap plays (anim 482913)` once the game took it, and `emote clap ended (movement input) after 4.2 s` when
+it ends. Instead of `movement input` the end line can say `in the air`, `a skill runs`, `the clip ended`,
+`her animation blueprint showed nothing`, `the game refused it: <why>`, `no answer from the native part` (none in
+5 s), `the native clips stopped` (a fault), `her EVE changed` (a map change), `another emote`, `coop emote off`,
+`coop off` or `error`. When the clip did not show, a line also goes on screen and to the log as
+`[StellarCoop] STOP: ...`: `coop emote: EVE did not show Clap`, `coop emote: the game refused Clap (<why>)` or
+`coop emote stopped: <why>`.
+
+The native part's lines go to `coop-link.log`: `anim 482913 asked: <path> in a loop` (or `once`), then
+`anim 482913 playing: SB took the clip in EVE's custom animation slot 0 (ret 0)`, and at the end
+`anim 482913 ended after 4.9 s, weight up to 1.00` or `anim 482913 stopped after 4.2 s, weight up to 1.00`, with
+`(coop off)` or `(a new Lua load)` after the time when one of them stopped it. The weight says how much of the clip
+the blueprint blended in: 1.00 is all of it. `anim 482913 refused: no EVE of ours in the world`,
+`refused: EVE has no custom animation slot` and `refused: the game played nothing (ret -1: the clip did not load, or a
+clip of a higher priority holds the slot)` say why nothing played; `refused: coop off` and `refused: a new Lua load`
+name a play asked just before one of them. A clip the blueprint takes no weight of for 1 s
+ends with `: the slot took no weight, so EVE's animation blueprint did not show the clip`. Time while the game is
+paused (`coop freeze`, or a host's photo mode holding the guest) does not count toward that second, since EVE's
+animation does not move then; the `after ... s` figure is still the clock's. A fault in the game's call
+logs `anim fault ...`, says on screen that the native clips stopped until the game restarts, and sends later emotes to
+the montage.
+
+Without the native part the start line is
+`emote clap: Clap in DefaultSlot, montage AnimMontage /Engine/Transient.AnimMontage_0, playing yes`, and
+`the montage no longer plays` replaces `the clip ended`. `emote clap: no montage made for Clap` means the game refused
+the montage. After a Lua reload, `emote restore: an earlier load's montage stopped` says the earlier montage was
+stopped, and `emote restore failed: <why>` says it could not be. In both cases, after `error` comes
+`coop emote stopped: <why>`, repeated as `[StellarCoop] STOP: coop emote stopped: <why>`, and a stop that fails adds
+`: not stopped (<why>)` to the end line.
 
 ### Debug flight and slow motion: `coop fly` and `coop slowmo`
 
@@ -1740,6 +1792,203 @@ where she is. That is why it runs on co-op saves only.
 Its lines go to `UE4SS.log` with the `[StellarCoop][GL]` tag: `glide on EVE (velocity Z -120 cm/s)` when a glide
 starts and `glide ended (landed) after 2.4 s` when it ends, with `Jump released` or `flight or rising` instead of
 `landed` when that is what ended it.
+
+### Cut Load Shortcut saves: `coop shortcut`
+
+The game still holds a cut menu, Load Shortcut, that started a developer save at a set point of the story. Its button
+never shows on the title screen, and the menu loads nothing: its load call was removed. The saves it lists are still in
+the game's files, 15 of them for four maps (B07 4, F02 3, G03 4, Matrix_XI 4).
+
+`coop shortcut` lists them. The native part reads each file from the game's paks through the game's own file manager,
+one per frame (16 frames in all), and writes nothing. The command runs on any save, needs the native part, is left out
+of the usage line and has not been tried in game.
+
+Each file gets a line in `coop-link.log`:
+
+```
+shortcut F02 1: start point 1, map F02 (DrownedEidosDistrict), camp DED10_EnvS_158, saved 2022-04-15, ++UE4+Release-4.26, 1185648 bytes
+shortcut F02 4: none
+shortcut G03 2: the same bytes as F02 1
+```
+
+The map is where the save starts, with its world's name in the game's tables, and the camp is the one it starts at.
+F02's three files are the three numbered start points of the game's cheat list (Eidos 7, Matrix 11, Spire 4). A
+summary follows, which also reaches `UE4SS.log` as a `link: last=` line: `shortcut saves: 15 of 16 found: B07 1
+SE_01_EnvS_049, ..., G03 2 = F02 1, ...; each one's line is in coop-link.log; loading one is held back`. A second
+`coop shortcut` before the list ends still answers `OK: asked the native part: shortcut list: ...` on the console; the
+refusal, `shortcut list refused: a list is under way`, shows in `coop-link.log` and in `UE4SS.log` as a `link: last=`
+line.
+
+Loading one is held back. These are saves of development builds from 2021 and 2022. Two of them (F02 2 and 3, and
+their copies G03 3 and 4) hold six boss achievements as already done, and loading one could give those Steam
+achievements to an account that never fought the bosses. They also hold items and quests the released game no longer
+has, and lack fields its own saves have. [How it works](how-it-works.md#why-no-load) has the details.
+
+### Developer menu: `coop devmenu` and `coop devinfo`
+
+The game's files still hold the cheat menu the developers used (`WB_DebugCommand_Master`), its data table of 7,139
+rows over 18 tabs, and a few debug panels. The menu cannot open in the released game: the code that fills it is not in
+the build, and every row's command goes to the game's cheat manager, where 702 of the 703 commands only read their
+arguments and return. The game's own cheat request still runs six words, and 87 rows use three of them
+(`SBApplyEffectMe`, `SBPlayerSP`, `SBPlayerRevival`). Both commands are test commands, left out of the usage line, and
+neither has been tried in game yet.
+
+`coop devmenu` gives back the rows among those 87 that grant nothing by themselves and whose lasting effects a row of
+its own can end. `coop devmenu` or `coop devmenu list` lists them,
+and `coop devmenu <row>` runs one, on a [co-op save](#co-op-saves) only. The mod reads each effect's ID from the
+game's EffectTable by name and asks the game to apply it on EVE, through the same request as
+[`coop chainspin`](#cut-tachy-skill-coop-chainspin). Its lines go to `UE4SS.log` as `[StellarCoop][DM]`, one per
+effect: `devmenu attack30: SBApplyEffectMe Test_ShieldDamageUpMe30 (9000178) on EVE (guid 228)`.
+
+| Row | What it does |
+| --- | --- |
+| `nodamage` | EVE takes no damage |
+| `stealth` | EVE is hidden from enemies (the game's stealth state) |
+| `speed150`, `speed200` | EVE moves 1.5 or 2 times as fast |
+| `attack5`, `attack30` | EVE deals 5 or 30 times the damage, to health and shield (each run adds to the last) |
+| `gauges` | The Beta and Burst gauges refill on their own |
+| `tachy` | The Tachy gauge refills on its own |
+| `tachyfull` | The Tachy gauge fills, once |
+| `heal` | EVE's health fills, once |
+| `hp1` | EVE's health drops to 1, once |
+| `nolockswitch`, `lockswitch` | The lock-on stays off when its target dies, or moves to the next target again (the game's way) |
+| `enemynodamage` | Enemies near EVE take no damage |
+| `enemynoai` | Enemies near EVE stop acting |
+| `enemyimmortal` | Enemies near EVE cannot die |
+| `enemyshield1`, `enemybalance1` | Enemies near EVE drop to 1 shield or 1 balance, once |
+| `enemyclear` | The lasting effects above come off the enemies near EVE, and most likely off EVE too |
+| `clear` | The lasting effects above come off EVE and the enemies near her |
+
+- "Near EVE" is the range the game's test effects use. Run the row again after you move to reach other enemies.
+- Only your game runs a row. With [shared enemies](#shared-enemies-experimental) on, the health that `attack5` and
+  `attack30` take off a shared enemy and the balance that `enemybalance1` takes come off its shared HP bar and balance
+  gauge, so they count in your friend's game too, and a shared enemy that dies that way gives your friend the kill if
+  they took part in its fight (`kill_credit`). The other enemy rows change your copies only, so they may act
+  differently from your friend's.
+- Effects that last stay until `clear` (or `enemyclear`; `nolockswitch` until `lockswitch`) or the game's exit. A save
+  load should end them too, but that has not been checked. `coop off` runs `clear` and `lockswitch` once more when a
+  row ran, even before a Lua reload (Ctrl+R; `coop-devmenu.txt` keeps that). That `clear` reaches only the enemies near
+  EVE at that moment, and both rows are skipped while a respawn or a warp is under way or no EVE is in the world: the
+  log then has `coop off: devmenu clear not asked: <why>`. After `coop off` no `coop devmenu` row runs, so run `clear`
+  near the enemies you changed before it. Nothing of it is saved.
+- Running a lasting row twice does not turn it off. `attack5` and `attack30` add up at each run: `attack30` twice
+  gives about 59 times the damage, and `attack5` then `attack30` about 34 times. The speed rows do not add up.
+- Left out: the rows that kill enemies or cut their health (EVE would get the kill, its rewards and its trophies
+  without the fight), the ranged mode unlock, the consumable stacks, the fishing cheat, the skill points, EVE's death
+  and revival, the test stances and skills, the effects on every actor, and the effects no row can remove: the full
+  immunity, the two 80 % damage cuts, the scanner without cooldown and the menu's endless stun of the enemies
+  (`Test_EnemyEffectGroggy`, which neither dispel ends).
+- No row grants an item, a skill point, a quest step or a trophy by itself. Kills made with the help of the attack,
+  gauge or enemy rows are still EVE's kills: they count toward the kill and skill trophies in the co-op save, as any
+  other kill does.
+
+Which tabs of the menu still do something:
+
+| Tab | Rows | Rows the cheat request still runs | In `coop devmenu` |
+| --- | --- | --- | --- |
+| Common | 225 | 53 | 25 |
+| Battle | 207 | 12 | 7 |
+| CombatTestMapMk2 | 23 | 4 | 2 |
+| System | 4,679 | 17 | 1 |
+| Level | 1,514 | 1 | 0 |
+| F01, F02, B07, C05, G03, E03_WasteLand_P, E04, E05_GreatDesert_P, AltesLab_P, AbyssLab_P, Matrix_XI, LV_RavenBoss_Test, UI_LIT_TEST | 491 | 0 | 0 |
+
+The map tabs hold warps, quest steps, item grants and achievement unlocks, all of them commands that do nothing in
+this build. 37 rows are engine console commands (FSR settings, `stat`, `show`), which the game's console runs without
+the menu.
+
+`coop devinfo quest` opens the game's quest debugger: a list of every quest the game holds, with its task groups and
+tasks, which the game writes again each frame while it is open. `coop devinfo player` opens the player info panel,
+whose one line reads `PlayerTagName:` and a text from the game's client whose contents are not known yet. Opening one
+closes the other, and `coop devinfo off` closes both. The native part opens and closes them through the game's own UI
+manager, as the game opens its menus. Both panels only read, so they run on any save. They open only when the game is
+in play, which is part of the check the game makes before it opens one of its own panels (the mod does not read the
+rest of that check): on the title screen or during a load the line says `not in game` or `not playing`. `coop off`
+closes them. The boss challenge debug panel cannot open: like the menu's, its code is not
+in the build. The native part's lines go to `coop-link.log`: `coop devinfo quest asked: at the game thread's next
+frame`, then `devinfo quest: 0 closed, 1 opened`, or `devinfo quest refused: not playing, 0 closed`.
+
+### Cut mailbox: `coop gift`
+
+The game's files hold a mailbox that was cut: its menu (`WB_MailBox_Set`, with a detail panel and list rows), a toast
+for a new gift (`WB_MailBox_Toast_GetGift`), their textures and the sound `UI_MailBox_GetGift`. The two gift rows left
+in its table turn a mailbox on only for an object of a test map that is not in the game, and their titles were never
+written. The menu's code is still in the game, but it only lists those rows, and taking one of its gifts writes that
+gift into the save. `coop gift` uses the mailbox for gifts between two players instead: your linked friend sends you
+consumables from her inventory, they wait in your mailbox, and you take them when you want. Both of you must play a
+[co-op save](#co-op-saves). None of it has been tried in game yet.
+
+| Command | What it does |
+| --- | --- |
+| `coop gift` | Lists what waits in your mailbox, what you sent that waits for an answer, and the items you can send |
+| `coop gift send <item> [count]` | Sends 1 to 10 of one item to your linked friend, 1 when the count is left out |
+| `coop gift take [n]` | Puts every gift that waits into your inventory, or only gift n of the list |
+
+The item is its number or its name, in any case:
+
+| Number | Name | In the game |
+| --- | --- | --- |
+| 1 | `HP_Potion` | Highly Concentrated Potion |
+| 2 | `HP_Potion_Small` | Lingering Potion |
+| 3 | `HealGrenade` | Biotic Field Generator |
+| 4 | `PulseGrenade` | Pulse Grenade |
+| 5 | `ConcussionGrenade` | Shock Grenade |
+| 6 | `TrapGrenade` | Smart Mine |
+| 7 | `FlashGrenade` | Sonic Grenade |
+
+Only these consumables can be sent. Key, story and quest items, equipment, the Tumbler (whose charges the game keeps as
+a stat), drone ammo and the cut stimpacks are left out, and none of the seven counts toward a trophy.
+
+- A send checks how many of the item you carry and refuses when you have fewer than the count. The game then takes the
+  items out of your inventory with its own remove request, and the gift goes only once a second read shows they left.
+  That wait lasts 10 s of play at most: time with the game paused or in photo mode (yours, or your friend's when it
+  pauses your game) does not count, since the game runs the remove only once it plays again.
+  `OK: reading how many PulseGrenade you carry; the gift of 2 follows` answers the command, then a notice says
+  `Gift sent: 2 PulseGrenade. It waits for your friend's answer.` or why it was not sent.
+- Your friend's game keeps the gift in her mailbox and answers, and you get `Kaanta got your 2 PulseGrenade.` She gets
+  `<your name> sent you 2 PulseGrenade: coop gift take puts them in your inventory.` and the cut toast for 4 s. A Lua
+  reload (Ctrl+R) in those 4 s takes the toast off at once.
+- Her game refuses a gift when she is not on a co-op save, when 20 gifts already wait in her mailbox, or when it cannot
+  write its mailbox file. The items then come back to you: `Gift refused (full): the 2 PulseGrenade come back.`
+- The items also come back when she leaves the session before answering, when no answer came in 60 s, or when the
+  gift could not be sent at all. They come back through the same request the
+  [Night Operation shop](night-operation.md#the-reward-shop) adds items with, as soon as EVE is in the world and the
+  game is not paused, and only on the co-op save they left.
+  `Gift returned: 2 PulseGrenade are back in your inventory.` says it.
+- While she is linked and has not answered, the gift is sent again every 10 s under the same number. Her game keeps
+  that number with the gift, and keeps the last 64 it took or refused, so a gift sent twice is kept once.
+- `coop gift take` puts the gifts in your inventory through the same request as the shop, `OK: took 3 HP_Potion from
+  Kaanta`. The game must not be paused. A gift is crossed off your mailbox before the game adds it, and put back if
+  the game refuses the call.
+- `coop loopback` with no friend linked sends a gift to yourself, for a test on one PC: the items leave, arrive in your
+  own mailbox, and `coop gift take` puts them back.
+
+These cases can still lose or double a gift:
+
+- Your friend's answer is lost as she leaves the session, or her link stays lost for more than 60 s while the gift
+  line is on its way. The items come back to you, and her game keeps the gift if the line reaches it. The log shows
+  `gift <id> comes back: ...`, and an answer that arrives after it shows `answer a <id> for no gift waiting`.
+- The game stops (a crash, `coop off`, a Lua reload) after the remove and before the gift's entry in your file, which
+  can take up to the 10 s of play above plus 5 s for a read. The items are gone and nothing is sent: the log has a
+  `remove asked` line with no `sent` line after it.
+- The count does not fall by the gift's in those 10 s, because the game ran the remove later still or because an item
+  you picked up meanwhile hid the drop. Nothing is sent, and the notice says the items may be gone:
+  `Gift not sent: the count did not fall by 2 in 10 s of play (5 before, 4 now); the items may be gone`. Check your
+  inventory.
+- You use the same item between the remove request and the game's turn that runs it. The use can look like the drop,
+  so the gift goes, and the remove then takes only what is left.
+
+The mailbox is a file per Steam ID and co-op slot in the mod folder, `coop-gift-<steamid>-<index>.txt`, like the shop's
+points: restoring a save backup does not change it. Its lines go to `UE4SS.log` with the `[StellarCoop][GF]` tag:
+`remove asked: PulseGrenade x2 of 5 (guid 228)`, `sent <id>: PulseGrenade x2 to <SteamID> (had 5)`,
+`gift <id> kept by Kaanta: PulseGrenade x2`, `gift <id> comes back: your friend left`,
+`took <id>: HP_Potion x3 from <SteamID> (guid 228)`.
+`coop-link.log` has each gift line both ways (`gift line sent: s <id> PulseGrenade 2`,
+`gift line from Kaanta: a <id>`).
+
+Check in game that a send takes the items out of your inventory and that a take adds them, that the counts in
+`[GF]` lines match the inventory screen, that the toast shows its icon and whether it plays a sound, and that a gift
+refused or left unanswered comes back once.
 
 ### Shared enemies (experimental)
 
@@ -2337,8 +2586,14 @@ back as it was), what `coop lion` is doing (a wait for its rows, its search, its
 Lion stays), the same for `coop gardener fight` and `coop tendril fight` (a living Gardener or Tendril stays), the
 `coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene, the game's
 developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
-(`coop glide`: EVE's glide flag is cleared) and a `coop emote` pose (its montage stopped). Afterwards only
-`coop status` and `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`,
+(`coop glide`: EVE's glide flag is cleared), a `coop emote` clip (it blends out), the game's developer panels
+(`coop devinfo`: closed), a `coop shortcut` list under way and the gift toast (taken off the screen). When a
+`coop devmenu` row ran, `coop off` runs its `clear` and `lockswitch` rows once more, but that `clear` reaches only the
+enemies near EVE at that moment, and both are skipped while a respawn or a warp is under way (see
+[Developer menu](#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after the items left your
+inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift lines from your
+friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and `coop report`
+answer. Every other command answers `STOP: coop off is active until the game restarts`,
 and so do the menu, host and leave keys. The race key does nothing.
 
 ## coop-settings.txt
@@ -2765,7 +3020,11 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   `record=on`, `replay=on`, `remote=<generation> <count> <loopback|replay|peer>`), or `engine=off reason=<why>`; then
   `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>
   travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
-  requests handled so far), and `nightop=on` or `nightop=rule` while the probe's poller runs.
+  requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip the native part took and what
+  became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`, `refused:<why>` or `fault`, see
+  [Emotes](#emotes-coop-emote)), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
+  [`coop gift`](#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
+  `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another
@@ -2837,12 +3096,15 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-chat.txt` | native | Your friend's chat lines and race lines, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
 | `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |
 | `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [night-operation.md](night-operation.md#the-reward-shop)) |
+| `coop-gift-<steamid>-<index>.txt` | Lua | Your mailbox on that co-op slot: the gifts that wait, the ones you sent that wait for an answer or come back, and the last 64 gifts taken (see [Cut mailbox](#cut-mailbox-coop-gift)) |
+| `coop-gift-toast.txt` | Lua | While a gift's toast shows: its object path, so the next Lua load (Ctrl+R) can take it off |
 | `coop-race.txt` | Lua | Your [Doro race](#doro-races) lines, for a moment: the native part takes and deletes the file at its next pass |
 | `coop-track-<name>.txt` | Lua, on `coop race save` | A Doro race track |
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
+| `coop-devmenu.txt` | Lua | After a `coop devmenu` row reached the game, until `coop off`: one line, so `coop off` runs `clear` and `lockswitch` even after a Lua reload (Ctrl+R) |
 | `coop-wear.txt` | Lua | While `coop wear` puts a look on: your EVE's object path and, for her hair and her suit, the worn mesh's path and her own look (the mesh's path, the hair's animation Blueprint class, the hair's physics asset and the materials the game set on its slots), so the next Lua load (Ctrl+R) can give it back |
 
 Each file shared between Lua and the native part is written in full to a `.tmp` file beside it and then renamed over it,

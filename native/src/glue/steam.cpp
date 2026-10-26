@@ -8,8 +8,9 @@
 // shared quests' lines on the same channel (Phase 12, glue/tick.cpp) with their record beside each co-op slot, the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (glue/tick.cpp),
 // the chat and vitals lines between the link, our EVE (glue/tick.cpp) and Lua's two short-lived chat files,
-// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), and the race lines Lua
-// writes into coop-race.txt (hers reach Lua through coop-chat.txt). It
+// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), the race lines Lua
+// writes into coop-race.txt and coop gift's lines from Lua's gift requests (hers of both reach Lua through
+// coop-chat.txt). It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save/twins.h), and
 // puts our join code on the clipboard on the copy request (glue/clipboard.h). The follow's camps lines go through the
 // link (link/core.h), its travel request to the game thread (glue/tick.cpp).
@@ -580,6 +581,10 @@ bool step() {
       event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::items: // coop gift's inventory read: the worker's, now.
+      event(coop::pose::ask_items(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
       request.clear();
@@ -592,6 +597,18 @@ bool step() {
     }
     case coop::Command::gate: // coop fly and coop slowmo: the game thread's.
       event(coop::pose::ask_gate(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::anim: // coop emote's native clips: the game thread's too.
+      event(coop::pose::ask_anim(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::shortcut: // coop shortcut's list: the game thread's reads.
+      event(coop::pose::ask_shortcut());
+      request.clear();
+      break;
+    case coop::Command::devinfo: // coop devinfo: the game thread's too.
+      event(coop::pose::ask_devinfo(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::saves:
@@ -636,6 +653,8 @@ bool step() {
       for (const std::string &line : coop_saves.pass(account.get(), game, switched_off))
         event(line);
     }
+    for (const std::string &line : coop::pose::shortcut_pass()) // coop shortcut's lines, as the game thread reads.
+      event(line);
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);
     if (loaded) { // Before ready(): a +connect_lobby there is held until a world loads.
@@ -725,6 +744,9 @@ bool step() {
     if (loaded && !said.empty())
       link->notice(said);
     said = coop::pose::debug_pass(linked, coop_marker, GetTickCount64());
+    if (loaded && !said.empty())
+      link->notice(said);
+    said = coop::pose::anim_pass();
     if (loaded && !said.empty())
       link->notice(said);
     // Channel 2 both ways: the shared quests take their SBQ lines out first, the shared fight's job gets the rest; the

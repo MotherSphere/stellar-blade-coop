@@ -1,12 +1,16 @@
--- cut/emote.lua over a fake EVE, animation instance and asset store: the 31 poses under the menu's six categories and
--- their list; the end rule (movement input past 0.1, in the air, a skill); coop emote's words; no start without EVE, in
--- the air, during a skill, without her animation instance, with a clip missing or with no montage made; a start plays
--- the clip in DefaultSlot as a looped dynamic montage, the clip loaded once (LoadAsset at the first command, never in a
--- frame); nothing read in a frame while none plays; each frame's reads end it at movement input, in the air, at a
--- skill, when the montage no longer plays and on another EVE, with a 0.25 s blend; another emote, coop emote off and
--- coop off end it; a failing frame stops it with a line for the screen; the next Lua load's restore stops a dynamic
--- montage an earlier load left, once, and never one of the game's. GetPlayer gives a new wrapper at each call, as UE4SS
--- does, so EVE is told by address.
+-- cut/emote.lua over a fake EVE, animation instance, asset store and native part: the 39 emotes (31 looped poses, two
+-- waves and six cut clips played once) under seven categories and their list; the end rule (movement input past 0.1,
+-- in the air, a skill); coop emote's words; no start without EVE, in the air, during a skill, without her animation
+-- instance, with a clip missing or with no montage made. Without the native part's anim field: a start plays the clip
+-- in DefaultSlot as a dynamic montage (looped for a pose, once for the rest), the clip loaded once (LoadAsset at the
+-- first command, never in a frame); nothing read in a frame while none plays; each frame's reads end it at movement
+-- input, in the air, at a skill, when the montage no longer plays and on another EVE, with a 0.25 s blend; another
+-- emote, coop emote off and coop off end it; a failing frame stops it with a line for the screen; the next Lua load's
+-- restore stops a dynamic montage an earlier load left, once, and never one of the game's. With the anim field: the
+-- start asks anim play with a new id, the path and once or loop, no montage made; only the answer for its id counts:
+-- playing (logged once), ended (nothing to stop), ended:weight and refused (a line for the screen), none in 5 s (anim
+-- stop asked); the end rule, another emote, coop emote off, coop off and another EVE ask anim stop; a fault sends the
+-- next start to the montage; once it plays, the status is read every 0.1 s, not each frame. GetPlayer gives a new wrapper at each call, as UE4SS does, so EVE is told by address.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -37,9 +41,11 @@ LoadAsset=function(path)
     memory[path]=memory[path] or disk[path]
     return memory[path]
 end
-local DIR='/Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/'
-local function on_disk(name) disk[DIR..name..'.'..name]=clip(DIR..name..'.'..name) end
-on_disk('Clap'); on_disk('HandHeart'); on_disk('Natarajasana')
+local ANIM='/Game/Art/Character/PC/CH_P_EVE_01/Animation/'
+local DIR=ANIM..'PhotoMode/'
+local function on_disk(name,dir) disk[(dir or DIR)..name..'.'..name]=clip((dir or DIR)..name..'.'..name) end
+on_disk('Clap'); on_disk('HandHeart'); on_disk('Natarajasana'); on_disk('Hello_Selfie_L')
+on_disk('Hit_Chariot_ConfrontFail',ANIM)
 -- EVE: her address, movement input, movement (falling or not), skill, mesh and animation instance; the instance
 -- records each montage call.
 local addresses,montages=0,0
@@ -86,23 +92,30 @@ local function log(m) logs[#logs+1]=m end
 local function last() return logs[#logs] end
 local em=Emote.new({log=log})
 
--- The poses: 31, each name once, lowercase, each clip under PhotoMode; the list names them by category.
-local n=0
+-- The emotes: 39, each name once, lowercase; the 31 poses under PhotoMode, looped; the two waves under PhotoMode and
+-- the six cut clips under Animation, played once. The list names them by category.
+local n,looped=0,0
 for name,pose in pairs(Emote.POSES) do
     n=n+1
     assert(name:match('^[a-z0-9]+$'),name)
-    assert(pose.path==DIR..pose.clip..'.'..pose.clip,pose.path)
-    assert(not pose.clip:find('Selfie',1,true),'No selfie clip: '..pose.clip)
+    local cut=pose.clip:find('Chariot',1,true) or pose.clip:find('Kali',1,true)
+    assert(pose.path==(cut and ANIM or DIR)..pose.clip..'.'..pose.clip,pose.path)
+    assert(pose.once==(cut~=nil or pose.clip:find('Selfie',1,true)~=nil),name)
+    looped=looped+(pose.once and 0 or 1)
 end
-assert(n==31,n)
+assert(n==39 and looped==31,n..' '..looped)
+assert(Emote.POSES.wave.clip=='Hello_Selfie_L' and Emote.POSES.wave2.clip=='Hello_Selfie_R')
+assert(Emote.POSES.chariotstruggle.path==ANIM..'Hit_Chariot_Confront.Hit_Chariot_Confront')
+assert(Emote.POSES.kaligrab.path==ANIM..'M_Kali_Beta_Grab.M_Kali_Beta_Grab')
 local categories={}
 for _,c in ipairs(Emote.CATEGORIES) do categories[#categories+1]=c[1] end
-assert(table.concat(categories,' ')=='Greetings Expression Orders Emotion Pose Dance',table.concat(categories,' '))
+assert(table.concat(categories,' ')=='Greetings Expression Orders Emotion Pose Dance Cut',table.concat(categories,' '))
 local list=Emote.list()
-assert(list:find('^Greetings: salute, kungfu, toast%. Expression: clap, heart, thumbsup, victory, kiss%. Orders: '),
-    list)
-assert(list:find(' Dance: flow, nataraja, somersault%. coop emote <name> plays one; move, jump, dodge or attack to '
-    ..'stop it%.$'),list)
+assert(list:find('^Greetings: salute, kungfu, toast, wave, wave2%. Expression: clap, heart, thumbsup, victory, kiss%. '
+    ..'Orders: '),list)
+assert(list:find(' Dance: flow, nataraja, somersault%. Cut: chariotstruggle, chariotcounter, chariotfail, '
+    ..'chariottakedown, kalitakedown, kaligrab%. coop emote <name> plays one; move, jump, dodge or attack to stop '
+    ..'it%.$'),list)
 for name in pairs(Emote.POSES) do assert(list:find(' '..name..'[,.]'),name) end
 
 -- The rule alone.
@@ -194,6 +207,15 @@ em.command('clap')
 eve.anim.playing[eve.anim.active]=nil
 em.tick()
 assert(not em.active() and last()=='emote clap ended (the montage no longer plays) after 0.0 s',last())
+-- A wave and a cut clip go in once (a loop count of 1); the cut clip from Animation, not PhotoMode.
+em.command('wave')
+p=eve.anim.plays[#eve.anim.plays]
+assert(p.asset==memory[DIR..'Hello_Selfie_L.Hello_Selfie_L'] and p.loops==1 and p.bin==0.25,'wave once')
+em.command('chariotfail')
+p=eve.anim.plays[#eve.anim.plays]
+assert(p.asset==memory[ANIM..'Hit_Chariot_ConfrontFail.Hit_Chariot_ConfrontFail'] and p.loops==1,'cut clip once')
+assert(logs[#logs-1]=='emote wave ended (another emote) after 0.0 s',logs[#logs-1])
+em.command('off')
 -- Another emote ends the first one, then plays.
 em.command('clap')
 local first=eve.anim.active
@@ -254,4 +276,117 @@ assert(#eve.anim.stops==stops+1 and #logs==lines,'The game\'s own montage is lef
 eve=nil
 Emote.new({log=log}).restore() -- No EVE (the title screen): nothing.
 assert(#logs==lines)
+
+-- The native part's anim field, read from the engine line only.
+local state,id=Emote.native('slot=coop x\nengine=on warp=idle me=4 travel=idle travel_calls=0 anim=refused:eve '
+    ..'anim_id=77 nightop=on\nlion=off')
+assert(state=='refused:eve' and id==77,tostring(state))
+assert(Emote.native('engine=off reason=coop_off')==nil and Emote.native(nil)==nil)
+assert(Emote.native('name=x anim=playing anim_id=3')==nil,'Not from another line')
+
+-- The native backend: the start asks anim play with a new id; no montage.
+eve=make_eve()
+local status,asked,refuse='engine=on warp=idle me=4 anim=idle anim_id=0',{},nil
+local function ask(line)
+    if refuse then return false,refuse end
+    asked[#asked+1]=line
+    return true,'asked the native part: '..line
+end
+local function answer(word,n) status='engine=on warp=idle me=4 anim='..word..' anim_id='..n end
+local nat=Emote.new({log=log,ask=ask,status=function() return status end})
+ok,said=nat.command('clap')
+assert(ok and said=='emote clap: move, jump, dodge or attack to stop it' and nat.active(),said)
+local first=tonumber(asked[1]:match('^anim play (%d+) '))
+assert(first and first>=1 and asked[1]=='anim play '..first..' '..DIR..'Clap.Clap loop',asked[1])
+assert(#eve.anim.plays==0,'No montage while the native part plays')
+assert(last()=='emote clap: Clap asked of the native part (anim '..first..', loop)',last())
+-- Only its own id's answer counts; playing is logged once.
+answer('ended',first-1)
+clock=clock+1
+assert(nat.tick()==nil and nat.active(),'An older id ended: not ours')
+answer('playing',first)
+assert(nat.tick()==nil and last()=='emote clap: Clap plays (anim '..first..')',last())
+local lines_now=#logs
+assert(nat.tick()==nil and #logs==lines_now,'Logged once')
+-- The end rule asks anim stop.
+eve.stick={X=0.6,Y=0,Z=0}
+assert(nat.tick()==nil and not nat.active() and asked[2]=='anim stop',tostring(asked[2]))
+assert(last()=='emote clap ended (movement input) after 1.0 s',last())
+eve.stick={X=0,Y=0,Z=0}
+-- A cut clip once: its own end needs no stop.
+nat.command('chariotfail')
+local second=tonumber(asked[3]:match('^anim play (%d+) '))
+assert(second==first+1 and asked[3]=='anim play '..second..' '..ANIM..'Hit_Chariot_ConfrontFail.'
+    ..'Hit_Chariot_ConfrontFail once',asked[3])
+answer('ended',second)
+assert(nat.tick()==nil and not nat.active() and #asked==3,'Ended by the game: nothing to stop')
+assert(last()=='emote chariotfail ended (the clip ended) after 0.0 s',last())
+-- Nothing shown, and a refusal: ended with a line for the screen, nothing to stop.
+nat.command('clap')
+answer('ended:weight',second+1)
+local good,message=nat.tick()
+assert(good==false and message=='coop emote: EVE did not show Clap' and #asked==4,tostring(message))
+assert(logs[#logs-1]=='emote clap ended (her animation blueprint showed nothing) after 0.0 s',logs[#logs-1])
+nat.command('clap')
+answer('refused:game',second+2)
+good,message=nat.tick()
+assert(good==false and message=='coop emote: the game refused Clap (game)' and #asked==5,tostring(message))
+assert(logs[#logs-1]=='emote clap ended (the game refused it: game) after 0.0 s',logs[#logs-1])
+-- No answer in 5 s: ended, anim stop asked in case it comes late.
+nat.command('clap')
+clock=clock+4.9
+assert(nat.tick()==nil and nat.active())
+clock=clock+0.2
+good,message=nat.tick()
+assert(good==false and message=='coop emote stopped: no answer from the native part' and asked[7]=='anim stop',
+    tostring(message))
+-- Another emote, coop emote off, coop off and another EVE ask anim stop.
+nat.command('clap')
+nat.command('heart')
+assert(asked[9]=='anim stop' and asked[10]:find(' '..DIR..'HandHeart%.HandHeart loop$'),asked[10])
+assert(logs[#logs-1]=='emote clap ended (another emote) after 0.0 s',logs[#logs-1])
+nat.command('off')
+assert(asked[11]=='anim stop' and last()=='emote heart ended (coop emote off) after 0.0 s',last())
+nat.command('clap')
+nat.stop()
+assert(asked[13]=='anim stop' and last()=='emote clap ended (coop off) after 0.0 s',last())
+nat.command('clap')
+eve=make_eve()
+nat.tick()
+assert(asked[15]=='anim stop' and last()=='emote clap ended (her EVE changed) after 0.0 s',last())
+-- A request the link cannot write: refused, nothing kept.
+refuse='cannot write coop-request.txt'
+ok,said=nat.command('clap')
+assert(ok==false and said=='the native part did not take it: cannot write coop-request.txt' and not nat.active())
+refuse=nil
+-- A stop the link cannot write says so.
+nat.command('clap')
+refuse='cannot write coop-request.txt'
+nat.command('off')
+assert(last()=='emote clap ended (coop emote off) after 0.0 s: not stopped (cannot write coop-request.txt)',last())
+refuse=nil
+-- The native clips' fault: a native emote ends with nothing to stop, and the next start plays the montage.
+nat.command('clap')
+local before=#asked
+answer('fault',0)
+good,message=nat.tick()
+assert(good==false and message=='coop emote stopped: the native clips stopped' and #asked==before,tostring(message))
+nat.command('clap')
+assert(#asked==before and #eve.anim.plays==1 and eve.anim.plays[1].loops==1048576,'The montage after a fault')
+-- Once it plays, the status file is read every 0.1 s, not each frame: an end shows at the next read.
+local reads,read_status=0,nil
+local counted=Emote.new({log=log,ask=ask,status=function() reads=reads+1; return read_status end})
+read_status='engine=on warp=idle me=4 anim=idle anim_id=0'
+counted.command('clap')
+local counted_id=tonumber(asked[#asked]:match('^anim play (%d+) '))
+read_status='engine=on warp=idle me=4 anim=playing anim_id='..counted_id
+assert(counted.tick()==nil and counted.active() and reads==2,'Read at the start and at the first frame: it plays')
+for _=1,50 do assert(counted.tick()==nil) end
+assert(reads==2,'No read within 0.1 s')
+read_status='engine=on warp=idle me=4 anim=ended anim_id='..counted_id
+assert(counted.tick()==nil and counted.active() and reads==2,'The end waits for the next read')
+clock=clock+0.05
+assert(counted.tick()==nil and counted.active() and reads==2,'Still within 0.1 s')
+clock=clock+0.06
+assert(counted.tick()==nil and not counted.active() and reads==3,'Ended at the next read')
 print('emote_test: ok')

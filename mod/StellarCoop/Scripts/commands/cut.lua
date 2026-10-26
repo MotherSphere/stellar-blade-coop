@@ -12,16 +12,21 @@
 -- coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion (cut/lion.lua's), gardener
 -- (cut/gardener.lua's), tendril (cut/tendril.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines
 -- (cut/lines.lua's), flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide
--- (cut/glide.lua's) and ask (a native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode
--- ChainSpin (a test tool, left out of the usage line), runs on a co-op save only. coop emote, one of EVE's
--- photo-mode poses (cut/emote.lua, o.emote), runs on any save.
+-- (cut/glide.lua's), ask (a native request; coop fly, coop slowmo, coop shortcut and coop devinfo) and devmenu
+-- (cut/devmenu.lua's). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of the usage line), runs
+-- on a co-op save only. coop emote, one of EVE's clips (cut/emote.lua, o.emote), runs on any save. coop devmenu, the
+-- developer menu's rows that still work (left out of the usage line too): its list on any save, a row on a co-op save
+-- only. coop devinfo, two read-only panels of the game's developer UI (left out too), on any save. coop gift, the
+-- cut mailbox as a co-op gift box (cut/mailbox.lua, o.mailbox, built with the Steam link only), runs on a co-op save
+-- only: every word of it.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
     local self={}
     -- coop wear (cut/wear.lua, o.wear): every word to it, on any save, as nothing of it is saved.
     function self.wear(...) return o.wear.command(...) end
-    -- coop lines (cut/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed.
+    -- coop lines (cut/lines.lua, o.lines): every word to it, on any save, as it only says lines in the feed and plays
+    -- voice takes.
     function self.lines(...) return o.lines.command(...) end
     -- coop emote (cut/emote.lua, o.emote): every word to it, on any save, as nothing of it is saved.
     function self.emote(...) return o.emote.command(...) end
@@ -40,6 +45,15 @@ function Cut.new(o)
             end
             return ok,why
         end
+    end
+    -- coop shortcut (the native part's save/shortcut.h, left out of the usage line): the cut Load Shortcut menu's
+    -- saves, read from the game's paks and listed in coop-link.log, on any save, as nothing is written. Loading one
+    -- is held back (docs/how-it-works.md: developer saves with boss achievements already done).
+    function self.shortcut(a)
+        if a~=nil then return false,'Use: coop shortcut (the list; loading a shortcut save is held back)' end
+        local ok,why=o.ask('shortcut list')()
+        if ok then why=tostring(why)..': the list goes to coop-link.log, its summary to this log' end
+        return ok,why
     end
     -- coop glide (cut/glide.lua, o.glide, a test tool left out of the usage line): EVE's cut glide, on asked on a co-op
     -- save only, off anywhere (cut/glide.lua checks the save again once a second while on).
@@ -86,10 +100,31 @@ function Cut.new(o)
         end
         return lion.command(sub,a,b)
     end
+    function self.gift(sub,a,b,c)
+        if not o.mailbox then return false,'coop gift needs the Steam link' end
+        local ok,why=coop_slot('coop gift')
+        if not ok then return false,why end
+        return o.mailbox.command(sub,a,b,c)
+    end
     function self.chainspin(extra)
         local ok,why=coop_slot('coop chainspin')
         if not ok then return false,why end
         return o.chainspin.command(extra)
+    end
+    function self.devmenu(name,extra)
+        if extra==nil and o.devmenu.row(name) then
+            local ok,why=coop_slot('coop devmenu '..name)
+            if not ok then return false,why end
+        end
+        return o.devmenu.command(name,extra)
+    end
+    -- coop devinfo quest|player|off: the native part opens SB's quest debugger or player info panel through the
+    -- game's UI manager, or closes them (game/dev_panels.h). Both only read, so any save.
+    function self.devinfo(which,extra)
+        if extra~=nil or which~='quest' and which~='player' and which~='off' then
+            return false,'Use: coop devinfo quest|player|off'
+        end
+        return o.ask('devinfo '..which)()
     end
     function self.scene(sub,extra)
         if o.scene.SCENES[sub] then

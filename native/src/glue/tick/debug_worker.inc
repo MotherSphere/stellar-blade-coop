@@ -1,5 +1,6 @@
 // Part of glue/tick.cpp, one translation unit with it (see there).
-// coop fly's and coop slowmo's worker side (game/debug_keys.h): the asks and debug_pass.
+// coop fly's and coop slowmo's worker side (game/debug_keys.h): the asks and debug_pass, which also logs coop devinfo's
+// answers (game/dev_panels.h).
 
 namespace coop::pose {
 
@@ -75,7 +76,48 @@ std::string ask_gate(const coop::Request &request) {
          (gate == debug::kSlowmo ? ", while no friend is linked" : "");
 }
 
+// coop devinfo (game/dev_panels.h): the panel asked, or off, for the game thread's next frame; an ask it has not taken
+// yet is replaced. Refused off the pinned build and after the panels' fault; after coop off, only off is taken.
+namespace {
+uint32_t devinfo_logged = 0; // The number of the last ask whose answer is logged.
+bool devinfo_fault_logged = false;
+} // namespace
+std::string ask_devinfo(const coop::Request &request) {
+  const uint8_t panel = request.panel % devinfo::kPanels;
+  const std::string word = std::string("coop devinfo ") + devinfo::kNames[panel];
+  if (!game_pinned || devinfo_faulted || (blocked && panel != devinfo::kOff))
+    return word + " refused: " + (devinfo_faulted ? std::string("the panels stopped for this run (a fault)")
+                                  : blocked       ? std::string("coop off")
+                                                  : engine_reason);
+  {
+    std::lock_guard<std::mutex> lock(devinfo_m);
+    ++devinfo_asked;
+    devinfo_want = panel;
+  }
+  return word + " asked: at the game thread's next frame";
+}
+
 std::string debug_pass(bool linked, int marker, uint64_t now_ms) {
+  // coop devinfo's answer, one line for each ask the game thread handled, and its fault once (and nothing after it).
+  if (devinfo_faulted) {
+    if (!devinfo_fault_logged) {
+      devinfo_fault_logged = true;
+      char text[200];
+      std::snprintf(text, sizeof text, "devinfo fault 0x%08llx in %s reading 0x%llx: coop devinfo off for the run",
+                    static_cast<unsigned long long>(devinfo_fault_code.load()), fault_where(devinfo_fault_rva).c_str(),
+                    static_cast<unsigned long long>(devinfo_fault_address.load()));
+      say(text);
+    }
+  } else if (const uint64_t done = devinfo_done; uint32_t(done >> 32) != devinfo_logged) {
+    devinfo_logged = uint32_t(done >> 32);
+    const uint8_t panel = uint8_t((done >> 24) & 0xff) % devinfo::kPanels;
+    const auto why = devinfo::Why((done >> 16) & 0xff);
+    const std::string word = std::string("devinfo ") + devinfo::kNames[panel];
+    say(why != devinfo::Why::none
+            ? word + " refused: " + devinfo::why_name(why) + ", " + std::to_string(done & 0xff) + " closed"
+            : word + ": " + std::to_string(done & 0xff) + " closed, " +
+                  ((done >> 8) & 0xff ? "1 opened" : panel ? "already open" : "none to open"));
+  }
   // What the game thread sets (debug::Asks::want, on fight_gate's slot), every 250 ms while something is asked or
   // wanted, with the number of the last ask behind it.
   if ((debug_asks.asked || debug_want) && now_ms >= debug_gate_at) {
