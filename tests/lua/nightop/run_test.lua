@@ -36,7 +36,8 @@
 -- raising is a notice, and his end line still goes. The panel's fifth row,
 -- Best. A challenge's HUD: its name as the card's title, the record line after a success that wrote its best, its stop
 -- line, Night Operation's own best, and with the kit off its notices with its name, then the record line after the end
--- notice.
+-- notice. The Shooting Range's board beside the card: made once, its score set on a change, hidden while paused, after
+-- the result and with the kit off, and never for another challenge.
 -- Levels: the start's words; a hard run solo, each extra monster spawned, found, sent at EVE and scored like the
 -- others, its result, state and points at 150 %; for two players, the host's level on his line, in her run, on both
 -- sides' spots and wallets. The Shooting Range for two: the host's ask, his line's range word, her run's waves and
@@ -149,7 +150,7 @@ local function free(m) -- The game releases it: out of FindAllOf, and any touch 
     m.freed=true
 end
 local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.SBNetworkPlayerController_0',{
-    IsA=function(_,c) return c==SBPC end,
+    IsA=function(_,c) return c==SBPC or c==PCClass end,
     ServerRequest_CreateActor=function(_,id,at,_,_,_,_,key)
         if not spawn_ok then return end
         local m=table.remove(pool,1)
@@ -2034,6 +2035,91 @@ do
             tostring(told[2]))
     end
     assert(lines[#lines]=='STOP: HUD: boom',lines[#lines])
+    assert(#violations==0,violations[1])
+end
+
+-- 12. The Shooting Range's board (nightop/board.lua) beside the card on the fake kit (fr-FR): the cut shooting test's
+-- widget made once, for the player controller, at the first tick of the run, its Score text in the card's words and
+-- set only on a change (each round's kills, then the final score with the time bonus on the result panel); collapsed
+-- while the game is paused and once the result's 10 s are over; collapsed with the kit off; never made for another
+-- challenge. One local table: the main chunk is near Lua's 200 locals.
+do
+    local B={class='/Game/Art/UI/Widget/Test/WB_ShootingTrainingTest.WB_ShootingTrainingTest_C',shown={},texts={},
+        made=0,range=require('nightop.challenges').find('range')}
+    local score=uobject('Score','TextBlock /Engine/Transient.WB_1.Score',
+        {SetText=function(_,t) B.texts[#B.texts+1]=t.text end})
+    B.widget=uobject('Board','WB_ShootingTrainingTest_C /Engine/Transient.WB_ShootingTrainingTest_C_1',{
+        SetVisibility=function(_,v) B.shown[#B.shown+1]=v end,SetRenderTransformPivot=function() end,
+        SetRenderScale=function() end,AddToViewport=function() end,RemoveFromParent=function() end},{Score=score})
+    by_path[B.class]=uobject('WBClass','WidgetBlueprintGeneratedClass '..B.class,{})
+    by_path['/Script/UMG.Default__WidgetBlueprintLibrary']=uobject('WBL','WidgetBlueprintLibrary',{
+        Create=function(_,context,class,owner)
+            assert(context==pc and class==by_path[B.class] and owner==pc,'CreateWidget for the player controller')
+            B.made=B.made+1
+            return B.widget
+        end})
+    FText=function(t) return {text=t} end
+    B.ch=Run.new({log=function(text) lines[#lines+1]=text end,status=status,paused=function() return paused end,
+        tell=function(build) told[#told+1]=build(Tx.en) end,records={read=function() return '' end,
+        write=function() return true end}})
+    kit.groups,kit.shown,kit.is_off,kit.up,kit.away,kit.raise={},{},false,true,false,nil
+    B.ch.hud({kit=kit,theme={text='text',grey='grey',teal='teal',warn='warn'},settings=settings})
+    card,res=kit.groups.night.view,kit.groups.night_result.view
+    function B.tk(k) for _=1,k or 1 do gt=gt+0.25; B.ch.tick() end end
+    bodies,lines,told,calls,spawn_ai={},{},{},{},false
+    ok,message=B.ch.challenge('range')
+    assert(ok and message:find('^Shooting Range starts in 5 s '),message)
+    B.run=tonumber(message:match('%(run 0x(%x+)%)$'),16)
+    B.tk()
+    assert(B.made==1 and B.texts[1]=='SCORE 0' and B.shown[#B.shown]==3 and card.title.text=='Stand de tir',
+        tostring(B.texts[1]))
+    assert(logged('board: WB_ShootingTrainingTest shows the score'),since(0))
+    B.tk(10)
+    assert(#B.texts==1 and B.made==1,'No call without a change')
+    -- Paused: collapsed; back: shown, with no new text.
+    kit.away=true
+    B.tk()
+    assert(B.shown[#B.shown]==1 and not kit.shown.night,'Collapsed while paused')
+    kit.away=false
+    B.tk()
+    assert(B.shown[#B.shown]==3 and #B.texts==1,'Shown again')
+    for k=1,3 do
+        local n=#B.range.waves[k].ids
+        local found=string.format('wave %d find +1 s: tracked %d/%d',k,n,n)
+        for _=1,400 do
+            if logged(found) then break end
+            B.tk()
+        end
+        assert(logged(found),since(0))
+        for _,m in ipairs(bodies) do
+            local r,w=W.decode(m.key)
+            if r==B.run and w==k then m.st,m.ctl=1,nil end
+        end
+        B.tk()
+        if k<3 then assert(B.texts[#B.texts]==string.format('SCORE %d',40*({3,7})[k]),B.texts[#B.texts]) end
+    end
+    B.final=tonumber(last():match(' score=(%d+) '))
+    assert(last():find('^result: success waves=3/3 kills=12 .* challenge=range ') and B.final>480,last())
+    B.tk()
+    assert(kit.shown.night_result and B.texts[#B.texts]=='SCORE '..B.final,B.texts[#B.texts])
+    B.tk(45)
+    assert(not kit.shown.night_result and B.shown[#B.shown]==1,'Collapsed after the result')
+    -- The kit off during a run: collapsed. Another challenge: no new widget, no text.
+    ok,message=B.ch.challenge('range')
+    B.tk()
+    assert(B.shown[#B.shown]==3,'Shown for the next run')
+    kit.is_off=true
+    B.tk()
+    assert(B.shown[#B.shown]==1,'Collapsed with the kit off')
+    kit.is_off=false
+    B.ch.challenge('stop')
+    B.tk(45)
+    B.before=#B.texts+#B.shown
+    ok,message=B.ch.challenge('targets')
+    B.tk(30)
+    assert(B.made==1 and #B.texts+#B.shown==B.before,'Target Practice has no board')
+    B.ch.challenge('stop')
+    spawn_ai=true
     assert(#violations==0,violations[1])
 end
 print('nightop_run_test ok')

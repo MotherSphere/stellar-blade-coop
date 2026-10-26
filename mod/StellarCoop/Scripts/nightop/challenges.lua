@@ -3,8 +3,9 @@
 -- too, in coop-records.txt, one line best_<id>=<score> <whole seconds> read and rewritten through
 -- core/settings_file.lua. Starting values, to tune after the first in-game runs. A definition with coop=true also runs
 -- for two linked players, the host's run carried by the night line under its id (W.decode_host's words); its waves stay
--- within the night line's masks (5 waves of 8 at most). tests/lua/nightop/challenges_test.lua covers it with lua5.4
--- alone, the definitions' rules included.
+-- within the night line's masks (5 waves of 8 at most). board=true shows the cut shooting test's score widget
+-- (nightop/board.lua). tests/lua/nightop/challenges_test.lua covers it with lua5.4 alone, the definitions' rules
+-- included.
 local W=require('nightop.waves')
 local F=require('core.settings_file')
 local C={}
@@ -32,7 +33,7 @@ C.LIST={
         spots={{-45,12},{45,12},{-25,18},{25,18},{0,22},{-40,26},{40,26},{0,32}}},
     -- The cut shooting test (LV_Test_Shooting_01, no map in the pak): its zone stood 12 M_DummyA, and its quest asked
     -- for three rounds of kills, 3, 4 and 5. Here they stand all around EVE, 15 or 20 m out, for one player or two.
-    {id='range',name='Shooting Range',limit=120,breather=3,heals={},bonus=10,aggro=false,moves=0,coop=true,
+    {id='range',name='Shooting Range',limit=120,breather=3,heals={},bonus=10,aggro=false,moves=0,coop=true,board=true,
         waves={{at=0,ids=many(A,3)},{ids=many(A,4)},{ids=many(A,5)}},
         spots={{0,15},{45,20},{90,15},{135,20},{180,15},{-135,20},{-90,15},{-45,20}}},
 }

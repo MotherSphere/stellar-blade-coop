@@ -45,13 +45,13 @@ assert(table.concat((function()
 end)(),' ')=='-45:12 45:12 -25:18 25:18 0:22 -40:26 40:26 0:32')
 for _,id in ipairs({'swarm','skulls','gauntlet'}) do assert(C.find(id).spots==nil and C.find(id).aggro==true) end
 -- The Shooting Range: M_DummyA in the cut shooting test's three rounds (3, 4, 5), on eight spots all around EVE, every
--- 45 degrees, 15 and 20 m out in turn; the only challenge for two players.
+-- 45 degrees, 15 and 20 m out in turn; the only challenge for two players, and the only one with the board.
 local range=C.find('range')
-assert(range.aggro==false and range.moves==0 and range.coop==true and #range.spots==8)
+assert(range.aggro==false and range.moves==0 and range.coop==true and range.board==true and #range.spots==8)
 for i,spot in ipairs(range.spots) do
     assert(spot[1]==(i-1)*45-(i>5 and 360 or 0) and spot[2]==(i%2==1 and 15 or 20),'range spot '..i)
 end
-for _,def in ipairs(C.LIST) do assert((def.coop==true)==(def==range),def.id) end
+for _,def in ipairs(C.LIST) do assert((def.coop==true)==(def==range) and (def.board==true)==(def==range),def.id) end
 -- Two spots of a wave stand more than twice nightop/run.lua's 5 m match radius apart, so a body is never taken for
 -- the next spot's slot.
 for i,a in ipairs(range.spots) do

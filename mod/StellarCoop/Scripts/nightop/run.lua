@@ -3,7 +3,8 @@
 -- W.LEVELS: the monsters a wave holds, the time limit, the shop points; the host's level in a co-op run, which his
 -- night line carries). coop challenge runs the challenges of nightop/challenges.lua the same way, each with its best
 -- run in coop-records.txt, solo only but the Shooting Range, which the host can also run for both players (its id in
--- place of the level on his line). nightop/waves.lua holds
+-- place of the level on his line); its score also goes to the cut shooting test's widget (nightop/board.lua).
+-- nightop/waves.lua holds
 -- the waves, the keys and the run's states, read from the run's definition; this file is the game side: the start
 -- checks and the census, the one spawn call, the bodies it tracks, their aggro and stuck moves, the abort watch and the
 -- end, and what the player sees: a card at the top centre and a result panel on the Uplink kit (ui/kit.lua), or notices
@@ -20,7 +21,8 @@
 -- heal, EnterZone, a hide, a collision or pool flag write, a destroy, a save, inventory, equip or quest call,
 -- RegisterHook, NotifyOnNewObject. No console word reaches a game call here: start's words only set flags, a
 -- challenge's name only picks a definition; buy's words go through nightop/shop.lua's checked grant. Beyond the kit
--- (ui/kit.lua), the HUD calls the game for one thing only: its own result words (StringTable_UI).
+-- (ui/kit.lua) and the board (nightop/board.lua), the HUD calls the game for one thing only: its own result words
+-- (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
 -- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
 local U=require('core.unreal')
@@ -29,6 +31,7 @@ local N=require('nightop.probe')
 local T=require('ui.text')
 local Shop=require('nightop.shop')
 local C=require('nightop.challenges')
+local Board=require('nightop.board')
 local Run={}
 -- The definitions a co-op run can carry, by the word on the host's night line: Night Operation's levels and each
 -- challenge marked coop, under its id.
@@ -233,6 +236,7 @@ function Run.new(o)
     local log,status,paused,tell,records=o.log,o.status,o.paused,o.tell,o.records
     local send,friend=o.send,o.friend or function() return nil end
     local hud=nil -- self.hud's {kit, theme, settings}; nil without one, or after a HUD error.
+    local board=Board.new({log=log}) -- The cut shooting test's score, for a run whose definition says board.
     -- The result panel: {s=the ended run's state, left=ticks it still shows}; it counts only the ticks it is seen.
     local panel=nil
     -- What the HUD shows goes to the notices instead while there is no kit or it is off.
@@ -918,11 +922,13 @@ function Run.new(o)
     -- The HUD each tick, after the run's: the card while a run is on, else the result panel until it was seen for its
     -- 10 s (a death screen, a pause or a load hide it meanwhile), both hidden while the game is paused or shows one of
     -- its screens, as the partner card. The words follow the game's language unless ui_language=english, picked again
-    -- at each build of the kit's root; the panel reads the game's own heading once for those words.
+    -- at each build of the kit's root; the panel reads the game's own heading once for those words. A run whose
+    -- definition says board also shows its score on the board while its card or panel shows, in the card's words.
     local picked,lang,words=nil,nil,nil
     local function draw()
         local kit=hud.kit
         if kit.off() then -- The notices say it, and the result the panel still held.
+            board.set(nil)
             if panel then notify_end(panel.s,panel.best) end
             panel=nil
             return
@@ -933,7 +939,7 @@ function Run.new(o)
         local result=panel~=nil and not running and not away and res~=nil
         kit.show('night',running and not away)
         kit.show('night_result',result)
-        if not (card and (running and not away or result)) then return end
+        if not (card and (running and not away or result)) then return board.set(nil) end
         if card~=picked or hud.settings.ui_language~=lang then
             picked,lang=card,hud.settings.ui_language
             words=T.pick(kit.language(),lang)
@@ -942,7 +948,7 @@ function Run.new(o)
             local title,line=Run.card(r.s,r.now,words)
             card.title.set(title)
             card.line.set(line)
-            return
+            return board.set(r.s.def.board and words.night.score:format(r.s.score) or nil)
         end
         if panel.words~=words then
             panel.words,panel.head,panel.sub,panel.rows=words,
@@ -955,6 +961,7 @@ function Run.new(o)
             res.rows[i].label.set(v[1])
             res.rows[i].value.set(v[2])
         end
+        board.set(panel.s.def.board and words.night.score:format(panel.s.score) or nil)
         panel.left=panel.left-1
         if panel.left<=0 then panel=nil end
     end
@@ -997,6 +1004,7 @@ function Run.new(o)
         if not ok then
             log('STOP: HUD: '..why(e))
             pcall(function() hud.kit.show('night',false); hud.kit.show('night_result',false) end)
+            board.set(nil)
             hud=nil
             local p=panel
             panel=nil
