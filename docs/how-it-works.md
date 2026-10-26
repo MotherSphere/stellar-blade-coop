@@ -1783,7 +1783,7 @@ of the Lion prototype's).
 
 ### Its batch in the native part
 
-The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 14 table words
+The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 15 table words
 as the Lion's (`Request::batch` says which batch). Each batch has its own ask, answer word and builder (a `RowsJob` in
 `glue/tick/lion_game.inc`) and its own line in `coop-status.txt`, `gardener=` in the `lion=` line's format with its own
 counts (`added=<n>/13`, `char=<k>/3 skills=<k>/3 stance=<k>/1`). The gate, the block each row is built in, the spawn

@@ -93,7 +93,7 @@ build/host/pose_codec_test
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
-    and the boss tests included; `lion rows`, `gardener rows` and `tendril rows` with their 14 table words and bad
+    and the boss tests included; `lion rows`, `gardener rows` and `tendril rows` with their 15 table words and bad
     addresses; `fly` and `slowmo` on or off), Night Operation's night line (its round trip, its refusals and a fuzz
     seed), and the join codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos
     the check turns away);
