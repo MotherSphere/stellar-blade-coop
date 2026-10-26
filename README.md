@@ -79,9 +79,10 @@ the Steam client that the game already runs, so the mod needs no other program a
   [docs/usage.md](docs/usage.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo)).
 - `coop glide` brings back EVE's cut glide: with Jump held in the air, she falls at a tenth of the normal gravity, on a
   co-op save (see [docs/usage.md](docs/usage.md#cut-glide-coop-glide)).
-- `coop emote <name>` holds one of EVE's 31 photo-mode poses until she moves, grouped under the categories of the
-  game's cut Social Action menu. It has not been tried in game and the pose may not show yet (see
-  [docs/usage.md](docs/usage.md#emotes-coop-emote)).
+- `coop emote <name>` plays one of EVE's clips through the game's own animation call: 31 photo-mode poses held until
+  she moves (grouped under the categories of the game's cut Social Action menu), two waves, and six clips of hers
+  whose enemy was cut (the Chariot's struggle, takedowns on the Chariot and on Kali, Kali's grab). It has not been
+  tried in game yet (see [docs/usage.md](docs/usage.md#emotes-coop-emote)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS

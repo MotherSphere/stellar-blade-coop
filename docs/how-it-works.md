@@ -72,7 +72,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion_rows.lua` | The Lion's rows as `lion/rows.h` writes them, for the read-back, and its Shows for the loaded line; written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
-| `cut/emote.lua` | `coop emote`: one of EVE's photo-mode poses as a looped dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
+| `cut/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a cut enemy's clip played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
 | `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
@@ -1762,23 +1762,59 @@ on the player's EVE when it reads true. The property is transient: nothing of it
 
 ## Emotes
 
-`coop emote` (`cut/emote.lua`, not tested in game yet) plays one of the 31 clips of
-`/Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/` that are not in `Bear/` and not a `_Selfie` file. Each is a
-still: 7 frames over 0.2 s, or 2 frames over 0.033 s. The command loads its clip (`Doro.resolve`: in memory, else
-`LoadAsset`) and calls `PlaySlotAnimationAsDynamicMontage(clip, DefaultSlot, 0.25, 0.25, 1.0, 1048576, -1, 0)` on the
-animation instance of EVE's main mesh. The loop count holds the still for hours; 0 would end it at once. Each frame
-while it plays, the module reads `Montage_IsPlaying`, `GetLastMovementInputVector`, the movement's `IsFalling` and
-`IsRunningSkill`, and calls `Montage_Stop(0.25)` at movement input longer than 0.1, in the air or at a skill. A start
-is refused in the air or during a skill. The next Lua load stops a montage under `/Engine/Transient` (a dynamic one;
-the game's montages come from its packages) left on the player's EVE.
+`coop emote` (`cut/emote.lua`, not tested in game yet) plays one of 39 clips under
+`/Game/Art/Character/PC/CH_P_EVE_01/Animation/`: the 31 of `PhotoMode/` that are not in `Bear/` and not a `_Selfie`
+file, each a still (7 frames over 0.2 s, or 2 frames over 0.033 s) played in a loop; and, played once, the two selfie
+waves `PhotoMode/Hello_Selfie_L` and `_R` (3 s each, not additive) and six clips whose enemy was cut:
+`Hit_Chariot_Confront` (14.8 s), `Hit_Chariot_ConfrontAttack` (10.0 s), `Hit_Chariot_ConfrontFail` (1.5 s),
+`P_Eve_Sword_Normal_LinkAttack1_Chariot` (4.9 s), `P_Eve_Sword_Normal_LinkAttack1_Kali` (5.6 s) and `M_Kali_Beta_Grab`
+(5.8 s). All of them are on EVE's skeleton, with no additive type and no root motion. The command loads its clip
+(`Doro.resolve`: in memory, else `LoadAsset`), so the native call finds it in memory. A start is refused in the air or
+during a skill.
 
-The montage may not show. `CH_P_EVE_01_AnimBP_New`, EVE's animation blueprint, has no slot node and no montage in the
-2026-10-06 extract: SB plays her clips through its own custom animation nodes (`ASBCharacter::PlayCustomAnim`,
-`0x1420ae740`), which no reflected function reaches. Photo mode itself does not play these clips either: its pose
-setter (`0x1420f12f0`) writes `PoseName_PhotoMode` and hands a pose snapshot baked from them to the animation instance,
-which the blueprint reads only in photo mode. The start line logs the montage and whether it plays, so one try in game
-tells whether the slot route shows anything. Nothing new travels between the two games: the ghost copies the bones the
-pose stream carries.
+The montage most likely shows nothing: `CH_P_EVE_01_AnimBP_New`, EVE's animation blueprint, has no slot node and no
+montage in the 2026-10-06 extract. SB plays her clips through its own custom animation nodes
+(`SBAnimNode_SequenceBlendedPlayer`, `CustomAnimNode` in that blueprint), fed by `ASBCharacter::PlayCustomAnim`
+(`0x1420ae740`, 38 parameters), which no reflected function reaches. It plays a clip in one of the character's custom
+animation slots (0x70 bytes each, the array at `+0x21b8`, its count at `+0x21c0`) and returns the play's FGuid, all
+zero when it refused: an additive clip, another skeleton, no animation instance, or a slot whose clip has a higher
+priority. Each tick `UpdateCustomAnimWeight` (`0x1420a7130`) moves a slot's time and weight; a clip played once blends
+out at its end and clears the slot's playing byte (`+0x18`), a loop with count -1 never does. Photo mode stops the
+player's custom animation. Photo mode's own poses do not use these clips either: its pose setter (`0x1420f12f0`)
+writes `PoseName_PhotoMode` and hands a pose snapshot baked from them to the animation instance, which the blueprint
+reads only in photo mode.
+
+So the native part plays the clip (`game/anim.h`, `glue/tick/anim_game.inc`). Lua asks
+`anim play <id> <path> once|loop` (the id counts up from the load's start time; the path must start with
+`/Game/Art/Character/PC/CH_P_EVE_01/Animation/`). On its next frame the game thread finds our EVE from her GUID (the
+client's `+0x58`) through SB's two read-only lookups (`fight/pilot.h`'s `find_character`, which also checks she is a
+live `ASBCharacter`) and calls SB's by-path entry `0x1420b31d0` the way the MovingTarget animation calls it
+(`0x1420909c3`): slot 0, the path as a `const FString&`, start 0, end -1 (the whole clip), rate 1, 0.25 s blends, -1
+for SB's own stop at input (off), the loop flag with count -1 or none, priority 0 (the flight start's), and five empty
+`FString` arguments, which that function frees only when their data is set. It loads the path as a
+`UAnimSequenceBase`, applies the priority rule, builds the other defaults itself and returns 0 once it played, 1 for an
+additive clip, -1 when the clip did not load or the slot's clip outranks ours; the FGuid comes back in its fourth
+argument. The flight start's wrapper `0x1420af3c0` was not used: it has no loop flag. `anim stop` calls SB's stop
+`0x1420addc0(character, 0, 0.25, the clip's FName, 1)`, which blends the slot out only while it holds that clip.
+While ours plays, the game thread reads slot 0 every 100 ms after checking the character is still the live object it
+played on: another FGuid, a cleared playing byte or a gone EVE end it, and a slot that took no weight in 1 s (SB's
+node is not playing it, so its time would never move) is freed and reported as `ended:weight`. A new Lua load and
+`coop off` stop ours. All of it runs on the pinned build under its own SEH latch; the first fault tries once to stop
+ours and turns the native clips off for the run.
+
+The engine status line carries `anim=<state> anim_id=<id>` for the last play the game thread took (`idle`, `playing`,
+`ended`, `ended:weight`, `stopped`, `refused:<eve|slots|game|off>` or `fault`). Lua sends a start only while that
+field is there and not `fault`, and acts only on its own id: `ended` and the refusals end the emote with nothing to
+stop, and no answer in 5 s ends it with `anim stop` asked anyway. Each frame while one plays, the module reads that
+field, `GetLastMovementInputVector`, the movement's `IsFalling` and `IsRunningSkill`, and asks `anim stop` at movement
+input longer than 0.1, in the air or at a skill.
+
+Without that field (no native part, another game build, `coop off`) or after its fault, the module calls
+`PlaySlotAnimationAsDynamicMontage(clip, DefaultSlot, 0.25, 0.25, 1.0, loops, -1, 0)` on the animation instance of
+EVE's main mesh, with 1048576 loops for a pose (the still holds for hours; 0 would end it at once) and 1 for the rest,
+reads `Montage_IsPlaying` each frame and calls `Montage_Stop(0.25)` at the same end rules. The next Lua load stops a
+montage under `/Engine/Transient` (a dynamic one; the game's montages come from its packages) left on the player's
+EVE. Nothing new travels between the two games: the ghost copies the bones the pose stream carries.
 
 ## Achievements
 
