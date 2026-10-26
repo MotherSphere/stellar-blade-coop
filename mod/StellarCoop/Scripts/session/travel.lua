@@ -21,7 +21,8 @@
 -- Only the 120 camps of this table are ever sent or taken: no autosave volume, no camp of a developer test world, none
 -- that leads to several worlds. The travel moves her EVE only; nothing changes in the host's game.
 -- coop travel probe <camp> (a test tool): solo, on a co-op save only, any camp of the table, without the host's
--- answer; it does not check that this save found the camp. A Lua error turns the follow off for the run.
+-- answer; it does not check that this save found the camp. coop mxiii (cut/mxiii.lua) asks the same guards first
+-- (ready), then probes its own camp, which is in no table. A Lua error turns the follow off for the run.
 local U=require('core.unreal')
 local Travel={}
 -- Each story world's map, as core/unreal.lua's map_of() names it, from WorldTable's UMapPath.
@@ -393,22 +394,34 @@ function Travel.new(o)
             return start()
         end)
     end
-    -- coop travel probe <camp>: the native call alone, for one of the table's camps.
-    function self.probe(alias)
+    -- Why coop travel probe cannot call now, or nil. any: a camp outside the table (coop mxiii's, cut/mxiii.lua).
+    local function refusal(alias,any)
+        local mode=link.mode()
+        if mode==nil then return 'the Steam link is not ready yet: try again in a moment' end
+        if mode~='none' then return 'coop travel probe is solo only: leave the session first (coop leave)' end
+        local slot=line('slot')
+        if not slot:find('^slot=coop ') then
+            return 'coop travel probe runs on a co-op save only (name slot 04 in StellarCoopSlot.txt); now '
+                ..(slot~='' and slot or 'no slot status')
+        end
+        if not any and (type(alias)~='string' or not CAMP[alias]) then
+            return 'not one of the 120 travel camps: '..tostring(alias)
+        end
+        if not native() then return 'no travel in the native part (engine off, or coop off)' end
+        if req then return 'a travel is under way' end
+    end
+    -- coop mxiii's check before it adds its rows: true, or false and why a probe would be refused now.
+    function self.ready()
         return guard(function()
-            local mode=link.mode()
-            if mode==nil then return false,'the Steam link is not ready yet: try again in a moment' end
-            if mode~='none' then return false,'coop travel probe is solo only: leave the session first (coop leave)' end
-            local slot=line('slot')
-            if not slot:find('^slot=coop ') then
-                return false,'coop travel probe runs on a co-op save only (name slot 04 in StellarCoopSlot.txt); now '
-                    ..(slot~='' and slot or 'no slot status')
-            end
-            if type(alias)~='string' or not CAMP[alias] then
-                return false,'not one of the 120 travel camps: '..tostring(alias)
-            end
-            if not native() then return false,'no travel in the native part (engine off, or coop off)' end
-            if req then return false,'a travel is under way' end
+            local text=refusal(nil,true)
+            return text==nil,text
+        end)
+    end
+    -- coop travel probe <camp>: the native call alone, for one of the table's camps (any: any camp, coop mxiii's).
+    function self.probe(alias,any)
+        return guard(function()
+            local text=refusal(alias,any)
+            if text then return false,text end
             local c=name_of(alias)
             if not c then return false,alias..' is not a name in this game yet (FNAME_Find)' end
             req={probe=true,at=now,list={c},i=0,calls=0}

@@ -19,7 +19,9 @@
 -- reaches cut/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by coop off), coop
 -- gardener fight reaches cut/gardener.lua (the words that spawn on the co-op save slot only, after the viewer's off;
 -- ticked every frame, ended by coop off), coop tendril fight reaches cut/tendril.lua the same way, coop chainspin reaches cut/chainspin.lua on the co-op save slot only (its
--- rows through coop lion's), coop wear reaches cut/wear.lua with all its words on any slot (restored and ticked every
+-- rows through coop lion's), coop mxiii reaches cut/mxiii.lua on the co-op save slot only (with the follow, the Paks
+-- folder from the mod folder; ticked every frame, ended by coop off), coop wear reaches cut/wear.lua with all its words
+-- on any slot (restored and ticked every
 -- frame, waiting while the game is paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
@@ -662,6 +664,27 @@ coop('chainspin'); coop('chainspin','x')
 assert(#cs.cmds==2 and cs.cmds[1].n==1 and cs.cmds[1][1]==nil and cs.cmds[2][1]=='x'
     and last()=='[StellarCoop] OK: cs x\n','On a co-op save: its word reaches it, an extra one to be refused there')
 status_text=plain
+-- coop mxiii: out of the usage line too, on a co-op save only. Its status and requests are the link's, its follow the
+-- one main.lua builds with the link (read at each call), its Paks folder from the mod folder, its file reads
+-- core/link.lua's, its lines [MX] lines; ticked every frame.
+mx.o.log('checks'); assert(last()=='[StellarCoop][MX] checks\n',last())
+assert(mx.o.status()==status_text and mx.o.ask('mxiii rows SkillTable=0x10000')
+    and asked[#asked]=='mxiii rows SkillTable=0x10000',asked[#asked])
+assert(mx.folder=='mod/StellarCoop' and mx.o.paks=='mod/StellarCoop|paks'
+    and mx.o.read==require('core.link').files.read)
+assert(type(mx.o.travel().probe)=='function','The follow')
+coop('mxiii')
+assert(#mx.cmds==0 and last():find('^%[StellarCoop%] STOP: coop mxiii runs only on a co%-op save'),last())
+status_text=COOP
+coop('mxiii'); coop('mxiii','x')
+assert(#mx.cmds==2 and mx.cmds[1].n==1 and mx.cmds[1][1]==nil and mx.cmds[2][1]=='x'
+    and last()=='[StellarCoop] OK: mx x\n','On a co-op save: its word reaches it, an extra one to be refused there')
+status_text=plain
+mx.t,mx.says=mx.ticks,{true,'coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked'}
+loops[1].f()
+assert(mx.ticks==mx.t+1 and last()=='[StellarCoop] OK: coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 '
+    ..'is asked\n',last())
+mx.says=nil
 -- coop wear: all its words to cut/wear.lua on any save, coop-wear.txt through the link; each frame its restore (done
 -- once, inside it) and its tick, whose message is reported; it waits while the game is paused or shows a screen.
 assert(wr.o.store=='store coop-wear.txt' and wr.o.log,'coop-wear.txt through the link')
@@ -814,6 +837,7 @@ assert(lv.stops==1,'off removes the Leviathan display')
 assert(li.stops==1,'off ends what coop lion does')
 assert(gd.stops==1,'off ends what coop gardener fight does')
 assert(td.stops==1,'off ends what coop tendril fight does')
+assert(mx.stops==1,'off ends what coop mxiii does')
 assert(wr.stops==1,'off gives EVE the game\'s meshes back')
 assert(sc.stops==1,'off stops a scene')
 assert(ln.stops==1,'off ends the cut scene lines')
@@ -844,8 +868,9 @@ assert(#asked==before and #printed==lines+4 and printed[lines+1]=='[StellarCoop]
 coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 dr.t,ra.t,ra.s,lv.t,li.t,wr.t,sc.t,ln.t=dr.ticks,ra.ticks,ra.steers,lv.ticks,li.ticks,wr.ticks,sc.ticks,ln.ticks
-gl.t,em.t,gd.t,td.t=gl.ticks,em.ticks,gd.ticks,td.ticks
-loops[1].f(); assert(ticks==16 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+gl.t,em.t,gd.t,td.t,mx.t=gl.ticks,em.ticks,gd.ticks,td.ticks,mx.ticks
+loops[1].f(); assert(ticks==17 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+assert(mx.ticks==mx.t,'No coop mxiii tick after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
 assert(lv.ticks==lv.t,'No Leviathan tick after coop off')
 assert(li.ticks==li.t,'No Lion tick after coop off')
@@ -859,7 +884,7 @@ assert(em.ticks==em.t,'No coop emote tick after coop off')
 assert(ra.ticks==ra.t and ra.steers==ra.s,'No race tick nor driving after coop off')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
-assert(ticks==17 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
+assert(ticks==18 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')

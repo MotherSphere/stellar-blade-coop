@@ -14,7 +14,9 @@
 -- (cut/lines.lua's), flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide
 -- (cut/glide.lua's) and ask (a native request; coop fly and coop slowmo). coop chainspin, EVE's cut Tachy Mode
 -- ChainSpin (a test tool, left out of the usage line), runs on a co-op save only. coop emote, one of EVE's
--- photo-mode poses (cut/emote.lua, o.emote), runs on any save.
+-- photo-mode poses (cut/emote.lua, o.emote), runs on any save. coop mxiii, the camp travel into the cut Matrix XIII
+-- dungeon (cut/mxiii.lua, o.mxiii; a test tool left out of the usage line, needing the zMXIII_P test pak), runs on a
+-- co-op save only.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -90,6 +92,13 @@ function Cut.new(o)
         local ok,why=coop_slot('coop chainspin')
         if not ok then return false,why end
         return o.chainspin.command(extra)
+    end
+    -- coop mxiii (cut/mxiii.lua, o.mxiii): a camp travel into a world the save has never been in, which the game may
+    -- write into the save, so on a co-op save only.
+    function self.mxiii(extra)
+        local ok,why=coop_slot('coop mxiii')
+        if not ok then return false,why end
+        return o.mxiii.command(extra)
     end
     function self.scene(sub,extra)
         if o.scene.SCENES[sub] then
