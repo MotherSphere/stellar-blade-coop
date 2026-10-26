@@ -521,7 +521,7 @@ seeds out (before the screen opened, the seeds the mod added); a purchase made i
 not counted. After a Lua reload while the screen is open, or before its seeds went back, the mod takes it over at its
 first tick, so purchases still reach the wallet and the seeds leave after the close.
 
-The rows are a fifth rows batch of the native part, `shop` (`native/src/lion/rows.h`), added through the game's own
+The rows are a sixth rows batch of the native part, `shop` (`native/src/lion/rows.h`), added through the game's own
 AddRow in memory for the game run, as the Lion's are:
 
 | Table | Row | ID | Copy of |

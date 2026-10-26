@@ -1430,8 +1430,9 @@ names it. Six files do the work: `cut/enemy.lua` (the Lua flow, which [the Garde
 Tendril](#the-cut-tendril) share), `cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the rows as
 Lua reads them back), `lion/rows.h` (the rows and their build, free of Windows, tested on the build machine),
 `lion/shock.h` (the Shock Bolt's two lists, also free of Windows) and `glue/tick/lion_game.inc` (the game's calls).
-The rows of one request form a batch: `lion/rows.h` holds five, the lion rows batch below, the Gardener's, the
-Tendril's, the Shock Bolt's (see [The cut Shock Bolt](#the-cut-shock-bolt)) and the Night Operation shop's (see
+The rows of one request form a batch: `lion/rows.h` holds six, the lion rows batch below, the Gardener's, the
+Tendril's, the Shock Bolt's (see [The cut Shock Bolt](#the-cut-shock-bolt)), Matrix XIII's (see
+[The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) and the Night Operation shop's (see
 [The Night Operation shop screen](#the-night-operation-shop-screen)), each with its own request word, answer and status
 line.
 
@@ -1862,7 +1863,7 @@ of the Lion prototype's).
 
 ### Its batch in the native part
 
-The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 17 table words as
+The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 19 table words as
 the Lion's (`Request::batch` says which batch). Each batch has its own ask, answer word and builder (a `RowsJob` in
 `glue/tick/lion_game.inc`) and its own line in `coop-status.txt`, `gardener=` in the `lion=` line's format with its own
 counts (`added=<n>/13`, `char=<k>/3 skills=<k>/3 stance=<k>/1`). The gate, the block each row is built in, the spawn
