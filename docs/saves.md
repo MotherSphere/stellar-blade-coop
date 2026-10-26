@@ -4,10 +4,11 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
 
 ## What the mod reads and writes
 
-- The mod never writes your own saves (`StellarBladeSave00.sav` to `04.sav`), unlocks or equipment. It adds to the
-  inventory only when you buy in Night Operation's shop (`coop nightop buy`), on a co-op save, so the items land in
-  that co-op save. The shop's points are kept in the mod folder, not in a save (see
-  [night-operation.md](night-operation.md#the-reward-shop)), so restoring a save backup does not change them.
+- The mod never writes your own saves (`StellarBladeSave00.sav` to `04.sav`), unlocks or equipment. It changes the
+  inventory only when you buy in Night Operation's shop (`coop nightop buy`) or send and take a gift (`coop gift`,
+  see [usage.md](usage.md#cut-mailbox-coop-gift)), on a co-op save, so the items land in or leave that co-op save.
+  The shop's points (see [night-operation.md](night-operation.md#the-reward-shop)) and the gifts' mailbox are kept in
+  the mod folder, not in a save, so restoring a save backup does not change them.
 - The native part reads your saves only to make their co-op copies, `StellarBladeCoop00.sav` to `04.sav`, on a
   `saves convert` or `saves coop` request at the title. The question on the title screen and `auto_coop_save=always`
   send `saves coop` (see [Co-op saves](#co-op-saves)); `coop saves convert` and `coop saves coop` send them by hand. It
