@@ -1363,14 +1363,15 @@ names it. Four files do the work: `cut/lion.lua` (Lua), `cut/lion_rows.lua` (the
 
 ### The rows
 
-The native part adds 222 rows to 12 tables, all of them the Lion's own. A generator kept outside the repository writes
-every field from the Lion's assets and from offline measurements of its clips. A shipped row of each table is only the
-struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row holds, to the
-Lion's value or to empty. For 891 of the 2075 fields the template holds, the Lion's value is the template's own (the
-Behemoth's 180 degrees a second turn, 900 cm/s run and 1.5 s getup time, among others), so the patch writes that value
-back. These template rows are Behemoth rows, and a Scarlet effect for the effect row. The one Behemoth asset a Lion
-row names is the sound set `CSS_MON_46_BEHEMOTH`: the pak listing holds no sound set for the Lion, and its blueprint
-names none.
+The native part adds 226 rows to 14 tables: 222 are the Lion's own, and 4 that come first are for the cut stimpacks of
+the Night Operation shop (see [The cut stimpacks](#the-cut-stimpacks)). A generator kept outside the repository writes
+every field of the Lion's rows from the Lion's assets and from offline measurements of its clips. A shipped row of each
+table is only the struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row
+holds, to the Lion's value or to empty. For 894 of the 2087 fields the template holds, the Lion's value is the
+template's own (the Behemoth's 180 degrees a second turn, 900 cm/s run and 1.5 s getup time, among others), so the patch
+writes that value back. These template rows are Behemoth rows, and a Scarlet effect for the effect row. The one Behemoth
+asset a Lion row names is the sound set `CSS_MON_46_BEHEMOTH`: the pak listing holds no sound set for the Lion, and its
+blueprint names none.
 
 - Stats, in both CharacterTable rows: 160000 HP, 3300 shield, 14 stamina, 960 physical and range attack, 110 shield
   attack. The Great Desert elites (Behemoth, Stalker, Abaddon) have 170500 HP, 3500 shield, 15 stamina and 840 to 1050
@@ -1477,20 +1478,21 @@ clip the Lion has, and no move may travel over 17 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
-its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 12 tables
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 14 tables
 by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
 
 ```
 lion rows CharacterTable=0x<address> CharacterAppearanceTable=0x<address> CharacterDeadTable=0x<address>
 CharacterStanceTable=0x<address> CharacterAnimSetTable=0x<address> SkillCommandTable=0x<address>
 SkillTable=0x<address> SkillActiveStepTable=0x<address> CharacterMoveTable=0x<address>
-TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address>
+TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address> ItemTable=0x<address>
+ItemConsumableTable=0x<address>
 ```
 
-It is one line in `coop-request.txt` (457 bytes at most, under the file's 512). Each of the 12 words comes once, in any
-order. Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No
-console word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its
-AddRow slot and its row size.
+It is one line in `coop-request.txt` (468 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
+address, under the file's 512). Each of the 14 words comes once, in any order. Each address has 1 to 16 hex digits, is
+plausible and is 8-aligned; anything else gets `unknown request`. No console word reaches an address. The native part
+trusts none before it checks the table's vtable (`0x146402e10`), its AddRow slot and its row size.
 
 The game thread adds the rows in `coop_tick` only while the cached net mode is 0 and no logic task is in flight (logic
 `+0x5c0` is 0, the same check as same-place enemies' force target): no lock guards the tables, and the logic thread
@@ -1507,22 +1509,49 @@ Then the native part reads the rows back through the game's own lookups by ID an
 
 ```
 lion=off
-lion=waiting added=<n>/220 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
-lion=rows added=220/220 asks=<a> spawns=<s> char=<k>/2 skills=<k>/21 stance=<k>/2
-lion=refused added=<n>/220 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
-lion=fault added=<n>/220 asks=<a> spawns=<s> where=<text>
+lion=waiting added=<n>/226 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+lion=rows added=226/226 asks=<a> spawns=<s> char=<k>/2 skills=<k>/22 stance=<k>/2
+lion=refused added=<n>/226 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
+lion=fault added=<n>/226 asks=<a> spawns=<s> where=<text>
 ```
 
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
 so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
-back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 2974 fields the patches
+back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 3056 fields the patches
 write, from `cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree).
-2083 of those values differ from the template row's, so reading them back shows the patches landed; the other 891
+2117 of those values differ from the template row's, so reading them back shows the patches landed; the other 939
 restate a value the template holds, which a read-back cannot tell from the copy. It spawns
-only when every value matches and the line says `char=2/2 skills=21/21 stance=2/2`. The read-back runs in one frame,
+only when every value matches and the line says `char=2/2 skills=22/22 stance=2/2`. The read-back runs in one frame,
 once per `coop lion`; how long that takes in game was not measured.
+
+### The cut stimpacks
+
+The game ships the Burst Stimpack's consumable row (`HP2Burst_Potion`, ID 1004: 400 HP for 600 Burst gauge), the Beta
+Stimpack's use condition, effects (20% of maximum HP for 50 Beta energy) and icon, and English text for both, but no
+ItemTable row for either. The first 4 rows of the batch make them usable. Each is a copy of a shipped row of its table
+with a few fields changed, and the generator restates every other field from that row's dump:
+
+| Row | Table | ID | Copy of | Changed |
+| --- | --- | --- | --- | --- |
+| `P_Eve_Sword_Normal_Buff_1` | SkillTable | 6000101 | `P_Eve_Sword_Normal_Potion_1` | nothing: the name `HP2Burst_Potion` gives its use skill, which the game never shipped (its Show `P_EVE_SWORD_USE_Buff` ships, its steps do not), so the stimpacks play the health potion's steps |
+| `Buff_HP2MP` | ItemConsumableTable | 1032 | `HP2Burst_Potion` | the condition group `CG_Item_ConsumeAllow_HP2MP` and the effects `Item_Buff_HP2MP_ReduceHP` and `Item_Buff_HP2MP_GainMP` |
+| `HP2Burst_Potion` | ItemTable | 300013 | `HP_Potion` | text keys, consumable, icon `Item/Burst`, pickup blueprint `BP_Item_HP2Burst_Potion`, no drop pool, 2 charges with no stat override (as `HealGrenade`) |
+| `Buff_HP2MP` | ItemTable | 300014 | `HP_Potion` | text keys, consumable, icon `Item/Buff_HP2MP`, no drop pool, 2 charges with no stat override |
+
+The generator checks that each consumable, condition group, effect, skill, icon, blueprint and Show the rows name
+exists in the dumps or the pak listing. `nightop/shop.lua` sells both items. Before a buy of one, it calls
+`cut/lion.lua`'s `Lion.rows`, which takes the same steps as `coop lion rows` (the tables, the request or the rows
+already in, the wait, the read-back) and then hands the end to the shop: the shop checks the buy again and grants it,
+or says why the rows are not in. The answer of a buy that waited comes from `coop lion`'s tick.
+
+The Shock Bolt ammo stays out. Its ItemBulletTable and ItemConsumableTable rows ship, and an ItemTable row and the
+missing SkillTable row `P_Eve_Gun_ShootShockSlug1_1` would be two more copies, but EVE's gun stances (`P_Eve_Gun`,
+`P_Eve_GunBlockSword`) list only `P_Eve_Gun_ShootShockSlugFail1_1` among its commands. Firing it would mean replacing
+those stance rows while EVE uses them, and AddRow's RemoveRow frees the row it replaces. All six `ItemStackBullet` stats
+are also taken by the shipped ammo, and the drone upgrade that names the Shock Bolt Magazine (`Drone_BulletAdd3_1`) has
+no row.
 
 ### The spawn
 

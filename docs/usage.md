@@ -819,7 +819,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop nightop [start [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop), solo or, started by the host, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
-| `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its four items, and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
+| `coop nightop shop`, `coop nightop buy <n> [count]` | Night Operation's [reward shop](night-operation.md#the-reward-shop): your points and its six items (two cut stimpacks among them), and a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 4), or the end of the run that is on (untested in game, solo, co-op save only; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
@@ -968,9 +968,11 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 - In a session, only the host starts a run, and it is for both players. The guest's game checks her side and joins
   without a question, or the host gets a notice with the reason she cannot. On the guest's game the command answers
   `STOP: the host starts a co-op run`. See [night-operation.md](night-operation.md#the-co-op-run).
-- `coop nightop shop` lists the points your runs gave and the four items, and `coop nightop buy <n> [count]` buys 1 to
-  10 of item n into the co-op save. Your points are in `coop-night-<steamid>-<index>.txt` in the mod folder, one file
-  per Steam ID and co-op slot. See [night-operation.md](night-operation.md#the-reward-shop).
+- `coop nightop shop` lists the points your runs gave and the six items, and `coop nightop buy <n> [count]` buys 1 to 10
+  of item n into the co-op save. Items 5 and 6, the cut Burst and Beta Stimpacks, need table rows the native part adds
+  with the Lion's (see [Cut boss](#cut-boss-coop-lion)): a buy of one asks for them first. Your points are in
+  `coop-night-<steamid>-<index>.txt` in the mod folder, one file per Steam ID and co-op slot. See
+  [night-operation.md](night-operation.md#the-reward-shop).
 
 The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
 `coop race probe doro` and `coop race drive probe` (see [Doro races](#doro-races)), `coop leviathan show`,
@@ -1118,8 +1120,10 @@ load (Ctrl+R) does the same if this one could not.
 
 The game's files hold a boss that was cut before release: Naytiba 02, the Lion, in
 `/Game/Art/Character/Monster/CH_M_NA_02/`. Its blueprint, meshes, animations, hit data and skill presentations (Shows)
-ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 222 rows it lacks to the game's 12
-tables in memory and spawns it as an enemy to fight. Every row is written for the Lion: its stats, its skills, the
+ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 222 rows it lacks to the game's
+tables in memory and spawns it as an enemy to fight. The same batch starts with 4 rows for the cut stimpacks of the
+[reward shop](night-operation.md#the-reward-shop), 226 rows in 14 tables, and a buy of a stimpack asks for it as
+`coop lion rows` does. Every row is written for the Lion: its stats, its skills, the
 timing of its hits and the moves that follow its own animations. It is a test command, left out of the usage line. Its
 lines go to `UE4SS.log` as `[StellarCoop][LI]`; the native part's go to `coop-link.log` as `lion rows ...`.
 
@@ -1131,7 +1135,7 @@ lines go to `UE4SS.log` as `[StellarCoop][LI]`; the native part's go to `coop-li
   more than 20 m away) and removes the copy as soon as the Lion is there. The copy is a display only, like the Doros of
   a race: it cannot fight or be hit. A copy that cannot be made skips the entrance and spawns at once. A map change
   during the entrance spawns nothing. Co-op save only.
-- `coop lion rows` adds the rows and reads them back, with no spawn. Any save.
+- `coop lion rows` adds the rows (the Lion's and the stimpacks') and reads them back, with no spawn. Any save.
 - `coop lion control` spawns an Antlion (M_Antlion, 50110), a shipped Naytiba, through the same call and with no rows.
   If the Antlion comes and the Lion does not, the rows are at fault rather than the call. Co-op save only. The native
   part reads the game's spawn counter only once rows were asked in the game run, so run `coop lion rows` first if the
@@ -1197,11 +1201,11 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 12/12 found: CharacterTable=0x...` | The 12 tables found, with the addresses sent to the native part |
-| `lion rows: 220/220 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
-| `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 5002000-5002020 21/21, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need |
-| `rows read back through FindRow: 220/220 authored rows, 2974 fields as written (2083 differ from the template row)` | Every field the native part wrote reads as written; 2083 of them hold a value the shipped row it started from did not, and the other 891 restate that row's value |
-| `rows already in (220/220; ...): not added again` | A later `coop lion` in the same game run |
+| `tables: 14/14 found: CharacterTable=0x...` | The 14 tables found, with the addresses sent to the native part |
+| `lion rows: 226/226 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 5002000-6000101 22/22, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need (SkillTable: the Lion's 21 skills and the stimpacks' skill, 6000101) |
+| `rows read back through FindRow: 226/226 authored rows, 3056 fields as written (2117 differ from the template row)` | Every field the native part wrote reads as written; 2117 of them hold a value the shipped row it started from did not, and the other 939 restate that row's value |
+| `rows already in (226/226; ...): not added again` | A later `coop lion` in the same game run |
 | `spawn 50020: CreateActor returned; body CH_M_NA_02_BluePrint_Large_C 9.8 m from EVE, ...; controller SBAIController; EventSpawnId 0` | The body is in the world, with its controller and its spawn key (0) |
 | `lion 1 (50020): 3.1 m, xyz 40764,-12702,-19058, speed 0, skill yes, anim alpha 0.00/0.00, hand moved 0 cm, battle 1, state 1, controller yes, spawn count -5, frame 16.7 ms (worst 24.1), lion Lua 0.4 ms/s, longest tick 0.3 ms (last pass: follow 0.2 ms, boss name 0.0 ms)` | Once a second while it lives: its distance to EVE, where it stands, the speed its walk animation reads (cm/s), whether a skill runs, how much of a skill's clip its animation blueprint shows (0 to 1, two layers), how far its left front paw (`Bip001-L-Hand`) moved in its own frame since the last line (0 cm while it runs or attacks: its pose does not play), battle mode, state, controller, the game's spawn counter, and over the last second the mean and worst frame time, the time this file's tick took and its longest single tick (to tell the Lion's cost from the mod's: a longest tick near the worst frame is the mod's), and what the last once-a-second pass took by part |
 | `before the spawn: frame 16.4 ms (worst 19.0), lion Lua 0.1 ms/s, longest tick 0.1 ms (last pass: none yet)` | The same frame part while the command waited, before the Lion was there: compare it with the follow lines |
