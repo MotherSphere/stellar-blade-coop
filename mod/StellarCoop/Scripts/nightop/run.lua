@@ -34,6 +34,12 @@ local CLEAR=40 -- Metres: no living character but EVE this close at the start.
 local LEAVE,LEAVE_FOR,GONE_FOR=80,10,2 -- EVE farther than LEAVE m from the start for LEAVE_FOR s, or gone GONE_FOR s.
 -- Seconds after a wave's last spawn call: its bodies are looked for; one not found by the last is missing.
 local FINDS={1,2.5}
+-- Metres on the ground from a slot's spot within which a new body is taken for it (W.match). Two gates stand 18 m apart
+-- at least, Target Practice's spots 7.9 m. Widen it if the log shows missing monsters with a new body just past it.
+local MATCH=5
+-- Metres: a character up before a wave that stands this far or more from where it stood then is one the game took back
+-- from its pool for a spawn (a Lion body came back from 466 m on 2026-10-23, how-it-works.md), so it can be new.
+local REUSED=50
 -- Seconds after a body is found: a controller if it has none, before the aggro so that a new one gets the focus and the
 -- move (the second aggro skips a body in battle); aggro, and again later.
 local ADOPT,AGGRO,AGAIN=0.5,0.6,4
@@ -62,12 +68,21 @@ local function location(actor)
 end
 local function hex(key) return string.format('0x%08X',key) end
 local function alias(b) return W.POOL[b.id].alias end
--- Adapted from Survival Protocol's wave lookup, which reads the same field.
-local function key_of(c) -- BroadcastSpawnInfo.EventSpawnId, which the spawn sets from the call's key; unsigned.
+-- Adapted from Survival Protocol's wave lookup, which reads the same field. BroadcastSpawnInfo.EventSpawnId, unsigned:
+-- SB fills it only in a networked game (W.match says why), so it reads 0 in ours, and the run finds its bodies by
+-- place. Only the census still reads it, for a key a body might carry.
+local function key_of(c)
     local k=math.tointeger(c.BroadcastSpawnInfo.EventSpawnId)
     return k and k&MASK
 end
 local function living(c) return c.InteractionState==0 and U.valid(c.Controller)~=nil end
+-- Standing in the fight: alive and shown, controller or not (a new body may get its controller later). A wave takes a
+-- character up before its first spawn call only if it moved REUSED m since: the game pools its characters, so a body
+-- it reuses for the spawn may sit at the address of one that died, or of one far away.
+local function up(c) return c.InteractionState==0 and c.bCharacterHiddenInGame~=true end
+-- Every SBCharacter in EVE's world, through the engine's class hash (core/unreal.lua's actors_of) rather than a walk of
+-- every object.
+local function characters(eve) return (U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',eve)) end
 -- Adapted from Survival Protocol rlIsDeadNow and rlBodyDead. InteractionState turns non-zero at death, but 1 alone
 -- means "can be executed"; a dying body loses its controller at once. Killed: non-zero with no controller. Down, for
 -- the wave check: non-zero or hidden by the game (read only).
@@ -114,11 +129,11 @@ local function move(c,e,l)
     local to={X=e.X+(l.X-e.X)/d*NEAR*100,Y=e.Y+(l.Y-e.Y)/d*NEAR*100,Z=e.Z+50}
     return to,c:K2_TeleportTo(to,{Pitch=0,Yaw=U.yaw_to(to,e),Roll=0})==false
 end
--- One FindAllOf: the living characters but EVE within CLEAR m and the nearest of them, and every body that carries a
--- wave key (at most 8 named), with its run byte.
+-- One list of the characters: the living ones but EVE within CLEAR m and the nearest of them, and every body that
+-- carries a wave key (at most 8 named), with its run byte.
 local function census(eve)
     local at,me,c=location(eve),U.address(eve),{near=0,keys={},taken={}}
-    U.each(FindAllOf('SBCharacter') or {},function(_,o)
+    U.each(characters(eve),function(_,o)
         o=U.valid(o)
         if not o or U.address(o)==me then return end
         local ok,key=pcall(key_of,o)
@@ -233,13 +248,13 @@ function Run.new(o)
     -- refused as taken (the host skips them until the next Lua load).
     local out,heard,answered,answer,taken={n=0,ago=0},nil,{},nil,{}
     local function clock(eve) return U.find('/Script/Engine.Default__GameplayStatics'):GetTimeSeconds(eve) end
-    -- The live list: the addresses of the latest FindAllOf('SBCharacter'), timed. Returns the characters.
+    -- The live list: the addresses of the latest list of the characters in EVE's world, timed. Returns the characters.
     local function refresh()
         local t,set,list=os.clock(),{},{}
-        U.each(FindAllOf('SBCharacter') or {},function(_,c)
+        for _,c in ipairs(characters(r.eve)) do
             local ok,a=pcall(U.address,c)
             if ok and a then set[a],list[#list+1]=true,c end
-        end)
+        end
         local ms=(os.clock()-t)*1000
         r.live,r.live_at,r.stale=set,r.now,false
         r.ms_n,r.ms_sum,r.ms_max=r.ms_n+1,r.ms_sum+ms,math.max(r.ms_max,ms)
@@ -247,13 +262,12 @@ function Run.new(o)
         return list
     end
     -- Adapted from Survival Protocol valid(): a tracked body is read only while its address is in the live list, then
-    -- through IsValid, with the name (comparison index) and the key it was found with.
+    -- through IsValid, with the name (comparison index) it was found with. No key: the body carries none (key_of).
     local function touch(b)
         if not r.live[b.addr] then return nil,'not in the live list' end
         local c=U.valid(b.obj)
         if not c then return nil,'not valid' end
         if c:GetFName():GetComparisonIndex()~=b.name then return nil,'another object at its address' end
-        if key_of(c)~=b.key then return nil,'another key' end
         return c
     end
     -- A body leaves tracking for good (tombstoned: never read again) and its wave stops waiting for it. kill: it
@@ -347,17 +361,46 @@ function Run.new(o)
         end
         if not r.nomove then r.timers.add(t+STUCK,stuck(b)) end
     end
-    -- Wave k's bodies by key, in one FindAllOf that is also a refresh; at the last find, a slot never seen is missing.
+    -- Where each character of a list that is up stands, by address, each read in a pcall of its own (the list is this
+    -- tick's).
+    local function ups(list)
+        local set={}
+        for _,c in ipairs(list) do pcall(function() if up(c) then set[U.address(c)]=location(c) end end) end
+        return set
+    end
+    -- Wave k's bodies by place, in one list that is also a refresh: a character up now, not EVE, that no tracked body
+    -- holds and that was not up within REUSED m of where it stands before the wave's first spawn call is a new body;
+    -- each goes to the nearest slot not found yet within MATCH m of the slot's spot (W.match). Each character of the
+    -- list is read here at most once (its state, then its place), a tombstoned body's object too: it is in this tick's
+    -- list. At the last find, a slot never found is missing, and its line gives the nearest new body left over.
+    -- ponytail: per wave; a wave spawned before the last one's finds are over (a guest catching up on two waves) can
+    -- take the other's bodies at a shared gate. Match every open wave at once, newest first, if the log shows it.
     local function find(k,last,after)
         return function()
-            local ids=r.s.def.waves[k].ids
-            for _,c in ipairs(refresh()) do
-                pcall(function()
-                    c=U.valid(c)
-                    local key=c and key_of(c)
-                    local run,wave,slot=W.decode(key)
-                    if run==r.s.run and wave==k and slot<#ids and not r.seen[key] then track(c,key,k,slot) end
-                end)
+            local ids,list=r.s.def.waves[k].ids,refresh()
+            local slots,spots,fresh,held,taken,before,me={},{},{},{},{},r.before[k] or {},U.address(r.eve)
+            for slot=0,#ids-1 do
+                local key=W.key(r.s.run,k,slot)
+                spots[slot]=W.spot(r.p0,r.yaw,r.s.order[k],slot,r.s.def)
+                if not r.seen[key] then slots[#slots+1]={key=key,slot=slot,at=spots[slot]} end
+            end
+            for _,b in pairs(r.bodies) do held[b.addr]=true end
+            if #slots>0 then
+                for _,c in ipairs(list) do
+                    pcall(function()
+                        local a=U.address(c)
+                        if a==me or held[a] or not up(c) then return end
+                        local at,was=location(c),before[a]
+                        if was and math.sqrt((at.X-was.X)^2+(at.Y-was.Y)^2)<REUSED*100 then return end
+                        fresh[#fresh+1]={obj=c,at=at}
+                    end)
+                end
+                for _,p in ipairs(W.match(slots,fresh,MATCH*100)) do
+                    local s=slots[p.slot]
+                    taken[p.body]=true
+                    local ok,e=pcall(track,fresh[p.body].obj,s.key,k,s.slot)
+                    if not ok then log(string.format('find %s: %s',hex(s.key),why(e))) end
+                end
             end
             local n=0
             for slot=0,#ids-1 do
@@ -366,7 +409,13 @@ function Run.new(o)
                 elseif last then
                     r.missing=true -- Its wave clears without it: no best for this run (finish).
                     r.input.done[#r.input.done+1]=key
-                    log(string.format('missing %s %s',hex(key),W.POOL[ids[slot+1]].alias))
+                    local at,nearest=spots[slot],nil
+                    for i,f in ipairs(fresh) do
+                        local d=math.sqrt((f.at.X-at.X)^2+(f.at.Y-at.Y)^2)/100
+                        if not taken[i] and (not nearest or d<nearest) then nearest=d end
+                    end
+                    log(string.format('missing %s %s (%s)',hex(key),W.POOL[ids[slot+1]].alias,
+                        nearest and string.format('nearest new body %.1f m',nearest) or 'no new body'))
                 end
             end
             log(string.format('wave %d find +%g s: tracked %d/%d',k,after,n,#ids))
@@ -375,6 +424,7 @@ function Run.new(o)
     local function spawn_next()
         local q=table.remove(r.queue,1)
         if not q then return end
+        if q.slot==0 then r.before[q.k]=ups(refresh()) end -- What stands before the wave, read before its first call.
         local ids=r.s.def.waves[q.k].ids
         local key,id=W.key(r.s.run,q.k,q.slot),ids[q.slot+1]
         local at,yaw=W.spot(r.p0,r.yaw,r.s.order[q.k],q.slot,r.s.def)
@@ -637,8 +687,9 @@ function Run.new(o)
     -- the run byte and seed give the gate order, so the host's and the guest's runs put each monster on the same spot.
     local function begin(run,seed,now,at,yaw,map,flag,def)
         r={s=W.new{run=run,seed=seed,now=now,def=def},seed=seed,p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
-            nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},live_at=-math.huge,
-            now=now,found={},ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},asked=0,quiet=0}
+            nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},before={},
+            live_at=-math.huge,now=now,found={},ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},asked=0,
+            quiet=0}
         panel=nil
         pcall(died) -- The death screen's first look, while EVE lives.
     end
