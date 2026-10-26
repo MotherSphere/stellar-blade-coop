@@ -10,8 +10,9 @@
 -- skill commands (BetaSkill1-4) are taken, and a fifth would mean replacing the live P_Eve_Tachy stance row (a row
 -- added under a taken name frees the old one while EVE reads it). Nothing of it is saved: no acquisition, no skill
 -- slot, no trophy tag.
--- Called here: ServerRequest_Cheat(EVE's GUID, 0, 'SBApplyEffectMe', the effect's ID) once a command, after the rows
--- are in. Never called here: another cheat word or another effect ID.
+-- Called here: ServerRequest_Cheat(EVE's GUID, 0, 'SBApplyEffectMe', an effect's ID) once a command, after the rows
+-- are in, and for coop devmenu (cut/devmenu.lua) once for each effect of the row asked, from its fixed list. Never
+-- called here: another cheat word.
 local N=require('nightop.probe')
 local ChainSpin={}
 ChainSpin.EFFECT='P_Eve_Tachy_Skill_ChainSpin1_Use'
@@ -23,11 +24,27 @@ assert(math.type(ChainSpin.ID)=='integer','cut/lion_rows.lua lacks '..ChainSpin.
 local USE='Use: coop chainspin'
 local MASK=0xFFFFFFFF
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
--- The one call: SB's cheat request, SBApplyEffectMe with the effect's ID as its argument, on EVE's GUID; no player ID
--- (that word reads none).
-function ChainSpin.cast(pc,guid)
+-- The one call: SB's cheat request, SBApplyEffectMe with an EffectTable ID as its argument, on EVE's GUID; no player
+-- ID (that word reads none). ChainSpin's effect, or one of coop devmenu's.
+function ChainSpin.apply(pc,guid,id)
     assert(math.type(guid)=='integer' and guid>0 and guid<=MASK,'not a GUID')
-    pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))
+    assert(math.type(id)=='integer' and id>0 and id<=0x7FFFFFFF,'not an effect ID')
+    pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(id))
+end
+function ChainSpin.cast(pc,guid) return ChainSpin.apply(pc,guid,ChainSpin.ID) end
+-- Whom the call goes to: EVE's GUID from the native engine line (me=, the key the world's player map holds, which the
+-- revive uses too), with no respawn or warp under way, EVE in the world and her controller. The GUID and the
+-- controller, or nil and why.
+function ChainSpin.target(status)
+    local warp,me=(('\n'..(status or '')):match('\nengine=([^\r\n]*)') or ''):match(' warp=(%a+) me=(%d+)')
+    if not warp then return nil,'the native status has no warp read yet: try again in a moment' end
+    if warp~='idle' then return nil,'a respawn or a warp is under way: try again once it ends' end
+    local guid=math.tointeger(tonumber(me))
+    if not guid or guid==0 then return nil,"EVE's GUID reads 0: nothing asked" end
+    if not N.her() then return nil,'no EVE in the world' end
+    local pc=N.controller()
+    if not pc then return nil,'no SB player controller' end
+    return guid,pc
 end
 -- o: log(text) writes a [CS] line; status() is the native part's status text; rows(done) is cut/lion.lua's Lion.rows,
 -- which gets the rows in, then calls done(ok, message) and returns what done returns, or returns ok, message, true
@@ -35,17 +52,10 @@ end
 function ChainSpin.new(o)
     local log,status,rows=o.log,o.status,o.rows
     local self={}
-    -- Once the rows are in: EVE's GUID from the native engine line (me=, the key the world's player map holds, which
-    -- the revive uses too), with no respawn or warp under way, EVE in the world and her controller; then the call.
+    -- Once the rows are in: the target (ChainSpin.target), then the call.
     local function spin()
-        local warp,me=(('\n'..(status() or '')):match('\nengine=([^\r\n]*)') or ''):match(' warp=(%a+) me=(%d+)')
-        if not warp then return false,'the native status has no warp read yet: try again in a moment' end
-        if warp~='idle' then return false,'a respawn or a warp is under way: try again once it ends' end
-        local guid=math.tointeger(tonumber(me))
-        if not guid or guid==0 then return false,"EVE's GUID reads 0: nothing asked" end
-        if not N.her() then return false,'no EVE in the world' end
-        local pc=N.controller()
-        if not pc then return false,'no SB player controller' end
+        local guid,pc=ChainSpin.target(status())
+        if not guid then return false,pc end
         local called,e=pcall(ChainSpin.cast,pc,guid)
         if not called then
             log('ChainSpin request failed: '..why(e))
