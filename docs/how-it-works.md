@@ -2318,8 +2318,8 @@ load's first tick takes off a toast an earlier load left on screen.
 
 SB has no reflected function that returns how many of an item EVE carries, and its remove by alias takes what there is
 when asked for more, so the native part reads the count itself (`game/items.h`, `glue/tick/items_worker.inc`). Lua asks
-`items <ask> <alias> <FName index> <FName number>`; the worker reads at once through `ReadProcessMemory`, with EVE's
-GUID from the revive guard's read (client `+0x58`), and the engine line of `coop-status.txt` gets
+`items <ask> <alias> <FName index> <FName number>`; the worker reads at once through `ReadProcessMemory`, EVE's GUID
+(client `+0x58`) included, apart from the revive guard and its latch, and the engine line of `coop-status.txt` gets
 `items=<ask> <count>` or `items=<ask> none <why>` (`unpinned`, `noeve`, `nomanager`, `nobucket`, `unread`; after
 `coop off` the status leaves `items=` out and only the worker's log line has `none off`).
 The read follows the game's own lookups on build 24463856:

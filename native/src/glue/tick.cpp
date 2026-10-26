@@ -98,7 +98,7 @@
 // the worker logs each answer.
 //
 // coop gift's inventory read (game/items.h) is the worker's alone: on Lua's items request it reads how many of one item
-// our EVE carries through ReadProcessMemory, her GUID the revive guard's, and status() puts the answer in the engine
+// our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cut/mailbox.lua.
 //
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees

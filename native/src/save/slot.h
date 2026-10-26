@@ -32,8 +32,9 @@ constexpr int kNotRead = -3, kBad = -2, kNone = -1; // marker: not looked up yet
 
 // The client's fields this file reads: the entered slot; the load the title asked for, its slot and its mode (the
 // Continue and Load Game handlers set them, 2 for a load; 0 at boot [L]); the count of the title's slot list (rebuilt
-// from the save files by 0x141cd4ef0 at StartClient and at each return to the title).
-constexpr uint64_t kEntered = 0x54, kLoadSlot = 0x868, kLoadMode = 0x86c, kCacheCount = 0xa10;
+// from the save files by 0x141cd4ef0 at StartClient and at each return to the title); our EVE's GUID, the key the
+// world's player map holds for the local player (the revive guard and coop gift's inventory read take it).
+constexpr uint64_t kEntered = 0x54, kLoadSlot = 0x868, kLoadMode = 0x86c, kCacheCount = 0xa10, kPlayerGuid = 0x58;
 
 // The int32 at client + offset, or kUnread when the pointer's read fails, the pointer is implausible (0 before the
 // client exists: one read only) or the field's read fails. Two reads at most; read(address, out, n) returns false when
