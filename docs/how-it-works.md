@@ -428,7 +428,9 @@ other screen.
 - Poses go 60 a second by default (`send_rate`, 10 to 60), at most one per game frame: a game running at 45 fps
   sends 45. With deltas, 60 a second took 89 to 131 KiB/s in tests with simulated idle, running and combat motion on a
   5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s
-  (176 KiB/s while it also sends `SBE`), under Steam's default send rate of 256 KiB/s.
+  (176 KiB/s while it also sends `SBE`), under Steam's default send rate of 256 KiB/s. When Steam's queue to the
+  friend shows that the link cannot keep up, the rate drops to 30 or 20 a second until the link is calm again (see
+  [link health](#link-health-in-the-log)).
 - Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 240 messages
   and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
   (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`). A non-member's data is
@@ -463,6 +465,18 @@ Every 60 s, `coop-link.log` has one line per linked friend (`<name>, last 60 s: 
 channel 1, drops, failed sends with the last Steam result (25 means its send buffer is full), the ping's RTT average
 and maximum, pings sent and pongs received (the difference is ping loss), and Steam's view of the session: quality
 local and remote, send rate, pending unreliable bytes and queue time.
+
+The same view, read once a second, caps the poses sent a second. Steam keeps an unreliable message queued until it
+goes, so a link slower than the stream would make the ghost fall further and further behind. Two readings in a row
+with a queue time of 100 ms or more, or 64 KiB or more of unreliable bytes pending, lower the cap: 60, then 30, then
+20, never below 20, and never to a value that changes nothing under your `send_rate` (at `send_rate=30` it goes
+straight to 20). Ten calm readings (queue under 20 ms and pending under 16 KiB) with none over the limit raise it one
+step; readings in between neither count nor reset. When a step up is undone before its wait is over, the next wait
+doubles (10, 20, 40, then 80 s), so a link that carries 30 but not 60 tries 60 less and less often. Each step writes
+one line, for example `pose rate cap 30 a second for <name>: Steam's queue 150.0 ms, 70000 B pending (2 s at 100 ms
+or 64 KiB or more); send rate 131072 B/s, quality 0.91/0.93; up again after 10 s calm`. The stream line shows the
+cap in force as `link cap <n>`. A single 16 KB keyframe takes 61 ms to leave at Steam's default send rate and a
+64 KiB table 250 ms, which is why one reading over the limit is not enough.
 
 ## The ghost pipeline
 

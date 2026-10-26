@@ -556,14 +556,23 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 
 - `native tick, last 60 s: ...`: the per-frame tick's count, mean and maximum cost, the largest gap between ticks and
   the gaps over 100 ms.
-- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, size, KB/s; keyframes, deltas and their mean
-  size, and frames held back by the 192 KiB/s byte budget), tables in and refused, poses received, foreign (of no
-  table, or of one the ghost is not built on yet), malformed and rejected, keyless (deltas whose keyframe was lost),
-  losses, stalls, the one-way delay, and poses drawn and written. Between two PCs the one-way delay includes the
-  offset between their clocks, so the value means nothing there. At 60 poses a second a lost keyframe leaves a gap of
-  about 270 ms, so it also counts as one stall, and the deltas dropped with it count as both keyless and missing.
+- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, the link's cap on the rate as `link cap <n>`,
+  size, KB/s; keyframes, deltas and their mean size, and frames held back by the 192 KiB/s byte budget), tables in
+  and refused, poses received, foreign (of no table, or of one the ghost is not built on yet), malformed and
+  rejected, keyless (deltas whose keyframe was lost), losses, stalls, the one-way delay, and poses drawn and written.
+  Between two PCs the one-way delay includes the offset between their clocks, so the value means nothing there. At 60
+  poses a second a lost keyframe leaves a gap of about 270 ms, so it also counts as one stall, and the deltas dropped
+  with it count as both keyless and missing.
 - `<name>, last 60 s: ...`, per linked friend: channel 1 traffic, drops, failed sends with the last Steam result (25
   means its send buffer is full), ping RTT and loss, and Steam's view of the session.
+
+Between those, `pose rate cap <n> a second for <name>: ...` marks each change of the cap on the poses you send. A cap
+of 30 or 20 means Steam's queue to that friend reached 100 ms, or 64 KiB waited to be sent, two seconds in a row: the
+ghost they see moves with fewer poses a second, still interpolated, instead of falling behind. The line gives the
+queue time, the pending bytes, Steam's send rate and the session quality at that moment. The cap goes up one step
+after 10 s calm (`10 s calm (queue under 20 ms, pending under 16 KiB)`); if it keeps coming back down, the wait before
+the next try grows to 80 s. A cap that stays at 20 points at the connection itself: compare the send rate and quality
+in the `<name>, last 60 s:` line on both PCs.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.

@@ -647,6 +647,7 @@ bool step() {
                   lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max,
                   lua.cut);
       link->mod_names(lua.names);
+      link->pose_rate(lua.rate);
       link->loopback(coop::pose::loopback());
     }
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
@@ -744,7 +745,7 @@ bool step() {
               if (api.user_handle())
                 link->send_binary(d, n, reliable);
             },
-            linked ? link->restarts() : 0))
+            linked ? link->restarts() : 0, linked ? link->pose_cap() : coop::kPoseCaps[0]))
       link->greet_again();
     std::string text = status_text();
     if (text != written && write_text(folder + L"coop-status.txt", text))

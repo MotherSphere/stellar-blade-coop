@@ -61,6 +61,8 @@ uint64_t last_renewal_us = 0;
 TableResend table_resend; // Our table's resends to the linked friend.
 uint64_t restarts_seen = 0; // Link::restarts() as peer() last saw it.
 bool linked_before = false; // peer()'s linked at its last pass.
+// Link::pose_cap() as peer() last had it (60, the highest send_rate: none): the send interval is under it and the rate.
+uint32_t link_cap = 60;
 // Night Operation probe (Phase 6): read-only, its own latch (pinned && !blocked), so a pose fault leaves it running.
 bool pinned = false, nightop_on = false;
 // pinned for the game thread's pause, pilot, quest, revive and travel calls; each keeps its own *_faulted latch.
@@ -542,7 +544,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
   // so the worker can find none in between.
   if (State now; parse_state(read_file(folder + L"coop-state.txt", exists, kMaxState), now)) {
     if (now.rate != lua.rate) {
-      send_us = 1'000'000 / now.rate;
+      send_us = 1'000'000 / std::min(now.rate, link_cap);
       event("send rate " + std::to_string(now.rate) + " poses a second");
     }
     lua = now;
@@ -594,13 +596,13 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
       event(line);
       if (sent || capture_refused || tables_in || poses || rejected || foreign || malformed || drawn || keyless) {
         std::snprintf(line, sizeof line,
-                      "stream, last 60 s: %llu sent (%.1f a second, %llu bytes each, %.1f KB/s, %llu values cut, "
-                      "%llu reads refused; %llu keyframes, %llu deltas of %llu bytes each, %llu frames held for the "
-                      "byte budget), %llu lost on the line, %llu over the inbox; tables: %llu in, %llu refused; "
+                      "stream, last 60 s: %llu sent (%.1f a second, link cap %u, %llu bytes each, %.1f KB/s, %llu "
+                      "values cut, %llu reads refused; %llu keyframes, %llu deltas of %llu bytes each, %llu frames "
+                      "held for the byte budget), %llu lost on the line, %llu over the inbox; tables: %llu in, %llu refused; "
                       "poses: %llu received, %llu foreign, %llu malformed, %llu rejected (last: %s), %llu keyless, "
                       "%llu stale, %llu missing, %llu stalls, %llu clock steps, one way %.1f ms; %llu drawn, %llu past "
                       "the newest pose, %.1f ms behind it; %llu written, %llu not written (last: %s)",
-                      static_cast<unsigned long long>(sent), sent / 60.0,
+                      static_cast<unsigned long long>(sent), sent / 60.0, unsigned(link_cap),
                       static_cast<unsigned long long>(sent ? sent_bytes / sent : 0), sent_bytes / 60.0 / 1024,
                       static_cast<unsigned long long>(clamped), static_cast<unsigned long long>(capture_refused),
                       static_cast<unsigned long long>(keyframes), static_cast<unsigned long long>(deltas),
@@ -663,8 +665,12 @@ bool worker_stream() {
   return loopback_on || record_on || replay.on() || peer_on; // Every 5 ms only while something streams.
 }
 
-bool peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool), uint64_t restarts) {
+bool peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool), uint64_t restarts, uint32_t cap) {
   peer_send = send;
+  if (cap != link_cap) { // Logged by the link, with its reason.
+    link_cap = cap;
+    send_us = 1'000'000 / std::min(lua.rate, cap);
+  }
   bool on = linked && peer_open(), was = peer_on.exchange(on);
   const bool back = on && !was && linked_before; // Linked all along: a loopback or replay ended.
   linked_before = linked;

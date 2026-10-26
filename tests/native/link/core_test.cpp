@@ -68,6 +68,8 @@ struct Fake {
   std::map<uint64_t, std::string> names = {{kFriend, "Kaanta"}, {kOther, "Third"}, {kStranger, "Stranger"}};
   std::map<uint64_t, uint64_t> friend_lobby; // A friend playing in a lobby.
   int invites = 0, released = 0, relay = 100, session_state = 3, session_ping = 42;
+  int32_t pending = 4096; // Steam's pending unreliable bytes and queue time.
+  int64_t queue_us = 25000;
   int send_result = 1; // Anything but 1: Steam refuses the send, which is neither recorded nor delivered.
   // Anything but 1: the join fails with that EChatRoomEnterResponse, no member added. A lobby with no members gets 2
   // (DoesntExist) whatever it says: Steam drops an empty lobby.
@@ -222,13 +224,13 @@ template <int N> Api make_api() {
     assert(!info);
     std::memcpy(quick, &F.session_state, 4);
     std::memcpy(static_cast<char *>(quick) + 4, &F.session_ping, 4);
-    // The log-only fields, each distinct, so a wrong offset shows in the 60 s line.
+    // The other fields, each distinct, so a wrong offset shows in the 60 s line. Queue and pending (PoseCap's) sit
+    // between its calm and its over the line, unless a test sets them.
     const float quality[2] = {0.75f, 0.5f};
-    const int32_t rate_pending[2] = {262144, 4096};
-    const int64_t queue_us = 25000;
+    const int32_t rate_pending[2] = {262144, F.pending};
     std::memcpy(static_cast<char *>(quick) + 8, quality, 8);
     std::memcpy(static_cast<char *>(quick) + 32, rate_pending, 8);
-    std::memcpy(static_cast<char *>(quick) + 48, &queue_us, 8);
+    std::memcpy(static_cast<char *>(quick) + 48, &F.queue_us, 8);
     return F.session_state;
   };
   a.release_message = [](NetMessage *m) {
@@ -2358,6 +2360,32 @@ int main() {
     w.tick();
     w.tick();
     assert(sent_to(kFriend, "SBC hello ") == hellos + 1);
+    // The pose cap (PoseCap) from Steam's view of her session: 2 s over the line steps it down, one line each step,
+    // with the player's send_rate; 10 s calm steps it back up.
+    w.link.pose_rate(60);
+    assert(w.link.pose_cap() == 60);
+    F.queue_us = 150'000;
+    F.pending = 70'000;
+    w.to(w.now + 1000);
+    w.to(w.now + 1000);
+    assert(w.link.pose_cap() == 30 && count("pose rate cap") == 1);
+    assert(saw("pose rate cap 30 a second for Kaanta: Steam's queue 150.0 ms, 70000 B pending (2 s at 100 ms or 64 KiB "
+               "or more); send rate 262144 B/s, quality 0.75/0.50; up again after 10 s calm"));
+    w.link.pose_rate(30); // Under 30 now: the next step goes to 20.
+    w.to(w.now + 1000);
+    w.to(w.now + 1000);
+    assert(w.link.pose_cap() == 20 && count("pose rate cap") == 2);
+    F.queue_us = 1000;
+    F.pending = 0;
+    for (int k = 0; k < 9; ++k)
+      w.to(w.now + 1000);
+    assert(w.link.pose_cap() == 20);
+    w.to(w.now + 1000);
+    assert(w.link.pose_cap() == 30 && count("pose rate cap") == 3);
+    assert(saw("pose rate cap 30 a second for Kaanta: 10 s calm (queue under 20 ms, pending under 16 KiB), now 1.0 "
+               "ms, 0 B"));
+    F.queue_us = 25000;
+    F.pending = 4096;
     // Her pak lines past the handshake, more than kMaxMods: the first kMaxMods names are kept once her paks line ends
     // them, and the status lists hers we lack (all of them: we gave no names) within 400 bytes, the count first.
     for (size_t i = 0; i < kMaxMods + 10; ++i)
