@@ -248,8 +248,8 @@ build/host/pose_codec_test
     value back once unwanted, nothing read while neither gate is wanted or ours); the worker's side: no gate wanted off
     a co-op save, slow motion only with no friend linked, the asks cleared by `off`, a Lua load and a refusal, and a
     gate's state logged from the first pass that read its ask, never from an earlier one; the level flight's hold: the
-    flight key set again only while the controller's pawn flies with none held, never after the jump key until the
-    flight ends;
+    flight key set again only while the controller's pawn flies with none held, never after a press of the jump key
+    in that flight until it ends (a jump key held from before the flight counts only once let go and pressed again);
   - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
     diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
     stick's thresholds, View held 1 s, a disconnect,

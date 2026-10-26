@@ -330,8 +330,9 @@ int main() {
     assert(seen.log == 1 && seen.refused == 1 && t.asks.asked == 0 && t.m.writes == 0);
   }
 
-  // The level flight (Hold): a write only while the pawn flies with no fly key set and before the jump key; the jump
-  // key drops the flight until it ends; no pawn, a pawn on the ground or no input writes nothing.
+  // The level flight (Hold): a write only while the pawn flies with no fly key set and before the jump key; a press of
+  // the jump key (its flag's rise) drops the flight until it ends, a key held since before the flight only once let go
+  // and pressed again; no pawn, a pawn on the ground or no input writes nothing.
   {
     constexpr uint64_t kPc = 0x30000000, kEve = 0x30010000, kInput = 0x30020000;
     Mem m;
@@ -366,6 +367,23 @@ int main() {
     m.set<uint8_t>(kEve + kFlyingAction, 2);
     hold.step(m, kPc);
     assert(m.writes == 2 && "A byte that is no bool");
+    m.set<uint8_t>(kEve + kFlyingAction, 0);
+    hold.step(m, kPc);
+    m.set<uint8_t>(kEve + kFlyingAction, 1);
+    m.set<uint8_t>(kInput + kJumpKey, 1);
+    hold.step(m, kPc);
+    assert(m.writes == 3 && !hold.dropped && "The jump key held from before the flight: still held");
+    m.set<uint8_t>(kInput + kFlyKey, 0);
+    hold.step(m, kPc);
+    assert(m.writes == 4 && !hold.dropped && "Still down: no press yet");
+    m.set<uint8_t>(kInput + kFlyKey, 0);
+    m.set<uint8_t>(kInput + kJumpKey, 0);
+    hold.step(m, kPc);
+    assert(m.writes == 5 && !hold.dropped && "Let go");
+    m.set<uint8_t>(kInput + kFlyKey, 0);
+    m.set<uint8_t>(kInput + kJumpKey, 1);
+    hold.step(m, kPc);
+    assert(m.writes == 5 && hold.dropped && "Pressed again: dropped");
     assert(kInputSlots[0] % 8 == 0 && kInputSlots[1] % 8 == 0);
   }
   std::puts("debug_keys_test ok");

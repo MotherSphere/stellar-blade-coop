@@ -1,8 +1,9 @@
 -- coop fly's keys (cut/flight.lua) with fakes: the flight key list taking a third key (R2, Z, S) or not (S, Z), the
 -- four Shift evade mappings added once and taken out (and the first version's A and E ones), a climb or a descent each
--- frame only while EVE flies with Z or S held (none with both), its line once a flight (held, or ended, none after the
--- space bar), no hook of its own (the level flight is the native part's), the keys and mappings back at off, the
--- restore once a load of keys an earlier load left (never while on), and no player input (the game's keys stay).
+-- frame only while EVE flies with Z or S held (none with both), its line once a flight (held, or ended, none after a
+-- press of the space bar, said when it was held from before the flight), no hook of its own (the level flight is the
+-- native part's), the keys and mappings back at off, the restore once a load of keys an earlier load left (never while
+-- on), and no player input (the game's keys stay).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local function object(t)
@@ -72,6 +73,14 @@ flying=false; f.tick(); flying=true; clock=30; f.tick(); clock=30.1; flying=fals
 assert(lines[#lines]=='level flight did not hold: the flight ended 0.10 s after the keys were let go',lines[#lines])
 n=#lines; flying=true; clock=40; f.tick(); held.SpaceBar=true; clock=40.1; f.tick(); held.SpaceBar=false
 clock=40.2; flying=false; f.tick(); assert(#lines==n,'Dropped by the space bar: not said')
+-- The space bar held from the jump before the flight: no press, so the flight's line still comes; let go and pressed
+-- again, it drops her.
+held.SpaceBar=true; flying=true; clock=50; f.tick(); clock=50.1; f.tick(); held.SpaceBar=false
+clock=50.2; flying=false; f.tick()
+assert(lines[#lines]=='level flight did not hold: the flight ended 0.20 s after the keys were let go',lines[#lines])
+held.SpaceBar=true; flying=true; clock=60; f.tick(); held.SpaceBar=false; clock=60.1; f.tick()
+n=#lines; held.SpaceBar=true; clock=60.2; f.tick(); held.SpaceBar=false
+clock=60.3; flying=false; f.tick(); assert(#lines==n,'Let go and pressed again: dropped, not said')
 -- Off: R2 and Z back (Z in the third slot too), the mappings out (the A and E ones too); a tick then does nothing.
 f.off()
 assert(names()=='Gamepad_RightTrigger,Z,Z' and #removed==6 and removed[4][2]==true,names())

@@ -1668,7 +1668,10 @@ through two vtable slots, `0x145cc74a8` and `0x145cd37a8` (its other references 
 only after checking that both hold exactly that function. The hook calls the game's pass, then, on the game thread,
 while both slots hold it, the fly gate is ours and the game is not paused, reads the controller's pawn (`+0x2f8`) and
 input handler (`+0x668`): with the pawn's `bFlyingAction` (`+0x1101`) at 1 and the flight flag at 0, it writes 1. The
-jump flag stops the writes until the flight ends, so the space bar drops her. The reads go through
+jump flag is set on every frame a key of `DefinedJumpKeyLists` (`+0xF8`) is down (`0x1423c887e`), so the hook takes a
+press as the flag going from 0 to 1 during the flight, and it counts as 1 at the flight's first step: a space bar held
+since the jump counts only once let go and pressed again. A press stops the writes until the flight ends, so the space
+bar drops her. The reads go through
 `ReadProcessMemory`; the write runs under the hook's own SEH latch, and a fault puts both slots back for the run.
 `coop off` puts them back too. The pass recomputes both flags each frame, so nothing else needs putting back.
 

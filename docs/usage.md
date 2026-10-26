@@ -1376,17 +1376,18 @@ the game's memory, and `off` puts the game's value back. These test commands are
 native part and run on a [co-op save](#co-op-saves) only. The flight was tried in game once, with the game's Z key.
 
 - `coop fly on`: press Z or S (or hold R2 on a pad) while EVE is in the air after a jump, and she flies. The game's
-  flight carries her along the camera's heading at 10 m/s: turn the camera to steer. Z held climbs, S held descends,
-  and with neither she flies level until the space bar drops her or the flight ends on its own (landing, or its time
-  pool). Flight time comes from a pool of 90 s that drains while she flies and refills at 1 s per second, the game's
-  own values. During a flight the face buttons dodge up, down, left and right, and so do Shift with Z, S, Q or D on
-  the keyboard (up, down, left, right). `coop fly on` adds S to the game's flight keys (R2 and Z) and the four Shift
-  keys to the input settings; if the key list takes no third key, S takes R2's place and the pad no longer flies. The
-  game itself ends a flight once no flight key is held. For the level flight the native part hooks the player
-  controller's key pass and, right after it, sets the flight key again while EVE flies with no flight key held, until
-  the space bar. The log's `[FL]` lines say once a flight whether that held. The game sets the flight's velocity whole
-  each frame, with no easing: the mod eases the climb and the descent in and out over 0.3 s, and starts a flight at
-  40 % of its speed, full after 0.6 s. Turns follow the camera at once, as in the game.
+  flight carries her along the camera's heading at 10 m/s: turn the camera to steer. Z held climbs, S held descends, and
+  with neither she flies level until you press the space bar or the flight ends on its own (landing, or its time pool).
+  A space bar still held from the jump does not drop her: let it go, and the next press does. Flight time comes from a
+  pool of 90 s that drains while she flies and refills at 1 s per second, the game's own values. During a flight the
+  face buttons dodge up, down, left and right, and so do Shift with Z, S, Q or D on the keyboard (up, down, left,
+  right). `coop fly on` adds S to the game's flight keys (R2 and Z) and the four Shift keys to the input settings; if
+  the key list takes no third key, S takes R2's place and the pad no longer flies. The game itself ends a flight once no
+  flight key is held. For the level flight the native part hooks the player controller's key pass and, right after it,
+  sets the flight key again while EVE flies with no flight key held, until the space bar is pressed during the flight.
+  The log's `[FL]` lines say once a flight whether that held. The game sets the flight's velocity whole each frame, with
+  no easing: the mod eases the climb and the descent in and out over 0.3 s, and starts a flight at 40 % of its speed,
+  full after 0.6 s. Turns follow the camera at once, as in the game.
 - `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
   keyboard key to it. It waits while a friend is linked, since the slow time would be your game's alone.
 - `coop fly off`, `coop slowmo off`, `coop off` and a Lua reload (Ctrl+R) put the game's values back. On a save that is

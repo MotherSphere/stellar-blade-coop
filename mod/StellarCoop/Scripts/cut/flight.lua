@@ -6,17 +6,18 @@
 -- gives. Its four evades are bound to the pad's face buttons only (the flight research of 2026-10-24). While coop fly
 -- is on: Z or S in the air starts a flight (S joins the key list: R2 stays when the list takes a third key, as it did
 -- in game, else S takes its place); Z held climbs and S held descends, through a movement input straight up or down
--- each frame while EVE flies; with neither held she flies level until the space bar (her jump key) drops her or the
--- game ends the flight (landing, its 90 s pool). The level flight is the native part's (game/debug_keys.h's Hold): a
+-- each frame while EVE flies; with neither held she flies level until a press of the space bar (her jump key) drops
+-- her or the game ends the flight (landing, its 90 s pool). A space bar still held from the jump before the flight
+-- counts only once let go and pressed again. The level flight is the native part's (game/debug_keys.h's Hold): a
 -- hook on the player controller's input pass sets bPushedFlyingActionKey again after the pass, before EVE's tick reads
--- it, and stops at her jump key (from Lua it came too early, before the pass, or too late, from her blueprint's
--- ReceiveTick: in game the flight ended 0.02 s after the keys were let go). Shift with Q, D, Z or S fires the evade
--- left, right, up or down, through four action mappings added to the input settings. The log says once a flight whether
--- the level flight held (HOLD s with no key). The game's flight sets its velocity whole each frame, with no easing: the
--- climb and the descent here ease in and out over RAMP s, and a flight starts at START of MaxFlyingActionSpeed and
--- reaches all of it in START_RAMP s (its value put back when the flight ends). coop fly off, coop off and the next Lua
--- load put the keys and the mappings back. Never called here: a save, the game's key settings file, anything on another
--- character.
+-- it, and stops at a press of her jump key (from Lua it came too early, before the pass, or too late, from her
+-- blueprint's ReceiveTick: in game the flight ended 0.02 s after the keys were let go). Shift with Q, D, Z or S fires
+-- the evade left, right, up or down, through four action mappings added to the input settings. The log says once a
+-- flight whether the level flight held (HOLD s with no key). The game's flight sets its velocity whole each frame,
+-- with no easing: the climb and the descent here ease in and out over RAMP s, and a flight starts at START of
+-- MaxFlyingActionSpeed and reaches all of it in START_RAMP s (its value put back when the flight ends). coop fly off,
+-- coop off and the next Lua load put the keys and the mappings back. Never called here: a save, the game's key
+-- settings file, anything on another character.
 local U=require('core.unreal')
 local Flight={}
 Flight.DEFAULT={'Gamepad_RightTrigger','Z'} -- DefaultInput.ini's DefinedFlyActionKeyLists.
@@ -33,9 +34,10 @@ function Flight.new(o)
     local log=o.log
     local self={}
     local on,failed,restored=false,nil,false
-    -- This flight: dropped (the space bar), since (os.clock with no key held, nil while one is), said (its line), at
-    -- (os.clock at its first tick), last (at the last tick), v (the eased climb, -1 to 1), speed (the game's
-    -- MaxFlyingActionSpeed, put back at its end), cmc (EVE's movement component).
+    -- This flight: dropped (the space bar pressed in it), space (the space bar down at the last tick), since (os.clock
+    -- with no key held, nil while one is), said (its line), at (os.clock at its first tick), last (at the last tick),
+    -- v (the eased climb, -1 to 1), speed (the game's MaxFlyingActionSpeed, put back at its end), cmc (EVE's movement
+    -- component).
     local fl=nil
     local function speed_back()
         if fl and fl.speed then pcall(function() fl.cmc.MaxFlyingActionSpeed=fl.speed end) end
@@ -126,9 +128,10 @@ function Flight.new(o)
                 return
             end
             local now=os.clock()
+            local space=pc:IsInputKeyDown(key(Flight.DROP))==true
             if not fl then
                 local cmc=U.valid(eve.CharacterMovement)
-                fl={at=now,last=now,v=0,cmc=cmc,speed=cmc and tonumber(cmc.MaxFlyingActionSpeed)}
+                fl={at=now,last=now,v=0,cmc=cmc,speed=cmc and tonumber(cmc.MaxFlyingActionSpeed),space=space}
             end
             local dt=math.min(0.1,now-fl.last)
             fl.last=now
@@ -138,7 +141,8 @@ function Flight.new(o)
                 if share>=1 then fl.speed=nil end
             end
             local up,down=pc:IsInputKeyDown(key(Flight.UP))==true,pc:IsInputKeyDown(key(Flight.DOWN))==true
-            if pc:IsInputKeyDown(key(Flight.DROP))==true then fl.dropped=true end
+            if space and not fl.space then fl.dropped=true end -- A press; one held from before the flight is none.
+            fl.space=space
             local want=up==down and 0 or up and 1 or -1 -- The climb eases toward it.
             local step=dt/Flight.RAMP
             fl.v=fl.v<want and math.min(want,fl.v+step) or math.max(want,fl.v-step)
