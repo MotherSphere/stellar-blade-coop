@@ -528,6 +528,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     rebuild();
     ++freeze_unsure; // Our pause tag is removed unless it is still wanted.
     debug_asks.asked = 0; // And SB's developer gates go back to the game's values.
+    anim_drop = true;     // And a clip an earlier load played on EVE stops.
     event("new Lua session: capture and ghost dropped");
   }
   take_capture();

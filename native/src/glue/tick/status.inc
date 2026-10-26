@@ -42,6 +42,13 @@ std::string status() {
          (travel_faulted ? std::string("refused:fault")
                          : travel::state_text(travel::State((w >> 8) & 0xff), travel::Why(w & 0xff))) +
          " travel_calls=" + std::to_string(w >> 32);
+  // coop emote's native clips (cut/emote.lua): the last play's state and id, so Lua knows its own answer; fault once
+  // the latch ended them (Lua then plays the montage).
+  if (game_pinned && !blocked) {
+    const anim::Word a = anim::unpack(anim_word);
+    s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
+         " anim_id=" + std::to_string(a.id);
+  }
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)

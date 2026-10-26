@@ -36,6 +36,7 @@
 #include <string_view>
 #include <vector>
 
+#include "game/anim.h"   // path_ok: the anim request's clip
 #include "game/memory.h" // plausible: the lion rows request's addresses
 #include "game/pak_list.h"
 
@@ -531,10 +532,12 @@ inline uint64_t code_lobby(std::string_view text) {
 // <Table>=0x<address> ..." (the Lion's rows for SB's AddRow, glue/tick/lion_game.inc: one word for each of the
 // kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible). Lua finds the tables by their
 // fixed paths, so no console argument reaches an address, and the native part trusts none before it checked the
-// table's vtable and row size (lion/rows.h).
+// table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one of
+// EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
+// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays).
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, lion, gate
+  remove, copy, quests, camps, travel, mark, lion, gate, anim
 };
 // The tables the Lion's rows and the cut items' go into (lion/rows.h's Table, in this order), as their assets are
 // named.
@@ -565,7 +568,7 @@ struct Request {
   uint64_t lobby = 0;
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
                                          // the seconds in ms.
-  bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off.
+  bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off, anim stop.
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
@@ -596,6 +599,9 @@ struct Request {
   uint32_t index = 0, number = 0;
   std::string text;             // mark: its text, or empty.
   std::array<uint64_t, kLionTableCount> tables{}; // lion rows: the tables' addresses, in kLionTables' order.
+  uint32_t id = 0;              // anim play: its id, its clip's path, and whether it loops.
+  std::string path;
+  bool loop = false;
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -802,6 +808,14 @@ inline Request parse_request(std::string text) {
                                               number(f[3], number_) && number_ <= UINT32_MAX) {
     r.command = Command::travel, r.alias = f[1];
     r.index = static_cast<uint32_t>(index), r.number = static_cast<uint32_t>(number_);
+  } else if (text == "anim stop" || text.rfind("anim play ", 0) == 0) {
+    std::string w[5];
+    uint64_t id = 0;
+    if (text.size() == 9)
+      r.command = Command::anim, r.off = true;
+    else if (split(text, w, 5, nullptr) && number(w[2], id) && id && id <= UINT32_MAX && anim::path_ok(w[3]) &&
+             (w[4] == "once" || w[4] == "loop"))
+      r.command = Command::anim, r.id = static_cast<uint32_t>(id), r.path = w[3], r.loop = w[4] == "loop";
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;
