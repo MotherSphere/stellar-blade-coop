@@ -830,8 +830,8 @@ int main() {
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
   // (batch 3) and coop mxiii's (batch 4): one <Table>=0x<address> word for each of the 17 tables, in any order, each
   // once; the addresses in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request
-  // Lua writes (%x, so 12 digits at most under plausible's bound) is 565 bytes with its line end, and fits the native
-  // part's 1024-byte read of its request file (glue/steam.cpp's kRequestFile). Anything off is refused.
+  // Lua writes (%x, so 12 digits at most under plausible's bound) is 565 bytes with its line end; the longest one parsed
+  // (16 digits each) fits the native part's read of its request file (kMaxRequestFile). Anything off is refused.
   const auto rows = [](const char *word, const std::vector<std::string> &words) {
     std::string text = std::string(word) + " rows";
     for (const std::string &w : words)
@@ -874,6 +874,10 @@ int main() {
   assert(parse_request(lion(tables_longest)).command == Command::rows);
   tables_longest[0] = "CharacterTable=0x00007ffffffefff8"; // Leading zeros Lua never writes: still parsed.
   assert(parse_request(lion(tables_longest)).command == Command::rows);
+  for (std::string &w : tables_longest)
+    w = w.substr(0, w.find('=')) + "=0x00007ffffffefff8";
+  assert(gardener(tables_longest).size() + 1 <= kMaxRequestFile &&
+         parse_request(gardener(tables_longest)).command == Command::rows);
   const auto with = [&words](size_t i, const std::string &w) {
     std::vector<std::string> v = words;
     v[i] = w;

@@ -130,7 +130,7 @@ std::string utc_stamp() {
 // The whole file (its first max bytes), then deleted; empty when there is none, or when it cannot be deleted (Lua's
 // busy check holds it open, say): taken at a later pass, never twice. Lua writes it beside and renames it, so it is
 // complete. 512 by default: a chat line or a night line (link/protocol.h's kMaxNight) and its line end; a request takes
-// kRequestFile.
+// link/protocol.h's kMaxRequestFile.
 // Deleted on close, not by path after it: a request Lua renames in once the handle is closed is never deleted unread.
 std::string take_text(const std::wstring &path, DWORD max = 512) {
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ | DELETE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_DELETE_ON_CLOSE,
@@ -148,8 +148,6 @@ std::string take_text(const std::wstring &path, DWORD max = 512) {
 }
 // coop-race.txt: Lua's queue holds 512 lines at most (core/link.lua), each shorter than kMaxMessage.
 constexpr DWORD kRaceFile = 512 * coop::kMaxMessage;
-// coop-request.txt: the longest request, a rows request with its 17 table words, is 565 bytes with its line end.
-constexpr DWORD kRequestFile = 1024;
 
 // Appends raw bytes to coop-link.log; stack only, so it is also safe at process exit.
 void append_raw(const char *text, DWORD size) {
@@ -538,7 +536,7 @@ bool step() {
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
-    std::string request = take_text(folder + L"coop-request.txt", kRequestFile);
+    std::string request = take_text(folder + L"coop-request.txt", DWORD(coop::kMaxRequestFile));
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
     // Night Operation's line (nightop/run.lua), taken at every pass too: the newest state goes, an old one never waits.

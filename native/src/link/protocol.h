@@ -554,6 +554,9 @@ constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable",
     "ItemTable",             "ItemConsumableTable",      "ProjectileTable",    "ZoneCampTable",
     "ZoneEnvSpawnTable"};
+// coop-request.txt's bytes the native part reads (glue/steam.cpp): the longest rows request, 16 digits to each of its
+// 17 addresses, and its line end fit (protocol_test).
+constexpr size_t kMaxRequestFile = 1024;
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).
