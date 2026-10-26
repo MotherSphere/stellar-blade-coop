@@ -96,7 +96,7 @@ inline Play play(bool loop) {
 // another clip took the slot, photo mode, or EVE went; or its slot took no weight), stopped (our stop), refused, fault
 // (the latch).
 enum class State : uint8_t { idle, playing, ended, stopped, refused, fault };
-// Why it was refused, ended or stopped. eve: no EVE of ours found (no GUID, a global unset, or not a live
+// Why it was refused, ended or stopped. eve: no EVE of ours found (no player controller, no pawn, or not a live
 // ASBCharacter). slots: she has no custom animation slot. game: SB played nothing (the call returned -1, or no FGuid).
 // off: coop off. session: a new Lua load. weight: the slot took no weight in kNoWeightMs.
 enum class Why : uint8_t { none, eve, slots, game, off, session, weight };

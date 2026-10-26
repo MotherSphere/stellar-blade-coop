@@ -6,9 +6,9 @@ namespace {
 // SB's by-path custom animation play FUN_1420b31d0, in the shape the MovingTarget animation calls it (0x1420909c3):
 // the character, slot 0, the path (a const FString&), the FGuid out, a zero FGuid, the scalars of anim::Play, bytes 15
 // to 17 (stop at input, 16, hold at the end) 0, five empty FStrings with 0 weights between them, 0, 0, 0.0, 0, 0. And
-// SB's stop FUN_1420addc0(character, slot, blend out, the clip's FName, force 1). Our EVE comes from her GUID (the
-// client's +0x58) through SB's two read-only lookups, fight/pilot.h's find_character, which also checks she is a live
-// ASBCharacter; the reads before it go through safe_read. The watch reads slot 0 every anim::kWatchMs while ours plays,
+// SB's stop FUN_1420addc0(character, slot, blend out, the clip's FName, force 1). Our EVE is the pawn of the player
+// controller SB's getter gives (kController, the photo pause's), checked to be a live ASBCharacter (fight/pilot.h's
+// live and is_a); every read goes through safe_read. The watch reads slot 0 every anim::kWatchMs while ours plays,
 // after checking she is still the live object played on. All of it runs in coop_tick on the pinned build, under its
 // own SEH latch: the first fault ends the native clips for the run (after one try to stop ours) and Lua falls back to
 // the montage. A new Lua load and coop off stop ours.
@@ -63,16 +63,16 @@ bool anim_slot(uint64_t ch, anim::Slot &s, uint64_t *slots = nullptr) {
     *slots = at;
   return true;
 }
-// Our EVE through her GUID, or 0; index and serial take her object item's.
+// Our EVE: the player controller's pawn, the actor Lua's UEHelpers.GetPlayer gives, when it is a live ASBCharacter;
+// else 0. index and serial take her object item's.
+constexpr size_t kPawn = 0x2f8; // AController::Pawn, as execK2_GetPawn (0x144723570) reads it.
 uint64_t anim_eve(int32_t &index, int32_t &serial) {
-  uint64_t client = 0, fsb = 0, root = 0;
-  uint32_t guid = 0;
-  pilot::Globals s;
-  PilotGame g;
-  return anim_read(base + (travel::kClientAt - game::kImageBase), &client, sizeof client) &&
-                 game::plausible(client) && anim_read(client + travel::kGuid, &guid, sizeof guid) && guid &&
-                 pilot::globals(anim_read, base, s)
-             ? pilot::find_character(g, anim_read, objects, s, guid, fsb, root, &index, &serial)
+  const uint64_t pc = game_function<Controller>(kController)();
+  uint64_t ch = 0, cls = 0;
+  return game::plausible(pc) && anim_read(pc + kPawn, &ch, sizeof ch) && game::plausible(ch) &&
+                 anim_read(base + (pilot::kCharacterClassAt - game::kImageBase), &cls, sizeof cls) &&
+                 pilot::live(anim_read, objects, ch, &index, &serial) && pilot::is_a(anim_read, ch, cls)
+             ? ch
              : 0;
 }
 // The character played on, still the same live object.

@@ -1786,11 +1786,12 @@ reads only in photo mode.
 
 So the native part plays the clip (`game/anim.h`, `glue/tick/anim_game.inc`). Lua asks
 `anim play <id> <path> once|loop` (the id counts up from the load's start time; the path must start with
-`/Game/Art/Character/PC/CH_P_EVE_01/Animation/`). On its next frame the game thread finds our EVE from her GUID (the
-client's `+0x58`) through SB's two read-only lookups (`fight/pilot.h`'s `find_character`, which also checks she is a
-live `ASBCharacter`) and calls SB's by-path entry `0x1420b31d0` the way the MovingTarget animation calls it
-(`0x1420909c3`): slot 0, the path as a `const FString&`, start 0, end -1 (the whole clip), rate 1, 0.25 s blends, -1
-for SB's own stop at input (off), the loop flag with count -1 or none, priority 0 (the flight start's), and five empty
+`/Game/Art/Character/PC/CH_P_EVE_01/Animation/`). On its next frame the game thread takes our EVE as the pawn
+(`AController::Pawn`, `+0x2f8`) of the player controller SB's getter `0x14231c710` gives, the actor
+`UEHelpers.GetPlayer` gives Lua, once it checked she is a live `ASBCharacter`, and calls SB's by-path entry
+`0x1420b31d0` the way the MovingTarget animation calls it (`0x1420909c3`): slot 0, the path as a `const FString&`,
+start 0, end -1 (the whole clip), rate 1, 0.25 s blends, -1 for SB's own stop at input (off), the loop flag with count
+-1 or none, priority 0 (the flight start's), and five empty
 `FString` arguments, which that function frees only when their data is set. It loads the path as a
 `UAnimSequenceBase`, applies the priority rule, builds the other defaults itself and returns 0 once it played, 1 for an
 additive clip, -1 when the clip did not load or the slot's clip outranks ours; the FGuid comes back in its fourth

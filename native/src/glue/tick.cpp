@@ -79,9 +79,9 @@
 // manager's counter every 250 ms; status() gives it all in the lion line, and the worker logs each answer.
 //
 // coop emote's native clips (game/anim.h): the worker hands over Lua's anim play (an id, one of EVE's clip paths, once
-// or in a loop) or anim stop; the game thread finds our EVE by her GUID and plays the clip through SB's own custom
-// animation call by path, or stops ours through SB's stop, under its own SEH latch, and reads her custom animation slot
-// every 100 ms while ours plays to tell when it ends. A new Lua load and coop off stop ours. status() puts the last
+// or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
+// SB's own custom animation call by path, or stops ours through SB's stop, under its own SEH latch, and reads her
+// custom animation slot every 100 ms while ours plays to tell when it ends. A new Lua load and coop off stop ours. status() puts the last
 // play's id and state in the engine line for cut/emote.lua, and the worker logs each change.
 //
 // This file is one translation unit made of the parts in glue/tick/, included below in this order: a part sees
