@@ -546,7 +546,7 @@ break.
 While a Shooting Range run is on, and during its 10 s result, its score also shows on `WB_ShootingTrainingTest`, the
 cut test's own score widget, which held a placeholder Korean score. It is one line of pink text near the top left
 corner, in the card's words (`SCORE 120`), drawn at half its size. It hides while the game is paused, after the
-result and with `coop ui off`. When the widget cannot be made, `UE4SS.log` has one
+result, with `coop ui off` and at `coop off`. When the widget cannot be made, `UE4SS.log` has one
 `[StellarCoop][NR] board: off until the mod reloads (...)` line and the card shows the score alone.
 
 ### The Shooting Range for two
