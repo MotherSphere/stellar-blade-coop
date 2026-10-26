@@ -337,8 +337,8 @@ void drop_remote() {
 }
 
 // coop-components.txt, when it changed: EVE's capture, sent on whenever its wire form changes (a part hung elsewhere
-// keeps the generation and the Live), with its next resend to the friend 5 s later; a new generation, or none, is a
-// new Live.
+// keeps the generation and the Live), with its next resend to the friend 5 s later (peer() starts over for a friend
+// not linked yet); a new generation, or none, is a new Live.
 void take_capture(uint64_t now_ms) {
   bool exists = false;
   std::string text = read_file(dir + L"coop-components.txt", exists, kMaxTable);
@@ -678,11 +678,13 @@ bool peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bo
     say(on ? "peer linked: poses and tables go over Steam" : "peer unlinked");
   if (was && !on && remote_source == kPeer)
     drop_remote(); // She left, or a loopback or replay took over.
-  if (!on) {
-    table_resend = TableResend(); // At once to the next friend.
+  if (!on)
     return false;
-  }
-  if (restarts != restarts_seen && was) // At the link the table goes at once anyway.
+  // At once to a new friend, whatever take_capture planned while she was not linked: a capture change in the pass
+  // that completes the handshake went before her.
+  if (!was)
+    table_resend = TableResend();
+  else if (restarts != restarts_seen)
     table_resend.restarted(now_ms);
   restarts_seen = restarts;
   // At once, then 5, 10, 20, 40 and 60 s apart (pose/table.h TableResend). To her only: never looped back or recorded.
