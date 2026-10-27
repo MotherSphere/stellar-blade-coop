@@ -1218,8 +1218,9 @@ rest resets only the resting player's own game.
 Each game looks once a second, while linked, for the game's theater observers (`SBTheaterLevelSequenceObserver`). A
 cutscene plays while one of them has a valid sequence player whose `IsPlaying()` is true. Finding the observers walks
 every object (25 to 80 ms on the game thread), so the walk runs only while a level sequence actor plays (those actors
-come from the engine's class hash, a fraction of a millisecond), and the observer found is kept while it plays. Up to
-0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. The log says
+come from the engine's class hash, a fraction of a millisecond), and the observer found is kept while it plays. The
+class hash reads EVE's world, or the SB player controller's when there is no EVE; with neither (the title screen, a
+load) nothing is read. Up to 0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. The log says
 `cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's reflection
 data, so Lua cannot read it.
 

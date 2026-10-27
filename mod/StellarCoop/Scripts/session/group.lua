@@ -224,6 +224,8 @@ function G.new(o)
     -- through a level sequence actor, whose class's actors come from the engine's class hash (core/unreal.lua's
     -- actors_of): only while one of them plays are the theater observers walked for (FindAllOf walks every object,
     -- 25 to 80 ms in game: once a second while linked, that was a frozen frame each second). A gate that raises walks.
+    -- The hash needs a world: our EVE's, else our SB controller's. With neither (a load, the title screen) no theater
+    -- plays, and actors_of would walk for want of a world.
     local observer=nil
     local function name_of(ob)
         local player=ob and weak(ob.Player)
@@ -232,8 +234,10 @@ function G.new(o)
     local function theater()
         local kept=name_of(U.valid(observer))
         if kept then return kept end
+        local ctx=N.her() or N.controller()
+        if not ctx then return nil end
         local read,any=pcall(function()
-            local list=U.actors_of(U.find('/Script/LevelSequence.LevelSequenceActor'),'LevelSequenceActor',N.her())
+            local list=U.actors_of(U.find('/Script/LevelSequence.LevelSequenceActor'),'LevelSequenceActor',ctx)
             for _,a in ipairs(list) do
                 local player=U.valid(a.SequencePlayer)
                 if player and player:IsPlaying()==true then return true end

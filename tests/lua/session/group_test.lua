@@ -441,6 +441,20 @@ assert(g.cutscene_playing() and g.photo('0')=='0','A guest sends no cutscene')
 W.linked=false
 run(g,1)
 assert(not g.cutscene_playing() and g.photo('0')=='0' and W.finds.SBTheaterLevelSequenceObserver==1,'Not linked')
+-- No EVE (the title screen, a load): the class hash takes our SB controller's world (the hash's proof is asked); with
+-- no controller either, no sequence actor is looked up at all (actors_of with no world walks every object).
+local probe=package.loaded['nightop.probe']
+g=world(function(w)
+    w.mode,w.life,w.scene,w.eve='host',{state=1,hp=1600},false,nil
+    w.observers,w.sequences={observer('Mann_Entrance',scene)},sequences()
+end)
+run(g,1)
+assert(W.finds.PlayerController==1 and W.finds.LevelSequenceActor==1,'The controller is the world')
+probe.controller=function() return nil end
+run(g,3)
+probe.controller=function() return pc end
+assert(not g.cutscene_playing() and W.finds.LevelSequenceActor==1 and W.finds.PlayerController==1
+    and (W.finds.SBTheaterLevelSequenceObserver or 0)==0,'No world, no walk: '..W.finds.LevelSequenceActor)
 -- A read that fails: one line, and no cutscene for the run.
 g=world(function(w)
     w.mode,w.life,w.theater_error,w.scene,w.sequences='host',{state=1,hp=1600},'no such property',true,sequences()
