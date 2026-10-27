@@ -16,6 +16,9 @@ constexpr const char *kNoCoopSave = "not on a co-op save", *kFeatureOff = "share
 constexpr uint64_t kTellMs = 5000;      // Our state to her again, while we do not share.
 constexpr uint64_t kMateEveryMs = 1000; // Her life to the job again, while it is down or alive.
 constexpr size_t kHerSaid = 32;         // Her offs said in the log, a link at most.
+// A pause tag pauses a running mode once our job has taken no turn for this long: SB's set may hold one while the world
+// runs (a load, a refused pause). Past a hitch, and before her lines fill kMail (128: 3 s of claims at 41 a second).
+constexpr uint64_t kStallMs = 1000;
 
 // The job's lines, events and probe census to the worker, hers to the job. Each thread queues into rings of its
 // own; the logic thread swaps them with the shared ones under a mutex it takes with try_lock only (busy: the next
@@ -128,12 +131,14 @@ private:
 //   replay: that file played into the guest's side from its start; the guest's own lines go nowhere. It writes, so
 //     it waits for fight writes=armed too.
 // A mode runs while a save is loaded, our player is not in photo mode and the world is not paused (SB holds a pause
-// tag: its menu, a movie, a lost focus) and, for on, a friend is linked and the save is a co-op one (the gate's
-// kNoCoopSave). In photo mode SB's logic stands still, and in a paused world its 0 s ticks never reach our job [G]: the
-// job would not run while her lines pile up past kMail, so she hears our off, which stops her side's sharing too. Any
-// of them missing pauses it (a new session when all are back); any other refusal of the gate turns it off until asked
-// again. While she is linked and we do not share, she hears what we wait for (or why it last ended, or kFeatureOff) as
-// an off line, when it changes and every kTellMs; what she says the same way is her state on our fight= line. Its Io:
+// tag: its menu, a movie, a lost focus; and, while running, our job took no turn for kStallMs) and, for on, a friend is
+// linked and the save is a co-op one (the gate's kNoCoopSave). In photo mode SB's logic stands still, and in a paused
+// world its 0 s ticks may never reach our job [G]: the job would not run while her lines pile up past kMail, so she
+// hears our off, which stops her side's sharing too. Stopped, the tag alone keeps it waiting (Engine::arm arms nothing
+// under one). Any of them missing pauses it (a new session when all are back); any other refusal of the gate turns it
+// off until asked again. While she is linked and we do not share, she hears what we wait for (or why it last ended,
+// or kFeatureOff) as an off line, when it changes and every kTellMs; what she says the same way is her state on our
+// fight= line. Its Io:
 //   bool send(const std::string &line, bool reliable): to her on channel 2; false when not queued;
 //   void say(const std::string &line): the log;
 //   void trace(const std::string &line): coop-fight.log: the probe's actors and the stats lines, which would fill the
@@ -157,12 +162,12 @@ public:
   // events and probe census into the log, her lines in (parsed here, strictly) or the replay's, the gates, then the
   // stats. photo: our player in photo mode (photo_mode()). mate: her life (link/core.h's mate_life()), which the job
   // gets while the mode runs with her as a local mate message: at each change, and while it is down or alive each
-  // kMateEveryMs and at each new session (the job reads unknown at its start, and kMateMs after the last). paused: the
-  // world paused (world_paused()).
+  // kMateEveryMs and at each new session (the job reads unknown at its start, and kMateMs after the last). paused: SB
+  // holds a pause tag (world_paused()).
   template <class Gate, class Io>
   void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
             Io &io, bool photo = false, Life mate = Life::unknown, bool paused = false) {
-    now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world, photo_ = photo, paused_ = paused;
+    now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world, photo_ = photo;
     if (!linked)
       her_ = "?", her_said_ = 0;
     last_ = mail_.take(
@@ -177,6 +182,9 @@ public:
           if (running_ && ran_ == Fight::probe)
             probed(a, io);
         });
+    if (last_.job.turns != turns_)
+      turns_ = last_.job.turns, turns_ms_ = now_ms;
+    paused_ = paused && (!running_ || now_ms >= turns_ms_ + kStallMs);
     own_session();
     for (const std::string &text : lines) {
       if (pilot_line(text)) // Same-place enemies' (fight/pilot.h): never the job's.
@@ -416,6 +424,7 @@ private:
     malformed_ = 0;
     next_gate_ = now_ + kGateMs;
     tick_ms_ = now_, tick_runs_ = last_.runs, tick_us_ = last_.us, tick_turns_ = last_.job.turns;
+    turns_ms_ = now_; // Its first turn has kStallMs.
     mean_us_ = rate_ = 0;
     detail_ = counts_line();
     Message on;
@@ -693,6 +702,7 @@ private:
   bool linked_ = false, hosting_ = false, world_ = false;    // As of the last pass.
   bool photo_ = false;                                       // Our player in photo mode, as of the last pass.
   bool paused_ = false;                                      // The world paused, as of the last pass.
+  uint64_t turns_ = 0, turns_ms_ = 0;                        // The job's turns as last read, and when they moved.
   bool coop_ = false;                                        // The gate passed at its last ask: a co-op save.
   uint64_t gate_ms_ = UINT64_MAX;                            // When the gate was last asked.
   bool armed_ = false;                                       // fight writes=armed: tests may write, this run.

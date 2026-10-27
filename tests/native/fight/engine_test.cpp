@@ -5896,12 +5896,26 @@ int main() {
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(e->on() && e->session() == before + 1 && io.lines() == "SBF14 on\n");
     assert(io.said.back() == "shared fight on: as guest");
-    // A paused world (SB holds a pause tag: its menu, a movie): our job waits, so her lines would pile up past kMail
-    // and the newest, reliable ones included, would be lost. Paused like photo mode: she hears why, and 20 s of her
-    // dead and world lines reach no ring; a new session at the resume, so both sides start over from our on.
+    // A pause tag held while our job still takes turns (a load's, a refused pause) changes nothing: it takes her
+    // lines.
     const uint32_t held = e->session();
-    w.pass(t += 16, true, false, true, {"SBF14 world 8"}, gate, io, false, coop::Life::unknown, true);
-    assert(!e->on() && io.lines() == "SBF14 off world paused\n" && io.said.back() == "shared fight paused: world paused");
+    for (const uint64_t end = t + 3000; t < end;) {
+      ++s.job.turns;
+      assert(mail.exchange(s));
+      w.pass(t += 16, true, false, true, {"SBF14 world 8"}, gate, io, false, coop::Life::unknown, true);
+    }
+    assert(e->on() && e->session() == held && io.lines().empty() && mail.exchange(s) && mail.receive(m));
+    while (mail.receive(m))
+      ;
+    // A paused world (its menu, a movie): our job waits, so her lines would pile up past kMail and the newest,
+    // reliable ones included, would be lost. Paused like photo mode once no turn came for kStallMs: she hears why,
+    // and 20 s of her dead and world lines reach no ring; a new session at the resume, so both sides start over from
+    // our on.
+    w.pass(t += kStallMs - 16, true, false, true, {"SBF14 world 8"}, gate, io, false, coop::Life::unknown, true);
+    assert(e->on());
+    w.pass(t += 16, true, false, true, none, gate, io, false, coop::Life::unknown, true);
+    assert(!e->on() && io.lines() == "SBF14 off world paused\n");
+    assert(io.said.back() == "shared fight paused: world paused");
     for (const uint64_t end = t + 20000; t < end;)
       w.pass(t += 16, true, false, true, {"SBF14 dead 8 132", "SBF14 world 9"}, gate, io, false, coop::Life::unknown,
              true);

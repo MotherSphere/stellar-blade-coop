@@ -589,8 +589,8 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     say(text);
   }
   FightIo io;
-  // Our photo mode and a paused world pause it (pinned build). A few reads, so every kGateMs, not at every 5 ms pass:
-  // our job does not run meanwhile anyway.
+  // Our photo mode and a paused world pause it (pinned build; a pause tag once our job stands still). A few reads, so
+  // every kGateMs, not at every 5 ms pass.
   static bool photo = false, paused = false;
   static uint64_t next_photo = 0;
   if (now_ms >= next_photo) {
