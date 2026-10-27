@@ -1,9 +1,10 @@
 -- The live story dump (Scripts/story/dump.lua) on stubbed game objects: the lines from the game's save-shaped object
 -- are byte for byte the ones tools/story.py prints for tests/tools/story_sample.txt, which is the same fixture
 -- tests/tools/story_test.py
--- builds as a save; a duplicate alias is numbered, a fixed alias is kept (WorldObjectStorageMap's integer keys become
--- UniqueKey), positions and bZoneReset never appear, and the file is written with its header only through the injected
--- writer. With no save-shaped object, the dump reports what it found instead; a bad argument is refused.
+-- builds as a save; a duplicate alias is numbered (a task's across its quest's groups), an entry with no alias is
+-- keyed by its index from 0, a float prints as Python prints it, a fixed alias is kept (WorldObjectStorageMap's integer
+-- keys become UniqueKey), positions and bZoneReset never appear, and the file is written with its header only through
+-- the injected writer. With no save-shaped object, the dump reports what it found instead; a bad argument is refused.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local Story=require('story.dump')
 
@@ -19,7 +20,10 @@ local function save_object()
                         AllChildTaskList={{'Quest_Epic_01_M01_T01',{TaskAlias='Quest_Epic_01_M01_T01',
                             TaskState='ESBQuestTaskState_Progress',CurrentValue=0,CompleteOrder=-1}}},
                         TaskList={{TaskAlias='Quest_Epic_01_M01_T01',TaskState='ESBQuestTaskState_Progress',
-                            CurrentValue=0,CompleteOrder=-1}}}}},
+                            CurrentValue=0,CompleteOrder=-1}}},
+                    {TaskGroupAlias='Quest_Epic_01_M02',TaskGroupState='TaskGroup_Progress',
+                        AllChildTaskList={{'Quest_Epic_01_M01_T01',{TaskAlias='Quest_Epic_01_M01_T01',
+                            TaskState='ESBQuestTaskState_Progress'}}}}}},
                 {QuestAlias='CQ_SD10_RR',QuestState=1}},
             TrackingQuestAliases={'Quest_Epic_01'},
             CompleteQuestList={'Quest_Epic_00'},
@@ -28,7 +32,10 @@ local function save_object()
             {RecordGroupName='Quest_Epic_01_M01',RecordTaskGroupMap={
                 {'ESBMission_EnvState',{TaskDataList={
                     {DataAlias='SD_10_EnvS_010',bSuccessTask=false},
-                    {DataAlias='SD_10_EnvS_010',bSuccessTask=true}}}}}}}},
+                    {DataAlias='SD_10_EnvS_010',bSuccessTask=true},
+                    {bSuccessTask=true}}}}}},
+            {RecordTaskGroupMap={{'ESBMission_Achievement',{TaskDataList={
+                {DataAlias='Xion_Phase_1',bSuccessTask=false}}}}}}}},
         DataMap_SBEnv={{'Env',{
             WorldContainerList={
                 {WorldAlias='NKGameWaste',ZoneEventActorStorageList={}},
@@ -41,7 +48,9 @@ local function save_object()
                             CurrentTriggerCount=0,InteractData={bInteracted=false},ActorLocation={1.0,2.0,3.0},
                             LastUpdateTimestamp=5},
                         {EnvAlias='SD_10_EnvS_066',EnvActivate='ESBObject_Enable',CurrentTriggerCount=2,
-                            InteractData={bInteracted=true}}},
+                            InteractData={bInteracted=true},
+                            StateInfoList={{StateTagName='Env_State_Open',Progress=0.10000000149011612,
+                                Rate=1.5e-05}}}},
                     ZoneNpcStorageList={
                         {CharacterDataAlias='Npc_Shop_01',ObjectState='ESBObject_Enable',LifeState=1,
                             bActiveActor=true,InteractData={bInteracted=false}}},
@@ -94,8 +103,8 @@ assert(write.rows[1]:sub(1,3)=='# S','a header names the dump')
 local stages=0
 for _,row in ipairs(write.rows) do if row:find('stage:',1,true) then stages=stages+1 end end
 assert(stages==1,'one stage line names where the dump got to: '..stages)
-assert(table.concat(logged,'\n'):find('story: 30 lines'),table.concat(logged,'\n'))
-assert(message:find('30 story lines',1,true),message)
+assert(table.concat(logged,'\n'):find('story: 37 lines'),table.concat(logged,'\n'))
+assert(message:find('37 story lines',1,true),message)
 -- 2. Nothing volatile, nothing keyed by a moving index.
 for _,line in ipairs(lines) do
     assert(not line:find('Location',1,true) and not line:find('Timestamp',1,true),line)
@@ -169,7 +178,7 @@ end
 local story3,state=ask_harness('dump')
 assert(story3.poll(false)==nil and state.writes==0,'nothing at the title')
 local ok2,message2=story3.poll(true)
-assert(ok2 and message2 and message2:find('30 story lines',1,true),tostring(message2))
+assert(ok2 and message2 and message2:find('37 story lines',1,true),tostring(message2))
 assert(state.writes>=1 and removed[#removed]=='C:\\mod\\coop-story.txt','the request is consumed: '..tostring(#removed))
 assert(story3.poll(true)==nil,'the request is gone')
 local story4,state4=ask_harness('find')
@@ -209,6 +218,23 @@ assert(joined:find('zone Zone_Z item 0 SaveType = ESBZoneObjSaveType_Save',1,tru
 assert(joined:find('zone Zone_Z item 0 bGetStorage = False',1,true),joined)
 assert(not joined:find('PhysicsConstraintStateMap',1,true),joined)
 assert(not joined:find('TMap: 0x',1,true),joined)
+-- 1d. A float prints as Python's repr prints it (what tools/story.py writes): the fewest digits that read back the
+-- same, written out from 1e-4 to under 1e16, else with an exponent.
+do
+    local floats={{0.30000000000000004,'0.30000000000000004'},{1e-05,'1e-05'},{0.0001,'0.0001'},{-2.5,'-2.5'},
+        {3.0,'3.0'},{-0.0,'-0.0'},{1e15,'1000000000000000.0'},{1e16,'1e+16'},{2^53+2,'9007199254740994.0'},
+        {1.2345678901234568e+17,'1.2345678901234568e+17'},{5e-324,'5e-324'}}
+    local list={}
+    for index,pair in ipairs(floats) do list[index]={V=pair[1]} end
+    local rows=Story.lines({DataMap_SBEnv={{'Env',{ZoneContainerList={{ZoneAlias='Z',
+        ZoneEnvStorageList={{EnvAlias='E',StateInfoList=list}}}}}}}})
+    local printed={}
+    for _,row in ipairs(rows) do
+        local index,value=row:match('^zone Z env E %[(%d+)%]%.V = (.*)$')
+        if index then printed[tonumber(index)+1]=value end
+    end
+    for index,pair in ipairs(floats) do assert(printed[index]==pair[2],tostring(printed[index])..' / '..pair[2]) end
+end
 
 -- 6. Bad arguments are refused, and nothing is written.
 story,written,logged=harness({SBSaveGame={save_object()}})
