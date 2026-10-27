@@ -7,7 +7,7 @@
 -- for at each tick, only when a SelectIndex turns from -1 to a line of ours (her own Shop, End and a widget first seen
 -- on a line do nothing), a box built for a later dialogue watched while an older one stays valid; a level booked and
 -- started through coop nightop start once EVE is out of Xion, held through the map load (slot=none, then unknown) and
--- dropped with a supplies pick on another co-op save, its refusals said once each, and a host's booking held
+-- dropped with a supplies pick on another co-op save and at the title, its refusals said once each, and a host's booking held
 -- while the run asks the partner, tried again 30 s after an ask the partner could not join; a guest's pick; the
 -- supplies opening the shop's screen after her goodbye, dropped 30 s on (a load included); roxanne on asked again
 -- when the native part reads
@@ -272,12 +272,14 @@ at(1052); host.tick()
 assert(last()=='roxanne: the booked hard run: the partner joined' and host.cancel()==nil,last())
 world=XION
 status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
--- A supplies pick waits 30 s at most, a load that reads no save included (a trip to the title may last any time).
+-- A supplies pick waits 30 s at most, a load that reads no save included; the title screen drops it and a booking at
+-- once (a trip there may last any time, and the slot loaded next may hold another file).
+local title=false
 local trip=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
-    ask=function() return true,'asked' end,paused=function() return paused end,
+    ask=function() return true,'asked' end,paused=function() return paused end,title=function() return title end,
     tell=function() end,start=function(level) starts[#starts+1]=level; return true,'started' end,
     shop=function() shops=shops+1; return true,'opened' end})
-local shopped=shops
+local shopped,started=shops,#starts
 widget.SelectIndex=-1; at(2000); trip.tick()
 widget.SelectIndex=3; at(2000.25); trip.tick()
 assert(last()=='roxanne: supplies picked: the shop screen opens in 5 s',last())
@@ -289,6 +291,22 @@ at(2036); trip.tick()
 assert(last()=='STOP: roxanne: supplies: the game stayed paused, on one of its screens or in a load',last())
 status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
 at(2037); trip.tick(); assert(shops==shopped,'No shop screen past the wait')
+widget.SelectIndex=-1; at(2040); trip.tick()
+widget.SelectIndex=2; at(2040.25); trip.tick()
+widget.SelectIndex=-1; at(2040.5); trip.tick()
+widget.SelectIndex=3; at(2040.75); trip.tick()
+paused=true; at(2046); trip.tick()
+title=true -- Quit to the title from the pause menu.
+status_text='mod=v\nslot=none index=4 marker=? saves=coop\nroxanne=on asks=2 want=on why=none\n'
+at(2050); trip.tick()
+assert(last()=='roxanne: the title screen: the booked hard run dropped',last())
+title,paused=false,false
+at(2650); trip.tick() -- Slot 4 loaded again 10 minutes later.
+status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
+world=WASTE
+at(2651); trip.tick(); at(2660); trip.tick()
+assert(shops==shopped and #starts==started and trip.cancel()==nil,'Nothing picked before the title')
+world=XION
 -- A start or a shop open that raises: its refusal, logged, and the tick goes on.
 start_answer=nil
 local raising=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,

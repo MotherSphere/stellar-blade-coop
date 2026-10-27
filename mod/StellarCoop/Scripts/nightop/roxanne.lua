@@ -15,11 +15,10 @@
 -- is over. Everything goes back on coop off and on a save that is not a co-op save: roxanne off (asked again every 10 s
 -- while the native part reads on), then the rows' shipped values once it reads her list off or absent (while it reads
 -- on, or after a fault, the rows stay ours: their exec only plays her goodbye). A load (the title, a map: leaving Xion
--- is one) reads slot=none or unknown for a while: a booking and her choices hold through it, a supplies pick its
--- SHOP_WAIT at most. coop nightop stop drops a booking, and another co-op save (its index) drops it and a supplies
--- pick. No
--- quest, item, achievement, save or story state is touched here: talking to her still runs her own graph as without
--- the mod.
+-- is one) reads slot=none or unknown for a while: her choices hold through it, a booking through a map load, a
+-- supplies pick its SHOP_WAIT at most. coop nightop stop drops a booking, and the title screen or another co-op save
+-- (its index) drops it and a supplies pick. No quest, item, achievement, save or story state is touched here: talking
+-- to her still runs her own graph as without the mod.
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local R=require('nightop.recruiter')
@@ -56,10 +55,10 @@ end
 -- The row a picked line's text names, or nil (her own Shop and End, any other dialogue).
 function Roxanne.row_of(text,by) return (by or labels())[text] end
 -- log(text) writes an [NR] line; status() the native part's status text; ask(line) its request; paused() whether the
--- game is paused or shows one of its screens (the UI kit's); tell(build) a notice; start(level) coop nightop start
--- <level> and shop() coop nightop shop, through commands/nightop.lua (its co-op save and race checks; an error they
--- raise is their refusal here); phase() the phase of nightop/run.lua's run, nil when none ('ask' while a host's run
--- waits for the partner).
+-- game is paused or shows one of its screens (the UI kit's); title() whether the title screen is shown (main.lua's
+-- last puppet.world, optional); tell(build) a notice; start(level) coop nightop start <level> and shop() coop nightop
+-- shop, through commands/nightop.lua (its co-op save and race checks; an error they raise is their refusal here);
+-- phase() the phase of nightop/run.lua's run, nil when none ('ask' while a host's run waits for the partner).
 function Roxanne.new(o)
     local log,status,ask,paused,tell=o.log,o.status,o.ask,o.paused,o.tell
     local by=nil -- labels(), once the text is registered.
@@ -192,6 +191,12 @@ function Roxanne.new(o)
             end
         end
     end
+    -- The booking and a supplies pick dropped, said with why.
+    local function drop(why)
+        if not (booked or shop_at) then return end
+        log('roxanne: '..why..': '..(booked and 'the booked '..booked.level..' run' or 'the supplies')..' dropped')
+        booked,shop_at=nil,nil
+    end
     local self={}
     -- Every 250 ms on the game thread (main.lua's loop); stopped: after coop off, only off and the rows' values back.
     function self.tick(stopped)
@@ -203,7 +208,10 @@ function Roxanne.new(o)
             shop_at=nil
             log('STOP: roxanne: supplies: the game stayed paused, on one of its screens or in a load')
         end
-        if armed and not stopped and (slot=='none' or slot=='unknown') then return end -- A load: no save to judge yet.
+        if armed and not stopped and (slot=='none' or slot=='unknown') then -- A load: no save to judge yet.
+            if o.title and o.title() then drop('the title screen') end -- The slot loaded next may hold another file.
+            return
+        end
         if stopped or slot~='coop' then
             if armed or (line or ''):find('^on ') and now-asked_at>=Roxanne.ASK_EVERY then
                 off(stopped and 'coop off' or 'not a co-op save')
@@ -214,11 +222,7 @@ function Roxanne.new(o)
         end
         local at=raw:match('\nslot=coop index=(%d+)')
         if at~=save then
-            if save and (booked or shop_at) then
-                log('roxanne: another co-op save (index '..tostring(at)..'): '
-                    ..(booked and 'the booked '..booked.level..' run' or 'the supplies')..' dropped')
-                booked,shop_at=nil,nil
-            end
+            if save then drop('another co-op save (index '..tostring(at)..')') end
             save=at
         end
         local eve=N.her()

@@ -621,9 +621,9 @@ selected line turning from none to one, and that line's text matched against the
 has put it back), then the rows' shipped values. Until the list is back, and after a fault in its calls, the rows keep
 the goodbye, which ends the talk on any save. A map load, leaving Xion included, reads no save for a while: a booking
 and her choices hold through it. The supplies' shop screen waits up to 30 s for the game to play (while it is paused
-or loading), then the pick goes. Loading another co-op save drops the booking and the supplies pick. Nothing is saved,
-and a game restart undoes it too. Talking to her still runs her own graph, so her first meeting and her side quest
-start as without the mod. No quest, item, achievement or save call is added.
+or loading), then the pick goes. The title screen and another co-op save drop the booking and the supplies pick.
+Nothing is saved, and a game restart undoes it too. Talking to her still runs her own graph, so her first meeting and
+her side quest start as without the mod. No quest, item, achievement or save call is added.
 
 `UE4SS.log` has `[StellarCoop][NR]` lines for each step, for example:
 
