@@ -135,7 +135,9 @@ function D.step(s,input,P,dt)
     u,w=v.x*cx+v.y*cy,-v.x*cy+v.y*cx
     local throttle=s.stumble>0 and 0 or L*math.max(0,math.cos(diff))
     if brake then u=math.max(BRAKE_DOWN_TO,u-P.brake*dt)
-    elseif throttle>0 then u=u+P.accel*throttle*(1-(u/P.top)^2)*dt
+    -- The fade is for forward speed only: going backward faster than the top, (u/top)^2 over 1 would push her back
+    -- harder each frame, to Inf.
+    elseif throttle>0 then u=u+P.accel*throttle*(1-(math.max(u,0)/P.top)^2)*dt
     elseif u>0 then u=math.max(0,u-P.coast*dt)
     else u=math.min(0,u+P.coast*dt) end
     w=w*math.exp(-(s.drift and P.drift_grip or P.grip)*dt)
