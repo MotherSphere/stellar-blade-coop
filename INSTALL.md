@@ -243,9 +243,9 @@ More about the copies:
   `StellarCoopBackups`, then writes `StellarBladeCoop0N.sav` over it, unchanged. It refuses a co-op save that still
   holds the mod's items (Burst Stimpack, Beta Stimpack, Shock Bolt, Beta Seed), has Shock Bolts as the selected ammo,
   or names the cut Matrix XIII dungeon as its map, its camp or its last full camp, and `coop-link.log` says what to
-  use up, sell or switch, or to rest at a full camp (one with a phone booth) outside the dungeon. Quit the game
-  afterwards: until it restarts, the title's slot list shows the slot's old details. See
-  [docs/saves.md](docs/saves.md#co-op-saves).
+  use up, sell or switch, or to rest at a full camp (one with a phone booth) outside the dungeon. It also refuses a
+  developer save that `coop shortcut load` wrote in co-op slot 5, played or not. Quit the game afterwards: until it
+  restarts, the title's slot list shows the slot's old details. See [docs/saves.md](docs/saves.md#co-op-saves).
 - A co-op save that started New Game+ while it held any of these keeps them in the game's New Game+ copy of the
   inventory and camps, which playing does not change, so the export keeps refusing it. Only the copy by hand below
   takes it out.

@@ -322,6 +322,9 @@ build/host/pose_codec_test
     (a respawn in flight included), the call count (three calls in 10 s, a 10 s wait after an accepted call, none after
     a refused one) and the watch over the warp block (pending, warping, arrived, a block cleared before it ran, and one
     that never ran: stuck);
+  - `camps_test`: the activated camps' read, each guard refusing with its own reason (a warp, a respawn or a logic
+    task as busy), when the list is read (at once with none held, in a new world or after a drop, then every 2 s) and
+    the `activated=` line (the list, the camp EVE respawns at, a refusal, names that would not split left out);
   - `pak_list_test`: the `.pak` mod list's filter and digest (the base game's files left out, mods in any folder and
     any case counted, the listing's order and a name's case changing nothing, a size or a name changing the hash), the
     containers by name, the names as they go to the friend, hers against ours, the status list, and the CNS packs
@@ -445,6 +448,7 @@ Platform-free headers, tested on the build machine:
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
+| `game/camps.h` | The camps the save has activated, as SB's own camp list builds them, and the camp EVE respawns at: the calls and offsets, the guard, when to read and the `activated=` status line |
 | `game/dev_panels.h` | `coop devinfo`: the guard, the plan that opens one of SB's two read-only developer panels (the quest debugger, the player info) and closes the other, and their logic types and names |
 | `game/anim.h` | `coop emote`'s native clips: which clip paths pass, the path as the game's string, the call's arguments, the custom animation slot as read, our EVE and the check that she is still the object played on, what each frame does, and the track of the last play (its answer, the watch, the stop) with its log lines |
 | `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare |
@@ -454,5 +458,5 @@ The Windows side:
 | File | Contents |
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`glue/tick/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`glue/tick/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`glue/tick/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`glue/tick/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`); the read of the camps the save has activated (`glue/tick/camps_game.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

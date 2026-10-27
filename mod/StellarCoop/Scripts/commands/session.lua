@@ -61,8 +61,8 @@ function Session.new(o)
     -- refresh <0-4> replaces that slot's co-op copy, played or not, with a new copy of the player's save (the native
     -- part backs the old one up first); export <0-4> <0-4> writes that co-op slot's copy over that save of the player's
     -- (backed up first), to play on without the mod, and the native part refuses a copy that holds the mod's items or
-    -- stands in Matrix XIII. Each is asked once typed twice the same within 10 s. The native part refuses all but probe
-    -- off the title screen, and says why in coop-link.log.
+    -- stands in Matrix XIII, or a developer save coop shortcut load wrote. Each is asked once typed twice the same
+    -- within 10 s. The native part refuses all but probe off the title screen, and says why in coop-link.log.
     local function confirmed(line)
         local now=os.clock()
         if twice and twice.line==line and now-twice.at<=10 then
@@ -87,7 +87,8 @@ function Session.new(o)
                 return false,'coop saves export '..extra..' '..more..' writes your co-op save StellarBladeCoop0'..extra
                     ..'.sav over your own save StellarBladeSave0'..more..'.sav (your save there, if any, goes to '
                     ..'StellarCoopBackups first), to play on without the mod; it is refused while that co-op save '
-                    ..'holds the mod\'s items or stands in Matrix XIII: type it again within 10 s to go on'
+                    ..'holds the mod\'s items or stands in Matrix XIII, and for a developer save coop shortcut load '
+                    ..'wrote: type it again within 10 s to go on'
             end
             return ask('saves export '..extra..' '..more)()
         end

@@ -1595,9 +1595,9 @@ point there.
    in Matrix XIII makes its camp hers, and that camp is not one of the 120 travel camps. `coop mxiii` therefore keeps
    the camp where she respawned when it asked the travel in, and `coop mxiii leave` travels back to it if your save has
    activated it. If not, or if the game or the mod's scripts restarted since, it travels to the camp where EVE respawns
-   now when that is an activated travel camp, and otherwise to the first activated camp on the `activated=` line of
-   `coop status`. `coop mxiii leave` refuses when the mod has no read of your activated camps yet (during a load, for
-   example); try again a few seconds later.
+   now when that is an activated travel camp, and otherwise to the first camp on the `activated=` line of
+   `coop status` that is one of the 120 travel camps. `coop mxiii leave` refuses when the mod has no read of your
+   activated camps yet (during a load, for example); try again a few seconds later.
 
 With v2 the camp stands where EVE arrives: a vending machine, a chair, a skill machine, a storage box, a turntable and
 a phone booth, the same objects as a full camp elsewhere in the game. The vending machine coin it needs lies on the
