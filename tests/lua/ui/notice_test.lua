@@ -2,7 +2,7 @@
 -- line 120 cm above her, turned to the camera, wrapped at 40 columns (the shared fight's longest on two lines); in
 -- Latin-1 only (the engine's default font): a notice whose words go past it in English, '?' for what is left past it;
 -- hidden during our own photo mode, the queue kept;
--- spawned again once invalid; a frame with a stale player controller skipped; the first engine error turns it off with
+-- spawned again once invalid or once its address holds another object; a frame with a stale player controller skipped; the first engine error turns it off with
 -- one line, and no engine call follows; so does coop off, which hides it first.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
@@ -31,6 +31,8 @@ local world={GetFullName=function() return map_name end,SpawnActor=function(_,cl
     if fail_spawn then error('no spawn here') end
     assert(class.path=='/Script/Engine.Actor' and at.Z==120)
     local a=object({})
+    local full='Actor /Game/Art/BG/WorldMap/Level_P/E04.E04:PersistentLevel.Actor_'..#spawned
+    function a:GetFullName() calls=calls+1; return self.reused or full end
     function a:SetActorEnableCollision(on) calls=calls+1; self.collision=on end
     function a:SetActorHiddenInGame(hidden) calls=calls+1; self.hidden=hidden end
     function a:AddComponentByClass(class_of,manual)
@@ -191,9 +193,20 @@ n.tick()
 assert(#spawned==before+1 and spawned[#spawned].label.text=='again','Spawned again once invalid')
 assert(spawned[#spawned].label.at.Z==120)
 
+-- A map change frees the line, and its address may hold another object that still passes IsValid: never touched (not
+-- hidden, no text set), and a line of our own is spawned in its place.
+local freed=spawned[#spawned]
+freed.reused='SBCharacter /Game/Art/BG/WorldMap/Level_P/F02.F02:PersistentLevel.BP_NPC_C_3'
+player=nil; n.tick()
+assert(not freed.hidden,'The other object is not hidden')
+player=eve
+n.say('moved'); n.tick()
+assert(#spawned==before+2 and spawned[#spawned].label.text=='moved' and freed.label.text=='again',
+    'Spawned again, the other object left alone')
+
 -- coop off: the line on screen goes at once, and no engine call follows.
 local shown=spawned[#spawned]
-assert(not shown.hidden and shown.label.text=='again')
+assert(not shown.hidden and shown.label.text=='moved')
 n.stop(); assert(shown.hidden==true)
 calls=0
 n.say('later'); n.tick(); n.stop()
