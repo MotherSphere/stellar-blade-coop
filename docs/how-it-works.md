@@ -73,7 +73,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
-| `cut/mxiii.lua` | `coop mxiii`: the test pak's check, Matrix XIII's 2 rows through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01` ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `cut/mxiii.lua` | `coop mxiii`: the test pak's check (v1 or v2), Matrix XIII's 8 camp rows through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01` ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
@@ -2027,27 +2027,46 @@ WorldTable row `DLCMatrix13` (ID 2800) points to `/Game/Art/BG/WorldMap_DLC_01/L
 build 24463856 holds. ZoneTable keeps its four zones (`Zone_DLC02_10` to `Zone_DLC02_40`, IDs 2800 to 2815) and
 EventSpawnTable 92 spawn rows for them, but no camp, zone warp, world transition or cheat row leads there. `coop mxiii`
 tests one way in. The zMXIII_P test pak, built outside the repository from shipped Matrix 11 levels and never in the
-mod's zip, puts a map at that path with a spawn point named `DLC02_10_Camp_01`. The mod adds the two rows the game's
-camp travel needs to reach `Zone_DLC02_10`, then calls that travel.
+mod's zip, puts a map at that path with a spawn point named `DLC02_10_Camp_01`; its v2 build adds the spawn points of
+a camp's objects. The mod adds the rows of a camp in `Zone_DLC02_10`, then calls the game's camp travel to it.
 
 ### Its rows
 
 The camp travel (`FUN_141cdd7b0`, see [Following the host](#following-the-host)) looks the camp up in the zone
-manager's camp list, takes the camp's first ZoneEnvSpawnTable row, then that row's zone and the zone's world. The mxiii
-rows batch, written by hand in `lion/rows.h` after the generated part and with patches of its own, gives it both:
+manager's camp list, takes the camp's first ZoneEnvSpawnTable row, then that row's zone and the zone's world. The
+arrival (`FUN_141a8afe0`) puts EVE at the actor named after the camp, the test pak's spawn point. A camp's objects are
+ZoneEnvSpawnTable rows too: each row's `EnvAlias` picks the ZoneEnvTable row that gives the object its type and its
+interaction graph, and its `TargetCamp` is the camp that activating, resting, the phone booth and a respawn act on. The
+game keeps the DLC02_10 camp kit (`DLC02_10_EnvS_420` to `_426`), but its rows name placeholder camps of other worlds
+(`WLB10_Camp_05`, `SE02_Camp_02`) and expect actors placed in a map that no pak has.
+
+The mxiii rows batch, written by hand in `lion/rows.h` after the generated part and with patches of its own, adds eight
+rows, each a copy of a shipped row with its own name and ID:
 
 | Row | Table | ID | Template | Changes |
 | --- | --- | --- | --- | --- |
-| `DLC02_10_Camp_01` | ZoneCampTable | 280001 | `ME01_Camp_03` | `CampDisplayType` Never (5), so no world map shows it; `CampType` stays FullCamp |
+| `DLC02_10_Camp_01` | ZoneCampTable | 280001 | `ME01_Camp_03` | `CoinSpawnPointName` `DLC02_10_E_ItemS_001`; `CampType` stays FullCamp, `CampDisplayType` stays WhenActive |
 | `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`, `EnvActorName` its own name; `ZoneList` stays `Zone_DLC02_10` |
+| `DLC02_10_EnvS_901` to `_905` | ZoneEnvSpawnTable | 2800032901 to 2800032905 | `DLC02_10_EnvS_420` to `_424` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` and `SpawnPointName` their own name; `EnvBPPath` the skill machine, chair, storage, turntable and phone booth blueprints under `/Game/GameDesign/Level/ZoneEnv/` |
+| `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same four, with `Env_VendingMachine`; `LinkEnvSpawnList` 901 to 905 and 900, in the template's order |
 
-The template is the activation-only row of the DLC02_10 camp kit, whose rows all point at existing camps
-(`WLB10_Camp_05`, `SE02_Camp_02`). The two zone tables are the sixteenth and seventeenth of the 19 tables every rows
-request names (`kLionTables`), and only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come
-from the SDK, as the generator reads them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=` line's forms
-(`mxiii=rows added=2/2 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads its 4 patched
-fields back. The read-back compares an ID on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or
-not.
+`FUN_141d18100` lists a camp's rows in table order, and AddRow appends, so row 900 stays the camp's first: it leads the
+travel to `Zone_DLC02_10` and has no actor. The other six spawn their objects. `FUN_141d1e5b0`, which makes a zone's
+env objects, looks for a placed actor named `EnvActorName` when `EnvBPPath` is empty; with `EnvBPPath` set it spawns
+that class at the actor named `SpawnPointName`, as 137 shipped rows do (Xion's supply boxes, `DLC02_10_EnvS_441`), none
+of them a camp object until now. The blueprints are the six kit actors of the Space Elevator's full camp
+`SE02_Camp_02`. The vending machine row starts enabled and the others disabled: activating the camp with a coin sets
+it and every row in its `LinkEnvSpawnList` on. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's
+that spawns a vending machine coin at the spawn point of that name when EVE enters the zone. The camp keeps
+`ME01_Camp_03`'s name, picture and region, so the camp list shows it under Matrix 11. No dungeon has a world map in the
+game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
+
+The two zone tables are the sixteenth and seventeenth of the 19 tables every rows request names (`kLionTables`), and
+only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
+them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
+line's forms (`mxiii=rows added=8/8 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
+its 29 patched fields back, `EnvBPPath` as text and `LinkEnvSpawnList` as a list of names. The read-back compares an ID
+on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or not.
 
 ### The command
 
@@ -2057,26 +2076,55 @@ accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/
 `SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain
 text in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
 IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the game started passes the
-check although the engine mounts paks only at start. It reads that file once a command and never looks the map up with
-`StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss. Then the rows go in through
+check although the engine mounts paks only at start. It reads those files once a command and never looks the map up
+with `StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss. Then the rows go in through
 `cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for `DLC02_10_Camp_01`, a
 camp in none of its tables (`probe(alias, true)`). The native side is the follow's: the guard, the count and the watch
-of `game/travel.h`. The travel's result comes in `[TR]` lines.
+of `game/travel.h`. The travel's result comes in `[TR]` lines. The command's answer names the way out,
+`coop travel probe ME01_Camp_01`, which stays the documented exit until the camp's phone booth has worked in game.
+
+The check tells the two builds of the test pak apart by the `.ucas`, of which it reads up to 16 MB. A zen package of UE
+4.26 keeps its own name map, in plain text when the container is not compressed, and an FName whose text ends in `_`
+and a number with no leading zero is stored as its base: v2's `MXIII_10_LD` holds `DLC02_10_EnvS`, the base of the six
+spawn point names, and v1 has no such name (its own names, such as `DLC02_10_E_CharS_001` and `DLC02_10_Camp_01`, are
+stored whole). The checks line says which build it found and where its camp's spawn point stands: at the dungeon start
+(40368, 35663, -846) in v1, beside the camp objects at Matrix 11's first simple camp site (36624, 16140, -2136) in v2.
+Both get the same rows; on v1 the objects find no spawn point and none appears. A container compressed with Oodle
+would read as v1.
 
 ### The camp list
 
 `FSBGameWorld::Init` (`FUN_141c97ca0`, named by its own log line) makes a new zone manager at the world's `+0xe0`. Its
-setup (`FUN_141d1a520`, `FUN_141d1af70`) runs `FUN_141d18100`, which goes over every ZoneEnvSpawnTable row with a
-`TargetCamp` and adds the row's name under that camp at `+0x4a8`; `FUN_141d1a700` clears the list. Rows added after the
-current world started are then missing from its list, and the first `coop mxiii` should end in
-`SB refused DLC02_10_Camp_01`. After the next world start (a save loaded, a travel to a camp), a second `coop mxiii`
-reads the rows back without asking again and travels. This comes from reading the code; it has not run in game.
+setup (`FUN_141d1a520`, `FUN_141d1af70`) runs `FUN_141d18100`, which goes over every ZoneEnvSpawnTable row, adds each
+row with a `TargetCamp` under that camp at `+0x4a8` and each row to the env list of every zone in its `ZoneList`, with
+no world filter; `FUN_141d1a700` clears the list. Rows added after the current world started are then missing from its
+lists, and the first `coop mxiii` should end in `SB refused DLC02_10_Camp_01`. After the next world start (a save
+loaded, a travel to a camp), a second `coop mxiii` reads the rows back without asking again and travels, and the world
+it lands in lists the camp objects in `Zone_DLC02_10`. This comes from reading the code; it has not run in game.
+
+### The save
+
+The save names camps and their rows in four fields: `USBSaveData`'s activated camps (`OpenCampAliases`, `+0x88`) and
+the row a camp was last used through (`LastInteractCampEnvSpawnAlias`, `+0x98`), and `FSBSaveGameData_Actor`'s last
+full camp and last simple camp rows (`LastFullCampEnvSpawnAlias`, `+0x26c`; `LastSimplyCampEnvSpawnAlias`, `+0x28c`).
+A death or a load resolves the last row to its camp. The vending machine's interaction graph saves after the
+activation and the phone booth's saves before its camp list (read from the graphs), so `DLC02_10_Camp_01` and the
+mod's rows are on disk from the activation on. Resting at another camp does not take the camp out of
+`OpenCampAliases`, and the way out, `ME01_Camp_01`, is a SimplyCamp in ZoneCampTable, so a rest there changes only the
+simple camp row and leaves `LastFullCampEnvSpawnAlias` on a mod row. Those rows exist only once `coop mxiii` has run in
+the game run. What a load or the camp list does with a camp or row that has no table row
+(`ESBEnterGameResult_NotFoundTargetCamp`, a skip or a null read) was not traced, so the usage section gives
+`coop saves refresh` at the title as the way back. Adding the rows at mod start whenever the test pak is installed
+would keep those names valid; the mod does not do that yet.
 
 ### Open questions
 
 - whether the game loads `MXIII_P` from a mod container, and whether it accepts retoc's zen output of a renamed map;
 - whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d18100` lists the camps of every world;
 - whether the camp arrival (`FUN_141a8afe0`) finds the spawn point named `DLC02_10_Camp_01` in the test map;
+- whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset), and
+  whether the camp list shows the camp once the vending machine has activated it (`InteractCamp` was read from the
+  interaction graphs, not traced in code);
 - what the world map, the region name and the loading screen do with a world that has no map data;
 - what entering `Zone_DLC02_10` writes into the save. Its 15 spawn rows are `EnterZone` rows, so 14 Antlions and a
   data drone should appear.

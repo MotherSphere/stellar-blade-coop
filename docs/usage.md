@@ -847,7 +847,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
 | `coop tendril fight [rows]` | The [cut Tendril](#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
-| `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](#cut-dungeon-coop-mxiii-experimental) (experimental test command, untested in game; needs the zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
+| `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](#cut-dungeon-coop-mxiii-experimental) and a camp there (experimental test command, untested in game; needs the zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
 | `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save; loading one is held back) |
@@ -1560,53 +1560,88 @@ normally after you switch ammo.
 ### Cut dungeon: `coop mxiii` (experimental)
 
 The game's tables keep a dungeon that was cut before release, Matrix XIII (world `DLCMatrix13`), with four zones and
-the enemies of each, but no pak holds its map and no camp or warp leads there. `coop mxiii` tests one way in. It needs
-the zMXIII_P test pak, which does not come with the mod: a map at the path the game's world table names, built from
-shipped Matrix 11 levels. Without that pak the command refuses and changes nothing. It is a test command, left out of
-the usage line, and runs only alone (not in a session) on a [co-op save](#co-op-saves). Its lines go to `UE4SS.log` as
-`[StellarCoop][MX]`, the travel's as `[StellarCoop][TR]`.
+the enemies of each, but no pak holds its map and no camp or warp leads there. `coop mxiii` tests one way in and gives
+the first zone a camp. It needs the zMXIII_P test pak, which does not come with the mod: a map at the path the game's
+world table names, built from shipped Matrix 11 levels. Without that pak the command refuses and changes nothing. It
+is a test command, left out of the usage line, and runs only alone (not in a session) on a
+[co-op save](#co-op-saves). Its lines go to `UE4SS.log` as `[StellarCoop][MX]`, the travel's as `[StellarCoop][TR]`.
+
+The test pak has two builds, and the command takes either and logs which one it found. v1 holds the map, the zone and
+the enemies' spawn points, with the camp's arrival point at the dungeon start. v2 adds spawn points for the camp's six
+objects and its coin at the site of Matrix 11's first simple camp (`ME01_Camp_01`, in Area01), and moves the arrival
+point there.
 
 1. With the game closed, put `zMXIII_P.utoc`, `zMXIII_P.ucas` and `zMXIII_P.pak` in `SB/Content/Paks/~mods` (or
    `SB/Content/Paks/LogicMods`).
 2. Load a co-op save you can lose. Entering a world the save has never been in may write that world, its zone and its
    enemies into the save; `coop saves refresh <0-4>` at the title replaces a co-op copy with a new copy of your save.
    Once the game saves inside the dungeon, that co-op save loads only while zMXIII_P is installed, and the camp is
-   gone at the next game start (its row lives in memory only). Before you remove the pak, replace that copy with
+   gone at the next game start (its rows live in memory only). Before you remove the pak, replace that copy with
    `coop saves refresh <0-4>`.
-3. Type `coop mxiii`. It checks the pak and the travel's conditions, adds two rows to the game's tables in memory (the
-   camp `DLC02_10_Camp_01` and the row that puts it in the dungeon's first zone, `Zone_DLC02_10`), then asks the game's
-   own camp travel to go there, as `coop travel probe` does for a known camp.
+3. Type `coop mxiii`. It checks the pak and the travel's conditions and adds eight rows to the game's tables in memory:
+   the camp `DLC02_10_Camp_01`, a row in the dungeon's first zone (`Zone_DLC02_10`) that leads the travel there, and
+   one row for each of the camp's six objects. Then it asks the game's own camp travel to go there, as
+   `coop travel probe` does for a known camp.
 4. If the log says `travel: SB refused DLC02_10_Camp_01`, the game listed its camps when the map started, before the
    rows went in. Load the save again (or travel to any camp), then type `coop mxiii` again: the rows stay until the
    game exits, so the second time it only travels.
+5. To leave, type `coop travel probe ME01_Camp_01`, which travels to Matrix 11's first simple camp. Use this way out
+   until the camp's phone booth has been shown to work in game.
+
+With v2 the camp stands where EVE arrives: a vending machine, a chair, a skill machine, a storage box, a turntable and
+a phone booth, the same objects as a full camp elsewhere in the game. The vending machine coin it needs lies on the
+floor beside them; the zone puts it there when EVE enters. At first only the vending machine works. Activate the camp
+with the coin and the other five objects switch on. The camp then shows in the camp list under Matrix 11, with the name
+and picture of Matrix 11's first full camp, since the game has no text for Matrix XIII. On a save that has activated
+that camp (`ME01_Camp_03`, Matrix 11's start camp), the list shows two entries that look the same, and which one comes
+first has not been checked. After a travel from the list, `coop where` tells you where EVE landed: `map=` ends in
+`mxiii_p` at this camp, with `eve=` near 36624,16140, and in `matrix_xi` at Matrix 11's camp. The chair rests there,
+the phone booth opens the camp list for fast travel out and back, and a death in the zone brings EVE back to this camp.
+With v1 the game finds no spawn point for the six objects and places none; the travel still works.
 
 - The pak check reads `zMXIII_P.utoc` once per command and looks for `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap`
-  in it, with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it. A pak under another name is not found. The check reads the
-  folder as it is now: it cannot tell whether the game mounted the pak at start, and the game mounts paks only at
-  start. Copy the files in with the game closed.
+  in it, with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it. It then reads up to 16 MB of `zMXIII_P.ucas`: v2 names
+  the objects' spawn points there (`DLC02_10_EnvS`), v1 does not. A container compressed with Oodle hides those names
+  and reads as v1. A pak under another name is not found. The check reads the folder as it is now: it cannot tell
+  whether the game mounted the pak at start, and the game mounts paks only at start. Copy the files in with the game
+  closed.
+- The mod's camp reaches the save file as soon as you activate it, without a save and quit: the vending machine saves
+  the game after the activation, and the phone booth saves before it opens the camp list. The save's activated camps
+  then include `DLC02_10_Camp_01`, and its last camp is one of the mod's rows (`DLC02_10_EnvS_906` after the
+  activation). Those rows exist only once `coop mxiii` has run in the same game run, and what the game does with a
+  save that names a camp or row it does not have has not been checked. Resting at another camp afterwards does not
+  clean the save: `DLC02_10_Camp_01` stays among the activated camps, and `ME01_Camp_01` is a simple camp, so a rest
+  there leaves the last full camp on a mod row. To get that slot back, type `coop saves refresh <0-4>` at the title,
+  while the game uses your own saves, before you load the slot again. The same applies if the game crashes after the
+  activation.
 - The rows go in through the same native calls as `coop lion` and the shop's cut items. A fault in those calls during
   `coop mxiii` stops them all until the game restarts: `coop lion`, `coop gardener fight`, `coop tendril fight`, and
   the shop's stimpacks, ChainSpin and Shock Bolt that are not in yet then answer that the rows stopped on a fault.
-- The camp never shows on the world map, and the mod adds nothing else: no zone warp, no quest step, no item.
-- What you find there depends on the test pak. The dungeon's first zone spawns its enemies as you enter it (14 Antlions
-  and a data drone in the game's spawn table).
+- The game has no world map for Matrix 11 or Matrix XIII, so the camp shows only in the camp list. The mod adds nothing
+  else: no zone warp, no quest step, no item.
+- What else you find there depends on the test pak. The dungeon's first zone spawns its enemies as you enter it (14
+  Antlions and a data drone in the game's spawn table).
 - `coop off` ends the wait for the rows. A travel the game already took goes on.
 
 | Line | What it answers |
 | --- | --- |
-| `[StellarCoop][MX] checks: solo on a co-op save, the native travel idle, <path> holds WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas` | The checks passed and the test pak holds the map |
+| `[StellarCoop][MX] checks: solo on a co-op save, the native travel idle, <path> holds WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas; test pak v1 (...)` or `...; test pak v2 (...)` | The checks passed, the test pak holds the map, and which build it is, with where EVE arrives |
 | `[StellarCoop][MX] refused: no test pak: no <path> or <path>` | No test pak in either folder: nothing was asked |
 | `[StellarCoop][MX] refused: no test pak: <path> does not hold <name>` or `no <path> beside <path>` | The `.utoc` names the map under another folder or not at all, or its `.pak` or `.ucas` is missing: nothing was asked |
 | `[StellarCoop][MX] refused: <why>` | A condition of the travel failed (a session, another save, a travel under way or under 10 s ago, the native travel stopped by a fault): nothing was asked |
-| `mxiii rows: 2/2 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added the 2 rows |
-| `mxiii rows refused <row>: <why>; <n>/2 added` (`coop-link.log`) | A row the native part would not add, and why: no travel |
-| `[StellarCoop][MX] rows read back through FindRow: 2/2 authored rows, 4 fields as written (3 differ from the template row)` | Every field the native part wrote reads as written |
+| `mxiii rows: 8/8 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added the 8 rows |
+| `mxiii rows refused <row>: <why>; <n>/8 added` (`coop-link.log`) | A row the native part would not add, and why: no travel |
+| `[StellarCoop][MX] rows read back through FindRow: 8/8 authored rows, 29 fields as written (28 differ from the template row)` | Every field the native part wrote reads as written |
 | `[StellarCoop][MX] travel to DLC02_10_Camp_01 asked: ...` | The camp travel went to the native part |
 | `[StellarCoop][TR] travel accepted: DLC02_10_Camp_01` | The game took the travel: the fade and the load follow |
 | `[StellarCoop][TR] travel: SB refused DLC02_10_Camp_01` | The game did not find the camp (see step 4) |
 
-None of it has been tried in game yet. Check that the second try loads the map, that EVE stands on its floor at the
-camp's spawn point, which enemies appear, and that the game keeps running and saves normally after you leave.
+None of it has been tried in game yet. Check that the second try loads the map and that EVE stands on its floor at the
+camp's arrival point, and which enemies appear. With v2, check that the six objects and the coin stand on the floor
+without clipping, that the coin activates the camp, that the chair rests, that the phone booth travels to a camp of the
+main game and back from the camp list (with `coop where` showing `map=` ending in `mxiii_p` on the way back), and that
+a death in the zone brings EVE back to the camp. Check that the game keeps running and saves normally after you leave,
+then replace the slot with `coop saves refresh <0-4>` at the title.
 
 ### Cut hairs and suits: `coop wear`
 

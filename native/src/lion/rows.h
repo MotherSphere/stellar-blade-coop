@@ -40,11 +40,12 @@
 // ProjectileTable P_Eve_Gun_ShootShockSlug1_Projectile1 (1010051, the normal slug's), and its hit result with SB's
 // shock stun (SkillResultTable 100200801). What makes the ammo selectable and the gun fire it is no row: lion/shock.h
 // grows two lists in place once these rows are in. A fifth, Matrix XIII's
-// (kMxiiiRecipe, written by hand below the generated part with its own patches), holds the 2 rows the cut dungeon's
-// first zone lacks for SB's camp travel (coop mxiii, cut/mxiii.lua): ZoneCampTable DLC02_10_Camp_01 (280001, a copy of
-// ME01_Camp_03 never shown on the world map) and ZoneEnvSpawnTable DLC02_10_EnvS_900 (2800032900, a copy of the
-// DLC02_10 camp kit's DLC02_10_EnvS_425, in Zone_DLC02_10, whose TargetCamp names that camp), in the two zone tables
-// only it writes. A sixth, the Night Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it
+// (kMxiiiRecipe, written by hand below the generated part with its own patches), holds the 8 rows the cut dungeon's
+// first zone lacks for a camp of its own (coop mxiii, cut/mxiii.lua): ZoneCampTable DLC02_10_Camp_01 (280001, a copy of
+// ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp
+// names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420 to 426): DLC02_10_EnvS_900
+// leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points of those names, in the two
+// zone tables only it writes. A sixth, the Night Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it
 // (nightop/shop.lua asks for it before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011,
 // over Clyde's currency FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and
 // the Shock Bolt (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop
@@ -6298,25 +6299,71 @@ constexpr Row kShopRecipe[] = {
 
 // ---- Matrix XIII's batch (coop mxiii), written by hand: the generator holds no zone table ----
 // Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13, whose map no pak ships: the zMXIII_P test pak adds it) has no camp,
-// so SB's camp travel (game/travel.h) cannot reach it. These 2 rows give it one: the camp, then the ZoneEnvSpawnTable
-// row whose TargetCamp names it, so that the camp's first env-spawn row leads to Zone_DLC02_10 and that zone's world.
-// Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK (stellar-sdk-647527f), which
-// the generated kTables reads too; neither struct has a Transient field.
+// so SB's camp travel (game/travel.h) cannot reach it. These 8 rows give it one. The camp first. Then DLC02_10_EnvS_900,
+// the camp's first env-spawn row (FUN_141d18100 lists a camp's rows in table order, and AddRow appends), which leads
+// the travel to Zone_DLC02_10 and that zone's world and has no actor. Then the kit, 901 to 906: with EnvBPPath set,
+// FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's env rows are created, as for
+// the shipped supply boxes and DLC02_10_EnvS_441 (the kit rows 420 to 426 have none, so they look for placed actors no
+// pak holds). The zMXIII_P v2 pak has the points; on v1 SB finds none and spawns nothing. Every row names the new camp,
+// so activating, resting, the phone booth and a respawn use DLC02_10_Camp_01, not the kit's placeholder camps
+// (WLB10_Camp_05, SE02_Camp_02). The vending machine comes last: its LinkEnvSpawnList switches the other six on once a
+// coin activates the camp. Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK
+// (stellar-sdk-647527f), which the generated kTables reads too; neither struct has a Transient field.
 static_assert(kTables[kTableCount - 1].name, "the generated kTables describes every table");
 constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
-// The camp is ME01_Camp_03 (a Matrix 11 FullCamp) with its world map display off; the env-spawn row is the DLC02_10
-// camp kit's activation-only row DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) with its own actor name and the new camp.
+// The camp is ME01_Camp_03 (a Matrix 11 FullCamp, CampDisplayType WhenActive) with the coin's spawn point of the test
+// pak, DLC02_10_E_ItemS_001 (EventItemTable spawns the coin there). DLC02_10_EnvS_900 is the kit's activation-only row
+// DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) with its own actor name and the new camp. Each kit row is its kit row
+// (skill machine 420, chair 421, storage 422, turntable 423, phone booth 424, vending machine 426) with its own actor
+// and spawn point names, the blueprint SE02_Camp_02's full camp places, and the new camp.
 constexpr Patch kMxiiiPatches[] = {
     // DLC02_10_Camp_01 (ZoneCampTable, Matrix XIII)
-    {0x28, Kind::u8, 3, nullptr}, // CampType
-    {0x6c, Kind::u8, 5, nullptr}, // CampDisplayType
+    {0x28, Kind::u8, 3, nullptr},                  // CampType
+    {0x60, Kind::name, 0, "DLC02_10_E_ItemS_001"}, // CoinSpawnPointName
     // DLC02_10_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII)
     {0x30, Kind::name, 0, "DLC02_10_EnvS_900"}, // EnvActorName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_10_EnvS_901 (ZoneEnvSpawnTable, Matrix XIII: skill machine)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_901"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_SkillMachine.Env_Camp_SkillMachine_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_901"}, // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_10_EnvS_902 (ZoneEnvSpawnTable, Matrix XIII: chair)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_902"},                                         // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Chair.Env_Camp_Chair_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_902"},                                         // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                         // TargetCamp
+    // DLC02_10_EnvS_903 (ZoneEnvSpawnTable, Matrix XIII: storage)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_903"},                                             // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Storage.Env_Camp_Storage_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_903"},                                             // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                             // TargetCamp
+    // DLC02_10_EnvS_904 (ZoneEnvSpawnTable, Matrix XIII: turntable)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_904"},                                                 // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Turntable.Env_Camp_Turntable_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_904"},                                                 // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                                 // TargetCamp
+    // DLC02_10_EnvS_905 (ZoneEnvSpawnTable, Matrix XIII: phone booth)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_905"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_905"}, // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_10_EnvS_906 (ZoneEnvSpawnTable, Matrix XIII: vending machine, linking the kit in the template's order)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // SpawnPointName
+    {0x260, Kind::names, 0, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900"}, // LinkEnvSpawnList
     {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
 };
 constexpr Row kMxiiiRecipe[] = {
     {Table::camp, "DLC02_10_Camp_01", "ME01_Camp_03", 280001, 0, 2},
     {Table::env, "DLC02_10_EnvS_900", "DLC02_10_EnvS_425", 2800032900u, 2, 2},
+    {Table::env, "DLC02_10_EnvS_901", "DLC02_10_EnvS_420", 2800032901u, 4, 4},
+    {Table::env, "DLC02_10_EnvS_902", "DLC02_10_EnvS_421", 2800032902u, 8, 4},
+    {Table::env, "DLC02_10_EnvS_903", "DLC02_10_EnvS_422", 2800032903u, 12, 4},
+    {Table::env, "DLC02_10_EnvS_904", "DLC02_10_EnvS_423", 2800032904u, 16, 4},
+    {Table::env, "DLC02_10_EnvS_905", "DLC02_10_EnvS_424", 2800032905u, 20, 4},
+    {Table::env, "DLC02_10_EnvS_906", "DLC02_10_EnvS_426", 2800032906u, 24, 5},
 };
 
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];

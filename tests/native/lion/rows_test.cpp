@@ -388,22 +388,33 @@ int main() {
   }
   assert(!std::strcmp(table_info(Table::camp).name, "ZoneCampTable") && table_info(Table::camp).size == 0xa8 &&
          !std::strcmp(table_info(Table::env).name, "ZoneEnvSpawnTable") && table_info(Table::env).size == 0x508);
-  // Matrix XIII's batch, by hand with patches of its own: the camp (a copy of ME01_Camp_03, FullCamp, never shown on
-  // the world map), then the env-spawn row whose TargetCamp (+0x270) names it, a copy of DLC02_10_EnvS_425 with its
-  // own actor name (+0x30). Each patch inside its struct past the ID, no two on the same bytes.
-  static_assert(kMxiiiRows == 2, "the camp and its env-spawn row");
+  // Matrix XIII's batch, by hand with patches of its own: the camp (a copy of ME01_Camp_03, FullCamp, its
+  // CampDisplayType WhenActive left as copied, the coin's spawn point at +0x60), then 7 env-spawn rows whose TargetCamp
+  // (+0x270) names it, each under its own actor name (+0x30): DLC02_10_EnvS_900 first (a copy of the activation-only
+  // DLC02_10_EnvS_425, no actor), then the kit 901 to 906 (copies of 420 to 424 and 426), each spawning a blueprint
+  // under /Game/GameDesign/Level/ZoneEnv/ (EnvBPPath +0x38) at the spawn point of its own name (+0x48); the vending machine
+  // last, linking the other six (LinkEnvSpawnList +0x260). Names and IDs unique, each patch inside its struct past the
+  // ID, no two on the same bytes.
+  static_assert(kMxiiiRows == 8, "the camp and its 7 env-spawn rows");
   {
-    const Row &camp = kMxiiiRecipe[0], &env = kMxiiiRecipe[1];
+    const Row &camp = kMxiiiRecipe[0], &first = kMxiiiRecipe[1], &vending = kMxiiiRecipe[kMxiiiRows - 1];
     assert(kMxiii.patches == kMxiiiPatches && kLion.patches == kPatches && kBolt.patches == kPatches &&
            kShop.patches == kPatches);
     assert(camp.table == Table::camp && !std::strcmp(camp.name, "DLC02_10_Camp_01") &&
            !std::strcmp(camp.donor, "ME01_Camp_03") && camp.id == 280001);
-    assert(env.table == Table::env && !std::strcmp(env.name, "DLC02_10_EnvS_900") &&
-           !std::strcmp(env.donor, "DLC02_10_EnvS_425") && env.id == 2800032900u);
+    assert(!std::strcmp(first.name, "DLC02_10_EnvS_900") && !std::strcmp(first.donor, "DLC02_10_EnvS_425") &&
+           first.id == 2800032900u);
+    static const char *const kDonors[] = {"DLC02_10_EnvS_420", "DLC02_10_EnvS_421", "DLC02_10_EnvS_422",
+                                          "DLC02_10_EnvS_423", "DLC02_10_EnvS_424", "DLC02_10_EnvS_426"};
+    std::set<std::string> names;
+    std::set<uint32_t> ids;
     size_t n = 0;
-    for (const Row &r : kMxiiiRecipe) {
+    for (size_t i = 0; i < kMxiiiRows; ++i) {
+      const Row &r = kMxiiiRecipe[i];
       const TableInfo &info = table_info(r.table);
-      assert(r.first == n && r.count > 0 && info.id && r.id);
+      assert(r.first == n && r.count > 0 && info.id && r.id && names.insert(r.name).second && ids.insert(r.id).second);
+      assert(i == 0 || (r.table == Table::env && r.id == 2800032900u + (i - 1) &&
+                        (i == 1 || !std::strcmp(r.donor, kDonors[i - 2]))));
       n += r.count;
       for (size_t p = r.first; p < size_t(r.first) + r.count; ++p) {
         const Patch &x = kMxiiiPatches[p];
@@ -413,18 +424,37 @@ int main() {
                  x.at + kind_size(x.kind) <= kMxiiiPatches[q].at);
       }
     }
-    assert(n == sizeof kMxiiiPatches / sizeof kMxiiiPatches[0]);
-    const auto at = [](const Row &r, uint16_t offset) -> const Patch & {
+    assert(n == sizeof kMxiiiPatches / sizeof kMxiiiPatches[0] && n == 29);
+    const auto find = [](const Row &r, uint16_t offset) -> const Patch * {
       for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
         if (kMxiiiPatches[p].at == offset)
-          return kMxiiiPatches[p];
-      assert(false);
-      return kMxiiiPatches[0];
+          return &kMxiiiPatches[p];
+      return nullptr;
     };
-    assert(at(camp, 0x28).kind == Kind::u8 && at(camp, 0x28).f == 3); // CampType FullCamp.
-    assert(at(camp, 0x6c).kind == Kind::u8 && at(camp, 0x6c).f == 5); // CampDisplayType Never.
-    assert(at(env, 0x270).kind == Kind::name && !std::strcmp(at(env, 0x270).text, camp.name));
-    assert(at(env, 0x30).kind == Kind::name && !std::strcmp(at(env, 0x30).text, env.name));
+    const auto at = [&find](const Row &r, uint16_t offset) -> const Patch & {
+      const Patch *p = find(r, offset);
+      assert(p);
+      return *p;
+    };
+    assert(camp.count == 2 && at(camp, 0x28).kind == Kind::u8 && at(camp, 0x28).f == 3); // CampType FullCamp.
+    assert(at(camp, 0x60).kind == Kind::name && !std::strcmp(at(camp, 0x60).text, "DLC02_10_E_ItemS_001"));
+    assert(!find(camp, 0x6c)); // CampDisplayType stays the template's WhenActive.
+    assert(first.count == 2 && !find(first, 0x38) && !find(first, 0x48));
+    for (size_t i = 1; i < kMxiiiRows; ++i) {
+      const Row &r = kMxiiiRecipe[i];
+      assert(at(r, 0x270).kind == Kind::name && !std::strcmp(at(r, 0x270).text, camp.name));
+      assert(at(r, 0x30).kind == Kind::name && !std::strcmp(at(r, 0x30).text, r.name));
+      if (i == 1)
+        continue;
+      const char *path = at(r, 0x38).text;
+      assert(at(r, 0x38).kind == Kind::string && !std::strncmp(path, "/Game/GameDesign/Level/ZoneEnv/", 31) &&
+             !std::strcmp(path + std::strlen(path) - 2, "_C"));
+      assert(at(r, 0x48).kind == Kind::name && !std::strcmp(at(r, 0x48).text, r.name));
+      assert(r.count == (&r == &vending ? 5 : 4));
+    }
+    assert(at(vending, 0x260).kind == Kind::names &&
+           !std::strcmp(at(vending, 0x260).text, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|"
+                                                 "DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900"));
   }
   // Every reference among the new rows lands on a new row: the steps' chains and moves, the skills' first steps and
   // target filters, the commands' skills, the stances' commands and anim sets, the CharacterTable rows' stances, dead
@@ -807,20 +837,31 @@ int main() {
     assert(describe_read(kBolt, rb) ==
            "bolt rows by SB's lookups: CharacterTable - 0/0, SkillTable 1003401 1/1, stance - 0/0");
 
-    // Matrix XIII's batch after them all, on its own Builder: its 2 rows from its own patches, into the two zone tables
-    // only it reads; its ID above 2^31 goes in whole. SB's lookups by ID have nothing of it to find.
+    // Matrix XIII's batch after them all, on its own Builder: its 8 rows from its own patches, into the two zone tables
+    // only it reads, the camp first; its IDs above 2^31 go in whole, and every env-spawn row names the camp, the
+    // vending machine with its blueprint path and its 6 links. SB's lookups by ID have nothing of it to find.
     Builder mb(kMxiii);
     const Answer ma = mb.run(g, kBase, g.tables, g.block);
     const size_t zone = bolts + kBoltRows;
     assert(ma.state == State::rows && ma.added == kMxiiiRows && g.adds.size() == zone + kMxiiiRows);
     verify(g, mb, kMxiii, zone);
-    assert(g.adds[zone].table == size_t(Table::camp) && g.adds[zone + 1].table == size_t(Table::env) &&
-           Game::field<uint32_t>(g.adds[zone + 1], kIdAt) == 2800032900u &&
-           g.name_text(Game::field<uint64_t>(g.adds[zone + 1], 0x270)) == "DLC02_10_Camp_01");
-    assert(g.id_name(g.tables[size_t(Table::env)], 2800032900u) == g.name("DLC02_10_EnvS_900"));
+    assert(g.adds[zone].table == size_t(Table::camp) &&
+           g.name_text(Game::field<uint64_t>(g.adds[zone], 0x60)) == "DLC02_10_E_ItemS_001");
+    for (size_t i = 1; i < kMxiiiRows; ++i)
+      assert(g.adds[zone + i].table == size_t(Table::env) &&
+             Game::field<uint32_t>(g.adds[zone + i], kIdAt) == 2800032900u + (i - 1) &&
+             g.name_text(Game::field<uint64_t>(g.adds[zone + i], 0x270)) == "DLC02_10_Camp_01");
+    const Game::Add &machine = g.adds[zone + kMxiiiRows - 1];
+    assert(g.string_field(machine, 0x38) == "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C" &&
+           g.name_text(Game::field<uint64_t>(machine, 0x48)) == "DLC02_10_EnvS_906" &&
+           g.list_field(machine, 0x260, Kind::names) ==
+               "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905|"
+               "DLC02_10_EnvS_900");
+    assert(g.id_name(g.tables[size_t(Table::env)], 2800032900u) == g.name("DLC02_10_EnvS_900") &&
+           g.id_name(g.tables[size_t(Table::env)], 2800032906u) == g.name("DLC02_10_EnvS_906"));
     rb = mb.read_back(g, g.tables);
     assert(rb.character == 0 && rb.skills == 0 && rb.stance == 0);
-    assert(describe(kMxiii, ma) == "mxiii rows: 2/2 added through SB's AddRow 0x14417ba30, 0 refused");
+    assert(describe(kMxiii, ma) == "mxiii rows: 8/8 added through SB's AddRow 0x14417ba30, 0 refused");
     assert(describe_read(kMxiii, rb) ==
            "mxiii rows by SB's lookups: CharacterTable - 0/0, SkillTable - 0/0, stance - 0/0");
     assert(mb.run(g, kBase, g.tables, g.block).added == kMxiiiRows && g.adds.size() == zone + kMxiiiRows);
@@ -864,10 +905,10 @@ int main() {
     const Answer a = mb.run(g, kBase, g.tables, g.block);
     assert(a.state == State::refused && a.why == Why::size && a.detail == 0x500 && g.adds.empty());
     assert(describe(kMxiii, a) ==
-           "mxiii rows refused DLC02_10_EnvS_900: ZoneEnvSpawnTable's row size 0x500 not 0x508; 0/2 added");
+           "mxiii rows refused DLC02_10_EnvS_900: ZoneEnvSpawnTable's row size 0x500 not 0x508; 0/8 added");
     Status s;
     s.word = pack(a, 1);
-    assert(status_line(kMxiii, s) == "mxiii=refused added=0/2 asks=1 spawns=? why=size table=ZoneEnvSpawnTable "
+    assert(status_line(kMxiii, s) == "mxiii=refused added=0/8 asks=1 spawns=? why=size table=ZoneEnvSpawnTable "
                                      "row=DLC02_10_EnvS_900 detail=0x500");
     assert(lb.run(g, kBase, g.tables, g.block).state == State::rows && g.adds.size() == kRows);
     Game h;
@@ -875,7 +916,7 @@ int main() {
     Builder hb(kMxiii);
     const Answer b = hb.run(h, kBase, h.tables, h.block);
     assert(b.state == State::refused && b.why == Why::id && b.row == 0 && h.adds.empty());
-    assert(describe(kMxiii, b) == "mxiii rows refused DLC02_10_Camp_01: ID 280001 taken; 0/2 added");
+    assert(describe(kMxiii, b) == "mxiii rows refused DLC02_10_Camp_01: ID 280001 taken; 0/8 added");
   }
   {
     // A ShopTable whose row size is not the SDK's stops the shop's batch before any row (every table it uses is
@@ -1108,9 +1149,9 @@ int main() {
     // Matrix XIII's line (cut/mxiii.lua reads it): no row SB's lookups by ID count.
     Status ms;
     assert(status_line(kMxiii, ms) == "mxiii=off");
-    a = Answer(), a.state = State::rows, a.added = 2;
+    a = Answer(), a.state = State::rows, a.added = 8;
     ms.word = pack(a, 1);
-    assert(status_line(kMxiii, ms) == "mxiii=rows added=2/2 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
+    assert(status_line(kMxiii, ms) == "mxiii=rows added=8/8 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
     // The Night Operation shop's line: its word, no CharacterTable, skill or stance row.
     Status ss;
     assert(status_line(kShop, ss) == "shop=off");
