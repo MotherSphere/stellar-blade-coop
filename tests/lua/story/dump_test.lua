@@ -219,11 +219,13 @@ assert(joined:find('zone Zone_Z item 0 bGetStorage = False',1,true),joined)
 assert(not joined:find('PhysicsConstraintStateMap',1,true),joined)
 assert(not joined:find('TMap: 0x',1,true),joined)
 -- 1d. A float prints as Python's repr prints it (what tools/story.py writes): the fewest digits that read back the
--- same, written out from 1e-4 to under 1e16, else with an exponent.
+-- same, written out from 1e-4 to under 1e16, else with an exponent. At some powers of two the shortest string is one
+-- up in the last digit from the nearest one (2^-24, 2^-44).
 do
     local floats={{0.30000000000000004,'0.30000000000000004'},{1e-05,'1e-05'},{0.0001,'0.0001'},{-2.5,'-2.5'},
         {3.0,'3.0'},{-0.0,'-0.0'},{1e15,'1000000000000000.0'},{1e16,'1e+16'},{2^53+2,'9007199254740994.0'},
-        {1.2345678901234568e+17,'1.2345678901234568e+17'},{5e-324,'5e-324'}}
+        {1.2345678901234568e+17,'1.2345678901234568e+17'},{5e-324,'5e-324'},{2^-24,'5.960464477539063e-08'},
+        {2^-44,'5.684341886080802e-14'},{-2^89,'-6.189700196426902e+26'}}
     local list={}
     for index,pair in ipairs(floats) do list[index]={V=pair[1]} end
     local rows=Story.lines({DataMap_SBEnv={{'Env',{ZoneContainerList={{ZoneAlias='Z',

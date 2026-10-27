@@ -90,13 +90,20 @@ local function python_float(value)
     if value~=value then return 'nan' end
     if value==math.huge or value==-math.huge then return value>0 and 'inf' or '-inf' end
     if value==0 then return (1/value<0 and '-' or '')..'0.0' end
-    local printed
+    local sign,all,e
     for digits=1,17 do
-        printed=string.format('%.'..(digits-1)..'e',value)
+        local printed=string.format('%.'..(digits-1)..'e',value)
+        local first,rest,exponent
+        sign,first,rest,exponent=printed:match('^(%-?)(%d)%.?(%d*)e([-+]%d+)$')
+        all,e=first..rest,tonumber(exponent)
         if tonumber(printed)==value then break end
+        -- At a power of two the gap to the next double up is twice the gap down, so the string one up in the last
+        -- digit can read back when the nearest one, below, does not (2^-24: 5.960464477539063e-08). Python takes it.
+        local up=tostring(tonumber(all)+1)
+        if #up>#all then up,e=up:sub(1,-2),e+1 end
+        if tonumber(sign..up..'e'..(e-#up+1))==value then all=up break end
     end
-    local sign,first,rest,exponent=printed:match('^(%-?)(%d)%.?(%d*)e([-+]%d+)$')
-    local all,e=(first..rest):gsub('0+$',''),tonumber(exponent)
+    all=all:gsub('0+$','')
     if e<-4 or e>=16 then
         local mantissa=all:sub(1,1)..(#all>1 and '.'..all:sub(2) or '')
         return sign..mantissa..(e<0 and 'e-' or 'e+')..('%02d'):format(math.abs(e))
