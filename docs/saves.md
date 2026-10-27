@@ -182,8 +182,9 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   `Money_NightOperation`, the Beta Seed) in the inventory, in a pickup left in the world or on a quick slot; Shock
   Bolts as the selected ammo (`BulletItemSlotIndex` 5, past the five ammo types the game ships); or the cut Matrix XIII
   dungeon as the save's map (`MXIII_P`), its camp, its last full camp or its last simple camp (any name that starts
-  with `DLC02_`: the camp `coop mxiii` adds there, its rows, `DLC02_10_EnvS_906` once the kit is activated, and the
-  dungeon's own rows, which no camp of the released game uses);
+  with `DLC02_`: the camps `coop mxiii` and `coop mxiii 30` add there, their rows, `DLC02_10_EnvS_906` once the kit is
+  activated, `DLC02_30_EnvS_900` after the arrival at the third zone's camp, and the dungeon's own rows, which no camp
+  of the released game uses);
 - copies `StellarBladeSave0M.sav`, when there is one, into a new folder of `StellarCoopBackups` and reads it back;
 - reads the co-op copy again, refuses it if it changed since the check, scans those bytes again as above, refuses to
   go on if `StellarBladeSave0M.sav` changed since its backup (or appeared, when there was none), writes the copy's
@@ -194,8 +195,8 @@ copies, and switches neither. As with a refresh, the first time it only says wha
 `coop-link.log` has `StellarBladeCoop0N.sav exported to StellarBladeSave0M.sav (<size> bytes)`, or why not. A refusal
 lists what it found and what to do before you export again: use up or sell the items and take them off the quick
 slots, open and close `coop nightop shop` so that the Beta Seeds go back to the wallet, switch the gun to another
-ammo, or rest at a full camp (one with a phone booth) outside the dungeon; then save. The mod's camp in the dungeon is
-a full camp, and the save keeps the last full camp you rested at apart from the camp you are at, so a rest at a simple
+ammo, or rest at a full camp (one with a phone booth) outside the dungeon; then save. The mod's camps in the dungeon are
+full camps, and the save keeps the last full camp you rested at apart from the camp you are at, so a rest at a simple
 camp does not clear it. The game keeps every item you ever held in a list of its own (`ItemOtaineSet`), and every save
 names every world and zone of the game's tables, Matrix XIII's `DLCMatrix13` and `Zone_DLC02_10` to `40` included, so
 the check leaves both out. Quit the game after an export: until it restarts, the title's slot list shows the slot's
