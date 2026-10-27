@@ -6,25 +6,27 @@
 -- follow_key=none neither ask nor always shows or starts anything (a log line only): coop travel host still travels.
 -- No offer comes for the place a travel brought her to. The travel: the guards (check), then camps? <id> to
 -- the host's game, whose answer names his world and up to 8 camps nearest his EVE. She takes the first that is in this
--- table under that world, that her save has activated (o.activated) and that this game knows as a name (FName with
--- FNAME_Find, which never makes one), checks the guards again, and asks the native part to call SB's own fast travel
--- with it; after SB's refusal (a return of 0) the next one, 3 calls at most. SB's fast travel does not check activation
--- (game/travel.h), and a travel that activated a camp would count toward its achievements: without o.activated, which
--- main.lua does not pass yet (no read of the activated camps exists), a guard refuses every travel and no offer shows.
+-- table under that world, that her save has activated and that this game knows as a name (FName with FNAME_Find, which
+-- never makes one), checks the guards again, and asks the native part to call SB's own fast travel with it; after SB's
+-- refusal (a return of 0) the next one, 3 calls at most. SB's fast travel does not check activation (game/travel.h),
+-- and a travel that activated a camp would count toward its achievements, so a camp counts only when the native part's
+-- read of SB's own camp list (game/camps.h, the activated status line) lists it; no read, no travel. The follow itself
+-- stays off until it has been tested in game: without o.follow, which main.lua does not pass, a guard refuses every
+-- travel and no offer shows.
 -- Notices: going (the call was taken), none (no camp passed, or SB refused each), busy (a guard of the moment, or the
--- host's game busy or loading), failed (the native part refused, no answer came, the warp never started, or no read of
--- the activated camps; UE4SS.log says why).
+-- host's game busy or loading), failed (the native part refused, no answer came, the warp never started, no read of
+-- the activated camps, or the follow off; UE4SS.log says why).
 -- The host. Its game answers each new camps? from the link's status: its world and the 8 camps of this table under it
 -- nearest its EVE, in whole metres, or none and why (title, loading, nocamp, busy). The camps are the map's
 -- SBSpawnPoint actors named after a camp of its world, read once a map (FindAllOf walks every object), never during a
 -- load.
 -- Only the 120 camps of this table are ever sent or taken: no autosave volume, no camp of a developer test world, none
 -- that leads to several worlds. The travel moves her EVE only; nothing changes in the host's game.
--- coop travel probe <camp> (a test tool): solo, on a co-op save only, a camp of the table that this save has activated
--- (o.activated, so it refuses every camp until that read exists), without the host's answer. coop mxiii
--- (cut/mxiii.lua) asks the same guards first (ready), then probes its own camp, which is in no table, without the
--- activation read: the camp achievements count only named ZoneEnvSpawn rows turned On, and none names its row. A Lua
--- error turns the follow off for the run.
+-- coop travel probe <camp> (a test tool): solo, on a co-op save only, a camp of the table that the read lists as
+-- activated, without the host's answer. coop mxiii (cut/mxiii.lua) asks the same guards first (ready), then probes its
+-- own camp, which is in no table, without the activation read: the camp achievements count only named ZoneEnvSpawn rows
+-- turned On, and none names its row. coop mxiii leave takes camps() (the read's travel camps and the camp EVE respawns
+-- at) and probes one of them as coop travel probe does. A Lua error turns the follow off for the run.
 local U=require('core.unreal')
 local Travel={}
 -- Each story world's map, as core/unreal.lua's map_of() names it, from WorldTable's UMapPath.
@@ -125,7 +127,7 @@ end
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 -- o: {link=, puppet=, settings= (follow_host, follow_key), tell(build), name(words) (her name, or the words' friend),
 -- log(text), paused() (the game paused, photo mode or a menu), night() (a Night Operation run), cutscene() (one plays
--- in our game), activated(alias) (true when her save has activated that camp; nil: no read, no travel)}.
+-- in our game), follow (true: the follow may travel; main.lua leaves it off)}.
 function Travel.new(o)
     local link,puppet,settings,log=o.link,o.puppet,o.settings,o.log
     local self,now,off={},0,false
@@ -138,6 +140,25 @@ function Travel.new(o)
     local function native()
         local state,n=line('engine'):match(' travel=(%S+) travel_calls=(%d+)')
         return state,tonumber(n)
+    end
+    -- The native part's read of the camps this save has activated (game/camps.h), its status line
+    -- activated=<n>:<alias>,... rested=<alias>. The list and the camp EVE respawns at (nil when unknown), or nil and
+    -- why.
+    local function read()
+        local text=line('activated')
+        local n,list_text=text:match('^activated=(%d+):(%S*)')
+        if not n then return nil,text:match('^activated=none:(%S+)') or 'no read yet' end
+        local list={}
+        for alias in list_text:gmatch('[^,]+') do list[#list+1]=alias end
+        if #list~=tonumber(n) then return nil,'unread' end
+        return list,text:match(' rested=(%S+)')
+    end
+    -- Whether the read lists the camp: true or false, or nil and why without a read.
+    local function activated(alias)
+        local list,unread=read()
+        if not list then return nil,unread end
+        for _,a in ipairs(list) do if a==alias then return true end end
+        return false
     end
     local id=os.time()%65536 -- The guest's last camps? (a new Lua load starts elsewhere, so the host answers again).
     local req=nil -- The travel under way: {id=, at=, probe=, list=, i=, calls=, handled=, call_at=}.
@@ -164,7 +185,9 @@ function Travel.new(o)
     local function check(calling)
         if not guest() then return 'not a guest in a session' end
         if settings.follow_host=='off' then return 'follow_host=off' end
-        if not o.activated then return 'no read of the camps this save has activated','failed' end
+        if not o.follow then return 'the follow stays off until it has been tested in game','failed' end
+        local list,unread=read()
+        if not list then return 'no read of the camps this save has activated ('..unread..')','failed' end
         if not line('slot'):find('^slot=coop ') then return 'not on a co-op save' end
         local state=native()
         if not state then return 'no travel in the native part (engine off, or coop off)' end
@@ -227,10 +250,12 @@ function Travel.new(o)
         end
         local list={}
         for alias in (tail or ''):gmatch('([%w_]+):%d+') do
+            local on,unread=activated(alias)
             if not (CAMP[alias] and CAMP[alias].world==world) then
                 log('travel: '..alias..' is no travel camp of '..world)
-            elseif not o.activated(alias) then
-                log('travel: '..alias..' is not activated in this save')
+            elseif not on then
+                log('travel: '..alias..(on==nil and ': no read of the camps this save has activated ('..unread..')'
+                    or ' is not activated in this save'))
             else
                 local c=name_of(alias)
                 if c then list[#list+1]=c else log('travel: '..alias..' is not a name in this game yet') end
@@ -410,13 +435,27 @@ function Travel.new(o)
             return 'not one of the 120 travel camps: '..tostring(alias)
         end
         -- The follow's activation guard: a table camp may be one of the camp achievements' rows.
-        if not any and not o.activated then return 'no read of the camps this save has activated' end
-        if not any and not o.activated(alias) then return alias..' is not activated in this save' end
+        if not any then
+            local on,unread=activated(alias)
+            if on==nil then return 'no read of the camps this save has activated ('..unread..')' end
+            if not on then return alias..' is not activated in this save' end
+        end
         local state=native()
         if not state then return 'no travel in the native part (engine off, or coop off)' end
         if state=='refused:fault' then return 'the native travel stopped by a fault (coop-link.log)' end
         if req or state=='pending' or state=='warping' then return 'a travel is under way' end
         if now-accepted<WAIT then return 'the last travel was under 10 s ago' end
+    end
+    -- coop mxiii leave's choice: the travel camps the read lists as activated, in its order, and the camp EVE respawns
+    -- at (any alias, nil when unknown); or nil and why without a read.
+    function self.camps()
+        return guard(function()
+            local list,rested=read()
+            if not list then return nil,rested end
+            local camps={}
+            for _,alias in ipairs(list) do if CAMP[alias] then camps[#camps+1]=alias end end
+            return camps,rested
+        end)
     end
     -- coop mxiii's check before it adds its rows: true, or false and why a probe would be refused now.
     function self.ready()

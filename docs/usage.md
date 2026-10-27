@@ -386,10 +386,11 @@ another map, or more than 150 m from you on yours, one notice offers it:
 camps nearest their EVE, and your game travels to the first of them that it can use (`Travelling to <host>.`). Nothing
 changes in the host's game. This has not been tested in game yet.
 
-In this version the travel is off. The game's fast travel does not check whether your save has activated a camp, and
-activating a camp counts toward the game's camp trophies. Until the mod can read which camps your save has activated,
-no offer shows and F7 shows `The travel did not start. UE4SS.log says why.` The rest of this section describes the
-travel as built.
+In this version the travel is off until it has been tested in game: no offer shows and F7 shows
+`The travel did not start. UE4SS.log says why.` The game's fast travel does not check whether your save has activated a
+camp, and activating a camp counts toward the game's camp trophies, so the travel takes only a camp the mod reads as
+activated in your save: one the game's own camp list would show. `coop status` lists them on its `activated=` line.
+The rest of this section describes the travel as built.
 
 - `follow_host=ask` (the default) shows that notice. With `always`, it reads
   `Following <host> in 5 s. Press F7 to stay.` and the travel starts 5 s later unless you press F7. With `off`, nothing
@@ -819,7 +820,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
 | `coop leave` | Leave the session (F8) |
 | `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start; off in this version ([Following the host](#following-the-host)) |
-| `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps, with no session and no host's answer; it does not check that your save has found that camp, and a camp it reaches counts toward the game's camp trophies, see [Following the host](#following-the-host) (test command, co-op save only) |
+| `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps that your save has activated (the `activated=` line of `coop status`), with no session and no host's answer; any other camp is refused, see [Following the host](#following-the-host) (test command, co-op save only) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |
@@ -849,6 +850,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop tendril fight [rows]` | The [cut Tendril](#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
 | `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](#cut-dungeon-coop-mxiii-experimental) and a camp there (experimental test command, untested in game; needs the zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
+| `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command, untested in game; solo, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
 | `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
@@ -1587,8 +1589,13 @@ point there.
 4. If the log says `travel: SB refused DLC02_10_Camp_01`, the game listed its camps when the map started, before the
    rows went in. Load the save again (or travel to any camp), then type `coop mxiii` again: the rows stay until the
    game exits, so the second time it only travels.
-5. To leave, type `coop travel probe ME01_Camp_01`, which travels to Matrix 11's first simple camp. Use this way out
-   until the camp's phone booth has been shown to work in game.
+5. To leave, type `coop mxiii leave`. EVE respawns at the camp of her last rest or fast-travel arrival, so the arrival
+   in Matrix XIII makes its camp hers, and that camp is not one of the 120 travel camps. `coop mxiii` therefore keeps
+   the camp where she respawned when it asked the travel in, and `coop mxiii leave` travels back to it if your save has
+   activated it. If not, or if the game or the mod's scripts restarted since, it travels to the camp where EVE respawns
+   now when that is an activated travel camp, and otherwise to the first activated camp on the `activated=` line of
+   `coop status`. `coop mxiii leave` refuses when the mod has no read of your activated camps yet (during a load, for
+   example); try again a few seconds later.
 
 With v2 the camp stands where EVE arrives: a vending machine, a chair, a skill machine, a storage box, a turntable and
 a phone booth, the same objects as a full camp elsewhere in the game. The vending machine coin it needs lies on the
@@ -1612,8 +1619,8 @@ With v1 the game finds no spawn point for the six objects and places none; the t
   then include `DLC02_10_Camp_01`, and its last camp is one of the mod's rows (`DLC02_10_EnvS_906` after the
   activation). Those rows exist only once `coop mxiii` has run in the same game run, and what the game does with a
   save that names a camp or row it does not have has not been checked. Resting at another camp afterwards does not
-  clean the save: `DLC02_10_Camp_01` stays among the activated camps, and `ME01_Camp_01` is a simple camp, so a rest
-  there leaves the last full camp on a mod row. To get that slot back, type `coop saves refresh <0-4>` at the title,
+  clean the save: `DLC02_10_Camp_01` stays among the activated camps, and a rest at a simple camp leaves the last
+  full camp on a mod row. To get that slot back, type `coop saves refresh <0-4>` at the title,
   while the game uses your own saves, before you load the slot again. The same applies if the game crashes after the
   activation.
 - The rows go in through the same native calls as `coop lion` and the shop's cut items. A fault in those calls during
@@ -3230,6 +3237,13 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   [Emotes](#emotes-coop-emote)), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
   [`coop gift`](#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
   `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
+- Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,
+  phone booths, tetrapods) that the game's own camp list would show for this save, read every 2 s while you play,
+  followed by `rested=<camp>`, the camp where EVE respawns (that of her last rest or fast-travel arrival), when the
+  mod knows it. `activated=none:<why>` means there is no read now: `flow` or `phase` at the title or during a load,
+  `fault` once a fault stopped the read until the game restarts, and another word for a part of the game the mod found
+  missing.
+  [`coop travel probe`](#following-the-host) and `coop mxiii leave` take only camps from this list.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
   `coop` for the co-op copies (`StellarBladeCoop00.sav` to `04`), `off` when the mod cannot read the file name (another

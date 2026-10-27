@@ -60,6 +60,17 @@ std::string status() {
   return s; // Stable between events, the recording's seconds aside: per-frame counts go into the 60 s lines instead.
 }
 
+// coop-status.txt's activated line (game/camps.h), from what the game thread handed over; activated=none:fault once
+// the read's latch ended it.
+std::string camps_status() {
+  if (!game_pinned || blocked)
+    return std::string();
+  if (camps_faulted)
+    return camps::line(camps::Why::fault, {}, {});
+  std::lock_guard<std::mutex> lock(camps_m);
+  return camps_text;
+}
+
 // coop-status.txt's lion, gardener, tendril, bolt, mxiii and shop lines (lion/rows.h's status_line), from what the
 // game thread published, then the shock line (lion/shock.h's shock_line), read after the bolt line it was published
 // before, then the nightshop and roxanne lines (nightop_worker.inc's nightop_status).

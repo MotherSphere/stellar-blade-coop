@@ -65,6 +65,11 @@
 // block every 250 ms; status() puts the watch's state in the engine line for session/travel.lua, and the worker logs
 // each call.
 //
+// The camps this save has activated (game/camps.h): every 250 ms, once the client is in game and no warp, respawn or
+// logic task is in flight, the game thread asks SB's own camp list for each travel type at most every 2 s, and reads
+// the camp EVE respawns at, under its own SEH latch; camps_status() gives both as coop-status.txt's activated line for
+// session/travel.lua and cut/mxiii.lua. A load drops the list until the next read.
+//
 // coop fly and coop slowmo (game/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
 // (on a co-op save; slow motion with no friend linked); every 250 ms the game thread sets each wanted gate's byte in
 // SB's settings map and puts back the value from before once it is no longer wanted (an off, coop off, the next Lua
@@ -132,6 +137,7 @@
 #include <vector>
 
 #include "fight/worker.h"
+#include "game/camps.h"
 #include "game/anim.h"
 #include "game/debug_keys.h"
 #include "game/dev_panels.h"
@@ -163,6 +169,7 @@
 #include "glue/tick/warp_game.inc"
 #include "glue/tick/pilot_game.inc"
 #include "glue/tick/travel_game.inc"
+#include "glue/tick/camps_game.inc"
 #include "glue/tick/lion_game.inc"
 #include "glue/tick/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "glue/tick/nightop_game.inc"
@@ -226,6 +233,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The follow's travel, its own latch: a new ask each frame, the watch each 250 ms; none after coop off or a fault.
   if (game_pinned && !travel_faulted && !blocked)
     travel_tick();
+  // The activated camps' read, its own latch: a check each 250 ms, none after coop off or its first fault.
+  if (game_pinned && !camps_faulted && !blocked)
+    camps_tick();
   // The rows of every batch, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no
   // call made.
   if (game_pinned && !lion_faulted)

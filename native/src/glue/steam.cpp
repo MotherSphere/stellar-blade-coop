@@ -484,7 +484,8 @@ std::string status_text() {
   std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb1251.load()})
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
-  return head + cns_line + coop::pose::status() + "\n" +
+  const std::string camps = coop::pose::camps_status();
+  return head + cns_line + coop::pose::status() + "\n" + (camps.empty() ? camps : camps + "\n") +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
          coop::pose::rows_status() + "\n" +

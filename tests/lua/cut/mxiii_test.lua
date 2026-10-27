@@ -7,7 +7,9 @@
 -- for once a command, by its file, never by StaticFindObject); with all of them it asks the mxiii rows with the 19
 -- addresses, waits for the mxiii line, reads the 8 rows back, then asks the follow's probe for DLC02_10_Camp_01 (a camp
 -- in no table) and names the way out; a native refusal, a row that reads back wrong or a probe the follow refuses ends
--- it with no travel; rows already in are read back with no ask; coop off ends the wait, and no travel follows.
+-- it with no travel; rows already in are read back with no ask; coop off ends the wait, and no travel follows. coop
+-- mxiii leave: the follow's probe for the camp EVE respawned at when coop mxiii asked its travel, else the one she
+-- respawns at, else the first travel camp the read lists as activated.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -181,6 +183,7 @@ local status_text
 local follow={ready=true}
 local travel={
     ready=function() return follow.ready==true,follow.why end,
+    camps=function() return follow.list,follow.rested end, -- No list: rested says why.
     probe=function(alias,any)
         probes[#probes+1]={alias,any}
         if follow.probe then return false,follow.probe end
@@ -205,7 +208,7 @@ local mx=new(PAKS)
 mxiii_status('off')
 -- Usage, the follow missing or refusing, the test pak missing: nothing asked, no table looked up.
 local ok
-ok,why=mx.command('now'); assert(ok==false and why=='Use: coop mxiii',why)
+ok,why=mx.command('now'); assert(ok==false and why=='Use: coop mxiii [leave]',why)
 have_travel=false
 ok,why=mx.command(); assert(ok==false and why=='coop mxiii needs the Steam link',why)
 have_travel=true
@@ -245,7 +248,7 @@ mxiii_status(ROWS_IN:format(1))
 clock=100.5
 ok,why=mx.tick()
 assert(ok and why=='coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked ([TR] lines follow); way '
-    ..'out: coop travel probe ME01_Camp_01',
+    ..'out: coop mxiii leave',
     tostring(why))
 assert(#probes==1 and probes[1][1]=='DLC02_10_Camp_01' and probes[1][2]==true and #reads==before,
     'The probe for its camp, the pak not looked for again')
@@ -308,6 +311,63 @@ assert(last()=='coop off: the wait for the Matrix XIII rows ended',last())
 mxiii_status(ROWS_IN:format(1))
 clock=301
 assert(mx.tick()==nil and #probes==4,'No travel after coop off')
+
+-- coop mxiii leave: the follow's probe (no any: its activation read) for the camp EVE respawns at when the read lists
+-- it among its travel camps, else for the read's first one (her respawn camp Matrix XIII's own, after the arrival or a
+-- rest there, which is in no travel table); no Steam link, no read, no activated travel camp or a probe the follow
+-- refuses: no travel. No rows asked and no table looked up.
+local asks,lookups=#asked,#looked
+have_travel=false
+ok,why=mx.command('leave'); assert(ok==false and why=='coop mxiii leave needs the Steam link',why)
+have_travel=true
+follow.list,follow.rested=nil,'flow'
+ok,why=mx.command('leave')
+assert(ok==false and why=='coop mxiii leave: no read of the camps this save has activated (flow)',why)
+follow.list,follow.rested={},nil
+ok,why=mx.command('leave')
+assert(ok==false and why=='coop mxiii leave: this save has activated none of the 120 travel camps',why)
+assert(#probes==4,'Nothing probed')
+follow.list,follow.rested={'Xion_Camp_10_01','DED10_Camp_07'},'DED10_Camp_07'
+ok,why=mx.command('leave')
+assert(ok and why=='coop mxiii leave: the travel to DED10_Camp_07 is asked ([TR] lines follow)' and #probes==5
+    and probes[5][1]=='DED10_Camp_07' and probes[5][2]==nil,tostring(why))
+assert(last()=='leave: travel to DED10_Camp_07, the camp EVE respawns at, asked: travel DED10_Camp_07 asked: the '
+    ..'result follows in this log and in coop-link.log',last())
+for _,rested in ipairs({'DLC02_10_Camp_01',false}) do
+    follow.rested=rested or nil
+    ok,why=mx.command('leave')
+    assert(ok and #probes==6+(rested and 0 or 1) and probes[#probes][1]=='Xion_Camp_10_01',tostring(why))
+    assert(last():find('^leave: travel to Xion_Camp_10_01 asked: '),last())
+end
+follow.probe='a travel is under way'
+ok,why=mx.command('leave')
+assert(ok==false and why=='coop mxiii leave: a travel is under way' and #probes==8,tostring(why))
+assert(last()=='leave: travel to Xion_Camp_10_01 refused: a travel is under way',last())
+follow.probe=nil
+assert(#asked==asks and #looked==lookups,'No rows, no lookup')
+-- The arrival makes DLC02_10_Camp_01 her respawn camp, so coop mxiii keeps the travel camp she respawns at when it asks
+-- its travel, and leave takes that one first while the read lists it, then the one she respawns at, then the read's
+-- first. A coop mxiii with no read or in the dungeon (her respawn camp in no travel table) keeps the one it has.
+follow.list,follow.rested={'Xion_Camp_10_01','DED10_Camp_07','ME01_Camp_03'},'DED10_Camp_07'
+ok,why=mx.command(); assert(ok and #probes==9 and probes[9][1]=='DLC02_10_Camp_01',tostring(why))
+for _,read in ipairs({false,true,'flow'}) do
+    if read=='flow' then follow.list,follow.rested=nil,'flow' end
+    if read then ok,why=mx.command(); assert(ok and probes[#probes][1]=='DLC02_10_Camp_01',tostring(why)) end
+    follow.list,follow.rested={'Xion_Camp_10_01','DED10_Camp_07','ME01_Camp_03'},'DLC02_10_Camp_01'
+    ok,why=mx.command('leave')
+    assert(ok and why=='coop mxiii leave: the travel to DED10_Camp_07 is asked ([TR] lines follow)',tostring(why))
+    assert(last()=='leave: travel to DED10_Camp_07, the camp EVE respawned at before coop mxiii, asked: travel '
+        ..'DED10_Camp_07 asked: the result follows in this log and in coop-link.log',last())
+end
+assert(#probes==14,#probes)
+follow.rested='ME01_Camp_03'
+ok,why=mx.command('leave'); assert(ok and probes[15][1]=='DED10_Camp_07',tostring(why))
+follow.list={'Xion_Camp_10_01','ME01_Camp_03'}
+ok,why=mx.command('leave'); assert(ok and probes[16][1]=='ME01_Camp_03',tostring(why))
+assert(last():find('^leave: travel to ME01_Camp_03, the camp EVE respawns at, asked: '),last())
+follow.rested='DLC02_10_Camp_01'
+ok,why=mx.command('leave'); assert(ok and probes[17][1]=='Xion_Camp_10_01' and #probes==17,tostring(why))
+follow.list,follow.rested=nil,nil
 
 -- The source: no StaticFindObject or LoadAsset of its own, and no row or save call.
 do
