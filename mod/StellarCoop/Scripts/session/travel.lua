@@ -20,9 +20,11 @@
 -- load.
 -- Only the 120 camps of this table are ever sent or taken: no autosave volume, no camp of a developer test world, none
 -- that leads to several worlds. The travel moves her EVE only; nothing changes in the host's game.
--- coop travel probe <camp> (a test tool): solo, on a co-op save only, any camp of the table, without the host's
--- answer; it does not check that this save found the camp. coop mxiii (cut/mxiii.lua) asks the same guards first
--- (ready), then probes its own camp, which is in no table. A Lua error turns the follow off for the run.
+-- coop travel probe <camp> (a test tool): solo, on a co-op save only, a camp of the table that this save has activated
+-- (o.activated, so it refuses every camp until that read exists), without the host's answer. coop mxiii
+-- (cut/mxiii.lua) asks the same guards first (ready), then probes its own camp, which is in no table, without the
+-- activation read: the camp achievements count only named ZoneEnvSpawn rows turned On, and none names its row. A Lua
+-- error turns the follow off for the run.
 local U=require('core.unreal')
 local Travel={}
 -- Each story world's map, as core/unreal.lua's map_of() names it, from WorldTable's UMapPath.
@@ -407,6 +409,9 @@ function Travel.new(o)
         if not any and (type(alias)~='string' or not CAMP[alias]) then
             return 'not one of the 120 travel camps: '..tostring(alias)
         end
+        -- The follow's activation guard: a table camp may be one of the camp achievements' rows.
+        if not any and not o.activated then return 'no read of the camps this save has activated' end
+        if not any and not o.activated(alias) then return alias..' is not activated in this save' end
         local state=native()
         if not state then return 'no travel in the native part (engine off, or coop off)' end
         if state=='refused:fault' then return 'the native travel stopped by a fault (coop-link.log)' end

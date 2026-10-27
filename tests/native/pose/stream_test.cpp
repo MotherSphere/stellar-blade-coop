@@ -26,6 +26,11 @@ Table table() {
   return t;
 }
 
+struct Message { // glue/tick.cpp's, without its time.
+  std::vector<uint8_t> data;
+  size_t size = 0;
+};
+
 struct Result {
   uint64_t sent = 0, dropped = 0, received = 0, rejected = 0, keyless = 0, frames = 0, on_line = 0;
   uint64_t kept = 0, keys_overwritten = 0; // Hand-overs: keyframes kept over a delta, keyframes never handed over.
@@ -69,8 +74,10 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
   KeyedDecoder receiver;
   sender.reset(pose_size(t));
   receiver.reset(pose_size(t));
-  std::vector<uint8_t> out(kMaxPose), back, sent_message; // As glue/tick.cpp's out_back and out_mid.
-  bool back_ready = false;
+  Message back, mid; // As glue/tick.cpp's out_back and out_mid, with out_ready and out_fresh.
+  back.data.resize(kMaxPose);
+  mid.data.resize(kMaxPose);
+  bool back_ready = false, fresh = false;
   const Effect no_fx[kEffectSlots];
   Effect drawn_fx[kEffectSlots];
   std::vector<std::vector<uint8_t>> inbox;
@@ -86,10 +93,10 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
   for (uint64_t now = start; now < end; now += 1000) {
     double second = (now - start) / 1e6;
     if (now % s.worker_us == 0) { // Worker pass.
-      if (!sent_message.empty()) {
+      if (fresh) {
         ++r.sent;
-        r.dropped += !line.send(sent_message.data(), sent_message.size(), now);
-        sent_message.clear();
+        r.dropped += !line.send(mid.data.data(), mid.size, now);
+        fresh = false;
       }
       line.deliver(now, [&](const uint8_t *data, size_t size) {
         inbox.emplace_back(data, data + size);
@@ -100,16 +107,10 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
       continue;
     next_frame += frame_us;
     ++r.frames;
-    // The hand-over, as glue/tick.cpp's give_out(): the newest pose replaces one the worker has not taken (counted
+    // The hand-over, glue/tick.cpp's give_out(): the newest pose replaces one the worker has not taken (counted
     // lost), unless keeps_waiting(); a busy lock leaves it for the next frame.
     const bool busy = s.busy_every && r.frames % s.busy_every < 2;
-    auto give_out = [&] {
-      back_ready = false;
-      if (keeps_waiting(sent_message.data(), sent_message.size(), back.data(), back.size()))
-        ++r.kept;
-      else
-        sent_message = back;
-    };
+    auto give_out = [&] { r.kept += !hand_over(back, mid, fresh, back_ready); };
     if (back_ready && !busy)
       give_out();
     // Game thread: capture every interval (from the first frame at or after the schedule).
@@ -120,12 +121,11 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
                         (s.drift_from >= 0 && second > s.drift_from ? (second - s.drift_from) * s.drift_ms_per_s : 0);
       float root[10] = {0, 0, 0, 1, float(clock_ms - 10000), 0, 0, 1, 1, 1}; // X: publication ms (offset for precision).
       PoseHeader h{t.generation, uint64_t(clock_ms * 1000), ++sequence, 0};
-      if (back_ready && back.size() >= 3 && back[2] == 'P') // A keyframe never handed over: overwritten.
+      if (lost_key(back, back_ready)) // A keyframe never handed over: overwritten.
         ++r.keys_overwritten, sender.lose();
-      size_t n = encode_pose(t, h, root, bones.data(), no_fx, out.data(), clamped);
+      back.size = encode_pose(t, h, root, bones.data(), no_fx, back.data.data(), clamped);
       if (s.keyed)
-        n = sender.encode(t, out.data(), n, h.publication);
-      back.assign(out.begin(), out.begin() + long(n));
+        back.size = sender.encode(t, back.data.data(), back.size, h.publication);
       back_ready = true;
       if (!busy)
         give_out();
@@ -208,6 +208,22 @@ Result run(const Scenario &s, std::vector<bool> *drawn_at = nullptr) {
 } // namespace
 
 int main() {
+  // The hand-over on its own: a keyframe the worker has not taken stays and the delta is dropped; anything else is
+  // swapped in, and a taken slot always is. A keyframe still in back when the next pose is encoded is lost.
+  {
+    Message back{{0, 0, 'D'}, 3}, mid{{0, 0, 'P'}, 3};
+    bool fresh = true, ready = true;
+    assert(!hand_over(back, mid, fresh, ready) && !ready && fresh && mid.data[2] == 'P' && back.data[2] == 'D');
+    ready = true;
+    fresh = false;
+    assert(hand_over(back, mid, fresh, ready) && !ready && fresh && mid.data[2] == 'D' && back.data[2] == 'P');
+    back.data[2] = 'P', ready = true;
+    assert(hand_over(back, mid, fresh, ready) && mid.data[2] == 'P'); // A keyframe over a delta not taken.
+    assert(lost_key(back, true) == false && lost_key(mid, true) && !lost_key(mid, false));
+    mid.size = 2;
+    assert(!lost_key(mid, true));
+  }
+
   // T3 step 1: one-way 120 ms, jitter 30 ms, 1 % segment loss (a 4.7 KB pose is 4 segments: about 4 % of poses).
   Result a = run({120, 30, 1});
   assert(a.lag_ms > 120 && a.lag_ms < 132); // The delay, plus up to 5 ms for each worker pass and a frame.

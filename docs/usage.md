@@ -1581,7 +1581,7 @@ point there.
 3. Type `coop mxiii`. It checks the pak and the travel's conditions and adds eight rows to the game's tables in memory:
    the camp `DLC02_10_Camp_01`, a row in the dungeon's first zone (`Zone_DLC02_10`) that leads the travel there, and
    one row for each of the camp's six objects. Then it asks the game's own camp travel to go there, as
-   `coop travel probe` does for a known camp.
+   `coop travel probe` does for an activated camp.
 4. If the log says `travel: SB refused DLC02_10_Camp_01`, the game listed its camps when the map started, before the
    rows went in. Load the save again (or travel to any camp), then type `coop mxiii` again: the rows stay until the
    game exits, so the second time it only travels.

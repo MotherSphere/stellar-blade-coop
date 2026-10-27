@@ -428,7 +428,8 @@ to 20 digits, not 0), an item name (letters, digits and `_`, at most 64) and a c
 receiver kept it; `n` and a word of 1 to 16 lowercase letters when it refused it. The link checks that shape and no
 more: Lua checks the item. At most 8 lines a second go each way, and each one, sent, refused or received, has a line in
 `coop-link.log` (`gift line sent: ...`, `gift line not sent: ...`, `gift line from <name>: ...`). A gift line of yours
-that cannot go (no session, past the rate, a send Steam refused) comes back to Lua at once as `gift n <id> nolink`.
+that cannot go (no session, past the rate, a send Steam refused) comes back to Lua at once as `gift n <id> nolink`;
+Lua gives the items back only when it was the gift's first line.
 Your friend's lines reach Lua in `coop-chat.txt` as `gift <payload>`, beside the chat and race lines. During
 `coop loopback` with no friend linked, your gift lines come back as your friend's.
 
@@ -2631,7 +2632,9 @@ and the next tick with EVE in the world and the game playing grants it through t
 (`ServerRequest_ItemBucketItemAdd`, nightop/shop.lua's `Shop.add`). The entry leaves the file before the grant, as a
 take's does, and goes back if the grant raises, so a file that cannot be written gives nothing back until it can. A
 grant that raises, or a write that fails, is tried again after 10 s.
-Until an answer, the gift line goes again every 10 s with the same id while the friend is linked.
+Until an answer, the gift line goes again every 10 s with the same id while the friend is linked. A `nolink` for one of
+those lines brings nothing back: the first line went out and the friend may have kept the gift, so her answer, the 60 s
+or her leaving decides.
 
 The receiver keys each gift by the sender's SteamID (the first peer line; 0 in the loopback) and the id. A key in its
 mailbox gets `a` again, and so does one among the last 64 it took (`seen <from> <id> a`); a key it refused for a full
@@ -2695,8 +2698,14 @@ claim the host accepts):
   the PC whose own solo run ended in success, never from a co-op run and never over the link.
 - The travel to the host takes only camps that a read of the guest's save confirms as activated, because activating a
   camp counts toward achievements ([Following the host](#following-the-host)). That read does not exist yet, so the
-  travel makes no call at all. A revive changes only the downed player's own EVE: her life, her HP and the recovery
-  items that a camp respawn refills too. The cutscene wait is a pause, and the solid partner changes no game state.
+  travel makes no call at all. `coop travel probe <camp>`, the travel's solo test, takes a camp only through the same
+  read, so it refuses every camp for now. Whether arriving at a camp through the game's fast travel activates it has not
+  been checked. `coop mxiii` travels to its own camp `DLC02_10_Camp_01` without that read ([The cut Matrix XIII
+  dungeon](#the-cut-matrix-xiii-dungeon-experimental)): the two camp trophies count only named ZoneEnvSpawnTable rows
+  turning On (`Trophy_Activate_FirstCamp` one, `Trophy_Activate_AllCamp` the 89 `ChangeState_ZoneEnv_*_Camp` rows of
+  AchievementTable), and none of them names `DLC02_10_EnvS_900`, the mod's row for that camp. A revive changes only the
+  downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills too. The cutscene wait is
+  a pause, and the solid partner changes no game state.
 - A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
 - A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is
