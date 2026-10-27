@@ -1197,9 +1197,10 @@ The game's files hold a boss that was cut before release: Naytiba 02, the Lion, 
 ship, but no table row names it, so the game cannot spawn it. `coop lion` adds the 222 rows it lacks to the game's
 tables in memory and spawns it as an enemy to fight. The same batch starts with 4 rows for the cut stimpacks of the
 [reward shop](night-operation.md#the-reward-shop) and 11 for EVE's [cut ChainSpin](#cut-tachy-skill-coop-chainspin),
-237 rows in 14 tables, and a buy of a stimpack or `coop chainspin` asks for it as `coop lion rows` does. The cut
-[Shock Bolt](#cut-ammo-shock-bolt) ammo's 4 rows are a batch of their own that only a Shock Bolt buy asks for. Every row
-of the Lion's is written for it: its stats, its skills, the timing of its hits and the moves that follow its own
+237 rows in 14 tables, and a buy of a stimpack, the shop screen or `coop chainspin` asks for it as `coop lion rows`
+does. The cut [Shock Bolt](#cut-ammo-shock-bolt) ammo's 4 rows are a batch of their own that only the shop asks for: a
+Shock Bolt buy, and `coop nightop shop` (or Roxanne's supplies choice) before it opens the shop screen. Every row of
+the Lion's is written for it: its stats, its skills, the timing of its hits and the moves that follow its own
 animations. It is a test command, left out of the usage line. Its lines go to `UE4SS.log` as `[StellarCoop][LI]`; the
 native part's go to `coop-link.log` as `lion rows ...`.
 

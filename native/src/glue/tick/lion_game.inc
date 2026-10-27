@@ -162,8 +162,9 @@ void lion_count() {
 // the stance change itself makes), SB's grow of an 8-byte TArray (FUN_140e47f00), the const store's key hash
 // (FUN_14117c1f0) and GMalloc (the FMalloc whose pointer is at 0x14706b500: Malloc at vtable +0x10, Realloc at +0x20).
 // Run in the same game-thread call as the bolt batch's last AddRow, so inside the gate that call checked, under a latch
-// of its own: a fault there leaves every batch's rows as they are and only turns the Shock Bolt off for the run. Only a
-// Shock Bolt buy asks for that batch, so no other command grows SB's lists.
+// of its own: a fault there leaves every batch's rows as they are and only turns the Shock Bolt off for the run. Only
+// the shop asks for that batch (a Shock Bolt buy, and coop nightop shop before it opens the screen, Roxanne's supplies
+// choice included), so no other command grows SB's lists.
 constexpr uint64_t kStanceByName = 0x141a9cd20, kGrowNames = 0x140e47f00, kConstHash = 0x14117c1f0,
                    kGMalloc = 0x14706b500;
 constexpr size_t kMallocSlot = 0x10, kReallocSlot = 0x20;

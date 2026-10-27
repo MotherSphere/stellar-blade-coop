@@ -31,7 +31,9 @@
 // allocation that fails stops there and keeps the writes before it (an array left longer than its Num, never an entry
 // half written). Runs once a game run, on the game thread in the rows' gate (glue/tick/lion_game.inc: no logic task in
 // flight, and none can start before the call returns), right after the bolt rows batch's last row went in, under a
-// latch of its own. Only a Shock Bolt buy asks for that batch (nightop/shop.lua), so no other command grows the lists.
+// latch of its own. Only the shop asks for that batch (nightop/shop.lua: a Shock Bolt buy, and coop nightop shop before
+// it opens the screen, which Roxanne's supplies choice runs too), so a player who opens that screen grows the lists
+// even without buying a bolt, and no other command grows them.
 #pragma once
 
 #include <cstddef>

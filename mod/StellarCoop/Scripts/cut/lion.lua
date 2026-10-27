@@ -291,8 +291,8 @@ function Lion.new(o)
             n>1 and 's' or '')
     end
     -- Lion.rows, for the Night Operation shop's cut items (nightop/shop.lua) and coop chainspin: cut/enemy.lua's rows
-    -- with the lion rows batch, with word bolt the bolt rows batch (the shop's Shock Bolt only), with word shop the
-    -- shop rows batch (the shop's screen only).
+    -- with the lion rows batch, with word bolt the bolt rows batch (the shop's Shock Bolt: a buy of it, and the shop's
+    -- screen), with word shop the shop rows batch (the shop's screen only).
     function self.rows(done,word) return (word=='bolt' and bolt or word=='shop' and shop or e).rows(done,brain) end
     -- brain sets the ID of the next spawns, even while a command runs; the others wait for it.
     function self.command(sub,a,extra)

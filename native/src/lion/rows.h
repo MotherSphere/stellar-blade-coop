@@ -33,12 +33,13 @@
 // clips with their commands and 45 steps, 28 target filters, 5 hit results, its turn toward EVE, 2 anim sets, a
 // stance, the dead and appearance rows and M_TendrilC 50060). Its steps and its death name Shows no pak holds, which
 // cut/tendril.lua builds in memory before a spawn. A fourth, the Shock Bolt's (kBoltRecipe), holds the 4 rows of EVE's
-// cut ammo the Night Operation shop sells, and only a Shock Bolt buy asks for it (nightop/shop.lua through
-// cut/lion.lua), so these rows never stand in front of the Lion's: ItemTable Bullet_Shock (32, over Bullet_Scatter),
-// the SkillTable row its consumable plays, P_Eve_Gun_ShootShockSlug1_1 (1003401, Scatter's skill on SB's shipped Shock
-// steps), the projectile those steps fire, ProjectileTable P_Eve_Gun_ShootShockSlug1_Projectile1 (1010051, the normal
-// slug's), and its hit result with SB's shock stun (SkillResultTable 100200801). What makes the ammo selectable and the
-// gun fire it is no row: lion/shock.h grows two lists in place once these rows are in. A fifth, Matrix XIII's
+// cut ammo the Night Operation shop sells, and only the shop asks for it (nightop/shop.lua through cut/lion.lua: a
+// Shock Bolt buy, and coop nightop shop before it opens the screen), so these rows never stand in front of the Lion's:
+// ItemTable Bullet_Shock (32, over Bullet_Scatter), the SkillTable row its consumable plays,
+// P_Eve_Gun_ShootShockSlug1_1 (1003401, Scatter's skill on SB's shipped Shock steps), the projectile those steps fire,
+// ProjectileTable P_Eve_Gun_ShootShockSlug1_Projectile1 (1010051, the normal slug's), and its hit result with SB's
+// shock stun (SkillResultTable 100200801). What makes the ammo selectable and the gun fire it is no row: lion/shock.h
+// grows two lists in place once these rows are in. A fifth, Matrix XIII's
 // (kMxiiiRecipe, written by hand below the generated part with its own patches), holds the 2 rows the cut dungeon's
 // first zone lacks for SB's camp travel (coop mxiii, cut/mxiii.lua): ZoneCampTable DLC02_10_Camp_01 (280001, a copy of
 // ME01_Camp_03 never shown on the world map) and ZoneEnvSpawnTable DLC02_10_EnvS_900 (2800032900, a copy of the
@@ -6271,8 +6272,9 @@ constexpr Row kTendrilRecipe[] = {
 };
 // The Shock Bolt's own batch (the Night Operation shop's Shock Bolt), added on its own ask after its own checks: 4
 // near copies of shipped rows (skill 1, result 1, item 1, projectile 1), 87 fields, 22 of them changed from the
-// template's value. Only a Shock Bolt buy asks for it, so its rows never stand in front of the Lion's, and
-// lion/shock.h grows the two lists the ammo needs once it is in.
+// template's value. Only the shop asks for it (a Shock Bolt buy, and coop nightop shop before it opens the screen),
+// so its rows never stand in front of the Lion's, and lion/shock.h grows the two lists the ammo needs once it is
+// in.
 constexpr Row kBoltRecipe[] = {
     {Table::item, "Bullet_Shock", "Bullet_Scatter", 32, 4738, 23},
     {Table::skill, "P_Eve_Gun_ShootShockSlug1_1", "P_Eve_Gun_ShootScatterSlug1_1", 1003401, 4761, 17},
