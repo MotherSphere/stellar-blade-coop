@@ -39,6 +39,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 #include <vector>
 
 #include "link/protocol.h" // kProtocol
@@ -478,6 +479,22 @@ private:
 // comes.
 inline bool keeps_waiting(const uint8_t *waiting, size_t waiting_size, const uint8_t *newest, size_t newest_size) {
   return waiting_size >= 3 && waiting[2] == 'P' && newest_size >= 3 && newest[2] == 'D';
+}
+// glue/tick's give_out() (its lock held), and the build machine's stream_test: the newest pose (back, ready) goes to
+// the worker's slot (mid, fresh: not taken yet), swapped in, unless the pose there keeps_waiting(). ready ends false
+// either way. Returns false when the newest was dropped. M: data (bytes) and size, as glue/tick's Message.
+template <class M> bool hand_over(M &back, M &mid, bool &fresh, bool &ready) {
+  ready = false;
+  if (fresh && keeps_waiting(mid.data.data(), mid.size, back.data.data(), back.size))
+    return false;
+  std::swap(back, mid);
+  fresh = true;
+  return true;
+}
+// Before a new pose is encoded into back: whether it overwrites a keyframe never handed over (ready), which the
+// encoder must then lose().
+template <class M> bool lost_key(const M &back, bool ready) {
+  return ready && back.size >= 3 && back.data[2] == 'P';
 }
 
 // The receiver's side: the keyframe held, and the rebuilt pose. reset() allocates (the worker, with the Live); decode()
