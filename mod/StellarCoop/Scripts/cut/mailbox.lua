@@ -21,9 +21,10 @@
 -- <count>", link/protocol.h's gift line).
 -- Her game answers "a <id>" (kept in her mailbox) or "n <id> <why>": slot (not on a co-op save), full (BOX gifts wait
 -- already), item (not one of ITEMS), store (her file cannot be read or written). A refusal, no answer in WAIT s, a
--- friend who left the lobby (not one whose link is lost and coming back), or a line the native part could not send
--- ("n <id> nolink") gives the items back through the shop's grant (nightop/shop.lua's Shop.add), at the first moment
--- EVE is in the world and the game plays. Until her answer the line goes again every AGAIN s with the same id. Her game
+-- friend who left the lobby (not one whose link is lost and coming back), or a first line the native part could not
+-- send ("n <id> nolink") gives the items back through the shop's grant (nightop/shop.lua's Shop.add), at the first
+-- moment EVE is in the world and the game plays. Until her answer the line goes again every AGAIN s with the same id;
+-- a nolink for one of those is only logged, since the first line went out and she may have kept it. Her game
 -- keeps each gift's key (her friend's SteamID and the id) in the mailbox and, once taken or refused, among the last
 -- KEEP keys, so a line that comes again never makes a second gift: it gets the first answer again.
 -- ponytail: when her answer is lost with the link right after her game kept the gift, the sender's items come back
@@ -451,6 +452,11 @@ function Mailbox.new(o)
         if not st then return log(string.format('answer %s %s with no gift file here',m.kind,m.id)) end
         for i,e in ipairs(st.out) do
             if e.id==m.id then
+                -- A send again that did not go: the first one did, and she may keep it. Her answer, WAIT s or her
+                -- leaving decides.
+                if m.why=='nolink' and e.sent>e.at then
+                    return log(string.format('gift %s not sent again (nolink): it waits for her answer',e.id))
+                end
                 table.remove(st.out,i)
                 if m.kind=='a' then
                     log(string.format('gift %s kept by %s: %s x%d',e.id,her_name(),e.alias,e.count))

@@ -1,16 +1,16 @@
 -- coop gift (cut/mailbox.lua) over fakes: the native status (slot, SteamID, peer, the engine line's items=), the gift
 -- file in memory, the requests to the native part, the friend and the loopback, EVE and the player controller with its
--- remove and add requests, the clocks and the toast. Covered: the line shapes link/protocol.h takes and the file's;
--- the remove call's five arguments; a send's refusals with nothing asked, its read, the remove, the reads until the
--- count fell (time paused not counted), the entry written before its line, and every way it stops with the items still
--- there or maybe gone; her answers (kept, refused, nolink, late); sends again every AGAIN s with the same id, the items
--- coming back after WAIT s, when the friend left (not while her link is lost) or with the loopback gone, through the
--- shop's grant, written out of the file before it (nothing given while the file cannot be written), tried again after
--- RETRY s when it raises; her gifts kept, answered and shown, refused when off a co-op save, unknown, the mailbox full
--- or the file not written, and a key seen before answered as before; take, all or one, written before its grant and put
--- back when the grant raises; the toast's end, its path kept for the next Lua load's sweep, and its first failure; a
--- gift sent from another co-op slot coming back once that slot loads; a save whose rename failed, written once the file
--- itself is gone.
+-- remove and add requests, the clocks and the toast. Covered: the line shapes link/protocol.h takes and the file's; the
+-- remove call's five arguments; a send's refusals with nothing asked, its read, the remove, the reads until the count
+-- fell (time paused not counted), the entry written before its line, and every way it stops with the items still there
+-- or maybe gone; her answers (kept, refused, nolink, nolink for a send again, late); sends again every AGAIN s with the
+-- same id, the items coming back after WAIT s, when the friend left (not while her link is lost) or with the loopback
+-- gone, through the shop's grant, written out of the file before it (nothing given while the file cannot be written),
+-- tried again after RETRY s when it raises; her gifts kept, answered and shown, refused when off a co-op save, unknown,
+-- the mailbox full or the file not written, and a key seen before answered as before; take, all or one, written before
+-- its grant and put back when the grant raises; the toast's end, its path kept for the next Lua load's sweep, and its
+-- first failure; a gift sent from another co-op slot coming back once that slot loads; a save whose rename failed,
+-- written once the file itself is gone.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(text) return {ToString=function() return text end} end
 local removes,adds,remove_raise,add_raise={},{},nil,nil
@@ -311,6 +311,18 @@ assert(#asked==n+1)
 tick(Mailbox.WAIT)
 assert(#M.read(files[FILE]).out==0 and logs[#logs-1]=='gift '..id..' comes back: no answer in 60 s',logs[#logs-1])
 assert(adds[#adds][3]:ToString()=='HP_Potion')
+-- A send again the native part could not make (nolink): the first one went out, so she may keep it; it waits for her
+-- answer or WAIT s instead of coming back at once.
+id=sent('1','3',5)
+n=#adds
+tick(Mailbox.AGAIN)
+mail.receive('n '..id..' nolink')
+tick()
+assert(#M.read(files[FILE]).out==1 and #adds==n,'A send again that did not go: it waits')
+mail.receive('a '..id)
+assert(#M.read(files[FILE]).out==0 and says[#says]=='Kaanta got your 3 HP_Potion.')
+tick()
+assert(#adds==n,'Kept by her: nothing comes back')
 id=sent('2','1',5)
 linked,lost=false,true
 n=#adds

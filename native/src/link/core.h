@@ -624,7 +624,8 @@ public:
   // hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one goes in
   // the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, past the
   // rate, Steam refused it) comes back to Lua at once as her refusal, "gift n <id> nolink", so the sender gets the
-  // items back without waiting for her answer. Worker thread, in tick().
+  // items back without waiting for her answer (only for a first send: cut/mailbox.lua ignores it for a send again).
+  // Worker thread, in tick().
   void gift(const std::string &payload) {
     const std::string line = gift_line(payload);
     bool ok = chatting() && !line.empty() && !over_rate(gift_window_, 1, kGiftPerSecond, kGiftPerSecond * kMaxMessage);

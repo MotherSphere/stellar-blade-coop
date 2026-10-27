@@ -428,7 +428,8 @@ to 20 digits, not 0), an item name (letters, digits and `_`, at most 64) and a c
 receiver kept it; `n` and a word of 1 to 16 lowercase letters when it refused it. The link checks that shape and no
 more: Lua checks the item. At most 8 lines a second go each way, and each one, sent, refused or received, has a line in
 `coop-link.log` (`gift line sent: ...`, `gift line not sent: ...`, `gift line from <name>: ...`). A gift line of yours
-that cannot go (no session, past the rate, a send Steam refused) comes back to Lua at once as `gift n <id> nolink`.
+that cannot go (no session, past the rate, a send Steam refused) comes back to Lua at once as `gift n <id> nolink`;
+Lua gives the items back only when it was the gift's first line.
 Your friend's lines reach Lua in `coop-chat.txt` as `gift <payload>`, beside the chat and race lines. During
 `coop loopback` with no friend linked, your gift lines come back as your friend's.
 
@@ -2569,7 +2570,9 @@ and the next tick with EVE in the world and the game playing grants it through t
 (`ServerRequest_ItemBucketItemAdd`, nightop/shop.lua's `Shop.add`). The entry leaves the file before the grant, as a
 take's does, and goes back if the grant raises, so a file that cannot be written gives nothing back until it can. A
 grant that raises, or a write that fails, is tried again after 10 s.
-Until an answer, the gift line goes again every 10 s with the same id while the friend is linked.
+Until an answer, the gift line goes again every 10 s with the same id while the friend is linked. A `nolink` for one of
+those lines brings nothing back: the first line went out and the friend may have kept the gift, so her answer, the 60 s
+or her leaving decides.
 
 The receiver keys each gift by the sender's SteamID (the first peer line; 0 in the loopback) and the id. A key in its
 mailbox gets `a` again, and so does one among the last 64 it took (`seen <from> <id> a`); a key it refused for a full
