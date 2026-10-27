@@ -26,13 +26,19 @@ std::atomic<bool> shortcut_faulted{false};
 std::atomic<uint64_t> shortcut_fault_code{0}, shortcut_fault_rva{0}, shortcut_fault_address{0};
 uint32_t shortcut_taken = 0; // The game thread's: the ask it serves.
 int shortcut_next = shortcut::kFiles;
+// coop shortcut load: the worker's ask (its number << 8 | the file), and the game thread's word back, the ask it
+// served, published after the file's entry and bytes, which the worker then takes; under the same latch.
+std::atomic<uint32_t> shortcut_load_asked{0}, shortcut_load_done{0};
+shortcut::Entry shortcut_load_entry;
+std::string shortcut_load_bytes;
 // The function in an object's vtable at offset.
 template <class F> F virtual_at(uintptr_t object, size_t offset) {
   return reinterpret_cast<F>(at<uintptr_t>(at<uintptr_t>(object) + offset));
 }
 // One file into its entry: opened, its bytes read into our buffer, the reader closed and freed, then save/shortcut.h's
-// parse. Out of line, since clang-cl catches a fault only in a function the __try calls.
-__declspec(noinline) void shortcut_read(int file, shortcut::Entry &e) {
+// parse; the bytes kept in *keep when asked (a load), else dropped. Out of line, since clang-cl catches a fault only
+// in a function the __try calls.
+__declspec(noinline) void shortcut_read(int file, shortcut::Entry &e, std::string *keep = nullptr) {
   e = shortcut::Entry();
   const uintptr_t manager = base + (kFileManager - game::kImageBase);
   if (at<uintptr_t>(manager) != base + (kFileManagerVtable - game::kImageBase)) {
@@ -63,10 +69,26 @@ __declspec(noinline) void shortcut_read(int file, shortcut::Entry &e) {
     e.why = "unread: empty or over 64 MB";
   else if (!read)
     e.why = "unread: the file manager's read failed";
-  else
+  else if (keep) {
+    shortcut::parse(bytes, e);
+    *keep = std::move(bytes);
+  } else {
     shortcut::parse(std::move(bytes), e);
+  }
 }
 void shortcut_tick() {
+  if (const uint32_t asked = shortcut_load_asked; asked != shortcut_load_done) { // A load's one file, first.
+    shortcut_load_bytes.clear();
+    __try {
+      shortcut_read(int(asked & 0xff), shortcut_load_entry, &shortcut_load_bytes);
+    } __except (fault_filter(GetExceptionInformation(), shortcut_fault_code, shortcut_fault_rva,
+                             shortcut_fault_address)) {
+      shortcut_faulted = true;
+      return;
+    }
+    shortcut_load_done = asked;
+    return;
+  }
   if (const uint32_t asked = shortcut_asked; asked != shortcut_taken) {
     shortcut_taken = asked;
     shortcut_next = 0;

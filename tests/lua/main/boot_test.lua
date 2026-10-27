@@ -866,17 +866,44 @@ for _,name in ipairs({'fly','slowmo'}) do
         assert(#asked==n and last()=='[StellarCoop] STOP: Use: coop '..name..' on|off\n',last())
     end
 end
--- coop shortcut: the list asked of the native part on any save; any word after it its usage, nothing asked.
+-- coop shortcut: the list asked of the native part on any save; other words their usage, nothing asked. coop shortcut
+-- load <map> <1-4>: refused while shortcut_load is off (the default); on, asked only when the same words come twice
+-- within 10 s (os.clock), the first saying what it does; another file or a late second starts over.
 do
     local n=#asked
     coop('shortcut')
     assert(#asked==n+1 and asked[#asked]=='shortcut list' and last()=='[StellarCoop] OK: asked the native part: '
         ..'shortcut list: the list goes to coop-link.log, its summary to this log\n',last())
-    for _,bad in ipairs({{'load','F02','1'},{'list'},{'x'}}) do
+    local usage='[StellarCoop] STOP: Use: coop shortcut (the list), or coop shortcut load <map> <1-4> (read '
+        ..'docs/usage.md first)\n'
+    for _,bad in ipairs({{'list'},{'x'},{'load'},{'load','F02'},{'load','F02','5'},{'load','f02','1'},
+        {'load','F02','1','x'},{'load','X','1'}}) do
         coop('shortcut',table.unpack(bad))
-        assert(#asked==n+1 and last()=='[StellarCoop] STOP: Use: coop shortcut (the list; loading a shortcut save is '
-            ..'held back)\n',last())
+        assert(#asked==n+1 and last()==usage,last())
     end
+    coop('shortcut','load','F02','1')
+    coop('shortcut','load','F02','1')
+    assert(#asked==n+1 and last():find('^%[StellarCoop%] STOP: loading a shortcut save is off: it can unlock Steam '
+        ..'achievements for good%. Read docs/usage%.md, then set shortcut_load=on in coop%-settings%.txt'),last())
+    local was=ra.o.settings.shortcut_load
+    ra.o.settings.shortcut_load=true
+    coop('shortcut','load','F02','1')
+    local confirm='[StellarCoop] STOP: type coop shortcut load F02 1 again within 10 s to write it as co-op slot 5 '
+        ..'(StellarBladeCoop04.sav, backed up first), without its achievement list; then choose Load Game, slot 5. '
+        ..'Steam achievements it unlocks stay unlocked\n'
+    assert(#asked==n+1 and last()==confirm,last())
+    clock=clock+11 -- Too late: a new first.
+    coop('shortcut','load','F02','1')
+    assert(#asked==n+1 and last()==confirm,last())
+    coop('shortcut','load','B07','2') -- Another file: a new first too.
+    assert(#asked==n+1 and last():find('load B07 2 again',1,true),last())
+    clock=clock+9
+    coop('shortcut','load','B07','2')
+    assert(#asked==n+2 and asked[#asked]=='shortcut load B07 2' and last()=='[StellarCoop] OK: asked the native '
+        ..'part: shortcut load B07 2: its steps go to coop-link.log\n',last())
+    coop('shortcut','load','B07','2') -- After a load, the next one starts over.
+    assert(#asked==n+2 and last():find('load B07 2 again',1,true),last())
+    ra.o.settings.shortcut_load=was
 end
 -- coop glide: on on a co-op save only, off and anything else on any (its usage is cut/glide.lua's); its own check of
 -- the slot is main.lua's coop_slot; restored and ticked every frame, a tick's line reported.

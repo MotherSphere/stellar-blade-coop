@@ -49,12 +49,36 @@ function Cut.new(o)
         end
     end
     -- coop shortcut (the native part's save/shortcut.h, left out of the usage line): the cut Load Shortcut menu's
-    -- saves, read from the game's paks and listed in coop-link.log, on any save, as nothing is written. Loading one
-    -- is held back (docs/how-it-works.md: developer saves with boss achievements already done).
-    function self.shortcut(a)
-        if a~=nil then return false,'Use: coop shortcut (the list; loading a shortcut save is held back)' end
-        local ok,why=o.ask('shortcut list')()
-        if ok then why=tostring(why)..': the list goes to coop-link.log, its summary to this log' end
+    -- saves, read from the game's paks and listed in coop-link.log, on any save, as nothing is written. coop shortcut
+    -- load <map> <1-4> (save/shortcut_load.h): one of them, without its achievement data, written as co-op slot 5's
+    -- copy for the game's own Load Game. Refused unless coop-settings.txt has shortcut_load=on (developer saves with
+    -- boss achievements done: docs/how-it-works.md), and asked of the native part only when the same words come twice
+    -- within 10 s; the first says what it does. The native part checks the rest (the title, co-op saves on, the file).
+    local SHORTCUT_MAPS={B07=true,F02=true,G03=true,Matrix_XI=true}
+    local load_at,load_what=nil,nil -- The first of the two: when (os.clock) and which file.
+    function self.shortcut(a,map,n,extra)
+        if a==nil then
+            local ok,why=o.ask('shortcut list')()
+            if ok then why=tostring(why)..': the list goes to coop-link.log, its summary to this log' end
+            return ok,why
+        end
+        if a~='load' or not SHORTCUT_MAPS[map] or not (n or ''):find('^[1-4]$') or extra~=nil then
+            return false,'Use: coop shortcut (the list), or coop shortcut load <map> <1-4> (read docs/usage.md first)'
+        end
+        if not (o.settings and o.settings.shortcut_load) then
+            return false,'loading a shortcut save is off: it can unlock Steam achievements for good. Read docs/usage.md, '
+                ..'then set shortcut_load=on in coop-settings.txt on an account whose achievements do not matter'
+        end
+        local what,now=map..' '..n,os.clock()
+        if load_what~=what or now-load_at>10 then
+            load_at,load_what=now,what
+            return false,'type coop shortcut load '..what..' again within 10 s to write it as co-op slot 5 '
+                ..'(StellarBladeCoop04.sav, backed up first), without its achievement list; then choose Load Game, slot '
+                ..'5. Steam achievements it unlocks stay unlocked'
+        end
+        load_at,load_what=nil,nil
+        local ok,why=o.ask('shortcut load '..what)()
+        if ok then why=tostring(why)..': its steps go to coop-link.log' end
         return ok,why
     end
     -- coop glide (cut/glide.lua, o.glide, a test tool left out of the usage line): EVE's cut glide, on asked on a co-op

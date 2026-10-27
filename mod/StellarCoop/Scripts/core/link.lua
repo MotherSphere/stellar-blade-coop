@@ -22,8 +22,9 @@
 -- revive, the wait during the host's cutscene); its follow_host and follow_key session/travel.lua's and main.lua's (the
 -- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
 -- partner); its drift_keys the Doro races' driving (race/drive.lua); its mod_names the native part's (through
--- coop-state.txt: names=0 keeps the names of our .pak mods from the friend). The co-op menu (ui/menu.lua) changes the
--- file, one line at a time (D-UI4).
+-- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load commands/cut.lua's
+-- (coop shortcut load, a test tool with no menu row). The co-op menu (ui/menu.lua) changes the file, one line at a
+-- time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -164,6 +165,11 @@ partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
 status_overlay=off
+# Shortcut saves, a test tool: on or off, off by default. On, coop shortcut load <map> <1-4> writes one of the game's
+# cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
+# A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
+# matter (docs/usage.md, Cut Load Shortcut saves).
+shortcut_load=off
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
@@ -176,10 +182,11 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     status_overlay='off',who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off',
-    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='off',mod_names='on'}
+    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='off',mod_names='on',shortcut_load='off'}
+-- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
-    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true} -- On or off.
+    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},

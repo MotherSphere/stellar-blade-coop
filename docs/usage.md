@@ -850,7 +850,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](#cut-dungeon-coop-mxiii-experimental) (experimental test command, untested in game; needs the zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
-| `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save; loading one is held back) |
+| `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
+| `coop shortcut load <map> <1-4>` | Write one of those saves, without its achievement list, as [co-op slot 5](#loading-one-coop-shortcut-load) for Load Game (test command, untested in game; needs `shortcut_load=on`, typed twice within 10 s, at the title with co-op saves on; can unlock Steam achievements) |
 | `coop devmenu [list\|<row>]` | The rows of the game's [developer menu](#developer-menu-coop-devmenu-and-coop-devinfo) that still work: the list, or one row on EVE or the enemies near her (test command, untested in game; a row on a co-op save only) |
 | `coop devinfo quest\|player\|off` | The game's [quest debugger or player info panel](#developer-menu-coop-devmenu-and-coop-devinfo), opened or closed (test command, untested in game, any save) |
 | `coop story [dump\|find]` | Write the story lines of the save object the running game holds to `StellarCoopStory.txt`, read only, or list the save-shaped classes and objects found ([story.md](story.md#the-live-dump); test command, any save) |
@@ -1926,15 +1927,61 @@ shortcut G03 2: the same bytes as F02 1
 The map is where the save starts, with its world's name in the game's tables, and the camp is the one it starts at.
 F02's three files are the three numbered start points of the game's cheat list (Eidos 7, Matrix 11, Spire 4). A
 summary follows, which also reaches `UE4SS.log` as a `link: last=` line: `shortcut saves: 15 of 16 found: B07 1
-SE_01_EnvS_049, ..., G03 2 = F02 1, ...; each one's line is in coop-link.log; loading one is held back`. A second
-`coop shortcut` before the list ends still answers `OK: asked the native part: shortcut list: ...` on the console; the
-refusal, `shortcut list refused: a list is under way`, shows in `coop-link.log` and in `UE4SS.log` as a `link: last=`
-line.
+SE_01_EnvS_049, ..., G03 2 = F02 1, ...; each one's line is in coop-link.log; loading one needs shortcut_load=on
+(docs/usage.md)`. A second `coop shortcut` before the list ends still answers `OK: asked the native part: shortcut
+list: ...` on the console; the refusal, `shortcut list refused: a list is under way`, shows in `coop-link.log` and in
+`UE4SS.log` as a `link: last=` line.
 
-Loading one is held back. These are saves of development builds from 2021 and 2022. Two of them (F02 2 and 3, and
-their copies G03 3 and 4) hold six boss achievements as already done, and loading one could give those Steam
-achievements to an account that never fought the bosses. They also hold items and quests the released game no longer
-has, and lack fields its own saves have. [How it works](how-it-works.md#why-no-load) has the details.
+#### Loading one: `coop shortcut load`
+
+Read this before you turn it on. Loading one of these saves can unlock Steam achievements on the account you play
+with, and Steam gives no way to remove an achievement once it is unlocked. Try it only on a Steam account whose
+achievements do not matter to you, with Steam Cloud off for the game.
+
+These are saves of development builds from 2021 and 2022. Two of them (F02 2 and 3, and their copies G03 3 and 4)
+hold six boss achievements as already done. Before it writes anything, the mod removes the save's achievement list
+([How it works](how-it-works.md#loading-one) lists what the game reads from a loaded save and why that is enough for
+the load itself). What stays is a developer's progress: quests, opened doors and chests, skills, items and camps you
+did not earn. Each new skill, item or kill you add to it in game can still complete an achievement, collection
+achievements included, so the warning above holds for the whole time you play it.
+
+Some of those items are not in the released game. In Matrix_XI 1 to 4, EVE wears one of them (`BS_Defender`), and F02
+2 and 3 hold three old `DesignPattern_*` items. They stay as the developer saved them, and whether the game loads them
+cleanly has not been tried.
+
+The command is off by default and has not been tried in game. To use it:
+
+1. Close the game, set `shortcut_load=on` in `coop-settings.txt`, then start the game.
+2. At the title screen, turn the co-op saves on: Convert and play co-op in the question, or `coop saves coop`. The
+   title then shows `CO-OP SAVES`.
+3. Type `coop shortcut load F02 1`: a map (`B07`, `F02`, `G03` or `Matrix_XI`), then 1 to 4. `coop shortcut` lists what
+   each file holds. The first time, the console only says what the command will do. Type the same command again
+   within 10 s to go ahead.
+4. The native part reads that file from the game's paks, cleans it, copies your co-op slot 5 (`StellarBladeCoop04.sav`)
+   into a new folder of `StellarCoopBackups`, then writes the cleaned save in its place. `coop-link.log` shows each step
+   and ends with `shortcut save ready in co-op slot 5: choose Load Game at the title, then that slot`.
+5. Choose Load Game, then the fifth slot.
+
+What else to know:
+
+- Only co-op slot 5 changes. Your own saves (`StellarBladeSave00.sav` to `04.sav`) are never written, and the co-op
+  copy it replaced stays in the backup folder. `coop saves refresh 4` (slots count from 0 there) puts a new copy of
+  your own fifth save in slot 5, after a backup of the shortcut one. It runs only while the game uses your own saves,
+  and once a co-op save has been loaded, `coop saves main` is refused until the game restarts. So after you have
+  played the shortcut save, restart the game, answer Decide later in the question at the title (with
+  `auto_coop_save=always`, set it to `ask` first), then type `coop saves refresh 4` twice within 10 s. It needs your
+  own `StellarBladeSave04.sav`. Without one it refuses, and the copy that was replaced is only in
+  `StellarCoopBackups`.
+- The co-op saves count the new slot 5 as played in co-op, so no automatic copy replaces it.
+- Load Game lists the slots as they were when the title screen appeared, so the fifth slot may still show the old
+  save's details. The game reads the file when you pick it. A slot that was empty then may not be offered: load
+  another save, quit to the title, and the list shows it.
+- Refusals go to `coop-link.log` and to `UE4SS.log` as a `link: last=` line, for example `shortcut load refused:
+  co-op saves are off: turn them on first (Convert and play co-op at the title, or coop saves coop)` or `shortcut
+  load refused: F02 4: the game has no such file`. The mod takes only the 15 files of this game build, checked by
+  their CRC-32.
+- Leaving the title, `coop saves main` or `coop off` stops the write between two of its steps. Until the cleaned save
+  is written, slot 5 keeps its old file.
 
 ### Developer menu: `coop devmenu` and `coop devinfo`
 
@@ -2852,6 +2899,11 @@ partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
 status_overlay=off
+# Shortcut saves, a test tool: on or off, off by default. On, coop shortcut load <map> <1-4> writes one of the game's
+# cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
+# A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
+# matter (docs/usage.md, Cut Load Shortcut saves).
+shortcut_load=off
 ```
 
 | Setting | Values | Default |
@@ -2903,6 +2955,7 @@ status_overlay=off
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
 | `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
 | `status_overlay` | `off`, `compact` or `detailed`: the [status strip](#status-strip-above-the-card) above the card | `off` |
+| `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `off` |
 
 Rules:
 

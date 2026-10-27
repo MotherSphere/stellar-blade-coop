@@ -581,7 +581,9 @@ inline uint64_t code_lobby(std::string_view text) {
 // of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
 // game/anim.h's path_ok takes) and "anim stop" (ours, while it plays); for coop shortcut "shortcut list" (the cut
 // Load Shortcut menu's saves, read through the game's file manager on the game thread and named in the log,
-// save/shortcut.h). For the Night Operation shop in SB's own shop screen (nightop/shop.lua, nightop/shop_ui.h)
+// save/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's copy,
+// save/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the
+// Night Operation shop in SB's own shop screen (nightop/shop.lua, nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
 // nightop/roxanne.h) "roxanne on" and "roxanne off". No console argument reaches either: the words are fixed.
@@ -589,6 +591,8 @@ enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne
 };
+// shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
+constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 // The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop), in
 // Request::batch's order.
 constexpr size_t kRowWordCount = 6;
@@ -639,7 +643,8 @@ struct Request {
   uint64_t player = 0;                   // allow, deny, remove: her SteamID.
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
-  int slot = -1;                    // saves refresh: the slot; saves export: the co-op slot; 0 to 4.
+  int slot = -1;                    // saves refresh: the slot; saves export: the co-op slot; 0 to 4. shortcut load:
+                                    // the file, 0 to 15 (-1: list).
   int target = -1;                  // saves export: the player's slot it goes to, 0 to 4.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
   bool confirmed = false;      // fight on, probe, record, replay: guest_kills=confirmed (used by a guest's side).
@@ -840,6 +845,13 @@ inline Request parse_request(std::string text) {
     r.command = Command::off;
   else if (text == "shortcut list")
     r.command = Command::shortcut;
+  else if (split(text, f, 4, nullptr) && f[0] == "shortcut" && f[1] == "load") {
+    const auto map = std::find(std::begin(kShortcutMaps), std::end(kShortcutMaps), std::string_view(f[2]));
+    if (map != std::end(kShortcutMaps) && f[3].size() == 1 && f[3][0] >= '1' && f[3][0] <= '4') {
+      r.command = Command::shortcut;
+      r.slot = int(map - std::begin(kShortcutMaps)) * 4 + (f[3][0] - '1');
+    }
+  }
   else if (text == "mark" || text.rfind("mark ", 0) == 0) {
     r.command = Command::mark;
     r.text = chat_clean(std::string_view(text).substr(4), kMaxMark);

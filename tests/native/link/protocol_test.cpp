@@ -675,9 +675,17 @@ int main() {
         std::string("anim play 1 /Game/Art/Character/PC/CH_P_EVE_01/Animation/../X.X once"), "anim  play 1 " + clip +
         " once", std::string("anim"), std::string("anim stop now"), std::string("anim play")})
     assert(parse_request(bad).command == Command::none);
-  // coop shortcut: the list, nothing else.
-  assert(parse_request("shortcut list\r\n").command == Command::shortcut);
-  for (const char *bad : {"shortcut", "shortcut List", "shortcut list now", "shortcut load F02 1", "shortcutlist"})
+  // coop shortcut: the list (slot -1), or a load of one file: a map of the four, slot 1 to 4, as save/shortcut.h counts
+  // them (map * 4 + slot - 1).
+  Request sc = parse_request("shortcut list\r\n");
+  assert(sc.command == Command::shortcut && sc.slot == -1);
+  sc = parse_request("shortcut load F02 1\r\n");
+  assert(sc.command == Command::shortcut && sc.slot == 4);
+  assert(parse_request("shortcut load B07 1").slot == 0 && parse_request("shortcut load Matrix_XI 4").slot == 15);
+  for (const char *bad :
+       {"shortcut", "shortcut List", "shortcut list now", "shortcutlist", "shortcut load", "shortcut load F02",
+        "shortcut load F02 0", "shortcut load F02 5", "shortcut load f02 1", "shortcut load F02 1 now",
+        "shortcut load F02  1", "shortcut load X 1", "shortcut load F02 01"})
     assert(parse_request(bad).command == Command::none);
   // coop devinfo: a panel or off, nothing else.
   Request d = parse_request("devinfo quest\n");
