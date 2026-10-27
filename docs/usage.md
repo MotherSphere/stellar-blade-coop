@@ -809,7 +809,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
 | `coop leave` | Leave the session (F8) |
 | `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start; off in this version ([Following the host](#following-the-host)) |
-| `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps, with no session and no host's answer; it does not check that your save has found that camp (test command, co-op save only) |
+| `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps, with no session and no host's answer; it does not check that your save has found that camp, and a camp it reaches counts toward the game's camp trophies, see [Following the host](#following-the-host) (test command, co-op save only) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |
