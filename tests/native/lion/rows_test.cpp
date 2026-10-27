@@ -1003,12 +1003,13 @@ int main() {
     assert(lb.run(g, kBase, g.tables, g.block).state == State::rows && g.adds.size() == kRows && g.puts.empty());
   }
   {
-    // A shipped row missing stops the run at it, the rows before it in, and nothing is added under its name; once it
-    // is there, a later run patches it and only it.
+    // A shipped row missing (from RowMap and the ID map, as SB's AddRow fills both) stops the run at it, the rows
+    // before it in, and nothing is added under its name; once it is there, a later run patches it and only it.
     Game g;
     const uint64_t table = g.tables[size_t(Table::trigger)], key = g.name("DLC02_40_ZTrigger_002");
     const uint64_t row = g.rows[{table, key}];
     g.rows.erase({table, key});
+    g.ids.erase({table, 281501002});
     Builder mb(kMxiii);
     Answer a = mb.run(g, kBase, g.tables, g.block);
     assert(a.state == State::refused && a.why == Why::donor && a.row == 12 && a.added == 12 && g.adds.size() == 8 &&
@@ -1016,6 +1017,7 @@ int main() {
     assert(describe(kMxiii, a) ==
            "mxiii rows refused DLC02_40_ZTrigger_002: no shipped row of that name in ZoneTriggerTable; 12/13 added");
     g.rows[{table, key}] = row;
+    g.ids[{table, 281501002}] = key;
     a = mb.run(g, kBase, g.tables, g.block);
     assert(a.state == State::rows && a.added == kMxiiiRows && g.adds.size() == 8 && g.puts.size() == 5 &&
            g.puts[4].row == row);

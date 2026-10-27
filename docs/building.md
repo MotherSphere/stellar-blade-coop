@@ -95,7 +95,7 @@ build/host/pose_codec_test
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
     and the boss tests included; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`, `mxiii rows` and `shop rows`
-    with their 19 table words and bad addresses, the longest of them 619 bytes; `fly` and `slowmo` on or off; `anim
+    with their 20 table words and bad addresses, the longest of them 651 bytes; `fly` and `slowmo` on or off; `anim
     play` with its id, path and `once` or `loop`, and `anim stop`; `shortcut list` and `shortcut load <map> <1-4>`;
     `nightshop` and `roxanne` with their
     fixed words), Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join codes (both

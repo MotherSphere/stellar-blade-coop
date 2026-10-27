@@ -10,7 +10,8 @@
 // both trees pick skills by their AISkillFlag, never by command name. Each row starts as a copy of a shipped row of its
 // table (the template: SB's CopyScriptStruct needs a valid row of the struct), and the patches set every field that
 // template holds, some of them to the template's own value where the Lion's is the same. The rows live in memory for
-// the game run; nothing is written to disk and no shipped row changes.
+// the game run; nothing is written to disk, and no shipped row changes except the 5 ZoneTriggerTable rows that
+// Matrix XIII's batch patches in place (see below).
 //
 // The same batch carries, first, the rows of the cut items the Night Operation shop sells (nightop/shop.lua asks for
 // them before a buy): the ItemTable rows of the Burst Stimpack (300013, over SB's own consumable HP2Burst_Potion) and
@@ -59,8 +60,8 @@
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
 // (glue/tick/lion_game.inc's gate: no lock guards the tables). For each row not added yet, in order: the table must be
-// SB's UDataTable with its row struct of the size the SDK gives; the new name must be free in RowMap and the new ID
-// free in the table's ID map; the template is found by name; then the row is built in a block the glue owns
+// SB's UDataTable with its row struct of the size the SDK gives; the new name must be free in RowMap; the template is
+// found by name; the new ID must be free in the table's ID map; then the row is built in a block the glue owns
 // (InitializeStruct, CopyScriptStruct from the template, the ID at +0x10, the patches) and handed to AddRow, which
 // removes any row of that name, copies ours into its own allocation and fills the ID and index maps. The first refusal
 // stops the run before any later row of its batch, and each batch's CharacterTable rows come last, so NewActor finds
@@ -6539,11 +6540,11 @@ public:
       const bool shipped = shipped_row(r); // Patched in place: the row must be there, its ID naming it.
       if (!shipped && g.find(table, name))
         return a.why = Why::name, a.added = uint8_t(count_), a;
-      if (info.id && g.id_name(table, r.id) != (shipped ? name : 0))
-        return a.why = Why::id, a.added = uint8_t(count_), a;
-      const uint64_t donor = g.find(table, donor_name);
+      const uint64_t donor = g.find(table, donor_name); // First: a shipped row missing from RowMap has no ID either.
       if (!donor)
         return a.why = Why::donor, a.added = uint8_t(count_), a;
+      if (info.id && g.id_name(table, r.id) != (shipped ? name : 0))
+        return a.why = Why::id, a.added = uint8_t(count_), a;
       g.construct(rs, block);
       g.copy(rs, block, donor);
       if (!shipped) {
