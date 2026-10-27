@@ -184,6 +184,7 @@ package.loaded['partner.capture']={new=function(publish,looks)
     return fake_capture
 end}
 toggles,active,basesuits,wheres,in_world,at_title=0,false,0,0,false,false
+toggle_raise=nil -- What the ghost's toggle raises, if anything.
 puppet_say=nil -- What the ghost says its notices with.
 the_notice,name_tag,look,rebuilds=nil
 veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 ms.
@@ -213,7 +214,10 @@ package.loaded['partner.puppet']={new=function(link,capture,say,tag,looks)
     assert(the_notice and type(say)=='function','The map notice goes on screen')
     puppet_say=say
     name_tag,look,rebuilds=tag,looks,{}
-    return {rebuild=function(why) rebuilds[#rebuilds+1]=why end,toggle=function() toggles=toggles+1; active=not active; return true,'ghost' end,tick=function() end,
+    return {rebuild=function(why) rebuilds[#rebuilds+1]=why end,toggle=function()
+        if toggle_raise then error(toggle_raise,0) end
+        toggles=toggles+1; active=not active; return true,'ghost'
+    end,tick=function() end,
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,

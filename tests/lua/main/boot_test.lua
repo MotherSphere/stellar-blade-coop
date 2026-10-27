@@ -1084,6 +1084,16 @@ load_main(true)
 coop('off')
 assert(logged('race: no EVE') and last()=='[StellarCoop] OK: asked the native part: off\n','A race end that raises')
 ra.raise=nil
+-- A ghost despawn that raises (a stale coop-puppet.txt, a world torn down) is logged; the rest of coop off still runs
+-- and the native part is still told.
+toggle_raise='K2_DestroyActor: no world'
+load_main(true)
+active=true
+local stops=notice_stops
+coop('off')
+assert(logged('ghost: K2_DestroyActor: no world') and notice_stops==stops+1 and asked[#asked]=='off'
+    and last()=='[StellarCoop] OK: asked the native part: off\n',last())
+toggle_raise,active=nil,false
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 
 -- Without the native tick export, the pose path's commands say so.
