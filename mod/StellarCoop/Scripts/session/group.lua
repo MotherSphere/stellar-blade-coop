@@ -27,8 +27,9 @@
 -- revive=on and coop revive test's guards, when her interact key was held next to our EVE ('friend', on her night line)
 -- or for coop nightop revive ('self'), with the same fallback, result line and hidden death screen; the revived notice
 -- only after the friend's revive.
--- The host's cutscene, on both PCs once a second while linked: one FindAllOf of SB's theater observers; a cutscene
--- plays while one of them has a valid player whose IsPlaying() is true (on and off logged with its sequence's name).
+-- The host's cutscene, on both PCs once a second while linked: SB's theater observers (walked for as theater() says); a
+-- cutscene plays while one of them has a valid player whose IsPlaying() is true (on and off logged with its sequence's
+-- name).
 -- The host's photo state goes to the native part as 'c' while it plays and the host's own is '0' (photo()), so its
 -- photo line pauses the guest; the guest asks for that pause with cut=1 while her cutscene_wait is on and the host's
 -- ghost is on her map (cut()). Her notice comes once each time her photo line says the pause holds for it.
@@ -222,11 +223,14 @@ function G.new(o)
     end
     -- The cutscene's name while one plays, else nil. The observer found playing is kept while it lives. A theater plays
     -- through a level sequence actor, whose class's actors come from the engine's class hash (core/unreal.lua's
-    -- actors_of): only while one of them plays are the theater observers walked for (FindAllOf walks every object,
-    -- 25 to 80 ms in game: once a second while linked, that was a frozen frame each second). A gate that raises walks.
+    -- actors_of): the theater observers are walked for (FindAllOf walks every object, 25 to 80 ms in game: once a
+    -- second while linked, that was a frozen frame each second) only when the set of playing sequence actors changes,
+    -- so a looping one with no theater costs one walk, logged with the names. A gate that raises walks.
+    -- shortcut: an observer whose player starts a read after its sequence actor is missed until the set changes again;
+    -- read the observer at each new set for a few reads if a grouped test shows that lag.
     -- The hash needs a world: our EVE's, else our SB controller's. With neither (a load, the title screen) no theater
     -- plays, and actors_of would walk for want of a world.
-    local observer=nil
+    local observer,last=nil,nil -- last: the playing sequence actors' addresses at the last read.
     local function name_of(ob)
         local player=ob and weak(ob.Player)
         return player and player:IsPlaying()==true and U.text(ob.SequenceName) or nil
@@ -236,21 +240,30 @@ function G.new(o)
         if kept then return kept end
         local ctx=N.her() or N.controller()
         if not ctx then return nil end
-        local read,any=pcall(function()
+        local read,playing,names=pcall(function()
+            local keys,names={},{}
             local list=U.actors_of(U.find('/Script/LevelSequence.LevelSequenceActor'),'LevelSequenceActor',ctx)
             for _,a in ipairs(list) do
                 local player=U.valid(a.SequencePlayer)
-                if player and player:IsPlaying()==true then return true end
+                if player and player:IsPlaying()==true then
+                    keys[#keys+1]=U.address(a)
+                    names[#names+1]=U.text(a:GetFullName()):match('[^.:]+$')
+                end
             end
-            return false
+            table.sort(keys)
+            return table.concat(keys,' '),names
         end)
-        if read and not any then return nil end
+        local same=read and playing==last
+        last=read and playing or nil
+        if read and (playing=='' or same) then return nil end
         local name=nil
         U.each(FindAllOf('SBTheaterLevelSequenceObserver') or {},function(_,ob)
             ob=not name and U.valid(ob)
             name=name_of(ob)
             if name then observer=ob end
         end)
+        if name then last=nil -- Once it ends, the next theater may play on the same sequence actor.
+        elseif read then log('cutscene: no theater for the playing sequences '..table.concat(names,', ')) end
         return name
     end
     local function watch()
