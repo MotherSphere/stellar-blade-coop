@@ -477,6 +477,7 @@ private:
     for (const auto &l : list_)
       listed_.insert(listed_.end(), l.begin(), l.end());
     std::sort(listed_.begin(), listed_.end());
+    unlisted_ = false;
     for (size_t i = 0; i < kRowCount; ++i)
       if (!view(g, i))
         return false;
@@ -503,6 +504,7 @@ private:
     if (!listed) {
       if (r.type == 'R' && state > 0)
         return implausible("Request outside the quest arrays");
+      unlisted_ |= state > 0;
       v.state = int8_t(r.type == 'R' ? state : 0);
       return true;
     }
@@ -612,12 +614,13 @@ private:
     if (!start_ms_)
       start_ms_ = now_ms ? now_ms : 1;
     // A save load makes every quest object again: a known one at a new address, or gone (a save without it). A read
-    // with a known one gone may also be a unit SB is still filling: it counts only once the next pass reads the same
-    // objects, and until then the side waits and seen_ keeps the last objects it took.
-    bool load = false, gone = false;
+    // with a known one gone, or with an Epic or Sub quest past state 0 that no array lists, may also be a unit SB is
+    // still filling: it counts only once the next pass reads the same objects, and until then the side waits and
+    // seen_ keeps the last objects it took.
+    bool load = false, unsure = unlisted_;
     for (size_t i = 0; i < kRowCount; ++i)
-      load |= seen_[i] && seen_[i] != objects_[i], gone |= seen_[i] && !objects_[i];
-    if (gone && objects_ != unsure_) {
+      load |= seen_[i] && seen_[i] != objects_[i], unsure |= seen_[i] && !objects_[i];
+    if (unsure && objects_ != unsure_) {
       unsure_ = objects_;
       return false;
     }
@@ -953,7 +956,8 @@ private:
   std::vector<uint64_t> list_[3], values_, listed_;
   std::vector<uint8_t> elements_;
   std::vector<uint64_t> objects_ = std::vector<uint64_t>(kRowCount), seen_ = std::vector<uint64_t>(kRowCount);
-  std::vector<uint64_t> unsure_; // The last read with a known object gone, until the next pass reads the same.
+  std::vector<uint64_t> unsure_; // The last unsure read's objects, until the next pass reads the same.
+  bool unlisted_ = false;        // The last walk: an Epic or Sub quest past state 0 in no array.
   std::vector<View> views_ = std::vector<View>(kRowCount);
   std::vector<Tuple> live_ = std::vector<Tuple>(kRowCount);
   std::vector<Note> notes_, shown_ = std::vector<Note>(kRowCount);

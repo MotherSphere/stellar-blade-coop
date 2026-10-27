@@ -187,6 +187,7 @@ struct Pc {
   std::vector<uint64_t> extra;                      // Helper quests SB completed: in the Complete array.
   std::vector<bool> lone = std::vector<bool>(kRowCount); // An object in the ID map only, at state 0.
   std::vector<bool> hidden = std::vector<bool>(kRowCount); // Its object kept but in neither the map nor an array.
+  bool unlisted = false; // Every array empty, the ID map as it is (a unit SB fills map first).
   bool extra_mapped = true, heap_bits = false, no_unit = false;
   uint64_t logic = 0, world = 0, mgr = 0, unit_at = 0, data = 0, bits = 0, lists[3] = {}, block = 0;
   uint32_t owner = 0x51, thread_id = 100, cursor = 1;
@@ -318,7 +319,7 @@ struct Pc {
       for (size_t n = 0; n < list[k].size(); ++n)
         mem.put(lists[k] + 8 * n, list[k][n]);
       mem.put(unit_at + kLists + 0x10 * k, lists[k]);
-      mem.put<int32_t>(unit_at + kLists + 0x10 * k + 8, int32_t(list[k].size()));
+      mem.put<int32_t>(unit_at + kLists + 0x10 * k + 8, unlisted ? 0 : int32_t(list[k].size()));
     }
   }
   // A save load: every quest object made again (Requests the save does not hold at -1).
@@ -1074,6 +1075,44 @@ void vanished() {
   assert(has(k.host->log, "a save load") && has(k.host->lines, q("snap 2 ")));
 }
 
+// A unit with its ID map filled and its arrays still empty (for one pass, as a reload of the same save fills it): its
+// Epic and Sub quests past state 0 in no array make the pass wait as a gone object does. The next pass is the load,
+// with every quest at its state, so the host sends nothing new and a guest behind on a quest stays behind. The same
+// with the objects where they were is no load and sends nothing.
+void unlisted() {
+  auto two = std::make_unique<Two>();
+  Two &k = *two;
+  Pc &h = k.host->pc, &g = k.guest->pc;
+  const size_t s17 = at("Quest_Sub_017");
+  k.zone("Zone_WLA_10");
+  k.steps(4);
+  g.zone("Zone_DED20"); // Away while the host plays Quest_Sub_017: behind on it.
+  h.acquire(s17);
+  k.steps(2);
+  h.play(s17), h.play(s17);
+  k.steps(3);
+  g.zone("Zone_WLA_10");
+  k.steps(3);
+  assert(g.w.v[s17].state == 0 && k.noted(Why::behind, kRows[s17].id) && g.calls == 0);
+  const size_t lines = k.host->lines.size();
+  h.unlisted = true, h.load();
+  k.step();
+  assert(k.host->lines.size() == lines && !has(k.host->log, "a save load"));
+  h.unlisted = false, h.render();
+  k.step();
+  assert(has(k.host->log, "a save load"));
+  k.steps(6);
+  assert(g.w.v[s17].state == 0 && g.calls == 0 && has(k.host->lines, q("snap 2 ")));
+  const std::string record = k.host->record;
+  const size_t after = k.host->lines.size();
+  h.unlisted = true, h.render();
+  k.step();
+  h.unlisted = false, h.render();
+  k.steps(6);
+  assert(k.host->lines.size() == after && k.host->record == record && g.w.v[s17].state == 0 && g.calls == 0);
+  assert(count(k.host->log, "a save load") == 1);
+}
+
 // coop quests force: a step held as unseen (here the host's zone could not be read when it ended Quest_WALN10_001's
 // group, whose warp the tables cannot place) goes where she stands, once, and the notice says SB moves her; a zone
 // hold is never forced.
@@ -1543,6 +1582,7 @@ int main() {
   late_host();
   loads();
   vanished();
+  unlisted();
   forced();
   lossy();
   record_replay();
