@@ -266,7 +266,7 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
             -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
             return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
         end} or nil})
--- coop mxiii (cut/mxiii.lua), logging [MX] lines: Matrix XIII's 2 rows asked of the native part, then the follow's camp
+-- coop mxiii (cut/mxiii.lua), logging [MX] lines: Matrix XIII's 8 rows asked of the native part, then the follow's camp
 -- travel (read at each call: built below), once the zMXIII_P test pak is found under SB/Content/Paks.
 local mxiii=require('cut.mxiii').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
