@@ -76,7 +76,8 @@
 -- coop emote [list|<name>|off] plays one of EVE's clips on her (a photo-mode pose held until she moves, a wave, or a
 -- clip of the Cut category played once), on any save (cut/emote.lua, through the native part's custom animation call).
 -- coop shortcut lists the cut Load Shortcut menu's developer saves, read from the game's paks by the native part, on
--- any save (left out of the usage line); loading one is held back.
+-- any save (left out of the usage line); coop shortcut load <map> <1-4> writes one, without its achievement data, as
+-- co-op slot 5's copy, only with shortcut_load=on and typed twice within 10 s (commands/cut.lua).
 -- coop devmenu [list|<row>], the rows of the game's developer cheat menu that still work, through the same Cheat
 -- request as coop chainspin (cut/devmenu.lua; left out of the usage line; a row on a co-op save only; coop off runs
 -- its clear and lockswitch rows once more when a row ran, even before a Lua reload). coop devinfo quest|player|off, the game's quest debugger
