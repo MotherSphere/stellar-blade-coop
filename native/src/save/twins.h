@@ -177,9 +177,11 @@ constexpr ModItem kModItems[] = {{"HP2Burst_Potion", "Burst Stimpack"},
                                  {"Buff_HP2MP", "Beta Stimpack"},
                                  {"Bullet_Shock", "Shock Bolt"},
                                  {"Money_NightOperation", "Beta Seed"}};
-// coop mxiii's place: the Matrix XIII dungeon's map, and the ZoneEnvSpawnTable row of the camp the mod adds there (a
-// full camp: lion/rows.h's kMxiiiPatches keep its CampType 3).
-constexpr char kMxiiiMap[] = "MXIII_P", kMxiiiCamp[] = "DLC02_10_EnvS_900";
+// coop mxiii's place: the Matrix XIII dungeon's map, and how every name of its rows starts. The game's tables have 162
+// ZoneEnvSpawnTable rows named DLC02_, all in Zone_DLC02_10 to 40, and no ZoneCampTable row; the mod's camp there
+// (DLC02_10_Camp_01, a full camp: lion/rows.h's kMxiiiPatches keep its CampType 3) and its rows (DLC02_10_EnvS_900, the
+// kit 901 to 906) are named the same way, so no released-game save holds such a name as a camp.
+constexpr char kMxiiiMap[] = "MXIII_P", kMxiiiRows[] = "DLC02_";
 // The ammo SB ships in its const BulletItemSlotArray (lion/shock.h's kShippedBullets); lion/shock.h appends the Shock
 // Bolt after them, so a selected ammo index of 5 or more is the Shock Bolt.
 constexpr int32_t kShippedBullets = 5;
@@ -206,8 +208,10 @@ inline std::pair<size_t, size_t> snapshot(const std::string &b) {
 // released-game save, where every name is an FString: an item held, in the inventory or a pickup left in the world,
 // is an ItemAlias field; a quick slot is a name in ItemQuickSlotArray; the selected ammo is BulletItemSlotIndex, an
 // IntProperty indexing BulletItemSlotArray; the save's map is DataMap_FString's MapName entry, its camp
-// DataMap_FString's CampAlias and the player's CampEnvSpawnAlias, and the last camps rested at the LastFullCamp- and
-// LastSimplyCampEnvSpawnAlias fields, which only a rest at a camp of that kind changes. Every world and zone of the
+// DataMap_FString's CampAlias and the player's CampEnvSpawnAlias (the same ZoneEnvSpawnTable row in each of the user's
+// 15 saves), and the last camps rested at the LastFullCamp- and LastSimplyCampEnvSpawnAlias fields, which only a rest
+// at a camp of that kind changes. Any name of the dungeon's (kMxiiiRows) there counts: after the kit's activation they
+// hold DLC02_10_EnvS_906, not the mod's first row. Every world and zone of the
 // game's tables, Matrix XIII's DLCMatrix13 and Zone_DLC02_10 to 40 included, is in every save, and ItemOtaineSet keeps
 // every item ever held, so neither counts. What the New Game+ snapshot holds is said apart: playing cannot clear it.
 inline std::string mod_only(const std::string &b) {
@@ -220,6 +224,18 @@ inline std::string mod_only(const std::string &b) {
       w |= in(at);
     return w;
   };
+  // Where a camp field's value is a row of the dungeon: head is the field up to the value, skip the bytes between.
+  auto cut = [&](const std::string &head, size_t skip) {
+    int w = 0;
+    for (size_t at = b.find(head); at != std::string::npos; at = b.find(head, at + 1)) {
+      const size_t value = std::min<size_t>(at + head.size() + skip + 4, b.size()); // Past the FString's length.
+      if (b.compare(value, sizeof kMxiiiRows - 1, kMxiiiRows) == 0)
+        w |= in(at);
+    }
+    return w;
+  };
+  // A NameProperty: its int64 size and the GUID's flag before the value.
+  auto camp = [&](const char *field) { return cut(fstring(field) + fstring("NameProperty"), 9); };
   // The quick slots' arrays: their bodies, after the header (the names' type and no GUID), and where each is.
   std::vector<std::pair<std::string, int>> slots;
   const std::string head = fstring("ItemQuickSlotArray") + fstring("ArrayProperty");
@@ -255,12 +271,11 @@ inline std::string mod_only(const std::string &b) {
       if (w & i)
         add(items[i], std::string(item.name) + " (" + item.alias + ")", ", ");
   }
-  const int simple = where(name_field("LastSimplyCampEnvSpawnAlias", kMxiiiCamp));
+  const int simple = camp("LastSimplyCampEnvSpawnAlias");
   const std::pair<const char *, int> place[] = {
       {"its map", where(fstring("MapName") + fstring(kMxiiiMap))},
-      {"its camp",
-       where(fstring("CampAlias") + fstring(kMxiiiCamp)) | where(name_field("CampEnvSpawnAlias", kMxiiiCamp))},
-      {"its last full camp", where(name_field("LastFullCampEnvSpawnAlias", kMxiiiCamp))},
+      {"its camp", cut(fstring("CampAlias"), 0) | camp("CampEnvSpawnAlias")},
+      {"its last full camp", camp("LastFullCampEnvSpawnAlias")},
       {"its last simple camp", simple}};
   for (const auto &p : place)
     for (int i : {1, 2})
