@@ -74,11 +74,12 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.
 build/host/pose_codec_test
 ```
 
-- Lua tests (`core/`: `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `enemy`, `gardener`, `leviathan`,
-  `lines`, `lion`, `mailbox`, `mxiii`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `input`, `menu`,
-  `quests`, `session_ui`, `settings`; `nightop/`: `challenges`, `probe`, `recruiter`, `recruiter_text`, `run`, `shop`,
-  `waves`; `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`:
-  `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `kit`, `model`, `notice`, `text`) run
+- Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `chainspin`, `devmenu`,
+  `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `mxiii`, `scene`, `tendril`,
+  `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
+  `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
+  `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`,
+  `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `guide`, `kit`, `model`, `notice`, `text`) run
   the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
   fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test`
   also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn probe`, the
@@ -102,9 +103,22 @@ build/host/pose_codec_test
     and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, joining
     with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a
     flood while waiting);
+  - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
+    a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
+    20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up
+    undone within its wait doubles the wait up to 80 s, and one that holds brings it back to 10 s;
   - `pose_engine_test`: the pose path against fake memory;
   - `pose_codec_test`: the codec's round trips, the deltas against a keyframe, and a decoder fuzz;
+  - `pose_delta_gain_test`: what the sender's delta tolerance (`kTolerance` in `pose/codec.h`) saves. With no
+    argument, as `tools/install.py` runs it, it encodes two synthetic recordings (idle and running) made by the real
+    sender with no tolerance and with it, checks that the tolerance saves bytes on both and prints keyframes, deltas,
+    their mean sizes and KiB/s for each. `build/host/pose_delta_gain_test path/to/coop-record.bin` measures a recording
+    of the current protocol instead;
   - `pose_table_test`: the component table and the display file, with a parser fuzz;
+  - `pose_resend_test`: our component table's resends (`TableResend` in `pose/table.h`) on a worker passing every
+    50 ms: at once to a new friend, then 5, 10, 20, 40 and 60 s apart, every 60 s from then on; a change brings the
+    next one 5 s after it and starts the doubling over; a sign her side lost our table brings it within 5 s, and a
+    flood of them sends one each 5 s at most;
   - `pose_record_test`: the recording's reader, with a fuzz, and its replay, with same-place enemies' `SBE` and show
     lines re-stamped on the poses' clock;
   - `pose_stream_test`: the loopback pipeline in simulated time;
@@ -118,6 +132,14 @@ build/host/pose_codec_test
     `CampAlias` and `DateTime` within their maps, an EVAS header stripped, short and bad bytes), its copies, lines and
     summary;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
+  - `nightop_roxanne_test`: Roxanne's choice list in SB's select cache (`nightop/roxanne.h`) against fake memory laid
+    out like the pinned build: on (our six rows in a GMalloc array, the pointer written before the count, her old array
+    never written), off (her pointer, count and max back), a second on, an element array moved by a rehash, an entry
+    the game rebuilt, the refusals (no world, no holder, her list absent or of another shape, no memory) and the
+    `roxanne=` line;
+  - `nightop_shop_ui_test`: the Night Operation shop screen's guard (`nightop/shop_ui.h`: a client and its UI manager
+    always, in game and playing for an open only), its answer word's round trip, the `nightshop=` line and the log
+    lines;
   - `lion_rows_test`: the Lion's, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's and the Night Operation
     shop's rows against fake memory laid out like the pinned build: the recipes (unique names and IDs across the
     batches, every patch inside its struct, the steps, skills, commands, stances, moves and target filters pointing at
@@ -282,6 +304,18 @@ build/host/pose_codec_test
     diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
     stick's thresholds, View held 1 s, a disconnect,
     the event queue) and which XInput slots each poll asks;
+  - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
+    neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
+    one asked opens unless it is open), and the two panels' logic types and names;
+  - `travel_test`: the follow's fast travel request, its bytes at each offset, each guard refusing with its own reason
+    (a respawn in flight included), the call count (three calls in 10 s, a 10 s wait after an accepted call, none after
+    a refused one) and the watch over the warp block (pending, warping, arrived, a block cleared before it ran, and one
+    that never ran: stuck);
+  - `pak_list_test`: the `.pak` mod list's filter and digest (the base game's files left out, mods in any folder and
+    any case counted, the listing's order and a name's case changing nothing, a size or a name changing the hash), the
+    containers by name, the names as they go to the friend, hers against ours, the status list, and the CNS packs
+    under `~mods` with their outfits and the `/Game` assets they declare (comments, other keys and a text cut short
+    included);
   - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
     rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
     reloads;
@@ -377,6 +411,8 @@ Platform-free headers, tested on the build machine:
 | `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose/record.h` | The recording, its check and its replay |
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
+| `nightop/roxanne.h` | Roxanne's Night Operation choices: her choice list's entry in SB's select cache pointed at six rows of ours and put back, the checks and the `roxanne=` line |
+| `nightop/shop_ui.h` | The Night Operation shop in SB's own shop screen: the guard, the answer word, the `nightshop=` line and the log lines |
 | `lion/rows.h` | Six batches of rows (all but the fifth with their data part written by a generator outside the repository, which also describes the 19 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, `coop mxiii`'s 2, written by hand, and the Night Operation shop screen's 6; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=` and `shop=` lines and the log lines |
 | `lion/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
@@ -397,6 +433,7 @@ Platform-free headers, tested on the build machine:
 | `game/pad.h` | The controller's events for the co-op menu, and which XInput slots each read asks |
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
+| `game/dev_panels.h` | `coop devinfo`: the guard, the plan that opens one of SB's two read-only developer panels (the quest debugger, the player info) and closes the other, and their logic types and names |
 | `game/anim.h` | `coop emote`'s native clips: which clip paths pass, the path as the game's string, the call's arguments, the custom animation slot as read, our EVE and the check that she is still the object played on, what each frame does, and the track of the last play (its answer, the watch, the stop) with its log lines |
 | `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare |
 
