@@ -2554,13 +2554,15 @@ an index outside it, a hash size that is not a power of two or an implausible po
 ### The remove, the gift and its answer
 
 The remove is the player controller's `ServerRequest_ItemBucketItemRemove(1, <GUID>, <alias>, <count>, -1)`. Its
-implementation (`FUN_1423ba230`, vtable `+0x13d8` of the network player controller, behind a validate that returns
-true) queues the game's remove request (type 0x16, `FUN_141af93e0`) for the next turn of the logic thread, where
-`FSBItemBucketItemRemove::Simulate` (`FUN_141b0ba20`) removes by alias. -1 is the pocket index the request pool sets
-by default (`FUN_141b48810`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by
-the gift's count, for 10 s of play at most. A tick while the game is paused, in photo mode, or in the friend's photo
-mode that pauses ours does not count: SB's logic thread stops then, and the remove waits with it. If the count has not
-fallen by then, nothing is sent and the notice says the items may be gone.
+implementation (`FUN_1423ba230`, vtable `+0x13d8` of the network player controller, behind a validate that returns true)
+queues the game's remove request (type 0x16, `FUN_141af93e0`) for the next turn of the logic thread, where
+`FSBItemBucketItemRemove::Simulate` (`FUN_141b0ba20`) removes by alias. -1 is the pocket index the request pool sets by
+default (`FUN_141b48810`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by the
+gift's count, for 10 s of play at most. A read that comes back `unread` (the remove changes the very sets the worker
+walks, so a read can tear) or `noeve` is asked again the same way; any other `none` answer stops the send. A tick while
+the game is paused, in photo mode, or in the friend's photo mode that pauses ours does not count: SB's logic thread
+stops then, and the remove waits with it. If the count has not fallen by then, nothing is sent and the notice says the
+items may be gone.
 
 Once it fell, Lua writes the gift into `coop-gift-<steamid>-<index>.txt` (`out <id> <alias> <count> <to> <at> <sent>`)
 and only then sends the gift line as a request, `gift s <id> <alias> <count>`. The id is the time in seconds and three
