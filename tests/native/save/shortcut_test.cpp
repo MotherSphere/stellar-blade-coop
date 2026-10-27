@@ -87,9 +87,10 @@ int main() {
   assert(line(entries, 13) == "shortcut Matrix_XI 2: 10 bytes, not a GVAS save");
   assert(summary(entries, kFiles) ==
          "shortcut saves: 5 of 16 found: B07 1 SE_01_EnvS_049, F02 1 DED10_EnvS_158, G03 2 = F02 1, G03 3 unread, "
-         "G03 4 unread, Matrix_XI 2 ?; each one's line is in coop-link.log; loading one is held back");
-  assert(summary(entries, 0) == "shortcut saves: 0 of 0 found; each one's line is in coop-link.log; loading one is "
-                                "held back");
+         "G03 4 unread, Matrix_XI 2 ?; each one's line is in coop-link.log; loading one needs shortcut_load=on "
+         "(docs/usage.md)");
+  assert(summary(entries, 0) == "shortcut saves: 0 of 0 found; each one's line is in coop-link.log; loading one needs "
+                                "shortcut_load=on (docs/usage.md)");
 
   std::puts("shortcut_test: ok");
 }

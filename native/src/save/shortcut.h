@@ -1,14 +1,16 @@
 // coop shortcut: the cut "Load Shortcut" menu's saves, listed. The paks still hold developer saves at
 // SB/Content/System/Waypoint/<map>/ShortCut0N.sav (B07 4, F02 3, G03 4, Matrix_XI 4); the game thread reads them
 // through SB's own file manager (glue/tick/shortcut_game.inc), one a frame, and this file names what each one holds.
-// Nothing is written: no save slot, no file, and the bytes are never kept.
+// Nothing is written: no save slot, no file, and the bytes are never kept (coop shortcut load keeps one file's bytes:
+// save/shortcut_load.h).
 //
 // The shipped game: the ShortcutGame menu (UI logic 130, FUN_141f60140) lists slots 1 to 4 of one map through
 // FUN_1422907c0, which builds "%s%s%s/%s%02d.sav" (FUN_142324b70: the project's content folder, ShortCutRootFolderPath,
 // the map, "ShortCut", the slot) and reads each file as FFileHelper::LoadFileToArray does. Its Accept branch
 // (FUN_141f5f9b0) keeps only GetBestSaveSlotNum (0x142290b50), whose result it drops: the load was compiled out, and
-// the lobby gives no button to the menu. Loading one is held back here too (docs/how-it-works.md): these are saves of
-// 2021 and 2022 development builds, and two of them carry boss achievements already done (trophies 3 to 5, 8 to 10).
+// the lobby gives no button to the menu. These are saves of 2021 and 2022 development builds, and two of them carry
+// boss achievements already done (trophies 3 to 5, 8 to 10): coop shortcut load (save/shortcut_load.h) takes their
+// achievement data out first, and only with shortcut_load=on (docs/how-it-works.md).
 //
 // Each file is GVAS (UE 4.25 or 4.26 tagged properties, no EVAS header and no CRC); the game strips an EVAS header
 // first when there is one, as it does for its own slots, and so does parse(). parse() reads the header's engine branch
@@ -185,7 +187,8 @@ inline std::string summary(const Entry *entries, int count) {
              (*e.why ? std::string("unread") : k >= 0 ? "= " + name(k) : e.camp.empty() ? std::string("?") : e.camp);
   }
   return "shortcut saves: " + std::to_string(found) + " of " + std::to_string(count) + " found" +
-         (items.empty() ? "" : ": " + items) + "; each one's line is in coop-link.log; loading one is held back";
+         (items.empty() ? "" : ": " + items) +
+         "; each one's line is in coop-link.log; loading one needs shortcut_load=on (docs/usage.md)";
 }
 
 } // namespace coop::shortcut
