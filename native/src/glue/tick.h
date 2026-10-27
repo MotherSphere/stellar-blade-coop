@@ -122,6 +122,13 @@ std::string ask_shortcut();
 // Worker, every pass: the lines of what the game thread read since the last pass (each file's, then the summary once
 // all 16 are read, or why the list stopped), for the log; none when no list is under way.
 std::vector<std::string> shortcut_pass();
+// Worker thread, coop shortcut load (save/shortcut_load.h): Lua's request for one of those files (0 to 15), which the
+// game thread serves by reading it the same way, its bytes kept. Refused off the pinned build, after coop off, after
+// coop shortcut's fault and while a load is under way. Returns the line for the log.
+std::string ask_shortcut_load(int file);
+// Worker, every pass: once the game thread read the file asked, true with the cleaned save in save (empty when it was
+// refused) and the line for the log; false while nothing is asked or the read is still to come.
+bool shortcut_load_pass(std::string &save, std::string &line);
 // Worker thread, coop gift (game/items.h): Lua's items request, how many of one item our EVE carries, read now through
 // ReadProcessMemory; the answer goes in the engine line's items= (status()). Refused off the pinned build, after coop
 // off and with no EVE read. Returns the line for the log.

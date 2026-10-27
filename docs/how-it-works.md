@@ -2467,36 +2467,127 @@ within its own map's bytes. An EVAS header is stripped first when there is one, 
 Nothing is written. The worker logs a line per file and a summary, which reaches `UE4SS.log` as the status's `last=`
 line. A fault ends `coop shortcut` for the run.
 
-### Why no load
+### Loading one
 
-The mod loads no shortcut save, not even into a co-op save slot. A study of the 15 files against a save of the
-released game (2026-10-26) found:
+`coop shortcut load <map> <1-4>` (`save/shortcut_load.h`, `Convert::plant` in `save/twins.h`, not tested in game yet)
+writes one of the 15 files, cleaned, as co-op slot 5 (`StellarBladeCoop04.sav`). The player then loads it with the
+game's own Load Game. It is refused unless `coop-settings.txt` has `shortcut_load=on` (off by default), and
+`commands/cut.lua` sends the request only when the same words come twice within 10 s.
+
+What the files are, against a save of the released game (2026-10-26):
 
 - Format. The files are bare GVAS, with no EVAS header and no CRC. Eleven come from UE 4.26 (package version 522) and
   Matrix_XI's four from 4.25 (518), against 525 for the released game's saves. Their dates run from March 2021 to July
-  2022. The game's slot loader (`FUN_141cd5e10`) would take either form: it strips an EVAS header when there is one,
-  and its account check (`FUN_1421d1390`) passes a save with no `OnlineAccountInfo`.
+  2022. The game's slot loader (`FUN_141cd5e10`) hands the bytes to the engine's `LoadGameFromMemory`
+  (`FUN_1441fbbc0`), which reads a save with the package and custom versions its own header names, and its account
+  check (`FUN_1421d1390`) passes a save with no `OnlineAccountInfo`.
 - Missing fields. None of the 15 has `NewGameCreateTime`, `LevelActorStorage`, `UIStorage`, `EventGiftInfo`,
   `NikkeStageInfo`, `SaveFileVersionInfo`, `OnlineAccountInfo` or a `GameDifficulty`, and only G03 1 has
-  `GamePlayProgressRecordData`.
-- Content the game no longer has. Nine of the 12 distinct files hold items with no `ItemTable` row (`betacrystal`,
-  `PT_crowd`, `DesignPattern_Blue_Suit`, `BS_Attacker`, `Buff_HP2MP`, `dronecore` and others). Matrix_XI 1 has three
-  quests with no `QuestTable` row (`SQ_ME_KillTumblerDrone`, `SQ_ME01_GetFusionCell01` and `02`), and F02 1 and 2
-  name task groups in an older form (`CQ_DED01_KillTumblerDrone_T01`).
-- Achievements. F02 2 holds `DED_Opener_KillCharacter`, `DED_GrubShooter_KillCharacter` and
-  `DED_Gigas_KillCharacter` as done, which are trophies 3, 4 and 5 in `TrophyTable`. F02 3 holds those and
-  `ME_Stalker_KillCharacter`, `ME_Juggernaut_KillCharacter` and `ME_Tachy_KillCharacter` (trophies 8, 9 and 10), with
-  progress toward trophies 28 to 31 and 43. G03 3 and 4 are the same files. The game has save fix-ups
-  (`FUN_1421def10`'s nine passes) that walk a loaded save's achievement list and queue achievement events from it
-  (`FUN_1421e1ff0` does it for `Trophy_KillCharacter_AllNative`), and it writes trophies to Steam from pending
-  achievement events (`FSBAchievementContainer::ProgressCompleteAchievementEvent`, `FUN_141a329a0`, then
-  `FUN_14229a730`). Which saves those passes run on was not traced. Every other file carries a developer's skills,
-  items and camps, which count toward the collection trophies once the player adds to them.
+  `GamePlayProgressRecordData`. The game creates the save object before it reads the properties, so a missing one
+  keeps its default.
+- Content the game no longer has. Six of the 12 distinct files hold items with no `ItemTable` row in their inventory:
+  `BS_Attacker`, `BS_Defender`, `Buff_HP2MP` and `Gear_NarrowVision_Rare` (Matrix_XI 1 to 4),
+  `DesignPattern_Blue_Suit`, `DesignPattern_Sailor_Jean` and `DesignPattern_Black_Leather_bikini` (F02 2 and 3).
+  `DataMap_SBActor`'s `PlayerActor` names some of them too. In Matrix_XI 1 to 4, EVE wears `BS_Defender`: its
+  `Equipment` entry for slot 5 points at that inventory element by `SavedGuid` and `PocketGuid`, and
+  `BodySuitSlotArray` names it. Matrix_XI 2 to 4 have `Buff_HP2MP` in `ItemQuickSlotArray`. `BodySuitSlotArray` names
+  `BS_Attacker` in all 12, as it does in the released game's own saves. Names such as `betacrystal` or `PT_crowd`
+  differ from their row only in case, which an FName ignores. Matrix_XI 1 has three quests with no
+  `QuestTable` row (`SQ_ME_KillTumblerDrone`, `SQ_ME01_GetFusionCell01` and `02`), and F02 1 and 2 name task groups
+  in an older form (`CQ_DED01_KillTumblerDrone_T01`).
+- Achievements. Every file but Matrix_XI 1 has a top-level `SBAchievement` struct: its `AchievementList` holds
+  `{AchievementAlias, ProgressValue, bCompleted, bRecievedReward}` entries. F02 2 holds `DED_Opener_KillCharacter`,
+  `DED_GrubShooter_KillCharacter` and `DED_Gigas_KillCharacter` as done, which are trophies 3, 4 and 5 in
+  `TrophyTable`. F02 3 holds those and `ME_Stalker_KillCharacter`, `ME_Juggernaut_KillCharacter` and
+  `ME_Tachy_KillCharacter` (trophies 8, 9 and 10), with progress toward trophies 28 to 31 and 43. G03 3 and 4 are the
+  same files. No achievement name appears anywhere else in the 15 files.
 
-A Steam achievement cannot be taken back, and a test of whether a load unlocks one would itself risk it. The rule in
-[Achievements](#achievements), that nothing done without a player reaches that player's achievements, rules out a load
-until a loader drops the achievement list, the developer's progress and the unknown items first, and that has been
-tested on an account whose achievements do not matter. The lobby's ShortCut button stays hidden for the same reason.
+The game runs nine fix-up passes on a loaded save (`FUN_1421def10`, reached through no direct call, with the save
+object as its second argument). `SBAchievement` is the save object's `+0x2c8` (the `USBSaveGame` layout of a
+Dumper-7 SDK of the game), and each pass reads these fields:
+
+| Pass | Reads | Writes |
+| --- | --- | --- |
+| `FUN_1421defb0` | `SBAchievement`: its `Ach_Album_Unlock_*` entries | the count of them into the `Trophy_KillCharacter_AllNative` entry, when the list has one |
+| `FUN_1421e1ff0` | `SBAchievement`: `Trophy_KillCharacter_AllNative` | an achievement event for it (the pool `FUN_1421f1920`, the list at the manager's `+0x50`, when its `+0xe0` is 1): the path to Steam |
+| `FUN_1421e21f0` | `SBAchievement`: `Trophy_WeaponMaxUpgrade`; `DataMap_SBActor`'s `PlayerActor` | `PlayerActor`'s weapon level |
+| `FUN_1421e2650` | `DataMap_SBQuest`'s `Quest_Epic_Hidden` (M05 to M07); `DataMap_SBEnv` objects of `Zone_DED40` | a stuck DED40 object's position |
+| `FUN_1421e31f0` | `DataMap_SBEnv`'s `DED20_E_EnvC_002` and `DED20_EnvS_250` | their On or Off state |
+| `FUN_1421e3860` | `SBAchievement`: one completed entry; `DataMap_SBEnv` objects of ME_03 | a Matrix 11 object's state (`OpenMode_Burst`, `ToOpen`, `Closed`) |
+| `FUN_1421e41e0` | `DataMap_SBItem`'s `Item` inventory: six gears; `SBAchievement`: `Kill_Character_*`, `ChangeState_*` and record entries | completed `Ach_BossChal_Unlock_*` entries added to `SBAchievement` |
+| `FUN_1421e5e60` | `DataMap_int32` (a New Game+ count), `NewGamePlusBaseData`, two `_MK2` gears in the inventory, `SBAchievement`'s `Nest_Ending` | `NewGamePlusBaseData` |
+| `FUN_1421e62b0` | `DataMap_SBActor`'s `PlayerActor`; `DataMap_SBEnv`'s `SE_06_EnvS_071`, `SE_07_EnvS_001` and `SE_07_EnvS_076` | `PlayerActor` |
+
+So only `FUN_1421e1ff0` turns save data into an achievement event, only from the achievement list, and only
+`FUN_1421e41e0` makes achievement data from anything else: from six gears in the inventory
+(`Gear_HighHpDamageAdditiveRate_Common`, `Gear_KillEnemyAdditiveDamageRate_Common` and `_Uncommon`,
+`Gear_GainBurstGaugeValueOnDamaged_Common` and `_Uncommon`, `Gear_AdditiveGiveAndReciveDamageRate_Rare`), none of
+which the 15 files hold. The game's save builder (`FUN_1421d3ec0`) copies the running achievement container into
+`+0x2c8` when it saves, which is the same list in the other direction.
+
+`shortcut::clean()` therefore:
+
+1. Takes only the 15 files of the pinned build's paks, by their CRC-32 (12 distinct values, in `kPinned`). Any other
+   bytes are refused.
+2. Walks the GVAS body's top-level tags (each tag's name, type, size, index and type-specific header, its value
+   skipped by its size) and drops the `SBAchievement` property whole. The save object then starts with an empty list,
+   so the passes that read it find nothing.
+3. Rebuilds `DataMap_SBItem`: in each entry's struct, the `Inventory` array loses the elements whose `ItemAlias` or
+   `ItemInstance.ItemAlias` names one of the six gears (case ignored), and the `ItemOtaineSet` set loses the same
+   names. The array's count, its inner tag's size and the sizes of `Inventory`, `ItemOtaineSet` and `DataMap_SBItem`
+   are set to the new lengths. Everything else is copied byte for byte, the GVAS header included. None of the 15
+   files holds a gear, so for them this step changes nothing. The seven items with no `ItemTable` row stay as saved:
+   removing their inventory elements would leave EVE's suit in Matrix_XI pointing at an element that no longer
+   exists.
+4. Wraps the body as the game's save writer wraps its own (`FSBSaveSystemWindows::OnCompleteSerialize`,
+   `FUN_1421f5de0`): `EVAS`, the version byte 1, three bytes the writer leaves unset (0 here, as in most real saves;
+   one real save seen holds `47 61 3e`), the body, then its CRC-32 (`FUN_1428dbbd0`, zlib's) in little endian.
+   The game's validity check (`FUN_1421f4e00`) compares that CRC.
+5. Checks the result before it is written: the game's own check (EVAS, version 1, CRC), a body of class
+   `/Script/SB.SBSaveGame` whose tags all fit and end in `None` with the 4 trailing bytes, no `SBAchievement`, a
+   `DataMap_SBItem` that parses, and none of the six gears anywhere in the body (any whole string, case ignored). A
+   save that names a gear outside the inventory, in `PlayerActor`'s equipment or quick slots, is refused.
+
+`tests/native/save/shortcut_load_test.cpp` cleans the 15 files themselves when the machine holds the research copies:
+each passes that check, holds none of the strings `Achievement`, `Trophy` or `Ach_`, and is the file without its
+`SBAchievement` bytes, byte for byte. Against the table's dump, the only inventory items with no `ItemTable` row are
+the seven above. A parse of the 15 results with `tools/gvas.py` (EVAS, CRC, header and every property, 2026-10-27)
+read them whole.
+
+The write is a co-op saves pass (`Switch::plant`), refused unless the game uses the co-op copies (`saves=coop`), the
+title is shown with no save loaded and no load asked (client `+0x86c` is 0), the Steam account is known and no other
+pass runs. The game thread reads the file through the file manager as the list does and keeps its bytes; the worker
+cleans them; the pass backs up the current `StellarBladeCoop04.sav` into a new folder of `StellarCoopBackups` (the
+whole backup of a first conversion when there is no manifest), writes the cleaned save beside it as `.coop-tmp`,
+renames it over the copy and reads it back. The manifest then has no line for slot 4, so later passes count it as
+played and keep it. Every write goes through the co-op saves' name check, and the player's own
+`StellarBladeSave0N.sav` files are only read, by the backup.
+
+The load is the game's own Load Game. Picking the fifth slot stores the slot at client `+0x868` (`FUN_141eee190`)
+and starts the lobby's fade; the start of play (`FUN_141cd6890`, run by the client's start-step queue in
+`FUN_141ccbb30`) then calls `FUN_141cd5e10(client, slot, 0, ...)`, which reads `StellarBladeCoop04.sav` through the
+save system, strips the EVAS header, loads it (`FUN_1441fbbc0`), checks its class and account, and applies it
+(`FUN_141cd7480`). The mod does not call `FUN_141cd5e10` itself: the game calls it as one step of that start
+sequence, after the fade, the level travel and the prep calls `FUN_141cd6890` makes first, and none of that can be
+tested without the game. The title's slot list is not rebuilt, so the fifth slot may show the old copy's details;
+the file is read when the slot is picked.
+
+What the cleaning does not cover:
+
+- The developer's progress stays: quests, zone objects, skills (`DataMap_SBAcquisitionSkill`), items, camps and
+  `GamePlayProgressRecordData` in G03 1. The game counts collection achievements from events as the player adds to
+  them, and whether any of those counts read the save's contents again was not traced. A load can therefore still
+  unlock a Steam achievement during play, and a Steam achievement cannot be taken back. That is why the command is
+  off by default, and why [usage.md](usage.md#loading-one-coop-shortcut-load) says to try it only on a Steam account
+  whose achievements do not matter, with Steam Cloud off.
+- The seven items with no `ItemTable` row stay in the inventory, in `PlayerActor`'s equipment and in its slot lists,
+  where the developer left them. How the game loads an equipped or held item with no row was not traced. Some of its
+  item code checks for a missing row and logs it (`FSBUILogicReward::AddItem`, `FUN_141f36090`: `Failed to find
+  ItemTableProperty`). Matrix_XI 1 to 4 and F02 2 and 3 are the files that hold them.
+- The quests and task groups with no row stay in `DataMap_SBQuest`; what the game does with them was not traced.
+- Nothing was tried in game, so whether these old saves load at all, and where they start, is untested.
+
+The lobby's ShortCut button stays hidden: its menu's load call was compiled out, and this command does not use it.
 
 ## Developer menu and panels
 
@@ -2716,8 +2807,10 @@ claim the host accepts):
   or save function.
 - A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is
   that player's, like any Naytiba's.
-- `coop shortcut` lists the cut Load Shortcut menu's developer saves and loads none of them, since two hold boss
-  achievements as done ([Why no load](#why-no-load)).
+- `coop shortcut load` writes a cut Load Shortcut developer save as a co-op copy only after it drops the save's
+  achievement list and the six gears from which a load-time fix-up makes achievement entries, and only with
+  `shortcut_load=on`, since the developer's progress left in it can still complete an achievement in play
+  ([Loading one](#loading-one)).
 - A [gift](#cut-mailbox) moves consumables between two co-op saves and nothing else. Its seven items lead to no trophy
   in the AchievementTable: their acquire rows (`Acquire_Item_Grenade`, `Ach_Reward_Acquire_Item_ConcussionGrenade` and
   the potion and grenade category guides) open guides only. A gift that arrives can open those guides early, as a shop

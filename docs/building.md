@@ -96,7 +96,8 @@ build/host/pose_codec_test
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
     and the boss tests included; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`, `mxiii rows` and `shop rows`
     with their 19 table words and bad addresses, the longest of them 619 bytes; `fly` and `slowmo` on or off; `anim
-    play` with its id, path and `once` or `loop`, and `anim stop`; `shortcut list`; `nightshop` and `roxanne` with their
+    play` with its id, path and `once` or `loop`, and `anim stop`; `shortcut list` and `shortcut load <map> <1-4>`;
+    `nightshop` and `roxanne` with their
     fixed words), Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join codes (both
     real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
@@ -126,11 +127,17 @@ build/host/pose_codec_test
   - `save_slot_test`: the slot line, the marker, the save file name's lookup in the game's constant table, its
     switch and the read-only probe, against fake memory;
   - `save_twins_test`: the co-op save copies on a temporary folder: the game's save check, the name check on every
-    write, the manifest, the backup before the first copy, torn reads and failed writes, and the requests and the
-    switch against a fake game;
+    write, the manifest, the backup before the first copy, torn reads and failed writes, the requests and the
+    switch against a fake game, and the plant of a built save as one co-op copy;
   - `save_shortcut_test`: `coop shortcut`'s paths and its read of built GVAS bytes (the engine branch, `MapName`,
     `CampAlias` and `DateTime` within their maps, an EVAS header stripped, short and bad bytes), its copies, lines and
     summary;
+  - `save_shortcut_load_test`: `coop shortcut load`'s cleaning on built GVAS bytes (`SBAchievement` dropped, six
+    gears out of `Inventory` and `ItemOtaineSet` with every size fixed, items with no row kept, a gear named anywhere
+    else refused, the EVAS wrap and its CRC, the pin, cut bytes refused), then the 15 developer saves themselves when
+    the machine holds the research copies under `~/.claude/project-notes/stellar-blade-minecraft/runtime/2026-10-26/`
+    (skipped elsewhere): each cleaned and checked, the file without `SBAchievement` byte for byte, with no achievement
+    name or gear left and no item missing from the `ItemTable` dump but the seven known ones;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `nightop_roxanne_test`: Roxanne's choice list in SB's select cache (`nightop/roxanne.h`) against fake memory laid
     out like the pinned build: on (our six rows in a GMalloc array, the pointer written before the count, her old array
@@ -420,6 +427,7 @@ Platform-free headers, tested on the build machine:
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, the export to a save of the player's with its scan for the mod's items and Matrix XIII, and the `saves` requests |
 | `save/shortcut.h` | `coop shortcut`: the cut Load Shortcut menu's 16 paths, the read of each save's map, camp and date, and the lines |
+| `save/shortcut_load.h` | `coop shortcut load`: the 15 files' CRC-32 pin, the GVAS walk that drops `SBAchievement` and six gears, the EVAS wrap, the check and the log line |
 | `fight/sync.h` | The shared enemies' host and guest rules, and channel 2's text |
 | `fight/engine.h` | The shared enemies' side inside the game (`Engine`), and the vitals read for the partner card. The class holds the declarations; the bodies are in `fight/engine_run.h` (settings, arming, the turn), `engine_read.h` (reads of the game), `engine_write.h` (stat writes, crowd controls, captures), `engine_pilot.h` (same-place enemies), `engine_spawns.h` (same spawns, extra enemies), `engine_bosses.h` (shared bosses), `engine_trial.h` (the solo boss trial) and `engine_lines.h` (her lines) |
 | `fight/types.h` | The types around `Engine`: the pair table, the job, its counts and snapshot, the logic actors, the ring queues |
@@ -443,5 +451,5 @@ The Windows side:
 | File | Contents |
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`glue/tick/anim_game.inc`); `coop shortcut`'s reads through the game's file manager (`glue/tick/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`glue/tick/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`glue/tick/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

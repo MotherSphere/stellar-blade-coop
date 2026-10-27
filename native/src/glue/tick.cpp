@@ -100,7 +100,8 @@
 //
 // coop shortcut (save/shortcut.h): the worker hands over Lua's ask; the game thread reads the cut Load Shortcut menu's
 // 16 paths through SB's own file manager, one a frame, under its own SEH latch, into entries the worker turns into log
-// lines. It writes nothing and keeps no bytes.
+// lines. It writes nothing and keeps no bytes. coop shortcut load reads one of them the same way and keeps its bytes;
+// the worker cleans them (save/shortcut_load.h) and glue/steam.cpp writes the result as a co-op copy (save/twins.h).
 //
 // coop devinfo (game/dev_panels.h): the worker hands over the developer panel Lua asked for (the quest debugger or the
 // player info) or off; the next frame the game thread finds both through SB's UI manager, closes the one not wanted and
@@ -152,6 +153,7 @@
 #include "pose/stream.h"
 #include "quest/engine.h"
 #include "save/shortcut.h"
+#include "save/shortcut_load.h"
 #include "save/slot.h"
 
 #include "glue/tick/pose_game.inc"
@@ -235,7 +237,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // off only to stop ours.
   if (game_pinned && !anim_faulted)
     anim_tick();
-  // coop shortcut's list, its own latch: a file a frame while a list is under way; none after coop off or a fault.
+  // coop shortcut's list, its own latch: a file a frame while a list is under way, a load's one file first; none after
+  // coop off or a fault.
   if (game_pinned && !shortcut_faulted && !blocked)
     shortcut_tick();
   // SB's developer panels, their own latch: an ask taken each frame, after coop off too (only off is asked then).

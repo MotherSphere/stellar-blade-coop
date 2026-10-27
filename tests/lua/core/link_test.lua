@@ -412,6 +412,15 @@ assert(#notes==0 and s.partner_bar==false and s.partner_arrow==false and s.partn
 assert(Link.parse_settings('').status_overlay=='off')
 assert(Link.DEFAULT:find('\ncard_details=on\n# status_overlay[^\n]*\nstatus_overlay=off\n'))
 assert(Link.parse_settings(Link.DEFAULT).status_overlay=='off')
+-- shortcut_load (coop shortcut load, a test tool, no menu row): on or off in any case, off by default, in a new file
+-- (last, after its comment, which names the achievement risk) and in an old one; a bad value keeps off, with a line.
+assert(Link.parse_settings('').shortcut_load==false and Link.parse_settings(Link.DEFAULT).shortcut_load==false)
+assert(Link.DEFAULT:find('\nstatus_overlay=off\n# Shortcut saves, a test tool: on or off, off by default.',1,true)
+    and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=off\n$'))
+assert(Link.parse_settings('shortcut_load=ON').shortcut_load==true)
+s,notes=Link.parse_settings('shortcut_load=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shortcut_load (use on or off); "
+    .."shortcut_load stays off" and s.shortcut_load==false,notes[1])
 for _,case in ipairs({{'off','off'},{'Compact','compact'},{'DETAILED','detailed'}}) do
     s,notes=Link.parse_settings('status_overlay='..case[1]..'\n')
     assert(#notes==0 and s.status_overlay==case[2],case[1])
