@@ -60,6 +60,8 @@ function Flight.new(o)
         for i,n in ipairs(want) do pcall(function() list[i]=key(n) end) end
         return names(list)
     end
+    -- The rebuild on the last one copies the input settings into every PlayerInput. SB's own key changes do the same
+    -- after they edit Default__InputSettings (FUN_1423ca0c0, FUN_1422a6350), where its rebinds live: they stay.
     local function mappings(add,evades)
         local s=U.find(SETTINGS)
         for i,e in ipairs(evades) do
@@ -101,8 +103,17 @@ function Flight.new(o)
         local ok,why=pcall(function() return put_back(handler().DefinedFlyActionKeyLists) end)
         log(ok and 'flight keys back: '..why or 'flight keys not put back: '..tostring(why))
     end
+    -- One of our Shift evades still in the input settings: SB saves those to its config with the player's key options,
+    -- so a save while coop fly is on keeps our evades past the game run.
+    local function evades_left()
+        local found=false
+        U.each(U.find(SETTINGS).ActionMappings,function(_,m)
+            found=found or m.bShift==true and U.text(m.ActionName):find('^FlyingActionEvade_')~=nil
+        end)
+        return found
+    end
     -- Once a Lua load, at the first tick with a player input: keys an earlier load left (R2 over Z, or S, or A and E,
-    -- in the list) go back.
+    -- in the list) go back, and so do our evades left in the input settings.
     function self.restore()
         if restored or on then return end
         local ok,list=pcall(function() return handler().DefinedFlyActionKeyLists end)
@@ -111,7 +122,8 @@ function Flight.new(o)
         local n=names(list)
         local got=','..table.concat(n,',')..','
         if not (n[2]==Flight.PAD or got:find(',S,',1,true) or got:find(',A,',1,true) and got:find(',E,',1,true)) then
-            return
+            local read,left=pcall(evades_left)
+            if not (read and left) then return end
         end
         local done,why=pcall(put_back,list)
         log(done and 'flight keys an earlier Lua load left, back: '..why or 'flight keys not put back: '..tostring(why))
