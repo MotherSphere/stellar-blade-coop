@@ -54,7 +54,7 @@ Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','
 local DATA='/Game/Local/Data/'
 local ROOT_FAR=2000 -- cm: the copy's root ending farther from the spot than this spawns at the spot.
 local POLL,WAIT=0.25,30 -- s: the status line read while the rows are asked, and how long before giving up.
-local FINDS={0.3,1,2,3.5,5} -- s after the call: the body looked for (FindAllOf walks every object: a few tries only).
+local FINDS={0.3,1,2,3.5,5} -- s after the call: the body looked for (bodies(): a few tries only).
 local NEAR=30 -- m: a new body farther than this from the spot is not the one spawned.
 -- s after the call: a body still without a controller gets its default one (run.lua's adopt comes 0.5 s after a find
 -- at 1 s at the earliest), so the game's own controller has time to come first.
@@ -210,15 +210,21 @@ function Enemy.new(o,spec)
         local pc=assert(N.controller(),'no SB player controller')
         pc:ServerRequest_CreateActor(id,at,{Pitch=0,Yaw=yaw,Roll=0},false,true,0,0,0,FName('None'),false)
     end
-    -- The objects of class (a Blueprint class's short name, or SBCharacter) but EVE, by address.
+    -- The objects of class (a Blueprint class's short name, or SBCharacter) but EVE, by address: the SBCharacters of
+    -- EVE's world from the engine's class hash (core/unreal.lua's actors_of), of that class by its full name's first
+    -- word; FindAllOf(class) where the hash is not proven (it walks every object, 25 to 80 ms in game).
     local function bodies(class)
         local eve=her()
         local list,me={},eve and U.address(eve)
-        U.each(FindAllOf(class) or {},function(_,c)
-            c=valid(c)
-            local ok,a=pcall(U.address,c)
+        local found,route=U.actors_of(U.find('/Script/SB.SBCharacter'),class,eve)
+        local exact=route=='class hash' and class~='SBCharacter'
+        for _,c in ipairs(found) do
+            local ok,a=pcall(function()
+                if exact and U.text(c:GetFullName()):match('^%S+')~=class then return nil end
+                return U.address(c)
+            end)
             if ok and a and a~=me then list[a]=c end
-        end)
+        end
         return list
     end
     local function spawn_count() local s=my_line(); return s and s.spawns end

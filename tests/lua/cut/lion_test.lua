@@ -458,8 +458,12 @@ local function body(cls,at)
     return b
 end
 local widgets,text_finds={},0 -- The TextBlocks FindAllOf('TextBlock') gives, and how many times it was asked.
+-- core/unreal.lua's actors_of: the player controllers FindAllOf gives for its proof of the class hash (none until the
+-- last case: each body search walks), and the class hash's calls.
+local hash_pcs,hashes=nil,0
 FindAllOf=function(cls)
     engine()
+    if cls=='PlayerController' then return hash_pcs end
     if cls=='TextBlock' then
         text_finds=text_finds+1
         return widgets
@@ -510,7 +514,15 @@ local clip_asset=object({IsA=is('/Script/Engine.AnimSequence','/Script/Engine.An
 local assets={[MESH]=mesh_asset,[CLIP]=clip_asset}
 -- The world delta the frame part of the follow line reads each frame (nil: not read).
 local frame_dt
-local gameplay=object({GetWorldDeltaSeconds=function(_,ctx) engine(); assert(ctx); return frame_dt end})
+local gameplay=object({GetWorldDeltaSeconds=function(_,ctx) engine(); assert(ctx); return frame_dt end,
+    GetAllActorsOfClass=function(_,ctx,cls,out)
+        engine()
+        assert(ctx==player,'EVE\'s world')
+        hashes=hashes+1
+        if cls.path=='/Script/Engine.PlayerController' then out[1]=pc; return end
+        assert(cls.path=='/Script/SB.SBCharacter',cls.path)
+        for _,c in ipairs(chars) do if not c.destroyed then out[#out+1]=c end end
+    end})
 StaticFindObject=function(path)
     engine()
     if path=='/Script/Engine.Default__GameplayStatics' then return gameplay end
@@ -1072,8 +1084,9 @@ end})
 at(1900.3); lion.tick()
 at(1901.5); assert(lion.tick())
 at(1902.5); lion.tick()
-assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C failed %(AnimClass '
-    ..'refused%), .*; leader: failed %(AnimClass refused%); stand%-in: the single%-node instance plays IdleRun_BS_'),
+assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C failed '
+    ..'%(AnimClass refused%), .*; leader: failed %(AnimClass refused%); stand%-in: the single%-node instance plays '
+    ..'IdleRun_BS_'),
     'The refused write\'s line')
 assert(led.Mesh.SkeletalMesh:GetFName():ToString()=='CH_M_NA_02_Large','Its own mesh back')
 
@@ -1164,6 +1177,26 @@ do
         tostring(said and said[2]))
     assert(logged('^shop rows read back through FindRow: 6/6 authored rows, 33 fields as written %(17 differ from the '
         ..'template row%)$'),'R4 of the shop rows')
+end
+
+-- The class hash proven (GetAllActorsOfClass gives a PlayerController where FindAllOf does): a spawn's body comes from
+-- the SBCharacters of EVE's world, of its class only (an Antlion that shows at the same spot is never taken), with no
+-- walk of every object. Last: the proof holds for the rest of the Lua load.
+do
+    hash_pcs={pc}
+    local lion2=new()
+    lion_status(ROWS_IN:format(1,'6'))
+    on_create=function(id,p) spawns_lion(id,p); body('CH_M_NA_15_Antlion_C',p):SpawnDefaultController() end
+    at(7000)
+    assert(lion2.command())
+    local walks=finds
+    at(7000.3); lion2.tick()
+    at(7001.5)
+    local ok,why=lion2.tick()
+    assert(ok and why:find('^M_LionC 50020 is here, 10%.0 m from EVE') and finds==walks and hashes>1,tostring(why))
+    assert(logged('^spawn 50020: CreateActor returned; body '..LION_CLASS..' 10%.0 m from EVE'),
+        'The Lion, not the Antlion')
+    on_create=nil
 end
 
 -- The source (cut/lion.lua and the flow it runs, cut/enemy.lua) names no achievement, reward, item, quest, save,

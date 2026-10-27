@@ -1750,11 +1750,13 @@ The spawn is one call, `nightop/run.lua`'s, with key 0:
 take any CharacterTable ID at any place. The charId is fixed in code: 50020, or 50021 after `coop lion brain lurker`;
 `coop lion control` spawns 50110 (M_Antlion). The place is 10 m ahead of EVE and 1 m up, facing her. Key 0 is
 EventSpawnId 0, as the game's own summons spawn. The body is the new character of the Large blueprint's class nearest
-the spot, looked for at 0.3, 1, 2, 3.5 and 5 s (`FindAllOf` walks every object). One that still has no controller 1.5 s
-after the call gets its default one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from
-`InteractionState` and `Controller`, as `nightop/run.lua` reads it. The game can send a Lion body far away and reuse
-it for the next spawn (a Lion 466 m away came back on 2026-10-23), so a body that stood more than 100 m from the spot
-at the call and stands within 30 m of it after counts as the new one; its old follow line ends as recycled.
+the spot, looked for at 0.3, 1, 2, 3.5 and 5 s among the SBCharacters of EVE's world from the engine's class hash
+(`GetAllActorsOfClass`), or with `FindAllOf` of the class, which walks every object, where this UE4SS cannot use the
+class hash. Up to 0.6.0-beta.3 every look walked. One that still has no controller 1.5 s after the call gets its default
+one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from `InteractionState` and `Controller`,
+as `nightop/run.lua` reads it. The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away
+came back on 2026-10-23), so a body that stood more than 100 m from the spot at the call and stands within 30 m of it
+after counts as the new one; its old follow line ends as recycled.
 
 While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend space
 reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the animation
