@@ -13,10 +13,15 @@
 // read quests, zone objects, PlayerActor, DataMap_int32 and NewGamePlusBaseData and write only those.
 //
 // So clean() drops the top-level SBAchievement property (the save object then starts with an empty list), and every
-// inventory and ItemOtaineSet entry of those six gears and of the seven items the released ItemTable has no row for.
-// The developer's quests, zone objects, skills and camps stay: they are the chapter. It takes only the 15 files the
-// pinned build's paks hold, by their CRC-32, the bytes tests/native/save/shortcut_load_test.cpp checked: no
-// achievement name left, every item left with an ItemTable row. The result is wrapped as the game's save writer
+// inventory and ItemOtaineSet entry of those six gears. A save that still names one anywhere else (PlayerActor's
+// Equipment or quick slots) is refused, since that reference would point at an entry no longer there. The developer's
+// quests, zone objects, skills, camps and items stay: they are the chapter. Seven of those items have no row in the
+// released ItemTable (BS_Attacker, BS_Defender, Buff_HP2MP and Gear_NarrowVision_Rare in Matrix_XI 1 to 4, three
+// DesignPattern_* in F02 2 and 3); they stay as saved, since PlayerActor's Equipment, BodySuitSlotArray and
+// ItemQuickSlotArray name some of them, and the released game's own saves hold BS_Attacker in BodySuitSlotArray. It
+// takes only the 15 files the pinned build's paks hold, by their CRC-32, the bytes
+// tests/native/save/shortcut_load_test.cpp checked: no achievement name left, none of the six gears anywhere, the rest
+// byte for byte, every item without an ItemTable row one of the seven. The result is wrapped as the game's save writer
 // (FSBSaveSystemWindows::OnCompleteSerialize, FUN_1421f5de0) wraps its own: "EVAS", version byte 1, three bytes the
 // writer leaves unset (0 here, as most real saves hold), the GVAS body, then its CRC-32 (FUN_1428dbbd0, zlib's) in
 // little endian. The GVAS header keeps the file's own engine and package versions, which LoadGameFromMemory reads the
@@ -45,21 +50,13 @@ constexpr int kSlot = 4; // Co-op slot 5, StellarBladeCoop04.sav: the one a shor
 // The 12 distinct files' CRC-32 in the pinned build's paks (G03 2 to 4 are F02 1 to 3).
 constexpr uint32_t kPinned[] = {0x7edc57b1, 0xea03b476, 0x6fd0b77e, 0x00602f19, 0x7d2dd982, 0x22f93399,
                                 0x0b6a83e8, 0xf2329ce2, 0x2d33039c, 0xc93f5d31, 0x864887b3, 0x0b9dd5d3};
-// Items dropped, ASCII case ignored as FName compares: FUN_1421e41e0's six gears, then the seven with no ItemTable row
-// (the 2026-10-26 table dump).
+// Items dropped, ASCII case ignored as FName compares: FUN_1421e41e0's six gears.
 constexpr const char *kDropped[] = {"Gear_HighHpDamageAdditiveRate_Common",
                                     "Gear_KillEnemyAdditiveDamageRate_Common",
                                     "Gear_KillEnemyAdditiveDamageRate_Uncommon",
                                     "Gear_GainBurstGaugeValueOnDamaged_Common",
                                     "Gear_GainBurstGaugeValueOnDamaged_Uncommon",
-                                    "Gear_AdditiveGiveAndReciveDamageRate_Rare",
-                                    "BS_Attacker",
-                                    "BS_Defender",
-                                    "Buff_HP2MP",
-                                    "Gear_NarrowVision_Rare",
-                                    "DesignPattern_Blue_Suit",
-                                    "DesignPattern_Sailor_Jean",
-                                    "DesignPattern_Black_Leather_bikini"};
+                                    "Gear_AdditiveGiveAndReciveDamageRate_Rare"};
 constexpr char kClass[] = "/Script/SB.SBSaveGame";
 
 inline bool same_name(const std::string &a, const char *b) {
@@ -79,6 +76,16 @@ inline bool dropped(const std::string &item) {
 }
 
 inline std::string i32(int32_t v) { return std::string(reinterpret_cast<const char *>(&v), 4); }
+// Whether b holds name as a whole FString anywhere (its length with the NUL, the text, the NUL), ASCII case ignored: in
+// any property, array, set or map, wherever it sits.
+inline bool holds(const std::string &b, const char *name) {
+  const size_t n = std::strlen(name);
+  const std::string size = i32(int32_t(n + 1));
+  for (size_t at = b.find(size); at != std::string::npos; at = b.find(size, at + 1))
+    if (at + 4 + n < b.size() && !b[at + 4 + n] && same_name(b.substr(at + 4, n), name))
+      return true;
+  return false;
+}
 inline bool get32(const std::string &b, size_t at, size_t end, int32_t &v) {
   if (at + 4 > end)
     return false;
@@ -313,7 +320,8 @@ inline std::string wrap(const std::string &gvas) {
 
 // Why a built save is not one the game loads as we mean it, or empty: the game's own check (EVAS, version 1, CRC), a
 // GVAS body of class SBSaveGame whose tags all fit and end in None with the 4 trailing bytes after it, no
-// SBAchievement, one DataMap_SBItem that parses with no dropped item left. items: what that DataMap_SBItem names.
+// SBAchievement, one DataMap_SBItem that parses, and no dropped item named anywhere in the body. items: what that
+// DataMap_SBItem names.
 inline std::string check(const std::string &save, Items &items) {
   items = Items();
   if (!twins::game_save(save))
@@ -335,8 +343,9 @@ inline std::string check(const std::string &save, Items &items) {
       map = true;
     }
   }
-  if (!items.gone.empty())
-    return "it still holds " + items.gone.front();
+  for (const char *item : kDropped)
+    if (holds(gvas, item))
+      return std::string("it still holds ") + item;
   return {};
 }
 

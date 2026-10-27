@@ -2418,10 +2418,14 @@ What the files are, against a save of the released game (2026-10-26):
   `NikkeStageInfo`, `SaveFileVersionInfo`, `OnlineAccountInfo` or a `GameDifficulty`, and only G03 1 has
   `GamePlayProgressRecordData`. The game creates the save object before it reads the properties, so a missing one
   keeps its default.
-- Content the game no longer has. Six of the 12 distinct files hold items with no `ItemTable` row: `BS_Attacker`,
-  `BS_Defender`, `Buff_HP2MP` and `Gear_NarrowVision_Rare` (Matrix_XI 1 to 4), `DesignPattern_Blue_Suit`,
-  `DesignPattern_Sailor_Jean` and `DesignPattern_Black_Leather_bikini` (F02 2 and 3). Names such as `betacrystal` or
-  `PT_crowd` differ from their row only in case, which an FName ignores. Matrix_XI 1 has three quests with no
+- Content the game no longer has. Six of the 12 distinct files hold items with no `ItemTable` row in their inventory:
+  `BS_Attacker`, `BS_Defender`, `Buff_HP2MP` and `Gear_NarrowVision_Rare` (Matrix_XI 1 to 4),
+  `DesignPattern_Blue_Suit`, `DesignPattern_Sailor_Jean` and `DesignPattern_Black_Leather_bikini` (F02 2 and 3).
+  `DataMap_SBActor`'s `PlayerActor` names some of them too. In Matrix_XI 1 to 4, EVE wears `BS_Defender`: its
+  `Equipment` entry for slot 5 points at that inventory element by `SavedGuid` and `PocketGuid`, and
+  `BodySuitSlotArray` names it. Matrix_XI 2 to 4 have `Buff_HP2MP` in `ItemQuickSlotArray`. `BodySuitSlotArray` names
+  `BS_Attacker` in all 12, as it does in the released game's own saves. Names such as `betacrystal` or `PT_crowd`
+  differ from their row only in case, which an FName ignores. Matrix_XI 1 has three quests with no
   `QuestTable` row (`SQ_ME_KillTumblerDrone`, `SQ_ME01_GetFusionCell01` and `02`), and F02 1 and 2 name task groups
   in an older form (`CQ_DED01_KillTumblerDrone_T01`).
 - Achievements. Every file but Matrix_XI 1 has a top-level `SBAchievement` struct: its `AchievementList` holds
@@ -2462,23 +2466,26 @@ which the 15 files hold. The game's save builder (`FUN_1421d3ec0`) copies the ru
    skipped by its size) and drops the `SBAchievement` property whole. The save object then starts with an empty list,
    so the passes that read it find nothing.
 3. Rebuilds `DataMap_SBItem`: in each entry's struct, the `Inventory` array loses the elements whose `ItemAlias` or
-   `ItemInstance.ItemAlias` names one of the six gears or one of the seven items with no `ItemTable` row (case
-   ignored), and the `ItemOtaineSet` set loses the same names. The array's count, its inner tag's size and the sizes of
-   `Inventory`, `ItemOtaineSet` and `DataMap_SBItem` are set to the new lengths. Everything else is copied byte for
-   byte, the GVAS header included.
+   `ItemInstance.ItemAlias` names one of the six gears (case ignored), and the `ItemOtaineSet` set loses the same
+   names. The array's count, its inner tag's size and the sizes of `Inventory`, `ItemOtaineSet` and `DataMap_SBItem`
+   are set to the new lengths. Everything else is copied byte for byte, the GVAS header included. None of the 15
+   files holds a gear, so for them this step changes nothing. The seven items with no `ItemTable` row stay as saved:
+   removing their inventory elements would leave EVE's suit in Matrix_XI pointing at an element that no longer
+   exists.
 4. Wraps the body as the game's save writer wraps its own (`FSBSaveSystemWindows::OnCompleteSerialize`,
    `FUN_1421f5de0`): `EVAS`, the version byte 1, three bytes the writer leaves unset (0 here, as in most real saves;
    one real save seen holds `47 61 3e`), the body, then its CRC-32 (`FUN_1428dbbd0`, zlib's) in little endian.
    The game's validity check (`FUN_1421f4e00`) compares that CRC.
 5. Checks the result before it is written: the game's own check (EVAS, version 1, CRC), a body of class
-   `/Script/SB.SBSaveGame` whose tags all fit and end in `None` with the 4 trailing bytes, no `SBAchievement`, and a
-   `DataMap_SBItem` that parses with no dropped item left.
+   `/Script/SB.SBSaveGame` whose tags all fit and end in `None` with the 4 trailing bytes, no `SBAchievement`, a
+   `DataMap_SBItem` that parses, and none of the six gears anywhere in the body (any whole string, case ignored). A
+   save that names a gear outside the inventory, in `PlayerActor`'s equipment or quick slots, is refused.
 
 `tests/native/save/shortcut_load_test.cpp` cleans the 15 files themselves when the machine holds the research copies:
-each passes that check, holds none of the strings `Achievement`, `Trophy` or `Ach_`, keeps only items with an
-`ItemTable` row (against the table's dump), and differs from the file only by the dropped bytes. A parse of the 15
-results with `tools/gvas.py` (EVAS, CRC, header and every property, 2026-10-27) read them whole, with `SBAchievement`
-and `DataMap_SBItem` as the only changed top-level properties.
+each passes that check, holds none of the strings `Achievement`, `Trophy` or `Ach_`, and is the file without its
+`SBAchievement` bytes, byte for byte. Against the table's dump, the only inventory items with no `ItemTable` row are
+the seven above. A parse of the 15 results with `tools/gvas.py` (EVAS, CRC, header and every property, 2026-10-27)
+read them whole.
 
 The write is a co-op saves pass (`Switch::plant`), refused unless the game uses the co-op copies (`saves=coop`), the
 title is shown with no save loaded and no load asked (client `+0x86c` is 0), the Steam account is known and no other
@@ -2506,6 +2513,10 @@ What the cleaning does not cover:
   unlock a Steam achievement during play, and a Steam achievement cannot be taken back. That is why the command is
   off by default, and why [usage.md](usage.md#loading-one-coop-shortcut-load) says to try it only on a Steam account
   whose achievements do not matter, with Steam Cloud off.
+- The seven items with no `ItemTable` row stay in the inventory, in `PlayerActor`'s equipment and in its slot lists,
+  where the developer left them. How the game loads an equipped or held item with no row was not traced. Some of its
+  item code checks for a missing row and logs it (`FSBUILogicReward::AddItem`, `FUN_141f36090`: `Failed to find
+  ItemTableProperty`). Matrix_XI 1 to 4 and F02 2 and 3 are the files that hold them.
 - The quests and task groups with no row stay in `DataMap_SBQuest`; what the game does with them was not traced.
 - Nothing was tried in game, so whether these old saves load at all, and where they start, is untested.
 

@@ -1925,11 +1925,15 @@ with, and Steam gives no way to remove an achievement once it is unlocked. Try i
 achievements do not matter to you, with Steam Cloud off for the game.
 
 These are saves of development builds from 2021 and 2022. Two of them (F02 2 and 3, and their copies G03 3 and 4)
-hold six boss achievements as already done. Before it writes anything, the mod removes the save's achievement list and
-the items the released game no longer has ([How it works](how-it-works.md#loading-one) lists what the game reads from
-a loaded save and why that is enough for the load itself). What stays is a developer's progress: quests, opened doors
-and chests, skills, items and camps you did not earn. Each new skill, item or kill you add to it in game can still
-complete an achievement, collection achievements included, so the warning above holds for the whole time you play it.
+hold six boss achievements as already done. Before it writes anything, the mod removes the save's achievement list
+([How it works](how-it-works.md#loading-one) lists what the game reads from a loaded save and why that is enough for
+the load itself). What stays is a developer's progress: quests, opened doors and chests, skills, items and camps you
+did not earn. Each new skill, item or kill you add to it in game can still complete an achievement, collection
+achievements included, so the warning above holds for the whole time you play it.
+
+Some of those items are not in the released game. In Matrix_XI 1 to 4, EVE wears one of them (`BS_Defender`), and F02
+2 and 3 hold three old `DesignPattern_*` items. They stay as the developer saved them, and whether the game loads them
+cleanly has not been tried.
 
 The command is off by default and has not been tried in game. To use it:
 

@@ -118,11 +118,12 @@ build/host/pose_codec_test
   - `save_shortcut_test`: `coop shortcut`'s paths and its read of built GVAS bytes (the engine branch, `MapName`,
     `CampAlias` and `DateTime` within their maps, an EVAS header stripped, short and bad bytes), its copies, lines and
     summary;
-  - `save_shortcut_load_test`: `coop shortcut load`'s cleaning on built GVAS bytes (`SBAchievement` dropped, the
-    dropped items out of `Inventory` and `ItemOtaineSet` with every size fixed, the EVAS wrap and its CRC, the pin, cut
-    bytes refused), then the 15 developer saves themselves when the machine holds the research copies under
-    `~/.claude/project-notes/stellar-blade-minecraft/runtime/2026-10-26/` (skipped elsewhere): each cleaned and
-    checked, with no achievement name left and every item left in the `ItemTable` dump;
+  - `save_shortcut_load_test`: `coop shortcut load`'s cleaning on built GVAS bytes (`SBAchievement` dropped, six
+    gears out of `Inventory` and `ItemOtaineSet` with every size fixed, items with no row kept, a gear named anywhere
+    else refused, the EVAS wrap and its CRC, the pin, cut bytes refused), then the 15 developer saves themselves when
+    the machine holds the research copies under `~/.claude/project-notes/stellar-blade-minecraft/runtime/2026-10-26/`
+    (skipped elsewhere): each cleaned and checked, the file without `SBAchievement` byte for byte, with no achievement
+    name or gear left and no item missing from the `ItemTable` dump but the seven known ones;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `lion_rows_test`: the Lion's, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's and the Night Operation
     shop's rows against fake memory laid out like the pinned build: the recipes (unique names and IDs across the
@@ -389,7 +390,7 @@ Platform-free headers, tested on the build machine:
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, and the `saves` requests |
 | `save/shortcut.h` | `coop shortcut`: the cut Load Shortcut menu's 16 paths, the read of each save's map, camp and date, and the lines |
-| `save/shortcut_load.h` | `coop shortcut load`: the 15 files' CRC-32 pin, the GVAS walk that drops `SBAchievement` and the dropped items, the EVAS wrap, the check and the log line |
+| `save/shortcut_load.h` | `coop shortcut load`: the 15 files' CRC-32 pin, the GVAS walk that drops `SBAchievement` and six gears, the EVAS wrap, the check and the log line |
 | `fight/sync.h` | The shared enemies' host and guest rules, and channel 2's text |
 | `fight/engine.h` | The shared enemies' side inside the game (`Engine`), and the vitals read for the partner card. The class holds the declarations; the bodies are in `fight/engine_run.h` (settings, arming, the turn), `engine_read.h` (reads of the game), `engine_write.h` (stat writes, crowd controls, captures), `engine_pilot.h` (same-place enemies), `engine_spawns.h` (same spawns, extra enemies), `engine_bosses.h` (shared bosses), `engine_trial.h` (the solo boss trial) and `engine_lines.h` (her lines) |
 | `fight/types.h` | The types around `Engine`: the pair table, the job, its counts and snapshot, the logic actors, the ring queues |
