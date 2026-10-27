@@ -8,15 +8,19 @@
 // that does not, or has no line, was played in co-op and is never replaced. A missing or bad manifest keeps every copy.
 // The manifest is written after each copy, so a pass stopped half way never leaves a new copy without its line.
 // A refresh (saves refresh N) replaces one slot's copy even when it was played, after a backup of that copy into a new
-// folder of the backups' folder.
+// folder of the backups' folder. An export (saves export N M) goes the other way: co-op slot N's copy, read and checked
+// as a copy's source is, and refused while it holds what the game without the mod does not know (mod_only), replaces
+// the player's StellarBladeSave0M.sav after a backup of that save; the bytes are never changed, the manifest is left as
+// it is.
 // Whenever there is no manifest (the first conversion, or one removed since), every StellarBlade*.sav of the account is
 // copied into a new folder of %LOCALAPPDATA%\SB\Saved\StellarCoopBackups, outside the synced folder, and read back,
 // before any copy is written; the manifest is written as soon as that backup is whole, so a pass stopped after it
 // never backs up again. A folder with no save of the player's gets no pass at all, so nothing is written there.
 //
-// Every write goes through one name check: in the account's folder only the copies, their temporary files, the
-// manifest and the shared quests' record of each co-op slot (StellarCoopQuests0N.txt, quest/engine.h's Worker); in the
-// backup folder only StellarBlade*.sav names. The player's saves are only ever read.
+// Every write goes through a name check: in the account's folder only the copies, their temporary files, the manifest
+// and the shared quests' record of each co-op slot (StellarCoopQuests0N.txt, quest/engine.h's Worker); in the backup
+// folder only StellarBlade*.sav names. The player's saves are only ever read, except by the export's one write, behind
+// a check of its own (exportable).
 //
 // Switch drives a conversion one job per worker pass and switches the name at its end, at the title only. No Windows
 // types: the file functions (Fs) come from the caller, Windows in glue/steam.cpp, a temporary folder in
@@ -29,11 +33,13 @@
 // and write creates or truncates and flushes.
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "link/protocol.h" // number(), split(), SavesAsk
@@ -84,6 +90,24 @@ template <class Fs> bool put(Fs &fs, const std::string &name, const std::string 
   remove(fs, temp);
   return false;
 }
+// The export's names (saves export): the player's saves and their temporary files. Only put_own writes them.
+inline bool exportable(const std::string &name) {
+  for (int n = 0; n < kSlots; ++n)
+    if (name == main_name(n) || name == main_name(n) + kTemp)
+      return true;
+  return false;
+}
+// The export's one write: the player's save m whole, written beside, then renamed over it; the temporary file goes on a
+// failure, which leaves the save as it was.
+template <class Fs> bool put_own(Fs &fs, int m, const std::string &bytes) {
+  const std::string name = main_name(m), temp = name + kTemp;
+  if (!exportable(name) || !exportable(temp))
+    return false;
+  if (fs.write(temp, bytes) && fs.rename(temp, name))
+    return true;
+  fs.remove(temp);
+  return false;
+}
 // The only names written in a backup folder: a StellarBlade*.sav file of the account (ASCII case ignored, as Windows
 // names files), no folder in it.
 inline bool backup_name(const std::string &name) {
@@ -123,6 +147,146 @@ inline bool game_save(const std::string &b) {
   uint32_t stored = 0;
   std::memcpy(&stored, b.data() + b.size() - 4, 4);
   return crc32(b.data() + 8, b.size() - 12) == stored;
+}
+
+// A name as a save's GVAS body holds it, an FName and an FString alike: its int32 length with the NUL, its ASCII
+// characters, the NUL.
+inline std::string fstring(const std::string &s) {
+  const int32_t n = int32_t(s.size() + 1);
+  return std::string(reinterpret_cast<const char *>(&n), 4) + s + '\0';
+}
+// A NameProperty field with its value: the field's name, the type's, the value's int64 size, no GUID, the value.
+inline std::string name_field(const std::string &field, const std::string &value) {
+  const int64_t size = int64_t(value.size() + 5);
+  return fstring(field) + fstring("NameProperty") + std::string(reinterpret_cast<const char *>(&size), 8) + '\0' +
+         fstring(value);
+}
+// The items the mod's rows add to the game's ItemTable (cut/lion_rows.lua, the Night Operation shop's): none of them
+// is in the game's own tables.
+struct ModItem {
+  const char *alias, *name;
+};
+constexpr ModItem kModItems[] = {{"HP2Burst_Potion", "Burst Stimpack"},
+                                 {"Buff_HP2MP", "Beta Stimpack"},
+                                 {"Bullet_Shock", "Shock Bolt"},
+                                 {"Money_NightOperation", "Beta Seed"}};
+// coop mxiii's place: the Matrix XIII dungeon's map, and the ZoneEnvSpawnTable row of the camp the mod adds there (a
+// full camp: lion/rows.h's kMxiiiPatches keep its CampType 3).
+constexpr char kMxiiiMap[] = "MXIII_P", kMxiiiCamp[] = "DLC02_10_EnvS_900";
+// The ammo SB ships in its const BulletItemSlotArray (lion/shock.h's kShippedBullets); lion/shock.h appends the Shock
+// Bolt after them, so a selected ammo index of 5 or more is the Shock Bolt.
+constexpr int32_t kShippedBullets = 5;
+// The New Game+ snapshot: the NewGamePlusBaseData StructProperty, a copy of the inventory and the camps apart from the
+// save as played, which playing on does not change (three saves of one account, months of play apart, hold it byte for
+// byte). Its first byte and the end of its value, or the file's size twice when the save has none or its header reads
+// out of range.
+inline std::pair<size_t, size_t> snapshot(const std::string &b) {
+  const std::string head = fstring("NewGamePlusBaseData") + fstring("StructProperty");
+  const size_t at = b.find(head);
+  int64_t size = -1;
+  int32_t name = -1;
+  if (at != std::string::npos && at + head.size() + 12 <= b.size()) {
+    std::memcpy(&size, b.data() + at + head.size(), 8);
+    std::memcpy(&name, b.data() + at + head.size() + 8, 4);
+  }
+  // The value follows its int64 size, its struct's name (an FString), the GUID and the GUID's flag.
+  const uint64_t end = uint64_t(at) + head.size() + 12 + uint64_t(name) + 17 + uint64_t(size);
+  if (size < 0 || name < 0 || end > b.size())
+    return {b.size(), b.size()};
+  return {at, size_t(end)};
+}
+// What a save holds that the game without the mod does not know, for the export's refusal, or empty. Read from a
+// released-game save, where every name is an FString: an item held, in the inventory or a pickup left in the world,
+// is an ItemAlias field; a quick slot is a name in ItemQuickSlotArray; the selected ammo is BulletItemSlotIndex, an
+// IntProperty indexing BulletItemSlotArray; the save's map is DataMap_FString's MapName entry, its camp
+// DataMap_FString's CampAlias and the player's CampEnvSpawnAlias, and the last camps rested at the LastFullCamp- and
+// LastSimplyCampEnvSpawnAlias fields, which only a rest at a camp of that kind changes. Every world and zone of the
+// game's tables, Matrix XIII's DLCMatrix13 and Zone_DLC02_10 to 40 included, is in every save, and ItemOtaineSet keeps
+// every item ever held, so neither counts. What the New Game+ snapshot holds is said apart: playing cannot clear it.
+inline std::string mod_only(const std::string &b) {
+  const std::pair<size_t, size_t> kept = snapshot(b);
+  // Where bytes at an offset are: 1 the save as played, 2 its New Game+ snapshot; where(bytes) ors them, 0 nowhere.
+  auto in = [&kept](size_t at) { return at >= kept.first && at < kept.second ? 2 : 1; };
+  auto where = [&](const std::string &bytes) {
+    int w = 0;
+    for (size_t at = b.find(bytes); at != std::string::npos; at = b.find(bytes, at + 1))
+      w |= in(at);
+    return w;
+  };
+  // The quick slots' arrays: their bodies, after the header (the names' type and no GUID), and where each is.
+  std::vector<std::pair<std::string, int>> slots;
+  const std::string head = fstring("ItemQuickSlotArray") + fstring("ArrayProperty");
+  for (size_t at = b.find(head); at != std::string::npos; at = b.find(head, at + 1)) {
+    const size_t body = at + head.size() + 8 + fstring("NameProperty").size() + 1;
+    int64_t size = 0;
+    if (body > b.size())
+      break;
+    std::memcpy(&size, b.data() + at + head.size(), 8);
+    slots.push_back(
+        {b.substr(body, size_t(std::min<int64_t>(std::max<int64_t>(size, 0), int64_t(b.size() - body)))), in(at)});
+  }
+  // The selected ammo: the IntProperty's value after its int64 size and no GUID.
+  int shock = 0;
+  const std::string ammo = fstring("BulletItemSlotIndex") + fstring("IntProperty");
+  for (size_t at = b.find(ammo); at != std::string::npos && at + ammo.size() + 13 <= b.size();
+       at = b.find(ammo, at + 1)) {
+    int32_t index = 0;
+    std::memcpy(&index, b.data() + at + ammo.size() + 9, 4);
+    if (index >= kShippedBullets)
+      shock |= in(at);
+  }
+  auto add = [](std::string &list, const std::string &s, const char *comma) {
+    list += (list.empty() ? "" : comma) + s;
+  };
+  std::string items[3], places[3]; // By where: [1] the save as played, [2] its New Game+ snapshot.
+  for (const ModItem &item : kModItems) {
+    int w = where(name_field("ItemAlias", item.alias));
+    for (const auto &slot : slots)
+      if (slot.first.find(fstring(item.alias)) != std::string::npos)
+        w |= slot.second;
+    for (int i : {1, 2})
+      if (w & i)
+        add(items[i], std::string(item.name) + " (" + item.alias + ")", ", ");
+  }
+  const int simple = where(name_field("LastSimplyCampEnvSpawnAlias", kMxiiiCamp));
+  const std::pair<const char *, int> place[] = {
+      {"its map", where(fstring("MapName") + fstring(kMxiiiMap))},
+      {"its camp",
+       where(fstring("CampAlias") + fstring(kMxiiiCamp)) | where(name_field("CampEnvSpawnAlias", kMxiiiCamp))},
+      {"its last full camp", where(name_field("LastFullCampEnvSpawnAlias", kMxiiiCamp))},
+      {"its last simple camp", simple}};
+  for (const auto &p : place)
+    for (int i : {1, 2})
+      if (p.second & i)
+        add(places[i], p.first, ", ");
+  std::string why, stuck;
+  if (!items[1].empty())
+    add(why,
+        "the mod's items " + items[1] + ": use them up or sell them, and take them off the quick slots (Beta Seeds go "
+                                        "back to the wallet when coop nightop shop closes)",
+        "; ");
+  if (shock & 1)
+    add(why, "Shock Bolts as the selected ammo: switch to another ammo", "; ");
+  if (!places[1].empty()) // A full camp's rest sets the camp and the last full camp to it, and moves the map.
+    add(why,
+        "the cut Matrix XIII dungeon as " + places[1] +
+            ": rest at a full camp (one with a phone booth) outside the dungeon" +
+            (simple & 1 ? ", then at a simple camp" : ""),
+        "; ");
+  if (!items[2].empty())
+    add(stuck, "the mod's items " + items[2], " and ");
+  if (shock & 2)
+    add(stuck, "Shock Bolts as the selected ammo", " and ");
+  if (!places[2].empty())
+    add(stuck, "the cut Matrix XIII dungeon as " + places[2], " and ");
+  if (!stuck.empty())
+    add(why,
+        stuck + " in its New Game+ snapshot: playing does not change that snapshot, so only a copy by hand takes this "
+                "save out (docs/saves.md)",
+        "; ");
+  else if (!why.empty())
+    why += "; then save and export it again";
+  return why;
 }
 
 // The manifest: per slot, the copy's stat after its rename and the stat of the save it came from.
@@ -242,6 +406,11 @@ public:
   // Every other slot keeps its copy; a played one loses its line, as at any pass. Ready at its end when that one copy
   // was made.
   template <class Fs> std::string refresh(Fs &fs, int n) { return begin(fs, n); }
+  // saves export: co-op slot n's copy over the player's save m, in three jobs: the copy read whole, checked as the game
+  // does and scanned for what the game without the mod does not know (a refusal writes nothing); the save backed up
+  // into a new backup folder, when there is one; the copy read again, unchanged since its check, written over the save
+  // and read back. The copies and the manifest stay as they are. Ready at its end when the save reads back whole.
+  template <class Fs> std::string export_to(Fs &fs, int n, int m) { return begin(fs, n, m); }
 
   // The next job; its line for the log, or empty.
   template <class Fs> std::string step(Fs &fs) {
@@ -252,6 +421,8 @@ public:
       return backup(fs, job.name);
     if (job.kind == Job::copy)
       return copy(fs, job.slot);
+    if (job.kind == Job::check || job.kind == Job::send)
+      return send(fs, job.kind == Job::send);
     // Why not ready: the manifest, or the first save with no copy beside it or whose copy or refresh failed.
     error_.clear();
     if (!put(fs, kManifest, format(lines_)))
@@ -268,17 +439,14 @@ public:
     next_ = jobs_.size();
     ready_ = false;
     error_ = why;
-    for (int n = 0; n <= kSlots; ++n) {
-      const std::string temp = (n < kSlots ? twin_name(n) : std::string(kManifest)) + kTemp;
-      if (fs.stat(temp).exists)
-        remove(fs, temp);
-    }
-    return "co-op saves: conversion stopped: " + why;
+    clean(fs);
+    return std::string("co-op saves: ") + (to_ >= 0 ? "export" : "conversion") + " stopped: " + why;
   }
 
   bool busy() const { return next_ < jobs_.size(); }
   bool ready() const { return ready_ && !busy(); }
-  bool whole() const { return only_ < 0; } // Every slot, not a refresh's one.
+  bool whole() const { return only_ < 0; }    // Every slot, not a refresh's or an export's one.
+  bool exporting() const { return to_ >= 0; } // The pass is an export's.
   const std::string &error() const { return error_; }
   // "idle" before any pass, "busy <done>/<jobs>", "done" (ready) or "error:<why>".
   std::string status() const {
@@ -290,13 +458,25 @@ public:
 
 private:
   struct Job {
-    enum Kind { backup, copy, manifest } kind;
+    enum Kind { backup, copy, manifest, check, send } kind;
     int slot;
     std::string name;
   };
 
-  // A pass: every slot (only -1), or the one slot a refresh replaces.
-  template <class Fs> std::string begin(Fs &fs, int only) {
+  // The temporary files an earlier run or a stopped pass left: the copies', the manifest's and the export's.
+  template <class Fs> static void clean(Fs &fs) {
+    for (int n = 0; n <= kSlots; ++n) {
+      const std::string temp = (n < kSlots ? twin_name(n) : std::string(kManifest)) + kTemp;
+      if (fs.stat(temp).exists)
+        remove(fs, temp);
+      if (n < kSlots && exportable(main_name(n) + kTemp) && fs.stat(main_name(n) + kTemp).exists)
+        fs.remove(main_name(n) + kTemp);
+    }
+  }
+
+  // A pass: every slot (only -1), or the one slot a refresh replaces, or the copy an export (to: the player's slot)
+  // writes over the player's save.
+  template <class Fs> std::string begin(Fs &fs, int only, int to = -1) {
     if (busy())
       return "co-op saves: a conversion is under way";
     plan_ = plan(fs);
@@ -305,13 +485,21 @@ private:
     started_ = true;
     ready_ = false;
     error_.clear();
+    folder_.clear();
     lines_ = Lines();
     why_ = {};
     only_ = only;
-    for (int n = 0; n <= kSlots; ++n) { // The manifest's temporary file too.
-      const std::string temp = (n < kSlots ? twin_name(n) : std::string(kManifest)) + kTemp;
-      if (fs.stat(temp).exists)
-        remove(fs, temp);
+    to_ = to;
+    clean(fs);
+    if (to >= 0) {
+      if (!plan_.twin[only].exists)
+        return stop(fs, "co-op slot " + std::to_string(only) + " has no co-op save to export");
+      jobs_.push_back({Job::check, only, {}});
+      if (plan_.main[to].exists)
+        jobs_.push_back({Job::backup, -1, main_name(to)});
+      jobs_.push_back({Job::send, only, {}});
+      return "co-op saves: exporting " + twin_name(only) + " over your save " + main_name(to) +
+             (plan_.main[to].exists ? " (backed up first)" : "");
     }
     bool any = false; // A fresh player, or a folder that is not the game's: no manifest, so the backup waits for saves.
     for (int n = 0; n < kSlots; ++n)
@@ -343,7 +531,7 @@ private:
   }
 
   template <class Fs> std::string backup(Fs &fs, const std::string &name) {
-    if (next_ == 1) {
+    if (folder_.empty()) { // The pass's first backup.
       folder_ = fs.backup_dir();
       if (folder_.empty())
         return stop(fs, "the backup folder could not be made");
@@ -356,6 +544,8 @@ private:
       return stop(fs, "the backup of " + name + " could not be written");
     if (jobs_[next_].kind == Job::backup)
       return {};
+    if (to_ >= 0) // An export leaves the manifest as it is.
+      return "co-op saves: " + name + " backed up in " + folder_;
     // The backup is whole: the manifest now (no line yet), so a pass stopped before its end backs up nothing again. A
     // failure here is the last job's to say.
     put(fs, kManifest, format(lines_));
@@ -422,10 +612,39 @@ private:
     return "co-op saves: " + why;
   }
 
+  // The export's check (write false) and its write: the copy read whole and checked as the game does each time, then
+  // scanned, or, for the write, unchanged since that check; written over the player's save and read back. A failure
+  // stops the pass; a save that reads back different stays, its backup said.
+  template <class Fs> std::string send(Fs &fs, bool write) {
+    const std::string twin = twin_name(only_), own = main_name(to_);
+    std::string bytes;
+    Stat stat;
+    if (const std::string why = read_whole(fs, twin, bytes, stat, true); !why.empty())
+      return stop(fs, twin + " " + why + ", so it was not exported");
+    if (!write) {
+      if (const std::string why = mod_only(bytes); !why.empty())
+        return stop(fs, twin + " was not exported: it holds what the game without the mod does not know, " + why);
+      checked_ = stat;
+      return "co-op saves: " + twin + " checked (" + std::to_string(bytes.size()) + " bytes)";
+    }
+    if (!same(stat, checked_))
+      return stop(fs, twin + " changed since its check, so it was not exported");
+    if (!put_own(fs, to_, bytes))
+      return stop(fs, own + " could not be replaced, so it is as it was");
+    std::string back;
+    if (!fs.read(own, back, kMaxSave) || back != bytes)
+      return stop(fs, own + " read back different" +
+                          (folder_.empty() ? std::string() : ": its backup is in " + folder_));
+    ready_ = true;
+    return "co-op saves: " + twin + " exported to " + own + " (" + std::to_string(bytes.size()) + " bytes)";
+  }
+
   Plan plan_;
   std::vector<Job> jobs_;
   size_t next_ = 0, copied_ = 0;
-  int only_ = -1;                       // A refresh's one slot, or -1.
+  int only_ = -1;                       // A refresh's one slot, an export's co-op slot, or -1.
+  int to_ = -1;                         // An export's slot of the player's, or -1.
+  Stat checked_;                        // The export's copy as its check read it.
   Lines lines_{};                       // The manifest as this pass will write it.
   std::array<bool, kSlots> present_{};  // A copy is beside the slot's save now.
   std::array<std::string, kSlots> why_; // Why the slot's copy failed this pass.
@@ -439,7 +658,9 @@ private:
 //   std::string swap(bool coop) (save/slot.h's Names::swap, empty once switched).
 // saves convert makes the copies; saves coop makes them, then switches the name at the pass's end; saves main switches
 // back, or withdraws the switch a running saves coop pass would make; saves refresh N replaces slot N's copy (Convert's
-// refresh), while the game uses the player's saves, and saves coop is refused until its end; all at the title only.
+// refresh), while the game uses the player's saves, and saves coop is refused until its end; saves export N M writes
+// co-op slot N's copy over the player's save M (Convert's export_to) while the game uses either saves, switching
+// nothing, and saves coop is refused until its end; all at the title only.
 // The title's slot list is the game's, rebuilt from the files only at its own load points (0x141cd4ef0, at StartClient
 // and at each return to the title). The mod never calls that rebuild: it reads and loads every slot on the game thread,
 // and the game follows it with its own UI updates. So once a co-op save was loaded, the title lists the copies, and a
@@ -447,7 +668,7 @@ private:
 // never switch back: the name stays until the game exits.
 class Switch {
 public:
-  template <class Fs, class Game> std::string ask(SavesAsk what, Fs *fs, Game &game, int slot = -1) {
+  template <class Fs, class Game> std::string ask(SavesAsk what, Fs *fs, Game &game, int slot = -1, int to = -1) {
     const slot::Saves now = game.saves();
     if (what == SavesAsk::main && now == slot::Saves::main) { // Withdraws a switch asked for after the pass.
       if (!asked_)
@@ -470,21 +691,28 @@ public:
       const std::string why = game.swap(false);
       return why.empty() ? "co-op saves off: the game uses your own saves again" : "co-op saves switch failed: " + why;
     }
-    if (what == SavesAsk::refresh && (slot < 0 || slot >= kSlots))
+    const bool one = what == SavesAsk::refresh || what == SavesAsk::export_; // One slot's pass.
+    if (one && (slot < 0 || slot >= kSlots))
       return "co-op saves refused: there is no slot " + std::to_string(slot);
+    if (what == SavesAsk::export_ && (to < 0 || to >= kSlots))
+      return "co-op saves refused: there is no slot " + std::to_string(to);
     if (!fs)
       return "co-op saves refused: the Steam account is not known yet";
-    if (what == SavesAsk::refresh && convert_.busy())
+    if (one && convert_.busy())
       return "co-op saves refused: a conversion is under way";
-    if (what == SavesAsk::coop && convert_.busy() && !convert_.whole()) // Its end vouches for one slot's copy only.
-      return "co-op saves refused: a refresh is under way: ask again after it";
+    if (what == SavesAsk::coop && convert_.busy() && !convert_.whole()) // Its end vouches for no slot but its own.
+      return std::string("co-op saves refused: ") + (convert_.exporting() ? "an export" : "a refresh") +
+             " is under way: ask again after it";
     if (convert_.busy()) {
       asked_ = asked_ || what == SavesAsk::coop;
       return asked_ ? "co-op saves: a conversion is under way; the switch follows it"
                     : "co-op saves: a conversion is under way";
     }
-    const std::string line = what == SavesAsk::refresh ? convert_.refresh(*fs, slot) : convert_.start(*fs);
+    const std::string line = what == SavesAsk::export_   ? convert_.export_to(*fs, slot, to)
+                             : what == SavesAsk::refresh ? convert_.refresh(*fs, slot)
+                                                         : convert_.start(*fs);
     asked_ = what == SavesAsk::coop && convert_.busy(); // A pass that stopped at its start switches nothing.
+    at_ = now;
     return line;
   }
 
@@ -496,9 +724,9 @@ public:
     std::vector<std::string> lines;
     if (!fs || !convert_.busy())
       return lines;
-    std::string why = off                        ? "coop off"
-                      : now != slot::Saves::main ? "the save name changed"
-                                                 : slot::not_title(game.world(), game.title(), game.load_mode());
+    std::string why = off         ? "coop off"
+                      : now != at_ ? "the save name changed"
+                                   : slot::not_title(game.world(), game.title(), game.load_mode());
     if (!why.empty()) {
       asked_ = false;
       lines.push_back(convert_.stop(*fs, why));
@@ -527,6 +755,7 @@ private:
   Convert convert_;
   bool asked_ = false;  // saves coop: switch at the end of the pass.
   bool played_ = false; // A save was loaded while the name was the co-op one.
+  slot::Saves at_ = slot::Saves::main; // The name when the running pass was asked: only an export's may be coop.
 };
 
 } // namespace coop::twins

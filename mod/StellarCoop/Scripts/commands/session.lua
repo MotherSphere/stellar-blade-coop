@@ -19,7 +19,7 @@ function Session.new(o)
             return ask(verb..' '..id)()
         end
     end
-    local refresh_asked=nil -- coop saves refresh: the slot typed and when ({slot=, at=}), until typed again.
+    local twice=nil -- coop saves refresh and export: the request typed and when ({line=, at=}), until typed again.
     function self.host() return ask(HOSTS[settings and settings.who_can_join] or 'host')() end
     self.invite,self.leave,self.report,self.copy=ask('invite'),ask('leave'),ask('report'),ask('copy')
     -- Every word typed after mark (the console handler joins them), cleaned like a chat line; the native part numbers
@@ -59,22 +59,40 @@ function Session.new(o)
     -- The co-op saves by hand (the question at the title asks for them): probe logs what the native part reads and the
     -- next copy pass's plan; convert makes the copies; coop makes them and switches the save name; main switches back;
     -- refresh <0-4> replaces that slot's co-op copy, played or not, with a new copy of the player's save (the native
-    -- part backs the old one up first), once typed twice for the same slot within 10 s. The native part refuses all but
-    -- probe off the title screen, and says why in coop-link.log.
-    function self.saves(sub,extra,more)
-        if sub=='refresh' and more==nil and type(extra)=='string' and extra:match('^[0-4]$') then
-            local now=os.clock()
-            if not (refresh_asked and refresh_asked.slot==extra and now-refresh_asked.at<=10) then
-                refresh_asked={slot=extra,at=now}
+    -- part backs the old one up first); export <0-4> <0-4> writes that co-op slot's copy over that save of the player's
+    -- (backed up first), to play on without the mod, and the native part refuses a copy that holds the mod's items or
+    -- stands in Matrix XIII. Each is asked once typed twice the same within 10 s. The native part refuses all but probe
+    -- off the title screen, and says why in coop-link.log.
+    local function confirmed(line)
+        local now=os.clock()
+        if twice and twice.line==line and now-twice.at<=10 then
+            twice=nil
+            return true
+        end
+        twice={line=line,at=now}
+        return false
+    end
+    function self.saves(sub,extra,more,rest)
+        local function slot(word) return type(word)=='string' and word:match('^[0-4]$')~=nil end
+        if sub=='refresh' and more==nil and slot(extra) then
+            if not confirmed('saves refresh '..extra) then
                 return false,'coop saves refresh '..extra..' replaces the co-op copy StellarBladeCoop0'..extra..'.sav, '
                     ..'played in co-op or not, with a new copy of your save StellarBladeSave0'..extra..'.sav (the old '
                     ..'copy goes to StellarCoopBackups first): type it again within 10 s to go on'
             end
-            refresh_asked=nil
             return ask('saves refresh '..extra)()
         end
+        if sub=='export' and rest==nil and slot(extra) and slot(more) then
+            if not confirmed('saves export '..extra..' '..more) then
+                return false,'coop saves export '..extra..' '..more..' writes your co-op save StellarBladeCoop0'..extra
+                    ..'.sav over your own save StellarBladeSave0'..more..'.sav (your save there, if any, goes to '
+                    ..'StellarCoopBackups first), to play on without the mod; it is refused while that co-op save '
+                    ..'holds the mod\'s items or stands in Matrix XIII: type it again within 10 s to go on'
+            end
+            return ask('saves export '..extra..' '..more)()
+        end
         if extra~=nil or not ({probe=true,convert=true,coop=true,main=true})[sub or ''] then
-            return false,'Use: coop saves probe | convert | coop | main | refresh <0-4>'
+            return false,'Use: coop saves probe | convert | coop | main | refresh <0-4> | export <0-4> <0-4>'
         end
         return ask('saves '..sub)()
     end

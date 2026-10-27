@@ -2699,9 +2699,19 @@ drops the input.
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game
   was not chosen (the game's load mode is 0). A pass checks this again before each file and before the switch. The
   native part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the copy and reads it back.
-  One name check guards every write: only the copies, their temporary files, `StellarCoopSaves.txt`, the shared quests'
-  records `StellarCoopQuests00.txt` to `04.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken
+  One name check guards every write but the export's (below): only the copies, their temporary files,
+  `StellarCoopSaves.txt`, the shared quests' records `StellarCoopQuests00.txt` to `04.txt` and the backup in
+  `StellarCoopBackups` pass it. The backup is taken
   before any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
+  A `saves export N M` request is the one write to your own saves, behind a check of its own that passes only
+  `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It reads the co-op copy, checks it as the game
+  does, and refuses it while an `ItemAlias` field or a quick slot names one of the mod's items, while
+  `BulletItemSlotIndex` is 5 or more (the Shock Bolt `lion/shock.h` appends after the five ammo types the game ships),
+  or while the save's `MapName` is `MXIII_P` or one of its camp fields names the camp `coop mxiii` adds. A find inside
+  `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing does not change, is refused too,
+  with a line that says so instead of what to use up or where to rest. Only then does it back up the
+  target save, read the copy again (unchanged since the check, or it stops) and write it over that save through a
+  `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
   The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
   every 250 ms; an entry that moves or changes stops it for the run.
 - The [spawn filter](#the-spawn-filter), off by default, is the one write into the game's image rather than into

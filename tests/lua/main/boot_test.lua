@@ -117,10 +117,11 @@ for _,sub in ipairs({'probe','convert','coop','main'}) do
     assert(asked[#asked]=='saves '..sub and last()=='[StellarCoop] OK: asked the native part: saves '..sub..'\n',last())
 end
 for _,bad in ipairs({{},{'COOP'},{'coop','now'},{'refresh'},{'refresh','5'},{'refresh','02'},{'refresh','2','now'},
-        {'off'}}) do
+        {'off'},{'export'},{'export','1'},{'export','1','5'},{'export','5','1'},{'export','1','2','now'},
+        {'export','01','2'},{'EXPORT','1','2'}}) do
     coop('saves',table.unpack(bad))
-    assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main | refresh <0-4>\n',
-        last())
+    assert(#asked==10 and last()=='[StellarCoop] STOP: Use: coop saves probe | convert | coop | main | refresh <0-4> | '
+        ..'export <0-4> <0-4>\n',last())
 end
 -- coop saves refresh <0-4>: asked of the native part only when typed twice for the same slot within 10 s; the first
 -- says what it replaces.
@@ -136,6 +137,25 @@ clock=clock+5
 coop('saves','refresh','3')
 assert(asked[11]=='saves refresh 3' and last()=='[StellarCoop] OK: asked the native part: saves refresh 3\n',last())
 coop('saves','refresh','3'); assert(#asked==11,'Each refresh asks again')
+end
+-- coop saves export <0-4> <0-4>: the same, for the same two slots; the first says what it writes over and what the
+-- native part refuses. A refresh typed in between starts over.
+do
+local EXPORT='[StellarCoop] STOP: coop saves export 0 1 writes your co-op save StellarBladeCoop00.sav over your own '
+    ..'save StellarBladeSave01.sav (your save there, if any, goes to StellarCoopBackups first), to play on without the '
+    ..'mod; it is refused while that co-op save holds the mod\'s items or stands in Matrix XIII: type it again within '
+    ..'10 s to go on\n'
+coop('saves','export','0','1'); assert(#asked==11 and last()==EXPORT,last())
+coop('saves','export','1','0'); assert(#asked==11,'Other slots: asked again')
+coop('saves','export','0','1'); assert(#asked==11 and last()==EXPORT,'Other slots in between: asked again')
+coop('saves','refresh','0'); assert(#asked==11,'A refresh in between: asked again')
+coop('saves','export','0','1'); assert(#asked==11)
+clock=clock+11
+coop('saves','export','0','1'); assert(#asked==11,'Over 10 s: asked again')
+clock=clock+10
+coop('saves','export','0','1')
+assert(asked[12]=='saves export 0 1' and last()=='[StellarCoop] OK: asked the native part: saves export 0 1\n',last())
+coop('saves','export','0','1'); assert(#asked==12,'Each export asks again')
 end
 -- Join codes and the host's answers: coop join <code> in either case, with or without the dash, as the native part
 -- takes it; coop copy; coop allow, deny and remove with a SteamID only.
