@@ -1097,7 +1097,9 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   them.
 - When the guest's side comes on, the host sends a snapshot (`snap`, the `zone` and `q` lines, then `end` with their
   count and an FNV-1a digest) of the quests it moved while linked with that friend. It sends a new one after its own
-  load, and when one of its quests goes back (an older save).
+  load, and when one of its quests goes back (an older save). On either side, a pass that finds a known quest object
+  gone waits for the next pass to read the same objects, so a quest unit read while the game still fills it sends,
+  records and applies nothing.
 
 The record beside each co-op slot (`StellarCoopQuests0N.txt` in the account's save folder) keeps, per friend, the
 host's marks (`h` lines) and the host lines the guest's game took (`g` lines). The worker writes it through the same

@@ -611,10 +611,17 @@ private:
       return false;
     if (!start_ms_)
       start_ms_ = now_ms ? now_ms : 1;
-    // A save load makes every quest object again: a known one at a new address.
-    bool load = false;
+    // A save load makes every quest object again: a known one at a new address, or gone (a save without it). A read
+    // with a known one gone may also be a unit SB is still filling: it counts only once the next pass reads the same
+    // objects, and until then the side waits and seen_ keeps the last objects it took.
+    bool load = false, gone = false;
     for (size_t i = 0; i < kRowCount; ++i)
-      load |= seen_[i] && seen_[i] != objects_[i];
+      load |= seen_[i] && seen_[i] != objects_[i], gone |= seen_[i] && !objects_[i];
+    if (gone && objects_ != unsure_) {
+      unsure_ = objects_;
+      return false;
+    }
+    unsure_.clear();
     std::copy(objects_.begin(), objects_.end(), seen_.begin());
     if (load || first_) {
       arm_ = armed;
@@ -946,6 +953,7 @@ private:
   std::vector<uint64_t> list_[3], values_, listed_;
   std::vector<uint8_t> elements_;
   std::vector<uint64_t> objects_ = std::vector<uint64_t>(kRowCount), seen_ = std::vector<uint64_t>(kRowCount);
+  std::vector<uint64_t> unsure_; // The last read with a known object gone, until the next pass reads the same.
   std::vector<View> views_ = std::vector<View>(kRowCount);
   std::vector<Tuple> live_ = std::vector<Tuple>(kRowCount);
   std::vector<Note> notes_, shown_ = std::vector<Note>(kRowCount);

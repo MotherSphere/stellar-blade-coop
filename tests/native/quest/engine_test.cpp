@@ -186,6 +186,7 @@ struct Pc {
   std::map<uint64_t, std::array<size_t, 4>> where; // A task object: its row, group, container, position.
   std::vector<uint64_t> extra;                      // Helper quests SB completed: in the Complete array.
   std::vector<bool> lone = std::vector<bool>(kRowCount); // An object in the ID map only, at state 0.
+  std::vector<bool> hidden = std::vector<bool>(kRowCount); // Its object kept but in neither the map nor an array.
   bool extra_mapped = true, heap_bits = false, no_unit = false;
   uint64_t logic = 0, world = 0, mgr = 0, unit_at = 0, data = 0, bits = 0, lists[3] = {}, block = 0;
   uint32_t owner = 0x51, thread_id = 100, cursor = 1;
@@ -249,7 +250,7 @@ struct Pc {
     for (size_t i = 0; i < kRowCount; ++i) {
       const Row &r = kRows[i];
       const View &x = w.v[i];
-      if (r.type != 'R' && x.state == 0 && !lone[i])
+      if ((r.type != 'R' && x.state == 0 && !lone[i]) || hidden[i])
         continue; // No object: not acquired.
       Obj &o = obj[i];
       if (!o.quest)
@@ -1034,6 +1035,45 @@ void loads() {
   assert(!has(k.host->lines, q("off")) && !has(k.guest->lines, q("off")));
 }
 
+// A pass that reads a known quest object gone (a unit SB is still filling, or a save without it) counts only once the
+// next pass reads the same. A host unit half filled for one pass sends nothing and loads nothing, and its quests back
+// at their addresses are no step of the host's: a guest behind on one stays behind. Gone for good (an older save), the
+// next pass takes it as the load it is.
+void vanished() {
+  auto two = std::make_unique<Two>();
+  Two &k = *two;
+  Pc &h = k.host->pc, &g = k.guest->pc;
+  const size_t s17 = at("Quest_Sub_017"), s1 = at("Quest_Sub_001");
+  k.zone("Zone_WLA_10");
+  k.steps(4);
+  g.zone("Zone_DED20"); // Away while the host plays Quest_Sub_017: behind on it.
+  h.acquire(s17);
+  k.steps(2);
+  h.play(s17), h.play(s17);
+  k.steps(3);
+  g.zone("Zone_WLA_10");
+  k.steps(3);
+  assert(g.w.v[s17].state == 0 && k.noted(Why::behind, kRows[s17].id) && g.calls == 0);
+  const std::string record = k.host->record;
+  const size_t lines = k.host->lines.size();
+  h.hidden[s17] = true, h.render();
+  k.steps(1);
+  assert(k.host->lines.size() == lines && k.host->record == record);
+  h.hidden[s17] = false, h.render();
+  k.steps(6);
+  assert(g.w.v[s17].state == 0 && g.calls == 0 && k.host->record == record);
+  assert(!has(k.host->log, "a save load") && !has(k.host->lines, q("snap 2")));
+  // Quest_Sub_001 acquired with her, then a save without it: one pass waits, the next is a load.
+  h.acquire(s1);
+  k.steps(3);
+  assert(g.w.v[s1].state == 1 && g.calls == 1);
+  h.w.v[s1] = View(), h.load();
+  k.step();
+  assert(!has(k.host->log, "a save load"));
+  k.step();
+  assert(has(k.host->log, "a save load") && has(k.host->lines, q("snap 2 ")));
+}
+
 // coop quests force: a step held as unseen (here the host's zone could not be read when it ended Quest_WALN10_001's
 // group, whose warp the tables cannot place) goes where she stands, once, and the notice says SB moves her; a zone
 // hold is never forced.
@@ -1502,6 +1542,7 @@ int main() {
   two_worlds();
   late_host();
   loads();
+  vanished();
   forced();
   lossy();
   record_replay();
