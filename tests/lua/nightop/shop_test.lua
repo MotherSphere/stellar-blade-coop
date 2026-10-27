@@ -16,7 +16,7 @@
 -- and only a screen that opened for us closed; another save loaded before the open, which gets no seeds, no open and
 -- no removal; coop off, also before the added seeds read; the seeds taken back
 -- through EVE's controller read again; no console buy and no run while it runs; a screen an earlier Lua load left,
--- taken over.
+-- taken over, and its seeds left after a close taken out with the wallet kept.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -568,7 +568,8 @@ assert(#said_to==1 and #removes==1 and removes[1][4]==50 and files[FILE]=='50\n'
 assert(lines[#lines]=='STOP: shop: the game is paused or shows one of its screens: open the shop once it plays; 50 '
     ..'Beta Seeds left the inventory',lines[#lines])
 -- A screen an earlier Lua load left open (a reload): taken over at the first tick, a purchase written, the seeds out
--- after the close. Another left closed with its seeds: the wallet set to them, the seeds out at once.
+-- after the close. Seeds left with the screen closed (a removal that failed, then a run's credit): out at once, the
+-- wallet keeping its count.
 calls,removes,said_to={},{},{}
 files[FILE]='100\n'
 local function reloaded() return Shop.new({log=function(text) lines[#lines+1]=text end,
@@ -590,7 +591,9 @@ files[FILE]='100\n'
 after=reloaded()
 nightshop_is('closed','40',5,'open:none')
 after.tick()
-assert(not after.busy() and #removes==2 and removes[2][4]==40 and files[FILE]=='40\n')
+assert(not after.busy() and #removes==2 and removes[2][4]==40 and files[FILE]=='100\n')
+assert(lines[#lines]=='shop: 40 Beta Seeds left from an earlier load (screen closed): the wallet keeps 100; 40 Beta '
+    ..'Seeds left the inventory',lines[#lines])
 -- Looked for once a load: no seeds at the first look, none taken over later.
 after=reloaded()
 nightshop_is('closed','0',5,'close:none')

@@ -530,8 +530,8 @@ run starts, a guest turns down the host's run, and `coop nightop buy` refuses. `
 last seed count to the wallet and takes the seeds out (before the screen opened, the seeds the mod added); a purchase
 made in the last 250 ms before `coop off` is not counted. In the 250 ms or so between the open request and its answer,
 `coop off` closes whatever shop screen is up, a vending machine's included. After a Lua reload while the screen is
-open, or before its seeds went back, the mod takes it over at its first tick, so purchases still reach the wallet and
-the seeds leave after the close.
+open, the mod takes it over at its first tick, so purchases still reach the wallet and the seeds leave after the close.
+Seeds still in the inventory with no shop screen open leave at that first tick, and the wallet keeps its count.
 
 The rows are a sixth rows batch of the native part, `shop` (`native/src/lion/rows.h`), added through the game's own
 AddRow in memory for the game run, as the Lion's are:

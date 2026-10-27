@@ -415,8 +415,10 @@ function Shop.new(o)
             ..'rows are in ([NR] lines)',w.points)
     end
     -- A screen an earlier Lua load ran (a reload while it was open, or before its seeds went back), looked for at the
-    -- first tick that reads the nightshop line: Beta Seeds in the bucket are ours (only the screen adds them), so it is
-    -- taken over as open, and step() writes the count to the wallet and takes the seeds back after the close.
+    -- first tick that reads the nightshop line: Beta Seeds in the bucket are ours (only the screen adds them). A screen
+    -- still open is taken over as open, and step() writes the count to the wallet and takes the seeds back after the
+    -- close. Seeds with no screen open go at once and the wallet keeps its count: it stays the record, as at a fill (a
+    -- removal that failed or an older save loaded leaves seeds that no longer match it).
     local looked=false
     local function adopt()
         local s=Shop.line(status())
@@ -431,6 +433,10 @@ function Shop.new(o)
                 tostring(w and guid or e)))
         end
         ui={phase='open',at=os.clock(),w=w,pc=pc,guid=guid,kept=w.points}
+        if s.state=='closed' then
+            return finish(true,string.format('%d Beta Seeds left from an earlier load (screen closed): the wallet '
+                ..'keeps %d',s.seeds,w.points),s.seeds)
+        end
         log(string.format('shop: %d Beta Seeds left from an earlier load (screen %s): taken over',s.seeds,s.state))
     end
     -- Each tick of the run (250 ms): the screen's steps; an error ends it, the seeds taken back.

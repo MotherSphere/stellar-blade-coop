@@ -2161,8 +2161,10 @@ answer is not read yet (about 250 ms), so a game shop screen that came up in tha
 ends early (`coop off`, a fault, a step that times out), the seeds that go are the last count read once open, and
 before that at least the count Lua added, since a read from before the add still says the old count. After a fault the
 native part no longer reads or closes the screen, so those seeds leave the bucket at once and a screen left open sells
-nothing. After a Lua reload, the first tick that reads seeds in the bucket takes the screen over as open: only the
-screen adds Beta Seeds, so they are this wallet's.
+nothing. After a Lua reload, the first tick that reads seeds in the bucket with a shop screen open takes the screen
+over as open: only the screen adds Beta Seeds, so they are this wallet's. With no shop screen open, those seeds leave at
+once and the wallet is not written: after a removal that failed or an older save loaded, the bucket no longer matches
+the wallet, which stays the record as at a fill.
 
 ## Roxanne's Night Operation choices
 
