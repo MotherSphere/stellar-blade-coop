@@ -74,7 +74,7 @@ do
     end
     assert(n==13 and #M.ROWS==13 and #patches==34,n..' rows, '..#patches..' patches')
     -- Every env-spawn row names the camp; each kit row spawns at the point of its own name; the vending machine links
-    -- the other six.
+    -- the five kit objects, not 900.
     assert(M.ROWS[1].name==M.CAMP and M.ROWS[1].table=='ZoneCampTable')
     local function check(r,field) for _,c in ipairs(r.checks) do if c[1]==field then return c[3] end end end
     for i=2,8 do
@@ -85,7 +85,7 @@ do
             and check(r,'EnvBPPath'):find('^/Game/GameDesign/Level/ZoneEnv/'),r.name)
     end
     assert(check(M.ROWS[8],'LinkEnvSpawnList')=='DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|'
-        ..'DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900')
+        ..'DLC02_10_EnvS_904|DLC02_10_EnvS_905')
     -- The waves: each zone 20 trigger touches the zone events the cut gates ran, after the ones it ships with; the zone
     -- 40 pair starts enabled. Each check differs from the shipped row, so a read-back that passes proves the patch.
     local waves={'022|023|024|025','026|027|028','029|030|031|032'}

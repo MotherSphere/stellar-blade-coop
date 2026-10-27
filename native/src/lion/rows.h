@@ -6320,8 +6320,10 @@ constexpr Row kShopRecipe[] = {
 // the shipped supply boxes and DLC02_10_EnvS_441 (the kit rows 420 to 426 have none, so they look for placed actors no
 // pak holds). The zMXIII_P v2 pak has the points; on v1 SB finds none and spawns nothing. Every row names the new camp,
 // so activating, resting, the phone booth and a respawn use DLC02_10_Camp_01, not the kit's placeholder camps
-// (WLB10_Camp_05, SE02_Camp_02). The vending machine comes last: its LinkEnvSpawnList switches the other six on once a
-// coin activates the camp. Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK
+// (WLB10_Camp_05, SE02_Camp_02). The vending machine comes last: its LinkEnvSpawnList switches the other five kit
+// objects on once a coin activates the camp. It leaves out 900, which has no object (the template links 425 for the
+// camp base actor a full camp places), as Matrix 11's simple vending machine ME_01_EnvS_017 links only its objects.
+// Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK
 // (stellar-sdk-647527f), which the generated kTables reads too; none of the three structs has a Transient field.
 //
 // Then 5 shipped ZoneTriggerTable rows, patched in place. The DLC02 data starts the zone 20 waves from gates (when
@@ -6374,11 +6376,11 @@ constexpr Patch kMxiiiPatches[] = {
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_905"}, // SpawnPointName
     {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_10_EnvS_906 (ZoneEnvSpawnTable, Matrix XIII: vending machine, linking the kit in the template's order)
+    // DLC02_10_EnvS_906 (ZoneEnvSpawnTable, Matrix XIII: vending machine, linking the five kit objects, not 900)
     {0x30, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // EnvActorName
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // SpawnPointName
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900"}, // LinkEnvSpawnList
+    {0x260, Kind::names, 0, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905"}, // LinkEnvSpawnList
     {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
     // DLC02_20_ZTrigger_001 (ZoneTriggerTable, shipped: wave 1)
     {0x20, Kind::names, 0,

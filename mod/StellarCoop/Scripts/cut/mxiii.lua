@@ -54,8 +54,8 @@ local HINT='if [TR] says SB refused DLC02_10_Camp_01: SB lists the camps when it
 -- it). The camp copies ME01_Camp_03 (a FullCamp, shown in the camp list once activated) with the coin's spawn point;
 -- DLC02_10_EnvS_900 copies the kit's activation-only row DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) under its own actor
 -- name, with the new camp; each kit row copies its kit row (420 to 424, then the vending machine 426) and spawns its
--- blueprint at the spawn point of its own name; the vending machine switches the other six on once activated. The
--- trigger rows are SB's own, so their read-back proves the patch: none of those values is the shipped one.
+-- blueprint at the spawn point of its own name; the vending machine switches the other five kit objects on once
+-- activated (not 900, which has no object). The trigger rows are SB's own, so their read-back proves the patch: none of those values is the shipped one.
 local ENV='/Game/GameDesign/Level/ZoneEnv/'
 local function kit(n,blueprint,links)
     local name='DLC02_10_EnvS_'..n
@@ -83,7 +83,7 @@ Mxiii.ROWS=Enemy.rows({
     kit(904,'Env_Camp_Turntable.Env_Camp_Turntable_C'),
     kit(905,'Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C'),
     kit(906,'Env_VendingMachine.Env_VendingMachine_C',
-        'DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900'),
+        'DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905'),
     trigger(20,1,'DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025'),
     trigger(20,5,'DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028'),
     trigger(20,6,'DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032'),

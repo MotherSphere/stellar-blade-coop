@@ -419,7 +419,7 @@ int main() {
   // (+0x270) names it, each under its own actor name (+0x30): DLC02_10_EnvS_900 first (a copy of the activation-only
   // DLC02_10_EnvS_425, no actor), then the kit 901 to 906 (copies of 420 to 424 and 426), each spawning a blueprint
   // under /Game/GameDesign/Level/ZoneEnv/ (EnvBPPath +0x38) at the spawn point of its own name (+0x48); the vending machine
-  // last, linking the other six (LinkEnvSpawnList +0x260). Then 5 shipped ZoneTriggerTable rows patched in place, each
+  // last, linking the five kit objects, not 900 (LinkEnvSpawnList +0x260). Then 5 shipped ZoneTriggerTable rows patched in place, each
   // its own template under its shipped ID, in a table with no Transient array: DLC02_20_ZTrigger_001, 005 and 006
   // touch their wave's zone events after the events they ship with (TouchEvents +0x20), DLC02_40_ZTrigger_001 and 002
   // start enabled (InitActivate +0x1c, 1). Names and IDs unique, each patch inside its struct past the ID, no two on
@@ -486,7 +486,7 @@ int main() {
     }
     assert(at(vending, 0x260).kind == Kind::names &&
            !std::strcmp(at(vending, 0x260).text, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|"
-                                                 "DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900"));
+                                                 "DLC02_10_EnvS_904|DLC02_10_EnvS_905"));
     static const char *const kTriggers[] = {"DLC02_20_ZTrigger_001", "DLC02_20_ZTrigger_005", "DLC02_20_ZTrigger_006",
                                             "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_002"};
     static const uint32_t kTriggerIds[] = {280501001, 280501005, 280501006, 281501001, 281501002};
@@ -924,8 +924,7 @@ int main() {
     assert(g.string_field(machine, 0x38) == "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C" &&
            g.name_text(Game::field<uint64_t>(machine, 0x48)) == "DLC02_10_EnvS_906" &&
            g.list_field(machine, 0x260, Kind::names) ==
-               "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905|"
-               "DLC02_10_EnvS_900");
+               "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905");
     assert(g.id_name(g.tables[size_t(Table::env)], 2800032900u) == g.name("DLC02_10_EnvS_900") &&
            g.id_name(g.tables[size_t(Table::env)], 2800032906u) == g.name("DLC02_10_EnvS_906"));
     rb = mb.read_back(g, g.tables);

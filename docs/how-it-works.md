@@ -2078,7 +2078,7 @@ rows, each a copy of a shipped row with its own name and ID:
 | `DLC02_10_Camp_01` | ZoneCampTable | 280001 | `ME01_Camp_03` | `CoinSpawnPointName` `DLC02_10_E_ItemS_001`; `CampType` stays FullCamp, `CampDisplayType` stays WhenActive |
 | `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`, `EnvActorName` its own name; `ZoneList` stays `Zone_DLC02_10` |
 | `DLC02_10_EnvS_901` to `_905` | ZoneEnvSpawnTable | 2800032901 to 2800032905 | `DLC02_10_EnvS_420` to `_424` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` and `SpawnPointName` their own name; `EnvBPPath` the skill machine, chair, storage, turntable and phone booth blueprints under `/Game/GameDesign/Level/ZoneEnv/` |
-| `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same four, with `Env_VendingMachine`; `LinkEnvSpawnList` 901 to 905 and 900, in the template's order |
+| `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same four, with `Env_VendingMachine`; `LinkEnvSpawnList` 901 to 905, in the template's order |
 
 `FUN_141d18100` lists a camp's rows in table order, and AddRow appends, so row 900 stays the camp's first: it leads the
 travel to `Zone_DLC02_10` and has no actor. The other six spawn their objects. `FUN_141d1e5b0`, which makes a zone's
@@ -2086,8 +2086,10 @@ env objects, looks for a placed actor named `EnvActorName` when `EnvBPPath` is e
 that class at the actor named `SpawnPointName`, as 137 shipped rows do (Xion's supply boxes, `DLC02_10_EnvS_441`), none
 of them a camp object until now. The blueprints are the six kit actors of the Space Elevator's full camp
 `SE02_Camp_02`. The vending machine row starts enabled and the others disabled: activating the camp with a coin sets
-it and every row in its `LinkEnvSpawnList` on. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's
-that spawns a vending machine coin at the spawn point of that name when EVE enters the zone. The camp keeps
+it and every row in its `LinkEnvSpawnList` on. That list leaves out 900: the template links 425 for the camp base
+actor that a full camp places, and 900 has no object, as Matrix 11's simple camp `ME01_Camp_01` links only its
+objects. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
+at the spawn point of that name when EVE enters the zone. The camp keeps
 `ME01_Camp_03`'s name, picture and region, so the camp list shows it under Matrix 11. No dungeon has a world map in the
 game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
 
