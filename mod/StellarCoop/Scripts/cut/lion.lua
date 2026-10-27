@@ -30,7 +30,7 @@ local Doro=require('race.doro')
 local Enemy=require('cut.enemy')
 local valid,value_of,why=U.valid,U.value_of,Enemy.why
 local Lion={}
-Lion.TABLES=Enemy.TABLES -- The 19 tables, in the native part's order (link/protocol.h's kLionTables).
+Lion.TABLES=Enemy.TABLES -- The 20 tables, in the native part's order (link/protocol.h's kLionTables).
 -- The only IDs the spawn call takes, with what each is; the brains are the Lion's two CharacterTable rows.
 Lion.IDS={[50020]='M_LionC',[50021]='M_LionC_Lurker',[50110]='M_Antlion'}
 local BRAINS={skulling=50020,lurker=50021}

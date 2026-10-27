@@ -1297,7 +1297,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 19/19 found: CharacterTable=0x...` | The 19 tables found, with the addresses sent to the native part |
+| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
 | `lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 1004500-6000101 23/23, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need (SkillTable: the Lion's 21 skills, the stimpacks' skill, 6000101, and the ChainSpin, 1004500) |
 | `rows read back through FindRow: 237/237 authored rows, 3178 fields as written (2156 differ from the template row)` | Every field the native part wrote reads as written; 2156 of them hold a value the shipped row it started from did not, and the other 1022 restate that row's value |
@@ -1388,7 +1388,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 19/19 found: CharacterTable=0x...` | The 19 tables found, with the addresses sent to the native part |
+| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
 | `gardener rows: 13/13 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `gardener rows by SB's lookups: CharacterTable 50010-50012 3/3, SkillTable 5001010-5001012 3/3, stance 500101 1/1` (`coop-link.log`) | The game's own lookups by ID find its three CharacterTable rows, its three skills and its stance |
 | `rows read back through FindRow: 13/13 authored rows, 279 fields as written (102 differ from the template row)` | Every field the native part wrote reads as written |
@@ -1445,7 +1445,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 19/19 found: CharacterTable=0x...` | The 19 tables found, with the addresses sent to the native part |
+| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
 | `tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable 5006000-5006010 11/11, stance 500600 1/1` (`coop-link.log`) | The game's own lookups by ID find its CharacterTable row, its 11 skills and its stance |
 | `rows read back through FindRow: 107/107 authored rows, 1281 fields as written (997 differ from the template row)` | Every field the native part wrote reads as written |
@@ -1584,8 +1584,9 @@ point there.
    `coop saves refresh <0-4>`.
 3. Type `coop mxiii`. It checks the pak and the travel's conditions and adds eight rows to the game's tables in memory:
    the camp `DLC02_10_Camp_01`, a row in the dungeon's first zone (`Zone_DLC02_10`) that leads the travel there, and
-   one row for each of the camp's six objects. Then it asks the game's own camp travel to go there, as
-   `coop travel probe` does for an activated camp.
+   one row for each of the camp's six objects. It also changes five of the dungeon's own trigger rows in memory, so
+   the enemies of the second and fourth zones that wait for missing props appear (see below). Then it asks the game's
+   own camp travel to go there, as `coop travel probe` does for an activated camp.
 4. If the log says `travel: SB refused DLC02_10_Camp_01`, the game listed its camps when the map started, before the
    rows went in. Load the save again (or travel to any camp), then type `coop mxiii` again: the rows stay until the
    game exits, so the second time it only travels.
@@ -1608,6 +1609,28 @@ first has not been checked. After a travel from the list, `coop where` tells you
 the phone booth opens the camp list for fast travel out and back, and a death in the zone brings EVE back to this camp.
 With v1 the game finds no spawn point for the six objects and places none; the travel still works.
 
+Some enemies of the dungeon's later zones start from props of the cut map, which no pak holds. In the second zone
+(`Zone_DLC02_20`), three waves of Antlions (4, 3 and 4) come when three gates open. In the fourth zone
+(`Zone_DLC02_40`), two chains of enemies (5 Antlions, then 3 Clrikets) wait for two zone triggers that stay switched
+off until EVE uses the zone's two drain devices. Without the gates and the devices none of these 19 enemies appears.
+`coop mxiii` moves the waves onto zone triggers that the test pak places at the same spots, and the two triggers of
+the fourth zone start switched on:
+
+| Zone | Trigger row | Before | With `coop mxiii` |
+| --- | --- | --- | --- |
+| Second | `DLC02_20_ZTrigger_001`, the zone's entry | no event | wave 1: 4 Antlions |
+| Second | `DLC02_20_ZTrigger_005`, the arena's entrance | its gate event | its gate event, then wave 2: 3 Antlions |
+| Second | `DLC02_20_ZTrigger_006`, halfway through the arena | its gate event | its gate event, then wave 3: 4 Antlions |
+| Fourth | `DLC02_40_ZTrigger_001`, the main hall | off until a drain device | on: 5 Antlions, one after another |
+| Fourth | `DLC02_40_ZTrigger_002`, the main hall | off until a drain device | on: 3 Clrikets, one after another |
+
+The rows keep how the game saves each trigger. From the rows (not checked in game): the zone's reset re-arms the
+first wave's trigger, the triggers of waves 2 and 3 fire once per save, and the two in the fourth zone save nothing.
+The change lives in memory for the game run, like the camp's rows, and these rows belong to zones that only this
+dungeon has. Whether EVE can climb from the second zone to the third is still open: in Matrix 11 that climb runs on
+Matrix 11's own triggers and cutscene levels, which the test pak does not stream, and no row of the dungeon can stand
+in for them.
+
 - The pak check reads `zMXIII_P.utoc` once per command and looks for `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap`
   in it, with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it. It then reads up to 16 MB of `zMXIII_P.ucas`: v2 names
   the objects' spawn points there (`DLC02_10_EnvS`), v1 does not. A container compressed with Oodle hides those names
@@ -1629,7 +1652,8 @@ With v1 the game finds no spawn point for the six objects and places none; the t
 - The game has no world map for Matrix 11 or Matrix XIII, so the camp shows only in the camp list. The mod adds nothing
   else: no zone warp, no quest step, no item.
 - What else you find there depends on the test pak. The dungeon's first zone spawns its enemies as you enter it (14
-  Antlions and a data drone in the game's spawn table).
+  Antlions and a data drone in the game's spawn table). The second zone's waves and the fourth zone's chains come
+  from the triggers above.
 - `coop off` ends the wait for the rows. A travel the game already took goes on.
 
 | Line | What it answers |
@@ -1638,9 +1662,9 @@ With v1 the game finds no spawn point for the six objects and places none; the t
 | `[StellarCoop][MX] refused: no test pak: no <path> or <path>` | No test pak in either folder: nothing was asked |
 | `[StellarCoop][MX] refused: no test pak: <path> does not hold <name>` or `no <path> beside <path>` | The `.utoc` names the map under another folder or not at all, or its `.pak` or `.ucas` is missing: nothing was asked |
 | `[StellarCoop][MX] refused: <why>` | A condition of the travel failed (a session, another save, a travel under way or under 10 s ago, the native travel stopped by a fault): nothing was asked |
-| `mxiii rows: 8/8 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added the 8 rows |
-| `mxiii rows refused <row>: <why>; <n>/8 added` (`coop-link.log`) | A row the native part would not add, and why: no travel |
-| `[StellarCoop][MX] rows read back through FindRow: 8/8 authored rows, 29 fields as written (28 differ from the template row)` | Every field the native part wrote reads as written |
+| `mxiii rows: 13/13 in, 8 added through SB's AddRow 0x14417ba30 and 5 shipped rows patched in place, 0 refused` (`coop-link.log`) | The native part added the 8 camp rows and changed the 5 trigger rows |
+| `mxiii rows refused <row>: <why>; <n>/13 added` (`coop-link.log`) | A row the native part would not add or change, and why: no travel |
+| `[StellarCoop][MX] rows read back through FindRow: 13/13 authored rows, 34 fields as written (33 differ from the template row)` | Every field the native part wrote reads as written |
 | `[StellarCoop][MX] travel to DLC02_10_Camp_01 asked: ...` | The camp travel went to the native part |
 | `[StellarCoop][TR] travel accepted: DLC02_10_Camp_01` | The game took the travel: the fade and the load follow |
 | `[StellarCoop][TR] travel: SB refused DLC02_10_Camp_01` | The game did not find the camp (see step 4) |
@@ -1649,8 +1673,10 @@ None of it has been tried in game yet. Check that the second try loads the map a
 camp's arrival point, and which enemies appear. With v2, check that the six objects and the coin stand on the floor
 without clipping, that the coin activates the camp, that the chair rests, that the phone booth travels to a camp of the
 main game and back from the camp list (with `coop where` showing `map=` ending in `mxiii_p` on the way back), and that
-a death in the zone brings EVE back to the camp. Check that the game keeps running and saves normally after you leave,
-then replace the slot with `coop saves refresh <0-4>` at the title.
+a death in the zone brings EVE back to the camp. Walking on, check that the second zone's three waves come at its
+entry, at the arena's entrance and halfway through the arena, and that the fourth zone's main hall brings its 5
+Antlions and 3 Clrikets. Check that the game keeps running and saves normally after you leave, then replace the slot
+with `coop saves refresh <0-4>` at the title.
 
 ### Cut hairs and suits: `coop wear`
 

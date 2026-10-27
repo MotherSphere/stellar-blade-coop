@@ -598,15 +598,15 @@ constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 constexpr size_t kRowWordCount = 6;
 constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt", "mxiii", "shop"};
 // The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
-constexpr size_t kLionTableCount = 19;
+constexpr size_t kLionTableCount = 20;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
     "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable",
     "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable",
     "ItemTable",             "ItemConsumableTable",      "ProjectileTable",    "ZoneCampTable",
-    "ZoneEnvSpawnTable",     "ShopTable",                "ShopItemTable"};
+    "ZoneEnvSpawnTable",     "ShopTable",                "ShopItemTable",      "ZoneTriggerTable"};
 // coop-request.txt's bytes the native part reads (glue/steam.cpp): the longest rows request, 16 digits to each of its
-// 19 addresses, and its line end fit (protocol_test).
+// 20 addresses, and its line end fit (protocol_test).
 constexpr size_t kMaxRequestFile = 1024;
 // nightshop: what nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
 // Shop_NightOperation_CoopBolt, closed, or no call but the reads.

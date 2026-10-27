@@ -37,7 +37,7 @@ using RowById = void *(*)(void *registry, uint64_t unused, int32_t id);
 using StanceName = uint64_t *(*)(void *registry, uint64_t *out, int32_t table, int32_t id);
 
 static_assert(lion::kTableCount == kLionTableCount, "the rows requests name each of lion/rows.h's tables");
-// One batch's ask and answer. The worker's side: the ask, its number and the 19 tables, taken by the game thread with
+// One batch's ask and answer. The worker's side: the ask, its number and the 20 tables, taken by the game thread with
 // try_lock only. What the game thread did, for the worker: the answer (lion::pack, with the asks finished), the
 // read-back (character, skills and stance counts, a byte each) and the frames the waiting ask waited. The game thread's
 // own: the rows added so far, the ask being served and its tables, the asks finished.
@@ -66,8 +66,9 @@ static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each r
 // SkillResultTable for the lion, tendril and bolt ones; CharacterTable, CharacterStanceTable, SkillCommandTable and
 // SkillActiveStepTable for the three Naytibas'; and five more for the lion and tendril ones); and the read-back runs
 // SB's lookups over those same tables and its registry. Only ProjectileTable (bolt), EffectTable and
-// ItemConsumableTable (lion), ShopTable and ShopItemTable (shop) and Matrix XIII's two zone tables have a single batch
-// writing them, and those rows still go through the same block and calls. So a fault anywhere in the call may leave
+// ItemConsumableTable (lion), ShopTable and ShopItemTable (shop) and Matrix XIII's three zone tables have a single
+// batch writing them, and those rows still go through the same block and calls (its shipped trigger rows through
+// CopyScriptStruct back over the row, never AddRow). So a fault anywhere in the call may leave
 // shared state half written, and it stops every batch. The status lines are the worker's, built from atomics with no
 // engine access. The Shock Bolt's list growth writes nothing a batch writes and keeps its own latch (shock_faulted).
 std::atomic<int64_t> lion_spawns{INT64_MIN};

@@ -930,8 +930,8 @@ int main() {
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
   // (batch 3), coop mxiii's (batch 4) and the Night Operation shop's (batch 5): one <Table>=0x<address> word for each
-  // of the 19 tables, in any order, each once; the addresses in 1 to 16 hex digits of either case, plausible (user
-  // space, 8-aligned). The longest request Lua writes (%x, so 12 digits at most under plausible's bound) is 619 bytes
+  // of the 20 tables, in any order, each once; the addresses in 1 to 16 hex digits of either case, plausible (user
+  // space, 8-aligned). The longest request Lua writes (%x, so 12 digits at most under plausible's bound) is 651 bytes
   // with its line end; the longest one parsed (16 digits each) fits the native part's read of its request file
   // (kMaxRequestFile). Anything off is refused.
   const auto rows = [](const char *word, const std::vector<std::string> &words) {
@@ -969,14 +969,16 @@ int main() {
   Request mx = parse_request(mxiii(shuffled));
   assert(mx.command == Command::rows && mx.batch == 4 && mx.tables == li.tables);
   Request so = parse_request(shop(shuffled));
-  assert(so.command == Command::rows && so.batch == 5 && so.tables == li.tables && kLionTableCount == 19 &&
-         li.tables[17] == 0x1f4a2b3c1100ull && li.tables[18] == 0x1f4a2b3c1200ull);
+  assert(so.command == Command::rows && so.batch == 5 && so.tables == li.tables && kLionTableCount == 20 &&
+         li.tables[17] == 0x1f4a2b3c1100ull && li.tables[18] == 0x1f4a2b3c1200ull &&
+         li.tables[19] == 0x1f4a2b3c1300ull);
   assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
-         !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable"));
+         !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&
+         !std::strcmp(kLionTables[19], "ZoneTriggerTable"));
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
     tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
-  assert(gardener(tables_longest).size() + 1 == 619 &&
+  assert(gardener(tables_longest).size() + 1 == 651 &&
          parse_request(gardener(tables_longest)).command == Command::rows);
   assert(parse_request(lion(tables_longest)).command == Command::rows);
   tables_longest[0] = "CharacterTable=0x00007ffffffefff8"; // Leading zeros Lua never writes: still parsed.

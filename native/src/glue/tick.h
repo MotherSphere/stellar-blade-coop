@@ -106,7 +106,7 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
 std::string ask_travel(const coop::Request &request);
 // Worker thread, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii and the Night
 // Operation shop's screen (lion/rows.h): Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows or shop
-// rows request, the 19 tables' addresses for the game thread, which adds that batch's rows through SB's AddRow once its
+// rows request, the 20 tables' addresses for the game thread, which adds that batch's rows through SB's AddRow once its
 // gate holds. Refused off the pinned build, after coop off and after the rows' fault, and not asked again once every
 // row of the batch is in. Returns the line for the log; fight_pass logs the game thread's answer.
 std::string ask_rows(const coop::Request &request);

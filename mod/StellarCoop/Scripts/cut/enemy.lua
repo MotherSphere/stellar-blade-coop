@@ -3,7 +3,7 @@
 -- cut/mxiii.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and its screen,
 -- through cut/lion.lua). The monster's rows
 -- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
--- logic task in flight). This file finds the 19 tables by their fixed paths and sends their addresses (the spec's
+-- logic task in flight). This file finds the 20 tables by their fixed paths and sends their addresses (the spec's
 -- "<word> rows" request: no console word reaches an address), waits for the answer in coop-status.txt's <word> line,
 -- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
 -- the first value that differs, then runs the spec's prepare (the Tendril's Shows). Then one spawn call,
@@ -46,11 +46,11 @@ local N=require('nightop.probe')
 local Doro=require('race.doro')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Enemy={}
--- The 19 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
+-- The 20 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
 Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
     'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
     'TargetFilterTable','SkillResultTable','EffectTable','ItemTable','ItemConsumableTable','ProjectileTable',
-    'ZoneCampTable','ZoneEnvSpawnTable','ShopTable','ShopItemTable'}
+    'ZoneCampTable','ZoneEnvSpawnTable','ShopTable','ShopItemTable','ZoneTriggerTable'}
 local DATA='/Game/Local/Data/'
 local ROOT_FAR=2000 -- cm: the copy's root ending farther from the spot than this spawns at the spot.
 local POLL,WAIT=0.25,30 -- s: the status line read while the rows are asked, and how long before giving up.
@@ -191,7 +191,7 @@ function Enemy.new(o,spec)
     local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
     local function my_line() return Enemy.parse(status and status(),word) end
     local her=N.her
-    -- The 19 tables by name, and those missing.
+    -- The 20 tables by name, and those missing.
     local function tables()
         local found,missing,words={},{},{}
         for _,t in ipairs(Enemy.TABLES) do

@@ -3,18 +3,20 @@
 -- holds its map, /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, and no row of the game leads to its world. The zMXIII_P
 -- test pak, built outside the mod and never shipped with it, adds a map at that path. On the game thread, in order:
 -- the checks the travel needs, once a command (the follow's own guards: solo, a co-op save, the native travel there and
--- none under way; then the test pak, v1 or v2); the 8 rows of the camp, the native part's mxiii rows batch
--- (lion/rows.h: ZoneCampTable DLC02_10_Camp_01, then 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp names
--- it: DLC02_10_EnvS_900, which leads the travel there, and the kit 901 to 906, which SB spawns at the v2 pak's spawn
--- points of those names; through the game's own row call with no logic task in flight), through cut/enemy.lua's rows
--- flow (the tables, the ask, the wait, the read-back); then SB's camp travel to DLC02_10_Camp_01 through the follow's
--- probe (session/travel.lua; the native part's game/travel.h). Each step logs an [MX] line, the travel's result a [TR]
--- line. A warp into a world the save has never been in may write that world into the save: main.lua lets it run on a
--- co-op save only. The rows stay for the game run; a second coop mxiii reads them back and travels again. The way out
--- is coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp
--- the read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else
--- the read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
--- the dungeon (FUN_141a8afe0) makes it DLC02_10_Camp_01, which is in no travel table, and so does a rest there.
+-- none under way; then the test pak, v1 or v2); the native part's mxiii rows batch (lion/rows.h: the 8 rows of the
+-- camp, ZoneCampTable DLC02_10_Camp_01, then 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp names it:
+-- DLC02_10_EnvS_900, which leads the travel there, and the kit 901 to 906, which SB spawns at the v2 pak's spawn points
+-- of those names, through the game's own row call with no logic task in flight; then 5 shipped ZoneTriggerTable rows
+-- patched in place, so the zone 20 waves and the zone 40 chains of spawns fire without the cut map's gates and drain
+-- devices), through cut/enemy.lua's rows flow (the tables, the ask, the wait, the read-back); then SB's camp travel to
+-- DLC02_10_Camp_01 through the follow's probe (session/travel.lua; the native part's game/travel.h). Each step logs an
+-- [MX] line, the travel's result a [TR] line. A warp into a world the save has never been in may write that world into
+-- the save: main.lua lets it run on a co-op save only. The rows stay for the game run; a second coop mxiii reads them
+-- back and travels again. The way out is coop mxiii leave: the follow's probe, under its guards and its activation read
+-- (game/camps.h), to a travel camp the read lists: the camp EVE respawned at when coop mxiii asked its travel, else the
+-- one she respawns at now, else the read's first. Her respawn camp is that of her last rest or fast-travel arrival
+-- (FSBActor +0x26d0): the arrival in the dungeon (FUN_141a8afe0) makes it DLC02_10_Camp_01, which is in no travel
+-- table, and so does a rest there.
 -- The test pak's check makes no StaticFindObject (a package that is not loaded is never found that way, and each miss
 -- costs 4 to 35 ms): the container's .utoc in SB/Content/Paks/~mods or LogicMods, read once a command, must name the
 -- map's folders and MXIII_P.umap in its directory index (plain text in a .utoc that is not encrypted, as retoc writes
@@ -52,7 +54,8 @@ local HINT='if [TR] says SB refused DLC02_10_Camp_01: SB lists the camps when it
 -- it). The camp copies ME01_Camp_03 (a FullCamp, shown in the camp list once activated) with the coin's spawn point;
 -- DLC02_10_EnvS_900 copies the kit's activation-only row DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) under its own actor
 -- name, with the new camp; each kit row copies its kit row (420 to 424, then the vending machine 426) and spawns its
--- blueprint at the spawn point of its own name; the vending machine switches the other six on once activated.
+-- blueprint at the spawn point of its own name; the vending machine switches the other six on once activated. The
+-- trigger rows are SB's own, so their read-back proves the patch: none of those values is the shipped one.
 local ENV='/Game/GameDesign/Level/ZoneEnv/'
 local function kit(n,blueprint,links)
     local name='DLC02_10_EnvS_'..n
@@ -60,6 +63,14 @@ local function kit(n,blueprint,links)
         {'SpawnPointName','n',name,true},{'TargetCamp','n',Mxiii.CAMP,true}}
     if links then checks[#checks+1]={'LinkEnvSpawnList','N',links,true} end
     return {'ZoneEnvSpawnTable',name,2800032000+n,checks}
+end
+-- The shipped trigger rows patched in place, under their shipped IDs: zone 20's three touch their wave's zone events
+-- (DLC02_20_ZoneE_022 to 032, which the cut gates ran) after the events they ship with; zone 40's two start enabled
+-- (InitActivate 1, shipped 2) instead of waiting for the drain devices.
+local function trigger(zone,n,touch)
+    local checks=touch and {{'TouchEvents','N',touch,true}} or {{'InitActivate','e',1,true}}
+    return {'ZoneTriggerTable',string.format('DLC02_%d_ZTrigger_%03d',zone,n),(zone==20 and 280501000 or 281501000)+n,
+        checks}
 end
 Mxiii.ROWS=Enemy.rows({
     {'ZoneCampTable',Mxiii.CAMP,280001,
@@ -73,6 +84,11 @@ Mxiii.ROWS=Enemy.rows({
     kit(905,'Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C'),
     kit(906,'Env_VendingMachine.Env_VendingMachine_C',
         'DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900'),
+    trigger(20,1,'DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025'),
+    trigger(20,5,'DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028'),
+    trigger(20,6,'DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032'),
+    trigger(40,1),
+    trigger(40,2),
 })
 -- SB/Content/Paks from the mod's folder (...\SB\Binaries\Win64\[ue4ss\]Mods\StellarCoop), or nil.
 function Mxiii.paks_of(folder)

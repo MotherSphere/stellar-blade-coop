@@ -10,7 +10,8 @@
 // both trees pick skills by their AISkillFlag, never by command name. Each row starts as a copy of a shipped row of its
 // table (the template: SB's CopyScriptStruct needs a valid row of the struct), and the patches set every field that
 // template holds, some of them to the template's own value where the Lion's is the same. The rows live in memory for
-// the game run; nothing is written to disk and no shipped row changes.
+// the game run; nothing is written to disk, and no shipped row changes except the 5 ZoneTriggerTable rows that
+// Matrix XIII's batch patches in place (see below).
 //
 // The same batch carries, first, the rows of the cut items the Night Operation shop sells (nightop/shop.lua asks for
 // them before a buy): the ItemTable rows of the Burst Stimpack (300013, over SB's own consumable HP2Burst_Potion) and
@@ -45,25 +46,33 @@
 // ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp
 // names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420 to 426): DLC02_10_EnvS_900
 // leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points of those names, in the two
-// zone tables only it writes. A sixth, the Night Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it
-// (nightop/shop.lua asks for it before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011,
-// over Clyde's currency FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and
-// the Shock Bolt (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop
-// (1061) and _CoopBolt (1062, the same with the Shock Bolt), over the cut Shop_NightOperation with the Beta Seed as
-// currency and no tag. A Batch names its rows, its patches and the word its status line, log lines and request start
+// zone tables only it writes. After them it patches 5 shipped ZoneTriggerTable rows in place, the table only it reads,
+// so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A sixth, the Night
+// Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it (nightop/shop.lua asks for it
+// before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011, over Clyde's currency
+// FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and the Shock Bolt
+// (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop (1061) and
+// _CoopBolt (1062, the same with the Shock Bolt), over the cut Shop_NightOperation with the Beta Seed as currency and
+// no tag. A Batch names its rows, its patches and the word its status line, log lines and request start
 // with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop": coop-status.txt's shock line is lion/shock.h's); every
 // batch shares the table checks, the block and the rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
 // (glue/tick/lion_game.inc's gate: no lock guards the tables). For each row not added yet, in order: the table must be
-// SB's UDataTable with its row struct of the size the SDK gives; the new name must be free in RowMap and the new ID
-// free in the table's ID map; the template is found by name; then the row is built in a block the glue owns
+// SB's UDataTable with its row struct of the size the SDK gives; the new name must be free in RowMap; the template is
+// found by name; the new ID must be free in the table's ID map; then the row is built in a block the glue owns
 // (InitializeStruct, CopyScriptStruct from the template, the ID at +0x10, the patches) and handed to AddRow, which
 // removes any row of that name, copies ours into its own allocation and fills the ID and index maps. The first refusal
 // stops the run before any later row of its batch, and each batch's CharacterTable rows come last, so NewActor finds
 // 50020 (or 50010, 50060) only once every other row of its batch is in. A row is added once a run: a later run skips
 // it, so AddRow's RemoveRow never frees a row a Lion (or a Gardener, a Tendril) still reads.
+//
+// A row whose template is itself (donor equal to name) is a shipped row patched in place, not added: it must be in the
+// table under that name, with its ID in the ID map naming it; it is copied into the block, patched there and copied
+// back over itself with CopyScriptStruct, which reassigns its strings and arrays through SB's allocator. The row keeps
+// its address, ID and lazy-init state, and AddRow is not called. Only tables without Transient arrays take such rows
+// (rows_test checks it), so no parsed copy of a patched field goes stale.
 //
 // SB parses a row's JSON strings (StartEffect, AttackCollisionGroupArray, AttackerEffectWhenDead, a hit result's
 // effects...) into Transient arrays the first time it uses the row (row +8 is 0 until then; every lookup site sets it
@@ -97,9 +106,10 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 19 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// The 20 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
 // mxiii, shop) name each with its address. The generated kTables describes them all, the two zone tables camp
-// (ZoneCampTable) and env (ZoneEnvSpawnTable) too, though only Matrix XIII's hand-written batch writes them.
+// (ZoneCampTable) and env (ZoneEnvSpawnTable) and the last, trigger (ZoneTriggerTable), too, though only Matrix XIII's
+// hand-written batch writes them.
 enum class Table : uint8_t {
   character,
   appearance,
@@ -119,9 +129,10 @@ enum class Table : uint8_t {
   camp,
   env,
   shop,
-  shopitem
+  shopitem,
+  trigger
 };
-constexpr size_t kTableCount = 19;
+constexpr size_t kTableCount = 20;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -144,6 +155,8 @@ struct Row {
   uint32_t id;              // 0 in a table with no ID.
   uint16_t first, count;    // Its patches in kPatches.
 };
+// A shipped row patched in place: its template is itself (see the top of this file).
+inline bool shipped_row(const Row &r) { return !std::strcmp(r.name, r.donor); }
 
 // ---- Generated by ~/.claude/project-notes/stellar-blade-minecraft/tools/lion-rows/gen.py: do not edit by hand ----
 // The Lion's own rows, the cut items' and EVE's Tachy ChainSpin's (SkillTable P_Eve_Sword_Normal_Buff_1,
@@ -278,6 +291,7 @@ constexpr TableInfo kTables[kTableCount] = {
     {"ZoneEnvSpawnTable", 0x508, true, {}},                                              // SBZoneEnvSpawnTableProperty
     {"ShopTable", 0xa8, true, {}},                                                       // SBShopTableProperty
     {"ShopItemTable", 0xa0, true, {}},                                                   // SBShopItemTableProperty
+    {"ZoneTriggerTable", 0xa8, true, {}},                                                // SBZoneTriggerTableProperty
 };
 constexpr Patch kPatches[] = {
     // P_Eve_Sword_Normal_Buff_1 (SkillTable, cut item)
@@ -6308,7 +6322,19 @@ constexpr Row kShopRecipe[] = {
 // so activating, resting, the phone booth and a respawn use DLC02_10_Camp_01, not the kit's placeholder camps
 // (WLB10_Camp_05, SE02_Camp_02). The vending machine comes last: its LinkEnvSpawnList switches the other six on once a
 // coin activates the camp. Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK
-// (stellar-sdk-647527f), which the generated kTables reads too; neither struct has a Transient field.
+// (stellar-sdk-647527f), which the generated kTables reads too; none of the three structs has a Transient field.
+//
+// Then 5 shipped ZoneTriggerTable rows, patched in place. The DLC02 data starts the zone 20 waves from gates (when
+// DLC02_20_EnvS_014, 018 and 016 reach their Open tag they run DLC02_20_ZoneE_022 to 025, 026 to 028 and 029 to 032,
+// the ZoneEvent spawns 001 to 004, 006 to 008 and 009 to 012) and the zone 40 chains (spawns 003 to 007 and 013 to
+// 015) from triggers DLC02_40_ZTrigger_001 and 002, which start disabled until the drain devices DLC02_40_EnvS_002 and
+// 003 enable them (DLC02_40_E_ObjectC_001, 002). Those gates and devices are placed props of the cut map, which no pak
+// holds (the devices' interaction graph is a greybox asset that is not in the paks either), so neither fires. The test
+// pak puts every DLC02 trigger on a box, so the waves go on three of them: DLC02_20_ZTrigger_001 at the Area02 entry
+// (shipped with no event), 005 at the entrance of the arena and 006 between its halves (each after the gate event it
+// already runs); 40_001 and 40_002 start enabled. That is the smallest set: one field a row, no new row, and every
+// spawn row and zone event stays SB's own. SaveType stays the shipped one: 001 rearms when the zone resets, 005 and 006
+// fire once a save, the zone 40 pair saves nothing.
 static_assert(kTables[kTableCount - 1].name, "the generated kTables describes every table");
 constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
 // The camp is ME01_Camp_03 (a Matrix 11 FullCamp, CampDisplayType WhenActive) with the coin's spawn point of the test
@@ -6354,6 +6380,19 @@ constexpr Patch kMxiiiPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // SpawnPointName
     {0x260, Kind::names, 0, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900"}, // LinkEnvSpawnList
     {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_20_ZTrigger_001 (ZoneTriggerTable, shipped: wave 1)
+    {0x20, Kind::names, 0,
+     "DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025"}, // TouchEvents
+    // DLC02_20_ZTrigger_005 (ZoneTriggerTable, shipped: its gate event, then wave 2)
+    {0x20, Kind::names, 0,
+     "DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028"}, // TouchEvents
+    // DLC02_20_ZTrigger_006 (ZoneTriggerTable, shipped: its gate event, then wave 3)
+    {0x20, Kind::names, 0,
+     "DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032"}, // TouchEvents
+    // DLC02_40_ZTrigger_001 (ZoneTriggerTable, shipped: the chain from spawn 003)
+    {0x1c, Kind::u8, 1, nullptr}, // InitActivate ESBObject_Enable (shipped 2, Disable)
+    // DLC02_40_ZTrigger_002 (ZoneTriggerTable, shipped: the chain from spawn 013)
+    {0x1c, Kind::u8, 1, nullptr}, // InitActivate ESBObject_Enable (shipped 2, Disable)
 };
 constexpr Row kMxiiiRecipe[] = {
     {Table::camp, "DLC02_10_Camp_01", "ME01_Camp_03", 280001, 0, 2},
@@ -6364,6 +6403,11 @@ constexpr Row kMxiiiRecipe[] = {
     {Table::env, "DLC02_10_EnvS_904", "DLC02_10_EnvS_423", 2800032904u, 16, 4},
     {Table::env, "DLC02_10_EnvS_905", "DLC02_10_EnvS_424", 2800032905u, 20, 4},
     {Table::env, "DLC02_10_EnvS_906", "DLC02_10_EnvS_426", 2800032906u, 24, 5},
+    {Table::trigger, "DLC02_20_ZTrigger_001", "DLC02_20_ZTrigger_001", 280501001, 29, 1},
+    {Table::trigger, "DLC02_20_ZTrigger_005", "DLC02_20_ZTrigger_005", 280501005, 30, 1},
+    {Table::trigger, "DLC02_20_ZTrigger_006", "DLC02_20_ZTrigger_006", 280501006, 31, 1},
+    {Table::trigger, "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_001", 281501001, 32, 1},
+    {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002, 33, 1},
 };
 
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
@@ -6462,7 +6506,7 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
-  // One run over the batch (see the top of this file). tables: the 19 tables' addresses as Lua found them, in Table's
+  // One run over the batch (see the top of this file). tables: the 20 tables' addresses as Lua found them, in Table's
   // order; block: kBlock bytes of the glue's, 16-aligned; base: SB's image base. Runs every row not added yet and
   // stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
@@ -6493,28 +6537,34 @@ public:
       const uint64_t name = make(g, r.name), donor_name = make(g, r.donor);
       if (!name || !donor_name)
         return a.why = Why::fname, a.added = uint8_t(count_), a;
-      if (g.find(table, name))
+      const bool shipped = shipped_row(r); // Patched in place: the row must be there, its ID naming it.
+      if (!shipped && g.find(table, name))
         return a.why = Why::name, a.added = uint8_t(count_), a;
-      if (info.id && g.id_name(table, r.id))
-        return a.why = Why::id, a.added = uint8_t(count_), a;
-      const uint64_t donor = g.find(table, donor_name);
+      const uint64_t donor = g.find(table, donor_name); // First: a shipped row missing from RowMap has no ID either.
       if (!donor)
         return a.why = Why::donor, a.added = uint8_t(count_), a;
+      if (info.id && g.id_name(table, r.id) != (shipped ? name : 0))
+        return a.why = Why::id, a.added = uint8_t(count_), a;
       g.construct(rs, block);
       g.copy(rs, block, donor);
-      const uint8_t fresh = 0;
-      g.write(block + kInitFlag, &fresh, 1);
-      if (info.id)
-        g.write(block + kIdAt, &r.id, 4);
-      static const uint8_t kEmpty[16] = {};
-      for (uint16_t at : info.transient)
-        if (at)
-          g.write(block + at, kEmpty, sizeof kEmpty);
+      if (!shipped) {
+        const uint8_t fresh = 0;
+        g.write(block + kInitFlag, &fresh, 1);
+        if (info.id)
+          g.write(block + kIdAt, &r.id, 4);
+        static const uint8_t kEmpty[16] = {};
+        for (uint16_t at : info.transient)
+          if (at)
+            g.write(block + at, kEmpty, sizeof kEmpty);
+      }
       uint64_t pool = block + kRowBytes;
       for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
         if (const Why why = patch(g, block, batch_.patches[p], pool, block + kBlock); why != Why::none)
           return a.why = why, a.added = uint8_t(count_), a;
-      g.add(add_row, table, name, block);
+      if (shipped)
+        g.copy(rs, donor, block);
+      else
+        g.add(add_row, table, name, block);
       added_[i] = true;
       ++count_;
     }
@@ -6712,6 +6762,13 @@ inline std::string status_line(const Batch &b, const Status &s) {
 // The log line for a batch's answer (coop-link.log), as the test campaign's R2 reads it.
 inline std::string describe(const Batch &b, const Answer &a) {
   const std::string added = std::to_string(a.added) + "/" + std::to_string(b.count);
+  size_t shipped = 0;
+  for (size_t i = 0; i < b.count; ++i)
+    shipped += shipped_row(b.rows[i]);
+  if (a.state == State::rows && shipped)
+    return std::string(b.word) + " rows: " + added + " in, " + std::to_string(b.count - shipped) +
+           " added through SB's AddRow 0x14417ba30 and " + std::to_string(shipped) +
+           " shipped rows patched in place, 0 refused";
   if (a.state == State::rows)
     return std::string(b.word) + " rows: " + added + " added through SB's AddRow 0x14417ba30, 0 refused";
   if (a.state != State::refused)
@@ -6727,8 +6784,15 @@ inline std::string describe(const Batch &b, const Answer &a) {
     break;
   case Why::fname: std::snprintf(why, sizeof why, "the game made no FName"); break;
   case Why::name: std::snprintf(why, sizeof why, "a row of that name is already in %s", info.name); break;
-  case Why::id: std::snprintf(why, sizeof why, "ID %u taken", unsigned(r.id)); break;
-  case Why::donor: std::snprintf(why, sizeof why, "template %s missing", r.donor); break;
+  case Why::id:
+    std::snprintf(why, sizeof why, shipped_row(r) ? "ID %u does not name it" : "ID %u taken", unsigned(r.id));
+    break;
+  case Why::donor:
+    if (shipped_row(r))
+      std::snprintf(why, sizeof why, "no shipped row of that name in %s", info.name);
+    else
+      std::snprintf(why, sizeof why, "template %s missing", r.donor);
+    break;
   case Why::pool: std::snprintf(why, sizeof why, "its strings overflow the pool"); break;
   case Why::busy: std::snprintf(why, sizeof why, "logic busy %u frames", unsigned(kGateTicks)); break;
   case Why::net:
