@@ -19,7 +19,8 @@
 // achievement name left, every item left with an ItemTable row. The result is wrapped as the game's save writer
 // (FSBSaveSystemWindows::OnCompleteSerialize, FUN_1421f5de0) wraps its own: "EVAS", version byte 1, three bytes the
 // writer leaves unset (0 here, as most real saves hold), the GVAS body, then its CRC-32 (FUN_1428dbbd0, zlib's) in
-// little endian. The GVAS header keeps the file's own engine and package versions, which the loader honours.
+// little endian. The GVAS header keeps the file's own engine and package versions, which LoadGameFromMemory reads the
+// body with.
 //
 // GVAS as UE 4.25 and 4.26 write it: the header, then tagged properties up to "None", then 4 bytes. A tag is its name
 // and type (FStrings), its value's size and an array index, then by type: StructProperty its struct name and a GUID,

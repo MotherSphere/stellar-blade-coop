@@ -145,6 +145,11 @@ The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N
 `coop saves coop` is refused until that pass ends, since the other slots may have no copy or an older one; once it has
 ended, `coop saves coop` runs its own pass over every slot first.
 
+`coop shortcut load` ([usage.md](usage.md#loading-one-coop-shortcut-load), off unless `shortcut_load=on`) writes a
+cleaned developer save as `StellarBladeCoop04.sav` through the same kind of pass, while the game uses the copies: the
+old copy goes to a new folder of `StellarCoopBackups` first, and the new one gets no line in `StellarCoopSaves.txt`, so
+later passes keep it as played. `coop saves refresh 4` replaces it with a copy of your own save again.
+
 To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.log`) shows the slot line:
 
 | Line | Meaning |

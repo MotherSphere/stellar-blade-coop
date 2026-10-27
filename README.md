@@ -96,8 +96,10 @@ the Steam client that the game already runs, so the mod needs no other program a
   it), and Kali, possibly an early name of a shipped enemy (her takedown on Kali and Kali's grab). It has not been
   tried in game yet (see [docs/usage.md](docs/usage.md#emotes-coop-emote)).
 - `coop shortcut` lists the 15 developer saves of the cut Load Shortcut menu, read from the game's files: the map and
-  camp each one starts at. It loads none of them, since two hold boss achievements as already done. It has not been
-  tried in game yet (see [docs/usage.md](docs/usage.md#cut-load-shortcut-saves-coop-shortcut)).
+  camp each one starts at. `coop shortcut load` writes one as co-op slot 5 for Load Game, without its achievement
+  list. It is off unless `shortcut_load=on`, since what is left of the developer's progress can still unlock Steam
+  achievements. Neither has been tried in game yet (see
+  [docs/usage.md](docs/usage.md#cut-load-shortcut-saves-coop-shortcut)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [docs/usage.md](docs/usage.md#guide)).
 - Each player's .pak mods are named over the link, and a notice says which ones the other player lacks. A friend's CNS
