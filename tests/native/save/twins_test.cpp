@@ -5,7 +5,8 @@
 // rename or read-back leaving no half copy, a pass stopped half way keeping its copies untouched, and the requests'
 // refusals (off the title included, before and during a pass), the switch at the end of a pass, its withdrawal and its
 // release, against a fake game; coop shortcut load's plant of a built save as one co-op copy; and the shared quests'
-// record beside each co-op slot, written whole through the same name check. The player's own saves are compared byte for byte, with their write times, after every pass.
+// record beside each co-op slot, written whole through the same name check. The player's own saves are compared byte
+// for byte, with their write times, after every pass.
 #include "save/twins.h"
 
 #include <cassert>
@@ -778,10 +779,11 @@ int main() {
     assert(plan(p).act[0] == Act::none && plan(p).act[4] == Act::keep); // Kept: never replaced by a pass.
     // A slot with no copy and no save of the player's takes one too, with no backup of it.
     p.ops.clear();
-    assert(ps.plant(&p, pg, 2, built, "shortcut B07 1") == "co-op saves: writing shortcut B07 1 as slot 2's co-op copy");
+    assert(ps.plant(&p, pg, 2, built, "shortcut B07 1") ==
+           "co-op saves: writing shortcut B07 1 as slot 2's co-op copy");
     said = passes(ps, p, pg);
-    assert(ps.status() == "convert=done" && slurp(p.dir / twin_name(2)) == built && p.ops[0] == "write " + twin_name(2) +
-                                                                                                    kTemp);
+    assert(ps.status() == "convert=done" && slurp(p.dir / twin_name(2)) == built &&
+           p.ops[0] == "write " + twin_name(2) + kTemp);
     // Bytes that fail the game's check: nothing written, the old copy kept.
     std::string bad = built;
     bad[10] ^= 1;
@@ -795,7 +797,8 @@ int main() {
     pg.name = Saves::main;
     said = passes(ps, p, pg);
     assert(ps.status() == "convert=error:the save name changed" && logged(said, "conversion stopped"));
-    assert(slurp(p.dir / twin_name(4)) == save("played after the plant") && !fs::exists(p.dir / (twin_name(4) + kTemp)));
+    assert(slurp(p.dir / twin_name(4)) == save("played after the plant") &&
+           !fs::exists(p.dir / (twin_name(4) + kTemp)));
     assert(own(p.dir) == kept);
   }
 

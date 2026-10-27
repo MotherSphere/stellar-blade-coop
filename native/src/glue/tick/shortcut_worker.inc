@@ -7,8 +7,8 @@ namespace {
 uint32_t shortcut_asks = 0;        // The asks made: the last one's number.
 int shortcut_logged = -1;          // The last ask's files logged so far; -1 when no list is under way.
 bool shortcut_fault_logged = false;
-uint32_t shortcut_loads = 0;       // coop shortcut load: the asks made, the last one's number,
-uint32_t shortcut_load_want = 0;   // and the one waiting for the game thread's read (0: none).
+uint32_t shortcut_loads = 0;     // coop shortcut load: the asks made, the last one's number,
+uint32_t shortcut_load_want = 0; // and the one waiting for the game thread's read (0: none).
 } // namespace
 
 std::string ask_shortcut_load(int file) {
@@ -32,7 +32,8 @@ bool shortcut_load_pass(std::string &save, std::string &line) {
     return false;
   if (shortcut_faulted || blocked) { // The fault's own line is shortcut_pass's, when a list runs.
     shortcut_load_want = 0;
-    line = shortcut_faulted ? "shortcut load stopped: a fault in the game thread's read" : "shortcut load stopped: coop off";
+    line = shortcut_faulted ? "shortcut load stopped: a fault in the game thread's read"
+                            : "shortcut load stopped: coop off";
     return true;
   }
   if (shortcut_load_done != shortcut_load_want) // First: the entry and the bytes are written once it matches.
@@ -42,7 +43,7 @@ bool shortcut_load_pass(std::string &save, std::string &line) {
   const shortcut::Entry &e = shortcut_load_entry;
   std::string bytes = std::move(shortcut_load_bytes);
   shortcut::Cleaned done;
-  const std::string why = *e.why ? std::string(e.why)
+  const std::string why = *e.why     ? std::string(e.why)
                           : !e.found ? std::string("the game has no such file")
                                      : shortcut::clean(bytes, save, done);
   line = why.empty() ? shortcut::cleaned_line(file, done, save.size())

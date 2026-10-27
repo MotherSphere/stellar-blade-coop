@@ -676,9 +676,10 @@ int main() {
   sc = parse_request("shortcut load F02 1\r\n");
   assert(sc.command == Command::shortcut && sc.slot == 4);
   assert(parse_request("shortcut load B07 1").slot == 0 && parse_request("shortcut load Matrix_XI 4").slot == 15);
-  for (const char *bad : {"shortcut", "shortcut List", "shortcut list now", "shortcutlist", "shortcut load",
-                          "shortcut load F02", "shortcut load F02 0", "shortcut load F02 5", "shortcut load f02 1",
-                          "shortcut load F02 1 now", "shortcut load F02  1", "shortcut load X 1", "shortcut load F02 01"})
+  for (const char *bad :
+       {"shortcut", "shortcut List", "shortcut list now", "shortcutlist", "shortcut load", "shortcut load F02",
+        "shortcut load F02 0", "shortcut load F02 5", "shortcut load f02 1", "shortcut load F02 1 now",
+        "shortcut load F02  1", "shortcut load X 1", "shortcut load F02 01"})
     assert(parse_request(bad).command == Command::none);
   // coop devinfo: a panel or off, nothing else.
   Request d = parse_request("devinfo quest\n");
