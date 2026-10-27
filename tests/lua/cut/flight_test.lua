@@ -3,8 +3,8 @@
 -- ones), a climb or a descent each frame only while EVE flies with Z or S held (none with both), its line once a flight
 -- (held, or ended, none after a press of the space bar, said when it was held from before the flight), no hook of its
 -- own (the start and the level flight are the native part's), the keys and mappings back at off, the restore once a
--- load of keys an earlier load left (this version's R2 alone, S, or A and E; never while on, nothing for the game's
--- own keys), and no player input (the game's keys stay).
+-- load of keys an earlier load left (this version's R2 alone, S, or A and E, or our Shift evades left in the input
+-- settings; never while on, nothing for the game's own keys), and no player input (the game's keys stay).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 FName=function(t) return {type=function() return 'FName' end,ToString=function() return t end} end
 local function object(t)
@@ -107,6 +107,17 @@ handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','A','E') -- and the
 fresh().restore(); assert(names()=='Gamepad_RightTrigger,Z,Z',names())
 n=#lines; handler.DefinedFlyActionKeyLists=keys('Gamepad_RightTrigger','Z')
 fresh().restore(); assert(names()=='Gamepad_RightTrigger,Z' and #lines==n,'The game\'s keys: nothing done')
+-- The game's keys, but our Shift evades still in the input settings (SB saves those to its config with its key
+-- options, so they can outlive the game run that added them): taken out. The game's own mappings alone: nothing done.
+local function mapping(action,key,shift) return {ActionName=FName(action),Key={KeyName=FName(key)},bShift=shift} end
+settings.ActionMappings={mapping('Evade','LeftShift',false),mapping('FlyingActionEvade_Up','Z',false)}
+local was_removed,was_said=#removed,#lines
+fresh().restore(); assert(#removed==was_removed and #lines==was_said,'Not ours: nothing done')
+settings.ActionMappings[3]=mapping('FlyingActionEvade_Up','Z',true)
+fresh().restore()
+assert(#removed==was_removed+6 and removed[#removed][2]==true and names()=='Gamepad_RightTrigger,Z'
+    and lines[#lines]:find('^flight keys an earlier Lua load left, back'),#removed-was_removed)
+settings.ActionMappings=nil
 -- No player input: the game's keys stay, said.
 have_pc=false
 said=fresh().on()

@@ -12,8 +12,9 @@
 -- Operation run: no 3 s rule and none of its notices on either side, our revive of her included (the run says it);
 -- night_revive's call with revive=on and coop revive test's guards, its fallback with them too (the friend far changes
 -- nothing), refused with revive=off, the revived notice after the friend's only.
--- The host's cutscene: SB's theater observers read once a second while linked (walked for only while a level sequence
--- actor plays, the one found kept while it plays), a cutscene while one has a valid player that plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
+-- The host's cutscene: SB's theater observers read once a second while linked (walked for only when the set of playing
+-- level sequence actors changes, the one found kept; no world, no read), a cutscene while one has a valid player that
+-- plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
 -- with cutscene_wait=on, the host on her map and our read not off for the run; the notice once a pause for it, from the
 -- photo line.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -441,6 +442,58 @@ assert(g.cutscene_playing() and g.photo('0')=='0','A guest sends no cutscene')
 W.linked=false
 run(g,1)
 assert(not g.cutscene_playing() and g.photo('0')=='0' and W.finds.SBTheaterLevelSequenceObserver==1,'Not linked')
+-- A looping sequence actor with no theater: one walk for that set of playing actors, logged with its name, not one a
+-- second. The theater starting changes the set: one walk, found. Once it ends, one walk for the set left, then none;
+-- the next theater on the same actor, with an observer of its own, is walked for again.
+local loop=uobject('LevelSequencePlayer /Engine/Transient.LevelSequencePlayer_2',{IsPlaying=function() return true end})
+local first=observer('Mann_Entrance',scene)
+g=world(function(w)
+    w.mode,w.life,w.scene='host',{state=1,hp=1600},false
+    w.observers,w.sequences={first},sequences()
+    w.sequences[3]=uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Lift_Loop',{SequencePlayer=loop})
+end)
+run(g,5)
+assert(W.finds.SBTheaterLevelSequenceObserver==1 and W.finds.LevelSequenceActor==5,'One walk a set: '
+    ..W.finds.SBTheaterLevelSequenceObserver)
+assert(logged('cutscene: no theater for the playing sequences Lift_Loop'),table.concat(W.logs,'|'))
+W.scene=true
+run(g,2)
+assert(g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==2)
+W.scene=false
+run(g,3)
+assert(not g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==3)
+first.Player=nil
+W.scene,W.observers=true,{observer('Mann_Exit',scene)}
+run(g,1)
+assert(g.cutscene_playing() and logged('cutscene on: Mann_Exit') and W.finds.SBTheaterLevelSequenceObserver==4)
+-- After a map change a freed address may hold another sequence actor: the new map's theater actor at the address of
+-- the last set's only one is a new set, walked for.
+local theater=uobject('LevelSequenceActor /Game/MapB.MapB:PersistentLevel.Theater',{SequencePlayer=scene})
+g=world(function(w)
+    w.mode,w.life,w.scene='host',{state=1,hp=1600},true
+    w.sequences={uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Lift_Loop',{SequencePlayer=loop})}
+end)
+run(g,1)
+assert(not g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==1)
+theater.GetAddress=W.sequences[1].GetAddress
+W.sequences,W.observers={theater},{observer('Mann_Entrance',scene)}
+run(g,1)
+assert(g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==2,'Same address, another actor: '
+    ..W.finds.SBTheaterLevelSequenceObserver)
+-- No EVE (the title screen, a load): the class hash takes our SB controller's world (the hash's proof is asked); with
+-- no controller either, no sequence actor is looked up at all (actors_of with no world walks every object).
+local probe=package.loaded['nightop.probe']
+g=world(function(w)
+    w.mode,w.life,w.scene,w.eve='host',{state=1,hp=1600},false,nil
+    w.observers,w.sequences={observer('Mann_Entrance',scene)},sequences()
+end)
+run(g,1)
+assert(W.finds.PlayerController==1 and W.finds.LevelSequenceActor==1,'The controller is the world')
+probe.controller=function() return nil end
+run(g,3)
+probe.controller=function() return pc end
+assert(not g.cutscene_playing() and W.finds.LevelSequenceActor==1 and W.finds.PlayerController==1
+    and (W.finds.SBTheaterLevelSequenceObserver or 0)==0,'No world, no walk: '..W.finds.LevelSequenceActor)
 -- A read that fails: one line, and no cutscene for the run.
 g=world(function(w)
     w.mode,w.life,w.theater_error,w.scene,w.sequences='host',{state=1,hp=1600},'no such property',true,sequences()

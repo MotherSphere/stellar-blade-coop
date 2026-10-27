@@ -246,6 +246,40 @@ tick(0.25)
 assert(says[#says]=="Gift sent: 3 HP_Potion. It waits for your friend's answer.",says[#says])
 mail.receive('a '..asked[#asked]:match('^gift s (%d+) '))
 assert(#M.read(files[FILE]).out==0)
+-- A torn read after the remove (the remove changes the very sets the native part walks), or no EVE read for a moment:
+-- asked again, as a count that has not fallen yet; the next good read sends. Every read torn: stopped after SETTLE s of
+-- play. A read that fails for good (no inventory) still stops at once.
+ask=start('1','3')
+with_items(ask,'9')
+tick()
+said=#says
+tick(0.5)
+with_items(asked[#asked]:match('^items (%d+) '),'none unread')
+tick(0.5)
+with_items(asked[#asked]:match('^items (%d+) '),'none noeve')
+tick(0.5)
+assert(#says==said,'Not stopped: '..says[#says])
+with_items(asked[#asked]:match('^items (%d+) '),'6')
+tick(0.5)
+assert(says[#says]=="Gift sent: 3 HP_Potion. It waits for your friend's answer.",says[#says])
+mail.receive('a '..asked[#asked]:match('^gift s (%d+) '))
+ask=start('1','3')
+with_items(ask,'9')
+tick()
+for _=1,Mailbox.SETTLE*4 do
+    tick(0.25)
+    with_items(asked[#asked]:match('^items (%d+) '),'none unread')
+end
+assert(says[#says]=='Gift not sent: the count did not fall by 3 in 10 s of play (9 before, unread now); the items '
+    ..'may be gone',says[#says])
+ask=start('1','3')
+with_items(ask,'9')
+tick()
+tick(0.5)
+with_items(asked[#asked]:match('^items (%d+) '),'none nobucket')
+tick()
+assert(says[#says]=='Gift not sent: your inventory could not be read after the remove (nobucket, the items may be '
+    ..'gone)',says[#says])
 -- The file cannot be written after the remove: the items come back at once through the shop's grant.
 ask=start('2','1')
 with_items(ask,'4')

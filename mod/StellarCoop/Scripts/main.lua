@@ -464,7 +464,10 @@ local commands={
     end,
     off=function()
         off=true
-        if puppet.active() then puppet.toggle() end
+        if puppet.active() then -- Logged like the stops below: off is set, so a raise here must not skip ask('off').
+            local gone,why=pcall(puppet.toggle)
+            if not gone then log('ghost: '..tostring(why)) end
+        end
         notice.stop()
         if menu then menu.stop() end
         if box then box.stop() end

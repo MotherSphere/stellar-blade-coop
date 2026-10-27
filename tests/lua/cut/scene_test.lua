@@ -95,7 +95,7 @@ local event_table=object({IsA=function(_,c) return c.path=='/Script/Engine.DataT
     AddRow=function() error('never AddRow') end,RemoveRow=function() error('never RemoveRow') end})
 
 -- The theater observers; the Play row starts one for the sequence its theater's take plays (silent: none), the Stop
--- row ends those of its theater. honoured=false: the farewell plays its own sequence whatever its take says. raise: the
+-- row ends those of its theater (their players stop). honoured=false: the farewell plays its own sequence whatever its take says. raise: the
 -- call raises that.
 local observers,events,silent,honoured,raise={},{},false,true,nil
 local function observe(seq,theater)
@@ -109,7 +109,9 @@ local zone=object({CreateSBZoneEvent=function(_,kind,name)
     if name:ToString()==PLAY and not silent then
         observe(theater==FAREWELL and (honoured and take.TemplateSequence or farewell_seq) or orcal_seq,theater)
     elseif name:ToString()==STOP then
-        for k=#observers,1,-1 do if observers[k].theater==theater then table.remove(observers,k) end end
+        for k=#observers,1,-1 do
+            if observers[k].theater==theater then table.remove(observers,k).Player.playing=false end
+        end
     end
 end})
 local finds=0
@@ -253,11 +255,12 @@ ok,why=sc.command('orcal')
 assert(ok==false and why=="Emil's farewell is under way: coop scene stop ends it",why)
 assert(select(2,sc.command()):find("; Emil's farewell is under way.",1,true))
 -- Once a second: seen, then done (its end; the observer lingers until collected), the take back and the fade it left
--- cleared.
+-- cleared. Once seen, the observer is read alone: no walk of every object a second for the whole scene.
 finds=0
 at(100.5); assert(sc.tick()==nil and finds==0,'Not before 1 s')
 at(101); assert(sc.tick()==nil and last()=='playing: MV_DLC_Ending_E03, 1.0 s after the call',last())
-at(149); assert(sc.tick()==nil and finds==2)
+for t=102,149 do at(t); assert(sc.tick()==nil) end
+assert(finds==1,'One walk: '..finds)
 observers[1].Player.playing=false
 manager.FadeAmount=1
 at(150)
@@ -266,7 +269,7 @@ assert(ok and why=="Emil's farewell ended after 49 s.",tostring(why))
 assert(last()=="Emil's farewell ended after 49 s. (the farewell take back on its own sequence; a camera fade of 1.00 "
     ..'cleared)',last())
 assert(take.TemplateSequence==farewell_seq and fades==1)
-at(151); assert(sc.tick()==nil and finds==3,'Nothing to follow')
+at(151); assert(sc.tick()==nil and finds==1,'Nothing to follow')
 
 -- orcal: its own theater, no take and no text; coop scene stop fires the Stop row, and the scene ends once gone.
 lines={}
@@ -301,7 +304,7 @@ assert(sc.command('emil') and #polyglots==10,'Registered once a Lua load')
 at(301); sc.tick()
 assert(lines[#lines-1]=='playing: MV_Nier_Emil_GoodBye_WLA, 1.0 s after the call' and last()=="the take's write was "
     .."not honoured: the game's own farewell plays instead",last())
-observers={}
+observers[#observers].destroyed=true -- Collected.
 at(302); ok,why=sc.tick()
 assert(ok and why=="Emil's farewell ended after 1 s." and take.TemplateSequence==farewell_seq)
 honoured=true

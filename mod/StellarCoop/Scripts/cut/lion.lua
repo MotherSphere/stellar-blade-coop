@@ -134,13 +134,16 @@ function Lion.new(o)
         local lion_mesh=assert(valid(m.SkeletalMesh),'no Lion mesh on the body')
         local leader_mesh=load(LEADER_MESH.path,LEADER_MESH.name)
         local class=load(ANIM_CLASSES[1].class,ANIM_CLASSES[1].name)
-        m:SetSkeletalMesh(leader_mesh,true)
-        m.AnimClass=class
-        m:SetAnimationMode(1)
-        m:SetAnimationMode(0)
-        if not valid(m:GetAnimInstance()) then
-            m:SetSkeletalMesh(lion_mesh,true) -- Never a Behemoth drawn as the Lion: its own mesh back.
-            error('the Lion AnimBP builds no instance on '..LEADER_MESH.name..' either',0)
+        local built,no=pcall(function()
+            m:SetSkeletalMesh(leader_mesh,true)
+            m.AnimClass=class -- give_anim's own writes fail at times: any raise here gets the mesh back too.
+            m:SetAnimationMode(1)
+            m:SetAnimationMode(0)
+            assert(valid(m:GetAnimInstance()),'the Lion AnimBP builds no instance on '..LEADER_MESH.name..' either')
+        end)
+        if not built then
+            pcall(function() m:SetSkeletalMesh(lion_mesh,true) end) -- Never a Behemoth drawn as the Lion.
+            error(no,0)
         end
         local f
         local made,err=pcall(function()

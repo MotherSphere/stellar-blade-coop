@@ -298,7 +298,8 @@ function Mailbox.new(o)
     end
     -- A send under way, each tick: the native part's reads and the game's remove. After the remove, a read that fails
     -- sends nothing: with no proof the items left, a gift could make items out of none, so a lost gift is the risk
-    -- taken (the log keeps the counts).
+    -- taken (the log keeps the counts). A torn read there (the remove changes the very sets the worker walks: unread)
+    -- or no EVE read for a moment (noeve) is asked again, as a count that has not fallen yet.
     local function step(raw,t)
         local s=sending
         if s.step=='gone' then -- Time paused does not count: SB's logic, which runs the remove, stops with the game.
@@ -314,11 +315,11 @@ function Mailbox.new(o)
             end
             return
         end
-        if none then
+        if none and not (s.step=='gone' and (none=='unread' or none=='noeve')) then
             return fail(s.step=='count' and 'your inventory could not be read ('..none..')'
                 or 'your inventory could not be read after the remove ('..none..', the items may be gone)')
         end
-        have=math.tointeger(tonumber(have))
+        have=have and math.tointeger(tonumber(have))
         if s.step=='count' then
             if have<s.count then return fail(string.format('you carry %d %s',have,s.alias)) end
             local r,e=ready()
@@ -327,11 +328,11 @@ function Mailbox.new(o)
             if not called then return fail('the game call failed: '..why(ce)) end
             log(string.format('remove asked: %s x%d of %d (guid %d)',s.alias,s.count,have,r.guid))
             s.step,s.before,s.played,s.last,s.next='gone',have,0,t,t+Mailbox.POLL
-        elseif have<=s.before-s.count then
+        elseif have and have<=s.before-s.count then
             return dispatch(s)
         elseif s.played>=Mailbox.SETTLE then
-            return fail(string.format('the count did not fall by %d in %d s of play (%d before, %d now); the items may '
-                ..'be gone',s.count,Mailbox.SETTLE,s.before,have))
+            return fail(string.format('the count did not fall by %d in %d s of play (%d before, %s now); the items may '
+                ..'be gone',s.count,Mailbox.SETTLE,s.before,have or none))
         end
         if t>=s.next then -- The count has not fallen yet: read again.
             s.ask,s.at,s.next=next_ask(raw),t,t+Mailbox.POLL

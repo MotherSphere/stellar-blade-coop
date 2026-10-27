@@ -24,13 +24,20 @@ function Notice.new()
     local self,queue={},{}
     local actor,label,since,visible,off=nil,nil,nil,false,false -- since: when the head notice went up, nil before.
     local veiled=false -- Our own photo mode: the line is hidden, the queue kept.
+    local name=nil -- The actor's full name at its spawn.
     -- A notice, and the same in English when it was put together from the menu's words (ui/text.lua).
     function self.say(text,en)
         queue[#queue+1]=latin1(text,en)
         if #queue>KEEP then table.remove(queue,1); since=nil end
     end
+    -- The line's actor while it is still ours: a map change frees it, and its address may hold another object by then
+    -- that passes IsValid (ui/kit.lua's alive() checks the same way). Its label goes with it.
+    local function ours()
+        local a=valid(actor)
+        return a and U.text(a:GetFullName())==name and a or nil
+    end
     local function hide()
-        if visible and valid(actor) then actor:SetActorHiddenInGame(true) end
+        if visible and ours() then actor:SetActorHiddenInGame(true) end
         visible=false
     end
     local function step()
@@ -44,9 +51,10 @@ function Notice.new()
         if not queue[1] then return hide() end
         local at=value_of(eve:K2_GetActorLocation())
         at={X=at.X,Y=at.Y,Z=at.Z+RISE}
-        if not valid(actor) then -- First use, or the level it stood in is gone.
+        if not ours() then -- First use, or the level it stood in is gone.
             actor=valid(eve:GetWorld():SpawnActor(find('/Script/Engine.Actor'),at,{Pitch=0,Yaw=0,Roll=0}))
             assert(actor,'the line could not be spawned')
+            name=U.text(actor:GetFullName())
             actor:SetActorEnableCollision(false,false)
             label=U.label(actor,SIZE)
             since,visible=nil,true

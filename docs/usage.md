@@ -63,10 +63,11 @@ The main page shows the rows that fit your session:
 | Write a bug report | Always | Runs `coop report` |
 | Close | Always | Closes the menu |
 
-Under the rows, a status line shows the F6 text and, once your friend is linked, their ping. Below it the menu shows
-its own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the
-newest notice under 8 s old (for example the result of Join a friend). The menu closes by itself when the game pauses
-or shows the mouse cursor for one of its own screens.
+Under the rows, a status line shows the F6 text and, once your friend is linked, their ping. Below it the menu shows its
+own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the newest
+notice under 8 s old (for example the result of Join a friend). If the session ends or the player leaves in the 3 s
+between the two selects of Leave the session or Remove <name>, the second select runs nothing. The menu closes by itself
+when the game pauses or shows the mouse cursor for one of its own screens.
 
 ### Co-op line
 
@@ -1893,8 +1894,10 @@ current one has not been tried in game.
 - `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
   keyboard key to it. It waits while a friend is linked, since the slow time would be your game's alone.
 - `coop fly off`, `coop slowmo off`, `coop off` and a Lua reload (Ctrl+R) put the game's values back. On a save that is
-  not a co-op one, both wait until you are back on one. Nothing of it is saved: the game builds these settings again
-  at each start.
+  not a co-op one, both wait until you are back on one. The mod saves none of it, and the game builds these settings
+  again at each start, with one exception: if you change the game's key options while `coop fly` is on, the game can
+  save the four Shift keys with them. The mod takes them out again at the next start. Your own key changes stay either
+  way.
 
 The keys keep their other uses. R2 is also Interact and the fishing reel, and R1 opens the Burst skills. So with
 `coop fly on`, holding R2 in the air flies, and with `coop slowmo on` holding R1 for a Burst skill slows time. Flight

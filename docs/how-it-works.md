@@ -1222,11 +1222,13 @@ rest resets only the resting player's own game.
 
 Each game looks once a second, while linked, for the game's theater observers (`SBTheaterLevelSequenceObserver`). A
 cutscene plays while one of them has a valid sequence player whose `IsPlaying()` is true. Finding the observers walks
-every object (25 to 80 ms on the game thread), so the walk runs only while a level sequence actor plays (those actors
-come from the engine's class hash, a fraction of a millisecond), and the observer found is kept while it plays. Up to
-0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. The log says
-`cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's reflection
-data, so Lua cannot read it.
+every object (25 to 80 ms on the game thread), so the walk runs only when the set of playing level sequence actors
+changes (those actors come from the engine's class hash, a fraction of a millisecond), and the observer found is kept. A
+looping sequence with no theater costs one walk and one line, `cutscene: no theater for the playing sequences <names>`.
+The class hash reads EVE's world, or the SB player controller's when there is no EVE; with neither (the title screen, a
+load) nothing is read. Up to 0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. The log
+says `cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's
+reflection data, so Lua cannot read it.
 
 While a cutscene plays in the host's game and its own photo state is `0`, the host's Lua writes `c` as its photo state,
 and its photo line carries `c`. The guest's Lua writes `cut=1` in `coop-state.txt` while her `cutscene_wait` is on and
@@ -1753,11 +1755,13 @@ The spawn is one call, `nightop/run.lua`'s, with key 0:
 take any CharacterTable ID at any place. The charId is fixed in code: 50020, or 50021 after `coop lion brain lurker`;
 `coop lion control` spawns 50110 (M_Antlion). The place is 10 m ahead of EVE and 1 m up, facing her. Key 0 is
 EventSpawnId 0, as the game's own summons spawn. The body is the new character of the Large blueprint's class nearest
-the spot, looked for at 0.3, 1, 2, 3.5 and 5 s (`FindAllOf` walks every object). One that still has no controller 1.5 s
-after the call gets its default one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from
-`InteractionState` and `Controller`, as `nightop/run.lua` reads it. The game can send a Lion body far away and reuse
-it for the next spawn (a Lion 466 m away came back on 2026-10-23), so a body that stood more than 100 m from the spot
-at the call and stands within 30 m of it after counts as the new one; its old follow line ends as recycled.
+the spot, looked for at 0.3, 1, 2, 3.5 and 5 s among the SBCharacters of EVE's world from the engine's class hash
+(`GetAllActorsOfClass`), or with `FindAllOf` of the class, which walks every object, where this UE4SS cannot use the
+class hash. Up to 0.6.0-beta.3 every look walked. One that still has no controller 1.5 s after the call gets its default
+one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from `InteractionState` and `Controller`,
+as `nightop/run.lua` reads it. The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away
+came back on 2026-10-23), so a body that stood more than 100 m from the spot at the call and stands within 30 m of it
+after counts as the new one; its old follow line ends as recycled.
 
 While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend space
 reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the animation
@@ -2615,13 +2619,15 @@ an index outside it, a hash size that is not a power of two or an implausible po
 ### The remove, the gift and its answer
 
 The remove is the player controller's `ServerRequest_ItemBucketItemRemove(1, <GUID>, <alias>, <count>, -1)`. Its
-implementation (`FUN_1423ba230`, vtable `+0x13d8` of the network player controller, behind a validate that returns
-true) queues the game's remove request (type 0x16, `FUN_141af93e0`) for the next turn of the logic thread, where
-`FSBItemBucketItemRemove::Simulate` (`FUN_141b0ba20`) removes by alias. -1 is the pocket index the request pool sets
-by default (`FUN_141b48810`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by
-the gift's count, for 10 s of play at most. A tick while the game is paused, in photo mode, or in the friend's photo
-mode that pauses ours does not count: SB's logic thread stops then, and the remove waits with it. If the count has not
-fallen by then, nothing is sent and the notice says the items may be gone.
+implementation (`FUN_1423ba230`, vtable `+0x13d8` of the network player controller, behind a validate that returns true)
+queues the game's remove request (type 0x16, `FUN_141af93e0`) for the next turn of the logic thread, where
+`FSBItemBucketItemRemove::Simulate` (`FUN_141b0ba20`) removes by alias. -1 is the pocket index the request pool sets by
+default (`FUN_141b48810`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by the
+gift's count, for 10 s of play at most. A read that comes back `unread` (the remove changes the very sets the worker
+walks, so a read can tear) or `noeve` is asked again the same way; any other `none` answer stops the send. A tick while
+the game is paused, in photo mode, or in the friend's photo mode that pauses ours does not count: SB's logic thread
+stops then, and the remove waits with it. If the count has not fallen by then, nothing is sent and the notice says the
+items may be gone.
 
 Once it fell, Lua writes the gift into `coop-gift-<steamid>-<index>.txt` (`out <id> <alias> <count> <to> <at> <sent>`)
 and only then sends the gift line as a request, `gift s <id> <alias> <count>`. The id is the time in seconds and three
