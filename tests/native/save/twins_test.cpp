@@ -1021,6 +1021,40 @@ int main() {
   x.on_read = nullptr;
   assert(xs.status() == "convert=error:StellarBladeCoop00.sav changed since its check, so it was not exported");
   assert(slurp(x.dir / main_name(1)) == before[main_name(1)] && backups(x) == 3);
+  // The same with a copy of the same size and write time, so its stat reads unchanged: the write scans its own bytes
+  // again and refuses what the check never saw.
+  const std::string plain = save(std::string(55, 'z') + clean_body()),
+                    stocked = save(clean_body() + name_field("ItemAlias", "Buff_HP2MP"));
+  assert(plain.size() == stocked.size());
+  spill(x.dir / twin_name(0), plain);
+  const fs::file_time_type stamp = fs::last_write_time(x.dir / twin_name(0));
+  x.on_read = [&x, &stocked, stamp](const std::string &name) {
+    if (name == main_name(1)) {
+      spill(x.dir / twin_name(0), stocked);
+      fs::last_write_time(x.dir / twin_name(0), stamp);
+    }
+  };
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  passes(xs, x, xg);
+  x.on_read = nullptr;
+  assert(xs.status().rfind("convert=error:StellarBladeCoop00.sav was not exported: it holds what the game without the "
+                           "mod does not know, the mod's items Beta Stimpack (Buff_HP2MP)",
+                           0) == 0);
+  assert(slurp(x.dir / main_name(1)) == before[main_name(1)]);
+  // The player's save written meanwhile, here one that appears in a slot the export found empty, so with no backup of
+  // it: the export stops before it writes over bytes no backup holds.
+  x.reads.clear();
+  x.on_read = [&x](const std::string &name) {
+    if (name == twin_name(1) && x.reads[name] == 2) // The write's read, after the check's.
+      spill(x.dir / main_name(3), save("own 3, new"));
+  };
+  x.ops.clear();
+  xs.ask(SavesAsk::export_, &x, xg, 1, 3);
+  passes(xs, x, xg);
+  x.on_read = nullptr;
+  assert(xs.status() == "convert=error:StellarBladeSave03.sav changed during the export, so it was not replaced");
+  assert(x.ops.empty() && slurp(x.dir / main_name(3)) == save("own 3, new"));
+  fs::remove(x.dir / main_name(3));
   // A rename that fails leaves the save as it was and no temporary file; a write that reads back different stays, and
   // the line says where its backup is.
   spill(x.dir / twin_name(0), coop_save);
@@ -1133,6 +1167,17 @@ int main() {
     passes(ps, p, pg);
     p.fail_write.clear();
     assert(slurp(p.dir / twin_name(4)) == built && fs::exists(p.dir / shortcut_name(4)));
+    // A second plant asked of the pass's own Convert while one runs is refused, and the running one writes its bytes.
+    {
+      Convert two;
+      two.plant(p, 3, built, "shortcut B07 1");
+      assert(two.plant(p, 3, save("another shortcut save"), "shortcut B07 2") ==
+             "co-op saves: a conversion is under way");
+      while (two.busy())
+        two.step(p);
+      assert(two.ready() && slurp(p.dir / twin_name(3)) == built &&
+             slurp(p.dir / shortcut_name(3)) == "shortcut B07 1\n");
+    }
     // Bytes that fail the game's check: nothing written, the old copy kept.
     std::string bad = built;
     bad[10] ^= 1;
@@ -1153,7 +1198,7 @@ int main() {
     ps.ask(SavesAsk::refresh, &p, pg, 4);
     passes(ps, p, pg);
     assert(ps.status() == "convert=done" && slurp(p.dir / twin_name(4)) == save("own 4"));
-    assert(!fs::exists(p.dir / shortcut_name(4)));
+    assert(!fs::exists(p.dir / shortcut_name(4)) && fs::exists(p.dir / shortcut_name(3)));
     ps.ask(SavesAsk::export_, &p, pg, 4, 0);
     passes(ps, p, pg);
     assert(ps.status() == "convert=done" && slurp(p.dir / main_name(0)) == save("own 4"));

@@ -443,14 +443,17 @@ public:
   // saves export: co-op slot n's copy over the player's save m, in three jobs: the copy read whole, checked as the game
   // does and scanned for what the game without the mod does not know and for a developer save (a refusal writes
   // nothing); the save backed up into a new backup folder, when there is one; the copy read again, unchanged since its
-  // check, written over the save and read back. A copy with a plant's mark is refused at the start. The copies and
-  // the manifest stay as they are. Ready at its end when the save reads back whole.
+  // check and scanned again, written over the save, unchanged since its backup, and read back. A copy with a plant's
+  // mark is refused at the start. The copies and the manifest stay as they are. Ready at its end when the save reads
+  // back whole.
   template <class Fs> std::string export_to(Fs &fs, int n, int m) { return begin(fs, n, m); }
   // coop shortcut load: slot n's copy replaced by bytes the caller built (save/shortcut_load.h's clean(), what names
   // them), while the game uses the copies (Switch::plant's check). The old copy is backed up first, as for a refresh;
   // the new one gets no manifest line, so it counts as played and no pass replaces it by itself (saves refresh N does,
   // after its own backup). Ready at its end when that copy was written and read back.
   template <class Fs> std::string plant(Fs &fs, int n, std::string bytes, const std::string &what) {
+    if (busy()) // Before the bytes are taken: a running plant writes its own.
+      return "co-op saves: a conversion is under way";
     planted_ = std::move(bytes);
     what_ = what;
     return begin(fs, n, -1, true);
@@ -549,6 +552,7 @@ private:
                         "that coop shortcut load wrote, and the developer's progress and cut items would land in "
                         "your own save; coop saves refresh " + std::to_string(only) + " puts a copy of your own save "
                         "back in that co-op slot");
+      backed_ = plan_.main[to];
       jobs_.push_back({Job::check, only, {}});
       if (plan_.main[to].exists)
         jobs_.push_back({Job::backup, -1, main_name(to)});
@@ -601,8 +605,10 @@ private:
       return stop(fs, "the backup of " + name + " could not be written");
     if (jobs_[next_].kind == Job::backup)
       return {};
-    if (to_ >= 0) // An export leaves the manifest as it is.
+    if (to_ >= 0) { // An export leaves the manifest as it is.
+      backed_ = stat;
       return "co-op saves: " + name + " backed up in " + folder_;
+    }
     // The backup is whole: the manifest now (no line yet), so a pass stopped before its end backs up nothing again. A
     // failure here is the last job's to say.
     put(fs, kManifest, format(lines_));
@@ -687,9 +693,10 @@ private:
     return "co-op saves: " + why;
   }
 
-  // The export's check (write false) and its write: the copy read whole, checked as the game does and found no
-  // developer save each time, then scanned, or, for the write, unchanged since that check; written over the player's
-  // save and read back. A failure stops the pass; a save that reads back different stays, its backup said.
+  // The export's check (write false) and its write: the copy read whole, checked as the game does and scanned each
+  // time, so the bytes written are the bytes scanned, and for the write unchanged since that check; written over the
+  // player's save, which must be as its backup read it (or still missing), and read back. A failure stops the pass; a
+  // save that reads back different stays, its backup said.
   template <class Fs> std::string send(Fs &fs, bool write) {
     const std::string twin = twin_name(only_), own = main_name(to_);
     std::string bytes;
@@ -699,14 +706,16 @@ private:
     if (const std::string why = developer(bytes); !why.empty())
       return stop(fs, twin + " was not exported: " + why + ", and the developer's progress and cut items would land "
                                                            "in your own save");
+    if (const std::string why = mod_only(bytes); !why.empty())
+      return stop(fs, twin + " was not exported: it holds what the game without the mod does not know, " + why);
     if (!write) {
-      if (const std::string why = mod_only(bytes); !why.empty())
-        return stop(fs, twin + " was not exported: it holds what the game without the mod does not know, " + why);
       checked_ = stat;
       return "co-op saves: " + twin + " checked (" + std::to_string(bytes.size()) + " bytes)";
     }
     if (!same(stat, checked_))
       return stop(fs, twin + " changed since its check, so it was not exported");
+    if (const Stat now = fs.stat(own); now.exists != backed_.exists || (now.exists && !same(now, backed_)))
+      return stop(fs, own + " changed during the export, so it was not replaced");
     if (!put_own(fs, to_, bytes))
       return stop(fs, own + " could not be replaced, so it is as it was");
     std::string back;
@@ -723,6 +732,7 @@ private:
   int only_ = -1;                       // A refresh's one slot, an export's co-op slot, or -1.
   int to_ = -1;                         // An export's slot of the player's, or -1.
   Stat checked_;                        // The export's copy as its check read it.
+  Stat backed_;                         // The export's target as its backup read it, or as planned when missing.
   Lines lines_{};                       // The manifest as this pass will write it.
   std::array<bool, kSlots> present_{};  // A copy is beside the slot's save now.
   std::array<std::string, kSlots> why_; // Why the slot's copy failed this pass.

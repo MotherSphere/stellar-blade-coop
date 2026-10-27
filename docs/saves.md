@@ -180,8 +180,9 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   Bolts as the selected ammo (`BulletItemSlotIndex` 5, past the five ammo types the game ships); or the cut Matrix XIII
   dungeon as the save's map (`MXIII_P`), its camp or its last full camp (the camp `coop mxiii` adds there);
 - copies `StellarBladeSave0M.sav`, when there is one, into a new folder of `StellarCoopBackups` and reads it back;
-- reads the co-op copy again, refuses it if it changed since the check, writes its bytes unchanged as
-  `StellarBladeSave0M.sav.coop-tmp`, renames that over `StellarBladeSave0M.sav` and reads it back;
+- reads the co-op copy again, refuses it if it changed since the check, scans those bytes again as above, refuses to
+  go on if `StellarBladeSave0M.sav` changed since its backup (or appeared, when there was none), writes the copy's
+  bytes unchanged as `StellarBladeSave0M.sav.coop-tmp`, renames that over `StellarBladeSave0M.sav` and reads it back;
 - leaves the co-op copies and `StellarCoopSaves.txt` as they are, and stops before its write when the title screen
   goes or the save name changes.
 

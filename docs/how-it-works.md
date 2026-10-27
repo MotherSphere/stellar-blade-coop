@@ -2883,8 +2883,9 @@ drops the input.
   or while the save's `MapName` is `MXIII_P` or one of its camp fields names the camp `coop mxiii` adds. A find inside
   `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing does not change, is refused too,
   with a line that says so instead of what to use up or where to rest. Only then does it back up the
-  target save, read the copy again (unchanged since the check, or it stops) and write it over that save through a
-  `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
+  target save, read the copy again (unchanged since the check, or it stops), scan those bytes again, check that the
+  target save is as its backup read it (or still missing) and write the copy over that save through a `.coop-tmp`
+  file and a rename, then read it back. It never edits a save's bytes.
   The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
   every 250 ms; an entry that moves or changes stops it for the run.
 - The [spawn filter](#the-spawn-filter), off by default, is the one write into the game's image rather than into
