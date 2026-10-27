@@ -1950,9 +1950,14 @@ The command is off by default and has not been tried in game. To use it:
 
 What else to know:
 
-- Only co-op slot 5 changes. Your own saves (`StellarBladeSave00.sav` to `04.sav`) are never written. The co-op copy it
-  replaced stays in the backup folder, and `coop saves refresh 4` (slots count from 0 there) later makes a new copy of
-  your own fifth save, after a backup of the shortcut one.
+- Only co-op slot 5 changes. Your own saves (`StellarBladeSave00.sav` to `04.sav`) are never written, and the co-op
+  copy it replaced stays in the backup folder. `coop saves refresh 4` (slots count from 0 there) puts a new copy of
+  your own fifth save in slot 5, after a backup of the shortcut one. It runs only while the game uses your own saves,
+  and once a co-op save has been loaded, `coop saves main` is refused until the game restarts. So after you have
+  played the shortcut save, restart the game, answer Decide later in the question at the title (with
+  `auto_coop_save=always`, set it to `ask` first), then type `coop saves refresh 4` twice within 10 s. It needs your
+  own `StellarBladeSave04.sav`. Without one it refuses, and the copy that was replaced is only in
+  `StellarCoopBackups`.
 - The co-op saves count the new slot 5 as played in co-op, so no automatic copy replaces it.
 - Load Game lists the slots as they were when the title screen appeared, so the fifth slot may still show the old
   save's details. The game reads the file when you pick it. A slot that was empty then may not be offered: load

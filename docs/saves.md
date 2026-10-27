@@ -148,7 +148,10 @@ ended, `coop saves coop` runs its own pass over every slot first.
 `coop shortcut load` ([usage.md](usage.md#loading-one-coop-shortcut-load), off unless `shortcut_load=on`) writes a
 cleaned developer save as `StellarBladeCoop04.sav` through the same kind of pass, while the game uses the copies: the
 old copy goes to a new folder of `StellarCoopBackups` first, and the new one gets no line in `StellarCoopSaves.txt`, so
-later passes keep it as played. `coop saves refresh 4` replaces it with a copy of your own save again.
+later passes keep it as played. `coop saves refresh 4` replaces it with a copy of your own save again, at the title
+while the game uses your own saves. After a load of the shortcut save that means a restart first, since `coop saves
+main` is refused once a co-op save has been loaded. With no `StellarBladeSave04.sav` the refresh refuses, and the old
+copy is only in `StellarCoopBackups`.
 
 To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.log`) shows the slot line:
 
