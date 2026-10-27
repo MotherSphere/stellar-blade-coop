@@ -1058,6 +1058,24 @@ assert(logged('^lion 1 %(50020%) had no anim instance: .*; leader: failed %(no m
 assert(follower.destroyed and led.Mesh.main==true and led.Mesh.shadow==true and led.Mesh.bRenderInDepthPass==true
     and led.Mesh.SkeletalMesh:GetFName():ToString()=='CH_M_NA_02_Large','The Lion drawn again, the component gone')
 follower_fails=nil
+-- An AnimClass write the engine refuses (each class fails in give_anim too), after the Behemoth's mesh went on: the
+-- body gets the Lion's mesh back before the stand-in, never a Behemoth drawn as the Lion.
+lion=new()
+lion_status(ROWS_IN:format(1,'6'))
+at(1900); assert(lion.command())
+led=chars[#chars]
+led.Mesh.no_instance,led.Mesh.refuse_all,led.Mesh.AnimClass=true,true,nil
+setmetatable(led.Mesh,{__newindex=function(t,k,v)
+    if k=='AnimClass' then error('AnimClass refused',0) end
+    rawset(t,k,v)
+end})
+at(1900.3); lion.tick()
+at(1901.5); assert(lion.tick())
+at(1902.5); lion.tick()
+assert(logged('^lion 1 %(50020%) had no anim instance: its own class built none, CH_M_NA_02_AnimBP_C failed %(AnimClass '
+    ..'refused%), .*; leader: failed %(AnimClass refused%); stand%-in: the single%-node instance plays IdleRun_BS_'),
+    'The refused write\'s line')
+assert(led.Mesh.SkeletalMesh:GetFName():ToString()=='CH_M_NA_02_Large','Its own mesh back')
 
 -- Lion.rows, the shop's way to the cut items' rows: asked like coop lion rows, waiting (true, its message, true) while
 -- busy for anything else, then done with the end once they are in, its answer the tick's; with the rows in, the
