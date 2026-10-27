@@ -656,78 +656,92 @@ RegisterConsoleCommandHandler('coop',function(_,parameters)
     return true
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
+-- Each module's work in the two loops below (its tick, slow, restore and the like) runs guarded: an error that escapes
+-- it is logged once a Lua load for that module, with its message, and the modules after it still run in that pass. A
+-- guarded call gives back its first two results, or nothing after an error. Measured with Lua 5.4 on the build machine,
+-- the pcall adds about 40 ns a call: some 1.4 µs a frame for the 34 calls of the per-frame loop.
+local escaped={} -- The modules whose error was logged this Lua load.
+local function guarded(name,f,...)
+    local ran,ok,message=pcall(f,...)
+    if ran then return ok,message end
+    if not escaped[name] then
+        escaped[name]=true
+        log(name..': error (logged once until the mod reloads; the other modules go on): '..tostring(ok))
+    end
+end
 LoopInGameThreadWithDelay(1,function()
-    doro.restore() -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
-    leviathan.restore() -- Likewise for a cut Naytiba display an earlier load left.
-    pcall(drive.restore) -- Likewise for her movement after a reload with the driving on.
-    wear.restore() -- Likewise for her own meshes after a reload with a coop wear look on.
-    flight.restore() -- Likewise for the flight keys after a reload with coop fly on.
-    scene.restore() -- Likewise for a scene an earlier load left playing, and the farewell take it lent.
-    glide.restore() -- Likewise for a bGlide an earlier load left on.
-    emote.restore() -- Likewise for a pose's montage an earlier load left playing.
+    guarded('doro',doro.restore) -- At the first tick, coop off or not: EVE whole again after a reload with the look on.
+    guarded('leviathan',leviathan.restore) -- Likewise for a cut Naytiba display an earlier load left.
+    guarded('drive',drive.restore) -- Likewise for her movement after a reload with the driving on.
+    guarded('wear',wear.restore) -- Likewise for her own meshes after a reload with a coop wear look on.
+    guarded('flight',flight.restore) -- Likewise for the flight keys after a reload with coop fly on.
+    guarded('scene',scene.restore) -- Likewise for a scene an earlier load left playing, and the farewell take it lent.
+    guarded('glide',glide.restore) -- Likewise for a bGlide an earlier load left on.
+    guarded('emote',emote.restore) -- Likewise for a pose's montage an earlier load left playing.
     if off then if blocked and native_tick then native_tick() end return end
-    local ok,message=puppet.tick()
+    local ok,message=guarded('ghost',puppet.tick)
     if message then report(ok,message) end
     local steered=os.clock()
-    ok,message=race.steer() -- Before the native tick: the pose it captures has the yaw the driving writes.
+    -- Before the native tick: the pose it captures has the yaw the driving writes.
+    ok,message=guarded('race',race.steer)
     if message then report(ok,message) end
     steered=os.clock()-steered
     if native_tick then native_tick() end
     local placed=os.clock()
-    ok,message=puppet.place() -- The root takes the mailbox this native tick just wrote.
+    ok,message=guarded('ghost',puppet.place) -- The root takes the mailbox this native tick just wrote.
     if message then report(ok,message) end
     placed=os.clock()-placed
     local looked=os.clock()
-    ok,message=doro.tick() -- After the native tick: EVE's mesh is where this frame draws her.
+    ok,message=guarded('doro',doro.tick) -- After the native tick: EVE's mesh is where this frame draws her.
     if message then report(ok,message) end
     looked=os.clock()-looked
-    ok,message=leviathan.tick() -- Outside the doro column of the frame time line.
+    ok,message=guarded('leviathan',leviathan.tick) -- Outside the doro column of the frame time line.
     if message then report(ok,message) end
-    ok,message=lion.tick()
+    ok,message=guarded('lion',lion.tick)
     if message then report(ok,message) end
-    ok,message=gardener.tick()
+    ok,message=guarded('gardener',gardener.tick)
     if message then report(ok,message) end
-    ok,message=tendril.tick()
+    ok,message=guarded('tendril',tendril.tick)
     if message then report(ok,message) end
-    ok,message=mxiii.tick()
+    ok,message=guarded('mxiii',mxiii.tick)
     if message then report(ok,message) end
-    ok,message=scene.tick()
+    ok,message=guarded('scene',scene.tick)
     if message then report(ok,message) end
-    flight.tick()
-    ok,message=cut_lines.tick()
+    guarded('flight',flight.tick)
+    ok,message=guarded('lines',cut_lines.tick)
     if message then report(ok,message) end
-    ok,message=glide.tick()
+    ok,message=guarded('glide',glide.tick)
     if message then report(ok,message) end
-    ok,message=emote.tick()
+    ok,message=guarded('emote',emote.tick)
     if message then report(ok,message) end
     local raced=os.clock()
-    if link and race.armed() then inbox() end
-    ok,message=race.tick() -- After the look: its Doros and HUD from where EVE is drawn this frame.
+    if link and race.armed() then guarded('inbox',inbox) end
+    ok,message=guarded('race',race.tick) -- After the look: its Doros and HUD from where EVE is drawn this frame.
     if message then report(ok,message) end
     raced=os.clock()-raced+steered
-    ok,message=notice.tick()
+    ok,message=guarded('notice',notice.tick)
     if message then report(ok,message) end
-    nightop.tick() -- A due probe follow-up: it logs its own lines.
-    recruiter.tick() -- Likewise for coop recruiter.
-    ok,message=wear.tick() -- Once a second at most: a worn look the game replaced goes on again.
+    guarded('probe',nightop.tick) -- A due probe follow-up: it logs its own lines.
+    guarded('recruiter',recruiter.tick) -- Likewise for coop recruiter.
+    ok,message=guarded('wear',wear.tick) -- Once a second at most: a worn look the game replaced goes on again.
     if message then report(ok,message) end
     -- The open and close tweens, the game's input back after a close, the chat box focused again, the partner's marker
     -- (each frame, from the ghost's place just set).
     if kit then
         local now=os.clock()
-        ok,message=kit.tick(now)
+        ok,message=guarded('kit',kit.tick,now)
         if message then report(ok,message) end
-        menu.tick(now)
-        box.tick(now)
-        code_box.tick(now)
-        approval.tick(now)
-        saves_ui.tick(now)
-        hud.tick(now)
+        guarded('menu',menu.tick,now)
+        guarded('chat',box.tick,now)
+        guarded('join',code_box.tick,now)
+        guarded('join',approval.tick,now)
+        guarded('saves',saves_ui.tick,now)
+        guarded('hud',hud.tick,now)
         if native_pad then -- At most 8 pad events a frame, the native part's whole ring.
             for _=1,8 do
                 local what=PAD[pad()]
                 if not what then break end
-                pad_event(what)
+                guarded('pad',pad_event,what)
             end
         end
         if chat_asked and now>=chat_asked+0.1 then
@@ -981,21 +995,18 @@ if link then
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
-        if not off then night.tick() end -- Night Operation's run, if any: it logs its own lines.
+        if not off then guarded('nightop',night.tick) end -- Night Operation's run, if any: it logs its own lines.
         -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
-        local ticked,te=pcall(o.roxanne.tick,off)
-        if not ticked then log('roxanne: '..tostring(te)) end
+        guarded('roxanne',o.roxanne.tick,off)
         chat_clock=chat_clock+0.25
-        if not off then group.tick(chat_clock) end -- The friend's revive: it logs its own lines.
-        if not off then travel.tick(chat_clock) end -- The follow: likewise.
-        if not off then -- coop gift: it logs its own lines; an error of its own never stops this loop.
-            local ok,e=pcall(mailbox.tick)
-            if not ok then log('gift: '..tostring(e)) end
-        end
+        if not off then guarded('revive',group.tick,chat_clock) end -- The friend's revive: it logs its own lines.
+        if not off then guarded('travel',travel.tick,chat_clock) end -- The follow: likewise.
+        if not off then guarded('gift',mailbox.tick) end -- coop gift: likewise.
         local chatting=link.chatting() -- nil: the status was not read, which ends no session.
-        if off or chatting~=nil then chat.session(not off and chatting) end
-        if not race.armed() then inbox() end -- Each frame while one is.
-        local typed=chat.take(chat_clock) -- One of ours for the native part, two a second at most; never logged.
+        if off or chatting~=nil then guarded('chat',chat.session,not off and chatting) end
+        if not race.armed() then guarded('inbox',inbox) end -- Each frame while one is.
+        -- One of ours for the native part, two a second at most; never logged.
+        local typed=guarded('chat',chat.take,chat_clock)
         if typed and not link.say(typed) then chat.fail() end
         if settings.shared_enemies~=fight_wanted and not off then -- The co-op menu's row.
             fight_wanted=settings.shared_enemies
@@ -1037,10 +1048,10 @@ if link then
                 report(ok,'shared_quests=on: '..tostring(message))
             end
         end
-        fight_notices()
-        pilot_notices()
-        quest_notices()
-        paks_notice()
+        guarded('fight',fight_notices)
+        guarded('pilot',pilot_notices)
+        guarded('quests',quest_notices)
+        guarded('paks',paks_notice)
         if not cns_said and link.cns() then
             cns_said=true
             log(link.cns())
@@ -1052,12 +1063,12 @@ if link then
         end
         for _,text in ipairs(link.notices()) do say(text) end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
-            local world,title=puppet.world()
+            local world,title=guarded('ghost',puppet.world)
             local photo=world and photo_state() or '0'
             local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
-            notice.veil(own)
-            puppet.photo(own and not settings.photo_ghost,own and not settings.photo_name_tag)
-            puppet.collide(settings.collide) -- The solid partner, as the co-op menu last set it.
+            guarded('notice',notice.veil,own)
+            guarded('ghost',puppet.photo,own and not settings.photo_ghost,own and not settings.photo_name_tag)
+            guarded('ghost',puppet.collide,settings.collide) -- The solid partner, as the co-op menu last set it.
             -- The host's cutscene rides the photo state as 'c', and the guest asks for its pause (session/group.lua).
             local line=link.state(world,settings.send_rate,group.photo(photo),settings.photo_sync,
                 settings.photo_freeze_max,title,group.cut(),settings.mod_names)
@@ -1065,40 +1076,43 @@ if link then
             local shown=world~=nil and world~=false and not own -- Our HUD: in a world, out of our own photos.
             hud_shown=shown
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
-            local ok,message=kit.slow(shown or title==true,title==true)
+            local ok,message=guarded('kit',kit.slow,shown or title==true,title==true)
             if message then report(ok,message) end
             -- UE4SS-settings.ini's notices, once: in the feed once the UI is up, or above EVE once a save is loaded.
             if ue4ss_notes[1] and (kit.ready() or world==true) then
                 for _,word in ipairs(ue4ss_notes) do tell(function(w) return w.ue4ss[word] end) end
                 ue4ss_notes={}
             end
-            local dropped,who=kit.lost() -- The focus watchdog fired: as coop ui reset, nothing said on screen.
+            -- The focus watchdog fired: as coop ui reset, nothing said on screen.
+            local dropped,who=guarded('kit',kit.lost)
             if dropped then
                 ui_reset('focus watchdog: '..who..' lost the focus for 1 s: co-op UI closed, the game has its input '
                     ..'back')
             end
-            menu.slow(shown,not (box.is_open() or code_box.is_open() or approval.is_open() or saves_ui.is_open())
-                and booth.near(puppet.me()) or nil)
-            booth.tick(os.clock(),shown and kit.ready() and not kit.off() and not kit.paused() and not menu.is_open()
-                and puppet.me() or nil)
-            box.slow(chat_clock)
-            code_box.slow(shown)
-            approval.slow(shown) -- After the chat's: it waits while the box is open.
-            hud.slow()
-            saves_ui.slow(world==true,title==true)
+            guarded('menu',menu.slow,shown,not (box.is_open() or code_box.is_open() or approval.is_open()
+                or saves_ui.is_open()) and booth.near(puppet.me()) or nil)
+            guarded('booth',booth.tick,os.clock(),shown and kit.ready() and not kit.off() and not kit.paused()
+                and not menu.is_open() and puppet.me() or nil)
+            guarded('chat',box.slow,chat_clock)
+            guarded('join',code_box.slow,shown)
+            guarded('join',approval.slow,shown) -- After the chat's: it waits while the box is open.
+            guarded('hud',hud.slow)
+            guarded('saves',saves_ui.slow,world==true,title==true)
             -- A story dump asked for by coop-story.txt in the mod folder (story/dump.lua, read only): once per
             -- request, in a loaded world, and named in the log.
-            local dumped,dump_message=story_dump.poll(world==true)
+            local dumped,dump_message=guarded('story',story_dump.poll,world==true)
             if dump_message then report(dumped,dump_message) end
-            puppet.marker(hud.marking()) -- Her marker carries her name: the ghost's tag is its fallback.
+            -- Her marker carries her name: the ghost's tag is its fallback.
+            guarded('ghost',puppet.marker,hud.marking())
             if world or title then photo_pause(settings.photo_pause=='scenery' and 1 or 0,settings.photo_pause) end
             -- The race's session and map checks, from the ghost's world read just above.
-            local raced,why=race.slow()
+            local raced,why=guarded('race',race.slow)
             if why then report(raced,why) end
         end
-        local ok,message=capture.tick(puppet.active()) -- Withdrawn when the ghost is off, coop off included.
+        -- Withdrawn when the ghost is off, coop off included.
+        local ok,message=guarded('capture',capture.tick,puppet.active())
         if message then report(ok,message) end
-        ok,message=puppet.remote(link.remote())
+        ok,message=guarded('ghost',puppet.remote,link.remote())
         if message then report(ok,message) end
     end)
 end

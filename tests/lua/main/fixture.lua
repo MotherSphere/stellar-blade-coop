@@ -325,13 +325,17 @@ package.loaded['cut.leviathan']={new=function(o)
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
 end}
 -- coop lion (cut/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops, what a
--- tick says; its rows (the shop's cut items, with the batch word it was given) answer done at once.
+-- tick says, a tick that raises; its rows (the shop's cut items, with the batch word it was given) answer done at once.
 li={}
 package.loaded['cut.lion']={new=function(o)
     li.o=o
     return {command=function(...) li.cmds[#li.cmds+1]={...}; return true,'li '..tostring((...)) end,
         rows=function(done,word) return done(true,'li rows'..(word and ' '..word or '')) end,
-        tick=function() li.ticks=li.ticks+1; if li.says then return table.unpack(li.says) end end,
+        tick=function()
+            li.ticks=li.ticks+1
+            if li.raise then error(li.raise,0) end
+            if li.says then return table.unpack(li.says) end
+        end,
         stop=function() li.stops=li.stops+1 end}
 end}
 -- coop gardener fight (cut/gardener.lua; gardener_test tests it): what new got (log, ask, status), its commands,
@@ -639,7 +643,7 @@ function load_main(with_native,no_folder,source)
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
-    li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
+    li.o,li.cmds,li.ticks,li.stops,li.says,li.raise=nil,{},0,0,nil,nil
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
     mx.o,mx.folder,mx.cmds,mx.ticks,mx.stops,mx.says=nil,nil,{},0,0,nil

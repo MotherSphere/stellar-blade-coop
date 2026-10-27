@@ -34,8 +34,8 @@
 -- coop-chat.txt is taken every 250 ms (session or not, coop off included; each frame instead while a race is armed,
 -- her race lines to the race) and its text never logged, coop saves reaches the native part, coop no, coop recruiter
 -- and coop challenge accept the co-op saves (slot=coop saves=coop), coop off holds across a Lua reload, the pose
--- path's commands need the native tick export, and the link is optional (no native part, no Steam link, no keys, no
--- menu).
+-- path's commands need the native tick export, an error that escapes a module's tick is logged once and the modules
+-- after it still tick, and the link is optional (no native part, no Steam link, no keys, no menu).
 dofile('tests/lua/main/fixture.lua')
 load_main(true)
 assert(last()=='[StellarCoop] Loaded version v9-test. '..USAGE..'\n',last())
@@ -607,6 +607,21 @@ loops[1].f()
 assert(li.ticks==li.t+1 and last()=='[StellarCoop] OK: M_LionC 50020 is here, 9.8 m from EVE: lion 1 in the [LI] '
     ..'lines.\n',last())
 li.says=nil
+-- A tick that raises: its error logged once a Lua load with the module's name, and the modules after it still tick.
+do
+    li.t,gd.t,li.raise=li.ticks,gd.ticks,'cut/lion.lua:7: boom'
+    local drawn=notice_ticks
+    loops[1].f(); loops[1].f()
+    local lines=0
+    for _,line in ipairs(printed) do
+        if line=='[StellarCoop] lion: error (logged once until the mod reloads; the other modules go on): '
+            ..'cut/lion.lua:7: boom\n' then lines=lines+1 end
+    end
+    assert(lines==1,'Logged once, not each frame: '..lines)
+    assert(li.ticks==li.t+2 and gd.ticks==gd.t+2 and notice_ticks==drawn+2,
+        'The Lion still ticks, and the Gardener and the notice line after it each frame')
+    li.raise=nil
+end
 -- coop gardener fight: out of the usage line too. The words that spawn (none, intro, half, skulling) reach
 -- cut/gardener.lua on a co-op save only, after the viewer's off (its display and free camera put away); rows on any,
 -- and any other word reaches it to be refused there. Every other coop gardener word stays the viewer's. Its asks are
@@ -907,7 +922,8 @@ assert(rx.ticks==rx.ticked+1 and rx.stops==0 and rx.stopped==false,"Roxanne's ch
 rx.tick_raise='roxanne.lua:9: boom'
 local follows=#tv.ticks
 loops[2].f()
-assert(logged('roxanne: roxanne.lua:9: boom') and #tv.ticks==follows+1,'Her error skips nothing else')
+assert(logged('roxanne: error (logged once until the mod reloads; the other modules go on): roxanne.lua:9: boom')
+    and #tv.ticks==follows+1,'Her error skips nothing else')
 rx.tick_raise=nil
 nr.ticked,gr.count,tv.count=nr.ticked+1,gr.count+1,tv.count+1 -- That extra tick, for the counts below.
 -- Roxanne's picks go through coop nightop's own checks (the co-op slot, the race); coop nightop stop drops a booking.
@@ -975,7 +991,7 @@ coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 dr.t,ra.t,ra.s,lv.t,li.t,wr.t,sc.t,ln.t=dr.ticks,ra.ticks,ra.steers,lv.ticks,li.ticks,wr.ticks,sc.ticks,ln.ticks
 gl.t,em.t,gd.t,td.t,mx.t=gl.ticks,em.ticks,gd.ticks,td.ticks,mx.ticks
-loops[1].f(); assert(ticks==17 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+loops[1].f(); assert(ticks==19 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 assert(mx.ticks==mx.t,'No coop mxiii tick after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
 assert(lv.ticks==lv.t,'No Leviathan tick after coop off')
@@ -990,7 +1006,7 @@ assert(em.ticks==em.t,'No coop emote tick after coop off')
 assert(ra.ticks==ra.t and ra.steers==ra.s,'No race tick nor driving after coop off')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
-assert(ticks==18 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
+assert(ticks==20 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')
