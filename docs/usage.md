@@ -701,7 +701,7 @@ A DNF (did not finish) ends your race. A notice says why:
 
 | Notice | Cause |
 | --- | --- |
-| `Moved more than 20 m at once.` | EVE moved over 20 m in one frame: a fast travel, a respawn at a camp after a death, or any other warp |
+| `Moved more than 20 m at once.` | EVE moved over 20 m in one frame: a fast travel, a respawn at a camp after a death, or any other warp. After a frame that took long (a hitch), the limit is the distance twice the top speed covers in that time, when that is more |
 | `Left the map.` | A map change, or no EVE in the world for 2 s (a load, the title screen) |
 | `The session ended.` | The link with your friend ended |
 | `Not finished 60 s after the winner.` | You were still racing 60 s after the first racer finished |

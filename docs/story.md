@@ -102,7 +102,8 @@ The rules, so that a line means the same thing in any save:
 - Keys are the game's own aliases (`QuestAlias`, `EnvAlias`, `TriggerAlias`, `UniqueKey`, `DataAlias`), never an array
   index or a map key that moves (`WorldObjectStorageMap`'s integers are replaced by `UniqueKey`).
 - A plain list or map entry with no alias of its own is keyed by its index or map key, and a repeated alias inside one
-  list gets `#2`, `#3` in the order the game lists it.
+  list gets `#2`, `#3` in the order the game lists it. A task's alias is counted across all the task groups of its
+  quest.
 - Left out: positions, rotations, timestamps, playtime, the camera, the inventory, `bZoneReset`, the theater's
   sequence set, and the zone scaffolding (a zone with nothing in it contributes only its `state` line).
 - `digest` is one SHA-256 over the sorted lines: two saves whose story agrees give one value, whatever moved.
@@ -138,6 +139,8 @@ its index minus one (`item 0` in both). A map that is not mapped field by field 
 the way the save writes it, `ElementInfoMap[Element_Fire].ElementAmount`; its key is named through the enum it holds
 (`ESBElementType`), and an empty map prints nothing where it used to print its address.
 - An `FName` leaf is a userdata too; it is printed as text, not walked into.
+- A float is printed as Python prints it: the fewest digits that read back as the same double (`0.10000000149011612`,
+  `1.5e-05`). Lua's `tostring` keeps 14 digits and gave `0.10000000149012` for the same `FloatProperty`.
 
 Result, test copy on 2026-10-23 (`StellarBladeSave00.sav`, 647,849 bytes, digest `b71a70c8…`, loaded by Continue):
 the dump was asked for at the title, before the load, so it ran as soon as the world reported loaded. It found three

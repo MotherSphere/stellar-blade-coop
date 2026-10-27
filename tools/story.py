@@ -269,16 +269,25 @@ def sample():
                                                    'TaskState': 'ESBQuestTaskState_Progress',
                                                    'CurrentValue': 0, 'CompleteOrder': -1}]],
                      'TaskList': [{'TaskAlias': 'Quest_Epic_01_M01_T01', 'TaskState': 'ESBQuestTaskState_Progress',
-                                   'CurrentValue': 0, 'CompleteOrder': -1}]}]},
+                                   'CurrentValue': 0, 'CompleteOrder': -1}]},
+                    # A task alias again in another group of the quest: numbered across the quest.
+                    {'TaskGroupAlias': 'Quest_Epic_01_M02', 'TaskGroupState': 'TaskGroup_Progress',
+                     'AllChildTaskList': [[
+                         'Quest_Epic_01_M01_T01', {'TaskAlias': 'Quest_Epic_01_M01_T01',
+                                                   'TaskState': 'ESBQuestTaskState_Progress'}]]}]},
                 {'QuestAlias': 'CQ_SD10_RR', 'QuestState': 1}],
             'TrackingQuestAliases': ['Quest_Epic_01'],
             'CompleteQuestList': ['Quest_Epic_00'],
             'FailedQuestList': []}]],
-        'GamePlayProgressRecordData': {'ProgressRecordGroup': [[
-            'Quest_Epic_01_M01', {'RecordGroupName': 'Quest_Epic_01_M01', 'RecordTaskGroupMap': [[
+        # A list, as the save holds it; an entry with no name of its own is keyed by its index from 0.
+        'GamePlayProgressRecordData': {'ProgressRecordGroup': [
+            {'RecordGroupName': 'Quest_Epic_01_M01', 'RecordTaskGroupMap': [[
                 'ESBMission_EnvState', {'TaskDataList': [
                     {'DataAlias': 'SD_10_EnvS_010', 'bSuccessTask': False},
-                    {'DataAlias': 'SD_10_EnvS_010', 'bSuccessTask': True}]}]]}]]},
+                    {'DataAlias': 'SD_10_EnvS_010', 'bSuccessTask': True},
+                    {'bSuccessTask': True}]}]]},
+            {'RecordTaskGroupMap': [['ESBMission_Achievement', {'TaskDataList': [
+                {'DataAlias': 'Xion_Phase_1', 'bSuccessTask': False}]}]]}]},
         'DataMap_SBEnv': [['Env', {
             'WorldContainerList': [{'WorldAlias': 'NKGameWaste', 'ZoneEventActorStorageList': []},
                                    {'WorldAlias': 'SDS', 'ZoneEventActorStorageList': [
@@ -292,7 +301,10 @@ def sample():
                       'InteractData': {'bInteracted': False}, 'ActorLocation': [1.0, 2.0, 3.0],
                       'LastUpdateTimestamp': 5},
                      {'EnvAlias': 'SD_10_EnvS_066', 'EnvActivate': 'ESBObject_Enable', 'CurrentTriggerCount': 2,
-                      'InteractData': {'bInteracted': True}}],
+                      'InteractData': {'bInteracted': True},
+                      # FloatProperty values, as gvas reads them (float32 widened): printed as Python prints them.
+                      'StateInfoList': [{'StateTagName': 'Env_State_Open', 'Progress': 0.10000000149011612,
+                                         'Rate': 1.5e-05}]}],
                  'ZoneNpcStorageList': [{'CharacterDataAlias': 'Npc_Shop_01', 'ObjectState': 'ESBObject_Enable',
                                          'LifeState': 1, 'bActiveActor': True, 'InteractData': {'bInteracted': False}}],
                  'ZoneTriggerStorageList': [{'TriggerAlias': 'SD_10_ZTrigger_001',

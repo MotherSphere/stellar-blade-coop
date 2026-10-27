@@ -84,6 +84,34 @@ local function field(node,key)
     end
     return nil
 end
+-- A float as Python's repr prints it, story.py's side: the fewest digits that read back as the same double, written
+-- out from 1e-4 to under 1e16, else with a signed exponent of two digits at least (0.10000000149011612, 1.5e-05).
+local function python_float(value)
+    if value~=value then return 'nan' end
+    if value==math.huge or value==-math.huge then return value>0 and 'inf' or '-inf' end
+    if value==0 then return (1/value<0 and '-' or '')..'0.0' end
+    local sign,all,e
+    for digits=1,17 do
+        local printed=string.format('%.'..(digits-1)..'e',value)
+        local first,rest,exponent
+        sign,first,rest,exponent=printed:match('^(%-?)(%d)%.?(%d*)e([-+]%d+)$')
+        all,e=first..rest,tonumber(exponent)
+        if tonumber(printed)==value then break end
+        -- At a power of two the gap to the next double up is twice the gap down, so the string one up in the last
+        -- digit can read back when the nearest one, below, does not (2^-24: 5.960464477539063e-08). Python takes it.
+        local up=tostring(tonumber(all)+1)
+        if #up>#all then up,e=up:sub(1,-2),e+1 end
+        if tonumber(sign..up..'e'..(e-#up+1))==value then all=up break end
+    end
+    all=all:gsub('0+$','')
+    if e<-4 or e>=16 then
+        local mantissa=all:sub(1,1)..(#all>1 and '.'..all:sub(2) or '')
+        return sign..mantissa..(e<0 and 'e-' or 'e+')..('%02d'):format(math.abs(e))
+    end
+    if e<0 then return sign..'0.'..('0'):rep(-e-1)..all end
+    local fraction=all:sub(e+2)
+    return sign..all:sub(1,e+1)..('0'):rep(e+1-#all)..'.'..(fraction=='' and '0' or fraction)
+end
 local function text(value)
     value=unwrap(value)
     local kind=type(value)
@@ -91,8 +119,7 @@ local function text(value)
     if kind=='string' then return value end
     if kind=='number' then
         if math.type(value)=='integer' then return tostring(value) end
-        if value==math.floor(value) and math.abs(value)<2^53 then return string.format('%.0f',value)..'.0' end
-        return tostring(value)
+        return python_float(value)
     end
     if value==nil then return nil end
     for _,method in ipairs({'ToString','GetName'}) do
@@ -388,12 +415,12 @@ local function collect_quests(out,properties)
         add(out,prefix,element,QUEST)
         if tracked[alias:gsub('#%d+$','')] then out[#out+1]=prefix..' tracked = True'
         else out[#out+1]=prefix..' tracked = False' end
-        local groups={}
+        -- A task alias repeated in another group of the quest is numbered across the quest, as story.py numbers it.
+        local groups,tasks={},{}
         each(field(element,'QuestTaskGroupList'),function(group_index,group)
             local group_alias=key_of(group_index-1,group_index-1,group,groups)
             local gprefix=prefix..' group '..group_alias
             add(out,gprefix,group,TASK_GROUP)
-            local tasks={}
             each(field(group,'AllChildTaskList'),function(task_index,task) -- A map keyed by TaskAlias, not a list.
                 add(out,gprefix..' task '..key_of(task_index,task_index,task,tasks),task,TASK)
             end)
@@ -412,14 +439,16 @@ end
 local function collect_progress(out,properties)
     local records=field(field(properties,'GamePlayProgressRecordData'),'ProgressRecordGroup')
     each(records,function(group_index,group)
+        -- A list (the save's): its index counts from 1 here and from 0 in the save's lines; a map's key stays.
+        if type(group_index)=='number' then group_index=group_index-1 end
         local group_alias=key_of(group_index,group_index,group,{})
         local groups={}
         each(field(group,'RecordTaskGroupMap'),function(record_key,task_group)
             local record_alias=key_of(record_key,key_value(record_key,MISSION_ENUM),task_group,groups)
             local seen={}
             each(field(task_group,'TaskDataList'),function(data_index,data)
-                add(out,'progress '..group_alias..' '..record_alias..' '..key_of(data_index,data_index,data,seen),
-                    data,PROGRESS)
+                local data_alias=key_of(data_index-1,data_index-1,data,seen)
+                add(out,'progress '..group_alias..' '..record_alias..' '..data_alias,data,PROGRESS)
             end)
         end)
     end)
