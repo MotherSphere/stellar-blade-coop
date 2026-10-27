@@ -5,13 +5,16 @@
 -- load, the 8 nearest its EVE first, and none with why (title, loading, nocamp, busy). The guest's choice: the first
 -- camp of the answer in her table under the host's world that her save has activated and that this game knows as a name
 -- (FNAME_Find, never a new name; UE's trailing number split off), the next one after SB's refusal, 3 calls at most,
--- then the notices. Without a read of her activated camps: no offer, and every travel refused. The offer: once per host
--- map change or once the host stands more than 150 m away on her map (follow_host=ask), the travel by itself 5 s later
--- with follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place the travel
--- brought her to, and his next move offered again after it. The guards, each refusing on its own (silent, busy or
--- failed), again right before the call; the stuck warp; and coop travel probe: solo, on a co-op save only, any of the
--- 120 camps, only an activated one, and for coop mxiii its guards alone (ready: also the native warp, the 10 s after a
--- travel SB took and the travel's fault) and a camp in no table, without the activation read.
+-- then the notices. Her activated camps come from the status line activated=<n>:<alias>,... (the native read):
+-- without it, with activated=none:<why> or a list cut short, no offer, and every travel refused. Without follow
+-- (main.lua's default) the same with a read: the follow stays off until it has been tested in game. The offer: once
+-- per host map change or once the host stands more than 150 m away on her map (follow_host=ask), the travel by itself
+-- 5 s later with follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place
+-- the travel brought her to, and his next move offered again after it. The guards, each refusing on its own (silent,
+-- busy or failed), again right before the call; the stuck warp; and coop travel probe: solo, on a co-op save only, any
+-- of the 120 camps, only one the read lists, and for coop mxiii its guards alone (ready: also the native warp, the 10 s
+-- after a travel SB took and the travel's fault) and a camp in no table, without the activation read; camps() for coop
+-- mxiii leave: the read's travel camps in its order and the camp EVE respawns at, or why there is no read.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local W -- The world of one case.
@@ -43,17 +46,22 @@ local DEDA=Travel.WORLDS.DrownedEidosDistrict
 local ENGINE='engine=on reason=pinned build 24463856 remote=3 1 peer'
 local FIGHT='fight=on mode=on role=guest pairs=1 kills=0 bosses=off boss=0 battle=0 epoch=1/1/0'
 local clock=0
+local EVERY={} -- The native read with every travel camp activated.
+for _,row in ipairs(Travel.CAMPS) do EVERY[#EVERY+1]=row[1] end
+EVERY=#EVERY..':'..table.concat(EVERY,',')
 local function world(change)
     W={mode='guest',linked=true,slot='slot=coop index=1 marker=1 saves=coop',travel='idle',calls=0,
         warp='idle',life={state=1,hp=1600},fight=FIGHT,me={at={X=0,Y=0,Z=0},map=DEDA},her_map=XION,ghost=nil,
         settings={follow_host='ask',follow_key={key='F7',name='F7'}},names={},fnames={},spawns={},finds=0,
-        requests={},said={},logs={},paused=false,night=false,cutscene=false,activated=function() return true end}
+        requests={},said={},logs={},paused=false,night=false,cutscene=false,camps=EVERY,follow=true}
     if change then change(W) end
     clock=0
     local link={mode=function() return W.mode end,friend=function() return 'Kaanta',W.linked,false end,
         status=function()
             local engine=W.engine or ENGINE..' warp='..W.warp..' me=4242 travel='..W.travel..' travel_calls='..W.calls
-            return 'mod=v proto=12 steam=ready\nlink='..W.mode..' lobby=7\n'..W.slot..'\n'..engine..'\n'
+            local camps=W.camps and 'activated='..W.camps..(W.rested and ' rested='..W.rested or '')..'\n' or ''
+            return 'mod=v proto=12 steam=ready\nlink='..W.mode..' lobby=7\n'..W.slot..'\n'..engine..'\n'..camps
+                ..'camps=9 Xion Xion_Camp_10:1\n' -- The link's own camps line (the host's answer): never the read.
         end,
         camps=function() return W.asked,W.answer end,
         request=function(line) W.requests[#W.requests+1]=line; return true,'asked the native part: '..line end,
@@ -65,7 +73,7 @@ local function world(change)
         tell=function(build) W.said[#W.said+1]=build(T.en) end,
         name=function() return 'Kaanta' end,log=function(m) W.logs[#W.logs+1]=m end,
         paused=function() return W.paused end,night=function() return W.night end,
-        cutscene=function() return W.cutscene end,activated=W.activated})
+        cutscene=function() return W.cutscene end,follow=W.follow})
 end
 local function run(t,seconds) -- Ticks of 250 ms, as main.lua's loop gives them.
     for _=1,math.floor(seconds/0.25+0.5) do
@@ -240,29 +248,49 @@ for _,case in ipairs({{'nocamp',NONE},{'busy',BUSY},{'loading',BUSY},{'title',FA
     assert(last(W.said)==case[2] and #W.requests==1,case[1])
 end
 -- A camp her save has not activated is never asked of the native part: SB's fast travel does not check it, and a
--- travel that activated it would count toward the camp achievements. None activated: none.
+-- travel that activated it would count toward the camp achievements. The read lists whole names only (Xion_Camp_10 is
+-- not Xion_Camp_10_01). None activated: none. A read gone between the press and the answer: none either.
 t=world(function(w)
     w.names={Xion_Camp_10=1,Xion_Camp_10_01=2}
-    w.activated=function(alias) return alias=='Xion_Camp_10_01' end
+    w.camps='2:DED10_Camp_07,Xion_Camp_10_01'
 end)
 assert(t.press())
 W.answer=asked_id()..' Xion Xion_Camp_10:1 Xion_Camp_10_01:2'
 run(t,0.25)
 assert(last(W.requests)=='travel Xion_Camp_10_01 2 0' and logged('Xion_Camp_10 is not activated in this save'))
 for _,name in ipairs(W.fnames) do assert(name~='Xion_Camp_10','An unactivated camp never reaches FName') end
-t=world(function(w) w.names={Xion_Camp_10=1}; w.activated=function() return false end end)
+t=world(function(w) w.names={Xion_Camp_10=1}; w.camps='0:' end)
 assert(t.press())
 W.answer=asked_id()..' Xion Xion_Camp_10:1'
 run(t,0.25)
 assert(#W.requests==1 and last(W.said)==NONE)
--- No read of her activated camps (main.lua passes none yet): no offer with ask or always, and F7 or coop travel host
--- is refused with the failed notice before anything is asked.
+t=world(function(w) w.names={Xion_Camp_10=1} end)
+assert(t.press())
+W.camps='none:flow'
+W.answer=asked_id()..' Xion Xion_Camp_10:1'
+run(t,0.25)
+assert(#W.requests==1 and last(W.said)==NONE
+    and logged('Xion_Camp_10: no read of the camps this save has activated (flow)'))
+-- No read of her activated camps (none yet, none while not in game, or a list cut short): no offer with ask or always,
+-- and F7 or coop travel host is refused with the failed notice before anything is asked.
+for _,case in ipairs({{nil,'no read yet'},{'none:phase','phase'},{'3:Xion_Camp_10,DED10_Camp_07','unread'}}) do
+    for _,mode in ipairs({'ask','always'}) do
+        t=world(function(w) w.settings.follow_host=mode; w.camps=case[1]; w.names={Xion_Camp_10=1} end)
+        run(t,10)
+        assert(#W.said==0 and #W.requests==0,mode)
+        local ok,why=t.press()
+        assert(not ok and why=='no read of the camps this save has activated ('..case[2]..')' and #W.requests==0
+            and last(W.said)==FAILED,mode..': '..tostring(why))
+    end
+end
+-- The follow off (main.lua passes no follow): with a read, still no offer, and every travel refused the same way.
 for _,mode in ipairs({'ask','always'}) do
-    t=world(function(w) w.settings.follow_host=mode; w.activated=nil; w.names={Xion_Camp_10=1} end)
+    t=world(function(w) w.settings.follow_host=mode; w.follow=nil; w.names={Xion_Camp_10=1} end)
     run(t,10)
     assert(#W.said==0 and #W.requests==0,mode)
     local ok,why=t.press()
-    assert(not ok and why:find('no read of the camps',1,true) and #W.requests==0 and last(W.said)==FAILED,mode)
+    assert(not ok and why=='the follow stays off until it has been tested in game' and #W.requests==0
+        and last(W.said)==FAILED,mode..': '..tostring(why))
 end
 -- One camps? each 2.5 s (the host's game takes one each 2 s; the margin is for the network): a press sooner is
 -- refused in the log only.
@@ -487,18 +515,22 @@ assert(#W.said==2 and W.said[2]==W_.offer:format('Kaanta','b07','F7'))
 
 -- coop travel probe: solo only, on a co-op save only (slot 04 of her own saves is refused: StellarCoopSlot.txt makes it
 -- one), one of the 120 camps that her save has activated, as the follow takes them, and a name this game knows; it
--- skips the host's answer: the camp is asked of the native part as it is. Its result is logged. Without a read of the
--- activated camps (main.lua passes none yet) every camp is refused: a travel that activated one would count toward the
--- camp achievements.
-t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}; w.activated=nil end)
+-- skips the host's answer and the follow's off: the camp is asked of the native part as it is. Its result is logged.
+-- Without a read of the activated camps every camp is refused: a travel that activated one would count toward the camp
+-- achievements.
+t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}; w.camps=nil end)
 local ok,why=t.probe('DED10_Camp_07')
-assert(not ok and why=='no read of the camps this save has activated' and #W.requests==0,tostring(why))
+assert(not ok and why=='no read of the camps this save has activated (no read yet)' and #W.requests==0,tostring(why))
+t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}; w.camps='none:fault' end)
+ok,why=t.probe('DED10_Camp_07')
+assert(not ok and why=='no read of the camps this save has activated (fault)' and #W.requests==0,tostring(why))
 t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}
-    w.activated=function(alias) return alias~='DED10_Camp_07' end end)
+    w.camps='2:DED10_Camp_07_01,Xion_Camp_10' end)
 ok,why=t.probe('DED10_Camp_07')
 assert(not ok and why=='DED10_Camp_07 is not activated in this save' and #W.requests==0,tostring(why))
 assert(#W.fnames==0,'An unactivated camp never reaches FName')
-t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55} end)
+t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}; w.follow=nil
+    w.camps='2:Xion_Camp_10,DED10_Camp_07' end)
 ok,why=t.probe('DED10_Camp_07')
 assert(ok and last(W.requests)=='travel DED10_Camp_07 55 0',why)
 W.travel,W.calls='pending',1
@@ -521,7 +553,7 @@ end
 -- coop mxiii's use (cut/mxiii.lua): ready says whether a probe would pass its guards now, asking nothing; probe with
 -- any takes a camp in no table (the name must still be one this game knows), under the same guards but the activation
 -- read: no AchievementTable row names its env-spawn row.
-t=world(function(w) w.mode='none'; w.linked=false; w.names={DLC02_10_Camp_01=77}; w.activated=nil end)
+t=world(function(w) w.mode='none'; w.linked=false; w.names={DLC02_10_Camp_01=77}; w.camps=nil end)
 ok,why=t.ready()
 assert(ok==true and why==nil and #W.requests==0 and #W.fnames==0,tostring(why))
 ok,why=t.probe('DLC02_10_Camp_01')
@@ -552,6 +584,26 @@ end
 t=world(function(w) w.mode='none'; w.linked=false end)
 ok,why=t.probe('DLC02_10_Camp_01',true)
 assert(not ok and why:find('not a name in this game yet',1,true) and #W.requests==0,why)
+-- camps(), for coop mxiii leave: the read's travel camps in its order (no autosave volume, no camp in no table), and
+-- the camp EVE respawns at as the read names it; without a read, nil and why. It asks nothing.
+t=world(function(w)
+    w.camps='4:Xion_Camp_10_01,ME01_Camp_02_SV,DED10_Camp_07,DLC02_10_Camp_01'
+    w.rested='DLC02_10_Camp_01'
+end)
+local camps,rested=t.camps()
+assert(#camps==2 and camps[1]=='Xion_Camp_10_01' and camps[2]=='DED10_Camp_07' and rested=='DLC02_10_Camp_01')
+W.rested=nil
+camps,rested=t.camps()
+assert(#camps==2 and rested==nil)
+W.camps='0:'
+camps=t.camps()
+assert(#camps==0)
+for _,case in ipairs({{'none:flow','flow'},{false,'no read yet'},{'2:DED10_Camp_07','unread'}}) do
+    W.camps=case[1] or nil
+    camps,why=t.camps()
+    assert(camps==nil and why==case[2],tostring(why))
+end
+assert(#W.requests==0 and #W.fnames==0)
 -- A Lua error turns the follow off for the run, with one line.
 t=world(function(w) w.names={Xion_Camp_10=1} end)
 FName=nil

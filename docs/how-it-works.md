@@ -1113,8 +1113,7 @@ one. A bad line only loses that quest's marks; her live quests always decide wha
 
 The guest's travel to the host (`session/travel.lua`, the camps lines, `game/travel.h` and the native call) moves only
 the guest's EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in
-game yet. In this version it never travels: the mod cannot yet read which camps the guest's save has activated (see
-below).
+game yet, and in this version it never travels: `main.lua` leaves it off until that test (see below).
 
 - The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
   `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
@@ -1134,9 +1133,27 @@ below).
 - A return of 0 is the game's refusal, and the guest's Lua tries the next camp of the answer.
 - The game's fast travel does not check whether her save has activated the camp (`game/travel.h`), and activating a camp
   counts toward the game's camp achievements (`Trophy_Activate_AllCamp` and the camp rows of AchievementTable). Her Lua
-  therefore takes only a camp that a read of her save's activated camps confirms. That read does not exist yet, so
-  every travel is refused before `camps?` is sent (`travel refused: no read of the camps this save has activated` in
-  `UE4SS.log`, and the failed notice), and no offer shows.
+  therefore takes only a camp that the native read of her activated camps lists (below). With no read at that moment
+  (a load, the title), the travel is refused with `no read of the camps this save has activated (<why>)`.
+- The follow itself is off: `main.lua` does not pass `follow` to `session/travel.lua`, so every travel is refused
+  before `camps?` is sent (`travel refused: the follow stays off until it has been tested in game` in `UE4SS.log`, and
+  the failed notice), and no offer shows. `coop travel probe` and `coop mxiii leave` use the read already.
+- The read (`game/camps.h`) asks the game's own camp list. The camp list screen (`FUN_141f65980`) calls
+  `FUN_141d1d650(zones, region, type, out, false)`, which returns the ZoneCampTable rows of that region and CampType
+  that hold an active row: a camp's rows are the ZoneEnvSpawn rows whose `TargetCamp` names it (the zone manager's
+  `+0x550` map, built by `FUN_141d18100`), and a row is active when its `ESBZoneEnvActiveState` is Active (1), read
+  from the live env object (`+0x21c`, set by `FSBZoneEnvRegister` through `FUN_141fdf900`) for a row of the zone EVE
+  stands in and from the zone's stored record (`+0x24`) for the others. The game thread checks the client is in game,
+  with no warp, respawn or logic task in flight, every 250 ms, and then calls that function every 2 s with no region
+  (every region) once for each travel type (SimplyCamp, FullCamp, Tetrapod, PhoneBooth), frees each list with the
+  game's `FMemory::Free` (`0x14261adb0`) and reads the names from the game's name pool. It reads the list again at once
+  in a new world, and drops it when the client leaves the game (a load), so a list never outlives its save. It also
+  reads the camp EVE respawns at: her FSBActor's `+0x26d0`, the ZoneEnvSpawn row of the camp she last rested at or used,
+  which the respawn (`FUN_141b0f8f0`) reads, and that row's `TargetCamp` (`+0x270`). It runs out of line under its own
+  SEH latch; `coop-status.txt` carries it as `activated=<n>:<camp>,... rested=<camp>`, or `activated=none:<why>`.
+- The game's ReturnToCamp job (`FUN_141b2b000`) takes another camp: effect action 26 (`FUN_141bc7af0`) gives it the
+  FSBActor's `+0x2738`, which the camp arrival (`FUN_141a8afe0`) writes only for a Tetrapod camp, so that job returns
+  EVE to her last Tetrapod. The mod does not use it.
 - After an accepted call, the native part reads the game's warp block every 250 ms: `pending`, `warping`, `arrived`,
   or `refused:stuck` when the warp has not started 10 s after the call. `coop status` shows it as `travel=` on the
   engine line, and `coop-link.log` has one line per call and per state.
@@ -2090,7 +2107,9 @@ with `StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a
 `cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for `DLC02_10_Camp_01`, a
 camp in none of its tables (`probe(alias, true)`). The native side is the follow's: the guard, the count and the watch
 of `game/travel.h`. The travel's result comes in `[TR]` lines. The command's answer names the way out,
-`coop travel probe ME01_Camp_01`, which stays the documented exit until the camp's phone booth has worked in game.
+`coop mxiii leave`: the follow's probe, with its activation read ([Following the host](#following-the-host)), to the
+camp EVE respawns at when the read lists it among the 120 travel camps, else to the first travel camp the read lists.
+`DLC02_10_Camp_01` is in no travel table, so a rest at the mod's camp never makes it the way out.
 
 The check tells the two builds of the test pak apart by the `.ucas`, of which it reads up to 16 MB. A zen package of UE
 4.26 keeps its own name map, in plain text when the container is not compressed, and an FName whose text ends in `_`
@@ -2119,8 +2138,8 @@ full camp and last simple camp rows (`LastFullCampEnvSpawnAlias`, `+0x26c`; `Las
 A death or a load resolves the last row to its camp. The vending machine's interaction graph saves after the
 activation and the phone booth's saves before its camp list (read from the graphs), so `DLC02_10_Camp_01` and the
 mod's rows are on disk from the activation on. Resting at another camp does not take the camp out of
-`OpenCampAliases`, and the way out, `ME01_Camp_01`, is a SimplyCamp in ZoneCampTable, so a rest there changes only the
-simple camp row and leaves `LastFullCampEnvSpawnAlias` on a mod row. Those rows exist only once `coop mxiii` has run in
+`OpenCampAliases`, and a rest at a SimplyCamp, such as Matrix 11's `ME01_Camp_01`, changes only the simple camp row
+and leaves `LastFullCampEnvSpawnAlias` on a mod row. Those rows exist only once `coop mxiii` has run in
 the game run. What a load or the camp list does with a camp or row that has no table row
 (`ESBEnterGameResult_NotFoundTargetCamp`, a skip or a null read) was not traced, so the usage section gives
 `coop saves refresh` at the title as the way back. Adding the rows at mod start whenever the test pak is installed
@@ -2132,8 +2151,9 @@ would keep those names valid; the mod does not do that yet.
 - whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d18100` lists the camps of every world;
 - whether the camp arrival (`FUN_141a8afe0`) finds the spawn point named `DLC02_10_Camp_01` in the test map;
 - whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset), and
-  whether the camp list shows the camp once the vending machine has activated it (`InteractCamp` was read from the
-  interaction graphs, not traced in code);
+  whether the camp list shows the camp once the vending machine has activated it: the list takes a camp with a row
+  whose active state is Active ([Following the host](#following-the-host)), and whether the vending machine's graph
+  sets that on the mod's rows was read from the interaction graphs, not run;
 - what the world map, the region name and the loading screen do with a world that has no map data;
 - what entering `Zone_DLC02_10` writes into the save. Its 15 spawn rows are `EnterZone` rows, so 14 Antlions and a
   data drone should appear.
@@ -2793,11 +2813,15 @@ claim the host accepts):
   starts ends the run. The Shooting Range also runs for two linked players, under Night Operation's rule above. A
   challenge's kills are the player's own, and it gives no shop points. A best run goes into `coop-records.txt` only on
   the PC whose own solo run ended in success, never from a co-op run and never over the link.
-- The travel to the host takes only camps that a read of the guest's save confirms as activated, because activating a
-  camp counts toward achievements ([Following the host](#following-the-host)). That read does not exist yet, so the
-  travel makes no call at all. `coop travel probe <camp>`, the travel's solo test, takes a camp only through the same
-  read, so it refuses every camp for now. Whether arriving at a camp through the game's fast travel activates it has not
-  been checked. `coop mxiii` travels to its own camp `DLC02_10_Camp_01` without that read ([The cut Matrix XIII
+- Every camp travel of the mod but `coop mxiii`'s goes only to a camp the player's save has already activated, because
+  activating a camp counts toward achievements and the game's fast travel does not check it
+  ([Following the host](#following-the-host)). The native read asks the game's own camp list (`FUN_141d1d650`, the
+  function the camp list screen calls) for the camps of the travel table that hold an active ZoneEnvSpawn row, so the
+  mod travels only where the game's own camp list would let the player travel. The follow is off in this version and
+  makes no call at all. `coop travel probe <camp>`, the follow's solo test, and `coop mxiii leave` refuse any camp the
+  read does not list, and every camp while there is no read (a load, the title, after a fault). Whether arriving at a
+  camp through the game's fast travel activates it has not been checked. `coop mxiii` travels to its own camp
+  `DLC02_10_Camp_01` without that read ([The cut Matrix XIII
   dungeon](#the-cut-matrix-xiii-dungeon-experimental)): the two camp trophies count only named ZoneEnvSpawnTable rows
   turning On (`Trophy_Activate_FirstCamp` one, `Trophy_Activate_AllCamp` the 89 `ChangeState_ZoneEnv_*_Camp` rows of
   AchievementTable), and none of them names `DLC02_10_EnvS_900`, the mod's row for that camp. A revive changes only the

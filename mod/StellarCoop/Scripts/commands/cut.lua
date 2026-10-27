@@ -20,7 +20,7 @@
 -- cut mailbox as a co-op gift box (cut/mailbox.lua, o.mailbox, built with the Steam link only), runs on a co-op save
 -- only: every word of it.
 -- coop mxiii, the camp travel into the cut Matrix XIII dungeon (cut/mxiii.lua, o.mxiii; a test tool left out of the
--- usage line, needing the zMXIII_P test pak), runs on a co-op save only.
+-- usage line, needing the zMXIII_P test pak), and coop mxiii leave, its way out, run on a co-op save only.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -153,7 +153,7 @@ function Cut.new(o)
         return o.ask('devinfo '..which)()
     end
     -- coop mxiii (cut/mxiii.lua, o.mxiii): a camp travel into a world the save has never been in, which the game may
-    -- write into the save, so on a co-op save only.
+    -- write into the save, so on a co-op save only; coop mxiii leave too, as coop travel probe.
     function self.mxiii(extra)
         local ok,why=coop_slot('coop mxiii')
         if not ok then return false,why end

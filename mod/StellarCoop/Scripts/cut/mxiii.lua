@@ -11,7 +11,9 @@
 -- probe (session/travel.lua; the native part's game/travel.h). Each step logs an [MX] line, the travel's result a [TR]
 -- line. A warp into a world the save has never been in may write that world into the save: main.lua lets it run on a
 -- co-op save only. The rows stay for the game run; a second coop mxiii reads them back and travels again. The way out
--- stays coop travel probe ME01_Camp_01 until the camp has been proven in game.
+-- is coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to the camp EVE
+-- respawns at (the one she last rested at or used) when that is a travel camp the read lists, else to the first travel
+-- camp the read lists. Matrix XIII's own camp is in no travel table, so a rest there never makes it the way out.
 -- The test pak's check makes no StaticFindObject (a package that is not loaded is never found that way, and each miss
 -- costs 4 to 35 ms): the container's .utoc in SB/Content/Paks/~mods or LogicMods, read once a command, must name the
 -- map's folders and MXIII_P.umap in its directory index (plain text in a .utoc that is not encrypted, as retoc writes
@@ -25,7 +27,7 @@
 local Enemy=require('cut.enemy')
 local Mxiii={}
 Mxiii.CAMP='DLC02_10_Camp_01'
-Mxiii.EXIT='coop travel probe ME01_Camp_01'
+Mxiii.EXIT='coop mxiii leave'
 Mxiii.PAK='zMXIII_P'
 Mxiii.MAP='MXIII_P.umap'
 -- The directory index's names of the WorldTable path /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, the map last.
@@ -121,8 +123,26 @@ function Mxiii.new(o)
         return true,'coop mxiii: the rows are in and the travel to '..Mxiii.CAMP..' is asked ([TR] lines follow); '
             ..'way out: '..Mxiii.EXIT
     end
+    -- coop mxiii leave: the camp EVE respawns at when the read lists it among its travel camps, else the first one.
+    local function leave()
+        local travel=o.travel()
+        if not travel then return false,'coop mxiii leave needs the Steam link' end
+        local camps,rested=travel.camps()
+        if not camps then
+            return false,'coop mxiii leave: no read of the camps this save has activated ('..tostring(rested)..')'
+        end
+        local pick=camps[1]
+        for _,alias in ipairs(camps) do if alias==rested then pick=alias end end
+        if not pick then return false,'coop mxiii leave: this save has activated none of the 120 travel camps' end
+        local asked,said=travel.probe(pick)
+        log('leave: travel to '..pick..(pick==rested and ', the camp EVE respawns at,' or '')
+            ..(asked and ' asked: ' or ' refused: ')..tostring(said))
+        if not asked then return false,'coop mxiii leave: '..tostring(said) end
+        return true,'coop mxiii leave: the travel to '..pick..' is asked ([TR] lines follow)'
+    end
     function self.command(extra)
-        if extra~=nil then return false,'Use: coop mxiii' end
+        if extra=='leave' then return leave() end
+        if extra~=nil then return false,'Use: coop mxiii [leave]' end
         local busy=e.busy()
         if busy then return false,busy end
         local travel=o.travel()
