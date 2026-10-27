@@ -493,7 +493,7 @@ void filter_pass() {
 
 // coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's, coop mxiii's and the Night
 // Operation shop's rows (Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows and shop rows requests):
-// the 19 tables' addresses for the game thread, which adds that batch's rows at the first frame its gate holds. An ask
+// the 20 tables' addresses for the game thread, which adds that batch's rows at the first frame its gate holds. An ask
 // it has not taken yet is replaced. Refused off the pinned build, after coop off and after the rows' fault; once every
 // row of a batch is in, nothing more is asked of it (the rows stay for the game run).
 std::string ask_rows(const coop::Request &request) {

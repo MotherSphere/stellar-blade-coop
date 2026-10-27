@@ -73,7 +73,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
-| `cut/mxiii.lua` | `coop mxiii`: the test pak's check (v1 or v2), Matrix XIII's 8 camp rows through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01` ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `cut/mxiii.lua` | `coop mxiii`: the test pak's check (v1 or v2), Matrix XIII's 8 camp rows and 5 trigger patches through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01` ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
@@ -1561,7 +1561,7 @@ clip the Lion has, and no move may travel over 17 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
-its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 19 tables
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 20 tables
 by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
 
 ```
@@ -1570,12 +1570,12 @@ CharacterStanceTable=0x<address> CharacterAnimSetTable=0x<address> SkillCommandT
 SkillTable=0x<address> SkillActiveStepTable=0x<address> CharacterMoveTable=0x<address>
 TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address> ItemTable=0x<address>
 ItemConsumableTable=0x<address> ProjectileTable=0x<address> ZoneCampTable=0x<address>
-ZoneEnvSpawnTable=0x<address> ShopTable=0x<address> ShopItemTable=0x<address>
+ZoneEnvSpawnTable=0x<address> ShopTable=0x<address> ShopItemTable=0x<address> ZoneTriggerTable=0x<address>
 ```
 
-It is one line in `coop-request.txt` (615 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
-address and its line end, 619 for the Gardener's `gardener rows`; the native part reads up to 1024 bytes of that file).
-Each of the 19 words comes once, in any order.
+It is one line in `coop-request.txt` (647 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
+address and its line end, 651 for the Gardener's `gardener rows`; the native part reads up to 1024 bytes of that file).
+Each of the 20 words comes once, in any order.
 Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console
 word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
 slot and its row size.
@@ -1888,7 +1888,7 @@ gets lion, bolt and shop rows; SkillTable gets lion, gardener, tendril and bolt 
 tendril and bolt rows; CharacterTable, CharacterStanceTable, SkillCommandTable and SkillActiveStepTable get rows from
 all three Naytibas; five more tables get lion and tendril rows. The read-back runs the game's lookups over those same
 tables. Only ProjectileTable (bolt), EffectTable and ItemConsumableTable (lion), ShopTable and ShopItemTable (shop) and
-Matrix XIII's two zone tables have a single batch writing them, and those rows still go through the same block and
+Matrix XIII's three zone tables have a single batch writing them, and those rows still go through the same block and
 calls. A fault anywhere in that call may leave shared state half written, so it stops every batch. The status lines
 are built by the worker from what the game thread published and make no engine call. The Shock Bolt's list growth
 writes nothing a batch writes, and keeps its own latch ([The cut Shock Bolt](#the-cut-shock-bolt)).
@@ -2037,7 +2037,8 @@ build 24463856 holds. ZoneTable keeps its four zones (`Zone_DLC02_10` to `Zone_D
 EventSpawnTable 92 spawn rows for them, but no camp, zone warp, world transition or cheat row leads there. `coop mxiii`
 tests one way in. The zMXIII_P test pak, built outside the repository from shipped Matrix 11 levels and never in the
 mod's zip, puts a map at that path with a spawn point named `DLC02_10_Camp_01`; its v2 build adds the spawn points of
-a camp's objects. The mod adds the rows of a camp in `Zone_DLC02_10`, then calls the game's camp travel to it.
+a camp's objects. The mod adds the rows of a camp in `Zone_DLC02_10` and patches five trigger rows of the later zones
+in place, then calls the game's camp travel to the camp.
 
 ### Its rows
 
@@ -2070,12 +2071,51 @@ that spawns a vending machine coin at the spawn point of that name when EVE ente
 `ME01_Camp_03`'s name, picture and region, so the camp list shows it under Matrix 11. No dungeon has a world map in the
 game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
 
-The two zone tables are the sixteenth and seventeenth of the 19 tables every rows request names (`kLionTables`), and
+The two zone tables are the sixteenth and seventeenth of the 20 tables every rows request names (`kLionTables`), and
 only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
-line's forms (`mxiii=rows added=8/8 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
-its 29 patched fields back, `EnvBPPath` as text and `LinkEnvSpawnList` as a list of names. The read-back compares an ID
+line's forms (`mxiii=rows added=13/13 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
+its 34 patched fields back (the 29 of the camp rows and the 5 of the trigger rows below), `EnvBPPath` as text and
+`LinkEnvSpawnList` and `TouchEvents` as lists of names. The read-back compares an ID
 on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or not.
+
+### Its event spawns
+
+Of the dungeon's 92 spawn rows, 19 wait for props of the cut map. The 11 Antlions of `Zone_DLC02_20` are `ZoneEvent`
+spawns in three waves: when the countdown gates `DLC02_20_EnvS_014`, `_018` and `_016` reach their `Open` tag, their
+ZoneEnvSpawnTable rows run the zone events `DLC02_20_ZoneE_022` to `_025`, `_026` to `_028` and `_029` to `_032`, each a
+`ZoneEvent_Spawn` of one row. In `Zone_DLC02_40`, triggers `DLC02_40_ZTrigger_001` and `_002` start the chains of spawn
+rows 003 to 007 and 013 to 015 (each spawn event's `AddEvents` runs the next), but both start disabled, and only the
+drain devices `DLC02_40_EnvS_002` and `_003` enable them, through `DLC02_40_E_ObjectC_001` and `_002`. The gates and
+the devices are placed actors of the cut map, and the devices' interaction graph is a greybox asset missing from the
+paks, so none of these events fires. The test pak places every DLC02 trigger row on a box, so the smallest change is
+one field in five shipped ZoneTriggerTable rows:
+
+| Row | ID | Field | Shipped | Patched |
+| --- | --- | --- | --- | --- |
+| `DLC02_20_ZTrigger_001` | 280501001 | `TouchEvents` (`+0x20`) | empty | `DLC02_20_ZoneE_022` to `_025` |
+| `DLC02_20_ZTrigger_005` | 280501005 | `TouchEvents` | `DLC02_20_E_EnvC_030` | the same, then `DLC02_20_ZoneE_026` to `_028` |
+| `DLC02_20_ZTrigger_006` | 280501006 | `TouchEvents` | `DLC02_20_E_EnvC_031` | the same, then `DLC02_20_ZoneE_029` to `_032` |
+| `DLC02_40_ZTrigger_001` | 281501001 | `InitActivate` (`+0x1c`) | 2, Disable | 1, Enable |
+| `DLC02_40_ZTrigger_002` | 281501002 | `InitActivate` | 2, Disable | 1, Enable |
+
+ZoneTriggerTable (row struct `0xa8` bytes, ID at `+0x10`, no Transient field) is the twentieth table of `kLionTables`,
+and only this batch reads it. A row whose template is itself is a shipped row patched in place: the builder needs it in
+RowMap under its name and its ID in the ID map naming it, copies it into the block, patches the block and copies the
+block back over the row with CopyScriptStruct, which reassigns `TouchEvents` through the game's allocator. The row
+keeps its address, ID and lazy-init flag, and AddRow is never called for it, so nothing that holds the row loses it.
+`describe` says `13/13 in, 8 added through SB's AddRow 0x14417ba30 and 5 shipped rows patched in place`. A missing
+row refuses with `no shipped row of that name`, an ID that names another row with `ID <id> does not name it`. The
+trigger rows keep their shipped `SaveType`: `ResetZone` for 001, `Save` for 005 and 006, `None` for the zone 40 pair.
+When the game reads `InitActivate` and `TouchEvents` was not traced: the patches go in before the travel, so a zone that
+starts after it sees them whether it copies the row or keeps a pointer to it. The Antlions and Clrikets they spawn are
+species the other DLC02 rows already spawn, so their kills feed no achievement row the dungeon could not feed before.
+
+The rows cannot make the climb from `Zone_DLC02_20` to `Zone_DLC02_30` work. On Matrix 11's Area02 it runs on
+`Zone_ME_02`'s triggers (falling-train QTE sequences `MV_ME02_0x_QTE_*`, theater events and env controls of the ropes
+and trains, all `Zone_ME_02` rows) and on the cameras of `Matrix_XI_Area02_Sequence`, which the test pak does not
+stream. No zone volume of `Zone_ME_02` exists in the test map, so those rows never start, and no DLC02 row drives
+those actors.
 
 ### The command
 
@@ -2136,7 +2176,9 @@ would keep those names valid; the mod does not do that yet.
   interaction graphs, not traced in code);
 - what the world map, the region name and the loading screen do with a world that has no map data;
 - what entering `Zone_DLC02_10` writes into the save. Its 15 spawn rows are `EnterZone` rows, so 14 Antlions and a
-  data drone should appear.
+  data drone should appear;
+- whether the five patched trigger rows start the waves of `Zone_DLC02_20` and the chains of `Zone_DLC02_40`, and
+  whether EVE can reach those zones on the test map at all.
 
 ## The Night Operation shop screen
 

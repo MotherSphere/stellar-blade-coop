@@ -2,7 +2,7 @@
 -- are R.GARDENER (tests/lua/cut/lion_test.lua checks them against rows.h's kGardenerRecipe): ToxicBeam's steps last its
 -- Show's 5.4 s, its three skills are MeleeAttack, its stance never moves, its CharacterTable rows name its own dead,
 -- appearance and detect rows, its trees and scales. The gardener line parses apart from the lion line. coop gardener
--- fight asks "gardener rows" with the 19 addresses, reads the 13 rows back (the first value that differs stops before
+-- fight asks "gardener rows" with the 20 addresses, reads the 13 rows back (the first value that differs stops before
 -- the spawn), then makes the one spawn call for 50010 (50012 with half, 50011 with skulling) 25 m ahead of EVE (12.5 m
 -- for half) and 7.5 m above her feet, facing her, cheat on, key 0. The body's mesh turns -90 degrees once found (S3),
 -- and again when the game turns it back; it is followed until its death and despawn. intro plays Mon_Gardener_C_Appear
@@ -86,7 +86,7 @@ local s=G.parse(both)
 assert(s.state=='refused' and s.added=='3/13' and s.asks==1 and s.why=='donor' and s.row=='M_GardenerC_SingleShot')
 assert(Enemy.parse(both,'lion').added=='237/237' and G.parse('lion=off\n')==nil and G.parse(nil)==nil)
 
--- The world: EVE at the origin facing +X (her feet 90 cm below her middle), her player controller, the 19 tables with
+-- The world: EVE at the origin facing +X (her feet 90 cm below her middle), her player controller, the 20 tables with
 -- the Gardener's rows, its mesh and appear clip.
 local DIR='/Game/Art/Character/Monster/CH_M_NA_01/'
 local MESH,CLIP=DIR..'CH_M_NA_01.CH_M_NA_01',DIR..'Animation/Mon_Gardener_C_Appear.Mon_Gardener_C_Appear'
@@ -261,7 +261,7 @@ ok,why=gd.command()
 assert(ok==false and why=='coop-status.txt has no gardener line: the native part is off, or older than coop gardener '
     ..'fight (coop-link.log): nothing was asked' and #asked==0,why)
 
--- coop gardener fight rows: one gardener rows request with the 19 addresses, then the wait and the read-back.
+-- coop gardener fight rows: one gardener rows request with the 20 addresses, then the wait and the read-back.
 gardener_status('off')
 at(100)
 ok,why=gd.command('rows')

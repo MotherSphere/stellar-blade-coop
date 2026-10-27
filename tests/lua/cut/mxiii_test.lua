@@ -1,11 +1,12 @@
--- cut/mxiii.lua with fake UE4SS objects and a fake follow. Its 8 rows match native/src/lion/rows.h's kMxiiiRecipe and
+-- cut/mxiii.lua with fake UE4SS objects and a fake follow. Its 13 rows match native/src/lion/rows.h's kMxiiiRecipe and
 -- kMxiiiPatches (names, templates, IDs, each patched field's kind and value, no field more): the camp, then 7
--- env-spawn rows that all name it, the kit's 6 each at the spawn point of its own name. The Paks folder comes from the
+-- env-spawn rows that all name it, the kit's 6 each at the spawn point of its own name, then the 5 shipped trigger
+-- rows patched in place (their own templates), zone 20's touching their waves, zone 40's starting enabled. The Paks folder comes from the
 -- mod folder; the test pak counts only when its .utoc in ~mods or LogicMods names WorldMap_DLC_01, Level_P and
 -- MXIII_P.umap, with its .pak and .ucas beside it; it is v2 when its .ucas names DLC02_10_EnvS, else v1. coop mxiii:
 -- usage; busy; without the follow, with a follow guard failing or without the test pak it asks nothing (the pak looked
--- for once a command, by its file, never by StaticFindObject); with all of them it asks the mxiii rows with the 19
--- addresses, waits for the mxiii line, reads the 8 rows back, then asks the follow's probe for DLC02_10_Camp_01 (a camp
+-- for once a command, by its file, never by StaticFindObject); with all of them it asks the mxiii rows with the 20
+-- addresses, waits for the mxiii line, reads the 13 rows back, then asks the follow's probe for DLC02_10_Camp_01 (a camp
 -- in no table) and names the way out; a native refusal, a row that reads back wrong or a probe the follow refuses ends
 -- it with no travel; rows already in are read back with no ask; coop off ends the wait, and no travel follows.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -48,17 +49,18 @@ do
     f:close()
     local patches={}
     for at,kind,value,text,field in assert(src:match('constexpr Patch kMxiiiPatches%[%] = {\n(.-)\n};'))
-        :gmatch('{(0x%x+), Kind::(%w+), ([%d%.%-]+), ([^}]-)},%s*// (%w+)') do
+        :gmatch('{(0x%x+), Kind::(%w+), ([%d%.%-]+),%s*([^}]-)},%s*// (%w+)') do
         patches[#patches+1]={at=tonumber(at),kind=kind,f=tonumber(value),text=text:match('^"(.*)"$'),field=field}
     end
-    local TABLES={camp='ZoneCampTable',env='ZoneEnvSpawnTable'}
+    local TABLES={camp='ZoneCampTable',env='ZoneEnvSpawnTable',trigger='ZoneTriggerTable'}
     local KINDS={name='n',string='s',names='N'}
     local n=0
     for t,name,donor,id,first,count in assert(src:match('constexpr Row kMxiiiRecipe%[%] = {\n(.-)\n};'))
         :gmatch('{Table::(%a+), "([%w_]+)", "([%w_]+)", (%d+)u?, (%d+), (%d+)}') do
         n=n+1
         local r=assert(M.ROWS[n],'Lua lacks '..name)
-        assert(r.table==TABLES[t] and r.name==name and r.id==tonumber(id) and donor~=name,name)
+        -- Only a shipped trigger row is its own template.
+        assert(r.table==TABLES[t] and r.name==name and r.id==tonumber(id) and (donor==name)==(t=='trigger'),name)
         assert(#r.checks==tonumber(count),name..': '..#r.checks..' checks, '..count..' patches')
         for p=tonumber(first)+1,tonumber(first)+tonumber(count) do
             local pt,found=patches[p],nil
@@ -68,7 +70,7 @@ do
             else assert(KINDS[pt.kind]==found[2] and found[3]==pt.text,name..' '..pt.field) end
         end
     end
-    assert(n==8 and #M.ROWS==8 and #patches==29,n..' rows, '..#patches..' patches')
+    assert(n==13 and #M.ROWS==13 and #patches==34,n..' rows, '..#patches..' patches')
     -- Every env-spawn row names the camp; each kit row spawns at the point of its own name; the vending machine links
     -- the other six.
     assert(M.ROWS[1].name==M.CAMP and M.ROWS[1].table=='ZoneCampTable')
@@ -82,6 +84,15 @@ do
     end
     assert(check(M.ROWS[8],'LinkEnvSpawnList')=='DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|'
         ..'DLC02_10_EnvS_904|DLC02_10_EnvS_905|DLC02_10_EnvS_900')
+    -- The waves: each zone 20 trigger touches the zone events the cut gates ran, after the ones it ships with; the zone
+    -- 40 pair starts enabled. Each check differs from the shipped row, so a read-back that passes proves the patch.
+    local waves={'022|023|024|025','026|027|028','029|030|031|032'}
+    for i,ship in ipairs({'','DLC02_20_E_EnvC_030|','DLC02_20_E_EnvC_031|'}) do
+        local r=M.ROWS[8+i]
+        assert(r.table=='ZoneTriggerTable' and #r.checks==1 and r.checks[1][4]==true,r.name)
+        assert(check(r,'TouchEvents')==ship..('DLC02_20_ZoneE_'..waves[i]:gsub('|','|DLC02_20_ZoneE_')),r.name)
+    end
+    for i=12,13 do assert(check(M.ROWS[i],'InitActivate')==1 and M.ROWS[i].checks[1][4]==true,M.ROWS[i].name) end
 end
 
 -- The Paks folder from the mod folder, under UE4SS's ue4ss folder or not; none outside SB\Binaries\Win64.
@@ -137,7 +148,7 @@ assert(M.find_map(PAKS,read)==MODS)
 where,why=M.find_map(nil,read)
 assert(where==nil and why:find('game folder is unknown',1,true))
 
--- The world: EVE, the 19 tables with Matrix XIII's rows as the native part writes them, the follow.
+-- The world: EVE, the 20 tables with Matrix XIII's rows as the native part writes them, the follow.
 local world=object({GetFullName=function() return 'World /Game/Art/BG/WorldMap/Dungeon_P/Matrix_XI.Matrix_XI' end})
 local eve=object({IsA=is('/Script/SB.SBCharacter')})
 eve.GetWorld=function() return world end
@@ -196,7 +207,7 @@ end
 local function last() return lines[#lines] end
 local function logged(text) for _,l in ipairs(lines) do if l:find(text,1,true) then return l end end end
 local function mxiii_status(t) status_text='mod=v\nslot=coop index=4 marker=4\nlion=off\nmxiii='..t..'\nlast=x\n' end
-local ROWS_IN='rows added=8/8 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
+local ROWS_IN='rows added=13/13 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
 local REQUEST={}
 for _,t in ipairs(Enemy.TABLES) do REQUEST[#REQUEST+1]=string.format('%s=0x%x',t,tables[t]:GetAddress()) end
 REQUEST='mxiii rows '..table.concat(REQUEST,' ')
@@ -224,7 +235,7 @@ ok,why=new(nil).command()
 assert(ok==false and why:find('game folder is unknown',1,true),why)
 assert(#asked==0 and #looked==0 and #probes==0,'Nothing asked, nothing looked up')
 
--- With everything there (a v2 pak): the checks line with its version, the 19 tables, one ask, then the wait.
+-- With everything there (a v2 pak): the checks line with its version, the 20 tables, one ask, then the wait.
 put(LOGIC,nil,UCAS2)
 reads={}
 clock=100
@@ -234,7 +245,7 @@ assert(ok and why=='Matrix XIII rows asked of the native part: the read-back fol
 assert(#reads==4 and logged('checks: solo on a co-op save, the native travel idle, '..LOGIC..' holds '
     ..'WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas; test pak v2 (DLC02_10_EnvS points in its .ucas: '
     ..'the camp kit stands at the spawn points; arrival at the kit, 36624 16140 -2136)'))
-assert(logged('tables: 19/19 found: '..REQUEST:sub(12)),'R1 with every address')
+assert(logged('tables: 20/20 found: '..REQUEST:sub(12)),'R1 with every address')
 for _,p in ipairs(looked) do assert(not p:find('MXIII',1,true),'No StaticFindObject of the map: '..p) end
 ok,why=mx.command(); assert(ok==false and why=='coop mxiii is busy (the wait for the Matrix XIII rows): try again in a '
     ..'few seconds',why)
@@ -249,7 +260,7 @@ assert(ok and why=='coop mxiii: the rows are in and the travel to DLC02_10_Camp_
     tostring(why))
 assert(#probes==1 and probes[1][1]=='DLC02_10_Camp_01' and probes[1][2]==true and #reads==before,
     'The probe for its camp, the pak not looked for again')
-assert(logged('rows read back through FindRow: 8/8 authored rows, 29 fields as written (28 differ from the template '
+assert(logged('rows read back through FindRow: 13/13 authored rows, 34 fields as written (33 differ from the template '
     ..'row)'))
 assert(lines[#lines-1]=='travel to DLC02_10_Camp_01 asked: travel DLC02_10_Camp_01 asked: the result follows in this '
     ..'log and in coop-link.log',lines[#lines-1])
@@ -260,7 +271,7 @@ follow.probe='a travel is under way'
 ok,why=mx.command()
 assert(ok==false and why=='coop mxiii: the rows are in, but no travel: a travel is under way' and #asked==1
     and #probes==2,tostring(why))
-assert(logged("rows already in (8/8; SB's lookups by ID: char 0/0, skills 0/0, stance 0/0): not added again"))
+assert(logged("rows already in (13/13; SB's lookups by ID: char 0/0, skills 0/0, stance 0/0): not added again"))
 follow.probe=nil
 -- An ID read back signed (UE4SS's view of a uint32 above 2^31) still matches; a TargetCamp that differs stops it.
 local env=tables.ZoneEnvSpawnTable.rows.DLC02_10_EnvS_900
@@ -284,6 +295,21 @@ ok,why=mx.command()
 assert(ok==false and why:find('(DLC02_10_EnvS_906 LinkEnvSpawnList reads "dlc02_10_envs_420", not "DLC02_10_EnvS_901|',
     1,true) and #probes==3,tostring(why))
 vending.LinkEnvSpawnList=links
+-- A shipped trigger row that reads as shipped (the patch did not land) stops it: zone 40's still disabled, zone 20's
+-- 001 still with no event.
+local t40=tables.ZoneTriggerTable.rows.DLC02_40_ZTrigger_001
+t40.InitActivate=2
+ok,why=mx.command()
+assert(ok==false and why=='A Matrix XIII row reads back wrong (DLC02_40_ZTrigger_001 InitActivate reads "2", not "1"): '
+    ..'no travel.' and #probes==3,tostring(why))
+t40.InitActivate=1
+local t20=tables.ZoneTriggerTable.rows.DLC02_20_ZTrigger_001
+local touch=t20.TouchEvents
+t20.TouchEvents={}
+ok,why=mx.command()
+assert(ok==false and why:find('(DLC02_20_ZTrigger_001 TouchEvents reads "", not "DLC02_20_ZoneE_022|',1,true)
+    and #probes==3,tostring(why))
+t20.TouchEvents=touch
 -- A v1 pak: the checks line says so; the rows and the travel are the same.
 put(LOGIC)
 ok,why=mx.command(); assert(ok and #probes==4,tostring(why))
@@ -295,7 +321,7 @@ mx=new(PAKS)
 mxiii_status('off')
 clock=200
 assert(mx.command() and #asked==2)
-mxiii_status('refused added=1/8 asks=1 spawns=? why=size table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900 detail=0x500')
+mxiii_status('refused added=1/13 asks=1 spawns=? why=size table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900 detail=0x500')
 clock=200.25
 ok,why=mx.tick()
 assert(ok==false and why:find('^The native part refused the Matrix XIII rows %(why=size, table=ZoneEnvSpawnTable, '

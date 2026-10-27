@@ -75,7 +75,7 @@
 //
 // The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's and the Night Operation shop's
 // (lion/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii and the
-// shop): the worker hands over the 19 tables' addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows,
+// shop): the worker hands over the 20 tables' addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows,
 // mxiii rows or shop rows request; the game thread adds that batch's rows through SB's own AddRow once the gate holds
 // (net mode 0, no logic task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and,
 // once asked, reads the spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril,
