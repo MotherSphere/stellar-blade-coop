@@ -171,7 +171,8 @@ or Ctrl+R) and builds the ghost again; `coop-settings.txt` does not change. `coo
 
 ## Saves and Steam Cloud
 
-The mod never writes your own saves. It reads them only to make separate co-op copies (see "Co-op saves" below and
+The mod reads your own saves to make separate co-op copies, and writes one of them only when you export a co-op save
+over it, after a backup of that save (see "Co-op saves" below and
 [docs/saves.md](docs/saves.md#what-the-mod-reads-and-writes)). Back up the saves anyway before you play with any mod:
 
 1. Close the game.
@@ -187,7 +188,8 @@ cloud. Then restore your backup.
 
 `coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter` and `coop gift` run only on a co-op save, a
 copy of your save, and never on your own saves (`coop nightop stop` and `coop challenge stop` work on any save). The
-ghost, the keys and the Steam link work on any save. Nothing is copied back to your own saves. Items bought in Night
+ghost, the keys and the Steam link work on any save. Nothing is copied back to your own saves unless you export a
+co-op save (below). Items bought in Night
 Operation's shop (`coop nightop buy`) and gifts (`coop gift`) go into or leave the co-op save you play, never your own
 saves.
 
@@ -234,8 +236,15 @@ More about the copies:
 - While the game uses the copies, `CO-OP SAVES` shows at the top right of the title screen, and the question does
   not show.
 - Steam Cloud syncs the copies like your own saves, so they take up to the same space again.
-- To keep a co-op character without the mod: close the game, back up the save folder, then copy
-  `StellarBladeCoop0N.sav` to a free `StellarBladeSave0M.sav` name in the same folder. The game loads it like any save.
+- To keep a co-op character without the mod, type `coop saves export N M` twice within 10 s at the title (N is the
+  co-op slot, M the slot of yours it goes to, both 0 to 4). The mod backs up `StellarBladeSave0M.sav` into
+  `StellarCoopBackups`, then writes `StellarBladeCoop0N.sav` over it, unchanged. It refuses a co-op save that still
+  holds the mod's items (Burst Stimpack, Beta Stimpack, Shock Bolt, Beta Seed) or stands in the cut Matrix XIII
+  dungeon, and `coop-link.log` says what to use up, sell or leave first. Quit the game afterwards: until it restarts,
+  the title's slot list shows the slot's old details. See [docs/saves.md](docs/saves.md#co-op-saves).
+- By hand: close the game, back up the save folder, then copy `StellarBladeCoop0N.sav` to a free
+  `StellarBladeSave0M.sav` name in the same folder. The game loads it like any save, but nothing checks it for the
+  mod's items first.
 
 ### Manual co-op slot (auto_coop_save=off)
 

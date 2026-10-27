@@ -520,6 +520,12 @@ question and the automatic copies off. Options > Saves > Co-op saves changes it 
 the feed (see [Notices](#notices)). While the game uses the co-op copies, the title screen shows `CO-OP SAVES` at the
 top right, whatever `auto_coop_save` says, and the question does not show.
 
+To go on with a co-op character alone, without the mod, type `coop saves export N M` twice within 10 s at the title: it
+backs up your `StellarBladeSave0M.sav`, then writes the co-op copy `StellarBladeCoop0N.sav` over it, unchanged. It
+refuses a co-op copy that still holds the mod's items (the two cut stimpacks, the Shock Bolt, Beta Seeds) or stands in
+the cut Matrix XIII dungeon, and `coop-link.log` says what to use up, sell or leave first. The rules are in
+[saves.md](saves.md#co-op-saves). The export has not been tested in game yet.
+
 ## Synced photo mode
 
 When one of you enters the game's photo mode (P), the other's game pauses about half a second later and stays paused
@@ -862,6 +868,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
 | `coop saves refresh <0-4>` | At the title, while the game uses your own saves: replace that slot's co-op copy, even one played in co-op, with a new copy of your save. Type it twice within 10 s; the old copy goes to `StellarCoopBackups` first |
+| `coop saves export <0-4> <0-4>` | At the title, while the game uses your own saves or the co-op copies: write that co-op copy over that save of yours, to play it without the mod (untested in game). Type it twice within 10 s; your save goes to `StellarCoopBackups` first, and a co-op copy that holds the mod's items or stands in Matrix XIII is refused ([saves.md](saves.md#co-op-saves)) |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands
