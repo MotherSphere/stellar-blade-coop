@@ -14,7 +14,8 @@
 -- respawns at, else the first travel camp the read lists as activated. coop mxiii 30: on v1 or v2 nothing asked; on v3
 -- the same rows, then the probe for DLC02_30_Camp_01; leave from there still takes the camp of before coop mxiii. The
 -- title's batch: the same rows with no EVE, only at the title on the co-op save files with the test pak, once a game
--- run, asked again after a shut gate (at most 4 times a visit of the title), never after another refusal.
+-- run, asked again after a shut gate (at most 4 times a visit of the title) or a coop off during the wait, never after
+-- another refusal; its end says whether the title closed during the wait.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -493,19 +494,20 @@ mx.title(true,true); mx.title(true,true)
 ok,why=mx.command()
 assert(title_asks()==1 and ok==false and why=='coop mxiii is busy (the wait for the Matrix XIII rows): try again in a '
     ..'few seconds','One ask: the wait holds the rows flow')
--- A save loaded during the wait (the title pawn an SBCharacter on the Lobby map, then EVE on another): rows only, no
--- map to keep, so the wait goes on.
+-- A save loaded during the wait (the title pawn an SBCharacter on the Lobby map, then EVE on another, and main.lua's
+-- next call off the title): rows only, no map to keep, so the wait goes on, and its end says the title closed first.
 mxiii_status('waiting added=0/15 asks=0 spawns=? why=net ticks=40')
 clock=1000.25
 assert(mx.tick()==nil)
 player=eve
+mx.title(false,true)
 clock=1000.5
 assert(mx.tick()==nil and not logged('map changed'),'No map check')
 mxiii_status(ROWS_IN:format(1))
 clock=1000.75
 ok,why=mx.tick()
-assert(ok==nil and why==nil and last()=='title: the rows are in, before any save loads' and #probes==probed,
-    'Read back, no travel, nothing for main.lua to report: '..tostring(why))
+assert(ok==nil and why==nil and last()=='title: the rows are in, after the title closed: a save may have loaded '
+    ..'before them' and #probes==probed,'Read back, no travel, nothing for main.lua to report: '..tostring(why))
 assert(lines[#lines-1]=='rows read back through FindRow: 15/15 authored rows, 38 fields as written (36 differ from the '
     ..'template row)',lines[#lines-1])
 said=#lines
@@ -579,7 +581,19 @@ tables.ZoneCampTable=zones
 clock=clock+10
 mx.title(true,true); asks=asks+1
 assert(title_asks()==asks,'Asked once the tables are there')
+-- coop off during the wait ends it with no end said: the next call at the title asks again, and an answer while the
+-- title still shows says the rows beat any save.
 mx.stop()
+assert(last()=='coop off: the wait for the Matrix XIII rows ended',last())
+mark=#lines
+mx.title(true,true); asks=asks+1
+assert(title_asks()==asks and lines[mark+1]=='title: the co-op save files and test pak v3: the rows asked before any '
+    ..'save loads (try 3 of 4)',lines[mark+1])
+mxiii_status(ROWS_IN:format(asks))
+clock=clock+0.25
+assert(mx.tick()==nil and last()=='title: the rows are in, before any save loads',last())
+mx.title(false,true); mx.title(true,true)
+assert(title_asks()==asks,'In: never asked again')
 player=eve
 
 -- The source: no StaticFindObject or LoadAsset of its own, and no row or save call.

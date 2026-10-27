@@ -2228,7 +2228,9 @@ shared fault latch and the read-back, and no travel after. Once the `mxiii=` lin
 in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its 300
 frames (`busy`, `net` or `unread`), no answer, or an end before the request (a table not loaded) is asked again 10 s
 later while the title shows, at most four times a visit of the title. Any other refusal leaves the rows to
-`coop mxiii`.
+`coop mxiii`. `coop off` drops the wait without an end, and the next call at the title asks again. The end's line says
+`before any save loads` only when the last call, at most 250 ms earlier, still saw the title with no save loaded;
+otherwise it says the title closed and that a save may have loaded first.
 
 What the title holds, read in Ghidra on build 24463856:
 

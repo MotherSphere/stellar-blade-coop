@@ -1685,12 +1685,14 @@ in for them. `coop mxiii 30` goes around that climb.
 - What else you find there depends on the test pak. The dungeon's first zone spawns its enemies as you enter it (14
   Antlions and a data drone in the game's spawn table). The second zone's waves and the fourth zone's chains come
   from the triggers above.
-- `coop off` ends the wait for the rows. A travel the game already took goes on.
+- `coop off` ends the wait for the rows. A travel the game already took goes on. At the title, the mod asks for the
+  rows again after `coop on`.
 
 | Line | What it answers |
 | --- | --- |
 | `[StellarCoop][MX] title: the co-op save files and test pak v<n>: the rows asked before any save loads (try <k> of 4)` | At the title, the rows asked of the native part |
 | `[StellarCoop][MX] title: the rows are in, before any save loads` | They went in at the title and read back as written |
+| `[StellarCoop][MX] title: the rows are in, after the title closed: a save may have loaded before them` | They went in and read back, but a save was loading by then; if the travel then gets `SB refused`, see step 4 |
 | `[StellarCoop][MX] title: <why> (asked again in 10 s if the title still shows)` or `... (no more tries this visit of the title: coop mxiii adds them)` | The native part kept its gate shut, gave no answer yet, or a table was not loaded |
 | `[StellarCoop][MX] title: the rows are in already (mxiii=rows ...)` | The rows were in before, from the title or a `coop mxiii` earlier in the game run |
 | `[StellarCoop][MX] checks: solo on a co-op save, the native travel idle, <path> holds WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas; test pak v1 (...)`, `...; test pak v2 (...)` or `...; test pak v3 (...)` | The checks passed, the test pak holds the map, and which build it is, with where EVE arrives |

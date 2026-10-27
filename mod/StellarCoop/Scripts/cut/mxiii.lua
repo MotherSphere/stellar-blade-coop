@@ -230,9 +230,11 @@ function Mxiii.new(o)
     -- game on the co-op save files, saves=coop; never your own saves). Once a game run: the mxiii line already reading
     -- rows (a Lua reload, a coop mxiii before a return to the title) ends it, and so do no test pak (looked for once a
     -- Lua load), a fault, or an answer that is no shut gate. The rows flow is coop mxiii's (the tables, the native
-    -- part's gate and latch, the read-back), with no EVE and no map to keep, and no travel after.
-    local early,pak,tries,again=nil,nil,0,0 -- early: 'asked', then 'in' or 'off'; nil: free to ask.
+    -- part's gate and latch, the read-back), with no EVE and no map to keep, and no travel after. The end says whether
+    -- the title still showed at the last call (shown), at most 250 ms before it; a save loads for longer than that.
+    local early,pak,tries,again,shown=nil,nil,0,0,false -- early: 'asked', then 'in' or 'off'; nil: free to ask.
     function self.title(at_title,coop)
+        shown=at_title==true
         if not (at_title and coop) then tries=0 return end
         if early or tries>=TRIES or os.clock()<again or e.busy() then return end
         local s=Enemy.parse(o.status and o.status(),'mxiii')
@@ -258,11 +260,17 @@ function Mxiii.new(o)
             early,again=ok and 'in' or not again_later and 'off' or nil,os.clock()+RETRY
             local next_try=tries<TRIES and ' (asked again in '..RETRY..' s if the title still shows)'
                 or ' (no more tries this visit of the title: coop mxiii adds them)'
-            log('title: '..(ok and 'the rows are in, before any save loads' or tostring(message))
+            log('title: '..(not ok and tostring(message) or shown and 'the rows are in, before any save loads'
+                or 'the rows are in, after the title closed: a save may have loaded before them')
                 ..(again_later and next_try or ''))
         end,nil,true)
     end
-    self.tick,self.stop=e.tick,e.stop
+    self.tick=e.tick
+    -- coop off ends the wait without its end, so a title batch asked is free to ask again at the next call.
+    function self.stop()
+        if early=='asked' then early=nil end
+        return e.stop()
+    end
     return self
 end
 return Mxiii
