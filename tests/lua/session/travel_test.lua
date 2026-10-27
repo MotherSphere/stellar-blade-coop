@@ -10,8 +10,8 @@
 -- with follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place the travel
 -- brought her to, and his next move offered again after it. The guards, each refusing on its own (silent, busy or
 -- failed), again right before the call; the stuck warp; and coop travel probe: solo, on a co-op save only, any of the
--- 120 camps, and for coop mxiii its guards alone (ready: also the native warp, the 10 s after a travel SB took and the
--- travel's fault) and a camp in no table.
+-- 120 camps, only an activated one, and for coop mxiii its guards alone (ready: also the native warp, the 10 s after a
+-- travel SB took and the travel's fault) and a camp in no table, without the activation read.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local W -- The world of one case.
@@ -486,10 +486,20 @@ run(t,0.25)
 assert(#W.said==2 and W.said[2]==W_.offer:format('Kaanta','b07','F7'))
 
 -- coop travel probe: solo only, on a co-op save only (slot 04 of her own saves is refused: StellarCoopSlot.txt makes it
--- one), one of the 120 camps, a name this game knows; it skips the activation read and the host's answer: the camp is
--- asked of the native part as it is, also with no read of the activated camps. Its result is logged.
+-- one), one of the 120 camps that her save has activated, as the follow takes them, and a name this game knows; it
+-- skips the host's answer: the camp is asked of the native part as it is. Its result is logged. Without a read of the
+-- activated camps (main.lua passes none yet) every camp is refused: a travel that activated one would count toward the
+-- camp achievements.
 t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}; w.activated=nil end)
 local ok,why=t.probe('DED10_Camp_07')
+assert(not ok and why=='no read of the camps this save has activated' and #W.requests==0,tostring(why))
+t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55}
+    w.activated=function(alias) return alias~='DED10_Camp_07' end end)
+ok,why=t.probe('DED10_Camp_07')
+assert(not ok and why=='DED10_Camp_07 is not activated in this save' and #W.requests==0,tostring(why))
+assert(#W.fnames==0,'An unactivated camp never reaches FName')
+t=world(function(w) w.mode='none'; w.linked=false; w.names={DED10_Camp_07=55} end)
+ok,why=t.probe('DED10_Camp_07')
 assert(ok and last(W.requests)=='travel DED10_Camp_07 55 0',why)
 W.travel,W.calls='pending',1
 run(t,0.25)
@@ -509,8 +519,9 @@ for _,alias in ipairs({'SysTest_Camp_01','ATL_Camp_01_05_SV','SE02_Camp_02','x'}
     assert(not ok and why:find('120 travel camps',1,true) and #W.requests==0,alias)
 end
 -- coop mxiii's use (cut/mxiii.lua): ready says whether a probe would pass its guards now, asking nothing; probe with
--- any takes a camp in no table (the name must still be one this game knows), under the same guards.
-t=world(function(w) w.mode='none'; w.linked=false; w.names={DLC02_10_Camp_01=77} end)
+-- any takes a camp in no table (the name must still be one this game knows), under the same guards but the activation
+-- read: no AchievementTable row names its env-spawn row.
+t=world(function(w) w.mode='none'; w.linked=false; w.names={DLC02_10_Camp_01=77}; w.activated=nil end)
 ok,why=t.ready()
 assert(ok==true and why==nil and #W.requests==0 and #W.fnames==0,tostring(why))
 ok,why=t.probe('DLC02_10_Camp_01')
