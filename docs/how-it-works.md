@@ -1874,9 +1874,12 @@ into, so a refusal in one leaves the other alone. This is a local request: the l
 
 No batch has a latch of its own, because no part of a batch's call stays clear of what the other batches use. The gate
 reads the game's globals. Every row is built in the one block through the game's FName table, CopyScriptStruct and
-allocator. AddRow writes tables that several batches write: ItemTable for the lion, bolt and shop rows, and SkillTable,
-CharacterStanceTable and CharacterTable for the Lion's, the Gardener's and the Tendril's. The read-back runs the game's
-lookups over those same tables. Matrix XIII's two zone tables are its own, but its rows go through the same block and
+allocator. AddRow writes tables that several batches write. From the recipes in `native/src/lion/rows.h`: ItemTable
+gets lion, bolt and shop rows; SkillTable gets lion, gardener, tendril and bolt rows; SkillResultTable gets lion,
+tendril and bolt rows; CharacterTable, CharacterStanceTable, SkillCommandTable and SkillActiveStepTable get rows from
+all three Naytibas; five more tables get lion and tendril rows. The read-back runs the game's lookups over those same
+tables. Only ProjectileTable (bolt), EffectTable and ItemConsumableTable (lion), ShopTable and ShopItemTable (shop) and
+Matrix XIII's two zone tables have a single batch writing them, and those rows still go through the same block and
 calls. A fault anywhere in that call may leave shared state half written, so it stops every batch. The status lines
 are built by the worker from what the game thread published and make no engine call. The Shock Bolt's list growth
 writes nothing a batch writes, and keeps its own latch ([The cut Shock Bolt](#the-cut-shock-bolt)).
