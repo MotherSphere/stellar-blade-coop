@@ -131,7 +131,7 @@ function Shop.new(o)
         if not text and (code or 2)==2 then text,e,code=store(name..'.tmp').load() end
         if not text and (code or 2)~=2 then return nil,'wallet not read: '..tostring(e) end
         local points=math.tointeger(tonumber((text or ''):match('^%d+$') or '0')) or 0
-        return {name=name,points=points,save=function(n) return file.save(tostring(n)) end}
+        return {name=name,index=index,points=points,save=function(n) return file.save(tostring(n)) end}
     end
     local self={}
     -- A run's final score as points for this wallet: got and the new total, or nil and why. def: the run's level
@@ -300,6 +300,13 @@ function Shop.new(o)
             ui.bolt=ui.got.bolt.ok and (shock or ''):find('^in ')~=nil
             log('shop: rows in (Shock Bolt '..(ui.bolt and 'in' or 'not sold: shock='..tostring(shock))..')')
             ui.phase,ui.at='fill',now
+        end
+        -- Still the wallet's co-op save: a save loaded meanwhile, or a load that reads none for now, gets no seeds, no
+        -- open and no removal (seeds already added stay in the co-op save's bucket: the next screen takes them).
+        if ui.phase~='open' and ('\n'..tostring(status() or '')):match('\nslot=coop index=(%d+)')~=ui.w.index then
+            return finish(false,'the co-op save of '..ui.w.name..' is no longer the one loaded: '
+                ..(ui.phase=='fill' and 'no Beta Seeds added'
+                    or 'the Beta Seeds added stay in its inventory for the next coop nightop shop'))
         end
         if not s then return finish(false,'coop-status.txt has no nightshop line') end
         if ui.phase=='fill' then

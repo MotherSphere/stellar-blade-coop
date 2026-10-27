@@ -2148,8 +2148,11 @@ the bucket as Beta Seeds, minus any seeds already there (or takes the surplus ou
 `Money_NightOperation` only, and asks for the open once the count matches. While the screen is open, each new count is
 written to the wallet. After the close, the wallet keeps the last count and the seeds leave the bucket, through the
 controller and GUID read again then (after a map change the controller read at the open may be another object; Lua
-also stops before the fill when EVE's map changed during the rows). A save made while seeds are in the bucket holds
-them: from the fill to the removal, or after a removal that failed, which the next `coop nightop shop` corrects. A game
+also stops before the fill when EVE's map changed during the rows). Until the open, each step first checks that the
+status still reads the wallet's co-op save (`slot=coop` with its index): on another save, or during a load, Lua stops
+with no seeds added, no open and no removal, since the bucket may then be another save's. A save made while seeds are
+in the bucket holds them: from the fill to the removal, or after a removal that failed, which the next
+`coop nightop shop` corrects. A game
 restarted from that save loads them before the shop's rows are in. A save restore does not change the points, as
 before. The run's start refuses while the screen runs, and so does a guest's answer to the host's run, so no credit
 lands while seeds are out. When a step fails, Lua asks for the close only once the game opened the screen for it,
