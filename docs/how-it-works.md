@@ -2944,6 +2944,18 @@ claim the host accepts):
   AchievementTable), and none of them names `DLC02_10_EnvS_900` or `DLC02_30_EnvS_900`, the mod's rows for those camps.
   A revive changes only the downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills
   too. The cutscene wait is a pause, and the solid partner changes no game state.
+- Matrix XIII's rows go in at the title whenever the test pak is installed and the game uses the co-op save files
+  ([At the title](#at-the-title)), so they stand in memory under co-op saves that never use `coop mxiii`. They can
+  neither unlock nor block a camp trophy. `Trophy_Activate_AllCamp` (trophy 26, `Activate_AllCamp`) completes at a
+  fixed count, 89 in both AchievementTable and TrophyTable, and only its 89 `ChangeState_ZoneEnv_*_Camp` rows raise it,
+  each on one named shipped ZoneEnvSpawnTable row turning On (`DED10_EnvS_113` and the others).
+  `Trophy_Activate_FirstCamp` takes `DED10_EnvS_100` alone. No count of ZoneCampTable or ZoneEnvSpawnTable rows goes
+  into either: the game's code names `Trophy_Activate_AllCamp` once, in `FSBActorProgressAchievement::Execute`
+  (`FUN_141b1b280`), to call `FUN_141ce5c30` after that row has progressed. None of the 2747 AchievementTable rows
+  names a `DLC02` row, zone or world, `MXIII` or `DLCMatrix13`. The only rows that match a camp object by its class
+  are the skill machine's guide rows (`Ach_Guide_InteractEnvAlias_SkillMachine`, `Ach_Guide_TrainingRoom`), which open
+  a guide and the skill manual page and lead to no trophy, as any camp's skill machine does. A row that is only
+  present raises no event: the kit's objects exist only inside the dungeon.
 - A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
 - A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is

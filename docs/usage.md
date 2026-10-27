@@ -1673,7 +1673,9 @@ in for them. `coop mxiii 30` goes around that climb.
 - At the title the rows go in once per game run. The native part adds rows only on a frame with no game logic
   running and the game offline, and gives up after 300 frames. If it gave up, the mod asks again 10 s later, at most
   four times each time the title shows; after that `coop mxiii` adds them as above. They then stay for the game run,
-  even if you switch back to your own saves: nothing in the main game leads to the dungeon or its camps.
+  even if you switch back to your own saves: nothing in the main game leads to the dungeon or its camps. The two camp
+  trophies count only named camps of the main game, so these rows can neither unlock nor block them
+  ([How it works](how-it-works.md#achievements)).
 - The rows go in through the same native calls as `coop lion` and the shop's cut items. A fault in those calls during
   `coop mxiii` or at the title stops them all until the game restarts: `coop lion`, `coop gardener fight`,
   `coop tendril fight`, and the shop's stimpacks, ChainSpin and Shock Bolt that are not in yet then answer that the
