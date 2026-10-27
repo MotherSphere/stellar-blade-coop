@@ -4,11 +4,11 @@
 // played copies never replaced, a missing or bad manifest keeping everything, a torn read retried once, a failed write,
 // rename or read-back leaving no half copy, a pass stopped half way keeping its copies untouched, and the requests'
 // refusals (off the title included, before and during a pass), the switch at the end of a pass, its withdrawal and its
-// release, against a fake game; coop shortcut load's plant of a built save as one co-op copy; and the shared quests'
-// record beside each co-op slot, written whole through the same name check. The player's own saves are compared byte
-// for byte, with their write times, after every pass but an export's, which changes its one target after a backup, and
-// only for a copy that holds none of the mod's items or places (the scan, on save bodies laid out as a released-game
-// save lays out its fields).
+// release, against a fake game; coop shortcut load's plant of a built save as one co-op copy, with the mark beside it
+// that keeps the export away; and the shared quests' record beside each co-op slot, written whole through the same
+// name check. The player's own saves are compared byte for byte, with their write times, after every pass but an
+// export's, which changes its one target after a backup, and only for a copy that holds none of the mod's items or
+// places and is no developer save (the scans, on save bodies laid out as a released-game save lays out its fields).
 #include "save/twins.h"
 
 #include "lion/shock.h" // kShippedBullets, for the ammo count's check
@@ -157,7 +157,8 @@ std::map<std::string, std::pair<std::string, fs::file_time_type>> own(const fs::
   std::map<std::string, std::pair<std::string, fs::file_time_type>> files;
   for (const auto &entry : fs::directory_iterator(dir)) {
     const std::string name = entry.path().filename().string();
-    if (entry.is_regular_file() && name.rfind("StellarBladeCoop", 0) && name.rfind("StellarCoopSaves", 0))
+    if (entry.is_regular_file() && name.rfind("StellarBladeCoop", 0) && name.rfind("StellarCoopSaves", 0) &&
+        name.rfind("StellarCoopShortcut", 0))
       files[name] = {slurp(entry.path()), entry.last_write_time()};
   }
   return files;
@@ -256,12 +257,16 @@ int main() {
   gvas[8] = 'X';
   assert(!game_save(gvas));
 
-  // The one name check: only the co-op copies, their temporary files, the manifest and the shared quests' records;
-  // never the player's saves, the settings, a sixth slot, another case, another folder or another account.
+  // The one name check: only the co-op copies, their temporary files, the manifest, the plants' marks and the shared
+  // quests' records; never the player's saves, the settings, a sixth slot, another case, another folder or another
+  // account.
   for (int n = 0; n < kSlots; ++n)
     assert(writable(twin_name(n)) && writable(twin_name(n) + ".coop-tmp") && writable(quests_name(n)) &&
-           writable(quests_name(n) + ".coop-tmp"));
+           writable(quests_name(n) + ".coop-tmp") && writable(shortcut_name(n)) &&
+           writable(shortcut_name(n) + ".coop-tmp"));
   assert(quests_name(0) == "StellarCoopQuests00.txt" && quests_name(4) == "StellarCoopQuests04.txt");
+  assert(shortcut_name(4) == "StellarCoopShortcut04.txt" && !writable("StellarCoopShortcut05.txt") &&
+         !writable("stellarcoopshortcut04.txt"));
   assert(writable("StellarCoopSaves.txt") && writable("StellarCoopSaves.txt.coop-tmp"));
   for (const char *name :
        {"StellarBladeSave00.sav", "StellarBladeSave04.sav", "StellarBladeSetting.sav", "StellarBladeCoop05.sav",
@@ -378,6 +383,21 @@ int main() {
          mod_only(long_kept).find("snapshot") == std::string::npos);
   // The ammo count matches the list lion/shock.h checks before it appends the Shock Bolt.
   static_assert(sizeof(coop::lion::kShippedBullets) / sizeof(coop::lion::kShippedBullets[0]) == kShippedBullets);
+
+  // A developer save coop shortcut load wrote: a stored CRC-32 of one of the cleaned files (shortcut_load_test checks
+  // the list against them), or one of their cut items anywhere, ItemOtaineSet included. BS_Attacker, which the released
+  // game writes itself, and the mod's Buff_HP2MP do not count; neither does a name that only starts with a cut one's.
+  assert(developer(clean_body()).empty() && developer("").empty() && developer(save(clean_body())).empty());
+  for (uint32_t crc : kPlantedCrcs)
+    assert(developer("body" + std::string(reinterpret_cast<const char *>(&crc), 4)) ==
+           "it is a developer save that coop shortcut load wrote");
+  for (const char *item : kDeveloperItems)
+    assert(developer(save(clean_body() + names_field("ItemOtaineSet", "SetProperty", {"HP_Potion", item}))) ==
+           std::string("it holds ") + item +
+               ", an item of the developer saves coop shortcut load writes, which the released game does not have");
+  assert(developer(save(clean_body() + name_field("ItemAlias", "BS_Attacker") + name_field("ItemAlias", "Buff_HP2MP") +
+                        fstring("BS_Defender_Old")))
+             .empty());
 
   // The manifest: its own output reads back; comments, blank lines and CRLF are allowed; anything else makes it bad.
   Lines lines{};
@@ -968,6 +988,17 @@ int main() {
   assert(logged(said, "; the cut Matrix XIII dungeon as its map: rest at a full camp (one with a phone booth) outside "
                       "the dungeon; then save and export it again"));
   assert(x.ops.empty() && backups(x) == 2 && others("") == before);
+  // A copy that comes from a developer save coop shortcut load wrote, with no mark beside it (removed by hand): one of
+  // the cut items refuses it before any write too.
+  spill(x.dir / twin_name(0), save("zero" + clean_body() +
+                                   names_field("ItemOtaineSet", "SetProperty", {"DesignPattern_Blue_Suit"})));
+  before = others("");
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  passes(xs, x, xg);
+  assert(xs.status() == "convert=error:StellarBladeCoop00.sav was not exported: it holds DesignPattern_Blue_Suit, an "
+                        "item of the developer saves coop shortcut load writes, which the released game does not "
+                        "have, and the developer's progress and cut items would land in your own save");
+  assert(x.ops.empty() && backups(x) == 2 && others("") == before);
   // A copy that fails the game's own check: refused before any write.
   std::string torn = coop_save;
   torn[20] ^= 1;
@@ -1062,16 +1093,46 @@ int main() {
     assert(logged(said, "slot 4's co-op copy is now shortcut F02 1 (") &&
            logged(said, "shortcut save ready in co-op slot 5: choose Load Game at the title, then that slot"));
     assert(p.ops[0] == "backup " + twin_name(4));
+    // Its mark, written before the copy, names what it holds.
+    const auto at = [&p](const std::string &op) { return std::find(p.ops.begin(), p.ops.end(), op) - p.ops.begin(); };
+    assert(at("rename " + shortcut_name(4) + kTemp + " " + shortcut_name(4)) < at("write " + twin_name(4) + kTemp) &&
+           at("write " + twin_name(4) + kTemp) < std::ptrdiff_t(p.ops.size()));
+    assert(slurp(p.dir / shortcut_name(4)) == "shortcut F02 1\n");
     Lines pl{};
     assert(parse(slurp(p.dir / "StellarCoopSaves.txt"), pl) && pl[0].present && !pl[4].present);
     assert(plan(p).act[0] == Act::none && plan(p).act[4] == Act::keep); // Kept: never replaced by a pass.
+    // saves export refuses that copy at its start, before any write, even once played (its bytes then hold nothing of
+    // the plant's), with the game on either saves.
+    spill(p.dir / twin_name(4), save("the shortcut save, played"));
+    p.ops.clear();
+    const std::string marked = "co-op saves: export stopped: StellarBladeCoop04.sav was not exported: "
+                               "StellarCoopShortcut04.txt marks it as a developer save that coop shortcut load wrote, "
+                               "and the developer's progress and cut items would land in your own save; coop saves "
+                               "refresh 4 puts a copy of your own save back in that co-op slot";
+    assert(ps.ask(SavesAsk::export_, &p, pg, 4, 0) == marked);
+    pg.name = Saves::main;
+    assert(ps.ask(SavesAsk::export_, &p, pg, 4, 1) == marked);
+    pg.name = Saves::coop;
+    assert(p.ops.empty() && own(p.dir) == kept && backups(p) == 2);
+    spill(p.dir / twin_name(4), built);
     // A slot with no copy and no save of the player's takes one too, with no backup of it.
     p.ops.clear();
     assert(ps.plant(&p, pg, 2, built, "shortcut B07 1") ==
            "co-op saves: writing shortcut B07 1 as slot 2's co-op copy");
     said = passes(ps, p, pg);
     assert(ps.status() == "convert=done" && slurp(p.dir / twin_name(2)) == built &&
-           p.ops[0] == "write " + twin_name(2) + kTemp);
+           p.ops[0] == "write " + shortcut_name(2) + kTemp && p.ops[2] == "write " + twin_name(2) + kTemp);
+    // A copy that cannot be written leaves no mark the slot did not have; one an earlier plant left stays.
+    p.fail_write = twin_name(3) + kTemp;
+    ps.plant(&p, pg, 3, built, "shortcut B07 1");
+    passes(ps, p, pg);
+    assert(ps.status() == "convert=error:slot 3's copy could not be written");
+    assert(!fs::exists(p.dir / twin_name(3)) && !fs::exists(p.dir / shortcut_name(3)));
+    p.fail_write = twin_name(4) + kTemp;
+    ps.plant(&p, pg, 4, built, "shortcut F02 1");
+    passes(ps, p, pg);
+    p.fail_write.clear();
+    assert(slurp(p.dir / twin_name(4)) == built && fs::exists(p.dir / shortcut_name(4)));
     // Bytes that fail the game's check: nothing written, the old copy kept.
     std::string bad = built;
     bad[10] ^= 1;
@@ -1088,6 +1149,14 @@ int main() {
     assert(slurp(p.dir / twin_name(4)) == save("played after the plant") &&
            !fs::exists(p.dir / (twin_name(4) + kTemp)));
     assert(own(p.dir) == kept);
+    // saves refresh 4, a copy of the player's own save in that slot, removes the mark; the export then takes the slot.
+    ps.ask(SavesAsk::refresh, &p, pg, 4);
+    passes(ps, p, pg);
+    assert(ps.status() == "convert=done" && slurp(p.dir / twin_name(4)) == save("own 4"));
+    assert(!fs::exists(p.dir / shortcut_name(4)));
+    ps.ask(SavesAsk::export_, &p, pg, 4, 0);
+    passes(ps, p, pg);
+    assert(ps.status() == "convert=done" && slurp(p.dir / main_name(0)) == save("own 4"));
   }
 
   // The probe's dry run: the plan for each slot, nothing written.

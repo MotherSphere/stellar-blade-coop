@@ -3,8 +3,8 @@
 // included), a gear named anywhere else refused, the EVAS wrap and its CRC, the pin, cut bytes refused. Then the
 // offline proof on the 15 developer saves themselves when this machine has them (the research copies, read only;
 // skipped elsewhere): each cleaned, checked as the game's format, the file without SBAchievement byte for byte, with no
-// achievement name and no gear left, and every item missing from the released ItemTable (its dump, when present) one of
-// the seven known ones.
+// achievement name and no gear left, every item missing from the released ItemTable (its dump, when present) one of
+// the seven known ones, and its CRC-32 one saves export refuses.
 #include "save/shortcut_load.h"
 
 #include <cassert>
@@ -171,6 +171,9 @@ int main() {
          save.empty());
   // clean(): the pin. Built bytes are no file of the paks.
   assert(sc::clean(before, save, done) == "it is not one of the 15 files checked for this build" && save.empty());
+  // One cleaned save's CRC-32 in save/twins.h for each pinned file, so saves export knows every one (checked against
+  // the files below).
+  static_assert(sizeof(coop::twins::kPlantedCrcs) == sizeof(sc::kPinned));
 
   // The 15 files, when this machine holds the research copies (EveExtract's raw copies of the paks' files, and its
   // JSON of ItemTable).
@@ -228,6 +231,8 @@ int main() {
       if (t.name == "SBAchievement")
         kept.erase(t.start, t.end - t.start);
     assert(save == sc::wrap(kept));
+    // saves export knows it by its stored CRC-32 (save/twins.h's kPlantedCrcs).
+    assert(coop::twins::developer(save) == "it is a developer save that coop shortcut load wrote");
     std::printf("  %s\n", sc::cleaned_line(file, done, save.size()).c_str());
   }
   assert(files == 0 || files == 15);

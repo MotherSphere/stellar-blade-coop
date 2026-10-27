@@ -128,7 +128,8 @@ build/host/pose_codec_test
     switch and the read-only probe, against fake memory;
   - `save_twins_test`: the co-op save copies on a temporary folder: the game's save check, the name check on every
     write, the manifest, the backup before the first copy, torn reads and failed writes, the requests and the
-    switch against a fake game, and the plant of a built save as one co-op copy;
+    switch against a fake game, the plant of a built save as one co-op copy with its mark, and the export's refusal
+    of a planted copy;
   - `save_shortcut_test`: `coop shortcut`'s paths and its read of built GVAS bytes (the engine branch, `MapName`,
     `CampAlias` and `DateTime` within their maps, an EVAS header stripped, short and bad bytes), its copies, lines and
     summary;
