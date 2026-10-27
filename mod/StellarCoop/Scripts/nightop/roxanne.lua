@@ -14,9 +14,11 @@
 -- partner could not join is asked again later). The supplies open the Night Operation shop's screen once her goodbye
 -- is over. Everything goes back on coop off and on a save that is not a co-op save: roxanne off (asked again every 10 s
 -- while the native part reads on), then the rows' shipped values once it reads her list off or absent (while it reads
--- on, or after a fault, the rows stay ours: their exec only plays her goodbye); coop nightop stop drops a booking. No
--- quest, item, achievement, save or story state is touched here: talking to her still runs her own graph as without
--- the mod.
+-- on, or after a fault, the rows stay ours: their exec only plays her goodbye). A load (the title, a map: leaving Xion
+-- is one) reads slot=none or unknown for a while: her choices hold through it, a booking through a map load, a
+-- supplies pick its SHOP_WAIT at most. coop nightop stop drops a booking, and the title screen or another co-op save
+-- (its index) drops it and a supplies pick. No quest, item, achievement, save or story state is touched here: talking
+-- to her still runs her own graph as without the mod.
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local R=require('nightop.recruiter')
@@ -53,10 +55,10 @@ end
 -- The row a picked line's text names, or nil (her own Shop and End, any other dialogue).
 function Roxanne.row_of(text,by) return (by or labels())[text] end
 -- log(text) writes an [NR] line; status() the native part's status text; ask(line) its request; paused() whether the
--- game is paused or shows one of its screens (the UI kit's); tell(build) a notice; start(level) coop nightop start
--- <level> and shop() coop nightop shop, through commands/nightop.lua (its co-op save and race checks; an error they
--- raise is their refusal here); phase() the phase of nightop/run.lua's run, nil when none ('ask' while a host's run
--- waits for the partner).
+-- game is paused or shows one of its screens (the UI kit's); title() whether the title screen is shown (main.lua's
+-- last puppet.world, optional); tell(build) a notice; start(level) coop nightop start <level> and shop() coop nightop
+-- shop, through commands/nightop.lua (its co-op save and race checks; an error they raise is their refusal here);
+-- phase() the phase of nightop/run.lua's run, nil when none ('ask' while a host's run waits for the partner).
 function Roxanne.new(o)
     local log,status,ask,paused,tell=o.log,o.status,o.ask,o.paused,o.tell
     local by=nil -- labels(), once the text is registered.
@@ -65,6 +67,7 @@ function Roxanne.new(o)
     local asked_at=-math.huge
     local held,look_at,walk=nil,-math.huge,false -- The select widgets {obj, last}; the next look; FindAllOf's route.
     local booked,shop_at=nil,nil -- {level, next, said}; the time the screen opens after a supplies pick.
+    local save=nil -- The co-op save's index the last co-op status read.
     local function one(...) return R.one(...) end
     local function index(text) return R.index_of(R.find_name(text)) end
     -- The rows to ours (on) or back to their shipped values: each checked first (its ID, its list, a value of the two),
@@ -188,19 +191,39 @@ function Roxanne.new(o)
             end
         end
     end
+    -- The booking and a supplies pick dropped, said with why.
+    local function drop(why)
+        if not (booked or shop_at) then return end
+        log('roxanne: '..why..': '..(booked and 'the booked '..booked.level..' run' or 'the supplies')..' dropped')
+        booked,shop_at=nil,nil
+    end
     local self={}
     -- Every 250 ms on the game thread (main.lua's loop); stopped: after coop off, only off and the rows' values back.
     function self.tick(stopped)
         local now=os.clock()
         local raw='\n'..(status() or '')
         local line=line_of(raw)
-        if stopped or not raw:find('\nslot=coop ') then
+        local slot=raw:match('\nslot=(%a+)')
+        if shop_at and now>=shop_at+Roxanne.SHOP_WAIT then -- A load included: a trip to the title may last any time.
+            shop_at=nil
+            log('STOP: roxanne: supplies: the game stayed paused, on one of its screens or in a load')
+        end
+        if armed and not stopped and (slot=='none' or slot=='unknown') then -- A load: no save to judge yet.
+            if o.title and o.title() then drop('the title screen') end -- The slot loaded next may hold another file.
+            return
+        end
+        if stopped or slot~='coop' then
             if armed or (line or ''):find('^on ') and now-asked_at>=Roxanne.ASK_EVERY then
                 off(stopped and 'coop off' or 'not a co-op save')
             end
             settle(line)
             booked=nil
             return
+        end
+        local at=raw:match('\nslot=coop index=(%d+)')
+        if at~=save then
+            if save then drop('another co-op save (index '..tostring(at)..')') end
+            save=at
         end
         local eve=N.her()
         local here=eve and U.map_of(eve)==XION
@@ -218,17 +241,12 @@ function Roxanne.new(o)
             pcall(ask,'roxanne on')
         end
         if armed and here and (line or ''):find('^on ') then watch(eve,raw,now) end
-        if shop_at and now>=shop_at then
-            if not paused() then
-                shop_at=nil
-                local ran,ok,said=pcall(o.shop)
-                if not ran then ok,said=false,why(ok) end
-                log('roxanne: supplies: '..(ok and '' or 'STOP: ')..tostring(said))
-                if not ok and tell then tell(function(w) return w.night.shop_failed end) end
-            elseif now>=shop_at+Roxanne.SHOP_WAIT then
-                shop_at=nil
-                log('STOP: roxanne: supplies: the game stayed paused or on one of its screens')
-            end
+        if shop_at and now>=shop_at and not paused() then
+            shop_at=nil
+            local ran,ok,said=pcall(o.shop)
+            if not ran then ok,said=false,why(ok) end
+            log('roxanne: supplies: '..(ok and '' or 'STOP: ')..tostring(said))
+            if not ok and tell then tell(function(w) return w.night.shop_failed end) end
         end
         -- A host's start only asks the partner: the booking holds until that ask ends, then goes once the run counts
         -- down, or is tried again JOIN_AGAIN s later when the partner could not join (another map, too far, busy).

@@ -540,9 +540,10 @@ end
 -- Roxanne's Night Operation choices (nightop/roxanne.lua), logging [NR] lines: on a co-op save, once EVE is in Xion;
 -- a level picked is booked and started through coop nightop start, the supplies open coop nightop shop. Ticked in the
 -- 250 ms loop below (with the Steam link only), after coop off too: coop off puts her two choices back.
+local at_title=false -- The title screen shown at the last tick's puppet.world: it drops her booking.
 o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][NR] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
-    paused=function() return kit~=nil and kit.paused(true) end,tell=tell,
+    paused=function() return kit~=nil and kit.paused(true) end,title=function() return at_title end,tell=tell,
     start=function(level) return commands.nightop('start',level) end,
     shop=function() return commands.nightop('shop') end,phase=function() return night.phase() end})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
@@ -1075,6 +1076,7 @@ if link then
         for _,text in ipairs(link.notices()) do say(text) end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
             local world,title=guarded('ghost',puppet.world)
+            at_title=title==true
             local photo=world and photo_state() or '0'
             local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
             guarded('notice',notice.veil,own)

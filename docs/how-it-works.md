@@ -2200,8 +2200,11 @@ the bucket as Beta Seeds, minus any seeds already there (or takes the surplus ou
 `Money_NightOperation` only, and asks for the open once the count matches. While the screen is open, each new count is
 written to the wallet. After the close, the wallet keeps the last count and the seeds leave the bucket, through the
 controller and GUID read again then (after a map change the controller read at the open may be another object; Lua
-also stops before the fill when EVE's map changed during the rows). A save made while seeds are in the bucket holds
-them: from the fill to the removal, or after a removal that failed, which the next `coop nightop shop` corrects. A game
+also stops before the fill when EVE's map changed during the rows). Until the open, each step first checks that the
+status still reads the wallet's co-op save (`slot=coop` with its index): on another save, or during a load, Lua stops
+with no seeds added, no open and no removal, since the bucket may then be another save's. A save made while seeds are
+in the bucket holds them: from the fill to the removal, or after a removal that failed, which the next
+`coop nightop shop` corrects. A game
 restarted from that save loads them before the shop's rows are in. A save restore does not change the points, as
 before. The run's start refuses while the screen runs, and so does a guest's answer to the host's run, so no credit
 lands while seeds are out. When a step fails, Lua asks for the close only once the game opened the screen for it,
@@ -2210,8 +2213,10 @@ answer is not read yet (about 250 ms), so a game shop screen that came up in tha
 ends early (`coop off`, a fault, a step that times out), the seeds that go are the last count read once open, and
 before that at least the count Lua added, since a read from before the add still says the old count. After a fault the
 native part no longer reads or closes the screen, so those seeds leave the bucket at once and a screen left open sells
-nothing. After a Lua reload, the first tick that reads seeds in the bucket takes the screen over as open: only the
-screen adds Beta Seeds, so they are this wallet's.
+nothing. After a Lua reload, the first tick that reads seeds in the bucket with a shop screen open takes the screen
+over as open: only the screen adds Beta Seeds, so they are this wallet's. With no shop screen open, those seeds leave at
+once and the wallet is not written: after a removal that failed or an older save loaded, the bucket no longer matches
+the wallet, which stays the record as at a fill.
 
 ## Roxanne's Night Operation choices
 
@@ -2257,7 +2262,12 @@ either.
    off then). The rows get their shipped values only once the line reads `off` after an off it took, or `absent`: while
    her entry may still list them, they keep `Success2`, which only plays her goodbye, and after a fault they keep it
    until the game exits. The text keys keep their labels until the game exits; the rows that carry them are listed
-   nowhere else.
+   nowhere else. A load (the title, a map, leaving Xion included) reads `slot=none` or `unknown` for a while: once
+   armed, Lua's tick only runs the drops below then, so the swap holds through it, and a booking and a supplies pick
+   hold through a map load. A supplies pick still goes 30 s after its screen was due (`SHOP_WAIT`), a load included.
+   The title screen (Lua's `puppet.world`, the `world=title` of `coop-state.txt`, since the status line has no such
+   flag) and a co-op save with another index drop the booking and the supplies pick: after the title, the slot loaded
+   may hold another file.
 
 Not checked offline: who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild), the
 choice box's sort, that `GetAllWidgetsOfClass` finds the box in this build, and whether the game builds a new box for

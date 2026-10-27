@@ -131,7 +131,7 @@ function Shop.new(o)
         if not text and (code or 2)==2 then text,e,code=store(name..'.tmp').load() end
         if not text and (code or 2)~=2 then return nil,'wallet not read: '..tostring(e) end
         local points=math.tointeger(tonumber((text or ''):match('^%d+$') or '0')) or 0
-        return {name=name,points=points,save=function(n) return file.save(tostring(n)) end}
+        return {name=name,index=index,points=points,save=function(n) return file.save(tostring(n)) end}
     end
     local self={}
     -- A run's final score as points for this wallet: got and the new total, or nil and why. def: the run's level
@@ -301,6 +301,13 @@ function Shop.new(o)
             log('shop: rows in (Shock Bolt '..(ui.bolt and 'in' or 'not sold: shock='..tostring(shock))..')')
             ui.phase,ui.at='fill',now
         end
+        -- Still the wallet's co-op save: a save loaded meanwhile, or a load that reads none for now, gets no seeds, no
+        -- open and no removal (seeds already added stay in the co-op save's bucket: the next screen takes them).
+        if ui.phase~='open' and ('\n'..tostring(status() or '')):match('\nslot=coop index=(%d+)')~=ui.w.index then
+            return finish(false,'the co-op save of '..ui.w.name..' is no longer the one loaded: '
+                ..(ui.phase=='fill' and 'no Beta Seeds added'
+                    or 'the Beta Seeds added stay in its inventory for the next coop nightop shop'))
+        end
         if not s then return finish(false,'coop-status.txt has no nightshop line') end
         if ui.phase=='fill' then
             -- EVE again, as a buy does after its rows wait: no seeds for a controller or GUID from another map.
@@ -408,8 +415,10 @@ function Shop.new(o)
             ..'rows are in ([NR] lines)',w.points)
     end
     -- A screen an earlier Lua load ran (a reload while it was open, or before its seeds went back), looked for at the
-    -- first tick that reads the nightshop line: Beta Seeds in the bucket are ours (only the screen adds them), so it is
-    -- taken over as open, and step() writes the count to the wallet and takes the seeds back after the close.
+    -- first tick that reads the nightshop line: Beta Seeds in the bucket are ours (only the screen adds them). A screen
+    -- still open is taken over as open, and step() writes the count to the wallet and takes the seeds back after the
+    -- close. Seeds with no screen open go at once and the wallet keeps its count: it stays the record, as at a fill (a
+    -- removal that failed or an older save loaded leaves seeds that no longer match it).
     local looked=false
     local function adopt()
         local s=Shop.line(status())
@@ -424,6 +433,10 @@ function Shop.new(o)
                 tostring(w and guid or e)))
         end
         ui={phase='open',at=os.clock(),w=w,pc=pc,guid=guid,kept=w.points}
+        if s.state=='closed' then
+            return finish(true,string.format('%d Beta Seeds left from an earlier load (screen closed): the wallet '
+                ..'keeps %d',s.seeds,w.points),s.seeds)
+        end
         log(string.format('shop: %d Beta Seeds left from an earlier load (screen %s): taken over',s.seeds,s.state))
     end
     -- Each tick of the run (250 ms): the screen's steps; an error ends it, the seeds taken back.

@@ -13,9 +13,10 @@
 -- open asked (with the Shock Bolt only once shock reads in), each new count written to the wallet, the seeds taken
 -- back after the close; its failures (the shop's or the stimpacks' rows, a map change during the rows, a refused open,
 -- a fault, no answer, a game screen up before the open) leaving the wallet as it was, with the notice, the seeds out,
--- and only a screen that opened for us closed; coop off, also before the added seeds read; the seeds taken back
+-- and only a screen that opened for us closed; another save loaded before the open, which gets no seeds, no open and
+-- no removal; coop off, also before the added seeds read; the seeds taken back
 -- through EVE's controller read again; no console buy and no run while it runs; a screen an earlier Lua load left,
--- taken over.
+-- taken over, and its seeds left after a close taken out with the wallet kept.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -438,6 +439,31 @@ screen.tick()
 world='World /Game/Art/BG/WorldMap/Level_P/F01.F01'
 assert(#calls==0 and #removes==0 and #said_to==1 and told==told_before+2 and not screen.busy())
 assert(lines[#lines]=='STOP: shop: the map changed while its rows were asked: no Beta Seeds added',lines[#lines])
+-- Another save loaded while the rows were asked (the main one, on the same map): no seeds. After the fill: no open and
+-- no removal, the seeds staying in the co-op save's bucket.
+local coop_status=status_text
+local main_status=coop_status:gsub('slot=coop index=4 marker=4','slot=main index=0 marker=4')
+said_to,done_of={},{}
+assert(screen.open())
+status_text=main_status
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+screen.tick()
+assert(#calls==0 and #removes==0 and #said_to==1 and told==told_before+3 and not screen.busy())
+assert(lines[#lines]=='STOP: shop: the co-op save of '..FILE..' is no longer the one loaded: no Beta Seeds added',
+    lines[#lines])
+status_text=coop_status
+said_to,done_of={},{}
+nightshop_is('closed','0',1,'close:none')
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+screen.tick()
+assert(#calls==1 and calls[1][4]==88,'Filled')
+status_text=main_status
+screen.tick()
+assert(#calls==1 and #removes==0 and #said_to==1 and told==told_before+4 and not screen.busy())
+assert(lines[#lines]=='STOP: shop: the co-op save of '..FILE..' is no longer the one loaded: the Beta Seeds added '
+    ..'stay in its inventory for the next coop nightop shop',lines[#lines])
+status_text=coop_status
 told=told_before
 -- Leftover seeds in the bucket (a crash while the screen was open): the difference taken out first; the Shock Bolt
 -- not sold while shock does not read in, nor while its rows are not in.
@@ -542,7 +568,8 @@ assert(#said_to==1 and #removes==1 and removes[1][4]==50 and files[FILE]=='50\n'
 assert(lines[#lines]=='STOP: shop: the game is paused or shows one of its screens: open the shop once it plays; 50 '
     ..'Beta Seeds left the inventory',lines[#lines])
 -- A screen an earlier Lua load left open (a reload): taken over at the first tick, a purchase written, the seeds out
--- after the close. Another left closed with its seeds: the wallet set to them, the seeds out at once.
+-- after the close. Seeds left with the screen closed (a removal that failed, then a run's credit): out at once, the
+-- wallet keeping its count.
 calls,removes,said_to={},{},{}
 files[FILE]='100\n'
 local function reloaded() return Shop.new({log=function(text) lines[#lines+1]=text end,
@@ -564,7 +591,9 @@ files[FILE]='100\n'
 after=reloaded()
 nightshop_is('closed','40',5,'open:none')
 after.tick()
-assert(not after.busy() and #removes==2 and removes[2][4]==40 and files[FILE]=='40\n')
+assert(not after.busy() and #removes==2 and removes[2][4]==40 and files[FILE]=='100\n')
+assert(lines[#lines]=='shop: 40 Beta Seeds left from an earlier load (screen closed): the wallet keeps 100; 40 Beta '
+    ..'Seeds left the inventory',lines[#lines])
 -- Looked for once a load: no seeds at the first look, none taken over later.
 after=reloaded()
 nightshop_is('closed','0',5,'close:none')
