@@ -155,18 +155,18 @@ build/host/pose_codec_test
     Behemoth row or asset but the sound set; the Gardener's ToxicBeam steps, skills, stance at speed 0 and
     CharacterTable rows; the Tendril's skills on their run-time Shows, its Hit steps on its own areas, its stance, dead
     and CharacterTable rows; the Shock Bolt's 4 rows; Matrix XIII's camp, the env-spawn row that leads the travel there
-    and the 6 camp objects, each naming the camp and spawning its blueprint at the spawn point of its own name, then the
-    5 trigger rows patched in place, in a table with no parsed arrays; the shop's Beta Seed, shop items and shops), a
-    whole run of each batch (each row built from its template with the game's lazy-init flag and parsed arrays reset,
-    its ID and patches of every kind, AddRow given the new name; the Gardener's reading only the tables its rows go
-    into, a ProjectileTable of another row size stopping the Shock Bolt's batch, not the Lion's, and Matrix XIII's 8
-    rows from patches of their own in the two zone tables and its 5 shipped trigger rows copied back over themselves,
-    never added, a ZoneEnvSpawnTable or ZoneTriggerTable of another row size, a taken camp ID, a missing trigger row or
-    one its ID does not name stopping that batch alone, a ShopTable of another row size stopping the shop's batch, not
-    the Lion's), the refusals that call no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot
-    or row size), a later run skipping the rows already in, FName's number split, the read-back through the
-    game's lookups by ID, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=` and `shop=` status
-    lines and the log lines;
+    and the 6 camp objects, each naming the camp and spawning its blueprint at the spawn point of its own name, the
+    third zone's camp with no coin and its row in `Zone_DLC02_30`, then the 5 trigger rows patched in place, in a table
+    with no parsed arrays; the shop's Beta Seed, shop items and shops), a whole run of each batch (each row built from
+    its template with the game's lazy-init flag and parsed arrays reset, its ID and patches of every kind, AddRow given
+    the new name; the Gardener's reading only the tables its rows go into, a ProjectileTable of another row size
+    stopping the Shock Bolt's batch, not the Lion's, and Matrix XIII's 10 rows from patches of their own in the two zone
+    tables and its 5 shipped trigger rows copied back over themselves, never added, a ZoneEnvSpawnTable or
+    ZoneTriggerTable of another row size, a taken camp ID, a missing trigger row or one its ID does not name stopping
+    that batch alone, a ShopTable of another row size stopping the shop's batch, not the Lion's), the refusals that call
+    no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size), a later run skipping
+    the rows already in, FName's number split, the read-back through the game's lookups by ID, the answer word, the
+    `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=` and `shop=` status lines and the log lines;
   - `lion_shock_test`: the Shock Bolt's two lists against fake memory: both gun stances given the two fire commands
     (through the game's grow or inside the capacity), the const ammo list and the slot manager's list given
     `Bullet_Shock`, a second run writing nothing, no slot manager yet, the key found down its hash chain, each refusal
@@ -427,7 +427,7 @@ Platform-free headers, tested on the build machine:
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
 | `nightop/roxanne.h` | Roxanne's Night Operation choices: her choice list's entry in SB's select cache pointed at six rows of ours and put back, the checks and the `roxanne=` line |
 | `nightop/shop_ui.h` | The Night Operation shop in SB's own shop screen: the guard, the answer word, the `nightshop=` line and the log lines |
-| `lion/rows.h` | Six batches of rows (all but the fifth with their data part written by a generator outside the repository, which also describes the 20 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, `coop mxiii`'s 8 and 5 shipped trigger rows patched in place, written by hand, and the Night Operation shop screen's 6; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=` and `shop=` lines and the log lines |
+| `lion/rows.h` | Six batches of rows (all but the fifth with their data part written by a generator outside the repository, which also describes the 20 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, `coop mxiii`'s 10 and 5 shipped trigger rows patched in place, written by hand, and the Night Operation shop screen's 6; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=` and `shop=` lines and the log lines |
 | `lion/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |

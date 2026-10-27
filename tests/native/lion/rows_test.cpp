@@ -418,15 +418,17 @@ int main() {
   // CampDisplayType WhenActive left as copied, the coin's spawn point at +0x60), then 7 env-spawn rows whose TargetCamp
   // (+0x270) names it, each under its own actor name (+0x30): DLC02_10_EnvS_900 first (a copy of the activation-only
   // DLC02_10_EnvS_425, no actor), then the kit 901 to 906 (copies of 420 to 424 and 426), each spawning a blueprint
-  // under /Game/GameDesign/Level/ZoneEnv/ (EnvBPPath +0x38) at the spawn point of its own name (+0x48); the vending machine
-  // last, linking the five kit objects, not 900 (LinkEnvSpawnList +0x260). Then 5 shipped ZoneTriggerTable rows patched in place, each
-  // its own template under its shipped ID, in a table with no Transient array: DLC02_20_ZTrigger_001, 005 and 006
-  // touch their wave's zone events after the events they ship with (TouchEvents +0x20), DLC02_40_ZTrigger_001 and 002
-  // start enabled (InitActivate +0x1c, 1). Names and IDs unique, each patch inside its struct past the ID, no two on
-  // the same bytes.
-  static_assert(kMxiiiRows == 13, "the camp, its 7 env-spawn rows and 5 shipped trigger rows");
+  // under /Game/GameDesign/Level/ZoneEnv/ (EnvBPPath +0x38) at the spawn point of its own name (+0x48); the vending
+  // machine last, linking the five kit objects, not 900 (LinkEnvSpawnList +0x260). Then zone 30's camp with no kit or
+  // coin (a copy of ME03_Camp_03) and its one env-spawn row, DLC02_10_EnvS_900's recipe with ZoneList (+0x20)
+  // Zone_DLC02_30. Then 5 shipped ZoneTriggerTable rows patched in place, each its own template under its shipped ID,
+  // in a table with no Transient array: DLC02_20_ZTrigger_001, 005 and 006 touch their wave's zone events after the
+  // events they ship with (TouchEvents +0x20), DLC02_40_ZTrigger_001 and 002 start enabled (InitActivate +0x1c, 1).
+  // Names and IDs unique, each patch inside its struct past the ID, no two on the same bytes.
+  static_assert(kMxiiiRows == 15, "the camp, its 7 env-spawn rows, zone 30's camp and its row, 5 shipped trigger rows");
   {
     const Row &camp = kMxiiiRecipe[0], &first = kMxiiiRecipe[1], &vending = kMxiiiRecipe[7];
+    const Row &camp30 = kMxiiiRecipe[8], &env30 = kMxiiiRecipe[9];
     assert(kMxiii.patches == kMxiiiPatches && kLion.patches == kPatches && kBolt.patches == kPatches &&
            kShop.patches == kPatches);
     assert(camp.table == Table::camp && !std::strcmp(camp.name, "DLC02_10_Camp_01") &&
@@ -442,7 +444,7 @@ int main() {
       const Row &r = kMxiiiRecipe[i];
       const TableInfo &info = table_info(r.table);
       assert(r.first == n && r.count > 0 && info.id && r.id && names.insert(r.name).second && ids.insert(r.id).second);
-      assert(shipped_row(r) == (i >= 8) && (r.table == Table::trigger) == (i >= 8));
+      assert(shipped_row(r) == (i >= 10) && (r.table == Table::trigger) == (i >= 10));
       assert(i == 0 || i >= 8 ||
              (r.table == Table::env && r.id == 2800032900u + (i - 1) && (i == 1 || !std::strcmp(r.donor, kDonors[i - 2]))));
       for (uint16_t at : info.transient)
@@ -456,7 +458,7 @@ int main() {
                  x.at + kind_size(x.kind) <= kMxiiiPatches[q].at);
       }
     }
-    assert(n == sizeof kMxiiiPatches / sizeof kMxiiiPatches[0] && n == 34);
+    assert(n == sizeof kMxiiiPatches / sizeof kMxiiiPatches[0] && n == 38);
     const auto find = [](const Row &r, uint16_t offset) -> const Patch * {
       for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
         if (kMxiiiPatches[p].at == offset)
@@ -487,6 +489,14 @@ int main() {
     assert(at(vending, 0x260).kind == Kind::names &&
            !std::strcmp(at(vending, 0x260).text, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|"
                                                  "DLC02_10_EnvS_904|DLC02_10_EnvS_905"));
+    // Zone 30's camp: a FullCamp with no coin, and one row that leads the travel to Zone_DLC02_30 and names it.
+    assert(camp30.table == Table::camp && !std::strcmp(camp30.name, "DLC02_30_Camp_01") &&
+           !std::strcmp(camp30.donor, "ME03_Camp_03") && camp30.id == 281001 && camp30.count == 1 &&
+           at(camp30, 0x28).kind == Kind::u8 && at(camp30, 0x28).f == 3 && !find(camp30, 0x60));
+    assert(env30.table == Table::env && !std::strcmp(env30.name, "DLC02_30_EnvS_900") &&
+           !std::strcmp(env30.donor, first.donor) && env30.id == 2810032900u && env30.count == 3);
+    assert(at(env30, 0x20).kind == Kind::names && !std::strcmp(at(env30, 0x20).text, "Zone_DLC02_30") &&
+           !std::strcmp(at(env30, 0x30).text, env30.name) && !std::strcmp(at(env30, 0x270).text, camp30.name));
     static const char *const kTriggers[] = {"DLC02_20_ZTrigger_001", "DLC02_20_ZTrigger_005", "DLC02_20_ZTrigger_006",
                                             "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_002"};
     static const uint32_t kTriggerIds[] = {280501001, 280501005, 280501006, 281501001, 281501002};
@@ -494,11 +504,11 @@ int main() {
         "DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025",
         "DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028",
         "DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032"};
-    for (size_t i = 8; i < kMxiiiRows; ++i) {
+    for (size_t i = 10; i < kMxiiiRows; ++i) {
       const Row &r = kMxiiiRecipe[i];
-      assert(!std::strcmp(r.name, kTriggers[i - 8]) && r.id == kTriggerIds[i - 8] && r.count == 1);
-      if (i < 11)
-        assert(at(r, 0x20).kind == Kind::names && !std::strcmp(at(r, 0x20).text, kTouch[i - 8]));
+      assert(!std::strcmp(r.name, kTriggers[i - 10]) && r.id == kTriggerIds[i - 10] && r.count == 1);
+      if (i < 13)
+        assert(at(r, 0x20).kind == Kind::names && !std::strcmp(at(r, 0x20).text, kTouch[i - 10]));
       else
         assert(at(r, 0x1c).kind == Kind::u8 && at(r, 0x1c).f == 1); // ESBObject_Enable; shipped 2, Disable.
     }
@@ -894,14 +904,15 @@ int main() {
     assert(describe_read(kBolt, rb) ==
            "bolt rows by SB's lookups: CharacterTable - 0/0, SkillTable 1003401 1/1, stance - 0/0");
 
-    // Matrix XIII's batch after them all, on its own Builder: its 8 new rows from its own patches, into the two zone
-    // tables only it reads, the camp first; its IDs above 2^31 go in whole, and every env-spawn row names the camp, the
-    // vending machine with its blueprint path and its 5 links (901 to 905, not 900). Then its 5 shipped trigger rows,
-    // each copied back over itself and never handed to AddRow, so the ID map still names each and RowMap still holds it
-    // at its address. SB's lookups by ID have nothing of it to find.
+    // Matrix XIII's batch after them all, on its own Builder: its 10 new rows from its own patches, into the two zone
+    // tables only it reads, the camp first; its IDs above 2^31 go in whole, and every zone 10 env-spawn row names the
+    // camp, the vending machine with its blueprint path and its 5 links (901 to 905, not 900); zone 30's camp and its
+    // row in Zone_DLC02_30. Then its 5 shipped trigger rows, each copied back over itself and never handed to AddRow,
+    // so the ID map still names each and RowMap still holds it at its address. SB's lookups by ID have nothing of it to
+    // find.
     Builder mb(kMxiii);
     const Answer ma = mb.run(g, kBase, g.tables, g.block);
-    const size_t zone = bolts + kBoltRows, kNew = 8;
+    const size_t zone = bolts + kBoltRows, kNew = 10;
     assert(ma.state == State::rows && ma.added == kMxiiiRows && g.adds.size() == zone + kNew &&
            g.puts.size() == kMxiiiRows - kNew);
     verify(g, mb, kMxiii, zone);
@@ -916,20 +927,27 @@ int main() {
            g.puts[3].block[0x1c] == 1 && g.puts[4].block[0x1c] == 1);
     assert(g.adds[zone].table == size_t(Table::camp) &&
            g.name_text(Game::field<uint64_t>(g.adds[zone], 0x60)) == "DLC02_10_E_ItemS_001");
-    for (size_t i = 1; i < kNew; ++i)
+    for (size_t i = 1; i < 8; ++i)
       assert(g.adds[zone + i].table == size_t(Table::env) &&
              Game::field<uint32_t>(g.adds[zone + i], kIdAt) == 2800032900u + (i - 1) &&
              g.name_text(Game::field<uint64_t>(g.adds[zone + i], 0x270)) == "DLC02_10_Camp_01");
-    const Game::Add &machine = g.adds[zone + kNew - 1];
+    const Game::Add &machine = g.adds[zone + 7];
     assert(g.string_field(machine, 0x38) == "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C" &&
            g.name_text(Game::field<uint64_t>(machine, 0x48)) == "DLC02_10_EnvS_906" &&
            g.list_field(machine, 0x260, Kind::names) ==
                "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905");
     assert(g.id_name(g.tables[size_t(Table::env)], 2800032900u) == g.name("DLC02_10_EnvS_900") &&
            g.id_name(g.tables[size_t(Table::env)], 2800032906u) == g.name("DLC02_10_EnvS_906"));
+    const Game::Add &camp30 = g.adds[zone + 8], &env30 = g.adds[zone + 9];
+    assert(camp30.table == size_t(Table::camp) && Game::field<uint32_t>(camp30, kIdAt) == 281001 &&
+           camp30.block[0x28] == 3 && g.id_name(g.tables[size_t(Table::camp)], 281001) == g.name("DLC02_30_Camp_01"));
+    assert(env30.table == size_t(Table::env) && Game::field<uint32_t>(env30, kIdAt) == 2810032900u &&
+           g.list_field(env30, 0x20, Kind::names) == "Zone_DLC02_30" &&
+           g.name_text(Game::field<uint64_t>(env30, 0x30)) == "DLC02_30_EnvS_900" &&
+           g.name_text(Game::field<uint64_t>(env30, 0x270)) == "DLC02_30_Camp_01");
     rb = mb.read_back(g, g.tables);
     assert(rb.character == 0 && rb.skills == 0 && rb.stance == 0);
-    assert(describe(kMxiii, ma) == "mxiii rows: 13/13 in, 8 added through SB's AddRow 0x14417ba30 and 5 shipped "
+    assert(describe(kMxiii, ma) == "mxiii rows: 15/15 in, 10 added through SB's AddRow 0x14417ba30 and 5 shipped "
                                    "rows patched in place, 0 refused");
     assert(describe_read(kMxiii, rb) ==
            "mxiii rows by SB's lookups: CharacterTable - 0/0, SkillTable - 0/0, stance - 0/0");
@@ -975,10 +993,10 @@ int main() {
     const Answer a = mb.run(g, kBase, g.tables, g.block);
     assert(a.state == State::refused && a.why == Why::size && a.detail == 0x500 && g.adds.empty());
     assert(describe(kMxiii, a) ==
-           "mxiii rows refused DLC02_10_EnvS_900: ZoneEnvSpawnTable's row size 0x500 not 0x508; 0/13 added");
+           "mxiii rows refused DLC02_10_EnvS_900: ZoneEnvSpawnTable's row size 0x500 not 0x508; 0/15 added");
     Status s;
     s.word = pack(a, 1);
-    assert(status_line(kMxiii, s) == "mxiii=refused added=0/13 asks=1 spawns=? why=size table=ZoneEnvSpawnTable "
+    assert(status_line(kMxiii, s) == "mxiii=refused added=0/15 asks=1 spawns=? why=size table=ZoneEnvSpawnTable "
                                      "row=DLC02_10_EnvS_900 detail=0x500");
     assert(lb.run(g, kBase, g.tables, g.block).state == State::rows && g.adds.size() == kRows);
     Game h;
@@ -986,7 +1004,7 @@ int main() {
     Builder hb(kMxiii);
     const Answer b = hb.run(h, kBase, h.tables, h.block);
     assert(b.state == State::refused && b.why == Why::id && b.row == 0 && h.adds.empty());
-    assert(describe(kMxiii, b) == "mxiii rows refused DLC02_10_Camp_01: ID 280001 taken; 0/13 added");
+    assert(describe(kMxiii, b) == "mxiii rows refused DLC02_10_Camp_01: ID 280001 taken; 0/15 added");
   }
   {
     // The shipped trigger rows: a ZoneTriggerTable whose row size is not the SDK's stops Matrix XIII's run before any
@@ -996,9 +1014,9 @@ int main() {
     g.mem.put<int32_t>(rs + kPropertiesSize, 0xa0);
     Builder mb(kMxiii), lb(kLion);
     const Answer a = mb.run(g, kBase, g.tables, g.block);
-    assert(a.state == State::refused && a.why == Why::size && a.row == 8 && g.adds.empty() && g.puts.empty());
+    assert(a.state == State::refused && a.why == Why::size && a.row == 10 && g.adds.empty() && g.puts.empty());
     assert(describe(kMxiii, a) ==
-           "mxiii rows refused DLC02_20_ZTrigger_001: ZoneTriggerTable's row size 0xa0 not 0xa8; 0/13 added");
+           "mxiii rows refused DLC02_20_ZTrigger_001: ZoneTriggerTable's row size 0xa0 not 0xa8; 0/15 added");
     assert(lb.run(g, kBase, g.tables, g.block).state == State::rows && g.adds.size() == kRows && g.puts.empty());
   }
   {
@@ -1011,14 +1029,14 @@ int main() {
     g.ids.erase({table, 281501002});
     Builder mb(kMxiii);
     Answer a = mb.run(g, kBase, g.tables, g.block);
-    assert(a.state == State::refused && a.why == Why::donor && a.row == 12 && a.added == 12 && g.adds.size() == 8 &&
+    assert(a.state == State::refused && a.why == Why::donor && a.row == 14 && a.added == 14 && g.adds.size() == 10 &&
            g.puts.size() == 4);
     assert(describe(kMxiii, a) ==
-           "mxiii rows refused DLC02_40_ZTrigger_002: no shipped row of that name in ZoneTriggerTable; 12/13 added");
+           "mxiii rows refused DLC02_40_ZTrigger_002: no shipped row of that name in ZoneTriggerTable; 14/15 added");
     g.rows[{table, key}] = row;
     g.ids[{table, 281501002}] = key;
     a = mb.run(g, kBase, g.tables, g.block);
-    assert(a.state == State::rows && a.added == kMxiiiRows && g.adds.size() == 8 && g.puts.size() == 5 &&
+    assert(a.state == State::rows && a.added == kMxiiiRows && g.adds.size() == 10 && g.puts.size() == 5 &&
            g.puts[4].row == row);
   }
   {
@@ -1028,11 +1046,12 @@ int main() {
     g.ids[{table, 280501001}] = g.name("SomeOtherTrigger");
     Builder mb(kMxiii);
     Answer a = mb.run(g, kBase, g.tables, g.block);
-    assert(a.state == State::refused && a.why == Why::id && a.row == 8 && g.adds.size() == 8 && g.puts.empty());
-    assert(describe(kMxiii, a) == "mxiii rows refused DLC02_20_ZTrigger_001: ID 280501001 does not name it; 8/13 added");
+    assert(a.state == State::refused && a.why == Why::id && a.row == 10 && g.adds.size() == 10 && g.puts.empty());
+    assert(describe(kMxiii, a) ==
+           "mxiii rows refused DLC02_20_ZTrigger_001: ID 280501001 does not name it; 10/15 added");
     g.ids.erase({table, 280501001});
     a = mb.run(g, kBase, g.tables, g.block);
-    assert(a.state == State::refused && a.why == Why::id && a.row == 8 && g.puts.empty());
+    assert(a.state == State::refused && a.why == Why::id && a.row == 10 && g.puts.empty());
   }
   {
     // A ShopTable whose row size is not the SDK's stops the shop's batch before any row (every table it uses is
@@ -1265,9 +1284,9 @@ int main() {
     // Matrix XIII's line (cut/mxiii.lua reads it): no row SB's lookups by ID count.
     Status ms;
     assert(status_line(kMxiii, ms) == "mxiii=off");
-    a = Answer(), a.state = State::rows, a.added = 13;
+    a = Answer(), a.state = State::rows, a.added = 15;
     ms.word = pack(a, 1);
-    assert(status_line(kMxiii, ms) == "mxiii=rows added=13/13 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
+    assert(status_line(kMxiii, ms) == "mxiii=rows added=15/15 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
     // The Night Operation shop's line: its word, no CharacterTable, skill or stance row.
     Status ss;
     assert(status_line(kShop, ss) == "shop=off");

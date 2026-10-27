@@ -341,7 +341,11 @@ int main() {
            {name_field("CampEnvSpawnAlias", "DLC02_10_EnvS_900"), "its camp" + rest},
            {name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900"), "its last full camp" + rest},
            {name_field("LastSimplyCampEnvSpawnAlias", "DLC02_10_EnvS_900"),
-            "its last simple camp" + rest + ", then at a simple camp"}})
+            "its last simple camp" + rest + ", then at a simple camp"},
+           // Zone 30's camp (coop mxiii 30), whose arrival saves it as her camp.
+           {fstring("CampAlias") + fstring("DLC02_30_EnvS_900"), "its camp" + rest},
+           {name_field("CampEnvSpawnAlias", "DLC02_30_EnvS_900"), "its camp" + rest},
+           {name_field("LastFullCampEnvSpawnAlias", "DLC02_30_EnvS_900"), "its last full camp" + rest}})
     assert(mod_only(clean_body() + there.first) ==
            "the cut Matrix XIII dungeon as " + there.second + "; then save and export it again");
   assert(mod_only(clean_body() + fstring("MapName") + fstring("MXIII_P") + fstring("CampAlias") +

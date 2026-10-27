@@ -268,9 +268,11 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
             -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
             return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
         end} or nil})
--- coop mxiii (cut/mxiii.lua), logging [MX] lines: Matrix XIII's 13 rows asked of the native part, then the follow's
--- camp travel (read at each call: built below), once the zMXIII_P test pak is found under SB/Content/Paks; coop mxiii
--- leave, the follow's probe to the camp EVE respawned at before coop mxiii, or another camp this save has activated.
+-- coop mxiii [30] (cut/mxiii.lua), logging [MX] lines: Matrix XIII's 15 rows asked of the native part, then the
+-- follow's camp travel (read at each call: built below), once the zMXIII_P test pak is found under SB/Content/Paks;
+-- coop mxiii leave, the follow's probe to the camp EVE respawned at before coop mxiii, or another camp this save has
+-- activated. The same rows alone at the title, before any save loads, while the game uses the co-op save files (the
+-- 250 ms loop below: mxiii.title).
 local mxiii=require('cut.mxiii').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     travel=function() return travel end,paks=require('cut.mxiii').paks_of(folder),
@@ -1117,6 +1119,9 @@ if link then
             guarded('join',approval.slow,shown) -- After the chat's: it waits while the box is open.
             guarded('hud',hud.slow)
             guarded('saves',saves_ui.slow,world==true,title==true)
+            -- Matrix XIII's rows at the title with the co-op save files, so a co-op save that names its camp loads
+            -- with them (cut/mxiii.lua: once a game run, with the test pak only).
+            guarded('mxiii',mxiii.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
             -- A story dump asked for by coop-story.txt in the mod folder (story/dump.lua, read only): once per
             -- request, in a loaded world, and named in the log.
             local dumped,dump_message=guarded('story',story_dump.poll,world==true)
