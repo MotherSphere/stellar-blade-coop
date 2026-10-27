@@ -331,8 +331,8 @@ Close the game first.
   above. It never edits `mods.txt`, but it reports a line there that still names StellarCoop, for you to remove.
 
 Your saves stay, and so do the co-op copies, `StellarCoopSaves.txt`, the shared quests' records
-(`StellarCoopQuests0N.txt`), the backups in `StellarCoopBackups` and `StellarCoopSlot.txt`. The game ignores them
-without the mod. To keep a co-op character, see "Co-op saves" above.
+(`StellarCoopQuests0N.txt`), a shortcut save's mark (`StellarCoopShortcut04.txt`), the backups in `StellarCoopBackups`
+and `StellarCoopSlot.txt`. The game ignores them without the mod. To keep a co-op character, see "Co-op saves" above.
 
 ## Which logs to send
 

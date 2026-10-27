@@ -2011,11 +2011,13 @@ What else to know:
   `auto_coop_save=always`, set it to `ask` first), then type `coop saves refresh 4` twice within 10 s. It needs your
   own `StellarBladeSave04.sav`. Without one it refuses, and the copy that was replaced is only in
   `StellarCoopBackups`.
-- The shortcut save never goes to your own saves: `coop saves export 4 M` refuses it, played or not. Before it
-  writes the save, the native part writes `StellarCoopShortcut04.txt` beside it, and only `coop saves refresh 4` (or
-  any copy of your own save into that slot) removes it. Without that file, the export still refuses a shortcut save
-  you have not played, by its CRC-32, and one that holds `BS_Defender`, `Gear_NarrowVision_Rare` or a
-  `DesignPattern_*` item.
+- Before it writes the save, the native part writes `StellarCoopShortcut04.txt` beside it. `coop saves export 4 M`
+  refuses the shortcut save, played or not, while that file is there, and only `coop saves refresh 4` (or any copy of
+  your own save into that slot) removes it. Without that file, the export still refuses a shortcut save you have not
+  played, by its CRC-32, and one that holds `BS_Defender`, `Gear_NarrowVision_Rare`, `DesignPattern_Blue_Suit`,
+  `DesignPattern_Sailor_Jean` or `DesignPattern_Black_Leather_bikini`. A played save from `B07`, `F02 1`, `G03 1` or
+  `G03 2` holds none of them, so the export takes it without that file, and takes a New Game+ you started from it in
+  another co-op slot: do not export those ([saves.md](saves.md#co-op-saves) lists the cases).
 - The co-op saves count the new slot 5 as played in co-op, so no automatic copy replaces it.
 - Load Game lists the slots as they were when the title screen appeared, so the fifth slot may still show the old
   save's details. The game reads the file when you pick it. A slot that was empty then may not be offered: load
