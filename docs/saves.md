@@ -156,8 +156,9 @@ copies, and switches neither. As with a refresh, the first time it only says wha
 - reads `StellarBladeCoop0N.sav` whole and checks it as the game does (header and CRC-32);
 - refuses it, before it writes anything, while it holds what the game without the mod does not know: one of the mod's
   items (`HP2Burst_Potion`, the Burst Stimpack; `Buff_HP2MP`, the Beta Stimpack; `Bullet_Shock`, the Shock Bolt;
-  `Money_NightOperation`, the Beta Seed) in the inventory, in a pickup left in the world or on a quick slot, or the
-  cut Matrix XIII dungeon as the place the save starts from (its map `MXIII_P`, or the camp `coop mxiii` adds there);
+  `Money_NightOperation`, the Beta Seed) in the inventory, in a pickup left in the world or on a quick slot; Shock
+  Bolts as the selected ammo (`BulletItemSlotIndex` 5, past the five ammo types the game ships); or the cut Matrix XIII
+  dungeon as the save's map (`MXIII_P`), its camp or its last full camp (the camp `coop mxiii` adds there);
 - copies `StellarBladeSave0M.sav`, when there is one, into a new folder of `StellarCoopBackups` and reads it back;
 - reads the co-op copy again, refuses it if it changed since the check, writes its bytes unchanged as
   `StellarBladeSave0M.sav.coop-tmp`, renames that over `StellarBladeSave0M.sav` and reads it back;
@@ -166,11 +167,19 @@ copies, and switches neither. As with a refresh, the first time it only says wha
 
 `coop-link.log` has `StellarBladeCoop0N.sav exported to StellarBladeSave0M.sav (<size> bytes)`, or why not. A refusal
 lists what it found and what to do before you export again: use up or sell the items and take them off the quick
-slots, open and close `coop nightop shop` so that the Beta Seeds go back to the wallet, or travel to a camp outside
-the dungeon and rest there; then save. The game keeps every item you ever held in a list of its own
-(`ItemOtaineSet`), and every save names every world and zone of the game's tables, Matrix XIII's `DLCMatrix13` and
-`Zone_DLC02_10` to `40` included, so the check leaves both out. Quit the game after an export: until it restarts, the
-title's slot list shows the slot's old details. The export has not been tested in game yet.
+slots, open and close `coop nightop shop` so that the Beta Seeds go back to the wallet, switch the gun to another
+ammo, or rest at a full camp (one with a phone booth) outside the dungeon; then save. The mod's camp in the dungeon is
+a full camp, and the save keeps the last full camp you rested at apart from the camp you are at, so a rest at a simple
+camp does not clear it. The game keeps every item you ever held in a list of its own (`ItemOtaineSet`), and every save
+names every world and zone of the game's tables, Matrix XIII's `DLCMatrix13` and `Zone_DLC02_10` to `40` included, so
+the check leaves both out. Quit the game after an export: until it restarts, the title's slot list shows the slot's
+old details. The export has not been tested in game yet.
+
+A save that went through New Game+ also holds a second copy of the inventory and the camps for New Game+
+(`NewGamePlusBaseData`), which playing on does not change. If a co-op save started New Game+ while it held the mod's
+items, Shock Bolts as the selected ammo or the dungeon's camp, that copy keeps them, and the export keeps refusing the
+save; the refusal says so. Only the copy by hand (see [Recovery](#recovery)) takes such a save out, and nothing then checks
+it.
 
 To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.log`) shows the slot line:
 

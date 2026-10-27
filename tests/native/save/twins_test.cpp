@@ -10,6 +10,8 @@
 // places (the scan, on save bodies laid out as a released-game save lays out its fields).
 #include "save/twins.h"
 
+#include "lion/shock.h" // kShippedBullets, for the ammo count's check
+
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -202,18 +204,37 @@ std::string names_field(const std::string &field, const std::string &type, const
   return fstring(field) + fstring(type) + std::string(reinterpret_cast<const char *>(&size), 8) +
          fstring("NameProperty") + '\0' + body;
 }
+// An IntProperty field: the field, the type, its int64 size 4, no GUID, the value.
+std::string int_field(const std::string &field, int32_t value) {
+  return fstring(field) + fstring("IntProperty") + std::string("\x04\0\0\0\0\0\0\0\0", 9) +
+         std::string(reinterpret_cast<const char *>(&value), 4);
+}
+// The New Game+ snapshot around a body: NewGamePlusBaseData, StructProperty, the body's int64 size, the struct's name,
+// a zero GUID and its flag, the body.
+std::string snapshot_field(const std::string &body) {
+  const int64_t size = int64_t(body.size());
+  return fstring("NewGamePlusBaseData") + fstring("StructProperty") +
+         std::string(reinterpret_cast<const char *>(&size), 8) + fstring("SBSaveGameData_NewGamePlusBaseInfo") +
+         std::string(17, '\0') + body;
+}
 // A body as a co-op save made with the mod lays out what the scan reads, holding nothing of the mod's: every item the
 // mod adds in the obtained set, the cut world and its zones in the world lists, a shipped consumable whose name starts
-// with a mod item's, a shop row named after one, the save's map and camp in Eidos 7.
+// with a mod item's, a shop row named after one, the first ammo selected, the save's map and camp in Eidos 7, and a New
+// Game+ snapshot with an item, a quick slot, the ammo (the missile) and the camps of its own, as Coop00 holds them.
 std::string clean_body() {
   return name_field("ItemAlias", "HP_Potion") + name_field("ItemAlias", "Bullet_Shock_Consume") +
          names_field("ItemOtaineSet", "SetProperty",
                      {"BS_Raven", "HP2Burst_Potion", "Buff_HP2MP", "Bullet_Shock", "Money_NightOperation"}) +
          names_field("ItemQuickSlotArray", "ArrayProperty", {"Recovery_HP_Potion", "None"}) +
-         name_field("WorldAlias", "DLCMatrix13") + name_field("Alias", "Zone_DLC02_10") +
-         name_field("ZoneAlias", "Zone_DLC02_40") + fstring("NightOperation_HP2Burst_Potion_Buy") +
-         fstring("MapName") + fstring("E03_WasteLand_P") + fstring("CampAlias") + fstring("WLA_30_EnvS_087") +
-         name_field("CampEnvSpawnAlias", "WLA_30_EnvS_087") + name_field("LastFullCampEnvSpawnAlias", "SE_01_EnvS_056");
+         int_field("BulletItemSlotIndex", 0) + name_field("WorldAlias", "DLCMatrix13") +
+         name_field("Alias", "Zone_DLC02_10") + name_field("ZoneAlias", "Zone_DLC02_40") +
+         fstring("NightOperation_HP2Burst_Potion_Buy") + fstring("MapName") + fstring("E03_WasteLand_P") +
+         fstring("CampAlias") + fstring("WLA_30_EnvS_087") + name_field("CampEnvSpawnAlias", "WLA_30_EnvS_087") +
+         name_field("LastFullCampEnvSpawnAlias", "SE_01_EnvS_056") +
+         snapshot_field(name_field("ItemAlias", "Can_009") +
+                        names_field("ItemQuickSlotArray", "ArrayProperty", {"Recovery_HP_Potion"}) +
+                        int_field("BulletItemSlotIndex", 3) + name_field("CampEnvSpawnAlias", "Nest_10_EnvS_007") +
+                        name_field("LastFullCampEnvSpawnAlias", "Nest_10_EnvS_007"));
 }
 } // namespace
 
@@ -294,14 +315,34 @@ int main() {
   }
   assert(!mod_only(quick).empty() && mod_only(quick.substr(0, quick.size() - 1)).empty());
   assert(mod_only(quick.substr(0, sized + 4)).empty() && mod_only(quick.substr(0, 30)).empty());
-  // The save in the Matrix XIII dungeon: its map, or the mod's camp there as the camp it starts from.
-  for (const std::string &there :
-       {fstring("MapName") + fstring("MXIII_P"), fstring("CampAlias") + fstring("DLC02_10_EnvS_900"),
-        name_field("CampEnvSpawnAlias", "DLC02_10_EnvS_900"),
-        name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900"),
-        name_field("LastSimplyCampEnvSpawnAlias", "DLC02_10_EnvS_900")})
-    assert(mod_only(clean_body() + there) ==
-           "the cut Matrix XIII dungeon: travel to a camp outside it and rest there");
+  // The selected ammo, as the real saves lay it out (Coop03's missile: 3): any of the five SB ships passes; the Shock
+  // Bolt the mod appends, index 5, is refused; a value cut short is not read.
+  assert(int_field("BulletItemSlotIndex", 3) ==
+         std::string("\x14\0\0\0BulletItemSlotIndex\0\x0c\0\0\0IntProperty\0\x04\0\0\0\0\0\0\0\0\x03\0\0\0", 53));
+  for (int32_t index : {0, 3, 4, -1})
+    assert(mod_only(clean_body() + int_field("BulletItemSlotIndex", index)).empty());
+  const std::string shock = int_field("BulletItemSlotIndex", 5);
+  assert(mod_only(clean_body() + shock) ==
+         "Shock Bolts as the selected ammo: switch to another ammo; then save and export it again");
+  assert(mod_only(clean_body() + shock.substr(0, shock.size() - 1)).empty());
+  // The save in the Matrix XIII dungeon: its map, or the mod's camp there as its camp or its last full camp, the field
+  // said. The last full camp stays after a rest at a simple camp outside (the current camp then elsewhere, as in
+  // clean_body), and only a full camp's rest moves it.
+  const std::string rest = ": rest at a full camp (one with a phone booth) outside the dungeon";
+  for (const auto &there : std::vector<std::pair<std::string, std::string>>{
+           {fstring("MapName") + fstring("MXIII_P"), "its map" + rest},
+           {fstring("CampAlias") + fstring("DLC02_10_EnvS_900"), "its camp" + rest},
+           {name_field("CampEnvSpawnAlias", "DLC02_10_EnvS_900"), "its camp" + rest},
+           {name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900"), "its last full camp" + rest},
+           {name_field("LastSimplyCampEnvSpawnAlias", "DLC02_10_EnvS_900"),
+            "its last simple camp" + rest + ", then at a simple camp"}})
+    assert(mod_only(clean_body() + there.first) ==
+           "the cut Matrix XIII dungeon as " + there.second + "; then save and export it again");
+  assert(mod_only(clean_body() + fstring("MapName") + fstring("MXIII_P") + fstring("CampAlias") +
+                  fstring("DLC02_10_EnvS_900") + name_field("CampEnvSpawnAlias", "DLC02_10_EnvS_900") +
+                  name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900")) ==
+         "the cut Matrix XIII dungeon as its map, its camp, its last full camp" + rest +
+             "; then save and export it again");
   // The camp's row elsewhere (the zone's list of camps it activated) and the map's name in a level actor's path do not.
   assert(mod_only(name_field("EnvAlias", "DLC02_10_EnvS_900") +
                   fstring("/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P/MXIII_Area01.Actor_1"))
@@ -310,6 +351,32 @@ int main() {
                                     fstring("MXIII_P"));
   assert(both.rfind("the mod's items Beta Seed (Money_NightOperation): ", 0) == 0 &&
          both.find("; the cut Matrix XIII dungeon") != std::string::npos);
+  // The New Game+ snapshot: what it holds is said apart, with no promise that playing clears it; what follows it counts
+  // as the save as played.
+  const std::string stuck = " in its New Game+ snapshot: playing does not change that snapshot, so only a copy by hand "
+                            "takes this save out (docs/saves.md)";
+  const std::string kept = snapshot_field(name_field("ItemAlias", "HP2Burst_Potion") +
+                                          names_field("ItemQuickSlotArray", "ArrayProperty", {"Bullet_Shock"}) +
+                                          shock + name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900"));
+  const std::string kept_why = "the mod's items Burst Stimpack (HP2Burst_Potion), Shock Bolt (Bullet_Shock) and Shock "
+                               "Bolts as the selected ammo and the cut Matrix XIII dungeon as its last full camp" +
+                               stuck;
+  assert(mod_only(kept) == kept_why);
+  assert(mod_only(snapshot_field(name_field("ItemAlias", "Buff_HP2MP")) + clean_body()) ==
+         "the mod's items Beta Stimpack (Buff_HP2MP)" + stuck);
+  // Held in both: said once for each, the snapshot's last.
+  assert(mod_only(kept + name_field("ItemAlias", "HP2Burst_Potion")) ==
+         "the mod's items Burst Stimpack (HP2Burst_Potion): use them up or sell them, and take them off the quick "
+         "slots (Beta Seeds go back to the wallet when coop nightop shop closes); " +
+             kept_why);
+  // A snapshot header whose size reads past the file is no snapshot: its finds count as played.
+  std::string long_kept = snapshot_field(name_field("ItemAlias", "Buff_HP2MP"));
+  const int64_t past = int64_t(long_kept.size());
+  std::memcpy(&long_kept[fstring("NewGamePlusBaseData").size() + fstring("StructProperty").size()], &past, 8);
+  assert(mod_only(long_kept).find("use them up or sell them") != std::string::npos &&
+         mod_only(long_kept).find("snapshot") == std::string::npos);
+  // The ammo count matches the list lion/shock.h checks before it appends the Shock Bolt.
+  static_assert(sizeof(coop::lion::kShippedBullets) / sizeof(coop::lion::kShippedBullets[0]) == kShippedBullets);
 
   // The manifest: its own output reads back; comments, blank lines and CRLF are allowed; anything else makes it bad.
   Lines lines{};
@@ -894,8 +961,8 @@ int main() {
   assert(xs.status().rfind("convert=error:StellarBladeCoop00.sav was not exported: it holds what the game without the "
                            "mod does not know, the mod's items Burst Stimpack (HP2Burst_Potion): ",
                            0) == 0);
-  assert(logged(said, "; the cut Matrix XIII dungeon: travel to a camp outside it and rest there; then save and export "
-                      "it again"));
+  assert(logged(said, "; the cut Matrix XIII dungeon as its map: rest at a full camp (one with a phone booth) outside "
+                      "the dungeon; then save and export it again"));
   assert(x.ops.empty() && backups(x) == 2 && others("") == before);
   // A copy that fails the game's own check: refused before any write.
   std::string torn = coop_save;

@@ -522,9 +522,12 @@ top right, whatever `auto_coop_save` says, and the question does not show.
 
 To go on with a co-op character alone, without the mod, type `coop saves export N M` twice within 10 s at the title: it
 backs up your `StellarBladeSave0M.sav`, then writes the co-op copy `StellarBladeCoop0N.sav` over it, unchanged. It
-refuses a co-op copy that still holds the mod's items (the two cut stimpacks, the Shock Bolt, Beta Seeds) or stands in
-the cut Matrix XIII dungeon, and `coop-link.log` says what to use up, sell or leave first. The rules are in
-[saves.md](saves.md#co-op-saves). The export has not been tested in game yet.
+refuses a co-op copy that still holds the mod's items (the two cut stimpacks, the Shock Bolt, Beta Seeds), has Shock
+Bolts as the selected ammo, or names the cut Matrix XIII dungeon as its map, its camp or its last full camp, and
+`coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth) outside the
+dungeon. A co-op save that started New Game+ with any of these keeps them in a copy that playing does not change: the
+export keeps refusing it. The rules are in [saves.md](saves.md#co-op-saves). The export has not been tested in game
+yet.
 
 ## Synced photo mode
 

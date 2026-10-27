@@ -239,9 +239,14 @@ More about the copies:
 - To keep a co-op character without the mod, type `coop saves export N M` twice within 10 s at the title (N is the
   co-op slot, M the slot of yours it goes to, both 0 to 4). The mod backs up `StellarBladeSave0M.sav` into
   `StellarCoopBackups`, then writes `StellarBladeCoop0N.sav` over it, unchanged. It refuses a co-op save that still
-  holds the mod's items (Burst Stimpack, Beta Stimpack, Shock Bolt, Beta Seed) or stands in the cut Matrix XIII
-  dungeon, and `coop-link.log` says what to use up, sell or leave first. Quit the game afterwards: until it restarts,
-  the title's slot list shows the slot's old details. See [docs/saves.md](docs/saves.md#co-op-saves).
+  holds the mod's items (Burst Stimpack, Beta Stimpack, Shock Bolt, Beta Seed), has Shock Bolts as the selected ammo,
+  or names the cut Matrix XIII dungeon as its map, its camp or its last full camp, and `coop-link.log` says what to
+  use up, sell or switch, or to rest at a full camp (one with a phone booth) outside the dungeon. Quit the game
+  afterwards: until it restarts, the title's slot list shows the slot's old details. See
+  [docs/saves.md](docs/saves.md#co-op-saves).
+- A co-op save that started New Game+ while it held any of these keeps them in the game's New Game+ copy of the
+  inventory and camps, which playing does not change, so the export keeps refusing it. Only the copy by hand below
+  takes it out.
 - By hand: close the game, back up the save folder, then copy `StellarBladeCoop0N.sav` to a free
   `StellarBladeSave0M.sav` name in the same folder. The game loads it like any save, but nothing checks it for the
   mod's items first.

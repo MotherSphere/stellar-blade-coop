@@ -2705,8 +2705,11 @@ drops the input.
   before any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
   A `saves export N M` request is the one write to your own saves, behind a check of its own that passes only
   `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It reads the co-op copy, checks it as the game
-  does, and refuses it while an `ItemAlias` field or a quick slot names one of the mod's items, or while the save's
-  `MapName` is `MXIII_P` or one of its camp fields names the camp `coop mxiii` adds. Only then does it back up the
+  does, and refuses it while an `ItemAlias` field or a quick slot names one of the mod's items, while
+  `BulletItemSlotIndex` is 5 or more (the Shock Bolt `lion/shock.h` appends after the five ammo types the game ships),
+  or while the save's `MapName` is `MXIII_P` or one of its camp fields names the camp `coop mxiii` adds. A find inside
+  `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing does not change, is refused too,
+  with a line that says so instead of what to use up or where to rest. Only then does it back up the
   target save, read the copy again (unchanged since the check, or it stops) and write it over that save through a
   `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
   The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back

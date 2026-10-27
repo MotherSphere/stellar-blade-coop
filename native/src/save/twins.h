@@ -39,6 +39,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "link/protocol.h" // number(), split(), SavesAsk
@@ -169,18 +170,51 @@ constexpr ModItem kModItems[] = {{"HP2Burst_Potion", "Burst Stimpack"},
                                  {"Buff_HP2MP", "Beta Stimpack"},
                                  {"Bullet_Shock", "Shock Bolt"},
                                  {"Money_NightOperation", "Beta Seed"}};
-// coop mxiii's place: the Matrix XIII dungeon's map, and the ZoneEnvSpawnTable row of the camp the mod adds there.
+// coop mxiii's place: the Matrix XIII dungeon's map, and the ZoneEnvSpawnTable row of the camp the mod adds there (a
+// full camp: lion/rows.h's kMxiiiPatches keep its CampType 3).
 constexpr char kMxiiiMap[] = "MXIII_P", kMxiiiCamp[] = "DLC02_10_EnvS_900";
+// The ammo SB ships in its const BulletItemSlotArray (lion/shock.h's kShippedBullets); lion/shock.h appends the Shock
+// Bolt after them, so a selected ammo index of 5 or more is the Shock Bolt.
+constexpr int32_t kShippedBullets = 5;
+// The New Game+ snapshot: the NewGamePlusBaseData StructProperty, a copy of the inventory and the camps apart from the
+// save as played, which playing on does not change (three saves of one account, months of play apart, hold it byte for
+// byte). Its first byte and the end of its value, or the file's size twice when the save has none or its header reads
+// out of range.
+inline std::pair<size_t, size_t> snapshot(const std::string &b) {
+  const std::string head = fstring("NewGamePlusBaseData") + fstring("StructProperty");
+  const size_t at = b.find(head);
+  int64_t size = -1;
+  int32_t name = -1;
+  if (at != std::string::npos && at + head.size() + 12 <= b.size()) {
+    std::memcpy(&size, b.data() + at + head.size(), 8);
+    std::memcpy(&name, b.data() + at + head.size() + 8, 4);
+  }
+  // The value follows its int64 size, its struct's name (an FString), the GUID and the GUID's flag.
+  const uint64_t end = uint64_t(at) + head.size() + 12 + uint64_t(name) + 17 + uint64_t(size);
+  if (size < 0 || name < 0 || end > b.size())
+    return {b.size(), b.size()};
+  return {at, size_t(end)};
+}
 // What a save holds that the game without the mod does not know, for the export's refusal, or empty. Read from a
 // released-game save, where every name is an FString: an item held, in the inventory or a pickup left in the world,
-// is an ItemAlias field; a quick slot is a name in ItemQuickSlotArray; the save's map is DataMap_FString's MapName
-// entry and the camp it starts from is DataMap_FString's CampAlias and the player's CampEnvSpawnAlias, LastFullCamp-
-// and LastSimplyCampEnvSpawnAlias fields. Every world and zone of the game's tables, Matrix XIII's DLCMatrix13 and
-// Zone_DLC02_10 to 40 included, is in every save, and ItemOtaineSet keeps every item ever held, so neither counts.
+// is an ItemAlias field; a quick slot is a name in ItemQuickSlotArray; the selected ammo is BulletItemSlotIndex, an
+// IntProperty indexing BulletItemSlotArray; the save's map is DataMap_FString's MapName entry, its camp
+// DataMap_FString's CampAlias and the player's CampEnvSpawnAlias, and the last camps rested at the LastFullCamp- and
+// LastSimplyCampEnvSpawnAlias fields, which only a rest at a camp of that kind changes. Every world and zone of the
+// game's tables, Matrix XIII's DLCMatrix13 and Zone_DLC02_10 to 40 included, is in every save, and ItemOtaineSet keeps
+// every item ever held, so neither counts. What the New Game+ snapshot holds is said apart: playing cannot clear it.
 inline std::string mod_only(const std::string &b) {
-  auto has = [&b](const std::string &bytes) { return b.find(bytes) != std::string::npos; };
-  // The quick slots' arrays: their bodies, after the header (the names' type and no GUID).
-  std::vector<std::string> slots;
+  const std::pair<size_t, size_t> kept = snapshot(b);
+  // Where bytes at an offset are: 1 the save as played, 2 its New Game+ snapshot; where(bytes) ors them, 0 nowhere.
+  auto in = [&kept](size_t at) { return at >= kept.first && at < kept.second ? 2 : 1; };
+  auto where = [&](const std::string &bytes) {
+    int w = 0;
+    for (size_t at = b.find(bytes); at != std::string::npos; at = b.find(bytes, at + 1))
+      w |= in(at);
+    return w;
+  };
+  // The quick slots' arrays: their bodies, after the header (the names' type and no GUID), and where each is.
+  std::vector<std::pair<std::string, int>> slots;
   const std::string head = fstring("ItemQuickSlotArray") + fstring("ArrayProperty");
   for (size_t at = b.find(head); at != std::string::npos; at = b.find(head, at + 1)) {
     const size_t body = at + head.size() + 8 + fstring("NameProperty").size() + 1;
@@ -188,26 +222,70 @@ inline std::string mod_only(const std::string &b) {
     if (body > b.size())
       break;
     std::memcpy(&size, b.data() + at + head.size(), 8);
-    slots.push_back(b.substr(body, size_t(std::min<int64_t>(std::max<int64_t>(size, 0), int64_t(b.size() - body)))));
+    slots.push_back(
+        {b.substr(body, size_t(std::min<int64_t>(std::max<int64_t>(size, 0), int64_t(b.size() - body)))), in(at)});
   }
-  std::string items;
+  // The selected ammo: the IntProperty's value after its int64 size and no GUID.
+  int shock = 0;
+  const std::string ammo = fstring("BulletItemSlotIndex") + fstring("IntProperty");
+  for (size_t at = b.find(ammo); at != std::string::npos && at + ammo.size() + 13 <= b.size();
+       at = b.find(ammo, at + 1)) {
+    int32_t index = 0;
+    std::memcpy(&index, b.data() + at + ammo.size() + 9, 4);
+    if (index >= kShippedBullets)
+      shock |= in(at);
+  }
+  auto add = [](std::string &list, const std::string &s, const char *comma) {
+    list += (list.empty() ? "" : comma) + s;
+  };
+  std::string items[3], places[3]; // By where: [1] the save as played, [2] its New Game+ snapshot.
   for (const ModItem &item : kModItems) {
-    bool held = has(name_field("ItemAlias", item.alias));
-    for (const std::string &slot : slots)
-      held = held || slot.find(fstring(item.alias)) != std::string::npos;
-    if (held)
-      items += std::string(items.empty() ? "" : ", ") + item.name + " (" + item.alias + ")";
+    int w = where(name_field("ItemAlias", item.alias));
+    for (const auto &slot : slots)
+      if (slot.first.find(fstring(item.alias)) != std::string::npos)
+        w |= slot.second;
+    for (int i : {1, 2})
+      if (w & i)
+        add(items[i], std::string(item.name) + " (" + item.alias + ")", ", ");
   }
-  bool there = has(fstring("MapName") + fstring(kMxiiiMap)) || has(fstring("CampAlias") + fstring(kMxiiiCamp));
-  for (const char *field : {"CampEnvSpawnAlias", "LastFullCampEnvSpawnAlias", "LastSimplyCampEnvSpawnAlias"})
-    there = there || has(name_field(field, kMxiiiCamp));
-  std::string why;
-  if (!items.empty())
-    why = "the mod's items " + items + ": use them up or sell them, and take them off the quick slots (Beta Seeds go "
-                                       "back to the wallet when coop nightop shop closes)";
-  if (there)
-    why += std::string(why.empty() ? "" : "; ") +
-           "the cut Matrix XIII dungeon: travel to a camp outside it and rest there";
+  const int simple = where(name_field("LastSimplyCampEnvSpawnAlias", kMxiiiCamp));
+  const std::pair<const char *, int> place[] = {
+      {"its map", where(fstring("MapName") + fstring(kMxiiiMap))},
+      {"its camp",
+       where(fstring("CampAlias") + fstring(kMxiiiCamp)) | where(name_field("CampEnvSpawnAlias", kMxiiiCamp))},
+      {"its last full camp", where(name_field("LastFullCampEnvSpawnAlias", kMxiiiCamp))},
+      {"its last simple camp", simple}};
+  for (const auto &p : place)
+    for (int i : {1, 2})
+      if (p.second & i)
+        add(places[i], p.first, ", ");
+  std::string why, stuck;
+  if (!items[1].empty())
+    add(why,
+        "the mod's items " + items[1] + ": use them up or sell them, and take them off the quick slots (Beta Seeds go "
+                                        "back to the wallet when coop nightop shop closes)",
+        "; ");
+  if (shock & 1)
+    add(why, "Shock Bolts as the selected ammo: switch to another ammo", "; ");
+  if (!places[1].empty()) // A full camp's rest sets the camp and the last full camp to it, and moves the map.
+    add(why,
+        "the cut Matrix XIII dungeon as " + places[1] +
+            ": rest at a full camp (one with a phone booth) outside the dungeon" +
+            (simple & 1 ? ", then at a simple camp" : ""),
+        "; ");
+  if (!items[2].empty())
+    add(stuck, "the mod's items " + items[2], " and ");
+  if (shock & 2)
+    add(stuck, "Shock Bolts as the selected ammo", " and ");
+  if (!places[2].empty())
+    add(stuck, "the cut Matrix XIII dungeon as " + places[2], " and ");
+  if (!stuck.empty())
+    add(why,
+        stuck + " in its New Game+ snapshot: playing does not change that snapshot, so only a copy by hand takes this "
+                "save out (docs/saves.md)",
+        "; ");
+  else if (!why.empty())
+    why += "; then save and export it again";
   return why;
 }
 
@@ -545,8 +623,7 @@ private:
       return stop(fs, twin + " " + why + ", so it was not exported");
     if (!write) {
       if (const std::string why = mod_only(bytes); !why.empty())
-        return stop(fs, twin + " was not exported: it holds what the game without the mod does not know, " + why +
-                            "; then save and export it again");
+        return stop(fs, twin + " was not exported: it holds what the game without the mod does not know, " + why);
       checked_ = stat;
       return "co-op saves: " + twin + " checked (" + std::to_string(bytes.size()) + " bytes)";
     }
