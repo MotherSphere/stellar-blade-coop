@@ -1578,8 +1578,11 @@ With v2 the camp stands where EVE arrives: a vending machine, a chair, a skill m
 a phone booth, the same objects as a full camp elsewhere in the game. The vending machine coin it needs lies on the
 floor beside them; the zone puts it there when EVE enters. At first only the vending machine works. Activate the camp
 with the coin and the other five objects switch on. The camp then shows in the camp list under Matrix 11, with the name
-and picture of Matrix 11's first full camp, since the game has no text for Matrix XIII. The chair rests there, the
-phone booth opens the camp list for fast travel out and back, and a death in the zone brings EVE back to this camp.
+and picture of Matrix 11's first full camp, since the game has no text for Matrix XIII. On a save that has activated
+that camp (`ME01_Camp_03`, Matrix 11's start camp), the list shows two entries that look the same, and which one comes
+first has not been checked. After a travel from the list, `coop where` tells you where EVE landed: `map=` ends in
+`mxiii_p` at this camp, with `eve=` near 36624,16140, and in `matrix_xi` at Matrix 11's camp. The chair rests there,
+the phone booth opens the camp list for fast travel out and back, and a death in the zone brings EVE back to this camp.
 With v1 the game finds no spawn point for the six objects and places none; the travel still works.
 
 - The pak check reads `zMXIII_P.utoc` once per command and looks for `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap`
@@ -1588,10 +1591,15 @@ With v1 the game finds no spawn point for the six objects and places none; the t
   and reads as v1. A pak under another name is not found. The check reads the folder as it is now: it cannot tell
   whether the game mounted the pak at start, and the game mounts paks only at start. Copy the files in with the game
   closed.
-- After you activate the camp, rest at it or use its phone booth, the save names one of the mod's rows as its last
-  camp. Those rows exist only once `coop mxiii` has run in the same game run, and what the game does with a save whose
-  last camp it cannot find has not been checked. Before you save and quit, leave with `coop travel probe ME01_Camp_01`
-  and rest at a camp of the main game, so that the save names a camp the game always has.
+- The mod's camp reaches the save file as soon as you activate it, without a save and quit: the vending machine saves
+  the game after the activation, and the phone booth saves before it opens the camp list. The save's activated camps
+  then include `DLC02_10_Camp_01`, and its last camp is one of the mod's rows (`DLC02_10_EnvS_906` after the
+  activation). Those rows exist only once `coop mxiii` has run in the same game run, and what the game does with a
+  save that names a camp or row it does not have has not been checked. Resting at another camp afterwards does not
+  clean the save: `DLC02_10_Camp_01` stays among the activated camps, and `ME01_Camp_01` is a simple camp, so a rest
+  there leaves the last full camp on a mod row. To get that slot back, type `coop saves refresh <0-4>` at the title,
+  while the game uses your own saves, before you load the slot again. The same applies if the game crashes after the
+  activation.
 - The rows go in through the same native calls as `coop lion` and the shop's cut items. A fault in those calls during
   `coop mxiii` stops them all until the game restarts: `coop lion`, `coop gardener fight`, `coop tendril fight`, and
   the shop's stimpacks, ChainSpin and Shock Bolt that are not in yet then answer that the rows stopped on a fault.
@@ -1617,8 +1625,9 @@ With v1 the game finds no spawn point for the six objects and places none; the t
 None of it has been tried in game yet. Check that the second try loads the map and that EVE stands on its floor at the
 camp's arrival point, and which enemies appear. With v2, check that the six objects and the coin stand on the floor
 without clipping, that the coin activates the camp, that the chair rests, that the phone booth travels to a camp of the
-main game and back from the camp list, and that a death in the zone brings EVE back to the camp. Check that the game
-keeps running and saves normally after you leave.
+main game and back from the camp list (with `coop where` showing `map=` ending in `mxiii_p` on the way back), and that
+a death in the zone brings EVE back to the camp. Check that the game keeps running and saves normally after you leave,
+then replace the slot with `coop saves refresh <0-4>` at the title.
 
 ### Cut hairs and suits: `coop wear`
 

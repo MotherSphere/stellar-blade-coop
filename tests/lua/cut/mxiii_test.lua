@@ -95,12 +95,13 @@ local MODS,LOGIC=PAKS..'\\~mods\\zMXIII_P.utoc',PAKS..'\\LogicMods\\zMXIII_P.uto
 local UTOC='-==--==--==--==-\0\0../../../\0SB\0Content\0WorldMap_DLC_01\0Level_P\0MXIII_P.umap\0SubLevel\0'
 -- v1's .ucas: MXIII_10_LD's name map with the enemies' and the camp's points; v2's adds the kit's FName base.
 local UCAS1=('\0'):rep(16)..'\20DLC02_10_E_CharS_001\16DLC02_10_Camp_01\12SBSpawnPoint'
-local UCAS2=UCAS1..'\13DLC02_10_EnvS\20DLC02_10_E_ItemS_001'
+-- The kit's name starts at byte 100280, as in the v2 build, so a short read of the .ucas finds no v2.
+local UCAS2=UCAS1..('\0'):rep(100278-#UCAS1)..'\13DLC02_10_EnvS\20DLC02_10_E_ItemS_001'
 local files,reads={},{}
-local function read(path,limit)
+local function read(path,limit) -- files.read: at most limit bytes.
     reads[#reads+1]=path
     assert(limit and limit>=1,'A bounded read')
-    return files[path]
+    return files[path] and files[path]:sub(1,limit)
 end
 local function put(utoc,text,ucas) -- The three files of the container (v1's .ucas unless given), or its .utoc alone.
     files[utoc]=text or UTOC

@@ -2104,11 +2104,18 @@ it lands in lists the camp objects in `Zone_DLC02_10`. This comes from reading t
 
 ### The save
 
-The game saves the name of the row a camp was last used through (`LastInteractCampEnvSpawnAlias`), and a death or a
-load resolves that row to its camp. After an activation, a rest or a phone booth at this camp, that row is one of the
-mod's, which exists only once `coop mxiii` has run in the game run. How a load handles a row it cannot find
-(`ESBEnterGameResult_NotFoundTargetCamp`) was not traced, so the usage section asks for a rest at a camp of the main
-game before a save and quit.
+The save names camps and their rows in four fields: `USBSaveData`'s activated camps (`OpenCampAliases`, `+0x88`) and
+the row a camp was last used through (`LastInteractCampEnvSpawnAlias`, `+0x98`), and `FSBSaveGameData_Actor`'s last
+full camp and last simple camp rows (`LastFullCampEnvSpawnAlias`, `+0x26c`; `LastSimplyCampEnvSpawnAlias`, `+0x28c`).
+A death or a load resolves the last row to its camp. The vending machine's interaction graph saves after the
+activation and the phone booth's saves before its camp list (read from the graphs), so `DLC02_10_Camp_01` and the
+mod's rows are on disk from the activation on. Resting at another camp does not take the camp out of
+`OpenCampAliases`, and the way out, `ME01_Camp_01`, is a SimplyCamp in ZoneCampTable, so a rest there changes only the
+simple camp row and leaves `LastFullCampEnvSpawnAlias` on a mod row. Those rows exist only once `coop mxiii` has run in
+the game run. What a load or the camp list does with a camp or row that has no table row
+(`ESBEnterGameResult_NotFoundTargetCamp`, a skip or a null read) was not traced, so the usage section gives
+`coop saves refresh` at the title as the way back. Adding the rows at mod start whenever the test pak is installed
+would keep those names valid; the mod does not do that yet.
 
 ### Open questions
 
