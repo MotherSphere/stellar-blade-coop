@@ -59,7 +59,14 @@ RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::
     mxiii_job{lion::kMxiii}, shop_job{lion::kShop};
 RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job, &mxiii_job, &shop_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
-// Shared: the spawn manager's counter (INT64_MIN until read) and the latch.
+// Shared: the spawn manager's counter (INT64_MIN until read) and the latch. No batch gets a latch of its own: no part
+// of its call stays clear of what the others use. The gate reads SB's globals; every row is built in the one lion_block
+// through SB's FName table, CopyScriptStruct and GMalloc; AddRow writes tables several batches write (ItemTable for the
+// lion, bolt and shop batches; SkillTable, CharacterStanceTable and CharacterTable for the Lion's, the Gardener's and
+// the Tendril's); and the read-back runs SB's lookups over those same tables and its registry. Matrix XIII's two zone
+// tables are its own, but its rows go through the same block and calls. So a fault anywhere in the call may leave
+// shared state half written, and it stops every batch. The status lines are the worker's, built from atomics with no
+// engine access. The Shock Bolt's list growth writes nothing a batch writes and keeps its own latch (shock_faulted).
 std::atomic<int64_t> lion_spawns{INT64_MIN};
 std::atomic<bool> lion_faulted{false};
 std::atomic<uint64_t> lion_fault_code{0}, lion_fault_rva{0}, lion_fault_address{0};

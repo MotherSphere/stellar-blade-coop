@@ -1872,6 +1872,15 @@ are not all in then reads `fault`, also one that was never asked or whose ask th
 count unchanged; Lua's wait takes a `fault` line as the end either way). A batch checks only the tables its rows go
 into, so a refusal in one leaves the other alone. This is a local request: the link protocol did not change.
 
+No batch has a latch of its own, because no part of a batch's call stays clear of what the other batches use. The gate
+reads the game's globals. Every row is built in the one block through the game's FName table, CopyScriptStruct and
+allocator. AddRow writes tables that several batches write: ItemTable for the lion, bolt and shop rows, and SkillTable,
+CharacterStanceTable and CharacterTable for the Lion's, the Gardener's and the Tendril's. The read-back runs the game's
+lookups over those same tables. Matrix XIII's two zone tables are its own, but its rows go through the same block and
+calls. A fault anywhere in that call may leave shared state half written, so it stops every batch. The status lines
+are built by the worker from what the game thread published and make no engine call. The Shock Bolt's list growth
+writes nothing a batch writes, and keeps its own latch ([The cut Shock Bolt](#the-cut-shock-bolt)).
+
 ### Its spawn
 
 `cut/gardener.lua` spawns 50010 (50012 with `half`, 50011 with `skulling`) through the Lion's call, 25 m ahead of EVE
@@ -2652,7 +2661,8 @@ drops the input.
   feature off for the run and is logged with its code, the DLL offset, the address and the part. Effects have a latch
   of their own. A fault inside Steam in the worker (for example a call racing the game's Steam shutdown at exit) stops
   the link and the pose path for the rest of the run (`stopped=fault <code>`) instead of crashing the game. The log's
-  last line gives the reason the worker stopped.
+  last line gives the reason the worker stopped. The rows batches (the cut Naytibas, the Shock Bolt, Matrix XIII and
+  the Night Operation shop) share one latch; [Its batch in the native part](#its-batch-in-the-native-part) says why.
 - On the Lua side, `main.lua` calls each module's work in its two loops (every frame and every 250 ms) through a
   `pcall` guard. An error that escapes one, for example `cut/lion.lua`'s tick, is logged once a Lua load with the
   module's name and the message:
