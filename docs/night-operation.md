@@ -483,21 +483,27 @@ What the command does, in order:
 
 1. It checks the co-op save, your Steam ID, that no run is on and that the game plays (no pause, no menu screen).
 2. It asks the native part for three rows batches at once, through `coop lion`'s flow (their `[LI]` lines start with
-   `shop`, `lion` and `bolt`): the shop's own 6 rows, the stimpacks' (the lion rows batch) and the Shock Bolt's (which
-   also grows EVE's gun lists, as a Shock Bolt buy does). Only the shop's batch has to go in. Without the other two,
-   the screen leaves the stimpacks or the Shock Bolt out.
-3. It puts as many Beta Seeds in the inventory as your wallet holds (seeds left over from a crash are taken out first),
-   waits until the native part counts them, then asks it to open the screen. The Shock Bolt is on sale only when its
-   rows are in and `coop-status.txt` reads `shock=in`.
+   `lion`, `bolt` and `shop`): the stimpacks' (the lion rows batch), the Shock Bolt's (which also grows EVE's gun
+   lists, as a Shock Bolt buy does) and the shop's own 6 rows. The shop's go last because they have not been added in
+   game yet: a fault in the game's AddRow stops every batch that is not in yet until the game restarts, and a batch
+   already in stays usable. The shop's rows and the stimpacks' have to go in, since both shops list the stimpacks.
+   Without the Shock Bolt's, the screen leaves the Shock Bolt out.
+3. It reads EVE again and stops if her map changed while the rows were asked. Then it puts as many Beta Seeds in the
+   inventory as your wallet holds (seeds left over from a crash are taken out first), waits until the native part
+   counts them, and asks it to open the screen. The Shock Bolt is on sale only when its rows are in and
+   `coop-status.txt` reads `shock=in`.
 4. While the screen is open, each change of the seed count is written to your wallet at once.
 5. When you close the screen, the wallet keeps what is left and the seeds leave the inventory.
 
-A Beta Seed is in the inventory only while the screen is open, so a save made at any other time holds none, and a game
-that restarts without the shop's rows never loads one. Each step logs a `[StellarCoop][NR]` line in `UE4SS.log`:
+Beta Seeds are in the inventory from step 3 until they leave after the close. A save made in that time, an autosave
+included, holds them. So does a save made after a removal that failed: the log then says that the next
+`coop nightop shop` takes them, and that screen sets the count back to the wallet. A game restarted from such a save
+loads Beta Seeds before the shop's rows are in, and how the game loads an item it has no row for is not known (as for
+the cut items above), so keep a backup of the co-op save. Each step logs a `[StellarCoop][NR]` line in `UE4SS.log`:
 
 ```
 [StellarCoop][NR] shop: 41 points; its rows asked
-[StellarCoop][NR] shop: rows in (stimpacks in, Shock Bolt in)
+[StellarCoop][NR] shop: rows in (Shock Bolt in)
 [StellarCoop][NR] shop: wallet 41, the bucket held 0 Beta Seeds: +41
 [StellarCoop][NR] shop: SB's shop screen open with 41 Beta Seeds, the Shock Bolt sold
 [StellarCoop][NR] shop: 26 Beta Seeds, wallet written
@@ -510,16 +516,19 @@ answers with one `STOP:` line and opens nothing when the save is not a co-op sav
 a run is on, the game is paused or shows one of its screens, the screen is already open, `coop-status.txt` has no
 `nightshop` line (an older DLL) or reads a fault there, or the wallet holds more than 999999 points.
 
-If a later step fails (the shop's rows refused, the seeds not counted within 5 s, the game paused or showing one of its
-screens once they are, the game not opening the screen), the seeds leave the inventory, the wallet stays as it was,
-the log has a `STOP: shop:` line with the reason, and a notice says `The Night Operation shop could not open.
-UE4SS.log says why.` A shop screen the game already had open stays open. After a fault in the native part's shop
-calls, the mod can no longer read or close the screen: the seeds it counted last leave the inventory, so a screen left
-open sells nothing more, and you close it yourself. While the screen runs, no run starts, a guest turns down the host's
-run, and `coop nightop buy` refuses. `coop off` closes it first, writes the last seed count to the wallet and takes the
-seeds out (before the screen opened, the seeds the mod added); a purchase made in the last 250 ms before `coop off` is
-not counted. After a Lua reload while the screen is open, or before its seeds went back, the mod takes it over at its
-first tick, so purchases still reach the wallet and the seeds leave after the close.
+If a later step fails (the shop's or the stimpacks' rows refused, EVE's map changed while they were asked, the seeds
+not counted within 5 s, the game paused or showing one of its screens once they are, the game not opening the screen),
+the seeds leave the inventory, the wallet stays as it was, the log has a `STOP: shop:` line with the reason, and a
+notice says `The Night Operation shop could not open. UE4SS.log says why.` A shop screen the game already had open
+stays open. After a fault in the native part's shop calls, the mod can no longer read or close the screen: the seeds it
+counted last leave the inventory, so a screen left open sells nothing more, and you close it yourself. A fault while
+the game sets the new screen up leaves that screen open without its goods in the same way. While the screen runs, no
+run starts, a guest turns down the host's run, and `coop nightop buy` refuses. `coop off` closes it first, writes the
+last seed count to the wallet and takes the seeds out (before the screen opened, the seeds the mod added); a purchase
+made in the last 250 ms before `coop off` is not counted. In the 250 ms or so between the open request and its answer,
+`coop off` closes whatever shop screen is up, a vending machine's included. After a Lua reload while the screen is
+open, or before its seeds went back, the mod takes it over at its first tick, so purchases still reach the wallet and
+the seeds leave after the close.
 
 The rows are a sixth rows batch of the native part, `shop` (`native/src/lion/rows.h`), added through the game's own
 AddRow in memory for the game run, as the Lion's are:

@@ -20,8 +20,10 @@
 -- the wallet holds (Money_NightOperation, whose ItemTable row the shop rows batch adds; the native part reads the
 -- bucket's count, the nightshop line); the screen sells for them through SB's own purchase, and each change of the
 -- count is written to the wallet at once; after the close, the wallet holds what is left and the seeds leave the
--- bucket. So a seed is in the save only while the screen is open, and a game that restarts without the rows never
--- loads one. A purchase takes Beta Seeds, which no AchievementTable row names, and the shop rows carry no shop tag.
+-- bucket. A save made while seeds are in the bucket (from the fill until they leave, or after a removal that failed:
+-- the next screen takes them) holds them, and a game that restarts loads them with no ItemTable row until the shop
+-- rows are in again. A purchase takes Beta Seeds, which no AchievementTable row names, and the shop rows carry no
+-- shop tag.
 -- Called here: the player controller's ItemBucketItemAdd request, once a buy, in grant() only (through Shop.add, which
 -- coop gift's grants share): bucket type 1 (the inventory), EVE's own GUID, one of the seven aliases, 1 to 10 items;
 -- and for the screen its ItemBucketItemAdd and ItemBucketItemRemove requests with Money_NightOperation only, in seeds()
@@ -155,14 +157,14 @@ function Shop.new(o)
             w.points,table.concat(rows,', '),Shop.MOST)
     end
     local ui=nil -- The screen while coop nightop shop runs it (open() and tick()), nil otherwise.
-    -- EVE's GUID and her controller, or nil and why.
+    -- Her controller, EVE's GUID and EVE, or nil and why.
     local function who()
         local eve,pc=N.her(),N.controller()
         if not eve then return nil,'no EVE in the world' end
         if not pc then return nil,'no SB player controller' end
         local guid=Shop.guid(eve,pc,status and status())
         if not guid then return nil,"EVE's ActorGuid reads 0: nothing bought" end
-        return pc,guid
+        return pc,guid,eve
     end
     -- What a buy of c items needs, checked when it is asked and again when a cut item's rows came in: the wallet, no
     -- run on, the screen closed, the game playing, EVE with her GUID, her controller, the points. Returns them, or nil
@@ -246,13 +248,16 @@ function Shop.new(o)
     end
     -- Its end: a screen that opened for us is closed (never one the game showed when our open was refused), the seeds
     -- the bucket still holds go (the wallet already holds that count, or never changed), ui is cleared and the line is
-    -- logged; failed: the notice too. n: the bucket's count, when known.
+    -- logged; failed: the notice too. n: the bucket's count, when known. The controller and GUID are read again for the
+    -- removal: after a map change the controller read at the open may be another object.
     local function finish(ok,text,n)
         local u=ui
         ui=nil
         if not ok and u.phase=='open' then pcall(ask,'nightshop close') end
         if n and n>0 then
-            local gone,e=pcall(Shop.seeds,u.pc,u.guid,-n)
+            local pc,guid=who()
+            local gone,e=false,guid
+            if pc then gone,e=pcall(Shop.seeds,pc,guid,-n) end
             text=text..(gone and string.format('; %d Beta Seeds left the inventory',n)
                 or '; the Beta Seeds did not leave the inventory ('..why(e)..'): the next coop nightop shop takes them')
         end
@@ -268,7 +273,7 @@ function Shop.new(o)
             saved and '' or ' ('..tostring(se)..')'))
         if saved then ui.kept=n end
     end
-    -- The screen's steps, once a tick: the rows (shop, lion, bolt), the seeds filled up to the wallet, the open asked,
+    -- The screen's steps, once a tick: the rows (lion, bolt, shop), the seeds filled up to the wallet, the open asked,
     -- then the count written to the wallet at each change until the screen closes.
     local function step()
         local now=os.clock()
@@ -277,11 +282,15 @@ function Shop.new(o)
             return finish(false,'the shop screen stopped on a fault ('..tostring(s.where)..')',held(ui,s))
         end
         if ui.phase=='rows' then
-            local shop=ui.got.shop
-            if shop and not shop.ok then
-                return finish(false,'its rows are not in ('..tostring(shop.message)..'): coop nightop buy still works')
+            -- The screen's own rows, and the stimpacks' that both shops list: no screen on a good with no item row.
+            for _,k in ipairs({'shop','lion'}) do
+                local got=ui.got[k]
+                if got and not got.ok then
+                    return finish(false,(k=='shop' and 'its rows' or "the stimpacks' rows")..' are not in ('
+                        ..tostring(got.message)..'): coop nightop buy still works')
+                end
             end
-            if not (shop and ui.got.lion and ui.got.bolt) then
+            if not (ui.got.shop and ui.got.lion and ui.got.bolt) then
                 if now-ui.at>Shop.ROWS_WAIT then
                     return finish(false,'no answer on its rows in '..Shop.ROWS_WAIT..' s')
                 end
@@ -289,12 +298,18 @@ function Shop.new(o)
             end
             local shock=('\n'..tostring(status() or '')):match('\nshock=([^\r\n]*)')
             ui.bolt=ui.got.bolt.ok and (shock or ''):find('^in ')~=nil
-            log(string.format('shop: rows in (stimpacks %s, Shock Bolt %s)',ui.got.lion.ok and 'in' or 'not in',
-                ui.bolt and 'in' or 'not sold: shock='..tostring(shock)))
+            log('shop: rows in (Shock Bolt '..(ui.bolt and 'in' or 'not sold: shock='..tostring(shock))..')')
             ui.phase,ui.at='fill',now
         end
         if not s then return finish(false,'coop-status.txt has no nightshop line') end
         if ui.phase=='fill' then
+            -- EVE again, as a buy does after its rows wait: no seeds for a controller or GUID from another map.
+            local pc,guid,eve=who()
+            if not pc then return finish(false,'no Beta Seeds added: '..guid) end
+            if U.map_of(eve)~=ui.map then
+                return finish(false,'the map changed while its rows were asked: no Beta Seeds added')
+            end
+            ui.pc,ui.guid=pc,guid
             if not s.seeds then
                 if now-ui.at>Shop.WAIT then
                     return finish(false,"the bucket's Beta Seeds stay unread ("..s.line..')')
@@ -352,8 +367,9 @@ function Shop.new(o)
     end
     -- coop nightop shop: SB's shop screen with this player's wallet in Beta Seeds, once the rows are in. Checked here:
     -- the wallet, no run on, the game playing, the native part's nightshop line, EVE and her GUID; then the three rows
-    -- batches are asked (the shop's, the lion rows' for the stimpacks, the bolt rows' for the Shock Bolt), and tick()
-    -- goes on.
+    -- batches are asked (the lion rows' for the stimpacks, the bolt rows' for the Shock Bolt, the shop's), and tick()
+    -- goes on. The shop's last: the native part takes one request a pass, and a fault while its rows first go into SB's
+    -- tables in game turns every batch not in yet to fault for the game run, while a batch already in stays usable.
     function self.open()
         local w,e=wallet()
         if not w then return false,e end
@@ -377,12 +393,12 @@ function Shop.new(o)
         if not rows or not ask then
             return false,'coop lion is not loaded: no shop rows; coop nightop buy still works'
         end
-        local pc,guid=who()
+        local pc,guid,eve=who()
         if not pc then return false,guid end
-        ui={phase='rows',got={},at=os.clock(),w=w,pc=pc,guid=guid}
+        ui={phase='rows',got={},at=os.clock(),w=w,pc=pc,guid=guid,map=U.map_of(eve)}
         local u=ui
         pcall(ask,'nightshop watch') -- The native part reads the bucket's seeds from now on.
-        for _,word in ipairs({'shop','lion','bolt'}) do
+        for _,word in ipairs({'lion','bolt','shop'}) do
             local ok,said=pcall(rows,function(fine,message) u.got[word]={ok=fine,message=message} end,
                 word~='lion' and word or nil)
             if not ok then u.got[word]={ok=false,message=why(said)} end

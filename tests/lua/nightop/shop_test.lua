@@ -9,11 +9,13 @@
 -- check again then), refused with no point taken when they cannot be added, and not asked for before the buy's own
 -- checks pass; the Shock Bolt granted only once the status's shock line reads in as well; buy alone gives the list.
 -- The screen (coop nightop shop): the seed call's checks and arguments; the nightshop line's fields; open's refusals;
--- its three rows batches asked at once, the seeds filled up to the wallet (leftovers taken out), the open asked (with
--- the Shock Bolt only once shock reads in), each new count written to the wallet, the seeds taken back after the
--- close; its failures (rows, a refused open, a fault, no answer, a game screen up before the open) leaving the wallet
--- as it was, with the notice, the seeds out, and only a screen that opened for us closed; coop off, also before the
--- added seeds read; no console buy and no run while it runs; a screen an earlier Lua load left, taken over.
+-- its three rows batches asked at once (the shop's last), the seeds filled up to the wallet (leftovers taken out), the
+-- open asked (with the Shock Bolt only once shock reads in), each new count written to the wallet, the seeds taken
+-- back after the close; its failures (the shop's or the stimpacks' rows, a map change during the rows, a refused open,
+-- a fault, no answer, a game screen up before the open) leaving the wallet as it was, with the notice, the seeds out,
+-- and only a screen that opened for us closed; coop off, also before the added seeds read; the seeds taken back
+-- through EVE's controller read again; no console buy and no run while it runs; a screen an earlier Lua load left,
+-- taken over.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 FName=function(text) return {ToString=function() return text end} end
@@ -23,7 +25,8 @@ local pc={ServerRequest_ItemBucketItemAdd=function(_,...)
     if raise then error(raise) end
 end}
 local guid=0x51
-local eve={BroadcastSpawnInfo={ActorGuid=0x51}}
+local world='World /Game/Art/BG/WorldMap/Level_P/F01.F01'
+local eve={BroadcastSpawnInfo={ActorGuid=0x51},GetWorld=function() return {GetFullName=function() return world end} end}
 local her,controller=eve,pc
 package.loaded['nightop.probe']={her=function() return her end,controller=function() return controller end}
 local Shop=require('nightop.shop')
@@ -340,12 +343,16 @@ assert(Shop.line('nightshop=off').state=='off' and Shop.line('nightshop=off').as
 -- A shop with rows, asks and notices: rows keeps each batch's done until the test answers it; nightshop the line the
 -- native part writes.
 calls,removes={},{}
-local done_of,said_to,told={},{},0
+local done_of,said_to,told,batches={},{},0,{}
 local nightshop='nightshop=off'
 local screen=Shop.new({log=function(text) lines[#lines+1]=text end,
     status=function() return status_text..nightshop..'\n' end,store=store,paused=function() return paused end,
     busy=function() return busy end,tell=function(build) told=told+1; assert(build({night={shop_failed='x'}})=='x') end,
-    rows=function(done,batch) done_of[batch or 'lion']=done; return true,'asked',true end,
+    rows=function(done,batch)
+        done_of[batch or 'lion']=done
+        batches[#batches+1]=batch or 'lion'
+        return true,'asked',true
+    end,
     ask=function(line) said_to[#said_to+1]=line; return true,'asked the native part: '..line end})
 local function nightshop_is(state,seeds,asks,last) nightshop=string.format('nightshop=%s seeds=%s asks=%d last=%s',
     state,seeds,asks,last) end
@@ -377,7 +384,7 @@ files[FILE]='113\n'
 ok,text=screen.open()
 assert(ok and text=="Night Operation shop: 113 points as Beta Seeds; SB's shop screen opens once its rows are in "
     ..'([NR] lines)',text)
-assert(done_of.shop and done_of.lion and done_of.bolt,'The shop, lion and bolt rows asked')
+assert(table.concat(batches,' ')=='lion bolt shop','The lion, bolt and shop rows asked, the shop rows last')
 ok,text=screen.open(); assert(not ok and text=="the Night Operation shop's screen is already opening",text)
 ok,text=screen.buy('1'); assert(not ok and text=="the Night Operation shop's screen is open: buy there",text)
 screen.tick()
@@ -386,7 +393,7 @@ done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
 status_text=plain..'shock=in commands=24,24 added=4 list=6 slots=6\n'
 nightshop_is('closed','?',0,'close:none')
 screen.tick()
-assert(lines[#lines]=='shop: rows in (stimpacks in, Shock Bolt in)',lines[#lines])
+assert(lines[#lines]=='shop: rows in (Shock Bolt in)',lines[#lines])
 screen.tick(); assert(#calls==0,'The seeds wait for a count')
 nightshop_is('closed','0',0,'close:none')
 screen.tick()
@@ -412,13 +419,33 @@ assert(#removes==1 and removes[1][4]==98 and files[FILE]=='98\n' and told==0)
 assert(lines[#lines]=='shop: closed: 98 Beta Seeds back in the wallet; 98 Beta Seeds left the inventory',
     lines[#lines])
 ok,text=screen.buy('2','1'); assert(ok,text) -- The console's buy again.
+-- The stimpacks' rows not in (a coop lion job busy): no screen, since both shops list them; nothing asked of the
+-- bucket.
+calls,removes,said_to,done_of={},{},{},{}
+local told_before=told
+assert(screen.open())
+done_of.lion(false,'coop lion is busy (a spawn): try again in a few seconds')
+screen.tick()
+assert(#calls==0 and #removes==0 and #said_to==1 and told==told_before+1 and not screen.busy())
+assert(lines[#lines]=="STOP: shop: the stimpacks' rows are not in (coop lion is busy (a spawn): try again in a few "
+    ..'seconds): coop nightop buy still works',lines[#lines])
+-- The map changed while the rows were asked (a fast travel): no seeds for EVE read before it.
+said_to,done_of={},{}
+assert(screen.open())
+world='World /Game/Art/BG/WorldMap/Level_P/E04.E04'
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+screen.tick()
+world='World /Game/Art/BG/WorldMap/Level_P/F01.F01'
+assert(#calls==0 and #removes==0 and #said_to==1 and told==told_before+2 and not screen.busy())
+assert(lines[#lines]=='STOP: shop: the map changed while its rows were asked: no Beta Seeds added',lines[#lines])
+told=told_before
 -- Leftover seeds in the bucket (a crash while the screen was open): the difference taken out first; the Shock Bolt
 -- not sold while shock does not read in, nor while its rows are not in.
 calls,removes,said_to,done_of={},{},{},{}
 files[FILE]='3\n'
 status_text=plain..'shock=off\n'
 assert(screen.open())
-done_of.shop(true,'in'); done_of.lion(false,'busy'); done_of.bolt(true,'in')
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
 nightshop_is('closed','5',1,'open_bolt:none')
 screen.tick(); screen.tick()
 assert(#removes==1 and removes[1][4]==2 and #calls==0,'5 in the bucket, 3 in the wallet: 2 out')
@@ -483,6 +510,25 @@ screen.tick(); screen.tick()
 assert(#calls==1 and calls[1][4]==50)
 screen.stop()
 assert(#removes==1 and removes[1][4]==50 and files[FILE]=='50\n' and #said_to==1,'The 50 added, out')
+-- The removal reads EVE's controller again: a new one (a map change) takes the seeds out, and with none they stay for
+-- the next screen, said so.
+local moved={}
+local pc2={ServerRequest_ItemBucketItemAdd=pc.ServerRequest_ItemBucketItemAdd,
+    ServerRequest_ItemBucketItemRemove=function(_,...) moved[#moved+1]=table.pack(...) end}
+for _,next_pc in ipairs({pc2,false}) do
+    calls,removes,said_to,done_of={},{},{},{}
+    assert(screen.open())
+    done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+    screen.tick(); screen.tick()
+    assert(#calls==1 and calls[1][4]==50)
+    controller=next_pc or nil
+    screen.stop()
+    controller=pc
+    assert(#removes==0 and not screen.busy())
+end
+assert(#moved==1 and moved[1][4]==50,'Taken out through the new controller')
+assert(lines[#lines]=='shop: coop off: the screen closed; the Beta Seeds did not leave the inventory (no SB player '
+    ..'controller): the next coop nightop shop takes them',lines[#lines])
 -- A game screen up once the seeds show: no open asked, the seeds out, nothing closed.
 calls,removes,said_to,done_of={},{},{},{}
 assert(screen.open())

@@ -10,7 +10,8 @@
 // those three calls and the guard are coop devinfo's (game/dev_panels.h): the client in game (flow 2) and playing
 // (phase 0xe), as the client tick checks before it opens a UI of its own; a shop screen already open refuses an open.
 // The client is read from its global, never through FUN_141a978c0, which allocates it when it is null.
-// The game does the rest: the screen lists the shop's goods whose rows are in, prices them in Beta Seeds
+// The game does the rest: the screen lists the shop's goods (Lua opens it only once every item row they name is in;
+// what the screen does with a missing one is not checked), prices them in Beta Seeds
 // (Money_NightOperation, ItemTable 9011, the same batch), and a purchase is SB's own local job (FSBActorBuyItem): it
 // checks the seeds in the bucket, removes them and adds the item, with no server in net mode 0. The seeds come from
 // nightop/shop.lua, which adds this player's wallet to the bucket before the open and takes what is left back to the
