@@ -181,7 +181,9 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   items (`HP2Burst_Potion`, the Burst Stimpack; `Buff_HP2MP`, the Beta Stimpack; `Bullet_Shock`, the Shock Bolt;
   `Money_NightOperation`, the Beta Seed) in the inventory, in a pickup left in the world or on a quick slot; Shock
   Bolts as the selected ammo (`BulletItemSlotIndex` 5, past the five ammo types the game ships); or the cut Matrix XIII
-  dungeon as the save's map (`MXIII_P`), its camp or its last full camp (the camp `coop mxiii` adds there);
+  dungeon as the save's map (`MXIII_P`), its camp, its last full camp or its last simple camp (any name that starts
+  with `DLC02_`: the camp `coop mxiii` adds there, its rows, `DLC02_10_EnvS_906` once the kit is activated, and the
+  dungeon's own rows, which no camp of the released game uses);
 - copies `StellarBladeSave0M.sav`, when there is one, into a new folder of `StellarCoopBackups` and reads it back;
 - reads the co-op copy again, refuses it if it changed since the check, scans those bytes again as above, refuses to
   go on if `StellarBladeSave0M.sav` changed since its backup (or appeared, when there was none), writes the copy's

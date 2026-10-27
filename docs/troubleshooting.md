@@ -466,7 +466,10 @@ In this version the travel never starts and no offer shows. F7 or `coop travel h
 follow stays off until it has been tested in game` in `UE4SS.log` ([Following the host](usage.md#following-the-host)).
 The rest of this section applies once the follow is on. A refusal that ends in `no read of the camps this save has
 activated (<why>)` means the mod had no read of your activated camps at that moment (a load, the title); the
-`activated=` line of `coop status` shows the read.
+`activated=` line of `coop status` shows the read. With `(fault)`, a fault stopped that read until the game restarts,
+and `coop-link.log` has `camps read off: fault 0x... at StellarCoop.dll+0x... reading 0x...; coop travel probe and
+coop mxiii leave refused until the game restarts`. Restart the game; if the line comes back, send `coop-link.log` (see
+[Which logs to send](#which-logs-to-send)).
 
 Following the host is for the guest, on a co-op save, with `follow_host` not `off`. Each refusal writes a
 `[StellarCoop][TR] travel refused: <why>` line in `UE4SS.log`, and the native part's refusals are also in

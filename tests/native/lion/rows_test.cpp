@@ -896,9 +896,9 @@ int main() {
 
     // Matrix XIII's batch after them all, on its own Builder: its 8 new rows from its own patches, into the two zone
     // tables only it reads, the camp first; its IDs above 2^31 go in whole, and every env-spawn row names the camp, the
-    // vending machine with its blueprint path and its 6 links. Then its 5 shipped trigger rows, each copied back over
-    // itself and never handed to AddRow, so the ID map still names each and RowMap still holds it at its address. SB's
-    // lookups by ID have nothing of it to find.
+    // vending machine with its blueprint path and its 5 links (901 to 905, not 900). Then its 5 shipped trigger rows,
+    // each copied back over itself and never handed to AddRow, so the ID map still names each and RowMap still holds it
+    // at its address. SB's lookups by ID have nothing of it to find.
     Builder mb(kMxiii);
     const Answer ma = mb.run(g, kBase, g.tables, g.block);
     const size_t zone = bolts + kBoltRows, kNew = 8;

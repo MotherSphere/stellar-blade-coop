@@ -143,8 +143,8 @@ end
 do
 local EXPORT='[StellarCoop] STOP: coop saves export 0 1 writes your co-op save StellarBladeCoop00.sav over your own '
     ..'save StellarBladeSave01.sav (your save there, if any, goes to StellarCoopBackups first), to play on without the '
-    ..'mod; it is refused while that co-op save holds the mod\'s items or stands in Matrix XIII: type it again within '
-    ..'10 s to go on\n'
+    ..'mod; it is refused while that co-op save holds the mod\'s items or stands in Matrix XIII, and for a developer '
+    ..'save coop shortcut load wrote: type it again within 10 s to go on\n'
 coop('saves','export','0','1'); assert(#asked==11 and last()==EXPORT,last())
 coop('saves','export','1','0'); assert(#asked==11,'Other slots: asked again')
 coop('saves','export','0','1'); assert(#asked==11 and last()==EXPORT,'Other slots in between: asked again')

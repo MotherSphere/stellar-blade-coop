@@ -381,6 +381,32 @@ int main() {
   std::memcpy(&long_kept[fstring("NewGamePlusBaseData").size() + fstring("StructProperty").size()], &past, 8);
   assert(mod_only(long_kept).find("use them up or sell them") != std::string::npos &&
          mod_only(long_kept).find("snapshot") == std::string::npos);
+  // Any row of the dungeon counts in those fields, in the save as played and in the snapshot: the kit's vending
+  // machine, where the activation leaves the camp; the mod's camp by its name; a row of another of its zones.
+  for (const char *row : {"DLC02_10_EnvS_906", "DLC02_10_Camp_01", "DLC02_30_EnvS_011"}) {
+    assert(mod_only(clean_body() + fstring("CampAlias") + fstring(row)) ==
+           "the cut Matrix XIII dungeon as its camp" + rest + "; then save and export it again");
+    assert(mod_only(clean_body() + name_field("CampEnvSpawnAlias", row) + name_field("LastFullCampEnvSpawnAlias", row) +
+                    name_field("LastSimplyCampEnvSpawnAlias", row)) ==
+           "the cut Matrix XIII dungeon as its camp, its last full camp, its last simple camp" + rest +
+               ", then at a simple camp; then save and export it again");
+    assert(mod_only(snapshot_field(fstring("CampAlias") + fstring(row) + name_field("CampEnvSpawnAlias", row) +
+                                   name_field("LastSimplyCampEnvSpawnAlias", row)) +
+                    clean_body()) == "the cut Matrix XIII dungeon as its camp, its last simple camp" + stuck);
+  }
+  // Shipped camps there, as the user's saves hold them (CampAlias an env-spawn row, like CampEnvSpawnAlias), export; so
+  // do a name that only holds the prefix and a value cut short by the file's end.
+  assert(mod_only(clean_body() + fstring("CampAlias") + fstring("DED10_EnvS_158") +
+                  name_field("CampEnvSpawnAlias", "DED10_EnvS_158") +
+                  name_field("LastFullCampEnvSpawnAlias", "Nest_10_EnvS_008") +
+                  name_field("LastSimplyCampEnvSpawnAlias", "ME_05_EnvS_038") +
+                  name_field("LastSimplyCampEnvSpawnAlias", "Zone_DLC02_10"))
+             .empty());
+  const std::string cut_short = fstring("CampAlias") + fstring("DLC02_10_EnvS_906");
+  assert(mod_only(cut_short.substr(0, cut_short.size() - 13)).empty() && !mod_only(cut_short).empty());
+  // A file that ends before a camp field's value starts.
+  assert(mod_only(fstring("CampAlias")).empty() && mod_only(fstring("CampAlias") + "ab").empty() &&
+         mod_only(fstring("CampEnvSpawnAlias") + fstring("NameProperty") + std::string(5, '\0')).empty());
   // The ammo count matches the list lion/shock.h checks before it appends the Shock Bolt.
   static_assert(sizeof(coop::lion::kShippedBullets) / sizeof(coop::lion::kShippedBullets[0]) == kShippedBullets);
 

@@ -42,8 +42,9 @@ the Steam client that the game already runs, so the mod needs no other program a
   out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
 - Group play, not tested in game yet:
   - as the guest, F7 is meant to take you to the camp nearest the host through the game's own fast travel when the
-    host is on another map or more than 150 m away. It stays off until the mod can read which camps your save has
-    activated, because the game's fast travel does not check that;
+    host is on another map or more than 150 m away. It stays off until the follow has been tested in game. The game's
+    fast travel does not check whether your save has activated a camp, so the mod reads the activated camps itself;
+    `coop travel probe` and `coop mxiii leave` already use that read;
   - when one EVE is down, the shared enemies near the other one fight it, and a down EVE gets no kill by standing near
     one; with the experimental revive (off by default), a friend who stands next to the downed EVE for 3 s revives it
     where it fell;
