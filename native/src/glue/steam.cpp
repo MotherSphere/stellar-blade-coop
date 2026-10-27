@@ -29,6 +29,7 @@
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
+#include "save/shortcut_load.h" // kSlot
 #include "save/slot.h"
 #include "save/twins.h"
 #include "save/watch.h"
@@ -605,8 +606,14 @@ bool step() {
       event(coop::pose::ask_anim(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::shortcut: // coop shortcut's list: the game thread's reads.
-      event(coop::pose::ask_shortcut());
+    case coop::Command::shortcut: // coop shortcut's list, or a load's read: the game thread's reads.
+      if (const coop::Request ask = coop::parse_request(request); ask.slot < 0) {
+        event(coop::pose::ask_shortcut());
+      } else { // Checked now and again before the write, which the read's end starts (below).
+        GameView game;
+        const std::string why = coop_saves.plant_refusal(account.get(), game);
+        event(why.empty() ? coop::pose::ask_shortcut_load(ask.slot) : "shortcut load refused: " + why);
+      }
       request.clear();
       break;
     case coop::Command::devinfo: // coop devinfo: the game thread's too.
@@ -665,6 +672,14 @@ bool step() {
     }
     for (const std::string &line : coop::pose::shortcut_pass()) // coop shortcut's lines, as the game thread reads.
       event(line);
+    if (std::string save, line; coop::pose::shortcut_load_pass(save, line)) { // A load's file read and cleaned.
+      event(line);
+      if (!save.empty()) {
+        GameView game;
+        const std::string what = line.substr(0, line.find(" cleaned:")); // "shortcut F02 1", cleaned_line's start.
+        event(coop_saves.plant(account.get(), game, coop::shortcut::kSlot, std::move(save), what));
+      }
+    }
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);
     if (loaded) { // Before ready(): a +connect_lobby there is held until a world loads.

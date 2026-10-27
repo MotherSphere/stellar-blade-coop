@@ -77,6 +77,11 @@ std::string lower(std::string s) {
 } // namespace
 
 int main() {
+  // The request's maps (link/protocol.h) are the list's, in order: "shortcut load F02 1" is file 4, F02 1.
+  for (int m = 0; m < sc::kMaps; ++m)
+    assert(std::string(coop::kShortcutMaps[m]) == sc::kMapNames[m]);
+  assert(coop::parse_request("shortcut load F02 1").slot == 4 && sc::name(4) == "F02 1");
+
   // The names dropped, case ignored as FName compares; others kept.
   assert(sc::dropped("BS_Defender") && sc::dropped("bs_defender") && sc::dropped("DESIGNPATTERN_BLUE_SUIT"));
   assert(!sc::dropped("BetaCrystal") && !sc::dropped("BS_Defender2") && !sc::dropped("") && !sc::dropped("None"));
