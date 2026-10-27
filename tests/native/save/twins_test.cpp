@@ -4,8 +4,8 @@
 // played copies never replaced, a missing or bad manifest keeping everything, a torn read retried once, a failed write,
 // rename or read-back leaving no half copy, a pass stopped half way keeping its copies untouched, and the requests'
 // refusals (off the title included, before and during a pass), the switch at the end of a pass, its withdrawal and its
-// release, against a fake game; and the shared quests' record beside each co-op slot, written whole through the same
-// name check. The player's own saves are compared byte for byte, with their write times, after every pass.
+// release, against a fake game; coop shortcut load's plant of a built save as one co-op copy; and the shared quests'
+// record beside each co-op slot, written whole through the same name check. The player's own saves are compared byte for byte, with their write times, after every pass.
 #include "save/twins.h"
 
 #include <cassert>
@@ -735,6 +735,69 @@ int main() {
   assert(rs.status() == "convert=error:the backup folder could not be made");
   assert(slurp(r.dir / twin_name(1)) == save("one, played again") && own(r.dir) == mine);
   r.fail_backup = false;
+
+  // coop shortcut load's plant: a save the mod built written as one slot's copy, only while the game uses the copies,
+  // at the title, the account known and no pass under way. The old copy goes into a new backup folder first; the new
+  // one gets no manifest line (played: a pass keeps it); the player's own saves are never touched; nothing switches.
+  // Bytes that fail the game's own check are not written. A pass stops when the name changes from the co-op one.
+  {
+    HostFs p;
+    p.dir = root / "SaveGames" / "76561198000000007";
+    p.backups = root / "StellarCoopBackups8";
+    fs::create_directories(p.dir);
+    for (int n : {0, 4})
+      spill(p.dir / main_name(n), save("own " + std::to_string(n)));
+    Convert made;
+    run(made, p);
+    assert(made.ready() && backups(p) == 1);
+    const auto kept = own(p.dir);
+    const std::string built = save("a shortcut save");
+    Switch ps;
+    Game pg;
+    std::string why = ps.plant(&p, pg, 4, built, "shortcut F02 1");
+    assert(why == "shortcut load refused: co-op saves are off: turn them on first (Convert and play co-op at the "
+                  "title, or coop saves coop)");
+    pg.name = Saves::coop;
+    pg.loaded = true;
+    assert(ps.plant_refusal(&p, pg) == "a save is loaded: quit to the title first");
+    pg.loaded = false;
+    assert(ps.plant_refusal(static_cast<HostFs *>(nullptr), pg) == "the Steam account is not known yet");
+    assert(ps.plant_refusal(&p, pg).empty());
+    p.ops.clear();
+    why = ps.plant(&p, pg, 4, built, "shortcut F02 1");
+    assert(why == "co-op saves: writing shortcut F02 1 as slot 4's co-op copy (the old one is backed up first)");
+    assert(ps.plant_refusal(&p, pg) == "a conversion is under way");
+    said = passes(ps, p, pg);
+    assert(ps.status() == "convert=done" && backups(p) == 2 && slurp(p.dir / twin_name(4)) == built);
+    assert(slurp(p.current / twin_name(4)) == save("own 4") && own(p.dir) == kept && pg.swaps == 0);
+    assert(logged(said, "slot 4's co-op copy is now shortcut F02 1 (") &&
+           logged(said, "shortcut save ready in co-op slot 5: choose Load Game at the title, then that slot"));
+    assert(p.ops[0] == "backup " + twin_name(4));
+    Lines pl{};
+    assert(parse(slurp(p.dir / "StellarCoopSaves.txt"), pl) && pl[0].present && !pl[4].present);
+    assert(plan(p).act[0] == Act::none && plan(p).act[4] == Act::keep); // Kept: never replaced by a pass.
+    // A slot with no copy and no save of the player's takes one too, with no backup of it.
+    p.ops.clear();
+    assert(ps.plant(&p, pg, 2, built, "shortcut B07 1") == "co-op saves: writing shortcut B07 1 as slot 2's co-op copy");
+    said = passes(ps, p, pg);
+    assert(ps.status() == "convert=done" && slurp(p.dir / twin_name(2)) == built && p.ops[0] == "write " + twin_name(2) +
+                                                                                                    kTemp);
+    // Bytes that fail the game's check: nothing written, the old copy kept.
+    std::string bad = built;
+    bad[10] ^= 1;
+    ps.plant(&p, pg, 4, bad, "shortcut F02 1");
+    said = passes(ps, p, pg);
+    assert(ps.status() == "convert=error:shortcut F02 1 fails the game's own check, so it was not written");
+    assert(slurp(p.dir / twin_name(4)) == built && !logged(said, "shortcut save ready"));
+    // The name switched back meanwhile: the pass stops, its temporary file gone.
+    spill(p.dir / twin_name(4), save("played after the plant"));
+    ps.plant(&p, pg, 4, built, "shortcut F02 1");
+    pg.name = Saves::main;
+    said = passes(ps, p, pg);
+    assert(ps.status() == "convert=error:the save name changed" && logged(said, "conversion stopped"));
+    assert(slurp(p.dir / twin_name(4)) == save("played after the plant") && !fs::exists(p.dir / (twin_name(4) + kTemp)));
+    assert(own(p.dir) == kept);
+  }
 
   // The probe's dry run: the plan for each slot, nothing written.
   fs::remove(f.dir / twin_name(3));

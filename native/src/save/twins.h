@@ -8,7 +8,8 @@
 // that does not, or has no line, was played in co-op and is never replaced. A missing or bad manifest keeps every copy.
 // The manifest is written after each copy, so a pass stopped half way never leaves a new copy without its line.
 // A refresh (saves refresh N) replaces one slot's copy even when it was played, after a backup of that copy into a new
-// folder of the backups' folder.
+// folder of the backups' folder. A plant (coop shortcut load, save/shortcut_load.h) writes a save the mod built as one
+// slot's copy the same way, while the game uses the copies, and gives it no manifest line, so it counts as played.
 // Whenever there is no manifest (the first conversion, or one removed since), every StellarBlade*.sav of the account is
 // copied into a new folder of %LOCALAPPDATA%\SB\Saved\StellarCoopBackups, outside the synced folder, and read back,
 // before any copy is written; the manifest is written as soon as that backup is whole, so a pass stopped after it
@@ -242,6 +243,15 @@ public:
   // Every other slot keeps its copy; a played one loses its line, as at any pass. Ready at its end when that one copy
   // was made.
   template <class Fs> std::string refresh(Fs &fs, int n) { return begin(fs, n); }
+  // coop shortcut load: slot n's copy replaced by bytes the caller built (save/shortcut_load.h's clean(), what names
+  // them), while the game uses the copies (Switch::plant's check). The old copy is backed up first, as for a refresh;
+  // the new one gets no manifest line, so it counts as played and no pass replaces it by itself (saves refresh N does,
+  // after its own backup). Ready at its end when that copy was written and read back.
+  template <class Fs> std::string plant(Fs &fs, int n, std::string bytes, const std::string &what) {
+    planted_ = std::move(bytes);
+    what_ = what;
+    return begin(fs, n, true);
+  }
 
   // The next job; its line for the log, or empty.
   template <class Fs> std::string step(Fs &fs) {
@@ -257,7 +267,8 @@ public:
     if (!put(fs, kManifest, format(lines_)))
       error_ = "the manifest could not be written";
     for (int n = 0; n < kSlots; ++n)
-      if ((only_ < 0 || n == only_) && plan_.main[n].exists && (!present_[n] || !why_[n].empty()) && error_.empty())
+      if ((only_ < 0 || n == only_) && (plan_.main[n].exists || planting_) && (!present_[n] || !why_[n].empty()) &&
+          error_.empty())
         error_ = why_[n].empty() ? "slot " + std::to_string(n) + "'s save has no co-op copy" : why_[n];
     ready_ = error_.empty();
     return ready_ ? "co-op saves ready: " + std::to_string(copied_) + " copied" : "co-op saves not ready: " + error_;
@@ -278,7 +289,9 @@ public:
 
   bool busy() const { return next_ < jobs_.size(); }
   bool ready() const { return ready_ && !busy(); }
-  bool whole() const { return only_ < 0; } // Every slot, not a refresh's one.
+  bool whole() const { return only_ < 0; }    // Every slot, not a refresh's one.
+  bool planting() const { return planting_; } // The last pass was a plant.
+  int slot() const { return only_; }          // A refresh's or a plant's slot, or -1.
   const std::string &error() const { return error_; }
   // "idle" before any pass, "busy <done>/<jobs>", "done" (ready) or "error:<why>".
   std::string status() const {
@@ -295,8 +308,8 @@ private:
     std::string name;
   };
 
-  // A pass: every slot (only -1), or the one slot a refresh replaces.
-  template <class Fs> std::string begin(Fs &fs, int only) {
+  // A pass: every slot (only -1), or the one slot a refresh or a plant replaces.
+  template <class Fs> std::string begin(Fs &fs, int only, bool plant = false) {
     if (busy())
       return "co-op saves: a conversion is under way";
     plan_ = plan(fs);
@@ -308,6 +321,9 @@ private:
     lines_ = Lines();
     why_ = {};
     only_ = only;
+    planting_ = plant;
+    if (!plant)
+      planted_.clear();
     for (int n = 0; n <= kSlots; ++n) { // The manifest's temporary file too.
       const std::string temp = (n < kSlots ? twin_name(n) : std::string(kManifest)) + kTemp;
       if (fs.stat(temp).exists)
@@ -316,7 +332,7 @@ private:
     bool any = false; // A fresh player, or a folder that is not the game's: no manifest, so the backup waits for saves.
     for (int n = 0; n < kSlots; ++n)
       any = any || plan_.main[n].exists;
-    if (only >= 0 && !plan_.main[only].exists)
+    if (only >= 0 && !plant && !plan_.main[only].exists)
       return stop(fs, "slot " + std::to_string(only) + " has no save of yours to copy");
     if (!any)
       return stop(fs, "no save of yours in this account's folder");
@@ -337,6 +353,8 @@ private:
     const std::string backed = !plan_.manifest ? " (a backup of " + std::to_string(plan_.backups.size()) + " files first)"
                                : only >= 0 && plan_.twin[only].exists ? " (the old one is backed up first)"
                                                                       : "";
+    if (plant)
+      return "co-op saves: writing " + what_ + " as slot " + std::to_string(only) + "'s co-op copy" + backed;
     if (only >= 0)
       return "co-op saves: replacing slot " + std::to_string(only) + "'s co-op copy" + backed;
     return "co-op saves: converting" + backed + describe(plan_).substr(describe(plan_).find(';'));
@@ -381,14 +399,20 @@ private:
     return why;
   }
 
-  // One copy: the player's save read whole and checked, then written beside the copy, renamed over it and read back. A
-  // failure leaves the copy as it was, except one that reads back different: removed.
+  // One copy: the player's save read whole and checked (a plant's bytes instead, which the game's check must pass too),
+  // then written beside the copy, renamed over it and read back. A failure leaves the copy as it was, except one that
+  // reads back different: removed.
   template <class Fs> std::string copy(Fs &fs, int n) {
     const std::string slot = "slot " + std::to_string(n) + "'s ";
     std::string bytes;
     Stat before;
-    if (const std::string why = read_whole(fs, main_name(n), bytes, before, true); !why.empty())
+    if (planting_) {
+      bytes.swap(planted_);
+      if (!game_save(bytes))
+        return fail(n, what_ + " fails the game's own check, so it was not written");
+    } else if (const std::string why = read_whole(fs, main_name(n), bytes, before, true); !why.empty()) {
       return fail(n, slot + "save " + why + ", so it was not copied");
+    }
     const std::string twin = twin_name(n), temp = twin + kTemp;
     if (!write(fs, temp, bytes)) {
       remove(fs, temp);
@@ -406,15 +430,16 @@ private:
       return fail(n, slot + "copy read back different, so it was removed");
     }
     present_[n] = true;
-    lines_[n] = {true, fs.stat(twin), before};
+    lines_[n] = planting_ ? Line() : Line{true, fs.stat(twin), before}; // A plant has none: it counts as played.
     ++copied_;
     // Its line now, so a stop before the manifest job leaves it untouched, not played. lines_ holds the old line of
     // every refresh not yet made and none for a copy not yet made. A failure here is the last job's to say.
     put(fs, kManifest, format(lines_));
     return "co-op saves: slot " + std::to_string(n) +
-           (n == only_ && plan_.twin[n].exists ? "'s co-op copy replaced ("
-            : plan_.act[n] == Act::refresh     ? " refreshed ("
-                                               : " copied (") +
+           (planting_                            ? "'s co-op copy is now " + what_ + " ("
+            : n == only_ && plan_.twin[n].exists ? "'s co-op copy replaced ("
+            : plan_.act[n] == Act::refresh       ? " refreshed ("
+                                                 : " copied (") +
            std::to_string(bytes.size()) + " bytes)";
   }
   std::string fail(int n, const std::string &why) {
@@ -431,6 +456,8 @@ private:
   std::array<std::string, kSlots> why_; // Why the slot's copy failed this pass.
   std::string folder_, error_;
   bool started_ = false, ready_ = false;
+  bool planting_ = false;      // This pass writes planted_ (what_ names it) as slot only_'s copy.
+  std::string planted_, what_; // The plant's bytes, until its copy job takes them.
 };
 
 // The co-op saves' requests and the worker's passes (AUTO-COOP-SAVE §4.3, §4.5). Game is the caller's view of the game:
@@ -483,9 +510,39 @@ public:
       return asked_ ? "co-op saves: a conversion is under way; the switch follows it"
                     : "co-op saves: a conversion is under way";
     }
+    under_ = slot::Saves::main;
     const std::string line = what == SavesAsk::refresh ? convert_.refresh(*fs, slot) : convert_.start(*fs);
     asked_ = what == SavesAsk::coop && convert_.busy(); // A pass that stopped at its start switches nothing.
     return line;
+  }
+
+  // coop shortcut load (glue/steam.cpp): why a save may not be planted in a co-op slot now, or empty. Only while the
+  // game uses the co-op copies, so the slot's next load reads the new copy and the player's own saves stay out of it,
+  // at the title, with the account known and no pass under way.
+  template <class Fs, class Game> std::string plant_refusal(Fs *fs, Game &game) {
+    const slot::Saves now = game.saves();
+    if (now == slot::Saves::main)
+      return "co-op saves are off: turn them on first (Convert and play co-op at the title, or coop saves coop)";
+    if (now != slot::Saves::coop)
+      return std::string("the save name reads ") + slot::saves_name(now) +
+             (game.why().empty() ? "" : ": " + game.why());
+    if (std::string why = slot::not_title(game.world(), game.title(), game.load_mode()); !why.empty())
+      return why;
+    if (!fs)
+      return "the Steam account is not known yet";
+    if (convert_.busy())
+      return "a conversion is under way";
+    return {};
+  }
+  // Slot n's co-op copy replaced by bytes (what names them) after plant_refusal's checks: Convert::plant's pass, which
+  // stops like any pass when the title is left, coop goes off or the name changes.
+  template <class Fs, class Game>
+  std::string plant(Fs *fs, Game &game, int n, std::string bytes, const std::string &what) {
+    if (std::string why = plant_refusal(fs, game); !why.empty())
+      return "shortcut load refused: " + why;
+    under_ = slot::Saves::coop;
+    asked_ = false;
+    return convert_.plant(*fs, n, std::move(bytes), what);
   }
 
   // Every worker pass: a running pass stops off the title, after coop off or once the name changed; else its next job,
@@ -496,9 +553,9 @@ public:
     std::vector<std::string> lines;
     if (!fs || !convert_.busy())
       return lines;
-    std::string why = off                        ? "coop off"
-                      : now != slot::Saves::main ? "the save name changed"
-                                                 : slot::not_title(game.world(), game.title(), game.load_mode());
+    std::string why = off             ? "coop off"
+                      : now != under_ ? "the save name changed"
+                                      : slot::not_title(game.world(), game.title(), game.load_mode());
     if (!why.empty()) {
       asked_ = false;
       lines.push_back(convert_.stop(*fs, why));
@@ -506,6 +563,9 @@ public:
     }
     if (std::string line = convert_.step(*fs); !line.empty())
       lines.push_back(line);
+    if (!convert_.busy() && convert_.planting() && convert_.ready())
+      lines.push_back("shortcut save ready in co-op slot " + std::to_string(convert_.slot() + 1) +
+                      ": choose Load Game at the title, then that slot");
     if (convert_.busy() || !asked_)
       return lines;
     asked_ = false;
@@ -525,8 +585,9 @@ public:
 
 private:
   Convert convert_;
-  bool asked_ = false;  // saves coop: switch at the end of the pass.
-  bool played_ = false; // A save was loaded while the name was the co-op one.
+  bool asked_ = false;                    // saves coop: switch at the end of the pass.
+  bool played_ = false;                   // A save was loaded while the name was the co-op one.
+  slot::Saves under_ = slot::Saves::main; // The name a running pass needs: main, coop for a plant.
 };
 
 } // namespace coop::twins
