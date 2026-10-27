@@ -616,7 +616,8 @@ read from the game's choice boxes, looked for every 250 ms so a box the game bui
 selected line turning from none to one, and that line's text matched against the labels. Everything goes back on
 `coop off` and on a save that is not a co-op save: the choice list first (asked again every 10 s until the native part
 has put it back), then the rows' shipped values. Until the list is back, and after a fault in its calls, the rows keep
-the goodbye, which ends the talk on any save. Nothing is saved, and a game restart undoes it too. Talking to her still
+the goodbye, which ends the talk on any save. A map load, leaving Xion included, reads no save for a while: a booking,
+a supplies pick and her choices hold through it. Loading another co-op save drops the booking and the supplies pick. Nothing is saved, and a game restart undoes it too. Talking to her still
 runs her own graph, so her first meeting and her side quest start as without the mod. No quest, item, achievement or
 save call is added.
 

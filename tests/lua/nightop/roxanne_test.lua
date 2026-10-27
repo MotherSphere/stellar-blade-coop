@@ -6,7 +6,8 @@
 -- a Lua load, and a row that is not the one known stopping it with nothing asked; a pick read from the widgets, looked
 -- for at each tick, only when a SelectIndex turns from -1 to a line of ours (her own Shop, End and a widget first seen
 -- on a line do nothing), a box built for a later dialogue watched while an older one stays valid; a level booked and
--- started through coop nightop start once EVE is out of Xion, its refusals said once each, and a host's booking held
+-- started through coop nightop start once EVE is out of Xion, held through the map load (slot=none, then unknown) and
+-- dropped with a supplies pick on another co-op save, its refusals said once each, and a host's booking held
 -- while the run asks the partner, tried again 30 s after an ask the partner could not join; a guest's pick; the
 -- supplies opening the shop's screen after her goodbye; roxanne on asked again when the native part reads
 -- off; off on another save and at coop off (roxanne off, asked again every 10 s while her list reads on, then the rows'
@@ -175,6 +176,14 @@ assert(told[1]=='B' and last()=='roxanne: hard booked: it starts once EVE is out
     last())
 -- In Xion, no start; out of it, coop nightop start hard, its refusal said once, then its start.
 at(113); rox.tick(); assert(#starts==0)
+-- Leaving Xion is a map load: the status reads slot=none, then unknown, for a while. The booking holds, nothing asked.
+local loads=#asked
+status_text='mod=v\nslot=none index=4 marker=? saves=coop\nroxanne=on asks=2 want=on why=none\n'
+at(114); rox.tick()
+status_text='mod=v\nslot=unknown index=? marker=? saves=?\nroxanne=on asks=2 want=on why=none\n'
+at(115); rox.tick()
+assert(#asked==loads and #starts==0 and not last():find('off'),'A load keeps the booking: '..last())
+status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
 world=WASTE
 start_answer={false,'census: 2 living within 40 m: go where no one is within 40 m'}
 at(118); rox.tick()
@@ -221,6 +230,18 @@ status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want
 widget.SelectIndex=-1; at(161); rox.tick()
 widget.SelectIndex=1; at(161.25); rox.tick()
 assert(rox.cancel()=='normal' and rox.cancel()==nil)
+-- Another co-op save loaded (another index): the booking and a supplies pick go.
+widget.SelectIndex=-1; at(161.5); rox.tick()
+widget.SelectIndex=1; at(161.75); rox.tick()
+widget.SelectIndex=-1; at(161.8); rox.tick()
+widget.SelectIndex=3; at(161.9); rox.tick()
+status_text='mod=v\nslot=none index=4 marker=? saves=coop\nroxanne=on asks=2 want=on why=none\n'
+at(162); rox.tick()
+status_text='mod=v\nslot=coop index=3\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
+at(162.25); rox.tick()
+assert(last()=='roxanne: another co-op save (index 3): the booked normal run dropped' and rox.cancel()==nil,last())
+at(170); rox.tick(); assert(shops==1,'No supplies on the other save')
+status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
 -- A host's booking (a co-op session): the start only asks the partner, so the booking holds while the run asks, is
 -- tried again 30 s after an ask the partner could not join, and goes once the run counts down.
 local run_phase,host_starts=nil,0

@@ -14,7 +14,9 @@
 -- partner could not join is asked again later). The supplies open the Night Operation shop's screen once her goodbye
 -- is over. Everything goes back on coop off and on a save that is not a co-op save: roxanne off (asked again every 10 s
 -- while the native part reads on), then the rows' shipped values once it reads her list off or absent (while it reads
--- on, or after a fault, the rows stay ours: their exec only plays her goodbye); coop nightop stop drops a booking. No
+-- on, or after a fault, the rows stay ours: their exec only plays her goodbye). A load (the title, a map: leaving Xion
+-- is one) reads slot=none or unknown for a while: a booking, a supplies pick and her choices hold through it. coop
+-- nightop stop drops a booking, and another co-op save (its index) drops it and a supplies pick. No
 -- quest, item, achievement, save or story state is touched here: talking to her still runs her own graph as without
 -- the mod.
 local U=require('core.unreal')
@@ -65,6 +67,7 @@ function Roxanne.new(o)
     local asked_at=-math.huge
     local held,look_at,walk=nil,-math.huge,false -- The select widgets {obj, last}; the next look; FindAllOf's route.
     local booked,shop_at=nil,nil -- {level, next, said}; the time the screen opens after a supplies pick.
+    local save=nil -- The co-op save's index the last co-op status read.
     local function one(...) return R.one(...) end
     local function index(text) return R.index_of(R.find_name(text)) end
     -- The rows to ours (on) or back to their shipped values: each checked first (its ID, its list, a value of the two),
@@ -194,13 +197,24 @@ function Roxanne.new(o)
         local now=os.clock()
         local raw='\n'..(status() or '')
         local line=line_of(raw)
-        if stopped or not raw:find('\nslot=coop ') then
+        local slot=raw:match('\nslot=(%a+)')
+        if armed and not stopped and (slot=='none' or slot=='unknown') then return end -- A load: no save to judge yet.
+        if stopped or slot~='coop' then
             if armed or (line or ''):find('^on ') and now-asked_at>=Roxanne.ASK_EVERY then
                 off(stopped and 'coop off' or 'not a co-op save')
             end
             settle(line)
             booked=nil
             return
+        end
+        local at=raw:match('\nslot=coop index=(%d+)')
+        if at~=save then
+            if save and (booked or shop_at) then
+                log('roxanne: another co-op save (index '..tostring(at)..'): '
+                    ..(booked and 'the booked '..booked.level..' run' or 'the supplies')..' dropped')
+                booked,shop_at=nil,nil
+            end
+            save=at
         end
         local eve=N.her()
         local here=eve and U.map_of(eve)==XION
