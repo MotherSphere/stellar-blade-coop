@@ -63,10 +63,11 @@ The main page shows the rows that fit your session:
 | Write a bug report | Always | Runs `coop report` |
 | Close | Always | Closes the menu |
 
-Under the rows, a status line shows the F6 text and, once your friend is linked, their ping. Below it the menu shows
-its own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the
-newest notice under 8 s old (for example the result of Join a friend). The menu closes by itself when the game pauses
-or shows the mouse cursor for one of its own screens.
+Under the rows, a status line shows the F6 text and, once your friend is linked, their ping. Below it the menu shows its
+own messages, such as `Select again within 3 s to leave.`, or, while it covers the [feed](#session-chat), the newest
+notice under 8 s old (for example the result of Join a friend). If the session ends or the player leaves between the two
+selects of Leave the session or Remove <name>, the second select runs nothing. The menu closes by itself when the game
+pauses or shows the mouse cursor for one of its own screens.
 
 ### Co-op line
 

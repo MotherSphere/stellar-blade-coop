@@ -193,9 +193,11 @@ function M.new(start)
     -- Select (now in seconds): the row's id for the caller ('host', 'leave', 'invite', 'copy', 'remove', 'join',
     -- 'join_code', 'chat', 'guide', 'report', 'close', which Hang up gives too); 'confirm_leave' or 'confirm_remove'
     -- (the row runs on a second Select of it within 3 s); 'options' or 'main' (the page changed: Co-op menu gives
-    -- 'main'); 'rebind', key; or a setting's next value, as change().
+    -- 'main'); 'rebind', key; or a setting's next value, as change(). nil when a first Select on Leave or Remove is
+    -- pending and that row went (the session ended, the player left): the press was meant for it, not for its place.
     function self.select(ctx,now,values)
         local row=self.current(ctx)
+        if asked and asked.id~=name(row) then asked=nil; return nil end
         if row.confirm then
             if asked and asked.id==row.id and now-asked.at<=3 then asked=nil; return row.id end
             asked={id=row.id,at=now}
