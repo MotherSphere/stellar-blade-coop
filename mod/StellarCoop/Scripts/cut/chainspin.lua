@@ -7,9 +7,9 @@
 -- SBApplyEffectMe word) finds the actor by GUID and runs SB's effect call (0x141ad08b0, the call the shared fight's job
 -- makes) with EVE as target and caster. The effect's UseSkill action starts the skill by its SkillTable name, and only
 -- while EVE has P_Eve_TachyMode: outside Tachy Mode the request changes nothing. No button starts it: the four Tachy
--- skill commands (BetaSkill1-4) are taken, and a fifth would mean replacing the live P_Eve_Tachy stance row (a row
--- added under a taken name frees the old one while EVE reads it). Nothing of it is saved: no acquisition, no skill
--- slot, no trophy tag.
+-- skill commands (BetaSkill1-4) are taken; a fifth could be appended to the P_Eve_Tachy stance's CommandArray in place,
+-- as lion/shock.h does for the gun stances, and none was added. Nothing of it is saved: no acquisition, no skill slot,
+-- no trophy tag.
 -- Called here: ServerRequest_Cheat(EVE's GUID, 0, 'SBApplyEffectMe', an effect's ID) once a command, after the rows
 -- are in, and for coop devmenu (cut/devmenu.lua) once for each effect of the row asked, from its fixed list (its clear
 -- and lockswitch rows also at coop off). Never called here: another cheat word.
