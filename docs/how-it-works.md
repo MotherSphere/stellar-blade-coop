@@ -73,7 +73,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
-| `cut/mxiii.lua` | `coop mxiii`: the test pak's check (v1 or v2), Matrix XIII's 8 camp rows and 5 trigger patches through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01` ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `cut/mxiii.lua` | `coop mxiii [30]`: the test pak's check (v1, v2 or v3), Matrix XIII's 10 camp rows and 5 trigger patches through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01`, or with 30 to `DLC02_30_Camp_01` on v3 only ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
@@ -2057,8 +2057,9 @@ build 24463856 holds. ZoneTable keeps its four zones (`Zone_DLC02_10` to `Zone_D
 EventSpawnTable 92 spawn rows for them, but no camp, zone warp, world transition or cheat row leads there. `coop mxiii`
 tests one way in. The zMXIII_P test pak, built outside the repository from shipped Matrix 11 levels and never in the
 mod's zip, puts a map at that path with a spawn point named `DLC02_10_Camp_01`; its v2 build adds the spawn points of
-a camp's objects. The mod adds the rows of a camp in `Zone_DLC02_10` and patches five trigger rows of the later zones
-in place, then calls the game's camp travel to the camp.
+a camp's objects, and its v3 build a spawn point named `DLC02_30_Camp_01` in the third zone. The mod adds the rows of
+a camp in `Zone_DLC02_10` and of a camp with no objects in `Zone_DLC02_30`, patches five trigger rows of the later
+zones in place, then calls the game's camp travel to one of the two camps (`coop mxiii 30` for the second).
 
 ### Its rows
 
@@ -2070,7 +2071,7 @@ interaction graph, and its `TargetCamp` is the camp that activating, resting, th
 game keeps the DLC02_10 camp kit (`DLC02_10_EnvS_420` to `_426`), but its rows name placeholder camps of other worlds
 (`WLB10_Camp_05`, `SE02_Camp_02`) and expect actors placed in a map that no pak has.
 
-The mxiii rows batch, written by hand in `lion/rows.h` after the generated part and with patches of its own, adds eight
+The mxiii rows batch, written by hand in `lion/rows.h` after the generated part and with patches of its own, adds ten
 rows, each a copy of a shipped row with its own name and ID:
 
 | Row | Table | ID | Template | Changes |
@@ -2079,6 +2080,8 @@ rows, each a copy of a shipped row with its own name and ID:
 | `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`, `EnvActorName` its own name; `ZoneList` stays `Zone_DLC02_10` |
 | `DLC02_10_EnvS_901` to `_905` | ZoneEnvSpawnTable | 2800032901 to 2800032905 | `DLC02_10_EnvS_420` to `_424` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` and `SpawnPointName` their own name; `EnvBPPath` the skill machine, chair, storage, turntable and phone booth blueprints under `/Game/GameDesign/Level/ZoneEnv/` |
 | `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same four, with `Env_VendingMachine`; `LinkEnvSpawnList` 901 to 905, in the template's order |
+| `DLC02_30_Camp_01` | ZoneCampTable | 281001 | `ME03_Camp_03` | None: `CampType` stays FullCamp, `CoinSpawnPointName` stays None |
+| `DLC02_30_EnvS_900` | ZoneEnvSpawnTable | 2810032900 | `DLC02_10_EnvS_425` | `ZoneList` `Zone_DLC02_30`, `TargetCamp` `DLC02_30_Camp_01`, `EnvActorName` its own name |
 
 `FUN_141d18100` lists a camp's rows in table order, and AddRow appends, so row 900 stays the camp's first: it leads the
 travel to `Zone_DLC02_10` and has no actor. The other six spawn their objects. `FUN_141d1e5b0`, which makes a zone's
@@ -2093,12 +2096,23 @@ at the spawn point of that name when EVE enters the zone. The camp keeps
 `ME01_Camp_03`'s name, picture and region, so the camp list shows it under Matrix 11. No dungeon has a world map in the
 game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
 
+The third zone's camp gives `coop mxiii 30` a way past the climb from `Zone_DLC02_20` (see below). It has the two rows
+a camp travel reads and nothing else: the travel reads only the camp's first env-spawn row (its `Zone`, else
+`ZoneList[0]`, then that zone's world), and the arrival needs only the spawn point named after the camp. No DLC02_30
+row is an activation-only one, so `DLC02_30_EnvS_900` takes row 900's template and gets `Zone_DLC02_30` as its
+`ZoneList`. The camp copies `ME03_Camp_03`, Area03's full camp with no coin, so it needs no coin point;
+`ME03_Camp_01`, whose site the v3 pak's spawn point takes (26392, -23650, 4414, Matrix 11's own arrival point for that
+camp), has one. With no object to activate, the camp never enters the save's activated camps or the camp list. The v3
+pak moves the six Matrix 11 kit objects placed around that site 40000 units down, as v2 does at the first camp's
+site: their rows belong to `Zone_ME_03`, which never starts in this world, and the vending machine's row
+`ME_03_EnvS_005` is one of the camp achievements' rows.
+
 The two zone tables are the sixteenth and seventeenth of the 20 tables every rows request names (`kLionTables`), and
 only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
-line's forms (`mxiii=rows added=13/13 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
-its 34 patched fields back (the 29 of the camp rows and the 5 of the trigger rows below), `EnvBPPath` as text and
-`LinkEnvSpawnList` and `TouchEvents` as lists of names. The read-back compares an ID
+line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
+its 38 patched fields back (the 33 of the camp rows and the 5 of the trigger rows below), `EnvBPPath` as text and
+`LinkEnvSpawnList`, `ZoneList` and `TouchEvents` as lists of names. The read-back compares an ID
 on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or not.
 
 ### Its event spawns
@@ -2126,7 +2140,7 @@ and only this batch reads it. A row whose template is itself is a shipped row pa
 RowMap under its name and its ID in the ID map naming it, copies it into the block, patches the block and copies the
 block back over the row with CopyScriptStruct, which reassigns `TouchEvents` through the game's allocator. The row
 keeps its address, ID and lazy-init flag, and AddRow is never called for it, so nothing that holds the row loses it.
-`describe` says `13/13 in, 8 added through SB's AddRow 0x14417ba30 and 5 shipped rows patched in place`. A missing
+`describe` says `15/15 in, 10 added through SB's AddRow 0x14417ba30 and 5 shipped rows patched in place`. A missing
 row refuses with `no shipped row of that name`, an ID that names another row with `ID <id> does not name it`. The
 trigger rows keep their shipped `SaveType`: `ResetZone` for 001, `Save` for 005 and 006, `None` for the zone 40 pair.
 When the game reads `InitActivate` and `TouchEvents` was not traced: the patches go in before the travel, so a zone that
@@ -2137,35 +2151,40 @@ The rows cannot make the climb from `Zone_DLC02_20` to `Zone_DLC02_30` work. On 
 `Zone_ME_02`'s triggers (falling-train QTE sequences `MV_ME02_0x_QTE_*`, theater events and env controls of the ropes
 and trains, all `Zone_ME_02` rows) and on the cameras of `Matrix_XI_Area02_Sequence`, which the test pak does not
 stream. No zone volume of `Zone_ME_02` exists in the test map, so those rows never start, and no DLC02 row drives
-those actors.
+those actors. Making them start would take a `Zone_ME_02` volume in world 2800, and a zone of the Matrix 11 world
+starting there could write Matrix 11 zone state into the save, so the third zone's camp goes around the climb instead.
 
 ### The command
 
 `cut/mxiii.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for `coop travel probe`'s
 guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under way and no travel
 accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
-`SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain
-text in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
+`SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain text
+in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
 IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the game started passes the
-check although the engine mounts paks only at start. It reads those files once a command and never looks the map up
-with `StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss. Then the rows go in through
-`cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for `DLC02_10_Camp_01`, a
-camp in none of its tables (`probe(alias, true)`). The native side is the follow's: the guard, the count and the watch
-of `game/travel.h`. The travel's result comes in `[TR]` lines. The command's answer names the way out,
-`coop mxiii leave`: the follow's probe, with its activation read ([Following the host](#following-the-host)), to a
-camp the read lists among the 120 travel camps. The arrival at `DLC02_10_Camp_01` makes it the camp EVE respawns at
-(`+0x26d0`), and that camp is in no travel table, so `coop mxiii` keeps the camp she respawned at when it asked its
-travel, if the read lists it, and `leave` takes that camp first, then the camp she respawns at now, then the read's
-first travel camp. The kept camp lives in the Lua state only, so a reload of the scripts in the dungeon loses it.
+check although the engine mounts paks only at start. It reads those files once a command and never looks the map up with
+`StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss. Then the rows go in through
+`cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for `DLC02_10_Camp_01`
+(`DLC02_30_Camp_01` for `coop mxiii 30`), a camp in none of its tables (`probe(alias, true)`). `coop mxiii 30` stops
+before the rows unless the pak is v3: on v1 or v2 the arrival would find no spawn point of that name, and what it does
+then was not traced. The native side is the follow's: the guard, the count and the watch of `game/travel.h`. The
+travel's result comes in `[TR]` lines. The command's answer names the way out, `coop mxiii leave`: the follow's probe,
+with its activation read ([Following the host](#following-the-host)), to a camp the read lists among the 120 travel
+camps. The arrival at `DLC02_10_Camp_01` or `DLC02_30_Camp_01` makes it the camp EVE respawns at (`+0x26d0`), and
+neither camp is in a travel table, so each command keeps the camp she respawned at when it asked its travel, if the read
+lists it (inside the dungeon it keeps the one it had), and `leave` takes that camp first, then the camp she respawns at
+now, then the read's first travel camp. The kept camp lives in the Lua state only, so a reload of the scripts in the
+dungeon loses it.
 
-The check tells the two builds of the test pak apart by the `.ucas`, of which it reads up to 16 MB. A zen package of UE
-4.26 keeps its own name map, in plain text when the container is not compressed, and an FName whose text ends in `_`
+The check tells the three builds of the test pak apart by the `.ucas`, of which it reads up to 16 MB. A zen package of
+UE 4.26 keeps its own name map, in plain text when the container is not compressed, and an FName whose text ends in `_`
 and a number with no leading zero is stored as its base: v2's `MXIII_10_LD` holds `DLC02_10_EnvS`, the base of the six
 spawn point names, and v1 has no such name (its own names, such as `DLC02_10_E_CharS_001` and `DLC02_10_Camp_01`, are
-stored whole). The checks line says which build it found and where its camp's spawn point stands: at the dungeon start
-(40368, 35663, -846) in v1, beside the camp objects at Matrix 11's first simple camp site (36624, 16140, -2136) in v2.
-Both get the same rows; on v1 the objects find no spawn point and none appears. A container compressed with Oodle
-would read as v1.
+stored whole). v3's `MXIII_30_LD` holds `DLC02_30_Camp_01` whole, a name neither older build has. The checks line says
+which build it found and where its camp's spawn point stands: at the dungeon start (40368, 35663, -846) in v1, beside
+the camp objects at Matrix 11's first simple camp site (36624, 16140, -2136) in v2, and in v3 also where `coop mxiii
+30` arrives (26392, -23650, 4414). All three get the same rows; on v1 the objects find no spawn point and none appears.
+A container compressed with Oodle would read as v1.
 
 ### The camp list
 
@@ -2196,7 +2215,8 @@ would keep those names valid; the mod does not do that yet.
 
 - whether the game loads `MXIII_P` from a mod container, and whether it accepts retoc's zen output of a renamed map;
 - whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d18100` lists the camps of every world;
-- whether the camp arrival (`FUN_141a8afe0`) finds the spawn point named `DLC02_10_Camp_01` in the test map;
+- whether the camp arrival (`FUN_141a8afe0`) finds the spawn points named `DLC02_10_Camp_01` and `DLC02_30_Camp_01` in
+  the test map, and whether a death in the third or fourth zone brings EVE back to the second camp;
 - whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset), and
   whether the camp list shows the camp once the vending machine has activated it: the list takes a camp with a row
   whose active state is Active ([Following the host](#following-the-host)), and whether the vending machine's graph
@@ -2863,20 +2883,20 @@ claim the host accepts):
   starts ends the run. The Shooting Range also runs for two linked players, under Night Operation's rule above. A
   challenge's kills are the player's own, and it gives no shop points. A best run goes into `coop-records.txt` only on
   the PC whose own solo run ended in success, never from a co-op run and never over the link.
-- Every camp travel of the mod but `coop mxiii`'s goes only to a camp the player's save has already activated, because
-  activating a camp counts toward achievements and the game's fast travel does not check it
+- Every camp travel of the mod but `coop mxiii`'s and `coop mxiii 30`'s goes only to a camp the player's save has
+  already activated, because activating a camp counts toward achievements and the game's fast travel does not check it
   ([Following the host](#following-the-host)). The native read asks the game's own camp list (`FUN_141d1d650`, the
   function the camp list screen calls) for the camps of the travel table that hold an active ZoneEnvSpawn row, so the
   mod travels only where the game's own camp list would let the player travel. The follow is off in this version and
   makes no call at all. `coop travel probe <camp>`, the follow's solo test, and `coop mxiii leave` refuse any camp the
   read does not list, and every camp while there is no read (a load, the title, after a fault). Whether arriving at a
-  camp through the game's fast travel activates it has not been checked. `coop mxiii` travels to its own camp
-  `DLC02_10_Camp_01` without that read ([The cut Matrix XIII
+  camp through the game's fast travel activates it has not been checked. `coop mxiii` and `coop mxiii 30` travel to
+  their own camps `DLC02_10_Camp_01` and `DLC02_30_Camp_01` without that read ([The cut Matrix XIII
   dungeon](#the-cut-matrix-xiii-dungeon-experimental)): the two camp trophies count only named ZoneEnvSpawnTable rows
   turning On (`Trophy_Activate_FirstCamp` one, `Trophy_Activate_AllCamp` the 89 `ChangeState_ZoneEnv_*_Camp` rows of
-  AchievementTable), and none of them names `DLC02_10_EnvS_900`, the mod's row for that camp. A revive changes only the
-  downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills too. The cutscene wait is
-  a pause, and the solid partner changes no game state.
+  AchievementTable), and none of them names `DLC02_10_EnvS_900` or `DLC02_30_EnvS_900`, the mod's rows for those camps.
+  A revive changes only the downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills
+  too. The cutscene wait is a pause, and the solid partner changes no game state.
 - A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
 - A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is

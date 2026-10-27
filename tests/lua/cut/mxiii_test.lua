@@ -1,16 +1,18 @@
--- cut/mxiii.lua with fake UE4SS objects and a fake follow. Its 13 rows match native/src/lion/rows.h's kMxiiiRecipe and
+-- cut/mxiii.lua with fake UE4SS objects and a fake follow. Its 15 rows match native/src/lion/rows.h's kMxiiiRecipe and
 -- kMxiiiPatches (names, templates, IDs, each patched field's kind and value, no field more): the camp, then 7
--- env-spawn rows that all name it, the kit's 6 each at the spawn point of its own name, then the 5 shipped trigger
--- rows patched in place (their own templates), zone 20's touching their waves, zone 40's starting enabled. The Paks folder comes from the
--- mod folder; the test pak counts only when its .utoc in ~mods or LogicMods names WorldMap_DLC_01, Level_P and
--- MXIII_P.umap, with its .pak and .ucas beside it; it is v2 when its .ucas names DLC02_10_EnvS, else v1. coop mxiii:
+-- env-spawn rows that all name it, the kit's 6 each at the spawn point of its own name, then zone 30's camp and its
+-- one row in Zone_DLC02_30, then the 5 shipped trigger rows patched in place (their own templates), zone 20's touching
+-- their waves, zone 40's starting enabled. The Paks folder comes from the mod folder; the test pak counts only when its
+-- .utoc in ~mods or LogicMods names WorldMap_DLC_01, Level_P and MXIII_P.umap, with its .pak and .ucas beside it; it is
+-- v3 when its .ucas names DLC02_30_Camp_01, v2 when it names DLC02_10_EnvS, else v1. coop mxiii:
 -- usage; busy; without the follow, with a follow guard failing or without the test pak it asks nothing (the pak looked
 -- for once a command, by its file, never by StaticFindObject); with all of them it asks the mxiii rows with the 20
--- addresses, waits for the mxiii line, reads the 13 rows back, then asks the follow's probe for DLC02_10_Camp_01 (a camp
+-- addresses, waits for the mxiii line, reads the 15 rows back, then asks the follow's probe for DLC02_10_Camp_01 (a camp
 -- in no table) and names the way out; a native refusal, a row that reads back wrong or a probe the follow refuses ends
 -- it with no travel; rows already in are read back with no ask; coop off ends the wait, and no travel follows. coop
 -- mxiii leave: the follow's probe for the camp EVE respawned at when coop mxiii asked its travel, else the one she
--- respawns at, else the first travel camp the read lists as activated.
+-- respawns at, else the first travel camp the read lists as activated. coop mxiii 30: on v1 or v2 nothing asked; on v3
+-- the same rows, then the probe for DLC02_30_Camp_01; leave from there still takes the camp of before coop mxiii.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -72,7 +74,7 @@ do
             else assert(KINDS[pt.kind]==found[2] and found[3]==pt.text,name..' '..pt.field) end
         end
     end
-    assert(n==13 and #M.ROWS==13 and #patches==34,n..' rows, '..#patches..' patches')
+    assert(n==15 and #M.ROWS==15 and #patches==38,n..' rows, '..#patches..' patches')
     -- Every env-spawn row names the camp; each kit row spawns at the point of its own name; the vending machine links
     -- the five kit objects, not 900.
     assert(M.ROWS[1].name==M.CAMP and M.ROWS[1].table=='ZoneCampTable')
@@ -86,15 +88,22 @@ do
     end
     assert(check(M.ROWS[8],'LinkEnvSpawnList')=='DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|'
         ..'DLC02_10_EnvS_904|DLC02_10_EnvS_905')
+    -- Zone 30's camp: no coin, and one row in Zone_DLC02_30 that names it.
+    assert(M.ROWS[9].table=='ZoneCampTable' and M.ROWS[9].name==M.CAMP30 and M.ROWS[9].id==281001
+        and #M.ROWS[9].checks==1 and check(M.ROWS[9],'CampType')==3)
+    local env30=M.ROWS[10]
+    assert(env30.table=='ZoneEnvSpawnTable' and env30.name=='DLC02_30_EnvS_900' and env30.id==2810032900
+        and check(env30,'ZoneList')=='Zone_DLC02_30' and check(env30,'EnvActorName')==env30.name
+        and check(env30,'TargetCamp')==M.CAMP30)
     -- The waves: each zone 20 trigger touches the zone events the cut gates ran, after the ones it ships with; the zone
     -- 40 pair starts enabled. Each check differs from the shipped row, so a read-back that passes proves the patch.
     local waves={'022|023|024|025','026|027|028','029|030|031|032'}
     for i,ship in ipairs({'','DLC02_20_E_EnvC_030|','DLC02_20_E_EnvC_031|'}) do
-        local r=M.ROWS[8+i]
+        local r=M.ROWS[10+i]
         assert(r.table=='ZoneTriggerTable' and #r.checks==1 and r.checks[1][4]==true,r.name)
         assert(check(r,'TouchEvents')==ship..('DLC02_20_ZoneE_'..waves[i]:gsub('|','|DLC02_20_ZoneE_')),r.name)
     end
-    for i=12,13 do assert(check(M.ROWS[i],'InitActivate')==1 and M.ROWS[i].checks[1][4]==true,M.ROWS[i].name) end
+    for i=14,15 do assert(check(M.ROWS[i],'InitActivate')==1 and M.ROWS[i].checks[1][4]==true,M.ROWS[i].name) end
 end
 
 -- The Paks folder from the mod folder, under UE4SS's ue4ss folder or not; none outside SB\Binaries\Win64.
@@ -110,6 +119,8 @@ local UTOC='-==--==--==--==-\0\0../../../\0SB\0Content\0WorldMap_DLC_01\0Level_P
 local UCAS1=('\0'):rep(16)..'\20DLC02_10_E_CharS_001\16DLC02_10_Camp_01\12SBSpawnPoint'
 -- The kit's name starts at byte 100280, as in the v2 build, so a short read of the .ucas finds no v2.
 local UCAS2=UCAS1..('\0'):rep(100278-#UCAS1)..'\13DLC02_10_EnvS\20DLC02_10_E_ItemS_001'
+-- v3's adds the zone 30 camp's point, whole (FName keeps _01 as text).
+local UCAS3=UCAS2..'\16DLC02_30_Camp_01'
 local files,reads={},{}
 local function read(path,limit) -- files.read: at most limit bytes.
     reads[#reads+1]=path
@@ -135,6 +146,9 @@ assert(where==LOGIC and version==1,'v1: no kit point in its .ucas')
 put(LOGIC,nil,UCAS2)
 where,version=M.find_map(PAKS,read)
 assert(where==LOGIC and version==2,'v2: the kit points named in its .ucas')
+put(LOGIC,nil,UCAS3)
+where,version=M.find_map(PAKS,read)
+assert(where==LOGIC and version==3,'v3: the zone 30 camp point named in its .ucas')
 put(LOGIC)
 put(MODS,'-==--==--==--==-\0Matrix_XI.umap\0')
 where,why=M.find_map(PAKS,read)
@@ -210,7 +224,7 @@ end
 local function last() return lines[#lines] end
 local function logged(text) for _,l in ipairs(lines) do if l:find(text,1,true) then return l end end end
 local function mxiii_status(t) status_text='mod=v\nslot=coop index=4 marker=4\nlion=off\nmxiii='..t..'\nlast=x\n' end
-local ROWS_IN='rows added=13/13 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
+local ROWS_IN='rows added=15/15 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
 local REQUEST={}
 for _,t in ipairs(Enemy.TABLES) do REQUEST[#REQUEST+1]=string.format('%s=0x%x',t,tables[t]:GetAddress()) end
 REQUEST='mxiii rows '..table.concat(REQUEST,' ')
@@ -219,7 +233,8 @@ local mx=new(PAKS)
 mxiii_status('off')
 -- Usage, the follow missing or refusing, the test pak missing: nothing asked, no table looked up.
 local ok
-ok,why=mx.command('now'); assert(ok==false and why=='Use: coop mxiii [leave]',why)
+ok,why=mx.command('now'); assert(ok==false and why=='Use: coop mxiii [30|leave]',why)
+ok,why=mx.command('31'); assert(ok==false and why=='Use: coop mxiii [30|leave]',why)
 have_travel=false
 ok,why=mx.command(); assert(ok==false and why=='coop mxiii needs the Steam link',why)
 have_travel=true
@@ -263,7 +278,7 @@ assert(ok and why=='coop mxiii: the rows are in and the travel to DLC02_10_Camp_
     tostring(why))
 assert(#probes==1 and probes[1][1]=='DLC02_10_Camp_01' and probes[1][2]==true and #reads==before,
     'The probe for its camp, the pak not looked for again')
-assert(logged('rows read back through FindRow: 13/13 authored rows, 34 fields as written (33 differ from the template '
+assert(logged('rows read back through FindRow: 15/15 authored rows, 38 fields as written (36 differ from the template '
     ..'row)'))
 assert(lines[#lines-1]=='travel to DLC02_10_Camp_01 asked: travel DLC02_10_Camp_01 asked: the result follows in this '
     ..'log and in coop-link.log',lines[#lines-1])
@@ -274,7 +289,7 @@ follow.probe='a travel is under way'
 ok,why=mx.command()
 assert(ok==false and why=='coop mxiii: the rows are in, but no travel: a travel is under way' and #asked==1
     and #probes==2,tostring(why))
-assert(logged("rows already in (13/13; SB's lookups by ID: char 0/0, skills 0/0, stance 0/0): not added again"))
+assert(logged("rows already in (15/15; SB's lookups by ID: char 0/0, skills 0/0, stance 0/0): not added again"))
 follow.probe=nil
 -- An ID read back signed (UE4SS's view of a uint32 above 2^31) still matches; a TargetCamp that differs stops it.
 local env=tables.ZoneEnvSpawnTable.rows.DLC02_10_EnvS_900
@@ -324,7 +339,7 @@ mx=new(PAKS)
 mxiii_status('off')
 clock=200
 assert(mx.command() and #asked==2)
-mxiii_status('refused added=1/13 asks=1 spawns=? why=size table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900 detail=0x500')
+mxiii_status('refused added=1/15 asks=1 spawns=? why=size table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900 detail=0x500')
 clock=200.25
 ok,why=mx.tick()
 assert(ok==false and why:find('^The native part refused the Matrix XIII rows %(why=size, table=ZoneEnvSpawnTable, '
@@ -393,6 +408,52 @@ ok,why=mx.command('leave'); assert(ok and probes[16][1]=='ME01_Camp_03',tostring
 assert(last():find('^leave: travel to ME01_Camp_03, the camp EVE respawns at, asked: '),last())
 follow.rested='DLC02_10_Camp_01'
 ok,why=mx.command('leave'); assert(ok and probes[17][1]=='Xion_Camp_10_01' and #probes==17,tostring(why))
+follow.list,follow.rested=nil,nil
+
+-- coop mxiii 30: usage as coop mxiii's, then on a v1 or v2 pak refused after the checks, nothing asked and nothing
+-- probed (SB would find no spawn point of that name); on v3 the same rows (in already: read back, no ask) and the
+-- probe for the zone 30 camp, any camp; plain coop mxiii on v3 still goes to the zone 10 camp.
+local n,asks=#probes,#asked
+have_travel=false
+ok,why=mx.command('30'); assert(ok==false and why=='coop mxiii 30 needs the Steam link',why)
+have_travel=true
+for v,ucas in ipairs({UCAS1,UCAS2}) do
+    put(LOGIC,nil,ucas)
+    ok,why=mx.command('30')
+    assert(ok==false and why=='coop mxiii 30 needs the v3 zMXIII_P test pak: '..LOGIC..' is v'..v..', with no '
+        ..'DLC02_30_Camp_01 spawn point for the arrival: nothing was asked' and #probes==n and #asked==asks,
+        tostring(why))
+    assert(last()=='refused: test pak v'..v..' has no DLC02_30_Camp_01 spawn point',last())
+end
+put(LOGIC,nil,UCAS3)
+ok,why=mx.command('30')
+assert(ok and why=='coop mxiii 30: the rows are in and the travel to DLC02_30_Camp_01 is asked ([TR] lines follow); '
+    ..'way out: coop mxiii leave' and #probes==n+1 and probes[n+1][1]=='DLC02_30_Camp_01' and probes[n+1][2]==true
+    and #asked==asks,tostring(why))
+assert(logged('; test pak v3 (DLC02_30_Camp_01 point in its .ucas: v2 and a zone 30 camp with no kit; coop mxiii 30 '
+    ..'arrives at 26392 -23650 4414)'))
+assert(last()=='if [TR] says SB refused DLC02_30_Camp_01: SB lists the camps when its world starts, maybe before '
+    ..'these rows; load the save or travel to a camp, then run coop mxiii 30 again (the rows stay in)',last())
+follow.probe='a travel is under way'
+ok,why=mx.command('30')
+assert(ok==false and why=='coop mxiii 30: the rows are in, but no travel: a travel is under way',tostring(why))
+follow.probe=nil
+ok,why=mx.command(); assert(ok and probes[#probes][1]=='DLC02_10_Camp_01',tostring(why))
+-- From outside: coop mxiii 30 keeps the travel camp she respawns at. From the zone 10 camp (in no travel table), it
+-- keeps the one coop mxiii kept, and leave from the zone 30 camp goes back to it.
+follow.list,follow.rested={'Xion_Camp_10_01','DED10_Camp_07','ME01_Camp_03'},'ME01_Camp_03'
+ok,why=mx.command('30'); assert(ok and probes[#probes][1]=='DLC02_30_Camp_01',tostring(why))
+follow.rested='DLC02_30_Camp_01'
+ok,why=mx.command('leave'); assert(ok and probes[#probes][1]=='ME01_Camp_03',tostring(why))
+assert(last():find('^leave: travel to ME01_Camp_03, the camp EVE respawned at before coop mxiii, asked: '),last())
+follow.rested='DED10_Camp_07'
+ok,why=mx.command(); assert(ok and probes[#probes][1]=='DLC02_10_Camp_01',tostring(why))
+follow.rested='DLC02_10_Camp_01'
+ok,why=mx.command('30'); assert(ok and probes[#probes][1]=='DLC02_30_Camp_01',tostring(why))
+follow.rested='DLC02_30_Camp_01'
+ok,why=mx.command('leave')
+assert(ok and why=='coop mxiii leave: the travel to DED10_Camp_07 is asked ([TR] lines follow)',tostring(why))
+assert(#asked==asks,'Every rows check read back, none asked')
 follow.list,follow.rested=nil,nil
 
 -- The source: no StaticFindObject or LoadAsset of its own, and no row or save call.

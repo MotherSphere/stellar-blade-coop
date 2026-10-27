@@ -46,7 +46,9 @@
 // ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp
 // names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420 to 426): DLC02_10_EnvS_900
 // leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points of those names, in the two
-// zone tables only it writes. After them it patches 5 shipped ZoneTriggerTable rows in place, the table only it reads,
+// zone tables only it writes. Then 2 rows give zone 30 a camp with no kit (coop mxiii 30): ZoneCampTable
+// DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900, DLC02_10_EnvS_900's recipe in
+// Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows in place, the table only it reads,
 // so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A sixth, the Night
 // Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it (nightop/shop.lua asks for it
 // before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011, over Clyde's currency
@@ -6326,6 +6328,13 @@ constexpr Row kShopRecipe[] = {
 // Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK
 // (stellar-sdk-647527f), which the generated kTables reads too; none of the three structs has a Transient field.
 //
+// Then zone 30's camp, so the upper half of the dungeon is reached without the zone 20 climb, which runs on Matrix 11
+// triggers and sequences the test pak does not stream. Two rows, the least a camp travel takes: FUN_141cdd7b0 reads
+// only the camp's first env-spawn row (its Zone, else ZoneList[0], then that zone's world) and the arrival
+// FUN_141a8afe0 puts EVE at the SBSpawnPoint named after the camp, which only the zMXIII_P v3 pak holds. No kit, so
+// nothing there can be activated or rested at, and no coin. DLC02_30_EnvS_900 repeats DLC02_10_EnvS_900's recipe (no
+// DLC02_30 row is an activation-only one) with ZoneList Zone_DLC02_30 (ZoneTable 2810, world DLCMatrix13).
+//
 // Then 5 shipped ZoneTriggerTable rows, patched in place. The DLC02 data starts the zone 20 waves from gates (when
 // DLC02_20_EnvS_014, 018 and 016 reach their Open tag they run DLC02_20_ZoneE_022 to 025, 026 to 028 and 029 to 032,
 // the ZoneEvent spawns 001 to 004, 006 to 008 and 009 to 012) and the zone 40 chains (spawns 003 to 007 and 013 to
@@ -6343,7 +6352,8 @@ constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
 // pak, DLC02_10_E_ItemS_001 (EventItemTable spawns the coin there). DLC02_10_EnvS_900 is the kit's activation-only row
 // DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) with its own actor name and the new camp. Each kit row is its kit row
 // (skill machine 420, chair 421, storage 422, turntable 423, phone booth 424, vending machine 426) with its own actor
-// and spawn point names, the blueprint SE02_Camp_02's full camp places, and the new camp.
+// and spawn point names, the blueprint SE02_Camp_02's full camp places, and the new camp. Zone 30's camp is
+// ME03_Camp_03, Area03's FullCamp with no coin (ME03_Camp_01, whose site the v3 pak's arrival point takes, has one).
 constexpr Patch kMxiiiPatches[] = {
     // DLC02_10_Camp_01 (ZoneCampTable, Matrix XIII)
     {0x28, Kind::u8, 3, nullptr},                  // CampType
@@ -6382,6 +6392,12 @@ constexpr Patch kMxiiiPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // SpawnPointName
     {0x260, Kind::names, 0, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905"}, // LinkEnvSpawnList
     {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_30_Camp_01 (ZoneCampTable, Matrix XIII zone 30)
+    {0x28, Kind::u8, 3, nullptr}, // CampType
+    // DLC02_30_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII zone 30)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"},     // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_900"}, // EnvActorName
+    {0x270, Kind::name, 0, "DLC02_30_Camp_01"}, // TargetCamp
     // DLC02_20_ZTrigger_001 (ZoneTriggerTable, shipped: wave 1)
     {0x20, Kind::names, 0,
      "DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025"}, // TouchEvents
@@ -6405,11 +6421,13 @@ constexpr Row kMxiiiRecipe[] = {
     {Table::env, "DLC02_10_EnvS_904", "DLC02_10_EnvS_423", 2800032904u, 16, 4},
     {Table::env, "DLC02_10_EnvS_905", "DLC02_10_EnvS_424", 2800032905u, 20, 4},
     {Table::env, "DLC02_10_EnvS_906", "DLC02_10_EnvS_426", 2800032906u, 24, 5},
-    {Table::trigger, "DLC02_20_ZTrigger_001", "DLC02_20_ZTrigger_001", 280501001, 29, 1},
-    {Table::trigger, "DLC02_20_ZTrigger_005", "DLC02_20_ZTrigger_005", 280501005, 30, 1},
-    {Table::trigger, "DLC02_20_ZTrigger_006", "DLC02_20_ZTrigger_006", 280501006, 31, 1},
-    {Table::trigger, "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_001", 281501001, 32, 1},
-    {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002, 33, 1},
+    {Table::camp, "DLC02_30_Camp_01", "ME03_Camp_03", 281001, 29, 1},
+    {Table::env, "DLC02_30_EnvS_900", "DLC02_10_EnvS_425", 2810032900u, 30, 3},
+    {Table::trigger, "DLC02_20_ZTrigger_001", "DLC02_20_ZTrigger_001", 280501001, 33, 1},
+    {Table::trigger, "DLC02_20_ZTrigger_005", "DLC02_20_ZTrigger_005", 280501005, 34, 1},
+    {Table::trigger, "DLC02_20_ZTrigger_006", "DLC02_20_ZTrigger_006", 280501006, 35, 1},
+    {Table::trigger, "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_001", 281501001, 36, 1},
+    {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002, 37, 1},
 };
 
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
