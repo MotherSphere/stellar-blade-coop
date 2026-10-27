@@ -628,7 +628,7 @@ bool step() {
           event(coop::twins::describe(coop::twins::plan(*account)));
       } else {
         GameView game;
-        event(coop_saves.ask(ask.saves, account.get(), game, ask.slot));
+        event(coop_saves.ask(ask.saves, account.get(), game, ask.slot, ask.target));
       }
       request.clear();
       break;

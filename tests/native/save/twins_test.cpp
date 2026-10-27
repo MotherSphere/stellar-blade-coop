@@ -5,7 +5,9 @@
 // rename or read-back leaving no half copy, a pass stopped half way keeping its copies untouched, and the requests'
 // refusals (off the title included, before and during a pass), the switch at the end of a pass, its withdrawal and its
 // release, against a fake game; and the shared quests' record beside each co-op slot, written whole through the same
-// name check. The player's own saves are compared byte for byte, with their write times, after every pass.
+// name check. The player's own saves are compared byte for byte, with their write times, after every pass but an
+// export's, which changes its one target after a backup, and only for a copy that holds none of the mod's items or
+// places (the scan, on save bodies laid out as a released-game save lays out its fields).
 #include "save/twins.h"
 
 #include <cassert>
@@ -39,7 +41,8 @@ std::string slurp(const fs::path &p) {
 void spill(const fs::path &p, const std::string &bytes) { std::ofstream(p, std::ios::binary) << bytes; }
 
 // The file functions save/twins.h asks for, on a temporary account folder and a backups folder beside it. Every write,
-// rename and remove in the account folder is logged in order, and must pass the name check; a name can be set to
+// rename and remove in the account folder is logged in order, and must pass a name check (the copies', or the export's
+// for the player's saves); a name can be set to
 // fail its write or its rename, or to have its bytes changed as they are written; on_read runs before each read and
 // on_write before each write in the account folder.
 struct HostFs {
@@ -64,7 +67,7 @@ struct HostFs {
     return read_at(dir / name, out, max);
   }
   bool write(const std::string &name, const std::string &bytes) {
-    assert(writable(name));
+    assert(writable(name) || exportable(name));
     ops.push_back("write " + name);
     if (on_write)
       on_write(name);
@@ -77,7 +80,7 @@ struct HostFs {
     return true;
   }
   bool rename(const std::string &from, const std::string &to) {
-    assert(writable(from) && writable(to));
+    assert((writable(from) && writable(to)) || (exportable(from) && exportable(to)));
     ops.push_back("rename " + from + " " + to);
     if (to == fail_rename)
       return false;
@@ -86,7 +89,7 @@ struct HostFs {
     return !e;
   }
   bool remove(const std::string &name) {
-    assert(writable(name));
+    assert(writable(name) || exportable(name));
     ops.push_back("remove " + name);
     std::error_code e;
     return fs::remove(dir / name, e);
@@ -187,6 +190,31 @@ std::size_t backups(const HostFs &f) {
     return 0;
   return std::size_t(std::distance(fs::directory_iterator(f.backups), fs::directory_iterator()));
 }
+// A list of names as a released-game save holds it: the field, its type, its int64 size, NameProperty, no GUID, then
+// the count (a set has a removed count of 0 before it) and the names.
+std::string names_field(const std::string &field, const std::string &type, const std::vector<std::string> &names) {
+  std::string body = type == "SetProperty" ? std::string(4, '\0') : "";
+  const int32_t count = int32_t(names.size());
+  body += std::string(reinterpret_cast<const char *>(&count), 4);
+  for (const std::string &name : names)
+    body += fstring(name);
+  const int64_t size = int64_t(body.size());
+  return fstring(field) + fstring(type) + std::string(reinterpret_cast<const char *>(&size), 8) +
+         fstring("NameProperty") + '\0' + body;
+}
+// A body as a co-op save made with the mod lays out what the scan reads, holding nothing of the mod's: every item the
+// mod adds in the obtained set, the cut world and its zones in the world lists, a shipped consumable whose name starts
+// with a mod item's, a shop row named after one, the save's map and camp in Eidos 7.
+std::string clean_body() {
+  return name_field("ItemAlias", "HP_Potion") + name_field("ItemAlias", "Bullet_Shock_Consume") +
+         names_field("ItemOtaineSet", "SetProperty",
+                     {"BS_Raven", "HP2Burst_Potion", "Buff_HP2MP", "Bullet_Shock", "Money_NightOperation"}) +
+         names_field("ItemQuickSlotArray", "ArrayProperty", {"Recovery_HP_Potion", "None"}) +
+         name_field("WorldAlias", "DLCMatrix13") + name_field("Alias", "Zone_DLC02_10") +
+         name_field("ZoneAlias", "Zone_DLC02_40") + fstring("NightOperation_HP2Burst_Potion_Buy") +
+         fstring("MapName") + fstring("E03_WasteLand_P") + fstring("CampAlias") + fstring("WLA_30_EnvS_087") +
+         name_field("CampEnvSpawnAlias", "WLA_30_EnvS_087") + name_field("LastFullCampEnvSpawnAlias", "SE_01_EnvS_056");
+}
 } // namespace
 
 int main() {
@@ -221,6 +249,12 @@ int main() {
         "StellarCoopQuests0.txt", "stellarcoopquests00.txt", "StellarCoopQuests00.txt.tmp", "StellarCoopQuests00.sav",
         "StellarCoopQuests00.txt ", "..\\StellarCoopQuests00.txt", "StellarCoopQuests.txt", "StellarBladeQuests00.txt"})
     assert(!writable(name));
+  // The export's own check: the player's five saves and their temporary files, nothing else.
+  for (int n = 0; n < kSlots; ++n)
+    assert(exportable(main_name(n)) && exportable(main_name(n) + ".coop-tmp") && !exportable(twin_name(n)));
+  for (const char *name : {"StellarBladeSave05.sav", "stellarbladesave00.sav", "StellarBladeSave00.sav.old",
+                           "StellarBladeSetting.sav", "..\\StellarBladeSave00.sav", "StellarCoopSaves.txt", ""})
+    assert(!exportable(name));
   // A backup takes the account's StellarBlade*.sav files as they are named, and nothing else.
   for (const char *name :
        {"StellarBladeSave00.sav", "StellarBladeSetting.sav", "StellarBladeCoop03.sav", "stellarbladesave01.SAV"})
@@ -229,6 +263,53 @@ int main() {
        {"DekCNS.sav", "FirstPersonByMJ.sav", "StellarBladeSave00.sav.coop-tmp", "StellarBlade.sav",
         "a\\StellarBladeSave00.sav", "../StellarBladeSave00.sav", "StellarBladeSave00.txt", "StellarCoopSaves.txt"})
     assert(!backup_name(name));
+
+  // The export's scan. The names as a save holds them (from a released-game save): an FString's length counts its NUL,
+  // a NameProperty's size is its value's FString.
+  assert(fstring("None") == std::string("\x05\0\0\0None\0", 9));
+  assert(name_field("ItemAlias", "HP_Potion_Small") ==
+         std::string("\x0a\0\0\0ItemAlias\0\x0d\0\0\0NameProperty\0"
+                     "\x14\0\0\0\0\0\0\0\0\x10\0\0\0HP_Potion_Small\0",
+                     60));
+  // Nothing of the mod's: the obtained set, the cut world in the world lists and names that only start with or hold a
+  // mod item's do not count.
+  assert(mod_only(clean_body()).empty() && mod_only("").empty() && mod_only(save(clean_body())).empty());
+  // Each mod item held, in the inventory or a pickup (an ItemAlias field) or on a quick slot, is named.
+  for (const ModItem &item : kModItems) {
+    const std::string held = mod_only(clean_body() + name_field("ItemAlias", item.alias));
+    assert(held.find(std::string(item.name) + " (" + item.alias + ")") != std::string::npos &&
+           held.find("use them up or sell them") != std::string::npos && held.find("Matrix") == std::string::npos);
+    assert(mod_only(names_field("ItemQuickSlotArray", "ArrayProperty", {"None", item.alias}) + clean_body()) == held);
+  }
+  assert(mod_only(clean_body() + name_field("ItemAlias", "Buff_HP2MP") + name_field("ItemAlias", "Bullet_Shock"))
+             .find("Beta Stimpack (Buff_HP2MP), Shock Bolt (Bullet_Shock):") != std::string::npos);
+  // A quick slot array is read within its size and the file: a size past the file's end stops at it, a negative one
+  // reads nothing, and a header or name cut short is none.
+  const std::string quick = names_field("ItemQuickSlotArray", "ArrayProperty", {"HP2Burst_Potion"});
+  const size_t sized = fstring("ItemQuickSlotArray").size() + fstring("ArrayProperty").size();
+  for (const int64_t size : {int64_t(1) << 40, int64_t(-1)}) {
+    std::string odd = quick;
+    std::memcpy(&odd[sized], &size, 8);
+    assert(mod_only(odd).empty() == (size < 0));
+  }
+  assert(!mod_only(quick).empty() && mod_only(quick.substr(0, quick.size() - 1)).empty());
+  assert(mod_only(quick.substr(0, sized + 4)).empty() && mod_only(quick.substr(0, 30)).empty());
+  // The save in the Matrix XIII dungeon: its map, or the mod's camp there as the camp it starts from.
+  for (const std::string &there :
+       {fstring("MapName") + fstring("MXIII_P"), fstring("CampAlias") + fstring("DLC02_10_EnvS_900"),
+        name_field("CampEnvSpawnAlias", "DLC02_10_EnvS_900"),
+        name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900"),
+        name_field("LastSimplyCampEnvSpawnAlias", "DLC02_10_EnvS_900")})
+    assert(mod_only(clean_body() + there) ==
+           "the cut Matrix XIII dungeon: travel to a camp outside it and rest there");
+  // The camp's row elsewhere (the zone's list of camps it activated) and the map's name in a level actor's path do not.
+  assert(mod_only(name_field("EnvAlias", "DLC02_10_EnvS_900") +
+                  fstring("/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P/MXIII_Area01.Actor_1"))
+             .empty());
+  const std::string both = mod_only(name_field("ItemAlias", "Money_NightOperation") + fstring("MapName") +
+                                    fstring("MXIII_P"));
+  assert(both.rfind("the mod's items Beta Seed (Money_NightOperation): ", 0) == 0 &&
+         both.find("; the cut Matrix XIII dungeon") != std::string::npos);
 
   // The manifest: its own output reads back; comments, blank lines and CRLF are allowed; anything else makes it bad.
   Lines lines{};
@@ -735,6 +816,142 @@ int main() {
   assert(rs.status() == "convert=error:the backup folder could not be made");
   assert(slurp(r.dir / twin_name(1)) == save("one, played again") && own(r.dir) == mine);
   r.fail_backup = false;
+
+  // saves export N M: co-op slot N's copy written over the player's save M, the reverse of a refresh, at the title
+  // only, while the game uses either saves (it switches nothing). The copy is checked as the game does and scanned
+  // first, so a refusal writes nothing, not even a backup; then the save goes into a new backup folder; then the copy,
+  // unchanged since its check, goes over it through a temporary file and is read back. The copies and the manifest
+  // stay as they are. saves coop and every other one-slot pass are refused until its end.
+  HostFs x;
+  x.dir = root / "SaveGames" / "76561198000000007";
+  x.backups = root / "StellarCoopBackups8";
+  fs::create_directories(x.dir);
+  for (int n : {0, 1})
+    spill(x.dir / main_name(n), save("own " + std::to_string(n)));
+  Convert xfirst;
+  run(xfirst, x);
+  assert(xfirst.ready() && backups(x) == 1);
+  const std::string coop_save = save("zero, played in co-op" + clean_body());
+  spill(x.dir / twin_name(0), coop_save);
+  const std::string manifest = slurp(x.dir / "StellarCoopSaves.txt");
+  auto others = [&x](const std::string &target) { // Every file of the account but the target, and the copies' bytes.
+    std::map<std::string, std::string> files;
+    for (const auto &entry : fs::directory_iterator(x.dir))
+      if (entry.path().filename() != target)
+        files[entry.path().filename().string()] = slurp(entry.path());
+    return files;
+  };
+  Switch xs;
+  Game xg;
+  xg.loaded = true;
+  assert(xs.ask(SavesAsk::export_, &x, xg, 0, 1) == "co-op saves refused: a save is loaded: quit to the title first");
+  xg.loaded = false;
+  assert(xs.ask(SavesAsk::export_, &x, xg, 5, 1) == "co-op saves refused: there is no slot 5");
+  assert(xs.ask(SavesAsk::export_, &x, xg, 0, 5) == "co-op saves refused: there is no slot 5");
+  assert(xs.ask(SavesAsk::export_, &x, xg, 0, -1) == "co-op saves refused: there is no slot -1");
+  assert(xs.ask(SavesAsk::export_, static_cast<HostFs *>(nullptr), xg, 0, 1) ==
+         "co-op saves refused: the Steam account is not known yet");
+  xg.name = Saves::off;
+  assert(xs.ask(SavesAsk::export_, &x, xg, 0, 1) ==
+         "co-op saves refused: the save name reads off: no GameSaveFileName entry");
+  xg.name = Saves::main;
+  x.ops.clear();
+  assert(xs.ask(SavesAsk::export_, &x, xg, 3, 1) ==
+         "co-op saves: export stopped: co-op slot 3 has no co-op save to export");
+  assert(xs.status() == "convert=error:co-op slot 3 has no co-op save to export" && x.ops.empty());
+  // While the game uses the player's saves: over a save, backed up first.
+  auto before = others(main_name(1));
+  assert(xs.ask(SavesAsk::export_, &x, xg, 0, 1) ==
+         "co-op saves: exporting StellarBladeCoop00.sav over your save StellarBladeSave01.sav (backed up first)");
+  assert(xs.ask(SavesAsk::coop, &x, xg) == "co-op saves refused: an export is under way: ask again after it");
+  assert(xs.ask(SavesAsk::refresh, &x, xg, 1) == "co-op saves refused: a conversion is under way");
+  assert(xs.ask(SavesAsk::export_, &x, xg, 0, 2) == "co-op saves refused: a conversion is under way");
+  said = passes(xs, x, xg);
+  assert(xs.status() == "convert=done" && xg.swaps == 0 && backups(x) == 2);
+  assert(x.ops == std::vector<std::string>({"backup " + main_name(1), "write " + main_name(1) + ".coop-tmp",
+                                            "rename " + main_name(1) + ".coop-tmp " + main_name(1)}));
+  assert(slurp(x.current / main_name(1)) == save("own 1") && slurp(x.dir / main_name(1)) == coop_save);
+  assert(others(main_name(1)) == before && slurp(x.dir / "StellarCoopSaves.txt") == manifest);
+  assert(logged(said, "co-op saves: StellarBladeCoop00.sav checked (") &&
+         logged(said, "co-op saves: " + main_name(1) + " backed up in " + x.current.string()) &&
+         logged(said, "co-op saves: StellarBladeCoop00.sav exported to StellarBladeSave01.sav ("));
+  // While the game uses the co-op copies: to a slot with no save, so with no backup.
+  xg.name = Saves::coop;
+  x.ops.clear();
+  before = others(main_name(2));
+  assert(xs.ask(SavesAsk::export_, &x, xg, 1, 2) ==
+         "co-op saves: exporting StellarBladeCoop01.sav over your save StellarBladeSave02.sav");
+  said = passes(xs, x, xg);
+  assert(xs.status() == "convert=done" && backups(x) == 2 && xg.name == Saves::coop && xg.swaps == 0);
+  assert(slurp(x.dir / main_name(2)) == slurp(x.dir / twin_name(1)) && others(main_name(2)) == before);
+  // A copy that holds the mod's items or stands in Matrix XIII: refused before any write, the backup's included.
+  spill(x.dir / twin_name(0), save("zero" + clean_body() + name_field("ItemAlias", "HP2Burst_Potion") +
+                                   fstring("MapName") + fstring("MXIII_P")));
+  x.ops.clear();
+  before = others("");
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  said = passes(xs, x, xg);
+  assert(xs.status().rfind("convert=error:StellarBladeCoop00.sav was not exported: it holds what the game without the "
+                           "mod does not know, the mod's items Burst Stimpack (HP2Burst_Potion): ",
+                           0) == 0);
+  assert(logged(said, "; the cut Matrix XIII dungeon: travel to a camp outside it and rest there; then save and export "
+                      "it again"));
+  assert(x.ops.empty() && backups(x) == 2 && others("") == before);
+  // A copy that fails the game's own check: refused before any write.
+  std::string torn = coop_save;
+  torn[20] ^= 1;
+  spill(x.dir / twin_name(0), torn);
+  before = others("");
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  said = passes(xs, x, xg);
+  assert(xs.status() ==
+             "convert=error:StellarBladeCoop00.sav fails the game's own check, so it was not exported" &&
+         x.ops.empty() && others("") == before);
+  // A copy that changes between its check and the write (here during the backup): the save stays as it was.
+  spill(x.dir / twin_name(0), coop_save);
+  before = others("");
+  x.on_read = [&x](const std::string &name) {
+    if (name == main_name(1))
+      spill(x.dir / twin_name(0), save("zero, played on"));
+  };
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  said = passes(xs, x, xg);
+  x.on_read = nullptr;
+  assert(xs.status() == "convert=error:StellarBladeCoop00.sav changed since its check, so it was not exported");
+  assert(slurp(x.dir / main_name(1)) == before[main_name(1)] && backups(x) == 3);
+  // A rename that fails leaves the save as it was and no temporary file; a write that reads back different stays, and
+  // the line says where its backup is.
+  spill(x.dir / twin_name(0), coop_save);
+  x.fail_rename = main_name(1);
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  said = passes(xs, x, xg);
+  x.fail_rename.clear();
+  assert(xs.status() == "convert=error:StellarBladeSave01.sav could not be replaced, so it is as it was");
+  assert(slurp(x.dir / main_name(1)) == before[main_name(1)] && !fs::exists(x.dir / (main_name(1) + ".coop-tmp")));
+  x.garble = main_name(1) + ".coop-tmp";
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  said = passes(xs, x, xg);
+  x.garble.clear();
+  assert(xs.status() == "convert=error:StellarBladeSave01.sav read back different: its backup is in " +
+                            x.current.string());
+  assert(slurp(x.current / main_name(1)) == before[main_name(1)]);
+  // A temporary file an earlier export left goes at the next pass's start; off the title, or with the save name
+  // switched, a running export stops before its write.
+  spill(x.dir / (main_name(3) + ".coop-tmp"), "cut short");
+  spill(x.dir / main_name(1), save("own 1"));
+  before = others("");
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  assert(!fs::exists(x.dir / (main_name(3) + ".coop-tmp")));
+  xg.at_title = false;
+  said = passes(xs, x, xg);
+  xg.at_title = true;
+  assert(logged(said, "co-op saves: export stopped: the title screen is not shown"));
+  xs.ask(SavesAsk::export_, &x, xg, 0, 1);
+  xg.name = Saves::main;
+  said = passes(xs, x, xg);
+  assert(logged(said, "co-op saves: export stopped: the save name changed"));
+  before.erase(main_name(3) + ".coop-tmp");
+  assert(others("") == before);
 
   // The probe's dry run: the plan for each slot, nothing written.
   fs::remove(f.dir / twin_name(3));

@@ -558,7 +558,8 @@ inline uint64_t code_lobby(std::string_view text) {
 // (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for the co-op saves (save/slot.h,
 // save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
-// slot's copy replaced by a new copy of the player's save, the old one backed up first); for the shared quests
+// slot's copy replaced by a new copy of the player's save, the old one backed up first) and "saves export <0-4> <0-4>"
+// (that co-op slot's copy written over that save of the player's, the save backed up first); for the shared quests
 // (quest/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated by
 // spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the follow
 // (session/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
@@ -614,7 +615,7 @@ enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bsta
 // out of the game's manager too; its root, speed and Velocity driven from the stream too; the owner's Shows replayed
 // too (all of it, the default).
 enum class PilotTest : uint8_t { freeze, cmc, drive, replay };
-enum class SavesAsk { none, probe, convert, coop, main, refresh };
+enum class SavesAsk { none, probe, convert, coop, main, refresh, export_ };
 enum class Quests { none, on, off, status, probe, record, replay, force };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
@@ -638,7 +639,8 @@ struct Request {
   uint64_t player = 0;                   // allow, deny, remove: her SteamID.
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
-  int slot = -1;                    // saves refresh: the slot, 0 to 4.
+  int slot = -1;                    // saves refresh: the slot; saves export: the co-op slot; 0 to 4.
+  int target = -1;                  // saves export: the player's slot it goes to, 0 to 4.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
   bool confirmed = false;      // fight on, probe, record, replay: guest_kills=confirmed (used by a guest's side).
   bool fought = false;         // fight on, probe, record, replay: kill_credit=fought (used by either side).
@@ -859,9 +861,13 @@ inline Request parse_request(std::string text) {
     r.off = text.size() > 6;
   } else if (text.rfind("saves ", 0) == 0) {
     const std::string word = text.substr(6);
-    if (word.size() == 9 && !word.compare(0, 8, "refresh ") && word[8] >= '0' && word[8] <= '4')
+    const auto digit = [&word](size_t at) { return word[at] >= '0' && word[at] <= '4'; };
+    if (word.size() == 9 && !word.compare(0, 8, "refresh ") && digit(8))
       r.slot = word[8] - '0';
-    r.saves = r.slot >= 0         ? SavesAsk::refresh
+    else if (word.size() == 10 && !word.compare(0, 7, "export ") && digit(7) && word[8] == ' ' && digit(9))
+      r.slot = word[7] - '0', r.target = word[9] - '0';
+    r.saves = r.target >= 0       ? SavesAsk::export_
+              : r.slot >= 0       ? SavesAsk::refresh
               : word == "probe"   ? SavesAsk::probe
               : word == "convert" ? SavesAsk::convert
               : word == "coop"    ? SavesAsk::coop

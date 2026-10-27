@@ -441,11 +441,17 @@ int main() {
   // saves refresh <slot>: one slot's copy replaced, slots 0 to 4.
   assert(parse_request("saves refresh 0").saves == SavesAsk::refresh && parse_request("saves refresh 0").slot == 0);
   assert(parse_request("saves refresh 4\r\n").command == Command::saves && parse_request("saves refresh 4").slot == 4);
-  assert(parse_request("saves coop").slot == -1);
+  assert(parse_request("saves coop").slot == -1 && parse_request("saves refresh 2").target == -1);
+  // saves export <co-op slot> <slot>: both 0 to 4.
+  const Request out = parse_request("saves export 0 4\r\n");
+  assert(out.command == Command::saves && out.saves == SavesAsk::export_ && out.slot == 0 && out.target == 4);
+  assert(parse_request("saves export 3 3").slot == 3 && parse_request("saves export 3 3").target == 3);
   for (const char *bad : {"saves", "saves  probe", "saves probe 1", "saves x", "savesprobe", "saves refresh",
                           "saves refresh 5", "saves refresh 01", "saves refresh -1", "saves refresh x",
                           "saves refresh 1 2", "saves refresh  1", "saves coop now", "saves Coop", "saves co",
-                          "saves mains", "saves convert 1"})
+                          "saves mains", "saves convert 1", "saves export", "saves export 1", "saves export 1 5",
+                          "saves export 5 1", "saves export 1  2", "saves export 12", "saves export 1 2 3",
+                          "saves export 01 2", "saves export a b", "saves Export 1 2", "saves export 1,2"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).saves == SavesAsk::none);
   // The shared quests': on, probe and record with quest_deny's list or none, off, status, replay, and force with a
   // quest ID from 1 to 65535; anything else, a typo included, is no request.
