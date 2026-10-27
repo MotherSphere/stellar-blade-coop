@@ -543,7 +543,7 @@ o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][N
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
     paused=function() return kit~=nil and kit.paused(true) end,tell=tell,
     start=function(level) return commands.nightop('start',level) end,
-    shop=function() return commands.nightop('shop') end})
+    shop=function() return commands.nightop('shop') end,phase=function() return night.phase() end})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.

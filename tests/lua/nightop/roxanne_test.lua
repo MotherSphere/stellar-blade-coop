@@ -3,10 +3,12 @@
 -- select widget through the widget library's lookup, and the requests, notices, starts and shop opens it makes.
 -- Covered: the text table (every language, its four lines, the asset's Korean sources); nothing on another save or out
 -- of Xion; the arm in Xion (the four keys registered, each row checked, written and read back, then roxanne on), once
--- a Lua load, and a row that is not the one known stopping it with nothing asked; a pick read from the widget only when
--- its SelectIndex turns from -1 to a line of ours (her own Shop, End and a widget first seen on a line do nothing); a
--- level booked and started through coop nightop start once EVE is out of Xion, its refusals said once each; a guest's
--- pick; the supplies opening the shop's screen after her goodbye; roxanne on asked again when the native part reads
+-- a Lua load, and a row that is not the one known stopping it with nothing asked; a pick read from the widgets, looked
+-- for at each tick, only when a SelectIndex turns from -1 to a line of ours (her own Shop, End and a widget first seen
+-- on a line do nothing), a box built for a later dialogue watched while an older one stays valid; a level booked and
+-- started through coop nightop start once EVE is out of Xion, its refusals said once each, and a host's booking held
+-- while the run asks the partner, tried again 30 s after an ask the partner could not join; a guest's pick; the
+-- supplies opening the shop's screen after her goodbye; roxanne on asked again when the native part reads
 -- off; off on another save and at coop off (roxanne off, asked again every 10 s while her list reads on, then the rows'
 -- shipped values only once it reads off, never while it reads on or after a fault); cancel; an arm, a start or a shop
 -- open that raises.
@@ -64,6 +66,7 @@ local function lines_of(...)
     widget.DataArray=list
 end
 local lookups=0
+local shown={widget} -- The select widgets the lookup finds.
 local objects={
     ['/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable']=choices,
     ['/Script/Engine.Default__KismetTextLibrary']=object({PolyglotDataToText=function(_,d)
@@ -79,7 +82,7 @@ local objects={
     ['/Script/UMG.Default__WidgetBlueprintLibrary']=object({GetAllWidgetsOfClass=function(_,ctx,out,cls,top)
         lookups=lookups+1
         assert(ctx and cls and top==false)
-        out[1]=widget
+        for k,w in ipairs(shown) do out[k]=w end
     end}),
 }
 StaticFindObject=function(path) return objects[path] end
@@ -153,7 +156,8 @@ at(105); rox.tick(); assert(#asked==1)
 at(110.5); rox.tick()
 assert(#asked==2 and asked[2]=='roxanne on'
     and last():find('reads off asks=1 want=on why=busy: roxanne on asked again'))
--- On: the widget found once through the lookup, a pick only when SelectIndex turns from -1 to a line of ours.
+-- On: the widget looked for at each tick through the lookup, a pick only when SelectIndex turns from -1 to a line of
+-- ours.
 status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
 widget.SelectIndex=1 -- Seen first on a line: an old pick, nothing.
 lines_of(T.TEXT.fr.E,T.TEXT.fr.N,T.TEXT.fr.H,T.TEXT.fr.S,'Boutique','Mettre fin')
@@ -163,7 +167,7 @@ widget.SelectIndex=-1
 at(111.25); rox.tick()
 widget.SelectIndex=4 -- Her own Shop.
 at(111.5); rox.tick()
-assert(#told==0 and lookups==1,'Her Shop does nothing')
+assert(#told==0 and lookups==3,'Her Shop does nothing')
 widget.SelectIndex=-1; at(112); rox.tick()
 widget.SelectIndex=2 -- Night Operation (Hard).
 at(112.25); rox.tick()
@@ -197,6 +201,16 @@ at(156.5); rox.tick(); assert(shops==0,'Not while a screen shows')
 paused=false
 at(157); rox.tick()
 assert(shops==1 and last()=='roxanne: supplies: Night Operation shop: 3 points as Beta Seeds',last())
+-- A box built for a later dialogue while the first is still valid: watched from the next tick, its pick read, while
+-- the first, still on its last line, picks nothing.
+local box=object({SelectIndex=-1,DataArray=widget.DataArray,GetAddress=function() return 0x2000 end})
+shown={widget,box}
+at(158); rox.tick()
+box.SelectIndex=0; at(158.25); rox.tick()
+assert(told[#told]=='B' and last()=='roxanne: easy booked: it starts once EVE is out of Xion with no one within 40 m',
+    last())
+assert(rox.cancel()=='easy')
+shown={widget}
 -- A guest's pick: the host starts a co-op run.
 status_text='mod=v\nslot=coop index=4\nlink=guest lobby=7\nroxanne=on asks=2 want=on why=none\n'
 widget.SelectIndex=-1; at(160); rox.tick()
@@ -207,6 +221,35 @@ status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want
 widget.SelectIndex=-1; at(161); rox.tick()
 widget.SelectIndex=1; at(161.25); rox.tick()
 assert(rox.cancel()=='normal' and rox.cancel()==nil)
+-- A host's booking (a co-op session): the start only asks the partner, so the booking holds while the run asks, is
+-- tried again 30 s after an ask the partner could not join, and goes once the run counts down.
+local run_phase,host_starts=nil,0
+local host=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
+    ask=function(line) asked[#asked+1]=line; return true,'asked' end,paused=function() return false end,
+    tell=function() end,shop=function() end,phase=function() return run_phase end,
+    start=function()
+        host_starts,run_phase=host_starts+1,'ask'
+        return true,'Night Operation (hard): waiting for Guest to join (run 0x02)'
+    end})
+status_text='mod=v\nslot=coop index=4\nlink=host lobby=7\nroxanne=on asks=2 want=on why=none\n'
+widget.SelectIndex=-1; at(1000); host.tick()
+widget.SelectIndex=2; at(1000.25); host.tick()
+assert(last()=='roxanne: hard booked: it starts once EVE is out of Xion with no one within 40 m',last())
+world=WASTE
+at(1006); host.tick()
+assert(host_starts==1 and last()=='roxanne: the booked hard run: Night Operation (hard): waiting for Guest to join '
+    ..'(run 0x02)',last())
+at(1011); host.tick(); assert(host_starts==1,'No new ask while the run asks')
+run_phase=nil -- The guest answered map: the host's run dropped its ask.
+at(1016); host.tick()
+assert(host_starts==1 and last()=='roxanne: the booked hard run: the partner did not join; asked again in 30 s',last())
+at(1041); host.tick(); assert(host_starts==1,'Not before 30 s')
+at(1046.5); host.tick(); assert(host_starts==2,'Asked again')
+run_phase='countdown'
+at(1052); host.tick()
+assert(last()=='roxanne: the booked hard run: the partner joined' and host.cancel()==nil,last())
+world=XION
+status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
 -- A start or a shop open that raises: its refusal, logged, and the tick goes on.
 start_answer=nil
 local raising=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,

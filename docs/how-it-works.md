@@ -2179,11 +2179,15 @@ either.
    so End Conversation stays last whether the choice box sorts by priority with a stable order or not, and the cancel
    input, which picks the last slot, still ends the talk. The `roxanne=` status line gives the entry's shape every
    250 ms after the first request; Lua asks again when it reads `off` while it wants it on (a rebuilt cache).
-4. The pick: Lua finds the choice box (`SBSequencerInteractionSelectWidget`) through UMG's `GetAllWidgetsOfClass` (the
-   engine's class lookup, not a walk over every object) while EVE is in Xion, and reads its `SelectIndex` every 250 ms.
-   A change from -1 to a line is a pick; the line's `DisplayText` (from `DataArray`) is matched against the labels in
-   every language. A level is booked and started through `coop nightop start <level>` once EVE is out of Xion (every
-   5 s, with that command's co-op save and race checks); the supplies call `coop nightop shop` 5 s after the pick.
+4. The pick: every 250 ms while EVE is in Xion, Lua looks for the choice boxes (`SBSequencerInteractionSelectWidget`)
+   through UMG's `GetAllWidgetsOfClass` (the engine's class lookup, not a walk over every object) and reads each one's
+   `SelectIndex`. A box found again keeps its last value (by address), so a box built for a later talk is watched
+   while an older one is still valid. A change from -1 to a line is a pick; a box first seen on a line holds an old
+   pick. The line's `DisplayText` (from `DataArray`) is matched against the labels in every language. A level is
+   booked and started through `coop nightop start <level>` once EVE is out of Xion (every 5 s, with that command's
+   co-op save and race checks). A host's start only asks the guest (the run's phase `ask`), so the booking holds until
+   the run leaves that phase: it goes once the run counts down, and a dropped ask is tried again 30 s later. The
+   supplies call `coop nightop shop` 5 s after the pick.
 5. Off: on `coop off` and on a save that is not a co-op save, `roxanne off`, asked again every 10 s while the
    `roxanne=` line reads `on` (Lua's tick goes on after `coop off` for that alone, and the native part still takes an
    off then). The rows get their shipped values only once the line reads `off` after an off it took, or `absent`: while
@@ -2192,7 +2196,8 @@ either.
    nowhere else.
 
 Not checked offline: who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild), the
-choice box's sort, and that `GetAllWidgetsOfClass` finds the box in this build.
+choice box's sort, that `GetAllWidgetsOfClass` finds the box in this build, and whether the game builds a new box for
+each talk or keeps one (both are read).
 
 ## Developer flight and slow motion
 

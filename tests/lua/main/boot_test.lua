@@ -917,6 +917,7 @@ do
     assert(select(2,rx.o.start('hard')):find(NOT_COOP) and #nr.runs==runs,
         'A booked level starts through coop nightop start and its co-op save check')
     assert(select(2,rx.o.shop()):find(NOT_COOP) and #nr.runs==runs,'The supplies open coop nightop shop, checked too')
+    nr.phase='ask'; assert(rx.o.phase()=='ask','Her booking reads the run\'s phase'); nr.phase=nil
     rx.booked='hard'
     coop('nightop','stop')
     assert(last()=='[StellarCoop] OK: nightop stop; the hard run booked at Roxanne is dropped\n',last())

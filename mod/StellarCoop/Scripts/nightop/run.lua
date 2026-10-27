@@ -1251,6 +1251,8 @@ function Run.new(o)
     -- A run is under way (its result panel aside): the follow's travel waits for its end, and a Doro race refuses to
     -- arm meanwhile.
     function self.running() return r~=nil and r.s.phase~='result' end
+    -- The run's phase, nil when none: Roxanne's booking holds while a host's run is in 'ask'.
+    function self.phase() return r and r.s.phase or nil end
     return self
 end
 return Run

@@ -599,7 +599,9 @@ four of the game's test choice rows, which no story dialogue lists.
   its own once EVE is out of Xion, the game plays and no one is within 40 m, as `coop nightop start <level>` would
   (the mod tries every 5 s, through that command's own checks). `coop nightop stop` drops the booking. In a Steam
   session only the host's pick books a run; a guest's pick shows `In a co-op session, only the host starts Night
-  Operation.`
+  Operation.` The host's start asks the guest to join, and the booking holds until the guest's answer. When the guest
+  cannot join (another map, more than 50 m away, a game screen up), the host gets a notice with the reason and the
+  mod asks again 30 s later, until the run counts down or `coop nightop stop` drops the booking.
 - Night Operation supplies: she says goodbye, and 5 s later the shop screen opens, as with `coop nightop shop`.
 - Shop and End Conversation work as before, and the cancel input still ends the talk.
 
@@ -610,12 +612,13 @@ Once EVE is in Xion on a co-op save, the mod gives the four rows' text keys thei
 (after the same Korean text check the recruiter's text uses), edits the rows in place (each checked first, then read
 back: InteractionGraphExec `Success2`, the one her End Conversation uses, and NextTaskTagName `None`), then asks the
 native part to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). A pick is
-read from the game's choice box: its selected line turning from none to one, and that line's text matched against the
-labels. Everything goes back on `coop off` and on a save that is not a co-op save: the choice list first (asked again
-every 10 s until the native part has put it back), then the rows' shipped values. Until the list is back, and after a
-fault in its calls, the rows keep the goodbye, which ends the talk on any save. Nothing is saved, and a game restart
-undoes it too. Talking to her still runs her own graph, so her first meeting and her side quest start as without the
-mod. No quest, item, achievement or save call is added.
+read from the game's choice boxes, looked for every 250 ms so a box the game builds for a later talk is read too: a
+selected line turning from none to one, and that line's text matched against the labels. Everything goes back on
+`coop off` and on a save that is not a co-op save: the choice list first (asked again every 10 s until the native part
+has put it back), then the rows' shipped values. Until the list is back, and after a fault in its calls, the rows keep
+the goodbye, which ends the talk on any save. Nothing is saved, and a game restart undoes it too. Talking to her still
+runs her own graph, so her first meeting and her side quest start as without the mod. No quest, item, achievement or
+save call is added.
 
 `UE4SS.log` has `[StellarCoop][NR]` lines for each step, for example:
 

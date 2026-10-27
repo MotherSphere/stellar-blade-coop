@@ -6,12 +6,13 @@
 -- so the graph plays one of her goodbyes and ends; NextTaskTagName None), and their four text keys get the labels in
 -- the 23 game languages (nightop/roxanne_text.lua, through nightop/recruiter.lua's registration, after its Korean
 -- probe). Then the native part points her choice list's entry in SB's select cache at those four and her two
--- (nightop/roxanne.h: roxanne on). A pick is read from the select widget (SBSequencerInteractionSelectWidget, found
--- through the widget library's class lookup, never by walking every object each tick): its SelectIndex turning from
--- -1 to a line, that line's text matched against our labels. A level is booked and starts on its own once EVE is out of
--- Xion with no one within 40 m (Night Operation never starts in Xion: its people and quests stay out of a fight); in a
--- co-op session only the host's pick books. The supplies open the Night Operation shop's screen once her goodbye is
--- over. Everything goes back on coop off and on a save that is not a co-op save: roxanne off (asked again every 10 s
+-- (nightop/roxanne.h: roxanne on). A pick is read from the select widgets (SBSequencerInteractionSelectWidget, looked
+-- for at each tick through the widget library's class lookup, never by walking every object each tick): a SelectIndex
+-- turning from -1 to a line, that line's text matched against our labels. A level is booked and starts on its own once
+-- EVE is out of Xion with no one within 40 m (Night Operation never starts in Xion: its people and quests stay out of a
+-- fight); in a co-op session only the host's pick books, and the booking holds until the partner joins (an ask the
+-- partner could not join is asked again later). The supplies open the Night Operation shop's screen once her goodbye
+-- is over. Everything goes back on coop off and on a save that is not a co-op save: roxanne off (asked again every 10 s
 -- while the native part reads on), then the rows' shipped values once it reads her list off or absent (while it reads
 -- on, or after a fault, the rows stay ours: their exec only plays her goodbye); coop nightop stop drops a booking. No
 -- quest, item, achievement, save or story state is touched here: talking to her still runs her own graph as without
@@ -34,9 +35,11 @@ Roxanne.ROWS={
 }
 Roxanne.EXEC='Success2'
 -- s: after a supplies pick, before the screen opens (her goodbye first; ponytail: a starting value, tune in game); how
--- long a pick waits for the game to play; between two tries at a booked start; between two looks for the widget;
--- between two roxanne on asks while the native part reads off.
+-- long a pick waits for the game to play; between two tries at a booked start; between two looks for the widget
+-- through FindAllOf (the class lookup looks at each tick); between two roxanne on asks while the native part reads
+-- off; after a co-op ask the partner could not join, before the next (each one's refusal is a notice).
 Roxanne.SHOP_AFTER,Roxanne.SHOP_WAIT,Roxanne.BOOK_EVERY,Roxanne.FIND_EVERY,Roxanne.ASK_EVERY=5,30,5,2,10
+Roxanne.JOIN_AGAIN=30
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
 -- Every label of roxanne_text.lua, in any language, to its row.
 local function labels()
@@ -52,7 +55,8 @@ function Roxanne.row_of(text,by) return (by or labels())[text] end
 -- log(text) writes an [NR] line; status() the native part's status text; ask(line) its request; paused() whether the
 -- game is paused or shows one of its screens (the UI kit's); tell(build) a notice; start(level) coop nightop start
 -- <level> and shop() coop nightop shop, through commands/nightop.lua (its co-op save and race checks; an error they
--- raise is their refusal here).
+-- raise is their refusal here); phase() the phase of nightop/run.lua's run, nil when none ('ask' while a host's run
+-- waits for the partner).
 function Roxanne.new(o)
     local log,status,ask,paused,tell=o.log,o.status,o.ask,o.paused,o.tell
     local by=nil -- labels(), once the text is registered.
@@ -159,22 +163,29 @@ function Roxanne.new(o)
         log('roxanne: '..r.level..' booked: it starts once EVE is out of Xion with no one within 40 m')
         if tell then tell(function(w) return w.night.booked end) end
     end
-    -- In Xion with her choices on: each held widget's SelectIndex, a pick when it turns from -1 to a line.
+    -- In Xion with her choices on: the select widgets looked for again at each tick (every FIND_EVERY through
+    -- FindAllOf), so a box the game builds for a later dialogue is watched while an older one is still valid; a widget
+    -- seen before keeps its last SelectIndex. A pick: a SelectIndex turning from -1 to a line (a widget first seen on a
+    -- line holds an old pick).
     local function watch(eve,raw,now)
-        if not held and now>=look_at then
-            look_at=now+Roxanne.FIND_EVERY
+        if now>=look_at then
+            look_at=now+(walk and Roxanne.FIND_EVERY or 0)
+            local seen={}
+            for _,w in ipairs(held or {}) do seen[U.address(w.obj)]=w end
             local list=widgets(eve)
-            if #list>0 then held=list end
+            for k,w in ipairs(list) do list[k]=seen[U.address(w.obj)] or w end
+            held=list
         end
         for _,w in ipairs(held or {}) do
             local ok,i=pcall(function() return U.value_of(w.obj.SelectIndex) end)
-            if not ok or not U.valid(w.obj) then held=nil return end
-            if w.last and w.last<0 and i>=0 then
-                local got,text=pcall(function() return U.text(w.obj.DataArray[i+1].DisplayText) end)
-                local r=got and Roxanne.row_of(text,by)
-                if r then picked(r,raw,now) end
+            if ok and U.valid(w.obj) then
+                if w.last and w.last<0 and i>=0 then
+                    local got,text=pcall(function() return U.text(w.obj.DataArray[i+1].DisplayText) end)
+                    local r=got and Roxanne.row_of(text,by)
+                    if r then picked(r,raw,now) end
+                end
+                w.last=i
             end
-            w.last=i
         end
     end
     local self={}
@@ -219,14 +230,27 @@ function Roxanne.new(o)
                 log('STOP: roxanne: supplies: the game stayed paused or on one of its screens')
             end
         end
+        -- A host's start only asks the partner: the booking holds until that ask ends, then goes once the run counts
+        -- down, or is tried again JOIN_AGAIN s later when the partner could not join (another map, too far, busy).
         if booked and now>=booked.next then
             booked.next=now+Roxanne.BOOK_EVERY
-            if eve and not here and not paused() then
-                local level=booked.level
+            local level=booked.level
+            local phase=o.phase and o.phase()
+            if booked.asked and phase~='ask' then
+                booked.asked=nil
+                if phase then -- Past its ask (a dropped ask leaves no run).
+                    booked=nil
+                    log('roxanne: the booked '..level..' run: the partner joined')
+                else
+                    booked.next=now+Roxanne.JOIN_AGAIN
+                    log('roxanne: the booked '..level..' run: the partner did not join; asked again in '
+                        ..Roxanne.JOIN_AGAIN..' s')
+                end
+            elseif not booked.asked and eve and not here and not paused() then
                 local ran,ok,said=pcall(o.start,level)
                 if not ran then ok,said=false,why(ok) end
                 if ok then
-                    booked=nil
+                    if o.phase and o.phase()=='ask' then booked.asked,booked.said=true,nil else booked=nil end
                     log('roxanne: the booked '..level..' run: '..tostring(said))
                 elseif said~=booked.said then
                     booked.said=said

@@ -287,7 +287,7 @@ package.loaded['nightop.run']={new=function(o)
     nr.o=o
     return {command=function(sub,a,b,c) nr.runs[#nr.runs+1]={sub,a,b,c}; return true,'nightop '..tostring(sub) end,
         challenge=function(sub,extra) nr.chs[#nr.chs+1]={sub,extra}; return true,'challenge '..tostring(sub) end,
-        running=function() return nr.running==true end,
+        running=function() return nr.running==true end,phase=function() return nr.phase end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
