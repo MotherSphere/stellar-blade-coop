@@ -2107,7 +2107,9 @@ row is an activation-only one, so `DLC02_30_EnvS_900` takes row 900's template a
 camp), has one. With no object to activate, the camp never enters the save's activated camps or the camp list. The v3
 pak moves the six Matrix 11 kit objects placed around that site 40000 units down, as v2 does at the first camp's
 site: their rows belong to `Zone_ME_03`, which never starts in this world, and the vending machine's row
-`ME_03_EnvS_005` is one of the camp achievements' rows.
+`ME_03_EnvS_005` is one of the camp achievements' rows. For the same reason it moves the vending machines of the
+other Matrix 11 camps in its levels: two more in Area03, two in Area04 and one in Area01
+([Achievements](#achievements)).
 
 The two zone tables are the sixteenth and seventeenth of the 20 tables every rows request names (`kLionTables`), and
 only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
@@ -2957,7 +2959,11 @@ claim the host accepts):
   names a `DLC02` row, zone or world, `MXIII` or `DLCMatrix13`. The only rows that match a camp object by its class
   are the skill machine's guide rows (`Ach_Guide_InteractEnvAlias_SkillMachine`, `Ach_Guide_TrainingRoom`), which open
   a guide and the skill manual page and lead to no trophy, as any camp's skill machine does. A row that is only
-  present raises no event: the kit's objects exist only inside the dungeon.
+  present raises no event: the kit's objects exist only inside the dungeon. The test pak's levels are copies of Matrix
+  11's, and the camp vending machines in them keep Matrix 11's rows (`ME_01_EnvS_017` and `_018`, `ME_03_EnvS_005`,
+  `_015` and `_023`, `ME_04_EnvS_008` and `_009`), seven of the 89. Matrix 11's zones never start in that world,
+  which should leave them unusable, but that was not checked, so v3 moves all seven 400 m below the floor (v2 moves
+  only `ME_01_EnvS_017`).
 - A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
 - A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is

@@ -1579,7 +1579,9 @@ zone and the enemies' spawn points, with the camp's arrival point at the dungeon
 camp's six objects and its coin at the site of Matrix 11's first simple camp (`ME01_Camp_01`, in Area01), and moves
 the arrival point there. v3 adds the arrival point of the third zone's camp at the site of Matrix 11's camp
 `ME03_Camp_01` (26392, -23650, 4414, in Area03), between the two doors that v2 already moves out of the way, and moves
-that Matrix 11 camp's six objects out of the way too. Only v3 takes `coop mxiii 30`.
+that Matrix 11 camp's six objects out of the way too. It also moves the vending machines of Matrix 11's other camps in
+those levels, since activating a Matrix 11 camp counts toward the camp trophy. v2 leaves one of them in the first zone
+(Matrix 11's `ME01_Camp_02`, at 28804, 1308): do not use it. Only v3 takes `coop mxiii 30`.
 
 1. With the game closed, put `zMXIII_P.utoc`, `zMXIII_P.ucas` and `zMXIII_P.pak` in `SB/Content/Paks/~mods` (or
    `SB/Content/Paks/LogicMods`).
