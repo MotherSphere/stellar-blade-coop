@@ -2244,8 +2244,8 @@ session, and 5 seconds after the last one at the soonest:
 | Shared enemies stopped in your friend's game | `Shared enemies stopped for this run in <name>'s game. Their coop-link.log says why.` |
 | You are on different maps | `Shared enemies wait until you and <name> are on the same map.` |
 
-Waiting for a friend, a load or the end of photo mode shows nothing. `Shared enemies on: <n> enemies linked.` shows when
-enemies get linked after none (the host counts none until the friend's side is on).
+Waiting for a friend, a load or the end of photo mode or of a pause shows nothing. `Shared enemies on: <n> enemies
+linked.` shows when enemies get linked after none (the host counts none until the friend's side is on).
 `Shared enemies off. coop-link.log says why.` shows when it stops after it ran or waited, unless you stopped it yourself
 (the row, `coop fight off` or `coop off`). `Shared enemies stopped until the game restarts. coop-link.log says why.`
 shows when a check of the game's memory turned it off for the run. These notices use the menu's language.
@@ -2274,8 +2274,8 @@ copies follow them back to full health. A respawn on another map leaves your cop
 
 - `coop fight on` asks for it by hand (it needs `shared_enemies=on`) and `coop fight off` stops it until the mod reloads
   or the row is turned off and on again. It waits for a linked friend, a loaded save and a co-op save, and pauses while
-  either player is in photo mode (selfies and the pause menu do not pause it). Loading your own save pauses it until you
-  load a co-op save again. Setting `shared_enemies=off` in the file and pressing Ctrl+R also stops it (the solo test
+  either player is in photo mode or has the game paused (the pause menu, a cutscene, the game window in the background).
+  Loading your own save pauses it until you load a co-op save again. Setting `shared_enemies=off` in the file and pressing Ctrl+R also stops it (the solo test
   tools below keep running).
 - `coop fight status` prints the `fight=` line of `coop status`, for example
   `fight=on mode=on role=host enemies=3 ... her=on`. The guest's line has `unpaired=<n>` (the host's enemies it could
@@ -2284,7 +2284,7 @@ copies follow them back to full health. A respawn on another map leaves your cop
   `; unpaired: 5003:0 charId, 5005:1 maxhp; 3 of ours not on the host's list`. The last count is the guest's own
   enemies that the host's list lacked since the host's last world change. While a friend is linked, `her=` gives
   their side: `on`, `own-save` (their own save), `off` (shared enemies off), `stopped` (stopped for the run),
-  `waiting` (a load, photo mode, `coop off`, or a reason their `coop-link.log` gives) or `?` (nothing heard from their
+  `waiting` (a load, photo mode, a paused game, `coop off`, or a reason their `coop-link.log` gives) or `?` (nothing heard from their
   game yet).
 - Solo test tools: `coop fight probe` is read only and logs each actor (character id, type, HP, Shield, Stamina) to
   `coop-fight.log`, where you find the ids for `fight_chars`. With no `fight_chars` list, the line of a Monster that

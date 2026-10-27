@@ -769,7 +769,9 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   at most), stamped with the pose clock. It also walks the game's Show manager (the game's animation sequences) for the
   Shows each enemy starts, and sends `show`, `show-set` and `show-stop` lines on channel 2 with the asset's path and
   the hit context. It never sends a Show that one of its own replays started, so a pair just taken over sends nothing
-  back. Only two lookups by GUID are called for this; the rest is plain reads.
+  back. Only two lookups by GUID are called for this; the rest is plain reads. Neither lookup, nor any drawing step
+  below, runs in a frame where a logic task is in flight (logic `+0x5c0` set): an enemy that spawns in that task grows
+  the two maps the lookups walk. Such a frame is skipped, and the Show lines due wait for the next.
 - On the drawing side's logic thread, each copy gets the game's own BlockAI effect (2000100, then SkillCancel
   2004400), only in life state 1 and outside NoDamageNoHit. When the game takes it off, the mod puts it back, at most 5
   times in any 10 s (then `freeze-lost`: the copy stays an ordinary enemy). On every way out, and before a kill, the
@@ -1097,7 +1099,9 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   them.
 - When the guest's side comes on, the host sends a snapshot (`snap`, the `zone` and `q` lines, then `end` with their
   count and an FNV-1a digest) of the quests it moved while linked with that friend. It sends a new one after its own
-  load, and when one of its quests goes back (an older save).
+  load, and when one of its quests goes back (an older save). On either side, a pass that finds a known quest object
+  gone, or a started Epic or Sub quest that none of the unit's three arrays lists, waits for the next pass to read the
+  same objects, so a quest unit read while the game still fills it sends, records and applies nothing.
 
 The record beside each co-op slot (`StellarCoopQuests0N.txt` in the account's save folder) keeps, per friend, the
 host's marks (`h` lines) and the host lines the guest's game took (`g` lines). The worker writes it through the same

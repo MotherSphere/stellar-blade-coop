@@ -256,9 +256,9 @@ build/host/pose_codec_test
     animation speed into SBE; the show manager's stages matched by their main actor's weak pointer, a stale one refused,
     an empty one matched by the actor's show interface; only the first player of a stage, a finished one never told;
     show-set and show-stop; each asset's path decoded once, and again when another asset takes its address and index
-    under another name or package; a character pending kill, a failed lookup, a wrong class, no world or no show
-    manager), the drawn side's writes against fake memory (each copy found by its GUID every frame and skipped while
-    it is not; its movement component taken out of the game's parallel manager only when it is the game's class with
+    under another name or package; a character pending kill, a failed lookup, a wrong class, no world, no show
+    manager or a logic task in flight), the drawn side's writes against fake memory (each copy found by its GUID every
+    frame and skipped while it is not or while a logic task is in flight, its rows then kept for a later frame; its movement component taken out of the game's parallel manager only when it is the game's class with
     the game's own function in slot 0x350, and again when something put it back; the speed override, the root moved
     through its vtable and Velocity; the drift probe; the Show replayed through the handle API with its hit context
     (each field at its offset), only on a copy driven that frame, show-set and show-stop (also while the copy is not

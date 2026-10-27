@@ -5506,6 +5506,26 @@ int main() {
     mem.put(manager + kPhotoCamera, kSelfie);
     assert(!photo_mode(kBase, read));
   }
+  // world_paused(): SB holds a pause tag (Engine::paused's test); nothing before the singleton is made, nor from an
+  // implausible one.
+  {
+    Memory mem;
+    const uint64_t at = rebased(coop::game::kGlobals) + kPauseAt;
+    mem.regions[at].assign(8, 0);
+    const auto read = [&](uint64_t address, void *out, size_t n) { return mem.read(address, out, n); };
+    assert(!world_paused(kBase, read));
+    const uint64_t tags = mem.alloc(0x220);
+    mem.put(at, tags);
+    assert(!world_paused(kBase, read));
+    mem.put<int32_t>(tags + kTagsNum, 1); // A tag: the set's one element.
+    assert(world_paused(kBase, read));
+    mem.put<int32_t>(tags + kTagsFree, 1); // Removed: its slot free.
+    assert(!world_paused(kBase, read));
+    mem.put<int32_t>(tags + kTagsNum, 2);
+    assert(world_paused(kBase, read));
+    mem.put<uint64_t>(at, 0x1235);
+    assert(!world_paused(kBase, read));
+  }
   // vitals(): the local EVE's partner-card numbers through a read function (the worker's ReadProcessMemory), from the
   // actor manager's local player with its player flag set, in eight reads. Each failed read, a cleared player flag, a
   // slot that changed during the reads, the title screen (no world), a local index out of range, and each value rule
@@ -5876,6 +5896,35 @@ int main() {
     w.pass(t += 16, true, false, true, none, gate, io);
     assert(e->on() && e->session() == before + 1 && io.lines() == "SBF14 on\n");
     assert(io.said.back() == "shared fight on: as guest");
+    // A pause tag held while our job still takes turns (a load's, a refused pause) changes nothing: it takes her
+    // lines.
+    const uint32_t held = e->session();
+    for (const uint64_t end = t + 3000; t < end;) {
+      ++s.job.turns;
+      assert(mail.exchange(s));
+      w.pass(t += 16, true, false, true, {"SBF14 world 8"}, gate, io, false, coop::Life::unknown, true);
+    }
+    assert(e->on() && e->session() == held && io.lines().empty() && mail.exchange(s) && mail.receive(m));
+    while (mail.receive(m))
+      ;
+    // A paused world (its menu, a movie): our job waits, so her lines would pile up past kMail and the newest,
+    // reliable ones included, would be lost. Paused like photo mode once no turn came for kStallMs: she hears why,
+    // and 20 s of her dead and world lines reach no ring; a new session at the resume, so both sides start over from
+    // our on.
+    w.pass(t += kStallMs - 16, true, false, true, {"SBF14 world 8"}, gate, io, false, coop::Life::unknown, true);
+    assert(e->on());
+    w.pass(t += 16, true, false, true, none, gate, io, false, coop::Life::unknown, true);
+    assert(!e->on() && io.lines() == "SBF14 off world paused\n");
+    assert(io.said.back() == "shared fight paused: world paused");
+    for (const uint64_t end = t + 20000; t < end;)
+      w.pass(t += 16, true, false, true, {"SBF14 dead 8 132", "SBF14 world 9"}, gate, io, false, coop::Life::unknown,
+             true);
+    assert(w.detail() == "fight=waiting mode=on her=on why=world paused" && mail.exchange(s) && !mail.receive(m));
+    assert(ask("fight off") == "shared fight off: coop fight off");
+    assert(ask("fight on 900") == "shared fight on: waiting for the end of the game's pause" && !e->on());
+    io.lines();
+    w.pass(t += 16, true, false, true, none, gate, io);
+    assert(e->on() && e->session() == held + 1 && io.lines() == "SBF14 on\n");
     // A load (no save for a while), on a pass the gate is due: paused, not off; she hears why, and her line not taken
     // yet goes with the session.
     w.pass(t += 16, true, false, true, {"SBF14 world 9"}, gate, io);
