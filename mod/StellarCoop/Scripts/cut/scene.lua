@@ -19,12 +19,12 @@
 -- 0) and Japanese (row 1) text under keys no locres holds: each key is registered with the engine's localization for
 -- the game's language, as the matching GoodBye_01 line of StringTable_Seq reads in it (LINES).
 -- A scene plays on its map with EVE within 50 m of its stage and not while a theater of the game plays. Then, once a
--- second, its theater observer (SBTheaterLevelSequenceObserver) is looked for: none 10 s after the call fails it; seen,
--- then gone (its end, the game's skip, coop scene stop, a map change), it ends the scene, with the take put back and a
--- camera fade its last frame left cleared. coop scene stop fires the Stop row, so SB's own teardown gives the camera,
--- input and HUD back. coop off fires it too and puts the take back at once (no tick follows), and so does the next Lua
--- load for a scene an earlier one left. Never called here: a warp, a quest, a save, another zone event, nor the
--- trailers' interaction graphs or spawn rows (they acquire quests before they play).
+-- second, its theater observer (SBTheaterLevelSequenceObserver) is looked for, and once seen it alone is read: none
+-- 10 s after the call fails it; seen, then gone (its end, the game's skip, coop scene stop, a map change), it ends the
+-- scene, with the take put back and a camera fade its last frame left cleared. coop scene stop fires the Stop row, so
+-- SB's own teardown gives the camera, input and HUD back. coop off fires it too and puts the take back at once (no tick
+-- follows), and so does the next Lua load for a scene an earlier one left. Never called here: a warp, a quest, a save,
+-- another zone event, nor the trailers' interaction graphs or spawn rows (they acquire quests before they play).
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local Doro=require('race.doro')
@@ -197,19 +197,24 @@ local function register_text()
     if wrong then return string.format('STOP: %s%d keys registered, but %s does not read its line',head,count,wrong) end
     return string.format('%s%d keys registered, each reads its GoodBye_01 line',head,count)
 end
--- The short names of the sequences the theater observers play now. FindAllOf walks every object: at a command, once a
--- second while a scene runs and at a Lua load while a scene's sequence is in memory.
+-- The short name of the sequence a theater observer plays now, else nil.
+local function name_of(ob)
+    ob=valid(ob)
+    local player=ob and U.weak(ob.Player)
+    if not (player and player:IsPlaying()==true) then return nil end
+    local s=U.weak(ob.Sequence)
+    return s and short(path_of(s)) or text(ob.SequenceName)
+end
+-- The short names of the sequences the theater observers play now, and each name's observer. FindAllOf walks every
+-- object (25 to 80 ms in game, a frozen frame): at a command, once a second while a scene runs until its observer is
+-- seen (then that one is read alone), and at a Lua load while a scene's sequence is in memory.
 local function playing()
-    local names={}
+    local names,by={},{}
     U.each(FindAllOf('SBTheaterLevelSequenceObserver') or {},function(_,ob)
-        ob=valid(ob)
-        local player=ob and U.weak(ob.Player)
-        if player and player:IsPlaying()==true then
-            local s=U.weak(ob.Sequence)
-            names[#names+1]=s and short(path_of(s)) or text(ob.SequenceName)
-        end
+        local name=name_of(ob)
+        if name then names[#names+1],by[name]=name,valid(ob) end
     end)
-    return names
+    return names,by
 end
 local function has(list,name) for _,n in ipairs(list) do if n==name then return true end end end
 -- A camera fade the scene's last frame left (E03 fades to black at 47.8 s), cleared. Gives what it did, or nil.
@@ -232,7 +237,9 @@ end
 function Scene.new(o)
     local log=o.log
     local self={SCENES=Scene.SCENES}
-    local cur=nil -- The scene under way: {s=, called=<os.clock of the Play row>, next=<next look>, seen=, stopping=}.
+    -- The scene under way: {s=, called=<os.clock of the Play row>, next=<next look>, seen=, observer= (the one seen
+    -- playing it), stopping=}.
+    local cur=nil
     local restored,texted=false,false
     -- The scene ended (or failed): its farewell take put back, a fade it left cleared once it was seen. Returns ok,
     -- message for main.lua's report.
@@ -350,13 +357,15 @@ function Scene.new(o)
         local now=os.clock()
         if now<c.next then return end
         c.next=now+POLL
-        local ok,names=pcall(playing)
+        local ok,names,by
+        if c.observer then ok,names=pcall(function() return {name_of(c.observer)} end)
+        else ok,names,by=pcall(playing) end
         if not ok then return finish(false,c.s.title..' no longer followed on an error: '..why(names)) end
         local own=has(names,short(c.s.sequence))
         local farewell=c.s.farewell and has(names,short(FAREWELL_SEQ))
         if own or farewell then
             if not c.seen then
-                c.seen=now
+                c.seen,c.observer=now,by[short(own and c.s.sequence or FAREWELL_SEQ)]
                 log(string.format('playing: %s, %.1f s after the call',short(own and c.s.sequence or FAREWELL_SEQ),
                     now-c.called))
                 if not own then log("the take's write was not honoured: the game's own farewell plays instead") end
