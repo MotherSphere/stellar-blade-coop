@@ -23,6 +23,8 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
   `04.txt` beside the co-op copies: the record of the quest steps shared on that co-op slot, through the same name
   check. On the guest's side, her game makes the host's quest steps through its own quest functions, in the co-op save
   it plays.
+- `coop shortcut load` (off unless `shortcut_load=on`) writes a cleaned developer save as `StellarBladeCoop04.sav`
+  and its mark `StellarCoopShortcut04.txt` beside it, through the same name check (see [Co-op saves](#co-op-saves)).
 - When the question shows, Lua checks whether a co-op copy exists, to name its first choice: it opens each
   `StellarBladeCoop0N.sav` and closes it at once, without reading it.
 - Apart from enemy stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), the quest
@@ -39,9 +41,10 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
 - On the pinned game build only, and until `coop off`, the mod reads which slot the game entered (every 250 ms), for
   the `slot=` line of `coop status`.
 
-Apart from a restore, which puts a backup back, the only saves anything in this project writes are copies: the co-op
-save copies above, and the manual co-op slot, which `tools/save_guard.py slot` makes with the game closed and after a
-safety backup. The one copy back is the export you ask for: a co-op copy, unchanged, over one of your saves.
+Apart from a restore, which puts a backup back, and the shortcut save above, the only saves anything in this project
+writes are copies: the co-op save copies above, and the manual co-op slot, which `tools/save_guard.py slot` makes with
+the game closed and after a safety backup. The one copy back is the export you ask for: a co-op copy, unchanged, over
+one of your saves.
 
 ## Where the saves are
 
@@ -89,7 +92,8 @@ cloud. Then restore your backup.
 Keep Steam Cloud off during Night Operation runs, challenges and previews and while you test new features.
 
 Steam Cloud syncs the co-op copies (`StellarBladeCoop0N.sav`), but not `StellarCoopSaves.txt`, the shared quests'
-records `StellarCoopQuests0N.txt`, the backups in `StellarCoopBackups` or the `.coop-tmp` files. On another PC every
+records `StellarCoopQuests0N.txt`, a shortcut save's mark `StellarCoopShortcut04.txt`, the backups in
+`StellarCoopBackups` or the `.coop-tmp` files. On another PC every
 copy then counts as played in co-op, so the mod never replaces one there. Steam Cloud also syncs a manual co-op slot's
 `.sav` copy but not `StellarCoopSlot.txt`: on another PC that copy counts as an ordinary save, and the previews,
 Night Operation's run and the challenges refuse to run there.
@@ -151,25 +155,37 @@ ended, `coop saves coop` runs its own pass over every slot first.
 `coop shortcut load` ([usage.md](usage.md#loading-one-coop-shortcut-load), off unless `shortcut_load=on`) writes a
 cleaned developer save as `StellarBladeCoop04.sav` through the same kind of pass, while the game uses the copies: the
 old copy goes to a new folder of `StellarCoopBackups` first, and the new one gets no line in `StellarCoopSaves.txt`, so
-later passes keep it as played. `coop saves refresh 4` replaces it with a copy of your own save again, at the title
-while the game uses your own saves. After a load of the shortcut save that means a restart first, since `coop saves
-main` is refused once a co-op save has been loaded. With no `StellarBladeSave04.sav` the refresh refuses, and the old
-copy is only in `StellarCoopBackups`.
+later passes keep it as played. Before the save, it writes `StellarCoopShortcut04.txt` beside it, a mark that names
+the file it came from (`shortcut F02 1`). `coop saves export` refuses co-op slot 4 while that mark is there, played
+or not (below). `coop saves refresh 4` replaces the shortcut save with a copy of your own save again, at the title
+while the game uses your own saves, and removes the mark once that copy is written; so does a pass that finds slot 4
+without a copy and copies your save there. After a load of the shortcut save that means a restart first, since `coop
+saves main` is refused once a co-op save has been loaded. With no `StellarBladeSave04.sav` the refresh refuses, and
+the old copy is only in `StellarCoopBackups`. A shortcut load that fails before its rename leaves slot 4 as it was,
+and removes a mark it wrote there.
 
 To go on with a co-op character alone, without the mod, use `coop saves export N M` at the title: N is the co-op
 copy, M the slot of yours it goes to, both from 0 to 4. It works while the game uses your own saves or the co-op
 copies, and switches neither. As with a refresh, the first time it only says what it writes over; typed again within
 10 s, it asks the native part. That pass:
 
+- refuses it at once when `StellarCoopShortcut0N.txt` is beside it: that copy is a developer save `coop shortcut load`
+  wrote, and an export would put the developer's progress (quests, skills, camps) and items the released game does not
+  have in your own save;
 - reads `StellarBladeCoop0N.sav` whole and checks it as the game does (header and CRC-32);
+- refuses it, before it writes anything, when it is one of those developer saves anyway: its CRC-32 is one of the 12
+  that `coop shortcut load` writes (a shortcut save not played since), or it names one of their items with no row in
+  the released game's item table (`BS_Defender`, `Gear_NarrowVision_Rare`, `DesignPattern_Blue_Suit`,
+  `DesignPattern_Sailor_Jean`, `DesignPattern_Black_Leather_bikini`), anywhere in the save;
 - refuses it, before it writes anything, while it holds what the game without the mod does not know: one of the mod's
   items (`HP2Burst_Potion`, the Burst Stimpack; `Buff_HP2MP`, the Beta Stimpack; `Bullet_Shock`, the Shock Bolt;
   `Money_NightOperation`, the Beta Seed) in the inventory, in a pickup left in the world or on a quick slot; Shock
   Bolts as the selected ammo (`BulletItemSlotIndex` 5, past the five ammo types the game ships); or the cut Matrix XIII
   dungeon as the save's map (`MXIII_P`), its camp or its last full camp (the camp `coop mxiii` adds there);
 - copies `StellarBladeSave0M.sav`, when there is one, into a new folder of `StellarCoopBackups` and reads it back;
-- reads the co-op copy again, refuses it if it changed since the check, writes its bytes unchanged as
-  `StellarBladeSave0M.sav.coop-tmp`, renames that over `StellarBladeSave0M.sav` and reads it back;
+- reads the co-op copy again, refuses it if it changed since the check, scans those bytes again as above, refuses to
+  go on if `StellarBladeSave0M.sav` changed since its backup (or appeared, when there was none), writes the copy's
+  bytes unchanged as `StellarBladeSave0M.sav.coop-tmp`, renames that over `StellarBladeSave0M.sav` and reads it back;
 - leaves the co-op copies and `StellarCoopSaves.txt` as they are, and stops before its write when the title screen
   goes or the save name changes.
 
@@ -188,6 +204,22 @@ A save that went through New Game+ also holds a second copy of the inventory and
 items, Shock Bolts as the selected ammo or the dungeon's camp, that copy keeps them, and the export keeps refusing the
 save; the refusal says so. Only the copy by hand (see [Recovery](#recovery)) takes such a save out, and nothing then checks
 it.
+
+To get a copy of your own save back in slot 4, use `coop saves refresh 4`; never export a shortcut save. The mark stays
+until a copy of your own save replaces the shortcut save, so if you removed `StellarBladeCoop04.sav` by hand and started
+a new game in that slot before any pass copied your save there, the export refuses it too. Delete
+`StellarCoopShortcut04.txt` by hand only when you are sure slot 4 no longer holds the shortcut save, or a save played on
+from it.
+
+The mark belongs to slot 4's file, not to the progress in it. Without the mark, the export knows a played shortcut save
+only by the five items above, and the saves from `B07`, `F02 1`, `G03 1` and `G03 2` hold none of them. The export
+takes a save that came from one of those in these cases, so do not export it:
+
+- a New Game+ started from the shortcut save into another co-op slot (the game asks which slot to overwrite, see
+  [Recovery](#recovery)), which has no mark;
+- slot 4 on another PC, through Steam Cloud, which does not sync the mark;
+- the shortcut save put back by hand from `StellarCoopBackups`, where `coop saves refresh 4` backed it up, or the mark
+  deleted by hand.
 
 The mod runs one pass at a time. A refresh, an export or a shortcut load asked while another pass runs is refused, and
 `coop-link.log` says `a conversion is under way`.

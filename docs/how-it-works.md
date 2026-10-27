@@ -2625,10 +2625,11 @@ The write is a co-op saves pass (`Switch::plant`), refused unless the game uses 
 title is shown with no save loaded and no load asked (client `+0x86c` is 0), the Steam account is known and no other
 pass runs. The game thread reads the file through the file manager as the list does and keeps its bytes; the worker
 cleans them; the pass backs up the current `StellarBladeCoop04.sav` into a new folder of `StellarCoopBackups` (the
-whole backup of a first conversion when there is no manifest), writes the cleaned save beside it as `.coop-tmp`,
-renames it over the copy and reads it back. The manifest then has no line for slot 4, so later passes count it as
-played and keep it. Every write goes through the co-op saves' name check, and the player's own
-`StellarBladeSave0N.sav` files are only read, by the backup.
+whole backup of a first conversion when there is no manifest), writes the mark `StellarCoopShortcut04.txt`, then the
+cleaned save beside the copy as `.coop-tmp`, renames it over the copy and reads it back. The manifest then has no line
+for slot 4, so later passes count it as played and keep it. `saves export` refuses slot 4 while the mark is there,
+and only a later copy of the player's own save into slot 4 removes it. Every write goes through the co-op saves' name
+check, and the player's own `StellarBladeSave0N.sav` files are only read, by the backup.
 
 The load is the game's own Load Game. Picking the fifth slot stores the slot at client `+0x868` (`FUN_141eee190`)
 and starts the lobby's fade; the start of play (`FUN_141cd6890`, run by the client's start-step queue in
@@ -2941,18 +2942,21 @@ drops the input.
   was not chosen (the game's load mode is 0). A pass checks this again before each file and before the switch. The
   native part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the copy and reads it back.
   One name check guards every write but the export's (below): only the copies, their temporary files,
-  `StellarCoopSaves.txt`, the shared quests' records `StellarCoopQuests00.txt` to `04.txt` and the backup in
-  `StellarCoopBackups` pass it. The backup is taken
+  `StellarCoopSaves.txt`, the shared quests' records `StellarCoopQuests00.txt` to `04.txt`, the shortcut saves' marks
+  `StellarCoopShortcut00.txt` to `04.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken
   before any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
   A `saves export N M` request is the one write to your own saves, behind a check of its own that passes only
-  `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It reads the co-op copy, checks it as the game
-  does, and refuses it while an `ItemAlias` field or a quick slot names one of the mod's items, while
+  `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It refuses a co-op copy with a shortcut save's
+  mark beside it before it reads anything. It reads the co-op copy, checks it as the game does, refuses it when its
+  stored CRC-32 is one of the 12 cleaned developer saves' or it names one of their five items with no `ItemTable` row,
+  and refuses it while an `ItemAlias` field or a quick slot names one of the mod's items, while
   `BulletItemSlotIndex` is 5 or more (the Shock Bolt `lion/shock.h` appends after the five ammo types the game ships),
   or while the save's `MapName` is `MXIII_P` or one of its camp fields names the camp `coop mxiii` adds. A find inside
   `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing does not change, is refused too,
   with a line that says so instead of what to use up or where to rest. Only then does it back up the
-  target save, read the copy again (unchanged since the check, or it stops) and write it over that save through a
-  `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
+  target save, read the copy again (unchanged since the check, or it stops), scan those bytes again, check that the
+  target save is as its backup read it (or still missing) and write the copy over that save through a `.coop-tmp`
+  file and a rename, then read it back. It never edits a save's bytes.
   The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
   every 250 ms; an entry that moves or changes stops it for the run.
 - The [spawn filter](#the-spawn-filter), off by default, is the one write into the game's image rather than into

@@ -9,19 +9,22 @@
 // The manifest is written after each copy, so a pass stopped half way never leaves a new copy without its line.
 // A refresh (saves refresh N) replaces one slot's copy even when it was played, after a backup of that copy into a new
 // folder of the backups' folder. A plant (coop shortcut load, save/shortcut_load.h) writes a save the mod built as one
-// slot's copy the same way, while the game uses the copies, and gives it no manifest line, so it counts as played.
+// slot's copy the same way, while the game uses the copies, and gives it no manifest line, so it counts as played; it
+// leaves a mark beside that copy (StellarCoopShortcut0N.txt), which only a later copy of the player's own save there
+// removes.
 // An export (saves export N M) goes the other way: co-op slot N's copy, read and checked as a copy's source is, and
-// refused while it holds what the game without the mod does not know (mod_only), replaces the player's
-// StellarBladeSave0M.sav after a backup of that save; the bytes are never changed, the manifest is left as it is.
+// refused while it holds what the game without the mod does not know (mod_only) or is a developer save a plant wrote
+// (its mark, or developer()), replaces the player's StellarBladeSave0M.sav after a backup of that save; the bytes are
+// never changed, the manifest is left as it is.
 // Whenever there is no manifest (the first conversion, or one removed since), every StellarBlade*.sav of the account is
 // copied into a new folder of %LOCALAPPDATA%\SB\Saved\StellarCoopBackups, outside the synced folder, and read back,
 // before any copy is written; the manifest is written as soon as that backup is whole, so a pass stopped after it
 // never backs up again. A folder with no save of the player's gets no pass at all, so nothing is written there.
 //
-// Every write goes through a name check: in the account's folder only the copies, their temporary files, the manifest
-// and the shared quests' record of each co-op slot (StellarCoopQuests0N.txt, quest/engine.h's Worker); in the backup
-// folder only StellarBlade*.sav names. The player's saves are only ever read, except by the export's one write, behind
-// a check of its own (exportable).
+// Every write goes through a name check: in the account's folder only the copies, their temporary files, the manifest,
+// the plants' marks and the shared quests' record of each co-op slot (StellarCoopQuests0N.txt, quest/engine.h's
+// Worker); in the backup folder only StellarBlade*.sav names. The player's saves are only ever read, except by the
+// export's one write, behind a check of its own (exportable).
 //
 // Switch drives a conversion one job per worker pass and switches the name at its end, at the title only. No Windows
 // types: the file functions (Fs) come from the caller, Windows in glue/steam.cpp, a temporary folder in
@@ -63,12 +66,15 @@ inline std::string main_name(int n) { return "StellarBladeSave0" + std::to_strin
 inline std::string twin_name(int n) { return "StellarBladeCoop0" + std::to_string(n) + ".sav"; }
 // The shared quests' record beside co-op slot n: a .txt, which Steam Cloud never syncs.
 inline std::string quests_name(int n) { return "StellarCoopQuests0" + std::to_string(n) + ".txt"; }
+// A plant's mark beside co-op slot n: the copy there is a developer save coop shortcut load wrote, played since or not.
+// A .txt too.
+inline std::string shortcut_name(int n) { return "StellarCoopShortcut0" + std::to_string(n) + ".txt"; }
 
 // The only names written, renamed onto or removed in the account's folder.
 inline bool writable(const std::string &name) {
   for (int n = 0; n < kSlots; ++n)
     if (name == twin_name(n) || name == twin_name(n) + kTemp || name == quests_name(n) ||
-        name == quests_name(n) + kTemp)
+        name == quests_name(n) + kTemp || name == shortcut_name(n) || name == shortcut_name(n) + kTemp)
       return true;
   return name == kManifest || name == std::string(kManifest) + kTemp;
 }
@@ -290,6 +296,33 @@ inline std::string mod_only(const std::string &b) {
   return why;
 }
 
+// The CRC-32 each developer save coop shortcut load writes stores at its end: save/shortcut_load.h's clean() output for
+// the 12 distinct files of the pinned build (tests/native/save/shortcut_load_test.cpp checks the list against it).
+constexpr uint32_t kPlantedCrcs[] = {0xdf136ab8, 0xf2e883ca, 0x76c73f56, 0xdbb285f1, 0xe756fe5f, 0xa00c3d99,
+                                     0x38cc8b79, 0x4cd82720, 0x2d33039c, 0x34458277, 0x0b0a0720, 0x3a69ec37};
+// Items of those developer saves with no row in the released game's ItemTable, so no save the released game writes
+// holds them, in any list (25 of the user's saves, July to October, hold none). BS_Attacker is left out, since the
+// released game writes it in BodySuitSlotArray itself, and Buff_HP2MP, the mod's Beta Stimpack, is mod_only's.
+constexpr const char *kDeveloperItems[] = {"BS_Defender", "Gear_NarrowVision_Rare", "DesignPattern_Blue_Suit",
+                                           "DesignPattern_Sailor_Jean", "DesignPattern_Black_Leather_bikini"};
+// Why a checked save (game_save) is one of the developer saves a plant writes, or empty: its stored CRC-32 is one of
+// theirs (not played since), or it names one of their cut items anywhere (played since, while the game keeps them;
+// not tried in game). A played save of a file with none of those items has only the plant's mark to tell it
+// (Convert::begin).
+inline std::string developer(const std::string &b) {
+  uint32_t stored = 0;
+  if (b.size() >= 4)
+    std::memcpy(&stored, b.data() + b.size() - 4, 4);
+  for (uint32_t crc : kPlantedCrcs)
+    if (crc == stored)
+      return "it is a developer save that coop shortcut load wrote";
+  for (const char *item : kDeveloperItems)
+    if (b.find(fstring(item)) != std::string::npos)
+      return std::string("it holds ") + item + ", an item of the developer saves coop shortcut load writes, which the "
+                                               "released game does not have";
+  return {};
+}
+
 // The manifest: per slot, the copy's stat after its rename and the stat of the save it came from.
 struct Line {
   bool present = false;
@@ -408,15 +441,19 @@ public:
   // was made.
   template <class Fs> std::string refresh(Fs &fs, int n) { return begin(fs, n); }
   // saves export: co-op slot n's copy over the player's save m, in three jobs: the copy read whole, checked as the game
-  // does and scanned for what the game without the mod does not know (a refusal writes nothing); the save backed up
-  // into a new backup folder, when there is one; the copy read again, unchanged since its check, written over the save
-  // and read back. The copies and the manifest stay as they are. Ready at its end when the save reads back whole.
+  // does and scanned for what the game without the mod does not know and for a developer save (a refusal writes
+  // nothing); the save backed up into a new backup folder, when there is one; the copy read again, unchanged since its
+  // check and scanned again, written over the save, unchanged since its backup, and read back. A copy with a plant's
+  // mark is refused at the start. The copies and the manifest stay as they are. Ready at its end when the save reads
+  // back whole.
   template <class Fs> std::string export_to(Fs &fs, int n, int m) { return begin(fs, n, m); }
   // coop shortcut load: slot n's copy replaced by bytes the caller built (save/shortcut_load.h's clean(), what names
   // them), while the game uses the copies (Switch::plant's check). The old copy is backed up first, as for a refresh;
   // the new one gets no manifest line, so it counts as played and no pass replaces it by itself (saves refresh N does,
   // after its own backup). Ready at its end when that copy was written and read back.
   template <class Fs> std::string plant(Fs &fs, int n, std::string bytes, const std::string &what) {
+    if (busy()) // Before the bytes are taken: a running plant writes its own.
+      return "co-op saves: a conversion is under way";
     planted_ = std::move(bytes);
     what_ = what;
     return begin(fs, n, -1, true);
@@ -510,6 +547,12 @@ private:
     if (to >= 0) {
       if (!plan_.twin[only].exists)
         return stop(fs, "co-op slot " + std::to_string(only) + " has no co-op save to export");
+      if (fs.stat(shortcut_name(only)).exists)
+        return stop(fs, twin_name(only) + " was not exported: " + shortcut_name(only) + " marks it as a developer save "
+                        "that coop shortcut load wrote, and the developer's progress and cut items would land in "
+                        "your own save; coop saves refresh " + std::to_string(only) + " puts a copy of your own save "
+                        "back in that co-op slot");
+      backed_ = plan_.main[to];
       jobs_.push_back({Job::check, only, {}});
       if (plan_.main[to].exists)
         jobs_.push_back({Job::backup, -1, main_name(to)});
@@ -562,8 +605,10 @@ private:
       return stop(fs, "the backup of " + name + " could not be written");
     if (jobs_[next_].kind == Job::backup)
       return {};
-    if (to_ >= 0) // An export leaves the manifest as it is.
+    if (to_ >= 0) { // An export leaves the manifest as it is.
+      backed_ = stat;
       return "co-op saves: " + name + " backed up in " + folder_;
+    }
     // The backup is whole: the manifest now (no line yet), so a pass stopped before its end backs up nothing again. A
     // failure here is the last job's to say.
     put(fs, kManifest, format(lines_));
@@ -589,27 +634,36 @@ private:
     return why;
   }
 
-  // One copy: the player's save read whole and checked (a plant's bytes instead, which the game's check must pass too),
-  // then written beside the copy, renamed over it and read back. A failure leaves the copy as it was, except one that
-  // reads back different: removed.
+  // One copy: the player's save read whole and checked (a plant's bytes instead, which the game's check must pass too,
+  // after its mark), then written beside the copy, renamed over it and read back. A failure leaves the copy as it was,
+  // except one that reads back different: removed. A copy of the player's save removes a plant's mark.
   template <class Fs> std::string copy(Fs &fs, int n) {
-    const std::string slot = "slot " + std::to_string(n) + "'s ";
+    const std::string slot = "slot " + std::to_string(n) + "'s ", twin = twin_name(n), temp = twin + kTemp,
+                      mark = shortcut_name(n);
+    const bool marked = fs.stat(mark).exists; // By an earlier plant.
     std::string bytes;
     Stat before;
     if (planting_) {
       bytes.swap(planted_);
       if (!game_save(bytes))
         return fail(n, what_ + " fails the game's own check, so it was not written");
+      // The mark first: a stop before the rename leaves the old copy marked at worst, never a developer save unmarked.
+      if (!put(fs, mark, what_ + "\n"))
+        return fail(n, slot + "mark " + mark + " could not be written, so " + what_ + " was not written");
     } else if (const std::string why = read_whole(fs, main_name(n), bytes, before, true); !why.empty()) {
       return fail(n, slot + "save " + why + ", so it was not copied");
     }
-    const std::string twin = twin_name(n), temp = twin + kTemp;
-    if (!write(fs, temp, bytes)) {
+    auto undo = [&] { // Before the rename: the old copy stays, with only the mark it had.
       remove(fs, temp);
+      if (planting_ && !marked)
+        remove(fs, mark);
+    };
+    if (!write(fs, temp, bytes)) {
+      undo();
       return fail(n, slot + "copy could not be written");
     }
     if (!rename(fs, temp, twin)) {
-      remove(fs, temp);
+      undo();
       return fail(n, slot + "copy could not replace " + twin);
     }
     std::string back;
@@ -620,6 +674,8 @@ private:
       return fail(n, slot + "copy read back different, so it was removed");
     }
     present_[n] = true;
+    if (!planting_ && marked) // The developer save is gone from that slot.
+      remove(fs, mark);
     lines_[n] = planting_ ? Line() : Line{true, fs.stat(twin), before}; // A plant has none: it counts as played.
     ++copied_;
     // Its line now, so a stop before the manifest job leaves it untouched, not played. lines_ holds the old line of
@@ -637,23 +693,29 @@ private:
     return "co-op saves: " + why;
   }
 
-  // The export's check (write false) and its write: the copy read whole and checked as the game does each time, then
-  // scanned, or, for the write, unchanged since that check; written over the player's save and read back. A failure
-  // stops the pass; a save that reads back different stays, its backup said.
+  // The export's check (write false) and its write: the copy read whole, checked as the game does and scanned each
+  // time, so the bytes written are the bytes scanned, and for the write unchanged since that check; written over the
+  // player's save, which must be as its backup read it (or still missing), and read back. A failure stops the pass; a
+  // save that reads back different stays, its backup said.
   template <class Fs> std::string send(Fs &fs, bool write) {
     const std::string twin = twin_name(only_), own = main_name(to_);
     std::string bytes;
     Stat stat;
     if (const std::string why = read_whole(fs, twin, bytes, stat, true); !why.empty())
       return stop(fs, twin + " " + why + ", so it was not exported");
+    if (const std::string why = developer(bytes); !why.empty())
+      return stop(fs, twin + " was not exported: " + why + ", and the developer's progress and cut items would land "
+                                                           "in your own save");
+    if (const std::string why = mod_only(bytes); !why.empty())
+      return stop(fs, twin + " was not exported: it holds what the game without the mod does not know, " + why);
     if (!write) {
-      if (const std::string why = mod_only(bytes); !why.empty())
-        return stop(fs, twin + " was not exported: it holds what the game without the mod does not know, " + why);
       checked_ = stat;
       return "co-op saves: " + twin + " checked (" + std::to_string(bytes.size()) + " bytes)";
     }
     if (!same(stat, checked_))
       return stop(fs, twin + " changed since its check, so it was not exported");
+    if (const Stat now = fs.stat(own); now.exists != backed_.exists || (now.exists && !same(now, backed_)))
+      return stop(fs, own + " changed during the export, so it was not replaced");
     if (!put_own(fs, to_, bytes))
       return stop(fs, own + " could not be replaced, so it is as it was");
     std::string back;
@@ -670,6 +732,7 @@ private:
   int only_ = -1;                       // A refresh's one slot, an export's co-op slot, or -1.
   int to_ = -1;                         // An export's slot of the player's, or -1.
   Stat checked_;                        // The export's copy as its check read it.
+  Stat backed_;                         // The export's target as its backup read it, or as planned when missing.
   Lines lines_{};                       // The manifest as this pass will write it.
   std::array<bool, kSlots> present_{};  // A copy is beside the slot's save now.
   std::array<std::string, kSlots> why_; // Why the slot's copy failed this pass.

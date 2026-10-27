@@ -528,8 +528,9 @@ refuses a co-op copy that still holds the mod's items (the two cut stimpacks, th
 Bolts as the selected ammo, or names the cut Matrix XIII dungeon as its map, its camp or its last full camp, and
 `coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth) outside the
 dungeon. A co-op save that started New Game+ with any of these keeps them in a copy that playing does not change: the
-export keeps refusing it. The rules are in [saves.md](saves.md#co-op-saves). The export has not been tested in game
-yet.
+export keeps refusing it. It also refuses a developer save that [`coop shortcut load`](#loading-one-coop-shortcut-load)
+wrote in co-op slot 5, played or not, since the developer's progress and cut items would land in your own save. The
+rules are in [saves.md](saves.md#co-op-saves). The export has not been tested in game yet.
 
 ## Synced photo mode
 
@@ -879,7 +880,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop saves convert` / `coop saves coop` | At the title: make the [co-op copies](#co-op-saves); `coop` then switches the game to them |
 | `coop saves main` | At the title: switch back to your own saves, while no co-op save has been loaded since the game started |
 | `coop saves refresh <0-4>` | At the title, while the game uses your own saves: replace that slot's co-op copy, even one played in co-op, with a new copy of your save. Type it twice within 10 s; the old copy goes to `StellarCoopBackups` first |
-| `coop saves export <0-4> <0-4>` | At the title, while the game uses your own saves or the co-op copies: write that co-op copy over that save of yours, to play it without the mod (untested in game). Type it twice within 10 s; your save goes to `StellarCoopBackups` first, and a co-op copy that holds the mod's items or stands in Matrix XIII is refused ([saves.md](saves.md#co-op-saves)) |
+| `coop saves export <0-4> <0-4>` | At the title, while the game uses your own saves or the co-op copies: write that co-op copy over that save of yours, to play it without the mod (untested in game). Type it twice within 10 s; your save goes to `StellarCoopBackups` first, and a co-op copy that holds the mod's items, stands in Matrix XIII or is a shortcut save is refused ([saves.md](saves.md#co-op-saves)) |
 | `coop off` | Stop everything until the game restarts |
 
 ### Session commands
@@ -2043,6 +2044,13 @@ What else to know:
   `auto_coop_save=always`, set it to `ask` first), then type `coop saves refresh 4` twice within 10 s. It needs your
   own `StellarBladeSave04.sav`. Without one it refuses, and the copy that was replaced is only in
   `StellarCoopBackups`.
+- Before it writes the save, the native part writes `StellarCoopShortcut04.txt` beside it. `coop saves export 4 M`
+  refuses the shortcut save, played or not, while that file is there, and only `coop saves refresh 4` (or any copy of
+  your own save into that slot) removes it. Without that file, the export still refuses a shortcut save you have not
+  played, by its CRC-32, and one that holds `BS_Defender`, `Gear_NarrowVision_Rare`, `DesignPattern_Blue_Suit`,
+  `DesignPattern_Sailor_Jean` or `DesignPattern_Black_Leather_bikini`. A played save from `B07`, `F02 1`, `G03 1` or
+  `G03 2` holds none of them, so the export takes it without that file, and takes a New Game+ you started from it in
+  another co-op slot: do not export those ([saves.md](saves.md#co-op-saves) lists the cases).
 - The co-op saves count the new slot 5 as played in co-op, so no automatic copy replaces it.
 - Load Game lists the slots as they were when the title screen appeared, so the fifth slot may still show the old
   save's details. The game reads the file when you pick it. A slot that was empty then may not be offered: load
