@@ -1148,9 +1148,12 @@ game yet, and in this version it never travels: `main.lua` leaves it off until t
   (every region) once for each travel type (SimplyCamp, FullCamp, Tetrapod, PhoneBooth), frees each list with the
   game's `FMemory::Free` (`0x14261adb0`) and reads the names from the game's name pool. It reads the list again at once
   in a new world, and drops it when the client leaves the game (a load), so a list never outlives its save. It also
-  reads the camp EVE respawns at: her FSBActor's `+0x26d0`, the ZoneEnvSpawn row of the camp she last rested at or used,
-  which the respawn (`FUN_141b0f8f0`) reads, and that row's `TargetCamp` (`+0x270`). It runs out of line under its own
-  SEH latch; `coop-status.txt` carries it as `activated=<n>:<camp>,... rested=<camp>`, or `activated=none:<why>`.
+  reads the camp EVE respawns at: her FSBActor's `+0x26d0`, which the respawn (`FUN_141b0f8f0`) reads, and that row's
+  `TargetCamp` (`+0x270`). `+0x26d0` is the ZoneEnvSpawn row of her last rest or fast-travel arrival: in warp phase
+  0xd the client tick (`FUN_141cd0b30`) passes the travel's camp and its first row to the arrival (`FUN_141a8afe0`),
+  which writes it there, since every camp travel (`FUN_141cdd7b0`) sets the request's arrival flag (client `+0xa22`).
+  It runs out of line under its own SEH latch; `coop-status.txt` carries it as `activated=<n>:<camp>,... rested=<camp>`,
+  or `activated=none:<why>`.
 - The game's ReturnToCamp job (`FUN_141b2b000`) takes another camp: effect action 26 (`FUN_141bc7af0`) gives it the
   FSBActor's `+0x2738`, which the camp arrival (`FUN_141a8afe0`) writes only for a Tetrapod camp, so that job returns
   EVE to her last Tetrapod. The mod does not use it.
@@ -2107,9 +2110,11 @@ with `StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a
 `cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for `DLC02_10_Camp_01`, a
 camp in none of its tables (`probe(alias, true)`). The native side is the follow's: the guard, the count and the watch
 of `game/travel.h`. The travel's result comes in `[TR]` lines. The command's answer names the way out,
-`coop mxiii leave`: the follow's probe, with its activation read ([Following the host](#following-the-host)), to the
-camp EVE respawns at when the read lists it among the 120 travel camps, else to the first travel camp the read lists.
-`DLC02_10_Camp_01` is in no travel table, so a rest at the mod's camp never makes it the way out.
+`coop mxiii leave`: the follow's probe, with its activation read ([Following the host](#following-the-host)), to a
+camp the read lists among the 120 travel camps. The arrival at `DLC02_10_Camp_01` makes it the camp EVE respawns at
+(`+0x26d0`), and that camp is in no travel table, so `coop mxiii` keeps the camp she respawned at when it asked its
+travel, if the read lists it, and `leave` takes that camp first, then the camp she respawns at now, then the read's
+first travel camp. The kept camp lives in the Lua state only, so a reload of the scripts in the dungeon loses it.
 
 The check tells the two builds of the test pak apart by the `.ucas`, of which it reads up to 16 MB. A zen package of UE
 4.26 keeps its own name map, in plain text when the container is not compressed, and an FName whose text ends in `_`

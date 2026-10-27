@@ -11,9 +11,10 @@
 -- probe (session/travel.lua; the native part's game/travel.h). Each step logs an [MX] line, the travel's result a [TR]
 -- line. A warp into a world the save has never been in may write that world into the save: main.lua lets it run on a
 -- co-op save only. The rows stay for the game run; a second coop mxiii reads them back and travels again. The way out
--- is coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to the camp EVE
--- respawns at (the one she last rested at or used) when that is a travel camp the read lists, else to the first travel
--- camp the read lists. Matrix XIII's own camp is in no travel table, so a rest there never makes it the way out.
+-- is coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp
+-- the read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else
+-- the read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
+-- the dungeon (FUN_141a8afe0) makes it DLC02_10_Camp_01, which is in no travel table, and so does a rest there.
 -- The test pak's check makes no StaticFindObject (a package that is not loaded is never found that way, and each miss
 -- costs 4 to 35 ms): the container's .utoc in SB/Content/Paks/~mods or LogicMods, read once a command, must name the
 -- map's folders and MXIII_P.umap in its directory index (plain text in a .utoc that is not encrypted, as retoc writes
@@ -111,11 +112,17 @@ function Mxiii.new(o)
     local e=Enemy.new({log=log,ask=o.ask,status=o.status},
         {word='mxiii',name='Matrix XIII',command='coop mxiii',tag='[MX]',rows=Mxiii.ROWS,ids={}})
     local self={}
+    -- The travel camp EVE respawned at when coop mxiii last asked its travel: once there, she respawns at Matrix XIII.
+    -- shortcut: kept in this Lua state only, so a Lua reload in the dungeon loses it and leave takes the read's first
+    -- camp; upgrade to a native read of a camp the arrival leaves alone if a test needs it.
+    local back=nil
     -- Once the rows are in (ok, message: the rows flow's end): the camp travel, through the follow's probe.
     local function warp(ok,message)
         if not ok then return false,(tostring(message):gsub(': no spawn%.$',': no travel.')) end
         local travel=o.travel()
         if not travel then return false,'coop mxiii: no follow to travel with (the Steam link is gone)' end
+        local camps,rested=travel.camps() -- No read, or a respawn camp in no travel table: back stays as it was.
+        for _,alias in ipairs(camps or {}) do if alias==rested then back=rested end end
         local asked,said=travel.probe(Mxiii.CAMP,true)
         log('travel to '..Mxiii.CAMP..(asked and ' asked: ' or ' refused: ')..tostring(said))
         if not asked then return false,'coop mxiii: the rows are in, but no travel: '..tostring(said) end
@@ -123,7 +130,8 @@ function Mxiii.new(o)
         return true,'coop mxiii: the rows are in and the travel to '..Mxiii.CAMP..' is asked ([TR] lines follow); '
             ..'way out: '..Mxiii.EXIT
     end
-    -- coop mxiii leave: the camp EVE respawns at when the read lists it among its travel camps, else the first one.
+    -- coop mxiii leave: back, else the camp EVE respawns at, when the read lists it among its travel camps, else the
+    -- read's first travel camp.
     local function leave()
         local travel=o.travel()
         if not travel then return false,'coop mxiii leave needs the Steam link' end
@@ -133,9 +141,11 @@ function Mxiii.new(o)
         end
         local pick=camps[1]
         for _,alias in ipairs(camps) do if alias==rested then pick=alias end end
+        for _,alias in ipairs(camps) do if alias==back then pick=alias end end
         if not pick then return false,'coop mxiii leave: this save has activated none of the 120 travel camps' end
         local asked,said=travel.probe(pick)
-        log('leave: travel to '..pick..(pick==rested and ', the camp EVE respawns at,' or '')
+        log('leave: travel to '..pick..(pick==back and ', the camp EVE respawned at before coop mxiii,'
+            or pick==rested and ', the camp EVE respawns at,' or '')
             ..(asked and ' asked: ' or ' refused: ')..tostring(said))
         if not asked then return false,'coop mxiii leave: '..tostring(said) end
         return true,'coop mxiii leave: the travel to '..pick..' is asked ([TR] lines follow)'

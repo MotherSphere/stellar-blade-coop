@@ -12,10 +12,11 @@
 // region and FullCamp; the mod asks NAME_None once for each of the four travel types. The camp map and the records
 // change only on the game and logic threads, so the read waits while a logic task runs.
 //
-// The camp EVE respawns at: her FSBActor's +0x26d0, the ZoneEnvSpawn row of the camp she last rested at or used
-// (InteractCamp; the save's CampEnvSpawnAlias), which FSBActorRespawn (FUN_141b0f8f0) reads, and that row's TargetCamp
-// (+0x270). SB's ReturnToCamp job (FUN_141b2b000, made by effect action 26 in FUN_141bc7af0) takes another camp, her
-// FSBActor's +0x2738, which the camp arrival (FUN_141a8afe0) writes only for a Tetrapod camp: her last Tetrapod.
+// The camp EVE respawns at: her FSBActor's +0x26d0, the ZoneEnvSpawn row of her last rest (InteractCamp) or fast-travel
+// arrival (FUN_141a8afe0, the camp's first row; the save's CampEnvSpawnAlias), which FSBActorRespawn (FUN_141b0f8f0)
+// reads, and that row's TargetCamp (+0x270). SB's ReturnToCamp job (FUN_141b2b000, made by effect action 26 in
+// FUN_141bc7af0) takes another camp, her FSBActor's +0x2738, which the camp arrival (FUN_141a8afe0) writes only for a
+// Tetrapod camp: her last Tetrapod.
 #pragma once
 
 #include <cstddef>

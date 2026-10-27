@@ -850,7 +850,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop tendril fight [rows]` | The [cut Tendril](#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
 | `coop chainspin` | EVE's [cut Tachy Mode ChainSpin](#cut-tachy-skill-coop-chainspin), started once while she is in Tachy Mode (test command, untested in game, co-op save only) |
 | `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](#cut-dungeon-coop-mxiii-experimental) and a camp there (experimental test command, untested in game; needs the zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
-| `coop mxiii leave` | The way out of Matrix XIII: a travel to the camp where EVE respawns, or to another camp your save has activated (solo, co-op save only) |
+| `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command, untested in game; solo, co-op save only) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
 | `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
@@ -1589,11 +1589,13 @@ point there.
 4. If the log says `travel: SB refused DLC02_10_Camp_01`, the game listed its camps when the map started, before the
    rows went in. Load the save again (or travel to any camp), then type `coop mxiii` again: the rows stay until the
    game exits, so the second time it only travels.
-5. To leave, type `coop mxiii leave`. It travels to the camp where EVE respawns (the last camp she rested at or used)
-   when that is one of the 120 travel camps your save has activated, and otherwise to the first activated camp on the
-   `activated=` line of `coop status`. The Matrix XIII camp is not one of the 120, so a rest there still leaves the way
-   out on a camp outside. `coop mxiii leave` refuses when the mod has no read of your activated camps yet (during a
-   load, for example); try again a few seconds later.
+5. To leave, type `coop mxiii leave`. EVE respawns at the camp of her last rest or fast-travel arrival, so the arrival
+   in Matrix XIII makes its camp hers, and that camp is not one of the 120 travel camps. `coop mxiii` therefore keeps
+   the camp where she respawned when it asked the travel in, and `coop mxiii leave` travels back to it if your save has
+   activated it. If not, or if the game or the mod's scripts restarted since, it travels to the camp where EVE respawns
+   now when that is an activated travel camp, and otherwise to the first activated camp on the `activated=` line of
+   `coop status`. `coop mxiii leave` refuses when the mod has no read of your activated camps yet (during a load, for
+   example); try again a few seconds later.
 
 With v2 the camp stands where EVE arrives: a vending machine, a chair, a skill machine, a storage box, a turntable and
 a phone booth, the same objects as a full camp elsewhere in the game. The vending machine coin it needs lies on the
@@ -3237,9 +3239,10 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,
   phone booths, tetrapods) that the game's own camp list would show for this save, read every 2 s while you play,
-  followed by `rested=<camp>`, the camp where EVE respawns, when the mod knows it. `activated=none:<why>` means there
-  is no read now: `flow` or `phase` at the title or during a load, `fault` once a fault stopped the read until the game
-  restarts, and another word for a part of the game the mod found missing.
+  followed by `rested=<camp>`, the camp where EVE respawns (that of her last rest or fast-travel arrival), when the
+  mod knows it. `activated=none:<why>` means there is no read now: `flow` or `phase` at the title or during a load,
+  `fault` once a fault stopped the read until the game restarts, and another word for a part of the game the mod found
+  missing.
   [`coop travel probe`](#following-the-host) and `coop mxiii leave` take only camps from this list.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
