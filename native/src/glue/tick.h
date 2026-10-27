@@ -186,6 +186,10 @@ std::string anim_pass();
 // anim_id=<id>" (game/anim.h's state_text, of the last play asked) on the pinned build before coop off, then
 // " nightop=on" or " nightop=rule" (once the rule was asked) last while the poller runs: no per-frame counters.
 std::string status();
+// Worker: coop-status.txt's activated line (game/camps.h's line), the camps this save has activated and the camp EVE
+// respawns at as of the game thread's last check: "activated=<n>:<alias>,..." with " rested=<alias>" when known, or
+// "activated=none:<why>"; empty before the first check, off the pinned build and after coop off.
+std::string camps_status();
 // A complete file: written beside it, then renamed over it (glue/steam.cpp).
 bool write_text(const std::wstring &path, const std::string &bytes);
 // At most about max bytes of a file, shared for delete; exists says whether it opened (glue/tick.cpp). Shared with
