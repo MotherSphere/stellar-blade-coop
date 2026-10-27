@@ -9,7 +9,8 @@
 -- started through coop nightop start once EVE is out of Xion, held through the map load (slot=none, then unknown) and
 -- dropped with a supplies pick on another co-op save, its refusals said once each, and a host's booking held
 -- while the run asks the partner, tried again 30 s after an ask the partner could not join; a guest's pick; the
--- supplies opening the shop's screen after her goodbye; roxanne on asked again when the native part reads
+-- supplies opening the shop's screen after her goodbye, dropped 30 s on (a load included); roxanne on asked again
+-- when the native part reads
 -- off; off on another save and at coop off (roxanne off, asked again every 10 s while her list reads on, then the rows'
 -- shipped values only once it reads off, never while it reads on or after a fault); cancel; an arm, a start or a shop
 -- open that raises.
@@ -271,6 +272,23 @@ at(1052); host.tick()
 assert(last()=='roxanne: the booked hard run: the partner joined' and host.cancel()==nil,last())
 world=XION
 status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
+-- A supplies pick waits 30 s at most, a load that reads no save included (a trip to the title may last any time).
+local trip=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
+    ask=function() return true,'asked' end,paused=function() return paused end,
+    tell=function() end,start=function(level) starts[#starts+1]=level; return true,'started' end,
+    shop=function() shops=shops+1; return true,'opened' end})
+local shopped=shops
+widget.SelectIndex=-1; at(2000); trip.tick()
+widget.SelectIndex=3; at(2000.25); trip.tick()
+assert(last()=='roxanne: supplies picked: the shop screen opens in 5 s',last())
+paused=true; at(2010); trip.tick() -- The pause menu holds the screen, then a load reads no save past the wait.
+paused=false
+status_text='mod=v\nslot=none index=4 marker=? saves=coop\nroxanne=on asks=2 want=on why=none\n'
+at(2030); trip.tick(); assert(shops==shopped)
+at(2036); trip.tick()
+assert(last()=='STOP: roxanne: supplies: the game stayed paused, on one of its screens or in a load',last())
+status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
+at(2037); trip.tick(); assert(shops==shopped,'No shop screen past the wait')
 -- A start or a shop open that raises: its refusal, logged, and the tick goes on.
 start_answer=nil
 local raising=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,

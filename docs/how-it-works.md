@@ -2211,7 +2211,8 @@ either.
    her entry may still list them, they keep `Success2`, which only plays her goodbye, and after a fault they keep it
    until the game exits. The text keys keep their labels until the game exits; the rows that carry them are listed
    nowhere else. A load (the title, a map, leaving Xion included) reads `slot=none` or `unknown` for a while: once
-   armed, Lua's tick does nothing then, so a booking, a supplies pick and the swap hold through it. A co-op save with
+   armed, Lua's tick does nothing then, so a booking, a supplies pick and the swap hold through it. A supplies pick
+   still goes 30 s after its screen was due (`SHOP_WAIT`), a load included. A co-op save with
    another index drops the booking and the supplies pick.
 
 Not checked offline: who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild), the
