@@ -466,6 +466,20 @@ first.Player=nil
 W.scene,W.observers=true,{observer('Mann_Exit',scene)}
 run(g,1)
 assert(g.cutscene_playing() and logged('cutscene on: Mann_Exit') and W.finds.SBTheaterLevelSequenceObserver==4)
+-- After a map change a freed address may hold another sequence actor: the new map's theater actor at the address of
+-- the last set's only one is a new set, walked for.
+local theater=uobject('LevelSequenceActor /Game/MapB.MapB:PersistentLevel.Theater',{SequencePlayer=scene})
+g=world(function(w)
+    w.mode,w.life,w.scene='host',{state=1,hp=1600},true
+    w.sequences={uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Lift_Loop',{SequencePlayer=loop})}
+end)
+run(g,1)
+assert(not g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==1)
+theater.GetAddress=W.sequences[1].GetAddress
+W.sequences,W.observers={theater},{observer('Mann_Entrance',scene)}
+run(g,1)
+assert(g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==2,'Same address, another actor: '
+    ..W.finds.SBTheaterLevelSequenceObserver)
 -- No EVE (the title screen, a load): the class hash takes our SB controller's world (the hash's proof is asked); with
 -- no controller either, no sequence actor is looked up at all (actors_of with no world walks every object).
 local probe=package.loaded['nightop.probe']

@@ -230,7 +230,9 @@ function G.new(o)
     -- read the observer at each new set for a few reads if a grouped test shows that lag.
     -- The hash needs a world: our EVE's, else our SB controller's. With neither (a load, the title screen) no theater
     -- plays, and actors_of would walk for want of a world.
-    local observer,last=nil,nil -- last: the playing sequence actors' addresses at the last read.
+    -- last: the playing sequence actors' addresses and full names at the last read (after a map change a freed address
+    -- may hold another actor; the full name has its map).
+    local observer,last=nil,nil
     local function name_of(ob)
         local player=ob and weak(ob.Player)
         return player and player:IsPlaying()==true and U.text(ob.SequenceName) or nil
@@ -246,8 +248,9 @@ function G.new(o)
             for _,a in ipairs(list) do
                 local player=U.valid(a.SequencePlayer)
                 if player and player:IsPlaying()==true then
-                    keys[#keys+1]=U.address(a)
-                    names[#names+1]=U.text(a:GetFullName()):match('[^.:]+$')
+                    local full=U.text(a:GetFullName())
+                    keys[#keys+1]=U.address(a)..' '..full
+                    names[#names+1]=full:match('[^.:]+$')
                 end
             end
             table.sort(keys)
