@@ -1603,7 +1603,9 @@ those levels, since activating a Matrix 11 camp counts toward the camp trophy. v
    again: the rows stay until the game exits, so the second time it only travels.
 5. `coop mxiii 30` adds the same rows and travels to `DLC02_30_Camp_01` instead, from the main game or from the first
    zone. With v1 or v2 it refuses after the checks and asks nothing: those builds have no arrival point for that camp.
-   Step 4 applies to it as well, with `coop mxiii 30` typed again.
+   Step 4 applies to it as well, with `coop mxiii 30` typed again. The arrival saves the game, so from then on the
+   save rests at that camp, and only v3 has the point the game puts EVE at there. Type `coop mxiii leave` (or replace
+   the copy with `coop saves refresh <0-4>` at the title) before you put v2 or v1 in place of v3.
 6. To leave, type `coop mxiii leave`. EVE respawns at the camp of her last rest or fast-travel arrival, so the arrival
    in Matrix XIII makes its camp hers, and that camp is not one of the 120 travel camps. `coop mxiii` therefore keeps
    the camp where she respawned when it asked the travel in, and `coop mxiii leave` travels back to it if your save has
@@ -1722,8 +1724,9 @@ entry, at the arena's entrance and halfway through the arena, and that the fourt
 Antlions and 3 Clrikets. With v3, check that `coop mxiii 30` puts EVE on the floor of `ME03_Camp_01`'s room (`coop
 where`: `map=` ending in `mxiii_p`, `eve=` near 26392,-23650), that no Matrix 11 camp object stands there, that she
 can walk out to the south into the third zone and that its enemies appear, that a death there brings her back to that
-room, and that `coop mxiii leave` from there goes back out. Check that the game keeps running and saves normally after
-you leave, then replace the slot with `coop saves refresh <0-4>` at the title.
+room, and that `coop mxiii leave` from there goes back out. To check that v2 refuses `coop mxiii 30`, swap the pak only
+after that `coop mxiii leave`, with the game closed. Check that the game keeps running and saves normally after you
+leave, then replace the slot with `coop saves refresh <0-4>` at the title.
 
 ### Cut hairs and suits: `coop wear`
 
