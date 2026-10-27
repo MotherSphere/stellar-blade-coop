@@ -404,6 +404,9 @@ int main() {
              .empty());
   const std::string cut_short = fstring("CampAlias") + fstring("DLC02_10_EnvS_906");
   assert(mod_only(cut_short.substr(0, cut_short.size() - 13)).empty() && !mod_only(cut_short).empty());
+  // A file that ends before a camp field's value starts.
+  assert(mod_only(fstring("CampAlias")).empty() && mod_only(fstring("CampAlias") + "ab").empty() &&
+         mod_only(fstring("CampEnvSpawnAlias") + fstring("NameProperty") + std::string(5, '\0')).empty());
   // The ammo count matches the list lion/shock.h checks before it appends the Shock Bolt.
   static_assert(sizeof(coop::lion::kShippedBullets) / sizeof(coop::lion::kShippedBullets[0]) == kShippedBullets);
 
