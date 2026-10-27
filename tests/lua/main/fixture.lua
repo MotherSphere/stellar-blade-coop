@@ -445,15 +445,22 @@ package.loaded['race.drive']={new=function(o)
     return {name='drive',restore=function() dv.restores=dv.restores+1 end}
 end}
 -- The Doro race (race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks,
--- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop that raises, its HUD; its steers
--- and the native ticks made before the last one.
+-- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that raises,
+-- its HUD; its steers and the native ticks made before the last one.
 ra={}
 package.loaded['race.run']={new=function(o)
     ra.o=o
     return {command=function(sub,a,extra) ra.cmds[#ra.cmds+1]={sub,a,extra}; return true,'race '..tostring(sub) end,
         receive=function(text) ra.received[#ra.received+1]=text end,
-        tick=function() ra.ticks=ra.ticks+1; if ra.says then return table.unpack(ra.says) end end,
-        steer=function() ra.steers,ra.steered_at=ra.steers+1,ticks end,
+        tick=function()
+            ra.ticks=ra.ticks+1
+            if ra.tick_raise then error(ra.tick_raise,0) end
+            if ra.says then return table.unpack(ra.says) end
+        end,
+        steer=function()
+            ra.steers,ra.steered_at=ra.steers+1,ticks
+            if ra.steer_raise then error(ra.steer_raise,0) end
+        end,
         slow=function() ra.slows=ra.slows+1 end,
         stop=function() ra.stops=ra.stops+1; if ra.raise then error(ra.raise,0) end end,
         key=function() ra.keys=ra.keys+1; return ra.key_ok,ra.key_why end,
@@ -656,6 +663,7 @@ function load_main(with_native,no_folder,source)
     gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
     em.o,em.cmds,em.restores,em.ticks,em.stops,em.says=nil,{},0,0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
+    ra.tick_raise,ra.steer_raise=nil,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil

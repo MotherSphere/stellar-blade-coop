@@ -657,15 +657,25 @@ RegisterConsoleCommandHandler('coop',function(_,parameters)
 end)
 assert(type(LoopInGameThreadWithDelay)=='function','This UE4SS lacks game-thread timers.')
 -- Each module's work in the two loops below (its tick, slow, restore and the like) runs guarded: an error that escapes
--- it is logged once a Lua load for that module, with its message, and the modules after it still run in that pass. A
--- guarded call gives back its first two results, or nothing after an error. Measured with Lua 5.4 on the build machine,
--- the pcall adds about 40 ns a call: some 1.4 µs a frame for the 34 calls of the per-frame loop.
-local escaped={} -- The modules whose error was logged this Lua load.
+-- it is logged once a Lua load for that call, under the module's name, with its message and stack traceback (most of
+-- our errors are raised at level 0, and UE4SS's own carry no line), and the modules after it still run in that pass.
+-- The once goes by the function, not the name: a module's other calls under the same name still log their own first
+-- error. A guarded call gives back its first two results, or nothing after an error. Measured with Lua 5.4 on the build
+-- machine, the xpcall adds about 40 ns a call: under 2 µs a frame for the per-frame loop's 27 to 43 calls (34 with the
+-- UI, plus the inbox while a race is armed and up to 8 pad events).
+local escaped={} -- The guarded functions whose error was logged this Lua load.
+local running -- The guarded function under way: its traceback is built only for the error that gets logged.
+local function traced(message)
+    if escaped[running] then return message end
+    return debug.traceback(message,2)
+end
 local function guarded(name,f,...)
-    local ran,ok,message=pcall(f,...)
+    running=f
+    local ran,ok,message=xpcall(f,traced,...)
     if ran then return ok,message end
-    if not escaped[name] then
-        escaped[name]=true
+    local key=f or name -- A nil index would raise here.
+    if not escaped[key] then
+        escaped[key]=true
         log(name..': error (logged once until the mod reloads; the other modules go on): '..tostring(ok))
     end
 end

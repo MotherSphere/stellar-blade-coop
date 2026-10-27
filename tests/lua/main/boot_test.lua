@@ -607,20 +607,34 @@ loops[1].f()
 assert(li.ticks==li.t+1 and last()=='[StellarCoop] OK: M_LionC 50020 is here, 9.8 m from EVE: lion 1 in the [LI] '
     ..'lines.\n',last())
 li.says=nil
--- A tick that raises: its error logged once a Lua load with the module's name, and the modules after it still tick.
+-- A tick that raises: its error logged once a Lua load with the module's name and the stack traceback (raised at level
+-- 0, its message has no line of its own), and the modules after it still tick. The once goes by the function: the
+-- race's steer and tick, both under 'race', each log their own first error.
 do
-    li.t,gd.t,li.raise=li.ticks,gd.ticks,'cut/lion.lua:7: boom'
+    local function logs(name,message)
+        local lines,first,start=0,nil,'[StellarCoop] '..name..': error (logged once until the mod reloads; the other '
+            ..'modules go on): '..message..'\nstack traceback:\n'
+        for _,line in ipairs(printed) do
+            if line:find(start,1,true)==1 then lines,first=lines+1,first or line end
+        end
+        return lines,first
+    end
+    li.t,gd.t,li.raise=li.ticks,gd.ticks,'no SB player input'
     local drawn=notice_ticks
     loops[1].f(); loops[1].f()
-    local lines=0
-    for _,line in ipairs(printed) do
-        if line=='[StellarCoop] lion: error (logged once until the mod reloads; the other modules go on): '
-            ..'cut/lion.lua:7: boom\n' then lines=lines+1 end
-    end
+    local lines,line=logs('lion','no SB player input')
     assert(lines==1,'Logged once, not each frame: '..lines)
+    assert(line:find('tests/lua/main/fixture.lua:',1,true),'The traceback names where it was raised: '..line)
     assert(li.ticks==li.t+2 and gd.ticks==gd.t+2 and notice_ticks==drawn+2,
         'The Lion still ticks, and the Gardener and the notice line after it each frame')
     li.raise=nil
+    ra.steer_raise='steer boom'
+    loops[1].f(); loops[1].f()
+    ra.steer_raise,ra.tick_raise=nil,'tick boom'
+    loops[1].f(); loops[1].f()
+    ra.tick_raise=nil
+    assert(logs('race','steer boom')==1 and logs('race','tick boom')==1,
+        "The race's tick logs its own error after its steer's, both once")
 end
 -- coop gardener fight: out of the usage line too. The words that spawn (none, intro, half, skulling) reach
 -- cut/gardener.lua on a co-op save only, after the viewer's off (its display and free camera put away); rows on any,
@@ -991,7 +1005,7 @@ coop('status'); assert(last():find('OK: mod=v',1,true),'status still answers')
 local drawn,probed,recruited=notice_ticks,probe_ticks,rc_ticks
 dr.t,ra.t,ra.s,lv.t,li.t,wr.t,sc.t,ln.t=dr.ticks,ra.ticks,ra.steers,lv.ticks,li.ticks,wr.ticks,sc.ticks,ln.ticks
 gl.t,em.t,gd.t,td.t,mx.t=gl.ticks,em.ticks,gd.ticks,td.ticks,mx.ticks
-loops[1].f(); assert(ticks==19 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
+loops[1].f(); assert(ticks==23 and notice_ticks==drawn,'No native tick and nothing drawn after coop off')
 assert(mx.ticks==mx.t,'No coop mxiii tick after coop off')
 assert(dr.ticks==dr.t,'No Doro look tick after coop off')
 assert(lv.ticks==lv.t,'No Leviathan tick after coop off')
@@ -1006,7 +1020,7 @@ assert(em.ticks==em.t,'No coop emote tick after coop off')
 assert(ra.ticks==ra.t and ra.steers==ra.s,'No race tick nor driving after coop off')
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until the game restarts\n',last())
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
-assert(ticks==20 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
+assert(ticks==24 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
 before=#probe_runs
 coop('no')

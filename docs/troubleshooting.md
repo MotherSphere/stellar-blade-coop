@@ -242,11 +242,12 @@ while the on-screen UI is up.
 
 ### `<name>: error (logged once until the mod reloads; the other modules go on)`
 
-A Lua error escaped one part of the mod. The name before the colon says which (`lion`, `race`, `menu`, `ghost`...), and
-the message after the parenthesis usually starts with the script and the line (`cut/lion.lua:<line>: ...`). The line
-shows once per part until the next Lua load (game start or Ctrl+R), even when the error comes back every frame. The
-other parts keep running, and the named part is still called at each pass, so it can recover by itself. If it stays
-broken, a Lua reload builds it again. Send `UE4SS.log` either way.
+A Lua error escaped one part of the mod. The name before the colon says which (`lion`, `race`, `menu`, `ghost`...).
+The message follows the parenthesis, and the `stack traceback:` lines under it give the script and the line
+(`cut/lion.lua:<line>: in ...`). Each call of that part logs its first error once until the next Lua load (game start
+or Ctrl+R), even when the error comes back every frame, so the same name can show more than once. The other parts
+keep running, and the named part is still called at each pass, so it can recover by itself. If it stays broken, a Lua
+reload builds it again. Send `UE4SS.log` either way.
 
 ### `coop no` or `coop recruiter` says `STOP`
 

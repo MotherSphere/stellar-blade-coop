@@ -2663,13 +2663,17 @@ drops the input.
   the link and the pose path for the rest of the run (`stopped=fault <code>`) instead of crashing the game. The log's
   last line gives the reason the worker stopped. The rows batches (the cut Naytibas, the Shock Bolt, Matrix XIII and
   the Night Operation shop) share one latch; [Its batch in the native part](#its-batch-in-the-native-part) says why.
-- On the Lua side, `main.lua` calls each module's work in its two loops (every frame and every 250 ms) through a
-  `pcall` guard. An error that escapes one, for example `cut/lion.lua`'s tick, is logged once a Lua load with the
-  module's name and the message:
-  `[StellarCoop] lion: error (logged once until the mod reloads; the other modules go on): <message>`. The modules
-  after it still run in that pass, and the module is called again at the next one, so one that recovers goes on
-  working. Measured with Lua 5.4 on the build machine, the guard adds about 40 ns a call, some 1.4 µs a frame for the
-  34 calls of the per-frame loop.
+- On the Lua side, `main.lua` calls each module's work in its two loops (every frame and every 250 ms) through an
+  `xpcall` guard. An error that escapes one, for example `cut/lion.lua`'s tick, is logged with the module's name, the
+  message and its stack traceback:
+  `[StellarCoop] lion: error (logged once until the mod reloads; the other modules go on): <message>`, then
+  `stack traceback:` and its lines. The traceback gives the script and the line, which the message alone lacks for
+  most of the mod's errors (raised with `error(why,0)`) and for UE4SS's own. Each guarded call logs its first error
+  once a Lua load. Several calls share a name (`ghost` covers seven of `partner/puppet.lua`'s, and each restore has
+  its module's name), and each of them still logs its own first error. The modules after it still run in that pass,
+  and the module is called again at the next one, so one that recovers goes on working. Measured with Lua 5.4 on the
+  build machine, the guard adds about 40 ns a call. The per-frame loop makes 27 to 43 guarded calls (34 with the
+  on-screen UI, plus the inbox while a race is armed and up to 8 pad events), under 2 µs a frame.
 - The save slot read, the vitals read and the Night Operation poller read through `ReadProcessMemory`, which returns an
   error instead of faulting, and only after a plausibility check of every pointer and count.
 - `coop_tick` never blocks the game thread. It runs once per engine frame (it checks the engine's frame counter) and
