@@ -183,6 +183,32 @@ r=R.runner(LINE)
 assert(whats(R.run(r,{x=c1.x-1000,y=0,z=0},{x=c1.x+1000,y=0,z=0},1000))=='cp 1 1','Exactly 20 m: a step')
 r=R.runner(LINE)
 assert(whats(R.run(r,{x=0,y=0,z=0},{x=0,y=0,z=2001},1000))=='dnf teleport','20.01 m straight up')
+-- A frame that took long (a hitch while the game streams): the step may reach twice the top speed for the time since
+-- the last read. 25 m after 0.6 s at the default 2200 cm/s counts; after 0.5 s it is a teleport. At the top of 5000
+-- cm/s, 0.4 s covers 40 m.
+r=R.runner(LINE)
+assert(whats(R.run(r,{x=c1.x-1250,y=0,z=0},{x=c1.x+1250,y=0,z=0},1000,600))=='cp 1 1','A 0.6 s hitch at 2200')
+r=R.runner(LINE)
+assert(whats(R.run(r,{x=c1.x-1250,y=0,z=0},{x=c1.x+1250,y=0,z=0},1000,500))=='dnf teleport','0.5 s at 2200')
+do
+    local fast=copy(LINE)
+    fast.drive={top=5000}
+    r=R.runner(fast)
+    assert(whats(R.run(r,{x=c1.x-1900,y=0,z=0},{x=c1.x+1900,y=0,z=0},1000,400))=='cp 1 1','38 m in 0.4 s at 5000')
+end
+-- Through the race's frames: no position read for 0.8 s, then 30 m further on, is no teleport.
+do
+    local g=R.guest()
+    R.tick(g,{lines=R.track_lines(LINE,7),map=MAP},0)
+    R.tick(g,{lines={'go 7 4000'},pos={x=0,y=0,z=0}},100)
+    R.tick(g,{pos={x=0,y=0,z=0}},4100)
+    R.tick(g,{pos={x=100,y=0,z=0}},4117)
+    for now=4133,4900,17 do R.tick(g,{},now) end
+    R.tick(g,{pos={x=3100,y=0,z=0}},4917)
+    assert(g.phase=='race' and not g.me.why and g.runner.passed==1,tostring(g.me.why))
+    R.tick(g,{pos={x=5200,y=0,z=0}},4934)
+    assert(g.me.why=='teleport','21 m in one frame after it still is')
+end
 -- Missed: from checkpoint 1 straight to 3, then back to 2 and on; the banner each time a later one is entered.
 r=R.runner(LINE)
 local cp=LINE.cps
