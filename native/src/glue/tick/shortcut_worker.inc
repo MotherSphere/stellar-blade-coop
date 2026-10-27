@@ -9,6 +9,15 @@ int shortcut_logged = -1;          // The last ask's files logged so far; -1 whe
 bool shortcut_fault_logged = false;
 uint32_t shortcut_loads = 0;     // coop shortcut load: the asks made, the last one's number,
 uint32_t shortcut_load_want = 0; // and the one waiting for the game thread's read (0: none).
+// The latch's fault, said once a run by whichever pass sees it first: the list's or the load's.
+std::string shortcut_fault_line(const char *what) {
+  shortcut_fault_logged = true;
+  char text[200];
+  std::snprintf(text, sizeof text, "%s fault 0x%08llx in %s reading 0x%llx: coop shortcut off for the run", what,
+                static_cast<unsigned long long>(shortcut_fault_code.load()), fault_where(shortcut_fault_rva).c_str(),
+                static_cast<unsigned long long>(shortcut_fault_address.load()));
+  return text;
+}
 } // namespace
 
 std::string ask_shortcut_load(int file) {
@@ -30,10 +39,11 @@ bool shortcut_load_pass(std::string &save, std::string &line) {
   line.clear();
   if (!shortcut_load_want)
     return false;
-  if (shortcut_faulted || blocked) { // The fault's own line is shortcut_pass's, when a list runs.
+  if (shortcut_faulted || blocked) {
     shortcut_load_want = 0;
-    line = shortcut_faulted ? "shortcut load stopped: a fault in the game thread's read"
-                            : "shortcut load stopped: coop off";
+    line = !shortcut_faulted       ? "shortcut load stopped: coop off"
+           : shortcut_fault_logged ? "shortcut load stopped: a fault in the game thread's read"
+                                   : shortcut_fault_line("shortcut load");
     return true;
   }
   if (shortcut_load_done != shortcut_load_want) // First: the entry and the bytes are written once it matches.
@@ -69,16 +79,8 @@ std::vector<std::string> shortcut_pass() {
   if (shortcut_logged < 0)
     return lines;
   if (shortcut_faulted) {
-    if (!shortcut_fault_logged) {
-      shortcut_fault_logged = true;
-      char text[200];
-      std::snprintf(text, sizeof text,
-                    "shortcut list fault 0x%08llx in %s reading 0x%llx: coop shortcut off for the run",
-                    static_cast<unsigned long long>(shortcut_fault_code.load()),
-                    fault_where(shortcut_fault_rva).c_str(),
-                    static_cast<unsigned long long>(shortcut_fault_address.load()));
-      lines.push_back(text);
-    }
+    if (!shortcut_fault_logged)
+      lines.push_back(shortcut_fault_line("shortcut list"));
     shortcut_logged = -1;
     return lines;
   }
