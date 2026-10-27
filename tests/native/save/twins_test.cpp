@@ -949,6 +949,9 @@ int main() {
   before = others(main_name(2));
   assert(xs.ask(SavesAsk::export_, &x, xg, 1, 2) ==
          "co-op saves: exporting StellarBladeCoop01.sav over your save StellarBladeSave02.sav");
+  // coop shortcut load waits for its end too (the plant below checks the reverse).
+  assert(xs.plant(&x, xg, 4, save("a shortcut save"), "shortcut F02 1") ==
+         "shortcut load refused: a conversion is under way");
   said = passes(xs, x, xg);
   assert(xs.status() == "convert=done" && backups(x) == 2 && xg.name == Saves::coop && xg.swaps == 0);
   assert(slurp(x.dir / main_name(2)) == slurp(x.dir / twin_name(1)) && others(main_name(2)) == before);
@@ -1052,6 +1055,7 @@ int main() {
     why = ps.plant(&p, pg, 4, built, "shortcut F02 1");
     assert(why == "co-op saves: writing shortcut F02 1 as slot 4's co-op copy (the old one is backed up first)");
     assert(ps.plant_refusal(&p, pg) == "a conversion is under way");
+    assert(ps.ask(SavesAsk::export_, &p, pg, 4, 0) == "co-op saves refused: a conversion is under way");
     said = passes(ps, p, pg);
     assert(ps.status() == "convert=done" && backups(p) == 2 && slurp(p.dir / twin_name(4)) == built);
     assert(slurp(p.current / twin_name(4)) == save("own 4") && own(p.dir) == kept && pg.swaps == 0);

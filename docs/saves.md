@@ -189,6 +189,9 @@ items, Shock Bolts as the selected ammo or the dungeon's camp, that copy keeps t
 save; the refusal says so. Only the copy by hand (see [Recovery](#recovery)) takes such a save out, and nothing then checks
 it.
 
+The mod runs one pass at a time. A refresh, an export or a shortcut load asked while another pass runs is refused, and
+`coop-link.log` says `a conversion is under way`.
+
 To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.log`) shows the slot line:
 
 | Line | Meaning |
