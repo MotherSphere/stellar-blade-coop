@@ -188,8 +188,8 @@ cloud. Then restore your backup.
 `coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter` and `coop gift` run only on a co-op save, a
 copy of your save, and never on your own saves (`coop nightop stop` and `coop challenge stop` work on any save). The
 ghost, the keys and the Steam link work on any save. Nothing is copied back to your own saves. Items bought in Night
-Operation's shop (`coop nightop buy`) and gifts (`coop gift`) go into or leave the co-op save you play, never your own
-saves.
+Operation's shop (`coop nightop shop` or `coop nightop buy`) and gifts (`coop gift`) go into or leave the co-op save
+you play, never your own saves.
 
 The mod makes the copies itself, in the save folder above: `StellarBladeCoop00.sav` to `StellarBladeCoop04.sav`, one
 for each of your saves `StellarBladeSave00.sav` to `StellarBladeSave04.sav`. Once the game uses the copies, Continue,

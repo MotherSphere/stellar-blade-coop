@@ -809,6 +809,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop remove <SteamID>` | Remove a player from the session you host; they cannot come back to that lobby |
 | `coop leave` | Leave the session (F8) |
 | `coop travel host` | As the guest, travel to the camp nearest the host (F7), or cancel the travel that `follow_host=always` is about to start; off in this version ([Following the host](#following-the-host)) |
+| `coop travel probe <camp>` | Solo test of the follow's travel: the game's own fast travel to one of its 120 camps, with no session and no host's answer; it does not check that your save has found that camp, and a camp it reaches counts toward the game's camp trophies, see [Following the host](#following-the-host) (test command, co-op save only) |
 | `coop status` | Print the full state: link, friend, notices, pose path, save slot, ghost |
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |
@@ -826,12 +827,13 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop replay` / `coop replay off` | Play `coop-record.bin` back as a ghost, in a loop |
 | `coop nightop [start [easy\|normal\|hard\|nightmare] [noaggro\|nomove]\|stop]` | [Night Operation's run](night-operation.md#the-solo-run-coop-nightop) at one of four [levels](night-operation.md#levels), solo or, started by the host at his level, [for both players](night-operation.md#the-co-op-run) (untested in game, co-op save only; `stop` on any save) |
 | `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run ([Down and revive](night-operation.md#down-and-revive)) (untested in game, co-op save only) |
-| `coop nightop shop` | Night Operation's [reward shop](night-operation.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](#cut-ammo-shock-bolt) ammo among them) (untested in game, co-op save only) |
+| `coop nightop shop` | Night Operation's [reward shop](night-operation.md#the-shop-screen-coop-nightop-shop) in the game's own shop screen, your points as Beta Seeds, with its seven items (two cut stimpacks and the cut [Shock Bolt](#cut-ammo-shock-bolt) ammo among them; the Shock Bolt only once EVE's gun can fire it) (untested in game, co-op save only) |
 | `coop nightop buy [<n> [count]]` | The same shop from the console: your points and its seven items, or a buy of 1 to 10 of one of them (untested in game, co-op save only) |
 | `coop challenge [<name>\|stop]` | [Challenges](night-operation.md#challenges-coop-challenge): the list with each best run, a start by name or number (1 to 5), or the end of the run that is on (untested in game, co-op save only; solo but the [Shooting Range](night-operation.md#shooting-range), which the host can start for both players; `stop` on any save) |
 | `coop no [heal\|rule\|spawnpt\|actor]` | Night Operation probe (research preview, co-op save only) |
 | `coop recruiter [off]` | Night Operation recruiter (research preview, co-op save only) |
 | `coop scene [emil\|orcal\|stop]` | Play a [cut scene](#cut-scenes-coop-scene) through the game's cutscene player (untested in game, co-op save only), list the scenes or stop the one that plays |
+| `coop leviathan`, `coop gardener`, `coop tendril`, `coop mann`, `coop nier`, `coop orcal`, `coop enya`, each with `[list]\|show\|move\|skin\|cam\|play\|off` | Read a [cut model](#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)'s assets, or show it in front of EVE with a [free camera](#free-camera) to film it, one model at a time and no enemy spawned (test commands; `show` and the camera turned on on a co-op save only) |
 | `coop lion [intro]\|rows\|control`, `coop lion brain skulling\|lurker`, `coop lion unfreeze [init]` | The [cut Lion](#cut-boss-coop-lion) as an enemy to fight (test command; in its tests it fought but did not animate): spawn one, with its entrance first; add its rows only; spawn an Antlion through the same call; pick the tree of the next Lions; put back the engine switches that can freeze its mesh (spawns on a co-op save only) |
 | `coop gardener fight [intro\|half\|skulling\|rows]` | The [cut Gardener](#cut-enemy-coop-gardener-fight) as an enemy to fight (test command, untested in game): spawn one, with its entrance first, at half size, or with the Lion's tree; add its rows only (spawns on a co-op save only) |
 | `coop tendril fight [rows]` | The [cut Tendril](#cut-enemy-coop-tendril-fight) as an enemy to fight (test command, untested in game): spawn one, with the Shows of its attacks built in memory first; add its rows and build its Shows only (spawns on a co-op save only) |
@@ -842,9 +844,11 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save; loading one is held back) |
 | `coop devmenu [list\|<row>]` | The rows of the game's [developer menu](#developer-menu-coop-devmenu-and-coop-devinfo) that still work: the list, or one row on EVE or the enemies near her (test command, untested in game; a row on a co-op save only) |
 | `coop devinfo quest\|player\|off` | The game's [quest debugger or player info panel](#developer-menu-coop-devmenu-and-coop-devinfo), opened or closed (test command, untested in game, any save) |
+| `coop story [dump\|find]` | Write the story lines of the save object the running game holds to `StellarCoopStory.txt`, read only, or list the save-shaped classes and objects found ([story.md](story.md#the-live-dump); test command, any save) |
 | `coop gift [send <item> [count]\|take [n]]` | The [cut mailbox as a gift box](#cut-mailbox-coop-gift): what waits in yours, a gift of 1 to 10 consumables to your linked friend, or the gifts that wait put into your inventory (untested in game, co-op save on both sides) |
 | `coop race record <name>\|cp\|save [laps]\|cancel` | Record a [Doro race](#doro-races) track (untested in game) |
 | `coop race start <name>\|quit` | Start a Doro race on that track as the host or alone (co-op save only), or leave it |
+| `coop race look on\|off`, `coop race probe doro`, `coop race drive [probe\|off\|feed impulse\|struct\|<name> <value>]` | [Doro race](#doro-races) test and tuning commands: the Doro look with no race, a Doro that plays each of its animations, the drive probe, and the driving values (test commands; `look on`, `probe doro` and `drive probe` on a co-op save only) |
 | `coop fight on\|off\|status` | Shared enemies (experimental, on by default, co-op save only) |
 | `coop fight probe\|record\|replay`, `coop fight test hp\|sh\|st <change>`, `coop fight test kill` | Shared enemies' solo test tools (experimental, co-op save only) |
 | `coop fight pilot status\|probe\|on\|off`, `coop fight pilot test freeze\|cmc\|drive\|replay\|target\|exec` | [Same place](#same-place-experimental) (experimental, on by default) and its solo test steps |
@@ -1467,8 +1471,8 @@ command, left out of the usage line, and runs only on a [co-op save](#co-op-save
 - The request is the game's own cheat request, `SBApplyEffectMe` with the effect's ID (1004500), which the game runs as
   a logic job on EVE. It goes out once the rows are in (the first time in a game run it waits for them, 30 s at most),
   and never while a respawn or a warp is under way.
-- No button starts it. EVE's four Tachy skill buttons are taken, and a fifth would mean replacing the Tachy stance row
-  while EVE uses it.
+- No button starts it. EVE's four Tachy skill buttons are taken. A fifth command could go at the end of the Tachy
+  stance's command list, written in place as for the [Shock Bolt](#cut-ammo-shock-bolt)'s gun stances; none was added.
 - Nothing is saved: the skill has no skill tree entry, slot or achievement tag, and the rows stay in memory until the
   game exits.
 - The Tachy NPC's Show plays no wing animation, so EVE's Tachy wings keep their own pose during the spin. The game has

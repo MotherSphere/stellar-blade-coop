@@ -74,8 +74,9 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 | `coop nightop stop` | End the run that is on, Night Operation or a challenge, on any save. `coop off` ends it too |
 | `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run (see [Down and revive](#down-and-revive)) |
 | `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world that show a wave key, each with its run number (8 at most are named). The game shows a monster's wave key only in a networked game, so this list is empty in practice |
-| `coop nightop shop` | Your points and the seven items of the [reward shop](#the-reward-shop) |
-| `coop nightop buy <n> [count]` | Buy 1 to 10 of item n with your points |
+| `coop nightop shop` | Open the game's own shop screen with the items of the [reward shop](#the-reward-shop), your points shown as Beta Seeds (see [The shop screen](#the-shop-screen-coop-nightop-shop)) |
+| `coop nightop buy` | Your points and the seven items, in the console |
+| `coop nightop buy <n> [count]` | Buy 1 to 10 of item n with your points (see [Buying from the console](#buying-from-the-console-coop-nightop-buy)) |
 
 ### Before your first run
 
