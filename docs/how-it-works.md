@@ -2059,7 +2059,9 @@ tests one way in. The zMXIII_P test pak, built outside the repository from shipp
 mod's zip, puts a map at that path with a spawn point named `DLC02_10_Camp_01`; its v2 build adds the spawn points of
 a camp's objects, and its v3 build a spawn point named `DLC02_30_Camp_01` in the third zone. The mod adds the rows of
 a camp in `Zone_DLC02_10` and of a camp with no objects in `Zone_DLC02_30`, patches five trigger rows of the later
-zones in place, then calls the game's camp travel to one of the two camps (`coop mxiii 30` for the second).
+zones in place, then calls the game's camp travel to one of the two camps (`coop mxiii 30` for the second). With the
+test pak installed and the game on the co-op save files, the same rows also go in at the title, before any save loads
+([At the title](#at-the-title)).
 
 ### Its rows
 
@@ -2194,7 +2196,9 @@ row with a `TargetCamp` under that camp at `+0x4a8` and each row to the env list
 no world filter; `FUN_141d1a700` clears the list. Rows added after the current world started are then missing from its
 lists, and the first `coop mxiii` should end in `SB refused DLC02_10_Camp_01`. After the next world start (a save
 loaded, a travel to a camp), a second `coop mxiii` reads the rows back without asking again and travels, and the world
-it lands in lists the camp objects in `Zone_DLC02_10`. This comes from reading the code; it has not run in game.
+it lands in lists the camp objects in `Zone_DLC02_10`. When the rows went in at the title, the first world
+started after it lists both camps already, and the first `coop mxiii` travels. This comes from reading the code; it
+has not run in game.
 
 ### The save
 
@@ -2205,14 +2209,57 @@ A death or a load resolves the last row to its camp. The vending machine's inter
 activation and the phone booth's saves before its camp list (read from the graphs), so `DLC02_10_Camp_01` and the
 mod's rows are on disk from the activation on. Resting at another camp does not take the camp out of
 `OpenCampAliases`, and a rest at a SimplyCamp, such as Matrix 11's `ME01_Camp_01`, changes only the simple camp row
-and leaves `LastFullCampEnvSpawnAlias` on a mod row. Those rows exist only once `coop mxiii` has run in
-the game run. What a load or the camp list does with a camp or row that has no table row
-(`ESBEnterGameResult_NotFoundTargetCamp`, a skip or a null read) was not traced, so the usage section gives
-`coop saves refresh` at the title as the way back. Adding the rows at mod start whenever the test pak is installed
-would keep those names valid; the mod does not do that yet.
+and leaves `LastFullCampEnvSpawnAlias` on a mod row. The arrival of `coop mxiii 30` saves the game too (read from its
+code), with `DLC02_30_EnvS_900` as the save's camp row. What a load or the camp list does with a camp or row that has
+no table row (`ESBEnterGameResult_NotFoundTargetCamp`, a skip or a null read) was not traced. So the rows go in at the
+title whenever a co-op save could name them, and the usage section gives `coop saves refresh` at the title as the way
+back once the pak is gone. On the manual co-op slot that `StellarCoopSlot.txt` names, the game uses the player's own
+save files and the title adds nothing: there, as before, the rows exist only once `coop mxiii` has run in the game
+run.
+
+### At the title
+
+`cut/mxiii.lua`'s `title()`, called from `main.lua`'s 250 ms loop, asks the batch when three things hold: the title
+screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of `session/saves.lua`, so
+never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a Lua load, and nothing
+is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to keep: the 20 tables
+found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic task in flight), the
+shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`, nothing is asked again
+in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its 300
+frames (`busy`, `net` or `unread`), no answer, or an end before the request (a table not loaded) is asked again 10 s
+later while the title shows, at most four times a visit of the title. Any other refusal leaves the rows to
+`coop mxiii`.
+
+What the title holds, read in Ghidra on build 24463856:
+
+- The tables. `FSBLocalClient::StartLobby` (`FUN_141cc8150`, named by its own log string) calls the table holder's
+  getter (`FUN_141a97f20`, the global at `0x147032510`). The first time, that getter loads every table of its list by
+  path (`FUN_1426292c0`, a `StaticLoadObject` of `/Game/Local/<path>`) and roots each one (`FUN_1426293f0` keeps a weak
+  pointer in the registry's first set at `+0x8` and sets the object's `RootSet` flag). StartLobby's reset
+  (`FUN_142629ed0`, a jump to `FUN_14c8618d0`) un-roots and drops only the registry's second set at `+0x60`, the
+  override set that `FUN_141c451b0` reads first while `+0x58` is set. So the 20 tables are in memory at the title and
+  stay rooted through the load that follows, and rows added there are in the objects the game reads after it.
+- The gate's globals. The logic singleton (`0x147032568`) and the net-mode cache (`0x147032528`) are made by their
+  getters (`FUN_141a97b20`, `FUN_141a97aa0`) on first use and never freed. The cache starts at 4 and takes the world's
+  mode at the first of the game's many inlined reads that resolves it (the dispatch's, `FUN_141aca570`,
+  `FUN_141d256c0` and others). The logic task at `+0x5c0` is set only by the logic dispatch (`FUN_141acd5c0`), which
+  waits for the last task and clears it before it starts the next. `FUN_14b85e230` registers that dispatch as a tick
+  once, at the first world start (`FUN_141c72100`, `FUN_141cd8590`), which also sets the logic's run flag `+0x5b2`
+  that the dispatch needs before it starts a task.
+- So at the title of a fresh game no logic task can be in flight, and the gate opens if both globals exist and the
+  cached mode reads 0. If a global is still unmade or the mode still reads 4, the gate stays shut and no table call is
+  made; the code does not show which of these holds at a fresh title. `coop-link.log` answers it in game:
+  `mxiii rows: 15/15 in, ...`, or `mxiii rows refused -: net mode 4 for 300 frames` or `no logic or net-mode global
+  for 300 frames`. After a return to the title the dispatch keeps running, and the gate waits for a frame with no
+  task, as in a world.
+
+The rows stay in for the game run, also when the player then turns the co-op saves off and loads one of their own:
+nothing in the main game leads to the dungeon or its camps.
 
 ### Open questions
 
+- whether the native gate opens at the title of a fresh game ([At the title](#at-the-title)), and what a co-op save
+  that names a mod camp does when the rows are not in;
 - whether the game loads `MXIII_P` from a mod container, and whether it accepts retoc's zen output of a renamed map;
 - whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d18100` lists the camps of every world;
 - whether the camp arrival (`FUN_141a8afe0`) finds the spawn points named `DLC02_10_Camp_01` and `DLC02_30_Camp_01` in

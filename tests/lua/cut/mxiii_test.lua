@@ -12,7 +12,9 @@
 -- it with no travel; rows already in are read back with no ask; coop off ends the wait, and no travel follows. coop
 -- mxiii leave: the follow's probe for the camp EVE respawned at when coop mxiii asked its travel, else the one she
 -- respawns at, else the first travel camp the read lists as activated. coop mxiii 30: on v1 or v2 nothing asked; on v3
--- the same rows, then the probe for DLC02_30_Camp_01; leave from there still takes the camp of before coop mxiii.
+-- the same rows, then the probe for DLC02_30_Camp_01; leave from there still takes the camp of before coop mxiii. The
+-- title's batch: the same rows with no EVE, only at the title on the co-op save files with the test pak, once a game
+-- run, asked again after a shut gate (at most 4 times a visit of the title), never after another refusal.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -455,6 +457,130 @@ ok,why=mx.command('leave')
 assert(ok and why=='coop mxiii leave: the travel to DED10_Camp_07 is asked ([TR] lines follow)',tostring(why))
 assert(#asked==asks,'Every rows check read back, none asked')
 follow.list,follow.rested=nil,nil
+
+-- The title's batch (main.lua each 250 ms: the title shown with no save loaded, and saves=coop): with no EVE, only
+-- with both, the test pak looked for once a Lua load and nothing said without one; the same ask as coop mxiii's, its
+-- read-back, no travel and nothing returned for main.lua to report; once in, never again, and coop mxiii then only
+-- reads them back and travels.
+player=nil
+local base,probed=#asked,#probes
+-- The asks since base, each the mxiii rows request.
+local function title_asks()
+    for k=base+1,#asked do assert(asked[k]==REQUEST,asked[k]) end
+    return #asked-base
+end
+files={}
+mx=new(PAKS)
+mxiii_status('off')
+clock=1000
+reads={}
+mx.title(true,true)
+local said=#lines
+put(LOGIC,nil,UCAS3)
+mx.title(true,true); mx.title(true,true)
+assert(#reads==2 and #lines==said and title_asks()==0,
+    'No test pak: nothing asked, nothing said, the pak looked for once')
+mx=new(PAKS)
+said,reads=#lines,{}
+mx.title(false,true); mx.title(true,false); mx.title(nil,nil)
+assert(title_asks()==0 and #reads==0 and #lines==said,'Off the title, or on your own saves: nothing')
+mx.title(true,true)
+assert(title_asks()==1 and #reads==4,'The rows asked, the pak read once')
+assert(lines[said+1]=='title: the co-op save files and test pak v3: the rows asked before any save loads (try 1 of 4)',
+    lines[said+1])
+assert(logged('rows asked of the native part (mxiii=off)'))
+mx.title(true,true); mx.title(true,true)
+ok,why=mx.command()
+assert(title_asks()==1 and ok==false and why=='coop mxiii is busy (the wait for the Matrix XIII rows): try again in a '
+    ..'few seconds','One ask: the wait holds the rows flow')
+-- A save loaded during the wait (the title pawn an SBCharacter on the Lobby map, then EVE on another): rows only, no
+-- map to keep, so the wait goes on.
+mxiii_status('waiting added=0/15 asks=0 spawns=? why=net ticks=40')
+clock=1000.25
+assert(mx.tick()==nil)
+player=eve
+clock=1000.5
+assert(mx.tick()==nil and not logged('map changed'),'No map check')
+mxiii_status(ROWS_IN:format(1))
+clock=1000.75
+ok,why=mx.tick()
+assert(ok==nil and why==nil and last()=='title: the rows are in, before any save loads' and #probes==probed,
+    'Read back, no travel, nothing for main.lua to report: '..tostring(why))
+assert(lines[#lines-1]=='rows read back through FindRow: 15/15 authored rows, 38 fields as written (36 differ from the '
+    ..'template row)',lines[#lines-1])
+said=#lines
+mx.title(false,true); mx.title(true,true)
+assert(title_asks()==1 and #lines==said,'Once a game run')
+ok,why=mx.command()
+assert(ok and title_asks()==1 and probes[#probes][1]=='DLC02_10_Camp_01',
+    'coop mxiii then only travels: '..tostring(why))
+-- Rows already in at the first call (a Lua reload, or a coop mxiii before a return to the title): said, not asked.
+player=nil
+mx=new(PAKS)
+mx.title(true,true)
+assert(title_asks()==1 and last()=='title: the rows are in already (mxiii=rows added=15/15 asks=1 spawns=? char=0/0 '
+    ..'skills=0/0 stance=0/0)',last())
+-- No native part, or the rows' fault this run: nothing asked.
+mx=new(PAKS)
+status_text='mod=v\n'
+mx.title(true,true)
+mxiii_status('fault added=0/15 asks=1 spawns=? where=SB.exe+0x10')
+mx.title(true,true)
+assert(title_asks()==1,'No line, or a fault: nothing asked')
+-- A gate that stayed shut: asked again RETRY s after the answer, at most 4 times a visit of the title, again at the
+-- next visit; a refusal of another kind ends it for the Lua load.
+local function shut(k)
+    mxiii_status(string.format('refused added=0/15 asks=%d spawns=? why=%s table=- row=-%s',k,
+        k%2==1 and 'net' or 'busy',k%2==1 and ' detail=4' or ''))
+    clock=clock+0.25
+    assert(mx.tick()==nil)
+end
+mxiii_status('off')
+clock=2000
+mx.title(true,true)
+local asks=2
+assert(title_asks()==asks)
+shut(1)
+assert(last()=='title: The native part refused the Matrix XIII rows (why=net, table=-, row=-): coop-link.log says '
+    ..'why; asking again skips the rows already in. (asked again in 10 s if the title still shows)',last())
+clock=clock+9.5; mx.title(true,true); assert(title_asks()==asks,'Not before 10 s')
+local mark=#lines
+clock=clock+0.5; mx.title(true,true); asks=asks+1
+assert(title_asks()==asks and lines[mark+1]:find('(try 2 of 4)',1,true),lines[mark+1])
+for k=2,4 do
+    shut(k)
+    clock=clock+10
+    mx.title(true,true)
+    if k<4 then asks=asks+1 end
+    assert(title_asks()==asks,k)
+end
+assert(lines[#lines]:find('(no more tries this visit of the title: coop mxiii adds them)',1,true),last())
+mx.title(false,true)
+mark=#lines
+mx.title(true,true); asks=asks+1
+assert(title_asks()==asks and lines[mark+1]:find('(try 1 of 4)',1,true),'The next visit asks again')
+mxiii_status('refused added=1/15 asks=5 spawns=? why=id table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900')
+clock=clock+0.25
+assert(mx.tick()==nil and last()=='title: The native part refused the Matrix XIII rows (why=id, '
+    ..'table=ZoneEnvSpawnTable, row=DLC02_10_EnvS_900): coop-link.log says why; asking again skips the rows already '
+    ..'in.',last())
+clock=clock+20
+mx.title(false,true); mx.title(true,true)
+assert(title_asks()==asks,'Another refusal: no more asks this Lua load')
+-- Tables not all loaded: nothing asked, tried again later.
+mx=new(PAKS)
+mxiii_status('off')
+local zones=tables.ZoneCampTable
+tables.ZoneCampTable=nil
+mx.title(true,true)
+assert(title_asks()==asks and last()=='title: The game has no ZoneCampTable loaded: nothing was asked. (asked again in '
+    ..'10 s if the title still shows)',last())
+tables.ZoneCampTable=zones
+clock=clock+10
+mx.title(true,true); asks=asks+1
+assert(title_asks()==asks,'Asked once the tables are there')
+mx.stop()
+player=eve
 
 -- The source: no StaticFindObject or LoadAsset of its own, and no row or save call.
 do

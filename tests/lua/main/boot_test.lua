@@ -448,6 +448,17 @@ in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=60')
 at_title=true; loops[2].f(); assert(states[#states]=='world=title rate=60','The title screen goes along')
 at_title=false
 in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=60' and #asked==before,'No request written')
+-- Matrix XIII's rows at the title (cut/mxiii.lua's title): every 250 ms with whether the title shows with no save
+-- loaded and whether the game uses the co-op save files (saves=coop).
+local function titled() local t=mx.titles[#mx.titles]; return t.n==2 and t[1],t[2] end
+local a,b=titled(); assert(a==false and b==false,'A world, saves unread')
+in_world,at_title,saves_info=false,true,{saves='coop'}
+loops[2].f(); a,b=titled(); assert(a==true and b==true,'The title on the co-op save files')
+saves_info={saves='main'}
+loops[2].f(); a,b=titled(); assert(a==true and b==false,'Your own saves')
+in_world,saves_info=true,{saves='coop'}
+loops[2].f(); a,b=titled(); assert(a==false and b==true,'A save loaded')
+at_title,saves_info=false,{}
 -- The photo mode with the state, read only with a save loaded: '1', 's' (a selfie wins), then '0', with photo_sync and
 -- photo_freeze_max. During our own, the notices are veiled, the ghost stays (photo_ghost=on) and its tag goes
 -- (photo_name_tag=off); nothing is asked of the native part.

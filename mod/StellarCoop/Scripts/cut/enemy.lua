@@ -561,10 +561,11 @@ function Enemy.new(o,spec)
     -- The wait for the native part's answer: the rows in, a refusal finished after the ask (asks grown), or a fault with
     -- or without asks grown (the latch holds for the game run and turns every batch not in to fault, also one whose ask
     -- the game thread never took; start() asks only while the line reads no fault). A waiting line goes on waiting
-    -- even with asks grown: an earlier ask finished, then the game thread took ours.
+    -- even with asks grown: an earlier ask finished, then the game thread took ours. A job asked at the title has no
+    -- map to keep: a save loaded meanwhile changes nothing for rows only.
     local function wait(j,now)
         local eve=her()
-        if not eve or U.map_of(eve)~=j.map then
+        if j.map and (not eve or U.map_of(eve)~=j.map) then
             return false,'The map changed while the '..name..' rows were asked: no spawn.'
         end
         local s=my_line()
@@ -593,10 +594,11 @@ function Enemy.new(o,spec)
         return job and command..' is busy ('..job.what..'): try again in a few seconds' or nil
     end
     -- A spawn of id (or, with rows_only, the rows only; intro: the entrance first): the tables (R1), then the rows
-    -- already in (R5) or asked. Returns ok, message; the job goes on in tick() when it waits.
-    function self.start(id,intro_wanted,rows_only)
+    -- already in (R5) or asked. title (rows only): asked at the title, so with no EVE and no map to keep. Returns ok,
+    -- message; the job goes on in tick() when it waits.
+    function self.start(id,intro_wanted,rows_only,title)
         local eve=her()
-        if not eve then return false,'no EVE in the world (load a save first): nothing was asked' end
+        if not eve and not title then return false,'no EVE in the world (load a save first): nothing was asked' end
         local found,missing,words=tables()
         if #missing>0 then
             log(string.format('tables: %d/%d found, missing %s: nothing asked',#words,#Enemy.TABLES,
@@ -613,7 +615,7 @@ function Enemy.new(o,spec)
             return false,'The '..name..' rows stopped on a fault this game run ('..tostring(s.where)..').'
         end
         local now=os.clock()
-        local j={id=id,intro=intro_wanted,rows_only=rows_only,tables=found,map=U.map_of(eve)}
+        local j={id=id,intro=intro_wanted,rows_only=rows_only,tables=found,map=not title and U.map_of(eve) or nil}
         if s.state=='rows' then
             log(string.format('rows already in (%s; SB\'s lookups by ID: char %s, skills %s, stance %s): not added '
                 ..'again',tostring(s.added),tostring(s.char),tostring(s.skills),tostring(s.stance)))
@@ -644,10 +646,11 @@ function Enemy.new(o,spec)
     -- The rows only, for another file's own use of them (the Night Operation shop's cut items, nightop/shop.lua): the
     -- rows-only steps (the tables, the rows already in or the ask, the wait, the read-back), then done(ok, message)
     -- with how they ended; what done returns is the end said. Returns done's ok, message when it ends at once, or ok,
-    -- message, true while it waits: done then follows from tick() (not after coop off, which drops the wait).
-    function self.rows(done,id)
+    -- message, true while it waits: done then follows from tick() (not after coop off, which drops the wait). title:
+    -- start()'s (cut/mxiii.lua's batch at the title).
+    function self.rows(done,id,title)
         if job then return done(false,self.busy()) end
-        local ok,message=self.start(id,false,true)
+        local ok,message=self.start(id,false,true,title)
         if job and ok then
             job.done=done
             return ok,message,true
