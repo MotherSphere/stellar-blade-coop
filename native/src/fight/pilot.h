@@ -1143,6 +1143,10 @@ constexpr uint64_t kWorldAt = 0x147032570, kRegistryAt = 0x147032558, kShowsAt =
                    kShowDataClassAt = 0x14703c7c8, kCharacterClassAt = 0x147033f48, kNamePool = 0x146ffec40;
 constexpr size_t kActorManager = 0xc8, kCharacterMap = 0x48, kStageList = 0x18, kStageCount = 0x20;
 constexpr size_t kFsbGuid = 0x4a4; // FSBActor: its FGuid, the character map's key.
+// SB's globals block (game::kGlobals), read one word at a time: the net-mode cache, whose cached net mode is at
+// +0x14 (0 standalone), and the logic singleton, whose +0x5c0 is the logic task in flight (0: none).
+constexpr uint64_t kNetCacheAt = 0x147032528, kLogicSingletonAt = 0x147032568;
+constexpr size_t kNetMode = 0x14, kLogicTask = 0x5c0;
 // ASBCharacter: its root component and its show interface (a stage's main actor), and from +0xC64 the anim speed
 // fields GetSBSpeedForAnimGraph (0x1420cf5d0) reads (speed_read()).
 constexpr size_t kRootComponent = 0x178, kShowInterface = 0x560, kSpeedFields = 0xc64, kSpeedBytes = 0x18;
@@ -1243,6 +1247,15 @@ template <class Read> bool globals(Read &&read, uint64_t base, Globals &s) {
   if (!global(kShowsAt, s.shows))
     s.shows = 0;
   return s.manager && s.map && s.character_class;
+}
+// A logic task in flight, or no logic singleton to tell: then no lookup runs, and the frame's capture, drive and target
+// reads wait. SB's dispatch (FUN_141acd5c0) sets +0x5c0 on this thread and clears it only once it has waited for the
+// task, so 0 means none runs. One that runs may spawn (NewActor): FSBActorManager::AddActor grows the actor map
+// FUN_141aace90 walks, which has no bound on its chain, and SB's CreateHandle the character map FUN_14201b1e0 walks.
+template <class Read> bool logic_busy(Read &&read, uint64_t base) {
+  uint64_t logic = 0, task = 0;
+  return !read(base + (kLogicSingletonAt - game::kImageBase), &logic, sizeof logic) || !game::plausible(logic) ||
+         !read(logic + kLogicTask, &task, sizeof task) || task;
 }
 // One enemy found by its GUID through SB's two read-only lookups: its FSBActor, then the character of its FGuid, which
 // must be a live ASBCharacter (index and serial take its object item's), then its live root component. The character,
@@ -1396,7 +1409,7 @@ public:
     const uint64_t objects = base + pose::kObjectsRva, pool = base + (kNamePool - game::kImageBase);
     uint64_t data_class = 0;
     Globals gl;
-    if (!globals(read, base, gl)) {
+    if (logic_busy(read, base) || !globals(read, base, gl)) {
       counts.unresolved += n;
       return 0;
     }
@@ -1703,9 +1716,11 @@ public:
   }
   // The pairs this side draws now (n at most kMaxEnemies; none while the table is off or stale) in the host's
   // generation gen, this side side. A pair no longer drawn (or any, in a new generation) is put back and forgotten; a
-  // new one starts with no sample.
+  // new one starts with no sample. While a logic task runs (logic_busy()), nothing changes until a later frame:
+  // forget() looks its copy up.
   template <class Game> void rows(Game &g, uint64_t base, uint32_t gen, Side side, const Row *in, size_t n) {
-    if (latched_)
+    auto read = [&g](uint64_t a, void *out, size_t size) { return g.read(a, out, size); };
+    if (latched_ || logic_busy(read, base))
       return;
     n = in ? std::min(n, kMaxEnemies) : 0;
     const bool same = gen == gen_ && side == side_;
@@ -1763,6 +1778,12 @@ public:
     if (latched_ || !holding()) // Nothing held: no line either (forget() drops a pair's), and nothing to read.
       return;
     auto read = [&g](uint64_t a, void *out, size_t n) { return g.read(a, out, n); };
+    if (logic_busy(read, base)) { // Every pair skipped this frame, as a stale one is; her lines wait for the next.
+      for (Pair &p : pairs_)
+        if (p.row.hguid)
+          ++counts.unresolved, p.wrote = false;
+      return;
+    }
     Globals s;
     const bool lookups = globals(read, base, s);
     base_ = base;
@@ -2181,10 +2202,6 @@ private:
 
 // ---- Stage 3b: a pair this side takes over (game thread) ----
 
-// SB's globals block (game::kGlobals), read one word at a time: the net-mode cache, whose cached net mode is at
-// +0x14 (0 standalone), and the logic singleton, whose +0x5c0 is the logic task in flight (0: none).
-constexpr uint64_t kNetCacheAt = 0x147032528, kLogicSingletonAt = 0x147032568;
-constexpr size_t kNetMode = 0x14, kLogicTask = 0x5c0;
 // The two singletons SB's force target takes through their getters, FUN_141a97b90 (before its TargetedByEnemy jobs) and
 // FUN_141a97f20 (for a table row), each of which makes its singleton when it is still null: the call runs only once
 // both exist, so it never makes one (PHASE11-STAGE3 7 rule 4).
@@ -2397,6 +2414,8 @@ private:
     Globals s;
     uint64_t root = 0, target = 0;
     Reading r = read_;
+    if (now - read_.at <= kTargetTestMs && logic_busy(read, base))
+      return; // Read again at the next frame.
     if (now - read_.at > kTargetTestMs || !globals(read, base, s) ||
         !find_character(g, read, base + pose::kObjectsRva, s, probe_.local, fsb, root) ||
         !read(fsb + kAiTarget, &target, sizeof target) || !read(fsb + kAiLevel, &r.level, sizeof r.level) ||

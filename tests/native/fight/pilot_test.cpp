@@ -142,6 +142,7 @@ struct Scene : Pool {
   std::map<std::vector<int32_t>, uint64_t> characters;
   int fsb_calls = 0, character_calls = 0;
   uint64_t next = 0x50000000, manager = 0, registry = 0, shows = 0, stage_list = 0, data_class = 0, enemy_class = 0;
+  uint64_t logic = 0; // SB's logic singleton: no logic task in flight (+0x5c0 0) unless a test sets one.
   int32_t next_index = 1;
   uint32_t next_name = 0x800;
   std::vector<uint64_t> stages;
@@ -214,6 +215,7 @@ struct Scene : Pool {
     shows = global(kShowsAt, alloc(0x30));
     stage_list = alloc(8 * 64);
     put<uint64_t>(shows + 0x18, stage_list);
+    logic = global(kLogicSingletonAt, alloc(0x600));
   }
   // An enemy: its FSBActor (its FGuid at +0x4a4), its character and root, at x, y, z facing yaw. The character.
   uint64_t enemy(uint32_t guid, float x, float y, float z, float yaw) {
@@ -472,13 +474,12 @@ struct Stage : Scene {
 // Stage with one copy (GUID 501, the host's 4100) whose AI has an owner, SB's globals at net mode 0 with no logic task
 // in flight, and our EVE as the actor manager's local player: what a take-over (Taker) reads.
 struct Takeover : Stage {
-  uint64_t ch = 0, fsb = 0, net = 0, logic = 0, eve = 0;
+  uint64_t ch = 0, fsb = 0, net = 0, eve = 0;
   Takeover() {
     ch = copy(501, 100, 200, 20);
     fsb = fsbs[501];
     put<uint64_t>(fsb + kAiOwner, 0x5e000000);
     net = global(kNetCacheAt, alloc(0x20));
-    logic = global(kLogicSingletonAt, alloc(0x600));
     for (uint64_t at : kTargetSingletonsAt)
       global(at, alloc(0x20));
     eve = alloc(0xa00);
@@ -1605,6 +1606,13 @@ int main() {
     const int calls = s.fsb_calls;
     assert(capture(c, s, both, next()).size == 0 && s.fsb_calls == calls && c.counts.unresolved == 2);
     s.put<uint64_t>(kWorldAt, world);
+    // A logic task in flight (a spawn in it grows the maps the two lookups walk), or no logic singleton: the same.
+    s.put<uint64_t>(s.logic + kLogicTask, 0x7000);
+    assert(capture(c, s, both, next()).size == 0 && s.fsb_calls == calls && c.counts.unresolved == 4);
+    s.put<uint64_t>(s.logic + kLogicTask, 0);
+    s.put<uint64_t>(kLogicSingletonAt, 0);
+    assert(capture(c, s, both, next()).size == 0 && s.fsb_calls == calls && c.counts.unresolved == 6);
+    s.put<uint64_t>(kLogicSingletonAt, s.logic);
 
     // Stages: A's with two players (only player[0] is told), A's with an empty weak pointer and A's interface, B's
     // with a finished player[0] (never told), a stale weak pointer (A's index under an older serial) with A's
@@ -1843,6 +1851,17 @@ int main() {
     assert(s.since(seen).empty() && d.counts.unresolved == 1 && d.holding());
     s.characters[key] = ch;
     d.draw(g, kBase, 5080, 1020);
+    assert(s.since(seen) == "write1 write4 move write12");
+    // A logic task in flight: no lookup, nothing written or called, the pair skipped as a stale one is; the table's
+    // rows wait too (forgetting the pair would look its copy up). Once it is done, the drive goes on.
+    s.put<uint64_t>(s.logic + kLogicTask, 0x7000);
+    const int lookups = s.fsb_calls + s.character_calls;
+    d.draw(g, kBase, 5088, 1020);
+    d.rows(g, kBase, 7, kGuest, nullptr, 0);
+    assert(s.since(seen).empty() && s.fsb_calls + s.character_calls == lookups && d.counts.unresolved == 2 &&
+           d.holding());
+    s.put<uint64_t>(s.logic + kLogicTask, 0);
+    d.draw(g, kBase, 5096, 1020);
     assert(s.since(seen) == "write1 write4 move write12");
     // Past the newest sample by more than 150 ms: held there, no speed, no velocity (its legs would run in place).
     d.draw(g, kBase, 5400, 1300);
@@ -2618,6 +2637,11 @@ int main() {
     t.step(g, kBase, 7, &mine, 1, true, 1016);
     t.step(g, kBase, 7, &mine, 1, true, 1032);
     assert(notes(t) == "target test hguid=4100 +16 ms: target our EVE, aggro level 1, detect result 3\n");
+    s.put<uint64_t>(s.logic + kLogicTask, 0x7000); // A logic task in flight: no lookup, the test reads on after it.
+    const int lookups = s.fsb_calls;
+    t.step(g, kBase, 7, &mine, 1, true, 1040);
+    assert(s.fsb_calls == lookups && notes(t).empty());
+    s.put<uint64_t>(s.logic + kLogicTask, 0);
     s.put<uint64_t>(s.fsb + kAiTarget, s.fsb); // Another actor.
     t.step(g, kBase, 7, &mine, 1, true, 1048);
     s.put<uint64_t>(s.fsb + kAiTarget, 0);
