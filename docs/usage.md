@@ -3276,7 +3276,8 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   followed by `rested=<camp>`, the camp where EVE respawns (that of her last rest or fast-travel arrival), when the
   mod knows it. `activated=none:<why>` means there is no read now: `flow` or `phase` at the title or during a load,
   `fault` once a fault stopped the read until the game restarts, and another word for a part of the game the mod found
-  missing.
+  missing. After a fault, `coop-link.log` has `camps read off: fault 0x... at StellarCoop.dll+0x... reading 0x...;
+  coop travel probe and coop mxiii leave refused until the game restarts`, once.
   [`coop travel probe`](#following-the-host) and `coop mxiii leave` take only camps from this list.
 - Save slot: `slot=<coop|main|none|unknown> index=<n|?> marker=<n|none|bad|?> saves=<coop|main|off|?>` (see
   [saves.md](saves.md#co-op-saves)). `saves=` names the save files the game uses: `main` for your own,
