@@ -555,18 +555,37 @@ end
 assert(#moved==1 and moved[1][4]==50,'Taken out through the new controller')
 assert(lines[#lines]=='shop: coop off: the screen closed; the Beta Seeds did not leave the inventory (no SB player '
     ..'controller): the next coop nightop shop takes them',lines[#lines])
--- A game screen up once the seeds show: no open asked, the seeds out, nothing closed.
+-- A game screen up once the seeds show (the console closed with Escape opens the pause menu): the open waits for
+-- play, then goes on.
 calls,removes,said_to,done_of={},{},{},{}
 assert(screen.open())
 done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
 screen.tick(); screen.tick()
 nightshop_is('closed','50',4,'close:none')
+local asked_before=#said_to
+paused=true
+screen.tick(); screen.tick()
+assert(#said_to==asked_before and #removes==0 and screen.busy(),'Paused: no open asked, the seeds kept, still waiting')
+paused=false
+screen.tick()
+assert(#said_to==asked_before+1 and said_to[#said_to]:find('^nightshop open'),'Playing again: the open asked')
+screen.stop()
+-- A pause that outlasts Shop.PLAY_WAIT: no open asked, the seeds out, nothing closed.
+nightshop_is('closed','0',4,'close:none')
+calls,removes,said_to,done_of={},{},{},{}
+assert(screen.open())
+done_of.shop(true,'in'); done_of.lion(true,'in'); done_of.bolt(true,'in')
+screen.tick(); screen.tick()
+nightshop_is('closed','50',4,'close:none')
+local play_wait=Shop.PLAY_WAIT
+Shop.PLAY_WAIT=-1
 paused=true
 screen.tick()
 paused=false
+Shop.PLAY_WAIT=play_wait
 assert(#said_to==1 and #removes==1 and removes[1][4]==50 and files[FILE]=='50\n' and not screen.busy())
-assert(lines[#lines]=='STOP: shop: the game is paused or shows one of its screens: open the shop once it plays; 50 '
-    ..'Beta Seeds left the inventory',lines[#lines])
+assert(lines[#lines]=='STOP: shop: the game stayed paused or on one of its screens for -1 s: open the shop once it '
+    ..'plays; 50 Beta Seeds left the inventory',lines[#lines])
 -- A screen an earlier Lua load left open (a reload): taken over at the first tick, a purchase written, the seeds out
 -- after the close. Seeds left with the screen closed (a removal that failed, then a run's credit): out at once, the
 -- wallet keeping its count.

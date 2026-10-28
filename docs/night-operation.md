@@ -520,8 +520,12 @@ answers with one `STOP:` line and opens nothing when the save is not a co-op sav
 a run is on, the game is paused or shows one of its screens, the screen is already open, `coop-status.txt` has no
 `nightshop` line (an older DLL) or reads a fault there, or the wallet holds more than 999999 points.
 
+Once the seeds are counted, a pause or one of the game's screens (the pause menu that Escape opens when it closes the
+console, for example) holds the open: it goes on when the game plays again, for up to 30 s.
+
 If a later step fails (the shop's or the stimpacks' rows refused, EVE's map changed while they were asked, the seeds
-not counted within 5 s, the game paused or showing one of its screens once they are, the game not opening the screen),
+not counted within 5 s, the game still paused or on one of its screens 30 s after they are, the game not opening the
+screen),
 the seeds leave the inventory, the wallet stays as it was, the log has a `STOP: shop:` line with the reason, and a
 notice says `The Night Operation shop could not open. UE4SS.log says why.` A shop screen the game already had open
 stays open. When another save was loaded before the open (or a load still reads no save), the mod stops in the same

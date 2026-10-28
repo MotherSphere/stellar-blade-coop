@@ -50,6 +50,9 @@ Shop.SEEDS=999999 -- Its MaxAmount: the most Beta Seeds the bucket holds, and th
 -- s: how long the screen's steps wait (the seeds to show in the count, the native part's answer, a count after the
 -- close), and how long the rows may take in all.
 Shop.WAIT,Shop.ROWS_WAIT=5,60
+-- s: how long the open waits for the game to play when a pause or one of its screens comes up once the seeds show (the
+-- console closed with Escape opens the pause menu).
+Shop.PLAY_WAIT=30
 local BUY='Use: coop nightop buy <item 1-'..#Shop.ITEMS..'> [count 1-10]'
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 local function whole(text) return type(text)=='string' and text:match('^%d+$') and math.tointeger(tonumber(text)) end
@@ -337,9 +340,13 @@ function Shop.new(o)
                 end
                 return
             end
-            if paused() then -- A screen of the game's (its own shop's, maybe) came up meanwhile.
-                return finish(false,'the game is paused or shows one of its screens: open the shop once it plays',
-                    held(ui,s))
+            if paused() then -- A screen of the game's (its own shop's, maybe) came up meanwhile: wait for play.
+                ui.paused_at=ui.paused_at or now
+                if now-ui.paused_at>Shop.PLAY_WAIT then
+                    return finish(false,string.format('the game stayed paused or on one of its screens for %d s: open '
+                        ..'the shop once it plays',Shop.PLAY_WAIT),held(ui,s))
+                end
+                return
             end
             local asked,said=ask('nightshop open'..(ui.bolt and ' bolt' or ''))
             if not asked then return finish(false,'the open was not asked: '..tostring(said),held(ui,s)) end
