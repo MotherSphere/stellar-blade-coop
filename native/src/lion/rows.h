@@ -112,11 +112,11 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
 // The 25 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii, shop, signal) name each with its address. The generated kTables describes them all, the two zone tables camp
-// (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which only Matrix XIII's hand-written
-// batch writes, and the last five, which only Lily's signal batch writes: quest (QuestTable), group
-// (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select (TheaterSelectDataTable, whose
-// ID the batch neither writes nor checks: it only patches a shipped row in place).
+// mxiii, shop, signal) name those their batch writes, each with its address. The generated kTables describes them all,
+// the two zone tables camp (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which only
+// Matrix XIII's hand-written batch writes, and the last five, which only Lily's signal batch writes: quest
+// (QuestTable), group (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select
+// (TheaterSelectDataTable, whose ID the batch neither writes nor checks: it only patches a shipped row in place).
 enum class Table : uint8_t {
   character,
   appearance,
@@ -6605,9 +6605,9 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
-  // One run over the batch (see the top of this file). tables: the 20 tables' addresses as Lua found them, in Table's
-  // order; block: kBlock bytes of the glue's, 16-aligned; base: SB's image base. Runs every row not added yet and
-  // stops at the first refusal.
+  // One run over the batch (see the top of this file). tables: the 25 tables' addresses as Lua found them, in Table's
+  // order (0 for a table the batch never writes, which is never read); block: kBlock bytes of the glue's, 16-aligned;
+  // base: SB's image base. Runs every row not added yet and stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
     Answer a;
     a.state = State::refused;

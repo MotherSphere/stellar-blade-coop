@@ -2,7 +2,7 @@
 -- are R.GARDENER (tests/lua/cut/lion_test.lua checks them against rows.h's kGardenerRecipe): ToxicBeam's steps last its
 -- Show's 5.4 s, its three skills are MeleeAttack, its stance never moves, its CharacterTable rows name its own dead,
 -- appearance and detect rows, its trees and scales. The gardener line parses apart from the lion line. coop gardener
--- fight asks "gardener rows" with the 25 addresses, reads the 13 rows back (the first value that differs stops before
+-- fight asks "gardener rows" with its 5 addresses, reads the 13 rows back (the first value that differs stops before
 -- the spawn), then makes the one spawn call for 50010 (50012 with half, 50011 with skulling) 25 m ahead of EVE (12.5 m
 -- for half) and 7.5 m above her feet, facing her, cheat on, key 0. The body's mesh turns -90 degrees once found (S3),
 -- and again when the game turns it back; it is followed until its death and despawn. intro plays Mon_Gardener_C_Appear
@@ -236,8 +236,11 @@ local function new()
         status=function() return status_text end})
 end
 local function at(t) clock=t end
+-- Only the five tables its rows go into, in kLionTables' order.
 local REQUEST={}
-for _,t in ipairs(Enemy.TABLES) do REQUEST[#REQUEST+1]=string.format('%s=0x%x',t,tables[t]:GetAddress()) end
+for _,t in ipairs({'CharacterTable','CharacterStanceTable','SkillCommandTable','SkillTable','SkillActiveStepTable'}) do
+    REQUEST[#REQUEST+1]=string.format('%s=0x%x',t,tables[t]:GetAddress())
+end
 REQUEST='gardener rows '..table.concat(REQUEST,' ')
 local ROWS_IN='rows added=13/13 asks=%d spawns=%s char=3/3 skills=3/3 stance=1/1'
 local function spawns_body(_,p) body(p) end
@@ -261,8 +264,10 @@ ok,why=gd.command()
 assert(ok==false and why=='coop-status.txt has no gardener line: the native part is off, or older than coop gardener '
     ..'fight (coop-link.log): nothing was asked' and #asked==0,why)
 
--- coop gardener fight rows: one gardener rows request with the 25 addresses, then the wait and the read-back.
+-- coop gardener fight rows: one gardener rows request with its 5 addresses (a table it never writes may be missing),
+-- then the wait and the read-back.
 gardener_status('off')
+present.ShopTable=false
 at(100)
 ok,why=gd.command('rows')
 assert(ok and asked[1]==REQUEST and why=='Gardener rows asked of the native part: the read-back follows once they are '

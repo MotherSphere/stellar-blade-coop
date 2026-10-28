@@ -930,10 +930,11 @@ int main() {
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
   // (batch 3), coop mxiii's (batch 4), the Night Operation shop's (batch 5) and Lily's signal's (batch 6): one
-  // <Table>=0x<address> word for each of the 25 tables, in any order, each once; the addresses in 1 to 16 hex digits of
-  // either case, plausible (user space, 8-aligned). The longest request Lua writes (%x, so 12 digits at most under
-  // plausible's bound) is 813 bytes with its line end; the longest one parsed (16 digits each) fits the native part's
-  // read of its request file (kMaxRequestFile). Anything off is refused.
+  // <Table>=0x<address> word for each table the batch writes, 1 to 25 of them, in any order, each once (the others stay
+  // 0); the addresses in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request Lua
+  // could write (all 25, %x, so 12 digits at most under plausible's bound) is 813 bytes with its line end; the longest
+  // one parsed (16 digits each) fits the native part's read of its request file (kMaxRequestFile). Anything off is
+  // refused.
   const auto rows = [](const char *word, const std::vector<std::string> &words) {
     std::string text = std::string(word) + " rows";
     for (const std::string &w : words)
@@ -999,21 +1000,33 @@ int main() {
   };
   std::vector<std::string> one_short(words.begin(), words.end() - 1), one_more = words;
   one_more.push_back(words[0]);
+  // The tables a batch writes only: one word, or all but one; the others stay 0.
+  const Request mine = parse_request(mxiii({words[19], words[15], words[16]}));
+  assert(mine.command == Command::rows && mine.batch == 4 && mine.tables[15] == 0x1f4a2b3c0f00ull &&
+         mine.tables[16] == 0x1f4a2b3c1000ull && mine.tables[19] == 0x1f4a2b3c1300ull && mine.tables[0] == 0 &&
+         mine.tables[24] == 0);
+  const Request lone = parse_request(signal({words[20]}));
+  assert(lone.command == Command::rows && lone.batch == 6 && lone.tables[20] == 0x1f4a2b3c1400ull &&
+         lone.tables[21] == 0);
+  const Request short_one = parse_request(lion(one_short));
+  assert(short_one.command == Command::rows && short_one.tables[23] == 0x1f4a2b3c1700ull && short_one.tables[24] == 0);
+  std::vector<std::string> doubled = {words[3], words[7], words[3]};
   for (const std::string &bad :
-       {lion(one_short), lion(one_more), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
+       {lion(one_more), lion(with(1, words[0])), lion(doubled), signal({}) + " ",
+        lion(with(2, "CharacterDeadTable=0x")),
         lion(with(2, "CharacterDeadTable=1f4a2b3c0200")), lion(with(2, "CharacterDeadTable=0x1f4a2b3c0201")),
         lion(with(2, "CharacterDeadTable=0xfff8")), lion(with(2, "CharacterDeadTable=0x7ffffffff0000")),
         lion(with(2, "CharacterDeadTable=0x1f4a2b3c02g0")), lion(with(2, "CharacterDeadTable=0x00001f4a2b3c0200000")),
         lion(with(2, "ZoneTable=0x1f4a2b3c0200")), lion(with(2, "characterdeadtable=0x1f4a2b3c0200")),
         lion(with(2, "CharacterDeadTable=-0x1f4a2b3c0200")), lion(words) + " extra", std::string("lion rows"),
         std::string("lion rows "), std::string("lion"), "lion rows  " + lion(words).substr(10),
-        gardener(one_short), gardener(with(2, "CharacterDeadTable=0xfff8")), gardener(words) + " extra",
+        gardener(with(2, "CharacterDeadTable=0xfff8")), gardener(words) + " extra", gardener({words[2], "", words[3]}),
         std::string("gardener rows"), std::string("gardener"), "Gardener rows" + lion(words).substr(9),
-        tendril(one_short), tendril(words) + " extra", std::string("tendril rows"), "Tendril rows" + lion(words).substr(9),
-        bolt(one_short), bolt(words) + " extra", std::string("bolt rows"), "shock rows" + lion(words).substr(9),
-        mxiii(one_short), mxiii(words) + " extra", std::string("mxiii rows"), "MXIII rows" + lion(words).substr(9),
-        shop(one_short), shop(words) + " extra", std::string("shop rows"), "Shop rows" + lion(words).substr(9),
-        signal(one_short), signal(words) + " extra", std::string("signal rows"), "Signal rows" + lion(words).substr(9),
+        tendril(one_more), tendril(words) + " extra", std::string("tendril rows"), "Tendril rows" + lion(words).substr(9),
+        bolt(one_more), bolt(words) + " extra", std::string("bolt rows"), "shock rows" + lion(words).substr(9),
+        mxiii(one_more), mxiii(words) + " extra", std::string("mxiii rows"), "MXIII rows" + lion(words).substr(9),
+        shop(one_more), shop(words) + " extra", std::string("shop rows"), "Shop rows" + lion(words).substr(9),
+        signal(one_more), signal(words) + " extra", std::string("signal rows"), "Signal rows" + lion(words).substr(9),
         "leviathan rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
     assert(parse_request(bad).command == Command::none);
 

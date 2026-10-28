@@ -106,10 +106,10 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
 std::string ask_travel(const coop::Request &request);
 // Worker thread, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii, the Night
 // Operation shop's screen and Lily's signal (lion/rows.h): Lua's lion rows, gardener rows, tendril rows, bolt rows,
-// mxiii rows, shop rows or signal rows request, the 25 tables' addresses for the game thread, which adds that batch's
-// rows through SB's AddRow once its gate holds. Refused off the pinned build, after coop off and after the rows' fault,
-// and not asked again once every row of the batch is in. Returns the line for the log; fight_pass logs the game
-// thread's answer.
+// mxiii rows, shop rows or signal rows request, the addresses of the tables that batch writes (1 to 25 of them) for the
+// game thread, which adds that batch's rows through SB's AddRow once its gate holds. Refused off the pinned build,
+// after coop off and after the rows' fault, and not asked again once every row of the batch is in. Returns the line for
+// the log; fight_pass logs the game thread's answer.
 std::string ask_rows(const coop::Request &request);
 // Worker: coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop and signal lines (lion/rows.h's status_line),
 // one per batch, joined by a line break: "<word>=off", or the state (waiting, rows, refused, fault) with added=<n>/<N>,

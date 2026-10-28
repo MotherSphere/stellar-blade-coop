@@ -3,8 +3,9 @@
 -- cut/mxiii.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and its screen,
 -- through cut/lion.lua). The monster's rows
 -- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
--- logic task in flight). This file finds the 25 tables by their fixed paths and sends their addresses (the spec's
--- "<word> rows" request: no console word reaches an address), waits for the answer in coop-status.txt's <word> line,
+-- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 25) by their fixed
+-- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
+-- no row of the batch uses never stops it; it waits for the answer in coop-status.txt's <word> line,
 -- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
 -- the first value that differs, then runs the spec's prepare (the Tendril's Shows). Then one spawn call,
 -- nightop/run.lua's ServerRequest_CreateActor with cheat on and key 0 (no EventSpawn row: no zone storage, no quest
@@ -46,7 +47,8 @@ local N=require('nightop.probe')
 local Doro=require('race.doro')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Enemy={}
--- The 25 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
+-- The native part's 25 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a
+-- request names only those its batch's rows go into.
 Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
     'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
     'TargetFilterTable','SkillResultTable','EffectTable','ItemTable','ItemConsumableTable','ProjectileTable',
@@ -203,15 +205,19 @@ function Enemy.new(o,spec)
     local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
     local function my_line() return Enemy.parse(status and status(),word) end
     local her=N.her
-    -- The 25 tables by name, and those missing.
+    -- The tables the spec's rows go into, in the native part's order, by name, and those missing.
+    local used={}
+    for _,r in ipairs(spec.rows) do used[r.table]=true end
     local function tables()
         local found,missing,words={},{},{}
         for _,t in ipairs(Enemy.TABLES) do
-            local dt=valid(StaticFindObject(DATA..t..'.'..t))
-            if dt and dt:IsA(U.find('/Script/Engine.DataTable')) then
-                found[t]=dt
-                words[#words+1]=string.format('%s=0x%x',t,U.address(dt))
-            else missing[#missing+1]=t end
+            if used[t] then
+                local dt=valid(StaticFindObject(DATA..t..'.'..t))
+                if dt and dt:IsA(U.find('/Script/Engine.DataTable')) then
+                    found[t]=dt
+                    words[#words+1]=string.format('%s=0x%x',t,U.address(dt))
+                else missing[#missing+1]=t end
+            end
         end
         return found,missing,words
     end
@@ -613,11 +619,11 @@ function Enemy.new(o,spec)
         if not eve and not title then return false,'no EVE in the world (load a save first): nothing was asked' end
         local found,missing,words=tables()
         if #missing>0 then
-            log(string.format('tables: %d/%d found, missing %s: nothing asked',#words,#Enemy.TABLES,
+            log(string.format('tables: %d/%d found, missing %s: nothing asked',#words,#words+#missing,
                 table.concat(missing,', ')))
             return false,'The game has no '..table.concat(missing,', ')..' loaded: nothing was asked.'
         end
-        log(string.format('tables: %d/%d found: %s',#words,#Enemy.TABLES,table.concat(words,' ')))
+        log(string.format('tables: %d/%d found: %s',#words,#words,table.concat(words,' ')))
         local s=my_line()
         if not s then
             return false,'coop-status.txt has no '..word..' line: the native part is off, or older than '..command

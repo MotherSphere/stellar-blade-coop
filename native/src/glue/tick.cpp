@@ -85,13 +85,14 @@
 //
 // The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's and
 // Lily's signal's (lion/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt,
-// coop mxiii, the shop and story/lily.lua): the worker hands over the 25 tables' addresses from Lua's lion rows,
-// gardener rows, tendril rows, bolt rows, mxiii rows, shop rows or signal rows request; the game thread adds that
-// batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic task in flight), under one SEH latch
-// for all, reads them back through SB's lookups by ID and, once asked, reads the spawn manager's counter every 250 ms;
-// status() gives it all in the lion, gardener, tendril, bolt, mxiii, shop and signal lines, and the worker logs each
-// answer. Right after the bolt rows batch's last row, in the same call, the Shock Bolt's two lists grow in place
-// (lion/shock.h) under a latch of their own; status() gives the shock line, and the worker logs it once.
+// coop mxiii, the shop and story/lily.lua): the worker hands over the tables' addresses from Lua's lion rows, gardener
+// rows, tendril rows, bolt rows, mxiii rows, shop rows or signal rows request (those that batch writes, 0 for the
+// others); the game thread adds that batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic
+// task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and, once asked, reads the
+// spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril, bolt, mxiii, shop and
+// signal lines, and the worker logs each answer. Right after the bolt rows batch's last row, in the same call, the
+// Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status() gives the shock line, and
+// the worker logs it once.
 //
 // The Night Operation shop in SB's own shop screen (nightop/shop_ui.h, coop nightop shop): the worker hands over Lua's
 // nightshop open, open bolt or close; the next frame the game thread opens SB's shop screen on one of the shop rows

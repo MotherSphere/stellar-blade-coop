@@ -1,28 +1,27 @@
 -- cut/lion.lua with fake UE4SS objects. Its row list (cut/lion_rows.lua, generated with rows.h) matches
 -- native/src/lion/rows.h's generated recipe row for row (names, IDs, each patched field's kind and value, no field
--- more), and so do the Gardener's (R.GARDENER, kGardenerRecipe), the Tendril's (R.TENDRIL, kTendrilRecipe), the
--- Shock Bolt's (R.BOLT, kBoltRecipe) and the Night Operation shop's (R.SHOP, kShopRecipe); its tables are kLionTables
--- in order. The rows are the Lion's own: no value names
--- a Behemoth row or asset
--- but the sound set, every reference lands on a Lion row or a shipped generic one, the steps' moves are Lion moves, the
--- phase-2 stance turns at HP under 60% and starts the roar's effect, which uses the phase-2 roar skill. The lion line
--- parses in each of its forms. coop lion finds the 25 tables (a missing one, no EVE or no lion line asks nothing), asks
--- the rows once with every address in the native order, waits for the answer (a waiting line, or a refusal from before
--- the ask, is no answer; a map change, a refusal, a fault, 30 s or SB's lookups finding fewer rows stop it), reads
--- every row back through FindRow (the first value that differs stops before any spawn), then makes the one spawn call:
--- 50020 (50021 after brain lurker, 50110 for control, no rows needed) 10 m ahead and 1 m up, facing EVE, cheat on, key
--- 0. Rows already in are read back without an ask. Lion.rows with word bolt runs the Shock Bolt's batch the same way
--- on a job of its own, and a frame where both end says both; with word shop, the Night Operation shop's batch. The
--- body is the new one nearest the spot (or one SB sent
--- far away and moved back, whose old follow ends as recycled), given its default controller when it still has none
--- 1.5 s after the call, then followed: a line a second (its place, anim speed, skill and custom anim alphas, a failed read as ?),
--- its death and its body's despawn with the spawn counts; none after 5 s stops. While a Lion lives, the boss name (only the live TextBlock_BossName reading <M_LionC> set to Lion, again after the game writes it back;
--- FindAllOf at most every 10 s while none is held). coop lion intro plays the entrance on a display copy first and
--- spawns where its root ended (at the spot when that is too far), removing the copy as soon as the body shows; a map
--- change during it spawns nothing; a copy that cannot be made spawns at once. A second command waits while one runs
--- (brain does not); coop off ends the job and the copy. Never AddRow, RemoveRow or a call from a coroutine, and the
--- source names no save, quest, item, reward, achievement, possession, console, destroy or row call, and no spawn but
--- its one CreateActor and its one SpawnDefaultController.
+-- more), and so do the Gardener's (R.GARDENER, kGardenerRecipe), the Tendril's (R.TENDRIL, kTendrilRecipe), the Shock
+-- Bolt's (R.BOLT, kBoltRecipe) and the Night Operation shop's (R.SHOP, kShopRecipe); its tables are kLionTables in
+-- order. The rows are the Lion's own: no value names a Behemoth row or asset but the sound set, every reference lands
+-- on a Lion row or a shipped generic one, the steps' moves are Lion moves, the phase-2 stance turns at HP under 60% and
+-- starts the roar's effect, which uses the phase-2 roar skill. The lion line parses in each of its forms. coop lion
+-- finds the 14 tables its rows go into (a missing one, no EVE or no lion line asks nothing; a table it never writes may
+-- be missing), asks the rows once with their addresses in the native order, waits for the answer (a waiting line, or a
+-- refusal from before the ask, is no answer; a map change, a refusal, a fault, 30 s or SB's lookups finding fewer rows
+-- stop it), reads every row back through FindRow (the first value that differs stops before any spawn), then makes the
+-- one spawn call: 50020 (50021 after brain lurker, 50110 for control, no rows needed) 10 m ahead and 1 m up, facing
+-- EVE, cheat on, key 0. Rows already in are read back without an ask. Lion.rows with word bolt runs the Shock Bolt's
+-- batch the same way on a job of its own, and a frame where both end says both; with word shop, the Night Operation
+-- shop's batch. The body is the new one nearest the spot (or one SB sent far away and moved back, whose old follow ends
+-- as recycled), given its default controller when it still has none 1.5 s after the call, then followed: a line a
+-- second (its place, anim speed, skill and custom anim alphas, a failed read as ?), its death and its body's despawn
+-- with the spawn counts; none after 5 s stops. While a Lion lives, the boss name (only the live TextBlock_BossName
+-- reading <M_LionC> set to Lion, again after the game writes it back; FindAllOf at most every 10 s while none is held).
+-- coop lion intro plays the entrance on a display copy first and spawns where its root ended (at the spot when that is
+-- too far), removing the copy as soon as the body shows; a map change during it spawns nothing; a copy that cannot be
+-- made spawns at once. A second command waits while one runs (brain does not); coop off ends the job and the copy.
+-- Never AddRow, RemoveRow or a call from a coroutine, and the source names no save, quest, item, reward, achievement,
+-- possession, console, destroy or row call, and no spawn but its one CreateActor and its one SpawnDefaultController.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -576,15 +575,19 @@ local function new()
         status=function() return status_text end})
 end
 local function at(t) clock=t end
+-- The Lion's request: the 14 tables its rows go into, the first 14 of kLionTables.
 local REQUEST='lion rows CharacterTable=0x%x CharacterAppearanceTable=0x%x CharacterDeadTable=0x%x '
     ..'CharacterStanceTable=0x%x CharacterAnimSetTable=0x%x SkillCommandTable=0x%x SkillTable=0x%x '
     ..'SkillActiveStepTable=0x%x CharacterMoveTable=0x%x TargetFilterTable=0x%x SkillResultTable=0x%x '
-    ..'EffectTable=0x%x ItemTable=0x%x ItemConsumableTable=0x%x ProjectileTable=0x%x ZoneCampTable=0x%x '
-    ..'ZoneEnvSpawnTable=0x%x ShopTable=0x%x ShopItemTable=0x%x ZoneTriggerTable=0x%x QuestTable=0x%x '
-    ..'QuestTaskGroupTable=0x%x QuestTaskTable=0x%x LevelTargetFilter=0x%x TheaterSelectDataTable=0x%x'
+    ..'EffectTable=0x%x ItemTable=0x%x ItemConsumableTable=0x%x'
 local addresses={}
 for k,t in ipairs(L.TABLES) do addresses[k]=tables[t]:GetAddress() end
-REQUEST=REQUEST:format(table.unpack(addresses))
+REQUEST=REQUEST:format(table.unpack(addresses,1,14))
+-- The Shock Bolt's 4 and the shop's 3, in the same order.
+local BOLT_REQUEST=string.format('bolt rows SkillTable=0x%x SkillResultTable=0x%x ItemTable=0x%x ProjectileTable=0x%x',
+    addresses[7],addresses[11],addresses[13],addresses[15])
+local SHOP_REQUEST=string.format('shop rows ItemTable=0x%x ShopTable=0x%x ShopItemTable=0x%x',addresses[13],
+    addresses[18],addresses[19])
 local ROWS_IN='rows added=237/237 asks=%d spawns=%s char=2/2 skills=23/23 stance=2/2'
 local SPOT={X=1000,Y=0,Z=200}
 -- The call's body: the Lion with no controller, the Antlion with the game's own.
@@ -608,24 +611,27 @@ player=eve
 present.SkillTable=false
 ok,why=lion.command('rows')
 assert(ok==false and why=='The game has no SkillTable loaded: nothing was asked.' and #asked==0,why)
-assert(last()=='tables: 24/25 found, missing SkillTable: nothing asked',last())
+assert(last()=='tables: 13/14 found, missing SkillTable: nothing asked',last())
 present.SkillTable=true
 status_text='mod=v\n'
 ok,why=lion.command()
 assert(ok==false and why:find('^coop%-status%.txt has no lion line') and #asked==0,why)
-assert(last():find('^tables: 25/25 found: CharacterTable=0x'),last())
+assert(last():find('^tables: 14/14 found: CharacterTable=0x'),last())
 refuse_ask='the Steam link needs the native part'
 lion_status('off')
 ok,why=lion.command('rows')
 assert(ok==false and why=='Lion rows not asked: the Steam link needs the native part' and #asked==0,why)
 refuse_ask=nil
 
--- coop lion rows: one ask with the 25 addresses in kLionTables' order, then the wait.
+-- coop lion rows: one ask with its 14 addresses in kLionTables' order, then the wait; the quest and choice tables no
+-- row of it uses, not loaded, change nothing.
 at(100)
+present.QuestTable,present.TheaterSelectDataTable=false,false
 ok,why=lion.command('rows')
+present.QuestTable,present.TheaterSelectDataTable=true,true
 assert(ok and asked[1]==REQUEST and #asked==1,asked[1])
 assert(last()=='rows asked of the native part (lion=off): its answer is the next asks= past 0',last())
-assert(logged('^tables: 25/25 found: '..REQUEST:sub(11):gsub('%-','%%-')..'$'),'R1 with every address')
+assert(logged('^tables: 14/14 found: '..REQUEST:sub(11):gsub('%-','%%-')..'$'),'R1 with every address')
 ok,why=lion.command()
 assert(ok==false and why=='coop lion is busy (the wait for the Lion rows): try again in a few seconds',why)
 ok,why=lion.command('brain','lurker')
@@ -1115,12 +1121,11 @@ do
     assert(ok==false and why:find('^no EVE: no EVE in the world'),why)
     player=eve
 end
--- Lion.rows with word bolt, the shop's Shock Bolt: the bolt rows request with the same 25 addresses, read on the bolt
+-- Lion.rows with word bolt, the shop's Shock Bolt: the bolt rows request with its 4 addresses, read on the bolt
 -- line, on a job of its own (a lion rows ask meanwhile is not busy), its 4 rows read back, its [LI] lines starting with
 -- bolt; a frame where both jobs end says both, one where the bolt's alone ends says its own; coop off ends its wait.
 do
     local shopper=new()
-    local BOLT_REQUEST='bolt'..REQUEST:sub(5)
     local asks,said=#asked,nil
     status_text='mod=v\nslot=coop\nlion=off\nbolt=off\n'
     at(6000)
@@ -1160,11 +1165,10 @@ do
     assert(last()=='bolt coop off: the wait for the Shock Bolt rows ended',last())
     at(6230); assert(other.tick()==nil,'No answer after coop off')
 end
--- Lion.rows with word shop, the Night Operation shop's screen: the shop rows request with the same 25 addresses, read
+-- Lion.rows with word shop, the Night Operation shop's screen: the shop rows request with its 3 addresses, read
 -- on the shop line, on a job of its own, its 6 rows read back, its [LI] lines starting with shop.
 do
     local shopper=new()
-    local SHOP_REQUEST='shop'..REQUEST:sub(5)
     local asks,said=#asked,nil
     status_text='mod=v\nslot=coop\nlion=off\nshop=off\n'
     at(6300)

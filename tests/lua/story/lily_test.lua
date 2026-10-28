@@ -200,12 +200,12 @@ ly.tick()
 lines.slot='slot=coop index=4'
 ly.tick() -- No EVE: no rows asked in game.
 assert(#asked==0,'Nothing off a co-op save or with no EVE')
--- The title's batch: the co-op save files, no test pak needed: the rows asked with the 25 addresses, then read back.
+-- The title's batch: the co-op save files, no test pak needed: the rows asked with their 5 addresses, then read back.
 lines.slot='slot=none index=4'
 ly.title(true,false)
 assert(#asked==0,'Not on your own saves')
 ly.title(true,true)
-assert(#asked==1 and asked[1]:find('^signal rows CharacterTable=0x%x+ ') and select(2,asked[1]:gsub('=0x',''))==25,
+assert(#asked==1 and asked[1]:find('^signal rows QuestTable=0x%x+ ') and select(2,asked[1]:gsub('=0x',''))==5,
     asked[1])
 assert(logged('title: the co-op save files: the rows asked before any save loads (try 1 of 4)'))
 lines.signal=ROWS_IN:format(1)
@@ -350,7 +350,7 @@ lines.lily='lily=off asks=5 want=off why=none'
 asked,logs={},{}
 ly=new()
 clock=clock+1; ly.tick()
-assert(#asked==1 and asked[1]:find('^signal rows CharacterTable=0x'),tostring(asked[1]))
+assert(#asked==1 and asked[1]:find('^signal rows QuestTable=0x'),tostring(asked[1]))
 clock=clock+1; ly.tick(); assert(#asked==1,'Once a Lua load')
 lines.signal=ROWS_IN:format(2)
 clock=clock+0.5; ly.tick()

@@ -574,8 +574,9 @@ inline uint64_t code_lobby(std::string_view text) {
 // cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (cut/mxiii.lua) "mxiii rows <Table>=0x<address>
 // ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop rows
 // <Table>=0x<address> ..." and for Lily's signal (story/lily.lua) "signal rows <Table>=0x<address> ..."
-// (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each of the kLionTables, in any
-// order, each once, its address in 1 to 16 hex digits and plausible; Request::batch says which). Lua finds the tables
+// (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each table the batch writes, 1 to
+// 25 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
+// stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
 // of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
@@ -800,18 +801,22 @@ inline Request parse_quests(const std::string &text) {
   r.deny = deny;
   return r;
 }
-// What follows "<word> rows ". Command::none when anything is off.
+// What follows "<word> rows ": 1 to kLionTableCount words, one space apart. Command::none when anything is off.
 inline Request parse_rows(const std::string &text) {
-  std::string w[kLionTableCount];
-  if (!split(text, w, kLionTableCount, nullptr))
-    return Request();
   Request r;
-  for (const std::string &word : w) {
+  size_t n = 0;
+  for (size_t at = 0, space = 0; at <= text.size(); at = space + 1) {
+    space = text.find(' ', at);
+    if (space == std::string::npos)
+      space = text.size();
+    const std::string_view word = std::string_view(text).substr(at, space - at);
+    if (++n > kLionTableCount)
+      return Request();
     const size_t eq = word.find("=0x");
-    const auto *name = eq == std::string::npos ? std::end(kLionTables)
-                                               : std::find(std::begin(kLionTables), std::end(kLionTables),
-                                                           std::string_view(word).substr(0, eq));
-    const std::string_view hex = eq == std::string::npos ? std::string_view() : std::string_view(word).substr(eq + 3);
+    const auto *name = eq == std::string::npos
+                           ? std::end(kLionTables)
+                           : std::find(std::begin(kLionTables), std::end(kLionTables), word.substr(0, eq));
+    const std::string_view hex = eq == std::string::npos ? std::string_view() : word.substr(eq + 3);
     if (name == std::end(kLionTables) || r.tables[size_t(name - kLionTables)] || hex.empty() || hex.size() > 16 ||
         hex.find_first_not_of("0123456789abcdefABCDEF") != std::string_view::npos)
       return Request();

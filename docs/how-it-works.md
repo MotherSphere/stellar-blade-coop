@@ -1582,23 +1582,25 @@ clip the Lion has, and no move may travel over 17 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
-its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 25 tables
-by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the tables
+the batch's rows go into by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one
+request, for the Lion its 14:
 
 ```
 lion rows CharacterTable=0x<address> CharacterAppearanceTable=0x<address> CharacterDeadTable=0x<address>
 CharacterStanceTable=0x<address> CharacterAnimSetTable=0x<address> SkillCommandTable=0x<address>
 SkillTable=0x<address> SkillActiveStepTable=0x<address> CharacterMoveTable=0x<address>
 TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address> ItemTable=0x<address>
-ItemConsumableTable=0x<address> ProjectileTable=0x<address> ZoneCampTable=0x<address>
-ZoneEnvSpawnTable=0x<address> ShopTable=0x<address> ShopItemTable=0x<address> ZoneTriggerTable=0x<address>
-QuestTable=0x<address> QuestTaskGroupTable=0x<address> QuestTaskTable=0x<address> LevelTargetFilter=0x<address>
-TheaterSelectDataTable=0x<address>
+ItemConsumableTable=0x<address>
 ```
 
-It is one line in `coop-request.txt` (809 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
-address and its line end, 813 for the Gardener's `gardener rows`; the native part reads up to 1024 bytes of that file).
-Each of the 25 words comes once, in any order.
+It is one line in `coop-request.txt`. The native part knows 25 tables (`kLionTables`, the 14 above, then
+ProjectileTable, ZoneCampTable, ZoneEnvSpawnTable, ShopTable, ShopItemTable, ZoneTriggerTable, QuestTable,
+QuestTaskGroupTable, QuestTaskTable, LevelTargetFilter and TheaterSelectDataTable); a request names 1 to 25 of them,
+each once, in any order, and the others stay 0, which a batch that writes that table refuses as no UDataTable. So a
+table no row of the batch uses, not loaded at that moment, stops nothing. A request naming all 25 would take 813 bytes
+at most with the 12 hex digits Lua's `%x` gives the highest plausible address and its line end; the native part reads
+up to 1024 bytes of that file.
 Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console
 word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
 slot and its row size.
@@ -2254,7 +2256,8 @@ What the title holds, read in Ghidra on build 24463856:
   memory at the title and stay rooted through the load that follows, and rows added there are in the objects the game
   reads after it. The quest tables of Lily's signal are in the same holder (QuestTable at index `0x21`, QuestTaskTable
   `0x22`, QuestTaskGroupTable `0x23`); whether LevelTargetFilter and TheaterSelectDataTable are in its list was not
-  checked (a table missing at the title shows as `tables: 24/25 found, missing ...` and the title asks again).
+  checked (one missing at the title shows as `tables: 4/5 found, missing ...` on the `[LY]` lines and the title asks
+  again; each batch sends only the tables its rows use, so the other batches never wait for these two).
 - The gate's globals. The logic singleton (`0x147032568`) and the net-mode cache (`0x147032528`) are made by their
   getters (`FUN_141a97b20`, `FUN_141a97aa0`) on first use and never freed. The cache starts at 4 and takes the world's
   mode at the first of the game's many inlined reads that resolves it (the dispatch's, `FUN_141aca570`,
