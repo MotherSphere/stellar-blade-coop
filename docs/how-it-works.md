@@ -58,8 +58,8 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `core/settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
 | `core/ue4ss_settings.lua` | Checks `HookBeginPlay` and `bUseUObjectArrayCache` in `UE4SS-settings.ini` (read only) |
 | `nightop/probe.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
-| `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, the pairing of new bodies with their spawn spots, and the night line's two formats, with no engine call |
-| `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, a co-op run's down and revive, the night line, its card and result panel |
+| `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, the pairing of new bodies with their spawn spots, a spot moved onto the navmesh through navmesh calls it is given (`W.settle`), and the night line's two formats, with no engine call |
+| `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns and the navmesh calls that settle their spots, the monsters it tracks, a co-op run's down and revive, the night line, its card and result panel |
 | `nightop/shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
 | `nightop/challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
 | `nightop/board.lua` | The Shooting Range's score on the cut test widget `WB_ShootingTrainingTest`, beside the run's card |
@@ -1777,9 +1777,16 @@ take any CharacterTable ID at any place. The charId is fixed in code: 50020, or 
 EventSpawnId 0, as the game's own summons spawn. The body is the new character of the Large blueprint's class nearest
 the spot, looked for at 0.3, 1, 2, 3.5 and 5 s among the SBCharacters of EVE's world from the engine's class hash
 (`GetAllActorsOfClass`), or with `FindAllOf` of the class, which walks every object, where this UE4SS cannot use the
-class hash. Up to 0.6.0-beta.3 every look walked. One that still has no controller 1.5 s after the call gets its default
-one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from `InteractionState` and `Controller`,
-as `nightop/run.lua` reads it. The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away
+class hash. Up to 0.6.0-beta.3 every look walked. A body with no controller that reads `InteractionState` 0 gets its
+default one 1.5 s after the call (`SpawnDefaultController`). Its death is read from `InteractionState` and
+`Controller`: a value other than 0 with no controller. Every body of this spawn reads `InteractionState` 1
+(executable) from its first second, in battle or not (the Lion's and the Antlion's follow lines, 2026-10-23), until its
+death reads 3 (every death logged). For these bodies 1 is the standing state, not a sign of the fight, so
+`nightop/run.lua` counts 0 and 1 as standing; a Night Operation run that counted 0 alone found none of its monsters
+(2026-10-28). The Lion code (`cut/enemy.lua`) still adopts a body only at 0 and still reads any other value with no
+controller as a death. That holds because these bodies had a controller from the spawn on (`controller SBAIController`
+on 2026-10-23); a state-1 body without one would never be adopted and would read as dead. Which game code sets 1 was
+not traced. The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away
 came back on 2026-10-23), so a body that stood more than 100 m from the spot at the call and stands within 30 m of it
 after counts as the new one; its old follow line ends as recycled.
 
@@ -1825,7 +1832,6 @@ Only the game can settle these:
 - why the Lion stays in its idle pose: the game never plays its Shows on that body, the Shows play and their clips do
   not load, or the clips load and the animation blueprint does not blend them in (the follow line's skill flag and anim
   alphas narrow it down, and `coop lion control` tells the spawn call from the rows);
-- why `InteractionState` reads 1 (executable) from the first second of the fight;
 - whether the Lion walks to EVE or stands while she moves around it (the follow line now logs its place);
 - where the lock-on marker sits, whether its feet meet the ground and whether its hit sounds play;
 - what a key-0 death does to the spawn manager's counter;

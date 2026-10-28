@@ -130,21 +130,49 @@ end
 -- Where a slot stands and the yaw that faces p0 (centimetres and degrees, as the game's). The gates sit at the start
 -- yaw plus these degrees, 14 m from p0 and 1 m above it. Adapted from Survival Protocol spread: the first monster at a
 -- gate stands on it, each further one 2.5 m from it at an angle of k x 2.1 rad. A definition with spots stands each
--- slot on its own spot instead.
+-- slot on its own spot instead; a slot past the last spot (only a moved one, run.lua's place) spreads from its spot
+-- the same way.
 local GATES,OUT,UP,SPREAD,STEP={40,-40,140,-140},1400,100,250,2.1
 function W.spot(p0,yaw,order,slot,def)
-    local x,y
+    local n=def and def.spots and #def.spots or 4
+    local k,x,y=slot//n
     if def and def.spots then
-        local spot=def.spots[order[slot+1]]
+        local spot=def.spots[order[slot%n+1]]
         local a=math.rad(yaw+spot[1])
         x,y=p0.X+spot[2]*100*math.cos(a),p0.Y+spot[2]*100*math.sin(a)
     else
-        local g,k=math.rad(yaw+GATES[order[slot%4+1]]),slot//4
-        local r=k>0 and SPREAD or 0
-        x=p0.X+OUT*math.cos(g)+r*math.cos(k*STEP)
-        y=p0.Y+OUT*math.sin(g)+r*math.sin(k*STEP)
+        local g=math.rad(yaw+GATES[order[slot%4+1]])
+        x,y=p0.X+OUT*math.cos(g),p0.Y+OUT*math.sin(g)
     end
+    local r=k>0 and SPREAD or 0
+    x,y=x+r*math.cos(k*STEP),y+r*math.sin(k*STEP)
     return {X=x,Y=y,Z=p0.Z+UP},math.deg(math.atan(p0.Y-y,p0.X-x))
+end
+-- A spot moved onto the navmesh SB's AI walks, so that no monster spawns inside a wall (seen on 2026-10-28). The start
+-- p0 is projected onto the navmesh, then the navmesh is walked from there towards the spot. Where the walk stops (a
+-- wall, a ledge, a gap), the point comes back PULL cm from the stop; under CLOSEST cm from the start, the gate is
+-- dropped. The point lands on the floor there (looked for in a taller box when the usual one finds none: a slope), as
+-- high over it as p0 stands over its own navmesh point, plus UP: on flat open ground, the spot itself. nav: project(p,
+-- tall), the navmesh point nearest p or nil; ray(a,b), true and where when the walk from a to b stops, else false.
+-- Returns the point, or nil, why, and for a gate dropped as too close the point it would have had if that lies NEAREST
+-- cm from the start or more (run.lua's place falls back to it rather than to a spot inside a wall).
+local PULL,CLOSEST,NEAREST=150,500,200
+function W.settle(p0,spot,nav)
+    local s=nav.project(p0)
+    if not s then return nil,'no navmesh under the start' end
+    local to,short={X=spot.X,Y=spot.Y,Z=s.Z},false
+    local blocked,hit=nav.ray(s,to)
+    if blocked then
+        local d=math.sqrt((hit.X-s.X)^2+(hit.Y-s.Y)^2)
+        if d-PULL<NEAREST then return nil,'blocked' end
+        local f=(d-PULL)/d
+        to,short={X=s.X+(hit.X-s.X)*f,Y=s.Y+(hit.Y-s.Y)*f,Z=hit.Z},d-PULL<CLOSEST
+    end
+    local floor=nav.project(to) or nav.project(to,true)
+    if not floor then return nil,short and 'blocked' or 'no floor' end
+    local at={X=floor.X,Y=floor.Y,Z=floor.Z+p0.Z-s.Z+UP}
+    if short then return nil,'blocked',at end
+    return at
 end
 -- A wave's new bodies to its slots by place. The key a spawn gives never reaches the character in a standalone game:
 -- SB copies it to BroadcastSpawnInfo only in its spawn broadcast (FUN_1422707f0), under net mode 1 or 2, and InitActor

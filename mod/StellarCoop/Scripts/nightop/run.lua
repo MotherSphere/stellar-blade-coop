@@ -6,10 +6,10 @@
 -- place of the level on his line); its score also goes to the cut shooting test's widget (nightop/board.lua).
 -- nightop/waves.lua holds
 -- the waves, the keys and the run's states, read from the run's definition; this file is the game side: the start
--- checks and the census, the one spawn call, the bodies it tracks, their aggro and stuck moves, the abort watch and the
--- end, and what the player sees: a card at the top centre and a result panel on the Uplink kit (ui/kit.lua), or notices
--- while the kit is off. The run has no rule row: its clock is game time and it ends itself. Solo when no Steam session
--- holds; linked, the host starts a Night Operation run for both players: the
+-- checks and the census, the one spawn call and the navmesh ground of its spots, the bodies it tracks, their aggro and
+-- stuck moves, the abort watch and the end, and what the player sees: a card at the top centre and a result panel on
+-- the Uplink kit (ui/kit.lua), or notices while the kit is off. The run has no rule row: its clock is game time and
+-- it ends itself. Solo when no Steam session holds; linked, the host starts a Night Operation run for both players: the
 -- night line (one full state from each side through the native part, core/link.lua's night) carries his ask, her
 -- answer, his clock, waves, score and end, and her world's kills and bodies, so both worlds run the same seeded waves
 -- around his start point and both cards show one timer and one score. Each world fights its own monsters, unless the
@@ -51,9 +51,15 @@ local CLEAR=40 -- Metres: no living character but EVE this close at the start.
 local LEAVE,LEAVE_FOR,GONE_FOR=80,10,2 -- EVE farther than LEAVE m from the start for LEAVE_FOR s, or gone GONE_FOR s.
 -- Seconds after a wave's last spawn call: its bodies are looked for; one not found by the last is missing.
 local FINDS={1,2.5}
--- Metres on the ground from a slot's spot within which a new body is taken for it (W.match). Two gates stand 18 m apart
--- at least, Target Practice's spots 7.9 m. Widen it if the log shows missing monsters with a new body just past it.
+-- Metres on the ground from where a slot's spawn call stood it within which a new body is taken for it (W.match). The
+-- points of one wave can stand 2.5 m apart (two at one gate, W.spot), and closer once W.settle pulls both back from one
+-- wall, so a body that lands off its point can pair with a neighbour's slot whatever this radius. Widen it if the log
+-- shows missing monsters with a new body just past it.
 local MATCH=5
+-- A spot's ground (W.settle): NavigationSystemV1's static calls, and how far from a point they look for the navmesh
+-- (cm across, then up or down; TALL when EXTENT finds no floor).
+local NAV='/Script/NavigationSystem.Default__NavigationSystemV1'
+local EXTENT,TALL={X=100,Y=100,Z=500},{X=100,Y=100,Z=1500}
 -- Metres: a character up before a wave that stands this far or more from where it stood then is one the game took back
 -- from its pool for a spawn (a Lion body came back from 466 m on 2026-10-23, how-it-works.md), so it can be new.
 local REUSED=50
@@ -106,21 +112,25 @@ local function key_of(c)
     local k=math.tointeger(c.BroadcastSpawnInfo.EventSpawnId)
     return k and k&MASK
 end
+-- InteractionState 0 or 1 stands. A body of our spawn (cheat on, key 0) reads 1, executable, from its first second, in
+-- battle or not (the Lion's and the Antlion's follow lines, 2026-10-23), until its death reads 3 (every death logged).
+-- Read as 0 alone, a run on 2026-10-28 tracked none of its 20 monsters.
+local function standing(st) return st==0 or st==1 end
 local function living(c) return c.InteractionState==0 and U.valid(c.Controller)~=nil end
 -- Standing in the fight: alive and shown, controller or not (a new body may get its controller later). A wave takes a
 -- character up before its first spawn call only if it moved REUSED m since: the game pools its characters, so a body
 -- it reuses for the spawn may sit at the address of one that died, or of one far away.
-local function up(c) return c.InteractionState==0 and c.bCharacterHiddenInGame~=true end
+local function up(c) return standing(c.InteractionState) and c.bCharacterHiddenInGame~=true end
 -- Every SBCharacter in EVE's world, through the engine's class hash (core/unreal.lua's actors_of) rather than a walk of
 -- every object.
 local function characters(eve) return (U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',eve)) end
--- Adapted from Survival Protocol rlIsDeadNow and rlBodyDead. InteractionState turns non-zero at death, but 1 alone
--- means "can be executed"; a dying body loses its controller at once. Killed: non-zero with no controller. Down, for
--- the wave check: non-zero or hidden by the game (read only).
+-- Adapted from Survival Protocol rlIsDeadNow and rlBodyDead; a dying body loses its controller at once. Killed: not
+-- standing with no controller (every death logged reads 3). A standing body with no controller is a new one adopt has
+-- not reached yet, not a kill. Down, for the wave check: not standing or hidden by the game (read only).
 local function signals(c)
     local st=c.InteractionState
-    local killed=st~=0 and U.valid(c.Controller)==nil
-    return killed,killed or st~=0 or c.bCharacterHiddenInGame==true
+    local killed=not standing(st) and U.valid(c.Controller)==nil
+    return killed,killed or not standing(st) or c.bCharacterHiddenInGame==true
 end
 -- The one spawn call: a pool row and a wave key, its low byte as the spawn index. cheat=true takes any CharacterTable
 -- ID at any transform; not a player, player 0, no spawn point, no possess.
@@ -336,7 +346,7 @@ function Run.new(o)
     -- Adapted from Survival Protocol's adopt rule: a living body with no controller never moves; it gets its default.
     local function adopt(b)
         with(b,function(c)
-            if c.InteractionState~=0 or U.valid(c.Controller) then return end
+            if not standing(c.InteractionState) or U.valid(c.Controller) then return end
             local ok=pcall(function() c:SpawnDefaultController() end)
             log(string.format('controller %s: SpawnDefaultController %s',hex(b.key),
                 ok and U.valid(c.Controller) and 'gave one' or 'failed'))
@@ -422,7 +432,7 @@ function Run.new(o)
             local slots,spots,fresh,held,taken,before,me={},{},{},{},{},r.before[k] or {},U.address(r.eve)
             for slot=0,#ids-1 do
                 local key=W.key(r.s.run,k,slot)
-                spots[slot]=W.spot(r.p0,r.yaw,r.s.order[k],slot,r.s.def)
+                spots[slot]=r.at[key] or W.spot(r.p0,r.yaw,r.s.order[k],slot,r.s.def)
                 if not r.seen[key] then slots[#slots+1]={key=key,slot=slot,at=spots[slot]} end
             end
             for _,b in pairs(r.bodies) do held[b.addr]=true end
@@ -462,15 +472,90 @@ function Run.new(o)
             log(string.format('wave %d find +%g s: tracked %d/%d',k,after,n,#ids))
         end
     end
+    -- The navmesh calls W.settle asks for, in EVE's world: project(p,tall), the navmesh point within EXTENT (or TALL)
+    -- of p or nil; ray(a,b), whether the navmesh walk from a to b stops, and where.
+    local function navmesh(lib)
+        return {project=function(p,tall)
+                local o={}
+                return lib:K2_ProjectPointToNavigation(r.eve,p,o,nil,nil,tall and TALL or EXTENT)==true
+                    and {X=o.X,Y=o.Y,Z=o.Z} or nil
+            end,
+            ray=function(a,b)
+                local o={}
+                return lib:NavigationRaycast(r.eve,a,b,o,nil,nil)==true,{X=o.X,Y=o.Y,Z=o.Z}
+            end}
+    end
+    -- Where wave k's slot spawns, its yaw (facing the start) and the spawn line's note: its spot settled on the navmesh
+    -- (W.settle). When that drops its gate (or spot), the slot goes to the next one that holds, first among those no
+    -- slot of the wave stands at, then 2.5 m beside another's point (W.spot's spread), so no two calls of a wave share
+    -- a point. When none holds, the farthest point a dropped gate would have had (W.settle's third value), else its raw
+    -- spot. With no navmesh calls (NavigationSystemV1 not found, a call that raised, no navmesh under the start), raw
+    -- spots for the rest of the run, as before W.settle, and the note says why once.
+    -- shortcut: a third slot moved to one gate of an 8-monster wave gets W.spot's k=4 point, 4 cm from its k=1 one;
+    -- give moved slots their own spread if the log shows that.
+    local function place(k,slot)
+        local def,order,ids=r.s.def,r.s.order[k],r.s.def.waves[k].ids
+        local raw,yaw=W.spot(r.p0,r.yaw,order,slot,def)
+        local function unchecked(e)
+            r.nav=false
+            return raw,yaw,' (ground: unchecked: '..e..')'
+        end
+        if r.nav==nil then
+            local found,lib=pcall(U.find,NAV)
+            if not found then return unchecked(why(lib)) end
+            r.nav=navmesh(lib)
+        end
+        if not r.nav then return raw,yaw,'' end
+        local n,word=def.spots and #def.spots or 4,def.spots and 'spot' or 'gate'
+        local took=r.took[k] or {} -- W.spot indexes wave k's calls took off their own.
+        r.took[k]=took
+        -- W.spot's index at position q (a gate or a spot): on it when no slot of the wave owns it and no call took it,
+        -- else the first spread point there that none owns or took.
+        local function index(q)
+            local s=q
+            while s<#ids or took[s] do s=s+n end
+            return s
+        end
+        local tries={slot}
+        for pass=1,2 do
+            for i=1,n-1 do
+                local q=(slot+i)%n
+                local s=index(q)
+                if (s==q)==(pass==1) then tries[#tries+1]=s end
+            end
+        end
+        local first,near,far,from
+        for i,s in ipairs(tries) do
+            local spot=W.spot(r.p0,r.yaw,order,s,def)
+            local fine,at,e,short=pcall(W.settle,r.p0,spot,r.nav)
+            if not fine then return unchecked(why(at)) end
+            if e=='no navmesh under the start' then return unchecked(e) end
+            if at then
+                took[s]=true
+                local d=math.sqrt((at.X-spot.X)^2+(at.Y-spot.Y)^2)/100
+                local note=i>1 and string.format(' (ground: %s %d %s, %s %d)',word,order[slot%n+1],first,word,
+                    order[s%n+1]) or d>=1 and string.format(' (ground: moved %.1f m)',d) or ''
+                return at,U.yaw_to(at,r.p0),note
+            end
+            first=first or e
+            local m=short and math.sqrt((short.X-r.p0.X)^2+(short.Y-r.p0.Y)^2)/100
+            if m and (not far or m>far) then near,far,from=short,m,s end
+        end
+        local note=string.format(' (ground: %s %d %s, no other %s holds: ',word,order[slot%n+1],first,word)
+        if not near then return raw,yaw,note..'raw spot)' end
+        took[from]=true
+        return near,U.yaw_to(near,r.p0),note..string.format('%.1f m out)',far)
+    end
     local function spawn_next()
         local q=table.remove(r.queue,1)
         if not q then return end
         if q.slot==0 then r.before[q.k]=ups(refresh()) end -- What stands before the wave, read before its first call.
         local ids=r.s.def.waves[q.k].ids
         local key,id=W.key(r.s.run,q.k,q.slot),ids[q.slot+1]
-        local at,yaw=W.spot(r.p0,r.yaw,r.s.order[q.k],q.slot,r.s.def)
+        local at,yaw,note=place(q.k,q.slot)
+        r.at[key]=at -- Where find looks for its body.
         local ok,e=pcall(function() Run.spawn(assert(N.controller(),'no SB player controller'),id,at,yaw,key) end)
-        log(string.format('spawn %s %s at %s yaw %.0f%s',hex(key),W.POOL[id].alias,xyz(at),yaw,
+        log(string.format('spawn %s %s at %s yaw %.0f%s%s',hex(key),W.POOL[id].alias,xyz(at),yaw,note,
             ok and '' or ' failed: '..why(e)))
         if q.slot==#ids-1 then
             for i,after in ipairs(FINDS) do r.timers.add(r.now+after,find(q.k,i==#FINDS,after)) end
@@ -880,9 +965,9 @@ function Run.new(o)
     -- Its best so far is read from this PC's records file.
     local function begin(run,seed,now,at,yaw,map,flag,def)
         r={s=W.new{run=run,seed=seed,now=now,def=def},seed=seed,p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
-            nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},before={},
-            live_at=-math.huge,now=now,found={},ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},asked=0,
-            quiet=0,held=0,revives=(def or W.NIGHT).revives or 0,cut={}}
+            nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},before={},at={},
+            took={},live_at=-math.huge,now=now,found={},ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},
+            asked=0,quiet=0,held=0,revives=(def or W.NIGHT).revives or 0,cut={}}
         local score,secs=C.best(stored(),r.s.def.id)
         r.best=score and {score=score,s=secs} or nil
         panel=nil

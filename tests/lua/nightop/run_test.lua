@@ -3,8 +3,8 @@
 -- while the game is paused (the IsValid crash and the pause rule). Covered: each start refusal with no spawn; the
 -- census line and its wave bodies; the run byte; the spawn choke point; a whole run from countdown to success (spawn
 -- arguments, one spawn a tick, the finds, aggro, the heals, the kill lines, the score and its time bonus, the result
--- and idle); the live-list guard (a freed body, a pause, a reused body, a killed body never read again); the
--- death signals (executable, hidden, killed after down); a missing body; the default controller; the stuck rule and its
+-- and idle); the live-list guard (a freed body, a pause, a reused body, a killed body never read again); the death
+-- signals (not standing, hidden, killed after down); a missing body; the default controller; the stuck rule and its
 -- two moves; noaggro and nomove; time up; every abort (stop, coop off, map change, EVE gone, 80 m, slot, link, death
 -- screen) with no body read in that tick; a Lua error in a tick. Also: the probe rule's row and a Steam link not ready
 -- refuse; a signed key read in the census; aggro after a new controller; a body near EVE far from the start is not
@@ -53,9 +53,11 @@
 -- under way does not; a call keeps the down open for its result; a call with no
 -- up in 5 s did not take (no other call, and a later up is a death); a wave's heal skips a downed EVE; a stop while
 -- down is no getting up; with revive=off a death ends the run at once; no revive in a solo run.
--- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
--- body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a corpse the game's pool
--- brings back for a later wave.
+-- Bodies are found by place, each reading key 0 and state 1 (executable) as in the game, in lists from the class hash:
+-- a spawn that makes no body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a
+-- corpse the game's pool brings back for a later wave. A kill reads 3 with no controller, as the game's deaths do.
+-- Each spot is settled on a fake navmesh before its spawn call: a wall 9 m out, a wall 4 m out, no NavigationSystemV1
+-- and a navmesh call that raises.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 local T=1760000000
@@ -126,6 +128,7 @@ local bodies={} -- What the game holds, in the class hash's order after EVE.
 -- spawn_ok: the spawn call makes a body (false: it fails with no word, as a refused request would); pool: corpses the
 -- next spawns reuse, at the same address, as SB's character pool does.
 local spawn_ai,spawn_ok,signed,teleport_ok,pool=true,true,false,true,{}
+local spawn_st=1 -- The InteractionState a new body reads (0: the other standing state, as a field enemy's).
 local function ai()
     return uobject('AI','AIController /Game/Map.Map:PersistentLevel.AI_C_1',{K2_SetFocus=function() end})
 end
@@ -178,7 +181,9 @@ local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.S
             m.id,m.at,m.key,m.st,m.hidden,m.battle=id,{X=at.X,Y=at.Y,Z=at.Z},key,0,false,false
             m.ctl=spawn_ai and ai() or nil
         else m=monster(id,at,key,spawn_ai) end
-        m.spawned=true
+        -- A body of this spawn (cheat on, key 0) reads 1, executable, from its first second until its death reads 3:
+        -- the Lion's and the Antlion's follow lines, 2026-10-23.
+        m.spawned,m.st=true,spawn_st
     end,
     ServerRequest_ItemBucketItemAdd=function() end})
 local player,controller=eve,pc
@@ -214,6 +219,35 @@ local by_path={['/Script/SB.SBCharacter']=SBCharacter,['/Script/SB.SBNetworkPlay
         {ReportNoiseEvent=function() end}),
     ['/Script/AIModule.Default__AIBlueprintHelperLibrary']=uobject('AIHelper','AIBlueprintHelperLibrary',
         {SimpleMoveToActor=function() end})}
+-- NavigationSystemV1's static calls on a flat navmesh at Z 910 (EVE's feet at the start), so each spot settles where
+-- W.spot puts it. ground.walls: {at=, d=} each, a walk towards a point within 1 m of at stops d m from where it began;
+-- ground.raises: every call raises with it; ground.gone: the object is not valid (not in this game build);
+-- ground.offmesh: no projection finds the navmesh (out left unfilled); ground.nofloor: none within 1 m of that point.
+local ground={path='/Script/NavigationSystem.Default__NavigationSystemV1',walls={}}
+ground.nav=uobject('Nav','NavigationSystemV1',{IsValid=function() return not ground.gone end,
+    K2_ProjectPointToNavigation=function(_,context,p,out,data,filter,extent)
+        assert(context==eve and data==nil and filter==nil and (extent.Z==500 or extent.Z==1500),
+            'A projection in EVE\'s world')
+        if ground.raises then error(ground.raises) end
+        local no=ground.nofloor
+        if ground.offmesh or no and math.sqrt((p.X-no.X)^2+(p.Y-no.Y)^2)<100 then return false end
+        out.X,out.Y,out.Z=p.X,p.Y,910
+        return true
+    end,
+    NavigationRaycast=function(_,context,a,b,out,filter,querier)
+        assert(context==eve and filter==nil and querier==nil,'A navmesh walk in EVE\'s world')
+        if ground.raises then error(ground.raises) end
+        local d,hit=math.sqrt((b.X-a.X)^2+(b.Y-a.Y)^2),nil
+        for _,w in ipairs(ground.walls) do
+            if math.sqrt((b.X-w.at.X)^2+(b.Y-w.at.Y)^2)<100 and d>w.d*100 then
+                hit={X=a.X+(b.X-a.X)*w.d*100/d,Y=a.Y+(b.Y-a.Y)*w.d*100/d,Z=a.Z}
+            end
+        end
+        local at=hit or b
+        out.X,out.Y,out.Z=at.X,at.Y,at.Z
+        return hit~=nil
+    end})
+by_path[ground.path]=ground.nav
 StaticFindObject=function(path) return assert(by_path[path],'unexpected StaticFindObject '..path) end
 FindAllOf=function(name) -- The death screen's walk, and the class hash's proof (core/unreal.lua's actors_of).
     record('FindAllOf',name)
@@ -432,8 +466,8 @@ assert(lists()-finds>=2 and lists()-finds<=3,lists()-finds)
 -- The second aggro only for a body still not in battle: none here.
 tick(16)
 assert(count('Damage:ReportDamageEvent')==4,'In battle: no second aggro')
--- Executable (1 with a controller) and hidden are down, not killed; down then killed scores once.
-wave1[1].st=1
+-- 2 with a controller and hidden are down, not killed; down then killed scores once.
+wave1[1].st=2
 tick()
 assert(last()==string.format('down 0x%08X M_Antlion',W.key(byte,1,0)),last())
 wave1[2].hidden=true
@@ -444,13 +478,13 @@ tick()
 assert(last()==string.format('kill 0x%08X M_Antlion +10 = 10',W.key(byte,1,0)),last())
 -- A killed body is never read again.
 local reads=wave1[1].reads
-wave1[3].st,wave1[3].ctl,wave1[4].st,wave1[4].ctl=2,nil,1,nil
+wave1[3].st,wave1[3].ctl,wave1[4].st,wave1[4].ctl=2,nil,3,nil
 tick(8)
 assert(wave1[1].reads==reads,'Killed: never read again')
 assert(logged(string.format('kill 0x%08X M_Antlion +10 = 20',W.key(byte,1,2))))
 assert(logged(string.format('kill 0x%08X M_Antlion +10 = 30',W.key(byte,1,3))))
 -- The hidden one stays tracked; the wave is clear (down counts); killed later, it scores.
-wave1[2].st,wave1[2].ctl=1,nil
+wave1[2].st,wave1[2].ctl=3,nil
 tick()
 assert(last()==string.format('kill 0x%08X M_Antlion +10 = 40',W.key(byte,1,1)),last())
 -- Wave 2 comes 10 s after the clear; play waves 2 to 5 to the end, killing each wave once found.
@@ -464,7 +498,7 @@ local function play(k)
     assert(logged(find_line(k,ids)),'wave '..k..' found')
     for _,m in ipairs(bodies) do
         local r,w=W.decode(m.key)
-        if r==byte and w==k then m.st,m.ctl=1,nil end
+        if r==byte and w==k then m.st,m.ctl=3,nil end
     end
     tick()
 end
@@ -566,7 +600,7 @@ run.stop('stop')
 -- never is, even come from 70 m away once the wave began; a
 -- body 4 m off its spot is found, one 6 m off is missing with that distance; a corpse that the game's pool brings back
 -- at the same address for a later wave is that wave's body, and its kill scores for it; so is a living field enemy
--- 100 m away that the pool takes for a spawn.
+-- 100 m away that the pool takes for a spawn. Wave 2's bodies read InteractionState 0, the other standing state: found.
 spawn_ok=false
 bodies,lines={},{}
 ok,message=run.command('start')
@@ -605,22 +639,131 @@ assert(battle[bodies[2]] and battle[bodies[4]] and battle[bodies[5]] and not bat
 eve_at={X=0,Y=0,Z=1000}
 run.stop('stop')
 list=begin()
-for _,m in ipairs(list) do m.st,m.ctl=1,nil end
+for _,m in ipairs(list) do m.st,m.ctl=3,nil end
 tick()
 assert(logged(string.format('kill 0x%08X M_Antlion +10 = 40',W.key(byte,1,3))),since(0))
 local afar=monster(50110,{X=0,Y=-10000,Z=1000},0,true)
 pool={list[1],list[2],afar} -- Wave 2's three calls bring two corpses back, and take the field enemy.
+spawn_st=0
 for _=1,100 do tick(); if logged('wave 2 find +1 s: tracked 3/3') then break end end
+spawn_st=1
 assert(logged('wave 2 find +1 s: tracked 3/3') and #pool==0 and #bodies==5,since(0))
 assert(list[1].key==W.key(byte,2,0) and list[1].st==0,'The same object, alive for wave 2')
 tick(3)
 assert(afar.key==W.key(byte,2,2) and logged(string.format('aggro 0x%08X: damage ok, noise ok, battle ok, focus ok, '
     ..'move ok',W.key(byte,2,2))),'The field enemy taken back is wave 2\'s: '..since(0))
-list[1].st,list[1].ctl=1,nil
+list[1].st,list[1].ctl=3,nil
 tick()
 assert(last()==string.format('kill 0x%08X M_SkullSwordAlone +40 = 80',W.key(byte,2,0)),last())
 assert(#violations==0,violations[1])
 run.stop('stop')
+
+-- 5c. The ground: each spot settled on the navmesh (W.settle) before its spawn call. A wall 9 m out on slot 0's gate
+-- brings its call back to 7.5 m on the same bearing, where its body is found (by where the call stood it: W.spot's spot
+-- is 6.5 m off); a wall 4 m out, or no floor at its gate, moves slot 0 to the next gate that holds, 2.5 m beside that
+-- slot's point (both bodies found), and the note names the first gate's reason; two moved slots get two points. When
+-- no gate holds, the call stands at the farthest point a dropped gate leaves (2 m out or more), and a later slot does
+-- not take it again; with every gate blocked 3 m out, on W.spot's spot. With no NavigationSystemV1, a navmesh call
+-- that raises, or a start off the navmesh, the calls stand on W.spot's spots, the run's first spawn line says why
+-- once, and every body is found.
+do
+    local function wave1(setup)
+        bodies,calls,lines={},{},{}
+        ok,message=run.command('start')
+        assert(ok,message)
+        byte=tonumber(message:match('run 0x(%x+)'),16)
+        local order=W.new{run=byte,seed=W.seed(T,byte),now=gt}.order[1]
+        local spots={}
+        for slot=0,11 do spots[slot]=W.spot({X=0,Y=0,Z=1000},30,order,slot) end
+        setup(spots)
+        tick(28)
+        local args={}
+        for _,c in ipairs(calls) do if c.what=='PC:ServerRequest_CreateActor' then args[#args+1]=c.args end end
+        assert(#args==4 and logged('wave 1 find +1 s: tracked 4/4'),since(0))
+        return spots,args,order
+    end
+    local function spawned(slot,at,yaw,note)
+        return logged(string.format('spawn 0x%08X M_Antlion at %.0f,%.0f,1100 yaw %.0f%s',W.key(byte,1,slot),at.X,at.Y,
+            yaw,note))
+    end
+    local spots,args,order=wave1(function(sp) ground.walls={{at=sp[0],d=9}} end)
+    local at,d=args[1][2],math.sqrt(spots[0].X^2+spots[0].Y^2)
+    assert(math.abs(at.X-spots[0].X*750/d)<1e-6 and math.abs(at.Y-spots[0].Y*750/d)<1e-6 and at.Z==1100,'7.5 m out')
+    local _,yaw=W.spot({X=0,Y=0,Z=1000},30,order,0)
+    assert(math.abs(args[1][3].Yaw-yaw)<1e-6,'Facing the start')
+    assert(spawned(0,at,yaw,' (ground: moved 6.5 m)'),since(0))
+    for slot=1,3 do assert(spawned(slot,spots[slot],args[slot+1][3].Yaw,''),since(0)) end
+    run.stop('stop')
+    -- No floor at slot 0's gate and a wall beside slot 1's: the note names the first gate's reason.
+    for _,case in ipairs({{why='blocked',to=5,setup=function(sp) ground.walls={{at=sp[0],d=4}} end},
+            {why='no floor',to=6,setup=function(sp) ground.nofloor,ground.walls=sp[0],{{at=sp[5],d=4}} end}}) do
+        spots,args,order=wave1(case.setup)
+        at=args[1][2]
+        assert(at.X==spots[case.to].X and at.Y==spots[case.to].Y and at.Z==1100,'2.5 m beside another slot\'s point')
+        assert(args[2][2].X==spots[1].X and args[2][2].Y==spots[1].Y,'Slot 1 on its own gate')
+        assert(spawned(0,at,args[1][3].Yaw,string.format(' (ground: gate %d %s, gate %d)',order[1],case.why,
+            order[case.to-3])),since(0))
+        local tall=false -- With no floor, looked for in the taller box too.
+        for _,c in ipairs(calls) do tall=tall or c.what=='Nav:K2_ProjectPointToNavigation' and c.args[6].Z==1500 end
+        assert(tall==(case.why=='no floor'),'The taller box only where the usual one finds no floor')
+        run.stop('stop')
+        ground.walls,ground.nofloor={},nil
+    end
+    -- Slots 0 and 3 blocked, and slot 3's first other point (beside slot 0's gate): slot 0 takes the point beside slot
+    -- 1's, so slot 3 goes to the next spread point there.
+    spots,args,order=wave1(function(sp) ground.walls={{at=sp[0],d=4},{at=sp[3],d=4},{at=sp[4],d=4}} end)
+    assert(args[1][2].X==spots[5].X and args[1][2].Y==spots[5].Y and args[4][2].X==spots[9].X
+        and args[4][2].Y==spots[9].Y,'Two moved slots, two points')
+    assert(spawned(3,spots[9],args[4][3].Yaw,string.format(' (ground: gate %d blocked, gate %d)',order[4],order[2])),
+        since(0))
+    run.stop('stop')
+    -- Every point of slot 0 blocked: the farthest a dropped gate leaves, 3.5 m out beside slot 2's gate.
+    spots,args,order=wave1(function(sp)
+        for i=0,11 do ground.walls[i+1]={at=sp[i],d=i<4 and 4 or i==6 and 5 or 3} end
+    end)
+    at,d=args[1][2],math.sqrt(spots[6].X^2+spots[6].Y^2)
+    assert(math.abs(at.X-spots[6].X*350/d)<1e-6 and math.abs(at.Y-spots[6].Y*350/d)<1e-6,'3.5 m out')
+    assert(spawned(0,at,args[1][3].Yaw,string.format(' (ground: gate %d blocked, no other gate holds: 3.5 m out)',
+        order[1])),since(0))
+    at,d=args[2][2],math.sqrt(spots[1].X^2+spots[1].Y^2) -- Slot 1 does not take that point again: its own, 2.5 m out.
+    assert(math.abs(at.X-spots[1].X*250/d)<1e-6 and math.abs(at.Y-spots[1].Y*250/d)<1e-6,'Slot 1 2.5 m out')
+    run.stop('stop')
+    ground.walls={}
+    -- Walls 4 m out at the gates and 3 m out beside them: each slot 1.5 m short of its own gate's wall.
+    spots,args,order=wave1(function(sp) for i=0,7 do ground.walls[i+1]={at=sp[i],d=i<4 and 4 or 3} end end)
+    for slot=0,3 do
+        at,d=args[slot+1][2],math.sqrt(spots[slot].X^2+spots[slot].Y^2)
+        assert(math.abs(at.X-spots[slot].X*250/d)<1e-6 and math.abs(at.Y-spots[slot].Y*250/d)<1e-6,'2.5 m out')
+        assert(spawned(slot,at,args[slot+1][3].Yaw,string.format(' (ground: gate %d blocked, no other gate holds: 2.5 '
+            ..'m out)',order[slot+1])),since(0))
+    end
+    run.stop('stop')
+    ground.walls={}
+    spots,args,order=wave1(function(sp) for i=0,7 do ground.walls[i+1]={at=sp[i],d=3} end end)
+    for slot=0,3 do
+        at=args[slot+1][2]
+        assert(at.X==spots[slot].X and at.Y==spots[slot].Y,'Every gate blocked 3 m out: W.spot\'s spot')
+        assert(spawned(slot,at,args[slot+1][3].Yaw,string.format(' (ground: gate %d blocked, no other gate holds: raw '
+            ..'spot)',order[slot+1])),since(0))
+    end
+    run.stop('stop')
+    ground.walls={}
+    for _,fault in ipairs({{gone=true,why=ground.path..' is unavailable in this game build.'},
+            {raises='nav on fire',why='nav on fire',asked=1},{offmesh=true,why='no navmesh under the start',asked=1}}) do
+        ground.gone,ground.raises,ground.offmesh=fault.gone,fault.raises,fault.offmesh
+        spots,args=wave1(function() end)
+        for slot=0,3 do
+            at=args[slot+1][2]
+            assert(at.X==spots[slot].X and at.Y==spots[slot].Y and at.Z==1100,'W.spot\'s spot')
+            assert(spawned(slot,at,args[slot+1][3].Yaw,slot==0 and ' (ground: unchecked: '..fault.why..')' or ''),
+                since(0))
+        end
+        assert(count('Nav:K2_ProjectPointToNavigation')==(fault.asked or 0),'Asked once at most')
+        run.stop('stop')
+    end
+    ground.gone,ground.raises,ground.offmesh=nil,nil,nil
+    assert(#violations==0,violations[1])
+end
 
 -- 6. The stuck rule: 40 m from the start or 10 m below it, moved 7 m from EVE at most twice, 3 s apart, then written
 -- off; a living body near the start is left alone. nomove makes no move, noaggro no aggro.
@@ -882,7 +1025,7 @@ do
         assert(logged(found),since(0))
         for _,m in ipairs(bodies) do
             local r,w=W.decode(m.key)
-            if r==byte and w==k then m.st,m.ctl=1,nil end
+            if r==byte and w==k then m.st,m.ctl=3,nil end
         end
         tick()
     end
@@ -900,9 +1043,10 @@ end
 -- 10. Challenges (coop challenge) on the same fakes, with coop-records.txt in memory. The refusals (junk words, an
 -- unknown name, a Steam link, a run on); the list with and without a run; Target Practice to a success with no aggro
 -- and no default controller, its dummies on its spots, a fallen one written off where it lies, the best written once;
--- a worse run keeps it; failed, time up and aborted runs write nothing; a read or a write that fails is logged; so is a
--- file too long; a success with a missing dummy, with no kill or with a test switch keeps no best; a Skull Squad wave
--- waits for the clear; coop challenge stop and coop nightop stop end any run.
+-- a worse run keeps it; a wall on a spot moves its dummy to the next spot no dummy of the wave uses; failed, time up
+-- and aborted runs write nothing; a read or a write that fails is logged; so is a file too long; a success with a
+-- missing dummy, with no kill or with a test switch keeps no best; a Skull Squad wave waits for the clear; coop
+-- challenge stop and coop nightop stop end any run.
 do
     local C=require('nightop.challenges')
     local targets=C.find('targets')
@@ -931,7 +1075,7 @@ do
         assert(logged(line),since(0))
         for _,m in ipairs(bodies) do
             local r,w=W.decode(m.key)
-            if r==run and w==k then m.st,m.ctl=1,nil end
+            if r==run and w==k then m.st,m.ctl=3,nil end
         end
         tk()
     end
@@ -999,7 +1143,7 @@ do
     tk(10)
     assert(logged(string.format('written off 0x%08X M_DummyB at %.0f,%.0f,-500 after 0 moves',W.key(run,1,3),
         fallen.at.X,fallen.at.Y)),since(0))
-    for i=1,3 do bodies[i].st=1 end
+    for i=1,3 do bodies[i].st=3 end
     tk()
     assert(logged(string.format('kill 0x%08X M_DummyB +40 = 120',W.key(run,1,2))),since(0))
     file=file..'# added during the run\n' -- The file is read again before the write: this line stays.
@@ -1049,6 +1193,20 @@ do
     tk(30)
     assert(ch.stop('coop off') and last():find('^result: aborted %(coop off%) .* best='..first..' kept$'),last())
     assert(writes==1 and file==kept,'Only a better success writes')
+    -- A wall 4 m out on wave 1's first spot: its dummy goes to the next spot in order that no dummy of the wave uses.
+    do
+        run,t0=start('targets','Target Practice')
+        local order=W.new{run=run,seed=W.seed(T,run),now=t0-5,def=targets}.order[1]
+        local spot=W.spot({X=0,Y=0,Z=1000},30,order,0,targets)
+        ground.walls={{at=spot,d=4}}
+        tk(24)
+        ground.walls={}
+        local at,yaw=W.spot({X=0,Y=0,Z=1000},30,order,4,targets)
+        assert(logged(string.format('spawn 0x%08X %s at %.0f,%.0f,1100 yaw %.0f (ground: spot %d blocked, spot %d)',
+            W.key(run,1,0),W.POOL[targets.waves[1].ids[1]].alias,at.X,at.Y,yaw,order[1],order[5])),since(0))
+        ok,message=ch.challenge('stop')
+        assert(ok and writes==1 and file==kept,message)
+    end
     -- A write that fails: logged, no best; a read that fails: logged, nothing written.
     file,write_ok=nil,false
     run=start('targets','Target Practice')
@@ -1095,7 +1253,7 @@ do
     assert(last()=='wave 1/3 at run time 0.0 s: 3 monsters',last())
     tk(240)
     assert(not since(0):find('wave 2/3',1,true) and count('Damage:ReportDamageEvent')>0,since(0))
-    for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+    for _,m in ipairs(bodies) do m.st,m.ctl=3,nil end
     tk()
     local clear=gt-t0
     tk(19)
@@ -1189,7 +1347,7 @@ assert(card.line.text=='VAGUE 1/5  7:59  SCORE 0',card.line.text)
 kit.away=true; tick(); assert(not kit.shown.night,'Paused: hidden')
 kit.away=false; tick(); assert(kit.shown.night)
 for _=1,40 do tick() end
-for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+for _,m in ipairs(bodies) do m.st,m.ctl=3,nil end
 tick()
 local rt2=gt-t0
 assert(card.line.text==string.format('VAGUE SUIVANTE DANS 10  %d:%02d  SCORE 40',math.ceil(480-rt2)//60,
@@ -1349,7 +1507,7 @@ begin2()
 assert(told[1]=='Night Operation starts in 5 s.',told[1])
 tick(40)
 assert(told[2]=='Night Operation: wave 1/5.',tostring(told[2]))
-for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+for _,m in ipairs(bodies) do m.st,m.ctl=3,nil end
 tick()
 assert(told[3]=='Night Operation: wave 1 cleared.',tostring(told[3]))
 night.command('stop')
@@ -1487,7 +1645,7 @@ local function find(list,pattern) for _,l in ipairs(list) do if l:find(pattern) 
 local function kill_all(w,wave)
     for _,m in ipairs(w.bodies) do
         local _,k=W.decode(m.key)
-        if k==wave then m.st,m.ctl=1,nil end
+        if k==wave then m.st,m.ctl=3,nil end
     end
 end
 
@@ -2163,7 +2321,7 @@ end
 local FIGHT='fight=on mode=on role=guest pairs=4 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 maxhp=0'
 local PILOT='pilot=on piloted=4 owned=0 drawn=4'
 local function body(w,key) for _,m in ipairs(w.bodies) do if m.key==key then return m end end end
-local function kill(w,key) local m=body(w,key); m.st,m.ctl=1,nil end
+local function kill(w,key) local m=body(w,key); m.st,m.ctl=3,nil end
 local function lines_of(w,pattern)
     local n=0
     for _,l in ipairs(w.lines) do n=n+(l:find(pattern) and 1 or 0) end
@@ -2323,7 +2481,7 @@ do
         assert(logged(found),since(0))
         for _,m in ipairs(bodies) do
             local r,w=W.decode(m.key)
-            if r==run and w==k then m.st,m.ctl=1,nil end
+            if r==run and w==k then m.st,m.ctl=3,nil end
         end
         tk()
     end
@@ -2451,7 +2609,7 @@ do
         assert(logged(found),since(0))
         for _,m in ipairs(bodies) do
             local r,w=W.decode(m.key)
-            if r==B.run and w==k then m.st,m.ctl=1,nil end
+            if r==B.run and w==k then m.st,m.ctl=3,nil end
         end
         B.tk()
         if k<3 then assert(B.texts[#B.texts]==string.format('SCORE %d',40*({3,7})[k]),B.texts[#B.texts]) end
