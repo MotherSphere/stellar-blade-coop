@@ -1777,13 +1777,16 @@ take any CharacterTable ID at any place. The charId is fixed in code: 50020, or 
 EventSpawnId 0, as the game's own summons spawn. The body is the new character of the Large blueprint's class nearest
 the spot, looked for at 0.3, 1, 2, 3.5 and 5 s among the SBCharacters of EVE's world from the engine's class hash
 (`GetAllActorsOfClass`), or with `FindAllOf` of the class, which walks every object, where this UE4SS cannot use the
-class hash. Up to 0.6.0-beta.3 every look walked. One that still has no controller 1.5 s after the call gets its default
-one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from `InteractionState` and `Controller`:
-a value other than 0 with no controller. Every body of this spawn reads `InteractionState` 1 (executable) from its
-first second, in battle or not (the Lion's and the Antlion's follow lines, 2026-10-23), until its death reads 3 (every
-death logged). For these bodies 1 is the standing state, not a sign of the fight, so `nightop/run.lua` counts 0 and 1
-as standing; a Night Operation run that counted 0 alone found none of its monsters (2026-10-28). Which game code sets
-1 was not traced. The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away
+class hash. Up to 0.6.0-beta.3 every look walked. A body with no controller that reads `InteractionState` 0 gets its
+default one 1.5 s after the call (`SpawnDefaultController`). Its death is read from `InteractionState` and
+`Controller`: a value other than 0 with no controller. Every body of this spawn reads `InteractionState` 1
+(executable) from its first second, in battle or not (the Lion's and the Antlion's follow lines, 2026-10-23), until its
+death reads 3 (every death logged). For these bodies 1 is the standing state, not a sign of the fight, so
+`nightop/run.lua` counts 0 and 1 as standing; a Night Operation run that counted 0 alone found none of its monsters
+(2026-10-28). The Lion code (`cut/enemy.lua`) still adopts a body only at 0 and still reads any other value with no
+controller as a death. That holds because these bodies had a controller from the spawn on (`controller SBAIController`
+on 2026-10-23); a state-1 body without one would never be adopted and would read as dead. Which game code sets 1 was
+not traced. The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away
 came back on 2026-10-23), so a body that stood more than 100 m from the spot at the call and stands within 30 m of it
 after counts as the new one; its old follow line ends as recycled.
 

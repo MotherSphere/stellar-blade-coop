@@ -15,7 +15,7 @@
 -- if the game turns it back) and given the spec's material on every slot when it has one, then followed: a line a
 -- second while it lives (distance, place, the anim graph's speed, a skill running, the custom anim alphas the AnimBP
 -- blends a Show's clip by, how far a hand moved in the body's own frame, with its mesh's engine switches before the
--- first line and at each change), its death (InteractionState and Controller, as run.lua reads them) and its body's
+-- first line and at each change), its death (InteractionState not 0 with no controller, killed below) and its body's
 -- despawn, with the spawn manager's counter (the line's spawns=) before, while it lives and after. While one lives,
 -- once a second, the boss bar's name where it reads <row name> (no text of the monster in CharacterStringTable) set to
 -- the spec's (the TextBlock SB writes once a boss bind, through FText::FromStringTable on the row's Name;
@@ -160,8 +160,9 @@ local function key_of(c) -- BroadcastSpawnInfo.EventSpawnId, which the spawn set
     local k=math.tointeger(c.BroadcastSpawnInfo.EventSpawnId)
     return k and k&MASK
 end
--- run.lua's signals: InteractionState turns non-zero at death, but 1 alone means "can be executed"; a dying body loses
--- its controller at once. Killed: non-zero with no controller.
+-- Killed: InteractionState not 0 with no controller; a dying body loses its controller at once. A key-0 body reads 1
+-- from its first second (how-it-works.md), so this rule and the adopt at 0 below hold only while the game gives it a
+-- controller at spawn, as it did on 2026-10-23.
 local function killed(c) return c.InteractionState~=0 and valid(c.Controller)==nil end
 
 -- o: log (the spec's tag lines), ask(line) the native request (ok, message), status() the native status text.
