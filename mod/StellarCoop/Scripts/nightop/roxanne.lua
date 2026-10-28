@@ -4,8 +4,8 @@
 -- four of the game's test choice rows that no story graph lists carry ours (ROWS): in memory for the game run, each is
 -- edited in place through nightop/recruiter.lua's checked edit (InteractionGraphExec Success2, her End Conversation's,
 -- so the graph plays one of her goodbyes and ends; NextTaskTagName None; DisplayText our label in the game's language
--- read at that time, from nightop/roxanne_text.lua, so a language changed later shows at the next Lua load). No text
--- key is registered: this UE4SS build cannot pass the 23 languages as a map inside PolyglotDataToText's struct
+-- read each time they are armed, from nightop/roxanne_text.lua: at a Lua load, or back on a co-op save after an off).
+-- No text key is registered: this UE4SS build cannot pass the 23 languages as a map inside PolyglotDataToText's struct
 -- parameter. Then the native part points her choice list's entry in SB's select cache at those four and her two
 -- (nightop/roxanne.h: roxanne on). A pick is read from the select widgets (SBSequencerInteractionSelectWidget, looked
 -- for at each tick through the widget library's class lookup, never by walking every object each tick): a SelectIndex
@@ -30,8 +30,8 @@ local SELECT='/Script/SB.SBSequencerInteractionSelectWidget'
 local WIDGETS='/Script/UMG.Default__WidgetBlueprintLibrary'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 -- The four rows, in the native part's order (nightop/roxanne.h's kRows): ID, select list, the shipped
--- InteractionGraphExec and NextTaskTagName (put back when off, with the DisplayText of its key in
--- nightop/roxanne_text.lua), its line of nightop/roxanne_text.lua and its pick.
+-- InteractionGraphExec and NextTaskTagName (put back when off, with its Korean source of nightop/roxanne_text.lua's
+-- KEYS as plain text in DisplayText, not the asset's keyed text), its line of nightop/roxanne_text.lua and its pick.
 Roxanne.ROWS={
     {row='Temp_TS_Select_Test_1',id=14,list='Temp_TS_Select_Test',exec='None',task='A1',line='E',level='easy'},
     {row='Temp_TS_Select_Test_2',id=15,list='Temp_TS_Select_Test',exec='None',task='A2',line='N',level='normal'},

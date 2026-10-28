@@ -617,9 +617,10 @@ Nightmare is not in her list: the choice box has six slots, and her own two choi
 Once EVE is in Xion on a co-op save, the mod reads the game's language, edits the rows in place (each checked first,
 then read back: InteractionGraphExec `Success2`, the one her End Conversation uses, NextTaskTagName `None`, and
 DisplayText the label in that language, or in English for a language the game does not ship), then asks the native part
-to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). The labels keep the
-language read then: after a change of the game's language they follow at the next Lua load (game start or Ctrl+R). A
-pick is read from the game's choice boxes, looked for every 250 ms so a box the game builds for a later talk is read
+to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). The labels take the
+game's language each time the rows are armed: at the next Lua load (game start or Ctrl+R), or when her choices come back
+after `coop off` or after a save that is not a co-op save. Going to the title and loading a co-op save keeps the labels.
+A pick is read from the game's choice boxes, looked for every 250 ms so a box the game builds for a later talk is read
 too: a selected line turning from none to one, and that line's text matched against the labels. Everything goes back on
 `coop off` and on a save that is not a co-op save: the choice list first (asked again every 10 s until the native part
 has put it back), then the rows' shipped values. Until the list is back, and after a fault in its calls, the rows keep
@@ -642,7 +643,9 @@ quest start as without the mod. No quest, item, achievement or save call is adde
 ```
 
 A step that fails logs a `STOP: roxanne` line and leaves her two choices as the game ships them until the next Lua load
-(the rows it wrote are put back, also when a label does not read back, and nothing is asked of the native part).
+(the rows it wrote are put back, also when a label does not read back, and nothing is asked of the native part). After
+a Ctrl+R while her list still holds the six choices, a step that fails leaves the rows as they are instead, since they
+only play her goodbye; `coop off` or a save that is not a co-op save puts them back.
 `coop-status.txt`'s `roxanne=` line is described in
 [usage.md](usage.md#night-operations-shop-screen-and-roxannes-choices).
 

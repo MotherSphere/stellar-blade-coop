@@ -2374,17 +2374,20 @@ reads its fields live. So writing a row's `SelectDataName` does nothing, and a r
 either.
 
 1. Text: the four labels go into the `DisplayText` of four shipped test rows that no story graph lists
-   (`Temp_TS_Select_Test_1` to `_3`, `TS_GoToTest_1`), in the game's language read once when the rows are armed
+   (`Temp_TS_Select_Test_1` to `_3`, `TS_GoToTest_1`), in the game's language read each time the rows are armed
    (KismetInternationalizationLibrary `GetCurrentLanguage`, mapped by `culture()`: `fr-FR` to `fr`, an unknown or
-   unreadable one to `en`; `nightop/roxanne_text.lua` has the 23 languages). They keep it until the next Lua load. No
-   text key is registered: KismetTextLibrary `PolyglotDataToText` takes the languages as a TMap inside its struct
-   parameter, and UE4SS 3.0.1 converts a Lua table there from the wrong stack slot (`Lua::for_each_in_table` walks
-   slot 1, the outer struct's table), so the call raises, or reads the struct's own fields, `CachedText` included.
+   unreadable one to `en`; `nightop/roxanne_text.lua` has the 23 languages). The rows are armed at a Lua load, and again
+   when her choices come back after `coop off` or after a save that is not a co-op save. Going to the title and loading
+   a co-op save keeps the labels. No text key is registered: KismetTextLibrary `PolyglotDataToText` takes the languages
+   as a TMap inside its struct parameter, and UE4SS 3.0.1 converts a Lua table there from the wrong stack slot
+   (`Lua::for_each_in_table` walks slot 1, the outer struct's table), so the call raises, or reads the struct's own
+   fields, `CachedText` included.
 2. Rows: each is edited in place through the recruiter's checked edit (its ID and list checked, then
    `InteractionGraphExec` `Success2`, the exec of her End Conversation, so her graph plays a goodbye and ends,
    `NextTaskTagName` `None`, and `DisplayText` `FText(label)`), read back through a fresh FindRow. Either the shipped
    value or ours is accepted, so a Lua reload goes on. A row that does not read back stops the arm, and every row is
-   put back, that one included.
+   put back, that one included. The exception is a Lua reload while the `roxanne=` line still reads `on`: her list
+   may show the rows, so they stay ours until the off of step 5.
 3. The list: `nightop/roxanne.h` (free of Windows, tested against fake memory) and `glue/tick/nightop_game.inc` point
    her entry at a new array of six FNames, the four rows then her two, allocated with the game's GMalloc
    (`0x14706b500`, Malloc at its vtable's `+0x10`) so the game may free it like its own. From the moment the entry
@@ -2410,16 +2413,19 @@ either.
    line reads `on` (Lua's tick goes on after `coop off` for that alone, and the native part still takes an off then).
    The rows get their shipped values only once the line reads `off` after an off it took, or `absent`: while her entry
    may still list them, they keep `Success2`, which only plays her goodbye, and after a fault they keep it until the
-   game exits. The shipped values include each row's Korean `DisplayText`, from `nightop/roxanne_text.lua`'s keys. A
-   load (the title, a map, leaving Xion included) reads `slot=none` or `unknown` for a while: once armed, Lua's tick
-   only runs the drops below then, so the swap holds through it, and a booking and a supplies pick hold through a map
-   load. A supplies pick still goes 30 s after its screen was due (`SHOP_WAIT`), a load included. The title screen
+   game exits. Going off writes each row's Korean source (from `nightop/roxanne_text.lua`'s keys) back into
+   `DisplayText` as plain text, not the asset's keyed text. No vanilla list holds these rows, so the difference does not
+   show. A load (the title, a map, leaving Xion included) reads `slot=none` or `unknown` for a while: once armed, Lua's
+   tick only runs the drops below then, so the swap holds through it, and a booking and a supplies pick hold through a
+   map load. A supplies pick still goes 30 s after its screen was due (`SHOP_WAIT`), a load included. The title screen
    (Lua's `puppet.world`, the `world=title` of `coop-state.txt`, since the status line has no such flag) and a co-op
    save with another index drop the booking and the supplies pick: after the title, the slot loaded may hold another
    file.
 
-Not checked offline: who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild), the
-choice box's sort, that `GetAllWidgetsOfClass` finds the box in this build, and whether the game builds a new box for
+Not checked offline: that UE4SS writes a TextProperty (`FText(label)`) into a row FindRow returns and reads it back
+through `U.text` (if not, the arm logs a `STOP: roxanne` line and puts the rows back), and that the choice box draws
+that plain FText; who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild); the
+choice box's sort; that `GetAllWidgetsOfClass` finds the box in this build; and whether the game builds a new box for
 each talk or keeps one (both are read).
 
 ## Developer flight and slow motion
