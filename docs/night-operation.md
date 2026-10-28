@@ -6,8 +6,10 @@ a linked partner at one of four levels, a shop that sells seven items (three of 
 earn, in the game's own shop screen with the cut Beta Seed as its currency, Night Operation choices in Roxanne's
 dialogue in Xion, and five challenges on the same code, `coop challenge`: four solo fights and the Shooting Range,
 which the host can also run for both players. Two research previews test other parts of the cut mode; they are not
-playable modes. Only the shop screen has run in game (it opened on 2026-10-27, with its rows added): the run, buying,
-Roxanne's choices and the challenges have not been tested in game yet.
+playable modes. The shop screen opened in game on 2026-10-27, with its rows added. One solo run was played on
+2026-10-28: its waves spawned, but the mod tracked none of its monsters, so no kill scored, and some monsters stood
+inside walls. The fixes for both have not been tested in game yet, and neither have buying, Roxanne's choices and the
+challenges.
 
 ## What the game files contain
 
@@ -59,8 +61,13 @@ test how the cut mode's parts behave.
 `coop nightop start` sends five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and a
 score. That is the normal level; three other levels change the number of monsters, the time limit and the shop points
 (see [Levels](#levels)). It runs on a co-op save. With no Steam session it is a solo run, described in this section;
-with a partner linked, see [The co-op run](#the-co-op-run). It has not been tested in game yet. Each step is logged in
-`UE4SS.log` as `[StellarCoop][NR]` lines.
+with a partner linked, see [The co-op run](#the-co-op-run). Each step is logged in `UE4SS.log` as `[StellarCoop][NR]`
+lines.
+
+A solo run was played once, on 2026-10-28, before the two fixes described in [The waves](#the-waves): the tracking of
+its monsters and the ground check of their spawn points. The fixed run has not been tested in game yet, and the co-op
+run not at all. Check in game: each wave logs `wave 1 find +1 s: tracked 4/4` with every monster of the wave counted,
+each kill logs a `kill` line, no monster appears inside a wall or under the floor, and a success pays points.
 
 The run keeps its own timer in the mod. It adds no row to the game's rule table and starts none of the cut mode's
 rules, so a death goes through the game's usual death screen and respawn. Parts of the run adapt code from Survival
@@ -130,15 +137,39 @@ variants, which summon no Skullings. Each wave appears at four points 14 m from 
 picks the order of the points for each wave. A fifth monster stands 2.5 m from its point. Each monster faces the start
 point.
 
+The run of 2026-10-28 used these points as they were, and some monsters spawned inside walls. Before each spawn the mod
+now checks the point against the navmesh, the walkable ground the game's AI moves on. It follows the navmesh in a
+straight line from EVE's start towards the point. If a wall, a ledge or a gap stops the line, the point comes back to
+1.5 m short of the stop. If that leaves it less than 5 m from the start, or if the navmesh has no floor at the point,
+the monster goes to the next of the four points, and if none of them holds, to its own point unchecked. The height
+follows the floor at the point: on flat ground the monster appears 1 m above the start point, as before, and on a floor
+3 m higher it appears 3 m higher. The spawn line in `UE4SS.log` says when a point moved:
+
+```
+spawn 0xD82A0100 M_Antlion at 14306,-17676,3280 yaw -40 (ground: moved 6.5 m)
+spawn 0xD82A0101 M_Antlion at 15580,-16946,3280 yaw -120 (ground: gate 1 blocked, gate 2)
+spawn 0xD82A0102 M_Antlion at 14180,-19370,3280 yaw 60 (ground: gate 3 blocked, no other gate holds: raw spot)
+```
+
+A move of less than 1 m adds nothing to the line. The gates are numbered in the order above: 1 and 2 ahead, 3 and 4
+behind. If the game's navigation calls are missing or fail, or EVE's start is not on the navmesh, the run places every
+monster as it did before the check, and its first spawn line ends with `(ground: unchecked: <reason>)`. In a co-op
+run each game checks the points against its own copy of the map, so both should get the same points.
+
 The game does not keep a monster's wave key where the mod can read it (it copies the key to the character only in a
 networked game), so the mod finds each monster by where it stands. Just before a wave's first spawn, it lists the
-characters in the world and where each one stands. 1 s and 2.5 s after the wave's last spawn, it lists them again. A
-character that is alive and shown, is not EVE, is not one of the run's monsters already, and is not standing within
-50 m of where it stood before the wave counts as new, and becomes the monster of the nearest point of that wave within
-5 m. A field enemy that walked onto a point before the wave is never taken. The game reuses its characters, sometimes
-from far away, which is why the 50 m rule exists. A monster not found 2.5 s after its wave's last spawn is logged as
-`missing`, with the distance of the nearest new character left over (`missing 0xD82A0103 M_Antlion (nearest new body
-6.2 m)`, or `no new body`), and its wave does not wait for it.
+characters in the world and where each one stands. 1 s and 2.5 s after the wave's last spawn, it lists them again and
+logs how many of the wave's monsters it has found (`wave 1 find +1 s: tracked 4/4`). A character that is alive and
+shown, is not EVE, is not one of the run's monsters already, and is not standing within 50 m of where it stood before
+the wave counts as new. It becomes the monster of the nearest of the wave's spawn points within 5 m (the points the
+spawn requests used, after the ground check). Alive means that its `InteractionState` reads 0 or 1. A monster from the
+run's spawn request reads 1 (executable) from its first second until it dies, when it reads 3. The run of 2026-10-28
+took only 0 as alive, so it found none of its monsters: each wave's finds logged 0 (`wave 1 find +2.5 s: tracked 0/4`),
+every monster was `missing` with `no new body`, and no kill scored. A field enemy that walked onto a point before the
+wave is never taken. The game reuses its characters, sometimes from far away, which is why the 50 m rule exists. A
+monster not found 2.5 s after its wave's last spawn is logged as `missing`, with the distance of the nearest new
+character left over (`missing 0xD82A0103 M_Antlion (nearest new body 6.2 m)`, or `no new body`), and its wave does not
+wait for it.
 
 The mod then sends each new monster at EVE. 0.6 s after the monster is found, the mod reports a 0.01 damage event and
 a noise from EVE, puts the monster in battle state, and gives it EVE as focus and a move towards her; if it is still
@@ -184,7 +215,7 @@ own best run (see [Best runs](#best-runs-coop-recordstxt)).
 
 Each kill scores by the monster's rank: 10 for `M_Antlion`, 20 for `M_SkullGunnerAlone` and `M_LurkerA`, 40 for
 `M_SkullSwordAlone`, `M_SkullSpearAlone` and `M_HedgeBoarA`, and 60 for `M_SkullHammerAlone`. A monster counts as down
-for its wave once it is dying or can be executed, and it scores once it dies.
+for its wave once it is dying or the game hides it, and it scores once it dies.
 
 A run ends in one of four ways:
 
@@ -235,9 +266,11 @@ With `coop ui off`, the same facts come as notices: the start, each wave, each w
 
 A run spawns its monsters with the same game request as the probe's `coop no actor`. Each monster carries a wave key
 from `0xD8000000` to `0xD8FFFFFF`, a range that none of the game's spawn rows uses. The heal is the only zone event a
-run fires. A run itself adds or edits no table row (the shop and Roxanne's choices do, see their sections), starts no
-rule, writes no save, and never hides or removes a monster. No word typed after `start` reaches a game call: the level
-only picks the wave sizes, the time limit and the points, and `noaggro` and `nomove` only turn off the mod's own steps.
+run fires. Before each spawn the run asks the game's navigation system (`NavigationSystemV1`) where the walkable ground
+is; those calls only read the navmesh. A run itself adds or edits no table row (the shop and Roxanne's choices do, see
+their sections), starts no rule, writes no save, and never hides or removes a monster. No word typed after `start`
+reaches a game call: the level only picks the wave sizes, the time limit and the points, and `noaggro` and `nomove` only
+turn off the mod's own steps.
 
 Each kill most likely counts toward the game's general kill achievements, as any kill does: the ones for 10 and 1500
 kills and the ones for kills with each kind of skill. A run can unlock one of them if your save is close to its count.
@@ -734,12 +767,12 @@ challenge after the map (`... map <map> challenge targets; census: ...`).
 The 5 s countdown comes first, and wave 1 comes when it ends. Each later wave comes only once the wave before it is
 down: 5 s after, or 3 s in Target Practice and the Shooting Range. Meanwhile the card counts down to it
 (`NEXT WAVE IN 4`). Unlike Night Operation's waves, a challenge's waves have no set run time, so a slow clear holds the
-next wave back until the time limit. As in the solo run, a wave is down once each of its monsters is dying, can be
-executed, is written off, is missing or is no longer tracked.
+next wave back until the time limit. As in the solo run, a wave is down once each of its monsters is dying, is hidden
+by the game, is written off, is missing or is no longer tracked.
 
 In Antlion Swarm, Skull Squad and Gauntlet the monsters come as in the solo run: at the four points 14 m from where EVE
-started, sent at her, and moved back at most twice when they are stuck or fall (see [The waves](#the-waves)). The full
-heal is the solo run's too.
+started, after the same ground check, sent at her, and moved back at most twice when they are stuck or fall (see [The
+waves](#the-waves)). The full heal is the solo run's too.
 
 ### Target Practice
 
@@ -757,15 +790,18 @@ The dummies stand on eight spots in front of the point where EVE started. Angles
 | 6 and 7 | 40 degrees to each side | 26 m |
 | 8 | straight ahead | 32 m |
 
-Each wave draws its own order of the spots, so the dummies stand in other places each round. A dummy appears 1 m above
-the height of the start point and faces it. The mod neither sends it at EVE nor gives it an AI controller. How the
+Each wave draws its own order of the spots, so the dummies stand in other places each round. Each spot goes through the
+solo run's ground check (see [The waves](#the-waves)): a blocked spot comes back towards the start point, or the dummy
+goes to the next spot (`(ground: spot 3 blocked, spot 4)`). A dummy appears as high above the floor at its spot as a
+monster does, and faces the start point. The mod neither sends it at EVE nor gives it an AI controller. How the
 dummies look, whether they stand still and how many shots each one takes are not known yet.
 
-Start Target Practice on flat open ground, with nothing in the way for 32 m ahead of EVE. On a slope a spot can lie
-inside the ground or above it. A dummy more than 10 m below both the start point and EVE, or more than 40 m from both,
-is written off where it is at its first check (2.5 s after it is found, then every 3 s). It is never moved, its wave
-stops waiting for it, and shooting it later still scores. Dummies left after a run stay in the world, as monsters do
-(see [Score and the end of a run](#score-and-the-end-of-a-run)).
+Start Target Practice on flat open ground, with nothing in the way for 32 m ahead of EVE. When the ground check cannot
+run (`(ground: unchecked: ...)` in the log), a spot on a slope can lie inside the ground or above it. A dummy more than
+10 m below both the start point and EVE, or more than 40 m from both, is written off where it is at its first check
+(2.5 s after it is found, then every 3 s). It is never moved, its wave stops waiting for it, and shooting it later still
+scores. Dummies left after a run stay in the world, as monsters do (see [Score and the end of a
+run](#score-and-the-end-of-a-run)).
 
 ### Shooting Range
 
