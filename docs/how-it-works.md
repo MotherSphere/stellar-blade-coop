@@ -64,7 +64,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `nightop/challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
 | `nightop/board.lua` | The Shooting Range's score on the cut test widget `WB_ShootingTrainingTest`, beside the run's card |
 | `nightop/recruiter.lua` | The `coop recruiter` preview |
-| `nightop/recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
+| `nightop/recruiter_text.lua` | The recruiter's lines in the game's 23 languages (not shown: no text registration), and `culture()`, the game language's culture for the other text modules |
 | `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
@@ -80,7 +80,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
 | `cut/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](#cut-mailbox)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
-| `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
+| `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
@@ -2373,14 +2373,18 @@ of row names at `+0x10`, count `+0x18`, max `+0x1c`; find `FUN_1417022e0`), then
 reads its fields live. So writing a row's `SelectDataName` does nothing, and a row added with AddRow is not listed
 either.
 
-1. Text: the four labels go to the text keys of four shipped test rows that no story graph lists
-   (`Temp_TS_Select_Test_1` to `_3`, `TS_GoToTest_1`), in the game's 23 languages (`nightop/roxanne_text.lua`),
-   through `nightop/recruiter.lua`'s registration (KismetTextLibrary `PolyglotDataToText`, each key's Korean source as
-   the asset has it, after a Korean length check), then read back through the rows.
+1. Text: the four labels go into the `DisplayText` of four shipped test rows that no story graph lists
+   (`Temp_TS_Select_Test_1` to `_3`, `TS_GoToTest_1`), in the game's language read once when the rows are armed
+   (KismetInternationalizationLibrary `GetCurrentLanguage`, mapped by `culture()`: `fr-FR` to `fr`, an unknown or
+   unreadable one to `en`; `nightop/roxanne_text.lua` has the 23 languages). They keep it until the next Lua load. No
+   text key is registered: KismetTextLibrary `PolyglotDataToText` takes the languages as a TMap inside its struct
+   parameter, and UE4SS 3.0.1 converts a Lua table there from the wrong stack slot (`Lua::for_each_in_table` walks
+   slot 1, the outer struct's table), so the call raises, or reads the struct's own fields, `CachedText` included.
 2. Rows: each is edited in place through the recruiter's checked edit (its ID and list checked, then
-   `InteractionGraphExec` `Success2`, the exec of her End Conversation, so her graph plays a goodbye and ends, and
-   `NextTaskTagName` `None`), read back through a fresh FindRow. Either the shipped value or ours is accepted, so a Lua
-   reload goes on.
+   `InteractionGraphExec` `Success2`, the exec of her End Conversation, so her graph plays a goodbye and ends,
+   `NextTaskTagName` `None`, and `DisplayText` `FText(label)`), read back through a fresh FindRow. Either the shipped
+   value or ours is accepted, so a Lua reload goes on. A row that does not read back stops the arm, and every row is
+   put back, that one included.
 3. The list: `nightop/roxanne.h` (free of Windows, tested against fake memory) and `glue/tick/nightop_game.inc` point
    her entry at a new array of six FNames, the four rows then her two, allocated with the game's GMalloc
    (`0x14706b500`, Malloc at its vtable's `+0x10`) so the game may free it like its own. From the moment the entry
@@ -2402,17 +2406,17 @@ either.
    co-op save and race checks). A host's start only asks the guest (the run's phase `ask`), so the booking holds until
    the run leaves that phase: it goes once the run counts down, and a dropped ask is tried again 30 s later. The
    supplies call `coop nightop shop` 5 s after the pick.
-5. Off: on `coop off` and on a save that is not a co-op save, `roxanne off`, asked again every 10 s while the
-   `roxanne=` line reads `on` (Lua's tick goes on after `coop off` for that alone, and the native part still takes an
-   off then). The rows get their shipped values only once the line reads `off` after an off it took, or `absent`: while
-   her entry may still list them, they keep `Success2`, which only plays her goodbye, and after a fault they keep it
-   until the game exits. The text keys keep their labels until the game exits; the rows that carry them are listed
-   nowhere else. A load (the title, a map, leaving Xion included) reads `slot=none` or `unknown` for a while: once
-   armed, Lua's tick only runs the drops below then, so the swap holds through it, and a booking and a supplies pick
-   hold through a map load. A supplies pick still goes 30 s after its screen was due (`SHOP_WAIT`), a load included.
-   The title screen (Lua's `puppet.world`, the `world=title` of `coop-state.txt`, since the status line has no such
-   flag) and a co-op save with another index drop the booking and the supplies pick: after the title, the slot loaded
-   may hold another file.
+5. Off: on `coop off` and on a save that is not a co-op save, `roxanne off`, asked again every 10 s while the `roxanne=`
+   line reads `on` (Lua's tick goes on after `coop off` for that alone, and the native part still takes an off then).
+   The rows get their shipped values only once the line reads `off` after an off it took, or `absent`: while her entry
+   may still list them, they keep `Success2`, which only plays her goodbye, and after a fault they keep it until the
+   game exits. The shipped values include each row's Korean `DisplayText`, from `nightop/roxanne_text.lua`'s keys. A
+   load (the title, a map, leaving Xion included) reads `slot=none` or `unknown` for a while: once armed, Lua's tick
+   only runs the drops below then, so the swap holds through it, and a booking and a supplies pick hold through a map
+   load. A supplies pick still goes 30 s after its screen was due (`SHOP_WAIT`), a load included. The title screen
+   (Lua's `puppet.world`, the `world=title` of `coop-state.txt`, since the status line has no such flag) and a co-op
+   save with another index drop the booking and the supplies pick: after the title, the slot loaded may hold another
+   file.
 
 Not checked offline: who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild), the
 choice box's sort, that `GetAllWidgetsOfClass` finds the box in this build, and whether the game builds a new box for
