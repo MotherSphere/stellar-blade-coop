@@ -214,6 +214,8 @@ inline std::pair<size_t, size_t> snapshot(const std::string &b) {
 // hold DLC02_10_EnvS_906, not the mod's first row. Every world and zone of the
 // game's tables, Matrix XIII's DLCMatrix13 and Zone_DLC02_10 to 40 included, is in every save, and ItemOtaineSet keeps
 // every item ever held, so neither counts. What the New Game+ snapshot holds is said apart: playing cannot clear it.
+// The mod's quest On Time (Quest_Sub_MX13_01, lion/rows.h's signal batch) counts wherever its alias is: the save keys
+// quests by alias, the tracked one included, and nothing ends that quest yet, so no play takes it out.
 inline std::string mod_only(const std::string &b) {
   const std::pair<size_t, size_t> kept = snapshot(b);
   // Where bytes at an offset are: 1 the save as played, 2 its New Game+ snapshot; where(bytes) ors them, 0 nowhere.
@@ -306,8 +308,13 @@ inline std::string mod_only(const std::string &b) {
         stuck + " in its New Game+ snapshot: playing does not change that snapshot, so only a copy by hand takes this "
                 "save out (docs/saves.md)",
         "; ");
-  else if (!why.empty())
+  const bool quest = where(fstring("Quest_Sub_MX13_01")) != 0;
+  if (stuck.empty() && !why.empty() && !quest)
     why += "; then save and export it again";
+  if (quest)
+    add(why,
+        "the mod's quest On Time (Quest_Sub_MX13_01): nothing ends that quest yet, so this save cannot be exported",
+        "; ");
   return why;
 }
 
