@@ -1,17 +1,16 @@
 -- cut/scene.lua with fake UE4SS objects. coop scene lists the two scenes. A scene is refused, with no zone event, with
 -- no EVE, off its map, more than 50 m from its stage or while a theater of the game plays; so it is when a donor row is
 -- not the row we know (its ID, Play or Stop, conditions, theater) or does not read back. emil points both rows at the
--- game's farewell theater, sets its take 1 to E03 and reads it back, registers E03's 10 subtitle keys once a Lua load
--- for the game's language with StringTable_Seq's GoodBye_01 lines (a text fault is logged and never stops the scene),
--- then fires the Play row once; orcal points the rows at its own theater, with no take and no text. The observer is
--- looked for once a second: seen, then gone, the scene ends with the take put back and a fade cleared; never seen in
+-- game's farewell theater, sets its take 1 to E03 and reads it back, logs one STOP: text line naming the UE4SS limit
+-- (no call to a text, string or language library, whose PolyglotDataToText raises as UE4SS does on a plain Lua-table
+-- map), then fires the Play row once; orcal points the rows at its own theater, with no take and no text. The observer
+-- is looked for once a second: seen, then gone, the scene ends with the take put back and a fade cleared; never seen in
 -- 10 s, it fails with the take put back; the game's own farewell playing instead is said; a finished observer not yet
 -- collected no longer plays. A CreateSBZoneEvent that raises puts the take back. coop scene stop fires the Stop row,
 -- and nothing while that row is no longer the row we know; coop off fires it and puts the take back at once; a new Lua
 -- load stops an earlier load's scene and puts the take back, firing nothing for a sequence in memory that no observer
--- plays and walking no object while no scene's sequence is in memory. A text fault, a key that does not read its line
--- among them, is tried again at the next emil. The only zone events are the two rows' kind 6, and the source names no
--- save, quest, warp, item, row or spawn call.
+-- plays and walking no object while no scene's sequence is in memory. The only zone events are the two rows' kind 6,
+-- and the source names no save, quest, warp, item, row or spawn call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -121,27 +120,26 @@ FindAllOf=function(class)
     return observers
 end
 
--- The text libraries: the game in French, StringTable_Seq's GoodBye_01 lines, each registration as given (misread: the
--- key that reads another line).
-local lang,len_off,table_has,misread='fr',0,true,nil
-local GOODBYE={}
-for n=1,5 do GOODBYE['Seq_Subtitle_Nier_Emil_GoodBye_01_0'..n]='fr line '..n end
-local polyglots={}
+-- The text libraries, which coop scene must not call (text_calls counts every call). UE4SS 3.0.1 converts a Lua table
+-- given for a map inside a struct parameter from the wrong stack slot (the outer struct's), so its FString pusher
+-- meets a number or a table: PolyglotDataToText raises with any plain Lua table as LocalizedStrings.
+local text_calls=0
+local function counted(f) return function(...) text_calls=text_calls+1; return f(...) end end
 local libraries={
     ['/Script/SB.Default__SBBlueprintLibrary']=zone,
     ['/Script/Engine.Default__KismetInternationalizationLibrary']=object({
-        GetCurrentLanguage=function() return lang end}),
-    ['/Script/Engine.Default__KismetStringLibrary']=object({Len=function(_,s) return utf8.len(s)+len_off end}),
-    ['/Script/Engine.Default__KismetStringTableLibrary']=object({IsRegisteredTableEntry=function(_,id,key)
-        return table_has and id:ToString()==SEQ_TABLE and GOODBYE[key]~=nil
-    end}),
+        GetCurrentLanguage=counted(function() return 'fr' end)}),
+    ['/Script/Engine.Default__KismetStringLibrary']=object({Len=counted(function(_,s) return utf8.len(s) end)}),
+    ['/Script/Engine.Default__KismetStringTableLibrary']=object({IsRegisteredTableEntry=counted(function()
+        return true end)}),
     ['/Script/Engine.Default__KismetTextLibrary']=object({
-        TextFromStringTable=function(_,id,key) assert(id:ToString()==SEQ_TABLE); return FText(GOODBYE[key]) end,
-        PolyglotDataToText=function(_,d)
-            polyglots[#polyglots+1]=d
-            assert(d.Category==0 and d.Namespace=='' and d.bIsMinimalPatch==false and d.CachedText.empty,'As asked')
-            return FText(d.Key==misread and 'another line' or d.LocalizedStrings[lang] or d.NativeString)
-        end}),
+        TextFromStringTable=counted(function(_,_,key) return FText(key) end),
+        PolyglotDataToText=counted(function(_,d)
+            if type(d.LocalizedStrings)=='table' and getmetatable(d.LocalizedStrings)==nil then
+                error('[push_strproperty] Error: StrProperty can only be set to a string or FString',0)
+            end
+            error('PolyglotDataToText: no fake for this map')
+        end)}),
 }
 names[SEQ_TABLE],names[PLAY],names[STOP]=true,true,true
 local classes={}
@@ -229,7 +227,7 @@ take.TemplateSequence=orcal_seq
 ok,why=sc.command('emil')
 assert(ok==false and why=="the farewell take plays "..ORCAL_SEQ..", not the farewell's own: nothing was played",why)
 take.TemplateSequence=farewell_seq
-assert(#events==0 and #polyglots==0,'Nothing fired, nothing registered')
+assert(#events==0 and text_calls==0,'Nothing fired, no text call')
 
 -- emil: the rows, the take, the text, then the Play row once.
 lines={}
@@ -244,13 +242,10 @@ assert(lines[1]=='rows: LYC02GO_E_Theater_002 and LYC02GO_E_Theater_003 -> MV_Ni
     lines[1])
 assert(lines[2]=='take: MV_Nier_Emil_GoodBye_WLA take 1 MV_Nier_Emil_GoodBye_WLA -> MV_DLC_Ending_E03; read back',
     lines[2])
-assert(lines[3]=='text: game language fr; 10 keys registered, each reads its GoodBye_01 line',lines[3])
+assert(lines[3]=='STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter '
+    ..'(PolyglotDataToText LocalizedStrings): not registered, the lines stay Korean and Japanese',lines[3])
 assert(last()=='play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called; EVE 0.0 m from the stage',last())
-assert(#polyglots==10 and empties==1,'Each key once, with one empty FText')
-for _,d in ipairs(polyglots) do
-    local l=Scene.LINES[d.Key]
-    assert(d.NativeCulture==l[2] and d.NativeString==l[3] and d.LocalizedStrings.fr=='fr line '..l[1],d.Key)
-end
+assert(text_calls==0 and empties==0,'No text call, no FText')
 ok,why=sc.command('orcal')
 assert(ok==false and why=="Emil's farewell is under way: coop scene stop ends it",why)
 assert(select(2,sc.command()):find("; Emil's farewell is under way.",1,true))
@@ -277,7 +272,7 @@ world.name=XION
 eve.at={X=34094.8+3000,Y=-1075.0,Z=-34663.4}
 at(200)
 ok,why=sc.command('orcal')
-assert(ok and rows[PLAY].TheaterAssetPath==ORCAL and rows[STOP].TheaterAssetPath==ORCAL and #polyglots==10,why)
+assert(ok and rows[PLAY].TheaterAssetPath==ORCAL and rows[STOP].TheaterAssetPath==ORCAL and text_calls==0,why)
 assert(#lines==2 and last()=='play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called; EVE 30.0 m from the stage',
     last())
 at(201); sc.tick(); assert(last()=='playing: Trailer_Resource_2022_CameraSample1, 1.0 s after the call',last())
@@ -296,11 +291,13 @@ ok,why=sc.tick()
 assert(ok and why=="Orcal's monologue from the 2022 trailer stopped after 10 s." and fades==1,tostring(why))
 assert(last()==why,'No take, no fade')
 
--- emil again: no second text registration. The game's own farewell playing instead is said; it still ends the scene.
+-- emil again: the text line again, still no text call. The game's own farewell playing instead is said; it still ends
+-- the scene.
 world.name,eve.at=WASTELAND,{X=11347.6,Y=22973.7,Z=417.9}
 honoured=false
 at(300)
-assert(sc.command('emil') and #polyglots==10,'Registered once a Lua load')
+lines={}
+assert(sc.command('emil') and text_calls==0 and lines[3]:find('^STOP: text: this UE4SS build'),'The line again')
 at(301); sc.tick()
 assert(lines[#lines-1]=='playing: MV_Nier_Emil_GoodBye_WLA, 1.0 s after the call' and last()=="the take's write was "
     .."not honoured: the game's own farewell plays instead",last())
@@ -362,37 +359,6 @@ finds=0
 local fresh=new()
 fresh.restore()
 assert(finds==0 and #lines==n,'No walk, no line')
-
--- Text faults are logged, never stop the scene and are tried again at the next emil: a widened source, a table that
--- lacks the lines (then has them), a key that does not read its line.
-len_off=4
-local t=new()
-at(700); assert(t.command('emil') and #polyglots==10)
-assert(logged('STOP: text: game language fr; a Korean line reads 19 UTF-16 units, not 15: not registered, the lines '
-    ..'stay Korean and Japanese'))
-t.stop()
-len_off,table_has=0,false
-t=new()
-at(800); assert(t.command('emil') and #polyglots==10)
-assert(logged('STOP: text: game language fr; Seq_Subtitle_Nier_Emil_GoodBye_01_01 is not in a loaded StringTable_Seq: '
-    ..'not registered'))
-t.stop()
-table_has=true
-lines={}
-at(810); assert(t.command('emil') and #polyglots==20)
-assert(logged('text: game language fr; 10 keys registered, each reads its GoodBye_01 line'))
-t.stop()
-at(820); assert(t.command('emil') and #polyglots==20,'Then once')
-t.stop()
-misread='891614504FCD4510914FA2B9DA51FE06'
-t=new()
-at(900); assert(t.command('emil') and #polyglots==30)
-assert(logged('STOP: text: game language fr; 10 keys registered, but 891614504FCD4510914FA2B9DA51FE06 does not read '
-    ..'its line'))
-t.stop()
-misread=nil
-at(910); assert(t.command('emil') and #polyglots==40,'Again')
-t.stop()
 
 -- The source names no save, quest, warp, item, reward, achievement, spawn, destroy, console or row call; it fires
 -- CreateSBZoneEvent at one place.

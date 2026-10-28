@@ -16,8 +16,8 @@
 -- tags N_Emil, Player and Drone, blocks move and look input, hides the HUD and fades out at the end). The take's
 -- TemplateSequence is set to MV_DLC_Ending_E03 in memory and read back, then put back on the farewell's own sequence
 -- once the scene ends, so the game's farewell plays its own scene again. E03's 10 unvoiced subtitles carry Korean (row
--- 0) and Japanese (row 1) text under keys no locres holds: each key is registered with the engine's localization for
--- the game's language, as the matching GoodBye_01 line of StringTable_Seq reads in it (LINES).
+-- 0) and Japanese (row 1) text under keys no locres holds (LINES). They stay so: the engine's registration
+-- (PolyglotDataToText) takes the line as a map inside a struct parameter, which this UE4SS build cannot pass (TEXT_NO).
 -- A scene plays on its map with EVE within 50 m of its stage and not while a theater of the game plays. Then, once a
 -- second, its theater observer (SBTheaterLevelSequenceObserver) is looked for, and once seen it alone is read: none
 -- 10 s after the call fails it; seen, then gone (its end, the game's skip, coop scene stop, a map change), it ends the
@@ -64,10 +64,9 @@ Scene.SCENES={
 Scene.ORDER={'emil','orcal'}
 local THEATERS={}
 for _,s in pairs(Scene.SCENES) do THEATERS[s.theater]=true end
-local SEQ_TABLE='/Game/Local/Localize/StringTable_Seq.StringTable_Seq'
-local GOODBYE='Seq_Subtitle_Nier_Emil_GoodBye_01_0' -- 1 to 5: the shipped farewell's first version, in 23 languages.
 -- E03's subtitle keys (namespace "") -> {GoodBye_01 line, native culture, the asset's inline source}: the engine shows
 -- a registered text only while that source matches the asset's byte for byte. Rows 0 and 1 show at the same times.
+-- Not registered (TEXT_NO).
 Scene.LINES={
     ['7604B654474B0E31F4A974A24D7DE326']={1,'ko','이제 떠나야 할 시간이네요.'},
     ['891614504FCD4510914FA2B9DA51FE06']={2,'ko','덕분에 별의 눈물을 충분히 모았으니까요.'},
@@ -80,7 +79,6 @@ Scene.LINES={
     ['BCA05D8745BD69D048CDE9ACE6CFDE69']={4,'ja','ここでの思い出は 何があっても忘れません'},
     ['C6B85A604489C976A99EE39D4189704D']={5,'ja','また会える日まで どうかお元気で'},
 }
-local LIBRARY='/Script/Engine.Default__Kismet'
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
 local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end
 local function short(p) return (tostring(p):match('[^./]+$')) end
@@ -164,39 +162,10 @@ local function unswap()
     if back~=FAREWELL_SEQ then error('the farewell take reads '..back..' after the write',0) end
     return 'the farewell take back on its own sequence'
 end
--- E03's 10 subtitle keys registered for the game's language with its GoodBye_01 lines, in memory for the game run (only
--- those keys' display strings change). Gives the text line; raises on an engine error.
-local function register_text()
-    local lang=text(U.find(LIBRARY..'InternationalizationLibrary'):GetCurrentLanguage())
-    local head='text: game language '..U.word(lang,16)..'; '
-    local stay=': not registered, the lines stay Korean and Japanese'
-    -- Lua strings are UTF-8, FString UTF-16: a source UE4SS widened byte by byte never matches the asset's.
-    local probe=Scene.LINES['7604B654474B0E31F4A974A24D7DE326'][3]
-    local units=value_of(U.find(LIBRARY..'StringLibrary'):Len(probe))
-    if units~=utf8.len(probe) then
-        return string.format('STOP: %sa Korean line reads %s UTF-16 units, not %d%s',head,tostring(units),
-            utf8.len(probe),stay)
-    end
-    local id,lines=find_name(SEQ_TABLE),{}
-    local library=U.find(LIBRARY..'TextLibrary')
-    for n=1,5 do
-        if id:GetComparisonIndex()==0
-            or U.find(LIBRARY..'StringTableLibrary'):IsRegisteredTableEntry(id,GOODBYE..n)~=true then
-            return 'STOP: '..head..GOODBYE..n..' is not in a loaded StringTable_Seq'..stay
-        end
-        lines[n]=text(library:TextFromStringTable(id,GOODBYE..n))
-    end
-    local empty=FText('') -- The engine registers the data only while CachedText is empty.
-    local count,wrong=0,nil
-    for key,l in pairs(Scene.LINES) do
-        local got=text(library:PolyglotDataToText({Category=0,NativeCulture=l[2],Namespace='',Key=key,NativeString=l[3],
-            LocalizedStrings={[lang]=lines[l[1]]},bIsMinimalPatch=false,CachedText=empty}))
-        count=count+1
-        if got~=lines[l[1]] then wrong=wrong or key end
-    end
-    if wrong then return string.format('STOP: %s%d keys registered, but %s does not read its line',head,count,wrong) end
-    return string.format('%s%d keys registered, each reads its GoodBye_01 line',head,count)
-end
+-- UE4SS 3.0.1 converts a Lua table given for a map inside a struct parameter from the wrong stack slot (the outer
+-- struct's): PolyglotDataToText raises, or may read an FText as an FString. So nothing calls it.
+local TEXT_NO='STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter '
+    ..'(PolyglotDataToText LocalizedStrings): not registered, the lines stay Korean and Japanese'
 -- The short name of the sequence a theater observer plays now, else nil.
 local function name_of(ob)
     ob=valid(ob)
@@ -240,7 +209,7 @@ function Scene.new(o)
     -- The scene under way: {s=, called=<os.clock of the Play row>, next=<next look>, seen=, observer= (the one seen
     -- playing it), stopping=}.
     local cur=nil
-    local restored,texted=false,false
+    local restored=false
     -- The scene ended (or failed): its farewell take put back, a fade it left cleared once it was seen. Returns ok,
     -- message for main.lua's report.
     local function finish(ok,message)
@@ -314,13 +283,7 @@ function Scene.new(o)
             did,stop=swap()
             if not did then return false,stop..': nothing was played' end
             log('take: '..did)
-            -- A text fault never stops the scene: its lines stay Korean and Japanese, and the next emil tries again
-            -- (StringTable_Seq may load later).
-            if not texted then
-                local fine,said=pcall(register_text)
-                texted=fine and not said:find('^STOP')
-                log(fine and said or 'STOP: text: '..why(said)..': the lines stay Korean and Japanese')
-            end
+            log(TEXT_NO) -- Never stops the scene: its lines stay Korean and Japanese.
         end
         local fired,e=pcall(zone_event,THEATER,PLAY)
         if not fired then
