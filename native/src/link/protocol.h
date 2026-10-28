@@ -573,7 +573,7 @@ inline uint64_t code_lobby(std::string_view text) {
 // coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt (through
 // cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (cut/mxiii.lua) "mxiii rows <Table>=0x<address>
 // ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop rows
-// <Table>=0x<address> ..."
+// <Table>=0x<address> ..." and for Lily's signal (story/lily.lua) "signal rows <Table>=0x<address> ..."
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each of the kLionTables, in any
 // order, each once, its address in 1 to 16 hex digits and plausible; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
@@ -586,27 +586,33 @@ inline uint64_t code_lobby(std::string_view text) {
 // Night Operation shop in SB's own shop screen (nightop/shop.lua, nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
-// nightop/roxanne.h) "roxanne on" and "roxanne off". No console argument reaches either: the words are fixed.
+// nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (story/lily.lua, the same header) "lily
+// on" and "lily off"; for the mod's own quest (story/lily.lua, quest/own.h) "signal acquire" (acquire it) and "signal
+// complete" (its first task's Complete). No console argument reaches any of them: the words are fixed, and so is the
+// quest's ID.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne
+  remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
+  signal
 };
 // shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
-// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop), in
-// Request::batch's order.
-constexpr size_t kRowWordCount = 6;
-constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt", "mxiii", "shop"};
+// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
+// kSignal), in Request::batch's order.
+constexpr size_t kRowWordCount = 7;
+constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt", "mxiii", "shop", "signal"};
 // The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
-constexpr size_t kLionTableCount = 20;
+constexpr size_t kLionTableCount = 25;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
     "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable",
     "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable",
     "ItemTable",             "ItemConsumableTable",      "ProjectileTable",    "ZoneCampTable",
-    "ZoneEnvSpawnTable",     "ShopTable",                "ShopItemTable",      "ZoneTriggerTable"};
+    "ZoneEnvSpawnTable",     "ShopTable",                "ShopItemTable",      "ZoneTriggerTable",
+    "QuestTable",            "QuestTaskGroupTable",      "QuestTaskTable",     "LevelTargetFilter",
+    "TheaterSelectDataTable"};
 // coop-request.txt's bytes the native part reads (glue/steam.cpp): the longest rows request, 16 digits to each of its
-// 20 addresses, and its line end fit (protocol_test).
+// 25 addresses, and its line end fit (protocol_test).
 constexpr size_t kMaxRequestFile = 1024;
 // nightshop: what nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
 // Shop_NightOperation_CoopBolt, closed, or no call but the reads.
@@ -636,7 +642,9 @@ struct Request {
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
-  bool on = false;                       // roxanne on (true) or off.
+  bool on = false;                       // roxanne on, lily on (true) or off.
+  bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
+  bool complete = false;                 // signal: complete (true) or acquire.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -925,6 +933,12 @@ inline Request parse_request(std::string text) {
   } else if (text == "roxanne on" || text == "roxanne off") {
     r.command = Command::roxanne;
     r.on = text.size() == 10;
+  } else if (text == "lily on" || text == "lily off") {
+    r.command = Command::roxanne;
+    r.lily = true, r.on = text.size() == 7;
+  } else if (text == "signal acquire" || text == "signal complete") {
+    r.command = Command::signal;
+    r.complete = text[7] == 'c';
   } else if (text == "fly on" || text == "fly off" || text == "slowmo on" || text == "slowmo off") {
     r.command = Command::gate;
     r.gate = text[0] == 's' ? 1 : 0;

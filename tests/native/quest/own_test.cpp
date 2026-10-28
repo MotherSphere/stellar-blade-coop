@@ -1,0 +1,238 @@
+// The mod's own quest in the quest unit (quest/own.h) against fake memory laid out like the pinned build: the logic,
+// world and manager globals, the unit's ID map with its allocation bits (inline, or on the heap past 128 slots), a
+// quest object with its groups, containers and tasks. Covered: nothing read off a co-op save, on SB's logic thread,
+// before the world or manager exist (the unit getter never called then) or with a stale slot; none, held (state,
+// active group, its first task's state) and Quest_Epic_12 seen; the acquire once (refused when held or when SB says
+// false, never off a co-op save); the first task's Complete only in progress at M01 with its task in progress, in
+// that group, through a task vtable whose +0x60 is SB's Complete (or the one that ends children), never another; the
+// answer word and the status line.
+#include "quest/own.h"
+
+#include <cassert>
+#include <cstdio>
+#include <cstring>
+#include <map>
+#include <string>
+#include <vector>
+
+using namespace coop::quest;
+using own::acquire;
+using own::Answer;
+using own::complete;
+using own::Held;
+using own::kId;
+using own::Look;
+using own::look;
+using own::pack;
+using own::status_line;
+using own::unpack;
+
+namespace {
+constexpr uint64_t kBase = 0x7ff600000000;
+uint64_t at_image(uint64_t address) { return kBase + (address - kImageBase); }
+constexpr uint64_t kUnit = 0x20000, kElements = 0x21000, kHeapBits = 0x22000, kQuest = 0x30000, kGroups = 0x31000,
+                   kGroup0 = 0x32000, kGroup1 = 0x33000, kContainers0 = 0x34000, kTasks0 = 0x35000, kTask0 = 0x36000,
+                   kTaskVtable = 0x146000000; // In .rdata.
+const std::string kCoopSlot = "slot=coop index=0 marker=? saves=coop", kMain = "slot=main index=0 marker=? saves=main";
+
+struct Game {
+  std::map<uint64_t, std::vector<uint8_t>> regions;
+  uint32_t me = 7, logic = 0;
+  int units = 0, acquires = 0;
+  bool acquire_ok = true;
+  std::vector<std::pair<uint64_t, uint64_t>> calls;
+  uint64_t mgr_seen = 0;
+  uint32_t owner_seen = 0, id_seen = 0;
+
+  void map(uint64_t at, size_t n) { regions[at].assign(n, 0); }
+  uint8_t *at(uint64_t a, size_t n) {
+    auto r = regions.upper_bound(a);
+    if (r == regions.begin())
+      return nullptr;
+    --r;
+    return a + n <= r->first + r->second.size() ? r->second.data() + (a - r->first) : nullptr;
+  }
+  template <class T> void put(uint64_t a, T v) { std::memcpy(at(a, sizeof v), &v, sizeof v); }
+  bool read(uint64_t a, void *out, size_t n) {
+    const uint8_t *p = at(a, n);
+    if (p)
+      std::memcpy(out, p, n);
+    return p;
+  }
+  uint32_t thread() { return me; }
+  uint64_t unit(uint64_t manager) {
+    ++units;
+    assert(manager == 0x10000);
+    return kUnit;
+  }
+  bool acquire(uint64_t manager, uint32_t owner, uint32_t id) {
+    ++acquires, mgr_seen = manager, owner_seen = owner, id_seen = id;
+    return acquire_ok;
+  }
+  void call(uint64_t function, uint64_t object) { calls.push_back({function, object}); }
+};
+
+// The globals, an empty unit (owner 0x51), and the map's slots; key 0 marks a slot left free in the bits.
+Game game(const std::vector<std::pair<int32_t, uint64_t>> &slots = {}) {
+  Game g;
+  g.map(at_image(kLogicThread), 4);
+  g.map(at_image(kWorldGlobal), 8);
+  g.put(at_image(kWorldGlobal), uint64_t(0x18000));
+  g.map(at_image(kManagerGlobal), 8);
+  g.put(at_image(kManagerGlobal), uint64_t(0x10000));
+  g.map(kUnit, kUnitRead);
+  g.put<uint32_t>(kUnit + kOwner, 0x51);
+  g.map(kElements, kElement * (slots.size() + 1));
+  g.put(kUnit + kMapData, kElements);
+  g.put<int32_t>(kUnit + kMapNum, int32_t(slots.size()));
+  g.put<int32_t>(kUnit + kMapNumBits, int32_t(slots.size()));
+  uint32_t bits[4] = {};
+  for (size_t s = 0; s < slots.size(); ++s) {
+    g.put(kElements + kElement * s, slots[s].first);
+    g.put(kElements + kElement * s + 8, slots[s].second);
+    if (slots[s].first && s < 128) // Past 128, the heap bits the test sets.
+      bits[s / 32] |= 1u << (s % 32);
+  }
+  std::memcpy(g.at(kUnit + kMapBits, 16), bits, 16);
+  // Our quest: in progress at group 0 of 2, its first container's first task in progress.
+  g.map(kQuest, kQuestRead);
+  g.put(kQuest, at_image(kQuestVtable));
+  g.put<int32_t>(kQuest + kQuestState, 1);
+  g.put(kQuest + kQuestGroups, kGroups);
+  g.put<int32_t>(kQuest + kQuestGroupCount, 2);
+  g.put<int32_t>(kQuest + kQuestActive, 0);
+  g.map(kGroups, 16);
+  g.put(kGroups, kGroup0);
+  g.put(kGroups + 8, kGroup1);
+  for (uint64_t grp : {kGroup0, kGroup1}) {
+    g.map(grp, kGroupRead);
+    g.put(grp, at_image(kGroupVtable));
+  }
+  g.put(kGroup0 + kContainers, kContainers0);
+  g.put<int32_t>(kGroup0 + kContainerCount, 1);
+  g.map(kContainers0, kContainer);
+  g.put(kContainers0, kTasks0);
+  g.put<int32_t>(kContainers0 + 8, 1);
+  g.map(kTasks0, 8);
+  g.put(kTasks0, kTask0);
+  g.map(kTask0, 0x48);
+  g.put(kTask0, at_image(kTaskVtable));
+  g.put<int32_t>(kTask0 + kTaskState, 1);
+  g.put(kTask0 + kTaskGroup, kGroup0);
+  g.map(at_image(kTaskVtable), 0x80);
+  g.put(at_image(kTaskVtable) + kCompleteSlot, at_image(kComplete));
+  return g;
+}
+} // namespace
+
+int main() {
+  // Off a co-op save, nothing is read and the getter is never called; none on a co-op save with other quests.
+  {
+    Game g = game({{3, 0x40000}, {9, 0x41000}});
+    assert(look(g, kBase, kMain).held == Held::unread && g.units == 0);
+    assert(look(g, kBase, "slot=none index=0").held == Held::unread && g.units == 0);
+    const Look l = look(g, kBase, kCoopSlot);
+    assert(l.held == Held::none && !l.epic12 && l.state == -1 && l.group == -1 && l.task == -1 && g.units == 1);
+  }
+  // On SB's logic thread, or before the world or the manager: unread, no getter call.
+  {
+    Game g = game();
+    g.put<uint32_t>(at_image(kLogicThread), 7);
+    assert(look(g, kBase, kCoopSlot).held == Held::unread && g.units == 0);
+    g.put<uint32_t>(at_image(kLogicThread), 9); // Another thread runs the logic: fine.
+    assert(look(g, kBase, kCoopSlot).held == Held::none);
+    g = game();
+    g.put(at_image(kManagerGlobal), uint64_t(0));
+    assert(look(g, kBase, kCoopSlot).held == Held::unread && g.units == 0);
+    g = game();
+    g.put(at_image(kWorldGlobal), uint64_t(0));
+    assert(look(g, kBase, kCoopSlot).held == Held::unread && g.units == 0);
+  }
+  // Held: our quest's state, active group and first task; Quest_Epic_12 seen; a free slot with our key ignored.
+  {
+    Game g = game({{int32_t(kId), 0x50000}, {25, 0x41000}, {int32_t(kId), kQuest}});
+    g.put<int32_t>(kElements, 0); // Slot 0 free in the bits (its stale key 0).
+    std::memcpy(g.at(kUnit + kMapBits, 4), "\x06\x00\x00\x00", 4);
+    const Look l = look(g, kBase, kCoopSlot);
+    assert(l.held == Held::held && l.epic12 && l.state == 1 && l.group == 0 && l.task == 1 && l.quest == kQuest &&
+           l.task_object == kTask0 && l.group_object == kGroup0 && l.owner == 0x51);
+    // Group M02 active: its task unread there (no containers in the fake), the group said.
+    g.put<int32_t>(kQuest + kQuestActive, 1);
+    const Look m = look(g, kBase, kCoopSlot);
+    assert(m.held == Held::held && m.group == 1 && m.task == -1);
+  }
+  // The heap bits past 128 slots.
+  {
+    std::vector<std::pair<int32_t, uint64_t>> slots(140, {1000, 0x41000});
+    slots[135] = {int32_t(kId), kQuest};
+    Game g = game(slots);
+    g.map(kHeapBits, 4 * 5);
+    std::vector<uint32_t> bits(5, 0xffffffff);
+    std::memcpy(g.at(kHeapBits, 20), bits.data(), 20);
+    g.put(kUnit + kMapBitsHeap, kHeapBits);
+    assert(look(g, kBase, kCoopSlot).held == Held::held);
+    g.put(kUnit + kMapBitsHeap, uint64_t(0)); // 140 slots with inline bits: implausible, unread.
+    assert(look(g, kBase, kCoopSlot).held == Held::unread);
+  }
+  // The acquire: on a co-op save only, once, with the unit's manager and owner and our ID; refused when held or when
+  // SB says false.
+  {
+    Game g = game({{3, 0x40000}});
+    assert(acquire(g, kBase, kMain) == own::Why::slot && g.acquires == 0);
+    assert(acquire(g, kBase, kCoopSlot) == own::Why::none && g.acquires == 1 && g.mgr_seen == 0x10000 &&
+           g.owner_seen == 0x51 && g.id_seen == kId);
+    g.acquire_ok = false;
+    assert(acquire(g, kBase, kCoopSlot) == own::Why::refused && g.acquires == 2);
+    Game h = game({{int32_t(kId), kQuest}});
+    assert(acquire(h, kBase, kCoopSlot) == own::Why::held && h.acquires == 0);
+    h.put(at_image(kManagerGlobal), uint64_t(0));
+    assert(acquire(h, kBase, kCoopSlot) == own::Why::unread && h.acquires == 0);
+  }
+  // The Complete: only our quest in progress at M01 with its first task in progress in that group, through SB's
+  // Complete (or the one that ends children); never another function.
+  {
+    Game g = game({{int32_t(kId), kQuest}});
+    assert(complete(g, kBase, kMain) == own::Why::slot && g.calls.empty());
+    assert(complete(g, kBase, kCoopSlot) == own::Why::none && g.calls.size() == 1 && g.calls[0].first == kComplete &&
+           g.calls[0].second == kTask0);
+    g.put(at_image(kTaskVtable) + kCompleteSlot, at_image(kCompleteParent));
+    assert(complete(g, kBase, kCoopSlot) == own::Why::none && g.calls.back().first == kCompleteParent);
+    g.put(at_image(kTaskVtable) + kCompleteSlot, at_image(0x141000000));
+    assert(complete(g, kBase, kCoopSlot) == own::Why::task && g.calls.size() == 2);
+    g.put(at_image(kTaskVtable) + kCompleteSlot, at_image(kComplete));
+    g.put(kTask0, uint64_t(0x30000)); // A vtable outside .rdata.
+    assert(complete(g, kBase, kCoopSlot) == own::Why::task && g.calls.size() == 2);
+    g.put(kTask0, at_image(kTaskVtable));
+    g.put<int32_t>(kTask0 + kTaskState, 2); // Done already.
+    assert(complete(g, kBase, kCoopSlot) == own::Why::task);
+    g.put<int32_t>(kTask0 + kTaskState, 1);
+    g.put(kTask0 + kTaskGroup, kGroup1); // Not that group's.
+    assert(complete(g, kBase, kCoopSlot) == own::Why::task);
+    g.put(kTask0 + kTaskGroup, kGroup0);
+    g.put<int32_t>(kQuest + kQuestActive, 1); // Past M01.
+    assert(complete(g, kBase, kCoopSlot) == own::Why::group);
+    g.put<int32_t>(kQuest + kQuestActive, 0);
+    g.put<int32_t>(kQuest + kQuestState, 3); // Complete.
+    assert(complete(g, kBase, kCoopSlot) == own::Why::group && g.calls.size() == 2);
+    Game h = game({{3, 0x40000}});
+    assert(complete(h, kBase, kCoopSlot) == own::Why::absent && h.calls.empty());
+  }
+  // The answer word and the status line.
+  {
+    Answer a;
+    assert(status_line(a) == "signalquest=unread state=-1 group=-1 task=-1 epic12=0 asks=0 want=acquire why=none");
+    a.look.held = Held::held, a.look.state = 1, a.look.group = 0, a.look.task = 1, a.look.epic12 = true;
+    a.asks = 3, a.complete = true, a.why = own::Why::task;
+    const Answer b = unpack(pack(a));
+    assert(b.look.held == Held::held && b.look.state == 1 && b.look.group == 0 && b.look.task == 1 && b.look.epic12 &&
+           b.asks == 3 && b.complete && b.why == own::Why::task);
+    assert(status_line(b) == "signalquest=held state=1 group=0 task=1 epic12=1 asks=3 want=complete why=task");
+    Answer c;
+    c.look.held = Held::none;
+    assert(unpack(pack(c)).look.state == -1 && unpack(pack(c)).look.group == -1);
+    assert(status_line(c, true, "SB-Win64-Shipping.exe+0x1c5cf20") ==
+           "signalquest=fault asks=0 where=SB-Win64-Shipping.exe+0x1c5cf20");
+  }
+  std::puts("quest_own_test: ok");
+  return 0;
+}

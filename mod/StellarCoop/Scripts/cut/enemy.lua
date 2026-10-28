@@ -3,7 +3,7 @@
 -- cut/mxiii.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and its screen,
 -- through cut/lion.lua). The monster's rows
 -- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
--- logic task in flight). This file finds the 20 tables by their fixed paths and sends their addresses (the spec's
+-- logic task in flight). This file finds the 25 tables by their fixed paths and sends their addresses (the spec's
 -- "<word> rows" request: no console word reaches an address), waits for the answer in coop-status.txt's <word> line,
 -- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
 -- the first value that differs, then runs the spec's prepare (the Tendril's Shows). Then one spawn call,
@@ -46,11 +46,12 @@ local N=require('nightop.probe')
 local Doro=require('race.doro')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Enemy={}
--- The 20 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
+-- The 25 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
 Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
     'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
     'TargetFilterTable','SkillResultTable','EffectTable','ItemTable','ItemConsumableTable','ProjectileTable',
-    'ZoneCampTable','ZoneEnvSpawnTable','ShopTable','ShopItemTable','ZoneTriggerTable'}
+    'ZoneCampTable','ZoneEnvSpawnTable','ShopTable','ShopItemTable','ZoneTriggerTable','QuestTable',
+    'QuestTaskGroupTable','QuestTaskTable','LevelTargetFilter','TheaterSelectDataTable'}
 local DATA='/Game/Local/Data/'
 local ROOT_FAR=2000 -- cm: the copy's root ending farther from the spot than this spawns at the spot.
 local POLL,WAIT=0.25,30 -- s: the status line read while the rows are asked, and how long before giving up.
@@ -79,9 +80,10 @@ local why=Enemy.why
 -- The generated rows (cut/lion_rows.lua's R.ROWS or R.GARDENER, {table, name, ID, checks}) as {table=, name=, id=
 -- <nil in the dead table>, checks={{field, kind, value, changed}}}. kind: f a float, i an int32, b a bool (0 or 1), e
 -- an enum's number, n an FName (compared in any case: its text is whichever casing the game registered first), N a
--- list of FNames, s an FString, S a list of FStrings (lists joined by |). changed: the value differs from the row's
--- template (the shipped row the native part copies before its patches), so reading it back proves the patch landed;
--- the other checks restate a value the template holds, and a read-back cannot tell them from the copy.
+-- list of FNames, s an FString, S a list of FStrings (lists joined by |), C a list of quest task containers (each
+-- one's TaskAliasArray of FNames joined by |, the containers by ;, compared in any case). changed: the value differs
+-- from the row's template (the shipped row the native part copies before its patches), so reading it back proves the
+-- patch landed; the other checks restate a value the template holds, and a read-back cannot tell them from the copy.
 function Enemy.rows(list)
     local rows={}
     for _,r in ipairs(list) do rows[#rows+1]={table=r[1],name=r[2],id=r[3],checks=r[4]} end
@@ -116,6 +118,15 @@ local function get(r,field,kind)
     if kind=='f' or kind=='i' or kind=='e' or kind=='b' then return assert(tonumber(x),'not a number') end
     if kind=='n' then return text(x):lower() end
     if kind=='s' then return text(x) end
+    if kind=='C' then
+        local groups={}
+        U.each(assert(x,'no field'),function(_,c)
+            local names={}
+            U.each(assert(c.TaskAliasArray,'no TaskAliasArray'),function(_,v) names[#names+1]=text(v) end)
+            groups[#groups+1]=table.concat(names,'|')
+        end)
+        return table.concat(groups,';'):lower()
+    end
     local items={}
     U.each(assert(x,'no field'),function(_,v) items[#items+1]=text(v) end)
     local joined=table.concat(items,'|')
@@ -125,7 +136,7 @@ local function same_value(kind,got,want)
     if kind=='f' then return math.abs(got-want)<1e-4 end
     -- An int32 or uint32 by its 32 bits: an ID above 2^31 (coop mxiii's 2800032900) reads the same signed or not.
     if kind=='i' then return math.tointeger(got)~=nil and math.tointeger(got)&MASK==want&MASK end
-    return got==((kind=='n' or kind=='N') and want:lower() or want)
+    return got==((kind=='n' or kind=='N' or kind=='C') and want:lower() or want)
 end
 -- R4: every row of rows read back through its table's FindRow (tables: by name, as found), its ID then its checks, in
 -- order. Returns the count that match and, at the first that does not, what it reads; with every row matching, also
@@ -192,7 +203,7 @@ function Enemy.new(o,spec)
     local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
     local function my_line() return Enemy.parse(status and status(),word) end
     local her=N.her
-    -- The 20 tables by name, and those missing.
+    -- The 25 tables by name, and those missing.
     local function tables()
         local found,missing,words={},{},{}
         for _,t in ipairs(Enemy.TABLES) do

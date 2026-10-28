@@ -50,6 +50,11 @@
 // engine lists as one the host lacks, so that enemy never appears in her game. The worker makes the swap when the gate
 // first opens and swaps back at coop off or after a fault in the hook, which has its own SEH latch.
 //
+// The mod's own quest (quest/own.h, Lily's signal): every 250 ms on a co-op save until coop off, the game thread reads
+// whether the quest unit holds it and Quest_Epic_12, its state, group and first task, and runs Lua's signal acquire
+// (SB's acquire by ID) or signal complete (its first task's Complete) under its own SEH latch; status() gives the
+// signalquest line, and the worker logs each answer.
+//
 // The shared quests (Phase 12, quest/engine.h): every 250 ms coop_tick runs the engine's pass on the game thread, where
 // SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most one step
 // through SB's own quest functions. The worker's side (the Worker) takes her SBQ lines out of channel 2, hands the game
@@ -78,24 +83,26 @@
 // and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
-// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's and the Night Operation shop's
-// (lion/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii and the
-// shop): the worker hands over the 20 tables' addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows,
-// mxiii rows or shop rows request; the game thread adds that batch's rows through SB's own AddRow once the gate holds
-// (net mode 0, no logic task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and,
-// once asked, reads the spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril,
-// bolt, mxiii and shop lines, and the worker logs each answer. Right after the bolt rows batch's last row, in the same
-// call, the Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status() gives the shock
-// line, and the worker logs it once.
+// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's and
+// Lily's signal's (lion/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt,
+// coop mxiii, the shop and story/lily.lua): the worker hands over the 25 tables' addresses from Lua's lion rows,
+// gardener rows, tendril rows, bolt rows, mxiii rows, shop rows or signal rows request; the game thread adds that
+// batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic task in flight), under one SEH latch
+// for all, reads them back through SB's lookups by ID and, once asked, reads the spawn manager's counter every 250 ms;
+// status() gives it all in the lion, gardener, tendril, bolt, mxiii, shop and signal lines, and the worker logs each
+// answer. Right after the bolt rows batch's last row, in the same call, the Shock Bolt's two lists grow in place
+// (lion/shock.h) under a latch of their own; status() gives the shock line, and the worker logs it once.
 //
 // The Night Operation shop in SB's own shop screen (nightop/shop_ui.h, coop nightop shop): the worker hands over Lua's
 // nightshop open, open bolt or close; the next frame the game thread opens SB's shop screen on one of the shop rows
 // batch's two ShopTable rows, or closes it, with the calls SB's vending machine node makes, under its own SEH latch,
 // after coop off too for a close; every 250 ms after the first ask it reads whether a shop screen is open and, inside
-// the rows' gate, the bucket's Beta Seeds, for nightop/shop.lua's wallet. Roxanne's Night Operation choices
-// (nightop/roxanne.h): on Lua's roxanne on or off, once the rows' gate holds, her choice list's entry in SB's select
-// cache points at six names of ours (four test rows nightop/roxanne.lua edited, then her two) or back at hers, under a
-// latch of its own; status() gives both in the nightshop and roxanne lines, and the worker logs each answer.
+// the rows' gate, the bucket's Beta Seeds, for nightop/shop.lua's wallet. Roxanne's Night Operation choices and Lily's
+// signal choice (nightop/roxanne.h): on Lua's roxanne on or off (or lily on or off), once the rows' gate holds, that
+// choice list's entry in SB's select cache points at names of ours followed by the list's own (Roxanne's four test rows
+// nightop/roxanne.lua edited, then her two; Lily's borrowed row, then her eight) or back at the list's own, under a
+// latch of its own for each list; status() gives them in the nightshop, roxanne and lily lines, and the worker logs
+// each answer.
 //
 // coop emote's native clips (game/anim.h): the worker hands over Lua's anim play (an id, one of EVE's clip paths, once
 // or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
@@ -158,6 +165,7 @@
 #include "pose/record.h"
 #include "pose/stream.h"
 #include "quest/engine.h"
+#include "quest/own.h"
 #include "save/shortcut.h"
 #include "save/shortcut_load.h"
 #include "save/slot.h"
@@ -227,6 +235,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
   if (game_pinned && !quest_faulted && !blocked)
     quest_tick();
+  // The mod's own quest, its own latch: a pass each 250 ms, none after coop off or its first fault.
+  if (game_pinned && !own_faulted && !blocked)
+    own_tick();
   // The revive's guard, its own latch: a read each 250 ms, none after coop off or its first fault.
   if (game_pinned && !warp_faulted && !blocked)
     warp_tick();
@@ -254,11 +265,13 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer panels, their own latch: an ask taken each frame, after coop off too (only off is asked then).
   if (game_pinned && !devinfo_faulted)
     devinfo_tick();
-  // The Night Operation shop's screen and Roxanne's choices, each its own latch: an ask taken each frame, after coop
-  // off too (only a close or an off is taken then), and their reads every 250 ms before it.
+  // The Night Operation shop's screen, Roxanne's choices and Lily's signal choice, each its own latch: an ask taken
+  // each frame, after coop off too (only a close or an off is taken then), and their reads every 250 ms before it.
   if (game_pinned && !nightshop_faulted)
     nightshop_tick();
-  if (game_pinned && !roxanne_faulted)
-    roxanne_tick();
+  if (game_pinned && !roxanne_side.faulted)
+    swap_tick(roxanne_side);
+  if (game_pinned && !lily_side.faulted)
+    swap_tick(lily_side);
   return 0;
 }

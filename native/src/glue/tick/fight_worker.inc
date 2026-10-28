@@ -491,9 +491,10 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's, coop mxiii's and the Night
-// Operation shop's rows (Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows and shop rows requests):
-// the 20 tables' addresses for the game thread, which adds that batch's rows at the first frame its gate holds. An ask
+// coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's, coop mxiii's, the Night Operation
+// shop's and Lily's signal's rows (Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop rows and
+// signal rows requests):
+// the 25 tables' addresses for the game thread, which adds that batch's rows at the first frame its gate holds. An ask
 // it has not taken yet is replaced. Refused off the pinned build, after coop off and after the rows' fault; once every
 // row of a batch is in, nothing more is asked of it (the rows stay for the game run).
 std::string ask_rows(const coop::Request &request) {
@@ -525,7 +526,7 @@ void nightop_pass(); // nightop_worker.inc's, after this part.
 uint32_t rows_logged[kRowWordCount] = {};
 bool lion_fault_logged = false, shock_logged = false;
 void lion_pass() {
-  nightop_pass(); // The Night Operation shop screen's and Roxanne's answers too.
+  nightop_pass(); // The Night Operation shop screen's, Roxanne's and Lily's answers too.
   for (size_t k = 0; k < kRowWordCount; ++k) {
     const RowsJob &j = *kJobs[k];
     uint32_t asks = 0;

@@ -37,7 +37,7 @@ using RowById = void *(*)(void *registry, uint64_t unused, int32_t id);
 using StanceName = uint64_t *(*)(void *registry, uint64_t *out, int32_t table, int32_t id);
 
 static_assert(lion::kTableCount == kLionTableCount, "the rows requests name each of lion/rows.h's tables");
-// One batch's ask and answer. The worker's side: the ask, its number and the 20 tables, taken by the game thread with
+// One batch's ask and answer. The worker's side: the ask, its number and the 25 tables, taken by the game thread with
 // try_lock only. What the game thread did, for the worker: the answer (lion::pack, with the asks finished), the
 // read-back (character, skills and stance counts, a byte each) and the frames the waiting ask waited. The game thread's
 // own: the rows added so far, the ask being served and its tables, the asks finished.
@@ -56,8 +56,8 @@ struct RowsJob {
 };
 // In link/protocol.h's kRowWords order: Request::batch indexes it.
 RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril}, bolt_job{lion::kBolt},
-    mxiii_job{lion::kMxiii}, shop_job{lion::kShop};
-RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job, &mxiii_job, &shop_job};
+    mxiii_job{lion::kMxiii}, shop_job{lion::kShop}, signal_job{lion::kSignal};
+RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job, &mxiii_job, &shop_job, &signal_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
 // Shared: the spawn manager's counter (INT64_MIN until read) and the latch. No batch gets a latch of its own: no part
 // of its call stays clear of what the others use. The gate reads SB's globals; every row is built in the one lion_block

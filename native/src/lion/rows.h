@@ -55,9 +55,12 @@
 // FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and the Shock Bolt
 // (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop (1061) and
 // _CoopBolt (1062, the same with the Shock Bolt), over the cut Shop_NightOperation with the Beta Seed as currency and
-// no tag. A Batch names its rows, its patches and the word its status line, log lines and request start
-// with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop": coop-status.txt's shock line is lion/shock.h's); every
-// batch shares the table checks, the block and the rules below, and each keeps its own Builder.
+// no tag. A seventh, Lily's signal (kSignalRecipe, written by hand like Matrix XIII's, story/lily.lua), holds the mod's
+// own quest "On Time" (Quest_Sub_MX13_01, 163: a LevelTargetFilter row, two tasks, two groups and the quest row last of
+// them) and patches Lily's borrowed choice row TS_GoToTest_2 in place, last. A Batch names its rows, its patches and
+// the word its status line, log lines and request start with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop",
+// "signal": coop-status.txt's shock line is lion/shock.h's); every batch shares the table checks, the block and the
+// rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
@@ -108,10 +111,12 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 20 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii, shop) name each with its address. The generated kTables describes them all, the two zone tables camp
-// (ZoneCampTable) and env (ZoneEnvSpawnTable) and the last, trigger (ZoneTriggerTable), too, though only Matrix XIII's
-// hand-written batch writes them.
+// The 25 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// mxiii, shop, signal) name each with its address. The generated kTables describes them all, the two zone tables camp
+// (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which only Matrix XIII's hand-written
+// batch writes, and the last five, which only Lily's signal batch writes: quest (QuestTable), group
+// (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select (TheaterSelectDataTable, whose
+// ID the batch neither writes nor checks: it only patches a shipped row in place).
 enum class Table : uint8_t {
   character,
   appearance,
@@ -132,9 +137,14 @@ enum class Table : uint8_t {
   env,
   shop,
   shopitem,
-  trigger
+  trigger,
+  quest,
+  group,
+  task,
+  target,
+  select
 };
-constexpr size_t kTableCount = 20;
+constexpr size_t kTableCount = 25;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -142,9 +152,10 @@ struct TableInfo {
   uint16_t transient[25]; // The Transient TArrays SB's lazy init fills from the row's JSON strings; 0 ends the list.
 };
 // A patch writes one field of the copy: a float, an int32 or a byte (a bool or an enum's value), both held exactly in f
-// (the generator keeps every int32 under 2^24), an FName, an FString (UTF-16 in the pool), or a TArray of FNames or of
-// FStrings (items joined by '|' in text; empty text: an empty array).
-enum class Kind : uint8_t { f32, i32, u8, name, string, names, strings };
+// (the generator keeps every int32 under 2^24), an FName, an FString (UTF-16 in the pool), a TArray of FNames or of
+// FStrings (items joined by '|' in text; empty text: an empty array), or a TArray of structs that each hold one TArray
+// of FNames at +0 (FSBQuestTaskContainer: containers joined by ';', each one's FNames by '|').
+enum class Kind : uint8_t { f32, i32, u8, name, string, names, strings, containers };
 struct Patch {
   uint16_t at;
   Kind kind;
@@ -294,6 +305,11 @@ constexpr TableInfo kTables[kTableCount] = {
     {"ShopTable", 0xa8, true, {}},                                                       // SBShopTableProperty
     {"ShopItemTable", 0xa0, true, {}},                                                   // SBShopItemTableProperty
     {"ZoneTriggerTable", 0xa8, true, {}},                                                // SBZoneTriggerTableProperty
+    {"QuestTable", 0x188, true, {}},                                                     // SBQuestTableProperty
+    {"QuestTaskGroupTable", 0x118, true, {}},    // SBQuestTaskGroupTableProperty
+    {"QuestTaskTable", 0x128, true, {}},         // SBQuestTaskTableProperty
+    {"LevelTargetFilter", 0x50, true, {}},       // SBLevelTargetFilterTableProperty
+    {"TheaterSelectDataTable", 0xd8, false, {}}, // SBTheaterSelectDataTableProperty
 };
 constexpr Patch kPatches[] = {
     // P_Eve_Sword_Normal_Buff_1 (SkillTable, cut item)
@@ -6430,12 +6446,74 @@ constexpr Row kMxiiiRecipe[] = {
     {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002, 37, 1},
 };
 
+// ---- Lily's signal batch (story/lily.lua), written by hand: the generator holds no quest table ----
+// The mod's own quest, "On Time" (Quest_Sub_MX13_01, QuestTable 163, a Sub quest), which story/lily.lua acquires
+// through quest/own.h when Lily's borrowed choice is picked: group M01's one task enters Zone_DLC02_10, the first zone
+// of the cut Matrix XIII (EnterZone, as Quest_Epic_06_M01_T01 enters Zone_ME_01), and group M02's one task is the
+// shipped "Talk to Lily" (Quest_Epic_11_M04_T01's counter, its keyed text in every language), which nothing counts yet:
+// it waits for later content. Its marker is a LevelTargetFilter row of ours on Lily's Phase 5 spawn in Xion, a copy of
+// the one Quest_Epic_11_M04_T01 tracks. New names and IDs only, every one free in the build 24463856 dumps (shipped IDs
+// end at 162, 334, 482): a save that names the quest and loads without these rows drops it (FUN_141c5b4f0 logs
+// "LoadQuest : QuestData Not Found" and returns 0), where a borrowed shipped quest would stay half there. The save keys
+// quests, groups and tasks by alias, so these aliases must never change. Templates: the quest is Quest_Sub_WLB_001 (a
+// shipped Sub with no reward, no event, no fail condition, no next quest), each group Quest_Sub_002_M01 (one container,
+// no event, no warp), each task the shipped task its type comes from. Their FText (the title, the description, the
+// group lines, task 1's line) is the templates' until story/lily.lua writes ours in the game's language. The rows
+// that the quest names come first and the quest row last of them, so it exists only once they are all in.
+// Then Lily's borrowed choice row, TS_GoToTest_2 (TheaterSelectDataTable 86, in the test list TS_GoToTest that no
+// story graph shows), patched in place for the game run: Conditions [Xion_10_Condition_051] (QuestState Quest_Epic_11
+// M04 in progress: the game shows the row from "Talk to Lily to decide on the next destination" until "Leave for the
+// Nest"), shown or hidden rather than greyed, priority 3 (above her Travel, Repair and End rows: the cancel input picks
+// the last slot, End's), and her goodbye's exec, Success5 (Success runs her bike signal's point of no return on every
+// Lily node). nightop/roxanne.h's lily swap lists it in her choice list; story/lily.lua writes its label. Last, so a
+// refusal there leaves the quest rows in for a save that holds the quest. Struct sizes and offsets from the SDK
+// (stellar-sdk-647527f); none of the five structs has a Transient field.
+constexpr Patch kSignalPatches[] = {
+    // Quest_Sub_MX13_01_LevelTargetFilter_001 (LevelTargetFilter: Lily's Phase 5 spawn in Xion)
+    {0x14, Kind::u8, 2, nullptr},                 // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "Xion_10_E_CharS_146"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_M01_T01 (QuestTaskTable: reach Matrix XIII)
+    {0x30, Kind::u8, 2, nullptr},            // MissionType ESBMission_EnterZone
+    {0x40, Kind::names, 0, "Zone_DLC02_10"}, // TargetFilter
+    // Quest_Sub_MX13_01_M02_T01 (QuestTaskTable: talk to Lily, later content)
+    {0x30, Kind::u8, 12, nullptr},                                     // MissionType ESBMission_Counter
+    {0x50, Kind::names, 0, "Quest_Sub_MX13_01_LevelTargetFilter_001"}, // TrackingTargetFilter
+    // Quest_Sub_MX13_01_M01 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_01_M01_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_01_M02 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_01_M02_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_01 (QuestTable, "On Time")
+    {0x14, Kind::u8, 1, nullptr},                                           // QuestType ESBQuest_Sub
+    {0x18, Kind::name, 0, "None"},                                          // NextQuest
+    {0x80, Kind::name, 0, "None"},                                          // reward
+    {0x108, Kind::names, 0, "Quest_Sub_MX13_01_M01|Quest_Sub_MX13_01_M02"}, // TaskGroupAlias
+    // TS_GoToTest_2 (TheaterSelectDataTable, shipped: Lily's borrowed choice)
+    {0x20, Kind::names, 0, "Xion_10_Condition_051"}, // Conditions (shipped none)
+    {0x58, Kind::u8, 1, nullptr},                    // TextVisibleType IsVisibility (shipped 2, IsEnable)
+    {0x78, Kind::name, 0, "None"},                   // NextTaskTagName
+    {0x80, Kind::i32, 3, nullptr},                   // SelectDataPriority (shipped 0)
+    {0x84, Kind::name, 0, "Success5"},               // InteractionGraphExec (shipped Success2)
+};
+constexpr Row kSignalRecipe[] = {
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_001", "Quest_Epic_11_LevelTargetFilter__04_002", 280004001, 0,
+     2},
+    {Table::task, "Quest_Sub_MX13_01_M01_T01", "Quest_Epic_06_M01_T01", 483, 2, 2},
+    {Table::task, "Quest_Sub_MX13_01_M02_T01", "Quest_Epic_11_M04_T01", 484, 4, 2},
+    {Table::group, "Quest_Sub_MX13_01_M01", "Quest_Sub_002_M01", 335, 6, 2},
+    {Table::group, "Quest_Sub_MX13_01_M02", "Quest_Sub_002_M01", 336, 8, 2},
+    {Table::quest, "Quest_Sub_MX13_01", "Quest_Sub_WLB_001", 163, 10, 4},
+    {Table::select, "TS_GoToTest_2", "TS_GoToTest_2", 0, 14, 5},
+};
+
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
 constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe[0];
 constexpr size_t kTendrilRows = sizeof kTendrilRecipe / sizeof kTendrilRecipe[0];
 constexpr size_t kBoltRows = sizeof kBoltRecipe / sizeof kBoltRecipe[0];
 constexpr size_t kMxiiiRows = sizeof kMxiiiRecipe / sizeof kMxiiiRecipe[0];
 constexpr size_t kShopRows = sizeof kShopRecipe / sizeof kShopRecipe[0];
+constexpr size_t kSignalRows = sizeof kSignalRecipe / sizeof kSignalRecipe[0];
 // A batch: its rows, the patches their first and count index (the generated kPatches unless said) and its word, which
 // starts its status line, its log lines and Lua's request for it (link/protocol.h's kRowWords).
 struct Batch {
@@ -6446,7 +6524,8 @@ struct Batch {
 };
 constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows},
     kTendril{"tendril", kTendrilRecipe, kTendrilRows}, kBolt{"bolt", kBoltRecipe, kBoltRows},
-    kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches}, kShop{"shop", kShopRecipe, kShopRows};
+    kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches}, kShop{"shop", kShopRecipe, kShopRows},
+    kSignal{"signal", kSignalRecipe, kSignalRows, kSignalPatches};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -6490,7 +6569,7 @@ struct Answer {
   uint32_t detail = 0; // size: the size read (24 bits); net: the net mode read.
 };
 static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256 && kMxiiiRows < 256 &&
-                  kShopRows < 256,
+                  kShopRows < 256 && kSignalRows < 256,
               "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
@@ -6680,6 +6759,37 @@ public: // For the test's pool and FName cases, which the recipe's own data neve
       return Why::none;
     }
     uint8_t header[16];
+    if (p.kind == Kind::containers) {
+      // Each container a TArray of FNames, its header in the pool, written there as a names patch of its own.
+      int32_t n = *p.text != 0;
+      for (const char *c = p.text; *c; ++c)
+        n += *c == ';';
+      const uint64_t items = n ? take(pool, end, 16 * size_t(n)) : 0;
+      if (n && !items)
+        return Why::pool;
+      const char *at = p.text;
+      for (int32_t k = 0; k < n; ++k) {
+        const char *semi = std::strchr(at, ';');
+        const size_t len = semi ? size_t(semi - at) : std::strlen(at);
+        char names[512];
+        if (len >= sizeof names)
+          return Why::pool;
+        std::memcpy(names, at, len);
+        names[len] = 0;
+        if (const Why why = patch(g, items + 16 * uint64_t(k), Patch{0, Kind::names, 0, names}, pool, end);
+            why != Why::none)
+          return why;
+        at = semi ? semi + 1 : at + len;
+      }
+      std::memset(header, 0, sizeof header);
+      if (n) {
+        std::memcpy(header, &items, 8);
+        std::memcpy(header + 8, &n, 4);
+        std::memcpy(header + 12, &n, 4);
+      }
+      g.write(row + p.at, header, 16);
+      return Why::none;
+    }
     if (p.kind == Kind::string) {
       if (!string(g, p.text, std::strlen(p.text), pool, end, header))
         return Why::pool;
@@ -6733,8 +6843,8 @@ private:
 };
 
 // coop-status.txt's line for a batch (cut/lion.lua reads lion=, bolt= and shop=, cut/gardener.lua gardener=,
-// cut/tendril.lua tendril=, cut/mxiii.lua mxiii=), from its answer word, its read-back, the frames its ask waited, the
-// spawn manager's counter and, after the latch, where the fault was:
+// cut/tendril.lua tendril=, cut/mxiii.lua mxiii=, story/lily.lua signal=), from its answer word, its read-back, the
+// frames its ask waited, the spawn manager's counter and, after the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
 //   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>
