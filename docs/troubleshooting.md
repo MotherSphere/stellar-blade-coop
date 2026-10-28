@@ -253,6 +253,10 @@ reload builds it again. Send `UE4SS.log` either way.
 
 - `runs only on a co-op save`: at the title, choose Play co-op (or Convert and play co-op), then load your save. See
   [saves.md](saves.md#co-op-saves).
+- `STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter ...` is expected: the
+  recruiter's lines stay in Korean, and the Emil scene's subtitles in Korean and Japanese. `coop recruiter` and
+  `coop scene emil` go on (see [night-operation.md](night-operation.md#his-language) and
+  [usage.md](usage.md#cut-scenes-coop-scene)).
 - Most other `STOP:` lines from the previews give the reason, and many say that nothing was changed. If the probe logs
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation.md](night-operation.md).

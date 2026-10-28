@@ -1797,11 +1797,12 @@ first. Emil's farewell has no theater of its own, so it borrows the take of the 
 The rows keep the new path until the game exits. Nothing is written to a game file or a save. Neither scene holds a
 quest event, and the trailer's own triggers, which add quests before they play, are not used.
 
-The scene's subtitles are in Korean and Japanese, under keys that the game's translations do not have. `coop scene
-emil` registers them for the game's language with the five lines Emil says in the shipped farewell
-(`Seq_Subtitle_Nier_Emil_GoodBye_01_01` to `_05` of `StringTable_Seq`), which say the same thing. The Korean and the
-Japanese rows show at the same times; if the game draws both, each line shows twice. When the registration fails (a
-`STOP: text:` line), the next `coop scene emil` tries again.
+The scene's subtitles are in Korean and Japanese, under keys that the game's translations do not have, and they stay
+so. The five lines Emil says in the shipped farewell (`Seq_Subtitle_Nier_Emil_GoodBye_01_01` to `_05` of
+`StringTable_Seq`) say the same thing in every language, but giving them to E03's keys needs the game's text
+registration (`PolyglotDataToText`), and the UE4SS build the mod uses cannot pass it a Lua table as a map inside a
+struct parameter. `coop scene emil` makes no text call and logs a `STOP: text:` line that says so. The Korean and the
+Japanese rows show at the same times; if the game draws both, each line shows twice.
 
 Not known before a test in game:
 
@@ -1826,7 +1827,7 @@ The log lines, in `UE4SS.log`:
 | --- | --- |
 | `rows: LYC02GO_E_Theater_002 and LYC02GO_E_Theater_003 -> MV_Nier_Emil_GoodBye_WLA; read back` | Both rows name the scene's theater |
 | `take: MV_Nier_Emil_GoodBye_WLA take 1 MV_Nier_Emil_GoodBye_WLA -> MV_DLC_Ending_E03; read back` | `emil`: the farewell's take plays E03 |
-| `text: game language fr; 10 keys registered, each reads its GoodBye_01 line` | `emil`: the subtitles in your language (a `STOP: text:` line says why not) |
+| `STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter (PolyglotDataToText LocalizedStrings): not registered, the lines stay Korean and Japanese` | `emil`: the subtitles stay in Korean and Japanese |
 | `play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called; EVE 3.2 m from the stage` | The game was asked to play it |
 | `playing: MV_DLC_Ending_E03, 1.0 s after the call` | The game plays it |
 | `Emil's farewell ended after 48 s. (the farewell take back on its own sequence)` | Its end and what was put back |

@@ -40,8 +40,8 @@ parts exist:
   partner, who revives her with the interact key, or revives herself a few times a run (see
   [Down and revive](#down-and-revive)).
 - The reward shop, on the console, with two cut items the game never sold (see [The reward shop](#the-reward-shop)).
-- The recruiter, as a preview: he stands next to Roxanne in Xion's Scrap Market, and his lines show in any of the
-  game's 23 languages.
+- The recruiter, as a preview: he stands next to Roxanne in Xion's Scrap Market. His lines stay in Korean (see
+  [His language](#his-language)).
 - Everything runs on a co-op save, a copy of your save, and never on your own saves.
 
 These parts do not exist yet:
@@ -520,8 +520,12 @@ answers with one `STOP:` line and opens nothing when the save is not a co-op sav
 a run is on, the game is paused or shows one of its screens, the screen is already open, `coop-status.txt` has no
 `nightshop` line (an older DLL) or reads a fault there, or the wallet holds more than 999999 points.
 
+Once the seeds are counted, a pause or one of the game's screens (the pause menu that Escape opens when it closes the
+console, for example) holds the open: it goes on when the game plays again, for up to 30 s.
+
 If a later step fails (the shop's or the stimpacks' rows refused, EVE's map changed while they were asked, the seeds
-not counted within 5 s, the game paused or showing one of its screens once they are, the game not opening the screen),
+not counted within 5 s, the game still paused or on one of its screens 30 s after they are, the game not opening the
+screen),
 the seeds leave the inventory, the wallet stays as it was, the log has a `STOP: shop:` line with the reason, and a
 notice says `The Night Operation shop could not open. UE4SS.log says why.` A shop screen the game already had open
 stays open. When another save was loaded before the open (or a load still reads no save), the mod stops in the same
@@ -614,24 +618,26 @@ four of the game's test choice rows, which no story dialogue lists.
 Nightmare is not in her list: the choice box has six slots, and her own two choices take two of them.
 `coop nightop start nightmare` starts it.
 
-Once EVE is in Xion on a co-op save, the mod gives the four rows' text keys their labels in the game's 23 languages
-(after the same Korean text check the recruiter's text uses), edits the rows in place (each checked first, then read
-back: InteractionGraphExec `Success2`, the one her End Conversation uses, and NextTaskTagName `None`), then asks the
-native part to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). A pick is
-read from the game's choice boxes, looked for every 250 ms so a box the game builds for a later talk is read too: a
-selected line turning from none to one, and that line's text matched against the labels. Everything goes back on
+Once EVE is in Xion on a co-op save, the mod reads the game's language, edits the rows in place (each checked first,
+then read back: InteractionGraphExec `Success2`, the one her End Conversation uses, NextTaskTagName `None`, and
+DisplayText the label in that language, or in English for a language the game does not ship), then asks the native part
+to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). The labels take the
+game's language each time the rows are armed: at the next Lua load (game start or Ctrl+R), or when her choices come back
+after `coop off` or after a save that is not a co-op save. Going to the title and loading a co-op save keeps the labels.
+A pick is read from the game's choice boxes, looked for every 250 ms so a box the game builds for a later talk is read
+too: a selected line turning from none to one, and that line's text matched against the labels. Everything goes back on
 `coop off` and on a save that is not a co-op save: the choice list first (asked again every 10 s until the native part
 has put it back), then the rows' shipped values. Until the list is back, and after a fault in its calls, the rows keep
 the goodbye, which ends the talk on any save. A map load, leaving Xion included, reads no save for a while: a booking
-and her choices hold through it. The supplies' shop screen waits up to 30 s for the game to play (while it is paused
-or loading), then the pick goes. The title screen and another co-op save drop the booking and the supplies pick.
-Nothing is saved, and a game restart undoes it too. Talking to her still runs her own graph, so her first meeting and
-her side quest start as without the mod. No quest, item, achievement or save call is added.
+and her choices hold through it. The supplies' shop screen waits up to 30 s for the game to play (while it is paused or
+loading), then the pick goes. The title screen and another co-op save drop the booking and the supplies pick. Nothing is
+saved, and a game restart undoes it too. Talking to her still runs her own graph, so her first meeting and her side
+quest start as without the mod. No quest, item, achievement or save call is added.
 
 `UE4SS.log` has `[StellarCoop][NR]` lines for each step, for example:
 
 ```
-[StellarCoop][NR] roxanne text: game language fr-FR -> fr; 4/4 keys registered, each reads its fr line, and so do rows Temp_TS_Select_Test_1 to _3 and TS_GoToTest_1: TEXT=yes
+[StellarCoop][NR] roxanne text: game language fr-FR -> fr; the 4 rows get its labels
 [StellarCoop][NR] roxanne: 4 rows read back as ours; asked the native part: roxanne on
 [StellarCoop][NR] roxanne: hard booked: it starts once EVE is out of Xion with no one within 40 m
 [StellarCoop][NR] roxanne: the booked hard run waits: census: 1 living within 40 m (nearest 23.4 m); 0 wave bodies: go where no one is within 40 m
@@ -640,13 +646,16 @@ her side quest start as without the mod. No quest, item, achievement or save cal
 [StellarCoop][NR] roxanne: her two choices back, the 4 rows shipped
 ```
 
-A step that fails logs a `STOP: roxanne` line and leaves her two choices as the game ships them until the next Lua
-load (a row that is not the one known is put back, and nothing is asked of the native part). `coop-status.txt`'s
-`roxanne=` line is described in [usage.md](usage.md#night-operations-shop-screen-and-roxannes-choices).
+A step that fails logs a `STOP: roxanne` line and leaves her two choices as the game ships them until the next Lua load
+(the rows it wrote are put back, also when a label does not read back, and nothing is asked of the native part). After
+a Ctrl+R while her list still holds the six choices, a step that fails leaves the rows as they are instead, since they
+only play her goodbye; `coop off` or a save that is not a co-op save puts them back.
+`coop-status.txt`'s `roxanne=` line is described in
+[usage.md](usage.md#night-operations-shop-screen-and-roxannes-choices).
 
-Check in game: the six choices in this order, End Conversation last; each level books its run and the run starts out
-of Xion; the supplies open the shop screen after her goodbye; Shop and End Conversation as before; `coop off` gives her
-two choices back.
+Check in game: the six choices in this order, End Conversation last, the four labels in the game's language; each level
+books its run and the run starts out of Xion; the supplies open the shop screen after her goodbye; Shop and End
+Conversation as before; `coop off` gives her two choices back.
 
 ## Challenges (`coop challenge`)
 
@@ -954,10 +963,8 @@ with `STOP:` and changes nothing. He is never spawned automatically.
    command sets that zone event (`MultiplayTest_ZoneE_059`) to a harmless type and reads it back. If the row is not the
    one expected, or the write does not read back, it stops with `STOP:` and spawns nothing. In this preview, Join does
    nothing.
-2. Once the Join event reads back, the command registers the dialogue's 12 text keys, and no other text, with the
-   game's localization. This happens in memory only; no game file changes. The recruiter's lines (speaker title,
-   question, Join and Cancel, the replies) then show in your game language, any of the 23 the game ships. A `text:`
-   line ending `TEXT=yes` means the registration worked.
+2. Once the Join event reads back, a `STOP: text:` line ending `TEXT=no` says that his text stays in Korean (see
+   [His language](#his-language)), and the command goes on.
 3. If someone already stands at the spawn point, the command says so and spawns nothing. Otherwise, in memory only, it
    flips the recruiter's network condition (so the question and its two choices show), points one unused test spawn
    row at the cut spawn point (a Xion guard with the recruiter's dialogue, not marked for saving, no walking path), and
@@ -971,11 +978,16 @@ restart.
 
 ### His language
 
-The language is the game's setting, which can be changed only in the main menu. If the text step fails, a
-`STOP: text:` line says how far it got, and the command continues:
+His lines (speaker title, question, Join and Cancel, the replies) stay in Korean, as the game files have them. The mod
+has them in the game's 23 languages (`nightop/recruiter_text.lua`), but showing them needs the game's text
+registration, KismetTextLibrary `PolyglotDataToText`, which takes the languages as a map inside a struct parameter.
+The UE4SS build the mod uses cannot pass a Lua table there. In game on 2026-10-28 the same call for Roxanne's choices
+raised `StrProperty can only be set to a string or FString`, and depending on Lua's table order it can read another
+field as a string, which may crash the game. So the command makes no text call and logs:
 
-- after `nothing registered`, his text stays in Korean;
-- otherwise the keys it registered may show another language, or a mix with Korean (a registration is never undone).
+```
+[StellarCoop][RC] STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter (PolyglotDataToText LocalizedStrings): nothing registered, his text stays Korean: TEXT=no
+```
 
 ### Sending him away
 
@@ -984,9 +996,9 @@ despawns him too. A map change removes him.
 
 ### What stays changed
 
-Everything the command changes stays in the running game until it ends: the Join event, the network condition, the
-test spawn row, the test filter and the registered text. The mod neither undoes nor saves any of it. Whether the game
-saves the spawned recruiter is not known yet, so the run ends by killing the game and restoring your backup.
+Everything the command changes stays in the running game until it ends: the Join event, the network condition, the test
+spawn row and the test filter. The mod neither undoes nor saves any of it. Whether the game saves the spawned recruiter
+is not known yet, so the run ends by killing the game and restoring your backup.
 
 ## After a preview run
 

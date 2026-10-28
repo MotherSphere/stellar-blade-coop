@@ -1,9 +1,13 @@
 -- Roxanne's Night Operation choices (nightop/roxanne.lua, nightop/roxanne_text.lua) over fakes: the status text, the
--- four test rows of TheaterSelectDataTable (FName fields by comparison index), the text libraries, EVE's world, the
--- select widget through the widget library's lookup, and the requests, notices, starts and shop opens it makes.
+-- four test rows of TheaterSelectDataTable (FName fields by comparison index, DisplayText as an FText), the language
+-- library, a text library whose PolyglotDataToText raises as UE4SS does on a Lua-table map, EVE's world, the select
+-- widget through the widget library's lookup, and the requests, notices, starts and shop opens it makes.
 -- Covered: the text table (every language, its four lines, the asset's Korean sources); nothing on another save or out
--- of Xion; the arm in Xion (the four keys registered, each row checked, written and read back, then roxanne on), once
--- a Lua load, and a row that is not the one known stopping it with nothing asked; a pick read from the widgets, looked
+-- of Xion; the arm in Xion (no PolyglotDataToText call; each row checked, its exec, task and DisplayText written in the
+-- game's language, fr-FR as fr, de-DE as de, an unknown one as en, and read back, then roxanne on), once a Lua load, a
+-- row that is not the one known and a DisplayText that does not read back (shown as ASCII) each stopping it with the
+-- rows put back (a row already in French back in Korean) and nothing asked, but left ours when her list reads on (a Lua
+-- reload); the Korean sources back with the rows' shipped values; a pick read from the widgets, looked
 -- for at each tick, only when a SelectIndex turns from -1 to a line of ours (her own Shop, End and a widget first seen
 -- on a line do nothing), a box built for a later dialogue watched while an older one stays valid; a level booked and
 -- started through coop nightop start once EVE is out of Xion, held through the map load (slot=none, then unknown) and
@@ -38,25 +42,25 @@ local function object(t)
     t.GetFullName=t.GetFullName or function() return 'Object /Engine/Transient.X' end
     return t
 end
--- The four rows as shipped, and her two.
-local registered={}
+-- The four rows as shipped (DisplayText their Korean source), and her two.
 local rows={}
-local function row(id,list,exec,task,key)
+local function row(id,list,exec,task,key,source)
     return {ID=id,SelectDataName=FName(list),InteractionGraphExec=FName(exec),NextTaskTagName=FName(task),key=key,
-        DisplayText=nil}
+        source=source,DisplayText=text_of(source)}
 end
 local function ship()
-    rows={Temp_TS_Select_Test_1=row(14,'Temp_TS_Select_Test','None','A1','C8A59F404A1B66555B5265ACCF31FCFD'),
-        Temp_TS_Select_Test_2=row(15,'Temp_TS_Select_Test','None','A2','CD80DD9243FF6B46E77860B442659254'),
-        Temp_TS_Select_Test_3=row(16,'Temp_TS_Select_Test','None','A3','2EF677E140813CB4F455019EBF8EF827'),
-        TS_GoToTest_1=row(85,'TS_GoToTest','Success','None','9E5E7E6644D9B537F9CAFF9BB2233462')}
+    rows={Temp_TS_Select_Test_1=row(14,'Temp_TS_Select_Test','None','A1','C8A59F404A1B66555B5265ACCF31FCFD','1번 선택'),
+        Temp_TS_Select_Test_2=row(15,'Temp_TS_Select_Test','None','A2','CD80DD9243FF6B46E77860B442659254','2번 선택'),
+        Temp_TS_Select_Test_3=row(16,'Temp_TS_Select_Test','None','A3','2EF677E140813CB4F455019EBF8EF827','3번 선택'),
+        TS_GoToTest_1=row(85,'TS_GoToTest','Success','None','9E5E7E6644D9B537F9CAFF9BB2233462','루프 선택지')}
 end
 ship()
 local reads=0
+local unstuck=nil -- A row whose DisplayText write does not stick: each FindRow reads its Korean source again.
 local choices=object({FindRow=function(_,name)
     reads=reads+1
     local r=rows[name]
-    if r and registered[r.key] then r.DisplayText=text_of(registered[r.key]) end
+    if r and name==unstuck then r.DisplayText=text_of(r.source) end
     return r
 end})
 local culture='fr-FR'
@@ -68,18 +72,22 @@ local function lines_of(...)
     widget.DataArray=list
 end
 local lookups=0
+local polyglots=0
 local shown={widget} -- The select widgets the lookup finds.
 local objects={
     ['/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable']=choices,
+    -- UE4SS 3.0.1 converts a Lua table given for a map inside a struct parameter from the wrong stack slot (the outer
+    -- struct's), so its FString pusher meets a number or a table and raises: any call with a plain Lua table.
     ['/Script/Engine.Default__KismetTextLibrary']=object({PolyglotDataToText=function(_,d)
-        local native=assert(d.NativeString)
-        assert(d.Namespace=='' and d.NativeCulture=='ko' and d.CachedText and d.Category==0)
-        registered[d.Key]=d.LocalizedStrings[require('nightop.roxanne_text').culture(culture)] or native
-        return text_of(registered[d.Key])
+        polyglots=polyglots+1
+        if type(d.LocalizedStrings)=='table' and getmetatable(d.LocalizedStrings)==nil then
+            error('[push_strproperty] Error: StrProperty can only be set to a string or FString',0)
+        end
+        error('PolyglotDataToText: no fake for this map')
     end}),
     ['/Script/Engine.Default__KismetStringLibrary']=object({Len=function(_,s) return utf8.len(s) end}),
     ['/Script/Engine.Default__KismetInternationalizationLibrary']=object({GetCurrentLanguage=function()
-        return culture end}),
+        return culture or error('no language',0) end}),
     ['/Script/SB.SBSequencerInteractionSelectWidget']=object({}),
     ['/Script/UMG.Default__WidgetBlueprintLibrary']=object({GetAllWidgetsOfClass=function(_,ctx,out,cls,top)
         lookups=lookups+1
@@ -131,6 +139,14 @@ local function last() return logs[#logs] end
 local function at(t) clock=t end
 local function exec(name) return rows[name].InteractionGraphExec:ToString() end
 local function task(name) return rows[name].NextTaskTagName:ToString() end
+local function label(name) return rows[name].DisplayText:ToString() end
+-- Every row's DisplayText reads its line in lang (a T.TEXT culture), or its Korean source when lang is nil.
+local function labels_in(lang)
+    for _,r in ipairs(Roxanne.ROWS) do
+        local want=lang and T.TEXT[lang][r.line] or rows[r.row].source
+        assert(label(r.row)==want,r.row..' reads '..label(r.row)..', not '..want)
+    end
+end
 -- Not on a co-op save, or no roxanne line: nothing read.
 status_text='mod=v\nslot=main index=0\nroxanne=unread asks=0 want=off why=none\n'
 rox.tick()
@@ -142,15 +158,15 @@ world=WASTE
 status_text='mod=v\nslot=coop index=4\nroxanne=unread asks=0 want=off why=none\n'
 rox.tick()
 assert(reads==0 and #asked==0,'Not in Xion')
--- In Xion: the text, the four rows, then roxanne on.
+-- In Xion: the four rows, their labels in the game's language, then roxanne on. No text registration.
 world=XION
 rox.tick()
-assert(logs[1]:find('^roxanne text: game language fr%-FR %-> fr; 4/4 keys registered, each reads its fr line, and so '
-    ..'do rows Temp_TS_Select_Test_1 to _3 and TS_GoToTest_1: TEXT=yes$'),logs[1])
+assert(logs[1]=='roxanne text: game language fr-FR -> fr; the 4 rows get its labels',logs[1])
 for name in pairs(rows) do assert(exec(name)=='Success2' and task(name)=='None',name) end
+labels_in('fr')
+assert(label('Temp_TS_Select_Test_1')=='Opération nocturne (facile)' and polyglots==0)
 assert(#asked==1 and asked[1]=='roxanne on' and last()=='roxanne: 4 rows read back as ours; asked the native part: '
     ..'roxanne on',last())
-assert(registered.C8A59F404A1B66555B5265ACCF31FCFD=='Opération nocturne (facile)')
 rox.tick(); assert(#asked==1,'Once a Lua load')
 -- The native part reads off for 10 s: asked again.
 status_text='mod=v\nslot=coop index=4\nroxanne=off asks=1 want=on why=busy\n'
@@ -162,7 +178,8 @@ assert(#asked==2 and asked[2]=='roxanne on'
 -- ours.
 status_text='mod=v\nslot=coop index=4\nlink=none lobby=0\nroxanne=on asks=2 want=on why=none\n'
 widget.SelectIndex=1 -- Seen first on a line: an old pick, nothing.
-lines_of(T.TEXT.fr.E,T.TEXT.fr.N,T.TEXT.fr.H,T.TEXT.fr.S,'Boutique','Mettre fin')
+lines_of(label('Temp_TS_Select_Test_1'),label('Temp_TS_Select_Test_2'),label('Temp_TS_Select_Test_3'),
+    label('TS_GoToTest_1'),'Boutique','Mettre fin') -- The rows' written labels, as the game lists them.
 at(111); rox.tick()
 assert(lookups==1 and #told==0)
 widget.SelectIndex=-1
@@ -339,6 +356,7 @@ at(182); rox.tick()
 assert(last()=='roxanne: her two choices back, the 4 rows shipped' and #asked==offs+2,last())
 assert(exec('Temp_TS_Select_Test_2')=='None' and task('Temp_TS_Select_Test_2')=='A2'
     and exec('TS_GoToTest_1')=='Success' and task('TS_GoToTest_1')=='None')
+labels_in(nil)
 said=#logs
 at(183); rox.tick(); assert(#logs==said and #asked==offs+2,'Once')
 -- Back on a co-op save in Xion: on again; coop off asks off, then tick(true) puts the rows back once her list reads
@@ -393,4 +411,59 @@ assert(tries==1 and last()=='STOP: roxanne: closed (the 4 rows put back)',last()
 assert(exec('Temp_TS_Select_Test_1')=='None' and task('Temp_TS_Select_Test_3')=='A3')
 said=#logs
 lost.tick(); assert(#logs==said and tries==1,'No retry')
+-- The game's language when the rows are armed: de-DE writes the German labels, an unknown culture or a language that
+-- cannot be read the English ones; a later Lua load writes the language of that time over ours.
+local function arm_in(lang,ask)
+    culture=lang
+    local x=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
+        ask=ask or function(line) asked[#asked+1]=line; return true,'asked' end,paused=function() return false end,
+        start=function() end,shop=function() end})
+    x.tick()
+end
+ship()
+arm_in('de-DE')
+assert(logs[#logs-1]=='roxanne text: game language de-DE -> de; the 4 rows get its labels',logs[#logs-1])
+labels_in('de')
+arm_in('xx-YY')
+assert(logs[#logs-1]=='roxanne text: game language xx-YY -> en; the 4 rows get its labels',logs[#logs-1])
+labels_in('en')
+ship()
+arm_in(nil)
+assert(logs[#logs-1]=='roxanne text: game language ?(no language) -> en; the 4 rows get its labels',logs[#logs-1])
+labels_in('en')
+assert(Roxanne.row_of(label('Temp_TS_Select_Test_3')).level=='hard' and Roxanne.row_of(label('TS_GoToTest_1')).shop)
+-- A DisplayText write that does not read back, on the second row: STOP (the label shown as ASCII), the first row,
+-- written in French, and the second's exec and task put back, the Korean text again, nothing asked.
+ship()
+unstuck='Temp_TS_Select_Test_2'
+before=#asked
+arm_in('fr-FR')
+assert(last()=='STOP: roxanne: Temp_TS_Select_Test_2 read back differs at DisplayText '
+    ..'(2\\xEB\\xB2\\x88 \\xEC\\x84\\xA0\\xED\\x83\\x9D): no Night Operation choices (1/4 rows edited, put '
+    ..'back)',last())
+assert(#asked==before and label('Temp_TS_Select_Test_1')=='1번 선택','Row 1 back in Korean')
+for _,r in ipairs({{'Temp_TS_Select_Test_1','A1'},{'Temp_TS_Select_Test_2','A2'}}) do
+    assert(exec(r[1])=='None' and task(r[1])==r[2],r[1]..' put back')
+end
+labels_in(nil)
+-- A Lua reload while her list reads on (the rows ours from an earlier load): an arm that stops, or raises, leaves the
+-- rows ours, since her list may still show them and their exec only plays her goodbye.
+unstuck=nil
+arm_in('fr-FR')
+labels_in('fr')
+status_text='mod=v\nslot=coop index=4\nroxanne=on asks=9 want=on why=none\n'
+unstuck='Temp_TS_Select_Test_1'
+before=#asked
+arm_in('fr-FR')
+assert(last()=='STOP: roxanne: Temp_TS_Select_Test_1 read back differs at DisplayText '
+    ..'(1\\xEB\\xB2\\x88 \\xEC\\x84\\xA0\\xED\\x83\\x9D): no Night Operation choices (0/4 rows edited; her list reads '
+    ..'on: they stay ours)',last())
+for _,r in ipairs(Roxanne.ROWS) do assert(exec(r.row)=='Success2' and task(r.row)=='None',r.row..' stays ours') end
+assert(#asked==before)
+unstuck=nil
+arm_in('fr-FR',function() error('link.lua:5: closed',0) end)
+assert(last()=='STOP: roxanne: closed (her list reads on: the 4 rows stay ours)',last())
+for _,r in ipairs(Roxanne.ROWS) do assert(exec(r.row)=='Success2',r.row..' stays ours') end
+unstuck=nil
+assert(polyglots==0,'Never a text registration')
 print('nightop_roxanne_test ok')
