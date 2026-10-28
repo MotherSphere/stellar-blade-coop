@@ -106,21 +106,25 @@ local function key_of(c)
     local k=math.tointeger(c.BroadcastSpawnInfo.EventSpawnId)
     return k and k&MASK
 end
+-- InteractionState 0 or 1 stands. A body of our spawn (cheat on, key 0) reads 1, executable, from its first second, in
+-- battle or not (the Lion's and the Antlion's follow lines, 2026-10-23), until its death reads 3 (every death logged).
+-- Read as 0 alone, a run on 2026-10-28 tracked none of its 20 monsters.
+local function standing(st) return st==0 or st==1 end
 local function living(c) return c.InteractionState==0 and U.valid(c.Controller)~=nil end
 -- Standing in the fight: alive and shown, controller or not (a new body may get its controller later). A wave takes a
 -- character up before its first spawn call only if it moved REUSED m since: the game pools its characters, so a body
 -- it reuses for the spawn may sit at the address of one that died, or of one far away.
-local function up(c) return c.InteractionState==0 and c.bCharacterHiddenInGame~=true end
+local function up(c) return standing(c.InteractionState) and c.bCharacterHiddenInGame~=true end
 -- Every SBCharacter in EVE's world, through the engine's class hash (core/unreal.lua's actors_of) rather than a walk of
 -- every object.
 local function characters(eve) return (U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',eve)) end
--- Adapted from Survival Protocol rlIsDeadNow and rlBodyDead. InteractionState turns non-zero at death, but 1 alone
--- means "can be executed"; a dying body loses its controller at once. Killed: non-zero with no controller. Down, for
--- the wave check: non-zero or hidden by the game (read only).
+-- Adapted from Survival Protocol rlIsDeadNow and rlBodyDead; a dying body loses its controller at once. Killed: not
+-- standing with no controller (every death logged reads 3). A standing body with no controller is a new one adopt has
+-- not reached yet, not a kill. Down, for the wave check: not standing or hidden by the game (read only).
 local function signals(c)
     local st=c.InteractionState
-    local killed=st~=0 and U.valid(c.Controller)==nil
-    return killed,killed or st~=0 or c.bCharacterHiddenInGame==true
+    local killed=not standing(st) and U.valid(c.Controller)==nil
+    return killed,killed or not standing(st) or c.bCharacterHiddenInGame==true
 end
 -- The one spawn call: a pool row and a wave key, its low byte as the spawn index. cheat=true takes any CharacterTable
 -- ID at any transform; not a player, player 0, no spawn point, no possess.
@@ -336,7 +340,7 @@ function Run.new(o)
     -- Adapted from Survival Protocol's adopt rule: a living body with no controller never moves; it gets its default.
     local function adopt(b)
         with(b,function(c)
-            if c.InteractionState~=0 or U.valid(c.Controller) then return end
+            if not standing(c.InteractionState) or U.valid(c.Controller) then return end
             local ok=pcall(function() c:SpawnDefaultController() end)
             log(string.format('controller %s: SpawnDefaultController %s',hex(b.key),
                 ok and U.valid(c.Controller) and 'gave one' or 'failed'))

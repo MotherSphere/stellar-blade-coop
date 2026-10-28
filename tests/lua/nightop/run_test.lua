@@ -3,8 +3,8 @@
 -- while the game is paused (the IsValid crash and the pause rule). Covered: each start refusal with no spawn; the
 -- census line and its wave bodies; the run byte; the spawn choke point; a whole run from countdown to success (spawn
 -- arguments, one spawn a tick, the finds, aggro, the heals, the kill lines, the score and its time bonus, the result
--- and idle); the live-list guard (a freed body, a pause, a reused body, a killed body never read again); the
--- death signals (executable, hidden, killed after down); a missing body; the default controller; the stuck rule and its
+-- and idle); the live-list guard (a freed body, a pause, a reused body, a killed body never read again); the death
+-- signals (not standing, hidden, killed after down); a missing body; the default controller; the stuck rule and its
 -- two moves; noaggro and nomove; time up; every abort (stop, coop off, map change, EVE gone, 80 m, slot, link, death
 -- screen) with no body read in that tick; a Lua error in a tick. Also: the probe rule's row and a Steam link not ready
 -- refuse; a signed key read in the census; aggro after a new controller; a body near EVE far from the start is not
@@ -53,9 +53,9 @@
 -- under way does not; a call keeps the down open for its result; a call with no
 -- up in 5 s did not take (no other call, and a later up is a death); a wave's heal skips a downed EVE; a stop while
 -- down is no getting up; with revive=off a death ends the run at once; no revive in a solo run.
--- Bodies are found by place, each reading key 0 as in the game, in lists from the class hash: a spawn that makes no
--- body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a corpse the game's pool
--- brings back for a later wave.
+-- Bodies are found by place, each reading key 0 and state 1 (executable) as in the game, in lists from the class hash:
+-- a spawn that makes no body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a
+-- corpse the game's pool brings back for a later wave. A kill reads 3 with no controller, as the game's deaths do.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 local T=1760000000
@@ -178,7 +178,9 @@ local pc=uobject('PC','SBNetworkPlayerController /Game/Map.Map:PersistentLevel.S
             m.id,m.at,m.key,m.st,m.hidden,m.battle=id,{X=at.X,Y=at.Y,Z=at.Z},key,0,false,false
             m.ctl=spawn_ai and ai() or nil
         else m=monster(id,at,key,spawn_ai) end
-        m.spawned=true
+        -- A body of this spawn (cheat on, key 0) reads 1, executable, from its first second until its death reads 3:
+        -- the Lion's and the Antlion's follow lines, 2026-10-23.
+        m.spawned,m.st=true,1
     end,
     ServerRequest_ItemBucketItemAdd=function() end})
 local player,controller=eve,pc
@@ -432,8 +434,8 @@ assert(lists()-finds>=2 and lists()-finds<=3,lists()-finds)
 -- The second aggro only for a body still not in battle: none here.
 tick(16)
 assert(count('Damage:ReportDamageEvent')==4,'In battle: no second aggro')
--- Executable (1 with a controller) and hidden are down, not killed; down then killed scores once.
-wave1[1].st=1
+-- 2 with a controller and hidden are down, not killed; down then killed scores once.
+wave1[1].st=2
 tick()
 assert(last()==string.format('down 0x%08X M_Antlion',W.key(byte,1,0)),last())
 wave1[2].hidden=true
@@ -444,13 +446,13 @@ tick()
 assert(last()==string.format('kill 0x%08X M_Antlion +10 = 10',W.key(byte,1,0)),last())
 -- A killed body is never read again.
 local reads=wave1[1].reads
-wave1[3].st,wave1[3].ctl,wave1[4].st,wave1[4].ctl=2,nil,1,nil
+wave1[3].st,wave1[3].ctl,wave1[4].st,wave1[4].ctl=2,nil,3,nil
 tick(8)
 assert(wave1[1].reads==reads,'Killed: never read again')
 assert(logged(string.format('kill 0x%08X M_Antlion +10 = 20',W.key(byte,1,2))))
 assert(logged(string.format('kill 0x%08X M_Antlion +10 = 30',W.key(byte,1,3))))
 -- The hidden one stays tracked; the wave is clear (down counts); killed later, it scores.
-wave1[2].st,wave1[2].ctl=1,nil
+wave1[2].st,wave1[2].ctl=3,nil
 tick()
 assert(last()==string.format('kill 0x%08X M_Antlion +10 = 40',W.key(byte,1,1)),last())
 -- Wave 2 comes 10 s after the clear; play waves 2 to 5 to the end, killing each wave once found.
@@ -464,7 +466,7 @@ local function play(k)
     assert(logged(find_line(k,ids)),'wave '..k..' found')
     for _,m in ipairs(bodies) do
         local r,w=W.decode(m.key)
-        if r==byte and w==k then m.st,m.ctl=1,nil end
+        if r==byte and w==k then m.st,m.ctl=3,nil end
     end
     tick()
 end
@@ -605,18 +607,18 @@ assert(battle[bodies[2]] and battle[bodies[4]] and battle[bodies[5]] and not bat
 eve_at={X=0,Y=0,Z=1000}
 run.stop('stop')
 list=begin()
-for _,m in ipairs(list) do m.st,m.ctl=1,nil end
+for _,m in ipairs(list) do m.st,m.ctl=3,nil end
 tick()
 assert(logged(string.format('kill 0x%08X M_Antlion +10 = 40',W.key(byte,1,3))),since(0))
 local afar=monster(50110,{X=0,Y=-10000,Z=1000},0,true)
 pool={list[1],list[2],afar} -- Wave 2's three calls bring two corpses back, and take the field enemy.
 for _=1,100 do tick(); if logged('wave 2 find +1 s: tracked 3/3') then break end end
 assert(logged('wave 2 find +1 s: tracked 3/3') and #pool==0 and #bodies==5,since(0))
-assert(list[1].key==W.key(byte,2,0) and list[1].st==0,'The same object, alive for wave 2')
+assert(list[1].key==W.key(byte,2,0) and list[1].st==1,'The same object, alive for wave 2')
 tick(3)
 assert(afar.key==W.key(byte,2,2) and logged(string.format('aggro 0x%08X: damage ok, noise ok, battle ok, focus ok, '
     ..'move ok',W.key(byte,2,2))),'The field enemy taken back is wave 2\'s: '..since(0))
-list[1].st,list[1].ctl=1,nil
+list[1].st,list[1].ctl=3,nil
 tick()
 assert(last()==string.format('kill 0x%08X M_SkullSwordAlone +40 = 80',W.key(byte,2,0)),last())
 assert(#violations==0,violations[1])
@@ -882,7 +884,7 @@ do
         assert(logged(found),since(0))
         for _,m in ipairs(bodies) do
             local r,w=W.decode(m.key)
-            if r==byte and w==k then m.st,m.ctl=1,nil end
+            if r==byte and w==k then m.st,m.ctl=3,nil end
         end
         tick()
     end
@@ -931,7 +933,7 @@ do
         assert(logged(line),since(0))
         for _,m in ipairs(bodies) do
             local r,w=W.decode(m.key)
-            if r==run and w==k then m.st,m.ctl=1,nil end
+            if r==run and w==k then m.st,m.ctl=3,nil end
         end
         tk()
     end
@@ -999,7 +1001,7 @@ do
     tk(10)
     assert(logged(string.format('written off 0x%08X M_DummyB at %.0f,%.0f,-500 after 0 moves',W.key(run,1,3),
         fallen.at.X,fallen.at.Y)),since(0))
-    for i=1,3 do bodies[i].st=1 end
+    for i=1,3 do bodies[i].st=3 end
     tk()
     assert(logged(string.format('kill 0x%08X M_DummyB +40 = 120',W.key(run,1,2))),since(0))
     file=file..'# added during the run\n' -- The file is read again before the write: this line stays.
@@ -1095,7 +1097,7 @@ do
     assert(last()=='wave 1/3 at run time 0.0 s: 3 monsters',last())
     tk(240)
     assert(not since(0):find('wave 2/3',1,true) and count('Damage:ReportDamageEvent')>0,since(0))
-    for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+    for _,m in ipairs(bodies) do m.st,m.ctl=3,nil end
     tk()
     local clear=gt-t0
     tk(19)
@@ -1189,7 +1191,7 @@ assert(card.line.text=='VAGUE 1/5  7:59  SCORE 0',card.line.text)
 kit.away=true; tick(); assert(not kit.shown.night,'Paused: hidden')
 kit.away=false; tick(); assert(kit.shown.night)
 for _=1,40 do tick() end
-for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+for _,m in ipairs(bodies) do m.st,m.ctl=3,nil end
 tick()
 local rt2=gt-t0
 assert(card.line.text==string.format('VAGUE SUIVANTE DANS 10  %d:%02d  SCORE 40',math.ceil(480-rt2)//60,
@@ -1349,7 +1351,7 @@ begin2()
 assert(told[1]=='Night Operation starts in 5 s.',told[1])
 tick(40)
 assert(told[2]=='Night Operation: wave 1/5.',tostring(told[2]))
-for _,m in ipairs(bodies) do m.st,m.ctl=1,nil end
+for _,m in ipairs(bodies) do m.st,m.ctl=3,nil end
 tick()
 assert(told[3]=='Night Operation: wave 1 cleared.',tostring(told[3]))
 night.command('stop')
@@ -1487,7 +1489,7 @@ local function find(list,pattern) for _,l in ipairs(list) do if l:find(pattern) 
 local function kill_all(w,wave)
     for _,m in ipairs(w.bodies) do
         local _,k=W.decode(m.key)
-        if k==wave then m.st,m.ctl=1,nil end
+        if k==wave then m.st,m.ctl=3,nil end
     end
 end
 
@@ -2163,7 +2165,7 @@ end
 local FIGHT='fight=on mode=on role=guest pairs=4 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 maxhp=0'
 local PILOT='pilot=on piloted=4 owned=0 drawn=4'
 local function body(w,key) for _,m in ipairs(w.bodies) do if m.key==key then return m end end end
-local function kill(w,key) local m=body(w,key); m.st,m.ctl=1,nil end
+local function kill(w,key) local m=body(w,key); m.st,m.ctl=3,nil end
 local function lines_of(w,pattern)
     local n=0
     for _,l in ipairs(w.lines) do n=n+(l:find(pattern) and 1 or 0) end
@@ -2323,7 +2325,7 @@ do
         assert(logged(found),since(0))
         for _,m in ipairs(bodies) do
             local r,w=W.decode(m.key)
-            if r==run and w==k then m.st,m.ctl=1,nil end
+            if r==run and w==k then m.st,m.ctl=3,nil end
         end
         tk()
     end
@@ -2451,7 +2453,7 @@ do
         assert(logged(found),since(0))
         for _,m in ipairs(bodies) do
             local r,w=W.decode(m.key)
-            if r==B.run and w==k then m.st,m.ctl=1,nil end
+            if r==B.run and w==k then m.st,m.ctl=3,nil end
         end
         B.tk()
         if k<3 then assert(B.texts[#B.texts]==string.format('SCORE %d',40*({3,7})[k]),B.texts[#B.texts]) end
