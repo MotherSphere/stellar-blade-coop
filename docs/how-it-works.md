@@ -74,6 +74,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
 | `cut/mxiii.lua` | `coop mxiii [30]`: the test pak's check (v1, v2 or v3), Matrix XIII's 10 camp rows and 5 trigger patches through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01`, or with 30 to `DLC02_30_Camp_01` on v3 only ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `story/lily.lua`, `story/lily_text.lua` | Lily's signal: the signal rows asked and read back, the words written, her choice list's swap asked on and off, the pick, the quest's acquire and `coop mxiii`'s travel, the fallback's Complete, and `coop lily signal` ([Lily's signal](#lilys-signal-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
@@ -1581,7 +1582,7 @@ clip the Lion has, and no move may travel over 17 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
-its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 20 tables
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 25 tables
 by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
 
 ```
@@ -1591,11 +1592,13 @@ SkillTable=0x<address> SkillActiveStepTable=0x<address> CharacterMoveTable=0x<ad
 TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address> ItemTable=0x<address>
 ItemConsumableTable=0x<address> ProjectileTable=0x<address> ZoneCampTable=0x<address>
 ZoneEnvSpawnTable=0x<address> ShopTable=0x<address> ShopItemTable=0x<address> ZoneTriggerTable=0x<address>
+QuestTable=0x<address> QuestTaskGroupTable=0x<address> QuestTaskTable=0x<address> LevelTargetFilter=0x<address>
+TheaterSelectDataTable=0x<address>
 ```
 
-It is one line in `coop-request.txt` (647 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
-address and its line end, 651 for the Gardener's `gardener rows`; the native part reads up to 1024 bytes of that file).
-Each of the 20 words comes once, in any order.
+It is one line in `coop-request.txt` (809 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
+address and its line end, 813 for the Gardener's `gardener rows`; the native part reads up to 1024 bytes of that file).
+Each of the 25 words comes once, in any order.
 Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console
 word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
 slot and its row size.
@@ -2117,7 +2120,7 @@ site: their rows belong to `Zone_ME_03`, which never starts in this world, and t
 other Matrix 11 camps in its levels: two more in Area03, two in Area04 and one in Area01
 ([Achievements](#achievements)).
 
-The two zone tables are the sixteenth and seventeenth of the 20 tables every rows request names (`kLionTables`), and
+The two zone tables are the sixteenth and seventeenth of the 25 tables every rows request names (`kLionTables`), and
 only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
 line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
@@ -2230,7 +2233,7 @@ run.
 `cut/mxiii.lua`'s `title()`, called from `main.lua`'s 250 ms loop, asks the batch when three things hold: the title
 screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of `session/saves.lua`, so
 never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a Lua load, and nothing
-is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to keep: the 20 tables
+is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to keep: the 25 tables
 found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic task in flight), the
 shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`, nothing is asked again
 in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its 300
@@ -2247,8 +2250,11 @@ What the title holds, read in Ghidra on build 24463856:
   path (`FUN_1426292c0`, a `StaticLoadObject` of `/Game/Local/<path>`) and roots each one (`FUN_1426293f0` keeps a weak
   pointer in the registry's first set at `+0x8` and sets the object's `RootSet` flag). StartLobby's reset
   (`FUN_142629ed0`, a jump to `FUN_14c8618d0`) un-roots and drops only the registry's second set at `+0x60`, the
-  override set that `FUN_141c451b0` reads first while `+0x58` is set. So the 20 tables are in memory at the title and
-  stay rooted through the load that follows, and rows added there are in the objects the game reads after it.
+  override set that `FUN_141c451b0` reads first while `+0x58` is set. So the 20 tables of the first batches are in
+  memory at the title and stay rooted through the load that follows, and rows added there are in the objects the game
+  reads after it. The quest tables of Lily's signal are in the same holder (QuestTable at index `0x21`, QuestTaskTable
+  `0x22`, QuestTaskGroupTable `0x23`); whether LevelTargetFilter and TheaterSelectDataTable are in its list was not
+  checked (a table missing at the title shows as `tables: 24/25 found, missing ...` and the title asks again).
 - The gate's globals. The logic singleton (`0x147032568`) and the net-mode cache (`0x147032528`) are made by their
   getters (`FUN_141a97b20`, `FUN_141a97aa0`) on first use and never freed. The cache starts at 4 and takes the world's
   mode at the first of the game's many inlined reads that resolves it (the dispatch's, `FUN_141aca570`,
@@ -2433,6 +2439,70 @@ through `U.text` (if not, the arm logs a `STOP: roxanne` line and puts the rows 
 that plain FText; who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild); the
 choice box's sort; that `GetAllWidgetsOfClass` finds the box in this build; and whether the game builds a new box for
 each talk or keeps one (both are read).
+
+## Lily's signal (experimental)
+
+`story/lily.lua` adds a choice to Lily's menu in Phase 5 and starts a quest of the mod's own (player's side:
+[lily-signal.md](lily-signal.md)). Nothing of it has run in game yet. It joins three pieces that exist for other
+features: a rows batch through SB's AddRow, the select cache swap of Roxanne's choices, and `coop mxiii`'s camp travel.
+
+1. Rows: `lion/rows.h`'s seventh batch, `kSignalRecipe` (request `signal rows`, status `signal=`), adds 6 rows to 4
+   tables no other batch writes, each a copy of a shipped row with its own patches: a LevelTargetFilter row on Lily's
+   Phase 5 spawn in Xion (`Xion_10_E_CharS_146`, the one Quest_Epic_11_M04_T01 tracks), task 1 (a copy of
+   Quest_Epic_06_M01_T01, EnterZone, its `TargetFilter` set to `Zone_DLC02_10`), task 2 (a copy of
+   Quest_Epic_11_M04_T01, the "Talk to Lily" counter, keeping its keyed text and tracking our filter row), two groups
+   (copies of Quest_Sub_002_M01, one container each, no event, no warp; `TaskContainerArray` is a TArray of structs
+   that each hold a TArray of FNames, the patch kind `containers` builds both levels in the block's pool) and the
+   quest row last of them (a copy of Quest_Sub_WLB_001, a Sub quest with no reward, event or fail condition, its
+   `TaskGroupAlias` set to the two groups). New aliases and IDs only (163, 335 and 336, 483 and 484, 280004001), all
+   free in the build 24463856 dumps. Then it patches `TS_GoToTest_2` (TheaterSelectDataTable 86, in the test list
+   `TS_GoToTest` that no story graph shows) in place: `Conditions` `[Xion_10_Condition_051]` (QuestState Quest_Epic_11
+   M04 in progress), `TextVisibleType` IsVisibility, `SelectDataPriority` 3, `NextTaskTagName` None,
+   `InteractionGraphExec` `Success5` (her goodbye, `Talk_End_Root`; `Success` runs her bike signal's point of no return
+   on every Lily node). That row is last, so a refusal there leaves the quest rows in for a save that holds the quest,
+   and the batch neither writes nor checks a TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds
+   that table's IDs is not known). The rows request now names 25 tables, the 5 new ones last.
+2. When: at the title while the game uses the co-op save files, with or without the test pak (`cut/enemy.lua`'s
+   `title_batch`, moved there from `cut/mxiii.lua`, which uses it too), so a co-op save that holds the quest finds its
+   rows when it loads; in game on a co-op save, once a Lua load, asked or, when already in, read back. Nothing else
+   runs until the rows read back as written in that Lua load.
+3. Words: `story/lily_text.lua`'s English and French lines go into the quest's `TitleName_` and `Description_`, the
+   groups' and task 1's `Description`, and the choice row's `DisplayText`, as FText in the game's language, through the
+   recruiter's checked edit (each row's ID checked first, the choice row's exec too, then a fresh FindRow reads them
+   back). No text key is registered, for the reason given under [Roxanne's choices](#roxannes-night-operation-choices).
+4. The list: `nightop/roxanne.h` now takes a list (its name, its own rows, ours, and whether its own rows must come in
+   order). Roxanne's keeps her two rows in her order; Lily's checks her eight (`TS_Xion_Lily_Choice_1` to `_8`) as a
+   set, since the cache's order of them is not known, and installs a new array of nine: the borrowed row, then her
+   eight as the entry held them. The glue keeps one state and SEH latch for each list (`lily on`, `lily off`, the
+   `lily=` line). Lua asks on while every gate holds: a co-op save, the quest unit read with neither our quest nor
+   Quest_Epic_12 in it, the rows read back, the words written, solo, the test pak found; off as soon as one fails; a
+   load (slot none or unknown) changes nothing. If the choice box sorts by priority (not checked), the borrowed row
+   stands below the bike signal (4) and above Travel and Repair (2) and End Conversation (1); if it keeps the array's
+   order, the borrowed row comes first. End Conversation stays last either way, for the cancel input.
+5. The pick, read as Roxanne's (`nightop/roxanne.lua`'s `watcher`, now shared): a `SelectIndex` turning from -1 to a
+   line whose text is the label in English or French. 5 s later, once no game screen shows, Lua asks `signal acquire`.
+6. The quest: `quest/own.h` (free of Windows, tested against fake memory) runs on the game thread every 250 ms on a
+   co-op save until `coop off`, under its own SEH latch, with the shared quests' save-slot line and offsets. It reads
+   the local player's quest unit (`FUN_141c5e880`, called only once the world and the manager exist, never on SB's
+   logic thread): the ID map through its allocation bits for 163 and 25 (Quest_Epic_12), our quest's state, active
+   group and that group's first task. `signal acquire` calls the acquire by ID a quest zone event makes
+   (`FUN_141c5cf20`: the ID's row name through the QuestTable ID map AddRow filled, then AcquireQuest and PushQuest,
+   which refuses an ID already held), only while the map does not hold it. `signal complete` calls task 1's own
+   Complete through its vtable's `+0x60` (`0x141c6eb10`, or `0x141c70850`, the one that ends child tasks; the glue's
+   call refuses any other address), only while the quest is in progress at group 1 with that task in progress in that
+   group. The `signalquest=` line gives the read and the last request's answer.
+7. The trip and the fallback: once the line reads `held`, Lua calls `coop mxiii` (its co-op save check, the follow's
+   guards, the test pak, the mxiii rows, the travel). Once EVE stands in the `MXIII_P` map with the quest at group 1
+   and its task in progress for 10 s (SB's EnterZone check did not fire after the camp travel), Lua asks
+   `signal complete`, once a visit. Group 2 waits for later content.
+
+Not checked offline: AddRow on the quest tables (only the Lion's, the shop's and `coop mxiii`'s batches went through it
+in game) and TheaterSelectDataTable's class and row size; that the quest UI reads the title and description written
+after AddRow (live or at acquire: both come after the write); that a quest acquired by ID shows the new-quest notice and
+the tracker; that EnterZone fires after a camp travel; that the game uses a quest ID as an array index anywhere (163
+follows the shipped IDs, in case it does); what a tracked quest whose rows are missing does to a save that loads
+without the mod; and the choice box's handling of a seventh visible row (Quest_Sub_005 in progress can show six of her
+own).
 
 ## Developer flight and slow motion
 

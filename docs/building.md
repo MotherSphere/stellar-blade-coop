@@ -79,12 +79,12 @@ build/host/pose_codec_test
   `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
   `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
   `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`,
-  `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `guide`, `kit`, `model`, `notice`, `text`) run
-  the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
-  fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test`
-  also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn probe`, the
-  `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`,
-  `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row;
+  `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`, `lily`; `ui/`: `guide`, `kit`, `model`, `notice`,
+  `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the
+  fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
+  `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn
+  probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`,
+  `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row;
   `main/fight_notices_test` the same place and same spawns notices in both languages; `main/quests_test` `coop quests`
   with the `shared_quests` and `quest_deny` settings and the shared quests' notices; `main/input_test` the controller's
   events from a fake `coop_pad` (routed to the menu, the co-op saves' question and the two boxes, never to the host's
@@ -94,12 +94,12 @@ build/host/pose_codec_test
 - C++ tests cover the platform-free headers in `native/src`:
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
-    and the boss tests included; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`, `mxiii rows` and `shop rows`
-    with their 20 table words and bad addresses, the longest of them 651 bytes; `fly` and `slowmo` on or off; `anim
-    play` with its id, path and `once` or `loop`, and `anim stop`; `shortcut list` and `shortcut load <map> <1-4>`;
-    `nightshop` and `roxanne` with their
-    fixed words), Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join codes (both
-    real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away);
+    and the boss tests included; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`, `mxiii rows`, `shop rows`
+    and `signal rows` with their 25 table words and bad addresses, the longest of them 813 bytes; `fly` and `slowmo` on
+    or off; `anim play` with its id, path and `once` or `loop`, and `anim stop`; `shortcut list` and `shortcut load
+    <map> <1-4>`; `nightshop`, `roxanne`, `lily` and `signal acquire|complete` with their fixed words), Night
+    Operation's night line (its round trip, its refusals and a fuzz seed), and the join codes (both real lobby ids,
+    loose typing, malformed codes, and the share of one-character typos the check turns away);
   - `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
     and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, joining
     with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a
@@ -140,11 +140,12 @@ build/host/pose_codec_test
     (skipped elsewhere): each cleaned and checked, the file without `SBAchievement` byte for byte, with no achievement
     name or gear left and no item missing from the `ItemTable` dump but the seven known ones;
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
-  - `nightop_roxanne_test`: Roxanne's choice list in SB's select cache (`nightop/roxanne.h`) against fake memory laid
-    out like the pinned build: on (our six rows in a GMalloc array, the pointer written before the count, her old array
-    never written), off (her pointer, count and max back), a second on, an element array moved by a rehash, an entry
-    the game rebuilt, the refusals (no world, no holder, her list absent or of another shape, no memory) and the
-    `roxanne=` line;
+  - `nightop_roxanne_test`: Roxanne's and Lily's choice lists in SB's select cache (`nightop/roxanne.h`) against fake
+    memory laid out like the pinned build: on (our six rows in a GMalloc array, the pointer written before the count,
+    her old array never written), off (her pointer, count and max back), a second on, an element array moved by a
+    rehash, an entry the game rebuilt, the refusals (no world, no holder, her list absent or of another shape, no
+    memory) and the `roxanne=` line; Lily's eight rows taken in the cache's own order behind the borrowed row, a row
+    twice, one of another list or one missing refused, and the `lily=` line;
   - `nightop_shop_ui_test`: the Night Operation shop screen's guard (`nightop/shop_ui.h`: a client and its UI manager
     always, in game and playing for an open only), its answer word's round trip, the `nightshop=` line and the log
     lines;
@@ -163,10 +164,13 @@ build/host/pose_codec_test
     stopping the Shock Bolt's batch, not the Lion's, and Matrix XIII's 10 rows from patches of their own in the two zone
     tables and its 5 shipped trigger rows copied back over themselves, never added, a ZoneEnvSpawnTable or
     ZoneTriggerTable of another row size, a taken camp ID, a missing trigger row or one its ID does not name stopping
-    that batch alone, a ShopTable of another row size stopping the shop's batch, not the Lion's), the refusals that call
-    no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size), a later run skipping
-    the rows already in, FName's number split, the read-back through the game's lookups by ID, the answer word, the
-    `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=` and `shop=` status lines and the log lines;
+    that batch alone, a ShopTable of another row size stopping the shop's batch, not the Lion's; Lily's signal's quest
+    rows with their task containers built in the pool, the quest row last of them and the borrowed choice row patched
+    in place with no ID check, a TheaterSelectDataTable of another row size or a taken quest ID stopping it), the
+    refusals that call no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size), a
+    later run skipping the rows already in, FName's number split, the read-back through the game's lookups by ID, the
+    answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=` and `signal=` status lines and the
+    log lines;
   - `lion_shock_test`: the Shock Bolt's two lists against fake memory: both gun stances given the two fire commands
     (through the game's grow or inside the capacity), the const ammo list and the slot manager's list given
     `Bullet_Shock`, a second run writing nothing, no slot manager yet, the key found down its hash chain, each refusal
@@ -336,7 +340,11 @@ build/host/pose_codec_test
   - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
     gate, a fault, two PCs through channel 2's text with delay and loss, a recording replayed into another save, and
     the worker's side (the gates that start and end a side, channel 2's lines beside the fight's, the record file and
-    the status lines).
+    the status lines);
+  - `quest_own_test`: the mod's own quest in a fake quest unit (`quest/own.h`): nothing read off a co-op save, on SB's
+    logic thread or before the world and the manager exist; the ID map through its inline and heap bits; the acquire
+    once, never when held; the first task's Complete only at group 1 with its task in progress, through SB's Complete
+    and no other address; the answer word and the `signalquest=` line.
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
   - `story_test.py`: `tools/story.py` and `tools/gvas.py`, the story lines and digest of a built save, and the
@@ -425,9 +433,9 @@ Platform-free headers, tested on the build machine:
 | `pose/stream.h` | The loopback's delay line, the receiving clock and interpolation |
 | `pose/record.h` | The recording, its check and its replay |
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
-| `nightop/roxanne.h` | Roxanne's Night Operation choices: her choice list's entry in SB's select cache pointed at six rows of ours and put back, the checks and the `roxanne=` line |
+| `nightop/roxanne.h` | Roxanne's Night Operation choices and Lily's signal choice: a choice list's entry in SB's select cache pointed at rows of ours followed by the list's own, and put back; the checks and the `roxanne=` and `lily=` lines |
 | `nightop/shop_ui.h` | The Night Operation shop in SB's own shop screen: the guard, the answer word, the `nightshop=` line and the log lines |
-| `lion/rows.h` | Six batches of rows (all but the fifth with their data part written by a generator outside the repository, which also describes the 20 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, `coop mxiii`'s 10 and 5 shipped trigger rows patched in place, written by hand, and the Night Operation shop screen's 6; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=` and `shop=` lines and the log lines |
+| `lion/rows.h` | Seven batches of rows (all but the fifth and the seventh with their data part written by a generator outside the repository, which also describes the 25 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, `coop mxiii`'s 10 and 5 shipped trigger rows patched in place, written by hand, the Night Operation shop screen's 6, and Lily's signal's 6 quest rows and 1 shipped choice row patched in place, written by hand; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=` and `signal=` lines and the log lines |
 | `lion/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
@@ -440,6 +448,7 @@ Platform-free headers, tested on the build machine:
 | `fight/worker.h` | `Mail` between the logic thread, the game thread and the worker, and the worker's side of the shared fight |
 | `quest/sync.h` | The shared quests' line format, the quest table built from the game's tables, and the host's and the guest's rules |
 | `quest/engine.h` | The shared quests' side on the game's quest data (reads, guards and calls), and the worker's side |
+| `quest/own.h` | Lily's signal's quest in the quest unit: the read, the acquire by ID, the first task's Complete, the answer word and the `signalquest=` line |
 | `fight/pilot.h` | Same-place enemies: `SBE` and the show lines, an enemy's samples, the drawn copy's states, the owner's capture and the drawn side's writes and Show replay |
 | `fight/spawn_sync.h` | Same spawns: the rows that take part, each side's epoch, the host's and the guest's rounds, extra enemies' keys, and the spawn filter's blocked keys and table |
 | `game/photo_freeze.h` | The synced photo mode's pause |

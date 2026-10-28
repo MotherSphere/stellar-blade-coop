@@ -854,6 +854,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](#cut-dungeon-coop-mxiii-experimental) and a camp there (experimental test command; the travel arrived in game with test pak v2 after a reload, the rows at the title are untested; needs the zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
 | `coop mxiii 30` | The same with a travel to a second camp, in the dungeon's third zone (experimental test command, untested in game; needs the v3 test pak; solo, co-op save only) |
 | `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command, untested in game; solo, co-op save only) |
+| `coop lily signal` | [Lily's signal](lily-signal.md) by hand: the mod's quest "On Time", then `coop mxiii`'s camp travel (experimental test command, untested in game; needs the zMXIII_P test pak; solo, co-op save only) |
+| `coop lily signal quest\|travel\|status` | The quest alone, the travel alone, or one status line (the status on any save) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
 | `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
@@ -1300,7 +1302,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
+| `tables: 25/25 found: CharacterTable=0x...` | The 25 tables found, with the addresses sent to the native part |
 | `lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 1004500-6000101 23/23, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need (SkillTable: the Lion's 21 skills, the stimpacks' skill, 6000101, and the ChainSpin, 1004500) |
 | `rows read back through FindRow: 237/237 authored rows, 3178 fields as written (2156 differ from the template row)` | Every field the native part wrote reads as written; 2156 of them hold a value the shipped row it started from did not, and the other 1022 restate that row's value |
@@ -1391,7 +1393,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
+| `tables: 25/25 found: CharacterTable=0x...` | The 25 tables found, with the addresses sent to the native part |
 | `gardener rows: 13/13 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `gardener rows by SB's lookups: CharacterTable 50010-50012 3/3, SkillTable 5001010-5001012 3/3, stance 500101 1/1` (`coop-link.log`) | The game's own lookups by ID find its three CharacterTable rows, its three skills and its stance |
 | `rows read back through FindRow: 13/13 authored rows, 279 fields as written (102 differ from the template row)` | Every field the native part wrote reads as written |
@@ -1448,7 +1450,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
+| `tables: 25/25 found: CharacterTable=0x...` | The 25 tables found, with the addresses sent to the native part |
 | `tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable 5006000-5006010 11/11, stance 500600 1/1` (`coop-link.log`) | The game's own lookups by ID find its CharacterTable row, its 11 skills and its stance |
 | `rows read back through FindRow: 107/107 authored rows, 1281 fields as written (997 differ from the template row)` | Every field the native part wrote reads as written |
@@ -1727,6 +1729,41 @@ can walk out to the south into the third zone and that its enemies appear, that 
 room, and that `coop mxiii leave` from there goes back out. To check that v2 refuses `coop mxiii 30`, swap the pak only
 after that `coop mxiii leave`, with the game closed. Check that the game keeps running and saves normally after you
 leave, then replace the slot with `coop saves refresh <0-4>` at the title.
+
+### Lily's signal (experimental)
+
+In Phase 5, before her "Follow the bike signal and leave", Lily's menu offers "The other signal" on a co-op save, solo,
+with the zMXIII_P test pak. Its pick starts the mod's quest "On Time" and runs `coop mxiii`'s camp travel. The whole
+feature, its conditions, its notes on saves and its `[StellarCoop][LY]` lines are in [lily-signal.md](lily-signal.md).
+None of it has been tried in game yet. The native part reports it in `coop-status.txt`:
+
+- `signal=`, the quest's rows and the borrowed choice row, in the same forms as the `lion=` line (see
+  [Cut boss](#cut-boss-coop-lion)): `signal=off` before an ask, `signal=rows added=7/7 asks=1 spawns=? char=0/0
+  skills=0/0 stance=0/0` once the 7 rows are in.
+- `lily=`, her choice list, in the forms of the `roxanne=` line (see
+  [Night Operation's shop screen and Roxanne's choices](#night-operations-shop-screen-and-roxannes-choices)): `on` is
+  her eight rows with the borrowed one in front, `off` her own eight in any order.
+- `signalquest=`, the quest in your quest list, read every 250 ms on a co-op save:
+  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> asks=<a> want=<acquire|complete> why=<w>`.
+  `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4 complete, 5 failed), its active
+  group (0 or 1) and that group's first task's state (1 in progress, 2 complete); `-1` while unread. `epic12=1` means
+  Quest_Epic_12, the bike signal's quest, is in the list. `asks` counts the requests handled, `want` and `why` are the
+  last one's: `none` when it ran, `slot` (not a co-op save), `unread` (no quest data yet), `held` (already in the list),
+  `refused` (the game's acquire said no), `absent` (no quest to complete), `group` (not in progress at group 1) or
+  `task` (its task not in progress, or no task Complete in its vtable). `signalquest=fault asks=<a> where=<where>`
+  after a fault.
+
+The native part's own lines, in `coop-link.log`:
+
+| Line | What it answers |
+| --- | --- |
+| `signal rows: 7/7 in, 6 added through SB's AddRow 0x14417ba30 and 1 shipped rows patched in place, 0 refused` | The quest's 6 rows are in, and the borrowed choice row is patched |
+| `lily on: her list reads on` | Her choice list now holds the borrowed row and her eight |
+| `lily off: her list reads off` | Her own eight choices are back |
+| `lily on refused: other, her list reads other` | Her list was not the eight rows the mod knows, so it changed nothing |
+| `signal acquire: done, signalquest=held ...` | The game's acquire ran and the quest is in the list |
+| `signal complete refused: task, signalquest=held ...` | The fallback's Complete did not run, and why (the words as in the `signalquest=` line) |
+| `signal quest fault 0x... in ... reading 0x...: no quest reads or calls until the game restarts` | A fault in the quest's reads or calls |
 
 ### Cut hairs and suits: `coop wear`
 
