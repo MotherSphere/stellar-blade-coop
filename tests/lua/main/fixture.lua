@@ -483,6 +483,16 @@ package.loaded['nightop.roxanne']={new=function(o)
         stop=function() rx.stops=rx.stops+1; if rx.raise then error(rx.raise,0) end end,
         cancel=function() local b=rx.booked; rx.booked=nil; return b end}
 end}
+-- Lily's signal (story/lily.lua; lily_test tests it): what lily.new got (o), its ticks (the last one's stopped), title
+-- calls, stops and commands.
+ly={o=nil,ticks=0,stops=0,titles={},cmds={}}
+package.loaded['story.lily']={new=function(o)
+    ly.o=o
+    return {tick=function(stopped) ly.ticks,ly.stopped=ly.ticks+1,stopped end,
+        title=function(...) ly.titles[#ly.titles+1]=table.pack(...) end,
+        stop=function() ly.stops=ly.stops+1 end,
+        command=function(...) ly.cmds[#ly.cmds+1]=table.pack(...); return true,'ly '..tostring((...)) end}
+end}
 rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
 package.loaded['nightop.recruiter']={new=function(log)
     rc_log=log
@@ -659,6 +669,7 @@ function load_main(with_native,no_folder,source)
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
     mx.o,mx.folder,mx.cmds,mx.ticks,mx.stops,mx.says,mx.titles=nil,nil,{},0,0,nil,{}
+    ly.o,ly.ticks,ly.stops,ly.titles,ly.cmds,ly.stopped=nil,0,0,{},{},nil
     cs.o,cs.cmds=nil,{}
     dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
     gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0

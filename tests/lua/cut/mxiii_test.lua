@@ -167,7 +167,7 @@ assert(M.find_map(PAKS,read)==MODS)
 where,why=M.find_map(nil,read)
 assert(where==nil and why:find('game folder is unknown',1,true))
 
--- The world: EVE, the 20 tables with Matrix XIII's rows as the native part writes them, the follow.
+-- The world: EVE, the 25 tables with Matrix XIII's rows as the native part writes them, the follow.
 local world=object({GetFullName=function() return 'World /Game/Art/BG/WorldMap/Dungeon_P/Matrix_XI.Matrix_XI' end})
 local eve=object({IsA=is('/Script/SB.SBCharacter')})
 eve.GetWorld=function() return world end
@@ -197,6 +197,9 @@ for _,t in ipairs(Enemy.TABLES) do
         FindRow=function(self,name) return self.rows[name] end,
         AddRow=function() error('never AddRow on an SB table') end})
 end
+-- Two tables this batch never writes, not loaded: they must not stop it (the title's batch keeps a save parked in the
+-- dungeon loading with its camp rows).
+tables.LevelTargetFilter,tables.TheaterSelectDataTable=nil,nil
 local gameplay=object({GetWorldDeltaSeconds=function() return 0.02 end})
 StaticFindObject=function(path)
     looked[#looked+1]=path
@@ -228,9 +231,9 @@ local function last() return lines[#lines] end
 local function logged(text) for _,l in ipairs(lines) do if l:find(text,1,true) then return l end end end
 local function mxiii_status(t) status_text='mod=v\nslot=coop index=4 marker=4\nlion=off\nmxiii='..t..'\nlast=x\n' end
 local ROWS_IN='rows added=15/15 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
-local REQUEST={}
-for _,t in ipairs(Enemy.TABLES) do REQUEST[#REQUEST+1]=string.format('%s=0x%x',t,tables[t]:GetAddress()) end
-REQUEST='mxiii rows '..table.concat(REQUEST,' ')
+-- Only the three tables its rows go into, in kLionTables' order.
+local REQUEST=string.format('mxiii rows ZoneCampTable=0x%x ZoneEnvSpawnTable=0x%x ZoneTriggerTable=0x%x',
+    tables.ZoneCampTable:GetAddress(),tables.ZoneEnvSpawnTable:GetAddress(),tables.ZoneTriggerTable:GetAddress())
 
 local mx=new(PAKS)
 mxiii_status('off')
@@ -256,7 +259,7 @@ ok,why=new(nil).command()
 assert(ok==false and why:find('game folder is unknown',1,true),why)
 assert(#asked==0 and #looked==0 and #probes==0,'Nothing asked, nothing looked up')
 
--- With everything there (a v2 pak): the checks line with its version, the 20 tables, one ask, then the wait.
+-- With everything there (a v2 pak): the checks line with its version, its 3 tables, one ask, then the wait.
 put(LOGIC,nil,UCAS2)
 reads={}
 clock=100
@@ -266,7 +269,7 @@ assert(ok and why=='Matrix XIII rows asked of the native part: the read-back fol
 assert(#reads==4 and logged('checks: solo on a co-op save, the native travel idle, '..LOGIC..' holds '
     ..'WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas; test pak v2 (DLC02_10_EnvS points in its .ucas: '
     ..'the camp kit stands at the spawn points; arrival at the kit, 36624 16140 -2136)'))
-assert(logged('tables: 20/20 found: '..REQUEST:sub(12)),'R1 with every address')
+assert(logged('tables: 3/3 found: '..REQUEST:sub(12)),'R1 with every address')
 for _,p in ipairs(looked) do assert(not p:find('MXIII',1,true),'No StaticFindObject of the map: '..p) end
 ok,why=mx.command(); assert(ok==false and why=='coop mxiii is busy (the wait for the Matrix XIII rows): try again in a '
     ..'few seconds',why)

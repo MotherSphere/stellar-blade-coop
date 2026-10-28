@@ -495,6 +495,10 @@ local commands={
             stopped,e=pcall(o.roxanne.stop)
             if not stopped then log('roxanne: '..tostring(e)) end
         end
+        if o.lily then -- Lily's eight choices back too.
+            stopped,e=pcall(o.lily.stop)
+            if not stopped then log('lily: '..tostring(e)) end
+        end
         stopped,e=pcall(night.stop,'coop off') -- The shop's screen closes first.
         if not stopped then log('nightop: '..tostring(e)) end
         if group then -- A death screen the revive hid comes back.
@@ -553,6 +557,16 @@ o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][N
     paused=function() return kit~=nil and kit.paused(true) end,title=function() return at_title end,tell=tell,
     start=function(level) return commands.nightop('start',level) end,
     shop=function() return commands.nightop('shop') end,phase=function() return night.phase() end})
+-- Lily's signal (story/lily.lua, experimental), logging [LY] lines: on a co-op save, solo, with the zMXIII_P test pak,
+-- in Phase 5 her choice list offers "The other signal"; its pick starts the mod's quest "On Time" and runs coop mxiii's
+-- travel; coop lily signal [status|quest|travel] by hand. Ticked in the 250 ms loop below (with the Steam link only),
+-- after coop off too: coop off puts her list back. Its rows also go in at the title on the co-op save files, with the
+-- test pak only (lily.title).
+o.lily=require('story.lily').new({log=function(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end,
+    status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
+    mode=function() return link and link.mode() end,paused=function() return kit~=nil and kit.paused(true) end,
+    travel=function() return commands.mxiii() end,paks=require('cut.mxiii').paks_of(folder),
+    read=require('core.link').files.read})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
@@ -1018,6 +1032,7 @@ if link then
         if not off then guarded('nightop',night.tick) end -- Night Operation's run, if any: it logs its own lines.
         -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
         guarded('roxanne',o.roxanne.tick,off)
+        guarded('lily',o.lily.tick,off) -- Lily's signal: likewise.
         chat_clock=chat_clock+0.25
         if not off then guarded('revive',group.tick,chat_clock) end -- The friend's revive: it logs its own lines.
         if not off then guarded('travel',travel.tick,chat_clock) end -- The follow: likewise.
@@ -1122,6 +1137,8 @@ if link then
             -- Matrix XIII's rows at the title with the co-op save files, so a co-op save that names its camp loads
             -- with them (cut/mxiii.lua: once a game run, with the test pak only).
             guarded('mxiii',mxiii.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
+            -- Lily's signal's rows likewise (test pak only), so a co-op save that holds the quest keeps it.
+            guarded('lily',o.lily.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
             -- A story dump asked for by coop-story.txt in the mod folder (story/dump.lua, read only): once per
             -- request, in a loaded world, and named in the log.
             local dumped,dump_message=guarded('story',story_dump.poll,world==true)

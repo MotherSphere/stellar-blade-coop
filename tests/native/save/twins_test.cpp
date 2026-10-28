@@ -308,6 +308,17 @@ int main() {
            held.find("use them up or sell them") != std::string::npos && held.find("Matrix") == std::string::npos);
     assert(mod_only(names_field("ItemQuickSlotArray", "ArrayProperty", {"None", item.alias}) + clean_body()) == held);
   }
+  // The mod's quest On Time, by its alias as the save writes it (an FString, in its quest list or as the tracked
+  // quest): no way out by playing, so no "export it again"; a longer alias that starts with it does not count.
+  const std::string on_time =
+      "the mod's quest On Time (Quest_Sub_MX13_01): nothing ends that quest yet, so this save cannot be exported";
+  assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_01")) == on_time);
+  assert(mod_only(clean_body() + fstring("TrackingQuestAliases") + fstring("Quest_Sub_MX13_01")) == on_time);
+  assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_01_M01")).empty());
+  assert(mod_only(clean_body() + name_field("ItemAlias", "Bullet_Shock") + fstring("Quest_Sub_MX13_01")) ==
+         "the mod's items Shock Bolt (Bullet_Shock): use them up or sell them, and take them off the quick slots (Beta "
+         "Seeds go back to the wallet when coop nightop shop closes); " +
+             on_time);
   assert(mod_only(clean_body() + name_field("ItemAlias", "Buff_HP2MP") + name_field("ItemAlias", "Bullet_Shock"))
              .find("Beta Stimpack (Buff_HP2MP), Shock Bolt (Bullet_Shock):") != std::string::npos);
   // A quick slot array is read within its size and the file: a size past the file's end stops at it, a negative one

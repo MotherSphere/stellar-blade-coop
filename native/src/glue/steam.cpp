@@ -589,7 +589,7 @@ bool step() {
       request.clear();
       break;
     case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii, the
-                              // shop: the game thread's.
+                              // shop, Lily's signal: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
       request.clear();
       break;
@@ -625,8 +625,12 @@ bool step() {
       event(coop::pose::ask_nightshop(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::roxanne: // Roxanne's Night Operation choices: the game thread's.
+    case coop::Command::roxanne: // Roxanne's Night Operation choices or Lily's signal choice: the game thread's.
       event(coop::pose::ask_roxanne(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::signal: // The mod's own quest, its reads, acquire or first task's Complete: the game thread's.
+      event(coop::pose::ask_signal(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::saves:

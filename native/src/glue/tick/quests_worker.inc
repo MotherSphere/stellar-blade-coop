@@ -35,6 +35,54 @@ std::string ask_quests(const coop::Request &request) {
   return quest_worker.ask(request, io);
 }
 
+// The mod's own quest (quest/own.h, story/lily.lua): signal watch (the reads start), signal acquire or signal complete
+// at the game thread's next 250 ms pass; any of them starts the reads. Refused off the pinned build, after coop off and
+// after its latch's fault.
+std::string ask_signal(const coop::Request &request) {
+  const std::string word = request.watch ? "signal watch" : request.complete ? "signal complete" : "signal acquire";
+  if (!game_pinned || own_faulted || blocked)
+    return word + " refused: " +
+           (own_faulted ? std::string("the quest's calls stopped for this run (a fault)")
+            : blocked   ? std::string("coop off")
+                        : engine_reason);
+  own_watching = true;
+  if (request.watch)
+    return word + " asked: the quest unit read every 250 ms on a co-op save from now on";
+  {
+    std::lock_guard<std::mutex> lock(own_m);
+    ++own_asked;
+    own_complete = request.complete;
+  }
+  return word + " asked: at the game thread's next pass (250 ms), on a co-op save only";
+}
+namespace {
+uint32_t own_logged = 0;
+bool own_fault_logged = false;
+// Each worker pass (from quest_pass): one line for each answer, the fault once.
+void own_pass() {
+  if (own_faulted) {
+    if (!std::exchange(own_fault_logged, true)) {
+      char text[300];
+      std::snprintf(text, sizeof text,
+                    "signal quest fault 0x%08llx in %s reading 0x%llx: no quest reads or calls "
+                    "until the game restarts",
+                    static_cast<unsigned long long>(own_fault_code.load()), fault_where(own_fault_rva).c_str(),
+                    static_cast<unsigned long long>(own_fault_address.load()));
+      say(text);
+    }
+    return;
+  }
+  const quest::own::Answer a = quest::own::unpack(own_word);
+  if (a.asks == own_logged)
+    return;
+  own_logged = a.asks;
+  say(std::string("signal ") + (a.complete ? "complete" : "acquire") +
+      (a.why == quest::own::Why::none ? std::string(": done, ")
+                                      : std::string(" refused: ") + quest::own::why_word(a.why) + ", ") +
+      quest::own::status_line(a));
+}
+} // namespace
+
 void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std::vector<std::string> &lines,
                 bool (*send)(const std::string &), const QuestFiles &files) {
   QuestIo io{send, &files};
@@ -58,8 +106,15 @@ void quest_pass(uint64_t now_ms, bool hosting, uint64_t partner, int marker, std
     quest_slot = quest_slot_line, quest_slot_ms = now_ms;
   }
   quest_worker.pass(now_ms, hosting, partner, quest_slot_line, lines, io);
+  own_pass();
 }
 
-std::string quest_status() { return quest_worker.status(); }
+std::string quest_status() {
+  const quest::own::Answer a = quest::own::unpack(own_word);
+  return quest_worker.status() +
+         (game_pinned && !blocked
+              ? quest::own::status_line(a, own_faulted, own_faulted ? fault_where(own_fault_rva) : std::string()) + "\n"
+              : std::string());
+}
 
 } // namespace coop::pose

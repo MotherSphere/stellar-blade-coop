@@ -1,6 +1,7 @@
-// Roxanne's choice list in SB's select cache (nightop/roxanne.h) against fake memory laid out like the pinned build:
-// the world global, its +0xe0 holder, the TMap's elements at +0x5f0, her entry among others; on, off, a moved
-// element array, an entry the game changed, and reads that fail.
+// Roxanne's and Lily's choice lists in SB's select cache (nightop/roxanne.h) against fake memory laid out like the
+// pinned build: the world global, its +0xe0 holder, the TMap's elements at +0x5f0, her entry among others; on, off, a
+// moved element array, an entry the game changed, and reads that fail. Lily's 8 rows are checked as a set in the
+// cache's own order and copied after our row; a missing, repeated or foreign name is another shape.
 #include "nightop/roxanne.h"
 
 #include <cassert>
@@ -94,7 +95,7 @@ Game cache() {
   g.map(kElements, 3 * kStride);
   g.count = 3;
   g.put(kElements, g.name("TS_Xion_Recruiter_Choice"));
-  g.put(kElements + kStride, g.name(kList));
+  g.put(kElements + kStride, g.name(kRoxanne.name));
   g.put(kElements + 2 * kStride, g.name("TS_GoToTest"));
   g.map(kHerNames, 16);
   g.put(kHerNames, g.name("TS_Xion_Roxane_Choice_1"));
@@ -104,6 +105,19 @@ Game cache() {
   g.put<int32_t>(kElements + kStride + kMax, 2);
   return g;
 }
+// Lily's entry instead, first of two: her 8 rows in the table's reverse order (the cache's own order is not known).
+constexpr uint64_t kLilyNames = 0x52000;
+Game lily_cache() {
+  Game g = cache();
+  g.put(kElements, g.name(kLily.name));
+  g.map(kLilyNames, 64);
+  for (int32_t i = 0; i < 8; ++i)
+    g.put(kLilyNames + 8 * uint64_t(i), g.name(kLily.theirs[7 - i]));
+  g.put(kElements + kData, kLilyNames);
+  g.put<int32_t>(kElements + kCount, 8);
+  g.put<int32_t>(kElements + kMax, 8);
+  return g;
+}
 } // namespace
 
 int main() {
@@ -111,19 +125,19 @@ int main() {
   {
     Game g;
     assert(make(g, "TS_Xion_Roxane_Choice_1") == g.name("TS_Xion_Roxane_Choice", 21, 2));
-    assert(make(g, kList) == g.name(kList, std::strlen(kList), 0));
+    assert(make(g, kRoxanne.name) == g.name(kRoxanne.name, std::strlen(kRoxanne.name), 0));
   }
   // Off: her two rows; on: our six, our names first and hers last, in a GMalloc array; the old pointer kept.
   {
     Game g = cache();
     Swap s;
-    assert(shape(g, kBase, s) == Shape::hers);
-    assert(arm(g, kBase, s) == Why::none && g.mallocs == 1 && s.ours == kHeap && s.old_data == kHerNames &&
+    assert(shape(g, kBase, kRoxanne, s) == Shape::hers);
+    assert(arm(g, kBase, kRoxanne, s) == Why::none && g.mallocs == 1 && s.ours == kHeap && s.old_data == kHerNames &&
            s.old_count == 2 && s.old_max == 2);
     const uint64_t e = kElements + kStride;
     assert(g.get<uint64_t>(e + kData) == kHeap && g.get<int32_t>(e + kCount) == 6 && g.get<int32_t>(e + kMax) == 6);
-    for (int32_t i = 0; i < kOurs; ++i)
-      assert(g.get<uint64_t>(kHeap + 8 * uint64_t(i)) == g.name(kRows[i]));
+    for (int32_t i = 0; i < kRoxanne.our_count; ++i)
+      assert(g.get<uint64_t>(kHeap + 8 * uint64_t(i)) == g.name(kRoxanne.ours[i]));
     assert(g.get<uint64_t>(kHeap + 32) == g.get<uint64_t>(kHerNames) &&
            g.get<uint64_t>(kHeap + 40) == g.get<uint64_t>(kHerNames + 8));
     // The pointer is written before the count, and her old array is never written.
@@ -136,25 +150,25 @@ int main() {
       assert(g.writes[i] - kHerNames >= 16);
     }
     assert(data_at < count_at);
-    assert(shape(g, kBase, s) == Shape::ours);
+    assert(shape(g, kBase, kRoxanne, s) == Shape::ours);
     // A second on changes nothing.
     g.writes.clear();
-    assert(arm(g, kBase, s) == Why::none && g.writes.empty() && g.mallocs == 1);
+    assert(arm(g, kBase, kRoxanne, s) == Why::none && g.writes.empty() && g.mallocs == 1);
     // Off: her pointer, count and max back, the count first.
-    assert(disarm(g, kBase, s));
+    assert(disarm(g, kBase, kRoxanne, s));
     assert(g.get<uint64_t>(e + kData) == kHerNames && g.get<int32_t>(e + kCount) == 2 &&
-           g.get<int32_t>(e + kMax) == 2 && shape(g, kBase, s) == Shape::hers);
+           g.get<int32_t>(e + kMax) == 2 && shape(g, kBase, kRoxanne, s) == Shape::hers);
     assert(g.writes.size() >= 3 && g.writes[g.writes.size() - 3] == e + kCount && g.writes.back() == e + kData);
-    assert(!disarm(g, kBase, s)); // Nothing left to put back.
+    assert(!disarm(g, kBase, kRoxanne, s)); // Nothing left to put back.
     // On again after that off: the same array, no second allocation.
-    assert(!s.installed && arm(g, kBase, s) == Why::none && g.mallocs == 1 && g.get<uint64_t>(e + kData) == kHeap &&
-           s.installed);
+    assert(!s.installed && arm(g, kBase, kRoxanne, s) == Why::none && g.mallocs == 1 &&
+           g.get<uint64_t>(e + kData) == kHeap && s.installed);
   }
   // The element array moved (a rehash): the entry is found again by name, never through the old address.
   {
     Game g = cache();
     Swap s;
-    assert(arm(g, kBase, s) == Why::none);
+    assert(arm(g, kBase, kRoxanne, s) == Why::none);
     const uint64_t moved = 0x48000;
     g.map(moved, 4 * kStride);
     std::memcpy(g.at(moved + kStride, 3 * kStride), g.at(kElements, 3 * kStride), 3 * kStride);
@@ -162,7 +176,7 @@ int main() {
     g.put(kHolderAt + kMap, moved);
     g.regions.erase(kElements);
     g.elements_at = moved, g.count = 4;
-    assert(shape(g, kBase, s) == Shape::ours && disarm(g, kBase, s));
+    assert(shape(g, kBase, kRoxanne, s) == Shape::ours && disarm(g, kBase, kRoxanne, s));
     assert(g.get<uint64_t>(moved + 2 * kStride + kData) == kHerNames);
   }
   // The game rebuilt her entry with an array of its own: ours went with the old entry (SB's to free), off never writes
@@ -170,68 +184,106 @@ int main() {
   {
     Game g = cache();
     Swap s;
-    assert(arm(g, kBase, s) == Why::none);
+    assert(arm(g, kBase, kRoxanne, s) == Why::none);
     g.map(0x58000, 16);
     g.put(0x58000, g.name("TS_Xion_Roxane_Choice_1"));
     g.put(0x58008, g.name("TS_Xion_Roxane_Choice_2"));
     g.put(kElements + kStride + kData, uint64_t(0x58000));
     g.put<int32_t>(kElements + kStride + kCount, 2);
-    assert(shape(g, kBase, s) == Shape::hers);
+    assert(shape(g, kBase, kRoxanne, s) == Shape::hers);
     g.writes.clear();
-    assert(!disarm(g, kBase, s) && g.writes.empty());
-    assert(arm(g, kBase, s) == Why::none && s.old_data == 0x58000 && g.mallocs == 2 && s.ours == kHeap + 0x1000);
+    assert(!disarm(g, kBase, kRoxanne, s) && g.writes.empty());
+    assert(arm(g, kBase, kRoxanne, s) == Why::none && s.old_data == 0x58000 && g.mallocs == 2 &&
+           s.ours == kHeap + 0x1000);
     for (const uint64_t w : g.writes)
       assert(w - kHeap >= 48); // Nothing written into the first array.
-    assert(g.get<uint64_t>(kElements + kStride + kData) == kHeap + 0x1000 && shape(g, kBase, s) == Shape::ours);
+    assert(g.get<uint64_t>(kElements + kStride + kData) == kHeap + 0x1000 &&
+           shape(g, kBase, kRoxanne, s) == Shape::ours);
   }
   // Rebuilt into the very block of ours that SB freed (its GMalloc handed it out again, two names long): hers, not
   // ours, so off leaves it and on allocates anew.
   {
     Game g = cache();
     Swap s;
-    assert(arm(g, kBase, s) == Why::none && s.ours == kHeap);
+    assert(arm(g, kBase, kRoxanne, s) == Why::none && s.ours == kHeap);
     g.put(kHeap, g.name("TS_Xion_Roxane_Choice_1"));
     g.put(kHeap + 8, g.name("TS_Xion_Roxane_Choice_2"));
     g.put<int32_t>(kElements + kStride + kCount, 2);
     g.put<int32_t>(kElements + kStride + kMax, 2);
-    assert(shape(g, kBase, s) == Shape::hers && !disarm(g, kBase, s));
-    assert(arm(g, kBase, s) == Why::none && g.mallocs == 2 && s.ours == kHeap + 0x1000 && s.old_data == kHeap &&
-           s.old_count == 2);
+    assert(shape(g, kBase, kRoxanne, s) == Shape::hers && !disarm(g, kBase, kRoxanne, s));
+    assert(arm(g, kBase, kRoxanne, s) == Why::none && g.mallocs == 2 && s.ours == kHeap + 0x1000 &&
+           s.old_data == kHeap && s.old_count == 2);
   }
   // Refusals: no world, no holder, her list absent, another shape (three rows, another order), no memory.
   {
     Game g;
     Swap s;
-    assert(arm(g, kBase, s) == Why::unread && shape(g, kBase, s) == Shape::unread && g.writes.empty());
+    assert(arm(g, kBase, kRoxanne, s) == Why::unread && shape(g, kBase, kRoxanne, s) == Shape::unread &&
+           g.writes.empty());
     g = cache();
     g.put(kWorld + kHolder, uint64_t(0));
-    assert(arm(g, kBase, s) == Why::unread && g.writes.empty());
+    assert(arm(g, kBase, kRoxanne, s) == Why::unread && g.writes.empty());
     g = cache();
     g.put(kElements + kStride, g.name("TS_Xion_Roxane_Choice_Old"));
-    assert(arm(g, kBase, s) == Why::absent && shape(g, kBase, s) == Shape::absent && g.writes.empty());
+    assert(arm(g, kBase, kRoxanne, s) == Why::absent && shape(g, kBase, kRoxanne, s) == Shape::absent &&
+           g.writes.empty());
     g = cache();
     g.put<int32_t>(kElements + kStride + kCount, 3);
-    assert(arm(g, kBase, s) == Why::other && g.writes.empty());
+    assert(arm(g, kBase, kRoxanne, s) == Why::other && g.writes.empty());
     g = cache();
     g.put(kHerNames, g.name("TS_Xion_Roxane_Choice_2"));
     g.put(kHerNames + 8, g.name("TS_Xion_Roxane_Choice_1"));
-    assert(arm(g, kBase, s) == Why::other && g.writes.empty());
+    assert(arm(g, kBase, kRoxanne, s) == Why::other && g.writes.empty());
     g = cache();
     g.no_memory = true;
-    assert(arm(g, kBase, s) == Why::alloc && g.writes.empty() && !s.ours);
+    assert(arm(g, kBase, kRoxanne, s) == Why::alloc && g.writes.empty() && !s.ours);
+  }
+  // Lily: her 8 rows as a set in the cache's order; on puts our row first, then her 8 as the cache had them, in a new
+  // array of 9; off puts hers back. Roxanne's entry beside it stays hers.
+  {
+    Game g = lily_cache();
+    Swap s, r;
+    assert(kLily.our_count == 1 && !std::strcmp(kLily.ours[0], "TS_GoToTest_2") && kLily.their_count == 8 &&
+           !kLily.ordered && kRoxanne.ordered);
+    assert(shape(g, kBase, kLily, s) == Shape::hers && shape(g, kBase, kRoxanne, r) == Shape::hers);
+    assert(arm(g, kBase, kLily, s) == Why::none && s.old_data == kLilyNames && s.old_count == 8);
+    assert(g.get<uint64_t>(kElements + kData) == kHeap && g.get<int32_t>(kElements + kCount) == 9 &&
+           g.get<int32_t>(kElements + kMax) == 9);
+    assert(g.get<uint64_t>(kHeap) == g.name("TS_GoToTest_2"));
+    for (int32_t i = 0; i < 8; ++i)
+      assert(g.get<uint64_t>(kHeap + 8 + 8 * uint64_t(i)) == g.name(kLily.theirs[7 - i]));
+    assert(shape(g, kBase, kLily, s) == Shape::ours && shape(g, kBase, kRoxanne, r) == Shape::hers);
+    assert(disarm(g, kBase, kLily, s) && g.get<uint64_t>(kElements + kData) == kLilyNames &&
+           g.get<int32_t>(kElements + kCount) == 8 && shape(g, kBase, kLily, s) == Shape::hers);
+    // Another shape: a row twice and one missing, a name of another list, 7 rows. Nothing written.
+    g = lily_cache();
+    g.put(kLilyNames, g.name(kLily.theirs[0]));
+    assert(arm(g, kBase, kLily, s = Swap()) == Why::other && g.writes.empty());
+    g = lily_cache();
+    g.put(kLilyNames + 16, g.name("TS_Xion_Roxane_Choice_1"));
+    assert(shape(g, kBase, kLily, s) == Shape::other && arm(g, kBase, kLily, s) == Why::other && g.writes.empty());
+    g = lily_cache();
+    g.put<int32_t>(kElements + kCount, 7);
+    assert(arm(g, kBase, kLily, s) == Why::other && g.writes.empty());
+    // Her entry absent (Roxanne's cache alone).
+    g = cache();
+    assert(arm(g, kBase, kLily, s) == Why::absent && g.writes.empty());
+    Status st;
+    st.shape = Shape::ours, st.asks = 1, st.want = true;
+    assert(status_line(kLily, st) == "lily=on asks=1 want=on why=none");
   }
   // The status line.
   {
     Status st;
-    assert(status_line(st) == "roxanne=unread asks=0 want=off why=none");
+    assert(status_line(kRoxanne, st) == "roxanne=unread asks=0 want=off why=none");
     st.shape = Shape::ours, st.asks = 2, st.want = true;
-    assert(status_line(st) == "roxanne=on asks=2 want=on why=none");
+    assert(status_line(kRoxanne, st) == "roxanne=on asks=2 want=on why=none");
     st.shape = Shape::hers, st.asks = 3, st.why = Why::busy;
-    assert(status_line(st) == "roxanne=off asks=3 want=on why=busy");
+    assert(status_line(kRoxanne, st) == "roxanne=off asks=3 want=on why=busy");
     st.shape = Shape::other, st.why = Why::other;
-    assert(status_line(st) == "roxanne=other asks=3 want=on why=other");
+    assert(status_line(kRoxanne, st) == "roxanne=other asks=3 want=on why=other");
     st.faulted = true, st.fault = "SB-Win64-Shipping.exe+0x1702300";
-    assert(status_line(st) == "roxanne=fault asks=3 where=SB-Win64-Shipping.exe+0x1702300");
+    assert(status_line(kRoxanne, st) == "roxanne=fault asks=3 where=SB-Win64-Shipping.exe+0x1702300");
   }
   std::puts("nightop_roxanne_test: ok");
   return 0;

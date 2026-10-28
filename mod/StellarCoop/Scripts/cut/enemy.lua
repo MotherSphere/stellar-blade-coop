@@ -3,8 +3,9 @@
 -- cut/mxiii.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and its screen,
 -- through cut/lion.lua). The monster's rows
 -- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
--- logic task in flight). This file finds the 20 tables by their fixed paths and sends their addresses (the spec's
--- "<word> rows" request: no console word reaches an address), waits for the answer in coop-status.txt's <word> line,
+-- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 25) by their fixed
+-- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
+-- no row of the batch uses never stops it; it waits for the answer in coop-status.txt's <word> line,
 -- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
 -- the first value that differs, then runs the spec's prepare (the Tendril's Shows). Then one spawn call,
 -- nightop/run.lua's ServerRequest_CreateActor with cheat on and key 0 (no EventSpawn row: no zone storage, no quest
@@ -46,11 +47,13 @@ local N=require('nightop.probe')
 local Doro=require('race.doro')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Enemy={}
--- The 20 tables, in the native part's order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>.
+-- The native part's 25 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a
+-- request names only those its batch's rows go into.
 Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
     'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
     'TargetFilterTable','SkillResultTable','EffectTable','ItemTable','ItemConsumableTable','ProjectileTable',
-    'ZoneCampTable','ZoneEnvSpawnTable','ShopTable','ShopItemTable','ZoneTriggerTable'}
+    'ZoneCampTable','ZoneEnvSpawnTable','ShopTable','ShopItemTable','ZoneTriggerTable','QuestTable',
+    'QuestTaskGroupTable','QuestTaskTable','LevelTargetFilter','TheaterSelectDataTable'}
 local DATA='/Game/Local/Data/'
 local ROOT_FAR=2000 -- cm: the copy's root ending farther from the spot than this spawns at the spot.
 local POLL,WAIT=0.25,30 -- s: the status line read while the rows are asked, and how long before giving up.
@@ -79,9 +82,10 @@ local why=Enemy.why
 -- The generated rows (cut/lion_rows.lua's R.ROWS or R.GARDENER, {table, name, ID, checks}) as {table=, name=, id=
 -- <nil in the dead table>, checks={{field, kind, value, changed}}}. kind: f a float, i an int32, b a bool (0 or 1), e
 -- an enum's number, n an FName (compared in any case: its text is whichever casing the game registered first), N a
--- list of FNames, s an FString, S a list of FStrings (lists joined by |). changed: the value differs from the row's
--- template (the shipped row the native part copies before its patches), so reading it back proves the patch landed;
--- the other checks restate a value the template holds, and a read-back cannot tell them from the copy.
+-- list of FNames, s an FString, S a list of FStrings (lists joined by |), C a list of quest task containers (each
+-- one's TaskAliasArray of FNames joined by |, the containers by ;, compared in any case). changed: the value differs
+-- from the row's template (the shipped row the native part copies before its patches), so reading it back proves the
+-- patch landed; the other checks restate a value the template holds, and a read-back cannot tell them from the copy.
 function Enemy.rows(list)
     local rows={}
     for _,r in ipairs(list) do rows[#rows+1]={table=r[1],name=r[2],id=r[3],checks=r[4]} end
@@ -116,6 +120,15 @@ local function get(r,field,kind)
     if kind=='f' or kind=='i' or kind=='e' or kind=='b' then return assert(tonumber(x),'not a number') end
     if kind=='n' then return text(x):lower() end
     if kind=='s' then return text(x) end
+    if kind=='C' then
+        local groups={}
+        U.each(assert(x,'no field'),function(_,c)
+            local names={}
+            U.each(assert(c.TaskAliasArray,'no TaskAliasArray'),function(_,v) names[#names+1]=text(v) end)
+            groups[#groups+1]=table.concat(names,'|')
+        end)
+        return table.concat(groups,';'):lower()
+    end
     local items={}
     U.each(assert(x,'no field'),function(_,v) items[#items+1]=text(v) end)
     local joined=table.concat(items,'|')
@@ -125,7 +138,7 @@ local function same_value(kind,got,want)
     if kind=='f' then return math.abs(got-want)<1e-4 end
     -- An int32 or uint32 by its 32 bits: an ID above 2^31 (coop mxiii's 2800032900) reads the same signed or not.
     if kind=='i' then return math.tointeger(got)~=nil and math.tointeger(got)&MASK==want&MASK end
-    return got==((kind=='n' or kind=='N') and want:lower() or want)
+    return got==((kind=='n' or kind=='N' or kind=='C') and want:lower() or want)
 end
 -- R4: every row of rows read back through its table's FindRow (tables: by name, as found), its ID then its checks, in
 -- order. Returns the count that match and, at the first that does not, what it reads; with every row matching, also
@@ -192,15 +205,19 @@ function Enemy.new(o,spec)
     local boss,next_boss={},0 -- The boss name TextBlocks held, and when to look for them again.
     local function my_line() return Enemy.parse(status and status(),word) end
     local her=N.her
-    -- The 20 tables by name, and those missing.
+    -- The tables the spec's rows go into, in the native part's order, by name, and those missing.
+    local used={}
+    for _,r in ipairs(spec.rows) do used[r.table]=true end
     local function tables()
         local found,missing,words={},{},{}
         for _,t in ipairs(Enemy.TABLES) do
-            local dt=valid(StaticFindObject(DATA..t..'.'..t))
-            if dt and dt:IsA(U.find('/Script/Engine.DataTable')) then
-                found[t]=dt
-                words[#words+1]=string.format('%s=0x%x',t,U.address(dt))
-            else missing[#missing+1]=t end
+            if used[t] then
+                local dt=valid(StaticFindObject(DATA..t..'.'..t))
+                if dt and dt:IsA(U.find('/Script/Engine.DataTable')) then
+                    found[t]=dt
+                    words[#words+1]=string.format('%s=0x%x',t,U.address(dt))
+                else missing[#missing+1]=t end
+            end
         end
         return found,missing,words
     end
@@ -602,11 +619,11 @@ function Enemy.new(o,spec)
         if not eve and not title then return false,'no EVE in the world (load a save first): nothing was asked' end
         local found,missing,words=tables()
         if #missing>0 then
-            log(string.format('tables: %d/%d found, missing %s: nothing asked',#words,#Enemy.TABLES,
+            log(string.format('tables: %d/%d found, missing %s: nothing asked',#words,#words+#missing,
                 table.concat(missing,', ')))
             return false,'The game has no '..table.concat(missing,', ')..' loaded: nothing was asked.'
         end
-        log(string.format('tables: %d/%d found: %s',#words,#Enemy.TABLES,table.concat(words,' ')))
+        log(string.format('tables: %d/%d found: %s',#words,#words,table.concat(words,' ')))
         local s=my_line()
         if not s then
             return false,'coop-status.txt has no '..word..' line: the native part is off, or older than '..command
@@ -657,6 +674,58 @@ function Enemy.new(o,spec)
             return ok,message,true
         end
         return done(ok,message)
+    end
+    -- The rows alone at the title, from main.lua's 250 ms loop (cut/mxiii.lua's batch, story/lily.lua's): at_title
+    -- (the title screen shown, no save loaded) and coop (the game on the co-op save files, saves=coop; never your own
+    -- saves). ready() gives the words the ask's log line names the files with ('the co-op save files and test pak
+    -- v3'), or nil when there is nothing to add (then nothing is said); more names what adds them later.
+    -- Asks at most TRIES times a visit of the title, each RETRY s after the last answer, while the gate stays shut
+    -- (GATE: the refusals of a gate that stayed shut, lion/rows.h's busy, net, unread, which a later frame may open;
+    -- any other refusal would come back the same). Once a game run: this batch's line already reading rows (a Lua
+    -- reload, a command before a return to the title) ends it, and so do ready() giving nil, a fault, or an answer that
+    -- is no shut gate. The rows flow is the commands' (the tables, the native part's gate and latch, the read-back),
+    -- with no EVE and no map to keep, and nothing after. The end says whether the title still showed at the last call
+    -- (shown), at most 250 ms before it; a save loads for longer than that. Returns title(at_title, coop) and stop()
+    -- for coop off, which ends the wait without its end, so a batch asked is free to ask again at the next call.
+    -- after(ok), when given, hears how each asked batch ended (true once the rows are in and read back).
+    local TRIES,RETRY=4,10
+    local GATE={busy=true,net=true,unread=true}
+    function self.title_batch(ready,more,after)
+        local early,tries,again,shown=nil,0,0,false -- early: 'asked', then 'in' or 'off'; nil: free to ask.
+        local function title(at_title,coop)
+            shown=at_title==true
+            if not (at_title and coop) then tries=0 return end
+            if early or tries>=TRIES or os.clock()<again or job then return end
+            local s=my_line()
+            if not s or s.state=='fault' then return end -- No native part, or the rows stopped for the run.
+            if s.state=='rows' then
+                early='in'
+                return log('title: the rows are in already ('..s.line..')')
+            end
+            local files=ready()
+            if not files then
+                early='off'
+                return
+            end
+            tries,early=tries+1,'asked'
+            log('title: '..files..': the rows asked before any save loads (try '..tries..' of '..TRIES..')')
+            -- The end, said here only (nothing returned, so main.lua reports nothing): a shut gate, no answer yet, or
+            -- an end before the ask (the tables not all loaded) may pass at a later try.
+            self.rows(function(ok,message)
+                local line=my_line()
+                local again_later=not ok and line and (line.state=='off' or line.state=='waiting'
+                    or line.state=='refused' and GATE[line.why])
+                early,again=ok and 'in' or not again_later and 'off' or nil,os.clock()+RETRY
+                if after then after(ok) end
+                local next_try=tries<TRIES and ' (asked again in '..RETRY..' s if the title still shows)'
+                    or ' (no more tries this visit of the title: '..more..' adds them)'
+                log('title: '..(not ok and tostring(message) or shown and 'the rows are in, before any save loads'
+                    or 'the rows are in, after the title closed: a save may have loaded before them')
+                    ..(again_later and next_try or ''))
+            end,nil,true)
+        end
+        local function stop() if early=='asked' then early=nil end end
+        return title,stop
     end
     -- The bodies followed, for the spec's own commands (coop lion unfreeze).
     function self.followed() return followed end

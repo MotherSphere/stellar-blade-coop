@@ -180,7 +180,8 @@ with tempfile.TemporaryDirectory() as tmp:
                               'nightop/waves',
                               'partner/capture', 'partner/hud', 'partner/puppet', 'race/doro', 'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
-                              'session/group', 'session/join', 'session/saves', 'session/travel', 'story/dump', 'ui/kit', 'ui/menu',
+                              'session/group', 'session/join', 'session/saves', 'session/travel', 'story/dump', 'story/lily',
+                              'story/lily_text', 'ui/kit', 'ui/menu',
                               'ui/model', 'ui/notice', 'ui/text', 'version'))}
     assert set(files) == shipped - {'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
     assert not [rel for rel in files
