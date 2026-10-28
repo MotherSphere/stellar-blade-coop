@@ -67,7 +67,11 @@ lines.
 A solo run was played once, on 2026-10-28, before the two fixes described in [The waves](#the-waves): the tracking of
 its monsters and the ground check of their spawn points. The fixed run has not been tested in game yet, and the co-op
 run not at all. Check in game: each wave logs `wave 1 find +1 s: tracked 4/4` with every monster of the wave counted,
-each kill logs a `kill` line, no monster appears inside a wall or under the floor, and a success pays points.
+each kill logs a `kill` line, no monster appears inside a wall or under the floor, and a success pays points. On open
+ground no spawn line should end with `(ground: unchecked: ...)`. If every run shows it, the navigation calls do not
+work in this UE4SS build and the monsters spawn at their points unchecked, as on 2026-10-28. In a two-PC run, compare
+both players' spawn lines for the same key. If the points differ and the guest's log shows `missing` with a `nearest
+new body` for that key, report it: her game looks for each copy at its own point, not at the host's.
 
 The run keeps its own timer in the mod. It adds no row to the game's rule table and starts none of the cut mode's
 rules, so a death goes through the game's usual death screen and respawn. Parts of the run adapt code from Survival
@@ -116,6 +120,10 @@ changes nothing, when:
 - a living character other than EVE stands within 40 m. The line gives the count and the nearest distance, for
   example `STOP: census: 1 living within 40 m (nearest 23.4 m); 0 wave bodies: go where no one is within 40 m`.
 
+The census counts a character only while its `InteractionState` reads 0 and it has a controller. Monsters that an
+earlier run left in the world read 1 (see [The waves](#the-waves)), so they do not stop a start and the census does not
+count them.
+
 ### The waves
 
 A 5 s countdown comes first. Run time starts at 0 when it ends, and wave 1 comes at once. Each later wave comes at its
@@ -140,21 +148,34 @@ point.
 The run of 2026-10-28 used these points as they were, and some monsters spawned inside walls. Before each spawn the mod
 now checks the point against the navmesh, the walkable ground the game's AI moves on. It follows the navmesh in a
 straight line from EVE's start towards the point. If a wall, a ledge or a gap stops the line, the point comes back to
-1.5 m short of the stop. If that leaves it less than 5 m from the start, or if the navmesh has no floor at the point,
-the monster goes to the next of the four points, and if none of them holds, to its own point unchecked. The height
-follows the floor at the point: on flat ground the monster appears 1 m above the start point, as before, and on a floor
-3 m higher it appears 3 m higher. The spawn line in `UE4SS.log` says when a point moved:
+1.5 m short of the stop. The point then goes down or up to the navmesh floor, looked for within 5 m of the start's
+height, or within 15 m on a slope. If the point ends up less than 5 m from the start, or there is no floor, the monster
+goes to another point that holds: first a gate that no other monster of its wave uses, then a point 2.5 m beside
+another monster's point, so two monsters of one wave never get the same point. If no gate holds, the monster goes to
+the farthest point that a blocked line left at least 2 m from the start, and if there is none, to its own point as
+before the check (the spawn line then ends with `raw spot`). The height follows the floor: on flat ground the monster
+appears 1 m above the start point, as before, and on a floor 3 m higher it appears 3 m higher. The spawn line in
+`UE4SS.log` says when a point moved. Three lines of one wave:
 
 ```
-spawn 0xD82A0100 M_Antlion at 14306,-17676,3280 yaw -40 (ground: moved 6.5 m)
-spawn 0xD82A0101 M_Antlion at 15580,-16946,3280 yaw -120 (ground: gate 1 blocked, gate 2)
-spawn 0xD82A0102 M_Antlion at 14180,-19370,3280 yaw 60 (ground: gate 3 blocked, no other gate holds: raw spot)
+spawn 0xD82A0100 M_Antlion at 14305,-17676,3280 yaw -40 (ground: moved 6.5 m)
+spawn 0xD82A0101 M_Antlion at 15454,-16730,3280 yaw -112 (ground: gate 3 blocked, gate 2)
+spawn 0xD82A0102 M_Antlion at 15580,-16946,3280 yaw -120
+```
+
+The line towards the first monster's gate stopped 9 m out, so the monster came back to 7.5 m. The second one's gate
+was blocked and every gate had a monster of the wave, so it spawned 2.5 m beside the third one's point. A run started
+in a corridor, where no gate holds, logs lines like this one:
+
+```
+spawn 0xD8510100 M_Antlion at 20226,-9627,3050 yaw 55 (ground: gate 4 blocked, no other gate holds: 3.2 m out)
 ```
 
 A move of less than 1 m adds nothing to the line. The gates are numbered in the order above: 1 and 2 ahead, 3 and 4
 behind. If the game's navigation calls are missing or fail, or EVE's start is not on the navmesh, the run places every
 monster as it did before the check, and its first spawn line ends with `(ground: unchecked: <reason>)`. In a co-op
-run each game checks the points against its own copy of the map, so both should get the same points.
+run each game checks the points against its own copy of the map. Both get the same points unless one side logs
+`unchecked` or its navmesh differs.
 
 The game does not keep a monster's wave key where the mod can read it (it copies the key to the character only in a
 networked game), so the mod finds each monster by where it stands. Just before a wave's first spawn, it lists the
@@ -792,9 +813,10 @@ The dummies stand on eight spots in front of the point where EVE started. Angles
 
 Each wave draws its own order of the spots, so the dummies stand in other places each round. Each spot goes through the
 solo run's ground check (see [The waves](#the-waves)): a blocked spot comes back towards the start point, or the dummy
-goes to the next spot (`(ground: spot 3 blocked, spot 4)`). A dummy appears as high above the floor at its spot as a
-monster does, and faces the start point. The mod neither sends it at EVE nor gives it an AI controller. How the
-dummies look, whether they stand still and how many shots each one takes are not known yet.
+goes to the next spot that no other dummy of its wave uses (`(ground: spot 3 blocked, spot 6)`). The third wave uses
+all eight spots, so there the dummy stands 2.5 m beside another one's spot. A dummy appears as high above the floor at
+its spot as a monster does, and faces the start point. The mod neither sends it at EVE nor gives it an AI controller.
+How the dummies look, whether they stand still and how many shots each one takes are not known yet.
 
 Start Target Practice on flat open ground, with nothing in the way for 32 m ahead of EVE. When the ground check cannot
 run (`(ground: unchecked: ...)` in the log), a spot on a slope can lie inside the ground or above it. A dummy more than
