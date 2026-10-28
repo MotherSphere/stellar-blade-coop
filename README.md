@@ -4,16 +4,16 @@ Stellar Blade Online is an online co-op mod for Stellar Blade on PC. Two players
 one sees the other's EVE in their own world. It was called StellarCoop until October 2026: the mod's folder, its DLL,
 its `coop` console commands and this repository keep that name.
 
-Status: v0.6.0-beta.1, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
+Status: v0.7.0-beta.1, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
 first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil at about 240 ms
 ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and same place (each
-enemy in the same spot on both screens). The 0.5 additions have not been tested between two PCs yet: shared quests, the
-friend's revive, the cutscene wait, kills that count only for a player who took part, Night Operation's run and its
-challenges, Doro races, the co-op line at camp phone booths and the controller in the co-op menu. The Leviathan viewer
-and its free camera ran in game on one PC on 2026-10-22. None of the 0.6 additions has run in game yet: the first-launch
-guide, the .pak mod list and CNS outfits over the link, the UE4SS settings warning, `coop lion`, `coop wear`,
-`coop gardener` and `coop tendril`. 0.6.0-beta.1 to beta.3 use link protocol 13. Later releases use protocol 14
-and do not link with them.
+enemy in the same spot on both screens). No later version has been played on two PCs, so nothing added since 0.4 has
+been tested between two PCs: shared quests, the friend's revive, the cutscene wait, kills that count only for a player
+who took part, Night Operation's run, levels, revive and challenges, Doro races, the co-op line at camp phone booths,
+the .pak mod list and CNS outfits over the link, `coop gift` and the pose rate that adapts to Steam's queue. On one PC,
+the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the first-launch guide
+opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen. 0.6.0-beta.1 to beta.3
+use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them.
 
 Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
 the Steam client that the game already runs, so the mod needs no other program and no server of its own.
@@ -65,7 +65,7 @@ the Steam client that the game already runs, so the mod needs no other program a
   show the early Mann model, the NieR collaboration's three cut machines and prototype statues of Orcal and Enya the
   same way.
 - `coop lion` spawns the Lion, a boss cut from the game, as a real enemy to fight on a co-op save. The game's files keep
-  its model, animations and attacks but no table row, so the mod adds the 78 rows it needs to the game's tables in
+  its model, animations and attacks but no table row, so the mod adds the 222 rows it needs to the game's tables in
   memory. `coop lion intro` plays its entrance first. It writes nothing to a save, and only your game has it (see
   [docs/usage.md](docs/usage.md#cut-boss-coop-lion)).
 - `coop gardener fight` spawns the Gardener the same way: a cut artillery Naytiba about 20 m tall that never walks and
@@ -87,10 +87,16 @@ the Steam client that the game already runs, so the mod needs no other program a
   Korean. `coop lines enya` plays seven voice takes of Enya and Su that the game never uses. Neither has been tried in
   game yet (see [docs/usage.md](docs/usage.md#cut-scene-lines-coop-lines)).
 - `coop fly` and `coop slowmo` switch on the developer flight (a third press of the space bar in the air, or R2 held)
-  and slow motion (R1) that the game ships turned off, on a co-op save (see
-  [docs/usage.md](docs/usage.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo)).
+  and slow motion (R1) that the game ships turned off, on a co-op save. The flight in this form has not been tried in
+  game yet (see [docs/usage.md](docs/usage.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo)).
 - `coop glide` brings back EVE's cut glide: with Jump held in the air, she falls at a tenth of the normal gravity, on a
-  co-op save (see [docs/usage.md](docs/usage.md#cut-glide-coop-glide)).
+  co-op save. It has not been tried in game yet (see [docs/usage.md](docs/usage.md#cut-glide-coop-glide)).
+- `coop chainspin` asks for EVE's cut Tachy Mode ChainSpin once, while she is in Tachy Mode: a spin of four hits whose
+  last one stuns, with no button and no wing animation. `coop devmenu` runs the 20 rows of the game's developer menu
+  that still work (no damage, speed, attack, gauges, enemy rows), and `coop devinfo` opens its quest debugger or
+  player info panel. These test commands have not been tried in game yet (see
+  [docs/usage.md](docs/usage.md#cut-tachy-skill-coop-chainspin) and
+  [docs/usage.md](docs/usage.md#developer-menu-coop-devmenu-and-coop-devinfo)).
 - `coop emote <name>` plays one of EVE's clips through the game's own animation call: 31 photo-mode poses held until
   she moves (grouped under the categories of the game's cut Social Action menu), two waves, and six clips of hers made
   for two enemies with no character in the game files: the Chariot, which was cut (its struggle and her takedown on
@@ -138,9 +144,11 @@ types it, at his level, and both games get the same waves while both screens sho
 shared enemies on, each wave monster has one HP bar and one death in both games. With the experimental revive on, a
 dead EVE in such a run is down for 30 s: her partner revives her with the interact key, as the cut mode planned, or she
 revives herself a few times a run (`coop nightop revive`). A run that ends in success or time up gives points for a
-console shop that sells seven items: four of the game's, and three cut items the mod adds back (two stimpacks and the
-Shock Bolt ammo for EVE's gun). None of this has been tested in game yet (see
-[docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs five short fights on the same
+shop of seven items: four of the game's, and three cut items the mod adds back (two stimpacks and the Shock Bolt ammo
+for EVE's gun). `coop nightop shop` opens it in the game's own shop screen, with your points shown as the cut Beta
+Seed, and on a co-op save Roxanne in Xion offers the run's levels and its supplies among her choices. Only the shop
+screen has run in game, on 2026-10-27: the run, its levels, the revive, the purchases and Roxanne's choices are
+untested (see [docs/night-operation.md](docs/night-operation.md#the-co-op-run)). `coop challenge` runs five short fights on the same
 code, two of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. They need a
 co-op save and give no shop points. Four are solo. The fifth, the Shooting Range, rebuilds the game's cut shooting
 test with its score widget, and the host can start it for both players. They have not been tested in game yet either

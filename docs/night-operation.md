@@ -6,7 +6,8 @@ a linked partner at one of four levels, a shop that sells seven items (three of 
 earn, in the game's own shop screen with the cut Beta Seed as its currency, Night Operation choices in Roxanne's
 dialogue in Xion, and five challenges on the same code, `coop challenge`: four solo fights and the Shooting Range,
 which the host can also run for both players. Two research previews test other parts of the cut mode; they are not
-playable modes. The run, the shop, Roxanne's choices and the challenges have not been tested in game yet.
+playable modes. Only the shop screen has run in game (it opened on 2026-10-27, with its rows added): the run, buying,
+Roxanne's choices and the challenges have not been tested in game yet.
 
 ## What the game files contain
 
@@ -463,7 +464,8 @@ reads `shock=in`. Otherwise it stops with
 `STOP: Bullet_Shock cannot be fired in this game (shock=...): nothing bought, no points taken`, and the shop screen
 leaves the Shock Bolt out.
 
-None of this has been tried in game yet. Check that the items show with their names and icons, that using a stimpack
+The rows of these items went in during the 2026-10-27 game run and the shop screen opened, but no item has been
+bought, used or fired in game yet. Check that the items show with their names and icons, that using a stimpack
 plays the animation and changes HP and the gauge, that the Shock Bolt shows in the ammo selector, fires and stuns, and
 what happens to a cut item left in the inventory when the game saves: after a restart the rows are not in until the next
 buy of that item or the next `coop nightop shop` (or `coop lion rows` for the stimpacks), and how the game loads an

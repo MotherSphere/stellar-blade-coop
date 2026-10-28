@@ -222,8 +222,8 @@ every load and save goes to the copies. Continue may then load a different slot 
 and a slot the list shows as empty can hold a copy you played in co-op: a New Game there replaces it without asking.
 
 If the copies cannot be made, the question says why and offers only the solo choices. `coop status` shows
-`slot=coop ... saves=coop` once a copy is loaded. The co-op saves have not been tested in game yet: back up your saves
-first (see "Saves and Steam Cloud").
+`slot=coop ... saves=coop` once a copy is loaded. The co-op saves ran in game on 2026-10-21 and 2026-10-27, but back
+up your saves first anyway (see "Saves and Steam Cloud").
 
 More about the copies:
 
@@ -246,7 +246,8 @@ More about the copies:
   `coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth) outside the
   dungeon. It also refuses a developer save that `coop shortcut load` wrote in co-op slot 4
   (`StellarBladeCoop04.sav`, the title's fifth slot), played or not. Quit the game afterwards: until it restarts, the
-  title's slot list shows the slot's old details. See [docs/saves.md](docs/saves.md#co-op-saves).
+  title's slot list shows the slot's old details. The export has not been tried in game yet. See
+  [docs/saves.md](docs/saves.md#co-op-saves).
 - A co-op save that started New Game+ while it held any of these keeps them in the game's New Game+ copy of the
   inventory and camps, which playing does not change, so the export keeps refusing it. Only the copy by hand below
   takes it out.
