@@ -3,9 +3,10 @@
 -- (her one dormant Night Operation branch only greets a customer who paid in Beta Seeds, and nothing reaches it), so
 -- four of the game's test choice rows that no story graph lists carry ours (ROWS): in memory for the game run, each is
 -- edited in place through nightop/recruiter.lua's checked edit (InteractionGraphExec Success2, her End Conversation's,
--- so the graph plays one of her goodbyes and ends; NextTaskTagName None), and their four text keys get the labels in
--- the 23 game languages (nightop/roxanne_text.lua, through nightop/recruiter.lua's registration, after its Korean
--- probe). Then the native part points her choice list's entry in SB's select cache at those four and her two
+-- so the graph plays one of her goodbyes and ends; NextTaskTagName None; DisplayText our label in the game's language
+-- read at that time, from nightop/roxanne_text.lua, so a language changed later shows at the next Lua load). No text
+-- key is registered: this UE4SS build cannot pass the 23 languages as a map inside PolyglotDataToText's struct
+-- parameter. Then the native part points her choice list's entry in SB's select cache at those four and her two
 -- (nightop/roxanne.h: roxanne on). A pick is read from the select widgets (SBSequencerInteractionSelectWidget, looked
 -- for at each tick through the widget library's class lookup, never by walking every object each tick): a SelectIndex
 -- turning from -1 to a line, that line's text matched against our labels. A level is booked and starts on its own once
@@ -27,8 +28,10 @@ local CHOICES='/Game/Local/Data/TheaterSelectDataTable.TheaterSelectDataTable'
 local XION='/game/art/bg/worldmap/level_p/e04'
 local SELECT='/Script/SB.SBSequencerInteractionSelectWidget'
 local WIDGETS='/Script/UMG.Default__WidgetBlueprintLibrary'
+local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 -- The four rows, in the native part's order (nightop/roxanne.h's kRows): ID, select list, the shipped
--- InteractionGraphExec and NextTaskTagName (put back when off), its line of nightop/roxanne_text.lua and its pick.
+-- InteractionGraphExec and NextTaskTagName (put back when off, with the DisplayText of its key in
+-- nightop/roxanne_text.lua), its line of nightop/roxanne_text.lua and its pick.
 Roxanne.ROWS={
     {row='Temp_TS_Select_Test_1',id=14,list='Temp_TS_Select_Test',exec='None',task='A1',line='E',level='easy'},
     {row='Temp_TS_Select_Test_2',id=15,list='Temp_TS_Select_Test',exec='None',task='A2',line='N',level='normal'},
@@ -61,7 +64,8 @@ function Roxanne.row_of(text,by) return (by or labels())[text] end
 -- phase() the phase of nightop/run.lua's run, nil when none ('ask' while a host's run waits for the partner).
 function Roxanne.new(o)
     local log,status,ask,paused,tell=o.log,o.status,o.ask,o.paused,o.tell
-    local by=nil -- labels(), once the text is registered.
+    local by=nil -- labels(), once the rows are ours.
+    local culture=nil -- The text culture of the game's language when the rows were armed.
     local armed,failed=false,false -- Rows edited and asked on in this Lua load; an arm that stopped (no retry).
     local restore=false -- Off asked: the rows go back to their shipped values once her list reads off or absent.
     local asked_at=-math.huge
@@ -70,39 +74,40 @@ function Roxanne.new(o)
     local save=nil -- The co-op save's index the last co-op status read.
     local function one(...) return R.one(...) end
     local function index(text) return R.index_of(R.find_name(text)) end
-    -- The rows to ours (on) or back to their shipped values: each checked first (its ID, its list, a value of the two),
-    -- written and read back. Gives the STOP line or nil.
+    -- The rows to ours (on: the labels in culture) or back to their shipped values (the Korean sources): each checked
+    -- first (its ID, its list, a value of the two), written and read back. Gives the STOP line or nil.
     local function rows(on)
+        local data=require('nightop.roxanne_text')
+        local korean={}
+        for _,v in pairs(data.KEYS) do korean[v[1]]=v[2] end
         local done={}
         for _,r in ipairs(Roxanne.ROWS) do
             local exec,task=on and Roxanne.EXEC or r.exec,on and 'None' or r.task
+            local label=on and data.TEXT[culture][r.line] or korean[r.line]
             local known={{'ID','n',one(r.id)},{'SelectDataName','name',one(index(r.list))},
                 {'InteractionGraphExec','name',one(index(r.exec),index(Roxanne.EXEC))},
                 {'NextTaskTagName','name',one(index(r.task),0)}}
             local stop=R.edit(CHOICES,r.row,known,{{'InteractionGraphExec','name',FName(exec),index(exec)},
-                {'NextTaskTagName','name',FName(task),index(task)}},nil,'Night Operation choices')
+                {'NextTaskTagName','name',FName(task),index(task)},{'DisplayText','text',FText(label),label}},nil,
+                'Night Operation choices')
             if stop then return stop,done end
             done[#done+1]=r.row
         end
         return nil,done
     end
     local function line_of(raw) return raw:match('\nroxanne=([^\r\n]*)') end
-    -- On, once a Lua load: the text, the rows, then the native part's swap. A step that fails puts back what it changed
-    -- and stops trying until the next Lua load.
+    -- On, once a Lua load: the game's language, the rows, then the native part's swap. A step that fails puts back what
+    -- it changed and stops trying until the next Lua load.
     local function arm()
-        local text=R.register('nightop.roxanne_text',{{'Temp_TS_Select_Test_1','E'},{'Temp_TS_Select_Test_2','N'},
-            {'Temp_TS_Select_Test_3','H'},{'TS_GoToTest_1','S'}},'rows Temp_TS_Select_Test_1 to _3 and TS_GoToTest_1',
-            ': nothing registered, Roxanne keeps her two choices')
-        if text:find('^STOP: ') then
-            failed=true
-            return log('STOP: roxanne '..text:sub(7))
-        end
-        log('roxanne '..text)
+        local read,raw=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
+        culture=require('nightop.roxanne_text').culture(read and raw or nil)
+        log(string.format('roxanne text: game language %s -> %s; the 4 rows get its labels',
+            read and U.word(raw,16) or '?('..R.ascii(why(raw))..')',culture))
         local stop,done=rows(true)
         if stop then
             failed=true
             log('STOP: roxanne: '..stop..' ('..#done..'/4 rows edited, put back)')
-            if #done>0 then pcall(rows,false) end
+            pcall(rows,false) -- The failed row too: its other fields may be written.
             return
         end
         by=labels()

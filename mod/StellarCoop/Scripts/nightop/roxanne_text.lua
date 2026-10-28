@@ -1,7 +1,7 @@
 -- Roxanne's four Night Operation choices (nightop/roxanne.lua) in the 23 text languages the game ships, in the form
 -- nightop/recruiter_text.lua has. KEYS: the FText keys (namespace "") of the four shipped test rows that carry them ->
--- {line, exact Korean source}; the engine keeps a registered text only while that source matches the asset's. TEXT:
--- culture -> line -> text. Lines: E, N and H the Easy, Normal and Hard levels, S the shop's screen. Night Operation is
+-- {line, exact Korean source}, the DisplayText a row gets back when her choices go off. TEXT: culture -> line -> text;
+-- the game language's line is written into each row's DisplayText. Lines: E, N and H the Easy, Normal and Hard levels, S the shop's screen. Night Operation is
 -- each language's own term from the game's strings (ui/text.lua's night title); the levels' words are ours.
 local KEYS={
     ["C8A59F404A1B66555B5265ACCF31FCFD"]={"E","1번 선택"}, -- row Temp_TS_Select_Test_1/DisplayText
