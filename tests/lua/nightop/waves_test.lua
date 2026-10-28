@@ -110,12 +110,13 @@ near(math.sqrt((further.X-gate.X)^2+(further.Y-gate.Y)^2),250,'Slot 4: 2.5 m fro
 near(turn(yaw-math.deg(math.atan(P0.Y-further.Y,P0.X-further.X))),0,'Faces P0')
 near(turn(bearing(gate)-(90+140)),0,'Order {3,...}: slot 0 at gate 3')
 
--- A spot settled on a fake navmesh (W.settle): floor(x,y) is the floor's Z there (nil: none); wall is the metres from
--- the start at which the walk towards the spot stops (nil: none). EVE stands 90 cm over the floor at P0.
+-- A spot settled on a fake navmesh (W.settle): floor(x,y) is the floor's Z there (nil: none), found within 5 m up or
+-- down of the point asked, or 15 m in the tall box; wall is the metres from the start at which the walk towards the
+-- spot stops (nil: none). EVE stands 90 cm over the floor at P0.
 local function fake_nav(floor,wall)
-    return {project=function(p)
+    return {project=function(p,tall)
             local z=floor(p.X,p.Y)
-            return z and {X=p.X,Y=p.Y,Z=z} or nil
+            return z and math.abs(z-p.Z)<=(tall and 1500 or 500) and {X=p.X,Y=p.Y,Z=z} or nil
         end,
         ray=function(a,b)
             local d=math.sqrt((b.X-a.X)^2+(b.Y-a.Y)^2)
@@ -129,18 +130,29 @@ local function out(p) return math.sqrt((p.X-P0.X)^2+(p.Y-P0.Y)^2) end
 local spot=W.spot(P0,90,order,0)
 local at=assert(W.settle(P0,spot,fake_nav(flat)))
 assert(at.X==spot.X and at.Y==spot.Y and at.Z==spot.Z,'Flat open floor: the spot itself')
--- A floor 3 m higher at the spot: the point stands 3 m higher too.
+-- A floor 3 m higher at the spot: the point stands 3 m higher too; 8 m higher (a slope), found in the tall box.
 at=assert(W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<500 and P0.Z-90 or P0.Z+210 end)))
 assert(at.X==spot.X and at.Y==spot.Y and at.Z==P0.Z+400,'Higher floor: '..at.Z)
+at=assert(W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<500 and P0.Z-90 or P0.Z+710 end)))
+assert(at.X==spot.X and at.Y==spot.Y and at.Z==P0.Z+900,'A slope: '..at.Z)
 -- A wall 9 m out on the gate's bearing: the point comes back to 7.5 m on the same bearing.
 at=assert(W.settle(P0,spot,fake_nav(flat,9)))
 near(out(at),750,'1.5 m back from the wall')
 near(turn(bearing(at)-bearing(spot)),0,'On the same bearing')
 assert(at.Z==P0.Z+100,'On the same floor')
--- A wall at 6.5 m leaves 5 m: kept; at 6.4 m: dropped.
+-- A wall at 6.5 m leaves 5 m: kept; at 6.4 m: dropped, with the point it would have had (4.9 m out); so too
+-- (2.1 m out at 3.6 m); at 3.4 m, dropped with none, as when the navmesh has no floor at that point.
 near(out(assert(W.settle(P0,spot,fake_nav(flat,6.5)))),500,'5 m kept')
-local none,why=W.settle(P0,spot,fake_nav(flat,6.4))
+local none,why,short=W.settle(P0,spot,fake_nav(flat,6.4))
 assert(none==nil and why=='blocked',tostring(why))
+near(out(short),490,'The point it would have had')
+near(turn(bearing(short)-bearing(spot)),0,'On the same bearing')
+assert(short.Z==P0.Z+100,'On the same floor')
+near(out(select(3,W.settle(P0,spot,fake_nav(flat,3.6)))),210,'2.1 m out')
+none,why,short=W.settle(P0,spot,fake_nav(flat,3.4))
+assert(none==nil and why=='blocked' and short==nil,tostring(short))
+none,why,short=W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<200 and P0.Z-90 or nil end,4))
+assert(none==nil and why=='blocked' and short==nil,tostring(short))
 none,why=W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<500 and P0.Z-90 or nil end))
 assert(none==nil and why=='no floor',tostring(why))
 none,why=W.settle(P0,spot,fake_nav(function() return nil end))
@@ -609,7 +621,7 @@ end
 assert(s.kills==8 and s.clears==8 and s.score==80+math.floor(600-15))
 
 -- Spots: slot s of a wave stands on spot order[s+1], at the start yaw plus its degrees and its metres from P0, 1 m
--- above P0, facing P0; each wave draws its own order of all the spots.
+-- above P0, facing P0; each wave draws its own order of all the spots. Slot s+8 stands 2.5 m from slot s.
 local SPOTS={id='spots',waves={{at=0,ids={40010}},{ids={40010}},{ids={40010}}},limit=90,breather=3,heals={},
     bonus=10,aggro=false,moves=0,spots={{-45,12},{45,12},{-25,18},{25,18},{0,22},{-40,26},{40,26},{0,32}}}
 local drawn=W.orders(0x12345678,SPOTS)
@@ -630,6 +642,9 @@ for _,o in ipairs(drawn) do
         near(pos.Z,P0.Z+100,'1 m up')
         near(turn(bearing(pos)-(90+spot[1])),0,'Its degrees from the start yaw')
         near(turn(face-bearing(pos)-180),0,'Faces P0')
+        -- Past the last spot (a slot run.lua moved): 2.5 m from the spot, as a gate's spread.
+        local beside=W.spot(P0,90,o,slot+8,SPOTS)
+        near(math.sqrt((beside.X-pos.X)^2+(beside.Y-pos.Y)^2),250,'2.5 m from its spot')
     end
 end
 -- Without spots the definition keeps the gates.
