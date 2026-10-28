@@ -433,6 +433,15 @@ template <class Read> bool photo_mode(uint64_t base, Read &&read) {
          read(manager + kPhotoCamera, &camera, sizeof camera) && camera != kSelfie;
 }
 
+// SB holds a pause tag (kPauseAt; Engine::paused's test): its 0 s ticks move the turn while our job waits [G].
+// read(address, out, n) as a Game's; false when unread or implausible (none before the singleton is made).
+template <class Read> bool world_paused(uint64_t base, Read &&read) {
+  uint64_t tags = 0;
+  int32_t count = 0, gaps = 0;
+  return read(base + (game::kGlobals + kPauseAt - kImageBase), &tags, sizeof tags) && plausible(tags) &&
+         read(tags + kTagsNum, &count, sizeof count) && read(tags + kTagsFree, &gaps, sizeof gaps) && count > gaps;
+}
+
 // The local EVE's partner-card numbers (UI-DESIGN 4.3, 5.1), read on our worker through read(address, out, n)
 // (ReadProcessMemory, which fails instead of faulting): the actor manager's local player as SB finds its own EVE
 // (Engine's local_fsb()), with its player flag set; stats 1 to 23 in one read, the life state, then the manager's slot

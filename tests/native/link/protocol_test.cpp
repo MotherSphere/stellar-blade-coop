@@ -111,7 +111,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC13 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC14 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -126,12 +126,38 @@ int main() {
                                  race + "end\r", race + "\xff", p + " race", race})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
-  for (const char *other : {"SBC12 race cp 7 1 2 3", "SBC14 race cp 7 1 2 3", "SBC race end 7"})
+  for (const char *other : {"SBC13 race cp 7 1 2 3", "SBC15 race cp 7 1 2 3", "SBC race end 7"})
     assert(parse_text(other).kind == Kind::invalid);
   for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
     m = parse_text(race + "x" + static_cast<char>(c) + "x");
     assert(m.kind == Kind::race && m.text == std::string("x") + static_cast<char>(c) + "x");
   }
+
+  // coop gift's line, reliable: s <id> <alias> <count>, a <id>, n <id> <why>, each field at its edge. Anything else is
+  // invalid, never cleaned into another line.
+  assert(gift_line("s 1761480000123 HP_Potion 3") == p + " gift s 1761480000123 HP_Potion 3");
+  m = parse_text(gift_line("s 1761480000123 HP_Potion 3"));
+  assert(m.kind == Kind::gift && m.text == "s 1761480000123 HP_Potion 3");
+  for (const std::string &good : {std::string("s 1 A 1"), std::string("s 18446744073709551615 HP_Potion_Small 10"),
+                                  "s 7 " + std::string(kMaxAlias, 'Z') + " 1", std::string("a 1761480000123"),
+                                  std::string("n 1761480000123 nolink"), std::string("n 5 abcdefghijklmnop")}) {
+    assert(gift_ok(good));
+    m = parse_text(p + " gift " + good);
+    assert(m.kind == Kind::gift && m.text == good);
+  }
+  for (const std::string &bad :
+       {std::string("s 0 HP_Potion 1"), std::string("s 1 HP_Potion 0"), std::string("s 1 HP_Potion 11"),
+        std::string("s 1 HP-Potion 1"), "s 7 " + std::string(kMaxAlias + 1, 'Z') + " 1", std::string("s 1 HP_Potion"),
+        std::string("s 1 HP_Potion 1 2"), std::string("s -1 HP_Potion 1"), std::string("s 1 HP_Potion +1"),
+        std::string("s 100000000000000000000 A 1"), std::string("s 123456789012345678901 A 1"), std::string("a 0"),
+        std::string("a"), std::string("a 1 2"), std::string("a x"), std::string("n 1"), std::string("n 1 Nolink"),
+        std::string("n 1 abcdefghijklmnopq"), std::string("n 1 no link"), std::string("n 1 no_link"),
+        std::string("x 1"), std::string("s  1 A 1"), std::string("a 1 "), std::string(""), std::string("S 1 A 1")}) {
+    assert(!gift_ok(bad) && gift_line(bad).empty());
+    assert(parse_text(p + " gift " + bad).kind == Kind::invalid);
+  }
+  for (const char *other : {"SBC13 gift a 1", "SBC15 gift a 1", "SBC gift a 1"})
+    assert(parse_text(other).kind == Kind::invalid);
 
   // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
   const Vitals v = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
@@ -183,13 +209,23 @@ int main() {
     assert(parse_text(bad).kind == Kind::invalid);
 
   // Night Operation's line, reliable: a full state of the run from the host ("h ...") or the guest ("g ..."), which Lua
-  // checks field by field. Here only its size, its characters, single spaces and its first word.
-  const std::string host_line = "h 7 42 3735928559 wave 2 81250 230 9 1 f0f 120 -340 5600 -90 /game/art/bg/f02 -";
+  // checks field by field. Here only its size, its characters, single spaces and its first word. Each side's line ends
+  // with its down time left and its revive of the other (digits, as every field but the words).
+  const std::string host_line =
+      "h 7 42 3735928559 wave 2 81250 230 9 1 f0f 120 -340 5600 -90 /game/art/bg/f02 - hard 0 58";
   assert(night_ok(host_line) && night_line(host_line) == p + " night " + host_line);
   m = parse_text(night_line(host_line));
   assert(m.kind == Kind::night && m.text == host_line);
-  m = parse_text(night_line("g 3 42 abort 0 0 0 stop"));
-  assert(m.kind == Kind::night && m.text == "g 3 42 abort 0 0 0 stop");
+  m = parse_text(night_line("g 3 42 run 2 f 0 - 24 0"));
+  assert(m.kind == Kind::night && m.text == "g 3 42 run 2 f 0 - 24 0");
+  m = parse_text(night_line("g 3 42 abort 0 0 0 stop 0 0"));
+  assert(m.kind == Kind::night && m.text == "g 3 42 abort 0 0 0 stop 0 0");
+  // The longest host line Lua writes, a 128-byte map and every number at its widest, both down words included.
+  const std::string longest_host =
+      "h 65535 255 4294967295 count 5 -10000 1620 40 5 ffffffffff -2147483648 -2147483648 -2147483648 -360 /" +
+      std::string(127, 'a') + " failed:both nightmare 30 100";
+  assert(longest_host.size() < kMaxNight && night_ok(longest_host) &&
+         parse_text(night_line(longest_host)).text == longest_host);
   const std::string widest = "g " + std::string(kMaxNight - 2, 'z');
   assert(kMaxNight == 300 && night_ok(widest) && parse_text(night_line(widest)).text == widest);
   for (const std::string &bad : {widest + "z", std::string("h 1 Wave"), std::string("g 1\x01"), std::string("h 1  2"),
@@ -218,7 +254,7 @@ int main() {
   assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
   for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
                                  p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
-                                 std::string("SBC12 mark 3 x"), std::string("SBC mark 3"), std::string("SBC14 mark 3")})
+                                 std::string("SBC13 mark 3 x"), std::string("SBC mark 3"), std::string("SBC15 mark 3")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
@@ -238,12 +274,20 @@ int main() {
   // reach that guest. Protocol 12 refuses the link.
   // A v0.5.0-beta.1 peer runs protocol 12: it would count the pak lines as invalid, so her list of mods would never
   // come. Protocol 13 refuses the link.
-  static_assert(kProtocol == 13, "13 adds the pak lines; 12 the shared quests' lines and the race lines; 11 SBE and "
-                                 "the show lines; 10 the fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is "
-                                 "v0.2.0's");
+  // A v0.6.0-beta.3 peer runs protocol 13: it would refuse the host's night line with its level, so a co-op Night
+  // Operation run would end as lost, and it would count the gift lines as invalid, so a gift would wait for an answer
+  // that never comes. Protocol 14 refuses the link.
+  static_assert(kProtocol == 14, "14 adds the night lines' level and down words and the gift line; 13 the pak lines; "
+                                 "12 the shared quests' lines and the race lines; 11 SBE and the show lines; 10 the "
+                                 "fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
          lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
-         lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856");
+         lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856" &&
+         lobby_tag(24463856) != "13:24463856");
+  assert(parse_text("SBC13 ping 1 2").kind == Kind::invalid && parse_text("SBC13 race go 7").kind == Kind::invalid &&
+         parse_text("SBC13 night " + host_line).kind == Kind::invalid);
+  m = parse_text("SBC hello 13 v0.6.0-beta.3 24463856"); // Answered too, and rejected by its number.
+  assert(m.kind == Kind::hello && m.a == 13 && m.text == "v0.6.0-beta.3");
   assert(parse_text("SBC12 ping 1 2").kind == Kind::invalid && parse_text("SBC12 paks 1 5").kind == Kind::invalid);
   m = parse_text("SBC hello 12 v0.5.0-beta.1 24463856"); // Answered too, and rejected by its number.
   assert(m.kind == Kind::hello && m.a == 12 && m.text == "v0.5.0-beta.1");
@@ -397,11 +441,17 @@ int main() {
   // saves refresh <slot>: one slot's copy replaced, slots 0 to 4.
   assert(parse_request("saves refresh 0").saves == SavesAsk::refresh && parse_request("saves refresh 0").slot == 0);
   assert(parse_request("saves refresh 4\r\n").command == Command::saves && parse_request("saves refresh 4").slot == 4);
-  assert(parse_request("saves coop").slot == -1);
+  assert(parse_request("saves coop").slot == -1 && parse_request("saves refresh 2").target == -1);
+  // saves export <co-op slot> <slot>: both 0 to 4.
+  const Request out = parse_request("saves export 0 4\r\n");
+  assert(out.command == Command::saves && out.saves == SavesAsk::export_ && out.slot == 0 && out.target == 4);
+  assert(parse_request("saves export 3 3").slot == 3 && parse_request("saves export 3 3").target == 3);
   for (const char *bad : {"saves", "saves  probe", "saves probe 1", "saves x", "savesprobe", "saves refresh",
                           "saves refresh 5", "saves refresh 01", "saves refresh -1", "saves refresh x",
                           "saves refresh 1 2", "saves refresh  1", "saves coop now", "saves Coop", "saves co",
-                          "saves mains", "saves convert 1"})
+                          "saves mains", "saves convert 1", "saves export", "saves export 1", "saves export 1 5",
+                          "saves export 5 1", "saves export 1  2", "saves export 12", "saves export 1 2 3",
+                          "saves export 01 2", "saves export a b", "saves Export 1 2", "saves export 1,2"})
     assert(parse_request(bad).command == Command::none && parse_request(bad).saves == SavesAsk::none);
   // The shared quests': on, probe and record with quest_deny's list or none, off, status, replay, and force with a
   // quest ID from 1 to 65535; anything else, a typo included, is no request.
@@ -608,6 +658,44 @@ int main() {
   assert(g.command == Command::gate && g.gate == 1 && g.off);
   assert(parse_request("fly off").off && parse_request("slowmo on").gate == 1 && !parse_request("slowmo on").off);
   for (const char *bad : {"fly", "fly On", "fly on now", "flyon", "slowmo", "slowmo 1", "fly  on", "slow on"})
+    assert(parse_request(bad).command == Command::none);
+  // coop emote's native clips: anim play <id> <path> once|loop, the id from 1 to 2^32-1, one of EVE's clip paths; or
+  // anim stop.
+  const std::string clip = "/Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/Clap.Clap";
+  Request an = parse_request("anim play 7 " + clip + " loop\r\n");
+  assert(an.command == Command::anim && an.id == 7 && an.path == clip && an.loop && !an.off);
+  an = parse_request("anim play 4294967295 " + clip + " once");
+  assert(an.command == Command::anim && an.id == 4294967295u && !an.loop);
+  an = parse_request("anim stop\n");
+  assert(an.command == Command::anim && an.off && an.path.empty());
+  for (const std::string &bad :
+       {"anim play 0 " + clip + " once", "anim play 4294967296 " + clip + " once", "anim play 1 " + clip,
+        "anim play 1 " + clip + " twice", "anim play 1 " + clip + " once x", "anim play x " + clip + " once",
+        std::string("anim play 1 /Game/Art/Character/NPC/CH_NPC_01/Animation/PhotoMode/Clap.Clap once"),
+        std::string("anim play 1 /Game/Art/Character/PC/CH_P_EVE_01/Animation/../X.X once"), "anim  play 1 " + clip +
+        " once", std::string("anim"), std::string("anim stop now"), std::string("anim play")})
+    assert(parse_request(bad).command == Command::none);
+  // coop shortcut: the list (slot -1), or a load of one file: a map of the four, slot 1 to 4, as save/shortcut.h counts
+  // them (map * 4 + slot - 1).
+  Request sc = parse_request("shortcut list\r\n");
+  assert(sc.command == Command::shortcut && sc.slot == -1);
+  sc = parse_request("shortcut load F02 1\r\n");
+  assert(sc.command == Command::shortcut && sc.slot == 4);
+  assert(parse_request("shortcut load B07 1").slot == 0 && parse_request("shortcut load Matrix_XI 4").slot == 15);
+  for (const char *bad :
+       {"shortcut", "shortcut List", "shortcut list now", "shortcutlist", "shortcut load", "shortcut load F02",
+        "shortcut load F02 0", "shortcut load F02 5", "shortcut load f02 1", "shortcut load F02 1 now",
+        "shortcut load F02  1", "shortcut load X 1", "shortcut load F02 01"})
+    assert(parse_request(bad).command == Command::none);
+  // coop devinfo: a panel or off, nothing else.
+  Request d = parse_request("devinfo quest\n");
+  assert(d.command == Command::devinfo && d.panel == 1);
+  d = parse_request("devinfo player\r\n");
+  assert(d.command == Command::devinfo && d.panel == 2);
+  d = parse_request("devinfo off");
+  assert(d.command == Command::devinfo && d.panel == 0);
+  for (const char *bad : {"devinfo", "devinfo Quest", "devinfo quest now", "devinfoquest", "devinfo  off", "devinfo on",
+                          "devinfo boss"})
     assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
@@ -820,15 +908,44 @@ int main() {
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
 
-  // coop lion's rows: one <Table>=0x<address> word for each of the 12 tables, in any order, each once; the addresses
-  // in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request fits Lua's 512-byte
-  // request file. Anything off is refused.
-  const auto lion = [](const std::vector<std::string> &words) {
-    std::string text = "lion rows";
+  // coop gift's requests: gift <payload> goes to the friend as written, once gift_ok() took it; items <ask> <alias>
+  // <FName index> <FName number> is the worker's inventory read. Anything off is refused.
+  Request gr = parse_request("gift s 1761480000123 PulseGrenade 2\n");
+  assert(gr.command == Command::gift && gr.text == "s 1761480000123 PulseGrenade 2");
+  gr = parse_request("gift n 17 slot");
+  assert(gr.command == Command::gift && gr.text == "n 17 slot");
+  for (const char *bad : {"gift", "gift ", "gift s 1 HP_Potion 11", "gift a 0", "gift n 1 x y", "gifts a 1"})
+    assert(parse_request(bad).command == Command::none);
+  Request ir = parse_request("items 7 HP_Potion 4096 0\r\n");
+  assert(ir.command == Command::items && ir.ask == 7 && ir.alias == "HP_Potion" && ir.index == 4096 && ir.number == 0);
+  ir = parse_request("items 65535 A 4294967295 4294967295");
+  assert(ir.command == Command::items && ir.ask == 65535 && ir.index == 4294967295u && ir.number == 4294967295u);
+  for (const std::string &bad :
+       {std::string("items 0 HP_Potion 1 0"), std::string("items 65536 HP_Potion 1 0"),
+        std::string("items 1 HP_Potion 0 0"), std::string("items 1 HP_Potion 4294967296 0"),
+        std::string("items 1 HP_Potion 1 4294967296"), std::string("items 1 HP-Potion 1 0"),
+        std::string("items 1 ") + a65 + " 1 0", std::string("items 1 HP_Potion 1"), std::string("items"),
+        std::string("items 1 HP_Potion 1 0 1"), std::string("items -1 HP_Potion 1 0")})
+    assert(parse_request(bad).command == Command::none);
+
+  // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
+  // (batch 3), coop mxiii's (batch 4) and the Night Operation shop's (batch 5): one <Table>=0x<address> word for each
+  // of the 20 tables, in any order, each once; the addresses in 1 to 16 hex digits of either case, plausible (user
+  // space, 8-aligned). The longest request Lua writes (%x, so 12 digits at most under plausible's bound) is 651 bytes
+  // with its line end; the longest one parsed (16 digits each) fits the native part's read of its request file
+  // (kMaxRequestFile). Anything off is refused.
+  const auto rows = [](const char *word, const std::vector<std::string> &words) {
+    std::string text = std::string(word) + " rows";
     for (const std::string &w : words)
       text += " " + w;
     return text;
   };
+  const auto lion = [&rows](const std::vector<std::string> &words) { return rows("lion", words); };
+  const auto gardener = [&rows](const std::vector<std::string> &words) { return rows("gardener", words); };
+  const auto tendril = [&rows](const std::vector<std::string> &words) { return rows("tendril", words); };
+  const auto bolt = [&rows](const std::vector<std::string> &words) { return rows("bolt", words); };
+  const auto mxiii = [&rows](const std::vector<std::string> &words) { return rows("mxiii", words); };
+  const auto shop = [&rows](const std::vector<std::string> &words) { return rows("shop", words); };
   std::vector<std::string> words;
   for (size_t i = 0; i < kLionTableCount; ++i) {
     char word[64];
@@ -836,32 +953,75 @@ int main() {
     words.push_back(word);
   }
   Request li = parse_request(lion(words) + "\r\n");
-  assert(li.command == Command::lion);
+  assert(li.command == Command::rows && li.batch == 0);
   for (size_t i = 0; i < kLionTableCount; ++i)
     assert(li.tables[i] == 0x1f4a2b3c0000ull + 0x100 * i);
   std::vector<std::string> shuffled(words.rbegin(), words.rend());
   shuffled[kLionTableCount - 1 - 7] = "SkillActiveStepTable=0x1F4A2B3C0700"; // Upper-case digits too.
   li = parse_request(lion(shuffled));
-  assert(li.command == Command::lion && li.tables[7] == 0x1f4a2b3c0700ull && li.tables[0] == 0x1f4a2b3c0000ull);
+  assert(li.command == Command::rows && li.tables[7] == 0x1f4a2b3c0700ull && li.tables[0] == 0x1f4a2b3c0000ull);
+  Request gd = parse_request(gardener(shuffled) + "\n");
+  assert(gd.command == Command::rows && gd.batch == 1 && gd.tables == li.tables);
+  Request td = parse_request(tendril(shuffled));
+  assert(td.command == Command::rows && td.batch == 2 && td.tables == li.tables);
+  Request bo = parse_request(bolt(shuffled));
+  assert(bo.command == Command::rows && bo.batch == 3 && bo.tables == li.tables);
+  Request mx = parse_request(mxiii(shuffled));
+  assert(mx.command == Command::rows && mx.batch == 4 && mx.tables == li.tables);
+  Request so = parse_request(shop(shuffled));
+  assert(so.command == Command::rows && so.batch == 5 && so.tables == li.tables && kLionTableCount == 20 &&
+         li.tables[17] == 0x1f4a2b3c1100ull && li.tables[18] == 0x1f4a2b3c1200ull &&
+         li.tables[19] == 0x1f4a2b3c1300ull);
+  assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
+         !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&
+         !std::strcmp(kLionTables[19], "ZoneTriggerTable"));
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
-    tables_longest.push_back(std::string(kLionTables[i]) + "=0x00007ffffffefff8");
-  assert(lion(tables_longest).size() + 2 <= 512 && parse_request(lion(tables_longest)).command == Command::lion);
+    tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
+  assert(gardener(tables_longest).size() + 1 == 651 &&
+         parse_request(gardener(tables_longest)).command == Command::rows);
+  assert(parse_request(lion(tables_longest)).command == Command::rows);
+  tables_longest[0] = "CharacterTable=0x00007ffffffefff8"; // Leading zeros Lua never writes: still parsed.
+  assert(parse_request(lion(tables_longest)).command == Command::rows);
+  for (std::string &w : tables_longest)
+    w = w.substr(0, w.find('=')) + "=0x00007ffffffefff8";
+  assert(gardener(tables_longest).size() + 1 <= kMaxRequestFile &&
+         parse_request(gardener(tables_longest)).command == Command::rows);
   const auto with = [&words](size_t i, const std::string &w) {
     std::vector<std::string> v = words;
     v[i] = w;
     return v;
   };
-  std::vector<std::string> tables11(words.begin(), words.end() - 1), tables13 = words;
-  tables13.push_back(words[0]);
+  std::vector<std::string> one_short(words.begin(), words.end() - 1), one_more = words;
+  one_more.push_back(words[0]);
   for (const std::string &bad :
-       {lion(tables11), lion(tables13), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
+       {lion(one_short), lion(one_more), lion(with(1, words[0])), lion(with(2, "CharacterDeadTable=0x")),
         lion(with(2, "CharacterDeadTable=1f4a2b3c0200")), lion(with(2, "CharacterDeadTable=0x1f4a2b3c0201")),
         lion(with(2, "CharacterDeadTable=0xfff8")), lion(with(2, "CharacterDeadTable=0x7ffffffff0000")),
         lion(with(2, "CharacterDeadTable=0x1f4a2b3c02g0")), lion(with(2, "CharacterDeadTable=0x00001f4a2b3c0200000")),
         lion(with(2, "ZoneTable=0x1f4a2b3c0200")), lion(with(2, "characterdeadtable=0x1f4a2b3c0200")),
         lion(with(2, "CharacterDeadTable=-0x1f4a2b3c0200")), lion(words) + " extra", std::string("lion rows"),
-        std::string("lion rows "), std::string("lion"), "lion rows  " + lion(words).substr(10)})
+        std::string("lion rows "), std::string("lion"), "lion rows  " + lion(words).substr(10),
+        gardener(one_short), gardener(with(2, "CharacterDeadTable=0xfff8")), gardener(words) + " extra",
+        std::string("gardener rows"), std::string("gardener"), "Gardener rows" + lion(words).substr(9),
+        tendril(one_short), tendril(words) + " extra", std::string("tendril rows"), "Tendril rows" + lion(words).substr(9),
+        bolt(one_short), bolt(words) + " extra", std::string("bolt rows"), "shock rows" + lion(words).substr(9),
+        mxiii(one_short), mxiii(words) + " extra", std::string("mxiii rows"), "MXIII rows" + lion(words).substr(9),
+        shop(one_short), shop(words) + " extra", std::string("shop rows"), "Shop rows" + lion(words).substr(9),
+        "leviathan rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
+    assert(parse_request(bad).command == Command::none);
+
+  // The Night Operation shop's screen and Roxanne's choices: fixed words only.
+  assert(parse_request("nightshop open\r\n").command == Command::nightshop &&
+         parse_request("nightshop open").shop == ShopAsk::open);
+  assert(parse_request("nightshop open bolt").shop == ShopAsk::open_bolt &&
+         parse_request("nightshop close\n").shop == ShopAsk::close &&
+         parse_request("nightshop close").command == Command::nightshop &&
+         parse_request("nightshop watch").shop == ShopAsk::watch);
+  assert(parse_request("roxanne on").command == Command::roxanne && parse_request("roxanne on").on &&
+         parse_request("roxanne off\n").command == Command::roxanne && !parse_request("roxanne off").on);
+  for (const char *bad : {"nightshop", "nightshop open shock", "nightshop opens", "nightshop close bolt", "nightshop w",
+                          "nightshop  open", "Nightshop open", "roxanne", "roxanne On", "roxanne on now", "roxane on"})
     assert(parse_request(bad).command == Command::none);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.

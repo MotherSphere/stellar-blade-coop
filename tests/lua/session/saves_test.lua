@@ -408,6 +408,23 @@ quarter(false,true)
 assert(said[1]=='Co-op saves off for this load: the backup folder could not be made. You play your own saves.',said[1])
 quarter(false,true); assert(#asked==1)
 quarter(true,false); info=at(); quarter(false,true); assert(#asked==2 and asked[2]=='saves coop','A new visit')
+-- A switch with no answer at all (the native part refused it before any pass, as it does when it has not judged the
+-- title yet at a game start): asked again in the same visit, 3 times, then said off.
+saves=new()
+said,said_en={},{}
+asked={}
+info=at()
+quarter(false,true)
+assert(#asked==1)
+for try=1,3 do
+    for _=1,8 do quarter(false,true) end -- WAIT quarters with no pass: no answer, then asked again in that slow.
+    assert(logs[#logs-1]=='co-op saves: no answer to the switch; asked again ('..try..' of 3)',logs[#logs-1])
+    assert(#asked==try+1 and asked[#asked]=='saves coop' and #said==0,'Asked again at once, no notice meanwhile')
+end
+for _=1,8 do quarter(false,true) end
+assert(logs[#logs]=='co-op saves stay off: no switch (coop-link.log says why)' and #asked==4,logs[#logs])
+quarter(false,true); assert(#asked==4,'Not past 3 tries in a visit')
+quarter(true,false); info=at(); quarter(false,true); assert(#asked==5,'A new visit asks again')
 -- In Japanese the line comes with its English: the line above EVE shows that one (its font has Latin-1 only).
 state.language='ja-JP'
 saves=new()

@@ -1,13 +1,15 @@
--- The challenge list without the game: the four definitions and the rules they keep, the lookup by name or number, the
--- console list line, and the best runs in coop-records.txt (read, compared, rewritten).
+-- The challenge list without the game: the five definitions and the rules they keep (a co-op one's waves within the
+-- night line's masks and bounds), the lookup by name or number, the console list line, and the best runs in
+-- coop-records.txt (read, compared, rewritten).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 local C=require('nightop.challenges')
 
--- The four, in their numbers (none is night, Night Operation's id, or stop).
+-- The five, in their numbers (none is night, Night Operation's id, a level's word, or stop).
 local ids={}
 for n,def in ipairs(C.LIST) do ids[n]=def.id end
-assert(table.concat(ids,' ')=='swarm skulls gauntlet targets',table.concat(ids,' '))
+assert(table.concat(ids,' ')=='swarm skulls gauntlet targets range',table.concat(ids,' '))
+for _,def in ipairs(C.LIST) do assert(not W.LEVEL[def.id],def.id..' is a level word') end
 
 -- Their values: waves (IDs a wave), limit, breather, heals, bonus, aggro and moves.
 local function shape(def)
@@ -30,6 +32,7 @@ local want={
         ..'50161,50183,50173,50193 | 720 5 [3,6] 1 true 2',
     targets='40010,40010,40020,40020 / 40010,40010,40020,40020,40030,40030 / '
         ..'40010,40010,40010,40020,40020,40020,40030,40030 | 90 3 [] 10 false 0',
+    range='40010,40010,40010 / 40010,40010,40010,40010 / 40010,40010,40010,40010,40010 | 120 3 [] 10 false 0',
 }
 for _,def in ipairs(C.LIST) do assert(shape(def)==want[def.id],def.id..': '..shape(def)) end
 -- Target practice stands its dummies on eight spots 12 to 32 m out; the others use the gates.
@@ -41,9 +44,29 @@ assert(table.concat((function()
     return out
 end)(),' ')=='-45:12 45:12 -25:18 25:18 0:22 -40:26 40:26 0:32')
 for _,id in ipairs({'swarm','skulls','gauntlet'}) do assert(C.find(id).spots==nil and C.find(id).aggro==true) end
+-- The Shooting Range: M_DummyA in the cut shooting test's three rounds (3, 4, 5), on eight spots all around EVE, every
+-- 45 degrees, 15 and 20 m out in turn; the only challenge for two players, and the only one with the board.
+local range=C.find('range')
+assert(range.aggro==false and range.moves==0 and range.coop==true and range.board==true and #range.spots==8)
+for i,spot in ipairs(range.spots) do
+    assert(spot[1]==(i-1)*45-(i>5 and 360 or 0) and spot[2]==(i%2==1 and 15 or 20),'range spot '..i)
+end
+for _,def in ipairs(C.LIST) do assert((def.coop==true)==(def==range) and (def.board==true)==(def==range),def.id) end
+-- Two spots of a wave stand more than twice nightop/run.lua's 5 m match radius apart, so a body is never taken for
+-- the next spot's slot.
+for i,a in ipairs(range.spots) do
+    for j,b in ipairs(range.spots) do
+        if i<j then
+            local d=math.sqrt(a[2]^2+b[2]^2-2*a[2]*b[2]*math.cos(math.rad(a[1]-b[1])))
+            assert(d>10,'range spots '..i..' and '..j..': '..d)
+        end
+    end
+end
 
 -- The rules the runs rely on: each wave holds 1 to W.CAP rows of W.POOL, and a definition with spots has one for each
--- body of its biggest wave, each in front of EVE within 40 m (nightop/run.lua's census radius).
+-- body of its biggest wave, each within 40 m of EVE (nightop/run.lua's census radius). A co-op one has at most
+-- #W.SCHEDULE waves, each key of which the night line's masks carry (W.mask, then W.unmask, gives it back), and its
+-- best score and wave counts pass W.decode_host under its id.
 for _,def in ipairs(C.LIST) do
     local most=0
     for k,wave in ipairs(def.waves) do
@@ -53,22 +76,43 @@ for _,def in ipairs(C.LIST) do
     end
     for i,spot in ipairs(def.spots or {}) do assert(spot[2]>0 and spot[2]<=40,def.id..': spot '..i) end
     assert(not def.spots or #def.spots>=most,def.id..': fewer spots than the biggest wave')
+    if def.coop then
+        assert(#def.waves<=#W.SCHEDULE,def.id..': more waves than the night line carries')
+        local set,n={},0
+        for k,wave in ipairs(def.waves) do
+            for slot=0,#wave.ids-1 do set[W.key(7,k,slot)]=true; n=n+1 end
+        end
+        local back,m=W.unmask(W.mask(set,7),7),0
+        for key in pairs(back) do assert(set[key],def.id..': a key the mask added'); m=m+1 end
+        assert(m==n,def.id..': a key the mask lost')
+        local line=W.encode_host({n=1,run=7,seed=9,phase='end',wave=#def.waves,rt=30000,score=W.most(def),kills=n,
+            clears=#def.waves,found={},x=0,y=0,z=0,yaw=0,map='/game/x',outcome='success',level=def.id,down=0,help=0})
+        local h=W.decode_host(line,{[def.id]=def})
+        assert(h and h.level==def.id and h.score==W.most(def),def.id..': '..line)
+    end
 end
 
 -- Lookup by id or by number; nothing for anything else.
 for n,def in ipairs(C.LIST) do assert(C.find(def.id)==def and C.find(tostring(n))==def) end
-for _,junk in ipairs({'','0','5','01','1.0',' 1','Targets','night','stop','target',1}) do
+for _,junk in ipairs({'','0','6','01','1.0',' 1','Targets','night','stop','target','hard',1}) do
     assert(C.find(junk)==nil,tostring(junk))
 end
 assert(C.find(nil)==nil)
 
--- The console list line: number, id, English name, waves, limit, best run or none; Night Operation's own line.
+-- The console list line: number, id, English name, waves, limit, best run or none; Night Operation's own lines.
 assert(C.line(C.LIST[4],1250,37)=='4 targets Target Practice: 3 waves, 1:30, best 1250 in 0:37')
 assert(C.line(C.LIST[1],314,46)=='1 swarm Antlion Swarm: 3 waves, 3:00, best 314 in 0:46')
 assert(C.line(C.LIST[2])=='2 skulls Skull Squad: 3 waves, 6:00, no best yet')
 assert(C.line(C.LIST[3])=='3 gauntlet Gauntlet: 8 waves, 12:00, no best yet')
+assert(C.line(C.LIST[5],1590,31)=='5 range Shooting Range: 3 waves, 2:00, best 1590 in 0:31')
 assert(C.line(W.NIGHT)=='night: Night Operation (coop nightop start), no best yet')
 assert(C.line(W.NIGHT,659,401)=='night: Night Operation (coop nightop start), best 659 in 6:41')
+-- Each other level of Night Operation under its own id, with its word in the name and the command.
+assert(C.line(W.LEVEL.hard,900,300)=='night_hard: Night Operation hard (coop nightop start hard), best 900 in 5:00')
+assert(C.line(W.LEVEL.easy)=='night_easy: Night Operation easy (coop nightop start easy), no best yet')
+assert(C.line(W.LEVEL.nightmare)
+    =='night_nightmare: Night Operation nightmare (coop nightop start nightmare), no best yet')
+for _,def in ipairs(W.LEVELS) do assert(not C.find(def.id),def.id..' is no challenge') end
 
 -- Records: best_<id>=<score> <whole seconds>, read the way the mod reads its settings (the last line naming the key).
 local file='# mine\nbest_targets=1250 37\r\nbest_swarm = 314 46\nbest_skulls=12\nbest_gauntlet=a b\n'

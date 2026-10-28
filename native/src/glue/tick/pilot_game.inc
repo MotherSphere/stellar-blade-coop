@@ -5,7 +5,8 @@ namespace {
 // ---- Same-place enemies: the owner's capture (fight/pilot.h's Capturer), the game thread's read half ----
 // SB's two read-only lookups by GUID (stage 3a's allowlist, PHASE11-STAGE3 3.4): FSBActorManager::FindActor, an
 // ActorGUID's FSBActor (it logs, and so allocates, only when its two maps disagree), and the registry's character of
-// an FSBActor's FGuid (none when pending kill or not an ASBCharacter).
+// an FSBActor's FGuid (none when pending kill or not an ASBCharacter). fight/pilot.h calls them only with no logic task
+// in flight (pilot::logic_busy()): a spawn in that task grows both maps.
 constexpr uint64_t kFindFsb = 0x141aace90, kFindCharacter = 0x14201b1e0;
 using FindFsb = void *(*)(void *manager, int32_t guid);
 using FindCharacter = void *(*)(void *map, const int32_t *guid);

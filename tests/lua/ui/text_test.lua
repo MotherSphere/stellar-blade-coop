@@ -6,7 +6,8 @@
 -- bytes a line (Chat.clean) with a 32-byte name, every menu row, value and key hint within its column, the co-op
 -- saves' question, with its invite line, within its 5 rows (Chat.wrap), Night Operation's card and result panel within
 -- their columns, the challenges' words: a name for each of nightop/challenges.lua's ids, as the card's title, the Best
--- row and the lines under the heading within their columns, the notices with the longest name within 200 bytes, the
+-- row and the lines under the heading within their columns, the notices with the longest name within 200 bytes (the
+-- co-op one with a partner's 32-byte name too), the
 -- co-op line's hint and sentences within theirs, the status strip's rows (partner/hud.lua): the second with every fact
 -- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
 -- without its prefix, the race's panel, marker, banner and results within theirs, and no Thai word that ends on a
@@ -84,11 +85,13 @@ local function notices(w)
         w.chat.off,w.chat.ui_off,w.join.bad}) do lines[#lines+1]=text end
     -- Night Operation's notices (nightop/run.lua, with the UI off): the start, a wave, a clear, the end and why; for
     -- two players, her notice of his start and his of each refusal, and whose EVE died; the points a run earned, or
-    -- could not credit.
+    -- could not credit; a level picked from Roxanne, by the host or alone and by a guest (nightop/roxanne.lua); the
+    -- shop's screen that could not open (nightop/shop.lua).
     local n=w.night
     for _,text in ipairs({n.start_notice:format(5),n.wave_notice:format(5,5),n.clear_notice:format(5),n.died,
         n.time_up,n.end_notice:format(n.success,5,5,20,9999,'8:00'),n.end_notice:format(n.fail,5,5,20,9999,'8:00'),
-        n.coop_notice:format(NAME,5),n.mate_died,n.you_died,n.earned:format(42,999999999),n.unpaid}) do
+        n.coop_notice:format(NAME,5),n.mate_died,n.you_died,n.earned:format(42,999999999),n.unpaid,n.booked,
+        n.host_only,n.shop_failed}) do
         lines[#lines+1]=text
     end
     for _,text in pairs(n.why) do lines[#lines+1]=text end
@@ -97,7 +100,7 @@ local function notices(w)
     local c,long=w.challenge,''
     for _,def in ipairs(C.LIST) do if #c.names[def.id]>#long then long=c.names[def.id] end end
     for _,text in ipairs({c.start_notice:format(long,5),c.wave_notice:format(long,8,8),c.clear_notice:format(long,8),
-        c.record,c.stopped}) do
+        c.record,c.stopped,c.coop_notice:format(long,NAME,5)}) do
         lines[#lines+1]=text
     end
     -- The race's notices (race/run.lua): its banners too, which come as notices with the UI off.

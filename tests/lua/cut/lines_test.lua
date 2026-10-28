@@ -1,12 +1,18 @@
--- cut/lines.lua with fake UE4SS objects: coop lines lists the four scenes with their line counts and lengths; a scene
+-- cut/lines.lua with fake UE4SS objects: coop lines lists the five scenes with their line counts and lengths; a scene
 -- starts only while the co-op UI's feed can show a line, reads every line from the game at its start (the string-table
 -- scenes through TextFromStringTable, their speakers' rich text tags dropped, a line with no speaker alone; Sky Hall
 -- from its loaded sequences' sections) and says each in the feed at its time, sequences 1 s apart, several at once
 -- after a hitch, then ends; a key the game's table lacks is skipped and logged; in a language with no text for them the
 -- answer counts the lines that show as the Korean source, never in Korean itself; StringTable_Seq is loaded when it is
 -- not in memory, and a scene that cannot have it starts nothing; a new scene replaces the one running; coop lines
--- stop, coop off and a feed that refuses or raises end it; anything else is its usage line. The timing table holds
--- every line in order within its sequence, and the source names no save, quest, item, spawn or console call.
+-- stop, coop off and a feed that refuses or raises end it; anything else is its usage line. enya loads its takes at the
+-- start, plays each from EVE as a 2D sound GAP after the one before ends (their lengths the takes' own), says the
+-- subtitle the table has for one with it and nothing for the others, skips a take not in the game with no gap, logs
+-- one it cannot play and still says its subtitle, loads one the engine freed meanwhile again, and cuts the voice at
+-- coop lines stop, a new scene and coop off, never once its take has ended; after a hitch each take due cuts the one
+-- before, so one plays and coop lines stop cuts it; the co-op UI going off ends it at its next take. The timing table
+-- holds every line in order within its sequence, and the source names no save, quest, item, spawn but its sounds' or
+-- console call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -49,6 +55,8 @@ by_path['/Script/Engine.Default__KismetTextLibrary']=object({TextFromStringTable
 end})
 by_path['/Script/Engine.Default__KismetInternationalizationLibrary']=object({
     GetCurrentLanguage=function() return fstring(culture) end})
+local eve=object()
+package.loaded['UEHelpers']={GetPlayer=function() return eve end}
 local Lines=require('cut.lines')
 local logs,said={},{}
 local function log(m) logs[#logs+1]=m end
@@ -62,17 +70,18 @@ local ln=Lines.new({log=log,say=function(t)
 end,ready=function() return up end})
 
 -- The timing table: every line in order within its sequence, every scene's count and length its parts'.
-local count={adam=49,warrior=49,quinn=10,skyhall=37}
+local count={adam=49,warrior=49,quinn=10,skyhall=37,enya=7}
 for _,name in ipairs(Lines.ORDER) do
     local s,n,len=Lines.SCENES[name],0,0
     for k,p in ipairs(s.parts) do
         local last=-1
+        assert((p.voice~=nil)==(s.voiced==true) and (p.length==nil)==(s.voiced==true),name)
         for _,l in ipairs(p.lines) do
-            assert(l.at>=last and l.at<p.length,name..' '..p.seq)
+            assert(l.at>=last and l.at<(p.length or 1),name..' '..(p.seq or p.voice))
             assert((l.key~=nil)==s.keys and (l.section~=nil)==not s.keys,name)
             last=l.at
         end
-        n,len=n+#p.lines,len+p.length+(k>1 and 1 or 0)
+        n,len=n+#p.lines,len+(p.length and p.length+(k>1 and 1 or 0) or 0)
     end
     assert(n==s.count and n==count[name] and math.abs(len-s.length)<1e-9,name..' '..n)
 end
@@ -80,8 +89,9 @@ end
 local ok,why=ln.command()
 assert(ok and why=='Cut scene lines: adam, The first meeting with Adam (49 lines, 3 min 7 s); warrior, The Warrior Is '
     ..'Silent (Quest_Sub_015) (49 lines, 3 min 47 s); quinn, Quinn (10 lines, 27 s); skyhall, Sky Hall (37 lines, '
-    ..'1 min 29 s). coop lines <name> shows one in the co-op UI\'s feed, coop lines stop ends it.',why)
-local USE='Use: coop lines [adam|warrior|quinn|skyhall|stop]'
+    ..'1 min 29 s); enya, Enya\'s and Su\'s unused takes (Quest_Sub_008) (7 lines, voiced). coop lines <name> shows '
+    ..'one in the co-op UI\'s feed, coop lines stop ends it.',why)
+local USE='Use: coop lines [adam|warrior|quinn|skyhall|enya|stop]'
 for _,bad in ipairs({{'Adam'},{'quinn','now'},{'stop','x'},{'list'}}) do
     local done,w=ln.command(table.unpack(bad))
     assert(not done and w==USE,w)
@@ -227,15 +237,120 @@ ok,why=ln.command('skyhall')
 assert(ok and seq_loads==12,'In memory: loaded once')
 ln.stop()
 
+-- enya: the takes, not in memory, loaded when it starts (02_09 is not in the game); each a SoundWave with its length
+-- and sound class. Only 02_10 and Su's 02_11 have a key in the table.
+local VO='/Game/Sound/Dialogue/Quest/'
+local takes={}
+local function wave(who,n,seconds)
+    local name='Seq_Quest_Sub_008_'..n..'_VO'
+    local p=VO..who..'/'..name..'.'..name
+    local class=object({GetFName=function() return fstring('Dialogue_NPC_En') end})
+    takes[p]=object({Duration=seconds,SoundClassObject=class,
+        GetFullName=function() return fstring('SoundWave '..p) end})
+    return takes[p],p
+end
+local w05=wave('Enya','02_05',3.42)
+wave('Enya','02_06',2)
+local w10=wave('Enya','02_10',1.87)
+local w11,p11=wave('Su','02_11',4)
+wave('Enya','02_15',2.5)
+local w16=wave('Enya','02_16',3)
+LoadAsset=function(path)
+    load(path)
+    if takes[path] then by_path[path]=takes[path] end
+end
+entries.Seq_Actor_Enya={'<Enya>엔야</>','<Enya>Enya</>'}
+entries.Seq_Actor_Su={'<Su>수</>','<Su>Su</>'}
+entries.Seq_Quest_Sub_008_02_10={'선지자님이...','Enya line'}
+entries.Seq_Quest_Sub_008_02_11={'선지자께서...','Su line'}
+local sounds,stops,fail={},0,{[w10]=true,[w16]=true} -- Each call's arguments, stopped=true once its sound is cut.
+by_path['/Script/Engine.Default__GameplayStatics']=object({SpawnSound2D=function(_,...)
+    local a={...}
+    if fail[a[2]] then error('no audio device',0) end
+    sounds[#sounds+1]=a
+    return object({Stop=function() stops,a.stopped=stops+1,true end})
+end})
+said,logs,loads={},{},{}
+clock=800
+ok,why=ln.command('enya')
+assert(ok and why=="Enya's and Su's unused takes (Quest_Sub_008): 6 lines over 22 s, voiced, 2 of them with a "
+    ..'subtitle in the feed; 1 lines the game lacks skipped; coop lines stop ends it.',why)
+assert(#loads==7 and logged('take Seq_Quest_Sub_008_02_05_VO: 3.42 s, sound class Dialogue_NPC_En')
+    and logged('missing: Seq_Quest_Sub_008_02_09_VO (not in the game)')
+    and logged('enya: 6 of 7 lines read, 1 missing, 0 in Korean as the game holds them (game language en)'),#loads)
+-- 02_05 at once, from EVE, its voice alone; 02_06 1 s after it ends; then 02_10 (02_09 skipped, no gap), whose take
+-- cannot play: logged, its subtitle said all the same.
+ln.tick()
+local a=sounds[1]
+assert(#sounds==1 and a[1]==eve and a[2]==w05 and a[3]==1 and a[4]==1 and a[5]==0 and a[6]==nil and a[7]==false
+    and a[8]==true and #said==0)
+clock=800+4.41; ln.tick(); assert(#sounds==1,'Not before the gap ends')
+clock=800+4.42; ln.tick(); assert(#sounds==2 and #said==0)
+clock=800+7.42; ln.tick()
+assert(#sounds==2 and said[1]=='Enya: Enya line' and logged('enya line 3: take not played (no audio device)'),said[1])
+fail[w10]=nil
+-- Su's take freed meanwhile (another object at its address): loaded again at its turn, logged, then played.
+w11.GetFullName=function() return fstring('SoundWave /Game/Other.Other') end
+by_path[p11]=nil
+local w11b=wave('Su','02_11',4)
+clock=800+10.29; ln.tick()
+assert(#sounds==3 and sounds[3][2]==w11b and said[2]=='Su: Su line' and loads[#loads]==p11
+    and logged('take Seq_Quest_Sub_008_02_11_VO loaded again: freed before its turn'),logs[#logs])
+-- 02_15 and 02_16 due at once; 02_16's call raises, cutting nothing; the scene goes on and ends after the last take.
+clock=800+18.79; ln.tick()
+assert(#sounds==4 and sounds[4][2]~=w16 and logged('enya line 6: take not played (no audio device)')
+    and not logged('enya ended'))
+clock=800+21.79; ln.tick()
+assert(logged('enya ended') and #said==2 and stops==0)
+-- coop lines stop cuts the take playing, and so does coop off; once it has ended, nothing is cut.
+ln.command('enya')
+ln.tick()
+ln.command('stop')
+assert(stops==1 and sounds[#sounds].stopped and logged('enya stopped (coop lines stop)'))
+ln.command('enya')
+ln.tick()
+clock=clock+1
+ln.stop()
+assert(stops==2 and sounds[#sounds].stopped and logs[#logs]=='enya stopped (coop off)',logs[#logs])
+ln.command('enya')
+ln.tick()
+clock=clock+3.5
+ln.stop()
+assert(stops==2 and logs[#logs]=='enya stopped (coop off)','Its take had ended')
+-- A new scene cuts it too.
+ln.command('enya')
+ln.tick()
+ln.command('quinn')
+assert(stops==3 and logged('enya stopped (replaced)'))
+-- A hitch: 02_05 and 02_06 due at once start in order, 02_06 cutting 02_05, and coop lines stop cuts 02_06.
+ln.command('enya')
+local before=#sounds
+clock=clock+4.42; ln.tick()
+assert(#sounds==before+2 and sounds[before+1][2]==w05 and sounds[before+1].stopped and not sounds[before+2].stopped
+    and stops==4)
+ln.command('stop')
+assert(stops==5 and sounds[before+2].stopped)
+-- The co-op UI going off ends it at its next line, a take with no subtitle too, and that take never plays.
+ln.command('enya')
+ln.tick()
+local played=#sounds
+up=false
+clock=clock+4.42
+done,w=ln.tick()
+assert(done==false and #sounds==played and logs[#logs]=='enya stopped at line 2: the feed is gone',logs[#logs])
+up=true
+ln.stop()
+
 -- The source names no achievement, reward, item, quest, save, possession, console command, spawn or destroy call, and
--- never sets the game's language.
+-- never sets the game's language; its one sound call (SpawnSound2D) and GetPlayer are the only ones naming Spawn or
+-- Play.
 local f=assert(io.open('mod/StellarCoop/Scripts/cut/lines.lua','rb'))
 local src=f:read('a')
 f:close()
 for call in src:gmatch('[:.]([%a_][%w_]*)%s*%(') do
     for _,word in ipairs({'Achiev','Reward','Item','Quest','Save','ExecuteConsoleCommand','Possess','Spawn',
         'CreateActor','Destroy','SetCurrent','Play'}) do
-        assert(not call:find(word),call)
+        assert(not call:find(word) or call=='SpawnSound2D' or call=='GetPlayer',call)
     end
 end
 print('lines_test ok')

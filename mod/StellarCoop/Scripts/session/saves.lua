@@ -30,6 +30,10 @@ local Saves={}
 -- Seconds before the game's input comes back; 250 ms ticks: no answer, a pass at most, no key (then Decide later);
 -- seconds after the question shows before it takes a choice.
 local BACK,WAIT,SLOW,IDLE,ARM=0.15,8,480,240,1
+-- always: a switch that got no answer at all (no pass started, so no reason in the status) is asked again this many
+-- times in the same visit of the title. At a game start the native part may judge the title a moment after Lua does,
+-- and refuses a request that comes first ("the title screen is not shown", in coop-link.log).
+local RETRY=3
 local WIDE,BODY=78,5 -- Columns a body row (18 layout units each, as the feed's); body rows.
 local CHOICES={ask={'coop','solo','later','always'},error={'solo','later'}}
 local function exists(path)
@@ -50,6 +54,7 @@ function Saves.new(o)
     local ready_at=0 -- When the question shown takes a choice.
     local visit,asked,copies=false,false,false -- This visit of the title is answered; "saves coop" is out; copies seen.
     local before,waited,quiet,progress,why,idle=nil,0,0,nil,nil,0
+    local tries=0 -- always: the switches asked again in this visit after no answer.
     local queued,stopped=nil,false -- queued: a notice to say once the kit is up or a world loads.
     local lang=T.en
     local badged=false -- The badge is shown.
@@ -123,6 +128,11 @@ function Saves.new(o)
     local function failed(text)
         why=text~=nil and Chat.clean(text) or ''
         if why=='' then why=nil end
+        if not why and not open and settings.auto_coop_save=='always' and tries<RETRY then
+            tries,visit,phase,asked=tries+1,false,nil,false
+            log('co-op saves: no answer to the switch; asked again ('..tries..' of '..RETRY..')')
+            return
+        end
         log('co-op saves stay off: '..(why or 'no switch (coop-link.log says why)'))
         if open then phase,cursor,idle='error',1,0 else phase,queued=nil,{'off',why} end
     end
@@ -238,7 +248,7 @@ function Saves.new(o)
                 if phase~='wait' then phase=nil end
                 close()
             end
-            visit,reasked=false,false
+            visit,reasked,tries=false,false,0
         end
         if queued and (world or kit.ready()) then
             pick()

@@ -88,6 +88,8 @@ constexpr uint64_t kRacePerSecond = 40;
 constexpr size_t kChatInbox = 64;
 // Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.
 constexpr uint64_t kNightPerSecond = 8;
+// coop gift's lines a second, each way: a gift, its answer and a resend each 10 s are a few a minute.
+constexpr uint64_t kGiftPerSecond = 8;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
 constexpr uint64_t kHelloAgainMs = 10000;
 // A guest who lost the host's lobby tries again this long after the loss, and gives up at kRejoinMs (D5.10).
@@ -258,6 +260,64 @@ private:
   std::deque<std::string> recent_;
 };
 
+// The adaptive pose rate: Steam's view of a friend's session, read once a second, caps the poses we send a second, so a
+// link that cannot carry them does not queue them (Steam never expires a queued unreliable message: each one waits its
+// turn and the ghost falls behind). Two readings in a row with Steam's queue time at 100 ms or more, or 64 KiB or more
+// of unreliable bytes pending, step the cap down to the next one of 60, 30 and 20 below the rate that goes now (the
+// player's send_rate under the cap); none below 20. After 10 calm readings (queue under 20 ms and pending under 16 KiB)
+// with none over the line since the last step, it steps up one cap; a reading in between neither counts nor resets.
+// A step up undone within that wait doubles the wait (10, 20, 40, 80 s), so on a link that carries 30 but not 60 the
+// cap returns to 60 less and less often; a step up that holds for its wait brings the wait back to 10 s. A 16 KiB
+// keyframe drains in 62.5 ms at Steam's default send rate (256 KiB/s) and a 64 KiB table in 250 ms: the line and the
+// second reading keep those from counting.
+// tests/native/link/pose_cap_test.cpp checks it.
+constexpr uint32_t kPoseCaps[] = {60, 30, 20};
+constexpr size_t kPoseCapCount = sizeof kPoseCaps / sizeof kPoseCaps[0];
+constexpr int64_t kQueueOverUs = 100'000, kQueueCalmUs = 20'000;
+constexpr int32_t kPendingOver = 65536, kPendingCalm = 16384;
+constexpr int kOverReadings = 2, kCalmReadings = 10, kCalmMaxReadings = 80;
+struct PoseCap {
+  enum class Step { none, down, up };
+  size_t level = 0; // kPoseCaps[level] is the cap.
+  // Readings in a row over the line; calm readings since the last one over it or the last step.
+  int over = 0, calm = 0;
+  int wait = kCalmReadings; // Calm readings before a step up.
+  int trial = -1;           // Readings since the last step up, while a step down would undo it; -1: none.
+  uint32_t cap() const { return kPoseCaps[level]; }
+  // One reading, with the player's send_rate.
+  Step read(uint32_t rate, int64_t queue_us, int32_t pending) {
+    const bool over_line = queue_us >= kQueueOverUs || pending >= kPendingOver;
+    if (trial >= 0 && ++trial >= wait) { // The last step up held.
+      trial = -1;
+      wait = kCalmReadings;
+    }
+    over = over_line ? over + 1 : 0;
+    calm = over_line ? 0 : calm + (queue_us < kQueueCalmUs && pending < kPendingCalm);
+    if (over >= kOverReadings) {
+      const uint32_t going = rate < cap() ? rate : cap(); // Not std::min: windows.h may define min (glue/steam.cpp).
+      size_t next = level + 1;
+      while (next < kPoseCapCount && kPoseCaps[next] >= going)
+        ++next;
+      if (next == kPoseCapCount) // At 20 a second or less already.
+        return Step::none;
+      level = next;
+      over = calm = 0;
+      if (trial >= 0) {
+        wait = 2 * wait < kCalmMaxReadings ? 2 * wait : kCalmMaxReadings;
+        trial = -1;
+      }
+      return Step::down;
+    }
+    if (level && calm >= wait) {
+      --level;
+      calm = 0;
+      trial = 0;
+      return Step::up;
+    }
+    return Step::none;
+  }
+};
+
 // One second of a member's messages on a channel that passed the rate limit.
 struct Window {
   uint64_t at = 0, count = 0, bytes = 0;
@@ -287,6 +347,7 @@ struct Peer {
   Window say_window;       // Her chat lines.
   Window night_window;     // Her night lines.
   Window race_window;      // Her race lines.
+  Window gift_window;      // Her gift lines.
   // Her .pak mods beyond the base game's (game/pak_list.h) from her paks line, once one came; her mod containers by
   // name with their hashes, from the pak lines her last paks line ended (named: some came, or she loads no .pak mod;
   // mod_names=off on her side sends none), and the pak lines since then; the status lines comparing them with ours,
@@ -308,10 +369,11 @@ struct Peer {
   int last_result = 1;      // The last failed send's EResult.
   bool drop_logged = false;  // One drop line per 60 s line.
   bool fight_logged = false; // The same for channel 2, whose lines the 60 s line does not count.
-  // Steam's view of the session, read once a second, logged only.
+  // Steam's view of the session, read once a second: logged, and its queue and pending bytes cap our pose rate.
   float quality_local = -1, quality_remote = -1;
   int32_t send_rate = 0, pending = 0;
   int64_t queue_us = 0;
+  PoseCap cap;
 };
 
 // Callback counters, kept by the caller (they are bumped on the game's Steam thread).
@@ -419,10 +481,22 @@ public:
   // This account's SteamID: 0 until Steam is ready.
   uint64_t me() const { return me_; }
 
+  // The player's send_rate (10 to 60 poses a second), for the pose cap's steps down; and the cap: the lowest of the
+  // friends' past the handshake (PoseCap), kPoseCaps[0] with none. The pose path sends at the lower of the two.
+  void pose_rate(uint32_t rate) { pose_rate_ = rate; }
+  uint32_t pose_cap() const {
+    uint32_t cap = kPoseCaps[0];
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted)
+        cap = p.cap.cap() < cap ? p.cap.cap() : cap;
+    return cap;
+  }
+
   // The pose path's table (reliable), pose or SBE (unreliable), on channel 1 to every friend past the handshake only.
   // Worker thread, like tick().
   // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s
-  // line's queue). Over 100 ms, add NoDelay (4) or SendRateMin/Max through SetConfigValue.
+  // line's queue). PoseCap lowers the pose rate past 100 ms of queue; if the queue still grows at 20 a second, add
+  // NoDelay (4) or SendRateMin/Max through SetConfigValue.
   void send_binary(const uint8_t *data, size_t size, bool reliable) {
     for (auto &p : peers_) {
       if (!p.compatible || !p.accepted)
@@ -546,6 +620,26 @@ public:
     ++(ok ? race_out_ : race_dropped_);
     return ok;
   }
+  // coop gift's line (cut/mailbox.lua, through a gift request): reliable to the friend past the handshake, or back as
+  // hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one goes in
+  // the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, past the
+  // rate, Steam refused it) comes back to Lua at once as her refusal, "gift n <id> nolink", so the sender gets the
+  // items back without waiting for her answer (only for a first send: cut/mailbox.lua ignores it for a send again).
+  // Worker thread, in tick().
+  void gift(const std::string &payload) {
+    const std::string line = gift_line(payload);
+    bool ok = chatting() && !line.empty() && !over_rate(gift_window_, 1, kGiftPerSecond, kGiftPerSecond * kMaxMessage);
+    if (ok && linked()) {
+      for (auto &p : peers_)
+        if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+          ok = false;
+    } else if (ok) {
+      ok = for_lua("gift " + payload);
+    }
+    event((ok ? "gift line sent: " : "gift line not sent: ") + payload);
+    if (!ok && payload.rfind("s ", 0) == 0)
+      for_lua("gift n " + payload.substr(2, payload.find(' ', 2) - 2) + " nolink");
+  }
   // Our vitals (glue/tick.cpp's local_vitals(), every 100 ms in a session, 500 after a slow read), unreliable to the
   // friend past the handshake on change (at most once each kVitalsEveryMs) and each kVitalsAgainMs, which also heals
   // reordering; in the loopback with no friend, hers. Kept in a session for our life= line, sent or not. Worker thread,
@@ -593,8 +687,8 @@ public:
         sent = true;
     return sent;
   }
-  // For coop-chat.txt (glue/steam.cpp), oldest first: "in <text>" (hers, chat_clean()), "fail" (ours could not go) and
-  // "race <text>" (her race line).
+  // For coop-chat.txt (glue/steam.cpp), oldest first: "in <text>" (hers, chat_clean()), "fail" (ours could not go),
+  // "race <text>" (her race line) and "gift <payload>" (her gift line, or our gift that could not go).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
 
@@ -944,6 +1038,9 @@ private:
       event("sent " + r.line.substr(r.line.find(' ') + 1));
       break;
     }
+    case Command::gift:
+      gift(r.text);
+      break;
     case Command::mark: { // A test tool: unlike chat, its text goes to both logs and statuses on purpose.
       const std::string n = std::to_string(++marks_), said = r.text.empty() ? "" : ": " + r.text;
       event("mark " + n + said);
@@ -962,8 +1059,8 @@ private:
         notice("No join code to copy.");
       }
       break;
-    // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests' and the Lion's: the
-    // caller's.
+    // The pose path's, the shared fight's, the photo pause's, the saves', the shared quests', the rows', coop emote's
+    // and coop shortcut's: the caller's.
     case Command::off:
     case Command::loopback:
     case Command::record:
@@ -974,8 +1071,14 @@ private:
     case Command::saves:
     case Command::quests:
     case Command::travel:
-    case Command::lion:
+    case Command::rows:
     case Command::gate:
+    case Command::anim:
+    case Command::shortcut:
+    case Command::devinfo:
+    case Command::items:
+    case Command::nightshop:
+    case Command::roxanne:
       break;
     case Command::none:
       event("unknown request");
@@ -1577,6 +1680,16 @@ private:
       }
       break;
     }
+    case Kind::gift: {
+      if (!peer.compatible || !peer.accepted)
+        break;
+      const char *why = over_rate(peer.gift_window, 1, kGiftPerSecond, kGiftPerSecond * kMaxMessage)
+                            ? "over the rate limit"
+                        : !for_lua("gift " + message.text) ? "too many waiting"
+                                                           : nullptr;
+      event("gift line from " + peer.name + (why ? std::string(" dropped (") + why + "): " : ": ") + message.text);
+      break;
+    }
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
@@ -1706,13 +1819,31 @@ private:
       for (int b = 3; b >= 0; --b)
         ping_ms = static_cast<int32_t>((static_cast<uint32_t>(ping_ms) << 8) | quick[4 + b]);
       peer.session_ping = ping_ms;
-      // Log-only, as the SDK 1.59 layout puts them: quality local and remote, send rate, pending unreliable bytes,
-      // queue time in us.
+      // As the SDK 1.59 layout puts them: quality local and remote, send rate, pending unreliable bytes, queue time in
+      // us. The last two cap our pose rate (PoseCap), each step logged once.
       std::memcpy(&peer.quality_local, quick + 8, 4);
       std::memcpy(&peer.quality_remote, quick + 12, 4);
       std::memcpy(&peer.send_rate, quick + 32, 4);
       std::memcpy(&peer.pending, quick + 36, 4);
       std::memcpy(&peer.queue_us, quick + 48, 8);
+      if (peer.compatible && peer.accepted) {
+        const PoseCap::Step step = peer.cap.read(pose_rate_, peer.queue_us, peer.pending);
+        char line[320];
+        if (step == PoseCap::Step::down)
+          std::snprintf(line, sizeof line,
+                        "pose rate cap %u a second for %s: Steam's queue %.1f ms, %d B pending (2 s at 100 ms or 64 "
+                        "KiB or more); send rate %d B/s, quality %.2f/%.2f; up again after %d s calm",
+                        unsigned(peer.cap.cap()), peer.name.c_str(), peer.queue_us / 1000.0, int(peer.pending),
+                        int(peer.send_rate), double(peer.quality_local), double(peer.quality_remote), peer.cap.wait);
+        else if (step == PoseCap::Step::up)
+          std::snprintf(line, sizeof line,
+                        "pose rate cap %u a second for %s: %d s calm (queue under 20 ms, pending under 16 KiB), now "
+                        "%.1f ms, %d B",
+                        unsigned(peer.cap.cap()), peer.name.c_str(), peer.cap.wait, peer.queue_us / 1000.0,
+                        int(peer.pending));
+        if (step != PoseCap::Step::none)
+          event(line);
+      }
       // A first connection that failed (4 closed by peer, 5 problem detected) took both hellos with it: greet again,
       // which restarts the session (kReliable has AutoRestartBrokenSession). Still no hello of hers kHelloAgainMs after
       // ours: greet again too, as a repeat she had to leave unanswered is answered once her wait is over.
@@ -1792,6 +1923,7 @@ private:
   std::set<uint64_t> allowed_;
   std::map<uint64_t, uint64_t> refused_;
   uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;
+  uint32_t pose_rate_ = kPoseCaps[0]; // The player's send_rate (Lua's coop-state.txt).
   int relay_ = 0;
   bool relay_known_ = false, overlay_ = false;
   std::deque<std::string> notices_; // The last kNotices, oldest first; notice_count_ numbers the newest.
@@ -1830,6 +1962,7 @@ private:
   // Race lines: this session's counts (ours out, hers in, dropped either way) and our rate window.
   uint64_t race_in_ = 0, race_out_ = 0, race_dropped_ = 0;
   Window race_window_;
+  Window gift_window_; // Our gift lines.
   Vitals vitals_{}, mate_{}, own_{}; // own_: our last read, sent or not.
   // coop mark: our marks this run (one count a game process, never reset) and the last mark's status line, or empty.
   uint32_t marks_ = 0;

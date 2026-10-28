@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop fly` and `coop slowmo`, with the co-op save check before `on` |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -58,31 +58,40 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `core/settings_file.lua` | Rewrites one line of `coop-settings.txt` and keeps the rest of the file |
 | `core/ue4ss_settings.lua` | Checks `HookBeginPlay` and `bUseUObjectArrayCache` in `UE4SS-settings.ini` (read only) |
 | `nightop/probe.lua` | The `coop no` probe, and the heal that a Night Operation run or a challenge fires |
-| `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, and the night line's two formats, with no engine call |
-| `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns, the monsters it tracks, the night line, its card and result panel |
+| `nightop/waves.lua` | The run's waves, keys, score, timers and states, read from a definition, alone or for two players, the pairing of new bodies with their spawn spots, a spot moved onto the navmesh through navmesh calls it is given (`W.settle`), and the night line's two formats, with no engine call |
+| `nightop/run.lua` | The `coop nightop` run and the `coop challenge` runs: start checks, the host's ask and the guest's answer, spawns and the navmesh calls that settle their spots, the monsters it tracks, a co-op run's down and revive, the night line, its card and result panel |
 | `nightop/shop.lua` | Night Operation's reward shop: the points file, `coop nightop shop` and `buy`, and its one item request |
 | `nightop/challenges.lua` | The challenges' waves and rules, the `coop challenge` list and the best runs in `coop-records.txt`, with no engine call |
+| `nightop/board.lua` | The Shooting Range's score on the cut test widget `WB_ShootingTrainingTest`, beside the run's card |
 | `nightop/recruiter.lua` | The `coop recruiter` preview |
-| `nightop/recruiter_text.lua` | The recruiter's lines in the game's 23 languages |
+| `nightop/recruiter_text.lua` | The recruiter's lines in the game's 23 languages (not shown: no text registration), and `culture()`, the game language's culture for the other text modules |
 | `race/doro.lua` | The display Doro (a plain actor with Doro's mesh, animated by the engine's single-node animation), the Doro look on your EVE, and `coop race probe doro` |
 | `race/model.lua` | Doro races with no engine call: the track file, the rules, the start slots, the host's and the guest's race over the race lines, and the ranking |
 | `race/run.lua` | Doro races in game: recording a track, the race run from EVE's feet, its HUD, its Doros and its notices |
 | `cut/leviathan.lua` | `coop leviathan` and the other viewer commands: one table of seven cut models (Naytibas 10, 1 and 6, the early Mann, the NieR machines, Orcal's and Enya's prototypes: their meshes, animations, default distance, height and scale, skins) and one viewer for them. It reads a creature's assets and CharacterTable rows, shows one of its meshes playing its animations on a display like the Doro's (one creature at a time) and flies a free camera to film it |
-| `cut/lion.lua` | `coop lion`: the cut Lion's rows asked of the native part and read back, its spawn, its entrance on a display copy, the lines that follow it ([The cut Lion](#the-cut-lion)) |
-| `cut/lion_rows.lua` | The Lion's rows as `lion/rows.h` writes them, for the read-back, and its Shows for the loaded line; written by the rows' generator |
-| `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times |
+| `cut/enemy.lua` | The flow `coop lion`, `coop gardener fight` and `coop tendril fight` share, each from its own spec: a batch's rows asked of the native part and read back, the spawn, the entrance on a display copy, the material and the boss bar's name, the lines that follow the body ([The cut Lion](#the-cut-lion)); `coop mxiii` uses its rows part |
+| `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
+| `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
+| `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
+| `cut/mxiii.lua` | `coop mxiii [30]`: the test pak's check (v1, v2 or v3), Matrix XIII's 10 camp rows and 5 trigger patches through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01`, or with 30 to `DLC02_30_Camp_01` on v3 only ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
+| `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
+| `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
+| `cut/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
+| `cut/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](#cut-mailbox)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
-| `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles registered for the game's language, the theater observer it follows once a second and the Stop row that ends it |
+| `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the theater observer it follows once a second and the Stop row that ends it |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
-Doro look, the cut model display and free camera, `coop lion`'s waits and lines, a Doro race (with the incoming lines
-while one is armed), the notice line, the previews' follow-ups, the `coop wear` check (once a second), the `coop lines`
-scene's due lines, the UI's open and close animations, the game's input given back after the menu or the chat box
-closes, the controller's events, the row under the mouse (every 100 ms while the menu is open), and your friend's marker
-and gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines in and out,
-Night Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's rows and
-status line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
+Doro look, the cut model display and free camera, `coop lion`'s, `coop gardener fight`'s and `coop tendril fight`'s
+waits and lines, a Doro race (with the incoming lines while one is armed), the notice line, the previews' follow-ups,
+the `coop wear` check (once a second), the `coop lines` scene's due lines, the `coop glide` and `coop emote` checks,
+the UI's open and close animations, the game's input given back after the menu or the chat box closes, the
+controller's events, the row under the mouse (every 100 ms while the menu is open), and your friend's marker and
+gauges. The other runs every 250 ms: link status changes, session start, notices to show, chat lines in and out, Night
+Operation's run, the race's session and map checks, the UI's root and its focus watchdog, the menu's rows and status
+line, the phone booth scan, the chat's feed, your friend's card, the capture and the remote table.
 
 The [co-op line](usage.md#co-op-line) opens at the camp phone booths that the levels place, actors of two classes:
 `Env_Camp_TeleportMachine_C` (the booth of every full camp, and Xion's five booths) and
@@ -121,6 +130,9 @@ file is written in full beside its final name and then renamed over it, so the r
   the native part has taken the previous file, and the native part takes it at its next pass and sends each line in
   order. Your friend's race lines come in `coop-chat.txt` as `race <text>`, beside the chat lines, and Lua reads that
   file every frame while a race is armed. `coop-race.txt` is deleted with the chat files.
+- `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
+  same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
+  go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](#cut-mailbox)).
 
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
@@ -211,7 +223,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 - `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`12:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
+  (`14:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
 - The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
   to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
@@ -287,20 +299,23 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC13 ping <seq> <ms>
-SBC13 pong <seq> <ms>
-SBC13 photo <0|1|s|c> <both|notice>
-SBC13 say <text>
-SBC13 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC13 pak <hash> <name>
-SBC13 paks <count> <hash>
-SBC13 camps? <id>
-SBC13 camps <id> <world> <camp>:<m> ...
-SBC13 camps <id> none <title|loading|nocamp|busy>
-SBC13 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end>
-SBC13 night g <n> <run> <state> <up> <killed> <done> <why>
-SBC13 mark <n> [<text>]
-SBC13 race <text>
+SBC14 ping <seq> <ms>
+SBC14 pong <seq> <ms>
+SBC14 photo <0|1|s|c> <both|notice>
+SBC14 say <text>
+SBC14 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC14 pak <hash> <name>
+SBC14 paks <count> <hash>
+SBC14 camps? <id>
+SBC14 camps <id> <world> <camp>:<m> ...
+SBC14 camps <id> none <title|loading|nocamp|busy>
+SBC14 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC14 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC14 mark <n> [<text>]
+SBC14 race <text>
+SBC14 gift s <id> <item> <count>
+SBC14 gift a <id>
+SBC14 gift n <id> <why>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -371,12 +386,19 @@ The night line carries a Night Operation run between the two games (see
 [night-operation.md](night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of
 one side, so a lost line is repaired by the next. The host's `h` line has a counter, the run number and seed, the
 phase (`ask`, `count`, `wave`, `rest` or `end`), the wave, the run time in milliseconds, the score, kills and waves
-cleared, the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, and the outcome
-once the run ends (`success`, `time`, `failed:host`, `failed:guest` or `aborted:<reason>`). The guest's `g` line has a
-counter, the run number, her state (`ready`, `refuse`, `run`, `dead` or `abort`), her monsters still up, masks of the
-ones killed and done in her world, and a refusal or abort word. Each game writes its line when it changes and at least
-once a second, never twice in one Lua tick, and logs each line out and in as `[StellarCoop][NR] night out: ...` and
-`night in: ...`.
+cleared, the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, the outcome once
+the run ends (`success`, `time`, `failed:host`, `failed:guest`, `failed:both` or `aborted:<reason>`), and the run's
+level (`easy`, `normal`, `hard` or `nightmare`, or `range` for the Shooting Range challenge), which the guest's run
+takes. A mask has one bit for each wave and slot, 8 slots a wave, so it covers the largest level's waves and the
+range's three rounds. The guest's `g` line has a counter, the run number, her state (`ready`, `refuse`, `run`, `dead`
+or `abort`), her monsters still up, masks of the ones killed and done in her world, and a refusal or abort word. Both
+lines end with the [revive](night-operation.md#down-and-revive)'s two words: the seconds the side's downed EVE still
+waits (1 to 30, 0 while she stands) and the side's revive of the other, the percent of the 3 s its interact key has
+been held next to her (0 to 100). The downed game makes its call once the other line says 100. The host's run fails
+as `failed:both` once his down and her down word above 0 have held together for 6 s with no call of his under way:
+her line does not show a call of hers, which has 5 s to get her up. Each game writes its line when it changes and
+at least once a second, never twice in one Lua tick, and logs each line out and in as
+`[StellarCoop][NR] night out: ...` and `night in: ...`.
 
 The native part checks only the bytes: 3 to 300 of `0-9`, `a-z`, `/`, `_`, `:` and `-` with single spaces between
 words, the first word `h` from the lobby owner and `g` from the guest. It sends an `h` line only while it owns the
@@ -384,7 +406,8 @@ lobby and a `g` line only as a guest, and a received line from the wrong side co
 second go each way; the rest are dropped, with one log line a minute. The last line received is the `night=` line of
 `coop-status.txt` while the session holds, and is cleared when the friend is lost or the session ends. Lua checks every
 field and refuses the whole line on one bad field. A co-op run ends as lost once the friend's counter has not moved for
-5 s. No line carries points: each game turns its own run's final score into points, at most 42 a run.
+5 s. No line carries points: each game turns its own run's final score into points, at most 42 a run at the normal
+level and 129 at nightmare.
 
 The mark line is one `coop mark`, sent reliable to each friend past the handshake: its number in the sender's game
 (from 1, one count per game process) and its text, cleaned as a say line is and cut to 100 bytes, maybe empty. A longer
@@ -400,7 +423,17 @@ that are dropped, with at most one line a minute per friend in `coop-link.log` (
 the rate limit` or `too many waiting`). Yours past it are only counted, in the session's end line. During
 `coop loopback` with no friend linked, your race lines come back as your friend's.
 
-Say, vit, pak, paks, camps, night, mark and race lines from a friend who has not passed the handshake are ignored, without a log line.
+The gift line carries a [cut mailbox](#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
+to 20 digits, not 0), an item name (letters, digits and `_`, at most 64) and a count from 1 to 10; `a` when the
+receiver kept it; `n` and a word of 1 to 16 lowercase letters when it refused it. The link checks that shape and no
+more: Lua checks the item. At most 8 lines a second go each way, and each one, sent, refused or received, has a line in
+`coop-link.log` (`gift line sent: ...`, `gift line not sent: ...`, `gift line from <name>: ...`). A gift line of yours
+that cannot go (no session, past the rate, a send Steam refused) comes back to Lua at once as `gift n <id> nolink`;
+Lua gives the items back only when it was the gift's first line.
+Your friend's lines reach Lua in `coop-chat.txt` as `gift <payload>`, beside the chat and race lines. During
+`coop loopback` with no friend linked, your gift lines come back as your friend's.
+
+Say, vit, pak, paks, camps, night, mark, race and gift lines from a friend who has not passed the handshake are ignored, without a log line.
 
 Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
@@ -411,21 +444,26 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 13` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 14` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
 other screen.
 
-- Your table goes to your friend at once and again every 5 s, so a table lost with a broken session, or sent before
-  they accepted, arrives with a later resend. An identical table is ignored. A changed capture (a new outfit, the
-  blade drawn) goes at once.
+- Your table goes to your friend at once, again 5 s later, and then at waits that double while nothing changes, up to
+  60 s: 5, 10, 20, 40, 60, 60 s. A table lost with a broken session, or sent before they accepted, arrives with a
+  later resend. An identical table is ignored. A changed capture (a new outfit, the blade drawn) goes at once, and the
+  next resend comes 5 s after it. A pose of theirs that comes after a second or more without one brings the next
+  resend within 5 s. Such a gap comes with a broken session, which stops their poses too, and with their loopback or
+  replay, which removes your table and sends you nothing until it ends. Their game does the same for their table.
 - A table of theirs that needs a new ghost (a new generation or layout) is taken at most once every 2 s. One that comes
   sooner is refused (the stream line's `tables: ... refused`) and their next resend brings it.
 - Poses go 60 a second by default (`send_rate`, 10 to 60), at most one per game frame: a game running at 45 fps
   sends 45. With deltas, 60 a second took 89 to 131 KiB/s in tests with simulated idle, running and combat motion on a
   5 KB outfit, and 20 a second 40 to 52 KiB/s. The sender holds a pose back while its poses would pass 192 KiB/s
-  (176 KiB/s while it also sends `SBE`), under Steam's default send rate of 256 KiB/s.
+  (176 KiB/s while it also sends `SBE`), under Steam's default send rate of 256 KiB/s. When Steam's queue to the
+  friend shows that the link cannot keep up, the rate drops to 30 or 20 a second until the link is calm again (see
+  [link health](#link-health-in-the-log)).
 - Channel 1 passes on only data from a lobby member past the handshake: at most 64 KiB a message, and 240 messages
   and 1 MiB a second per friend. The rest is dropped and counted, with at most one line a minute per friend
   (`dropped pose data from <name>: before the handshake`, `bad size` or `over the rate limit`). A non-member's data is
@@ -452,7 +490,8 @@ instead of misread:
 | 10 | The shared enemies' scale line: the host's enemy HP and balance multipliers; the paks line |
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
 | 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line, the mark line and the Doro races' race line on channel 0 |
-| 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders (this version) |
+| 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders |
+| 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), night line masks for a level's extra monsters, each side's down time and revive progress on both night lines, and the gift line for `coop gift` (this version) |
 
 ### Link health in the log
 
@@ -460,6 +499,18 @@ Every 60 s, `coop-link.log` has one line per linked friend (`<name>, last 60 s: 
 channel 1, drops, failed sends with the last Steam result (25 means its send buffer is full), the ping's RTT average
 and maximum, pings sent and pongs received (the difference is ping loss), and Steam's view of the session: quality
 local and remote, send rate, pending unreliable bytes and queue time.
+
+The same view, read once a second, caps the poses sent a second. Steam keeps an unreliable message queued until it
+goes, so a link slower than the stream would make the ghost fall further and further behind. Two readings in a row
+with a queue time of 100 ms or more, or 64 KiB or more of unreliable bytes pending, lower the cap: 60, then 30, then
+20, never below 20, and never to a value that changes nothing under your `send_rate` (at `send_rate=30` it goes
+straight to 20). Ten calm readings (queue under 20 ms and pending under 16 KiB) with none over the limit raise it one
+step; readings in between neither count nor reset. When a step up is undone before its wait is over, the next wait
+doubles (10, 20, 40, then 80 s), so on a link that carries 30 but not 60 the cap returns to 60 less and less often.
+Each step writes one line, for example `pose rate cap 30 a second for <name>: Steam's queue 150.0 ms, 70000 B pending
+(2 s at 100 ms or 64 KiB or more); send rate 131072 B/s, quality 0.91/0.93; up again after 10 s calm`. The stream
+line shows the cap in force as `link cap <n>`. A single 16 KiB keyframe takes 62.5 ms to leave at Steam's default send
+rate and a 64 KiB table 250 ms, which is why one reading over the limit is not enough.
 
 ## The ghost pipeline
 
@@ -530,9 +581,20 @@ Since protocol 9 most poses go as deltas. A keyframe is a full pose as above. A 
 its keyframe in microseconds, the world transform, one bit for each bone rotation, translation, scale and effect slot,
 and the bytes of those that changed since the keyframe. The sender sends a keyframe first, then every 250 ms, and
 whenever a delta would not be smaller. The receiver rebuilds the full pose from the keyframe it holds and decodes it
-like a keyframe, so a delta gives exactly the same pose. A delta whose keyframe was lost on the way is dropped and
-counted as keyless; the ghost waits for the next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to
-41 % (combat) of the full pose.
+like a keyframe. A delta whose keyframe was lost on the way is dropped and counted as keyless; the ghost waits for the
+next keyframe, at most 250 ms later. In tests a delta was 26 % (idle) to 41 % (combat) of the full pose.
+
+A bone's rotation, translation or scale counts as changed only when it is more than a small tolerance away from the
+keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° at most), 1 step of translation
+(1/32 cm) and 1 step of scale (1/4096). Until it moves further, the receiver keeps the keyframe's value, for 250 ms
+at most. This drops the fields that only flip their last step from float noise, and needs no change on the receiving
+side. The test build `build/host/pose_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes,
+deltas and KiB/s with and without the tolerance: `build/host/pose_delta_gain_test coop-record.bin`. A recording holds
+the stream you sent, and the tool reads only a recording of its own protocol (14): a v0.6.0-beta.3 recording, made
+without the tolerance, is protocol 13 and fails its check (`protocol`). Every protocol 14 build has the tolerance, so
+its recording already holds the keyframe's values for those fields and both lines show the same KiB/s, the stream's
+rate with the tolerance. With no file the tool measures two synthetic recordings; they show how the tool works, not
+what a real outfit saves.
 
 ### 4. Playback clock and interpolation
 
@@ -673,7 +735,7 @@ enemies: the same pairs, the same host and the same Steam channel 2. Each pair h
 the enemy's AI and moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner.
 HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
-- The host's `same_place` decides for both games. The host sends it as `SBF13 place <gen> <0|1>` after its world line
+- The host's `same_place` decides for both games. The host sends it as `SBF14 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
@@ -686,12 +748,12 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   an AI task runs on the owner's copy, during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the
   host draws a copy that the game froze before the mod did (below: its AI would not run once the host owns it); the
   start of a takedown is the exception (below). Each change moves the owner epoch one up and goes to her as
-  `SBF13 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
-  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF13 aggro <gen> <game|host>`.
+  `SBF14 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
+  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF14 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
   except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
-  `SBF13 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `SBF14 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
   `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
   other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
   pauses.
@@ -708,7 +770,9 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   at most), stamped with the pose clock. It also walks the game's Show manager (the game's animation sequences) for the
   Shows each enemy starts, and sends `show`, `show-set` and `show-stop` lines on channel 2 with the asset's path and
   the hit context. It never sends a Show that one of its own replays started, so a pair just taken over sends nothing
-  back. Only two lookups by GUID are called for this; the rest is plain reads.
+  back. Only two lookups by GUID are called for this; the rest is plain reads. Neither lookup, nor any drawing step
+  below, runs in a frame where a logic task is in flight (logic `+0x5c0` set): an enemy that spawns in that task grows
+  the two maps the lookups walk. Such a frame is skipped, and the Show lines due wait for the next.
 - On the drawing side's logic thread, each copy gets the game's own BlockAI effect (2000100, then SkillCancel
   2004400), only in life state 1 and outside NoDamageNoHit. When the game takes it off, the mod puts it back, at most 5
   times in any 10 s (then `freeze-lost`: the copy stays an ordinary enemy). On every way out, and before a kill, the
@@ -730,7 +794,7 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF13 exec <gen> <hguid> 1`, and `SBF13 exec <gen> <hguid> 0` once her copy has held
+  with `aggro=game`, she sends `SBF14 exec <gen> <hguid> 1`, and `SBF14 exec <gen> <hguid> 0` once her copy has held
   none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
   one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
   holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
@@ -776,16 +840,16 @@ pairs through its spawn key like any other.
 - Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
 - Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
   manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
-  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF13
+  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF14
   epoch <gen> <zone> <n>` at each change and every 5 s, so a line lost on the way stalls nothing for long, and each
   side drops a line of another epoch.
 - The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
   spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
-  `SBF13 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
-  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF13 spawn <gen> <n> <spawnId> <idx>
+  `SBF14 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF14 spawn <gen> <n> <spawnId> <idx>
   <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
   the host's world; never a dying one), where it stands in whole
-  centimetres, and `SBF13 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+  centimetres, and `SBF14 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
   her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
   function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's despawn
@@ -929,13 +993,13 @@ The log lines are in [usage.md](usage.md#extra-enemies-experimental).
 Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
 any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
-game. The host sends `SBF13 bosses <gen> <percent>` with its list.
+game. The host sends `SBF14 bosses <gen> <percent>` with its list.
 
 With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
 battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
 applies them to her copy:
 
-- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF13 bstart <gen> <hguid>` when it turns on,
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF14 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
   once while the copy stays in battle mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on,
   then `0, 0, 0, 1`. The fifth argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs
@@ -950,7 +1014,7 @@ applies them to her copy:
   copy gets no call. The host's next bstart for that copy calls it again.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
-  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF13 phase <gen> <hguid> <oe>
+  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF14 phase <gen> <hguid> <oe>
   <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
   does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
   game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
@@ -967,7 +1031,7 @@ applies them to her copy:
   effect's GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward
   dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
   EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
-  shared list under it. After its up the host sends `SBF13 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
+  shared list under it. After its up the host sends `SBF14 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
   hguid> <row>`, with epoch 1 when same spawns do not run, and sends it again every second while it follows the
   summon: her game takes a repeat as one it has, and a line it refused for a passing reason (its boss not paired yet)
   can go through later. The guest makes it through `NewActor`, as for extra enemies,
@@ -1006,11 +1070,11 @@ player's quest unit (the quest manager at `0x147032588`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470634f0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ13 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ14 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
 - The host only reads. Each quest whose state changed goes to the guest as one reliable line on channel 2 with the
-  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ13 q <gen> <seq> <id> <state>
+  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ14 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables.
 - Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
@@ -1036,7 +1100,9 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   them.
 - When the guest's side comes on, the host sends a snapshot (`snap`, the `zone` and `q` lines, then `end` with their
   count and an FNV-1a digest) of the quests it moved while linked with that friend. It sends a new one after its own
-  load, and when one of its quests goes back (an older save).
+  load, and when one of its quests goes back (an older save). On either side, a pass that finds a known quest object
+  gone, or a started Epic or Sub quest that none of the unit's three arrays lists, waits for the next pass to read the
+  same objects, so a quest unit read while the game still fills it sends, records and applies nothing.
 
 The record beside each co-op slot (`StellarCoopQuests0N.txt` in the account's save folder) keeps, per friend, the
 host's marks (`h` lines) and the host lines the guest's game took (`g` lines). The worker writes it through the same
@@ -1047,8 +1113,7 @@ one. A bad line only loses that quest's marks; her live quests always decide wha
 
 The guest's travel to the host (`session/travel.lua`, the camps lines, `game/travel.h` and the native call) moves only
 the guest's EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in
-game yet. In this version it never travels: the mod cannot yet read which camps the guest's save has activated (see
-below).
+game yet, and in this version it never travels: `main.lua` leaves it off until that test (see below).
 
 - The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
   `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
@@ -1068,9 +1133,30 @@ below).
 - A return of 0 is the game's refusal, and the guest's Lua tries the next camp of the answer.
 - The game's fast travel does not check whether her save has activated the camp (`game/travel.h`), and activating a camp
   counts toward the game's camp achievements (`Trophy_Activate_AllCamp` and the camp rows of AchievementTable). Her Lua
-  therefore takes only a camp that a read of her save's activated camps confirms. That read does not exist yet, so
-  every travel is refused before `camps?` is sent (`travel refused: no read of the camps this save has activated` in
-  `UE4SS.log`, and the failed notice), and no offer shows.
+  therefore takes only a camp that the native read of her activated camps lists (below). With no read at that moment
+  (a load, the title), the travel is refused with `no read of the camps this save has activated (<why>)`.
+- The follow itself is off: `main.lua` does not pass `follow` to `session/travel.lua`, so every travel is refused
+  before `camps?` is sent (`travel refused: the follow stays off until it has been tested in game` in `UE4SS.log`, and
+  the failed notice), and no offer shows. `coop travel probe` and `coop mxiii leave` use the read already.
+- The read (`game/camps.h`) asks the game's own camp list. The camp list screen (`FUN_141f65980`) calls
+  `FUN_141d1d650(zones, region, type, out, false)`, which returns the ZoneCampTable rows of that region and CampType
+  that hold an active row: a camp's rows are the ZoneEnvSpawn rows whose `TargetCamp` names it (the zone manager's
+  `+0x550` map, built by `FUN_141d18100`), and a row is active when its `ESBZoneEnvActiveState` is Active (1), read
+  from the live env object (`+0x21c`, set by `FSBZoneEnvRegister` through `FUN_141fdf900`) for a row of the zone EVE
+  stands in and from the zone's stored record (`+0x24`) for the others. The game thread checks the client is in game,
+  with no warp, respawn or logic task in flight, every 250 ms, and then calls that function every 2 s with no region
+  (every region) once for each travel type (SimplyCamp, FullCamp, Tetrapod, PhoneBooth), frees each list with the
+  game's `FMemory::Free` (`0x14261adb0`) and reads the names from the game's name pool. It reads the list again at once
+  in a new world, and drops it when the client leaves the game (a load), so a list never outlives its save. It also
+  reads the camp EVE respawns at: her FSBActor's `+0x26d0`, which the respawn (`FUN_141b0f8f0`) reads, and that row's
+  `TargetCamp` (`+0x270`). `+0x26d0` is the ZoneEnvSpawn row of her last rest or fast-travel arrival: in warp phase
+  0xd the client tick (`FUN_141cd0b30`) passes the travel's camp and its first row to the arrival (`FUN_141a8afe0`),
+  which writes it there, since every camp travel (`FUN_141cdd7b0`) sets the request's arrival flag (client `+0xa22`).
+  It runs out of line under its own SEH latch; `coop-status.txt` carries it as `activated=<n>:<camp>,... rested=<camp>`,
+  or `activated=none:<why>`.
+- The game's ReturnToCamp job (`FUN_141b2b000`) takes another camp: effect action 26 (`FUN_141bc7af0`) gives it the
+  FSBActor's `+0x2738`, which the camp arrival (`FUN_141a8afe0`) writes only for a Tetrapod camp, so that job returns
+  EVE to her last Tetrapod. The mod does not use it.
 - After an accepted call, the native part reads the game's warp block every 250 ms: `pending`, `warping`, `arrived`,
   or `refused:stuck` when the warp has not started 10 s after the call. `coop status` shows it as `travel=` on the
   engine line, and `coop-link.log` has one line per call and per state.
@@ -1126,6 +1212,14 @@ own state, the friend's vitals and the friend's ghost. The friend's game calls n
   in-game check.
 - With both players down, nobody can revive. Each respawns at a camp in their own game, each world resets on its own,
   and same spawns brings the guest's enemies back to the host's set.
+- During a Night Operation run (`nightop/run.lua`), the run owns the revive. The 3 s rule and the friend's notices
+  wait; the run says `You revived <name>.` itself when the partner's own hold was full. A death is a down only with
+  `revive=on`. The run asks `session/group.lua` for the call (`night_revive`) when the partner's night line says her
+  interact key was held next to the downed EVE for 3 s, or for `coop nightop revive`, which first needs the body
+  within 2 m across and 1 m up or down of the last place where the EVE's movement read walking. The call then has
+  `revive=on` and the guards of `coop revive test` (life 3 to 5, the death screen, `warp=idle`, standalone, no probe
+  rule), none of the friend's distance or the shared fight, and the same fallback, result line and hidden death
+  screen. See [Down and revive](night-operation.md#down-and-revive).
 
 ## Camp rests in a shared area
 
@@ -1148,11 +1242,13 @@ rest resets only the resting player's own game.
 
 Each game looks once a second, while linked, for the game's theater observers (`SBTheaterLevelSequenceObserver`). A
 cutscene plays while one of them has a valid sequence player whose `IsPlaying()` is true. Finding the observers walks
-every object (25 to 80 ms on the game thread), so the walk runs only while a level sequence actor plays (those actors
-come from the engine's class hash, a fraction of a millisecond), and the observer found is kept while it plays. Up to
-0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. The log says
-`cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's reflection
-data, so Lua cannot read it.
+every object (25 to 80 ms on the game thread), so the walk runs only when the set of playing level sequence actors
+changes (those actors come from the engine's class hash, a fraction of a millisecond), and the observer found is kept. A
+looping sequence with no theater costs one walk and one line, `cutscene: no theater for the playing sequences <names>`.
+The class hash reads EVE's world, or the SB player controller's when there is no EVE; with neither (the title screen, a
+load) nothing is read. Up to 0.6.0-beta.1 the walk ran every second while linked, a frozen frame each second. The log
+says `cutscene on: <sequence>` and `cutscene off`. The player controller's cinematic flag is not in this build's
+reflection data, so Lua cannot read it.
 
 While a cutscene plays in the host's game and its own photo state is `0`, the host's Lua writes `c` as its photo state,
 and its photo line carries `c`. The guest's Lua writes `cut=1` in `coop-state.txt` while her `cutscene_wait` is on and
@@ -1319,7 +1415,7 @@ race are the ones to put back; the 250 ms check catches a write the search misse
 
 The host owns a race. Its game sends the track and the start, each game times its own racer from its own GO, and the
 host's game sends the ranking. The guest's game checks each line against fixed bounds before using it, and sends only
-its own racer's lines. Each line travels as `SBC13 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
+its own racer's lines. Each line travels as `SBC14 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
 with whole numbers only, in centimetres and milliseconds. `<id>` is the host's race number:
 
 | Line | From | Meaning |
@@ -1357,20 +1453,28 @@ is `/Script/Engine.Actor`. `tests/lua/race/run_test.lua` checks both in `race/do
 (0.6.0-beta.1) it spawned, moved and hit EVE, but stayed in its idle pose. Its assets ship in
 `/Game/Art/Character/Monster/CH_M_NA_02/`: the blueprint `CH_M_NA_02_BluePrint_Large`, the mesh with its fur cloth, 138
 animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and 41 Shows. No table row
-names it. Four files do the work: `cut/lion.lua` (Lua), `cut/lion_rows.lua` (the rows as Lua reads them back),
-`lion/rows.h` (the rows and their build, free of Windows, tested on the build machine) and `glue/tick/lion_game.inc`
-(the game's calls).
+names it. Six files do the work: `cut/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and [the
+Tendril](#the-cut-tendril) share), `cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the rows as
+Lua reads them back), `lion/rows.h` (the rows and their build, free of Windows, tested on the build machine),
+`lion/shock.h` (the Shock Bolt's two lists, also free of Windows) and `glue/tick/lion_game.inc` (the game's calls).
+The rows of one request form a batch: `lion/rows.h` holds six, the lion rows batch below, the Gardener's, the
+Tendril's, the Shock Bolt's (see [The cut Shock Bolt](#the-cut-shock-bolt)), Matrix XIII's (see
+[The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) and the Night Operation shop's (see
+[The Night Operation shop screen](#the-night-operation-shop-screen)), each with its own request word, answer and status
+line.
 
 ### The rows
 
-The native part adds 222 rows to 12 tables, all of them the Lion's own. A generator kept outside the repository writes
-every field from the Lion's assets and from offline measurements of its clips. A shipped row of each table is only the
-struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row holds, to the
-Lion's value or to empty. For 891 of the 2075 fields the template holds, the Lion's value is the template's own (the
-Behemoth's 180 degrees a second turn, 900 cm/s run and 1.5 s getup time, among others), so the patch writes that value
-back. These template rows are Behemoth rows, and a Scarlet effect for the effect row. The one Behemoth asset a Lion
-row names is the sound set `CSS_MON_46_BEHEMOTH`: the pak listing holds no sound set for the Lion, and its blueprint
-names none.
+The native part adds 237 rows to 14 tables: 222 are the Lion's own, and before them come 4 for the cut stimpacks of the
+Night Operation shop (see [The cut stimpacks](#the-cut-stimpacks)) and 11 for EVE's cut Tachy Mode ChainSpin (see
+[The cut ChainSpin](#the-cut-chainspin)). A generator kept outside the repository writes
+every field of the Lion's rows from the Lion's assets and from offline measurements of its clips. A shipped row of each
+table is only the struct the game copies (`CopyScriptStruct`) before the patches: the recipe sets every field that row
+holds, to the Lion's value or to empty. For 894 of the 2087 fields the template holds, the Lion's value is the
+template's own (the Behemoth's 180 degrees a second turn, 900 cm/s run and 1.5 s getup time, among others), so the patch
+writes that value back. These template rows are Behemoth rows, and a Scarlet effect for the effect row. The one Behemoth
+asset a Lion row names is the sound set `CSS_MON_46_BEHEMOTH`: the pak listing holds no sound set for the Lion, and its
+blueprint names none.
 
 - Stats, in both CharacterTable rows: 160000 HP, 3300 shield, 14 stamina, 960 physical and range attack, 110 shield
   attack. The Great Desert elites (Behemoth, Stalker, Abaddon) have 170500 HP, 3500 shield, 15 stamina and 840 to 1050
@@ -1477,20 +1581,24 @@ clip the Lion has, and no move may travel over 17 m.
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
-its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 12 tables
+its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the 20 tables
 by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one request:
 
 ```
 lion rows CharacterTable=0x<address> CharacterAppearanceTable=0x<address> CharacterDeadTable=0x<address>
 CharacterStanceTable=0x<address> CharacterAnimSetTable=0x<address> SkillCommandTable=0x<address>
 SkillTable=0x<address> SkillActiveStepTable=0x<address> CharacterMoveTable=0x<address>
-TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address>
+TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<address> ItemTable=0x<address>
+ItemConsumableTable=0x<address> ProjectileTable=0x<address> ZoneCampTable=0x<address>
+ZoneEnvSpawnTable=0x<address> ShopTable=0x<address> ShopItemTable=0x<address> ZoneTriggerTable=0x<address>
 ```
 
-It is one line in `coop-request.txt` (457 bytes at most, under the file's 512). Each of the 12 words comes once, in any
-order. Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No
-console word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its
-AddRow slot and its row size.
+It is one line in `coop-request.txt` (647 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
+address and its line end, 651 for the Gardener's `gardener rows`; the native part reads up to 1024 bytes of that file).
+Each of the 20 words comes once, in any order.
+Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console
+word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
+slot and its row size.
 
 The game thread adds the rows in `coop_tick` only while the cached net mode is 0 and no logic task is in flight (logic
 `+0x5c0` is 0, the same check as same-place enemies' force target): no lock guards the tables, and the logic thread
@@ -1507,22 +1615,158 @@ Then the native part reads the rows back through the game's own lookups by ID an
 
 ```
 lion=off
-lion=waiting added=<n>/220 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
-lion=rows added=220/220 asks=<a> spawns=<s> char=<k>/2 skills=<k>/21 stance=<k>/2
-lion=refused added=<n>/220 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
-lion=fault added=<n>/220 asks=<a> spawns=<s> where=<text>
+lion=waiting added=<n>/237 asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+lion=rows added=237/237 asks=<a> spawns=<s> char=<k>/2 skills=<k>/23 stance=<k>/2
+lion=refused added=<n>/237 asks=<a> spawns=<s> why=<word> table=<table|-> row=<row|->[ detail=<value>]
+lion=fault added=<n>/237 asks=<a> spawns=<s> where=<text>
 ```
 
 `asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
-so `core/link.lua` leaves the line out of its change log and `cut/lion.lua` logs what it reads. Lua then reads every row
-back through `FindRow` by field name (independent of the SDK's offsets): the ID and each of the 2974 fields the patches
-write, from `cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree).
-2083 of those values differ from the template row's, so reading them back shows the patches landed; the other 891
-restate a value the template holds, which a read-back cannot tell from the copy. It spawns
-only when every value matches and the line says `char=2/2 skills=21/21 stance=2/2`. The read-back runs in one frame,
-once per `coop lion`; how long that takes in game was not measured.
+so `core/link.lua` leaves the line (and the Gardener's `gardener=`, the Tendril's `tendril=` and the Shock Bolt's
+`bolt=`) out of its change log and `cut/enemy.lua` logs what it reads. Lua then reads every row back through `FindRow`
+by field name (independent of the SDK's offsets): the ID and each of the 3178 fields the patches write, from
+`cut/lion_rows.lua`, which the generator writes with `lion/rows.h` (the Lua test checks the two agree). 2156 of those
+values differ from the template row's, so reading them back shows the patches landed; the other 1022 restate a value
+the template holds, which a read-back cannot tell from the copy. It spawns only when every value matches and the line
+says `char=2/2 skills=23/23 stance=2/2`. The
+read-back runs in one frame, once per `coop lion`; how long that takes in game was not measured.
+
+### The cut stimpacks
+
+The game ships the Burst Stimpack's consumable row (`HP2Burst_Potion`, ID 1004: 400 HP for 600 Burst gauge), the Beta
+Stimpack's use condition, effects (20% of maximum HP for 50 Beta energy) and icon, and English text for both, but no
+ItemTable row for either. The first 4 rows of the batch make them usable. Each is a copy of a shipped row of its table
+with a few fields changed, and the generator restates every other field from that row's dump:
+
+| Row | Table | ID | Copy of | Changed |
+| --- | --- | --- | --- | --- |
+| `P_Eve_Sword_Normal_Buff_1` | SkillTable | 6000101 | `P_Eve_Sword_Normal_Potion_1` | nothing: the name `HP2Burst_Potion` gives its use skill, which the game never shipped (its Show `P_EVE_SWORD_USE_Buff` ships, its steps do not), so the stimpacks play the health potion's steps |
+| `Buff_HP2MP` | ItemConsumableTable | 1032 | `HP2Burst_Potion` | the condition group `CG_Item_ConsumeAllow_HP2MP` and the effects `Item_Buff_HP2MP_ReduceHP` and `Item_Buff_HP2MP_GainMP` |
+| `HP2Burst_Potion` | ItemTable | 300013 | `HP_Potion` | text keys, consumable, icon `Item/Burst`, pickup blueprint `BP_Item_HP2Burst_Potion`, no drop pool, 2 charges with no stat override (as `HealGrenade`) |
+| `Buff_HP2MP` | ItemTable | 300014 | `HP_Potion` | text keys, consumable, icon `Item/Buff_HP2MP`, no drop pool, 2 charges with no stat override |
+
+The generator checks that each consumable, condition group, effect, skill, icon, blueprint and Show the rows name
+exists in the dumps or the pak listing. `nightop/shop.lua` sells both items. Before a buy of one, it calls
+`cut/lion.lua`'s `Lion.rows`, which takes the same steps as `coop lion rows` (the tables, the request or the rows
+already in, the wait, the read-back) and then hands the end to the shop: the shop checks the buy again and grants it,
+or says why the rows are not in. The answer of a buy that waited comes from `coop lion`'s tick.
+
+### The cut ChainSpin
+
+EVE's four shipped Tachy Mode skills (ChainStab1, ScrewAttack1, SwordAura1 and ParrySlash1) each have a SkillTable row
+(`P_Eve_Tachy_Skill_<name>_1`, IDs 1004501 to 1004504) that names its first step and its AcquisitionSkillTable row
+(`TachyMode_<name>`), a SkillCommandTable row of the same name on one of the Beta skill commands
+(`SkillCommandState_BetaSkill1` to `4`, a press, `GlobalCommand` set), a place in the `P_Eve_Tachy` stance's
+`CommandArray` (the stance runs while EVE has the effect `P_Eve_TachyMode`), and an acquisition row that puts it in its
+fixed slot (`ESBSkillSlotType_TachySlot_1` to `4`) and skill tree box. Their steps play Shows under
+`CH_P_EVE_01/Skill/`.
+
+The ChainSpin has none of these. The game ships EVE's clip `P_Eve_Tachy_Skill_ChainSpin1` with its root motion data,
+the wing clip `P_Eve_TachyWing_Skill_ChainSpin1`, two CharacterMoveTable rows (`P_Eve_Tachy_Skill_ChainSpin1_Move1`,
+750 cm forward over 0.8 s, and `_Move2`, 290 cm after 0.2 s; IDs 1004500 and 1004501, next to ChainStab's block) with
+their curves, and the icon `SI_TachyMode_ChainSpin1`. No step of EVE's names those moves and no Show of hers plays the
+clip. The prologue's Tachy NPC kept them: its skill `N_TachyNPC_SwingChain` plays the Show
+`CH_NPC_TachyNPC/Skill/N_TachyNPC_SwingChain`, whose one anim key plays EVE's clip by its absolute path (3.25 s in nine
+steps, with trail and rule move keys), and its Hit1 and Cast4 steps take the two moves. That Show has no wing anim key.
+
+The 11 rows after the stimpacks' build EVE's version from it, each a copy of a shipped row with a few fields changed:
+
+| Row | Table | ID | Copy of | Changed |
+| --- | --- | --- | --- | --- |
+| `P_Eve_Tachy_Skill_ChainSpin1_1_Cast1` to `_Finish1` (9 steps) | SkillActiveStepTable | 100450001 to 100450009 | ChainStab1's `Cast1`, `Cast2`, `Hit1`, `Hit5` and `Finish1` steps | the Tachy NPC's durations (0.5, 0.15, 0.1, 0.1, 0.15, 0.1, 0.8, 0.1 and 1.25 s), the chain of step names, the Show on `Cast1`, `Move1` on `Hit1` and `Move2` on `Cast4`; on the four hits ChainStab's results `Hit1`, `Hit2`, `Hit3` and `Hit5` (a 1.5 s stun), a quarter of the damage each and the 1000 cm hit area `P_Eve_Sword_1000_360_500_HitArea`, as the NPC's |
+| `P_Eve_Tachy_Skill_ChainSpin1_1` | SkillTable | 1004500 | `P_Eve_Tachy_Skill_ChainStab1_1` | its first step; no Tachy Fusion branch, no acquisition, no achievement tag (`TachySkill`), so a use moves no trophy counter |
+| `P_Eve_Tachy_Skill_ChainSpin1_Use` | EffectTable | 1004500 | `M_Scarlet_CounterLinkStart` | `EffectAction_UseSkill` of the skill above, with the condition `P_Eve_TachyMode` |
+
+The steps keep ChainStab's hit collision (`Collision_WeaponAndRightArm`, which EVE's collision data has) and its step
+effects. The generator checks that the step chain from `Cast1` lasts as long as the Show's own steps, one for one, that
+every clip the Show plays is in the pak listing, that the steps' moves are rows of the dump and that the effect's
+condition names a shipped effect. There is no SkillCommandTable or AcquisitionSkillTable row: the four Beta skill
+commands are taken in Tachy Mode. A fifth command would go into the `P_Eve_Tachy` stance row; it could be appended in
+place, as `lion/shock.h` does for the gun stances (see [The cut Shock Bolt](#the-cut-shock-bolt)), and was not added.
+
+`coop chainspin` (`cut/chainspin.lua`) starts it. It gets the rows in through `Lion.rows`, as the shop does, then calls
+`ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "1004500")` on the player controller. The request's
+implementation queues an `FSBCheat` logic request (`0x141afe5e0`); its `Simulate` (`0x141b11800`) finds the actor by
+GUID, reads the first argument as a number and calls the effect function `0x141ad08b0` (the one the shared fight's job
+calls) with the actor as target and caster. The effect's action 69 turns its `ActionValue1` into an FName, finds the
+SkillTable row by that name (`0x141a9a620`) and calls `FSBActorLogicObject::UseSkill` (`0x141ba23c0`) with the row's ID.
+The effect's condition keeps all of it to Tachy Mode. Two other ways were ruled out in the disassembly:
+`ServerRequest_UseSkill` builds an `FSBUseSkill` request whose `Simulate` looks for a command node in the actor's
+stance and global command lists and does nothing without one ("skillCommandNode is null"), and the cheat manager's
+`SBPlayerUseSkill` only reads its argument in this build. EVE's GUID comes from the engine line's `me=` (the key of the
+world's player map, which the revive uses too); nothing is asked while `warp=` says busy. None of this has run in game.
+
+### The cut Shock Bolt
+
+The game ships most of the Shock Bolt, a third cut ammo for EVE's gun: its two fire commands (SkillCommandTable
+`P_Eve_Gun_ShootShockSlug1_1` and `_1_2`, `RangedFireItem` with `BulletItemAlias` `Bullet_Shock`) and its failed shot,
+its skill's three steps (100340101 to 100340103: `Hit1` plays `CH_P_EVE_01/Skill/P_Eve_Gun_ShootShockSlug1` and fires
+`P_Eve_Gun_ShootShockSlug1_Projectile1`), its consumable (`Bullet_Shock_Consume`, 1027: the skill and a 1.5 s cool
+time), its ItemBulletTable row (1004), the projectile's blueprint, and the stun effect `ShockSlugStun` (4100056: 10 s of
+blocked behaviour and a skill cancel, not on an animal, elite or boss, ended by the next hit) with its Show and sounds.
+Four rows are missing. They are a batch of their own (`kBoltRecipe`, request word `bolt`), at free IDs in gaps of each
+table's numbering:
+
+| Row | Table | ID | Copy of | Changed |
+| --- | --- | --- | --- | --- |
+| `Bullet_Shock` | ItemTable | 32 | `Bullet_Scatter` | text keys `Item_Bullet_Shock_*` (no plural ships, so the name serves), consumable, bullet, pickup blueprint `BP_Item_ammo_shock`, icon `HUD/bullet_icon_06` (shipped, used by no item: a guess), no drop pool, a cap of 30 with no stat override |
+| `P_Eve_Gun_ShootShockSlug1_1` | SkillTable | 1003401 | `P_Eve_Gun_ShootScatterSlug1_1` | the shipped Shock steps; no acquisition, damage upgrade or achievement tag |
+| `P_Eve_Gun_ShootShockSlug1_Projectile1` | ProjectileTable | 1010051 | `P_Eve_Gun_ShootSlug1_Projectile1` | the shock blueprint and the hit result below |
+| `P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1` | SkillResultTable | 100200801 | `P_Eve_Gun_ShootSlug1_Projectile1_Hit1` | `ShockSlugStun` added to the effects on the target |
+
+ProjectileTable is the fifteenth table every rows request names, and only this batch has a row in it. The batch is
+apart from the Lion's because nothing in it had run in game when it was added: a refusal stops a batch at its first
+row that fails, and the Lua read-back stops at its first value that differs, so in the lion rows batch a Shock Bolt row
+would have stopped `coop lion`, `coop chainspin` and the stimpack buys. Only the shop (`nightop/shop.lua`, through
+`Lion.rows` with the word `bolt`) asks for it: a Shock Bolt buy, and `coop nightop shop` before it opens the screen.
+Its line in `coop-status.txt` is `bolt=`, in the same forms as `lion=`
+(`bolt=rows added=4/4 asks=<a> spawns=<s> char=0/0 skills=<k>/1 stance=0/0`), and `cut/lion.lua` reads its 87 fields
+back as it does the Lion's.
+
+With no stat override (`ActorStatType_None`) the game reads the cap from the row's `MaxAmount`; all six
+`ItemStackBullet` stats belong to shipped ammo. The skill has no acquisition because the game refuses a skill whose
+acquisition the player lacks, and no Shock Bolt Magazine (`Drone_BulletAdd3_1`) ships. The generator checks that every
+projectile the skill's shipped steps fire is a row, and the projectile's blueprint, target filter and results.
+
+The rows alone do not let EVE fire it: her two gun stances (`P_Eve_Gun`, 100104, and `P_Eve_GunBlockSword`, 100110)
+list only the failed shot, and the game's ammo list stops at five. `lion/shock.h` grows both in place, in the same
+game-thread call as the bolt batch's last AddRow (so inside its gate), under a latch of its own. No other batch runs
+it, so `coop lion`, `coop chainspin` and the stimpack buys leave both lists as the game ships them:
+
+- The game reads a stance's `CommandArray` (a `TArray<FName>` at row `+0x90`) in one place: when the stance starts, it
+  copies each command into nodes of its own and keeps no pointer into the array. The native part takes the row the
+  stance change looks up (the registry's lookup by name, `0x141a9cd20`), checks its ID and appends the two fire
+  commands the way the game appends: the count raised, the game's grow (`0x140e47f00`, a reallocation through the
+  game's allocator) when it passes the capacity, then the names. EVE gets them the next time she enters the stance.
+  AddRow under a live stance's name would free the row the game hands out.
+- The ammo list is `BulletItemSlotArray`, a string array in the game's constant store (the singleton at `0x147032540`,
+  keyed by the hash of the name, `0x14117c1f0`): `Bullet_Normal`, `Bullet_Scatter`, `Bullet_Railgun`, `Bullet_Missile`,
+  `Bullet_Explosive`. The item slot manager and the TPS bullet HUD copy it when they start. The game locks a slot only
+  while its index is below the 5 entries of `BulletItemAcquisitionSlotArray`, so a sixth, `Bullet_Shock`, is never
+  locked. The native part appends it there through the game's allocator and, when the slot manager already exists, to
+  the manager's own list. The HUD is a carousel of three slots (`Slot_Left`, `Slot_Center1`, `Slot_Right`) plus the
+  Missile and Railgun slots, filled from the list at its start, and each reader of the selected slot checks it against
+  its list's length.
+
+Every value is checked before the first write: both rows and their IDs, each array's count and capacity, and both ammo
+lists holding exactly the five shipped entries (or those and `Bullet_Shock`: grown already, left as they are). A
+refusal writes nothing, except `why=alloc`: the game's allocator gave nothing partway through the writes, and what went
+in before it stays (the fire commands appended, and the ammo list's sixth entry when the slot manager's list is the one
+that failed). The status gets a `shock=` line:
+
+```
+shock=off
+shock=in commands=<gun>,<block> added=<n> list=<n> slots=<n|->
+shock=refused why=<word> at=<P_Eve_Gun|P_Eve_GunBlockSword|BulletItemSlotArray|slots>
+shock=fault where=<text>
+```
+
+`slots=-` means the slot manager did not exist yet; it copies the list when it starts. The native part sets the line
+before the `bolt=` line says `rows`, so whoever reads `rows` reads the final `shock=`. `nightop/shop.lua` grants Shock
+Bolts only once it reads `shock=in`. Firing, the bolt count, the cool time and the stun are the game's own once the data
+is in. None of it has run in game, and how the HUD shows a sixth entry is the main unknown.
 
 ### The spawn
 
@@ -1531,18 +1775,26 @@ The spawn is one call, `nightop/run.lua`'s, with key 0:
 take any CharacterTable ID at any place. The charId is fixed in code: 50020, or 50021 after `coop lion brain lurker`;
 `coop lion control` spawns 50110 (M_Antlion). The place is 10 m ahead of EVE and 1 m up, facing her. Key 0 is
 EventSpawnId 0, as the game's own summons spawn. The body is the new character of the Large blueprint's class nearest
-the spot, looked for at 0.3, 1, 2, 3.5 and 5 s (`FindAllOf` walks every object). One that still has no controller 1.5 s
-after the call gets its default one (`SpawnDefaultController`, as `nightop/run.lua` does). Its death is read from
-`InteractionState` and `Controller`, as `nightop/run.lua` reads it. The game can send a Lion body far away and reuse
-it for the next spawn (a Lion 466 m away came back on 2026-10-23), so a body that stood more than 100 m from the spot
-at the call and stands within 30 m of it after counts as the new one; its old follow line ends as recycled.
+the spot, looked for at 0.3, 1, 2, 3.5 and 5 s among the SBCharacters of EVE's world from the engine's class hash
+(`GetAllActorsOfClass`), or with `FindAllOf` of the class, which walks every object, where this UE4SS cannot use the
+class hash. Up to 0.6.0-beta.3 every look walked. A body with no controller that reads `InteractionState` 0 gets its
+default one 1.5 s after the call (`SpawnDefaultController`). Its death is read from `InteractionState` and
+`Controller`: a value other than 0 with no controller. Every body of this spawn reads `InteractionState` 1
+(executable) from its first second, in battle or not (the Lion's and the Antlion's follow lines, 2026-10-23), until its
+death reads 3 (every death logged). For these bodies 1 is the standing state, not a sign of the fight, so
+`nightop/run.lua` counts 0 and 1 as standing; a Night Operation run that counted 0 alone found none of its monsters
+(2026-10-28). The Lion code (`cut/enemy.lua`) still adopts a body only at 0 and still reads any other value with no
+controller as a death. That holds because these bodies had a controller from the spawn on (`controller SBAIController`
+on 2026-10-23); a state-1 body without one would never be adopted and would read as dead. Which game code sets 1 was
+not traced. The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away
+came back on 2026-10-23), so a body that stood more than 100 m from the spot at the call and stands within 30 m of it
+after counts as the new one; its old follow line ends as recycled.
 
-While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend
-space reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the
-animation blueprint blends a Show's clip by (`GetCurrentCustomAnimAlpha(0)` and `(1)`). Two more checks run once a
-second. The loaded line looks for the 20 Lion Shows of the kit and the clip each one's first anim key plays, with
-`StaticFindObject`, two paths a second (a call costs about 4 ms), each until first seen: the game loads a Show when a
-step plays it, and the Show's anim key loads its clip. The boss name looks for the live `TextBlock_BossName` (under
+While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend space
+reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the animation
+blueprint blends a Show's clip by (`GetCurrentCustomAnimAlpha(0)` and `(1)`). Nothing looks the Shows or their clips up:
+a `StaticFindObject` of one took about 30 ms in game, a 50 ms frame each second (2026-10-24). One more check runs once a
+second. The boss name (`cut/enemy.lua`'s, for any spec that names one) looks for the live `TextBlock_BossName` (under
 `/Engine/Transient`; `FindAllOf` again at most every 10 s while none is held) and sets it to `Lion` where it reads
 `<M_LionC>`. The game writes that block once per boss bind (`FText::FromStringTable` on the row's `Name`), so the check
 puts the name back after each bind.
@@ -1578,9 +1830,8 @@ Only the game can settle these:
 - whether the game's lookups by ID see the rows and the read-back matches on this build;
 - whether the stance's command list builds the Lion's command set and `M_Skulling_AI_Test` runs on it;
 - why the Lion stays in its idle pose: the game never plays its Shows on that body, the Shows play and their clips do
-  not load, or the clips load and the animation blueprint does not blend them in (the follow and loaded lines tell
-  these apart, and `coop lion control` tells the spawn call from the rows);
-- why `InteractionState` reads 1 (executable) from the first second of the fight;
+  not load, or the clips load and the animation blueprint does not blend them in (the follow line's skill flag and anim
+  alphas narrow it down, and `coop lion control` tells the spawn call from the rows);
 - whether the Lion walks to EVE or stands while she moves around it (the follow line now logs its place);
 - where the lock-on marker sits, whether its feet meet the ground and whether its hit sounds play;
 - what a key-0 death does to the spawn manager's counter;
@@ -1598,6 +1849,590 @@ Only the game can settle these:
   inside the clip, still passes over an EVE nearer than that;
 - how far each skill's range lets EVE stand before the Lion uses it, and whether 160000 HP makes a fight of the right
   length.
+
+## The cut Gardener
+
+`coop gardener fight` spawns the cut Naytiba 1, the Gardener (`CH_M_NA_01`), as an enemy. The game ships its
+blueprint (`CH_M_NA_01_BluePrint`), mesh, 25 animations, three skill Shows, its projectile class and much of its cut
+level's data: 9 skills with their commands and 43 steps (SingleShot and MultipleShot, each in four versions, and one
+aimed at a marked ally), 37 projectile rows that all fire its own shell from the socket `SC_Shot`, a stance, two anim
+sets and its appearance (`M_Gardener`, 50010), dead and detection rows. It lacks a CharacterTable row and a behaviour
+tree. `cut/gardener.lua` holds its spec for `cut/enemy.lua`, the flow it shares with the Lion; its rows are the second
+batch of `lion/rows.h` (`kGardenerRecipe`) and `cut/lion_rows.lua` (`R.GARDENER`), from the same generator.
+
+### Its rows
+
+The 13 rows are near copies: each is a shipped row with every field it holds restated and a few changed (279 fields,
+102 of them changed).
+
+- No shipped tree picks a skill flagged `Pattern1` or `Pattern2`, so the three skills are copies flagged
+  `MeleeAttack`, which the flag trees (`M_Tentacle_AI`, `M_Skulling_AI_Test`) pick: `M_GardenerC_SingleShot`
+  (5001010, a copy of `M_Gardener_SingleShot_4`, whose shells land on EVE, up to 3 m around her, and 15 and 18 m ahead
+  of her), `M_GardenerC_MultipleShot` (5001011, of `M_Gardener_MultipleShot_1`: three volleys, cool time 10 s) and
+  `M_GardenerC_ToxicBeam` (5001012, cool time 15 s). The first two start the shipped steps, whose durations equal their
+  Shows' steps (1.3, 0.2 and 2.16 s; seven steps over 4.4 s). Each has a command row of the same name and ID.
+- `M_Gardener_ToxicBeam` is a Show with one animation (5.33 s of `Mon_Gardener_S_03_Toxic_Beam`) and no step array, and
+  no row names it. Three new steps play it: `Cast1` (500100043, 1.86 s, where most of the clip's beam notifies
+  start), `Hit1` (500100044, 0.2 s, a copy of the shipped SingleShot hit step with 8 of the Gardener's own shells,
+  which land from EVE to 15 m ahead of her over 0.7 s) and `Finish1` (500100045, 3.34 s): 5.4 s in all, the Show's
+  length. Whether the game
+  plays a Show with no step array across three table steps is not known.
+- The stance `M_GardenerC_Default` (500101) lists the three commands and sets every walk and run speed to 0: the
+  Gardener's run blend spaces hold one idle sample, so any move would slide the tower. It keeps the shipped anim sets
+  and its turn rate (100 degrees a second); every cast step turns it toward EVE in 0.3 s.
+- Three CharacterTable rows copy `M_Maelstrom`, the one boss that stays put (boss bar, Elite rank, its size fields):
+  `M_Gardener` (50010) and `M_Gardener_Half` (50012, `MeshScale` 0.5) run `M_Tentacle_AI`, the flag tree made for
+  monsters that never walk; `M_Gardener_Skulling` (50011) runs the Lion's `M_Skulling_AI_Test`. They take the
+  Behemoth's HP (37840) and shield (1455), the shipped dead, appearance and detection rows, the Cocoon's despawn
+  dissolve, the Maelstrom's sound set and the album's name key (`Char_M_Gardener_AlbumName`) for the boss bar. Their
+  effects are rank Elite, a fixed location and a rule-move block (it never moves), immunity to the reactions it has no
+  animation for and the Cocoon's two Show tags, no monster warp and immunity to back hits; the Maelstrom's own
+  effects, its three weak points, its death effect and its link flag are gone.
+
+The generator checks these rows with the Lion's batch (no name or ID of one meets the other) and against the dumps:
+every shell the three skills' steps fire is a projectile row whose class, target filter, hit result, arrival effects
+and landing marker exist, each skill's steps last as long as its Show (ToxicBeam's as long as all of it), the stance
+lists exactly the three commands at speed 0, the name key is in `CharacterStringTable`, and no weak point names a group
+missing from the collision data the blueprint uses (`CH_M_NA_02_Lion_Collision`: the Gardener's data started as a copy
+of the Lion prototype's).
+
+### Its batch in the native part
+
+The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 20 table words as
+the Lion's (`Request::batch` says which batch). Each batch has its own ask, answer word and builder (a `RowsJob` in
+`glue/tick/lion_game.inc`) and its own line in `coop-status.txt`, `gardener=` in the `lion=` line's format with its own
+counts (`added=<n>/13`, `char=<k>/3 skills=<k>/3 stance=<k>/1`). The gate, the block each row is built in, the spawn
+counter and the SEH latch are shared: one fault ends every batch's calls for the game run, and every batch whose rows
+are not all in then reads `fault`, also one that was never asked or whose ask the game thread had not taken (its `asks`
+count unchanged; Lua's wait takes a `fault` line as the end either way). A batch checks only the tables its rows go
+into, so a refusal in one leaves the other alone. This is a local request: the link protocol did not change.
+
+No batch has a latch of its own, because no part of a batch's call stays clear of what the other batches use. The gate
+reads the game's globals. Every row is built in the one block through the game's FName table, CopyScriptStruct and
+allocator. AddRow writes tables that several batches write. From the recipes in `native/src/lion/rows.h`: ItemTable
+gets lion, bolt and shop rows; SkillTable gets lion, gardener, tendril and bolt rows; SkillResultTable gets lion,
+tendril and bolt rows; CharacterTable, CharacterStanceTable, SkillCommandTable and SkillActiveStepTable get rows from
+all three Naytibas; five more tables get lion and tendril rows. The read-back runs the game's lookups over those same
+tables. Only ProjectileTable (bolt), EffectTable and ItemConsumableTable (lion), ShopTable and ShopItemTable (shop) and
+Matrix XIII's three zone tables have a single batch writing them, and those rows still go through the same block and
+calls. A fault anywhere in that call may leave shared state half written, so it stops every batch. The status lines
+are built by the worker from what the game thread published and make no engine call. The Shock Bolt's list growth
+writes nothing a batch writes, and keeps its own latch ([The cut Shock Bolt](#the-cut-shock-bolt)).
+
+### Its spawn
+
+`cut/gardener.lua` spawns 50010 (50012 with `half`, 50011 with `skulling`) through the Lion's call, 25 m ahead of EVE
+(12.5 m at half size) and 7.5 m above her feet: the blueprint's capsule half-height (700 cm) plus 50 cm, so the capsule
+never starts underground. The body is the new `CH_M_NA_01_BluePrint_C` nearest the spot. Its skeleton faces +Y (its
+head at (0, 242, 1278) cm in the reference pose) where the game's monsters face +X, and the blueprint adds no turn, so
+once found the body's mesh gets a relative yaw of -90 degrees (`K2_SetRelativeRotation`), which brings its front and
+`SC_Shot` toward EVE. The follow line reads that yaw once a second and sets it again if the game turned it back.
+`coop gardener fight intro` plays `Mon_Gardener_C_Appear` on a display copy of `CH_M_NA_01` turned the same way. No
+Hide or UnHide plays: no Show plays those clips, and a clip on the real mesh would replace the anim instance the game
+plays its skills on.
+
+### Open questions
+
+Beyond the Lion's:
+
+- whether a Hit step fires every shell of its list or picks one, and whether the shells show in flight (their class's
+  Niagara and particle components name no asset);
+- whether `MeshScale` scales the capsule, the bones and the hit boxes or the mesh alone, and the hit boxes' heights in
+  its idle pose (from the reference pose, only the right foot box is at melee height at scale 1);
+- whether the game resets the mesh's relative yaw (the follow line says so if it does);
+- what the Tentacle tree's `MoveToHome` does for an actor with no spawn path, and what its battle-start Show, another
+  skeleton's clip, does on the Gardener;
+- how the flag pick chooses among the three skills, and whether EVE can walk into the tower (only its capsule blocks);
+- how the Cocoon's despawn dissolve applies to a mesh with two materials, and whether the English game shows
+  "Gardener" on the bar.
+
+## The cut Tendril
+
+`coop tendril fight` spawns the cut Naytiba 6, the Tendril (`CH_M_NA_06`), as an enemy. The game ships a test mesh
+(`CH_M_NA_06_test`, 166 bones, its one material slot empty), its skeleton, its physics asset, its blueprint
+(`CH_M_NA_06_Blueprint`, which borrows the Gigas's collision data `CH_M_NA_05_Gorilla_Collision`), an animation
+blueprint built on the game's custom anim nodes (`SBAnimInstance` with three `SBAnimGraphNode_SequenceBlendedPlayer`)
+and 42 clips. No table row names it and no Show plays any of its clips. `cut/tendril.lua` holds its spec for
+`cut/enemy.lua` and builds its Shows in memory; its rows are the third batch of `lion/rows.h` (`kTendrilRecipe`) and
+`cut/lion_rows.lua` (`R.TENDRIL`, the Shows in `R.TENDRIL_SHOWS`), from the same generator.
+
+### Its rows
+
+107 rows, authored as the Lion's are: every field stated over the Lion's template rows (1281 fields, 997 of them set to
+a value other than the template's).
+
+- 11 skills (5006000 to 5006010), their commands and 45 steps. Each skill plays one Tendril clip from its first step
+  to its end: `SwingLeft` and `SwingRight` (`M_Tendril_SwingAttack_L`, `_R`), `WhipLeft` and `WhipRight`
+  (`M_Tendril_WhipAttack_L`, `_R`), `DiagonalLeft` and `DiagonalRight` (`M_Tendril_DiagonalAttack_L`, `_R`), `Chop`
+  (`M_Tendril_ChopAttack`), `Spin` (`M_Tendrill_TurnAttack`), `Rush` (`M_Tendril_RushAttack`, four hits), `Whip`
+  (`M_Tendril_WhipAttack`, three hits) and `Trace` (`M_Tendril_TraceAttackSlow`, two hits). All are flagged
+  `MeleeAttack`, which the Skulling test tree picks, with cool times of 4 to 20 s.
+- The steps follow the clip: a Cast step up to each hit, the Hit step, and a Finish step to the clip's end, so a
+  skill's steps last as long as its clip. Its first step turns the Tendril toward EVE in 0.3 s (the one move,
+  `M_TendrilC_Turn`). The Tendril strikes with the four chains on its head (`Bone_Chain_L01`, `L02`, `R01`, `R02`),
+  which every attack clip animates. A Hit step is a window of the clip where the chains' last bones move at 2500 cm/s
+  or more, 250 cm or more out from the root and no more than 2 m above it. The generator measures them in the clips
+  decoded offline (`tendril_points.py`, forward kinematics on the bone tracks); the 17 hits strike 4 to 7.5 m out.
+- Each Hit step hits by area (`HitDetectionType` TargetFilter, as the Lion's slams): a 3D arc 2 m high over the reach
+  and the arc of the chain ends during its window, 400 to 750 cm deep and 60 to 340 degrees wide. The collision data
+  the blueprint borrows tracks no Tendril clip, so a hit through its attack groups would not follow the chains. Every
+  arc covers the front, since the first step turned the Tendril toward EVE. A skill's range is its first hit's reach
+  straight ahead times the Lion's calibration (0.61): 240 to 400 cm.
+- 5 hit results, the Lion's values under the Tendril's names (light, strong, knockdown, guard, parry). A perfect parry
+  on a skill's last hit goes to the shipped step `M_Common_Result_ParryJust_Center`, which plays `Custom_Anim1` of the
+  anim set: its `Parry` clip.
+- Two anim sets (500600 and 500601) with its own clips: its one blend space (`IdleRun_BS_Peaceful`: idle, walk and run
+  at 0, 200 and 400 cm/s), `LockOn_BS` in battle, `Run_Start` and `Run_End`, its one hit clip
+  (`Result_Hit_KnockBack`, 1.5 s) in every hit slot, its groggy, knock-down and airborne clips, and `Parry` for both
+  just-parry slots.
+- The stance `M_TendrilC_Default` (500600): the 11 commands, walk 200 and run 400 cm/s (the blend space's samples),
+  turn 180 degrees a second. The game's generic Groggy, Down and Airborne anim sets name blend spaces and clips its
+  folder lacks (`Groggy_BS`, `Down_BS`, `Result_State_KnockDown_S_Fw` where it has `Result_State_KnockDown_Fw_S`), so
+  the Tendril is immune to those states (`M_Common_ImmuneAbnormal`) and its stance names its battle set for them.
+- The dead row plays its `Dead` clip (6 s) for every kind of kill, then the Cocoon's dissolve; the appearance row
+  (50060) names its blueprint.
+- `M_TendrilC` (50060), last: the Gigas's (`M_GorillaB`) numbers (64960 HP, 3720 shield, 600 attack, rank Boss, the
+  `MonsterAlpha` difficulty group, actor type BossMonster for the boss bar) and sound set (`CSS_MON_05_Gigas`: none
+  ships for the Tendril), the Lion's sizes at the ratio of their capsules (90 against 150 cm: a 110 cm target filter
+  radius), the Skulling test tree, no link flag (EVE's link Shows play a target clip it lacks) and no `Name`.
+
+The generator checks these rows with the other two batches (no name or ID of one meets another) and against the dumps:
+every reference lands, each skill's steps last as long as its clip, every hit holds a strike and its arc covers the
+front, the anim sets name clips of its folder, the stance lists its commands, the template Show has one anim key and
+nothing else, and the blueprint turns its mesh as the measurements and `cut/tendril.lua` expect.
+
+### Its Shows
+
+A step names its Show in `ShowPath`. No pak holds a Show of a Tendril clip, so after the read-back and before the
+spawn `cut/tendril.lua` builds the 12 the rows name, one per skill and one for its death, in a package of the mod's own,
+`/Game/Art/Show/StellarCoop/Tendril`. The package is made once a game run by `StaticConstructObject` with no outer, as
+UE's `CreatePackage` makes one: the outer passed is the invalid object of the lookup that missed it, whose null pointer
+UE4SS hands on. Each Show is a copy of the Gardener's one-clip Show `M_Gardener_ToxicBeam`, made by
+`StaticConstructObject` with that Show as its template, of its class, in that package, named after the skill
+(`M_TendrilC_Chop`...). The package and the Shows go in the root set, so the game never collects them, and no shipped
+package is held in memory by them: a Show of the paks that the game drops while its package stays could no longer load.
+UE copies the template's properties and gives the copy its own anim key (`SBShowAnimKey_0`). The script then sets that
+key's clip (`/Game/Art/Character/Monster/CH_M_NA_06/Animation/<clip>`, an absolute path), its lengths and the Show's
+end time, with no step array, and reads each one back: the key must be the copy's own (its outer is the copy), every
+value as written, and `/Game/Art/Show/StellarCoop/Tendril.<name>` must find the copy.
+
+That path is the one the game loads. The steps' `ShowPath` is `StellarCoop/Tendril.<name>`. The game's Show loaders
+(`0x1422853e0` and the six others that use the same `/Game/Art/Show/` string) put `/Game/Art/Show/` in front of it, keep
+a path that already has an extension as it is (`0x14202c500` appends `.<last word>` only when there is none) and call
+`StaticLoadObject` (`0x142b920d0`), synchronously. `StaticLoadObject` finds a package already in memory, then the object
+in it, before it reads any file, so it returns the copy; no pak holds a package of that name, which the generator
+checks. A Show with no step array plays across the whole chain of steps its first step starts, as the game's own flash
+grenade and fishing skills do.
+
+A Lua reload finds the package and the Shows already built and sets the Shows again. Once a second while a Tendril
+lives, a Show that is gone (the root set flag did not hold) is built again, and the log says so.
+
+### Its batch in the native part
+
+The Tendril's rows go in on their own request, `tendril rows <Table>=0x<address> ...`, with their own job, answer and
+`tendril=` line in the `lion=` line's format (`added=<n>/107`, `char=<k>/1 skills=<k>/11 stance=<k>/1`). The gate, the
+block, the spawn counter and the SEH latch are shared with the other two batches. This is a local request: the link
+protocol did not change.
+
+### Its spawn
+
+`cut/tendril.lua` spawns 50060 through the Lion's call, 8 m ahead of EVE (out of its strikes' reach) and 1 m above her
+middle, facing her. The body is the new `CH_M_NA_06_Blueprint_C` nearest the spot. Its skeleton faces +X (its head is
+in front of its pelvis, and a planted foot slides toward -X in its walk clip), while its blueprint turns the mesh -90
+degrees as for a skeleton facing +Y, so once found the body's mesh gets a relative yaw of 0, and again if the game
+turns it back. Its one material slot is empty, so the mesh takes the Hydra's tentacle material, as `coop tendril skin
+hydra` does in the viewer. The boss bar reads `<M_TendrilC>` (no Tendril text in CharacterStringTable), and
+`cut/enemy.lua` writes `Tendril` there as it writes `Lion` for the Lion. There is no entrance: none of its clips is one.
+
+### Open questions
+
+Beyond the Lion's:
+
+- whether `StaticConstructObject` in UE4SS 3.0.1 makes the package with no outer and passes the template and the
+  root set flag through, and whether the copy gets its own anim key;
+- whether the game plays a Show built at run time, and a Show with no step array across the three to nine steps of a
+  skill;
+- whether the chains strike where the areas reach, and whether 2 m is the right height for the arcs;
+- whether EVE's sword reaches it through the Gigas's hurt boxes, which sit on `Bip001` bones the Tendril shares;
+- how the Hydra's material looks on the Tendril's mesh, and which hit sounds the Gigas's sound set gives.
+
+## The cut Matrix XIII dungeon (experimental)
+
+WorldTable row `DLCMatrix13` (ID 2800) points to `/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P`, a map that no pak of
+build 24463856 holds. ZoneTable keeps its four zones (`Zone_DLC02_10` to `Zone_DLC02_40`, IDs 2800 to 2815) and
+EventSpawnTable 92 spawn rows for them, but no camp, zone warp, world transition or cheat row leads there. `coop mxiii`
+tests one way in. The zMXIII_P test pak, built outside the repository from shipped Matrix 11 levels and never in the
+mod's zip, puts a map at that path with a spawn point named `DLC02_10_Camp_01`; its v2 build adds the spawn points of
+a camp's objects, and its v3 build a spawn point named `DLC02_30_Camp_01` in the third zone. The mod adds the rows of
+a camp in `Zone_DLC02_10` and of a camp with no objects in `Zone_DLC02_30`, patches five trigger rows of the later
+zones in place, then calls the game's camp travel to one of the two camps (`coop mxiii 30` for the second). With the
+test pak installed and the game on the co-op save files, the same rows also go in at the title, before any save loads
+([At the title](#at-the-title)).
+
+### Its rows
+
+The camp travel (`FUN_141cdd7b0`, see [Following the host](#following-the-host)) looks the camp up in the zone
+manager's camp list, takes the camp's first ZoneEnvSpawnTable row, then that row's zone and the zone's world. The
+arrival (`FUN_141a8afe0`) puts EVE at the actor named after the camp, the test pak's spawn point. A camp's objects are
+ZoneEnvSpawnTable rows too: each row's `EnvAlias` picks the ZoneEnvTable row that gives the object its type and its
+interaction graph, and its `TargetCamp` is the camp that activating, resting, the phone booth and a respawn act on. The
+game keeps the DLC02_10 camp kit (`DLC02_10_EnvS_420` to `_426`), but its rows name placeholder camps of other worlds
+(`WLB10_Camp_05`, `SE02_Camp_02`) and expect actors placed in a map that no pak has.
+
+The mxiii rows batch, written by hand in `lion/rows.h` after the generated part and with patches of its own, adds ten
+rows, each a copy of a shipped row with its own name and ID:
+
+| Row | Table | ID | Template | Changes |
+| --- | --- | --- | --- | --- |
+| `DLC02_10_Camp_01` | ZoneCampTable | 280001 | `ME01_Camp_03` | `CoinSpawnPointName` `DLC02_10_E_ItemS_001`; `CampType` stays FullCamp, `CampDisplayType` stays WhenActive |
+| `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`, `EnvActorName` its own name; `ZoneList` stays `Zone_DLC02_10` |
+| `DLC02_10_EnvS_901` to `_905` | ZoneEnvSpawnTable | 2800032901 to 2800032905 | `DLC02_10_EnvS_420` to `_424` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` and `SpawnPointName` their own name; `EnvBPPath` the skill machine, chair, storage, turntable and phone booth blueprints under `/Game/GameDesign/Level/ZoneEnv/` |
+| `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same four, with `Env_VendingMachine`; `LinkEnvSpawnList` 901 to 905, in the template's order |
+| `DLC02_30_Camp_01` | ZoneCampTable | 281001 | `ME03_Camp_03` | None: `CampType` stays FullCamp, `CoinSpawnPointName` stays None |
+| `DLC02_30_EnvS_900` | ZoneEnvSpawnTable | 2810032900 | `DLC02_10_EnvS_425` | `ZoneList` `Zone_DLC02_30`, `TargetCamp` `DLC02_30_Camp_01`, `EnvActorName` its own name |
+
+`FUN_141d18100` lists a camp's rows in table order, and AddRow appends, so row 900 stays the camp's first: it leads the
+travel to `Zone_DLC02_10` and has no actor. The other six spawn their objects. `FUN_141d1e5b0`, which makes a zone's
+env objects, looks for a placed actor named `EnvActorName` when `EnvBPPath` is empty; with `EnvBPPath` set it spawns
+that class at the actor named `SpawnPointName`, as 137 shipped rows do (Xion's supply boxes, `DLC02_10_EnvS_441`), none
+of them a camp object until now. The blueprints are the six kit actors of the Space Elevator's full camp
+`SE02_Camp_02`. The vending machine row starts enabled and the others disabled: activating the camp with a coin sets
+it and every row in its `LinkEnvSpawnList` on. That list leaves out 900: the template links 425 for the camp base
+actor that a full camp places, and 900 has no object, as Matrix 11's simple camp `ME01_Camp_01` links only its
+objects. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
+at the spawn point of that name when EVE enters the zone. The camp keeps
+`ME01_Camp_03`'s name, picture and region, so the camp list shows it under Matrix 11. No dungeon has a world map in the
+game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
+
+The third zone's camp gives `coop mxiii 30` a way past the climb from `Zone_DLC02_20` (see below). It has the two rows
+a camp travel reads and nothing else: the travel reads only the camp's first env-spawn row (its `Zone`, else
+`ZoneList[0]`, then that zone's world), and the arrival needs only the spawn point named after the camp. No DLC02_30
+row is an activation-only one, so `DLC02_30_EnvS_900` takes row 900's template and gets `Zone_DLC02_30` as its
+`ZoneList`. The camp copies `ME03_Camp_03`, Area03's full camp with no coin, so it needs no coin point;
+`ME03_Camp_01`, whose site the v3 pak's spawn point takes (26392, -23650, 4414, Matrix 11's own arrival point for that
+camp), has one. With no object to activate, the camp never enters the save's activated camps or the camp list. The v3
+pak moves the six Matrix 11 kit objects placed around that site 40000 units down, as v2 does at the first camp's
+site: their rows belong to `Zone_ME_03`, which never starts in this world, and the vending machine's row
+`ME_03_EnvS_005` is one of the camp achievements' rows. For the same reason it moves the vending machines of the
+other Matrix 11 camps in its levels: two more in Area03, two in Area04 and one in Area01
+([Achievements](#achievements)).
+
+The two zone tables are the sixteenth and seventeenth of the 20 tables every rows request names (`kLionTables`), and
+only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
+them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
+line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
+its 38 patched fields back (the 33 of the camp rows and the 5 of the trigger rows below), `EnvBPPath` as text and
+`LinkEnvSpawnList`, `ZoneList` and `TouchEvents` as lists of names. The read-back compares an ID
+on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or not.
+
+### Its event spawns
+
+Of the dungeon's 92 spawn rows, 19 wait for props of the cut map. The 11 Antlions of `Zone_DLC02_20` are `ZoneEvent`
+spawns in three waves: when the countdown gates `DLC02_20_EnvS_014`, `_018` and `_016` reach their `Open` tag, their
+ZoneEnvSpawnTable rows run the zone events `DLC02_20_ZoneE_022` to `_025`, `_026` to `_028` and `_029` to `_032`, each a
+`ZoneEvent_Spawn` of one row. In `Zone_DLC02_40`, triggers `DLC02_40_ZTrigger_001` and `_002` start the chains of spawn
+rows 003 to 007 and 013 to 015 (each spawn event's `AddEvents` runs the next), but both start disabled, and only the
+drain devices `DLC02_40_EnvS_002` and `_003` enable them, through `DLC02_40_E_ObjectC_001` and `_002`. The gates and
+the devices are placed actors of the cut map, and the devices' interaction graph is a greybox asset missing from the
+paks, so none of these events fires. The test pak places every DLC02 trigger row on a box, so the smallest change is
+one field in five shipped ZoneTriggerTable rows:
+
+| Row | ID | Field | Shipped | Patched |
+| --- | --- | --- | --- | --- |
+| `DLC02_20_ZTrigger_001` | 280501001 | `TouchEvents` (`+0x20`) | empty | `DLC02_20_ZoneE_022` to `_025` |
+| `DLC02_20_ZTrigger_005` | 280501005 | `TouchEvents` | `DLC02_20_E_EnvC_030` | the same, then `DLC02_20_ZoneE_026` to `_028` |
+| `DLC02_20_ZTrigger_006` | 280501006 | `TouchEvents` | `DLC02_20_E_EnvC_031` | the same, then `DLC02_20_ZoneE_029` to `_032` |
+| `DLC02_40_ZTrigger_001` | 281501001 | `InitActivate` (`+0x1c`) | 2, Disable | 1, Enable |
+| `DLC02_40_ZTrigger_002` | 281501002 | `InitActivate` | 2, Disable | 1, Enable |
+
+ZoneTriggerTable (row struct `0xa8` bytes, ID at `+0x10`, no Transient field) is the twentieth table of `kLionTables`,
+and only this batch reads it. A row whose template is itself is a shipped row patched in place: the builder needs it in
+RowMap under its name and its ID in the ID map naming it, copies it into the block, patches the block and copies the
+block back over the row with CopyScriptStruct, which reassigns `TouchEvents` through the game's allocator. The row
+keeps its address, ID and lazy-init flag, and AddRow is never called for it, so nothing that holds the row loses it.
+`describe` says `15/15 in, 10 added through SB's AddRow 0x14417ba30 and 5 shipped rows patched in place`. A missing
+row refuses with `no shipped row of that name`, an ID that names another row with `ID <id> does not name it`. The
+trigger rows keep their shipped `SaveType`: `ResetZone` for 001, `Save` for 005 and 006, `None` for the zone 40 pair.
+When the game reads `InitActivate` and `TouchEvents` was not traced: the patches go in before the travel, so a zone that
+starts after it sees them whether it copies the row or keeps a pointer to it. The Antlions and Clrikets they spawn are
+species the other DLC02 rows already spawn, so their kills feed no achievement row the dungeon could not feed before.
+
+The rows cannot make the climb from `Zone_DLC02_20` to `Zone_DLC02_30` work. On Matrix 11's Area02 it runs on
+`Zone_ME_02`'s triggers (falling-train QTE sequences `MV_ME02_0x_QTE_*`, theater events and env controls of the ropes
+and trains, all `Zone_ME_02` rows) and on the cameras of `Matrix_XI_Area02_Sequence`, which the test pak does not
+stream. No zone volume of `Zone_ME_02` exists in the test map, so those rows never start, and no DLC02 row drives
+those actors. Making them start would take a `Zone_ME_02` volume in world 2800, and a zone of the Matrix 11 world
+starting there could write Matrix 11 zone state into the save, so the third zone's camp goes around the climb instead.
+
+### The command
+
+`cut/mxiii.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for `coop travel probe`'s
+guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under way and no travel
+accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
+`SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain text
+in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
+IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the game started passes the
+check although the engine mounts paks only at start. It reads those files once a command and never looks the map up with
+`StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss. Then the rows go in through
+`cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for `DLC02_10_Camp_01`
+(`DLC02_30_Camp_01` for `coop mxiii 30`), a camp in none of its tables (`probe(alias, true)`). `coop mxiii 30` stops
+before the rows unless the pak is v3: on v1 or v2 the arrival would find no spawn point of that name, and what it does
+then was not traced. The native side is the follow's: the guard, the count and the watch of `game/travel.h`. The
+travel's result comes in `[TR]` lines. The command's answer names the way out, `coop mxiii leave`: the follow's probe,
+with its activation read ([Following the host](#following-the-host)), to a camp the read lists among the 120 travel
+camps. The arrival at `DLC02_10_Camp_01` or `DLC02_30_Camp_01` makes it the camp EVE respawns at (`+0x26d0`), and
+neither camp is in a travel table, so each command keeps the camp she respawned at when it asked its travel, if the read
+lists it (inside the dungeon it keeps the one it had), and `leave` takes that camp first, then the camp she respawns at
+now, then the read's first travel camp. The kept camp lives in the Lua state only, so a reload of the scripts in the
+dungeon loses it.
+
+The check tells the three builds of the test pak apart by the `.ucas`, of which it reads up to 16 MB. A zen package of
+UE 4.26 keeps its own name map, in plain text when the container is not compressed, and an FName whose text ends in `_`
+and a number with no leading zero is stored as its base: v2's `MXIII_10_LD` holds `DLC02_10_EnvS`, the base of the six
+spawn point names, and v1 has no such name (its own names, such as `DLC02_10_E_CharS_001` and `DLC02_10_Camp_01`, are
+stored whole). v3's `MXIII_30_LD` holds `DLC02_30_Camp_01` whole, a name neither older build has. The checks line says
+which build it found and where its camp's spawn point stands: at the dungeon start (40368, 35663, -846) in v1, beside
+the camp objects at Matrix 11's first simple camp site (36624, 16140, -2136) in v2, and in v3 also where `coop mxiii
+30` arrives (26392, -23650, 4414). All three get the same rows; on v1 the objects find no spawn point and none appears.
+A container compressed with Oodle would read as v1.
+
+### The camp list
+
+`FSBGameWorld::Init` (`FUN_141c97ca0`, named by its own log line) makes a new zone manager at the world's `+0xe0`. Its
+setup (`FUN_141d1a520`, `FUN_141d1af70`) runs `FUN_141d18100`, which goes over every ZoneEnvSpawnTable row, adds each
+row with a `TargetCamp` under that camp at `+0x4a8` and each row to the env list of every zone in its `ZoneList`, with
+no world filter; `FUN_141d1a700` clears the list. Rows added after the current world started are then missing from its
+lists, and the first `coop mxiii` should end in `SB refused DLC02_10_Camp_01`. After the next world start (a save
+loaded, a travel to a camp), a second `coop mxiii` reads the rows back without asking again and travels, and the world
+it lands in lists the camp objects in `Zone_DLC02_10`. When the rows went in at the title, the first world
+started after it lists both camps already, and the first `coop mxiii` travels. This comes from reading the code; it
+has not run in game.
+
+### The save
+
+The save names camps and their rows in four fields: `USBSaveData`'s activated camps (`OpenCampAliases`, `+0x88`) and
+the row a camp was last used through (`LastInteractCampEnvSpawnAlias`, `+0x98`), and `FSBSaveGameData_Actor`'s last
+full camp and last simple camp rows (`LastFullCampEnvSpawnAlias`, `+0x26c`; `LastSimplyCampEnvSpawnAlias`, `+0x28c`).
+A death or a load resolves the last row to its camp. The vending machine's interaction graph saves after the
+activation and the phone booth's saves before its camp list (read from the graphs), so `DLC02_10_Camp_01` and the
+mod's rows are on disk from the activation on. Resting at another camp does not take the camp out of
+`OpenCampAliases`, and a rest at a SimplyCamp, such as Matrix 11's `ME01_Camp_01`, changes only the simple camp row
+and leaves `LastFullCampEnvSpawnAlias` on a mod row. The arrival of `coop mxiii 30` saves the game too (read from its
+code), with `DLC02_30_EnvS_900` as the save's camp row. What a load or the camp list does with a camp or row that has
+no table row (`ESBEnterGameResult_NotFoundTargetCamp`, a skip or a null read) was not traced. So the rows go in at the
+title whenever a co-op save could name them, and the usage section gives `coop saves refresh` at the title as the way
+back once the pak is gone. On the manual co-op slot that `StellarCoopSlot.txt` names, the game uses the player's own
+save files and the title adds nothing: there, as before, the rows exist only once `coop mxiii` has run in the game
+run.
+
+### At the title
+
+`cut/mxiii.lua`'s `title()`, called from `main.lua`'s 250 ms loop, asks the batch when three things hold: the title
+screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of `session/saves.lua`, so
+never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a Lua load, and nothing
+is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to keep: the 20 tables
+found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic task in flight), the
+shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`, nothing is asked again
+in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its 300
+frames (`busy`, `net` or `unread`), no answer, or an end before the request (a table not loaded) is asked again 10 s
+later while the title shows, at most four times a visit of the title. Any other refusal leaves the rows to
+`coop mxiii`. `coop off` drops the wait without an end, and the next call at the title asks again. The end's line says
+`before any save loads` only when the last call, at most 250 ms earlier, still saw the title with no save loaded;
+otherwise it says the title closed and that a save may have loaded first.
+
+What the title holds, read in Ghidra on build 24463856:
+
+- The tables. `FSBLocalClient::StartLobby` (`FUN_141cc8150`, named by its own log string) calls the table holder's
+  getter (`FUN_141a97f20`, the global at `0x147032510`). The first time, that getter loads every table of its list by
+  path (`FUN_1426292c0`, a `StaticLoadObject` of `/Game/Local/<path>`) and roots each one (`FUN_1426293f0` keeps a weak
+  pointer in the registry's first set at `+0x8` and sets the object's `RootSet` flag). StartLobby's reset
+  (`FUN_142629ed0`, a jump to `FUN_14c8618d0`) un-roots and drops only the registry's second set at `+0x60`, the
+  override set that `FUN_141c451b0` reads first while `+0x58` is set. So the 20 tables are in memory at the title and
+  stay rooted through the load that follows, and rows added there are in the objects the game reads after it.
+- The gate's globals. The logic singleton (`0x147032568`) and the net-mode cache (`0x147032528`) are made by their
+  getters (`FUN_141a97b20`, `FUN_141a97aa0`) on first use and never freed. The cache starts at 4 and takes the world's
+  mode at the first of the game's many inlined reads that resolves it (the dispatch's, `FUN_141aca570`,
+  `FUN_141d256c0` and others). The logic task at `+0x5c0` is set only by the logic dispatch (`FUN_141acd5c0`), which
+  waits for the last task and clears it before it starts the next. `FUN_14b85e230` registers that dispatch as a tick
+  once, at the first world start (`FUN_141c72100`, `FUN_141cd8590`), which also sets the logic's run flag `+0x5b2`
+  that the dispatch needs before it starts a task.
+- So at the title of a fresh game no logic task can be in flight, and the gate opens if both globals exist and the
+  cached mode reads 0. If a global is still unmade or the mode still reads 4, the gate stays shut and no table call is
+  made; the code does not show which of these holds at a fresh title. `coop-link.log` answers it in game:
+  `mxiii rows: 15/15 in, ...`, or `mxiii rows refused -: net mode 4 for 300 frames` or `no logic or net-mode global
+  for 300 frames`. After a return to the title the dispatch keeps running, and the gate waits for a frame with no
+  task, as in a world.
+
+The rows stay in for the game run, also when the player then turns the co-op saves off and loads one of their own:
+nothing in the main game leads to the dungeon or its camps.
+
+### Open questions
+
+- whether the native gate opens at the title of a fresh game ([At the title](#at-the-title)), and what a co-op save
+  that names a mod camp does when the rows are not in;
+- whether the game loads `MXIII_P` from a mod container, and whether it accepts retoc's zen output of a renamed map;
+- whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d18100` lists the camps of every world;
+- whether the camp arrival (`FUN_141a8afe0`) finds the spawn points named `DLC02_10_Camp_01` and `DLC02_30_Camp_01` in
+  the test map, and whether a death in the third or fourth zone brings EVE back to the second camp;
+- whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset), and
+  whether the camp list shows the camp once the vending machine has activated it: the list takes a camp with a row
+  whose active state is Active ([Following the host](#following-the-host)), and whether the vending machine's graph
+  sets that on the mod's rows was read from the interaction graphs, not run;
+- what the world map, the region name and the loading screen do with a world that has no map data;
+- what entering `Zone_DLC02_10` writes into the save. Its 15 spawn rows are `EnterZone` rows, so 14 Antlions and a
+  data drone should appear;
+- whether the five patched trigger rows start the waves of `Zone_DLC02_20` and the chains of `Zone_DLC02_40`, and
+  whether EVE can reach those zones on the test map at all.
+
+## The Night Operation shop screen
+
+`coop nightop shop` (`nightop/shop.lua`) sells the shop's seven items in the game's own shop screen, the vending
+machine's. Three parts make it work: a rows batch with the currency and the shops, a native opener, and Lua that keeps
+the wallet file the record of the points.
+
+### Its rows
+
+The cut `Shop_NightOperation` (ShopTable 1060) ships with 12 ShopItemTable rows priced in `Money_NightOperation`, the
+Beta Seed, whose name, function and lore keys ship in ItemStringTable but whose ItemTable row does not. Without that
+row the screen shows no price and the bucket cannot hold a seed. The sixth batch of `lion/rows.h` (`kShopRecipe`,
+request word `shop`) adds six near copies through the same build as the other batches, with ShopTable (row struct
+`0xa8` bytes) and ShopItemTable (`0xa0`) as the eighteenth and nineteenth tables every rows request names:
+
+| Row | Table | ID | Copy of | Changed |
+| --- | --- | --- | --- | --- |
+| `Money_NightOperation` | ItemTable | 9011 | `FishingPoint` | the seed's own text keys `Item_Money_NightOperation_*`, no drop pool, BetaCore's icon (no seed icon ships) |
+| `NightOperation_HP2Burst_Potion_Buy` | ShopItemTable | 3571 | `NightOperation_HP_Potion_Buy` | sells `HP2Burst_Potion` for 20 seeds |
+| `NightOperation_Buff_HP2MP_Buy` | ShopItemTable | 3572 | `NightOperation_HP_Potion_Buy` | sells `Buff_HP2MP` for 16 seeds |
+| `NightOperation_Bullet_Shock_Buy` | ShopItemTable | 3573 | `NightOperation_Bullet_Scatter_Buy` | sells `Bullet_Shock` for 5 seeds |
+| `Shop_NightOperation_Coop` | ShopTable | 1061 | `Shop_NightOperation` | currency `Money_NightOperation`, no tag, items 1 to 6 |
+| `Shop_NightOperation_CoopBolt` | ShopTable | 1062 | `Shop_NightOperation` | the same, and the Shock Bolt |
+
+The generator refuses a shop item priced in anything but Beta Seeds, with a second price, a gate (achievement,
+condition, condition group) or a linked item, a shop with a tag or a discount, and any name or currency that resolves
+to no row. Items 1 to 4 are the shipped rows with no gate, so no story gate is skipped. Lua opens a screen only once
+the stimpacks' item rows (in the lion rows batch) are in, since both shops list them, and sells the Shock Bolt only
+from the second shop, which it opens once `shock=in`. So every item a screen lists has its row, and a bolt the gun
+cannot fire never shows. What the screen does with a shop item whose item row is missing is not checked.
+
+Lua asks for the lion and bolt rows batches before the shop's. The worker takes one request a pass, so the lion rows,
+which have gone in through AddRow in game, usually land first. The rows of every batch share one SEH latch: a fault in
+the shop rows' AddRow turns every batch that is not in yet to fault until the game restarts. A latch for each batch
+would not contain that fault, because the lion, bolt and shop batches all write ItemTable, and a fault inside an
+ItemTable AddRow leaves that table in an unknown state for each of them.
+
+### The opener
+
+`nightop/shop_ui.h` (free of Windows, tested on the build machine) and `glue/tick/nightop_game.inc` make the calls the
+vending machine's interaction node makes (`SBInteractionNode_ShopUI`, its execute `FUN_141b89c80`), on the game thread
+under their own SEH latch. The UI manager is the client's `+0x48` (client global `0x147032520`, read directly and never
+through its getter, which allocates). An open needs the client in game (flow `+0xa00` 2) and playing (phase `+0xb9c`
+`0xe`) and no shop screen open (`FUN_141fc51d0` with the shop logic's type `0xab`); then `FUN_141fc4aa0` opens the
+screen (manager, type, no child list, no parent, 0, an empty FString, 0) and the shop logic (the entry's `+0x60`) takes
+the shop alias, the instance alias (the same: the rows keep `UnionLimitedItem`) and the title tag (None, as the cut
+machine leaves it) through `FUN_141f47130`. A close calls `FUN_141fc5120` with the entry's own type, the virtual at
+`+0x38` of its `+0x10`, as the node does. A new entry with no shop logic is closed the same way at once, and the open
+answers `logic`. A fault inside `FUN_141f47130` leaves the new screen up without its shop: the latch then stops every
+read and close, so the player closes it. A purchase is then the game's own local job (`FSBActorBuyItem`): it checks
+the seeds, removes them, raises its BuyItem and ConsumeInShop achievement events with the seed and the shop's (empty)
+tags, and adds the item through the bucket add `ItemBucketItemAdd` also uses.
+
+After the first request (Lua's `nightshop watch`), every 250 ms the game thread reads whether a shop screen is open and,
+with the client in game (flow 2, which the title screen fails) and inside the rows' gate (net mode 0, no logic task in
+flight, since a purchase is a logic task), the bucket's seed count through the screen's own call (`FUN_141c3e6c0` on
+`FUN_141cc1d60` of the player data, the world's `+0xe8`). The reads go on for the rest of the game run; whether a level
+load leaves the flow at 2 while the player data is torn down is not checked. The `nightshop=` status line carries both
+and the last request's answer. A close asked after `coop off` still runs.
+
+### The wallet
+
+The wallet file (`coop-night-<steamid>-<index>.txt`) stays the record. Before the open, Lua adds the wallet's points to
+the bucket as Beta Seeds, minus any seeds already there (or takes the surplus out), through the player controller's
+`ServerRequest_ItemBucketItemAdd` (no pickup message) and `ServerRequest_ItemBucketItemRemove` (any pocket), with
+`Money_NightOperation` only, and asks for the open once the count matches. While the screen is open, each new count is
+written to the wallet. After the close, the wallet keeps the last count and the seeds leave the bucket, through the
+controller and GUID read again then (after a map change the controller read at the open may be another object; Lua
+also stops before the fill when EVE's map changed during the rows). Until the open, each step first checks that the
+status still reads the wallet's co-op save (`slot=coop` with its index): on another save, or during a load, Lua stops
+with no seeds added, no open and no removal, since the bucket may then be another save's. A save made while seeds are
+in the bucket holds them: from the fill to the removal, or after a removal that failed, which the next
+`coop nightop shop` corrects. A game
+restarted from that save loads them before the shop's rows are in. A save restore does not change the points, as
+before. The run's start refuses while the screen runs, and so does a guest's answer to the host's run, so no credit
+lands while seeds are out. When a step fails, Lua asks for the close only once the game opened the screen for it,
+never after a refused open, when the screen up may be the game's own. `coop off` also asks for it while the open's
+answer is not read yet (about 250 ms), so a game shop screen that came up in that time closes too. When the screen
+ends early (`coop off`, a fault, a step that times out), the seeds that go are the last count read once open, and
+before that at least the count Lua added, since a read from before the add still says the old count. After a fault the
+native part no longer reads or closes the screen, so those seeds leave the bucket at once and a screen left open sells
+nothing. After a Lua reload, the first tick that reads seeds in the bucket with a shop screen open takes the screen
+over as open: only the screen adds Beta Seeds, so they are this wallet's. With no shop screen open, those seeds leave at
+once and the wallet is not written: after a removal that failed or an older save loaded, the bucket no longer matches
+the wallet, which stays the record as at a fill.
+
+## Roxanne's Night Operation choices
+
+`nightop/roxanne.lua` adds Night Operation's levels and supplies to Roxanne's dialogue on a co-op save. Her choice list,
+`TS_Xion_Roxane_Choice`, holds two TheaterSelectDataTable rows (Shop, End Conversation). The game does not read the list
+from the table when a dialogue starts: `FUN_141b41090` looks the list's name up in a cache built before play, a TMap at
+the world singleton's (`0x147032570`) `+0xe0` object's `+0x5f0` (elements of `0x28` bytes: the name at `+0`, its TArray
+of row names at `+0x10`, count `+0x18`, max `+0x1c`; find `FUN_1417022e0`), then fetches each listed row by name and
+reads its fields live. So writing a row's `SelectDataName` does nothing, and a row added with AddRow is not listed
+either.
+
+1. Text: the four labels go into the `DisplayText` of four shipped test rows that no story graph lists
+   (`Temp_TS_Select_Test_1` to `_3`, `TS_GoToTest_1`), in the game's language read each time the rows are armed
+   (KismetInternationalizationLibrary `GetCurrentLanguage`, mapped by `culture()`: `fr-FR` to `fr`, an unknown or
+   unreadable one to `en`; `nightop/roxanne_text.lua` has the 23 languages). The rows are armed at a Lua load, and again
+   when her choices come back after `coop off` or after a save that is not a co-op save. Going to the title and loading
+   a co-op save keeps the labels. No text key is registered: KismetTextLibrary `PolyglotDataToText` takes the languages
+   as a TMap inside its struct parameter, and UE4SS 3.0.1 converts a Lua table there from the wrong stack slot
+   (`Lua::for_each_in_table` walks slot 1, the outer struct's table), so the call raises, or reads the struct's own
+   fields, `CachedText` included.
+2. Rows: each is edited in place through the recruiter's checked edit (its ID and list checked, then
+   `InteractionGraphExec` `Success2`, the exec of her End Conversation, so her graph plays a goodbye and ends,
+   `NextTaskTagName` `None`, and `DisplayText` `FText(label)`), read back through a fresh FindRow. Either the shipped
+   value or ours is accepted, so a Lua reload goes on. A row that does not read back stops the arm, and every row is
+   put back, that one included. The exception is a Lua reload while the `roxanne=` line still reads `on`: her list
+   may show the rows, so they stay ours until the off of step 5.
+3. The list: `nightop/roxanne.h` (free of Windows, tested against fake memory) and `glue/tick/nightop_game.inc` point
+   her entry at a new array of six FNames, the four rows then her two, allocated with the game's GMalloc
+   (`0x14706b500`, Malloc at its vtable's `+0x10`) so the game may free it like its own. From the moment the entry
+   points at it, the array is the game's: it is used again only after off took it back, and an entry the game rebuilt
+   meanwhile gets a new one (the shape check compares the count too, as GMalloc may hand a freed array out again). The
+   entry is changed only while it holds exactly her two rows in her order; the old array is kept, and off puts the old
+   pointer, count and max back only while the entry still points at the new array. The entry is found again by name
+   at every step. The writes run on the game thread inside the rows' gate under their own SEH latch: the pointer
+   before the count when the list grows, the count before the pointer when it shrinks. All six rows read priority 0,
+   so End Conversation stays last whether the choice box sorts by priority with a stable order or not, and the cancel
+   input, which picks the last slot, still ends the talk. The `roxanne=` status line gives the entry's shape every
+   250 ms after the first request; Lua asks again when it reads `off` while it wants it on (a rebuilt cache).
+4. The pick: every 250 ms while EVE is in Xion, Lua looks for the choice boxes (`SBSequencerInteractionSelectWidget`)
+   through UMG's `GetAllWidgetsOfClass` (the engine's class lookup, not a walk over every object) and reads each one's
+   `SelectIndex`. A box found again keeps its last value (by address), so a box built for a later talk is watched
+   while an older one is still valid. A change from -1 to a line is a pick; a box first seen on a line holds an old
+   pick. The line's `DisplayText` (from `DataArray`) is matched against the labels in every language. A level is
+   booked and started through `coop nightop start <level>` once EVE is out of Xion (every 5 s, with that command's
+   co-op save and race checks). A host's start only asks the guest (the run's phase `ask`), so the booking holds until
+   the run leaves that phase: it goes once the run counts down, and a dropped ask is tried again 30 s later. The
+   supplies call `coop nightop shop` 5 s after the pick.
+5. Off: on `coop off` and on a save that is not a co-op save, `roxanne off`, asked again every 10 s while the `roxanne=`
+   line reads `on` (Lua's tick goes on after `coop off` for that alone, and the native part still takes an off then).
+   The rows get their shipped values only once the line reads `off` after an off it took, or `absent`: while her entry
+   may still list them, they keep `Success2`, which only plays her goodbye, and after a fault they keep it until the
+   game exits. Going off writes each row's Korean source (from `nightop/roxanne_text.lua`'s keys) back into
+   `DisplayText` as plain text, not the asset's keyed text. No vanilla list holds these rows, so the difference does not
+   show. A load (the title, a map, leaving Xion included) reads `slot=none` or `unknown` for a while: once armed, Lua's
+   tick only runs the drops below then, so the swap holds through it, and a booking and a supplies pick hold through a
+   map load. A supplies pick still goes 30 s after its screen was due (`SHOP_WAIT`), a load included. The title screen
+   (Lua's `puppet.world`, the `world=title` of `coop-state.txt`, since the status line has no such flag) and a co-op
+   save with another index drop the booking and the supplies pick: after the title, the slot loaded may hold another
+   file.
+
+Not checked offline: that UE4SS writes a TextProperty (`FText(label)`) into a row FindRow returns and reads it back
+through `U.text` (if not, the arm logs a `STOP: roxanne` line and puts the rows back), and that the choice box draws
+that plain FText; who builds the cache and whether anything rebuilds it (the `off` re-ask covers a rebuild); the
+choice box's sort; that `GetAllWidgetsOfClass` finds the box in this build; and whether the game builds a new box for
+each talk or keeps one (both are read).
 
 ## Developer flight and slow motion
 
@@ -1627,6 +2462,443 @@ With the flight gate on, the character tick starts a flight while the key is hel
 mode) and the time pool allows it (`RemainFlyingActionTime` at least `FlyingActionEnableRemainTime`, 3 s, and no
 cooldown), and ends it when the key is released. With the slow-motion gate on, holding R1 sets the time dilation to
 `TimeControlKeyScale` (0.2), and every tick without it sets 1 again, so slow motion ends by itself.
+
+The start and the level flight (`Hold` in `game/debug_keys.h`) set the flight key's flag after the game's key pass.
+The player controller's input pass (`0x1423c47a0`, its `ProcessPlayerInput(dt, paused)`) recomputes `USBPlayerInput`'s
+`bPushedFlyingActionKey` (`+0x193`) from the keys held each frame, through `0x1423c86f0`, and EVE's tick, which runs
+after the controller's, starts a flight while the flight flag reads true in the air and ends it when the flag reads
+false. A write from Lua came before the pass, which cleared it, and one from a
+hook on EVE's blueprint `ReceiveTick` came after the character tick's check: both times the flight ended 0.02 s after
+the keys were let go. The pass is called only through two vtable slots, `0x145cc74a8` and `0x145cd37a8` (its other
+references are unwind data). At the first `coop fly on` of a run, the worker swaps each slot by a compare-and-swap from
+the game's function to a hook of ours, only after checking that both hold exactly that function. The hook calls the
+game's pass, then, on the game thread, while both slots hold it, the fly gate is ours and the game is not paused, reads
+the controller's pawn (`+0x2f8`) and input handler (`+0x668`). The same pass sets `bPushedJumpKey` (`+0x197`) only
+from `DefinedJumpKeyLists` (`+0xF8`, at `0x1423c887e`), and `DefaultInput.ini` puts no key in that list, so the flag
+stays 0. The first version of the hook read it and counted no press in a test of 2026-10-26 (six presses in the air,
+no flight). The hook asks the game whether the space bar is down instead, through `FUN_14231f470`, the check the pass
+runs on each key of its lists: it looks the key up in the player input's `KeyStateMap` (the controller's `PlayerInput`,
+`+0x3F0`). A space typed into the co-op chat, a Space select in the co-op menu or saves list (they take the game's input
+with `SetInputMode_UIOnlyEx` while the game runs) and a key pressed in the Steam overlay never reach that map, so none
+of them counts as a press or drops a flight. The build before read the keyboard with `GetAsyncKeyState`, which saw
+those keys too. A press is the key going down. A key already down when the hook first reads it counts only once let go
+and pressed again. A Jump key rebound in the game's settings is not followed.
+
+The hook counts the space bar's presses since EVE left the ground. She is on the ground when her movement component
+(`ACharacter`'s `+0x330`) has a `MovementMode` (`+0x19C`) other than falling (3): the pinned build's `IsFalling`
+(`0x1440a5b80`, in the movement component's vtable) compares that byte with 3. There the count is 0, or 1 while the
+press she jumps with is still down or less than 0.3 s old (game time, from the pass's own delta), since her
+jump may leave the ground a frame or more after the press and a short tap can end before that. Each press in the air
+adds one. The third press arms the start: from then on, on every frame her `bFlyingAction` (`+0x1101`) reads 0, the
+hook writes 1 into the flight flag, as a held R2 would, whether the space bar is still down or not. The character tick
+starts the flight when its own checks allow it: no root motion from an action (the movement component's `+0xEA8`), no
+actor move (`+0x2470`), at least 3 s in the pool and 0.5 s since the last flight. The arm ends when the flight starts or
+she lands (the count back to 0 or 1), and `coop fly off` drops it. With `bFlyingAction` at 1 and the flight flag at 0,
+the hook writes 1, so she flies level. The press that armed the start is no press in the flight, even if it is still
+down. The next press stops the writes until the flight ends, so the space bar drops her, and the count starts over at
+0. Once a second, when a count changed, `coop-link.log` gets a line such as `fly hold: 5400 steps, 7 presses, 1 armed,
+12 armed writes, 1 takeoffs`: the hook's runs, the space bar presses it saw, the starts it armed, the frames it wrote
+the flag outside a flight and the flights it saw start. While `coop fly` is on, `cut/flight.lua` writes R2
+over Z (and over any third slot) in `DefinedFlyActionKeyLists` (`+0xC0`), so Z and S, which walk forward and back on an
+AZERTY keyboard, no longer start a flight; it puts Z back at `off`, `coop off` and the next Lua load. The reads go
+through `ReadProcessMemory`; the write runs under the hook's own SEH latch, and a fault puts both slots back for the
+run. `coop off` puts them back too. The pass recomputes the flag each frame, so nothing else needs putting back.
+
+## Cut glide
+
+`coop glide` (`cut/glide.lua`, not tested in game yet) plays the part of a cut piece of EVE's movement code. In the
+pinned build, `ASBCharacter`'s `bGlide` (`+0x1100`) has four readers and no writer. The movement component's gravity
+(`0x14214d380`, its `GetGravityZ` slot) checks it before the flight and the wall run and scales gravity by
+`GlideGravityScale` (`+0xC80`, 0.1). Its air control (`0x142154f80`) scales by `GlideAirControlScale` (`+0xC8C`, 1.0,
+the same as without a glide). The reflected `IsGlide` (`0x142686080`) returns it, and the movement debug print shows it
+as `Glide %s`. No instruction writes it, and nothing reads `GlideHoldKeyDurationOnJump` (`+0x1360`, 0.2) or
+`RemainGlideKeyHoldDuration` (`+0x1364`): the hold-Jump code that set and cleared the flag was cut. Unlike the flight,
+no setting gates it, so no write to the settings map could turn it on.
+
+`bGlide` is a reflected property, so Lua sets it. Each frame while `coop glide` is on, the module reads the player's
+EVE and her movement's `IsFalling`. In the air it also reads her velocity, `bFlyingAction` and the game's default Jump
+keys (`SpaceBar`, `Gamepad_FaceButton_Bottom`) through the player controller's `IsInputKeyDown`. A glide starts once
+Jump has been held for 0.2 s of her world time (`GetGameTimeSinceCreation`, which stops in the pause menu) while she
+falls with a velocity Z at or below 0 and is not in the flight, and it ends as soon as one of these no longer holds.
+The velocity check keeps a held jump from rising ten times higher, as the low gravity would also act on the way up. A
+hitch counts as 0.1 s at most, and another EVE (a map change) starts the hold over.
+
+The module writes `bGlide` only when a glide starts or ends, on the player's own EVE. It puts false back at
+`coop glide off`, at `coop off`, when her EVE changes and when the save is not a co-op one (`coop_slot`, read once a
+second). A failing frame puts it back and turns `coop glide` off with a line on screen. Since no code of the game sets
+`bGlide`, a true value at the next Lua load can only come from an earlier load, so that load's first tick sets false
+on the player's EVE when it reads true. The property is transient: nothing of it reaches a save.
+
+## Emotes
+
+`coop emote` (`cut/emote.lua`, not tested in game yet) plays one of 39 clips under
+`/Game/Art/Character/PC/CH_P_EVE_01/Animation/`: the 31 of `PhotoMode/` that are not in `Bear/` and not a `_Selfie`
+file, each a still (7 frames over 0.2 s, or 2 frames over 0.033 s) played in a loop; and, played once, the two selfie
+waves `PhotoMode/Hello_Selfie_L` and `_R` (3 s each, not additive) and six clips made for two enemies with no
+character folder, mesh, `CharacterTable` row or text string in the game files: for the Chariot, removed (an
+`EventSpawnTable` test row and `M_Chariot_Despawn` still name it), `Hit_Chariot_Confront` (14.8 s),
+`Hit_Chariot_ConfrontAttack` (10.0 s), `Hit_Chariot_ConfrontFail` (1.5 s) and `P_Eve_Sword_Normal_LinkAttack1_Chariot`
+(4.9 s); for Kali, which may be an early name of a shipped enemy (`M_Kali_Despawn` also names it),
+`P_Eve_Sword_Normal_LinkAttack1_Kali` (5.6 s) and `M_Kali_Beta_Grab` (5.8 s). All of them are on EVE's skeleton, with
+no additive type and no root motion. The command loads its clip (`Doro.resolve`: in memory, else `LoadAsset`), so the
+native call finds it in memory. A start is refused in the air or during a skill.
+
+The montage most likely shows nothing: `CH_P_EVE_01_AnimBP_New`, EVE's animation blueprint, has no slot node and no
+montage in the 2026-10-06 extract. SB plays her clips through its own custom animation nodes
+(`SBAnimNode_SequenceBlendedPlayer`, `CustomAnimNode` in that blueprint), fed by `ASBCharacter::PlayCustomAnim`
+(`0x1420ae740`, 38 parameters), which no reflected function reaches. It plays a clip in one of the character's custom
+animation slots (0x70 bytes each, the array at `+0x21b8`, its count at `+0x21c0`) and returns the play's FGuid, all
+zero when it refused: an additive clip, another skeleton, no animation instance, or a slot whose clip has a higher
+priority. Each tick `UpdateCustomAnimWeight` (`0x1420a7130`) moves a slot's time and weight; a clip played once blends
+out at its end and clears the slot's playing byte (`+0x18`), a loop with count -1 never does. Photo mode stops the
+player's custom animation. Photo mode's own poses do not use these clips either: its pose setter (`0x1420f12f0`)
+writes `PoseName_PhotoMode` and hands a pose snapshot baked from them to the animation instance, which the blueprint
+reads only in photo mode.
+
+So the native part plays the clip (`game/anim.h`, `glue/tick/anim_game.inc`). Lua asks
+`anim play <id> <path> once|loop` (the id counts up from the load's start time; the path must start with
+`/Game/Art/Character/PC/CH_P_EVE_01/Animation/`). On its next frame the game thread takes our EVE as the pawn
+(`AController::Pawn`, `+0x2f8`) of the player controller SB's getter `0x14231c710` gives, the actor
+`UEHelpers.GetPlayer` gives Lua, once it checked she is a live `ASBCharacter`, and calls SB's by-path entry
+`0x1420b31d0` the way the MovingTarget animation calls it (`0x1420909c3`): slot 0, the path as a `const FString&`,
+start 0, end -1 (the whole clip), rate 1, 0.25 s blends, -1 for SB's own stop at input (off), the loop flag with count
+-1 or none, priority 0 (the flight start's), and five empty
+`FString` arguments, which that function frees only when their data is set. It loads the path as a
+`UAnimSequenceBase`, applies the priority rule, builds the other defaults itself and returns 0 once it played, 1 for an
+additive clip, -1 when the clip did not load or the slot's clip outranks ours; the FGuid comes back in its fourth
+argument. The flight start's wrapper `0x1420af3c0` was not used: it has no loop flag. `anim stop` calls SB's stop
+`0x1420addc0(character, 0, 0.25, the clip's FName, 1)`, which blends the slot out only while it holds that clip.
+While ours plays, the game thread reads slot 0 every 100 ms after checking the character is still the live object it
+played on: another FGuid, a cleared playing byte or a gone EVE end it, and a slot that took no weight in 1 s (SB's
+node is not playing it, so its time would never move) is freed and reported as `ended:weight`. Only time in a world
+that is not paused counts toward that second: the weight moves in her tick (`0x1420a7fd0`, the only caller of
+`UpdateCustomAnimWeight`), which a paused world does not run, so while the slot has no weight yet each watch asks the
+photo pause's read of the WorldSettings' `PauserPlayerState`. A new Lua load and `coop off` stop ours. A play taken
+while ours still plays stops ours first, and a play taken in the same frame as a new Lua load or after `coop off` is
+refused (`session` or `off`), so no clip of ours goes unwatched. All of it runs on the pinned build under its own SEH
+latch; the first fault tries once to stop ours and turns the native clips off for the run.
+
+The engine status line carries `anim=<state> anim_id=<id>` for the last play the game thread took (`idle`, `playing`,
+`ended`, `ended:weight`, `stopped`, `refused:<eve|slots|game|off|session>` or `fault`). Lua sends a start only while
+that field is there and not `fault`, and acts only on its own id: `ended` and the refusals end the emote with nothing
+to stop, and no answer in 5 s ends it with `anim stop` asked anyway. Each frame while one plays, the module reads that
+field (every 0.1 s once it says `playing`), `GetLastMovementInputVector`, the movement's `IsFalling` and
+`IsRunningSkill`, and asks `anim stop` at movement input longer than 0.1, in the air or at a skill.
+
+Without that field (no native part, another game build) or after its fault, the module calls
+`PlaySlotAnimationAsDynamicMontage(clip, DefaultSlot, 0.25, 0.25, 1.0, loops, -1, 0)` on the animation instance of
+EVE's main mesh, with 1048576 loops for a pose (the still holds for hours; 0 would end it at once) and 1 for the rest,
+reads `Montage_IsPlaying` each frame and calls `Montage_Stop(0.25)` at the same end rules. The next Lua load stops a
+montage under `/Engine/Transient` (a dynamic one; the game's montages come from its packages) left on the player's
+EVE. Nothing new travels between the two games: the ghost copies the bones the pose stream carries.
+
+## The cut Load Shortcut menu
+
+`coop shortcut` (`save/shortcut.h`, `glue/tick/shortcut_game.inc`, not tested in game yet) lists the saves of a cut
+chapter loader. What the pinned build keeps of it:
+
+- The title screen's widget `WB_Lobby_Menu_Set` has a `WB_Lobby_Menu_Btn_ShortCut` button, collapsed, whose text key
+  `UI_Lobby_ShortCut` is in no string table. The lobby's set-up (`FUN_141ef0e70`) gives a click handler to 14 named
+  buttons, and this one is not among them.
+- The `ShortcutGame` menu (UI logic 130, constructor `FUN_141f5efd0`) lists slots 1 to 4 of one map, the one the
+  constant `ShortCutMapPath` names (`FUN_141f60140`). `FUN_1422907c0` builds each path as `"%s%s%s/%s%02d.sav"`
+  (`FUN_142324b70`: the project's content folder, `ShortCutRootFolderPath`, the map, `ShortCut`, the slot), reads the
+  file the way `FFileHelper::LoadFileToArray` does, turns it into a save object and keeps a few fields of it for the
+  slot.
+- The menu's Accept branch (`FUN_141f5f9b0`) copies the chosen slot, calls `GetBestSaveSlotNum` (`0x142290b50`) and
+  drops its result, then asks for the lobby's UI logic and drops that too: the load itself was compiled out. The
+  cheats `SBLoadFromShortcut` and `SBLoadShortcutData` read their parameters and return.
+- The paks hold 15 such saves under `SB/Content/System/Waypoint/`: B07 4, F02 3, G03 4 and Matrix_XI 4. G03's slots
+  2 to 4 are byte for byte F02's 1 to 3.
+
+The list makes the menu's own calls, on the game thread, one file a frame, under its own SEH latch. It reads the file
+manager object that `IFileManager::Get()` (`FUN_142820e70`) returns, a function-local static at `0x14710a7a8`, and
+checks its vtable (`0x145f5c9a0`). It calls `CreateFileReader` at vtable `+0x18` (`FUN_142811eb0`) with the path
+`../../../SB/Content/System/Waypoint/<map>/ShortCut0<n>.sav` and flags 0, so a missing file returns null instead of a
+fatal error. On the reader it checks the vtable (`FArchiveFileReaderGeneric`, `0x145f5bc60`), then calls `TotalSize`
+(`+0x30`), `Serialize` into a buffer of ours (`+0x150`), `Close` (`+0x1b8`, false after a read error) and the deleting
+destructor (`+0`). The bytes go to `shortcut::parse()` and are then dropped. It reads the GVAS header's engine branch,
+`MapName` and `CampAlias` in the map property `DataMap_FString`, and `DateTime` in `DataMap_int64`, each searched only
+within its own map's bytes. An EVAS header is stripped first when there is one, as the game's slot loader does.
+Nothing is written. The worker logs a line per file and a summary, which reaches `UE4SS.log` as the status's `last=`
+line. A fault ends `coop shortcut` for the run.
+
+### Loading one
+
+`coop shortcut load <map> <1-4>` (`save/shortcut_load.h`, `Convert::plant` in `save/twins.h`, not tested in game yet)
+writes one of the 15 files, cleaned, as co-op slot 5 (`StellarBladeCoop04.sav`). The player then loads it with the
+game's own Load Game. It is refused unless `coop-settings.txt` has `shortcut_load=on` (off by default), and
+`commands/cut.lua` sends the request only when the same words come twice within 10 s.
+
+What the files are, against a save of the released game (2026-10-26):
+
+- Format. The files are bare GVAS, with no EVAS header and no CRC. Eleven come from UE 4.26 (package version 522) and
+  Matrix_XI's four from 4.25 (518), against 525 for the released game's saves. Their dates run from March 2021 to July
+  2022. The game's slot loader (`FUN_141cd5e10`) hands the bytes to the engine's `LoadGameFromMemory`
+  (`FUN_1441fbbc0`), which reads a save with the package and custom versions its own header names, and its account
+  check (`FUN_1421d1390`) passes a save with no `OnlineAccountInfo`.
+- Missing fields. None of the 15 has `NewGameCreateTime`, `LevelActorStorage`, `UIStorage`, `EventGiftInfo`,
+  `NikkeStageInfo`, `SaveFileVersionInfo`, `OnlineAccountInfo` or a `GameDifficulty`, and only G03 1 has
+  `GamePlayProgressRecordData`. The game creates the save object before it reads the properties, so a missing one
+  keeps its default.
+- Content the game no longer has. Six of the 12 distinct files hold items with no `ItemTable` row in their inventory:
+  `BS_Attacker`, `BS_Defender`, `Buff_HP2MP` and `Gear_NarrowVision_Rare` (Matrix_XI 1 to 4),
+  `DesignPattern_Blue_Suit`, `DesignPattern_Sailor_Jean` and `DesignPattern_Black_Leather_bikini` (F02 2 and 3).
+  `DataMap_SBActor`'s `PlayerActor` names some of them too. In Matrix_XI 1 to 4, EVE wears `BS_Defender`: its
+  `Equipment` entry for slot 5 points at that inventory element by `SavedGuid` and `PocketGuid`, and
+  `BodySuitSlotArray` names it. Matrix_XI 2 to 4 have `Buff_HP2MP` in `ItemQuickSlotArray`. `BodySuitSlotArray` names
+  `BS_Attacker` in all 12, as it does in the released game's own saves. Names such as `betacrystal` or `PT_crowd`
+  differ from their row only in case, which an FName ignores. Matrix_XI 1 has three quests with no
+  `QuestTable` row (`SQ_ME_KillTumblerDrone`, `SQ_ME01_GetFusionCell01` and `02`), and F02 1 and 2 name task groups
+  in an older form (`CQ_DED01_KillTumblerDrone_T01`).
+- Achievements. Every file but Matrix_XI 1 has a top-level `SBAchievement` struct: its `AchievementList` holds
+  `{AchievementAlias, ProgressValue, bCompleted, bRecievedReward}` entries. F02 2 holds `DED_Opener_KillCharacter`,
+  `DED_GrubShooter_KillCharacter` and `DED_Gigas_KillCharacter` as done, which are trophies 3, 4 and 5 in
+  `TrophyTable`. F02 3 holds those and `ME_Stalker_KillCharacter`, `ME_Juggernaut_KillCharacter` and
+  `ME_Tachy_KillCharacter` (trophies 8, 9 and 10), with progress toward trophies 28 to 31 and 43. G03 3 and 4 are the
+  same files. No achievement name appears anywhere else in the 15 files.
+
+The game runs nine fix-up passes on a loaded save (`FUN_1421def10`, reached through no direct call, with the save
+object as its second argument). `SBAchievement` is the save object's `+0x2c8` (the `USBSaveGame` layout of a
+Dumper-7 SDK of the game), and each pass reads these fields:
+
+| Pass | Reads | Writes |
+| --- | --- | --- |
+| `FUN_1421defb0` | `SBAchievement`: its `Ach_Album_Unlock_*` entries | the count of them into the `Trophy_KillCharacter_AllNative` entry, when the list has one |
+| `FUN_1421e1ff0` | `SBAchievement`: `Trophy_KillCharacter_AllNative` | an achievement event for it (the pool `FUN_1421f1920`, the list at the manager's `+0x50`, when its `+0xe0` is 1): the path to Steam |
+| `FUN_1421e21f0` | `SBAchievement`: `Trophy_WeaponMaxUpgrade`; `DataMap_SBActor`'s `PlayerActor` | `PlayerActor`'s weapon level |
+| `FUN_1421e2650` | `DataMap_SBQuest`'s `Quest_Epic_Hidden` (M05 to M07); `DataMap_SBEnv` objects of `Zone_DED40` | a stuck DED40 object's position |
+| `FUN_1421e31f0` | `DataMap_SBEnv`'s `DED20_E_EnvC_002` and `DED20_EnvS_250` | their On or Off state |
+| `FUN_1421e3860` | `SBAchievement`: one completed entry; `DataMap_SBEnv` objects of ME_03 | a Matrix 11 object's state (`OpenMode_Burst`, `ToOpen`, `Closed`) |
+| `FUN_1421e41e0` | `DataMap_SBItem`'s `Item` inventory: six gears; `SBAchievement`: `Kill_Character_*`, `ChangeState_*` and record entries | completed `Ach_BossChal_Unlock_*` entries added to `SBAchievement` |
+| `FUN_1421e5e60` | `DataMap_int32` (a New Game+ count), `NewGamePlusBaseData`, two `_MK2` gears in the inventory, `SBAchievement`'s `Nest_Ending` | `NewGamePlusBaseData` |
+| `FUN_1421e62b0` | `DataMap_SBActor`'s `PlayerActor`; `DataMap_SBEnv`'s `SE_06_EnvS_071`, `SE_07_EnvS_001` and `SE_07_EnvS_076` | `PlayerActor` |
+
+So only `FUN_1421e1ff0` turns save data into an achievement event, only from the achievement list, and only
+`FUN_1421e41e0` makes achievement data from anything else: from six gears in the inventory
+(`Gear_HighHpDamageAdditiveRate_Common`, `Gear_KillEnemyAdditiveDamageRate_Common` and `_Uncommon`,
+`Gear_GainBurstGaugeValueOnDamaged_Common` and `_Uncommon`, `Gear_AdditiveGiveAndReciveDamageRate_Rare`), none of
+which the 15 files hold. The game's save builder (`FUN_1421d3ec0`) copies the running achievement container into
+`+0x2c8` when it saves, which is the same list in the other direction.
+
+`shortcut::clean()` therefore:
+
+1. Takes only the 15 files of the pinned build's paks, by their CRC-32 (12 distinct values, in `kPinned`). Any other
+   bytes are refused.
+2. Walks the GVAS body's top-level tags (each tag's name, type, size, index and type-specific header, its value
+   skipped by its size) and drops the `SBAchievement` property whole. The save object then starts with an empty list,
+   so the passes that read it find nothing.
+3. Rebuilds `DataMap_SBItem`: in each entry's struct, the `Inventory` array loses the elements whose `ItemAlias` or
+   `ItemInstance.ItemAlias` names one of the six gears (case ignored), and the `ItemOtaineSet` set loses the same
+   names. The array's count, its inner tag's size and the sizes of `Inventory`, `ItemOtaineSet` and `DataMap_SBItem`
+   are set to the new lengths. Everything else is copied byte for byte, the GVAS header included. None of the 15
+   files holds a gear, so for them this step changes nothing. The seven items with no `ItemTable` row stay as saved:
+   removing their inventory elements would leave EVE's suit in Matrix_XI pointing at an element that no longer
+   exists.
+4. Wraps the body as the game's save writer wraps its own (`FSBSaveSystemWindows::OnCompleteSerialize`,
+   `FUN_1421f5de0`): `EVAS`, the version byte 1, three bytes the writer leaves unset (0 here, as in most real saves;
+   one real save seen holds `47 61 3e`), the body, then its CRC-32 (`FUN_1428dbbd0`, zlib's) in little endian.
+   The game's validity check (`FUN_1421f4e00`) compares that CRC.
+5. Checks the result before it is written: the game's own check (EVAS, version 1, CRC), a body of class
+   `/Script/SB.SBSaveGame` whose tags all fit and end in `None` with the 4 trailing bytes, no `SBAchievement`, a
+   `DataMap_SBItem` that parses, and none of the six gears anywhere in the body (any whole string, case ignored). A
+   save that names a gear outside the inventory, in `PlayerActor`'s equipment or quick slots, is refused.
+
+`tests/native/save/shortcut_load_test.cpp` cleans the 15 files themselves when the machine holds the research copies:
+each passes that check, holds none of the strings `Achievement`, `Trophy` or `Ach_`, and is the file without its
+`SBAchievement` bytes, byte for byte. Against the table's dump, the only inventory items with no `ItemTable` row are
+the seven above. A parse of the 15 results with `tools/gvas.py` (EVAS, CRC, header and every property, 2026-10-27)
+read them whole.
+
+The write is a co-op saves pass (`Switch::plant`), refused unless the game uses the co-op copies (`saves=coop`), the
+title is shown with no save loaded and no load asked (client `+0x86c` is 0), the Steam account is known and no other
+pass runs. The game thread reads the file through the file manager as the list does and keeps its bytes; the worker
+cleans them; the pass backs up the current `StellarBladeCoop04.sav` into a new folder of `StellarCoopBackups` (the
+whole backup of a first conversion when there is no manifest), writes the mark `StellarCoopShortcut04.txt`, then the
+cleaned save beside the copy as `.coop-tmp`, renames it over the copy and reads it back. The manifest then has no line
+for slot 4, so later passes count it as played and keep it. `saves export` refuses slot 4 while the mark is there,
+and only a later copy of the player's own save into slot 4 removes it. Every write goes through the co-op saves' name
+check, and the player's own `StellarBladeSave0N.sav` files are only read, by the backup.
+
+The load is the game's own Load Game. Picking the fifth slot stores the slot at client `+0x868` (`FUN_141eee190`)
+and starts the lobby's fade; the start of play (`FUN_141cd6890`, run by the client's start-step queue in
+`FUN_141ccbb30`) then calls `FUN_141cd5e10(client, slot, 0, ...)`, which reads `StellarBladeCoop04.sav` through the
+save system, strips the EVAS header, loads it (`FUN_1441fbbc0`), checks its class and account, and applies it
+(`FUN_141cd7480`). The mod does not call `FUN_141cd5e10` itself: the game calls it as one step of that start
+sequence, after the fade, the level travel and the prep calls `FUN_141cd6890` makes first, and none of that can be
+tested without the game. The title's slot list is not rebuilt, so the fifth slot may show the old copy's details;
+the file is read when the slot is picked.
+
+What the cleaning does not cover:
+
+- The developer's progress stays: quests, zone objects, skills (`DataMap_SBAcquisitionSkill`), items, camps and
+  `GamePlayProgressRecordData` in G03 1. The game counts collection achievements from events as the player adds to
+  them, and whether any of those counts read the save's contents again was not traced. A load can therefore still
+  unlock a Steam achievement during play, and a Steam achievement cannot be taken back. That is why the command is
+  off by default, and why [usage.md](usage.md#loading-one-coop-shortcut-load) says to try it only on a Steam account
+  whose achievements do not matter, with Steam Cloud off.
+- The seven items with no `ItemTable` row stay in the inventory, in `PlayerActor`'s equipment and in its slot lists,
+  where the developer left them. How the game loads an equipped or held item with no row was not traced. Some of its
+  item code checks for a missing row and logs it (`FSBUILogicReward::AddItem`, `FUN_141f36090`: `Failed to find
+  ItemTableProperty`). Matrix_XI 1 to 4 and F02 2 and 3 are the files that hold them.
+- The quests and task groups with no row stay in `DataMap_SBQuest`; what the game does with them was not traced.
+- Nothing was tried in game, so whether these old saves load at all, and where they start, is untested.
+
+The lobby's ShortCut button stays hidden: its menu's load call was compiled out, and this command does not use it.
+
+## Developer menu and panels
+
+The game ships its developer cheat menu as assets only. The UI definition `/Game/Art/UI/Definition/DebugCommand` names
+`WB_DebugCommand_Master` with `ESBUILogicType_DebugCommand` (191), and the widget is a plain `SBUserWidget` whose list
+and buttons a native UI logic would fill. SB registers one prototype logic per type at startup (the static initializers
+that call `0x141fc33a0`); the open path (`0x141fc4aa0`, through `0x141fc4d20`) clones the prototype of the type asked
+(`0x141fc3220`). Of the 220 initializers, 218 resolve to a type through the getter at their vtable's `+0x10` (`mov eax,
+<type>`), and 191 is not among them, nor are the other debug panels (DebugViewer 193, HUDRealTimeDebug 194, the sound
+debuggers 195 and 196, FishingDebugger 49, BossChallengeDebugInfo 240). HUDQuestDebugger (51), DebugToastMessage (230)
+and DebugPlayerInfo (232) are.
+
+Each `CheatCommandTable` row is a console command for `USBCheatManager`. The class's native function table
+(`0x145dbc690`, 703 name and thunk pairs) points to 111 distinct thunks, and every thunk but one calls only the
+parameter readers (`FFrame::Step` and its typed helpers, `FMemory::Free`, the FString copy): the bodies are compiled
+out. 267 names share the empty thunk `0x141167170`. The one with a body, `SBLoadingScreenFadeAuto` (`0x14269e260`),
+is in no row. The 157 command words of the table include none with a body. The table's queue for game play progress
+cheats (`0x141c94fb0`) runs its rows through `APlayerController::ConsoleCommand` (vtable `+0xcd0`), so they end in the
+same stubs.
+
+What still runs is the controller's `ServerRequest_Cheat`, whose logic job (`FSBCheat::Simulate`, `0x141b11800`) knows
+`SBSuicide`, `SBPlayerRevival`, `SBPlayerSP`, `SBApplyEffectMe`, `SBLogPlayerLocation` and `SBPlayerMaxTachyGauge`.
+The table uses three: `SBApplyEffectMe` in 82 rows (64 effects, 62 of them in the shipped EffectTable), `SBPlayerSP`
+in 4 and `SBPlayerRevival` in 1. `coop devmenu` (`cut/devmenu.lua`) keeps 20 rows of 23 effects, which 35 table rows
+call (Common 25, Battle 7, CombatTestMapMk2 2, System 1). Each is applied as the menu's rows would have been:
+`ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "<ID>")`, through `cut/chainspin.lua`'s one call
+(`ChainSpin.apply`) after its checks (`ChainSpin.target`: `warp=idle`, `me=` not 0, EVE in the world, the
+controller). The menu passes effect names, and the job reads a number, so the module reads the ID from the
+EffectTable row of that name (`FindRow`) at each use. Effects on enemies use the test target filter
+`TestEffect_Enemy_Target`, `clear` uses `TestEffect_All_Target`. The attack rows are `EffectOverlap_Overlap` (+4 or
++29 to `PhysicAttackPowerRate` and `ShieldAttackPowerRate` at each run), so they add up; the speed rows are
+`EffectOverlap_Unique`. With shared enemies on, the attack rows' damage and the balance `enemybalance1` takes reach
+the shared HP and balance like any hit, and so the friend's game; the other enemy rows act on the local copies only.
+
+Both dispels (`Test_EffectDispelEnemy`, `Test_EffectDispelAll`) hand their targets `Test_EffectDispelAll_Effect`
+(target `Self`, `DispelFlagsArray` `TestEffect`), which removes the `TestEffect` flag that every lasting row's effect
+carries but `nolockswitch`'s (flag `LockOnDelivery`, which `lockswitch` removes). Their own `DispelFlagsArray`
+(`TestEffect`, and `Groggy` for `clear`) most likely acts on the effect's owner, EVE: the game's
+`P_Eve_Stance_GunTutorial_End` targets `Ally_Drone` yet lists EVE's stance flags, and hands the drone a child effect
+of its own. So `enemyclear` probably ends EVE's lasting rows too, and no row removes the menu's
+`Test_EnemyEffectGroggy` (its `Test_GroggyInfinite` on the enemies has flag `Groggy` and `EffectLifeType_Infinite`).
+No effect has `bEnableSave`; that a save load ends them is expected, not checked. `coop off` calls the module's stop
+before it asks the native part off, while the engine line still has `warp=` and `me=`: when a row reached the game in
+this Lua load or an earlier one (`coop-devmenu.txt`, written at the first row and deleted by that stop), it runs
+`clear` and `lockswitch` once more. That try goes through the same checks, so a warp under way skips it, and `clear`
+reaches only the enemies near EVE then.
+
+The rows left out: the enemy kills (`ImmediateDeath`) and the thirteen HP cuts (a lethal drop would credit our EVE,
+see [Achievements](#achievements)), the TPS unlock (`ActorStatType_UnlockTPSMode`), the consumable stacks,
+`FishingGod`, `SBPlayerSP`, EVE's death and revival, the test stances, `Test_MaxHPUpAll` and `Test_MaxShieldUpAll`
+(all actors), and the five lasting effects no dispel row reaches (`NoDamageNoHitImmuneAbnormal_Infinite`, the two
+`Test_Final*DamageReduce_080p`, `T_Drone_NoCoolScan` and `Test_EnemyEffectGroggy`).
+
+`coop devinfo` (`game/dev_panels.h`, run by `glue/tick/debug_game.inc`) opens the two registered read-only panels
+through the client's UI manager (`FSBUMGManager`, the client global `0x147032520` at `+0x48`). The quest debugger's
+logic (vtable `0x145c31fc8`) builds its text in its tick (`0x141e99710`, the vtable's `+0x48`, which the manager's tick
+`0x141fc5440` calls for each open UI) from the quest manager's quests, task groups and tasks, and sends it to the
+widget as a `LogMessage` notification. The player info's logic (vtable `0x145c209e8`) sets `PlayerTagName: %s` from
+the client's string at `+0xe0` once at its start (`0x141d854c0`). The cheats meant to show them
+(`SBQuestDebuggerShow`, `SBHUDPlayerInfoDetailToggle`) are on the empty thunk. The calls copy SB's own: find
+(`0x141fc51d0`, the open entry whose logic has that type), open (`0x141fc4aa0(manager, type, null, null, 0, &FString{},
+0)`, as the client tick `0x141cd2e50` opens type 235) and close (`0x141fc5120(manager, type)`, the type read through
+the virtual at `+0x38` of the entry's `+0x10`, as `0x141abe390` closes type 242). An open waits for part of the guard
+the client tick checks before its own open: flow 2 at `+0xa00` and phase `0xe` at `+0xb9c`. The tick also needs
+`+0xa21` not 1, not both `+0xb60` and `+0xb61`, the local player's `+0x25` at 3 (`0x141cff700`) and `0x141cf0580`
+true; their meaning is unknown and the mod does not read them, so a panel may open where the game would not open its
+own. Both panels are untested in game. The client is read from its global,
+never through `0x141a978c0`, which allocates it. The worker hands the ask over with a number; the game thread takes it
+with `try_lock` at its next frame, under its own SEH latch, and hands back the number, the panel, the reason for a
+refusal and what it opened and closed. Lua's `coop off` asks `devinfo off` before `off`, and the game thread takes it
+after the block too.
+
+## Cut mailbox
+
+`coop gift` (`cut/mailbox.lua`, not tested in game yet) carries consumables from one player's co-op save to the other's.
+
+### Why the game's mailbox is not used
+
+The mailbox's UI logic (`ESBUILogicType_MailBox`) is still compiled in, unlike the Load Shortcut menu's load call. Its
+open (`FUN_141ef3850`) takes the mailbox object's alias from its init parameter, builds the list from
+`MailBoxGiftTable` rows whose `EnableMailBoxEnvSpawnList` holds that alias, and marks a row received when its
+`EventGiftAlias` is in the game data's received list (`+0x848`, its array at `+0x850`). Its confirm handler
+(`FUN_141ef4db0`) calls `FUN_141cfd8e0`, which adds the gift's alias to that list, looks up its `EventGiftTable` row and
+grants each item through `FUN_141cfde20`, a grant of its own that builds an item instance and queues an add. The save
+struct has the same kind of list (`FSBSaveGameData_EventGiftInfo.GiftList`, an array of names), which is where the
+received list most likely goes.
+
+Feeding it would mean rows in two tables, a second grant path and a mod alias in the save's received list, so the mod
+keeps its own list on disk and only shows the cut toast: `WidgetBlueprintLibrary::Create` with
+`WB_MailBox_Toast_GetGift_C`, its `Text_Title` set, `AddToViewport` and its `Play` function. `Play` starts its `In`
+animation, whose event track calls the widget's `Toast In Play Sound` (from the offline dump of the widget; what that
+function plays is not read). The toast comes off after 4 s, and its first failure turns it off for the Lua load. The
+widget has no removal of its own, so while it shows its object path waits in `coop-gift-toast.txt`, and the next Lua
+load's first tick takes off a toast an earlier load left on screen.
+
+### The inventory read
+
+SB has no reflected function that returns how many of an item EVE carries, and its remove by alias takes what there is
+when asked for more, so the native part reads the count itself (`game/items.h`, `glue/tick/items_worker.inc`). Lua asks
+`items <ask> <alias> <FName index> <FName number>`; the worker reads at once through `ReadProcessMemory`, EVE's GUID
+(client `+0x58`) included, apart from the revive guard and its latch, and the engine line of `coop-status.txt` gets
+`items=<ask> <count>` or `items=<ask> none <why>` (`unpinned`, `noeve`, `nomanager`, `nobucket`, `unread`; after
+`coop off` the status leaves `items=` out and only the worker's log line has `none off`).
+The read follows the game's own lookups on build 24463856:
+
+- the item bucket manager, a lazy singleton at `0x147032568` (its getter `FUN_141a97b20` makes it when null; the read
+  never does, so 0 is no inventory yet);
+- its bucket map at `+0x2b0`, from the bucket type (1, the inventory) to a map from the owner's GUID to the bucket,
+  both keyed by an int that is its own hash (`FUN_141ad7250`);
+- the bucket's map at `+0x90` from the item's alias (an FName) to the GUIDs of its instances, hashed as UE 4.26 hashes
+  an FName (`FUN_140ecc610`, the find that the remove by alias `FUN_141bde8c0` calls);
+- the manager's instance map at `+0x210` from an instance GUID to the item, hashed with CityHash64 of its 16 bytes
+  (`FUN_142835af0`; the test checks the result against that function run in Ghidra's emulator), and each item's count
+  at `+0x6c`, the field the remove lowers.
+
+Each set is a TSet: its element array at `+0`, the array's count at `+8`, its free count at `+0x34`, an inline hash
+bucket at `+0x38`, the hash array at `+0x40` when there is one and its size at `+0x48`. A chain longer than the array,
+an index outside it, a hash size that is not a power of two or an implausible pointer ends the read as `unread`.
+
+### The remove, the gift and its answer
+
+The remove is the player controller's `ServerRequest_ItemBucketItemRemove(1, <GUID>, <alias>, <count>, -1)`. Its
+implementation (`FUN_1423ba230`, vtable `+0x13d8` of the network player controller, behind a validate that returns true)
+queues the game's remove request (type 0x16, `FUN_141af93e0`) for the next turn of the logic thread, where
+`FSBItemBucketItemRemove::Simulate` (`FUN_141b0ba20`) removes by alias. -1 is the pocket index the request pool sets by
+default (`FUN_141b48810`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by the
+gift's count, for 10 s of play at most. A read that comes back `unread` (the remove changes the very sets the worker
+walks, so a read can tear) or `noeve` is asked again the same way; any other `none` answer stops the send. A tick while
+the game is paused, in photo mode, or in the friend's photo mode that pauses ours does not count: SB's logic thread
+stops then, and the remove waits with it. If the count has not fallen by then, nothing is sent and the notice says the
+items may be gone.
+
+Once it fell, Lua writes the gift into `coop-gift-<steamid>-<index>.txt` (`out <id> <alias> <count> <to> <at> <sent>`)
+and only then sends the gift line as a request, `gift s <id> <alias> <count>`. The id is the time in seconds and three
+digits. The receiving game answers `gift a <id>` once the gift is in its file (`box ...`), or `gift n <id> <why>`
+(`slot`, `full`, `item`, `store`). A refusal, no answer in 60 s, the friend gone from the lobby (not one whose link is
+lost and may come back) or the native part's own `n <id> nolink` turns the entry into `back <id> <alias> <count>`,
+and the next tick with EVE in the world and the game playing grants it through the shop's call
+(`ServerRequest_ItemBucketItemAdd`, nightop/shop.lua's `Shop.add`). The entry leaves the file before the grant, as a
+take's does, and goes back if the grant raises, so a file that cannot be written gives nothing back until it can. A
+grant that raises, or a write that fails, is tried again after 10 s.
+Until an answer, the gift line goes again every 10 s with the same id while the friend is linked. A `nolink` for one of
+those lines brings nothing back: the first line went out and the friend may have kept the gift, so her answer, the 60 s
+or her leaving decides.
+
+The receiver keys each gift by the sender's SteamID (the first peer line; 0 in the loopback) and the id. A key in its
+mailbox gets `a` again, and so does one among the last 64 it took (`seen <from> <id> a`); a key it refused for a full
+mailbox gets `full` again (`seen <from> <id> n`). A take writes the file before the grant and puts the entry back if the
+grant raises, so a gift is never taken twice.
+
+The file holds whole lines and is written whole through `link.write_file`. A line in no known shape, or with an item
+outside the seven or a count outside 1 to 10, is dropped and logged. When the file is missing, its `.tmp` is read,
+since `link.write_file` removes the file before renaming the `.tmp` over it. A write whose rename failed after that
+removal therefore counts as done; one whose old file is still there counts as failed, and its text stands.
 
 ## Achievements
 
@@ -1674,17 +2946,57 @@ claim the host accepts):
   player's save only by the took-part test above. The shop's points go only to a player whose own game ran the run from
   its countdown to a success or a time up: each game credits its own player, a guest whose game missed the countdown
   gets none, and no line between the games carries points.
-- The challenges run only without a Steam session: a start refuses one, and a session that starts ends the run. Their
-  kills are the player's own, and they give no shop points. A best run goes into `coop-records.txt` only on the PC
-  whose own solo run ended in success, never from a co-op run and never over the link.
-- The travel to the host takes only camps that a read of the guest's save confirms as activated, because activating a
-  camp counts toward achievements ([Following the host](#following-the-host)). That read does not exist yet, so the
-  travel makes no call at all. A revive changes only the downed player's own EVE: her life, her HP and the recovery
-  items that a camp respawn refills too. The cutscene wait is a pause, and the solid partner changes no game state.
+- The challenges but the Shooting Range run only without a Steam session: a start refuses one, and a session that
+  starts ends the run. The Shooting Range also runs for two linked players, under Night Operation's rule above. A
+  challenge's kills are the player's own, and it gives no shop points. A best run goes into `coop-records.txt` only on
+  the PC whose own solo run ended in success, never from a co-op run and never over the link.
+- Every camp travel of the mod but `coop mxiii`'s and `coop mxiii 30`'s goes only to a camp the player's save has
+  already activated, because activating a camp counts toward achievements and the game's fast travel does not check it
+  ([Following the host](#following-the-host)). The native read asks the game's own camp list (`FUN_141d1d650`, the
+  function the camp list screen calls) for the camps of the travel table that hold an active ZoneEnvSpawn row, so the
+  mod travels only where the game's own camp list would let the player travel. The follow is off in this version and
+  makes no call at all. `coop travel probe <camp>`, the follow's solo test, and `coop mxiii leave` refuse any camp the
+  read does not list, and every camp while there is no read (a load, the title, after a fault). Whether arriving at a
+  camp through the game's fast travel activates it has not been checked. `coop mxiii` and `coop mxiii 30` travel to
+  their own camps `DLC02_10_Camp_01` and `DLC02_30_Camp_01` without that read ([The cut Matrix XIII
+  dungeon](#the-cut-matrix-xiii-dungeon-experimental)): the two camp trophies count only named ZoneEnvSpawnTable rows
+  turning On (`Trophy_Activate_FirstCamp` one, `Trophy_Activate_AllCamp` the 89 `ChangeState_ZoneEnv_*_Camp` rows of
+  AchievementTable), and none of them names `DLC02_10_EnvS_900` or `DLC02_30_EnvS_900`, the mod's rows for those camps.
+  A revive changes only the downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills
+  too. The cutscene wait is a pause, and the solid partner changes no game state.
+- Matrix XIII's rows go in at the title whenever the test pak is installed and the game uses the co-op save files
+  ([At the title](#at-the-title)), so they stand in memory under co-op saves that never use `coop mxiii`. They can
+  neither unlock nor block a camp trophy. `Trophy_Activate_AllCamp` (trophy 26, `Activate_AllCamp`) completes at a
+  fixed count, 89 in both AchievementTable and TrophyTable, and only its 89 `ChangeState_ZoneEnv_*_Camp` rows raise it,
+  each on one named shipped ZoneEnvSpawnTable row turning On (`DED10_EnvS_113` and the others).
+  `Trophy_Activate_FirstCamp` takes `DED10_EnvS_100` alone. No count of ZoneCampTable or ZoneEnvSpawnTable rows goes
+  into either: the game's code names `Trophy_Activate_AllCamp` once, in `FSBActorProgressAchievement::Execute`
+  (`FUN_141b1b280`), to call `FUN_141ce5c30` after that row has progressed. None of the 2747 AchievementTable rows
+  names a `DLC02` row, zone or world, `MXIII` or `DLCMatrix13`. The only rows that match a camp object by its class
+  are the skill machine's guide rows (`Ach_Guide_InteractEnvAlias_SkillMachine`, `Ach_Guide_TrainingRoom`), which open
+  a guide and the skill manual page and lead to no trophy, as any camp's skill machine does. A row that is only
+  present raises no event: the kit's objects exist only inside the dungeon. The test pak's levels are copies of Matrix
+  11's, and the camp vending machines in them keep Matrix 11's rows (`ME_01_EnvS_017` and `_018`, `ME_03_EnvS_005`,
+  `_015` and `_023`, `ME_04_EnvS_008` and `_009`), seven of the 89. Matrix 11's zones never start in that world,
+  which should leave them unusable, but that was not checked, so v3 moves all seven 400 m below the floor (v2 moves
+  only `ME_01_EnvS_017`).
 - A [Doro race](#doro-races) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
 - A [Lion](#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is
   that player's, like any Naytiba's.
+- `coop shortcut load` writes a cut Load Shortcut developer save as a co-op copy only after it drops the save's
+  achievement list and the six gears from which a load-time fix-up makes achievement entries, and only with
+  `shortcut_load=on`, since the developer's progress left in it can still complete an achievement in play
+  ([Loading one](#loading-one)).
+- A [gift](#cut-mailbox) moves consumables between two co-op saves and nothing else. Its seven items lead to no trophy
+  in the AchievementTable: their acquire rows (`Acquire_Item_Grenade`, `Ach_Reward_Acquire_Item_ConcussionGrenade` and
+  the potion and grenade category guides) open guides only. A gift that arrives can open those guides early, as a shop
+  buy can.
+- The [Night Operation shop screen](#the-night-operation-shop-screen) sells for Beta Seeds, which no AchievementTable
+  row names, from shops with no tag. Its purchase raises the game's BuyItem event for the item bought; the four BuyItem
+  rows name cosmetics the shop does not sell, and an Acquire row on PulseGrenade or ConcussionGrenade fires as it does
+  for the console's buy. [Roxanne's choices](#roxannes-night-operation-choices) route to her goodbye and call no quest,
+  item or achievement function.
 
 ## Safety design
 
@@ -1699,7 +3011,19 @@ drops the input.
   feature off for the run and is logged with its code, the DLL offset, the address and the part. Effects have a latch
   of their own. A fault inside Steam in the worker (for example a call racing the game's Steam shutdown at exit) stops
   the link and the pose path for the rest of the run (`stopped=fault <code>`) instead of crashing the game. The log's
-  last line gives the reason the worker stopped.
+  last line gives the reason the worker stopped. The rows batches (the cut Naytibas, the Shock Bolt, Matrix XIII and
+  the Night Operation shop) share one latch; [Its batch in the native part](#its-batch-in-the-native-part) says why.
+- On the Lua side, `main.lua` calls each module's work in its two loops (every frame and every 250 ms) through an
+  `xpcall` guard. An error that escapes one, for example `cut/lion.lua`'s tick, is logged with the module's name, the
+  message and its stack traceback:
+  `[StellarCoop] lion: error (logged once until the mod reloads; the other modules go on): <message>`, then
+  `stack traceback:` and its lines. The traceback gives the script and the line, which the message alone lacks for
+  most of the mod's errors (raised with `error(why,0)`) and for UE4SS's own. Each guarded call logs its first error
+  once a Lua load. Several calls share a name (`ghost` covers seven of `partner/puppet.lua`'s, and each restore has
+  its module's name), and each of them still logs its own first error. The modules after it still run in that pass,
+  and the module is called again at the next one, so one that recovers goes on working. Measured with Lua 5.4 on the
+  build machine, the guard adds about 40 ns a call. The per-frame loop makes 27 to 43 guarded calls (34 with the
+  on-screen UI, plus the inbox while a race is armed and up to 8 pad events), under 2 µs a frame.
 - The save slot read, the vitals read and the Night Operation poller read through `ReadProcessMemory`, which returns an
   error instead of faulting, and only after a plausibility check of every pointer and count.
 - `coop_tick` never blocks the game thread. It runs once per engine frame (it checks the engine's frame counter) and
@@ -1722,9 +3046,23 @@ drops the input.
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game
   was not chosen (the game's load mode is 0). A pass checks this again before each file and before the switch. The
   native part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the copy and reads it back.
-  One name check guards every write: only the copies, their temporary files, `StellarCoopSaves.txt`, the shared quests'
-  records `StellarCoopQuests00.txt` to `04.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken
+  One name check guards every write but the export's (below): only the copies, their temporary files,
+  `StellarCoopSaves.txt`, the shared quests' records `StellarCoopQuests00.txt` to `04.txt`, the shortcut saves' marks
+  `StellarCoopShortcut00.txt` to `04.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken
   before any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
+  A `saves export N M` request is the one write to your own saves, behind a check of its own that passes only
+  `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It refuses a co-op copy with a shortcut save's
+  mark beside it before it reads anything. It reads the co-op copy, checks it as the game does, refuses it when its
+  stored CRC-32 is one of the 12 cleaned developer saves' or it names one of their five items with no `ItemTable` row,
+  and refuses it while an `ItemAlias` field or a quick slot names one of the mod's items, while
+  `BulletItemSlotIndex` is 5 or more (the Shock Bolt `lion/shock.h` appends after the five ammo types the game ships),
+  or while the save's `MapName` is `MXIII_P` or one of its four camp fields (`CampAlias`, `CampEnvSpawnAlias`,
+  `LastFullCampEnvSpawnAlias`, `LastSimplyCampEnvSpawnAlias`) holds a name that starts with `DLC02_`, a row of the
+  Matrix XIII dungeon. A find inside `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing
+  does not change, is refused too, with a line that says so instead of what to use up or where to rest. Only then does
+  it back up the target save, read the copy again (unchanged since the check, or it stops), scan those bytes again,
+  check that the target save is as its backup read it (or still missing) and write the copy over that save through a
+  `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
   The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
   every 250 ms; an entry that moves or changes stops it for the run.
 - The [spawn filter](#the-spawn-filter), off by default, is the one write into the game's image rather than into
@@ -1732,12 +3070,15 @@ drops the input.
   only, with the page writable for that store alone, and swapped back from the mod's value only at `coop off` or after
   a fault. A slot that holds another value is never written.
 - Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only
-  for a Night Operation shop buy (`coop nightop buy`, co-op saves only), through the game's own request
-  (`ServerRequest_ItemBucketItemAdd`) with one of four items and 1 to 10 of it. Apart from enemy stats with the
+  for a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming
+  back, co-op saves only), through the game's own request (`ServerRequest_ItemBucketItemAdd`) with an item of its list
+  and 1 to 10 of it. It removes from the inventory only for a `coop gift` send, through the game's own request
+  (`ServerRequest_ItemBucketItemRemove`) with one of seven consumables and 1 to 10 of it, after the native part read
+  that EVE carries that many. Apart from enemy stats with the
   experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and animations with the
   experimental same place (on by default), the quest steps of the experimental shared quests (off by default, co-op
   saves only, made by the guest's game through its own quest functions) and a Night Operation run's state on the night
-  line, nothing is copied between the two players' games. Beside
+  line and `coop gift`'s consumables, nothing is copied between the two players' games. Beside
   the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua
   only checks whether a copy exists, opening none of your own saves. See [saves.md](saves.md).
 - The follow and the revive call the game's own functions on the local player only. A travel runs on the guest's own

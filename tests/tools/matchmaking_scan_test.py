@@ -16,17 +16,23 @@ SITES = {'cut/scene.lua', 'nightop/probe.lua', 'nightop/recruiter.lua'}
 ADD_ROWS = {'nightop/probe.lua': 1}
 # Raw counts, comments and strings included, so a call no pattern below sees (obj['AddRow'](obj,...)) still shows. A
 # new mention, even in a log line, is a deliberate edit here. ServerRequest_*: coop no's ChangeRule and CreateActor,
-# coop nightop's one CreateActor (its spawn choke point), its shop's one ItemBucketItemAdd (its grant choke point), and
+# coop nightop's one CreateActor (its spawn choke point), its shop's one ItemBucketItemAdd (its grant choke point) and
+# the Beta Seeds' ItemBucketItemAdd and ItemBucketItemRemove (the shop screen's one seed choke point), and
 # the friend's revive's ActorRespawn and ActorRevival on our own EVE (one call each, their log lines, the probe's
-# answer and the header). coop lion: its one CreateActor (its spawn choke point) and its header, which also names SB's
-# AddRow (the native part calls it) and UE4SS's (never called). coop scene: its guarded call (kind 6, its two theater
-# rows only), its header, its three log lines and one refusal.
+# answer and the header). coop lion, coop gardener fight and coop tendril fight: cut/enemy.lua's one CreateActor (their
+# spawn choke point) and its header, which also names SB's AddRow (the native part calls it) and UE4SS's (never called);
+# cut/lion.lua's header names SB's AddRow. coop scene: its guarded call (kind 6, its two theater
+# rows only), its header, its three log lines and one refusal. coop chainspin: its one Cheat request (SBApplyEffectMe
+# on our EVE, its choke point: its own effect, and the effects of coop devmenu's fixed list of 23 in cut/devmenu.lua,
+# which only reaches it through ChainSpin.apply) and its header. coop gift: its one ItemBucketItemRemove (a send's
+# choke point; its grants go through the shop's) and its header.
 # The Join row: coop recruiter's constant only, which it reads and neutralizes, never fires.
 RATIONED = {'MultiplayTest_ZoneE_059': {'nightop/recruiter.lua': 1},
             'CreateSBZoneEvent': {'nightop/probe.lua': 3, 'nightop/recruiter.lua': 4, 'cut/scene.lua': 6},
-            'AddRow': {'nightop/probe.lua': 3, 'cut/lion.lua': 2},
-            'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 1,
-                               'session/group.lua': 7, 'cut/lion.lua': 2}}
+            'AddRow': {'nightop/probe.lua': 3, 'cut/enemy.lua': 2, 'cut/lion.lua': 1},
+            'ServerRequest_': {'nightop/probe.lua': 10, 'nightop/run.lua': 1, 'nightop/shop.lua': 3,
+                               'session/group.lua': 7, 'cut/enemy.lua': 2, 'cut/chainspin.lua': 2,
+                               'cut/mailbox.lua': 2}}
 
 # Calls are matched with every string literal turned into '', so log prose such as 'heal: CreateSBZoneEvent(2, ...)' is
 # not one. Lua allows space after the ':' and a string or table argument without '(': obj: f(x), obj:f'x', obj:f{}.
@@ -104,6 +110,7 @@ def scan_of(files):
 N, M, H, W = f'{SCRIPTS}/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/link/core.h', 'tests/wine/smoke.cpp'
 R, NR, GR = f'{SCRIPTS}/nightop/recruiter.lua', f'{SCRIPTS}/nightop/run.lua', f'{SCRIPTS}/session/group.lua'
 NS, LI, SC = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/lion.lua', f'{SCRIPTS}/cut/scene.lua'
+CS, EN, MB = f'{SCRIPTS}/cut/chainspin.lua', f'{SCRIPTS}/cut/enemy.lua', f'{SCRIPTS}/cut/mailbox.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
 
@@ -121,10 +128,13 @@ GROUP = padded('session/group.lua',
                'pc:ServerRequest_ActorRespawn(me,false)\npc:ServerRequest_ActorRevival(me,false)\n')
 SHOP = padded('nightop/shop.lua',
               "pc:ServerRequest_ItemBucketItemAdd(1,guid,FName(alias),count,0,true,false,false,{})\n")
-LION = padded('cut/lion.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n")
+ENEMY = padded('cut/enemy.lua', "pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n")
+LION = padded('cut/lion.lua', '')
 SCENE = padded('cut/scene.lua', GUARDED.replace('NightOp', 'Scene'))
-CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, SC: SCENE,
-         M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
+CHAINSPIN = padded('cut/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyEffectMe',tostring(ChainSpin.ID))\n")
+MAILBOX = padded('cut/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
+CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: ENEMY, SC: SCENE, CS: CHAINSPIN,
+         MB: MAILBOX, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
          H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n'}
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
 PHOTO = f'{PAUSE}\n    {CONSOLE}\n'
@@ -186,6 +196,7 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L5'}, {GR: None}),
           ({'L5'}, {NS: SHOP + "log('no ServerRequest_ItemBucketItemRemove here')\n"}),
           ({'L5'}, {NS: None}),
+          ({'L5'}, {EN: ENEMY + 'pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n'}),
           *[({'N1'}, {H: f'// {a}\n'}) for a in ('0x141ca2c50', '0x1423058C0', 'FUN_141CA47C0', '1ca4540', '1aBcb40')],
           ({'N1'}, {W: 'auto job = 0x141abcb40;\n'}),
           ({'N2'}, {H: 'void StartMatchMaking();\n'}),

@@ -82,6 +82,12 @@ menu=M.new()
 assert(menu.select(HOST,40)=='confirm_leave' and menu.back()=='close' and menu.select(HOST,41)=='confirm_leave')
 menu.close()
 assert(menu.select(HOST,42)=='confirm_leave','close()')
+-- A first Select on Leave, then the session ends: the second Select runs nothing (never Host, now in its place).
+menu=M.new()
+assert(menu.select(GUEST,44)=='confirm_leave' and menu.select(NONE,45)==nil and menu.select(NONE,46)=='host')
+-- A first Select on Leave whose 3 s ran out before the session ended: the next Select runs the row in its place.
+menu=M.new()
+assert(menu.select(GUEST,47)=='confirm_leave' and menu.select(NONE,50.5)=='host')
 -- Copy and Remove (while we host: a code, a player let in who is not a Steam friend). Remove asks first, like Leave;
 -- a first Select counts for its own row only, so one on Remove never lets a Select on Leave leave at once.
 local CODE={mode='host',chat=true,code='0CS-CBMH',stranger={id='9',name='S'}}
@@ -91,8 +97,10 @@ assert(menu.current(CODE).id=='copy' and menu.select(CODE,50)=='copy')
 menu.move(CODE,1)
 assert(menu.select(CODE,51)=='confirm_remove' and menu.select(CODE,52)=='remove')
 assert(menu.select(CODE,53)=='confirm_remove')
-assert(menu.current({mode='host',chat=true,code='0CS-CBMH'}).id=='chat','She left: the row in its place')
-assert(menu.select({mode='host',chat=true,code='0CS-CBMH'},53.5)=='chat')
+local LEFT={mode='host',chat=true,code='0CS-CBMH'}
+assert(menu.current(LEFT).id=='chat','She left: the row in its place')
+assert(menu.select(LEFT,53.5)==nil,'The second Select meant for Remove runs no other row')
+assert(menu.select(LEFT,54)=='chat')
 menu.move(CODE,-1)
 assert(menu.select(CODE,60)=='confirm_remove')
 menu.move(CODE,-1)

@@ -8,9 +8,13 @@
 -- dropped link starting the 3 s again, and no fallback call for a death that came after the revive took. The notices on
 -- both sides: the wait once per death, the revived line after a revive, her down once per death of hers on our map
 -- outside a boss fight while we are up, and our revive of her only while our EVE stands within 3 m of her ghost. coop
--- revive test: solo only, at the death screen with life 3 to 5, the same call and the same lines.
--- The host's cutscene: SB's theater observers read once a second while linked (walked for only while a level sequence
--- actor plays, the one found kept while it plays), a cutscene while one has a valid player that plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
+-- revive test: solo only, at the death screen with life 3 to 5, the same call and the same lines. During a Night
+-- Operation run: no 3 s rule and none of its notices on either side, our revive of her included (the run says it);
+-- night_revive's call with revive=on and coop revive test's guards, its fallback with them too (the friend far changes
+-- nothing), refused with revive=off, the revived notice after the friend's only.
+-- The host's cutscene: SB's theater observers read once a second while linked (walked for only when the set of playing
+-- level sequence actors changes, the one found kept; no world, no read), a cutscene while one has a valid player that
+-- plays; 'c' for the photo line only on the host and only while its own photo state is '0'; cut only on the guest
 -- with cutscene_wait=on, the host on her map and our read not off for the run; the notice once a pause for it, from the
 -- photo line.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -105,7 +109,8 @@ local function world(change)
             if W.shown then return {X=W.ghost.X,Y=W.ghost.Y,Z=W.ghost.Z+220},W.ghost end
         end}
     return G.new({link=link,puppet=puppet,settings=W.settings,log=function(m) W.logs[#W.logs+1]=m end,
-        tell=function(build) W.said[#W.said+1]=build(T.en) end,name=function() return 'Kaanta' end})
+        tell=function(build) W.said[#W.said+1]=build(T.en) end,name=function() return 'Kaanta' end,
+        night=function() return W.night end})
 end
 local function run(g,seconds) -- Ticks of 250 ms, as main.lua's loop gives them.
     for _=1,math.floor(seconds/0.25+0.5) do
@@ -329,6 +334,54 @@ for _,change in ipairs({function(w) w.her_map='/game/f02' end,function(w) w.figh
     assert(#W.said==0)
 end
 
+-- A Night Operation run owns the revive: every condition of the 3 s rule held for 6 s makes no call and no notice.
+g=world(function(w) w.night=true; w.respawn=function() w.life={state=1,hp=1600} end end)
+run(g,6)
+assert(#W.calls==0 and #W.said==0,'The run asks')
+-- Its friend's revive: the call, said with her name, the result 2 s later, the screen hidden, her revived notice.
+local ok,no=g.night_revive('friend')
+assert(ok and no==nil and #W.calls==1 and W.calls[1]==RESPAWN,tostring(no))
+assert(logged('revive: ServerRequest_ActorRespawn(4242, false) asked (Kaanta; life 3, hp 0, death screen up)'),
+    table.concat(W.logs,'|'))
+ok,no=g.night_revive('friend')
+assert(not ok and no=='a revive call is under way' and #W.calls==1)
+run(g,2)
+assert(logged('revive result (Kaanta): life 3/1') and W.vis==2 and W.said[1]==REVIVED and #W.said==1)
+-- revive=off (the downed player's opt-in, off by default): no call, by the friend or by herself.
+g=world(function(w) w.night,w.settings.revive=true,false end)
+for _,by in ipairs({'friend','self'}) do
+    ok,no=g.night_revive(by)
+    assert(not ok and no=='revive=off' and #W.calls==0,tostring(no))
+end
+-- Its self revive, with the friend far: the call, its fallback with the same guards, no notice.
+g=world(function(w) w.night,w.ghost=true,{X=9000,Y=2000,Z=300} end)
+ok=g.night_revive('self')
+assert(ok and W.calls[1]==RESPAWN and logged('asked (coop nightop revive; life 3'),table.concat(W.logs,'|'))
+run(g,2)
+assert(W.calls[2]==REVIVAL,'The fallback: coop revive test\'s guards')
+run(g,2)
+assert(logged('revive result (coop nightop revive): life 3/3') and #W.said==0 and #W.calls==2)
+-- Refused: alive, or a respawn under way.
+for _,case in ipairs({{function(w) w.life={state=1,hp=1600} end,'life 1'},
+        {function(w) w.engine=ENGINE..' warp=busy me=4242' end,'a respawn or a warp is under way'}}) do
+    g=world(function(w) w.night=true; case[1](w) end)
+    ok,no=g.night_revive('friend')
+    assert(not ok and no==case[2] and #W.calls==0,tostring(no))
+end
+-- The friend's side: no down notice of hers and no revived notice of ours (the run gives its own: her own revive with
+-- us next to her is not ours), both back once the run is over.
+g=world(function(w) w.night,w.mode,w.life,w.mate=true,'host',{state=1,hp=1600},{life=3,hp=0,max_hp=1600} end)
+run(g,5)
+assert(#W.said==0)
+W.mate={life=1,hp=1600,max_hp=1600}
+run(g,0.25)
+assert(#W.said==0,'The run says ours')
+W.night,W.mate=false,{life=3,hp=0,max_hp=1600}
+run(g,0.25)
+W.mate={life=1,hp=1600,max_hp=1600}
+run(g,0.25)
+assert(W.said[1]==DOWN and W.said[2]==YOU and #W.said==2,table.concat(W.said,'|'))
+
 -- coop revive test: refused while linked or before Steam, without a life read (a session: coop loopback), alive, off
 -- the death screen or while a respawn runs; at the death screen with life 3 to 5 alone, the same call and lines.
 for _,case in ipairs({
@@ -389,6 +442,58 @@ assert(g.cutscene_playing() and g.photo('0')=='0','A guest sends no cutscene')
 W.linked=false
 run(g,1)
 assert(not g.cutscene_playing() and g.photo('0')=='0' and W.finds.SBTheaterLevelSequenceObserver==1,'Not linked')
+-- A looping sequence actor with no theater: one walk for that set of playing actors, logged with its name, not one a
+-- second. The theater starting changes the set: one walk, found. Once it ends, one walk for the set left, then none;
+-- the next theater on the same actor, with an observer of its own, is walked for again.
+local loop=uobject('LevelSequencePlayer /Engine/Transient.LevelSequencePlayer_2',{IsPlaying=function() return true end})
+local first=observer('Mann_Entrance',scene)
+g=world(function(w)
+    w.mode,w.life,w.scene='host',{state=1,hp=1600},false
+    w.observers,w.sequences={first},sequences()
+    w.sequences[3]=uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Lift_Loop',{SequencePlayer=loop})
+end)
+run(g,5)
+assert(W.finds.SBTheaterLevelSequenceObserver==1 and W.finds.LevelSequenceActor==5,'One walk a set: '
+    ..W.finds.SBTheaterLevelSequenceObserver)
+assert(logged('cutscene: no theater for the playing sequences Lift_Loop'),table.concat(W.logs,'|'))
+W.scene=true
+run(g,2)
+assert(g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==2)
+W.scene=false
+run(g,3)
+assert(not g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==3)
+first.Player=nil
+W.scene,W.observers=true,{observer('Mann_Exit',scene)}
+run(g,1)
+assert(g.cutscene_playing() and logged('cutscene on: Mann_Exit') and W.finds.SBTheaterLevelSequenceObserver==4)
+-- After a map change a freed address may hold another sequence actor: the new map's theater actor at the address of
+-- the last set's only one is a new set, walked for.
+local theater=uobject('LevelSequenceActor /Game/MapB.MapB:PersistentLevel.Theater',{SequencePlayer=scene})
+g=world(function(w)
+    w.mode,w.life,w.scene='host',{state=1,hp=1600},true
+    w.sequences={uobject('LevelSequenceActor /Game/Map.Map:PersistentLevel.Lift_Loop',{SequencePlayer=loop})}
+end)
+run(g,1)
+assert(not g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==1)
+theater.GetAddress=W.sequences[1].GetAddress
+W.sequences,W.observers={theater},{observer('Mann_Entrance',scene)}
+run(g,1)
+assert(g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==2,'Same address, another actor: '
+    ..W.finds.SBTheaterLevelSequenceObserver)
+-- No EVE (the title screen, a load): the class hash takes our SB controller's world (the hash's proof is asked); with
+-- no controller either, no sequence actor is looked up at all (actors_of with no world walks every object).
+local probe=package.loaded['nightop.probe']
+g=world(function(w)
+    w.mode,w.life,w.scene,w.eve='host',{state=1,hp=1600},false,nil
+    w.observers,w.sequences={observer('Mann_Entrance',scene)},sequences()
+end)
+run(g,1)
+assert(W.finds.PlayerController==1 and W.finds.LevelSequenceActor==1,'The controller is the world')
+probe.controller=function() return nil end
+run(g,3)
+probe.controller=function() return pc end
+assert(not g.cutscene_playing() and W.finds.LevelSequenceActor==1 and W.finds.PlayerController==1
+    and (W.finds.SBTheaterLevelSequenceObserver or 0)==0,'No world, no walk: '..W.finds.LevelSequenceActor)
 -- A read that fails: one line, and no cutscene for the run.
 g=world(function(w)
     w.mode,w.life,w.theater_error,w.scene,w.sequences='host',{state=1,hp=1600},'no such property',true,sequences()

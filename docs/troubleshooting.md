@@ -101,8 +101,8 @@ For the host:
 - `ghost=hidden map`, or the notice `<name> is in <map>, you are in <map>.`: you are on different maps. The ghost
   shows once you are on the same map.
 - `ghost=waiting`: no table has arrived yet, or the ghost is being built, or your EVE has been in the world for less
-  than 2 s. A table that needs a new ghost is taken at most once every 2 s; your friend's next resend (every 5 s)
-  brings it.
+  than 2 s. A table that needs a new ghost is taken at most once every 2 s; your friend's next resend (5 s after
+  their table changed) brings it.
 - The ghost appears and disappears: it hides after a second without a pose, so poses are arriving with gaps. Look
   at the `<name>, last 60 s:` line in `coop-link.log` (RTT, drops, Steam's session quality).
 - `engine=off reason=...` in `coop status`: the native pose path is off. On a game build other than 24463856 it never
@@ -240,13 +240,37 @@ mod could not read the file, so check the two lines by hand.
 until the next Lua load (game start or Ctrl+R); the notices still go to `UE4SS.log`, and to the feed at the top left
 while the on-screen UI is up.
 
+### `<name>: error (logged once until the mod reloads; the other modules go on)`
+
+A Lua error escaped one part of the mod. The name before the colon says which (`lion`, `race`, `menu`, `ghost`...).
+The message follows the parenthesis, and the `stack traceback:` lines under it give the script and the line
+(`cut/lion.lua:<line>: in ...`). Each call of that part logs its first error once until the next Lua load (game start
+or Ctrl+R), even when the error comes back every frame, so the same name can show more than once. The other parts
+keep running, and the named part is still called at each pass, so it can recover by itself. If it stays broken, a Lua
+reload builds it again. Send `UE4SS.log` either way.
+
 ### `coop no` or `coop recruiter` says `STOP`
 
 - `runs only on a co-op save`: at the title, choose Play co-op (or Convert and play co-op), then load your save. See
   [saves.md](saves.md#co-op-saves).
+- `STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter ...` is expected: the
+  recruiter's lines stay in Korean, and the Emil scene's subtitles in Korean and Japanese. `coop recruiter` and
+  `coop scene emil` go on (see [night-operation.md](night-operation.md#his-language) and
+  [usage.md](usage.md#cut-scenes-coop-scene)).
 - Most other `STOP:` lines from the previews give the reason, and many say that nothing was changed. If the probe logs
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation.md](night-operation.md).
+
+### `coop devmenu` or `coop devinfo` does nothing
+
+- `coop devmenu <row>` says `runs only on a co-op save`: load a co-op save (see [saves.md](saves.md#co-op-saves)).
+  `... is not in this game's EffectTable: nothing asked` means a game update renamed or removed that effect.
+- `a respawn or a warp is under way` or `EVE's GUID reads 0`: wait until EVE stands in the world and try again.
+- An enemy row changed nothing: it reaches only the enemies near EVE. Move closer and run it again.
+- `devinfo quest refused: not playing` (or `not in game`) in `coop-link.log`: open it while you play, not on the title
+  screen, during a load or in a menu. `the game opened nothing` means the game refused the panel; send `coop-link.log`
+  and `UE4SS.log`.
+- `devinfo fault ...: coop devinfo off for the run`: the panels stay off until the game restarts. Send both logs.
 
 ### Photo mode still freezes everything with Scenery live
 
@@ -442,10 +466,14 @@ The mod then stops counting that record for this enemy, so only your hit or the 
 
 ### Travel to the host does not start
 
-In this version the travel never starts and no offer shows. F7 or `coop travel host` writes `travel refused: no read
-of the camps this save has activated` in `UE4SS.log`. The mod cannot yet read which camps your save has activated, and
-the game's fast travel does not check it ([Following the host](usage.md#following-the-host)). The rest of this section
-applies once that read exists.
+In this version the travel never starts and no offer shows. F7 or `coop travel host` writes `travel refused: the
+follow stays off until it has been tested in game` in `UE4SS.log` ([Following the host](usage.md#following-the-host)).
+The rest of this section applies once the follow is on. A refusal that ends in `no read of the camps this save has
+activated (<why>)` means the mod had no read of your activated camps at that moment (a load, the title); the
+`activated=` line of `coop status` shows the read. With `(fault)`, a fault stopped that read until the game restarts,
+and `coop-link.log` has `camps read off: fault 0x... at StellarCoop.dll+0x... reading 0x...; coop travel probe and
+coop mxiii leave refused until the game restarts`. Restart the game; if the line comes back, send `coop-link.log` (see
+[Which logs to send](#which-logs-to-send)).
 
 Following the host is for the guest, on a co-op save, with `follow_host` not `off`. Each refusal writes a
 `[StellarCoop][TR] travel refused: <why>` line in `UE4SS.log`, and the native part's refusals are also in
@@ -485,6 +513,25 @@ friend's `<name> is down` notice shows whatever that setting says. The downed pl
 
 After a call, the `revive result` line gives the life state, HP and death screen before and after. If the death screen
 stays up over a living EVE, the mod hides it.
+
+During a co-op Night Operation run the run's own revive applies instead (see
+[Down and revive](night-operation.md#down-and-revive)). It needs the downed player's `revive=on` too, but none of the
+friend's distance, the shared fight or the boss rule above. Its `[StellarCoop][NR]` lines say what happened:
+
+- No `down (life 3): ...` line after a death, and the run failed at once: the dead player's `revive` setting is off,
+  or the game's own life state was not read (`coop status` shows no `life=` line). The down needs both.
+- On the partner's side, `revive of <name> stopped at <n> %`: the interact key was let go, the partner's EVE stepped
+  more than 2 m across or 1 m up or down from the downed EVE's ghost, or the game was paused. Only F and the pad's right
+  trigger count, not a rebound interact key.
+- On the downed side, `revive not asked (friend): <why>` or `(self): <why>`: the reasons of the list above that the
+  call itself checks, such as `revive=off`, `a respawn or a warp is under way` or `no death screen`. For her own
+  revive, `your EVE lies <n> m across and <n> m up or down from where she last walked` means the body is more than
+  2 m across or 1 m up or down from the last ground her EVE walked on, as after a fall into a pit; only her partner can
+  revive her then.
+- `revive (<who>) did not take: not up 5 s after the call`: the game's respawn did not bring EVE up. The `[GR]`
+  `revive result` line before it gives the life state and the death screen. The down asks for no other call.
+- `up with no revive asked` or `up after a revive that did not take`: the death screen's respawn was pressed. That ends
+  the run as a death.
 
 ### Stuck at a doorway with the solid partner
 
@@ -556,17 +603,26 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 
 - `native tick, last 60 s: ...`: the per-frame tick's count, mean and maximum cost, the largest gap between ticks and
   the gaps over 100 ms.
-- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, size, KB/s; keyframes, deltas and their mean
-  size, and frames held back by the 192 KiB/s byte budget), tables in and refused, poses received, foreign (of no
-  table, or of one the ghost is not built on yet), malformed and rejected, keyless (deltas whose keyframe was lost),
-  losses, stalls, the one-way delay, and poses drawn and written. Between two PCs the one-way delay includes the
-  offset between their clocks, so the value means nothing there. At 60 poses a second a lost keyframe leaves a gap of
-  about 270 ms, so it also counts as one stall, and the deltas dropped with it count as both keyless and missing.
+- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, the link's cap on the rate as `link cap <n>`,
+  size, KB/s; keyframes, deltas and their mean size, and frames held back by the 192 KiB/s byte budget), tables in
+  and refused, poses received, foreign (of no table, or of one the ghost is not built on yet), malformed and
+  rejected, keyless (deltas whose keyframe was lost), losses, stalls, the one-way delay, and poses drawn and written.
+  Between two PCs the one-way delay includes the offset between their clocks, so the value means nothing there. At 60
+  poses a second a lost keyframe leaves a gap of about 270 ms, so it also counts as one stall, and the deltas dropped
+  with it count as both keyless and missing.
 - `<name>, last 60 s: ...`, per linked friend: channel 1 traffic, drops, failed sends with the last Steam result (25
   means its send buffer is full), ping RTT and loss, and Steam's view of the session.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
+
+Between the 60 s lines, `pose rate cap <n> a second for <name>: ...` marks each change of the cap on the poses you
+send. A cap of 30 or 20 means Steam's queue to that friend reached 100 ms, or 64 KiB waited to be sent, two seconds in
+a row: the ghost they see moves with fewer poses a second, still interpolated, instead of falling behind. The line
+gives the queue time, the pending bytes, Steam's send rate and the session quality at that moment. The cap goes up one
+step after 10 s calm (`10 s calm (queue under 20 ms, pending under 16 KiB)`); if it keeps coming back down, the wait
+before the next step up grows to 80 s. A cap that stays at 20 points at the connection itself: compare the send rate
+and quality in the `<name>, last 60 s:` line on both PCs.
 
 `UE4SS.log` gets one more line each minute while the on-screen UI is up: `[StellarCoop] Lua frame time, last 60 s:
 ghost <x> ms, doro <d> ms, race <r> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the

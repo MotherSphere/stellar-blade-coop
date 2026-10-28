@@ -6,14 +6,15 @@
 local Dm=require('race.drive_model')
 local R={}
 -- Bounds: |x| and |y|, |z|, a time in ms, a race id; checkpoints in a track, laps; a checkpoint's radius and its
--- default; a track file's and a line's bytes (the link's 512 less "SBC13 race "). 12 checkpoints on one cps line make
+-- default; a track file's and a line's bytes (the link's 512 less "SBC14 race "). 12 checkpoints on one cps line make
 -- 400 bytes on the link at the bounds.
 R.XY,R.Z,R.MS,R.ID=2000000,500000,3600000,0xFFFFFFFF
 R.MIN_CPS,R.MAX_CPS,R.PER_LINE,R.MAX_LAPS=2,64,12,9
 R.MIN_R,R.MAX_R,R.RADIUS=300,3000,1200
 R.MAX_FILE,R.MAX_LINE=4096,501
 -- A checkpoint stands 15 m at least from the one before it (the grid for the first); laps above 1 need the last within
--- 30 m of the grid (a circuit). A crossing comes within 6 m vertically; a frame step over 20 m is a teleport.
+-- 30 m of the grid (a circuit). A crossing comes within 6 m vertically; a step between two reads over 20 m, and over
+-- twice the top speed for the time between them (a hitch while the game streams is no teleport), is a teleport.
 R.GAP,R.CIRCUIT,R.UP,R.JUMP=1500,3000,600,2000
 -- Wrong way: the distance to the next checkpoint 20 m over its lowest since the last pass, once the runner moved 25 m
 -- since; it clears once that distance falls 10 m from its highest.
@@ -135,14 +136,14 @@ local function near(c,a,b)
 end
 -- A runner on a track, from GO: lap, next checkpoint, checkpoints passed in all, done once finished or out.
 function R.runner(t) return {track=t,lap=1,next=1,passed=0,moved=0,wrong=false,done=false} end
--- One frame from a to b at ms (race time). Events in order: {what='cp',lap=,i=,ms=} at each pass (a lap's last
--- checkpoint too), {what='fin',ms=}, {what='dnf',why='teleport'}, {what='missed',i=} (entering a later checkpoint
--- while i waits), {what='wrong_way'} and {what='right_way'}.
-function R.run(r,a,b,ms)
+-- One frame from a to b at ms (race time), dt ms after a was read (nil: one frame). Events in order: {what='cp',lap=,
+-- i=,ms=} at each pass (a lap's last checkpoint too), {what='fin',ms=}, {what='dnf',why='teleport'}, {what='missed',
+-- i=} (entering a later checkpoint while i waits), {what='wrong_way'} and {what='right_way'}.
+function R.run(r,a,b,ms,dt)
     local ev={}
     if r.done then return ev end
     local cps,step=r.track.cps,dist(a,b)
-    if step>R.JUMP then
+    if step>math.max(R.JUMP,2*(r.track.drive or Dm.DEFAULTS).top*(dt or 0)/1000) then
         r.done=true
         ev[1]={what='dnf',why='teleport'}
         return ev
@@ -187,7 +188,7 @@ function R.run(r,a,b,ms)
     return ev
 end
 
--- The race lines, without the link's "SBC13 race " (id: the host's race number):
+-- The race lines, without the link's "SBC14 race " (id: the host's race number):
 --   track <id> <n> <laps> <grid x y z yaw> <map>   host: a race is armed, n checkpoints follow
 --   cps <id> <first> <x y z r>...                  host: 1 to 12 checkpoints, from the first'th
 --   drive <id> <top> <accel> <brake> <coast> <grip> <drift_grip> <turn_slow> <turn_fast> <drift_angle>
@@ -482,7 +483,7 @@ function R.tick(m,input,now)
             send(m,('abort %d false_start'):format(m.id))
             false_start(m)
         elseif now>=m.t_go then
-            m.phase,m.runner,m.prev,me.flags='race',R.runner(m.track),pos,0
+            m.phase,m.runner,m.prev,m.prev_at,me.flags='race',R.runner(m.track),pos,now,0
             emit(m,{what='go'})
         else
             local count=math.ceil((m.t_go-now)/1000)
@@ -496,7 +497,7 @@ function R.tick(m,input,now)
         if not (me.ms or me.why) then
             me.flags=me.flags|(input.flags or 0)
             if pos and m.prev then
-                for _,e in ipairs(R.run(m.runner,m.prev,pos,ms)) do
+                for _,e in ipairs(R.run(m.runner,m.prev,pos,ms,now-m.prev_at)) do
                     if e.what=='fin' then finish(m,now,e.ms)
                     elseif e.what=='dnf' then finish(m,now,nil,e.why)
                     else
@@ -511,7 +512,7 @@ function R.tick(m,input,now)
             if ms>=R.LIMIT then finish(m,now,nil,'time')
             elseif m.first and now-m.first>=R.LATE then finish(m,now,nil,'late') end
         end
-        m.prev=pos or m.prev
+        if pos then m.prev,m.prev_at=pos,now end
         local wait=m.role=='host' and R.GRACE or 2*R.GRACE
         local settled=(me.ms or me.why) and (her.out or her.ms or her.why)
         -- A host who quit or left the map closed the race on his PC (race/run.lua): no rank line comes from him.

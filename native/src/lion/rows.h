@@ -10,18 +10,71 @@
 // both trees pick skills by their AISkillFlag, never by command name. Each row starts as a copy of a shipped row of its
 // table (the template: SB's CopyScriptStruct needs a valid row of the struct), and the patches set every field that
 // template holds, some of them to the template's own value where the Lion's is the same. The rows live in memory for
-// the game run; nothing is written to disk and no shipped row changes.
+// the game run; nothing is written to disk, and no shipped row changes except the 5 ZoneTriggerTable rows that
+// Matrix XIII's batch patches in place (see below).
+//
+// The same batch carries, first, the rows of the cut items the Night Operation shop sells (nightop/shop.lua asks for
+// them before a buy): the ItemTable rows of the Burst Stimpack (300013, over SB's own consumable HP2Burst_Potion) and
+// the Beta Stimpack (300014), the Beta Stimpack's ItemConsumableTable row (1032) and the SkillTable row both play,
+// P_Eve_Sword_Normal_Buff_1 (6000101), which HP2Burst_Potion names and SB never shipped. Each is a near copy of a
+// shipped row (its own template, which the generator reads from the dump): the health potion's item, HP2Burst_Potion
+// and the health potion's drinking skill, with the few fields that make it the cut item.
+//
+// After them come EVE's cut Tachy Mode ChainSpin (coop chainspin, cut/chainspin.lua), near copies too: the SkillTable
+// row P_Eve_Tachy_Skill_ChainSpin1_1 (1004500, ChainStab1's row starting its own steps), its 9 steps (100450001 to
+// 100450009, ChainStab1's steps with the timing, moves and hit area of the Tachy NPC's version, which play the NPC's
+// shipped Show of EVE's own ChainSpin clip and take SB's shipped ChainSpin moves) and the EffectTable row
+// P_Eve_Tachy_Skill_ChainSpin1_Use (1004500), whose UseSkill action starts the skill while EVE is in Tachy Mode.
+//
+// A second batch, the cut Gardener's (coop gardener fight, cut/gardener.lua; kGardenerRecipe), goes in on its own ask,
+// so a refusal in one batch never stops another: 13 near copies of shipped rows (the 3 steps of its ToxicBeam, its 3
+// skills and their commands, a stance that never moves and 3 CharacterTable rows over M_Maelstrom: M_Gardener 50010,
+// M_Gardener_Skulling 50011 and the half-scale M_Gardener_Half 50012). A third, the cut Tendril's (coop tendril fight,
+// cut/tendril.lua; kTendrilRecipe), is authored as the Lion's: 107 rows over the Lion's templates (11 skills on its own
+// clips with their commands and 45 steps, 28 target filters, 5 hit results, its turn toward EVE, 2 anim sets, a
+// stance, the dead and appearance rows and M_TendrilC 50060). Its steps and its death name Shows no pak holds, which
+// cut/tendril.lua builds in memory before a spawn. A fourth, the Shock Bolt's (kBoltRecipe), holds the 4 rows of EVE's
+// cut ammo the Night Operation shop sells, and only the shop asks for it (nightop/shop.lua through cut/lion.lua: a
+// Shock Bolt buy, and coop nightop shop before it opens the screen), so these rows never stand in front of the Lion's:
+// ItemTable Bullet_Shock (32, over Bullet_Scatter), the SkillTable row its consumable plays,
+// P_Eve_Gun_ShootShockSlug1_1 (1003401, Scatter's skill on SB's shipped Shock steps), the projectile those steps fire,
+// ProjectileTable P_Eve_Gun_ShootShockSlug1_Projectile1 (1010051, the normal slug's), and its hit result with SB's
+// shock stun (SkillResultTable 100200801). What makes the ammo selectable and the gun fire it is no row: lion/shock.h
+// grows two lists in place once these rows are in. A fifth, Matrix XIII's
+// (kMxiiiRecipe, written by hand below the generated part with its own patches), holds the 8 rows the cut dungeon's
+// first zone lacks for a camp of its own (coop mxiii, cut/mxiii.lua): ZoneCampTable DLC02_10_Camp_01 (280001, a copy of
+// ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp
+// names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420 to 426): DLC02_10_EnvS_900
+// leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points of those names, in the two
+// zone tables only it writes. Then 2 rows give zone 30 a camp with no kit (coop mxiii 30): ZoneCampTable
+// DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900, DLC02_10_EnvS_900's recipe in
+// Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows in place, the table only it reads,
+// so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A sixth, the Night
+// Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it (nightop/shop.lua asks for it
+// before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011, over Clyde's currency
+// FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and the Shock Bolt
+// (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop (1061) and
+// _CoopBolt (1062, the same with the Shock Bolt), over the cut Shop_NightOperation with the Beta Seed as currency and
+// no tag. A Batch names its rows, its patches and the word its status line, log lines and request start
+// with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop": coop-status.txt's shock line is lion/shock.h's); every
+// batch shares the table checks, the block and the rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
 // (glue/tick/lion_game.inc's gate: no lock guards the tables). For each row not added yet, in order: the table must be
-// SB's UDataTable with its row struct of the size the SDK gives; the new name must be free in RowMap and the new ID
-// free in the table's ID map; the template is found by name; then the row is built in a block the glue owns
+// SB's UDataTable with its row struct of the size the SDK gives; the new name must be free in RowMap; the template is
+// found by name; the new ID must be free in the table's ID map; then the row is built in a block the glue owns
 // (InitializeStruct, CopyScriptStruct from the template, the ID at +0x10, the patches) and handed to AddRow, which
 // removes any row of that name, copies ours into its own allocation and fills the ID and index maps. The first refusal
-// stops the run before any later row, and the CharacterTable rows come last, so NewActor finds 50020 only once every
-// other row is in. A row is added once a run: a later run skips it, so AddRow's RemoveRow never frees a row a Lion
-// still reads.
+// stops the run before any later row of its batch, and each batch's CharacterTable rows come last, so NewActor finds
+// 50020 (or 50010, 50060) only once every other row of its batch is in. A row is added once a run: a later run skips
+// it, so AddRow's RemoveRow never frees a row a Lion (or a Gardener, a Tendril) still reads.
+//
+// A row whose template is itself (donor equal to name) is a shipped row patched in place, not added: it must be in the
+// table under that name, with its ID in the ID map naming it; it is copied into the block, patched there and copied
+// back over itself with CopyScriptStruct, which reassigns its strings and arrays through SB's allocator. The row keeps
+// its address, ID and lazy-init state, and AddRow is not called. Only tables without Transient arrays take such rows
+// (rows_test checks it), so no parsed copy of a patched field goes stale.
 //
 // SB parses a row's JSON strings (StartEffect, AttackCollisionGroupArray, AttackerEffectWhenDead, a hit result's
 // effects...) into Transient arrays the first time it uses the row (row +8 is 0 until then; every lookup site sets it
@@ -55,7 +108,10 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 12 tables, in coop::kLionTables' order (link/protocol.h): Lua's lion rows request names each with its address.
+// The 20 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// mxiii, shop) name each with its address. The generated kTables describes them all, the two zone tables camp
+// (ZoneCampTable) and env (ZoneEnvSpawnTable) and the last, trigger (ZoneTriggerTable), too, though only Matrix XIII's
+// hand-written batch writes them.
 enum class Table : uint8_t {
   character,
   appearance,
@@ -68,9 +124,17 @@ enum class Table : uint8_t {
   move,
   filter,
   result,
-  effect
+  effect,
+  item,
+  consumable,
+  projectile,
+  camp,
+  env,
+  shop,
+  shopitem,
+  trigger
 };
-constexpr size_t kTableCount = 12;
+constexpr size_t kTableCount = 20;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -93,13 +157,25 @@ struct Row {
   uint32_t id;              // 0 in a table with no ID.
   uint16_t first, count;    // Its patches in kPatches.
 };
+// A shipped row patched in place: its template is itself (see the top of this file).
+inline bool shipped_row(const Row &r) { return !std::strcmp(r.name, r.donor); }
 
 // ---- Generated by ~/.claude/project-notes/stellar-blade-minecraft/tools/lion-rows/gen.py: do not edit by hand ----
-// The Lion's own rows: 222 in all (character 2, appearance 1, dead 1, stance 2, anim 2, command 21, skill 21, step
-// 80, move 61, filter 25, result 5, effect 1), 2991 fields. 2087 of them set a field the template row held, 894 of
-// those to the value it held (the Lion's value is the same); the other 904 fill fields it left empty. From the
-// offline reader's dumps of the 12 tables, the Lion Shows, the Large blueprint and its CH_M_NA_02_LionC_Collision,
-// the pak listing, the Dumper-7 SDK (stellar-sdk-647527f) and the Lion's animation points (lion-points.json).
+// The Lion's own rows, the cut items' and EVE's Tachy ChainSpin's (SkillTable P_Eve_Sword_Normal_Buff_1,
+// ItemConsumableTable Buff_HP2MP, ItemTable HP2Burst_Potion, ItemTable Buff_HP2MP, SkillActiveStepTable
+// P_Eve_Tachy_Skill_ChainSpin1_1_Cast1, SkillActiveStepTable P_Eve_Tachy_Skill_ChainSpin1_1_Hit1,
+// SkillActiveStepTable P_Eve_Tachy_Skill_ChainSpin1_1_Cast2, SkillActiveStepTable
+// P_Eve_Tachy_Skill_ChainSpin1_1_Hit2, SkillActiveStepTable P_Eve_Tachy_Skill_ChainSpin1_1_Cast3,
+// SkillActiveStepTable P_Eve_Tachy_Skill_ChainSpin1_1_Hit3, SkillActiveStepTable
+// P_Eve_Tachy_Skill_ChainSpin1_1_Cast4, SkillActiveStepTable P_Eve_Tachy_Skill_ChainSpin1_1_Hit4,
+// SkillActiveStepTable P_Eve_Tachy_Skill_ChainSpin1_1_Finish1, SkillTable P_Eve_Tachy_Skill_ChainSpin1_1,
+// EffectTable P_Eve_Tachy_Skill_ChainSpin1_Use): 237 in all (character 2, appearance 1, dead 1, stance 2, anim 2,
+// command 21, skill 23, step 89, move 61, filter 25, result 5, effect 2, item 2, consumable 1), 3178 fields. 2271
+// of them set a field the template row held, 1022 of those to the value it held (the new row's value is the same:
+// every field of a near copy but the few it changes); the other 907 fill fields it left empty. From the offline
+// reader's dumps of the 17 tables, the Lion Shows, the ChainSpin Show, the Large blueprint and its
+// CH_M_NA_02_LionC_Collision, the pak listing, the Dumper-7 SDK (stellar-sdk-647527f) and the Lion's animation
+// points (lion-points.json).
 // Hit steps that follow their Show where the striking peak sits just outside:
 //   JumpAttackLow Hit1: the body peaks at 1.100 s, 0.030 s before its Hit step (1.130-1.230 s)
 //   AttackToBackJump Hit1: the claw_R peaks at 1.133 s, 0.017 s before its Hit step (1.150-1.350 s)
@@ -209,9 +285,231 @@ constexpr TableInfo kTables[kTableCount] = {
     {"SkillResultTable", 0x4b0, true, {0x320, 0x330, 0x340, 0x350, 0x360, 0x370, 0x380, 0x390, 0x3a0,
                                        0x3b0, 0x3c0, 0x3d0, 0x3e0, 0x3f0, 0x400, 0x410, 0x420, 0x430,
                                        0x440, 0x450, 0x460, 0x470, 0x480, 0x490, 0x4a0}},
-    {"EffectTable", 0x588, true, {0x578}}, // SBEffectTableProperty
+    {"EffectTable", 0x588, true, {0x578}},   // SBEffectTableProperty
+    {"ItemTable", 0x1c0, true, {}},          // SBItemTableProperty
+    {"ItemConsumableTable", 0x58, true, {}}, // SBItemConsumableTableProperty
+    {"ProjectileTable", 0x398, true, {0x328, 0x338, 0x348, 0x358, 0x368, 0x378, 0x388}}, // SBProjectileTableProperty
+    {"ZoneCampTable", 0xa8, true, {}},                                                   // SBZoneCampTableProperty
+    {"ZoneEnvSpawnTable", 0x508, true, {}},                                              // SBZoneEnvSpawnTableProperty
+    {"ShopTable", 0xa8, true, {}},                                                       // SBShopTableProperty
+    {"ShopItemTable", 0xa0, true, {}},                                                   // SBShopItemTableProperty
+    {"ZoneTriggerTable", 0xa8, true, {}},                                                // SBZoneTriggerTableProperty
 };
 constexpr Patch kPatches[] = {
+    // P_Eve_Sword_Normal_Buff_1 (SkillTable, cut item)
+    {0x070, Kind::i32, 1, nullptr},                              // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                               // AttributeType
+    {0x0b4, Kind::name, 0, "Self"},                              // TargetFilterAlias
+    {0x100, Kind::name, 0, "P_Eve_Sword_Normal_Potion_1_Cast1"}, // FirstSkillActiveAlias
+    {0x124, Kind::f32, 0.2f, nullptr},                           // CoolTime
+    {0x14c, Kind::u8, 1, nullptr},                               // Cancelable
+    {0x189, Kind::u8, 1, nullptr},                               // bIgnoreAttackSpeedStat
+    {0x2f0, Kind::name, 0, "Sys"},                               // FileSuffix
+    // Buff_HP2MP (ItemConsumableTable, cut item)
+    {0x014, Kind::name, 0, "CG_Item_ConsumeAllow_HP2MP"},                       // ConditionGroup
+    {0x020, Kind::names, 0, "Item_Buff_HP2MP_ReduceHP|Item_Buff_HP2MP_GainMP"}, // EffectAliasArray
+    {0x038, Kind::name, 0, "P_Eve_Sword_Normal_Buff_1"},                        // ConsumeSkillAlias
+    // HP2Burst_Potion (ItemTable, cut item)
+    {0x01c, Kind::i32, 5, nullptr},                           // InventoryPriority
+    {0x030, Kind::string, 0, "Item_HP2Burst_Potion_Name"},    // Name
+    {0x050, Kind::string, 0, "Item_HP2Burst_Potion_Fuction"}, // DescFunction
+    {0x060, Kind::string, 0, "Item_HP2Burst_Potion_Content"}, // DescContent
+    {0x070, Kind::u8, 5, nullptr},                            // Category
+    {0x07c, Kind::u8, 1, nullptr},                            // Rarity
+    {0x07d, Kind::u8, 1, nullptr},                            // SaveType
+    {0x07e, Kind::u8, 0, nullptr},                            // IncludeDropPool
+    {0x080, Kind::i32, 1000, nullptr},                        // StackAmount
+    {0x084, Kind::i32, 999999, nullptr},                      // MaxAmount
+    {0x08c, Kind::i32, 2, nullptr},                           // ChargeCount
+    {0x090, Kind::u8, 0, nullptr},                            // ChargeOverrideActorStat
+    {0x091, Kind::u8, 1, nullptr},                            // AbleBroken
+    {0x092, Kind::u8, 1, nullptr},                            // AblePrice
+    {0x093, Kind::u8, 1, nullptr},                            // AbleDrop
+    {0x094, Kind::i32, 1, nullptr},                           // RequireLevel
+    {0x098, Kind::string, 0, "/Game/Art/Item/BP_Item_HP2Burst_Potion.BP_Item_HP2Burst_Potion"}, // StudioAsset3D
+    {0x0a8, Kind::string, 0, "/Game/Art/Item/BP_Item_HP2Burst_Potion.BP_Item_HP2Burst_Potion"}, // Asset3D
+    {0x0c8, Kind::f32, 8.5f, nullptr},                                                          // AssetZOffset
+    {0x0cc, Kind::f32, 1.0f, nullptr},                                                          // Asset3DScale
+    {0x0d0, Kind::string, 0, "/Game/Art/UI/Texture/Item/Burst.Burst"},                          // Asset2D
+    // GainAllowShowPath
+    {0x108, Kind::string, 0, "SBShowData'/Game/Art/Show/Item/M_Item_GainAllow_Common_R.M_Item_GainAllow_Common_R'"},
+    {0x14c, Kind::name, 0, "HP2Burst_Potion"}, // ConsumableAlias
+    {0x18a, Kind::u8, 106, nullptr},           // ScanDisplayType
+    {0x18c, Kind::name, 0, "Heal"},            // ScanDisplayGroup
+    {0x1a4, Kind::u8, 1, nullptr},             // bMaintainNewGamePlus
+    {0x1b4, Kind::name, 0, "Consume"},         // FileSuffix
+    // Buff_HP2MP (ItemTable, cut item)
+    {0x01c, Kind::i32, 6, nullptr},                                                       // InventoryPriority
+    {0x030, Kind::string, 0, "Item_Buff_HP2MP_Name"},                                     // Name
+    {0x050, Kind::string, 0, "Item_Buff_HP2MP_Function"},                                 // DescFunction
+    {0x060, Kind::string, 0, "Item_Buff_HP2MP_Content"},                                  // DescContent
+    {0x070, Kind::u8, 5, nullptr},                                                        // Category
+    {0x07c, Kind::u8, 1, nullptr},                                                        // Rarity
+    {0x07d, Kind::u8, 1, nullptr},                                                        // SaveType
+    {0x07e, Kind::u8, 0, nullptr},                                                        // IncludeDropPool
+    {0x080, Kind::i32, 1000, nullptr},                                                    // StackAmount
+    {0x084, Kind::i32, 999999, nullptr},                                                  // MaxAmount
+    {0x08c, Kind::i32, 2, nullptr},                                                       // ChargeCount
+    {0x090, Kind::u8, 0, nullptr},                                                        // ChargeOverrideActorStat
+    {0x091, Kind::u8, 1, nullptr},                                                        // AbleBroken
+    {0x092, Kind::u8, 1, nullptr},                                                        // AblePrice
+    {0x093, Kind::u8, 1, nullptr},                                                        // AbleDrop
+    {0x094, Kind::i32, 1, nullptr},                                                       // RequireLevel
+    {0x098, Kind::string, 0, "/Game/Art/Item/BP_Item_Potion_Large.BP_Item_Potion_Large"}, // StudioAsset3D
+    {0x0a8, Kind::string, 0, "/Game/Art/Item/BP_Item_Potion_Large.BP_Item_Potion_Large"}, // Asset3D
+    {0x0c8, Kind::f32, 8.5f, nullptr},                                                    // AssetZOffset
+    {0x0cc, Kind::f32, 1.0f, nullptr},                                                    // Asset3DScale
+    {0x0d0, Kind::string, 0, "/Game/Art/UI/Texture/Item/Buff_HP2MP.Buff_HP2MP"},          // Asset2D
+    // GainAllowShowPath
+    {0x108, Kind::string, 0, "SBShowData'/Game/Art/Show/Item/M_Item_GainAllow_Common_R.M_Item_GainAllow_Common_R'"},
+    {0x14c, Kind::name, 0, "Buff_HP2MP"}, // ConsumableAlias
+    {0x18a, Kind::u8, 106, nullptr},      // ScanDisplayType
+    {0x18c, Kind::name, 0, "Heal"},       // ScanDisplayGroup
+    {0x1a4, Kind::u8, 1, nullptr},        // bMaintainNewGamePlus
+    {0x1b4, Kind::name, 0, "Consume"},    // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Cast1 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x018, Kind::f32, 0.5f, nullptr},                             // Duration
+    {0x034, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"UseSkill_Step\"}, {\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_EveSkill\", "
+     "\"CalculationValue\":2}]"},
+    {0x120, Kind::string, 0, "[{\"Alias\":\"Check_EveSkill\"}]"},          // StartTargetEffect
+    {0x130, Kind::u8, 1, nullptr},                                         // StopSelfMove
+    {0x138, Kind::names, 0, ""},                                           // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "CH_NPC_TachyNPC/Skill/N_TachyNPC_SwingChain"}, // ShowPath
+    {0x1f9, Kind::u8, 1, nullptr},                                         // bLookAtTarget
+    {0x2f8, Kind::name, 0, "Eve"},                                         // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Hit1 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x014, Kind::u8, 1, nullptr},                                  // Type
+    {0x018, Kind::f32, 0.15f, nullptr},                             // Duration
+    {0x020, Kind::f32, 0.25f, nullptr},                             // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                             // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                                  // AvailableJustAction
+    {0x034, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Cast2"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "P_Eve_Tachy_Skill_Chainstab1_1_Hit1"},  // SkillResultAlias
+    {0x110, Kind::string, 0, "[{\"Alias\":\"UseSkill_Step\"}, {\"Alias\":\"BlockAction_Step\"}]"}, // StartSelfEffect
+    {0x138, Kind::names, 0, "P_Eve_Tachy_Skill_ChainSpin1_Move1"},                                 // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                              // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                              // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                              // bRetargeting
+    {0x1b4, Kind::name, 0, "P_Eve_Sword_1000_360_500_HitArea"}, // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Collision_WeaponAndRightArm\", \"DelayTime\":0}]"},
+    {0x238, Kind::u8, 1, nullptr}, // bCritical
+    {0x272, Kind::u8, 1, nullptr}, // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "Eve"}, // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Cast2 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x018, Kind::f32, 0.1f, nullptr},                                                             // Duration
+    {0x034, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Hit2"},                                 // NextStepAlias
+    {0x110, Kind::string, 0, "[{\"Alias\":\"UseSkill_Step\"}, {\"Alias\":\"BlockAction_Step\"}]"}, // StartSelfEffect
+    {0x2f8, Kind::name, 0, "Eve"},                                                                 // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Hit2 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x014, Kind::u8, 1, nullptr},                                  // Type
+    {0x018, Kind::f32, 0.1f, nullptr},                              // Duration
+    {0x020, Kind::f32, 0.25f, nullptr},                             // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                             // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                                  // AvailableJustAction
+    {0x034, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Cast3"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "P_Eve_Tachy_Skill_Chainstab1_1_Hit2"},  // SkillResultAlias
+    {0x110, Kind::string, 0, "[{\"Alias\":\"UseSkill_Step\"}, {\"Alias\":\"BlockAction_Step\"}]"}, // StartSelfEffect
+    {0x1a4, Kind::u8, 1, nullptr},                              // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                              // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                              // bRetargeting
+    {0x1b4, Kind::name, 0, "P_Eve_Sword_1000_360_500_HitArea"}, // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Collision_WeaponAndRightArm\", \"DelayTime\":0}]"},
+    {0x238, Kind::u8, 1, nullptr}, // bCritical
+    {0x272, Kind::u8, 1, nullptr}, // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "Eve"}, // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Cast3 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x018, Kind::f32, 0.15f, nullptr},                                                            // Duration
+    {0x034, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Hit3"},                                 // NextStepAlias
+    {0x110, Kind::string, 0, "[{\"Alias\":\"UseSkill_Step\"}, {\"Alias\":\"BlockAction_Step\"}]"}, // StartSelfEffect
+    {0x2f8, Kind::name, 0, "Eve"},                                                                 // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Hit3 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x014, Kind::u8, 1, nullptr},                                  // Type
+    {0x018, Kind::f32, 0.1f, nullptr},                              // Duration
+    {0x020, Kind::f32, 0.25f, nullptr},                             // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                             // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                                  // AvailableJustAction
+    {0x034, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Cast4"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "P_Eve_Tachy_Skill_Chainstab1_1_Hit3"},  // SkillResultAlias
+    {0x110, Kind::string, 0, "[{\"Alias\":\"UseSkill_Step\"}, {\"Alias\":\"BlockAction_Step\"}]"}, // StartSelfEffect
+    {0x1a4, Kind::u8, 1, nullptr},                              // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                              // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                              // bRetargeting
+    {0x1b4, Kind::name, 0, "P_Eve_Sword_1000_360_500_HitArea"}, // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Collision_WeaponAndRightArm\", \"DelayTime\":0}]"},
+    {0x238, Kind::u8, 1, nullptr}, // bCritical
+    {0x272, Kind::u8, 1, nullptr}, // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "Eve"}, // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Cast4 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x018, Kind::f32, 0.8f, nullptr},                                                             // Duration
+    {0x034, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Hit4"},                                 // NextStepAlias
+    {0x110, Kind::string, 0, "[{\"Alias\":\"UseSkill_Step\"}, {\"Alias\":\"BlockAction_Step\"}]"}, // StartSelfEffect
+    {0x138, Kind::names, 0, "P_Eve_Tachy_Skill_ChainSpin1_Move2"},                                 // SelfMoveAliasArray
+    {0x2f8, Kind::name, 0, "Eve"},                                                                 // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Hit4 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x014, Kind::u8, 1, nullptr},                                    // Type
+    {0x018, Kind::f32, 0.1f, nullptr},                                // Duration
+    {0x020, Kind::f32, 0.25f, nullptr},                               // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                               // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                                    // AvailableJustAction
+    {0x034, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Finish1"}, // NextStepAlias
+    {0x0cc, Kind::name, 0, "P_Eve_Tachy_Skill_Chainstab1_1_Hit5"},    // SkillResultAlias
+    {0x110, Kind::string, 0, "[{\"Alias\":\"UseSkill_Step\"}, {\"Alias\":\"BlockAction_Step\"}]"}, // StartSelfEffect
+    {0x1a4, Kind::u8, 1, nullptr},                              // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 2, nullptr},                              // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                              // bRetargeting
+    {0x1b4, Kind::name, 0, "P_Eve_Sword_1000_360_500_HitArea"}, // OverrideTargetFilterAlias
+    // AttackCollisionGroupArray
+    {0x1c0, Kind::string, 0, "[{\"CollisionGroupName\":\"Collision_WeaponAndRightArm\", \"DelayTime\":0}]"},
+    {0x238, Kind::u8, 1, nullptr}, // bCritical
+    {0x2f8, Kind::name, 0, "Eve"}, // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1_Finish1 (SkillActiveStepTable, Tachy ChainSpin)
+    {0x018, Kind::f32, 1.25f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"UseSkill_Step\", \"Time\":0.5}, {\"Alias\":\"BlockAction_Step\", \"Time\":0.5}, "
+     "{\"Alias\":\"AddHitDefense_EveSkillDispel\"}]"},
+    {0x239, Kind::u8, 1, nullptr}, // PostStep
+    {0x240, Kind::u8, 1, nullptr}, // CanCutoff
+    {0x241, Kind::u8, 1, nullptr}, // bStopWhenMoving
+    {0x2f8, Kind::name, 0, "Eve"}, // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_1 (SkillTable, Tachy ChainSpin)
+    {0x058, Kind::names, 0, ""},                                    // AchievementTags
+    {0x06c, Kind::i32, 1, nullptr},                                 // StartDelayTick
+    {0x070, Kind::i32, 3, nullptr},                                 // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                                  // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                                  // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                          // AISkillFlag
+    {0x0b4, Kind::name, 0, "P_Eve_Sword_0500_180_500_Target"},      // TargetFilterAlias
+    {0x0e8, Kind::string, 0, ""},                                   // FirstActiveStepByEffect
+    {0x100, Kind::name, 0, "P_Eve_Tachy_Skill_ChainSpin1_1_Cast1"}, // FirstSkillActiveAlias
+    {0x124, Kind::f32, 1.0f, nullptr},                              // CoolTime
+    {0x140, Kind::f32, 6.0f, nullptr},                              // AttackDamageRate
+    {0x144, Kind::f32, 6.0f, nullptr},                              // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                                  // Cancelable
+    {0x14d, Kind::u8, 1, nullptr},                                  // ActiveSkillWhileCutoff
+    {0x158, Kind::name, 0, "Step2"},                                // TargetDeadType
+    {0x160, Kind::string, 0, "Hit/Result_Hit_Env"},                 // WorldObjectHitShow
+    {0x170, Kind::u8, 1, nullptr},                                  // RotateInputDirection
+    {0x172, Kind::u8, 1, nullptr},                                  // bSwitchBattleMode
+    {0x175, Kind::u8, 1, nullptr},                                  // bDelayAutoLockOn
+    {0x17c, Kind::name, 0, "None"},                                 // AcquisitionSkillAlias
+    {0x189, Kind::u8, 1, nullptr},                                  // bIgnoreAttackSpeedStat
+    {0x2f0, Kind::name, 0, "Eve"},                                  // FileSuffix
+    // P_Eve_Tachy_Skill_ChainSpin1_Use (EffectTable, Tachy ChainSpin)
+    {0x080, Kind::names, 0, "P_Eve_TachyMode"},                 // ConditionActive_CheckEffectAliasArray
+    {0x184, Kind::f32, 1.0f, nullptr},                          // CalculationMultipleValue
+    {0x198, Kind::u8, 2, nullptr},                              // LifeType
+    {0x19c, Kind::f32, 0.1f, nullptr},                          // LifeTime
+    {0x1b8, Kind::name, 0, "Self"},                             // ActiveTargetFilterAlias
+    {0x2fc, Kind::u8, 69, nullptr},                             // Action1
+    {0x300, Kind::string, 0, "P_Eve_Tachy_Skill_ChainSpin1_1"}, // ActionValue1
+    {0x570, Kind::name, 0, "YE"},                               // FileSuffix
     // M_LionC_PhaseRoar
     {0x184, Kind::f32, 1.0f, nullptr},                   // CalculationMultipleValue
     {0x198, Kind::u8, 2, nullptr},                       // LifeType
@@ -3642,234 +3940,2513 @@ constexpr Patch kPatches[] = {
     // OverrideCharacterSoundSet
     {0x520, Kind::string, 0,
      "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_46_BEHEMOTH.CSS_MON_46_BEHEMOTH'"},
+    // M_GardenerC_ToxicBeam_Cast1 (SkillActiveStepTable, Gardener)
+    {0x018, Kind::f32, 1.86f, nullptr},                   // Duration
+    {0x034, Kind::name, 0, "M_GardenerC_ToxicBeam_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x160, Kind::name, 0, "CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam"}, // ShowPath
+    {0x1f9, Kind::u8, 1, nullptr},                                            // bLookAtTarget
+    {0x1fc, Kind::f32, 0.3f, nullptr},                                        // LookAtTargetRotationTime
+    {0x200, Kind::f32, 360.0f, nullptr},                                      // LookAtTargetLeftMaxAngle
+    {0x204, Kind::f32, 360.0f, nullptr},                                      // LookAtTargetRightMaxAngle
+    // M_GardenerC_ToxicBeam_Hit1 (SkillActiveStepTable, Gardener)
+    {0x014, Kind::u8, 1, nullptr},                           // Type
+    {0x018, Kind::f32, 0.2f, nullptr},                       // Duration
+    {0x020, Kind::f32, 1.0f, nullptr},                       // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                       // SkillShieldAttackDamageRate
+    {0x030, Kind::u8, 1, nullptr},                           // AvailableJustAction
+    {0x034, Kind::name, 0, "M_GardenerC_ToxicBeam_Finish1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    // UsableNonTargetProjectileAliasArray
+    {0x178, Kind::names, 0,
+     "M_Gardener_SingleShot_Projectile1|M_Gardener_SingleShot_Projectile2|M_Gardener_MultipleShot_Projectile14|"
+     "M_Gardener_MultipleShot_Projectile15|M_Gardener_MultipleShot_Projectile16|"
+     "M_Gardener_MultipleShot_Projectile17|M_Gardener_MultipleShot_Projectile18|"
+     "M_Gardener_MultipleShot_Projectile19"},
+    // UsableTargetProjectileAliasArray
+    {0x190, Kind::names, 0,
+     "M_Gardener_SingleShot_Projectile1|M_Gardener_SingleShot_Projectile2|M_Gardener_MultipleShot_Projectile14|"
+     "M_Gardener_MultipleShot_Projectile15|M_Gardener_MultipleShot_Projectile16|"
+     "M_Gardener_MultipleShot_Projectile17|M_Gardener_MultipleShot_Projectile18|"
+     "M_Gardener_MultipleShot_Projectile19"},
+    {0x272, Kind::u8, 1, nullptr}, // bIgnoreHitStop
+    // M_GardenerC_ToxicBeam_Finish1 (SkillActiveStepTable, Gardener)
+    {0x018, Kind::f32, 3.34f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    // M_GardenerC_SingleShot (SkillTable, Gardener)
+    {0x070, Kind::i32, 3, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x0b4, Kind::name, 0, "M_Gardener_SingleShot_1_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_Gardener_SingleShot_4_Cast1"},  // FirstSkillActiveAlias
+    {0x140, Kind::f32, 2.5f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2c8, Kind::u8, 1, nullptr},                            // bApplyOffScreenIndicator
+    // M_GardenerC_MultipleShot (SkillTable, Gardener)
+    {0x070, Kind::i32, 3, nullptr},                             // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                              // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                              // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                      // AISkillFlag
+    {0x0b4, Kind::name, 0, "M_Gardener_MultipleShot_1_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_Gardener_MultipleShot_1_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},                         // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},                          // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                          // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                              // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                              // bSwitchBattleMode
+    {0x2c8, Kind::u8, 1, nullptr},                              // bApplyOffScreenIndicator
+    // M_GardenerC_ToxicBeam (SkillTable, Gardener)
+    {0x070, Kind::i32, 3, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x0b4, Kind::name, 0, "M_Gardener_SingleShot_1_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_GardenerC_ToxicBeam_Cast1"},    // FirstSkillActiveAlias
+    {0x124, Kind::f32, 15.0f, nullptr},                       // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2c8, Kind::u8, 1, nullptr},                            // bApplyOffScreenIndicator
+    // M_GardenerC_SingleShot (SkillCommandTable, Gardener)
+    {0x018, Kind::name, 0, "M_GardenerC_SingleShot"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                    // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                    // bFly
+    {0x053, Kind::u8, 1, nullptr},                    // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                 // AICommandActivationRate
+    // M_GardenerC_MultipleShot (SkillCommandTable, Gardener)
+    {0x018, Kind::name, 0, "M_GardenerC_MultipleShot"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                      // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                      // bFly
+    {0x053, Kind::u8, 1, nullptr},                      // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                   // AICommandActivationRate
+    // M_GardenerC_ToxicBeam (SkillCommandTable, Gardener)
+    {0x018, Kind::name, 0, "M_GardenerC_ToxicBeam"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                   // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                   // bFly
+    {0x053, Kind::u8, 1, nullptr},                   // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                // AICommandActivationRate
+    // M_GardenerC_Default (CharacterStanceTable, Gardener)
+    {0x01a, Kind::u8, 1, nullptr}, // bDetectCloakingTarget
+    {0x08d, Kind::u8, 1, nullptr}, // bInfiniteStance
+    {0x090, Kind::names, 0, "M_GardenerC_SingleShot|M_GardenerC_MultipleShot|M_GardenerC_ToxicBeam"}, // CommandArray
+    {0x0a8, Kind::f32, 0.0f, nullptr},                                                                // WalkSpeed
+    {0x0ac, Kind::f32, 0.0f, nullptr},                                                                // RunSpeed
+    {0x0b0, Kind::f32, 0.0f, nullptr},                                                                // LockOnRunSpeed
+    {0x0b4, Kind::f32, 0.0f, nullptr},                                                                // LockOnWalkSpeed
+    {0x0bc, Kind::f32, 100.0f, nullptr},           // RotateAnglePerSecond
+    {0x150, Kind::name, 0, "M_Gardener_Peaceful"}, // AnimSet_Peaceful_UpperBody
+    {0x158, Kind::name, 0, "M_Gardener_Peaceful"}, // AnimSet_Peaceful_LowerBody
+    {0x160, Kind::name, 0, "M_Gardener_Battle"},   // AnimSet_Battle_UpperBody
+    {0x168, Kind::name, 0, "M_Gardener_Battle"},   // AnimSet_Battle_LowerBody
+    {0x170, Kind::name, 0, "Groggy"},              // AnimSet_Groggy_UpperBody
+    {0x178, Kind::name, 0, "Groggy"},              // AnimSet_Groggy_LowerBody
+    {0x180, Kind::name, 0, "Down"},                // AnimSet_Down_UpperBody
+    {0x188, Kind::name, 0, "Down"},                // AnimSet_Down_LowerBody
+    {0x190, Kind::name, 0, "Dead"},                // AnimSet_Dead_UpperBody
+    {0x198, Kind::name, 0, "Dead"},                // AnimSet_Dead_LowerBody
+    {0x1a0, Kind::name, 0, "Airborne"},            // AnimSet_Airborne_UpperBody
+    {0x1a8, Kind::name, 0, "Airborne"},            // AnimSet_Airborne_LowerBody
+    // M_Gardener_Skulling (CharacterTable, Gardener)
+    {0x014, Kind::name, 0, "Elite"},        // Rank
+    {0x020, Kind::string, 0, "M_Gardener"}, // Type
+    {0x030, Kind::name, 0, "Monster"},      // Tribe
+    {0x050, Kind::names, 0, "Monster"},     // Tags
+    {0x060, Kind::names, 0, ""},            // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Gardener"},     // Flag
+    {0x078, Kind::i32, 37840, nullptr},     // MaxHP
+    {0x07c, Kind::i32, 1455, nullptr},      // MaxShield
+    {0x084, Kind::f32, 930.0f, nullptr},    // PhysicAttackPower
+    {0x088, Kind::f32, 930.0f, nullptr},    // RangeAttackPower
+    {0x08c, Kind::f32, 120.0f, nullptr},    // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},      // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},      // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},      // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 80, nullptr},        // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},         // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},      // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},      // CriticalValueRate
+    {0x148, Kind::names, 0, ""},            // EffectAliasWhenZeroHPArray
+    {0x168, Kind::names, 0, "Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"}, // EffectAliasWhenZeroStaminaArray
+    {0x1f8, Kind::u8, 6, nullptr},                                                  // WeightType
+    {0x1fc, Kind::f32, 1.0f, nullptr},                                              // MeshScale
+    {0x200, Kind::f32, 291.0f, nullptr},                                            // TargetFilterRadius
+    {0x204, Kind::f32, 300.0f, nullptr},                                            // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 341.0f, nullptr},                                            // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 1700.0f, nullptr},                                           // RuleMoveBlockAreaZHeight
+    {0x21c, Kind::f32, 291.0f, nullptr},                                            // RuleMoveBlockCheckRadius
+    // DefaultEffectArray
+    {0x220, Kind::names, 0,
+     "Rank_Elite|M_Common_FixedLocation|BlockRuleMove_Infinite|M_Common_ImmuneAbnormal|ShowTag_NoHitAni_Infinite|"
+     "ShowTag_AdditiveNoPlay_Infinite|DisableMonsterWarp|M_Common_BackHitImmune"},
+    {0x270, Kind::name, 0, "MonsterElite"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadElite\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_Gardener"},                               // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_Cocoon_Despawn"},               // DespawnShow
+    {0x2f8, Kind::name, 0, "None"},                                     // CollisionGroupName1
+    {0x300, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge1
+    {0x308, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero1
+    {0x318, Kind::name, 0, "None"},                                     // CollisionGroupName2
+    {0x320, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge2
+    {0x328, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero2
+    {0x338, Kind::name, 0, "None"},                                     // CollisionGroupName3
+    {0x340, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge3
+    {0x348, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero3
+    {0x3a8, Kind::name, 0, "M_GardenerC_Default"},                      // DefaultStanceAlias
+    {0x3b0, Kind::f32, 1.5f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 2.0f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
+    {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Skulling_AI_Test"}, // BehaviorTreeRes
+    {0x3f8, Kind::name, 0, "M_Gardener"},                                                        // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_Gardener"},                                                        // NarrowDetectAIAlias
+    {0x410, Kind::f32, 150.0f, nullptr},                   // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},                     // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},                     // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},                         // ActorType
+    {0x420, Kind::name, 0, "M_Gardener"},                  // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},                        // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr},                   // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},                         // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},                         // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},                         // ScanDisplayType
+    {0x508, Kind::string, 0, "Char_M_Gardener_AlbumName"}, // Name
+    // OverrideCharacterSoundSet
+    {0x520, Kind::string, 0,
+     "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_36_MaelStrom.CSS_MON_36_MaelStrom'"},
+    // M_Gardener_Half (CharacterTable, Gardener)
+    {0x014, Kind::name, 0, "Elite"},        // Rank
+    {0x020, Kind::string, 0, "M_Gardener"}, // Type
+    {0x030, Kind::name, 0, "Monster"},      // Tribe
+    {0x050, Kind::names, 0, "Monster"},     // Tags
+    {0x060, Kind::names, 0, ""},            // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Gardener"},     // Flag
+    {0x078, Kind::i32, 37840, nullptr},     // MaxHP
+    {0x07c, Kind::i32, 1455, nullptr},      // MaxShield
+    {0x084, Kind::f32, 930.0f, nullptr},    // PhysicAttackPower
+    {0x088, Kind::f32, 930.0f, nullptr},    // RangeAttackPower
+    {0x08c, Kind::f32, 120.0f, nullptr},    // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},      // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},      // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},      // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 80, nullptr},        // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},         // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},      // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},      // CriticalValueRate
+    {0x148, Kind::names, 0, ""},            // EffectAliasWhenZeroHPArray
+    {0x168, Kind::names, 0, "Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"}, // EffectAliasWhenZeroStaminaArray
+    {0x1f8, Kind::u8, 6, nullptr},                                                  // WeightType
+    {0x1fc, Kind::f32, 0.5f, nullptr},                                              // MeshScale
+    {0x200, Kind::f32, 291.0f, nullptr},                                            // TargetFilterRadius
+    {0x204, Kind::f32, 300.0f, nullptr},                                            // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 341.0f, nullptr},                                            // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 1700.0f, nullptr},                                           // RuleMoveBlockAreaZHeight
+    {0x21c, Kind::f32, 291.0f, nullptr},                                            // RuleMoveBlockCheckRadius
+    // DefaultEffectArray
+    {0x220, Kind::names, 0,
+     "Rank_Elite|M_Common_FixedLocation|BlockRuleMove_Infinite|M_Common_ImmuneAbnormal|ShowTag_NoHitAni_Infinite|"
+     "ShowTag_AdditiveNoPlay_Infinite|DisableMonsterWarp|M_Common_BackHitImmune"},
+    {0x270, Kind::name, 0, "MonsterElite"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadElite\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_Gardener"},                               // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_Cocoon_Despawn"},               // DespawnShow
+    {0x2f8, Kind::name, 0, "None"},                                     // CollisionGroupName1
+    {0x300, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge1
+    {0x308, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero1
+    {0x318, Kind::name, 0, "None"},                                     // CollisionGroupName2
+    {0x320, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge2
+    {0x328, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero2
+    {0x338, Kind::name, 0, "None"},                                     // CollisionGroupName3
+    {0x340, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge3
+    {0x348, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero3
+    {0x3a8, Kind::name, 0, "M_GardenerC_Default"},                      // DefaultStanceAlias
+    {0x3b0, Kind::f32, 1.5f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 2.0f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
+    {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Tentacle_AI"}, // BehaviorTreeRes
+    {0x3f8, Kind::name, 0, "M_Gardener"},                                                   // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_Gardener"},                                                   // NarrowDetectAIAlias
+    {0x410, Kind::f32, 150.0f, nullptr},                                                    // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},                                                      // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},                                                      // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},                                                          // ActorType
+    {0x420, Kind::name, 0, "M_Gardener"},                                                   // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},                                                         // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr},                                                    // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},                                                          // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},                         // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},                         // ScanDisplayType
+    {0x508, Kind::string, 0, "Char_M_Gardener_AlbumName"}, // Name
+    // OverrideCharacterSoundSet
+    {0x520, Kind::string, 0,
+     "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_36_MaelStrom.CSS_MON_36_MaelStrom'"},
+    // M_Gardener (CharacterTable, Gardener)
+    {0x014, Kind::name, 0, "Elite"},        // Rank
+    {0x020, Kind::string, 0, "M_Gardener"}, // Type
+    {0x030, Kind::name, 0, "Monster"},      // Tribe
+    {0x050, Kind::names, 0, "Monster"},     // Tags
+    {0x060, Kind::names, 0, ""},            // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Gardener"},     // Flag
+    {0x078, Kind::i32, 37840, nullptr},     // MaxHP
+    {0x07c, Kind::i32, 1455, nullptr},      // MaxShield
+    {0x084, Kind::f32, 930.0f, nullptr},    // PhysicAttackPower
+    {0x088, Kind::f32, 930.0f, nullptr},    // RangeAttackPower
+    {0x08c, Kind::f32, 120.0f, nullptr},    // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},      // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},      // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},      // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 80, nullptr},        // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},         // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},      // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},      // CriticalValueRate
+    {0x148, Kind::names, 0, ""},            // EffectAliasWhenZeroHPArray
+    {0x168, Kind::names, 0, "Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"}, // EffectAliasWhenZeroStaminaArray
+    {0x1f8, Kind::u8, 6, nullptr},                                                  // WeightType
+    {0x1fc, Kind::f32, 1.0f, nullptr},                                              // MeshScale
+    {0x200, Kind::f32, 291.0f, nullptr},                                            // TargetFilterRadius
+    {0x204, Kind::f32, 300.0f, nullptr},                                            // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 341.0f, nullptr},                                            // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 1700.0f, nullptr},                                           // RuleMoveBlockAreaZHeight
+    {0x21c, Kind::f32, 291.0f, nullptr},                                            // RuleMoveBlockCheckRadius
+    // DefaultEffectArray
+    {0x220, Kind::names, 0,
+     "Rank_Elite|M_Common_FixedLocation|BlockRuleMove_Infinite|M_Common_ImmuneAbnormal|ShowTag_NoHitAni_Infinite|"
+     "ShowTag_AdditiveNoPlay_Infinite|DisableMonsterWarp|M_Common_BackHitImmune"},
+    {0x270, Kind::name, 0, "MonsterElite"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadElite\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_Gardener"},                               // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_Cocoon_Despawn"},               // DespawnShow
+    {0x2f8, Kind::name, 0, "None"},                                     // CollisionGroupName1
+    {0x300, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge1
+    {0x308, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero1
+    {0x318, Kind::name, 0, "None"},                                     // CollisionGroupName2
+    {0x320, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge2
+    {0x328, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero2
+    {0x338, Kind::name, 0, "None"},                                     // CollisionGroupName3
+    {0x340, Kind::f32, 0.0f, nullptr},                                  // CollisionGroupGauge3
+    {0x348, Kind::names, 0, ""},                                        // EffectAliasArrayWhenCollisionGroupGaugeZero3
+    {0x3a8, Kind::name, 0, "M_GardenerC_Default"},                      // DefaultStanceAlias
+    {0x3b0, Kind::f32, 1.5f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 2.0f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
+    {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Tentacle_AI"}, // BehaviorTreeRes
+    {0x3f8, Kind::name, 0, "M_Gardener"},                                                   // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_Gardener"},                                                   // NarrowDetectAIAlias
+    {0x410, Kind::f32, 150.0f, nullptr},                                                    // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},                                                      // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},                                                      // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},                                                          // ActorType
+    {0x420, Kind::name, 0, "M_Gardener"},                                                   // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},                                                         // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr},                                                    // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},                                                          // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},                         // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},                         // ScanDisplayType
+    {0x508, Kind::string, 0, "Char_M_Gardener_AlbumName"}, // Name
+    // OverrideCharacterSoundSet
+    {0x520, Kind::string, 0,
+     "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_36_MaelStrom.CSS_MON_36_MaelStrom'"},
+    // M_TendrilC_Result_Light
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Light\"}]"},
+    {0x038, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.5}]"}, // HitLevelResultTargetCommonEffect
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack"},        // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_050_100"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Light\"}]"},
+    {0x2d8, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.5}]"}, // HitLevelResultTargetEventMovingEffect
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                      // FileSuffix
+    // M_TendrilC_Result_Strong
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Strong\"}]"},
+    {0x038, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.8}]"}, // HitLevelResultTargetCommonEffect
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack"},       // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_080_300"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactSlash_Strong\"}]"},
+    {0x2d8, Kind::string, 0, "[{\"Alias\":\"HitStun\", \"Time\":0.8}]"},  // HitLevelResultTargetEventMovingEffect
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                       // FileSuffix
+    // M_TendrilC_Result_KnockDown
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactBlunt_Strong\"}]"},
+    // HitLevelResultTargetCommonEffect
+    {0x038, Kind::string, 0,
+     "[{\"Alias\":\"HitStun\", \"Time\":1.5}, {\"Alias\":\"KnockDownForward_Eve\"}, "
+     "{\"Alias\":\"KnockDownBackward_Eve\"}]"},
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack"},       // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_080_300"},                          // HitLevelResultTargetCommonMoveAlias
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetGroggyShowPath
+    {0x178, Kind::string, 0, "Hit/Result_Hit_Airborne"},                 // ResultTargetAirborneShowPath
+    // HitLevelResultTargetAirEffect
+    {0x1b8, Kind::string, 0, "[{\"Alias\":\"HitAirBackward_Eve\"}, {\"Alias\":\"HitAirForward_Eve\"}]"},
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Stand_LightAttack_NoAnim"}, // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                // HitLevelResultTargetSwimmingMoveAlias
+    // ResultTargetEventMovingEffect
+    {0x2c8, Kind::string, 0, "[{\"Alias\":\"SkillDamage_Melee\"}, {\"Alias\":\"HitImpactBlunt_Strong\"}]"},
+    // HitLevelResultTargetEventMovingEffect
+    {0x2d8, Kind::string, 0,
+     "[{\"Alias\":\"HitStun\", \"Time\":1.5}, {\"Alias\":\"KnockDownForward_Eve\"}, "
+     "{\"Alias\":\"KnockDownBackward_Eve\"}]"},
+    {0x2f8, Kind::string, 0, "Hit/Result_Hit_Stand_StrongAttack_NoAnim"}, // ResultTargetEventMovingShowPath
+    {0x318, Kind::name, 0, "None"},                                       // FileSuffix
+    // M_TendrilC_Result_Guard
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0, "[{\"Alias\":\"SkillDamageWhenGuard_Melee\"}, {\"Alias\":\"BlockAction\", \"Time\":0.3}]"},
+    {0x058, Kind::string, 0, "Result/Result_Guard_Back"}, // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_040_100"},           // HitLevelResultTargetCommonMoveAlias
+    {0x318, Kind::name, 0, "None"},                       // FileSuffix
+    // M_TendrilC_Result_Parry
+    {0x058, Kind::string, 0, "Result/Result_Parry_Back"}, // ResultTargetCommonShowPath
+    {0x070, Kind::name, 0, "Hit_Back_020_150"},           // HitLevelResultTargetCommonMoveAlias
+    {0x318, Kind::name, 0, "None"},                       // FileSuffix
+    // M_TendrilC_SwingLeft_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 420.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 150.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_SwingLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 260.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_SwingRight_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 410.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 160.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_SwingRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 260.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_WhipLeft_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 470.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 160.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -70.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_WhipLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 280.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_WhipRight_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 510.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 130.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 50.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_WhipRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 300.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_DiagonalLeft_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 400.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 140.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -20.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_DiagonalLeft_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 240.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_DiagonalRight_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 400.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 190.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 20.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_DiagonalRight_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 250.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Chop_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 660.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 60.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Chop_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 400.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Spin_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 400.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 340.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Spin_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 240.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 360.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 480.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 160.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -20.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_HitArea2
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 530.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 200.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 30.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_HitArea3
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 580.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 60.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_HitArea4
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 750.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 60.0f, nullptr},  // TargetCheckValue1
+    {0x044, Kind::f32, -10.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Rush_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 270.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Whip_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 560.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 60.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Whip_HitArea2
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 530.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 210.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -10.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Whip_HitArea3
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 580.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 200.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, -10.0f, nullptr}, // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Whip_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 340.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Trace_HitArea1
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 420.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 260.0f, nullptr}, // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Trace_HitArea2
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 430.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 200.0f, nullptr}, // TargetCheckValue1
+    {0x044, Kind::f32, 60.0f, nullptr},  // TargetCheckValue2
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Trace_Target
+    {0x014, Kind::u8, 5, nullptr},       // TargetType
+    {0x015, Kind::u8, 1, nullptr},       // bMultipleTargets
+    {0x024, Kind::f32, 250.0f, nullptr}, // FarDistance
+    {0x028, Kind::u8, 1, nullptr},       // SortType
+    {0x03c, Kind::u8, 4, nullptr},       // TargetCheckShape
+    {0x040, Kind::f32, 90.0f, nullptr},  // TargetCheckValue1
+    {0x048, Kind::f32, 200.0f, nullptr}, // TargetCheckValue3
+    {0x0b0, Kind::name, 0, "None"},      // FileSuffix
+    // M_TendrilC_Turn
+    {0x014, Kind::i32, 100, nullptr},  // Priority
+    {0x03a, Kind::u8, 0, nullptr},     // MoveType
+    {0x060, Kind::u8, 2, nullptr},     // PositionDirectionAxis
+    {0x070, Kind::f32, 0.0f, nullptr}, // StartDelayTime
+    {0x084, Kind::f32, 0.0f, nullptr}, // MoveEndTime
+    {0x088, Kind::f32, 0.3f, nullptr}, // Time
+    {0x094, Kind::f32, 0.0f, nullptr}, // ForwardValue
+    {0x098, Kind::f32, 0.0f, nullptr}, // RightValue
+    {0x0b8, Kind::f32, 0.3f, nullptr}, // RotationEndTime
+    {0x0bc, Kind::u8, 1, nullptr},     // RotationType
+    {0x0cc, Kind::u8, 1, nullptr},     // bIndependentRotation
+    {0x0f2, Kind::u8, 1, nullptr},     // bStopWhenClif
+    {0x0f5, Kind::u8, 0, nullptr},     // bCheckRuleMoveBlockArea
+    {0x0f6, Kind::u8, 0, nullptr},     // RuleMoveBlockAreaApplyToTarget
+    {0x106, Kind::u8, 1, nullptr},     // bZeroVelocityWhenEnd
+    {0x128, Kind::name, 0, "None"},    // FileSuffix
+    // M_TendrilC_SwingLeft_Cast1
+    {0x018, Kind::f32, 0.8667f, nullptr},                // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_SwingLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                      // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                         // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_SwingLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                      // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                     // FileSuffix
+    // M_TendrilC_SwingLeft_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 1, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_SwingLeft_Finish1"},     // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                             // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                           // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                           // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                           // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_SwingLeft_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                           // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                           // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                          // FileSuffix
+    // M_TendrilC_SwingLeft_Finish1
+    {0x018, Kind::f32, 1.2f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_SwingLeft
+    {0x070, Kind::i32, 1, nullptr},                        // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                         // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                         // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                 // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                         // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_SwingLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_SwingLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 5.0f, nullptr},                     // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                     // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                     // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                         // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                         // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                        // FileSuffix
+    // M_TendrilC_SwingRight_Cast1
+    {0x018, Kind::f32, 0.8f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_SwingRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                       // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                          // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_SwingRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                       // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                      // FileSuffix
+    // M_TendrilC_SwingRight_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_SwingRight_Finish1"},    // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                              // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                            // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                            // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                            // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_SwingRight_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                            // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                            // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                           // FileSuffix
+    // M_TendrilC_SwingRight_Finish1
+    {0x018, Kind::f32, 1.0333f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_SwingRight
+    {0x070, Kind::i32, 1, nullptr},                         // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                          // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                          // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                  // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                          // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_SwingRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_SwingRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 5.0f, nullptr},                      // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                      // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                      // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                          // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                          // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                         // FileSuffix
+    // M_TendrilC_WhipLeft_Cast1
+    {0x018, Kind::f32, 0.3333f, nullptr},               // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_WhipLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                     // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                        // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_WhipLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                     // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                    // FileSuffix
+    // M_TendrilC_WhipLeft_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3333f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_WhipLeft_Finish1"},      // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                            // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                          // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                          // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                          // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_WhipLeft_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                          // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                          // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                         // FileSuffix
+    // M_TendrilC_WhipLeft_Finish1
+    {0x018, Kind::f32, 1.3333f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_WhipLeft
+    {0x070, Kind::i32, 1, nullptr},                       // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                        // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                        // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                        // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_WhipLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_WhipLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 4.0f, nullptr},                    // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                    // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                    // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                        // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                        // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                       // FileSuffix
+    // M_TendrilC_WhipRight_Cast1
+    {0x018, Kind::f32, 0.4f, nullptr},                   // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_WhipRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                      // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                         // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_WhipRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                      // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                     // FileSuffix
+    // M_TendrilC_WhipRight_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_WhipRight_Finish1"},     // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                             // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                           // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                           // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                           // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_WhipRight_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                           // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                           // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                          // FileSuffix
+    // M_TendrilC_WhipRight_Finish1
+    {0x018, Kind::f32, 1.3f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_WhipRight
+    {0x070, Kind::i32, 1, nullptr},                        // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                         // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                         // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                 // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                         // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_WhipRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_WhipRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 4.0f, nullptr},                     // CoolTime
+    {0x140, Kind::f32, 1.0f, nullptr},                     // AttackDamageRate
+    {0x144, Kind::f32, 1.0f, nullptr},                     // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                         // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                         // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                        // FileSuffix
+    // M_TendrilC_DiagonalLeft_Cast1
+    {0x018, Kind::f32, 1.0f, nullptr},                      // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_DiagonalLeft_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                         // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                            // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_DiagonalLeft"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                         // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                        // FileSuffix
+    // M_TendrilC_DiagonalLeft_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 1, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_DiagonalLeft_Finish1"},  // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                                // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                              // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                              // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                              // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_DiagonalLeft_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                              // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                              // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                             // FileSuffix
+    // M_TendrilC_DiagonalLeft_Finish1
+    {0x018, Kind::f32, 1.3333f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_DiagonalLeft
+    {0x070, Kind::i32, 1, nullptr},                           // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                            // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                            // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                    // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                            // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_DiagonalLeft_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_DiagonalLeft_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 8.0f, nullptr},                        // CoolTime
+    {0x140, Kind::f32, 1.2f, nullptr},                        // AttackDamageRate
+    {0x144, Kind::f32, 1.2f, nullptr},                        // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                            // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                            // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                           // FileSuffix
+    // M_TendrilC_DiagonalRight_Cast1
+    {0x018, Kind::f32, 0.9333f, nullptr},                    // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_DiagonalRight_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                          // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                             // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_DiagonalRight"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                          // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                         // FileSuffix
+    // M_TendrilC_DiagonalRight_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 2, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_DiagonalRight_Finish1"}, // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},          // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                                 // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                               // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                               // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                               // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_DiagonalRight_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                               // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                               // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                              // FileSuffix
+    // M_TendrilC_DiagonalRight_Finish1
+    {0x018, Kind::f32, 1.3667f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_DiagonalRight
+    {0x070, Kind::i32, 1, nullptr},                            // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                             // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                             // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                     // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                             // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_DiagonalRight_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_DiagonalRight_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 8.0f, nullptr},                         // CoolTime
+    {0x140, Kind::f32, 1.2f, nullptr},                         // AttackDamageRate
+    {0x144, Kind::f32, 1.2f, nullptr},                         // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                             // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                             // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                            // FileSuffix
+    // M_TendrilC_Chop_Cast1
+    {0x018, Kind::f32, 1.9667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Chop_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Chop"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
+    // M_TendrilC_Chop_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Chop_Finish1"},          // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Chop_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Chop_Finish1
+    {0x018, Kind::f32, 2.0667f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Chop
+    {0x070, Kind::i32, 1, nullptr},                   // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                    // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                    // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},            // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                    // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Chop_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Chop_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 12.0f, nullptr},               // CoolTime
+    {0x140, Kind::f32, 1.5f, nullptr},                // AttackDamageRate
+    {0x144, Kind::f32, 1.5f, nullptr},                // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                    // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                    // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                   // FileSuffix
+    // M_TendrilC_Spin_Cast1
+    {0x018, Kind::f32, 1.9667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Spin_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Spin"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
+    // M_TendrilC_Spin_Hit1
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.5667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 1.0f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 1.0f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Spin_Finish1"},          // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Spin_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Spin_Finish1
+    {0x018, Kind::f32, 2.8667f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Spin
+    {0x070, Kind::i32, 1, nullptr},                   // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                    // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                    // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},            // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                    // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Spin_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Spin_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 10.0f, nullptr},               // CoolTime
+    {0x140, Kind::f32, 1.3f, nullptr},                // AttackDamageRate
+    {0x144, Kind::f32, 1.3f, nullptr},                // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                    // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                    // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                   // FileSuffix
+    // M_TendrilC_Rush_Cast1
+    {0x018, Kind::f32, 0.6667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Rush"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
+    // M_TendrilC_Rush_Hit1
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.2333f, nullptr},               // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.2f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.2f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Cast2"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},  // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Rush_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Rush_Cast2
+    {0x018, Kind::f32, 0.2333f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Rush_Hit2
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.4f, nullptr},                  // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.2f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.2f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Cast3"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},  // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Rush_HitArea2"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Rush_Cast3
+    {0x018, Kind::f32, 1.2667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Hit3"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Rush_Hit3
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.1667f, nullptr},               // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.25f, nullptr},                 // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.25f, nullptr},                 // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Cast4"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"}, // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Rush_HitArea3"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Rush_Cast4
+    {0x018, Kind::f32, 0.1333f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Hit4"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Rush_Hit4
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.35f, nullptr},                         // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.35f, nullptr},                         // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Rush_Finish1"},          // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_KnockDown"},      // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Rush_HitArea4"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Rush_Finish1
+    {0x018, Kind::f32, 1.0667f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Rush
+    {0x070, Kind::i32, 1, nullptr},                   // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                    // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                    // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},            // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                    // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Rush_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Rush_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 20.0f, nullptr},               // CoolTime
+    {0x140, Kind::f32, 2.5f, nullptr},                // AttackDamageRate
+    {0x144, Kind::f32, 2.5f, nullptr},                // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                    // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                    // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                   // FileSuffix
+    // M_TendrilC_Whip_Cast1
+    {0x018, Kind::f32, 0.8667f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                 // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                    // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Whip"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                 // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                // FileSuffix
+    // M_TendrilC_Whip_Hit1
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.1f, nullptr},                  // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.3f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.3f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Cast2"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},  // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Whip_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Whip_Cast2
+    {0x018, Kind::f32, 0.7333f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Whip_Hit2
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.5333f, nullptr},               // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.3f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.3f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Cast3"},    // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"}, // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Whip_HitArea2"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Whip_Cast3
+    {0x018, Kind::f32, 1.1333f, nullptr},           // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Hit3"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Whip_Hit3
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.3f, nullptr},                          // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.4f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.4f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Whip_Finish1"},          // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                        // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                      // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                      // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                      // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Whip_HitArea3"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                      // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                      // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Whip_Finish1
+    {0x018, Kind::f32, 1.4333f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Whip
+    {0x070, Kind::i32, 1, nullptr},                   // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                    // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                    // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},            // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                    // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Whip_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Whip_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 15.0f, nullptr},               // CoolTime
+    {0x140, Kind::f32, 2.0f, nullptr},                // AttackDamageRate
+    {0x144, Kind::f32, 2.0f, nullptr},                // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                    // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                    // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                   // FileSuffix
+    // M_TendrilC_Trace_Cast1
+    {0x018, Kind::f32, 0.7f, nullptr},               // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Trace_Hit1"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x130, Kind::u8, 1, nullptr},                                  // StopSelfMove
+    {0x138, Kind::names, 0, "M_TendrilC_Turn"},                     // SelfMoveAliasArray
+    {0x160, Kind::name, 0, "StellarCoop/Tendril.M_TendrilC_Trace"}, // ShowPath
+    {0x240, Kind::u8, 0, nullptr},                                  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"},                                 // FileSuffix
+    // M_TendrilC_Trace_Hit1
+    {0x014, Kind::u8, 1, nullptr},                      // Type
+    {0x018, Kind::f32, 0.4f, nullptr},                  // Duration
+    {0x01c, Kind::u8, 3, nullptr},                      // AttackDirection
+    {0x020, Kind::f32, 0.5f, nullptr},                  // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.5f, nullptr},                  // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                      // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                      // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                      // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                      // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Trace_Cast2"},   // NextStepAlias
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Light"},  // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},  // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustEffect"}, // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},  // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                         // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                       // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                       // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                       // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Trace_HitArea1"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                       // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                       // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                      // FileSuffix
+    // M_TendrilC_Trace_Cast2
+    {0x018, Kind::f32, 0.6333f, nullptr},            // Duration
+    {0x034, Kind::name, 0, "M_TendrilC_Trace_Hit2"}, // NextStepAlias
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 0, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Trace_Hit2
+    {0x014, Kind::u8, 1, nullptr},                              // Type
+    {0x018, Kind::f32, 0.4667f, nullptr},                       // Duration
+    {0x01c, Kind::u8, 3, nullptr},                              // AttackDirection
+    {0x020, Kind::f32, 0.5f, nullptr},                          // SkillAttackDamageRate
+    {0x024, Kind::f32, 0.5f, nullptr},                          // SkillShieldAttackDamageRate
+    {0x02c, Kind::u8, 1, nullptr},                              // AvailableParry
+    {0x02e, Kind::u8, 1, nullptr},                              // AvailableGuard
+    {0x02f, Kind::u8, 1, nullptr},                              // AvailableJustParry
+    {0x030, Kind::u8, 1, nullptr},                              // AvailableJustAction
+    {0x034, Kind::name, 0, "M_TendrilC_Trace_Finish1"},         // NextStepAlias
+    {0x044, Kind::name, 0, "M_Common_Result_ParryJust_Center"}, // NextStepAliasWhenJustParry
+    {0x0cc, Kind::name, 0, "M_TendrilC_Result_Strong"},         // SkillResultAlias
+    {0x0d4, Kind::name, 0, "M_TendrilC_Result_Parry"},          // SkillResultAliasWhenParry
+    {0x0dc, Kind::name, 0, "M_Common_ParryJustFX"},             // SkillResultAliasWhenJustParry
+    {0x0f4, Kind::name, 0, "M_TendrilC_Result_Guard"},          // SkillResultAliasWhenGuard
+    // StartSelfEffect
+    {0x110, Kind::string, 0,
+     "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"AddHitDefense_Step\", \"CalculationValue\":1}]"},
+    {0x138, Kind::names, 0, ""},                         // SelfMoveAliasArray
+    {0x1a4, Kind::u8, 1, nullptr},                       // bEveryFrameHitCheck
+    {0x1a5, Kind::u8, 1, nullptr},                       // HitDetectionType
+    {0x1b0, Kind::u8, 1, nullptr},                       // bRetargeting
+    {0x1b4, Kind::name, 0, "M_TendrilC_Trace_HitArea2"}, // OverrideTargetFilterAlias
+    {0x240, Kind::u8, 0, nullptr},                       // CanCutoff
+    {0x272, Kind::u8, 1, nullptr},                       // bIgnoreHitStop
+    {0x2f8, Kind::name, 0, "None"},                      // FileSuffix
+    // M_TendrilC_Trace_Finish1
+    {0x018, Kind::f32, 1.4f, nullptr}, // Duration
+    // StartSelfEffect
+    {0x110, Kind::string, 0, "[{\"Alias\":\"BlockAction_Step\"}, {\"Alias\":\"NoReactionSlug_Step\"}]"},
+    {0x138, Kind::names, 0, ""},    // SelfMoveAliasArray
+    {0x240, Kind::u8, 1, nullptr},  // CanCutoff
+    {0x2f8, Kind::name, 0, "None"}, // FileSuffix
+    // M_TendrilC_Trace
+    {0x070, Kind::i32, 1, nullptr},                    // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                     // AttributeType
+    {0x075, Kind::u8, 1, nullptr},                     // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},             // AISkillFlag
+    {0x088, Kind::u8, 1, nullptr},                     // bCheckTargetExists
+    {0x0b4, Kind::name, 0, "M_TendrilC_Trace_Target"}, // TargetFilterAlias
+    {0x100, Kind::name, 0, "M_TendrilC_Trace_Cast1"},  // FirstSkillActiveAlias
+    {0x124, Kind::f32, 12.0f, nullptr},                // CoolTime
+    {0x140, Kind::f32, 1.5f, nullptr},                 // AttackDamageRate
+    {0x144, Kind::f32, 1.5f, nullptr},                 // ShieldAttackDamageRate
+    {0x14c, Kind::u8, 1, nullptr},                     // Cancelable
+    {0x172, Kind::u8, 1, nullptr},                     // bSwitchBattleMode
+    {0x2f0, Kind::name, 0, "None"},                    // FileSuffix
+    // M_TendrilC_SwingLeft
+    {0x018, Kind::name, 0, "M_TendrilC_SwingLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                  // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                  // bFly
+    {0x053, Kind::u8, 1, nullptr},                  // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},               // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                 // FileSuffix
+    // M_TendrilC_SwingRight
+    {0x018, Kind::name, 0, "M_TendrilC_SwingRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                   // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                   // bFly
+    {0x053, Kind::u8, 1, nullptr},                   // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                  // FileSuffix
+    // M_TendrilC_WhipLeft
+    {0x018, Kind::name, 0, "M_TendrilC_WhipLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                 // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                 // bFly
+    {0x053, Kind::u8, 1, nullptr},                 // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},              // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                // FileSuffix
+    // M_TendrilC_WhipRight
+    {0x018, Kind::name, 0, "M_TendrilC_WhipRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                  // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                  // bFly
+    {0x053, Kind::u8, 1, nullptr},                  // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},               // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                 // FileSuffix
+    // M_TendrilC_DiagonalLeft
+    {0x018, Kind::name, 0, "M_TendrilC_DiagonalLeft"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                     // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                     // bFly
+    {0x053, Kind::u8, 1, nullptr},                     // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                  // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                    // FileSuffix
+    // M_TendrilC_DiagonalRight
+    {0x018, Kind::name, 0, "M_TendrilC_DiagonalRight"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},                      // bJumping
+    {0x04f, Kind::u8, 1, nullptr},                      // bFly
+    {0x053, Kind::u8, 1, nullptr},                      // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},                   // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},                     // FileSuffix
+    // M_TendrilC_Chop
+    {0x018, Kind::name, 0, "M_TendrilC_Chop"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},             // bJumping
+    {0x04f, Kind::u8, 1, nullptr},             // bFly
+    {0x053, Kind::u8, 1, nullptr},             // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},          // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},            // FileSuffix
+    // M_TendrilC_Spin
+    {0x018, Kind::name, 0, "M_TendrilC_Spin"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},             // bJumping
+    {0x04f, Kind::u8, 1, nullptr},             // bFly
+    {0x053, Kind::u8, 1, nullptr},             // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},          // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},            // FileSuffix
+    // M_TendrilC_Rush
+    {0x018, Kind::name, 0, "M_TendrilC_Rush"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},             // bJumping
+    {0x04f, Kind::u8, 1, nullptr},             // bFly
+    {0x053, Kind::u8, 1, nullptr},             // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},          // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},            // FileSuffix
+    // M_TendrilC_Whip
+    {0x018, Kind::name, 0, "M_TendrilC_Whip"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},             // bJumping
+    {0x04f, Kind::u8, 1, nullptr},             // bFly
+    {0x053, Kind::u8, 1, nullptr},             // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},          // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},            // FileSuffix
+    // M_TendrilC_Trace
+    {0x018, Kind::name, 0, "M_TendrilC_Trace"}, // SkillAlias
+    {0x04a, Kind::u8, 1, nullptr},              // bJumping
+    {0x04f, Kind::u8, 1, nullptr},              // bFly
+    {0x053, Kind::u8, 1, nullptr},              // bEventMoving
+    {0x0b4, Kind::i32, 100, nullptr},           // AICommandActivationRate
+    {0x0f8, Kind::name, 0, "None"},             // FileSuffix
+    // M_TendrilC_Peaceful
+    {0x018, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunBlendSpace
+    {0x028, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunTiltBlendSpace
+    {0x038, Kind::u8, 0, nullptr},                                        // IdleAnimType
+    {0x0a0, Kind::string, 0, ""},                                         // LockOnRunBlendSpace
+    {0x0f0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Fall
+    {0x270, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle_L
+    {0x280, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle_R
+    {0x290, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle
+    {0x2d0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle_L
+    {0x2e0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle_R
+    {0x2f0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle
+    {0x330, Kind::string, 0, "Animation/Run_Start"},                      // RunStart
+    {0x340, Kind::string, 0, "Animation/Run_Start"},                      // RunStartAfterEvade
+    {0x350, Kind::string, 0, ""},                                         // RunTurn_L
+    {0x360, Kind::string, 0, ""},                                         // RunTurn_R
+    {0x370, Kind::string, 0, ""},                                         // WalkTurn_L
+    {0x380, Kind::string, 0, ""},                                         // WalkTurn_R
+    {0x970, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Left
+    {0x980, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Right
+    {0x990, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Back
+    {0x9a0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Front
+    {0x9b0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Left
+    {0x9c0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Right
+    {0x9e0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Front
+    {0x9f0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Left
+    {0xa00, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Right
+    {0xa10, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Back
+    {0xa20, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Front
+    {0xa30, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Left
+    {0xa40, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Right
+    {0xa60, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Front
+    {0xa70, Kind::string, 0, "Animation/Result_State_Groggy_S"},          // Custom_Groggy_Start
+    {0xa80, Kind::string, 0, "Animation/Result_State_Groggy_L"},          // Custom_Groggy_Loop
+    {0xa90, Kind::string, 0, "Animation/Result_State_Groggy_E"},          // Custom_Groggy_End
+    {0xaa0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Custom_Airborne_Loop
+    {0xab0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_S"},    // Custom_KnockDown_Start_Front
+    {0xac0, Kind::string, 0, "Animation/Result_State_KnockDown_Bw_S"},    // Custom_KnockDown_Start_Back
+    {0xad0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_L"},    // Custom_KnockDown_Loop
+    {0xae0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_E"},    // Custom_KnockDown_End
+    {0xb10, Kind::string, 0, ""},                                         // Custom_HitSwordNormalLinkAttack1
+    {0xb20, Kind::string, 0, ""},                                         // Custom_HitSwordNormalFinishLinkAttack1
+    {0xb50, Kind::string, 0, "Animation/Parry"},                          // Custom_Anim1
+    {0xb60, Kind::string, 0, ""},                                         // Custom_Anim2
+    {0xb70, Kind::string, 0, ""},                                         // Custom_Anim3
+    {0xb80, Kind::string, 0, "Animation/Parry"},                          // Custom_Anim4
+    // M_TendrilC_Battle
+    {0x018, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunBlendSpace
+    {0x028, Kind::string, 0, "Animation/BlendSpace/IdleRun_BS_Peaceful"}, // RunTiltBlendSpace
+    {0x038, Kind::u8, 1, nullptr},                                        // IdleAnimType
+    {0x0a0, Kind::string, 0, "Animation/BlendSpace/LockOn_BS"},           // LockOnRunBlendSpace
+    {0x0f0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Fall
+    {0x270, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle_L
+    {0x280, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle_R
+    {0x290, Kind::string, 0, "Animation/Run_End"},                        // RunToIdle
+    {0x2d0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle_L
+    {0x2e0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle_R
+    {0x2f0, Kind::string, 0, "Animation/Run_End"},                        // ShortMoveToIdle
+    {0x330, Kind::string, 0, "Animation/Run_Start"},                      // RunStart
+    {0x340, Kind::string, 0, "Animation/Run_Start"},                      // RunStartAfterEvade
+    {0x350, Kind::string, 0, ""},                                         // RunTurn_L
+    {0x360, Kind::string, 0, ""},                                         // RunTurn_R
+    {0x370, Kind::string, 0, ""},                                         // WalkTurn_L
+    {0x380, Kind::string, 0, ""},                                         // WalkTurn_R
+    {0x970, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Left
+    {0x980, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Right
+    {0x990, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Back
+    {0x9a0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight1Front
+    {0x9b0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Left
+    {0x9c0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Right
+    {0x9e0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandLight2Front
+    {0x9f0, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Left
+    {0xa00, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Right
+    {0xa10, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Back
+    {0xa20, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong1Front
+    {0xa30, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Left
+    {0xa40, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Right
+    {0xa60, Kind::string, 0, "Animation/Result_Hit_KnockBack"},           // Custom_HitStandStrong2Front
+    {0xa70, Kind::string, 0, "Animation/Result_State_Groggy_S"},          // Custom_Groggy_Start
+    {0xa80, Kind::string, 0, "Animation/Result_State_Groggy_L"},          // Custom_Groggy_Loop
+    {0xa90, Kind::string, 0, "Animation/Result_State_Groggy_E"},          // Custom_Groggy_End
+    {0xaa0, Kind::string, 0, "Animation/Result_State_Airborne_L"},        // Custom_Airborne_Loop
+    {0xab0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_S"},    // Custom_KnockDown_Start_Front
+    {0xac0, Kind::string, 0, "Animation/Result_State_KnockDown_Bw_S"},    // Custom_KnockDown_Start_Back
+    {0xad0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_L"},    // Custom_KnockDown_Loop
+    {0xae0, Kind::string, 0, "Animation/Result_State_KnockDown_Fw_E"},    // Custom_KnockDown_End
+    {0xb10, Kind::string, 0, ""},                                         // Custom_HitSwordNormalLinkAttack1
+    {0xb20, Kind::string, 0, ""},                                         // Custom_HitSwordNormalFinishLinkAttack1
+    {0xb50, Kind::string, 0, "Animation/Parry"},                          // Custom_Anim1
+    {0xb60, Kind::string, 0, ""},                                         // Custom_Anim2
+    {0xb70, Kind::string, 0, ""},                                         // Custom_Anim3
+    {0xb80, Kind::string, 0, "Animation/Parry"},                          // Custom_Anim4
+    // M_TendrilC_Default
+    {0x01a, Kind::u8, 1, nullptr}, // bDetectCloakingTarget
+    {0x08d, Kind::u8, 1, nullptr}, // bInfiniteStance
+    // CommandArray
+    {0x090, Kind::names, 0,
+     "M_TendrilC_SwingLeft|M_TendrilC_SwingRight|M_TendrilC_WhipLeft|M_TendrilC_WhipRight|M_TendrilC_DiagonalLeft|"
+     "M_TendrilC_DiagonalRight|M_TendrilC_Chop|M_TendrilC_Spin|M_TendrilC_Rush|M_TendrilC_Whip|M_TendrilC_Trace"},
+    {0x0a8, Kind::f32, 200.0f, nullptr},                                            // WalkSpeed
+    {0x0ac, Kind::f32, 400.0f, nullptr},                                            // RunSpeed
+    {0x0b0, Kind::f32, 400.0f, nullptr},                                            // LockOnRunSpeed
+    {0x0b4, Kind::f32, 200.0f, nullptr},                                            // LockOnWalkSpeed
+    {0x0bc, Kind::f32, 180.0f, nullptr},                                            // RotateAnglePerSecond
+    {0x110, Kind::string, 0, "[{\"Alias\":\"M_Common_HitProjectileCheckCount\"}]"}, // StartEffect
+    {0x150, Kind::name, 0, "M_TendrilC_Peaceful"},                                  // AnimSet_Peaceful_UpperBody
+    {0x158, Kind::name, 0, "M_TendrilC_Peaceful"},                                  // AnimSet_Peaceful_LowerBody
+    {0x160, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Battle_UpperBody
+    {0x168, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Battle_LowerBody
+    {0x170, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Groggy_UpperBody
+    {0x178, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Groggy_LowerBody
+    {0x180, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Down_UpperBody
+    {0x188, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Down_LowerBody
+    {0x1a0, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Airborne_UpperBody
+    {0x1a8, Kind::name, 0, "M_TendrilC_Battle"},                                    // AnimSet_Airborne_LowerBody
+    // M_TendrilC
+    {0x010, Kind::strings, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},    // DefaultDeadShowArray
+    {0x020, Kind::i32, 6000, nullptr},                                   // DefaultDeadRewardDelayTime
+    {0x038, Kind::string, 0, "Dead/Dead_Monster_EffectType_Stand"},      // StandDeadShow
+    {0x048, Kind::i32, 300, nullptr},                                    // StandDeadRewardDelayTime
+    {0x058, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Step0DeadShow
+    {0x068, Kind::i32, 6000, nullptr},                                   // Step0DeadRewardDelayTime
+    {0x078, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Step1DeadShow
+    {0x088, Kind::i32, 6000, nullptr},                                   // Step1DeadRewardDelayTime
+    {0x098, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Step2DeadShow
+    {0x0a8, Kind::i32, 6000, nullptr},                                   // Step2DeadRewardDelayTime
+    {0x0b8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Step3DeadShow
+    {0x0c8, Kind::i32, 6000, nullptr},                                   // Step3DeadRewardDelayTime
+    {0x0d8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Explosion1DeadShow
+    {0x0e8, Kind::i32, 6000, nullptr},                                   // Explosion1DeadRewardDelayTime
+    {0x0f8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Explosion2DeadShow
+    {0x108, Kind::i32, 6000, nullptr},                                   // Explosion2DeadRewardDelayTime
+    {0x118, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Custom1DeadShow
+    {0x178, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Custom4DeadShow
+    {0x188, Kind::i32, 6000, nullptr},                                   // Custom4DeadRewardDelayTime
+    {0x1b8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Custom6DeadShow
+    {0x1c8, Kind::i32, 6000, nullptr},                                   // Custom6DeadRewardDelayTime
+    {0x1d8, Kind::string, 0, "Dead/Dead_Monster_EffectType_ZoneEffect"}, // Custom7DeadShow
+    {0x1f8, Kind::string, 0, "StellarCoop/Tendril.M_TendrilC_Dead"},     // Custom8DeadShow
+    {0x208, Kind::i32, 6000, nullptr},                                   // Custom8DeadRewardDelayTime
+    {0x258, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // DownDeadShow
+    {0x278, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // AirborneDeadShow
+    {0x298, Kind::string, 0, "Dead/Dead_Monster_StandCommon"},           // SwimmingDeadShow
+    // M_TendrilC
+    // CharacterAssetPath
+    {0x014, Kind::name, 0, "/Game/Art/Character/Monster/CH_M_NA_06/Blueprints/CH_M_NA_06_Blueprint"},
+    {0x0e0, Kind::name, 0, "None"}, // AirborneToDownShowPath
+    // M_TendrilC
+    {0x014, Kind::name, 0, "Boss"},         // Rank
+    {0x020, Kind::string, 0, "M_TendrilC"}, // Type
+    {0x030, Kind::name, 0, "Monster"},      // Tribe
+    {0x060, Kind::names, 0, ""},            // LinkSkillRandomActiveStepFlagArray
+    {0x070, Kind::name, 0, "Tendril"},      // Flag
+    {0x078, Kind::i32, 64960, nullptr},     // MaxHP
+    {0x07c, Kind::i32, 3720, nullptr},      // MaxShield
+    {0x080, Kind::i32, 12, nullptr},        // MaxStamina
+    {0x084, Kind::f32, 600.0f, nullptr},    // PhysicAttackPower
+    {0x088, Kind::f32, 600.0f, nullptr},    // RangeAttackPower
+    {0x08c, Kind::f32, 103.0f, nullptr},    // ShieldAttackPower
+    {0x090, Kind::f32, 1.0f, nullptr},      // StaminaAttackPower
+    {0x094, Kind::f32, 5.0f, nullptr},      // ShieldBlock
+    {0x09c, Kind::f32, 0.1f, nullptr},      // DamageReductionPerShieldBock
+    {0x0d0, Kind::i32, 100, nullptr},       // GainTachyGaugeOnDead
+    {0x0d4, Kind::i32, 1, nullptr},         // MoveSpeed
+    {0x0d8, Kind::f32, 1.0f, nullptr},      // AttackSpeed
+    {0x0e0, Kind::f32, 1.2f, nullptr},      // CriticalValueRate
+    // EffectAliasWhenZeroStaminaArray
+    {0x168, Kind::names, 0, "M_LinkAttackDelay_10|Groggy|SkillCancel|BlockSkill|M_StaminaRecoverReady"},
+    {0x1f8, Kind::u8, 5, nullptr},                                      // WeightType
+    {0x1fc, Kind::f32, 1.0f, nullptr},                                  // MeshScale
+    {0x200, Kind::f32, 110.0f, nullptr},                                // TargetFilterRadius
+    {0x204, Kind::f32, 180.0f, nullptr},                                // ProjectileTargetFilterRadius
+    {0x208, Kind::f32, 140.0f, nullptr},                                // RuleMoveBlockAreaRadius
+    {0x20c, Kind::f32, 800.0f, nullptr},                                // RuleMoveBlockAreaZHeight
+    {0x210, Kind::f32, 30.0f, nullptr},                                 // RuleMoveBlockAreaOffsetX
+    {0x21c, Kind::f32, 110.0f, nullptr},                                // RuleMoveBlockCheckRadius
+    {0x220, Kind::names, 0, "Rank_Boss|M_Common_ImmuneAbnormal"},       // DefaultEffectArray
+    {0x270, Kind::name, 0, "MonsterAlpha"},                             // DifficultyStatGroupAlias
+    {0x288, Kind::string, 0, "[{\"Alias\":\"BurstGauge_DeadAlpha\"}]"}, // AttackerEffectWhenDead
+    {0x298, Kind::name, 0, "M_TendrilC"},                               // DeadAlias
+    {0x2a0, Kind::f32, 1.0f, nullptr},                                  // DespawnTimeAfterDeath
+    {0x2a8, Kind::string, 0, "Despawn/M_Cocoon_Despawn"},               // DespawnShow
+    {0x3a8, Kind::name, 0, "M_TendrilC_Default"},                       // DefaultStanceAlias
+    {0x3b0, Kind::f32, 2.0f, nullptr},                                  // GetupTime
+    {0x3bc, Kind::f32, 3.5f, nullptr},                                  // GroggyEndTime
+    {0x3c0, Kind::names, 0, "DelayDeathInAir_Mob"},                     // JumpEffectArray
+    {0x3e0, Kind::f32, 200.0f, nullptr},                                // VelocityWhenWallHitBounce
+    {0x3e4, Kind::f32, 0.066f, nullptr},                                // VelocityDelayWhenWallHitBounce
+    {0x3e8, Kind::string, 0, "/Game/GameDesign/Combat/BehaviorTree/Monster/M_Skulling_AI_Test"}, // BehaviorTreeRes
+    {0x3f8, Kind::name, 0, "M_DetectCommon20m360"},                                              // DefaultDetectAIAlias
+    {0x400, Kind::name, 0, "M_DetectCommon20m360"},                                              // NarrowDetectAIAlias
+    {0x410, Kind::f32, 200.0f, nullptr},  // AIAuditorySenseRadius
+    {0x414, Kind::f32, 1.0f, nullptr},    // AIAuditorySenseDecibel
+    {0x418, Kind::f32, 5.0f, nullptr},    // AIAuditorySenseDuration
+    {0x41c, Kind::u8, 4, nullptr},        // ActorType
+    {0x420, Kind::name, 0, "M_TendrilC"}, // RefAppearance
+    {0x428, Kind::i32, 1, nullptr},       // HitDefenseLevel
+    {0x42c, Kind::f32, 120.0f, nullptr},  // BackSideHitAngle
+    {0x470, Kind::u8, 1, nullptr},        // bDisableCollisionWhenDead
+    {0x4ff, Kind::u8, 1, nullptr},        // bApplyDamageWhenPlayerAlive
+    {0x500, Kind::u8, 1, nullptr},        // ScanDisplayType
+    {0x508, Kind::string, 0, ""},         // Name
+    // OverrideCharacterSoundSet
+    {0x520, Kind::string, 0,
+     "SBCharacterSoundSet'/Game/Sound/SoundAsset/CharacterSoundset/CSS_MON_05_Gigas.CSS_MON_05_Gigas'"},
+    // Bullet_Shock (ItemTable, Shock Bolt)
+    {0x01c, Kind::i32, 12, nullptr},                                                  // InventoryPriority
+    {0x020, Kind::string, 0, "Item_Bullet_Shock_Name"},                               // NamePlural
+    {0x030, Kind::string, 0, "Item_Bullet_Shock_Name"},                               // Name
+    {0x050, Kind::string, 0, "Item_Bullet_Shock_Function"},                           // DescFunction
+    {0x060, Kind::string, 0, "Item_Bullet_Shock_Content"},                            // DescContent
+    {0x070, Kind::u8, 13, nullptr},                                                   // Category
+    {0x07c, Kind::u8, 1, nullptr},                                                    // Rarity
+    {0x07e, Kind::u8, 0, nullptr},                                                    // IncludeDropPool
+    {0x080, Kind::i32, 1000, nullptr},                                                // StackAmount
+    {0x084, Kind::i32, 30, nullptr},                                                  // MaxAmount
+    {0x088, Kind::u8, 0, nullptr},                                                    // MaxAmountOverrideActorStat
+    {0x090, Kind::u8, 0, nullptr},                                                    // ChargeOverrideActorStat
+    {0x092, Kind::u8, 1, nullptr},                                                    // AblePrice
+    {0x0a8, Kind::string, 0, "/Game/Art/Item/BP_Item_ammo_shock.BP_Item_ammo_shock"}, // Asset3D
+    {0x0c8, Kind::f32, 11.5f, nullptr},                                               // AssetZOffset
+    {0x0cc, Kind::f32, 1.0f, nullptr},                                                // Asset3DScale
+    {0x0d0, Kind::string, 0, "Texture2D'/Game/Art/UI/Texture/HUD/bullet_icon_06.bullet_icon_06'"}, // Asset2D
+    {0x13c, Kind::u8, 1, nullptr},                                                                 // AutoInteraction
+    {0x14c, Kind::name, 0, "Bullet_Shock_Consume"},                                                // ConsumableAlias
+    {0x180, Kind::name, 0, "Bullet_Shock"},                                                        // BulletAlias
+    {0x18a, Kind::u8, 103, nullptr},                                                               // ScanDisplayType
+    {0x18c, Kind::name, 0, "Ammo"},                                                                // ScanDisplayGroup
+    {0x1a4, Kind::u8, 1, nullptr}, // bMaintainNewGamePlus
+    // P_Eve_Gun_ShootShockSlug1_1 (SkillTable, Shock Bolt)
+    {0x058, Kind::names, 0, ""},                                 // AchievementTags
+    {0x070, Kind::i32, 3, nullptr},                              // HitLevel
+    {0x074, Kind::u8, 5, nullptr},                               // AttributeType
+    {0x075, Kind::u8, 2, nullptr},                               // SkillType
+    {0x080, Kind::name, 0, "MeleeAttack"},                       // AISkillFlag
+    {0x100, Kind::name, 0, "P_Eve_Gun_ShootShockSlug1_1_Cast1"}, // FirstSkillActiveAlias
+    {0x124, Kind::f32, 1.0f, nullptr},                           // CoolTime
+    {0x140, Kind::f32, 1.2f, nullptr},                           // AttackDamageRate
+    {0x144, Kind::f32, 1.2f, nullptr},                           // ShieldAttackDamageRate
+    {0x158, Kind::name, 0, "Custom6"},                           // TargetDeadType
+    {0x160, Kind::string, 0, "Hit/Result_Hit_Env"},              // WorldObjectHitShow
+    {0x17c, Kind::name, 0, "None"},                              // AcquisitionSkillAlias
+    {0x187, Kind::u8, 1, nullptr},                               // ConditionEnd_RangedCombat
+    {0x18c, Kind::name, 0, "None"},                              // ExpansionFromAcquisitionAlias1
+    {0x194, Kind::u8, 0, nullptr},                               // ExpansionType1
+    {0x198, Kind::string, 0, ""},                                // ExpansionValue1
+    {0x2f0, Kind::name, 0, "Eve"},                               // FileSuffix
+    // P_Eve_Gun_ShootShockSlug1_Projectile1 (ProjectileTable, Shock Bolt)
+    // ResourcePath
+    {0x018, Kind::string, 0, "/Game/Art/Character/PC/CH_P_EVE_01/Projectile/P_Eve_Gun_ShootShockSlug1_Projectile1"},
+    {0x028, Kind::u8, 1, nullptr},                                        // bGroupProjectile
+    {0x029, Kind::u8, 2, nullptr},                                        // LifeType
+    {0x02c, Kind::f32, 0.5f, nullptr},                                    // LifeTime
+    {0x030, Kind::u8, 1, nullptr},                                        // DestroyType
+    {0x03c, Kind::f32, 1.0f, nullptr},                                    // AttackDamageRate
+    {0x040, Kind::f32, 1.0f, nullptr},                                    // ShieldAttackDamageRate
+    {0x04c, Kind::name, 0, "P_Eve_Gun_ShootAmmo1_Projectile_Target"},     // TargetFilterAlias
+    {0x0c4, Kind::name, 0, "ShootNormal01"},                              // ZoneEventActorTriggerTag
+    {0x0cc, Kind::name, 0, "P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1"}, // SkillResultAliasWhenProjectileHit
+    {0x0d4, Kind::name, 0, "P_Eve_Gun_ShootSlug1_Projectile1_Parry1"},    // SkillResultAliasWhenProjectileParry
+    {0x0e4, Kind::name, 0, "P_Eve_Gun_ShootSlug1_Projectile1_Guard1"},    // SkillResultAliasWhenProjectileGuard
+    {0x104, Kind::name, 0, "Custom6"},                                    // TargetDeadType
+    {0x120, Kind::u8, 1, nullptr},                                        // AvailableParry
+    {0x122, Kind::u8, 1, nullptr},                                        // AvailableGuard
+    {0x125, Kind::u8, 1, nullptr},                                        // AvailableJustAction
+    {0x12c, Kind::u8, 1, nullptr},                                        // bImpossibleReflect
+    {0x16a, Kind::u8, 1, nullptr},                                        // bProjectileAttackPossible
+    {0x16c, Kind::f32, 1.0f, nullptr},                                    // ProjectileAttackDamage
+    {0x198, Kind::f32, 0.3f, nullptr},                                    // ZoneEventDestructionDelayMinTime
+    {0x19c, Kind::f32, 0.3f, nullptr},                                    // ZoneEventDestructionDelayMaxTime
+    {0x1a0, Kind::u8, 1, nullptr},                                        // bCheckShotPosition
+    {0x1a4, Kind::name, 0, "Bip001-Head"},                                // CheckShotPositionSocketName
+    {0x1b7, Kind::u8, 1, nullptr},                                        // StartTargetTransformType
+    {0x1b8, Kind::name, 0, "SC_GunShoot_Up"},                             // StartTargetTransformName
+    {0x1c0, Kind::u8, 1, nullptr},                                        // bStartTargetTransformRotation
+    {0x1dd, Kind::u8, 3, nullptr},                                        // DestTarget
+    {0x228, Kind::u8, 2, nullptr},                                        // DestTargetRelativeAxisType
+    {0x238, Kind::f32, 50000.0f, nullptr},                                // StartToDestDirectionDistance
+    {0x23c, Kind::f32, 20000.0f, nullptr},                                // Speed
+    {0x248, Kind::f32, 20000.0f, nullptr},                                // MinSpeed
+    {0x24c, Kind::f32, 20000.0f, nullptr},                                // MaxSpeed
+    {0x298, Kind::f32, 100.0f, nullptr},                                  // Gravity
+    {0x314, Kind::i32, 7, nullptr},                                       // PoolCount
+    // P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1 (SkillResultTable, Shock Bolt)
+    // ResultSelfCommonEffect
+    {0x018, Kind::string, 0,
+     "[{\"Alias\":\"P_Protector_Shoot3_1_ForTest\"}, {\"Alias\":\"P_Protector_Shoot3_MK2_1_ForTest\"}]"},
+    // ResultTargetCommonEffect
+    {0x028, Kind::string, 0,
+     "[{\"Alias\":\"Check_Dialogue\"}, {\"Alias\":\"SkillDamage_EveRange\"}, "
+     "{\"Alias\":\"M_Common_HitProjectileCheck\"}, {\"Alias\":\"ShockSlugStun\"}]"},
+    {0x038, Kind::string, 0, "[{\"Alias\":\"BlockMove_Slug\", \"Time\":0.2}]"}, // HitLevelResultTargetCommonEffect
+    {0x058, Kind::string, 0, "Hit/Result_Hit_Projectile_Normal"},               // ResultTargetCommonShowPath
+    {0x0b8, Kind::string, 0, "Hit/Result_Hit_Projectile_Normal_NoAnim"},        // ResultTargetDownShowPath
+    {0x118, Kind::string, 0, "Hit/Result_Hit_Projectile_Normal_NoAnim"},        // ResultTargetGroggyShowPath
+    {0x1d8, Kind::string, 0, "Hit/Result_Hit_Projectile_Normal_NoAnim"},        // ResultTargetAirShowPath
+    {0x1f0, Kind::name, 0, "Hit_Air_010_300"},                                  // HitLevelResultTargetAirMoveAlias
+    {0x238, Kind::string, 0, "Hit/Result_Hit_Projectile_Normal_NoAnim"},        // ResultTargetSwimmingShowPath
+    {0x250, Kind::name, 0, "Hit_Back_0"},                                       // HitLevelResultTargetSwimmingMoveAlias
+    // ResultSelfWeakpointHitEffect
+    {0x298, Kind::string, 0, "[{\"Alias\":\"P_Protector_Shoot3_1\"}, {\"Alias\":\"P_Protector_Shoot3_MK2_1\"}]"},
+    // ResultTargetWeakpointHitEffect
+    {0x2a8, Kind::string, 0,
+     "[{\"Alias\":\"Show_ResultHitWeakPoint\"},{\"Alias\":\"Show_ResultHitWeakPoint_Maelstrom\"}]"},
+    {0x318, Kind::name, 0, "Eve"}, // FileSuffix
+    // Money_NightOperation (ItemTable, Night Operation shop)
+    {0x01c, Kind::i32, 5, nullptr},                                          // InventoryPriority
+    {0x030, Kind::string, 0, "Item_Money_NightOperation_Name"},              // Name
+    {0x050, Kind::string, 0, "Item_Money_NightOperation_Function"},          // DescFunction
+    {0x060, Kind::string, 0, "Item_Money_NightOperation_Content"},           // DescContent
+    {0x070, Kind::u8, 20, nullptr},                                          // Category
+    {0x07c, Kind::u8, 1, nullptr},                                           // Rarity
+    {0x07e, Kind::u8, 0, nullptr},                                           // IncludeDropPool
+    {0x084, Kind::i32, 999999, nullptr},                                     // MaxAmount
+    {0x094, Kind::i32, 1, nullptr},                                          // RequireLevel
+    {0x0cc, Kind::f32, 1.0f, nullptr},                                       // Asset3DScale
+    {0x0d0, Kind::string, 0, "/Game/Art/UI/Texture/Item/betacore.betacore"}, // Asset2D
+    {0x189, Kind::u8, 2, nullptr},                                           // NotiType
+    {0x1a4, Kind::u8, 1, nullptr},                                           // bMaintainNewGamePlus
+    // NightOperation_HP2Burst_Potion_Buy (ShopItemTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // ShopType
+    {0x018, Kind::name, 0, "HP2Burst_Potion"},      // ItemAlias
+    {0x02c, Kind::name, 0, "Money_NightOperation"}, // MoneyItemAlias1
+    {0x034, Kind::i32, 20, nullptr},                // MoneyItemCount1
+    // NightOperation_Buff_HP2MP_Buy (ShopItemTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // ShopType
+    {0x018, Kind::name, 0, "Buff_HP2MP"},           // ItemAlias
+    {0x02c, Kind::name, 0, "Money_NightOperation"}, // MoneyItemAlias1
+    {0x034, Kind::i32, 16, nullptr},                // MoneyItemCount1
+    // NightOperation_Bullet_Shock_Buy (ShopItemTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // ShopType
+    {0x018, Kind::name, 0, "Bullet_Shock"},         // ItemAlias
+    {0x02c, Kind::name, 0, "Money_NightOperation"}, // MoneyItemAlias1
+    {0x034, Kind::i32, 5, nullptr},                 // MoneyItemCount1
+    // Shop_NightOperation_Coop (ShopTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // UnionLimitedItem
+    {0x020, Kind::name, 0, "Money_NightOperation"}, // CurrencyItemAlias
+    {0x028, Kind::names, 0, ""},                    // Tags
+    // ShopItems
+    {0x038, Kind::names, 0,
+     "NightOperation_HP_Potion_Buy|NightOperation_HP_Potion_Small_Buy|NightOperation_PulseGrenade_Buy|"
+     "NightOperation_ConcussionGrenade_Buy|NightOperation_HP2Burst_Potion_Buy|NightOperation_Buff_HP2MP_Buy"},
+    // Shop_NightOperation_CoopBolt (ShopTable, Night Operation shop)
+    {0x014, Kind::u8, 1, nullptr},                  // UnionLimitedItem
+    {0x020, Kind::name, 0, "Money_NightOperation"}, // CurrencyItemAlias
+    {0x028, Kind::names, 0, ""},                    // Tags
+    // ShopItems
+    {0x038, Kind::names, 0,
+     "NightOperation_HP_Potion_Buy|NightOperation_HP_Potion_Small_Buy|NightOperation_PulseGrenade_Buy|"
+     "NightOperation_ConcussionGrenade_Buy|NightOperation_HP2Burst_Potion_Buy|NightOperation_Buff_HP2MP_Buy|"
+     "NightOperation_Bullet_Shock_Buy"},
 };
 constexpr Row kRecipe[] = {
-    {Table::effect, "M_LionC_PhaseRoar", "M_Scarlet_CounterLinkStart", 5002000, 0, 7},
-    {Table::result, "M_LionC_Result_Light", "M_Behemoth_ScratchLeft_Parry1", 500200000, 7, 14},
-    {Table::result, "M_LionC_Result_Strong", "M_Behemoth_ScratchLeft_Parry1", 500200001, 21, 14},
-    {Table::result, "M_LionC_Result_KnockDown", "M_Behemoth_ScratchLeft_Parry1", 500200002, 35, 14},
-    {Table::result, "M_LionC_Result_Guard", "M_Behemoth_ScratchLeft_Parry1", 500200003, 49, 4},
-    {Table::result, "M_LionC_Result_Parry", "M_Behemoth_ScratchLeft_Parry1", 500200004, 53, 3},
-    {Table::filter, "M_LionC_HitArea", "M_Behemoth_HitArea", 5002000, 56, 6},
-    {Table::filter, "M_LionC_Roar_HitArea", "M_Behemoth_HitArea", 5002001, 62, 8},
-    {Table::filter, "M_LionC_ClawAttackLeft_Target", "M_Behemoth_HitArea", 5002002, 70, 8},
-    {Table::filter, "M_LionC_ClawAttackRight_Target", "M_Behemoth_HitArea", 5002003, 78, 8},
-    {Table::filter, "M_LionC_ClawAttackChaseLeft_Target", "M_Behemoth_HitArea", 5002004, 86, 9},
-    {Table::filter, "M_LionC_ClawAttackChaseRight_Target", "M_Behemoth_HitArea", 5002005, 95, 10},
-    {Table::filter, "M_LionC_TurnAttackLeft_Target", "M_Behemoth_HitArea", 5002006, 105, 9},
-    {Table::filter, "M_LionC_TurnAttackRight_Target", "M_Behemoth_HitArea", 5002007, 114, 9},
-    {Table::filter, "M_LionC_RunAttackLeft_Target", "M_Behemoth_HitArea", 5002008, 123, 10},
-    {Table::filter, "M_LionC_RunAttackRight_Target", "M_Behemoth_HitArea", 5002009, 133, 10},
-    {Table::filter, "M_LionC_JumpAttackLow_Target", "M_Behemoth_HitArea", 5002010, 143, 9},
-    {Table::filter, "M_LionC_JumpAttackLow_HitArea", "M_Behemoth_HitArea", 5002011, 152, 8},
-    {Table::filter, "M_LionC_JumpAttackHigh_Target", "M_Behemoth_HitArea", 5002012, 160, 9},
-    {Table::filter, "M_LionC_JumpAttackHigh_HitArea", "M_Behemoth_HitArea", 5002013, 169, 8},
-    {Table::filter, "M_LionC_BackJumpToAttack_Target", "M_Behemoth_HitArea", 5002014, 177, 9},
-    {Table::filter, "M_LionC_AttackToBackJump_Target", "M_Behemoth_HitArea", 5002015, 186, 8},
-    {Table::filter, "M_LionC_Roar_Target", "M_Behemoth_HitArea", 5002016, 194, 8},
-    {Table::filter, "M_LionC_SideStepLeft_Target", "M_Behemoth_HitArea", 5002017, 202, 9},
-    {Table::filter, "M_LionC_SideStepRight_Target", "M_Behemoth_HitArea", 5002018, 211, 9},
-    {Table::filter, "M_LionC_ClawAttackChain_Target", "M_Behemoth_HitArea", 5002019, 220, 8},
-    {Table::filter, "M_LionC_ClawAttackChain2_Target", "M_Behemoth_HitArea", 5002020, 228, 8},
-    {Table::filter, "M_LionC_MoveAttackChain_Target", "M_Behemoth_HitArea", 5002021, 236, 8},
-    {Table::filter, "M_LionC_RushAttack_Target", "M_Behemoth_HitArea", 5002022, 244, 9},
-    {Table::filter, "M_LionC_DashAttackChain_Target", "M_Behemoth_HitArea", 5002023, 253, 8},
-    {Table::filter, "M_LionC_DashAttackChain_HitArea", "M_Behemoth_HitArea", 5002024, 261, 8},
-    {Table::move, "M_LionC_ClawAttackLeft_Turn", "M_Behemoth_ScratchLeft_Move2", 5002000, 269, 16},
-    {Table::move, "M_LionC_ClawAttackRight_Turn", "M_Behemoth_ScratchLeft_Move2", 5002001, 285, 16},
-    {Table::move, "M_LionC_ClawAttackChaseLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002002, 301, 18},
-    {Table::move, "M_LionC_ClawAttackChaseLeft_Move2", "M_Behemoth_ScratchLeft_Move2", 5002003, 319, 17},
-    {Table::move, "M_LionC_ClawAttackChaseLeft_Move3", "M_Behemoth_ScratchLeft_Move2", 5002004, 336, 14},
-    {Table::move, "M_LionC_ClawAttackChaseRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002005, 350, 17},
-    {Table::move, "M_LionC_ClawAttackChaseRight_Move2", "M_Behemoth_ScratchLeft_Move2", 5002006, 367, 17},
-    {Table::move, "M_LionC_ClawAttackChaseRight_Move3", "M_Behemoth_ScratchLeft_Move2", 5002007, 384, 17},
-    {Table::move, "M_LionC_TurnAttackLeft_Turn", "M_Behemoth_ScratchLeft_Move2", 5002008, 401, 18},
-    {Table::move, "M_LionC_TurnAttackRight_Turn", "M_Behemoth_ScratchLeft_Move2", 5002009, 419, 18},
-    {Table::move, "M_LionC_RunAttackLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002010, 437, 17},
-    {Table::move, "M_LionC_RunAttackLeft_Move2", "M_Behemoth_ScratchLeft_Move2", 5002011, 454, 17},
-    {Table::move, "M_LionC_RunAttackLeft_Move3", "M_Behemoth_ScratchLeft_Move2", 5002012, 471, 17},
-    {Table::move, "M_LionC_RunAttackRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002013, 488, 17},
-    {Table::move, "M_LionC_RunAttackRight_Move2", "M_Behemoth_ScratchLeft_Move2", 5002014, 505, 17},
-    {Table::move, "M_LionC_RunAttackRight_Move3", "M_Behemoth_ScratchLeft_Move2", 5002015, 522, 17},
-    {Table::move, "M_LionC_JumpAttackLow_Move1", "M_Behemoth_ScratchLeft_Move2", 5002016, 539, 18},
-    {Table::move, "M_LionC_JumpAttackHigh_Turn", "M_Behemoth_ScratchLeft_Move2", 5002017, 557, 16},
-    {Table::move, "M_LionC_JumpAttackHigh_Move2", "M_Behemoth_ScratchLeft_Move2", 5002018, 573, 17},
-    {Table::move, "M_LionC_JumpAttackHigh_Move3", "M_Behemoth_ScratchLeft_Move2", 5002019, 590, 17},
-    {Table::move, "M_LionC_BackJumpToAttack_Turn", "M_Behemoth_ScratchLeft_Move2", 5002020, 607, 18},
-    {Table::move, "M_LionC_AttackToBackJump_Turn", "M_Behemoth_ScratchLeft_Move2", 5002021, 625, 16},
-    {Table::move, "M_LionC_AttackToBackJump_Move3", "M_Behemoth_ScratchLeft_Move2", 5002022, 641, 14},
-    {Table::move, "M_LionC_Roar_Turn", "M_Behemoth_ScratchLeft_Move2", 5002023, 655, 16},
-    {Table::move, "M_LionC_Roar_Move3", "M_Behemoth_ScratchLeft_Move2", 5002024, 671, 14},
-    {Table::move, "M_LionC_SideStepLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002025, 685, 15},
-    {Table::move, "M_LionC_SideStepRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002026, 700, 15},
-    {Table::move, "M_LionC_ClawAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002027, 715, 17},
-    {Table::move, "M_LionC_ClawAttackChain_Move2", "M_Behemoth_ScratchLeft_Move2", 5002028, 732, 16},
-    {Table::move, "M_LionC_ClawAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002029, 748, 17},
-    {Table::move, "M_LionC_ClawAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002030, 765, 17},
-    {Table::move, "M_LionC_ClawAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002031, 782, 17},
-    {Table::move, "M_LionC_ClawAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002032, 799, 17},
-    {Table::move, "M_LionC_ClawAttackChain_Move7", "M_Behemoth_ScratchLeft_Move2", 5002033, 816, 17},
-    {Table::move, "M_LionC_ClawAttackChain2_Move1", "M_Behemoth_ScratchLeft_Move2", 5002034, 833, 17},
-    {Table::move, "M_LionC_ClawAttackChain2_Move2", "M_Behemoth_ScratchLeft_Move2", 5002035, 850, 16},
-    {Table::move, "M_LionC_ClawAttackChain2_Move4", "M_Behemoth_ScratchLeft_Move2", 5002036, 866, 17},
-    {Table::move, "M_LionC_ClawAttackChain2_Move5", "M_Behemoth_ScratchLeft_Move2", 5002037, 883, 17},
-    {Table::move, "M_LionC_ClawAttackChain2_Move6", "M_Behemoth_ScratchLeft_Move2", 5002038, 900, 17},
-    {Table::move, "M_LionC_ClawAttackChain2_Move7", "M_Behemoth_ScratchLeft_Move2", 5002039, 917, 16},
-    {Table::move, "M_LionC_ClawAttackChain2_Move8", "M_Behemoth_ScratchLeft_Move2", 5002040, 933, 16},
-    {Table::move, "M_LionC_ClawAttackChain2_Move9", "M_Behemoth_ScratchLeft_Move2", 5002041, 949, 14},
-    {Table::move, "M_LionC_MoveAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002042, 963, 15},
-    {Table::move, "M_LionC_MoveAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002043, 978, 17},
-    {Table::move, "M_LionC_MoveAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002044, 995, 17},
-    {Table::move, "M_LionC_MoveAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002045, 1012, 17},
-    {Table::move, "M_LionC_MoveAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002046, 1029, 17},
-    {Table::move, "M_LionC_RushAttack_Move1", "M_Behemoth_ScratchLeft_Move2", 5002047, 1046, 18},
-    {Table::move, "M_LionC_RushAttack_Move2", "M_Behemoth_ScratchLeft_Move2", 5002048, 1064, 17},
-    {Table::move, "M_LionC_RushAttack_Move3", "M_Behemoth_ScratchLeft_Move2", 5002049, 1081, 17},
-    {Table::move, "M_LionC_DashAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002050, 1098, 15},
-    {Table::move, "M_LionC_DashAttackChain_Move2", "M_Behemoth_ScratchLeft_Move2", 5002051, 1113, 16},
-    {Table::move, "M_LionC_DashAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002052, 1129, 16},
-    {Table::move, "M_LionC_DashAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002053, 1145, 16},
-    {Table::move, "M_LionC_DashAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002054, 1161, 17},
-    {Table::move, "M_LionC_DashAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002055, 1178, 17},
-    {Table::move, "M_LionC_DashAttackChain_Move7", "M_Behemoth_ScratchLeft_Move2", 5002056, 1195, 17},
-    {Table::move, "M_LionC_DashAttackChain_Move8", "M_Behemoth_ScratchLeft_Move2", 5002057, 1212, 17},
-    {Table::move, "M_LionC_DashAttackChain_Move9", "M_Behemoth_ScratchLeft_Move2", 5002058, 1229, 17},
-    {Table::move, "M_LionC_RoarPhaseChange_Turn", "M_Behemoth_ScratchLeft_Move2", 5002059, 1246, 16},
-    {Table::move, "M_LionC_RoarPhaseChange_Move3", "M_Behemoth_ScratchLeft_Move2", 5002060, 1262, 14},
-    {Table::step, "M_LionC_ClawAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200002, 1276, 8},
-    {Table::step, "M_LionC_ClawAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200003, 1284, 25},
-    {Table::step, "M_LionC_ClawAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200004, 1309, 5},
-    {Table::skill, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 1314, 13},
-    {Table::step, "M_LionC_ClawAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200102, 1327, 8},
-    {Table::step, "M_LionC_ClawAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200103, 1335, 25},
-    {Table::step, "M_LionC_ClawAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200104, 1360, 5},
-    {Table::skill, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 1365, 13},
-    {Table::step, "M_LionC_ClawAttackChaseLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200202, 1378, 8},
-    {Table::step, "M_LionC_ClawAttackChaseLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200203, 1386, 25},
-    {Table::step, "M_LionC_ClawAttackChaseLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200204, 1411, 5},
-    {Table::skill, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 1416, 14},
-    {Table::step, "M_LionC_ClawAttackChaseRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200302, 1430, 8},
-    {Table::step, "M_LionC_ClawAttackChaseRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200303, 1438, 25},
-    {Table::step, "M_LionC_ClawAttackChaseRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200304, 1463, 5},
-    {Table::skill, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 1468, 14},
-    {Table::step, "M_LionC_TurnAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200402, 1482, 8},
-    {Table::step, "M_LionC_TurnAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200403, 1490, 25},
-    {Table::step, "M_LionC_TurnAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200404, 1515, 5},
-    {Table::skill, "M_LionC_TurnAttackLeft", "M_Behemoth_ScratchLeft", 5002004, 1520, 13},
-    {Table::step, "M_LionC_TurnAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200502, 1533, 8},
-    {Table::step, "M_LionC_TurnAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200503, 1541, 25},
-    {Table::step, "M_LionC_TurnAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200504, 1566, 5},
-    {Table::skill, "M_LionC_TurnAttackRight", "M_Behemoth_ScratchLeft", 5002005, 1571, 13},
-    {Table::step, "M_LionC_RunAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200602, 1584, 8},
-    {Table::step, "M_LionC_RunAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200603, 1592, 25},
-    {Table::step, "M_LionC_RunAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200604, 1617, 5},
-    {Table::skill, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 1622, 14},
-    {Table::step, "M_LionC_RunAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200702, 1636, 8},
-    {Table::step, "M_LionC_RunAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200703, 1644, 25},
-    {Table::step, "M_LionC_RunAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200704, 1669, 5},
-    {Table::skill, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 1674, 14},
-    {Table::step, "M_LionC_JumpAttackLow_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200802, 1688, 8},
-    {Table::step, "M_LionC_JumpAttackLow_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200803, 1696, 24},
-    {Table::step, "M_LionC_JumpAttackLow_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200804, 1720, 5},
-    {Table::skill, "M_LionC_JumpAttackLow", "M_Behemoth_ScratchLeft", 5002008, 1725, 14},
-    {Table::step, "M_LionC_JumpAttackHigh_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200902, 1739, 11},
-    {Table::step, "M_LionC_JumpAttackHigh_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200903, 1750, 19},
-    {Table::step, "M_LionC_JumpAttackHigh_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200904, 1769, 5},
-    {Table::skill, "M_LionC_JumpAttackHigh", "M_Behemoth_ScratchLeft", 5002009, 1774, 14},
-    {Table::step, "M_LionC_BackJumpToAttack_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201002, 1788, 8},
-    {Table::step, "M_LionC_BackJumpToAttack_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201003, 1796, 25},
-    {Table::step, "M_LionC_BackJumpToAttack_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201004, 1821, 5},
-    {Table::skill, "M_LionC_BackJumpToAttack", "M_Behemoth_ScratchLeft", 5002010, 1826, 13},
-    {Table::step, "M_LionC_AttackToBackJump_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201102, 1839, 8},
-    {Table::step, "M_LionC_AttackToBackJump_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201103, 1847, 25},
-    {Table::step, "M_LionC_AttackToBackJump_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201104, 1872, 5},
-    {Table::skill, "M_LionC_AttackToBackJump", "M_Behemoth_ScratchLeft", 5002011, 1877, 14},
-    {Table::step, "M_LionC_Roar_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201202, 1891, 12},
-    {Table::step, "M_LionC_Roar_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201203, 1903, 19},
-    {Table::step, "M_LionC_Roar_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201204, 1922, 5},
-    {Table::skill, "M_LionC_Roar", "M_Behemoth_ScratchLeft", 5002012, 1927, 13},
-    {Table::step, "M_LionC_SideStepLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201302, 1940, 7},
-    {Table::skill, "M_LionC_SideStepLeft", "M_Behemoth_ScratchLeft", 5002013, 1947, 14},
-    {Table::step, "M_LionC_SideStepRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201402, 1961, 7},
-    {Table::skill, "M_LionC_SideStepRight", "M_Behemoth_ScratchLeft", 5002014, 1968, 14},
-    {Table::step, "M_LionC_ClawAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201502, 1982, 8},
-    {Table::step, "M_LionC_ClawAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201503, 1990, 24},
-    {Table::step, "M_LionC_ClawAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201504, 2014, 6},
-    {Table::step, "M_LionC_ClawAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201505, 2020, 24},
-    {Table::step, "M_LionC_ClawAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201506, 2044, 6},
-    {Table::step, "M_LionC_ClawAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201507, 2050, 25},
-    {Table::step, "M_LionC_ClawAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201508, 2075, 5},
-    {Table::skill, "M_LionC_ClawAttackChain", "M_Behemoth_ScratchLeft", 5002015, 2080, 14},
-    {Table::step, "M_LionC_ClawAttackChain2_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201602, 2094, 8},
-    {Table::step, "M_LionC_ClawAttackChain2_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201603, 2102, 24},
-    {Table::step, "M_LionC_ClawAttackChain2_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201604, 2126, 6},
-    {Table::step, "M_LionC_ClawAttackChain2_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201605, 2132, 24},
-    {Table::step, "M_LionC_ClawAttackChain2_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201606, 2156, 6},
-    {Table::step, "M_LionC_ClawAttackChain2_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201607, 2162, 24},
-    {Table::step, "M_LionC_ClawAttackChain2_Cast4", "M_Behemoth_ScratchLeft_Finish1", 500201608, 2186, 6},
-    {Table::step, "M_LionC_ClawAttackChain2_Hit4", "M_Behemoth_ScratchLeft_Finish1", 500201609, 2192, 25},
-    {Table::step, "M_LionC_ClawAttackChain2_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201610, 2217, 5},
-    {Table::skill, "M_LionC_ClawAttackChain2", "M_Behemoth_ScratchLeft", 5002016, 2222, 14},
-    {Table::step, "M_LionC_MoveAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201702, 2236, 8},
-    {Table::step, "M_LionC_MoveAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201703, 2244, 24},
-    {Table::step, "M_LionC_MoveAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201704, 2268, 6},
-    {Table::step, "M_LionC_MoveAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201705, 2274, 24},
-    {Table::step, "M_LionC_MoveAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201706, 2298, 6},
-    {Table::step, "M_LionC_MoveAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201707, 2304, 25},
-    {Table::step, "M_LionC_MoveAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201708, 2329, 5},
-    {Table::skill, "M_LionC_MoveAttackChain", "M_Behemoth_ScratchLeft", 5002017, 2334, 14},
-    {Table::step, "M_LionC_RushAttack_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201802, 2348, 8},
-    {Table::step, "M_LionC_RushAttack_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201803, 2356, 6},
-    {Table::step, "M_LionC_RushAttack_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201804, 2362, 25},
-    {Table::step, "M_LionC_RushAttack_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201805, 2387, 5},
-    {Table::skill, "M_LionC_RushAttack", "M_Behemoth_ScratchLeft", 5002018, 2392, 14},
-    {Table::step, "M_LionC_DashAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201902, 2406, 8},
-    {Table::step, "M_LionC_DashAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201903, 2414, 23},
-    {Table::step, "M_LionC_DashAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201904, 2437, 6},
-    {Table::step, "M_LionC_DashAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201905, 2443, 23},
-    {Table::step, "M_LionC_DashAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201906, 2466, 6},
-    {Table::step, "M_LionC_DashAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201907, 2472, 23},
-    {Table::step, "M_LionC_DashAttackChain_Cast4", "M_Behemoth_ScratchLeft_Finish1", 500201908, 2495, 6},
-    {Table::step, "M_LionC_DashAttackChain_Hit4", "M_Behemoth_ScratchLeft_Finish1", 500201909, 2501, 24},
-    {Table::step, "M_LionC_DashAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201910, 2525, 5},
-    {Table::skill, "M_LionC_DashAttackChain", "M_Behemoth_ScratchLeft", 5002019, 2530, 14},
-    {Table::step, "M_LionC_RoarPhaseChange_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500202002, 2544, 13},
-    {Table::step, "M_LionC_RoarPhaseChange_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500202003, 2557, 19},
-    {Table::step, "M_LionC_RoarPhaseChange_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500202004, 2576, 5},
-    {Table::skill, "M_LionC_RoarPhaseChange", "M_Behemoth_ScratchLeft", 5002020, 2581, 13},
-    {Table::command, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 2594, 6},
-    {Table::command, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 2600, 6},
-    {Table::command, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 2606, 6},
-    {Table::command, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 2612, 6},
-    {Table::command, "M_LionC_TurnAttackLeft", "M_Behemoth_ScratchLeft", 5002004, 2618, 6},
-    {Table::command, "M_LionC_TurnAttackRight", "M_Behemoth_ScratchLeft", 5002005, 2624, 6},
-    {Table::command, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 2630, 6},
-    {Table::command, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 2636, 6},
-    {Table::command, "M_LionC_JumpAttackLow", "M_Behemoth_ScratchLeft", 5002008, 2642, 6},
-    {Table::command, "M_LionC_JumpAttackHigh", "M_Behemoth_ScratchLeft", 5002009, 2648, 6},
-    {Table::command, "M_LionC_BackJumpToAttack", "M_Behemoth_ScratchLeft", 5002010, 2654, 6},
-    {Table::command, "M_LionC_AttackToBackJump", "M_Behemoth_ScratchLeft", 5002011, 2660, 6},
-    {Table::command, "M_LionC_Roar", "M_Behemoth_ScratchLeft", 5002012, 2666, 6},
-    {Table::command, "M_LionC_SideStepLeft", "M_Behemoth_ScratchLeft", 5002013, 2672, 6},
-    {Table::command, "M_LionC_SideStepRight", "M_Behemoth_ScratchLeft", 5002014, 2678, 6},
-    {Table::command, "M_LionC_ClawAttackChain", "M_Behemoth_ScratchLeft", 5002015, 2684, 6},
-    {Table::command, "M_LionC_ClawAttackChain2", "M_Behemoth_ScratchLeft", 5002016, 2690, 6},
-    {Table::command, "M_LionC_MoveAttackChain", "M_Behemoth_ScratchLeft", 5002017, 2696, 6},
-    {Table::command, "M_LionC_RushAttack", "M_Behemoth_ScratchLeft", 5002018, 2702, 6},
-    {Table::command, "M_LionC_DashAttackChain", "M_Behemoth_ScratchLeft", 5002019, 2708, 6},
-    {Table::command, "M_LionC_RoarPhaseChange", "M_Behemoth_ScratchLeft", 5002020, 2714, 6},
-    {Table::anim, "M_LionC_Peaceful", "M_Behemoth_Battle", 500200, 2720, 45},
-    {Table::anim, "M_LionC_Battle", "M_Behemoth_Battle", 500201, 2765, 45},
-    {Table::stance, "M_LionC_Default", "M_Behemoth_Default", 500200, 2810, 19},
-    {Table::stance, "M_LionC_Phase2", "M_Behemoth_Default", 500201, 2829, 23},
-    {Table::dead, "M_LionC", "M_Behemoth", 0, 2852, 27},
-    {Table::appearance, "M_LionC", "M_Behemoth", 50020, 2879, 2},
-    {Table::character, "M_LionC_Lurker", "M_Behemoth", 50021, 2881, 55},
-    {Table::character, "M_LionC", "M_Behemoth", 50020, 2936, 55},
+    {Table::skill, "P_Eve_Sword_Normal_Buff_1", "P_Eve_Sword_Normal_Potion_1", 6000101, 0, 8},
+    {Table::consumable, "Buff_HP2MP", "HP2Burst_Potion", 1032, 8, 3},
+    {Table::item, "HP2Burst_Potion", "HP_Potion", 300013, 11, 27},
+    {Table::item, "Buff_HP2MP", "HP_Potion", 300014, 38, 27},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Cast1", "P_Eve_Tachy_Skill_Chainstab1_1_Cast1", 100450001, 65, 9},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Hit1", "P_Eve_Tachy_Skill_Chainstab1_1_Hit1", 100450002, 74, 17},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Cast2", "P_Eve_Tachy_Skill_Chainstab1_1_Cast2", 100450003, 91, 4},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Hit2", "P_Eve_Tachy_Skill_Chainstab1_1_Hit1", 100450004, 95, 16},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Cast3", "P_Eve_Tachy_Skill_Chainstab1_1_Cast2", 100450005, 111, 4},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Hit3", "P_Eve_Tachy_Skill_Chainstab1_1_Hit1", 100450006, 115, 16},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Cast4", "P_Eve_Tachy_Skill_Chainstab1_1_Cast2", 100450007, 131, 5},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Hit4", "P_Eve_Tachy_Skill_Chainstab1_1_Hit5", 100450008, 136, 15},
+    {Table::step, "P_Eve_Tachy_Skill_ChainSpin1_1_Finish1", "P_Eve_Tachy_Skill_Chainstab1_1_Finish1", 100450009, 151,
+     6},
+    {Table::skill, "P_Eve_Tachy_Skill_ChainSpin1_1", "P_Eve_Tachy_Skill_ChainStab1_1", 1004500, 157, 22},
+    {Table::effect, "P_Eve_Tachy_Skill_ChainSpin1_Use", "M_Scarlet_CounterLinkStart", 1004500, 179, 8},
+    {Table::effect, "M_LionC_PhaseRoar", "M_Scarlet_CounterLinkStart", 5002000, 187, 7},
+    {Table::result, "M_LionC_Result_Light", "M_Behemoth_ScratchLeft_Parry1", 500200000, 194, 14},
+    {Table::result, "M_LionC_Result_Strong", "M_Behemoth_ScratchLeft_Parry1", 500200001, 208, 14},
+    {Table::result, "M_LionC_Result_KnockDown", "M_Behemoth_ScratchLeft_Parry1", 500200002, 222, 14},
+    {Table::result, "M_LionC_Result_Guard", "M_Behemoth_ScratchLeft_Parry1", 500200003, 236, 4},
+    {Table::result, "M_LionC_Result_Parry", "M_Behemoth_ScratchLeft_Parry1", 500200004, 240, 3},
+    {Table::filter, "M_LionC_HitArea", "M_Behemoth_HitArea", 5002000, 243, 6},
+    {Table::filter, "M_LionC_Roar_HitArea", "M_Behemoth_HitArea", 5002001, 249, 8},
+    {Table::filter, "M_LionC_ClawAttackLeft_Target", "M_Behemoth_HitArea", 5002002, 257, 8},
+    {Table::filter, "M_LionC_ClawAttackRight_Target", "M_Behemoth_HitArea", 5002003, 265, 8},
+    {Table::filter, "M_LionC_ClawAttackChaseLeft_Target", "M_Behemoth_HitArea", 5002004, 273, 9},
+    {Table::filter, "M_LionC_ClawAttackChaseRight_Target", "M_Behemoth_HitArea", 5002005, 282, 10},
+    {Table::filter, "M_LionC_TurnAttackLeft_Target", "M_Behemoth_HitArea", 5002006, 292, 9},
+    {Table::filter, "M_LionC_TurnAttackRight_Target", "M_Behemoth_HitArea", 5002007, 301, 9},
+    {Table::filter, "M_LionC_RunAttackLeft_Target", "M_Behemoth_HitArea", 5002008, 310, 10},
+    {Table::filter, "M_LionC_RunAttackRight_Target", "M_Behemoth_HitArea", 5002009, 320, 10},
+    {Table::filter, "M_LionC_JumpAttackLow_Target", "M_Behemoth_HitArea", 5002010, 330, 9},
+    {Table::filter, "M_LionC_JumpAttackLow_HitArea", "M_Behemoth_HitArea", 5002011, 339, 8},
+    {Table::filter, "M_LionC_JumpAttackHigh_Target", "M_Behemoth_HitArea", 5002012, 347, 9},
+    {Table::filter, "M_LionC_JumpAttackHigh_HitArea", "M_Behemoth_HitArea", 5002013, 356, 8},
+    {Table::filter, "M_LionC_BackJumpToAttack_Target", "M_Behemoth_HitArea", 5002014, 364, 9},
+    {Table::filter, "M_LionC_AttackToBackJump_Target", "M_Behemoth_HitArea", 5002015, 373, 8},
+    {Table::filter, "M_LionC_Roar_Target", "M_Behemoth_HitArea", 5002016, 381, 8},
+    {Table::filter, "M_LionC_SideStepLeft_Target", "M_Behemoth_HitArea", 5002017, 389, 9},
+    {Table::filter, "M_LionC_SideStepRight_Target", "M_Behemoth_HitArea", 5002018, 398, 9},
+    {Table::filter, "M_LionC_ClawAttackChain_Target", "M_Behemoth_HitArea", 5002019, 407, 8},
+    {Table::filter, "M_LionC_ClawAttackChain2_Target", "M_Behemoth_HitArea", 5002020, 415, 8},
+    {Table::filter, "M_LionC_MoveAttackChain_Target", "M_Behemoth_HitArea", 5002021, 423, 8},
+    {Table::filter, "M_LionC_RushAttack_Target", "M_Behemoth_HitArea", 5002022, 431, 9},
+    {Table::filter, "M_LionC_DashAttackChain_Target", "M_Behemoth_HitArea", 5002023, 440, 8},
+    {Table::filter, "M_LionC_DashAttackChain_HitArea", "M_Behemoth_HitArea", 5002024, 448, 8},
+    {Table::move, "M_LionC_ClawAttackLeft_Turn", "M_Behemoth_ScratchLeft_Move2", 5002000, 456, 16},
+    {Table::move, "M_LionC_ClawAttackRight_Turn", "M_Behemoth_ScratchLeft_Move2", 5002001, 472, 16},
+    {Table::move, "M_LionC_ClawAttackChaseLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002002, 488, 18},
+    {Table::move, "M_LionC_ClawAttackChaseLeft_Move2", "M_Behemoth_ScratchLeft_Move2", 5002003, 506, 17},
+    {Table::move, "M_LionC_ClawAttackChaseLeft_Move3", "M_Behemoth_ScratchLeft_Move2", 5002004, 523, 14},
+    {Table::move, "M_LionC_ClawAttackChaseRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002005, 537, 17},
+    {Table::move, "M_LionC_ClawAttackChaseRight_Move2", "M_Behemoth_ScratchLeft_Move2", 5002006, 554, 17},
+    {Table::move, "M_LionC_ClawAttackChaseRight_Move3", "M_Behemoth_ScratchLeft_Move2", 5002007, 571, 17},
+    {Table::move, "M_LionC_TurnAttackLeft_Turn", "M_Behemoth_ScratchLeft_Move2", 5002008, 588, 18},
+    {Table::move, "M_LionC_TurnAttackRight_Turn", "M_Behemoth_ScratchLeft_Move2", 5002009, 606, 18},
+    {Table::move, "M_LionC_RunAttackLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002010, 624, 17},
+    {Table::move, "M_LionC_RunAttackLeft_Move2", "M_Behemoth_ScratchLeft_Move2", 5002011, 641, 17},
+    {Table::move, "M_LionC_RunAttackLeft_Move3", "M_Behemoth_ScratchLeft_Move2", 5002012, 658, 17},
+    {Table::move, "M_LionC_RunAttackRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002013, 675, 17},
+    {Table::move, "M_LionC_RunAttackRight_Move2", "M_Behemoth_ScratchLeft_Move2", 5002014, 692, 17},
+    {Table::move, "M_LionC_RunAttackRight_Move3", "M_Behemoth_ScratchLeft_Move2", 5002015, 709, 17},
+    {Table::move, "M_LionC_JumpAttackLow_Move1", "M_Behemoth_ScratchLeft_Move2", 5002016, 726, 18},
+    {Table::move, "M_LionC_JumpAttackHigh_Turn", "M_Behemoth_ScratchLeft_Move2", 5002017, 744, 16},
+    {Table::move, "M_LionC_JumpAttackHigh_Move2", "M_Behemoth_ScratchLeft_Move2", 5002018, 760, 17},
+    {Table::move, "M_LionC_JumpAttackHigh_Move3", "M_Behemoth_ScratchLeft_Move2", 5002019, 777, 17},
+    {Table::move, "M_LionC_BackJumpToAttack_Turn", "M_Behemoth_ScratchLeft_Move2", 5002020, 794, 18},
+    {Table::move, "M_LionC_AttackToBackJump_Turn", "M_Behemoth_ScratchLeft_Move2", 5002021, 812, 16},
+    {Table::move, "M_LionC_AttackToBackJump_Move3", "M_Behemoth_ScratchLeft_Move2", 5002022, 828, 14},
+    {Table::move, "M_LionC_Roar_Turn", "M_Behemoth_ScratchLeft_Move2", 5002023, 842, 16},
+    {Table::move, "M_LionC_Roar_Move3", "M_Behemoth_ScratchLeft_Move2", 5002024, 858, 14},
+    {Table::move, "M_LionC_SideStepLeft_Move1", "M_Behemoth_ScratchLeft_Move2", 5002025, 872, 15},
+    {Table::move, "M_LionC_SideStepRight_Move1", "M_Behemoth_ScratchLeft_Move2", 5002026, 887, 15},
+    {Table::move, "M_LionC_ClawAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002027, 902, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move2", "M_Behemoth_ScratchLeft_Move2", 5002028, 919, 16},
+    {Table::move, "M_LionC_ClawAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002029, 935, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002030, 952, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002031, 969, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002032, 986, 17},
+    {Table::move, "M_LionC_ClawAttackChain_Move7", "M_Behemoth_ScratchLeft_Move2", 5002033, 1003, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move1", "M_Behemoth_ScratchLeft_Move2", 5002034, 1020, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move2", "M_Behemoth_ScratchLeft_Move2", 5002035, 1037, 16},
+    {Table::move, "M_LionC_ClawAttackChain2_Move4", "M_Behemoth_ScratchLeft_Move2", 5002036, 1053, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move5", "M_Behemoth_ScratchLeft_Move2", 5002037, 1070, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move6", "M_Behemoth_ScratchLeft_Move2", 5002038, 1087, 17},
+    {Table::move, "M_LionC_ClawAttackChain2_Move7", "M_Behemoth_ScratchLeft_Move2", 5002039, 1104, 16},
+    {Table::move, "M_LionC_ClawAttackChain2_Move8", "M_Behemoth_ScratchLeft_Move2", 5002040, 1120, 16},
+    {Table::move, "M_LionC_ClawAttackChain2_Move9", "M_Behemoth_ScratchLeft_Move2", 5002041, 1136, 14},
+    {Table::move, "M_LionC_MoveAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002042, 1150, 15},
+    {Table::move, "M_LionC_MoveAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002043, 1165, 17},
+    {Table::move, "M_LionC_MoveAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002044, 1182, 17},
+    {Table::move, "M_LionC_MoveAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002045, 1199, 17},
+    {Table::move, "M_LionC_MoveAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002046, 1216, 17},
+    {Table::move, "M_LionC_RushAttack_Move1", "M_Behemoth_ScratchLeft_Move2", 5002047, 1233, 18},
+    {Table::move, "M_LionC_RushAttack_Move2", "M_Behemoth_ScratchLeft_Move2", 5002048, 1251, 17},
+    {Table::move, "M_LionC_RushAttack_Move3", "M_Behemoth_ScratchLeft_Move2", 5002049, 1268, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move1", "M_Behemoth_ScratchLeft_Move2", 5002050, 1285, 15},
+    {Table::move, "M_LionC_DashAttackChain_Move2", "M_Behemoth_ScratchLeft_Move2", 5002051, 1300, 16},
+    {Table::move, "M_LionC_DashAttackChain_Move3", "M_Behemoth_ScratchLeft_Move2", 5002052, 1316, 16},
+    {Table::move, "M_LionC_DashAttackChain_Move4", "M_Behemoth_ScratchLeft_Move2", 5002053, 1332, 16},
+    {Table::move, "M_LionC_DashAttackChain_Move5", "M_Behemoth_ScratchLeft_Move2", 5002054, 1348, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move6", "M_Behemoth_ScratchLeft_Move2", 5002055, 1365, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move7", "M_Behemoth_ScratchLeft_Move2", 5002056, 1382, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move8", "M_Behemoth_ScratchLeft_Move2", 5002057, 1399, 17},
+    {Table::move, "M_LionC_DashAttackChain_Move9", "M_Behemoth_ScratchLeft_Move2", 5002058, 1416, 17},
+    {Table::move, "M_LionC_RoarPhaseChange_Turn", "M_Behemoth_ScratchLeft_Move2", 5002059, 1433, 16},
+    {Table::move, "M_LionC_RoarPhaseChange_Move3", "M_Behemoth_ScratchLeft_Move2", 5002060, 1449, 14},
+    {Table::step, "M_LionC_ClawAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200002, 1463, 8},
+    {Table::step, "M_LionC_ClawAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200003, 1471, 25},
+    {Table::step, "M_LionC_ClawAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200004, 1496, 5},
+    {Table::skill, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 1501, 13},
+    {Table::step, "M_LionC_ClawAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200102, 1514, 8},
+    {Table::step, "M_LionC_ClawAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200103, 1522, 25},
+    {Table::step, "M_LionC_ClawAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200104, 1547, 5},
+    {Table::skill, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 1552, 13},
+    {Table::step, "M_LionC_ClawAttackChaseLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200202, 1565, 8},
+    {Table::step, "M_LionC_ClawAttackChaseLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200203, 1573, 25},
+    {Table::step, "M_LionC_ClawAttackChaseLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200204, 1598, 5},
+    {Table::skill, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 1603, 14},
+    {Table::step, "M_LionC_ClawAttackChaseRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200302, 1617, 8},
+    {Table::step, "M_LionC_ClawAttackChaseRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200303, 1625, 25},
+    {Table::step, "M_LionC_ClawAttackChaseRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200304, 1650, 5},
+    {Table::skill, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 1655, 14},
+    {Table::step, "M_LionC_TurnAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200402, 1669, 8},
+    {Table::step, "M_LionC_TurnAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200403, 1677, 25},
+    {Table::step, "M_LionC_TurnAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200404, 1702, 5},
+    {Table::skill, "M_LionC_TurnAttackLeft", "M_Behemoth_ScratchLeft", 5002004, 1707, 13},
+    {Table::step, "M_LionC_TurnAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200502, 1720, 8},
+    {Table::step, "M_LionC_TurnAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200503, 1728, 25},
+    {Table::step, "M_LionC_TurnAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200504, 1753, 5},
+    {Table::skill, "M_LionC_TurnAttackRight", "M_Behemoth_ScratchLeft", 5002005, 1758, 13},
+    {Table::step, "M_LionC_RunAttackLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200602, 1771, 8},
+    {Table::step, "M_LionC_RunAttackLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200603, 1779, 25},
+    {Table::step, "M_LionC_RunAttackLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200604, 1804, 5},
+    {Table::skill, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 1809, 14},
+    {Table::step, "M_LionC_RunAttackRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200702, 1823, 8},
+    {Table::step, "M_LionC_RunAttackRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200703, 1831, 25},
+    {Table::step, "M_LionC_RunAttackRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200704, 1856, 5},
+    {Table::skill, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 1861, 14},
+    {Table::step, "M_LionC_JumpAttackLow_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200802, 1875, 8},
+    {Table::step, "M_LionC_JumpAttackLow_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200803, 1883, 24},
+    {Table::step, "M_LionC_JumpAttackLow_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200804, 1907, 5},
+    {Table::skill, "M_LionC_JumpAttackLow", "M_Behemoth_ScratchLeft", 5002008, 1912, 14},
+    {Table::step, "M_LionC_JumpAttackHigh_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500200902, 1926, 11},
+    {Table::step, "M_LionC_JumpAttackHigh_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500200903, 1937, 19},
+    {Table::step, "M_LionC_JumpAttackHigh_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500200904, 1956, 5},
+    {Table::skill, "M_LionC_JumpAttackHigh", "M_Behemoth_ScratchLeft", 5002009, 1961, 14},
+    {Table::step, "M_LionC_BackJumpToAttack_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201002, 1975, 8},
+    {Table::step, "M_LionC_BackJumpToAttack_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201003, 1983, 25},
+    {Table::step, "M_LionC_BackJumpToAttack_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201004, 2008, 5},
+    {Table::skill, "M_LionC_BackJumpToAttack", "M_Behemoth_ScratchLeft", 5002010, 2013, 13},
+    {Table::step, "M_LionC_AttackToBackJump_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201102, 2026, 8},
+    {Table::step, "M_LionC_AttackToBackJump_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201103, 2034, 25},
+    {Table::step, "M_LionC_AttackToBackJump_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201104, 2059, 5},
+    {Table::skill, "M_LionC_AttackToBackJump", "M_Behemoth_ScratchLeft", 5002011, 2064, 14},
+    {Table::step, "M_LionC_Roar_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201202, 2078, 12},
+    {Table::step, "M_LionC_Roar_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201203, 2090, 19},
+    {Table::step, "M_LionC_Roar_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201204, 2109, 5},
+    {Table::skill, "M_LionC_Roar", "M_Behemoth_ScratchLeft", 5002012, 2114, 13},
+    {Table::step, "M_LionC_SideStepLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201302, 2127, 7},
+    {Table::skill, "M_LionC_SideStepLeft", "M_Behemoth_ScratchLeft", 5002013, 2134, 14},
+    {Table::step, "M_LionC_SideStepRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201402, 2148, 7},
+    {Table::skill, "M_LionC_SideStepRight", "M_Behemoth_ScratchLeft", 5002014, 2155, 14},
+    {Table::step, "M_LionC_ClawAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201502, 2169, 8},
+    {Table::step, "M_LionC_ClawAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201503, 2177, 24},
+    {Table::step, "M_LionC_ClawAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201504, 2201, 6},
+    {Table::step, "M_LionC_ClawAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201505, 2207, 24},
+    {Table::step, "M_LionC_ClawAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201506, 2231, 6},
+    {Table::step, "M_LionC_ClawAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201507, 2237, 25},
+    {Table::step, "M_LionC_ClawAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201508, 2262, 5},
+    {Table::skill, "M_LionC_ClawAttackChain", "M_Behemoth_ScratchLeft", 5002015, 2267, 14},
+    {Table::step, "M_LionC_ClawAttackChain2_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201602, 2281, 8},
+    {Table::step, "M_LionC_ClawAttackChain2_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201603, 2289, 24},
+    {Table::step, "M_LionC_ClawAttackChain2_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201604, 2313, 6},
+    {Table::step, "M_LionC_ClawAttackChain2_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201605, 2319, 24},
+    {Table::step, "M_LionC_ClawAttackChain2_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201606, 2343, 6},
+    {Table::step, "M_LionC_ClawAttackChain2_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201607, 2349, 24},
+    {Table::step, "M_LionC_ClawAttackChain2_Cast4", "M_Behemoth_ScratchLeft_Finish1", 500201608, 2373, 6},
+    {Table::step, "M_LionC_ClawAttackChain2_Hit4", "M_Behemoth_ScratchLeft_Finish1", 500201609, 2379, 25},
+    {Table::step, "M_LionC_ClawAttackChain2_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201610, 2404, 5},
+    {Table::skill, "M_LionC_ClawAttackChain2", "M_Behemoth_ScratchLeft", 5002016, 2409, 14},
+    {Table::step, "M_LionC_MoveAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201702, 2423, 8},
+    {Table::step, "M_LionC_MoveAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201703, 2431, 24},
+    {Table::step, "M_LionC_MoveAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201704, 2455, 6},
+    {Table::step, "M_LionC_MoveAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201705, 2461, 24},
+    {Table::step, "M_LionC_MoveAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201706, 2485, 6},
+    {Table::step, "M_LionC_MoveAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201707, 2491, 25},
+    {Table::step, "M_LionC_MoveAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201708, 2516, 5},
+    {Table::skill, "M_LionC_MoveAttackChain", "M_Behemoth_ScratchLeft", 5002017, 2521, 14},
+    {Table::step, "M_LionC_RushAttack_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201802, 2535, 8},
+    {Table::step, "M_LionC_RushAttack_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201803, 2543, 6},
+    {Table::step, "M_LionC_RushAttack_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201804, 2549, 25},
+    {Table::step, "M_LionC_RushAttack_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201805, 2574, 5},
+    {Table::skill, "M_LionC_RushAttack", "M_Behemoth_ScratchLeft", 5002018, 2579, 14},
+    {Table::step, "M_LionC_DashAttackChain_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500201902, 2593, 8},
+    {Table::step, "M_LionC_DashAttackChain_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500201903, 2601, 23},
+    {Table::step, "M_LionC_DashAttackChain_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500201904, 2624, 6},
+    {Table::step, "M_LionC_DashAttackChain_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500201905, 2630, 23},
+    {Table::step, "M_LionC_DashAttackChain_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500201906, 2653, 6},
+    {Table::step, "M_LionC_DashAttackChain_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500201907, 2659, 23},
+    {Table::step, "M_LionC_DashAttackChain_Cast4", "M_Behemoth_ScratchLeft_Finish1", 500201908, 2682, 6},
+    {Table::step, "M_LionC_DashAttackChain_Hit4", "M_Behemoth_ScratchLeft_Finish1", 500201909, 2688, 24},
+    {Table::step, "M_LionC_DashAttackChain_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500201910, 2712, 5},
+    {Table::skill, "M_LionC_DashAttackChain", "M_Behemoth_ScratchLeft", 5002019, 2717, 14},
+    {Table::step, "M_LionC_RoarPhaseChange_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500202002, 2731, 13},
+    {Table::step, "M_LionC_RoarPhaseChange_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500202003, 2744, 19},
+    {Table::step, "M_LionC_RoarPhaseChange_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500202004, 2763, 5},
+    {Table::skill, "M_LionC_RoarPhaseChange", "M_Behemoth_ScratchLeft", 5002020, 2768, 13},
+    {Table::command, "M_LionC_ClawAttackLeft", "M_Behemoth_ScratchLeft", 5002000, 2781, 6},
+    {Table::command, "M_LionC_ClawAttackRight", "M_Behemoth_ScratchLeft", 5002001, 2787, 6},
+    {Table::command, "M_LionC_ClawAttackChaseLeft", "M_Behemoth_ScratchLeft", 5002002, 2793, 6},
+    {Table::command, "M_LionC_ClawAttackChaseRight", "M_Behemoth_ScratchLeft", 5002003, 2799, 6},
+    {Table::command, "M_LionC_TurnAttackLeft", "M_Behemoth_ScratchLeft", 5002004, 2805, 6},
+    {Table::command, "M_LionC_TurnAttackRight", "M_Behemoth_ScratchLeft", 5002005, 2811, 6},
+    {Table::command, "M_LionC_RunAttackLeft", "M_Behemoth_ScratchLeft", 5002006, 2817, 6},
+    {Table::command, "M_LionC_RunAttackRight", "M_Behemoth_ScratchLeft", 5002007, 2823, 6},
+    {Table::command, "M_LionC_JumpAttackLow", "M_Behemoth_ScratchLeft", 5002008, 2829, 6},
+    {Table::command, "M_LionC_JumpAttackHigh", "M_Behemoth_ScratchLeft", 5002009, 2835, 6},
+    {Table::command, "M_LionC_BackJumpToAttack", "M_Behemoth_ScratchLeft", 5002010, 2841, 6},
+    {Table::command, "M_LionC_AttackToBackJump", "M_Behemoth_ScratchLeft", 5002011, 2847, 6},
+    {Table::command, "M_LionC_Roar", "M_Behemoth_ScratchLeft", 5002012, 2853, 6},
+    {Table::command, "M_LionC_SideStepLeft", "M_Behemoth_ScratchLeft", 5002013, 2859, 6},
+    {Table::command, "M_LionC_SideStepRight", "M_Behemoth_ScratchLeft", 5002014, 2865, 6},
+    {Table::command, "M_LionC_ClawAttackChain", "M_Behemoth_ScratchLeft", 5002015, 2871, 6},
+    {Table::command, "M_LionC_ClawAttackChain2", "M_Behemoth_ScratchLeft", 5002016, 2877, 6},
+    {Table::command, "M_LionC_MoveAttackChain", "M_Behemoth_ScratchLeft", 5002017, 2883, 6},
+    {Table::command, "M_LionC_RushAttack", "M_Behemoth_ScratchLeft", 5002018, 2889, 6},
+    {Table::command, "M_LionC_DashAttackChain", "M_Behemoth_ScratchLeft", 5002019, 2895, 6},
+    {Table::command, "M_LionC_RoarPhaseChange", "M_Behemoth_ScratchLeft", 5002020, 2901, 6},
+    {Table::anim, "M_LionC_Peaceful", "M_Behemoth_Battle", 500200, 2907, 45},
+    {Table::anim, "M_LionC_Battle", "M_Behemoth_Battle", 500201, 2952, 45},
+    {Table::stance, "M_LionC_Default", "M_Behemoth_Default", 500200, 2997, 19},
+    {Table::stance, "M_LionC_Phase2", "M_Behemoth_Default", 500201, 3016, 23},
+    {Table::dead, "M_LionC", "M_Behemoth", 0, 3039, 27},
+    {Table::appearance, "M_LionC", "M_Behemoth", 50020, 3066, 2},
+    {Table::character, "M_LionC_Lurker", "M_Behemoth", 50021, 3068, 55},
+    {Table::character, "M_LionC", "M_Behemoth", 50020, 3123, 55},
+};
+// The Gardener's own batch (coop gardener fight), added on its own ask after its own checks: 13 near copies of
+// shipped rows (character 3, stance 1, command 3, skill 3, step 3), 279 fields, 102 of them changed from the
+// template's value. M_Gardener_Skulling (50011) with M_Skulling_AI_Test, M_Gardener_Half (50012) with
+// M_Tentacle_AI, M_Gardener (50010) with M_Tentacle_AI. Its three skills run on the shipped steps of SingleShot_4
+// and MultipleShot_1 and on ToxicBeam's three new steps.
+constexpr Row kGardenerRecipe[] = {
+    {Table::step, "M_GardenerC_ToxicBeam_Cast1", "M_Gardener_SingleShot_1_Cast1", 500100043, 3178, 8},
+    {Table::step, "M_GardenerC_ToxicBeam_Hit1", "M_Gardener_SingleShot_1_Hit1", 500100044, 3186, 10},
+    {Table::step, "M_GardenerC_ToxicBeam_Finish1", "M_Gardener_SingleShot_1_Finish1", 500100045, 3196, 2},
+    {Table::skill, "M_GardenerC_SingleShot", "M_Gardener_SingleShot_4", 5001010, 3198, 11},
+    {Table::skill, "M_GardenerC_MultipleShot", "M_Gardener_MultipleShot_1", 5001011, 3209, 12},
+    {Table::skill, "M_GardenerC_ToxicBeam", "M_Gardener_SingleShot_1", 5001012, 3221, 12},
+    {Table::command, "M_GardenerC_SingleShot", "M_Gardener_SingleShot_1", 5001010, 3233, 5},
+    {Table::command, "M_GardenerC_MultipleShot", "M_Gardener_SingleShot_1", 5001011, 3238, 5},
+    {Table::command, "M_GardenerC_ToxicBeam", "M_Gardener_SingleShot_1", 5001012, 3243, 5},
+    {Table::stance, "M_GardenerC_Default", "M_Gardener_Default", 500101, 3248, 20},
+    {Table::character, "M_Gardener_Skulling", "M_Maelstrom", 50011, 3268, 63},
+    {Table::character, "M_Gardener_Half", "M_Maelstrom", 50012, 3331, 63},
+    {Table::character, "M_Gardener", "M_Maelstrom", 50010, 3394, 63},
+};
+// The Tendril's own batch (coop tendril fight), added on its own ask after its own checks: 107 rows (character 1,
+// appearance 1, dead 1, stance 1, anim 2, command 11, skill 11, step 45, move 1, filter 28, result 5), 1281 fields,
+// every field authored over the Lion's template rows. M_TendrilC (50060) with M_Skulling_AI_Test. Its 11 skills
+// play its own clips through Shows cut/tendril.lua builds in memory (copies of
+// CH_M_NA_01_Gardener/Skill/M_Gardener_ToxicBeam in StellarCoop/Tendril, a package of its own); each Hit step is a
+// window of the clip where its chain ends strike (2500 cm/s or faster, 250 cm or farther out) and hits by area, a
+// 3D arc 200 cm high. Per skill, its range (straight ahead, the first hit's reach times 0.6087) and each hit: its
+// time in the clip, its reach and its arc (degrees wide, around degrees right of the front):
+//   SwingLeft: range 260 cm; 0.867-1.333 s 420 cm 150 around 0
+//   SwingRight: range 260 cm; 0.800-1.267 s 410 cm 160 around 0
+//   WhipLeft: range 280 cm; 0.333-0.667 s 470 cm 160 around -70
+//   WhipRight: range 300 cm; 0.400-0.700 s 510 cm 130 around 50
+//   DiagonalLeft: range 240 cm; 1.000-1.367 s 400 cm 140 around -20
+//   DiagonalRight: range 250 cm; 0.933-1.333 s 400 cm 190 around 20
+//   Chop: range 400 cm; 1.967-2.267 s 660 cm 60 around 0
+//   Spin: range 240 cm; 1.967-2.533 s 400 cm 340 around 0
+//   Rush: range 270 cm; 0.667-0.900 s 480 cm 160 around -20; 1.133-1.533 s 530 cm 200 around 30; 2.800-2.967 s 580 cm
+//   60 around 0; 3.100-3.400 s 750 cm 60 around -10
+//   Whip: range 340 cm; 0.867-0.967 s 560 cm 60 around 0; 1.700-2.233 s 530 cm 210 around -10; 3.367-3.667 s 580 cm
+//   200 around -10
+//   Trace: range 250 cm; 0.700-1.100 s 420 cm 260 around 0; 1.733-2.200 s 430 cm 200 around 60
+constexpr Row kTendrilRecipe[] = {
+    {Table::result, "M_TendrilC_Result_Light", "M_Behemoth_ScratchLeft_Parry1", 500600000, 3457, 14},
+    {Table::result, "M_TendrilC_Result_Strong", "M_Behemoth_ScratchLeft_Parry1", 500600001, 3471, 14},
+    {Table::result, "M_TendrilC_Result_KnockDown", "M_Behemoth_ScratchLeft_Parry1", 500600002, 3485, 14},
+    {Table::result, "M_TendrilC_Result_Guard", "M_Behemoth_ScratchLeft_Parry1", 500600003, 3499, 4},
+    {Table::result, "M_TendrilC_Result_Parry", "M_Behemoth_ScratchLeft_Parry1", 500600004, 3503, 3},
+    {Table::filter, "M_TendrilC_SwingLeft_HitArea1", "M_Behemoth_HitArea", 5006000, 3506, 8},
+    {Table::filter, "M_TendrilC_SwingLeft_Target", "M_Behemoth_HitArea", 5006001, 3514, 8},
+    {Table::filter, "M_TendrilC_SwingRight_HitArea1", "M_Behemoth_HitArea", 5006002, 3522, 8},
+    {Table::filter, "M_TendrilC_SwingRight_Target", "M_Behemoth_HitArea", 5006003, 3530, 8},
+    {Table::filter, "M_TendrilC_WhipLeft_HitArea1", "M_Behemoth_HitArea", 5006004, 3538, 9},
+    {Table::filter, "M_TendrilC_WhipLeft_Target", "M_Behemoth_HitArea", 5006005, 3547, 8},
+    {Table::filter, "M_TendrilC_WhipRight_HitArea1", "M_Behemoth_HitArea", 5006006, 3555, 9},
+    {Table::filter, "M_TendrilC_WhipRight_Target", "M_Behemoth_HitArea", 5006007, 3564, 8},
+    {Table::filter, "M_TendrilC_DiagonalLeft_HitArea1", "M_Behemoth_HitArea", 5006008, 3572, 9},
+    {Table::filter, "M_TendrilC_DiagonalLeft_Target", "M_Behemoth_HitArea", 5006009, 3581, 8},
+    {Table::filter, "M_TendrilC_DiagonalRight_HitArea1", "M_Behemoth_HitArea", 5006010, 3589, 9},
+    {Table::filter, "M_TendrilC_DiagonalRight_Target", "M_Behemoth_HitArea", 5006011, 3598, 8},
+    {Table::filter, "M_TendrilC_Chop_HitArea1", "M_Behemoth_HitArea", 5006012, 3606, 8},
+    {Table::filter, "M_TendrilC_Chop_Target", "M_Behemoth_HitArea", 5006013, 3614, 8},
+    {Table::filter, "M_TendrilC_Spin_HitArea1", "M_Behemoth_HitArea", 5006014, 3622, 8},
+    {Table::filter, "M_TendrilC_Spin_Target", "M_Behemoth_HitArea", 5006015, 3630, 8},
+    {Table::filter, "M_TendrilC_Rush_HitArea1", "M_Behemoth_HitArea", 5006016, 3638, 9},
+    {Table::filter, "M_TendrilC_Rush_HitArea2", "M_Behemoth_HitArea", 5006017, 3647, 9},
+    {Table::filter, "M_TendrilC_Rush_HitArea3", "M_Behemoth_HitArea", 5006018, 3656, 8},
+    {Table::filter, "M_TendrilC_Rush_HitArea4", "M_Behemoth_HitArea", 5006019, 3664, 9},
+    {Table::filter, "M_TendrilC_Rush_Target", "M_Behemoth_HitArea", 5006020, 3673, 8},
+    {Table::filter, "M_TendrilC_Whip_HitArea1", "M_Behemoth_HitArea", 5006021, 3681, 8},
+    {Table::filter, "M_TendrilC_Whip_HitArea2", "M_Behemoth_HitArea", 5006022, 3689, 9},
+    {Table::filter, "M_TendrilC_Whip_HitArea3", "M_Behemoth_HitArea", 5006023, 3698, 9},
+    {Table::filter, "M_TendrilC_Whip_Target", "M_Behemoth_HitArea", 5006024, 3707, 8},
+    {Table::filter, "M_TendrilC_Trace_HitArea1", "M_Behemoth_HitArea", 5006025, 3715, 8},
+    {Table::filter, "M_TendrilC_Trace_HitArea2", "M_Behemoth_HitArea", 5006026, 3723, 9},
+    {Table::filter, "M_TendrilC_Trace_Target", "M_Behemoth_HitArea", 5006027, 3732, 8},
+    {Table::move, "M_TendrilC_Turn", "M_Behemoth_ScratchLeft_Move2", 5006000, 3740, 16},
+    {Table::step, "M_TendrilC_SwingLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600002, 3756, 8},
+    {Table::step, "M_TendrilC_SwingLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600003, 3764, 24},
+    {Table::step, "M_TendrilC_SwingLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600004, 3788, 5},
+    {Table::skill, "M_TendrilC_SwingLeft", "M_Behemoth_ScratchLeft", 5006000, 3793, 13},
+    {Table::step, "M_TendrilC_SwingRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600102, 3806, 8},
+    {Table::step, "M_TendrilC_SwingRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600103, 3814, 24},
+    {Table::step, "M_TendrilC_SwingRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600104, 3838, 5},
+    {Table::skill, "M_TendrilC_SwingRight", "M_Behemoth_ScratchLeft", 5006001, 3843, 13},
+    {Table::step, "M_TendrilC_WhipLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600202, 3856, 8},
+    {Table::step, "M_TendrilC_WhipLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600203, 3864, 24},
+    {Table::step, "M_TendrilC_WhipLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600204, 3888, 5},
+    {Table::skill, "M_TendrilC_WhipLeft", "M_Behemoth_ScratchLeft", 5006002, 3893, 13},
+    {Table::step, "M_TendrilC_WhipRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600302, 3906, 8},
+    {Table::step, "M_TendrilC_WhipRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600303, 3914, 24},
+    {Table::step, "M_TendrilC_WhipRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600304, 3938, 5},
+    {Table::skill, "M_TendrilC_WhipRight", "M_Behemoth_ScratchLeft", 5006003, 3943, 13},
+    {Table::step, "M_TendrilC_DiagonalLeft_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600402, 3956, 8},
+    {Table::step, "M_TendrilC_DiagonalLeft_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600403, 3964, 24},
+    {Table::step, "M_TendrilC_DiagonalLeft_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600404, 3988, 5},
+    {Table::skill, "M_TendrilC_DiagonalLeft", "M_Behemoth_ScratchLeft", 5006004, 3993, 13},
+    {Table::step, "M_TendrilC_DiagonalRight_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600502, 4006, 8},
+    {Table::step, "M_TendrilC_DiagonalRight_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600503, 4014, 24},
+    {Table::step, "M_TendrilC_DiagonalRight_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600504, 4038, 5},
+    {Table::skill, "M_TendrilC_DiagonalRight", "M_Behemoth_ScratchLeft", 5006005, 4043, 13},
+    {Table::step, "M_TendrilC_Chop_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600602, 4056, 8},
+    {Table::step, "M_TendrilC_Chop_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600603, 4064, 24},
+    {Table::step, "M_TendrilC_Chop_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600604, 4088, 5},
+    {Table::skill, "M_TendrilC_Chop", "M_Behemoth_ScratchLeft", 5006006, 4093, 13},
+    {Table::step, "M_TendrilC_Spin_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600702, 4106, 8},
+    {Table::step, "M_TendrilC_Spin_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600703, 4114, 24},
+    {Table::step, "M_TendrilC_Spin_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600704, 4138, 5},
+    {Table::skill, "M_TendrilC_Spin", "M_Behemoth_ScratchLeft", 5006007, 4143, 13},
+    {Table::step, "M_TendrilC_Rush_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600802, 4156, 8},
+    {Table::step, "M_TendrilC_Rush_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600803, 4164, 23},
+    {Table::step, "M_TendrilC_Rush_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500600804, 4187, 6},
+    {Table::step, "M_TendrilC_Rush_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500600805, 4193, 23},
+    {Table::step, "M_TendrilC_Rush_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500600806, 4216, 6},
+    {Table::step, "M_TendrilC_Rush_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500600807, 4222, 23},
+    {Table::step, "M_TendrilC_Rush_Cast4", "M_Behemoth_ScratchLeft_Finish1", 500600808, 4245, 6},
+    {Table::step, "M_TendrilC_Rush_Hit4", "M_Behemoth_ScratchLeft_Finish1", 500600809, 4251, 24},
+    {Table::step, "M_TendrilC_Rush_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600810, 4275, 5},
+    {Table::skill, "M_TendrilC_Rush", "M_Behemoth_ScratchLeft", 5006008, 4280, 13},
+    {Table::step, "M_TendrilC_Whip_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500600902, 4293, 8},
+    {Table::step, "M_TendrilC_Whip_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500600903, 4301, 23},
+    {Table::step, "M_TendrilC_Whip_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500600904, 4324, 6},
+    {Table::step, "M_TendrilC_Whip_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500600905, 4330, 23},
+    {Table::step, "M_TendrilC_Whip_Cast3", "M_Behemoth_ScratchLeft_Finish1", 500600906, 4353, 6},
+    {Table::step, "M_TendrilC_Whip_Hit3", "M_Behemoth_ScratchLeft_Finish1", 500600907, 4359, 24},
+    {Table::step, "M_TendrilC_Whip_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500600908, 4383, 5},
+    {Table::skill, "M_TendrilC_Whip", "M_Behemoth_ScratchLeft", 5006009, 4388, 13},
+    {Table::step, "M_TendrilC_Trace_Cast1", "M_Behemoth_ScratchLeft_Finish1", 500601002, 4401, 8},
+    {Table::step, "M_TendrilC_Trace_Hit1", "M_Behemoth_ScratchLeft_Finish1", 500601003, 4409, 23},
+    {Table::step, "M_TendrilC_Trace_Cast2", "M_Behemoth_ScratchLeft_Finish1", 500601004, 4432, 6},
+    {Table::step, "M_TendrilC_Trace_Hit2", "M_Behemoth_ScratchLeft_Finish1", 500601005, 4438, 24},
+    {Table::step, "M_TendrilC_Trace_Finish1", "M_Behemoth_ScratchLeft_Finish1", 500601006, 4462, 5},
+    {Table::skill, "M_TendrilC_Trace", "M_Behemoth_ScratchLeft", 5006010, 4467, 13},
+    {Table::command, "M_TendrilC_SwingLeft", "M_Behemoth_ScratchLeft", 5006000, 4480, 6},
+    {Table::command, "M_TendrilC_SwingRight", "M_Behemoth_ScratchLeft", 5006001, 4486, 6},
+    {Table::command, "M_TendrilC_WhipLeft", "M_Behemoth_ScratchLeft", 5006002, 4492, 6},
+    {Table::command, "M_TendrilC_WhipRight", "M_Behemoth_ScratchLeft", 5006003, 4498, 6},
+    {Table::command, "M_TendrilC_DiagonalLeft", "M_Behemoth_ScratchLeft", 5006004, 4504, 6},
+    {Table::command, "M_TendrilC_DiagonalRight", "M_Behemoth_ScratchLeft", 5006005, 4510, 6},
+    {Table::command, "M_TendrilC_Chop", "M_Behemoth_ScratchLeft", 5006006, 4516, 6},
+    {Table::command, "M_TendrilC_Spin", "M_Behemoth_ScratchLeft", 5006007, 4522, 6},
+    {Table::command, "M_TendrilC_Rush", "M_Behemoth_ScratchLeft", 5006008, 4528, 6},
+    {Table::command, "M_TendrilC_Whip", "M_Behemoth_ScratchLeft", 5006009, 4534, 6},
+    {Table::command, "M_TendrilC_Trace", "M_Behemoth_ScratchLeft", 5006010, 4540, 6},
+    {Table::anim, "M_TendrilC_Peaceful", "M_Behemoth_Battle", 500600, 4546, 45},
+    {Table::anim, "M_TendrilC_Battle", "M_Behemoth_Battle", 500601, 4591, 45},
+    {Table::stance, "M_TendrilC_Default", "M_Behemoth_Default", 500600, 4636, 19},
+    {Table::dead, "M_TendrilC", "M_Behemoth", 0, 4655, 27},
+    {Table::appearance, "M_TendrilC", "M_Behemoth", 50060, 4682, 2},
+    {Table::character, "M_TendrilC", "M_Behemoth", 50060, 4684, 54},
+};
+// The Shock Bolt's own batch (the Night Operation shop's Shock Bolt), added on its own ask after its own checks: 4
+// near copies of shipped rows (skill 1, result 1, item 1, projectile 1), 87 fields, 22 of them changed from the
+// template's value. Only the shop asks for it (a Shock Bolt buy, and coop nightop shop before it opens the screen),
+// so its rows never stand in front of the Lion's, and lion/shock.h grows the two lists the ammo needs once it is
+// in.
+constexpr Row kBoltRecipe[] = {
+    {Table::item, "Bullet_Shock", "Bullet_Scatter", 32, 4738, 23},
+    {Table::skill, "P_Eve_Gun_ShootShockSlug1_1", "P_Eve_Gun_ShootScatterSlug1_1", 1003401, 4761, 17},
+    {Table::projectile, "P_Eve_Gun_ShootShockSlug1_Projectile1", "P_Eve_Gun_ShootSlug1_Projectile1", 1010051, 4778, 34},
+    {Table::result, "P_Eve_Gun_ShootShockSlug1_Projectile1_Hit1", "P_Eve_Gun_ShootSlug1_Projectile1_Hit1", 100200801,
+     4812, 13},
+};
+// The Night Operation shop's own batch (nightop/shop.lua asks for it before it opens SB's shop screen), added on
+// its own ask after its own checks: 6 near copies of shipped rows (item 1, shop 2, shopitem 3), 33 fields, 17 of
+// them changed from the template's value. The Beta Seed first, the two ShopTable rows last, once every row they
+// name is in.
+constexpr Row kShopRecipe[] = {
+    {Table::item, "Money_NightOperation", "FishingPoint", 9011, 4825, 13},
+    {Table::shopitem, "NightOperation_HP2Burst_Potion_Buy", "NightOperation_HP_Potion_Buy", 3571, 4838, 4},
+    {Table::shopitem, "NightOperation_Buff_HP2MP_Buy", "NightOperation_HP_Potion_Buy", 3572, 4842, 4},
+    {Table::shopitem, "NightOperation_Bullet_Shock_Buy", "NightOperation_Bullet_Scatter_Buy", 3573, 4846, 4},
+    {Table::shop, "Shop_NightOperation_Coop", "Shop_NightOperation", 1061, 4850, 4},
+    {Table::shop, "Shop_NightOperation_CoopBolt", "Shop_NightOperation", 1062, 4854, 4},
 };
 // ---- End of the generated part ----
 
+// ---- Matrix XIII's batch (coop mxiii), written by hand: the generator holds no zone table ----
+// Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13, whose map no pak ships: the zMXIII_P test pak adds it) has no camp,
+// so SB's camp travel (game/travel.h) cannot reach it. These 8 rows give it one. The camp first. Then DLC02_10_EnvS_900,
+// the camp's first env-spawn row (FUN_141d18100 lists a camp's rows in table order, and AddRow appends), which leads
+// the travel to Zone_DLC02_10 and that zone's world and has no actor. Then the kit, 901 to 906: with EnvBPPath set,
+// FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's env rows are created, as for
+// the shipped supply boxes and DLC02_10_EnvS_441 (the kit rows 420 to 426 have none, so they look for placed actors no
+// pak holds). The zMXIII_P v2 pak has the points; on v1 SB finds none and spawns nothing. Every row names the new camp,
+// so activating, resting, the phone booth and a respawn use DLC02_10_Camp_01, not the kit's placeholder camps
+// (WLB10_Camp_05, SE02_Camp_02). The vending machine comes last: its LinkEnvSpawnList switches the other five kit
+// objects on once a coin activates the camp. It leaves out 900, which has no object (the template links 425 for the
+// camp base actor a full camp places), as Matrix 11's simple vending machine ME_01_EnvS_017 links only its objects.
+// Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK
+// (stellar-sdk-647527f), which the generated kTables reads too; none of the three structs has a Transient field.
+//
+// Then zone 30's camp, so the upper half of the dungeon is reached without the zone 20 climb, which runs on Matrix 11
+// triggers and sequences the test pak does not stream. Two rows, the least a camp travel takes: FUN_141cdd7b0 reads
+// only the camp's first env-spawn row (its Zone, else ZoneList[0], then that zone's world) and the arrival
+// FUN_141a8afe0 puts EVE at the SBSpawnPoint named after the camp, which only the zMXIII_P v3 pak holds. No kit, so
+// nothing there can be activated or rested at, and no coin. DLC02_30_EnvS_900 repeats DLC02_10_EnvS_900's recipe (no
+// DLC02_30 row is an activation-only one) with ZoneList Zone_DLC02_30 (ZoneTable 2810, world DLCMatrix13).
+//
+// Then 5 shipped ZoneTriggerTable rows, patched in place. The DLC02 data starts the zone 20 waves from gates (when
+// DLC02_20_EnvS_014, 018 and 016 reach their Open tag they run DLC02_20_ZoneE_022 to 025, 026 to 028 and 029 to 032,
+// the ZoneEvent spawns 001 to 004, 006 to 008 and 009 to 012) and the zone 40 chains (spawns 003 to 007 and 013 to
+// 015) from triggers DLC02_40_ZTrigger_001 and 002, which start disabled until the drain devices DLC02_40_EnvS_002 and
+// 003 enable them (DLC02_40_E_ObjectC_001, 002). Those gates and devices are placed props of the cut map, which no pak
+// holds (the devices' interaction graph is a greybox asset that is not in the paks either), so neither fires. The test
+// pak puts every DLC02 trigger on a box, so the waves go on three of them: DLC02_20_ZTrigger_001 at the Area02 entry
+// (shipped with no event), 005 at the entrance of the arena and 006 between its halves (each after the gate event it
+// already runs); 40_001 and 40_002 start enabled. That is the smallest set: one field a row, no new row, and every
+// spawn row and zone event stays SB's own. SaveType stays the shipped one: 001 rearms when the zone resets, 005 and 006
+// fire once a save, the zone 40 pair saves nothing.
+static_assert(kTables[kTableCount - 1].name, "the generated kTables describes every table");
+constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
+// The camp is ME01_Camp_03 (a Matrix 11 FullCamp, CampDisplayType WhenActive) with the coin's spawn point of the test
+// pak, DLC02_10_E_ItemS_001 (EventItemTable spawns the coin there). DLC02_10_EnvS_900 is the kit's activation-only row
+// DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) with its own actor name and the new camp. Each kit row is its kit row
+// (skill machine 420, chair 421, storage 422, turntable 423, phone booth 424, vending machine 426) with its own actor
+// and spawn point names, the blueprint SE02_Camp_02's full camp places, and the new camp. Zone 30's camp is
+// ME03_Camp_03, Area03's FullCamp with no coin (ME03_Camp_01, whose site the v3 pak's arrival point takes, has one).
+constexpr Patch kMxiiiPatches[] = {
+    // DLC02_10_Camp_01 (ZoneCampTable, Matrix XIII)
+    {0x28, Kind::u8, 3, nullptr},                  // CampType
+    {0x60, Kind::name, 0, "DLC02_10_E_ItemS_001"}, // CoinSpawnPointName
+    // DLC02_10_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_900"}, // EnvActorName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_10_EnvS_901 (ZoneEnvSpawnTable, Matrix XIII: skill machine)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_901"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_SkillMachine.Env_Camp_SkillMachine_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_901"}, // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_10_EnvS_902 (ZoneEnvSpawnTable, Matrix XIII: chair)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_902"},                                         // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Chair.Env_Camp_Chair_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_902"},                                         // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                         // TargetCamp
+    // DLC02_10_EnvS_903 (ZoneEnvSpawnTable, Matrix XIII: storage)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_903"},                                             // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Storage.Env_Camp_Storage_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_903"},                                             // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                             // TargetCamp
+    // DLC02_10_EnvS_904 (ZoneEnvSpawnTable, Matrix XIII: turntable)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_904"},                                                 // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Turntable.Env_Camp_Turntable_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_904"},                                                 // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                                 // TargetCamp
+    // DLC02_10_EnvS_905 (ZoneEnvSpawnTable, Matrix XIII: phone booth)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_905"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_905"}, // SpawnPointName
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_10_EnvS_906 (ZoneEnvSpawnTable, Matrix XIII: vending machine, linking the five kit objects, not 900)
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // SpawnPointName
+    {0x260, Kind::names, 0, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905"}, // LinkEnvSpawnList
+    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
+    // DLC02_30_Camp_01 (ZoneCampTable, Matrix XIII zone 30)
+    {0x28, Kind::u8, 3, nullptr}, // CampType
+    // DLC02_30_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII zone 30)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"},     // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_900"}, // EnvActorName
+    {0x270, Kind::name, 0, "DLC02_30_Camp_01"}, // TargetCamp
+    // DLC02_20_ZTrigger_001 (ZoneTriggerTable, shipped: wave 1)
+    {0x20, Kind::names, 0,
+     "DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025"}, // TouchEvents
+    // DLC02_20_ZTrigger_005 (ZoneTriggerTable, shipped: its gate event, then wave 2)
+    {0x20, Kind::names, 0,
+     "DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028"}, // TouchEvents
+    // DLC02_20_ZTrigger_006 (ZoneTriggerTable, shipped: its gate event, then wave 3)
+    {0x20, Kind::names, 0,
+     "DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032"}, // TouchEvents
+    // DLC02_40_ZTrigger_001 (ZoneTriggerTable, shipped: the chain from spawn 003)
+    {0x1c, Kind::u8, 1, nullptr}, // InitActivate ESBObject_Enable (shipped 2, Disable)
+    // DLC02_40_ZTrigger_002 (ZoneTriggerTable, shipped: the chain from spawn 013)
+    {0x1c, Kind::u8, 1, nullptr}, // InitActivate ESBObject_Enable (shipped 2, Disable)
+};
+constexpr Row kMxiiiRecipe[] = {
+    {Table::camp, "DLC02_10_Camp_01", "ME01_Camp_03", 280001, 0, 2},
+    {Table::env, "DLC02_10_EnvS_900", "DLC02_10_EnvS_425", 2800032900u, 2, 2},
+    {Table::env, "DLC02_10_EnvS_901", "DLC02_10_EnvS_420", 2800032901u, 4, 4},
+    {Table::env, "DLC02_10_EnvS_902", "DLC02_10_EnvS_421", 2800032902u, 8, 4},
+    {Table::env, "DLC02_10_EnvS_903", "DLC02_10_EnvS_422", 2800032903u, 12, 4},
+    {Table::env, "DLC02_10_EnvS_904", "DLC02_10_EnvS_423", 2800032904u, 16, 4},
+    {Table::env, "DLC02_10_EnvS_905", "DLC02_10_EnvS_424", 2800032905u, 20, 4},
+    {Table::env, "DLC02_10_EnvS_906", "DLC02_10_EnvS_426", 2800032906u, 24, 5},
+    {Table::camp, "DLC02_30_Camp_01", "ME03_Camp_03", 281001, 29, 1},
+    {Table::env, "DLC02_30_EnvS_900", "DLC02_10_EnvS_425", 2810032900u, 30, 3},
+    {Table::trigger, "DLC02_20_ZTrigger_001", "DLC02_20_ZTrigger_001", 280501001, 33, 1},
+    {Table::trigger, "DLC02_20_ZTrigger_005", "DLC02_20_ZTrigger_005", 280501005, 34, 1},
+    {Table::trigger, "DLC02_20_ZTrigger_006", "DLC02_20_ZTrigger_006", 280501006, 35, 1},
+    {Table::trigger, "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_001", 281501001, 36, 1},
+    {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002, 37, 1},
+};
+
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
+constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe[0];
+constexpr size_t kTendrilRows = sizeof kTendrilRecipe / sizeof kTendrilRecipe[0];
+constexpr size_t kBoltRows = sizeof kBoltRecipe / sizeof kBoltRecipe[0];
+constexpr size_t kMxiiiRows = sizeof kMxiiiRecipe / sizeof kMxiiiRecipe[0];
+constexpr size_t kShopRows = sizeof kShopRecipe / sizeof kShopRecipe[0];
+// A batch: its rows, the patches their first and count index (the generated kPatches unless said) and its word, which
+// starts its status line, its log lines and Lua's request for it (link/protocol.h's kRowWords).
+struct Batch {
+  const char *word;
+  const Row *rows;
+  size_t count;
+  const Patch *patches = kPatches;
+};
+constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows},
+    kTendril{"tendril", kTendrilRecipe, kTendrilRows}, kBolt{"bolt", kBoltRecipe, kBoltRows},
+    kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches}, kShop{"shop", kShopRecipe, kShopRows};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -3909,10 +6486,12 @@ struct Answer {
   State state = State::off;
   Why why = Why::none;
   uint8_t added = 0;   // Rows in so far.
-  uint8_t row = 0;     // refused: the row it stopped at, kRows for the gate or coop off.
+  uint8_t row = 0;     // refused: the row it stopped at, the batch's count for the gate or coop off.
   uint32_t detail = 0; // size: the size read (24 bits); net: the net mode read.
 };
-static_assert(kRows < 256, "a row index fits a byte");
+static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256 && kMxiiiRows < 256 &&
+                  kShopRows < 256,
+              "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
 inline uint64_t pack(const Answer &a, uint32_t asks) {
@@ -3927,11 +6506,11 @@ inline Answer unpack(uint64_t w, uint32_t &asks) {
   return a;
 }
 
-// The rows of one table kind in the recipe.
-inline uint32_t rows_of(Table t) {
+// The rows of one table kind in a batch.
+inline uint32_t rows_of(const Batch &b, Table t) {
   uint32_t n = 0;
-  for (const Row &r : kRecipe)
-    n += r.table == t;
+  for (size_t i = 0; i < b.count; ++i)
+    n += b.rows[i].table == t;
   return n;
 }
 
@@ -3946,56 +6525,66 @@ inline uint32_t rows_of(Table t) {
 // (FUN_141a2cef0).
 class Builder {
 public:
-  // One run over the recipe (see the top of this file). tables: the 12 tables' addresses as Lua found them, in Table's
+  explicit Builder(const Batch &batch) : batch_(batch) {}
+  // One run over the batch (see the top of this file). tables: the 20 tables' addresses as Lua found them, in Table's
   // order; block: kBlock bytes of the glue's, 16-aligned; base: SB's image base. Runs every row not added yet and
   // stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
     Answer a;
     a.state = State::refused;
     uint64_t structs[kTableCount] = {}, add_row = base + (kAddRow - kImageBase);
-    for (size_t t = 0; t < kTableCount; ++t) { // Every table before any row: a wrong address adds nothing.
+    // Every table the batch's rows go into before any row (a wrong address adds nothing); the others are never read.
+    for (size_t t = 0; t < kTableCount; ++t) {
       uint64_t vtable = 0, slot = 0;
       int32_t size = 0;
       a.row = first_row(Table(t));
+      if (a.row == batch_.count)
+        continue;
       if (!g.read(tables[t], &vtable, 8) || vtable != base + (kTableVtable - kImageBase) ||
           !g.read(vtable + kAddRowSlot, &slot, 8) || slot != add_row ||
           !g.read(tables[t] + kRowStruct, &structs[t], 8) || !structs[t])
         return a.why = Why::table, a.added = uint8_t(count_), a;
-      if (!g.read(structs[t] + kPropertiesSize, &size, 4) || uint32_t(size) != kTables[t].size)
+      if (!g.read(structs[t] + kPropertiesSize, &size, 4) || uint32_t(size) != table_info(Table(t)).size)
         return a.why = Why::size, a.detail = uint32_t(size) & 0xffffff, a.added = uint8_t(count_), a;
     }
-    for (size_t i = 0; i < kRows; ++i) {
+    for (size_t i = 0; i < batch_.count; ++i) {
       if (added_[i])
         continue;
       a.row = uint8_t(i);
-      const Row &r = kRecipe[i];
-      const TableInfo &info = kTables[size_t(r.table)];
+      const Row &r = batch_.rows[i];
+      const TableInfo &info = table_info(r.table);
       const uint64_t table = tables[size_t(r.table)], rs = structs[size_t(r.table)];
       const uint64_t name = make(g, r.name), donor_name = make(g, r.donor);
       if (!name || !donor_name)
         return a.why = Why::fname, a.added = uint8_t(count_), a;
-      if (g.find(table, name))
+      const bool shipped = shipped_row(r); // Patched in place: the row must be there, its ID naming it.
+      if (!shipped && g.find(table, name))
         return a.why = Why::name, a.added = uint8_t(count_), a;
-      if (info.id && g.id_name(table, r.id))
-        return a.why = Why::id, a.added = uint8_t(count_), a;
-      const uint64_t donor = g.find(table, donor_name);
+      const uint64_t donor = g.find(table, donor_name); // First: a shipped row missing from RowMap has no ID either.
       if (!donor)
         return a.why = Why::donor, a.added = uint8_t(count_), a;
+      if (info.id && g.id_name(table, r.id) != (shipped ? name : 0))
+        return a.why = Why::id, a.added = uint8_t(count_), a;
       g.construct(rs, block);
       g.copy(rs, block, donor);
-      const uint8_t fresh = 0;
-      g.write(block + kInitFlag, &fresh, 1);
-      if (info.id)
-        g.write(block + kIdAt, &r.id, 4);
-      static const uint8_t kEmpty[16] = {};
-      for (uint16_t at : info.transient)
-        if (at)
-          g.write(block + at, kEmpty, sizeof kEmpty);
+      if (!shipped) {
+        const uint8_t fresh = 0;
+        g.write(block + kInitFlag, &fresh, 1);
+        if (info.id)
+          g.write(block + kIdAt, &r.id, 4);
+        static const uint8_t kEmpty[16] = {};
+        for (uint16_t at : info.transient)
+          if (at)
+            g.write(block + at, kEmpty, sizeof kEmpty);
+      }
       uint64_t pool = block + kRowBytes;
       for (size_t p = r.first; p < size_t(r.first) + r.count; ++p)
-        if (const Why why = patch(g, block, kPatches[p], pool, block + kBlock); why != Why::none)
+        if (const Why why = patch(g, block, batch_.patches[p], pool, block + kBlock); why != Why::none)
           return a.why = why, a.added = uint8_t(count_), a;
-      g.add(add_row, table, name, block);
+      if (shipped)
+        g.copy(rs, donor, block);
+      else
+        g.add(add_row, table, name, block);
       added_[i] = true;
       ++count_;
     }
@@ -4003,15 +6592,16 @@ public:
     return a;
   }
 
-  // What SB's own lookups by ID give back for our rows (glue's R3 log line, the status's char=, skills= and stance=):
-  // how many of the CharacterTable and SkillTable rows its registry lookups find as the row of our name, and how many
-  // stance IDs give our row name.
+  // What SB's own lookups by ID give back for the batch's rows (glue's R3 log line, the status's char=, skills= and
+  // stance=): how many of the CharacterTable and SkillTable rows its registry lookups find as the row of our name, and
+  // how many stance IDs give our row name.
   struct ReadBack {
     uint8_t character = 0, skills = 0, stance = 0;
   };
-  template <class Game> static ReadBack read_back(Game &g, const uint64_t (&tables)[kTableCount]) {
+  template <class Game> ReadBack read_back(Game &g, const uint64_t (&tables)[kTableCount]) const {
     ReadBack b;
-    for (const Row &r : kRecipe) {
+    for (size_t i = 0; i < batch_.count; ++i) {
+      const Row &r = batch_.rows[i];
       const uint64_t name = make(g, r.name), table = tables[size_t(r.table)];
       if (r.table == Table::character)
         b.character += name && g.character(r.id) == g.find(table, name) && g.character(r.id);
@@ -4027,11 +6617,11 @@ public:
   uint32_t count() const { return count_; }
 
 private:
-  static uint8_t first_row(Table t) {
-    for (size_t i = 0; i < kRows; ++i)
-      if (kRecipe[i].table == t)
+  uint8_t first_row(Table t) const {
+    for (size_t i = 0; i < batch_.count; ++i)
+      if (batch_.rows[i].table == t)
         return uint8_t(i);
-    return uint8_t(kRows);
+    return uint8_t(batch_.count);
   }
   template <class Game> static uint64_t make(Game &g, const char *text) {
     const NameParts p = split_number(text);
@@ -4137,17 +6727,19 @@ public: // For the test's pool and FName cases, which the recipe's own data neve
   }
 
 private:
-  bool added_[kRows] = {};
+  const Batch &batch_;
+  bool added_[256] = {};
   uint32_t count_ = 0;
 };
 
-// coop-status.txt's lion line (cut/lion.lua reads it), from the answer word, the read-back, the frames an ask waited,
-// the spawn manager's counter and, after the latch, where the fault was:
-//   lion=off
-//   lion=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
-//   lion=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>
-//   lion=refused added=<n>/<N> asks=<a> spawns=<s> why=<word> table=<Table|-> row=<Row|->[ detail=<value>]
-//   lion=fault added=<n>/<N> asks=<a> spawns=<s> where=<text, maybe with spaces>
+// coop-status.txt's line for a batch (cut/lion.lua reads lion=, bolt= and shop=, cut/gardener.lua gardener=,
+// cut/tendril.lua tendril=, cut/mxiii.lua mxiii=), from its answer word, its read-back, the frames its ask waited, the
+// spawn manager's counter and, after the latch, where the fault was:
+//   <word>=off
+//   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
+//   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>
+//   <word>=refused added=<n>/<N> asks=<a> spawns=<s> why=<word> table=<Table|-> row=<Row|->[ detail=<value>]
+//   <word>=fault added=<n>/<N> asks=<a> spawns=<s> where=<text, maybe with spaces>
 // asks: the asks the game thread finished (a new answer when it grows); spawns: the int32 at the spawn manager's
 // +0x198, "?" until read. detail: the size read as 0x<hex> (why=size) or the net mode read (why=net).
 struct Status {
@@ -4158,26 +6750,25 @@ struct Status {
   int32_t spawns = 0;
   std::string fault; // Where, once the latch closed.
 };
-inline std::string status_line(const Status &s) {
+inline std::string status_line(const Batch &b, const Status &s) {
   uint32_t asks = 0;
   const Answer a = unpack(s.word, asks);
   if (a.state == State::off)
-    return "lion=off";
+    return std::string(b.word) + "=off";
   static const char *const kStates[] = {"off", "waiting", "rows", "refused", "fault"};
-  std::string line = std::string("lion=") + kStates[size_t(a.state)] + " added=" + std::to_string(a.added) + "/" +
-                     std::to_string(kRows) + " asks=" + std::to_string(asks) +
+  std::string line = std::string(b.word) + "=" + kStates[size_t(a.state)] + " added=" + std::to_string(a.added) + "/" +
+                     std::to_string(b.count) + " asks=" + std::to_string(asks) +
                      " spawns=" + (s.spawns_read ? std::to_string(s.spawns) : std::string("?"));
-  const auto count = [](uint32_t k, Table t) { return std::to_string(k) + "/" + std::to_string(rows_of(t)); };
+  const auto count = [&b](uint32_t k, Table t) { return std::to_string(k) + "/" + std::to_string(rows_of(b, t)); };
   if (a.state == State::waiting)
     line += std::string(" why=") + why_word(a.why) + " ticks=" + std::to_string(s.ticks);
   else if (a.state == State::rows)
     line += " char=" + count(s.read.character, Table::character) + " skills=" + count(s.read.skills, Table::skill) +
             " stance=" + count(s.read.stance, Table::stance);
   else if (a.state == State::refused) {
-    const bool row = a.row < kRows;
-    line += std::string(" why=") + why_word(a.why) +
-            " table=" + (row ? kTables[size_t(kRecipe[a.row].table)].name : "-") +
-            " row=" + (row ? kRecipe[a.row].name : "-");
+    const bool row = a.row < b.count;
+    line += std::string(" why=") + why_word(a.why) + " table=" + (row ? table_info(b.rows[a.row].table).name : "-") +
+            " row=" + (row ? b.rows[a.row].name : "-");
     char detail[24] = "";
     if (a.why == Why::size)
       std::snprintf(detail, sizeof detail, " detail=0x%x", unsigned(a.detail));
@@ -4188,28 +6779,40 @@ inline std::string status_line(const Status &s) {
     line += " where=" + s.fault;
   return line;
 }
-// The log line for an answer (coop-link.log), as the test campaign's R2 reads it.
-inline std::string describe(const Answer &a) {
-  const std::string added = std::to_string(a.added) + "/" + std::to_string(kRows);
+// The log line for a batch's answer (coop-link.log), as the test campaign's R2 reads it.
+inline std::string describe(const Batch &b, const Answer &a) {
+  const std::string added = std::to_string(a.added) + "/" + std::to_string(b.count);
+  size_t shipped = 0;
+  for (size_t i = 0; i < b.count; ++i)
+    shipped += shipped_row(b.rows[i]);
+  if (a.state == State::rows && shipped)
+    return std::string(b.word) + " rows: " + added + " in, " + std::to_string(b.count - shipped) +
+           " added through SB's AddRow 0x14417ba30 and " + std::to_string(shipped) +
+           " shipped rows patched in place, 0 refused";
   if (a.state == State::rows)
-    return "lion rows: " + added + " added through SB's AddRow 0x14417ba30, 0 refused";
+    return std::string(b.word) + " rows: " + added + " added through SB's AddRow 0x14417ba30, 0 refused";
   if (a.state != State::refused)
-    return "lion rows: " + added + " added";
-  const bool row = a.row < kRows;
-  const Row &r = kRecipe[row ? a.row : 0];
+    return std::string(b.word) + " rows: " + added + " added";
+  const bool row = a.row < b.count;
+  const Row &r = b.rows[row ? a.row : 0];
+  const TableInfo &info = table_info(r.table);
   char why[160];
   switch (a.why) {
-  case Why::table: std::snprintf(why, sizeof why, "%s is not SB's UDataTable", kTables[size_t(r.table)].name); break;
+  case Why::table: std::snprintf(why, sizeof why, "%s is not SB's UDataTable", info.name); break;
   case Why::size:
-    std::snprintf(why, sizeof why, "%s's row size 0x%x not 0x%x", kTables[size_t(r.table)].name, unsigned(a.detail),
-                  unsigned(kTables[size_t(r.table)].size));
+    std::snprintf(why, sizeof why, "%s's row size 0x%x not 0x%x", info.name, unsigned(a.detail), unsigned(info.size));
     break;
   case Why::fname: std::snprintf(why, sizeof why, "the game made no FName"); break;
-  case Why::name:
-    std::snprintf(why, sizeof why, "a row of that name is already in %s", kTables[size_t(r.table)].name);
+  case Why::name: std::snprintf(why, sizeof why, "a row of that name is already in %s", info.name); break;
+  case Why::id:
+    std::snprintf(why, sizeof why, shipped_row(r) ? "ID %u does not name it" : "ID %u taken", unsigned(r.id));
     break;
-  case Why::id: std::snprintf(why, sizeof why, "ID %u taken", unsigned(r.id)); break;
-  case Why::donor: std::snprintf(why, sizeof why, "template %s missing", r.donor); break;
+  case Why::donor:
+    if (shipped_row(r))
+      std::snprintf(why, sizeof why, "no shipped row of that name in %s", info.name);
+    else
+      std::snprintf(why, sizeof why, "template %s missing", r.donor);
+    break;
   case Why::pool: std::snprintf(why, sizeof why, "its strings overflow the pool"); break;
   case Why::busy: std::snprintf(why, sizeof why, "logic busy %u frames", unsigned(kGateTicks)); break;
   case Why::net:
@@ -4221,19 +6824,24 @@ inline std::string describe(const Answer &a) {
   case Why::off: std::snprintf(why, sizeof why, "coop off"); break;
   default: std::snprintf(why, sizeof why, "?"); break;
   }
-  return std::string("lion rows refused ") + (row ? r.name : "-") + ": " + why + "; " + added + " added";
+  return std::string(b.word) + " rows refused " + (row ? r.name : "-") + ": " + why + "; " + added + " added";
 }
-// The log line for the read-back (the campaign's R3): the IDs asked of each lookup and how many gave our row.
-inline std::string describe_read(const Builder::ReadBack &b) {
-  const auto ids = [](Table t) {
+// The log line for a batch's read-back (the campaign's R3): the IDs asked of each lookup and how many gave our row ("-"
+// for a table the batch has no row in, as the bolt batch's CharacterTable and stance).
+inline std::string describe_read(const Batch &batch, const Builder::ReadBack &b) {
+  const auto ids = [&batch](Table t) {
     uint32_t low = UINT32_MAX, high = 0;
-    for (const Row &r : kRecipe)
-      if (r.table == t)
+    for (size_t i = 0; i < batch.count; ++i)
+      if (const Row &r = batch.rows[i]; r.table == t)
         low = r.id < low ? r.id : low, high = r.id > high ? r.id : high;
+    if (low > high)
+      return std::string("-");
     return low == high ? std::to_string(low) : std::to_string(low) + "-" + std::to_string(high);
   };
-  const auto count = [](uint32_t k, Table t) { return std::to_string(k) + "/" + std::to_string(rows_of(t)); };
-  return "lion rows by SB's lookups: CharacterTable " + ids(Table::character) + " " +
+  const auto count = [&batch](uint32_t k, Table t) {
+    return std::to_string(k) + "/" + std::to_string(rows_of(batch, t));
+  };
+  return std::string(batch.word) + " rows by SB's lookups: CharacterTable " + ids(Table::character) + " " +
          count(b.character, Table::character) + ", SkillTable " + ids(Table::skill) + " " +
          count(b.skills, Table::skill) + ", stance " + ids(Table::stance) + " " + count(b.stance, Table::stance);
 }

@@ -100,7 +100,7 @@ bool out_ready = false; // out_back holds a pose the worker has not been handed 
 std::array<Message, kInbox> game_inbox;
 size_t game_inbox_count = 0;
 // The send interval: 20 poses a second (N4) until coop-state.txt says otherwise (send_rate, 10 to 60; Lua's default is
-// 60). The worker stores it, the game thread reads it.
+// 60), and never more than the link's cap (link/core.h PoseCap). The worker stores it, the game thread reads it.
 std::atomic<uint64_t> send_us{50'000};
 // GFrameCounter (PHASE2-RE.md): incremented once per frame by FEngineLoop::Tick, and on some loading paths; compare
 // "different from the last call", never "last + 1".
@@ -124,14 +124,9 @@ std::atomic<int> last_refusal{0};              // An Io value, for the counter l
 std::atomic<const char *> last_reject{"none"}; // decode_pose's reason.
 
 // The encoded pose to the worker (m held): replaces one it has not taken yet, which the receiver counts missing; but a
-// keyframe not taken yet stays and a delta, which names it, is dropped instead (keeps_waiting).
-void give_out() {
-  out_ready = false;
-  if (out_fresh && keeps_waiting(out_mid.data.data(), out_mid.size, out_back.data.data(), out_back.size))
-    return;
-  std::swap(out_back, out_mid);
-  out_fresh = true;
-}
+// keyframe not taken yet stays and a delta, which names it, is dropped instead (keeps_waiting, in pose/codec.h's
+// hand_over, which stream_test runs on the build machine).
+void give_out() { hand_over(out_back, out_mid, out_fresh, out_ready); }
 
 uint64_t micros_between(LARGE_INTEGER a, LARGE_INTEGER b) {
   return frequency.QuadPart ? uint64_t((b.QuadPart - a.QuadPart) * 1000000 / frequency.QuadPart) : 0;
@@ -322,7 +317,7 @@ void stream(uint64_t now_us) {
       h.publication = now_us;
       h.sequence = ++sequence;
       uint32_t clamped = 0;
-      if (out_ready && out_back.size >= 3 && out_back.data[2] == 'P') // A keyframe the worker never got: overwritten.
+      if (lost_key(out_back, out_ready)) // A keyframe the worker never got: overwritten.
         live.encoder.lose();
       size_t size = encode_pose(live.capture, h, live.capture_root, live.capture_bones.data(), live.capture_fx,
                                 out_back.data.data(), clamped);

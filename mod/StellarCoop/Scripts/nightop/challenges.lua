@@ -1,8 +1,11 @@
 -- coop challenge's list without a game call: the definitions nightop/waves.lua runs (the fields are listed above
--- W.NIGHT there), the lookup by id or number, the console list line, and each one's best run in coop-records.txt, one
--- line best_<id>=<score> <whole seconds> read and rewritten through core/settings_file.lua. Starting values, to tune
--- after the first in-game runs. tests/lua/nightop/challenges_test.lua covers it with lua5.4 alone, the definitions'
--- rules included.
+-- W.NIGHT there), the lookup by id or number, the console list line, and each one's best run, Night Operation's levels'
+-- too, in coop-records.txt, one line best_<id>=<score> <whole seconds> read and rewritten through
+-- core/settings_file.lua. Starting values, to tune after the first in-game runs. A definition with coop=true also runs
+-- for two linked players, the host's run carried by the night line under its id (W.decode_host's words); its waves stay
+-- within the night line's masks (5 waves of 8 at most). board=true shows the cut shooting test's score widget
+-- (nightop/board.lua). tests/lua/nightop/challenges_test.lua covers it with lua5.4 alone, the definitions' rules
+-- included.
 local W=require('nightop.waves')
 local F=require('core.settings_file')
 local C={}
@@ -28,8 +31,13 @@ C.LIST={
     {id='targets',name='Target Practice',limit=90,breather=3,heals={},bonus=10,aggro=false,moves=0,waves={
         {at=0,ids={A,A,B,B}},{ids={A,A,B,B,DC,DC}},{ids={A,A,A,B,B,B,DC,DC}}},
         spots={{-45,12},{45,12},{-25,18},{25,18},{0,22},{-40,26},{40,26},{0,32}}},
+    -- The cut shooting test (LV_Test_Shooting_01, no map in the pak): its zone stood 12 M_DummyA, and its quest asked
+    -- for three rounds of kills, 3, 4 and 5. Here they stand all around EVE, 15 or 20 m out, for one player or two.
+    {id='range',name='Shooting Range',limit=120,breather=3,heals={},bonus=10,aggro=false,moves=0,coop=true,board=true,
+        waves={{at=0,ids=many(A,3)},{ids=many(A,4)},{ids=many(A,5)}},
+        spots={{0,15},{45,20},{90,15},{135,20},{180,15},{-135,20},{-90,15},{-45,20}}},
 }
--- A definition by id or number ('1' to '4'); nil for any other word.
+-- A definition by id or number ('1' to '5'); nil for any other word.
 function C.find(word)
     if type(word)~='string' then return nil end
     if word:find('^%d$') then return C.LIST[tonumber(word)] end
@@ -37,10 +45,14 @@ function C.find(word)
 end
 -- m:ss from seconds, a run's float time cut to whole seconds.
 local function clock(s) s=math.floor(s) return string.format('%d:%02d',s//60,s%60) end
--- The console list line of a definition and its best run (score and seconds, or nil).
+-- The console list line of a definition, a challenge or a level of Night Operation (W.LEVELS), and its best run (score
+-- and seconds, or nil).
 function C.line(def,score,s)
     local best=score and string.format('best %d in %s',score,clock(s)) or 'no best yet'
-    if def==W.NIGHT then return 'night: Night Operation (coop nightop start), '..best end
+    if def.level then
+        local word=def==W.NIGHT and '' or ' '..def.level
+        return string.format('%s: Night Operation%s (coop nightop start%s), %s',def.id,word,word,best)
+    end
     for n,d in ipairs(C.LIST) do
         if d==def then return string.format('%d %s %s: %d waves, %s, %s',n,d.id,d.name,#d.waves,clock(d.limit),best) end
     end

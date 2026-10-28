@@ -1,7 +1,8 @@
 // The component table (Phase 3b): what a ghost is made of and the layout its poses travel in, in one plain ASCII
 // grammar for Lua's capture file (coop-components.txt), the wire and the remote table the worker hands Lua; and the
-// display file Lua answers with, naming the ghost it built. No Windows types: tests/native/pose/table_test.cpp checks
-// it on the build machine, fuzzing the table parser.
+// display file Lua answers with, naming the ghost it built; and when our table goes to a linked friend again. No
+// Windows types: tests/native/pose/table_test.cpp checks it on the build machine, fuzzing the table parser, and
+// tests/native/pose/resend_test.cpp the resends.
 //
 // A table, every line ending in '\n', in this order, each where shown and nowhere else:
 //   SBT <protocol>                                    the wire form only
@@ -82,6 +83,43 @@ struct Display {
   std::vector<Part> puppet;                // Index for index with the remote parts; object 0: not drawn.
   std::vector<std::vector<int16_t>> remap; // Per bone of the loaded mesh, the remote bone it takes, -1 none; empty:
                                            // the remote bones as they are.
+};
+
+// Our table's resends to a linked friend (glue/tick/worker.inc): each heals a table lost with a broken session, sent
+// before her accept, or refused as too soon (her 2 s between new ghosts); she ignores an identical one. The first goes
+// at once to a new friend, the next kTableAgainMs later, and each wait doubles while nothing happens, up to
+// kTableAgainMaxMs: 5, 10, 20, 40, 60, 60 s. A changed table (sent at once on its own path) brings the next resend
+// kTableAgainMs after it. A pose of hers after kPoseGapMs without one brings it within kTableAgainMs, never later than
+// planned: such a gap comes with every way her side loses our table (a broken session, which stops her poses too;
+// her loopback or replay, which removed it and sent us nothing meanwhile; her rejoin), whatever StellarCoop version
+// she runs, and at most one a second. Worker thread.
+constexpr uint64_t kTableAgainMs = 5000, kTableAgainMaxMs = 60000, kPoseGapMs = 1000;
+class TableResend {
+public:
+  // Whether a resend is due at now; if so, the next one is planned.
+  bool due(uint64_t now_ms) {
+    if (now_ms < next_)
+      return false;
+    next_ = now_ms + wait_;
+    wait_ = std::min(2 * wait_, kTableAgainMaxMs);
+    return true;
+  }
+  void changed(uint64_t now_ms) { plan(now_ms + kTableAgainMs); }
+  void restarted(uint64_t now_ms) { plan(std::min(next_, now_ms + kTableAgainMs)); }
+  // A pose (SBP or SBD) of hers came at now_ms.
+  void heard(uint64_t now_ms) {
+    if (heard_ && now_ms - heard_ >= kPoseGapMs)
+      restarted(now_ms);
+    heard_ = now_ms;
+  }
+
+private:
+  void plan(uint64_t at) {
+    next_ = at;
+    wait_ = 2 * kTableAgainMs;
+  }
+  uint64_t next_ = 0, wait_ = kTableAgainMs; // A new one: due at once.
+  uint64_t heard_ = 0;                       // Her last pose; 0: none yet.
 };
 
 // The pose message's size: pose/codec.h writes the layout, but a table whose poses would not fit is refused here.

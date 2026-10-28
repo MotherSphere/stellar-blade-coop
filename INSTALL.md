@@ -74,9 +74,12 @@ together. Two games with different protocols cannot link, and the player who tri
 
 1. Close the game.
 2. From the old `Mods/StellarCoop` folder, copy out what you want to keep: `coop-settings.txt` if you changed a setting,
-   by hand or in the menu's Options, `coop-records.txt` for your best challenge runs, every `coop-night-*.txt` (your
-   Night Operation shop points, which no save holds), every `coop-track-*.txt` (your Doro race tracks), and any log you
-   still want to send. The zip has no `coop-settings.txt`; when the file is missing, the mod writes the defaults again.
+   by hand or in the menu's Options, `coop-guide.txt` (without it the guide opens again), `coop-records.txt` for your
+   best challenge runs, every `coop-night-*.txt` (your Night Operation shop points, which no save holds), every
+   `coop-gift-*.txt` (your `coop gift` mailbox: gifts that wait for you, gifts you sent that wait for an answer and
+   items on their way back to you, which no save holds either), every `coop-track-*.txt` (your Doro race tracks), and
+   any log you still want to send. The zip has no `coop-settings.txt`; when the file is missing, the mod writes the
+   defaults again.
 3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
 4. Install the new zip with install steps 2 to 4, and put the `coop-*.txt` files from step 2 back into the new folder.
    A file from version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in
@@ -171,7 +174,8 @@ or Ctrl+R) and builds the ghost again; `coop-settings.txt` does not change. `coo
 
 ## Saves and Steam Cloud
 
-The mod never writes your own saves. It reads them only to make separate co-op copies (see "Co-op saves" below and
+The mod reads your own saves to make separate co-op copies, and writes one of them only when you export a co-op save
+over it, after a backup of that save (see "Co-op saves" below and
 [docs/saves.md](docs/saves.md#what-the-mod-reads-and-writes)). Back up the saves anyway before you play with any mod:
 
 1. Close the game.
@@ -185,10 +189,11 @@ cloud. Then restore your backup.
 
 ## Co-op saves
 
-`coop fight`, `coop nightop`, `coop challenge`, `coop no` and `coop recruiter` run only on a co-op save, a copy of your
-save, and never on your own saves (`coop nightop stop` and `coop challenge stop` work on any save). The ghost, the keys
-and the Steam link work on any save. Nothing is copied back to your own saves. Items bought in Night Operation's shop
-(`coop nightop buy`) go into the co-op save you play, never into your own saves.
+`coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter` and `coop gift` run only on a co-op save, a
+copy of your save, and never on your own saves (`coop nightop stop` and `coop challenge stop` work on any save). The
+ghost, the keys and the Steam link work on any save. Nothing is copied back to your own saves unless you export a
+co-op save (below). Items bought in Night Operation's shop (`coop nightop shop` or `coop nightop buy`) and gifts
+(`coop gift`) go into or leave the co-op save you play, never your own saves.
 
 The mod makes the copies itself, in the save folder above: `StellarBladeCoop00.sav` to `StellarBladeCoop04.sav`, one
 for each of your saves `StellarBladeSave00.sav` to `StellarBladeSave04.sav`. Once the game uses the copies, Continue,
@@ -217,8 +222,8 @@ every load and save goes to the copies. Continue may then load a different slot 
 and a slot the list shows as empty can hold a copy you played in co-op: a New Game there replaces it without asking.
 
 If the copies cannot be made, the question says why and offers only the solo choices. `coop status` shows
-`slot=coop ... saves=coop` once a copy is loaded. The co-op saves have not been tested in game yet: back up your saves
-first (see "Saves and Steam Cloud").
+`slot=coop ... saves=coop` once a copy is loaded. The co-op saves ran in game on 2026-10-21 and 2026-10-27, but back
+up your saves first anyway (see "Saves and Steam Cloud").
 
 More about the copies:
 
@@ -233,8 +238,22 @@ More about the copies:
 - While the game uses the copies, `CO-OP SAVES` shows at the top right of the title screen, and the question does
   not show.
 - Steam Cloud syncs the copies like your own saves, so they take up to the same space again.
-- To keep a co-op character without the mod: close the game, back up the save folder, then copy
-  `StellarBladeCoop0N.sav` to a free `StellarBladeSave0M.sav` name in the same folder. The game loads it like any save.
+- To keep a co-op character without the mod, type `coop saves export N M` twice within 10 s at the title (N is the
+  co-op slot, M the slot of yours it goes to, both 0 to 4). The mod backs up `StellarBladeSave0M.sav` into
+  `StellarCoopBackups`, then writes `StellarBladeCoop0N.sav` over it, unchanged. It refuses a co-op save that still
+  holds the mod's items (Burst Stimpack, Beta Stimpack, Shock Bolt, Beta Seed), has Shock Bolts as the selected ammo,
+  or names the cut Matrix XIII dungeon as its map, its camp, its last full camp or its last simple camp, and
+  `coop-link.log` says what to use up, sell or switch, or to rest at a full camp (one with a phone booth) outside the
+  dungeon. It also refuses a developer save that `coop shortcut load` wrote in co-op slot 4
+  (`StellarBladeCoop04.sav`, the title's fifth slot), played or not. Quit the game afterwards: until it restarts, the
+  title's slot list shows the slot's old details. The export has not been tried in game yet. See
+  [docs/saves.md](docs/saves.md#co-op-saves).
+- A co-op save that started New Game+ while it held any of these keeps them in the game's New Game+ copy of the
+  inventory and camps, which playing does not change, so the export keeps refusing it. Only the copy by hand below
+  takes it out.
+- By hand: close the game, back up the save folder, then copy `StellarBladeCoop0N.sav` to a free
+  `StellarBladeSave0M.sav` name in the same folder. The game loads it like any save, but nothing checks it for the
+  mod's items first.
 
 ### Manual co-op slot (auto_coop_save=off)
 
@@ -304,9 +323,9 @@ Protection history. Without the DLL the Steam link does not start, and `UE4SS.lo
 Close the game first.
 
 - Installed from the zip (Windows or Linux): delete the `Mods/StellarCoop` folder. It holds the logs,
-  `coop-settings.txt`, `coop-records.txt`, the Night Operation shop points (`coop-night-*.txt`) and the Doro race
-  tracks (`coop-track-*.txt`), so first copy out what you want to keep. If you added a `StellarCoop` line to
-  `Mods/mods.txt`, remove that line.
+  `coop-settings.txt`, `coop-guide.txt`, `coop-records.txt`, the Night Operation shop points (`coop-night-*.txt`), the
+  `coop gift` mailbox (`coop-gift-*.txt`) and the Doro race tracks (`coop-track-*.txt`), so first copy out what you
+  want to keep. If you added a `StellarCoop` line to `Mods/mods.txt`, remove that line.
 - Installed with `tools/install.py` (Linux), from the StellarCoop repository: `python3 tools/install.py --uninstall`
   (add `--dry-run` first to see what it would do, and `--game <Stellar Blade folder>` if the game is not in the
   script's default folder). It backs up the whole folder into `~/StellarCoop-install-backups`, then removes it. It
@@ -314,8 +333,8 @@ Close the game first.
   above. It never edits `mods.txt`, but it reports a line there that still names StellarCoop, for you to remove.
 
 Your saves stay, and so do the co-op copies, `StellarCoopSaves.txt`, the shared quests' records
-(`StellarCoopQuests0N.txt`), the backups in `StellarCoopBackups` and `StellarCoopSlot.txt`. The game ignores them
-without the mod. To keep a co-op character, see "Co-op saves" above.
+(`StellarCoopQuests0N.txt`), a shortcut save's mark (`StellarCoopShortcut04.txt`), the backups in `StellarCoopBackups`
+and `StellarCoopSlot.txt`. The game ignores them without the mod. To keep a co-op character, see "Co-op saves" above.
 
 ## Which logs to send
 

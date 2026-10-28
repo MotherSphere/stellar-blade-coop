@@ -412,6 +412,15 @@ assert(#notes==0 and s.partner_bar==false and s.partner_arrow==false and s.partn
 assert(Link.parse_settings('').status_overlay=='off')
 assert(Link.DEFAULT:find('\ncard_details=on\n# status_overlay[^\n]*\nstatus_overlay=off\n'))
 assert(Link.parse_settings(Link.DEFAULT).status_overlay=='off')
+-- shortcut_load (coop shortcut load, a test tool, no menu row): on or off in any case, off by default, in a new file
+-- (last, after its comment, which names the achievement risk) and in an old one; a bad value keeps off, with a line.
+assert(Link.parse_settings('').shortcut_load==false and Link.parse_settings(Link.DEFAULT).shortcut_load==false)
+assert(Link.DEFAULT:find('\nstatus_overlay=off\n# Shortcut saves, a test tool: on or off, off by default.',1,true)
+    and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=off\n$'))
+assert(Link.parse_settings('shortcut_load=ON').shortcut_load==true)
+s,notes=Link.parse_settings('shortcut_load=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shortcut_load (use on or off); "
+    .."shortcut_load stays off" and s.shortcut_load==false,notes[1])
 for _,case in ipairs({{'off','off'},{'Compact','compact'},{'DETAILED','detailed'}}) do
     s,notes=Link.parse_settings('status_overlay='..case[1]..'\n')
     assert(#notes==0 and s.status_overlay==case[2],case[1])
@@ -967,9 +976,17 @@ assert(link.night('h 2 42 count') and files[NIGHT]=='h 2 42 count\n','The newest
 files[NIGHT]=nil
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nnight=g 3 42 run 0 0 0 -\n'
 for _,line in ipairs(fresh.changes()) do assert(not line:find('^night='),'night= stays out of the log') end
--- coop lion's line too: its spawns= moves with every enemy that spawns or goes, and cut/lion.lua logs what it reads.
+-- coop lion's line, coop gardener fight's, coop tendril fight's, the Shock Bolt's and coop mxiii's too: their spawns=
+-- moves with every enemy that spawns or goes, and cut/enemy.lua logs what it reads for each.
 files[STATUS]=HEAD..'friend=1 0 Kaanta\nlion=rows added=78/78 asks=1 spawns=7 char=2/2 skills=15/15 stance=1/1\n'
-for _,line in ipairs(fresh.changes()) do assert(not line:find('^lion='),'lion= stays out of the log') end
+    ..'gardener=waiting added=0/13 asks=0 spawns=7 why=busy ticks=2\ntendril=off\n'
+    ..'bolt=rows added=4/4 asks=1 spawns=7 char=0/0 skills=1/1 stance=0/0\n'
+    ..'mxiii=rows added=2/2 asks=1 spawns=7 char=0/0 skills=0/0 stance=0/0\n'
+for _,line in ipairs(fresh.changes()) do
+    assert(not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
+        and not line:find('^bolt=') and not line:find('^mxiii='),
+        'lion=, gardener=, tendril=, bolt= and mxiii= stay out of the log')
+end
 files[STATUS]=nil
 
 -- Chat (UI-DESIGN 4.2, 5.2): coop-say.txt, a typed line, is written only while the last one is gone, whole (beside,
@@ -1068,6 +1085,12 @@ chat=link.take_chat()
 assert(#chat==5 and chat[1].race=='track 7 2 1 0 0 0 90 /game/map' and not chat[1].text and chat[2].text=='Coucou'
     and not chat[2].race and chat[3].race=='cps 7 1 4000 0 0 1200 8000 0 0 1200' and chat[4].text=='race 9'
     and not chat[4].race and chat[5].race=='go 7 4000','Race lines apart from the chat, in order')
+-- Gift lines (coop gift, cut/mailbox.lua): hers, or ours that could not go, apart from the chat and the race.
+files[CHAT]='gift s 17 HP_Potion 3\nin gift a 9\ngift \nrace gift a 1\ngift n 18 nolink\n'
+chat=link.take_chat()
+assert(#chat==4 and chat[1].gift=='s 17 HP_Potion 3' and not chat[1].text and chat[2].text=='gift a 9'
+    and not chat[2].gift and chat[3].race=='gift a 1' and not chat[3].gift and chat[4].gift=='n 18 nolink',
+    'Gift lines apart from the chat and the race, in order')
 -- ponytail's ceiling: 512 waiting at most, the oldest dropped, for a native part that never takes the file.
 files[RACE]='stuck\n'
 for i=1,520 do link.race('cp 7 1 1 '..i) end

@@ -184,6 +184,7 @@ package.loaded['partner.capture']={new=function(publish,looks)
     return fake_capture
 end}
 toggles,active,basesuits,wheres,in_world,at_title=0,false,0,0,false,false
+toggle_raise=nil -- What the ghost's toggle raises, if anything.
 puppet_say=nil -- What the ghost says its notices with.
 the_notice,name_tag,look,rebuilds=nil
 veils,photo_veils={},{} -- notice.veil's and puppet.photo's arguments, each 250 ms.
@@ -213,7 +214,10 @@ package.loaded['partner.puppet']={new=function(link,capture,say,tag,looks)
     assert(the_notice and type(say)=='function','The map notice goes on screen')
     puppet_say=say
     name_tag,look,rebuilds=tag,looks,{}
-    return {rebuild=function(why) rebuilds[#rebuilds+1]=why end,toggle=function() toggles=toggles+1; active=not active; return true,'ghost' end,tick=function() end,
+    return {rebuild=function(why) rebuilds[#rebuilds+1]=why end,toggle=function()
+        if toggle_raise then error(toggle_raise,0) end
+        toggles=toggles+1; active=not active; return true,'ghost'
+    end,tick=function() end,
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
@@ -287,7 +291,7 @@ package.loaded['nightop.run']={new=function(o)
     nr.o=o
     return {command=function(sub,a,b,c) nr.runs[#nr.runs+1]={sub,a,b,c}; return true,'nightop '..tostring(sub) end,
         challenge=function(sub,extra) nr.chs[#nr.chs+1]={sub,extra}; return true,'challenge '..tostring(sub) end,
-        running=function() return nr.running==true end,
+        running=function() return nr.running==true end,phase=function() return nr.phase end,
         tick=function() nr.ticks=nr.ticks+1 end,hud=function(h) nr.hud=h end,
         stop=function(reason)
             nr.stops[#nr.stops+1]=reason
@@ -325,13 +329,61 @@ package.loaded['cut.leviathan']={new=function(o)
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
 end}
 -- coop lion (cut/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops, what a
--- tick says.
+-- tick says, a tick that raises; its rows (the shop's cut items, with the batch word it was given) answer done at once.
 li={}
 package.loaded['cut.lion']={new=function(o)
     li.o=o
     return {command=function(...) li.cmds[#li.cmds+1]={...}; return true,'li '..tostring((...)) end,
-        tick=function() li.ticks=li.ticks+1; if li.says then return table.unpack(li.says) end end,
+        rows=function(done,word) return done(true,'li rows'..(word and ' '..word or '')) end,
+        tick=function()
+            li.ticks=li.ticks+1
+            if li.raise then error(li.raise,0) end
+            if li.says then return table.unpack(li.says) end
+        end,
         stop=function() li.stops=li.stops+1 end}
+end}
+-- coop gardener fight (cut/gardener.lua; gardener_test tests it): what new got (log, ask, status), its commands,
+-- ticks and stops, what a tick says.
+gd={}
+package.loaded['cut.gardener']={new=function(o)
+    gd.o=o
+    return {command=function(...) gd.cmds[#gd.cmds+1]=table.pack(...); return true,'gd '..tostring((...)) end,
+        tick=function() gd.ticks=gd.ticks+1; if gd.says then return table.unpack(gd.says) end end,
+        stop=function() gd.stops=gd.stops+1 end}
+end}
+-- coop tendril fight (cut/tendril.lua; tendril_test tests it): the same as the Gardener's.
+td={}
+package.loaded['cut.tendril']={new=function(o)
+    td.o=o
+    return {command=function(...) td.cmds[#td.cmds+1]=table.pack(...); return true,'td '..tostring((...)) end,
+        tick=function() td.ticks=td.ticks+1; if td.says then return table.unpack(td.says) end end,
+        stop=function() td.stops=td.stops+1 end}
+end}
+-- coop mxiii (cut/mxiii.lua; mxiii_test tests it): what new got (log, ask, status, travel, paks, read), the folder
+-- paks_of was given, its commands, ticks and stops, what a tick says, and its title calls' arguments.
+mx={}
+package.loaded['cut.mxiii']={paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end,
+    new=function(o)
+        mx.o=o
+        return {command=function(...) mx.cmds[#mx.cmds+1]=table.pack(...); return true,'mx '..tostring((...)) end,
+            tick=function() mx.ticks=mx.ticks+1; if mx.says then return table.unpack(mx.says) end end,
+            stop=function() mx.stops=mx.stops+1 end,
+            title=function(...) mx.titles[#mx.titles+1]=table.pack(...) end}
+    end}
+-- coop chainspin (cut/chainspin.lua; chainspin_test tests it): what new got (log, status, rows) and its commands.
+cs={}
+package.loaded['cut.chainspin']={new=function(o)
+    cs.o=o
+    return {command=function(...) cs.cmds[#cs.cmds+1]=table.pack(...); return true,'cs '..tostring((...)) end}
+end}
+-- coop devmenu (cut/devmenu.lua; devmenu_test tests it): what new got (log, status), its commands and stops, and how
+-- many native asks there were at its last stop; heal is its one row here.
+dm={}
+package.loaded['cut.devmenu']={new=function(o)
+    dm.o=o
+    return {row=function(name) return name=='heal' and {} or nil end,
+        command=function(...) dm.cmds[#dm.cmds+1]=table.pack(...); return true,'dm '..tostring((...)) end,
+        stop=function() dm.stops=dm.stops+1; dm.asked_at_stop=#asked end}
 end}
 -- coop wear (cut/wear.lua; wear_test tests it): what new got (log, store, paused), its commands, restores, ticks and
 -- stops, what a tick says.
@@ -363,6 +415,34 @@ package.loaded['cut.lines']={new=function(o)
         tick=function() ln.ticks=ln.ticks+1; if ln.says then return table.unpack(ln.says) end end,
         stop=function() ln.stops=ln.stops+1 end}
 end}
+-- coop gift (cut/mailbox.lua; mailbox_test tests it): what new got, its commands, her gift lines, its ticks and stops.
+gf={}
+package.loaded['cut.mailbox']={new=function(o)
+    gf.o=o
+    return {command=function(...) gf.cmds[#gf.cmds+1]=table.pack(...); return true,'gf '..tostring((...)) end,
+        receive=function(line) gf.received[#gf.received+1]=line end,tick=function() gf.ticks=gf.ticks+1 end,
+        stop=function() gf.stops=gf.stops+1 end}
+end}
+-- coop glide (cut/glide.lua; glide_test tests it): what new got (log, slot), its commands, restores, ticks and stops,
+-- what a tick says.
+gl={}
+package.loaded['cut.glide']={new=function(o)
+    gl.o=o
+    return {command=function(...) gl.cmds[#gl.cmds+1]={...}; return true,'gl '..tostring((...)) end,
+        restore=function() gl.restores=gl.restores+1 end,
+        tick=function() gl.ticks=gl.ticks+1; if gl.says then return table.unpack(gl.says) end end,
+        stop=function() gl.stops=gl.stops+1 end}
+end}
+-- coop emote (cut/emote.lua; emote_test tests it): what new got (log, ask, status), its commands, restores, ticks and
+-- stops, what a tick says.
+em={}
+package.loaded['cut.emote']={new=function(o)
+    em.o=o
+    return {command=function(...) em.cmds[#em.cmds+1]=table.pack(...); return true,'em '..tostring((...)) end,
+        restore=function() em.restores=em.restores+1 end,
+        tick=function() em.ticks=em.ticks+1; if em.says then return table.unpack(em.says) end end,
+        stop=function() em.stops=em.stops+1 end}
+end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
 package.loaded['race.drive']={new=function(o)
@@ -370,19 +450,38 @@ package.loaded['race.drive']={new=function(o)
     return {name='drive',restore=function() dv.restores=dv.restores+1 end}
 end}
 -- The Doro race (race/run.lua; race_test tests it): what race.new got, coop race's words, her race lines, its ticks,
--- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop that raises, its HUD; its steers
--- and the native ticks made before the last one.
+-- slows, stops and keys, whether it is armed, what a tick or the key answers, a stop, a steer or a tick that raises,
+-- its HUD; its steers and the native ticks made before the last one.
 ra={}
 package.loaded['race.run']={new=function(o)
     ra.o=o
     return {command=function(sub,a,extra) ra.cmds[#ra.cmds+1]={sub,a,extra}; return true,'race '..tostring(sub) end,
         receive=function(text) ra.received[#ra.received+1]=text end,
-        tick=function() ra.ticks=ra.ticks+1; if ra.says then return table.unpack(ra.says) end end,
-        steer=function() ra.steers,ra.steered_at=ra.steers+1,ticks end,
+        tick=function()
+            ra.ticks=ra.ticks+1
+            if ra.tick_raise then error(ra.tick_raise,0) end
+            if ra.says then return table.unpack(ra.says) end
+        end,
+        steer=function()
+            ra.steers,ra.steered_at=ra.steers+1,ticks
+            if ra.steer_raise then error(ra.steer_raise,0) end
+        end,
         slow=function() ra.slows=ra.slows+1 end,
         stop=function() ra.stops=ra.stops+1; if ra.raise then error(ra.raise,0) end end,
         key=function() ra.keys=ra.keys+1; return ra.key_ok,ra.key_why end,
         armed=function() return ra.armed==true end,hud=function(h) ra.hud=h end}
+end}
+-- Roxanne's choices (nightop/roxanne.lua; roxanne_test tests them): what roxanne.new got (o), its ticks (the last
+-- one's stopped) and stops, a booking cancel gives back (booked), a stop or a tick that raises.
+rx={o=nil,ticks=0,stops=0,booked=nil,raise=nil}
+package.loaded['nightop.roxanne']={new=function(o)
+    rx.o=o
+    return {tick=function(stopped)
+            rx.ticks,rx.stopped=rx.ticks+1,stopped
+            if rx.tick_raise then error(rx.tick_raise,0) end
+        end,
+        stop=function() rx.stops=rx.stops+1; if rx.raise then error(rx.raise,0) end end,
+        cancel=function() local b=rx.booked; rx.booked=nil; return b end}
 end}
 rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
 package.loaded['nightop.recruiter']={new=function(log)
@@ -515,13 +614,15 @@ USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|de
     ..'status | report | mark [text] | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
+    ..'emote [list|<name>|off] | '
     ..'no [heal|rule|spawnpt|actor] | '
-    ..'nightop [start [noaggro|nomove]|stop|shop|buy <n> [count]] | '
+    ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '
     ..'challenge [<name>|stop] | '
     ..'recruiter [off] | '
+    ..'gift [send <item> [count]|take [n]] | '
     ..'race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|'
     ..'spawn | quests on|off|status|probe|record|replay|force <number> | '
-    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4> | off'
+    ..'freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 
 -- The native part's pad export (coop_pad): each call hands back as many of its arguments as the next count queued
 -- (q; 0 once empty), its event; calls: how often it was called; missing: an older DLL without it.
@@ -549,15 +650,25 @@ function load_main(with_native,no_folder,source)
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
     rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
+    rx.o,rx.ticks,rx.stops,rx.booked,rx.raise,rx.tick_raise,rx.stopped=nil,0,0,nil,nil,nil,nil
     nr.o,nr.runs,nr.chs,nr.ticks,nr.stops=nil,{},{},0,{}
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
     lv.o,lv.cmds,lv.restores,lv.ticks,lv.stops,lv.says,lv.filming=nil,{},0,0,0,nil,nil
-    li.o,li.cmds,li.ticks,li.stops,li.says=nil,{},0,0,nil
+    li.o,li.cmds,li.ticks,li.stops,li.says,li.raise=nil,{},0,0,nil,nil
+    gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
+    td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
+    mx.o,mx.folder,mx.cmds,mx.ticks,mx.stops,mx.says,mx.titles=nil,nil,{},0,0,nil,{}
+    cs.o,cs.cmds=nil,{}
+    dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
+    gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0
     wr.o,wr.cmds,wr.restores,wr.ticks,wr.stops,wr.says=nil,{},0,0,0,nil
     sc.o,sc.cmds,sc.restores,sc.ticks,sc.stops,sc.says=nil,{},0,0,0,nil
     ln.o,ln.cmds,ln.ticks,ln.stops,ln.says=nil,{},0,0,nil
+    gl.o,gl.cmds,gl.restores,gl.ticks,gl.stops,gl.says=nil,{},0,0,0,nil
+    em.o,em.cmds,em.restores,em.ticks,em.stops,em.says=nil,{},0,0,0,nil
     ra.o,ra.cmds,ra.received,ra.ticks,ra.slows,ra.stops,ra.keys,ra.armed,ra.hud={},{},{},0,0,0,0,false,nil
+    ra.tick_raise,ra.steer_raise=nil,nil
     ra.steers,ra.steered_at,dv.restores=0,nil,0
     kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
     menu_place,kit_input,input_asks,kit_language_seen=nil,false,0,nil

@@ -42,6 +42,21 @@ do
     local out=drive(s,v,{stick={x=0.05,y=0.05},yaw=90})
     assert(close(out.heading,90) and close(out.vx,0) and close(out.vy,0))
 end
+-- Full stick ahead while she goes backward faster than the top (a knockback, a backstep): the fade is for forward
+-- speed only, so the throttle brings her round at the full acceleration and never pushes her further back. At the
+-- lowest top too, where a 700 cm/s backstep is past it.
+for _,top in ipairs({P.top,D.BOUNDS.top[1]}) do
+    local Q=D.values({top=top})
+    local s,v={},{x=-1.5*Q.top,y=0,z=0}
+    for _=1,60*12 do
+        local was=v.x
+        local out=D.step(s,{stick={x=1,y=0},v=v,yaw=0},Q,DT)
+        v={x=out.vx,y=out.vy,z=0}
+        assert(v.x>was or v.x>0.99*Q.top,('top %d: %s after %s'):format(top,v.x,was))
+        assert(v.x<=Q.top+1e-6)
+    end
+    assert(v.x>0.99*Q.top,v.x)
+end
 
 -- 2. The turn rate falls from 220 deg/s standing to 75 at top speed: 1 s of full stick 90 degrees to the right from a
 -- held speed. Standing: the heading reaches the stick (90 degrees) in under 0.5 s.

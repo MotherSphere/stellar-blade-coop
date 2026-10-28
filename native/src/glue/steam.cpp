@@ -8,8 +8,9 @@
 // shared quests' lines on the same channel (Phase 12, glue/tick.cpp) with their record beside each co-op slot, the
 // synced photo mode between Lua's coop-state.txt, the link's photo line and the game thread's pause (glue/tick.cpp),
 // the chat and vitals lines between the link, our EVE (glue/tick.cpp) and Lua's two short-lived chat files,
-// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), and the race lines Lua
-// writes into coop-race.txt (hers reach Lua through coop-chat.txt). It
+// Night Operation's line from Lua's coop-night.txt to the link (hers comes back in the status), the race lines Lua
+// writes into coop-race.txt and coop gift's lines from Lua's gift requests (hers of both reach Lua through
+// coop-chat.txt). It
 // makes the co-op save copies at the title and switches the game's save name to them on request (save/twins.h), and
 // puts our join code on the clipboard on the copy request (glue/clipboard.h). The follow's camps lines go through the
 // link (link/core.h), its travel request to the game thread (glue/tick.cpp).
@@ -28,6 +29,7 @@
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
+#include "save/shortcut_load.h" // kSlot
 #include "save/slot.h"
 #include "save/twins.h"
 #include "save/watch.h"
@@ -129,7 +131,8 @@ std::string utc_stamp() {
 
 // The whole file (its first max bytes), then deleted; empty when there is none, or when it cannot be deleted (Lua's
 // busy check holds it open, say): taken at a later pass, never twice. Lua writes it beside and renames it, so it is
-// complete. 512 by default: a request, a chat line or a night line (link/protocol.h's kMaxNight) and its line end.
+// complete. 512 by default: a chat line or a night line (link/protocol.h's kMaxNight) and its line end; a request takes
+// link/protocol.h's kMaxRequestFile.
 // Deleted on close, not by path after it: a request Lua renames in once the handle is closed is never deleted unread.
 std::string take_text(const std::wstring &path, DWORD max = 512) {
   HANDLE f = CreateFileW(path.c_str(), GENERIC_READ | DELETE, 0, nullptr, OPEN_EXISTING, FILE_FLAG_DELETE_ON_CLOSE,
@@ -481,10 +484,11 @@ std::string status_text() {
   std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb1251.load()})
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
-  return head + cns_line + coop::pose::status() + "\n" +
+  const std::string camps = coop::pose::camps_status();
+  return head + cns_line + coop::pose::status() + "\n" + (camps.empty() ? camps : camps + "\n") +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
-         coop::pose::lion_status() + "\n" +
+         coop::pose::rows_status() + "\n" +
          coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
          "last=" + journal.last() + "\n";
 }
@@ -535,7 +539,7 @@ bool step() {
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
-    std::string request = take_text(folder + L"coop-request.txt");
+    std::string request = take_text(folder + L"coop-request.txt", DWORD(coop::kMaxRequestFile));
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
     // Night Operation's line (nightop/run.lua), taken at every pass too: the newest state goes, an old one never waits.
@@ -580,8 +584,13 @@ bool step() {
       event(coop::pose::ask_travel(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::lion: // coop lion's rows: the game thread's too.
-      event(coop::pose::ask_lion(coop::parse_request(request)));
+    case coop::Command::items: // coop gift's inventory read: the worker's, now.
+      event(coop::pose::ask_items(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii, the
+                              // shop: the game thread's.
+      event(coop::pose::ask_rows(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::freeze: {
@@ -594,6 +603,32 @@ bool step() {
       event(coop::pose::ask_gate(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::anim: // coop emote's native clips: the game thread's too.
+      event(coop::pose::ask_anim(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::shortcut: // coop shortcut's list, or a load's read: the game thread's reads.
+      if (const coop::Request ask = coop::parse_request(request); ask.slot < 0) {
+        event(coop::pose::ask_shortcut());
+      } else { // Checked now and again before the write, which the read's end starts (below).
+        GameView game;
+        const std::string why = coop_saves.plant_refusal(account.get(), game);
+        event(why.empty() ? coop::pose::ask_shortcut_load(ask.slot) : "shortcut load refused: " + why);
+      }
+      request.clear();
+      break;
+    case coop::Command::devinfo: // coop devinfo: the game thread's too.
+      event(coop::pose::ask_devinfo(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::nightshop: // The Night Operation shop's screen: the game thread's.
+      event(coop::pose::ask_nightshop(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::roxanne: // Roxanne's Night Operation choices: the game thread's.
+      event(coop::pose::ask_roxanne(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::saves:
       if (const coop::Request ask = coop::parse_request(request); ask.saves == coop::SavesAsk::probe) {
         event(coop::pose::saves_probe());
@@ -601,7 +636,7 @@ bool step() {
           event(coop::twins::describe(coop::twins::plan(*account)));
       } else {
         GameView game;
-        event(coop_saves.ask(ask.saves, account.get(), game, ask.slot));
+        event(coop_saves.ask(ask.saves, account.get(), game, ask.slot, ask.target));
       }
       request.clear();
       break;
@@ -636,6 +671,16 @@ bool step() {
       for (const std::string &line : coop_saves.pass(account.get(), game, switched_off))
         event(line);
     }
+    for (const std::string &line : coop::pose::shortcut_pass()) // coop shortcut's lines, as the game thread reads.
+      event(line);
+    if (std::string save, line; coop::pose::shortcut_load_pass(save, line)) { // A load's file read and cleaned.
+      event(line);
+      if (!save.empty()) {
+        GameView game;
+        const std::string what = line.substr(0, line.find(" cleaned:")); // "shortcut F02 1", cleaned_line's start.
+        event(coop_saves.plant(account.get(), game, coop::shortcut::kSlot, std::move(save), what));
+      }
+    }
     streaming = coop::pose::worker_stream();
     watch_saves(GetTickCount64(), loaded ? link->me() : 0);
     if (loaded) { // Before ready(): a +connect_lobby there is held until a world loads.
@@ -647,6 +692,7 @@ bool step() {
                   lua.sync == coop::Sync::both && !coop::pose::can_freeze() ? coop::Sync::notice : lua.sync, lua.max,
                   lua.cut);
       link->mod_names(lua.names);
+      link->pose_rate(lua.rate);
       link->loopback(coop::pose::loopback());
     }
     coop::Link::Ready ready = loaded ? link->ready(command_line) : coop::Link::Ready::no;
@@ -726,6 +772,9 @@ bool step() {
     said = coop::pose::debug_pass(linked, coop_marker, GetTickCount64());
     if (loaded && !said.empty())
       link->notice(said);
+    said = coop::pose::anim_pass();
+    if (loaded && !said.empty())
+      link->notice(said);
     // Channel 2 both ways: the shared quests take their SBQ lines out first, the shared fight's job gets the rest; the
     // lobby owner hosts both. Ours are queued for the next tick.
     std::vector<std::string> channel2 = loaded ? link->take_fight() : std::vector<std::string>();
@@ -738,10 +787,13 @@ bool step() {
         linked ? link->mate_life() : coop::Life::unknown);
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
-    coop::pose::peer(linked, GetTickCount64(), [](const uint8_t *d, size_t n, bool reliable) {
-      if (api.user_handle())
-        link->send_binary(d, n, reliable);
-    });
+    coop::pose::peer(
+        linked, GetTickCount64(),
+        [](const uint8_t *d, size_t n, bool reliable) {
+          if (api.user_handle())
+            link->send_binary(d, n, reliable);
+        },
+        linked ? link->pose_cap() : coop::kPoseCaps[0]);
     std::string text = status_text();
     if (text != written && write_text(folder + L"coop-status.txt", text))
       written = text;

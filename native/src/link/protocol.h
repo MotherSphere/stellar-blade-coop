@@ -18,6 +18,8 @@
 //   guest, night_ok()).
 //   SBC<protocol> mark <n> [<text>] (coop mark: a numbered line in both players' logs).
 //   SBC<protocol> race <text> (a Doro race line, race/model.lua's, printable ASCII; the link reads no further).
+//   SBC<protocol> gift <payload> (coop gift, cut/mailbox.lua: "s <id> <alias> <count>" a gift sent, "a <id>" kept in
+//   the friend's mailbox, "n <id> <why>" refused; gift_ok()).
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose/codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (fight/pilot.h). Channel 2 carries the shared enemies' text lines and
@@ -36,11 +38,12 @@
 #include <string_view>
 #include <vector>
 
-#include "game/memory.h" // plausible: the lion rows request's addresses
+#include "game/anim.h"   // path_ok: the anim request's clip
+#include "game/memory.h" // plausible: the rows requests' addresses
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 13; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 14; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -53,10 +56,15 @@ constexpr int kProtocol = 13; // Bump on any wire change. 1 was the first link (
                               // copies where its own game puts them; 12 adds the shared quests' SBQ lines on channel
                               // 2, and on channel 0 the photo line's c (the host's cutscene), the night line (Night
                               // Operation for two), the mark line and the race lines; 13 adds the pak lines (the mod
-                              // containers by name) before the paks line, which a protocol-12 peer would count invalid.
-                              // An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
-                              // v0.4.0-beta.1, 12: v0.5.0-beta.1) is told why: the lobby tag, then the hello's reject,
-                              // name both.
+                              // containers by name) before the paks line, which a protocol-12 peer would count invalid;
+                              // 14 adds Night Operation's level (or range, the Shooting Range for two) to the host's
+                              // night line, which a protocol-13 guest would refuse, as she would the masks of a
+                              // level's extra monsters, each side's down time left and revive progress at the end of
+                              // both night lines (the co-op revive), which a protocol-13 game would refuse too, and the
+                              // gift line (coop gift), which a protocol-13 peer would count invalid. An older peer (6:
+                              // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
+                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3) is told why: the lobby tag, then the
+                              // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -168,7 +176,7 @@ inline Life life_of(const Vitals &v) {
 }
 
 enum class Kind {
-  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, camps_ask, camps, night, mark, race
+  invalid, hello, accept, reject, ping, pong, photo, say, vitals, pak, paks, camps_ask, camps, night, mark, race, gift
 };
 // The follow's camps lines (session/travel.lua): the guest asks with an id from 0 to kMaxCampId, the host answers that
 // id with his world and up to kMaxCamps ZoneCampTable aliases, nearest his EVE first, each with its distance in whole
@@ -198,7 +206,7 @@ struct Message {
   std::string text;      // hello: mod version. reject: the reason. say: the line, chat_clean() and never empty. pak:
                          // the container's name, mod_name_ok(). camps: the host's world, or "none". night: the
                          // payload, night_ok(). mark: chat_clean() to kMaxMark, maybe empty. race: the text after
-                         // "race ", printable ASCII.
+                         // "race ", printable ASCII. gift: the payload, gift_ok().
   Vitals vitals{};       // vitals: hers, plausible_vitals().
   std::string why;         // camps none: why.
   std::vector<Camp> camps; // camps: nearest first.
@@ -296,7 +304,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF13" for the shared fight, "SBQ13" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF14" for the shared fight, "SBQ14" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 
@@ -359,6 +367,29 @@ inline bool split(const std::string &text, std::string *fields, size_t count, st
   return true;
 }
 
+// coop gift's line (cut/mailbox.lua), reliable: "s <id> <alias> <count>" (a gift sent: its id, 1 to 20 digits and not
+// 0, an item alias as alias_word() takes it, 1 to kMaxGiftCount items), "a <id>" (the gift is in the friend's mailbox)
+// or "n <id> <why>" (refused: why in 1 to 16 letters a-z). Lua checks the item against its own list; the link reads no
+// further.
+constexpr uint64_t kMaxGiftCount = 10;
+inline bool gift_ok(const std::string &payload) {
+  std::string f[4];
+  uint64_t v = 0;
+  const auto id = [&v](const std::string &w) { return number(w, v) && v; };
+  const auto why = [](const std::string &w) {
+    return w.size() <= 16 && std::all_of(w.begin(), w.end(), [](char c) { return c >= 'a' && c <= 'z'; });
+  };
+  if (split(payload, f, 4, nullptr) && f[0] == "s")
+    return id(f[1]) && alias_word(f[2]) && number(f[3], v) && v >= 1 && v <= kMaxGiftCount;
+  if (split(payload, f, 2, nullptr) && f[0] == "a")
+    return id(f[1]);
+  return split(payload, f, 3, nullptr) && f[0] == "n" && id(f[1]) && why(f[2]);
+}
+// Empty when the payload is no gift line (nothing to send).
+inline std::string gift_line(const std::string &payload) {
+  return gift_ok(payload) ? "SBC" + std::to_string(kProtocol) + " gift " + payload : std::string();
+}
+
 inline Message parse(const char *data, size_t size) {
   Message m;
   if (!data || size == 0 || size > kMaxMessage)
@@ -405,6 +436,11 @@ inline Message parse(const char *data, size_t size) {
   } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "race") {
     if (std::all_of(rest.begin(), rest.end(), [](char c) { return c >= 0x20 && c <= 0x7e; })) {
       m.kind = Kind::race;
+      m.text = rest;
+    }
+  } else if (split(text, f, 2, &rest) && f[0] == versioned_tag && f[1] == "gift") {
+    if (gift_ok(rest)) {
+      m.kind = Kind::gift;
       m.text = rest;
     }
   } else if (split(text, f, 2 + m.vitals.size(), nullptr) && f[0] == versioned_tag && f[1] == "vit") {
@@ -518,30 +554,63 @@ inline uint64_t code_lobby(std::string_view text) {
 // test bstart|phase|finish|summon" (stage 5's solo probes on the frozen boss copy of a replay);
 // for the synced photo mode's solo tests "freeze
 // <seconds>" (1 to kMaxFreezeS: our pause held that long) and "freeze off"; for SB's two developer gates
-// (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for the co-op saves (save/slot.h,
+// (game/debug_keys.h, coop fly and coop slowmo) "fly on|off" and "slowmo on|off"; for SB's developer panels
+// (game/dev_panels.h, coop devinfo) "devinfo quest|player|off"; for the co-op saves (save/slot.h,
 // save/twins.h) "saves probe" (read-only lines in the log), "saves convert" (make the co-op copies), "saves coop" (make
 // them, then switch to them), "saves main" (switch back to the player's own saves) and "saves refresh <0-4>" (that
-// slot's copy replaced by a new copy of the player's save, the old one backed up first); for the shared quests
+// slot's copy replaced by a new copy of the player's save, the old one backed up first) and "saves export <0-4> <0-4>"
+// (that co-op slot's copy written over that save of the player's, the save backed up first); for the shared quests
 // (quest/engine.h's Worker) "quests on|probe|record [deny <list>]" (deny: quest_deny's aliases or IDs, separated by
 // spaces or commas, at most kMaxDeny bytes), "quests off|status|replay" and "quests force <quest ID>"; for the follow
 // (session/travel.lua) "camps? <id>" and "camps <id> <world> <alias>:<m> ..." or "camps <id> none <why>" (the camps
 // lines, relayed to the friend by link/core.h), and "travel <alias> <FName index> <FName number>" (the call on the game
 // thread, glue/tick.cpp: an index above 0, both within 32 bits); "mark" or "mark <text>" (a numbered line in both
-// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); and for coop lion (cut/lion.lua) "lion rows
-// <Table>=0x<address> ..." (the Lion's rows for SB's AddRow, glue/tick/lion_game.inc: one word for each of the
-// kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible). Lua finds the tables by their
-// fixed paths, so no console argument reaches an address, and the native part trusts none before it checked the
-// table's vtable and row size (lion/rows.h).
+// players' logs, the text chat_clean() to kMaxMark bytes, maybe empty); for coop gift (cut/mailbox.lua) "gift
+// <payload>" (a gift line for the friend, gift_ok()) and "items <ask> <alias> <FName index> <FName number>" (how many
+// of that item our EVE carries, read by the worker, game/items.h: ask 1 to 65535, answered in the engine line's items=;
+// index above 0, both within 32 bits); and for coop lion (cut/lion.lua) "lion rows
+// <Table>=0x<address> ...", for coop gardener fight (cut/gardener.lua) "gardener rows <Table>=0x<address> ...", for
+// coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt (through
+// cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (cut/mxiii.lua) "mxiii rows <Table>=0x<address>
+// ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop rows
+// <Table>=0x<address> ..."
+// (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each of the kLionTables, in any
+// order, each once, its address in 1 to 16 hex digits and plausible; Request::batch says which). Lua finds the tables
+// by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
+// the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
+// of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
+// game/anim.h's path_ok takes) and "anim stop" (ours, while it plays); for coop shortcut "shortcut list" (the cut
+// Load Shortcut menu's saves, read through the game's file manager on the game thread and named in the log,
+// save/shortcut.h) and "shortcut load <map> <1-4>" (one of them cleaned and written as co-op slot 5's copy,
+// save/shortcut_load.h; map one of kShortcutMaps; Lua sends it only with shortcut_load=on, typed twice). For the
+// Night Operation shop in SB's own shop screen (nightop/shop.lua, nightop/shop_ui.h)
+// "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
+// and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
+// nightop/roxanne.h) "roxanne on" and "roxanne off". No console argument reaches either: the words are fixed.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, lion, gate
+  remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne
 };
-// The tables the Lion's rows go into (lion/rows.h's Table, in this order), as their assets are named.
-constexpr size_t kLionTableCount = 12;
+// shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
+constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
+// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop), in
+// Request::batch's order.
+constexpr size_t kRowWordCount = 6;
+constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt", "mxiii", "shop"};
+// The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
+constexpr size_t kLionTableCount = 20;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
     "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable",
-    "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable"};
+    "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable",
+    "ItemTable",             "ItemConsumableTable",      "ProjectileTable",    "ZoneCampTable",
+    "ZoneEnvSpawnTable",     "ShopTable",                "ShopItemTable",      "ZoneTriggerTable"};
+// coop-request.txt's bytes the native part reads (glue/steam.cpp): the longest rows request, 16 digits to each of its
+// 20 addresses, and its line end fit (protocol_test).
+constexpr size_t kMaxRequestFile = 1024;
+// nightshop: what nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
+// Shop_NightOperation_CoopBolt, closed, or no call but the reads.
+enum class ShopAsk : uint8_t { open, open_bolt, close, watch };
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).
@@ -550,7 +619,7 @@ enum class PilotAsk : uint8_t { probe, on, off, status, test, target, exec, bsta
 // out of the game's manager too; its root, speed and Velocity driven from the stream too; the owner's Shows replayed
 // too (all of it, the default).
 enum class PilotTest : uint8_t { freeze, cmc, drive, replay };
-enum class SavesAsk { none, probe, convert, coop, main, refresh };
+enum class SavesAsk { none, probe, convert, coop, main, refresh, export_ };
 enum class Quests { none, on, off, status, probe, record, replay, force };
 constexpr uint64_t kMaxLoopbackMs = 1000, kMaxJitterMs = 500, kMaxFreezeS = 3600;
 constexpr size_t kMaxFightChars = 16;
@@ -563,15 +632,20 @@ struct Request {
   uint64_t lobby = 0;
   uint64_t ms = 0, jitter = 0, loss = 0; // loopback: the one-way delay, its jitter, the segment loss in %. freeze:
                                          // the seconds in ms.
-  bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off.
+  bool off = false;                      // loopback off, record off, replay off, freeze off, a gate off, anim stop.
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
+  uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
+  ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
+  bool on = false;                       // roxanne on (true) or off.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
   uint64_t player = 0;                   // allow, deny, remove: her SteamID.
   Fight fight = Fight::none;
   SavesAsk saves = SavesAsk::none; // saves: which.
-  int slot = -1;                    // saves refresh: the slot, 0 to 4.
+  int slot = -1;                    // saves refresh: the slot; saves export: the co-op slot; 0 to 4. shortcut load:
+                                    // the file, 0 to 15 (-1: list).
+  int target = -1;                  // saves export: the player's slot it goes to, 0 to 4.
   std::vector<uint32_t> chars; // fight on, probe, record, replay: the charIds shared.
   bool confirmed = false;      // fight on, probe, record, replay: guest_kills=confirmed (used by a guest's side).
   bool fought = false;         // fight on, probe, record, replay: kill_credit=fought (used by either side).
@@ -590,10 +664,15 @@ struct Request {
   uint16_t quest = 0;           // quests force: the QuestTable ID.
   std::string deny;             // quests on, probe, record: quest_deny's list, or empty.
   std::string line;             // camps: the wire line (link/protocol.h's camps_line), as the link sends it.
-  std::string alias;            // travel: the camp's alias (for the log), and its FName.
+  std::string alias;            // travel, items: the camp's or item's alias (for the log), and its FName.
   uint32_t index = 0, number = 0;
-  std::string text;             // mark: its text, or empty.
-  std::array<uint64_t, kLionTableCount> tables{}; // lion rows: the tables' addresses, in kLionTables' order.
+  uint32_t ask = 0;             // items: Lua's number for its answer.
+  std::string text;             // mark: its text, or empty. gift: the payload.
+  std::array<uint64_t, kLionTableCount> tables{}; // rows: the tables' addresses, in kLionTables' order.
+  uint8_t batch = 0;                               // rows: which batch, its word's index in kRowWords.
+  uint32_t id = 0;              // anim play: its id, its clip's path, and whether it loops.
+  std::string path;
+  bool loop = false;
 };
 // What follows "fight ": its words split on single spaces. Command::none when anything is off.
 inline Request parse_fight(const std::string &text) {
@@ -713,8 +792,8 @@ inline Request parse_quests(const std::string &text) {
   r.deny = deny;
   return r;
 }
-// What follows "lion rows ". Command::none when anything is off.
-inline Request parse_lion(const std::string &text) {
+// What follows "<word> rows ". Command::none when anything is off.
+inline Request parse_rows(const std::string &text) {
   std::string w[kLionTableCount];
   if (!split(text, w, kLionTableCount, nullptr))
     return Request();
@@ -735,7 +814,7 @@ inline Request parse_lion(const std::string &text) {
       return Request();
     r.tables[size_t(name - kLionTables)] = v;
   }
-  r.command = Command::lion;
+  r.command = Command::rows;
   return r;
 }
 inline Request parse_request(std::string text) {
@@ -745,10 +824,14 @@ inline Request parse_request(std::string text) {
     return parse_fight(text.substr(6));
   if (text.rfind("quests ", 0) == 0)
     return parse_quests(text.substr(7));
-  if (text.rfind("lion rows ", 0) == 0)
-    return parse_lion(text.substr(10));
+  for (uint8_t b = 0; b < kRowWordCount; ++b)
+    if (const std::string head = std::string(kRowWords[b]) + " rows "; text.rfind(head, 0) == 0) {
+      Request r = parse_rows(text.substr(head.size()));
+      r.batch = b;
+      return r;
+    }
   Request r;
-  std::string f[4];
+  std::string f[5];
   if (text == "host" || text == "host code" || text == "host private") {
     r.command = Command::host;
     r.who = text.size() == 4 ? Who::friends : text[5] == 'c' ? Who::code : Who::invited;
@@ -760,6 +843,15 @@ inline Request parse_request(std::string text) {
     r.command = Command::report;
   else if (text == "off")
     r.command = Command::off;
+  else if (text == "shortcut list")
+    r.command = Command::shortcut;
+  else if (split(text, f, 4, nullptr) && f[0] == "shortcut" && f[1] == "load") {
+    const auto map = std::find(std::begin(kShortcutMaps), std::end(kShortcutMaps), std::string_view(f[2]));
+    if (map != std::end(kShortcutMaps) && f[3].size() == 1 && f[3][0] >= '1' && f[3][0] <= '4') {
+      r.command = Command::shortcut;
+      r.slot = int(map - std::begin(kShortcutMaps)) * 4 + (f[3][0] - '1');
+    }
+  }
   else if (text == "mark" || text.rfind("mark ", 0) == 0) {
     r.command = Command::mark;
     r.text = chat_clean(std::string_view(text).substr(4), kMaxMark);
@@ -781,9 +873,13 @@ inline Request parse_request(std::string text) {
     r.off = text.size() > 6;
   } else if (text.rfind("saves ", 0) == 0) {
     const std::string word = text.substr(6);
-    if (word.size() == 9 && !word.compare(0, 8, "refresh ") && word[8] >= '0' && word[8] <= '4')
+    const auto digit = [&word](size_t at) { return word[at] >= '0' && word[at] <= '4'; };
+    if (word.size() == 9 && !word.compare(0, 8, "refresh ") && digit(8))
       r.slot = word[8] - '0';
-    r.saves = r.slot >= 0         ? SavesAsk::refresh
+    else if (word.size() == 10 && !word.compare(0, 7, "export ") && digit(7) && word[8] == ' ' && digit(9))
+      r.slot = word[7] - '0', r.target = word[9] - '0';
+    r.saves = r.target >= 0       ? SavesAsk::export_
+              : r.slot >= 0       ? SavesAsk::refresh
               : word == "probe"   ? SavesAsk::probe
               : word == "convert" ? SavesAsk::convert
               : word == "coop"    ? SavesAsk::coop
@@ -800,13 +896,42 @@ inline Request parse_request(std::string text) {
                                               number(f[3], number_) && number_ <= UINT32_MAX) {
     r.command = Command::travel, r.alias = f[1];
     r.index = static_cast<uint32_t>(index), r.number = static_cast<uint32_t>(number_);
+  } else if (text == "anim stop" || text.rfind("anim play ", 0) == 0) {
+    std::string w[5];
+    uint64_t id = 0;
+    if (text.size() == 9)
+      r.command = Command::anim, r.off = true;
+    else if (split(text, w, 5, nullptr) && number(w[2], id) && id && id <= UINT32_MAX && anim::path_ok(w[3]) &&
+             (w[4] == "once" || w[4] == "loop"))
+      r.command = Command::anim, r.id = static_cast<uint32_t>(id), r.path = w[3], r.loop = w[4] == "loop";
+  } else if (text.rfind("gift ", 0) == 0 && gift_ok(text.substr(5))) {
+    r.command = Command::gift, r.text = text.substr(5);
+  } else if (uint64_t ask = 0, index = 0, number_ = 0;
+             split(text, f, 5, nullptr) && f[0] == "items" && number(f[1], ask) && ask && ask <= 65535 &&
+             alias_word(f[2]) && number(f[3], index) && index && index <= UINT32_MAX && number(f[4], number_) &&
+             number_ <= UINT32_MAX) {
+    r.command = Command::items, r.alias = f[2], r.ask = static_cast<uint32_t>(ask);
+    r.index = static_cast<uint32_t>(index), r.number = static_cast<uint32_t>(number_);
   } else if (text == "nightop" || text == "nightop rule") {
     r.command = Command::nightop;
     r.rule = text.size() > 7;
+  } else if (text == "nightshop open" || text == "nightshop open bolt" || text == "nightshop close" ||
+             text == "nightshop watch") {
+    r.command = Command::nightshop;
+    r.shop = text.size() == 19 ? ShopAsk::open_bolt
+             : text[10] == 'o' ? ShopAsk::open
+             : text[10] == 'c' ? ShopAsk::close
+                               : ShopAsk::watch;
+  } else if (text == "roxanne on" || text == "roxanne off") {
+    r.command = Command::roxanne;
+    r.on = text.size() == 10;
   } else if (text == "fly on" || text == "fly off" || text == "slowmo on" || text == "slowmo off") {
     r.command = Command::gate;
     r.gate = text[0] == 's' ? 1 : 0;
     r.off = text.back() == 'f';
+  } else if (text == "devinfo quest" || text == "devinfo player" || text == "devinfo off") {
+    r.command = Command::devinfo;
+    r.panel = text[8] == 'q' ? 1 : text[8] == 'p' ? 2 : 0;
   } else if (text == "loopback off" || text == "freeze off") {
     r.command = text[0] == 'l' ? Command::loopback : Command::freeze;
     r.off = true;

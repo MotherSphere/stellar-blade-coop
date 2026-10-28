@@ -1,6 +1,6 @@
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // The shared fight's worker side: the gates, same-place enemies' asks and pass, the spawn filter's hook and fight_pass;
-// and the Lion's ask and log (lion/rows.h), whose game-thread calls share the take-over's gate.
+// and the rows' asks and log (lion/rows.h's batches), whose game-thread calls share the take-over's gate.
 
 namespace coop::pose {
 
@@ -400,10 +400,10 @@ std::string slot_value(uint64_t value) {
     std::snprintf(text, sizeof text, "0x%llx outside the game", static_cast<unsigned long long>(value));
   return text;
 }
-// The slot's compare-and-swap from from to to, its page writable for the store only: what the slot held (from when
-// the swap was made), or false when the page's protection would not change.
-bool swap_slot(uint64_t from, uint64_t to, uint64_t &held) {
-  void *const slot = reinterpret_cast<void *>(base + (kSpawnSlot - game::kImageBase));
+// The compare-and-swap of a slot (its address as the decompiles name it) from from to to, its page writable for the
+// store only: what the slot held (from when the swap was made), or false when the page's protection would not change.
+bool swap_slot(uint64_t at, uint64_t from, uint64_t to, uint64_t &held) {
+  void *const slot = reinterpret_cast<void *>(base + (at - game::kImageBase));
   DWORD old = 0;
   if (!VirtualProtect(slot, sizeof(uint64_t), PAGE_READWRITE, &old))
     return false;
@@ -420,7 +420,7 @@ uint64_t hook_address() { return reinterpret_cast<uintptr_t>(&filter_execute); }
 void filter_install() {
   const uint64_t execute = execute_address();
   uint64_t held = *reinterpret_cast<const volatile uint64_t *>(base + (kSpawnSlot - game::kImageBase));
-  const bool slot_ok = held == execute, page_ok = slot_ok && swap_slot(execute, hook_address(), held);
+  const bool slot_ok = held == execute, page_ok = slot_ok && swap_slot(kSpawnSlot, execute, hook_address(), held);
   const bool on = page_ok && held == execute;
   filter_state = on ? Filter::on : Filter::refused;
   fight_engine.blocks().installed = on;
@@ -442,7 +442,7 @@ void filter_undo(const char *why) {
   filter_state = Filter::off;
   fight_engine.blocks().installed = false;
   uint64_t held = 0;
-  if (!swap_slot(hook_address(), execute_address(), held))
+  if (!swap_slot(kSpawnSlot, hook_address(), execute_address(), held))
     say(std::string("spawn filter off (") + why + "): the page of " + kSlotName +
         " would not become writable; our filter stays in it and passes every spawn on");
   else if (held == hook_address())
@@ -491,55 +491,81 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's rows (Lua's lion rows request): the 12 tables' addresses for the game thread, which adds the rows at the
-// first frame its gate holds. An ask it has not taken yet is replaced. Refused off the pinned build, after coop off and
-// after the Lion's fault; once every row is in, nothing more is asked (the rows stay for the game run).
-std::string ask_lion(const coop::Request &request) {
+// coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's, coop mxiii's and the Night
+// Operation shop's rows (Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows and shop rows requests):
+// the 20 tables' addresses for the game thread, which adds that batch's rows at the first frame its gate holds. An ask
+// it has not taken yet is replaced. Refused off the pinned build, after coop off and after the rows' fault; once every
+// row of a batch is in, nothing more is asked of it (the rows stay for the game run).
+std::string ask_rows(const coop::Request &request) {
+  RowsJob &j = *kJobs[request.batch < kRowWordCount ? request.batch : 0];
+  const std::string word = j.batch.word, n = std::to_string(j.batch.count);
   if (!game_pinned || blocked || lion_faulted)
-    return "lion rows refused: " + (blocked        ? std::string("coop off")
-                                    : lion_faulted ? std::string("the Lion's rows stopped for this run (a fault)")
-                                                   : engine_reason);
+    return word + " rows refused: " +
+           (blocked        ? std::string("coop off")
+            : lion_faulted ? std::string("the rows stopped for this run (a fault)")
+                           : engine_reason);
   uint32_t asks = 0;
-  if (lion::unpack(lion_word, asks).state == lion::State::rows)
-    return "lion rows already in: " + std::to_string(lion::kRows) + "/" + std::to_string(lion::kRows) +
-           ", not added again";
+  if (lion::unpack(j.word, asks).state == lion::State::rows)
+    return word + " rows already in: " + n + "/" + n + ", not added again";
   {
-    std::lock_guard<std::mutex> lock(lion_m);
-    ++lion_asked;
-    std::copy(request.tables.begin(), request.tables.end(), lion_ask_tables);
+    std::lock_guard<std::mutex> lock(j.m);
+    ++j.asked;
+    std::copy(request.tables.begin(), request.tables.end(), j.ask_tables);
   }
-  return "lion rows asked: the game thread adds " + std::to_string(lion::kRows) +
+  return word + " rows asked: the game thread adds " + n +
          " rows through SB's AddRow at the first frame with net mode 0 and no logic task in flight (at most " +
          std::to_string(lion::kGateTicks) + " frames)";
 }
 
 namespace {
-// Each worker pass: one line for each answer the game thread finished (the R2 line, and with every row in the R3 line
-// of SB's own lookups), and the Lion's fault once.
-uint32_t lion_logged = 0;
-bool lion_fault_logged = false;
+// Each worker pass: one line for each answer the game thread finished for a batch (the R2 line, and with every row
+// in the R3 line of SB's own lookups), and the rows' fault once, by the batch that ran into it or first answered it;
+// the Shock Bolt's line once, after the bolt rows' (its fault with where it was).
+void nightop_pass(); // nightop_worker.inc's, after this part.
+uint32_t rows_logged[kRowWordCount] = {};
+bool lion_fault_logged = false, shock_logged = false;
 void lion_pass() {
+  nightop_pass(); // The Night Operation shop screen's and Roxanne's answers too.
+  for (size_t k = 0; k < kRowWordCount; ++k) {
+    const RowsJob &j = *kJobs[k];
+    uint32_t asks = 0;
+    const lion::Answer a = lion::unpack(j.word, asks);
+    if (asks == rows_logged[k])
+      continue;
+    rows_logged[k] = asks;
+    if (a.state == lion::State::fault) {
+      if (std::exchange(lion_fault_logged, true))
+        continue;
+      char text[300];
+      std::snprintf(text, sizeof text,
+                    "%s rows off: fault 0x%08llx in %s reading 0x%llx after %u of %u rows; no rows of any batch until "
+                    "the game restarts",
+                    j.batch.word, static_cast<unsigned long long>(lion_fault_code.load()),
+                    fault_where(lion_fault_rva).c_str(), static_cast<unsigned long long>(lion_fault_address.load()),
+                    unsigned(a.added), unsigned(j.batch.count));
+      say(text);
+      continue;
+    }
+    say(lion::describe(j.batch, a));
+    if (a.state == lion::State::rows) {
+      const uint32_t r = j.read;
+      say(lion::describe_read(j.batch, {uint8_t(r), uint8_t(r >> 8), uint8_t(r >> 16)}));
+    }
+  }
   uint32_t asks = 0;
-  const lion::Answer a = lion::unpack(lion_word, asks);
-  if (asks == lion_logged)
-    return;
-  lion_logged = asks;
-  if (a.state == lion::State::fault && !lion_fault_logged) {
-    lion_fault_logged = true;
+  const uint64_t w = shock_word; // Published before the bolt line said rows.
+  if (w && lion::unpack(bolt_job.word, asks).state == lion::State::rows && !std::exchange(shock_logged, true)) {
+    if (!shock_faulted) {
+      say(lion::describe_shock(w));
+      return;
+    }
     char text[300];
     std::snprintf(text, sizeof text,
-                  "lion rows off: fault 0x%08llx in %s reading 0x%llx after %u of %u rows; no Lion rows until the "
-                  "game restarts",
-                  static_cast<unsigned long long>(lion_fault_code.load()), fault_where(lion_fault_rva).c_str(),
-                  static_cast<unsigned long long>(lion_fault_address.load()), unsigned(a.added),
-                  unsigned(lion::kRows));
+                  "shock bolt off: fault 0x%08llx in %s reading 0x%llx; the rows stay, no Shock Bolt until the game "
+                  "restarts",
+                  static_cast<unsigned long long>(shock_fault_code.load()), fault_where(shock_fault_rva).c_str(),
+                  static_cast<unsigned long long>(shock_fault_address.load()));
     say(text);
-    return;
-  }
-  say(lion::describe(a));
-  if (a.state == lion::State::rows) {
-    const uint32_t r = lion_read;
-    say(lion::describe_read({uint8_t(r), uint8_t(r >> 8), uint8_t(r >> 16)}));
   }
 }
 } // namespace
@@ -547,7 +573,7 @@ void lion_pass() {
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
                 bool (*send)(const std::string &, bool), coop::Life mate) {
   fight_send = send;
-  lion_pass(); // The Lion's answers, logged here at every pass whatever the fight does.
+  lion_pass(); // The rows' answers, logged here at every pass whatever the fight does.
   if (fight_faulted && !fight_fault_logged) {
     fight_fault_logged = true;
     char text[400];
@@ -563,14 +589,16 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     say(text);
   }
   FightIo io;
-  // Our photo mode pauses it (pinned build). Two or three reads, so every kGateMs, not at every 5 ms pass: SB's logic
-  // stands still meanwhile anyway.
-  static bool photo = false;
+  // Our photo mode and a paused world pause it (pinned build; a pause tag once our job stands still). A few reads, so
+  // every kGateMs, not at every 5 ms pass.
+  static bool photo = false, paused = false;
   static uint64_t next_photo = 0;
-  if (now_ms >= next_photo)
+  if (now_ms >= next_photo) {
     next_photo = now_ms + fight::kGateMs, photo = pinned && !blocked && fight::photo_mode(base, rpm);
+    paused = pinned && !blocked && fight::world_paused(base, rpm);
+  }
   fight_worker.pass(now_ms, linked, hosting, lua.world, lines, [marker] { return fight_gate(marker); }, io, photo,
-                    mate);
+                    mate, paused);
   filter_pass();
   pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();

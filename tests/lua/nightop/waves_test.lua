@@ -1,6 +1,10 @@
 -- The Night Operation run without the game: the monster pool and the wave schedule, the wave keys, the run byte, the
--- seeded gate order and the gate spots, the timer list, the score and the run's states over a fake clock. Then a run
--- read from another definition: waves that wait for a clear, its own limit, heals and bonus, and its own spots.
+-- seeded gate order and the gate spots, a spot settled on a fake navmesh, the bodies paired with slots by place, the
+-- timer list, the score and the run's states over a fake clock. Then a run read from another definition: waves that
+-- wait for a clear, its own limit, heals and bonus, and its own spots. Then Night Operation's four levels: their waves,
+-- limits, points percents, self revives and highest scores, a hard run and a nightmare wave held by the cap. A co-op
+-- down: both lines carry each side's down time left and its revive of the other, and the host's run ends as failed
+-- (both) only while both are down.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 
@@ -105,6 +109,77 @@ local further,yaw=W.spot(P0,90,{3,1,2,4},4)
 near(math.sqrt((further.X-gate.X)^2+(further.Y-gate.Y)^2),250,'Slot 4: 2.5 m from the gate of slot 0')
 near(turn(yaw-math.deg(math.atan(P0.Y-further.Y,P0.X-further.X))),0,'Faces P0')
 near(turn(bearing(gate)-(90+140)),0,'Order {3,...}: slot 0 at gate 3')
+
+-- A spot settled on a fake navmesh (W.settle): floor(x,y) is the floor's Z there (nil: none), found within 5 m up or
+-- down of the point asked, or 15 m in the tall box; wall is the metres from the start at which the walk towards the
+-- spot stops (nil: none). EVE stands 90 cm over the floor at P0.
+local function fake_nav(floor,wall)
+    return {project=function(p,tall)
+            local z=floor(p.X,p.Y)
+            return z and math.abs(z-p.Z)<=(tall and 1500 or 500) and {X=p.X,Y=p.Y,Z=z} or nil
+        end,
+        ray=function(a,b)
+            local d=math.sqrt((b.X-a.X)^2+(b.Y-a.Y)^2)
+            if not wall or d<=wall*100 then return false,{X=b.X,Y=b.Y,Z=b.Z} end
+            local f=wall*100/d
+            return true,{X=a.X+(b.X-a.X)*f,Y=a.Y+(b.Y-a.Y)*f,Z=a.Z}
+        end}
+end
+local function flat() return P0.Z-90 end
+local function out(p) return math.sqrt((p.X-P0.X)^2+(p.Y-P0.Y)^2) end
+local spot=W.spot(P0,90,order,0)
+local at=assert(W.settle(P0,spot,fake_nav(flat)))
+assert(at.X==spot.X and at.Y==spot.Y and at.Z==spot.Z,'Flat open floor: the spot itself')
+-- A floor 3 m higher at the spot: the point stands 3 m higher too; 8 m higher (a slope), found in the tall box.
+at=assert(W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<500 and P0.Z-90 or P0.Z+210 end)))
+assert(at.X==spot.X and at.Y==spot.Y and at.Z==P0.Z+400,'Higher floor: '..at.Z)
+at=assert(W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<500 and P0.Z-90 or P0.Z+710 end)))
+assert(at.X==spot.X and at.Y==spot.Y and at.Z==P0.Z+900,'A slope: '..at.Z)
+-- A wall 9 m out on the gate's bearing: the point comes back to 7.5 m on the same bearing.
+at=assert(W.settle(P0,spot,fake_nav(flat,9)))
+near(out(at),750,'1.5 m back from the wall')
+near(turn(bearing(at)-bearing(spot)),0,'On the same bearing')
+assert(at.Z==P0.Z+100,'On the same floor')
+-- A wall at 6.5 m leaves 5 m: kept; at 6.4 m: dropped, with the point it would have had (4.9 m out); so too
+-- (2.1 m out at 3.6 m); at 3.4 m, dropped with none, as when the navmesh has no floor at that point.
+near(out(assert(W.settle(P0,spot,fake_nav(flat,6.5)))),500,'5 m kept')
+local none,why,short=W.settle(P0,spot,fake_nav(flat,6.4))
+assert(none==nil and why=='blocked',tostring(why))
+near(out(short),490,'The point it would have had')
+near(turn(bearing(short)-bearing(spot)),0,'On the same bearing')
+assert(short.Z==P0.Z+100,'On the same floor')
+near(out(select(3,W.settle(P0,spot,fake_nav(flat,3.6)))),210,'2.1 m out')
+none,why,short=W.settle(P0,spot,fake_nav(flat,3.4))
+assert(none==nil and why=='blocked' and short==nil,tostring(short))
+none,why,short=W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<200 and P0.Z-90 or nil end,4))
+assert(none==nil and why=='blocked' and short==nil,tostring(short))
+none,why=W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<500 and P0.Z-90 or nil end))
+assert(none==nil and why=='no floor',tostring(why))
+none,why=W.settle(P0,spot,fake_nav(function() return nil end))
+assert(none==nil and why=='no navmesh under the start',tostring(why))
+
+-- Bodies to slots by place: nearest pairs first on the ground (height ignored), within the radius, one body a slot;
+-- ties in slot, then body order; a body too far, or left over, pairs with nothing.
+local function pt(x,y,z) return {at={X=x,Y=y,Z=z or 0}} end
+local function paired(out)
+    local t={}
+    for _,p in ipairs(out) do t[#t+1]=p.slot..'='..p.body end
+    return table.concat(t,' ')
+end
+local slots={pt(0,0),pt(250,0),pt(5000,0)} -- Two at one gate, 2.5 m apart, one far off.
+-- Body 1 fell 30 m but stands over slot 2; body 2 stands 1 m from slot 1; body 3 is 6 m from slot 3; body 4 stands
+-- 1.2 m from slot 1 and 1.3 m from slot 2, both taken by nearer bodies: left over.
+local out=W.match(slots,{pt(250,0,-3000),pt(100,0),pt(5600,0),pt(120,0)},500)
+assert(paired(out)=='2=1 1=2','Nearest first: '..paired(out))
+near(out[1].d,0,'On its spot')
+near(out[2].d,100,'1 m')
+-- Without body 2, body 4 takes slot 1, the nearer of the two left.
+assert(paired(W.match(slots,{pt(250,0,-3000),pt(120,0)},500))=='2=1 1=2','The next nearest')
+assert(#W.match(slots,{pt(5600,0)},500)==0,'6 m off: no pair')
+assert(paired(W.match(slots,{pt(5600,0)},600))=='3=1','On the radius: a pair')
+-- A tie: two slots on one spot, two bodies on it: slot order, then body order.
+assert(paired(W.match({pt(0,0),pt(0,0)},{pt(0,0),pt(0,0)},100))=='1=1 2=2','Ties in order')
+assert(#W.match({},{pt(0,0)},100)==0 and #W.match({pt(0,0)},{},100)==0,'Nothing to pair')
 
 -- The timer list: every entry due in a tick runs, in due order (ties in the order added); an entry added while the
 -- list drains runs on a later tick; nothing runs while the clock stands still.
@@ -265,7 +340,8 @@ at(s,2400,{abort='map'})
 assert(said(W.step(s,{},5))=='idle' and s.phase=='idle')
 
 
--- Masks: one bit per key of the schedule, (wave-1)*8+slot, as hex; another run's key or a slot past its wave is no bit.
+-- Masks: one bit per key a level's waves hold, (wave-1)*8+slot, as hex; another run's key, or a slot past every
+-- level's wave, is no bit. Nightmare's waves hold 8 each, so every slot under the cap of the five waves has its bit.
 local function set(list) local out={} for _,k in ipairs(list) do out[k]=true end return out end
 local function same(a,b)
     for k in pairs(a) do if not b[k] then return false end end
@@ -278,28 +354,32 @@ local every={}
 for k=1,5 do for slot=0,size(k)-1 do every[W.key(RUN,k,slot)]=true end end
 assert(#W.mask(every,RUN)<=10 and same(W.unmask(W.mask(every,RUN),RUN),every),'Round trip of a full run')
 assert(same(W.unmask('0',RUN),{}) and same(W.unmask('201',RUN),set({W.key(RUN,1,0),W.key(RUN,2,1)})))
-for _,bad in ipairs({'','-1','1g','F','0x1',' 1','10000000000',string.format('%x',1<<4),string.format('%x',1<<40),
-        string.format('%x',1<<39)}) do -- Slot 4 of wave 1 and slot 7 of wave 5 are no body.
+for _,bad in ipairs({'','-1','1g','F','0x1',' 1','10000000000',string.format('%x',1<<40)}) do -- No wave 6.
     assert(W.unmask(bad,RUN)==nil,'Refused mask: '..bad)
 end
+local filled={}
+for k=1,5 do for slot=0,7 do filled[W.key(RUN,k,slot)]=true end end
+assert(W.mask(filled,RUN)=='ffffffffff' and same(W.unmask('ffffffffff',RUN),filled),'Nightmare: every slot')
+assert(W.mask(set({W.key(RUN,6,0)}),RUN)=='0','Wave 6 is no bit')
 
 -- The host's line: every field round-trips; every field out of range, a word too many or too few, a double space,
 -- refuses the whole line.
 local every255={}
 for key in pairs(every) do every255[key&0xFF00FFFF|255<<16]=true end
-local host={n=65535,run=255,seed=4294967295,phase='end',wave=5,rt=-10000,score=W.MAX_SCORE,kills=40,clears=5,
+local NIGHTMARE=W.LEVEL.nightmare
+local host={n=65535,run=255,seed=4294967295,phase='end',wave=5,rt=-10000,score=W.most(NIGHTMARE),kills=40,clears=5,
     found=every255,x=-2147483648,y=2147483647,z=0,yaw=-180,map='/game/art/bg/worldmap/level_p/f02-a',outcome='aborted',
-    reason='lost'}
+    reason='lost',level='nightmare',down=W.DOWN,help=100}
 local text=W.encode_host(host)
-assert(text:sub(1,2)=='h ' and #text<=300 and W.MAX_SCORE==1060,text)
+assert(text:sub(1,2)=='h ' and #text<=300 and W.most(W.NIGHT)==1060 and W.most(NIGHTMARE)==1620,text)
 local back=W.decode_host(text)
 for k,v in pairs(host) do
     if k=='found' then assert(same(back.found,every255)) else assert(back[k]==v,k..': '..tostring(back[k])) end
 end
 local base={n=0,run=1,seed=0,phase='wave',wave=1,rt=600000,score=0,kills=0,clears=0,found={},x=1,y=2,z=3,yaw=360,
-    map='/m'}
+    map='/m',level='normal',down=0,help=0}
 assert(W.decode_host(W.encode_host(base)).outcome==nil)
-for _,ending in ipairs({'success','time','failed:host','failed:guest','aborted:stop','aborted:map','aborted:left',
+for _,ending in ipairs({'success','time','failed:host','failed:guest','failed:both','aborted:stop','aborted:map','aborted:left',
         'aborted:slot','aborted:error','aborted:lost','aborted:mate'}) do
     local h={}
     for k,v in pairs(base) do h[k]=v end
@@ -314,38 +394,60 @@ local function host_with(field,value)
     return table.concat(words,' ')
 end
 for _,bad in ipairs({{2,'65536'},{2,'-1'},{2,'1.5'},{3,'0'},{3,'256'},{4,'4294967296'},{4,'-1'},{5,'count2'},
-        {5,'idle'},{6,'6'},{6,'-1'},{7,'600001'},{7,'-10001'},{8,'1061'},{9,'41'},{10,'6'},{11,'10'},{11,'x'},
+        {5,'idle'},{6,'6'},{6,'-1'},{7,'600001'},{7,'-10001'},{8,'1061'},{9,'41'},{10,'6'},{11,'10000000000'},{11,'x'},
         {12,'2147483648'},{13,'-2147483649'},{14,'1e3'},{15,'361'},{15,'-361'},{16,'game'},{16,'/Game'},
-        {16,'/'..('a'):rep(128)},{16,'/a b'},{17,'success'},{17,'aborted:link'},{1,'g'}}) do
+        {16,'/'..('a'):rep(128)},{16,'/a b'},{17,'success'},{17,'aborted:link'},{1,'g'},{18,'night'},{18,'Hard'},
+        {18,'-'},{19,'-1'},{19,tostring(W.DOWN+1)},{19,'x'},{20,'-1'},{20,'101'},{20,'50.5'}}) do
     assert(W.decode_host(host_with(bad[1],bad[2]))==nil,'Refused: field '..bad[1]..' = '..bad[2])
 end
+-- The score's bound is the line's level's: 1061 is past normal's, within hard's, and hard's own bound refuses one more.
+local hard=W.encode_host(base):gsub(' normal 0 0$',' hard 0 0')
+assert(W.decode_host(hard).level=='hard' and W.decode_host((hard:gsub(' 600000 0 ',' 600000 1061 '))).score==1061)
+assert(W.decode_host((hard:gsub(' 600000 0 ',string.format(' 600000 %d ',W.most(W.LEVEL.hard)+1))))==nil)
 local ended=W.encode_host(host)
-for _,bad in ipairs({ended:gsub(' aborted:lost$',' -'),ended:gsub(' aborted:lost$',' aborted:dance'),
-        ended:gsub(' aborted:lost$',' failed:both'),ended:gsub(' aborted:lost$',' success:'),
-        ended:gsub(' aborted:lost$',' time:host'),ended:gsub(' aborted:lost$',' aborted'),ended..' x',
+for _,bad in ipairs({ended:gsub(' aborted:lost ',' - '),ended:gsub(' aborted:lost ',' aborted:dance '),
+        ended:gsub(' aborted:lost ',' failed:dance '),ended:gsub(' aborted:lost ',' success: '),
+        ended:gsub(' aborted:lost ',' time:host '),ended:gsub(' aborted:lost ',' aborted '),ended..' x',
         ended:gsub(' %S+$',''),ended:gsub(' ','  ',1),ended..' ',' '..ended}) do
     assert(W.decode_host(bad)==nil,'Refused: '..bad)
 end
 assert(W.decode_host(nil)==nil and W.decode_host('')==nil)
+-- Other words: decode_host's words name the definitions it takes (W.LEVEL when none). A three-wave definition under
+-- its id: refused without it, taken with it, its own W.most bounds the score and its waves bound wave and clears; a
+-- level word not in the words is refused too.
+local three={id='three',waves={{at=0,ids={40010,40010,40010}},{ids={40010}},{ids={40010}}},limit=120,bonus=10}
+local words={three=three}
+local t3=W.encode_host(base):gsub(' normal 0 0$',' three 0 0')
+assert(W.decode_host(t3)==nil and W.decode_host(W.encode_host(base),words)==nil,'Another set of words')
+assert(W.decode_host(t3,words).level=='three' and W.most(three)==1400)
+assert(W.decode_host((t3:gsub(' 600000 0 ',' 600000 1400 ')),words).score==1400)
+assert(W.decode_host((t3:gsub(' 600000 0 ',' 600000 1401 ')),words)==nil)
+assert(W.decode_host((t3:gsub('^h 0 1 0 wave 1 ','h 0 1 0 wave 3 ')),words).wave==3)
+local past={(t3:gsub('^h 0 1 0 wave 1 ','h 0 1 0 wave 4 ')),(t3:gsub(' 0 0 0 0 1 2 3 ',' 0 0 4 0 1 2 3 '))}
+for _,bad in ipairs(past) do
+    assert(W.decode_host(bad,words)==nil,'Past its waves: '..bad)
+end
 
 -- The guest's line: each state with its word; a refusal word only with refuse, an abort reason only with abort.
-local mate={n=7,run=RUN,state='run',up=40,killed=set({W.key(RUN,1,0)}),done=every}
+local mate={n=7,run=RUN,state='run',up=40,killed=set({W.key(RUN,1,0)}),done=every,down=W.DOWN,help=100}
 text=W.encode_mate(mate)
-assert(text==string.format('g 7 %d run 40 1 %s -',RUN,W.mask(every,RUN)),text)
+assert(text==string.format('g 7 %d run 40 1 %s - %d 100',RUN,W.mask(every,RUN),W.DOWN),text)
 back=W.decode_mate(text)
 assert(back.n==7 and back.run==RUN and back.state=='run' and back.up==40 and back.why==nil)
-assert(same(back.killed,mate.killed) and same(back.done,every))
+assert(back.down==W.DOWN and back.help==100 and same(back.killed,mate.killed) and same(back.done,every))
 for _,case in ipairs({{'ready'},{'dead'},{'refuse','far'},{'refuse','map'},{'refuse','slot'},{'refuse','busy'},
         {'refuse','near'},{'refuse','taken'},{'abort','stop'},{'abort','map'},{'abort','left'},{'abort','slot'},
         {'abort','error'},{'abort','lost'}}) do
-    local d=W.decode_mate(W.encode_mate({n=1,run=2,state=case[1],up=0,killed={},done={},why=case[2]}))
-    assert(d and d.state==case[1] and d.why==case[2],case[1])
+    local d=W.decode_mate(W.encode_mate({n=1,run=2,state=case[1],up=0,killed={},done={},why=case[2],down=0,help=0}))
+    assert(d and d.state==case[1] and d.why==case[2] and d.down==0 and d.help==0,case[1])
 end
-for _,bad in ipairs({'g 65536 1 run 0 0 0 -','g 1 0 run 0 0 0 -','g 1 256 run 0 0 0 -','g 1 1 walk 0 0 0 -',
-        'g 1 1 run 41 0 0 -','g 1 1 run -1 0 0 -','g 1 1 run 0 10 0 -','g 1 1 run 0 0 x -','g 1 1 run 0 0 0 far',
-        'g 1 1 refuse 0 0 0 -','g 1 1 refuse 0 0 0 stop','g 1 1 abort 0 0 0 far','g 1 1 abort 0 0 0 mate',
-        'g 1 1 ready 0 0 0 -  ','g 1 1 ready 0 0 0','g 1 1 ready 0 0 0 - x','h 1 1 ready 0 0 0 -',
-        'g 1  1 ready 0 0 0 -'}) do
+for _,bad in ipairs({'g 65536 1 run 0 0 0 - 0 0','g 1 0 run 0 0 0 - 0 0','g 1 256 run 0 0 0 - 0 0',
+        'g 1 1 walk 0 0 0 - 0 0','g 1 1 run 41 0 0 - 0 0','g 1 1 run -1 0 0 - 0 0','g 1 1 run 0 10000000000 0 - 0 0',
+        'g 1 1 run 0 0 x - 0 0','g 1 1 run 0 0 0 far 0 0','g 1 1 refuse 0 0 0 - 0 0','g 1 1 refuse 0 0 0 stop 0 0',
+        'g 1 1 abort 0 0 0 far 0 0','g 1 1 abort 0 0 0 mate 0 0','g 1 1 ready 0 0 0 - 0 0  ','g 1 1 ready 0 0 0 - 0',
+        'g 1 1 ready 0 0 0 - 0 0 x','h 1 1 ready 0 0 0 - 0 0','g 1  1 ready 0 0 0 - 0 0','g 1 1 run 0 0 0 -',
+        'g 1 1 run 0 0 0 - 31 0','g 1 1 run 0 0 0 - -1 0','g 1 1 run 0 0 0 - 0 101','g 1 1 run 0 0 0 - 0 -1',
+        'g 1 1 run 0 0 0 - 0 x'}) do
     assert(W.decode_mate(bad)==nil,'Refused: '..bad)
 end
 
@@ -386,6 +488,14 @@ assert(at(s,3,{dead=true,mate=her('run')})=='end failed host' and s.reason=='hos
 s=start()
 at(s,0,{mate=her('ready')})
 assert(at(s,3,{abort='stop',mate=her('dead')})=='end failed guest','Her death before his abort')
+-- Both down: his down while her line says she is down ends it as failed (both); either down alone ends nothing, and
+-- her line at down 0 (up again) does not either.
+local function down_her(left) local m=her('run'); m.down=left; return m end
+s=start()
+at(s,0,{mate=her('ready')})
+assert(at(s,3,{mate=down_her(30)})=='' and s.phase=='wave','Her down alone')
+assert(at(s,4,{down=true,mate=down_her(0)})=='' and s.phase=='wave','His down alone')
+assert(at(s,5,{down=true,mate=down_her(12)})=='end failed both' and s.outcome=='failed' and s.reason=='both')
 -- Success once both worlds are done, with the time bonus as solo.
 s=start()
 at(s,0,{mate=her('ready')})
@@ -403,7 +513,7 @@ assert(s.phase=='result' and s.outcome=='success' and s.score==580+399 and s.tim
 -- his clear; the end is his outcome, with his time and score. Her own bodies are kept for her line, never scored here.
 local function line(n,phase,wave,rt,extra)
     local h={n=n,run=RUN,seed=0x12345678,phase=phase,wave=wave,rt=rt,score=0,kills=0,clears=0,found={},x=0,y=0,z=0,
-        yaw=0,map='/m'}
+        yaw=0,map='/m',level='normal'}
     for k,v in pairs(extra or {}) do h[k]=v end
     return h
 end
@@ -432,7 +542,8 @@ assert(follow(g,nil,318.5)=='idle' and g.phase=='idle')
 -- His end words as she reads them: his own abort is her partner leaving, a lost link stays lost; a success keeps his
 -- score (its bonus in it) and time.
 for want,ending in pairs({['end aborted mate']={'aborted','stop'},['end aborted lost']={'aborted','lost'},
-        ['end success']={'success'},['end time']={'time'},['end failed guest']={'failed','guest'}}) do
+        ['end success']={'success'},['end time']={'time'},['end failed guest']={'failed','guest'},
+        ['end failed both']={'failed','both'}}) do
     g=start()
     follow(g,line(1,'count',0,-5000),100)
     assert(follow(g,line(2,'end',0,30000,{score=659,outcome=ending[1],reason=ending[2]}),131)==want,want)
@@ -510,7 +621,7 @@ end
 assert(s.kills==8 and s.clears==8 and s.score==80+math.floor(600-15))
 
 -- Spots: slot s of a wave stands on spot order[s+1], at the start yaw plus its degrees and its metres from P0, 1 m
--- above P0, facing P0; each wave draws its own order of all the spots.
+-- above P0, facing P0; each wave draws its own order of all the spots. Slot s+8 stands 2.5 m from slot s.
 local SPOTS={id='spots',waves={{at=0,ids={40010}},{ids={40010}},{ids={40010}}},limit=90,breather=3,heals={},
     bonus=10,aggro=false,moves=0,spots={{-45,12},{45,12},{-25,18},{25,18},{0,22},{-40,26},{40,26},{0,32}}}
 local drawn=W.orders(0x12345678,SPOTS)
@@ -531,11 +642,64 @@ for _,o in ipairs(drawn) do
         near(pos.Z,P0.Z+100,'1 m up')
         near(turn(bearing(pos)-(90+spot[1])),0,'Its degrees from the start yaw')
         near(turn(face-bearing(pos)-180),0,'Faces P0')
+        -- Past the last spot (a slot run.lua moved): 2.5 m from the spot, as a gate's spread.
+        local beside=W.spot(P0,90,o,slot+8,SPOTS)
+        near(math.sqrt((beside.X-pos.X)^2+(beside.Y-pos.Y)^2),250,'2.5 m from its spot')
     end
 end
 -- Without spots the definition keeps the gates.
 local g1,y1=W.spot(P0,90,{3,1,2,4},0,DEF)
 local g2,y2=W.spot(P0,90,{3,1,2,4},0)
 assert(g1.X==g2.X and g1.Y==g2.Y and g1.Z==g2.Z and y1==y2)
+
+-- Night Operation's levels: easy, normal (W.NIGHT itself), hard and nightmare, each with its own id, limit, points
+-- percent and wave sizes; a wave keeps the schedule's rows and repeats them from its first, or drops its last ones;
+-- every other rule is normal's.
+local words={}
+for i,def in ipairs(W.LEVELS) do words[i]=def.level; assert(W.LEVEL[def.level]==def) end
+assert(table.concat(words,' ')=='easy normal hard nightmare' and W.LEVEL.normal==W.NIGHT and W.NIGHT.pct==100)
+local SW,GU,BO,LU,SP,HA=50173,50193,50440,50450,50183,50161
+for word,want in pairs({easy={'night_easy',540,50,'3 2 4 3 3',1030},normal={'night',480,100,'4 3 5 4 4',1060},
+        hard={'night_hard',450,150,'6 5 7 6 6',1390},nightmare={'night_nightmare',420,200,'8 8 8 8 8',1620}}) do
+    local def=W.LEVEL[word]
+    local sizes={}
+    for k,wave in ipairs(def.waves) do
+        sizes[k]=#wave.ids
+        assert(wave.at==W.SCHEDULE[k].at and #wave.ids<=W.CAP,word..' wave '..k)
+        for slot,id in ipairs(wave.ids) do
+            local ids=W.SCHEDULE[k].ids
+            assert(id==ids[(slot-1)%#ids+1],word..': the wave\'s own rows, in turn')
+        end
+    end
+    assert(def.id==want[1] and def.limit==want[2] and def.pct==want[3] and table.concat(sizes,' ')==want[4],word)
+    assert(W.most(def)==want[5],word..': '..W.most(def))
+    for _,k in ipairs({'breather','heals','bonus','aggro','moves'}) do assert(def[k]==W.NIGHT[k],word..' '..k) end
+    assert(def.revives==({easy=3,normal=2,hard=1,nightmare=0})[word],word..': self revives')
+    assert(not def.spots)
+end
+assert(table.concat(W.LEVEL.hard.waves[2].ids,' ')==table.concat({SW,SW,GU,SW,SW},' '),'Hard wave 2')
+assert(table.concat(W.LEVEL.easy.waves[2].ids,' ')==table.concat({SW,SW},' '),'Easy wave 2: no Gunner')
+assert(table.concat(W.LEVEL.nightmare.waves[3].ids,' ')==table.concat({BO,BO,BO,LU,LU,BO,BO,BO},' '))
+assert(table.concat(W.LEVEL.nightmare.waves[5].ids,' ')==table.concat({HA,SW,SW,GU,HA,SW,SW,GU},' '))
+assert(W.LEVEL.hard.waves[4].ids[5]==SP)
+-- A hard run: wave 1 is six Antlions, keys 0 to 5; a seventh key scores nothing; the six clear the wave; time up at
+-- its 450 s, not 480.
+s=start_def(W.LEVEL.hard)
+assert(at(s,0)=='wave 1' and s.left[1]==6 and s.up==6)
+assert(at(s,5,{killed={W.key(RUN,1,6)}})=='' and s.kills==0,'Slot 6 is no body of a wave of six')
+assert(at(s,6,{killed=keys(1,0,5)})=='' and s.kills==6 and s.score==60 and s.phase=='breather')
+assert(at(s,449.75)~='end time' and s.phase~='result')
+assert(said(W.step(s,{},105+450))=='end time' and s.time==450)
+-- Nightmare: waves of 8 fill the cap, so wave 2 waits past its 75 s until wave 1 is down, then comes 10 s after.
+s=start_def(W.LEVEL.nightmare)
+at(s,0)
+assert(at(s,80,{killed=keys(1,0,6)})=='' and s.wave==1 and s.up==1,'7 down: 1 + 8 > 8')
+assert(at(s,81,{killed=keys(1,7,7)})=='wave 2' and s.up==8,'The last one down: 0 + 8 fits')
+-- Slots 4 to 7 stand 2.5 m from the gates of slots 0 to 3.
+for slot=4,7 do
+    local gate4=W.spot(P0,90,{3,1,2,4},slot-4)
+    local extra=W.spot(P0,90,{3,1,2,4},slot)
+    near(math.sqrt((extra.X-gate4.X)^2+(extra.Y-gate4.Y)^2),250,'Slot '..slot)
+end
 
 print('nightop_waves_test: ok')

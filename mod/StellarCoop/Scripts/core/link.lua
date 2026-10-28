@@ -6,7 +6,8 @@
 -- changed is returned once, for the log; peer lines change with every ping, the shared fight's counts (its fight= line)
 -- every second and her vitals (mate=) and our life state (life=) up to 10 times a second, so they stay in coop status,
 -- out of the log. The chat has two files of its own that live a moment only (coop-say.txt and coop-chat.txt, see
--- say()), and the race one more (coop-race.txt, see race()); her race lines come in coop-chat.txt. The same read gives
+-- say()), and the race one more (coop-race.txt, see race()); her race lines come in coop-chat.txt, and her gift lines
+-- (coop gift, cut/mailbox.lua, whose own lines go as gift requests). The same read gives
 -- the session's mode, the friend and the notices for the screen, each from the start of its own line: a Steam name is
 -- never at the start of one.
 -- While we host, the read also gives our join code and the joiner who waits for our answer (session/join.lua asks the
@@ -21,8 +22,9 @@
 -- revive, the wait during the host's cutscene); its follow_host and follow_key session/travel.lua's and main.lua's (the
 -- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
 -- partner); its drift_keys the Doro races' driving (race/drive.lua); its mod_names the native part's (through
--- coop-state.txt: names=0 keeps the names of our .pak mods from the friend). The co-op menu (ui/menu.lua) changes the
--- file, one line at a time (D-UI4).
+-- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load commands/cut.lua's
+-- (coop shortcut load, a test tool with no menu row). The co-op menu (ui/menu.lua) changes the file, one line at a
+-- time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -116,7 +118,8 @@ quest_deny=
 # Revive, experimental: on or off, off by default. Yours, for your own EVE: on, while you are on the death screen and
 # your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
 # recovery items refilled as at a camp. It needs the shared enemies running (shared_enemies=on, on a co-op save), and
-# never happens during a boss fight on your side.
+# never happens during a boss fight on your side. In a co-op Night Operation run, on also turns your death into a 30 s
+# down: your friend revives you by holding the interact key next to your EVE, or you type coop nightop revive.
 revive=off
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
@@ -162,6 +165,11 @@ partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
 status_overlay=off
+# Shortcut saves, a test tool: on or off, off by default. On, coop shortcut load <map> <1-4> writes one of the game's
+# cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
+# A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
+# matter (docs/usage.md, Cut Load Shortcut saves).
+shortcut_load=off
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
@@ -174,10 +182,11 @@ local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',rac
     photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
     status_overlay='off',who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off',
-    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='off',mod_names='on'}
+    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='off',mod_names='on',shortcut_load='off'}
+-- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
-    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true} -- On or off.
+    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -536,15 +545,17 @@ function Link.new(folder,fs)
         end
     end
     -- The native part's coop-chat.txt, taken and deleted at once: {text=} for each of her lines, {fail=true} when one
-    -- of ours could not go, {race=} for each of her race lines, oldest first; anything else is ignored.
+    -- of ours could not go, {race=} for each of her race lines, {gift=} for each of her gift lines (or a gift of ours
+    -- that could not go, as her refusal), oldest first; anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
         if not text or not fs.remove(name) then return lines end -- Not deleted: taken next time, never shown twice.
         for line in text:gmatch('[^\n]+') do
-            local said,raced=line:match('^in (.+)$'),line:match('^race (.+)$')
+            local said,raced,gifted=line:match('^in (.+)$'),line:match('^race (.+)$'),line:match('^gift (.+)$')
             if said then lines[#lines+1]={text=said}
             elseif raced then lines[#lines+1]={race=raced}
+            elseif gifted then lines[#lines+1]={gift=gifted}
             elseif line=='fail' then lines[#lines+1]={fail=true} end
         end
         return lines
@@ -574,7 +585,9 @@ function Link.new(folder,fs)
             if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=')
                 and not line:find('^life=')
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
-                and not line:find('^lion=') then -- Its spawns= moves with every enemy; cut/lion.lua logs what it reads.
+                -- Their spawns= moves with every enemy; cut/enemy.lua logs what it reads for each.
+                and not line:find('^lion=') and not line:find('^gardener=') and not line:find('^tendril=')
+                and not line:find('^bolt=') and not line:find('^mxiii=') then
                 new[#new+1]=line
             end
             if ping==nil and line:find('^peer=') then -- Her name comes before: the last rtt_ms= is the native part's.

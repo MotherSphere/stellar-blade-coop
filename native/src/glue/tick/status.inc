@@ -9,6 +9,7 @@ void block() {
   quest_worker.block(); // Its side ends; the game thread's passes stop with it.
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   filter_undo("coop off");
+  hold_undo("coop off");
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
 }
@@ -41,6 +42,16 @@ std::string status() {
          (travel_faulted ? std::string("refused:fault")
                          : travel::state_text(travel::State((w >> 8) & 0xff), travel::Why(w & 0xff))) +
          " travel_calls=" + std::to_string(w >> 32);
+  // coop emote's native clips (cut/emote.lua): the last play's state and id, so Lua knows its own answer; fault once
+  // the latch ended them (Lua then plays the montage).
+  if (game_pinned && !blocked) {
+    const anim::Word a = anim::unpack(anim_word);
+    s += " anim=" + (anim_faulted ? std::string("fault") : anim::state_text(a.state, a.why)) +
+         " anim_id=" + std::to_string(a.id);
+  }
+  // coop gift's inventory read (cut/mailbox.lua): the last ask's answer, by its number.
+  if (!items_line.empty() && !blocked)
+    s += items_line;
   if (nightop_on && !blocked) // Last, so Lua's unanchored remote= match still holds.
     s += poller.rule_asked() ? " nightop=rule" : " nightop=on";
   for (char &c : s)
@@ -49,19 +60,37 @@ std::string status() {
   return s; // Stable between events, the recording's seconds aside: per-frame counts go into the 60 s lines instead.
 }
 
-// coop-status.txt's lion line (lion/rows.h's status_line), from what the game thread published.
-std::string lion_status() {
-  lion::Status s;
-  s.word = lion_word;
-  const uint32_t read = lion_read;
-  s.read = {uint8_t(read), uint8_t(read >> 8), uint8_t(read >> 16)};
-  s.ticks = lion_ticks;
-  const int64_t spawns = lion_spawns;
-  s.spawns_read = spawns != INT64_MIN;
-  s.spawns = int32_t(spawns);
-  if (lion_faulted)
-    s.fault = fault_where(lion_fault_rva);
-  return lion::status_line(s);
+// coop-status.txt's activated line (game/camps.h), from what the game thread handed over; activated=none:fault once
+// the read's latch ended it.
+std::string camps_status() {
+  if (!game_pinned || blocked)
+    return std::string();
+  if (camps_faulted)
+    return camps::line(camps::Why::fault, {}, {});
+  std::lock_guard<std::mutex> lock(camps_m);
+  return camps_text;
+}
+
+// coop-status.txt's lion, gardener, tendril, bolt, mxiii and shop lines (lion/rows.h's status_line), from what the
+// game thread published, then the shock line (lion/shock.h's shock_line), read after the bolt line it was published
+// before, then the nightshop and roxanne lines (nightop_worker.inc's nightop_status).
+std::string rows_status() {
+  std::string lines;
+  for (const RowsJob *j : kJobs) {
+    lion::Status s;
+    s.word = j->word;
+    const uint32_t read = j->read;
+    s.read = {uint8_t(read), uint8_t(read >> 8), uint8_t(read >> 16)};
+    s.ticks = j->ticks;
+    const int64_t spawns = lion_spawns;
+    s.spawns_read = spawns != INT64_MIN;
+    s.spawns = int32_t(spawns);
+    if (lion_faulted)
+      s.fault = fault_where(lion_fault_rva);
+    lines += (lines.empty() ? "" : "\n") + lion::status_line(j->batch, s);
+  }
+  return lines + "\n" + lion::shock_line(shock_word, shock_faulted ? fault_where(shock_fault_rva) : std::string()) +
+         "\n" + nightop_status();
 }
 
 } // namespace coop::pose

@@ -26,16 +26,20 @@
 //   mask: a bit per unit (byte u / 8, bit u % 8), in pose order: per leader bone its rotation, translation and scale,
 //   then the kEffectSlots slots; padding bits 0
 //   then each unit the mask names, its exact bytes in the pose
-// The receiver rebuilds the pose's bytes from its held keyframe and decodes them with decode_pose, so a delta comes
-// back exactly as the keyframe path would give it, and passes every check a pose does. A delta is always smaller than
-// its pose: the sender sends the keyframe when it would not be.
+// The receiver rebuilds the pose's bytes from its held keyframe and decodes them with decode_pose, so a delta passes
+// every check a pose does. A delta is always smaller than its pose: the sender sends the keyframe when it would not be.
+// A bone's field counts as changed only past kTolerance (in quantized steps) from the keyframe: a delta comes back as
+// the keyframe path would give it within that (rotation 0.035 degrees, translation 1/32 cm, scale 1/4096), and the
+// keyframe's value holds until the next keyframe, 250 ms at most. The wire is the same: the receiver does not know.
 #pragma once
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <utility>
 #include <vector>
 
 #include "link/protocol.h" // kProtocol
@@ -293,10 +297,41 @@ inline size_t delta_units(const Table &t) {
 // A delta's bytes before its units: header, age, world and mask.
 inline size_t delta_fixed(const Table &t) { return kPoseHeader + 4 + kWorldBytes + (delta_units(t) + 7) / 8; }
 
+// How far a bone's rotation (each of its three 15-bit components, the same largest one), translation and scale (each
+// i16 component) may be from the keyframe's and still count as unchanged, in quantized steps. A rotation step moves
+// it 0.0171 degrees at most (all four components near 0.5), so 2 steps stay under 0.035, and 0.044 with the
+// quantization's own 0.009; a translation step is 1/32 cm, a scale step 1/4096. Float noise on a value near a rounding
+// edge flips its last step from frame to frame: with no tolerance, each flip sends the field again.
+struct Tolerance {
+  int rotation = 0, translation = 0, scale = 0;
+};
+constexpr Tolerance kTolerance{2, 1, 1};
+
+// Whether unit bytes a and b, a bone's rotation, translation or scale (kind 0, 1, 2), differ by more than tol allows.
+// With no tolerance: whether they differ at all.
+inline bool strays(const uint8_t *a, const uint8_t *b, int kind, const Tolerance &tol) {
+  if (kind == 0) {
+    const uint64_t x = codec::get(a, 6), y = codec::get(b, 6);
+    if (x >> 45 != y >> 45) // Another largest component: never near.
+      return true;
+    for (int shift = 0; shift < 45; shift += 15)
+      if (std::abs(int(x >> shift & 0x7fff) - int(y >> shift & 0x7fff)) > tol.rotation)
+        return true;
+    return false;
+  }
+  for (int k = 0; k < 3; ++k) {
+    const int x = int16_t(codec::get(a, 2)), y = int16_t(codec::get(b, 2));
+    if (std::abs(x - y) > (kind == 1 ? tol.translation : tol.scale))
+      return true;
+  }
+  return false;
+}
+
 // The delta of full (a pose of t that encode_pose wrote) against key (an earlier one, age µs before) into out, which
-// holds limit bytes. Returns its size, or 0 when it would not be smaller than limit (send the pose then).
+// holds limit bytes: the bone fields that stray past tol and the effect slots that differ at all. Returns its size, or
+// 0 when it would not be smaller than limit (send the pose then).
 inline size_t encode_delta(const Table &t, const uint8_t *key, const uint8_t *full, uint32_t age, uint8_t *out,
-                           size_t limit) {
+                           size_t limit, const Tolerance &tol = kTolerance) {
   const size_t fixed = delta_fixed(t);
   if (!pose_size(t) || !age || fixed >= limit)
     return 0;
@@ -310,7 +345,8 @@ inline size_t encode_delta(const Table &t, const uint8_t *key, const uint8_t *fu
   size_t size = fixed, u = 0;
   bool fits = true;
   each_unit(t, [&](size_t o, size_t n) {
-    if (std::memcmp(key + o, full + o, n)) {
+    // The bone fields come first, three to a bone (each leader's count a multiple of 3), the effect slots last.
+    if (n == kEffectBytes ? std::memcmp(key + o, full + o, n) != 0 : strays(key + o, full + o, int(u % 3), tol)) {
       if (size + n >= limit)
         return fits = false;
       mask[u / 8] |= uint8_t(1u << (u % 8));
@@ -377,10 +413,11 @@ inline const char *apply_delta(const Table &t, const uint8_t *key, uint64_t key_
 }
 
 // The sender's side: which pose goes as a keyframe and which as a delta, and the byte budget. reset() allocates (the
-// worker, with the Live); due() and encode() never do. Game thread.
+// worker, with the Live); due() and encode() never do. Game thread. tol: kTolerance, or none to measure what it saves.
 class KeyedEncoder {
 public:
-  void reset(size_t pose_bytes) {
+  void reset(size_t pose_bytes, const Tolerance &tol = kTolerance) {
+    tol_ = tol;
     key_.assign(pose_bytes, 0);
     delta_.assign(pose_bytes, 0);
     key_publication_ = 0;
@@ -410,7 +447,7 @@ public:
     size_t n = 0;
     if (key_publication_ && !lost_ && size == key_.size() && publication > key_publication_ &&
         publication - key_publication_ < kKeyEveryUs)
-      n = encode_delta(t, key_.data(), buf, uint32_t(publication - key_publication_), delta_.data(), size);
+      n = encode_delta(t, key_.data(), buf, uint32_t(publication - key_publication_), delta_.data(), size, tol_);
     if (n) {
       std::memcpy(buf, delta_.data(), n);
     } else {
@@ -433,6 +470,7 @@ private:
   uint64_t key_publication_ = 0, credited_ = 0;
   int64_t credit_ = 0;
   bool lost_ = false;
+  Tolerance tol_ = kTolerance;
 };
 
 // The hand-over to the worker: whether the pose waiting there (not taken yet, waiting_size 0: none) stays and the
@@ -441,6 +479,22 @@ private:
 // comes.
 inline bool keeps_waiting(const uint8_t *waiting, size_t waiting_size, const uint8_t *newest, size_t newest_size) {
   return waiting_size >= 3 && waiting[2] == 'P' && newest_size >= 3 && newest[2] == 'D';
+}
+// glue/tick's give_out() (its lock held), and the build machine's stream_test: the newest pose (back, ready) goes to
+// the worker's slot (mid, fresh: not taken yet), swapped in, unless the pose there keeps_waiting(). ready ends false
+// either way. Returns false when the newest was dropped. M: data (bytes) and size, as glue/tick's Message.
+template <class M> bool hand_over(M &back, M &mid, bool &fresh, bool &ready) {
+  ready = false;
+  if (fresh && keeps_waiting(mid.data.data(), mid.size, back.data.data(), back.size))
+    return false;
+  std::swap(back, mid);
+  fresh = true;
+  return true;
+}
+// Before a new pose is encoded into back: whether it overwrites a keyframe never handed over (ready), which the
+// encoder must then lose().
+template <class M> bool lost_key(const M &back, bool ready) {
+  return ready && back.size >= 3 && back.data[2] == 'P';
 }
 
 // The receiver's side: the keyframe held, and the rebuilt pose. reset() allocates (the worker, with the Live); decode()
