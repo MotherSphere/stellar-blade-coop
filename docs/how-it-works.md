@@ -2462,50 +2462,65 @@ features: a rows batch through SB's AddRow, the select cache swap of Roxanne's c
    `TS_GoToTest` that no story graph shows) in place: `Conditions` `[Xion_10_Condition_051]` (QuestState Quest_Epic_11
    M04 in progress), `TextVisibleType` IsVisibility, `SelectDataPriority` 3, `NextTaskTagName` None,
    `InteractionGraphExec` `Success5` (her goodbye, `Talk_End_Root`; `Success` runs her bike signal's point of no return
-   on every Lily node). That row is last, so a refusal there leaves the quest rows in for a save that holds the quest,
-   and the batch neither writes nor checks a TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds
-   that table's IDs is not known). The rows request now names 25 tables, the 5 new ones last.
-2. When: at the title while the game uses the co-op save files, with or without the test pak (`cut/enemy.lua`'s
-   `title_batch`, moved there from `cut/mxiii.lua`, which uses it too), so a co-op save that holds the quest finds its
-   rows when it loads; in game on a co-op save, once a Lua load, asked or, when already in, read back. Nothing else
-   runs until the rows read back as written in that Lua load.
+   on every Lily node). That row is last, but only a refusal at its own row step (no template, an FName not made)
+   leaves the 6 quest rows in: the table checks (class, AddRow slot, row size) run for every table of the batch before
+   any row, so a TheaterSelectDataTable that fails them stops the batch with no row in. The batch neither writes nor
+   checks a TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds that table's IDs is not known).
+   The native part now knows 25 tables, the 5 new ones last; the signal request names those 5 only.
+2. When: only with the test pak, since nothing else uses the rows and AddRow on these tables has not run in game. At the
+   title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, moved there from `cut/mxiii.lua`,
+   which uses it too), so a co-op save that holds the quest finds its rows when it loads; in game on a co-op save,
+   once a Lua load, asked or, when already in, read back, also after a title batch that a shut gate (`busy`, `net`,
+   `unread`) refused at each try. Rows added in game come after the save loaded, too late for a quest it holds. Nothing
+   else runs until the rows read back as written in that Lua load. The rows share the one SEH latch of every batch, so
+   a fault here would stop the Lion's, the shop's and `coop mxiii`'s batches for the run too; the pak gate keeps that
+   risk to players who can use the feature.
 3. Words: `story/lily_text.lua`'s English and French lines go into the quest's `TitleName_` and `Description_`, the
    groups' and task 1's `Description`, and the choice row's `DisplayText`, as FText in the game's language, through the
    recruiter's checked edit (each row's ID checked first, the choice row's exec too, then a fresh FindRow reads them
    back). No text key is registered, for the reason given under [Roxanne's choices](#roxannes-night-operation-choices).
 4. The list: `nightop/roxanne.h` now takes a list (its name, its own rows, ours, and whether its own rows must come in
    order). Roxanne's keeps her two rows in her order; Lily's checks her eight (`TS_Xion_Lily_Choice_1` to `_8`) as a
-   set, since the cache's order of them is not known, and installs a new array of nine: the borrowed row, then her
-   eight as the entry held them. The glue keeps one state and SEH latch for each list (`lily on`, `lily off`, the
-   `lily=` line). Lua asks on while every gate holds: a co-op save, the quest unit read with neither our quest nor
-   Quest_Epic_12 in it, the rows read back, the words written, solo, the test pak found; off as soon as one fails; a
-   load (slot none or unknown) changes nothing. If the choice box sorts by priority (not checked), the borrowed row
-   stands below the bike signal (4) and above Travel and Repair (2) and End Conversation (1); if it keeps the array's
-   order, the borrowed row comes first. End Conversation stays last either way, for the cancel input.
+   set, since the cache's order of them is not known, and installs a new array of nine: the borrowed row, then her eight
+   as the entry held them. The glue keeps one state and SEH latch for each list (`lily on`, `lily off`, the `lily=`
+   line). Lua asks on while every gate holds, read in this order: a co-op save, solo, the test pak found, the rows read
+   back, the words written, the quest unit read with neither our quest nor Quest_Epic_12 in it, and Quest_Sub_005
+   complete (`sub005=` 3 or more); off as soon as one fails; a load (slot none or unknown) changes nothing. The choice
+   box has six slots, and with Quest_Sub_005 in progress Lily can show six rows of her own (her About Enya rows); ours
+   would be a seventh, which nobody has seen, so the last gate keeps it off then. If the choice box sorts by priority
+   (not checked), the borrowed row stands below the bike signal (4) and above Travel and Repair (2) and End Conversation
+   (1); if it keeps the array's order, the borrowed row comes first. End Conversation stays last either way, for the
+   cancel input.
 5. The pick, read as Roxanne's (`nightop/roxanne.lua`'s `watcher`, now shared): a `SelectIndex` turning from -1 to a
    line whose text is the label in English or French. 5 s later, once no game screen shows, Lua asks `signal acquire`.
 6. The quest: `quest/own.h` (free of Windows, tested against fake memory) runs on the game thread every 250 ms on a
-   co-op save until `coop off`, under its own SEH latch, with the shared quests' save-slot line and offsets. It reads
-   the local player's quest unit (`FUN_141c5e880`, called only once the world and the manager exist, never on SB's
-   logic thread): the ID map through its allocation bits for 163 and 25 (Quest_Epic_12), our quest's state, active
-   group and that group's first task. `signal acquire` calls the acquire by ID a quest zone event makes
+   co-op save until `coop off`, under its own SEH latch, with the shared quests' save-slot line and offsets, but only
+   from Lua's first signal request: `signal watch`, which Lua sends once a Lua load when the first four gates above
+   hold. Before it, nothing calls SB's quest unit getter and the line reads `signalquest=unread`. It reads the local
+   player's quest unit (`FUN_141c5e880`, called only once the world and the manager exist, never on SB's logic
+   thread): the ID map through its allocation bits for 163, 25 (Quest_Epic_12) and 44 (Quest_Sub_005, whose state it
+   reads through the quest vtable check and `+0x48`, as ours), our quest's state, active group and that group's first
+   task. `signal acquire` calls the acquire by ID a quest zone event makes
    (`FUN_141c5cf20`: the ID's row name through the QuestTable ID map AddRow filled, then AcquireQuest and PushQuest,
    which refuses an ID already held), only while the map does not hold it. `signal complete` calls task 1's own
    Complete through its vtable's `+0x60` (`0x141c6eb10`, or `0x141c70850`, the one that ends child tasks; the glue's
-   call refuses any other address), only while the quest is in progress at group 1 with that task in progress in that
-   group. The `signalquest=` line gives the read and the last request's answer.
+   call refuses any other address), only while the quest is in progress at group M01 (`group=0`) with that task in
+   progress in that group. The `signalquest=` line gives the read and the last request's answer.
 7. The trip and the fallback: once the line reads `held`, Lua calls `coop mxiii` (its co-op save check, the follow's
-   guards, the test pak, the mxiii rows, the travel). Once EVE stands in the `MXIII_P` map with the quest at group 1
+   guards, the test pak, the mxiii rows, the travel). Once EVE stands in the `MXIII_P` map with the quest at group M01
    and its task in progress for 10 s (SB's EnterZone check did not fire after the camp travel), Lua asks
-   `signal complete`, once a visit. Group 2 waits for later content.
+   `signal complete`, once a visit. Group M02 waits for later content.
+8. Export: `save/twins.h`'s `mod_only` refuses a co-op save that names `Quest_Sub_MX13_01` anywhere (an FString in a
+   released-game save, the tracked quest included). Nothing ends the quest yet, so the refusal says the save cannot be
+   exported, with no "export it again".
 
 Not checked offline: AddRow on the quest tables (only the Lion's, the shop's and `coop mxiii`'s batches went through it
 in game) and TheaterSelectDataTable's class and row size; that the quest UI reads the title and description written
 after AddRow (live or at acquire: both come after the write); that a quest acquired by ID shows the new-quest notice and
 the tracker; that EnterZone fires after a camp travel; that the game uses a quest ID as an array index anywhere (163
 follows the shipped IDs, in case it does); what a tracked quest whose rows are missing does to a save that loads
-without the mod; and the choice box's handling of a seventh visible row (Quest_Sub_005 in progress can show six of her
-own).
+without them (FUN_141c5b1b0's callers that read TrackingQuestAliases were not traced: Ghidra was down); and the choice
+box's handling of a seventh visible row, which the Quest_Sub_005 gate avoids rather than answers.
 
 ## Developer flight and slow motion
 

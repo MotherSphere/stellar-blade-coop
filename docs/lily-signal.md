@@ -25,7 +25,12 @@ All of these must hold:
 - the game's own condition for that moment, `Xion_10_Condition_051`: Quest_Epic_11's group M04 ("Talk to Lily to decide
   on the next destination") in progress. The game shows the row from that point until "Leave for the Nest" and hides
   it otherwise, as it does for her other rows;
-- neither "On Time" nor Quest_Epic_12 (the bike signal's quest) in your quest list.
+- neither "On Time" nor Quest_Epic_12 (the bike signal's quest) in your quest list;
+- Quest_Sub_005 (the About Enya talk) complete. While it is in progress Lily can show six rows of her own, and her
+  choice box has six slots, so the mod's row would be a seventh. What the box does then is not known, so the mod keeps
+  the row off until Sub_005 is complete, as it is on the test save.
+
+Without the test pak the mod adds none of the quest's rows and never reads your quest list.
 
 Lily uses the same menu wherever she stands in Phase 5, so the choice should show in Xion, at the Great Desert camp and
 at the Matrix 11 entrance alike. Only Xion is planned for the first test.
@@ -59,7 +64,8 @@ written yet: the quest stays in progress, and nothing else in the game depends o
 
 1. With the game closed, copy the co-op save file you test on somewhere safe, and put the zMXIII_P test pak in place.
 2. Start the game. At the title, with the game on the co-op saves, the mod adds the quest's rows before any save
-   loads. `UE4SS.log` shows `[StellarCoop][LY] title: the co-op save files: the rows asked before any save loads`.
+   loads. `UE4SS.log` shows `[StellarCoop][LY] title: the co-op save files and test pak v<N>: the rows asked before any
+   save loads`, then `[StellarCoop][LY] title: the rows are in, before any save loads`.
 3. Load a co-op save in Phase 5, past "Talk to Lily to decide on the next destination" and before the bike signal.
 4. Talk to Lily. Her list shows "The other signal". Pick it: her goodbye plays. 5 s after the pick, once no game screen
    shows, the quest starts with the new-quest notice, then the camp travel.
@@ -79,17 +85,26 @@ Without Lily, `coop lily signal` runs the same steps by hand.
 
 ## Saves
 
-The save keeps quests by alias, never by ID. The rows exist only in memory, so the mod adds them again at each game
-start: at the title while the game uses the co-op saves (with or without the test pak), or on a co-op save in game when
-they are not in yet. A save that holds the quest therefore loads it whenever the mod is installed. A manual co-op slot
-(`StellarCoopSlot.txt`) is the exception: its file is one of your own saves, so the title adds nothing, the rows go in
-only after the save loaded, and the quest drops as below. The same goes for a co-op copy written over one of your
-saves with `coop saves export`.
+The save keeps quests by alias, never by ID. The rows exist only in memory, and the mod adds them again at each game
+start, only with the test pak: at the title while the game uses the co-op saves, or on a co-op save in game when they
+are not in yet. Only the rows added at the title, before the save loads, keep a quest the save already holds. Rows
+added in game come after the game has read the save, so they are too late for it. The title batch can also fail (a
+table not loaded, a refusal at each of its 4 tries, or a save loaded before the answer, which the log reports as
+`a save may have loaded before them`). The check is this line, before you load the save:
 
-A save loaded without the mod drops the quest: the game logs `LoadQuest : QuestData Not Found[Quest_Sub_MX13_01]`,
-loads the rest, and the next save no longer has it. Picking her choice again would then start it again. A quest in the
-tracker when that happens has not been checked. The aliases are fixed from this version on: renaming them would lose
-the progress saved under the old ones.
+```
+[StellarCoop][LY] title: the rows are in, before any save loads
+```
+
+A manual co-op slot (`StellarCoopSlot.txt`) never gets the title batch: its file is one of your own saves, so the
+rows go in only after the save loaded, and the quest drops as below.
+
+A save loaded without its rows drops the quest: without the mod, without the test pak, or with the title batch missed.
+The game logs `LoadQuest : QuestData Not Found[Quest_Sub_MX13_01]`, loads the rest, and the next save no longer has it.
+Picking her choice again would then start it again. What the game does with the quest's alias if it was the tracked
+quest has not been checked. `coop saves export` refuses a co-op save that names the quest: nothing ends the quest yet,
+so the export would always lead to that drop. The aliases are fixed from this version on: renaming them would lose the
+progress saved under the old ones.
 
 The camp travel writes the dungeon's world and camp into the save, as `coop mxiii` does; see
 [usage.md](usage.md#cut-dungeon-coop-mxiii-experimental) for what that means for the save and the test pak.
@@ -102,15 +117,17 @@ save, her own eight choices come back.
 `UE4SS.log` has `[StellarCoop][LY]` lines for each step, for example:
 
 ```
-[StellarCoop][LY] title: the co-op save files: the rows asked before any save loads (try 1 of 4)
+[StellarCoop][LY] title: the co-op save files and test pak v3: the rows asked before any save loads (try 1 of 4)
 [StellarCoop][LY] rows read back through FindRow: 7/7 authored rows, 19 fields as written (9 differ from the template row)
+[StellarCoop][LY] title: the rows are in, before any save loads
 [StellarCoop][LY] text: game language fr-FR -> fr; the quest's title, description, 2 group lines, task 1's line and her choice's label written and read back
+[StellarCoop][LY] signal watch: asked the native part: signal watch
 [StellarCoop][LY] her choice is offered: lily on
 [StellarCoop][LY] the other signal picked: the quest, then the travel, in 5 s, after her goodbye
-[StellarCoop][LY] signal acquire asked (signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=0 want=acquire why=none); the travel follows once the quest is held
-[StellarCoop][LY] the quest is held: signalquest=held state=1 group=0 task=1 epic12=0 asks=1 want=acquire why=none
+[StellarCoop][LY] signal acquire asked (signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=0 want=acquire why=none); the travel follows once the quest is held
+[StellarCoop][LY] the quest is held: signalquest=held state=1 group=0 task=1 epic12=0 sub005=3 asks=1 want=acquire why=none
 [StellarCoop][LY] travel: coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked ([TR] lines follow); way out: coop mxiii leave
-[StellarCoop][LY] lily off (the quest is held (signalquest=held state=1 group=0 task=1 epic12=0 asks=1 want=acquire why=none)): ...
+[StellarCoop][LY] lily off (the quest is held (signalquest=held state=1 group=0 task=1 epic12=0 sub005=3 asks=1 want=acquire why=none)): ...
 ```
 
 `her choice stays off: <why>` says which condition failed, once each time it changes. A step that fails logs a `STOP:`
@@ -122,8 +139,15 @@ line. The status lines and the native part's own lines are listed in
 - Her list shows the choice in the right place, End Conversation last, the label in the game's language.
 - B or Esc in her menu plays her goodbye and nothing else.
 - Picking the choice plays her goodbye and no other part of her graph. Her other rows still work.
-- The new-quest notice, the journal entry with the mod's title and description, and the tracker on Lily.
+- The new-quest notice and the journal entry with the mod's title and description. Only group 2's task tracks Lily,
+  so no marker on her is expected yet.
 - Whether the game plays the quest's start sound and subtitle (it has none of its own).
 - Group 1 ends on the arrival in the dungeon, by the game or by the mod's fallback (the log says which).
+- Group 2's marker on Lily in Xion, after the arrival or after `coop mxiii leave`.
 - The quest and its progress survive a rest, a return to the title and a reload.
 - The choice stays hidden on a save before Phase 5 and after the bike signal.
+- Before any release: a save that holds the quest, loaded without its rows, loads with no crash. Use a copy in a spare
+  co-op slot, run `coop mxiii leave` first, save, quit, take zMXIII_P out of `~mods` or `LogicMods` (so the mod adds no
+  rows), start
+  the game and load that slot. Expect `LoadQuest : QuestData Not Found[Quest_Sub_MX13_01]` in the game's log, no
+  crash, and the tracker on another quest or on none.

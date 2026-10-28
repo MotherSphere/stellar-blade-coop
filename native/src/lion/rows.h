@@ -6465,8 +6465,10 @@ constexpr Row kMxiiiRecipe[] = {
 // M04 in progress: the game shows the row from "Talk to Lily to decide on the next destination" until "Leave for the
 // Nest"), shown or hidden rather than greyed, priority 3 (above her Travel, Repair and End rows: the cancel input picks
 // the last slot, End's), and her goodbye's exec, Success5 (Success runs her bike signal's point of no return on every
-// Lily node). nightop/roxanne.h's lily swap lists it in her choice list; story/lily.lua writes its label. Last, so a
-// refusal there leaves the quest rows in for a save that holds the quest. Struct sizes and offsets from the SDK
+// Lily node). nightop/roxanne.h's lily swap lists it in her choice list; story/lily.lua writes its label. It comes
+// last, but that only helps with a refusal at its own row step (no template, an FName not made): the 6 quest rows stay
+// in. The table checks (class, AddRow slot, row size) run for every table of the batch before any row, so a
+// TheaterSelectDataTable that fails them stops the whole batch with no row in. Struct sizes and offsets from the SDK
 // (stellar-sdk-647527f); none of the five structs has a Transient field.
 constexpr Patch kSignalPatches[] = {
     // Quest_Sub_MX13_01_LevelTargetFilter_001 (LevelTargetFilter: Lily's Phase 5 spawn in Xion)

@@ -1733,9 +1733,10 @@ leave, then replace the slot with `coop saves refresh <0-4>` at the title.
 ### Lily's signal (experimental)
 
 In Phase 5, before her "Follow the bike signal and leave", Lily's menu offers "The other signal" on a co-op save, solo,
-with the zMXIII_P test pak. Its pick starts the mod's quest "On Time" and runs `coop mxiii`'s camp travel. The whole
-feature, its conditions, its notes on saves and its `[StellarCoop][LY]` lines are in [lily-signal.md](lily-signal.md).
-None of it has been tried in game yet. The native part reports it in `coop-status.txt`:
+with the zMXIII_P test pak and Quest_Sub_005 complete. Its pick starts the mod's quest "On Time" and runs `coop mxiii`'s
+camp travel. Without the test pak the mod adds none of its rows and reads nothing. The whole feature, its conditions,
+its notes on saves and its `[StellarCoop][LY]` lines are in [lily-signal.md](lily-signal.md). None of it has been tried
+in game yet. The native part reports it in `coop-status.txt`:
 
 - `signal=`, the quest's rows and the borrowed choice row, in the same forms as the `lion=` line (see
   [Cut boss](#cut-boss-coop-lion)): `signal=off` before an ask, `signal=rows added=7/7 asks=1 spawns=? char=0/0
@@ -1743,21 +1744,24 @@ None of it has been tried in game yet. The native part reports it in `coop-statu
 - `lily=`, her choice list, in the forms of the `roxanne=` line (see
   [Night Operation's shop screen and Roxanne's choices](#night-operations-shop-screen-and-roxannes-choices)): `on` is
   her eight rows with the borrowed one in front, `off` her own eight in any order.
-- `signalquest=`, the quest in your quest list, read every 250 ms on a co-op save:
-  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> asks=<a> want=<acquire|complete> why=<w>`.
-  `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4 complete, 5 failed), its active
-  group (0 or 1) and that group's first task's state (1 in progress, 2 complete); `-1` while unread. `epic12=1` means
-  Quest_Epic_12, the bike signal's quest, is in the list. `asks` counts the requests handled, `want` and `why` are the
-  last one's: `none` when it ran, `slot` (not a co-op save), `unread` (no quest data yet), `held` (already in the list),
-  `refused` (the game's acquire said no), `absent` (no quest to complete), `group` (not in progress at group 1) or
-  `task` (its task not in progress, or no task Complete in its vtable). `signalquest=fault asks=<a> where=<where>`
-  after a fault.
+- `signalquest=`, the quest in your quest list, read every 250 ms on a co-op save once the mod asked `signal watch`
+  (solo, the test pak found, the signal rows read back; before that the line reads `unread`):
+  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> asks=<a> want=<acquire|complete>
+  why=<w>`. `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4 complete, 5 failed), its
+  active group (`0` is M01, task "Go to Matrix 13 station"; `1` is M02, task "Talk to Lily") and that group's first
+  task's state (1 in progress, 2 complete); `-1` while unread. `epic12=1` means Quest_Epic_12, the bike signal's quest,
+  is in the list. `sub005` is Quest_Sub_005's state in the same numbers, `-1` when it is not in the list; her choice
+  needs 3 or more. `asks` counts the requests handled, `want` and `why` are the last one's: `none` when it ran, `slot`
+  (not a co-op save), `unread` (no quest data yet), `held` (already in the list), `refused` (the game's acquire said
+  no), `absent` (no quest to complete), `group` (not in progress at group 0, M01) or `task` (its task not in progress,
+  or no task Complete in its vtable). `signalquest=fault asks=<a> where=<where>` after a fault.
 
 The native part's own lines, in `coop-link.log`:
 
 | Line | What it answers |
 | --- | --- |
 | `signal rows: 7/7 in, 6 added through SB's AddRow 0x14417ba30 and 1 shipped rows patched in place, 0 refused` | The quest's 6 rows are in, and the borrowed choice row is patched |
+| `signal watch asked: the quest unit read every 250 ms on a co-op save from now on` | The quest list's reads start; before this line nothing reads it |
 | `lily on: her list reads on` | Her choice list now holds the borrowed row and her eight |
 | `lily off: her list reads off` | Her own eight choices are back |
 | `lily on refused: other, her list reads other` | Her list was not the eight rows the mod knows, so it changed nothing |
