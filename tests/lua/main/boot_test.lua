@@ -458,6 +458,9 @@ saves_info={saves='main'}
 loops[2].f(); a,b=titled(); assert(a==true and b==false,'Your own saves')
 in_world,saves_info=true,{saves='coop'}
 loops[2].f(); a,b=titled(); assert(a==false and b==true,'A save loaded')
+-- Lily's signal's rows at the title the same way (story/lily.lua's title), with each of Matrix XIII's calls.
+assert(#ly.titles==#mx.titles and ly.titles[#ly.titles][1]==false and ly.titles[#ly.titles][2]==true,
+    "Lily's signal's title batch with the same arguments")
 at_title,saves_info=false,{}
 -- The photo mode with the state, read only with a save loaded: '1', 's' (a selfie wins), then '0', with photo_sync and
 -- photo_freeze_max. During our own, the notices are veiled, the ghost stays (photo_ghost=on) and its tag goes
@@ -801,6 +804,25 @@ coop('mxiii'); coop('mxiii','x')
 assert(#mx.cmds==2 and mx.cmds[1].n==1 and mx.cmds[1][1]==nil and mx.cmds[2][1]=='x'
     and last()=='[StellarCoop] OK: mx x\n','On a co-op save: its word reaches it, an extra one to be refused there')
 status_text=plain
+-- coop lily signal (story/lily.lua): status on any save, the rest on a co-op save only; its lines [LY] lines, its
+-- status and requests the link's, its travel coop mxiii's command (with that command's co-op save check), its Paks
+-- folder and file reads coop mxiii's.
+ly.o.log('picked'); assert(last()=='[StellarCoop][LY] picked\n',last())
+assert(ly.o.status()==status_text and ly.o.ask('lily on') and asked[#asked]=='lily on' and ly.o.mode()=='none'
+    and ly.o.paks=='mod/StellarCoop|paks' and ly.o.read==require('core.link').files.read)
+coop('lily'); coop('lily','signal','quest','x')
+assert(#ly.cmds==0 and last()=='[StellarCoop] STOP: Use: coop lily signal [status|quest|travel]\n',last())
+coop('lily','signal','quest')
+assert(#ly.cmds==0 and last():find('^%[StellarCoop%] STOP: coop lily signal runs only on a co%-op save'),last())
+coop('lily','signal','status')
+assert(#ly.cmds==1 and ly.cmds[1][1]=='status' and last()=='[StellarCoop] OK: ly status\n',last())
+status_text=COOP
+coop('lily','signal'); coop('lily','signal','travel')
+assert(#ly.cmds==3 and ly.cmds[2].n==1 and ly.cmds[2][1]==nil and ly.cmds[3][1]=='travel','On a co-op save')
+local travels=#mx.cmds
+assert(select(2,ly.o.travel())=='mx nil' and #mx.cmds==travels+1,'Its travel is coop mxiii, checked there')
+status_text=plain
+assert(ly.o.travel()==false and #mx.cmds==travels+1,'Off a co-op save, coop mxiii refuses it')
 mx.t,mx.says=mx.ticks,{true,'coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked'}
 loops[1].f()
 assert(mx.ticks==mx.t+1 and last()=='[StellarCoop] OK: coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 '
@@ -990,6 +1012,7 @@ nr.ticked=nr.ticks
 rx.ticked=rx.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 assert(rx.ticks==rx.ticked+1 and rx.stops==0 and rx.stopped==false,"Roxanne's choices tick every 250 ms too")
+assert(ly.ticks>0 and ly.stops==0 and ly.stopped==false,"Lily's signal ticks every 250 ms too")
 -- A tick of hers that raises is logged, and the rest of the loop goes on.
 rx.tick_raise='roxanne.lua:9: boom'
 local follows=#tv.ticks
@@ -1016,6 +1039,7 @@ assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
 assert(gf.stops==1,'off takes the gift toast off')
 local gift_ticks_off=gf.ticks
 assert(rx.stops==1,"off puts Roxanne's two choices back")
+assert(ly.stops==1,"off puts Lily's eight choices back")
 rx.ticked=rx.ticks
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
@@ -1042,6 +1066,7 @@ loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after 
 assert(ra.slows==ra.s,'No race check after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
 assert(rx.ticks==rx.ticked+1 and rx.stopped==true,"Roxanne's tick goes on after coop off, as stopped")
+assert(ly.stopped==true,"Lily's tick goes on after coop off, as stopped")
 assert(#gr.ticks==gr.count+3,'No revive tick after coop off')
 assert(#tv.ticks==tv.count+2,'No follow tick after coop off')
 assert(gf.ticks==gift_ticks_off and #gf.received==2,'No gift tick nor gift line after coop off')
