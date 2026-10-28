@@ -560,7 +560,8 @@ o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][N
 -- Lily's signal (story/lily.lua, experimental), logging [LY] lines: on a co-op save, solo, with the zMXIII_P test pak,
 -- in Phase 5 her choice list offers "The other signal"; its pick starts the mod's quest "On Time" and runs coop mxiii's
 -- travel; coop lily signal [status|quest|travel] by hand. Ticked in the 250 ms loop below (with the Steam link only),
--- after coop off too: coop off puts her list back. Its rows also go in at the title on the co-op save files (lily.title).
+-- after coop off too: coop off puts her list back. Its rows also go in at the title on the co-op save files, with the
+-- test pak only (lily.title).
 o.lily=require('story.lily').new({log=function(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
     mode=function() return link and link.mode() end,paused=function() return kit~=nil and kit.paused(true) end,
@@ -1136,7 +1137,7 @@ if link then
             -- Matrix XIII's rows at the title with the co-op save files, so a co-op save that names its camp loads
             -- with them (cut/mxiii.lua: once a game run, with the test pak only).
             guarded('mxiii',mxiii.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
-            -- Lily's signal's rows likewise, with or without the test pak, so a co-op save that holds the quest keeps it.
+            -- Lily's signal's rows likewise (test pak only), so a co-op save that holds the quest keeps it.
             guarded('lily',o.lily.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
             -- A story dump asked for by coop-story.txt in the mod folder (story/dump.lua, read only): once per
             -- request, in a loaded world, and named in the log.

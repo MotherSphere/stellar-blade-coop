@@ -1045,11 +1045,14 @@ int main() {
          parse_request("lily on").lily && parse_request("lily off\r\n").command == Command::roxanne &&
          !parse_request("lily off").on && parse_request("lily off").lily);
   assert(parse_request("signal acquire\n").command == Command::signal && !parse_request("signal acquire").complete &&
-         parse_request("signal complete").command == Command::signal && parse_request("signal complete").complete);
+         parse_request("signal complete").command == Command::signal && parse_request("signal complete").complete &&
+         !parse_request("signal acquire").watch && !parse_request("signal complete").watch);
+  assert(parse_request("signal watch\r\n").command == Command::signal && parse_request("signal watch").watch &&
+         !parse_request("signal watch").complete);
   for (const char *bad : {"nightshop", "nightshop open shock", "nightshop opens", "nightshop close bolt", "nightshop w",
                           "nightshop  open", "Nightshop open", "roxanne", "roxanne On", "roxanne on now", "roxane on",
                           "lily", "lily On", "lily on now", "Lily on", "signal", "signal acquire 163", "signal Acquire",
-                          "signal completed", "signal rows"})
+                          "signal completed", "signal rows", "signal watch on", "signal Watch"})
     assert(parse_request(bad).command == Command::none);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.

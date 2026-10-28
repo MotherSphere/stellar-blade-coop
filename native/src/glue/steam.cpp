@@ -629,7 +629,7 @@ bool step() {
       event(coop::pose::ask_roxanne(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::signal: // The mod's own quest, acquire or its first task's Complete: the game thread's.
+    case coop::Command::signal: // The mod's own quest, its reads, acquire or first task's Complete: the game thread's.
       event(coop::pose::ask_signal(coop::parse_request(request)));
       request.clear();
       break;

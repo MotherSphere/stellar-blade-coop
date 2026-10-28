@@ -2,7 +2,8 @@
 // world and manager globals, the unit's ID map with its allocation bits (inline, or on the heap past 128 slots), a
 // quest object with its groups, containers and tasks. Covered: nothing read off a co-op save, on SB's logic thread,
 // before the world or manager exist (the unit getter never called then) or with a stale slot; none, held (state,
-// active group, its first task's state) and Quest_Epic_12 seen; the acquire once (refused when held or when SB says
+// active group, its first task's state) and Quest_Epic_12 seen; Quest_Sub_005's state (in progress, complete, absent,
+// or an object that is no quest); the acquire once (refused when held or when SB says
 // false, never off a co-op save); the first task's Complete only in progress at M01 with its task in progress, in
 // that group, through a task vtable whose +0x60 is SB's Complete (or the one that ends children), never another; the
 // answer word and the status line.
@@ -32,7 +33,7 @@ constexpr uint64_t kBase = 0x7ff600000000;
 uint64_t at_image(uint64_t address) { return kBase + (address - kImageBase); }
 constexpr uint64_t kUnit = 0x20000, kElements = 0x21000, kHeapBits = 0x22000, kQuest = 0x30000, kGroups = 0x31000,
                    kGroup0 = 0x32000, kGroup1 = 0x33000, kContainers0 = 0x34000, kTasks0 = 0x35000, kTask0 = 0x36000,
-                   kTaskVtable = 0x146000000; // In .rdata.
+                   kSub005 = 0x38000, kTaskVtable = 0x146000000; // In .rdata.
 const std::string kCoopSlot = "slot=coop index=0 marker=? saves=coop", kMain = "slot=main index=0 marker=? saves=main";
 
 struct Game {
@@ -121,6 +122,10 @@ Game game(const std::vector<std::pair<int32_t, uint64_t>> &slots = {}) {
   g.put(kTask0 + kTaskGroup, kGroup0);
   g.map(at_image(kTaskVtable), 0x80);
   g.put(at_image(kTaskVtable) + kCompleteSlot, at_image(kComplete));
+  // Quest_Sub_005's object, complete (as on the test save Coop00), when the map names it.
+  g.map(kSub005, kQuestRead);
+  g.put(kSub005, at_image(kQuestVtable));
+  g.put<int32_t>(kSub005 + kQuestState, 3);
   return g;
 }
 } // namespace
@@ -132,7 +137,20 @@ int main() {
     assert(look(g, kBase, kMain).held == Held::unread && g.units == 0);
     assert(look(g, kBase, "slot=none index=0").held == Held::unread && g.units == 0);
     const Look l = look(g, kBase, kCoopSlot);
-    assert(l.held == Held::none && !l.epic12 && l.state == -1 && l.group == -1 && l.task == -1 && g.units == 1);
+    assert(l.held == Held::none && !l.epic12 && l.state == -1 && l.group == -1 && l.task == -1 && l.sub005 == -1 &&
+           g.units == 1);
+  }
+  // Quest_Sub_005 (ID 44): its state with or without our quest; -1 when absent or when its object is no quest.
+  {
+    Game g = game({{3, 0x40000}, {int32_t(own::kSub005), kSub005}});
+    assert(look(g, kBase, kCoopSlot).sub005 == 3 && look(g, kBase, kCoopSlot).held == Held::none);
+    g.put<int32_t>(kSub005 + kQuestState, 1); // In progress: Lily shows six rows of her own.
+    assert(look(g, kBase, kCoopSlot).sub005 == 1);
+    g.put(kSub005, uint64_t(0x30000)); // Not the quest vtable.
+    assert(look(g, kBase, kCoopSlot).sub005 == -1);
+    Game h = game({{int32_t(kId), kQuest}, {int32_t(own::kSub005), kSub005}});
+    const Look l = look(h, kBase, kCoopSlot);
+    assert(l.held == Held::held && l.sub005 == 3 && l.state == 1 && l.task == 1);
   }
   // On SB's logic thread, or before the world or the manager: unread, no getter call.
   {
@@ -220,16 +238,19 @@ int main() {
   // The answer word and the status line.
   {
     Answer a;
-    assert(status_line(a) == "signalquest=unread state=-1 group=-1 task=-1 epic12=0 asks=0 want=acquire why=none");
+    assert(status_line(a) ==
+           "signalquest=unread state=-1 group=-1 task=-1 epic12=0 sub005=-1 asks=0 want=acquire why=none");
+    assert(status_line(unpack(pack(a))) == status_line(a)); // The glue's word before the first look.
     a.look.held = Held::held, a.look.state = 1, a.look.group = 0, a.look.task = 1, a.look.epic12 = true;
-    a.asks = 3, a.complete = true, a.why = own::Why::task;
+    a.look.sub005 = 4, a.asks = 3, a.complete = true, a.why = own::Why::task;
     const Answer b = unpack(pack(a));
     assert(b.look.held == Held::held && b.look.state == 1 && b.look.group == 0 && b.look.task == 1 && b.look.epic12 &&
-           b.asks == 3 && b.complete && b.why == own::Why::task);
-    assert(status_line(b) == "signalquest=held state=1 group=0 task=1 epic12=1 asks=3 want=complete why=task");
+           b.look.sub005 == 4 && b.asks == 3 && b.complete && b.why == own::Why::task);
+    assert(status_line(b) ==
+           "signalquest=held state=1 group=0 task=1 epic12=1 sub005=4 asks=3 want=complete why=task");
     Answer c;
     c.look.held = Held::none;
-    assert(unpack(pack(c)).look.state == -1 && unpack(pack(c)).look.group == -1);
+    assert(unpack(pack(c)).look.state == -1 && unpack(pack(c)).look.group == -1 && unpack(pack(c)).look.sub005 == -1);
     assert(status_line(c, true, "SB-Win64-Shipping.exe+0x1c5cf20") ==
            "signalquest=fault asks=0 where=SB-Win64-Shipping.exe+0x1c5cf20");
   }

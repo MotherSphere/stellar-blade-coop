@@ -678,7 +678,7 @@ function Enemy.new(o,spec)
     -- The rows alone at the title, from main.lua's 250 ms loop (cut/mxiii.lua's batch, story/lily.lua's): at_title
     -- (the title screen shown, no save loaded) and coop (the game on the co-op save files, saves=coop; never your own
     -- saves). ready() gives the words the ask's log line names the files with ('the co-op save files and test pak
-    -- v3'), or nil when there is nothing to add (then nothing is said); more names the command that adds them later.
+    -- v3'), or nil when there is nothing to add (then nothing is said); more names what adds them later.
     -- Asks at most TRIES times a visit of the title, each RETRY s after the last answer, while the gate stays shut
     -- (GATE: the refusals of a gate that stayed shut, lion/rows.h's busy, net, unread, which a later frame may open;
     -- any other refusal would come back the same). Once a game run: this batch's line already reading rows (a Lua

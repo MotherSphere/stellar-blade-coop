@@ -6,17 +6,22 @@
 -- camp, DLC02_10_Camp_01). The pieces, in order:
 -- - The signal rows (lion/rows.h's kSignalRecipe, through cut/enemy.lua's rows flow and read back): the quest's rows
 --   (a target filter, two tasks, two groups, the quest), then Lily's borrowed choice row TS_GoToTest_2 patched in place
---   (the game's own Phase 5 condition Xion_10_Condition_051, shown or hidden, priority 3, her goodbye's exec). They go
---   in at the title while the game uses the co-op save files, with or without the test pak (title(), cut/enemy.lua's
---   title_batch), so a co-op save that holds the quest loads with it; on a co-op save in game they are asked, or read
---   back when already in, once a Lua load. They stay for the game run, and nothing goes on until they read back.
+--   (the game's own Phase 5 condition Xion_10_Condition_051, shown or hidden, priority 3, her goodbye's exec). Only
+--   with the test pak (looked for once a Lua load), since nothing else can use them and no row has gone into these
+--   tables in game yet: at the title while the game uses the co-op save files (title(), cut/enemy.lua's title_batch),
+--   so a co-op save that holds the quest loads with it; on a co-op save in game they are asked, or read back when
+--   already in, once a Lua load (also after a title batch that a shut gate refused), too late for a save that holds
+--   the quest. They stay for the game run, and nothing goes on until they read back.
 -- - The words (story/lily_text.lua), once the rows read back: the quest's title and description, its two group lines,
 --   task 1's line and her choice's label, as FText in the game's language, each row checked first and read back
 --   (nightop/recruiter.lua's edit). Task 2 keeps the shipped "Talk to Lily" line.
--- - Her list (nightop/roxanne.h's lily swap: lily on, lily off): on while every gate holds (a co-op save, the quest
---   unit read with neither our quest nor Quest_Epic_12 in it, the rows in, the words written, solo, the test pak
---   there), off as soon as one fails; asked again every ASK_EVERY s while the native part reads otherwise. A load
---   (slot none or unknown) changes nothing. The game's condition on the row hides it outside Phase 5 by itself.
+-- - The quest unit's reads (quest/own.h): none until signal watch, asked once a Lua load when the cheap gates hold (a
+--   co-op save, solo, the test pak, the rows read back), so no player without the pak calls SB's quest unit getter.
+-- - Her list (nightop/roxanne.h's lily swap: lily on, lily off): on while every gate holds (the cheap ones, the words
+--   written, the quest unit read with neither our quest nor Quest_Epic_12 in it, and Quest_Sub_005 complete: while it
+--   runs Lily can show six rows of her own, every slot of the choice box, so ours would make a seventh), off as soon
+--   as one fails; asked again every ASK_EVERY s while the native part reads otherwise. A load (slot none or unknown)
+--   changes nothing. The game's condition on the row hides it outside Phase 5 by itself.
 -- - The pick, read from the select widgets as Roxanne's (nightop/roxanne.lua's watcher), only while her list reads
 --   on: after AFTER s and once the game shows none of its screens (her goodbye), signal acquire (quest/own.h, SB's
 --   acquire by ID), then, once the quest unit holds it, coop mxiii (commands/cut.lua's: the co-op save check, the
@@ -25,8 +30,9 @@
 --   FALLBACK s (SB's EnterZone check on Zone_DLC02_10 did not fire after the camp travel), signal complete (the task's
 --   own Complete), once a visit. Group M02 ("Talk to Lily") waits for later content: nothing completes it.
 -- Each step logs an [LY] line. coop lily signal [status|quest|travel] runs the same steps by hand. Nothing here runs on
--- your own saves; a save loaded without the mod drops the quest (its rows are missing: "LoadQuest : QuestData Not
--- Found"), and the aliases must never change, since the save keys quests, groups and tasks by alias.
+-- your own saves; a save loaded without the mod or without the test pak drops the quest (its rows are missing:
+-- "LoadQuest : QuestData Not Found"), and the aliases must never change, since the save keys quests, groups and tasks
+-- by alias.
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local R=require('nightop.recruiter')
@@ -71,8 +77,8 @@ Lily.TEXTS={
     {'TheaterSelectDataTable','TS_GoToTest_2',86,{{'DisplayText','L'}},'Success5'},
 }
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
--- The signalquest line (quest/own.h) as fields: held (unread, none, held, fault), state, group, task, epic12, asks
--- (numbers), want, why; nil without one.
+-- The signalquest line (quest/own.h) as fields: held (unread, none, held, fault), state, group (0 is M01), task,
+-- epic12, sub005, asks (numbers), want, why; nil without one.
 function Lily.quest_of(raw)
     local line=('\n'..(raw or '')):match('\nsignalquest=([^\r\n]*)')
     if not line then return nil end
@@ -91,21 +97,7 @@ function Lily.new(o)
     local e=Enemy.new({log=log,ask=ask,status=status},
         {word='signal',name="Lily's signal",command='coop lily signal',tag='[LY]',rows=Lily.ROWS,ids={}})
     local rows_ok=false -- The rows read back as written in this Lua load (the title's batch or the one asked in game).
-    local title,title_stop=e.title_batch(function() return 'the co-op save files' end,'coop lily signal',
-        function(ok) rows_ok=rows_ok or ok end)
-    local watcher=Roxanne.watcher({log=log,paused=o.paused})
-    local culture,text_failed=nil,false -- The words' culture once written this Lua load; a write that stopped.
-    local labels={} -- Her choice's label in every language.
-    for _,t in pairs(T.TEXT) do labels[t.L]=true end
-    local rows_asked=false -- The rows asked (or, already in, read back) in game this Lua load.
-    local armed,asked_at=false,-math.huge -- lily on asked (and no off since); the last on or off.
-    local said=false -- The gate's last why, logged when it changes (false: none said yet).
     local pak,pak_why=nil,nil -- The test pak's version (false: none), looked for once a Lua load and at each command.
-    local flow=nil -- After a pick or a command: {step='wait'|'acquire', at=, asks=, travel=}.
-    local arrived,completed=nil,false -- In Matrix XIII at M01 since; the fallback asked this visit.
-    local seen=nil -- The quest line's held, state, group and task last logged.
-    local function lily_line(raw) return raw:match('\nlily=([^\r\n]*)') end
-    local function listed(line) return (line or ''):find('^on ')~=nil end
     -- The test pak's version, or nil (pak_why says why); looked for again with again (a command).
     local function test_pak(again)
         if pak==nil or again then
@@ -114,6 +106,24 @@ function Lily.new(o)
         end
         return pak or nil
     end
+    -- The title's batch, only with the test pak (with none there is nothing to add, and nothing is said).
+    local title,title_stop=e.title_batch(function()
+        return test_pak() and 'the co-op save files and test pak v'..pak or nil
+    end,'the next visit of the title (or the ask on a co-op save in game once a Lua load, too late for a save that '
+        ..'holds the quest)',function(ok) rows_ok=rows_ok or ok end)
+    local watcher=Roxanne.watcher({log=log,paused=o.paused})
+    local culture,text_failed=nil,false -- The words' culture once written this Lua load; a write that stopped.
+    local labels={} -- Her choice's label in every language.
+    for _,t in pairs(T.TEXT) do labels[t.L]=true end
+    local rows_asked=false -- The rows asked (or, already in, read back) in game this Lua load.
+    local watching=false -- signal watch asked this Lua load.
+    local armed,asked_at=false,-math.huge -- lily on asked (and no off since); the last on or off.
+    local said=false -- The gate's last why, logged when it changes (false: none said yet).
+    local flow=nil -- After a pick or a command: {step='wait'|'acquire', at=, asks=, travel=}.
+    local arrived,completed=nil,false -- In Matrix XIII at M01 since; the fallback asked this visit.
+    local seen=nil -- The quest line's held, state, group and task last logged.
+    local function lily_line(raw) return raw:match('\nlily=([^\r\n]*)') end
+    local function listed(line) return (line or ''):find('^on ')~=nil end
     -- The words in the game's language, row by row (checked, written, read back). Gives the STOP line or nil.
     local function write_texts()
         local read,raw=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
@@ -132,27 +142,36 @@ function Lily.new(o)
             ..'line and her choice\'s label written and read back',
             read and U.word(raw,16) or '?('..R.ascii(why(raw))..')',c))
     end
-    -- Why her choice stays off now, or nil when every gate holds.
-    local function gate(raw,q,rows)
+    -- Why the quest unit's reads wait (the cheap gates, read first), or nil once they may start.
+    local function cheap(raw,rows)
         if raw:match('\nslot=(%a+)')~='coop' then return 'not a co-op save' end
-        if not q then return 'no signalquest line (the native part is off, or older than Lily\'s signal)' end
-        if q.held=='fault' then return 'the quest\'s reads stopped on a fault ('..q.line..')' end
-        if q.held~='none' and q.held~='held' then return 'the quest unit is not read yet' end
-        if q.held=='held' then return 'the quest is held ('..q.line..')' end
-        if q.epic12==1 then return 'Quest_Epic_12 is held: past the point of no return' end
+        local mode=o.mode()
+        if mode==nil then return 'the Steam link is not ready yet' end
+        if mode~='none' then return 'solo only: leave the session first (coop leave)' end
+        if not test_pak() then return 'no zMXIII_P test pak ('..tostring(pak_why)..')' end
         if not rows then return 'no signal line (the native part is off, or older than Lily\'s signal)' end
         if rows.state~='rows' then return 'the signal rows are not in ('..rows.line..')' end
         if not rows_ok then
             return rows_asked and 'the signal rows did not read back as written'
                 or 'the signal rows are not read back yet'
         end
+    end
+    -- Why her choice stays off now, or nil when every gate holds.
+    local function gate(raw,q,rows)
+        local stop=cheap(raw,rows)
+        if stop then return stop end
         if not culture then
             return text_failed and 'the words did not write (a STOP: text line says why)' or 'the words are not written'
         end
-        local mode=o.mode()
-        if mode==nil then return 'the Steam link is not ready yet' end
-        if mode~='none' then return 'solo only: leave the session first (coop leave)' end
-        if not test_pak() then return 'no zMXIII_P test pak ('..tostring(pak_why)..')' end
+        if not q then return 'no signalquest line (the native part is off, or older than Lily\'s signal)' end
+        if q.held=='fault' then return 'the quest\'s reads stopped on a fault ('..q.line..')' end
+        if q.held~='none' and q.held~='held' then return 'the quest unit is not read yet' end
+        if q.held=='held' then return 'the quest is held ('..q.line..')' end
+        if q.epic12==1 then return 'Quest_Epic_12 is held: past the point of no return' end
+        if not q.sub005 or q.sub005<3 then
+            return 'Quest_Sub_005 is not complete (sub005='..tostring(q.sub005)..'): her own rows could then fill the '
+                ..'six slots of her choice box'
+        end
     end
     local function off(reason)
         local ran,ok,said_off=pcall(ask,'lily off')
@@ -211,9 +230,12 @@ function Lily.new(o)
         local raw='\n'..(status() or '')
         local rows,line,q=Enemy.parse(raw,'signal'),lily_line(raw),Lily.quest_of(raw)
         local slot=raw:match('\nslot=(%a+)')
-        -- Asked, or read back when already in (the title's batch of an earlier Lua load), once a Lua load.
-        if not stopped and slot=='coop' and rows and (rows.state=='off' or rows.state=='rows') and not rows_ok
-            and not rows_asked and N.her() and not e.busy() then
+        -- Asked, or read back when already in (the title's batch of an earlier Lua load), once a Lua load, with the
+        -- test pak only; also after a title batch that a shut gate refused (busy, net, unread), which a later frame may
+        -- open.
+        local shut=rows and rows.state=='refused' and (rows.why=='busy' or rows.why=='net' or rows.why=='unread')
+        if not stopped and slot=='coop' and rows and (rows.state=='off' or rows.state=='rows' or shut) and not rows_ok
+            and not rows_asked and N.her() and not e.busy() and test_pak() then
             rows_asked=true
             local ok,said_rows,waiting=e.rows(function(fine,m)
                 rows_ok=rows_ok or fine
@@ -234,6 +256,11 @@ function Lily.new(o)
             return
         end
         if slot=='none' or slot=='unknown' then return end -- A load: no save to judge yet.
+        if not watching and not cheap(raw,rows) then -- The quest unit's reads start, once a Lua load.
+            watching=true
+            local ran,ok,said_watch=pcall(ask,'signal watch')
+            log('signal watch: '..(ran and tostring(said_watch) or why(ok)))
+        end
         if q then -- The quest's own changes, said once each.
             local key=table.concat({q.held,tostring(q.state),tostring(q.group),tostring(q.task)},' ')
             if key~=seen and q.held=='held' then log('the quest: '..q.line) end

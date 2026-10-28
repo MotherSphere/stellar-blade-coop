@@ -1,15 +1,16 @@
 // The mod's own quest, "On Time" (Quest_Sub_MX13_01, QuestTable 163: lion/rows.h's signal batch, story/lily.lua), in
 // the local player's quest unit, free of Windows: tests/native/quest/own_test.cpp checks it against fake memory laid
-// out like the pinned build. Every 250 ms on a co-op save the game thread reads whether the unit's ID map holds it and
-// Quest_Epic_12 (ID 25, which Lily's "Follow the bike signal and leave" starts: past the point of no return), and our
-// quest's state, active group and that group's first task's state. On Lua's ask it acquires the quest through the
-// acquire by ID a quest zone event makes (FUN_141c5cf20: the ID's row name through the QuestTable ID map that AddRow
-// filled, then AcquireQuest and PushQuest, which refuses an ID already held), or completes the first task of group M01
-// through the task vtable's +0x60, the Complete the shared quests' guest calls (quest/engine.h's kComplete or
-// kCompleteParent; the glue's QuestGame::call refuses any other): the fallback when SB's EnterZone check does not fire
-// for Zone_DLC02_10 after the camp travel. Only the quest's own fixed ID and group reach a call; no console argument
-// does. The offsets and functions are quest/engine.h's, for Stellar Blade's Steam build 24463856. The Game is the
-// engine's: read, thread, unit, acquire, call.
+// out like the pinned build. Every 250 ms on a co-op save, once Lua's signal watch came, the game thread reads whether
+// the unit's ID map holds it and Quest_Epic_12 (ID 25, which Lily's "Follow the bike signal and leave" starts: past the
+// point of no return), Quest_Sub_005's state (ID 44, quest/sync.h: while it runs, Lily shows six rows of her own, every
+// slot of the choice box, so ours stays off), and our quest's state, active group and that group's first task's state.
+// On Lua's ask it acquires the quest through the acquire by ID a quest zone event makes (FUN_141c5cf20: the ID's row
+// name through the QuestTable ID map that AddRow filled, then AcquireQuest and PushQuest, which refuses an ID already
+// held), or completes the first task of group M01 through the task vtable's +0x60, the Complete the shared quests'
+// guest calls (quest/engine.h's kComplete or kCompleteParent; the glue's QuestGame::call refuses any other): the
+// fallback when SB's EnterZone check does not fire for Zone_DLC02_10 after the camp travel. Only the quest's own fixed
+// ID and group reach a call; no console argument does. The offsets and functions are quest/engine.h's, for Stellar
+// Blade's Steam build 24463856. The Game is the engine's: read, thread, unit, acquire, call.
 #pragma once
 
 #include <cstddef>
@@ -23,17 +24,17 @@
 
 namespace coop::quest::own {
 
-constexpr uint32_t kId = 163, kEpic12 = 25;
+constexpr uint32_t kId = 163, kEpic12 = 25, kSub005 = 44;
 constexpr int32_t kFirstGroup = 0; // M01, whose one task enters Zone_DLC02_10.
 
 enum class Held : uint8_t { unread, none, held };
 // What the unit holds: unread (no co-op save, no world, manager or unit yet, or SB's logic thread), none or held; with
 // held, our quest's state (ESBQuestState: 1 in progress, 2 can complete, 3 complete, 4 reward taken, 5 failed), its
 // active group and that group's first task's state (0 not started, 1 in progress, 2 complete, 3 failed, 4 inactive),
-// -1 when unread; and whether Quest_Epic_12 is in the map.
+// -1 when unread; whether Quest_Epic_12 is in the map; Quest_Sub_005's state (the same values), -1 when not in the map.
 struct Look {
   Held held = Held::unread;
-  int32_t state = -1, group = -1, task = -1;
+  int32_t state = -1, group = -1, task = -1, sub005 = -1;
   bool epic12 = false;
   uint64_t mgr = 0, quest = 0, task_object = 0, group_object = 0; // For the calls.
   uint32_t owner = 0;
@@ -79,7 +80,7 @@ template <class Game> Look look(Game &g, uint64_t base, std::string_view slot) {
     std::memcpy(words, u + kMapBits, 16);
   else if (nwords && !g.read(heap, words, 4 * nwords))
     return l;
-  uint64_t quest = 0;
+  uint64_t quest = 0, sub005 = 0;
   bool epic12 = false;
   for (int32_t s = 0; s < slots; ++s) {
     if (!(words[s / 32] >> (s % 32) & 1))
@@ -90,11 +91,15 @@ template <class Game> Look look(Game &g, uint64_t base, std::string_view slot) {
       return l;
     if (key == int32_t(kId) && game::plausible(value))
       quest = value;
+    if (key == int32_t(kSub005) && game::plausible(value))
+      sub005 = value;
     epic12 |= key == int32_t(kEpic12);
   }
   l.held = quest ? Held::held : Held::none, l.epic12 = epic12, l.mgr = mgr, l.owner = owner, l.quest = quest;
   uint64_t vtable = 0, groups = 0, group = 0, containers = 0, tasks = 0, task = 0;
   int32_t state = 0, count = 0, active = -1, ncont = 0, ntasks = 0, task_state = -1;
+  if (sub005 && get(g, sub005, vtable) && vtable == rebased(base, kQuestVtable) && get(g, sub005 + kQuestState, state))
+    l.sub005 = state;
   if (!quest || !get(g, quest, vtable) || vtable != rebased(base, kQuestVtable) || !get(g, quest + kQuestState, state))
     return l;
   l.state = state;
@@ -142,37 +147,43 @@ template <class Game> Why complete(Game &g, uint64_t base, std::string_view slot
   return Why::none;
 }
 
-// One word for the worker, so it never reads half of it: task 0-7, group 8-15, state 16-23 (each an int8), held
-// 32-33, epic12 34, why 40-43, want 44 (complete), asks 48-63.
+// One word for the worker, so it never reads half of it: task 0-7, group 8-15, state 16-23, sub005 24-31 (each an
+// int8), held 32-33, epic12 34, why 40-43, want 44 (complete), asks 48-63.
 struct Answer {
   Look look;
   Why why = Why::none;
   bool complete = false;
   uint32_t asks = 0;
 };
-inline uint64_t pack(const Answer &a) {
+constexpr uint64_t pack(const Answer &a) {
   return uint64_t(a.asks & 0xffff) << 48 | uint64_t(a.complete) << 44 | uint64_t(a.why) << 40 |
-         uint64_t(a.look.epic12) << 34 | uint64_t(a.look.held) << 32 | uint64_t(uint8_t(int8_t(a.look.state))) << 16 |
+         uint64_t(a.look.epic12) << 34 | uint64_t(a.look.held) << 32 | uint64_t(uint8_t(int8_t(a.look.sub005))) << 24 |
+         uint64_t(uint8_t(int8_t(a.look.state))) << 16 |
          uint64_t(uint8_t(int8_t(a.look.group))) << 8 | uint64_t(uint8_t(int8_t(a.look.task)));
 }
 inline Answer unpack(uint64_t w) {
   Answer a;
   a.asks = uint32_t(w >> 48), a.complete = (w >> 44) & 1, a.why = Why((w >> 40) & 15);
   a.look.epic12 = (w >> 34) & 1, a.look.held = Held((w >> 32) & 3);
-  a.look.state = int8_t(uint8_t(w >> 16)), a.look.group = int8_t(uint8_t(w >> 8)), a.look.task = int8_t(uint8_t(w));
+  a.look.sub005 = int8_t(uint8_t(w >> 24)), a.look.state = int8_t(uint8_t(w >> 16));
+  a.look.group = int8_t(uint8_t(w >> 8)), a.look.task = int8_t(uint8_t(w));
   return a;
 }
 // coop-status.txt's signalquest line (story/lily.lua reads it):
-//   signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> asks=<a> want=<acquire|complete> why=<w>
+//   signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> asks=<a>
+//     want=<acquire|complete> why=<w>
 //   signalquest=fault asks=<a> where=<text, maybe with spaces>
-// state, group and task are -1 when unread; asks counts the asks the game thread finished, want and why the last one's.
+// state, group and task are -1 when unread, sub005 when Quest_Sub_005 is not in the map (or unread); group counts from
+// 0 (M01); asks counts the asks the game thread finished, want and why the last one's. Before Lua's signal watch, the
+// line reads unread.
 inline std::string status_line(const Answer &a, bool faulted = false, const std::string &where = std::string()) {
   if (faulted)
     return "signalquest=fault asks=" + std::to_string(a.asks) + " where=" + where;
   static const char *const kHeld[] = {"unread", "none", "held"};
   return std::string("signalquest=") + kHeld[size_t(a.look.held) % 3] + " state=" + std::to_string(a.look.state) +
          " group=" + std::to_string(a.look.group) + " task=" + std::to_string(a.look.task) +
-         " epic12=" + (a.look.epic12 ? "1" : "0") + " asks=" + std::to_string(a.asks) +
+         " epic12=" + (a.look.epic12 ? "1" : "0") + " sub005=" + std::to_string(a.look.sub005) +
+         " asks=" + std::to_string(a.asks) +
          " want=" + (a.complete ? "complete" : "acquire") + " why=" + why_word(a.why);
 }
 

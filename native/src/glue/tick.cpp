@@ -50,10 +50,11 @@
 // engine lists as one the host lacks, so that enemy never appears in her game. The worker makes the swap when the gate
 // first opens and swaps back at coop off or after a fault in the hook, which has its own SEH latch.
 //
-// The mod's own quest (quest/own.h, Lily's signal): every 250 ms on a co-op save until coop off, the game thread reads
-// whether the quest unit holds it and Quest_Epic_12, its state, group and first task, and runs Lua's signal acquire
-// (SB's acquire by ID) or signal complete (its first task's Complete) under its own SEH latch; status() gives the
-// signalquest line, and the worker logs each answer.
+// The mod's own quest (quest/own.h, Lily's signal): from Lua's first signal request (signal watch, once Lily's cheap
+// gates hold) until coop off, every 250 ms on a co-op save, the game thread reads whether the quest unit holds it,
+// Quest_Epic_12 and Quest_Sub_005, its state, group and first task, and runs Lua's signal acquire (SB's acquire by ID)
+// or signal complete (its first task's Complete) under its own SEH latch; status() gives the signalquest line, and the
+// worker logs each answer.
 //
 // The shared quests (Phase 12, quest/engine.h): every 250 ms coop_tick runs the engine's pass on the game thread, where
 // SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most one step

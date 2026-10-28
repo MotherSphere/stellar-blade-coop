@@ -588,9 +588,9 @@ inline uint64_t code_lobby(std::string_view text) {
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
 // nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (story/lily.lua, the same header) "lily
-// on" and "lily off"; for the mod's own quest (story/lily.lua, quest/own.h) "signal acquire" (acquire it) and "signal
-// complete" (its first task's Complete). No console argument reaches any of them: the words are fixed, and so is the
-// quest's ID.
+// on" and "lily off"; for the mod's own quest (story/lily.lua, quest/own.h) "signal watch" (the reads only, from then
+// on), "signal acquire" (acquire it) and "signal complete" (its first task's Complete). No console argument reaches any
+// of them: the words are fixed, and so is the quest's ID.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
@@ -646,6 +646,7 @@ struct Request {
   bool on = false;                       // roxanne on, lily on (true) or off.
   bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
   bool complete = false;                 // signal: complete (true) or acquire.
+  bool watch = false;                    // signal: watch (the reads only; complete false).
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -941,9 +942,9 @@ inline Request parse_request(std::string text) {
   } else if (text == "lily on" || text == "lily off") {
     r.command = Command::roxanne;
     r.lily = true, r.on = text.size() == 7;
-  } else if (text == "signal acquire" || text == "signal complete") {
+  } else if (text == "signal acquire" || text == "signal complete" || text == "signal watch") {
     r.command = Command::signal;
-    r.complete = text[7] == 'c';
+    r.complete = text[7] == 'c', r.watch = text[7] == 'w';
   } else if (text == "fly on" || text == "fly off" || text == "slowmo on" || text == "slowmo off") {
     r.command = Command::gate;
     r.gate = text[0] == 's' ? 1 : 0;

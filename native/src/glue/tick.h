@@ -146,9 +146,10 @@ std::string ask_roxanne(const coop::Request &request);
 // Worker: coop-status.txt's shared quests lines (quest/engine.h's Worker::status), then the signalquest line
 // (quest/own.h's status_line, on the pinned build until coop off), each ending in a line break.
 std::string quest_status();
-// Worker thread, the mod's own quest (quest/own.h): Lua's signal acquire or signal complete, at the game thread's next
-// 250 ms pass, on a co-op save only. Refused off the pinned build, after coop off and after its latch's fault. Returns
-// the line for the log; quest_pass logs the game thread's answer.
+// Worker thread, the mod's own quest (quest/own.h): Lua's signal watch (the reads start; none before any signal
+// request), signal acquire or signal complete, at the game thread's next 250 ms pass, on a co-op save only. Refused off
+// the pinned build, after coop off and after its latch's fault. Returns the line for the log; quest_pass logs the game
+// thread's answer.
 std::string ask_signal(const coop::Request &request);
 // Worker: coop-status.txt's pilot line (same-place enemies): "pilot=on piloted=<n> owned=<n> drawn=<n>",
 // "pilot=off why=<word>", "pilot=stopped" or "pilot=refused why=<why>", with " probe=on" and " test=<how far>" before

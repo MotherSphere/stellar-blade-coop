@@ -3,14 +3,16 @@
 -- fields by comparison index, the groups' TaskContainerArray as an array of structs each holding a TaskAliasArray of
 -- FNames, FText fields), the language library, a text library whose PolyglotDataToText raises as UE4SS does on a
 -- Lua-table map, EVE's world, the select widget through the widget library's lookup (SelectIndex -1 until a pick, its
--- DataArray lines' DisplayText), the test pak's files and coop mxiii's travel.
--- Covered: its 7 rows against rows.h's kSignalRecipe and kSignalPatches (names, templates, IDs, each patched field's
--- kind and value, no field more, the quest row last of its rows and the choice row patched in place last); the words
--- in English and French (every line, French for any French culture, English for the others); nothing off a co-op save;
--- the title's batch with no test pak; the words written once the rows read back (no PolyglotDataToText call), a row
--- that is not the one known stopping them and her choice for the Lua load; the rows asked once in game when they are
--- not in; lily on only while every gate holds (co-op save, quest unit read, neither our quest nor Quest_Epic_12, rows
--- in, words written, solo, the test pak), off when one fails, asked again while the native part reads otherwise, a load
+-- DataArray lines' DisplayText), the test pak's files and coop mxiii's travel. Covered: its 7 rows against rows.h's
+-- kSignalRecipe and kSignalPatches (names, templates, IDs, each patched field's kind and value, no field more, the
+-- quest row last of its rows and the choice row patched in place last); the words in English and French (every line,
+-- French for any French culture, English for the others); nothing off a co-op save; no test pak: no rows at the title
+-- or in game, no quest unit read; with it, the title's batch with only the 5 tables its rows use; the words written
+-- once the rows read back (no PolyglotDataToText call), a row that is not the one known stopping them and her choice
+-- for the Lua load; the rows asked once in game when they are not in, also after a title batch refused by a shut gate
+-- at all 4 tries; signal watch once the cheap gates hold (co-op save, solo, the test pak, the rows read back) and never
+-- before; lily on only while every gate holds (those, the words written, the quest unit read, neither our quest nor
+-- Quest_Epic_12, Quest_Sub_005 complete), off when one fails, asked again while the native part reads otherwise, a load
 -- changing nothing; a pick only of our label on a SelectIndex turning from -1 (her End Conversation, or a widget first
 -- seen on a line, do nothing), then after her goodbye signal acquire, and the travel once the quest is held; a refused
 -- acquire with no travel; the fallback's signal complete once a visit to Matrix XIII at M01 after 10 s; coop lily
@@ -176,7 +178,7 @@ local logs,asked,travels={},{},0
 local mode,paused='none',false
 local travel_answer={true,'coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked'}
 local lines={slot='slot=coop index=4',signal='signal=off',lily='lily=unread asks=0 want=off why=none',
-    quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=0 want=acquire why=none'}
+    quest='signalquest=unread state=-1 group=-1 task=-1 epic12=0 sub005=-1 asks=0 want=acquire why=none'}
 local function status_text()
     return 'mod=v\n'..lines.slot..'\n'..lines.signal..'\n'..lines.lily..'\n'..(lines.quest or '')..'\nlast=x\n'
 end
@@ -190,6 +192,11 @@ local function last() return logs[#logs] end
 local function logged(text) for _,l in ipairs(logs) do if l:find(text,1,true) then return l end end end
 local function count(line) local n=0; for _,a in ipairs(asked) do if a==line then n=n+1 end end; return n end
 local ROWS_IN='signal=rows added=7/7 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
+-- The signal rows request: the 5 tables its rows go into, in kLionTables' order.
+local SIGNAL_REQUEST=string.format('signal rows QuestTable=0x%x QuestTaskGroupTable=0x%x QuestTaskTable=0x%x '
+    ..'LevelTargetFilter=0x%x TheaterSelectDataTable=0x%x',tables.QuestTable:GetAddress(),
+    tables.QuestTaskGroupTable:GetAddress(),tables.QuestTaskTable:GetAddress(),tables.LevelTargetFilter:GetAddress(),
+    tables.TheaterSelectDataTable:GetAddress())
 local function label(name) return tables.TheaterSelectDataTable.rows[name].DisplayText:ToString() end
 
 -- Off a co-op save: nothing asked, nothing written.
@@ -200,14 +207,26 @@ ly.tick()
 lines.slot='slot=coop index=4'
 ly.tick() -- No EVE: no rows asked in game.
 assert(#asked==0,'Nothing off a co-op save or with no EVE')
--- The title's batch: the co-op save files, no test pak needed: the rows asked with their 5 addresses, then read back.
+-- No test pak: no rows at the title (nothing said either) nor in game, no quest unit read, her choice off.
+lines.slot='slot=none index=4'
+ly.title(true,true)
+assert(#asked==0 and not logged('title:'),'No test pak: nothing at the title')
+lines.slot='slot=coop index=4'
+her=eve
+ly.tick()
+assert(#asked==0 and last():find('^her choice stays off: no zMXIII_P test pak %('),last())
+-- The test pak (looked for once a Lua load, so a reload sees it): the title's batch on the co-op save files only, with
+-- the 5 tables its rows go into, then read back.
+pak_in()
+her=nil
+logs={}
+ly=new()
 lines.slot='slot=none index=4'
 ly.title(true,false)
 assert(#asked==0,'Not on your own saves')
 ly.title(true,true)
-assert(#asked==1 and asked[1]:find('^signal rows QuestTable=0x%x+ ') and select(2,asked[1]:gsub('=0x',''))==5,
-    asked[1])
-assert(logged('title: the co-op save files: the rows asked before any save loads (try 1 of 4)'))
+assert(#asked==1 and asked[1]==SIGNAL_REQUEST,asked[1])
+assert(logged('title: the co-op save files and test pak v2: the rows asked before any save loads (try 1 of 4)'))
 lines.signal=ROWS_IN:format(1)
 clock=clock+0.5
 ly.tick() -- The rows flow's wait ends: the read-back, then the words in the game's language.
@@ -222,23 +241,34 @@ assert(tables.QuestTaskGroupTable.rows.Quest_Sub_MX13_01_M01.Description:ToStrin
     and label('TS_GoToTest_2')=="L'autre signal")
 assert(tables.QuestTaskTable.rows.Quest_Sub_MX13_01_M02_T01.DisplayText:ToString()=='종료 선택지',
     'Task 2 keeps its shipped text')
--- In game, the gate: no test pak, then a partner, then everything: lily on once.
+assert(#asked==1,'No quest unit read at the title')
+-- In game, the gate: a partner (no signal watch yet), then solo: signal watch once, the quest unit unread, then
+-- Quest_Sub_005 running or never taken, then complete (Coop00's state): lily on once.
 lines.slot='slot=coop index=4'
+lines.quest='signalquest=unread state=-1 group=-1 task=-1 epic12=0 sub005=-1 asks=0 want=acquire why=none'
 her=eve
-local n=#asked
-ly.tick()
-assert(#asked==n and logged('her choice stays off: no zMXIII_P test pak'),last())
-pak_in()
 mode='host'
-logs={}
-ly=new() -- The pak is looked for once a Lua load: a reload sees it (the words are written again).
 ly.tick()
-assert(logged('text: game language fr-FR'))
-assert(count('lily on')==0 and last()=='her choice stays off: solo only: leave the session first (coop leave)',last())
+assert(count('signal watch')==0 and count('lily on')==0
+    and last()=='her choice stays off: solo only: leave the session first (coop leave)',last())
 mode='none'
 ly.tick()
+assert(count('signal watch')==1 and logged('signal watch: asked the native part: signal watch')
+    and last()=='her choice stays off: the quest unit is not read yet',last())
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=1 asks=0 want=acquire why=none'
+ly.tick()
+assert(count('signal watch')==1 and count('lily on')==0 and last()=='her choice stays off: Quest_Sub_005 is not '
+    ..'complete (sub005=1): her own rows could then fill the six slots of her choice box',last())
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=-1 asks=0 want=acquire why=none'
+ly.tick()
+assert(count('lily on')==0 and last():find('Quest_Sub_005 is not complete (sub005=-1)',1,true),last())
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=0 want=acquire why=none'
+ly.tick()
+assert(count('lily on')==0 and last():find('(sub005=nil)',1,true),'An older native part: off')
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=0 want=acquire why=none'
+ly.tick()
 assert(count('lily on')==1 and logged('her choice is offered: lily on'))
-ly.tick(); assert(count('lily on')==1,'Once')
+ly.tick(); assert(count('lily on')==1 and count('signal watch')==1,'Once')
 -- The native part reads off for 10 s: asked again.
 lines.lily='lily=off asks=1 want=on why=busy'
 clock=clock+10.5
@@ -247,11 +277,11 @@ assert(count('lily on')==2 and last():find('lily on asked again',1,true),last())
 -- A load changes nothing.
 lines.lily='lily=on asks=2 want=on why=none'
 lines.slot='slot=none index=4'
-lines.quest='signalquest=unread state=-1 group=-1 task=-1 epic12=0 asks=0 want=acquire why=none'
+lines.quest='signalquest=unread state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=0 want=acquire why=none'
 ly.tick()
 assert(count('lily off')==0,'A load holds her choice')
 lines.slot='slot=coop index=4'
-lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=0 want=acquire why=none'
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=0 want=acquire why=none'
 -- The pick: her list on, the widget looked for at each tick; a widget first seen on a line, her End Conversation and
 -- a line of another dialogue do nothing; our label picked: the acquire after her goodbye.
 widget.SelectIndex=2
@@ -272,7 +302,7 @@ clock=clock+0.25; ly.tick()
 assert(count('signal acquire')==1 and logged('signal acquire asked (signalquest=none'),last())
 clock=clock+0.25; ly.tick(); assert(count('signal acquire')==1 and travels==0,'Waits for the quest')
 -- The quest held: the travel; her choice off.
-lines.quest='signalquest=held state=1 group=0 task=1 epic12=0 asks=1 want=acquire why=none'
+lines.quest='signalquest=held state=1 group=0 task=1 epic12=0 sub005=3 asks=1 want=acquire why=none'
 clock=clock+0.25; ly.tick()
 assert(travels==1 and logged('the quest is held: signalquest=held') and logged('travel: coop mxiii: the rows are in'))
 assert(count('lily off')==1 and logged('lily off (the quest is held'),last())
@@ -286,7 +316,7 @@ clock=clock+0.5; ly.tick()
 assert(count('signal complete')==1 and last():find('signal complete asked',1,true),last())
 clock=clock+20; ly.tick(); assert(count('signal complete')==1,'Once a visit')
 -- SB's EnterZone, or the Complete: M02. No more fallback.
-lines.quest='signalquest=held state=1 group=1 task=1 epic12=0 asks=2 want=complete why=none'
+lines.quest='signalquest=held state=1 group=1 task=1 epic12=0 sub005=3 asks=2 want=complete why=none'
 clock=clock+0.25; ly.tick()
 assert(logged('the quest: signalquest=held state=1 group=1'),last())
 world=XION; clock=clock+1; ly.tick()
@@ -295,14 +325,14 @@ assert(count('signal complete')==1,'Past M01: nothing')
 world=XION
 
 -- A refused acquire: no travel.
-lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=2 want=complete why=none'
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=2 want=complete why=none'
 lines.lily='lily=on asks=4 want=on why=none'
 local ok,why=ly.command('quest')
 assert(ok and why=='signal acquire asked: [LY] lines follow',why)
-lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=3 want=acquire why=refused'
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=3 want=acquire why=refused'
 travels=0
 clock=clock+0.25; ly.tick()
-assert(last()=='STOP: signal acquire refused: signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=3 '
+assert(last()=='STOP: signal acquire refused: signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=3 '
     ..'want=acquire why=refused' and travels==0,last())
 -- coop lily signal: usage, status, travel alone, no word (the quest then the travel), the test pak missing.
 ok,why=ly.command('now')
@@ -316,24 +346,24 @@ ok,why=ly.command()
 assert(ok and why=='signal acquire asked: [LY] lines follow, then the travel',why)
 ok,why=ly.command('quest')
 assert(ok==false and why:find('busy'),why)
-lines.quest='signalquest=held state=1 group=0 task=1 epic12=0 asks=4 want=acquire why=none'
+lines.quest='signalquest=held state=1 group=0 task=1 epic12=0 sub005=3 asks=4 want=acquire why=none'
 clock=clock+0.25; ly.tick()
 assert(travels==2,'No word: the travel once the quest is held')
 files={}
-lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=4 want=acquire why=none'
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=4 want=acquire why=none'
 n=#asked
 ok,why=ly.command('quest')
 assert(ok==false and why:find('^coop lily signal quest: no zMXIII_P test pak') and why:find('nothing was asked$')
     and #asked==n,why)
 pak_in()
 -- Quest_Epic_12 held, our quest held: her choice off, the command refused.
-lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=1 asks=4 want=acquire why=none'
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=1 sub005=3 asks=4 want=acquire why=none'
 ok,why=ly.command('quest')
 assert(ok==false and why:find('past the point of no return'),why)
 clock=clock+0.25; ly.tick()
 assert(last():find('her choice stays off: Quest_Epic_12 is held',1,true),last())
 -- coop off: lily off while her list reads on, asked again after 10 s; nothing else.
-lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=4 want=acquire why=none'
+lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 asks=4 want=acquire why=none'
 clock=clock+0.25; ly.tick() -- On again.
 n=count('lily off')
 ly.stop()
@@ -350,15 +380,16 @@ lines.lily='lily=off asks=5 want=off why=none'
 asked,logs={},{}
 ly=new()
 clock=clock+1; ly.tick()
-assert(#asked==1 and asked[1]:find('^signal rows QuestTable=0x'),tostring(asked[1]))
+assert(#asked==1 and asked[1]==SIGNAL_REQUEST,tostring(asked[1]))
 clock=clock+1; ly.tick(); assert(#asked==1,'Once a Lua load')
 lines.signal=ROWS_IN:format(2)
 clock=clock+0.5; ly.tick()
 assert(logged("STOP: rows: A Lily's signal row reads back wrong (Quest_Sub_MX13_01_M01_T01 ID reads"),last())
 clock=clock+1; ly.tick()
 assert(count('lily on')==0 and last()=='her choice stays off: the signal rows did not read back as written',last())
-assert(label('TS_GoToTest_2')=='종료 선택지','No words written')
--- Rows already in (an earlier Lua load): read back with no ask; a label that does not stick stops the words.
+assert(label('TS_GoToTest_2')=='종료 선택지' and count('signal watch')==0,'No words written, no quest unit read')
+-- Rows already in (an earlier Lua load): read back with no ask (signal watch follows); a label that does not stick
+-- stops the words.
 build_tables()
 local choice=tables.TheaterSelectDataTable.rows.TS_GoToTest_2
 tables.TheaterSelectDataTable.rows.TS_GoToTest_2=setmetatable({},{__index=choice,
@@ -366,9 +397,36 @@ tables.TheaterSelectDataTable.rows.TS_GoToTest_2=setmetatable({},{__index=choice
 asked,logs={},{}
 ly=new()
 clock=clock+1; ly.tick()
-assert(#asked==0 and logged("rows already in"),'Read back, not asked')
+assert(#asked==1 and asked[1]=='signal watch' and logged("rows already in"),'Read back, not asked')
 assert(logged('STOP: text: TS_GoToTest_2 read back differs at DisplayText'),last())
 clock=clock+1; ly.tick()
 assert(count('lily on')==0 and last()=='her choice stays off: the words did not write (a STOP: text line says why)',
     last())
+-- A title batch that a shut gate refused at each of its 4 tries (why=busy): the ask in game, once the co-op save is
+-- in, still asks the rows, once a Lua load.
+build_tables()
+lines.signal,lines.slot='signal=off','slot=none index=4'
+asked,logs={},{}
+her=nil
+ly=new()
+for try=1,4 do
+    ly.title(true,true)
+    assert(#asked==try and asked[try]==SIGNAL_REQUEST,'Try '..try)
+    lines.signal='signal=refused added=0/7 asks='..try..' spawns=? why=busy table=- row=-'
+    clock=clock+0.5; ly.tick()
+    clock=clock+10
+end
+ly.title(true,true)
+assert(#asked==4 and last()=="title: The native part refused the Lily's signal rows (why=busy, table=-, row=-): "
+    ..'coop-link.log says why; asking again skips the rows already in. (no more tries this visit of the title: the '
+    ..'next visit of the title (or the ask on a co-op save in game once a Lua load, too late for a save that holds the '
+    ..'quest) adds them)',last())
+lines.slot='slot=coop index=4'
+her=eve
+clock=clock+1; ly.tick()
+assert(#asked==5 and asked[5]==SIGNAL_REQUEST,tostring(asked[5]))
+lines.signal='signal=refused added=0/7 asks=5 spawns=? why=busy table=- row=-'
+clock=clock+0.5; ly.tick()
+clock=clock+1; ly.tick()
+assert(#asked==5,'Once a Lua load')
 print('lily_test: ok')

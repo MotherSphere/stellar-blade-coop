@@ -77,15 +77,17 @@ void quest_tick() {
 }
 
 // ---- The mod's own quest (quest/own.h): Lily's signal's "On Time" ----
-// Every 250 ms on the pinned build until coop off, with the same save-slot line: an ask the worker handed over (with
-// its number, taken with try_lock only) runs first, the acquire or the first task's Complete, then the look, published
-// for the worker as one word. Under its own SEH latch: the first fault ends the quest's calls and reads for the run.
-std::atomic<bool> own_faulted{false};
+// Every 250 ms on the pinned build until coop off, once Lua's first signal request came (story/lily.lua's signal watch,
+// asked once its cheap gates hold: a co-op save, solo, the test pak, the rows read back), with the same save-slot line:
+// an ask the worker handed over (with its number, taken with try_lock only) runs first, the acquire or the first task's
+// Complete, then the look, published for the worker as one word. Before that request nothing calls SB's quest unit
+// getter. Under its own SEH latch: the first fault ends the quest's calls and reads for the run.
+std::atomic<bool> own_faulted{false}, own_watching{false};
 std::atomic<uint64_t> own_fault_code{0}, own_fault_rva{0}, own_fault_address{0};
 std::mutex own_m; // The worker's ask: its number, and complete or acquire.
 uint32_t own_asked = 0;
 bool own_complete = false;
-std::atomic<uint64_t> own_word{0};
+std::atomic<uint64_t> own_word{quest::own::pack(quest::own::Answer())};
 uint32_t own_taken = 0; // The game thread's own, with the rest below.
 bool own_wanted = false;
 quest::own::Why own_why = quest::own::Why::none;
@@ -99,6 +101,8 @@ __declspec(noinline) void own_body(std::string_view slot, bool ask) {
   own_word = quest::own::pack(a);
 }
 void own_tick() {
+  if (!own_watching)
+    return;
   const uint64_t now = GetTickCount64();
   if (now < own_next)
     return;
