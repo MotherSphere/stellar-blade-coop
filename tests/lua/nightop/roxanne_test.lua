@@ -6,8 +6,8 @@
 -- of Xion; the arm in Xion (no PolyglotDataToText call; each row checked, its exec, task and DisplayText written in the
 -- game's language, fr-FR as fr, de-DE as de, an unknown one as en, and read back, then roxanne on), once a Lua load, a
 -- row that is not the one known and a DisplayText that does not read back (shown as ASCII) each stopping it with the
--- rows put back (a row already in French back in Korean) and nothing asked; the Korean sources back with the rows'
--- shipped values; a pick read from the widgets, looked
+-- rows put back (a row already in French back in Korean) and nothing asked, but left ours when her list reads on (a Lua
+-- reload); the Korean sources back with the rows' shipped values; a pick read from the widgets, looked
 -- for at each tick, only when a SelectIndex turns from -1 to a line of ours (her own Shop, End and a widget first seen
 -- on a line do nothing), a box built for a later dialogue watched while an older one stays valid; a level booked and
 -- started through coop nightop start once EVE is out of Xion, held through the map load (slot=none, then unknown) and
@@ -413,11 +413,11 @@ said=#logs
 lost.tick(); assert(#logs==said and tries==1,'No retry')
 -- The game's language when the rows are armed: de-DE writes the German labels, an unknown culture or a language that
 -- cannot be read the English ones; a later Lua load writes the language of that time over ours.
-local function arm_in(lang)
+local function arm_in(lang,ask)
     culture=lang
     local x=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() return status_text end,
-        ask=function() return true,'asked' end,paused=function() return false end,start=function() end,
-        shop=function() end})
+        ask=ask or function(line) asked[#asked+1]=line; return true,'asked' end,paused=function() return false end,
+        start=function() end,shop=function() end})
     x.tick()
 end
 ship()
@@ -446,6 +446,24 @@ for _,r in ipairs({{'Temp_TS_Select_Test_1','A1'},{'Temp_TS_Select_Test_2','A2'}
     assert(exec(r[1])=='None' and task(r[1])==r[2],r[1]..' put back')
 end
 labels_in(nil)
+-- A Lua reload while her list reads on (the rows ours from an earlier load): an arm that stops, or raises, leaves the
+-- rows ours, since her list may still show them and their exec only plays her goodbye.
+unstuck=nil
+arm_in('fr-FR')
+labels_in('fr')
+status_text='mod=v\nslot=coop index=4\nroxanne=on asks=9 want=on why=none\n'
+unstuck='Temp_TS_Select_Test_1'
+before=#asked
+arm_in('fr-FR')
+assert(last()=='STOP: roxanne: Temp_TS_Select_Test_1 read back differs at DisplayText '
+    ..'(1\\xEB\\xB2\\x88 \\xEC\\x84\\xA0\\xED\\x83\\x9D): no Night Operation choices (0/4 rows edited; her list reads '
+    ..'on: they stay ours)',last())
+for _,r in ipairs(Roxanne.ROWS) do assert(exec(r.row)=='Success2' and task(r.row)=='None',r.row..' stays ours') end
+assert(#asked==before)
+unstuck=nil
+arm_in('fr-FR',function() error('link.lua:5: closed',0) end)
+assert(last()=='STOP: roxanne: closed (her list reads on: the 4 rows stay ours)',last())
+for _,r in ipairs(Roxanne.ROWS) do assert(exec(r.row)=='Success2',r.row..' stays ours') end
 unstuck=nil
 assert(polyglots==0,'Never a text registration')
 print('nightop_roxanne_test ok')

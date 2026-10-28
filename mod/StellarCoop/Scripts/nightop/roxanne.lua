@@ -96,9 +96,13 @@ function Roxanne.new(o)
         return nil,done
     end
     local function line_of(raw) return raw:match('\nroxanne=([^\r\n]*)') end
-    -- On, once a Lua load: the game's language, the rows, then the native part's swap. A step that fails puts back what
-    -- it changed and stops trying until the next Lua load.
-    local function arm()
+    -- Whether her list may still show the rows (line: the roxanne= status), as after a Ctrl+R while it reads on: the
+    -- rows then stay ours, since their exec only plays her goodbye, until off() and settle() put them back.
+    local function listed(line) return (line or ''):find('^on ')~=nil end
+    -- On, at a Lua load or back on a co-op save after an off: the game's language, the rows, then the native part's
+    -- swap. A step that fails puts back what it changed (unless her list reads on) and stops trying until the next Lua
+    -- load.
+    local function arm(line)
         local read,raw=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
         culture=require('nightop.roxanne_text').culture(read and raw or nil)
         log(string.format('roxanne text: game language %s -> %s; the 4 rows get its labels',
@@ -106,6 +110,9 @@ function Roxanne.new(o)
         local stop,done=rows(true)
         if stop then
             failed=true
+            if listed(line) then
+                return log('STOP: roxanne: '..stop..' ('..#done..'/4 rows edited; her list reads on: they stay ours)')
+            end
             log('STOP: roxanne: '..stop..' ('..#done..'/4 rows edited, put back)')
             pcall(rows,false) -- The failed row too: its other fields may be written.
             return
@@ -233,11 +240,15 @@ function Roxanne.new(o)
         local eve=N.her()
         local here=eve and U.map_of(eve)==XION
         if not armed and not failed and here and line then
-            local ran,e=pcall(arm)
+            local ran,e=pcall(arm,line)
             if not ran then
                 failed=true
-                log('STOP: roxanne: '..why(e)..' (the 4 rows put back)')
-                pcall(rows,false)
+                if listed(line) then
+                    log('STOP: roxanne: '..why(e)..' (her list reads on: the 4 rows stay ours)')
+                else
+                    log('STOP: roxanne: '..why(e)..' (the 4 rows put back)')
+                    pcall(rows,false)
+                end
             end
         end
         if armed and (line or ''):find('^off ') and now-asked_at>=Roxanne.ASK_EVERY then
