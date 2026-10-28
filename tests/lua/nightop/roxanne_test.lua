@@ -5,8 +5,9 @@
 -- Covered: the text table (every language, its four lines, the asset's Korean sources); nothing on another save or out
 -- of Xion; the arm in Xion (no PolyglotDataToText call; each row checked, its exec, task and DisplayText written in the
 -- game's language, fr-FR as fr, de-DE as de, an unknown one as en, and read back, then roxanne on), once a Lua load, a
--- row that is not the one known and a DisplayText that does not read back each stopping it with the rows put back and
--- nothing asked; the Korean sources back with the rows' shipped values; a pick read from the widgets, looked
+-- row that is not the one known and a DisplayText that does not read back (shown as ASCII) each stopping it with the
+-- rows put back (a row already in French back in Korean) and nothing asked; the Korean sources back with the rows'
+-- shipped values; a pick read from the widgets, looked
 -- for at each tick, only when a SelectIndex turns from -1 to a line of ours (her own Shop, End and a widget first seen
 -- on a line do nothing), a box built for a later dialogue watched while an older one stays valid; a level booked and
 -- started through coop nightop start once EVE is out of Xion, held through the map load (slot=none, then unknown) and
@@ -431,16 +432,19 @@ arm_in(nil)
 assert(logs[#logs-1]=='roxanne text: game language ?(no language) -> en; the 4 rows get its labels',logs[#logs-1])
 labels_in('en')
 assert(Roxanne.row_of(label('Temp_TS_Select_Test_3')).level=='hard' and Roxanne.row_of(label('TS_GoToTest_1')).shop)
--- A DisplayText write that does not read back, on the first row: STOP, its exec and task written with it put back too,
--- nothing asked, the Korean text again.
+-- A DisplayText write that does not read back, on the second row: STOP (the label shown as ASCII), the first row,
+-- written in French, and the second's exec and task put back, the Korean text again, nothing asked.
 ship()
-unstuck='Temp_TS_Select_Test_1'
+unstuck='Temp_TS_Select_Test_2'
 before=#asked
 arm_in('fr-FR')
-assert(last()=='STOP: roxanne: Temp_TS_Select_Test_1 read back differs at DisplayText (1번 선택): no Night '
-    ..'Operation choices (0/4 rows edited, put back)',last())
-assert(#asked==before and exec('Temp_TS_Select_Test_1')=='None' and task('Temp_TS_Select_Test_1')=='A1'
-    and exec('Temp_TS_Select_Test_2')=='None','Put back')
+assert(last()=='STOP: roxanne: Temp_TS_Select_Test_2 read back differs at DisplayText '
+    ..'(2\\xEB\\xB2\\x88 \\xEC\\x84\\xA0\\xED\\x83\\x9D): no Night Operation choices (1/4 rows edited, put '
+    ..'back)',last())
+assert(#asked==before and label('Temp_TS_Select_Test_1')=='1번 선택','Row 1 back in Korean')
+for _,r in ipairs({{'Temp_TS_Select_Test_1','A1'},{'Temp_TS_Select_Test_2','A2'}}) do
+    assert(exec(r[1])=='None' and task(r[1])==r[2],r[1]..' put back')
+end
 labels_in(nil)
 unstuck=nil
 assert(polyglots==0,'Never a text registration')

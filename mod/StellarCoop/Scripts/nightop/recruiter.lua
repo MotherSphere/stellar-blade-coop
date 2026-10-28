@@ -88,13 +88,21 @@ local function zone_tables(own)
     end
     return n,seen[U.address(own)]==true
 end
--- A field as compared and as shown: a number or boolean as is; an FName by comparison index ('#i'); an FString as
--- text; an FName list as its indexes joined (shown '{text,...}'). A read that raises gives nil and its error.
+-- Engine text in a log line: printable ASCII, any other byte as \xNN, so the line reads the same whatever encoding the
+-- log gets under Proton, and a mangled string shows its bytes. ascii() keeps at most 80 bytes; a field read back keeps
+-- all of them, since a path that differs may differ at its end.
+local function escaped(s)
+    return (tostring(s):gsub('[^ -~]',function(c) return string.format('\\x%02X',c:byte()) end))
+end
+local function ascii(s) return escaped(tostring(s):sub(1,80)) end
+-- A field as compared and as shown: a number or boolean as is; an FName by comparison index ('#i'); an FString or
+-- FText as text (shown escaped); an FName list as its indexes joined (shown '{text,...}'). A read that
+-- raises gives nil and its error.
 local function get(row,field,kind)
     local ok,v,shown=pcall(function()
         local x=U.value_of(row[field])
         if kind=='name' then local i=index_of(x); return i,'#'..i end
-        if kind=='text' then local t=U.text(x); return t,t end
+        if kind=='text' then local t=U.text(x); return t,escaped(t) end
         if kind=='list' then
             local ids,texts={},{}
             U.each(assert(x,'no field'),function(_,n) ids[#ids+1]=index_of(n); texts[#texts+1]=U.text(n) end)
@@ -140,11 +148,6 @@ local function edit(path,key,known,writes,keep,what)
     end
     for _,c in ipairs(keep or {}) do back[#back+1]=c end
     return check(key,dt:FindRow(key),back,differs_line),old
-end
--- Engine text in a log line: printable ASCII, any other byte as \xNN, from at most 80 bytes, so the line reads the
--- same whatever encoding the log gets under Proton, and a mangled string shows its bytes.
-local function ascii(s)
-    return (tostring(s):sub(1,80):gsub('[^ -~]',function(c) return string.format('\\x%02X',c:byte()) end))
 end
 -- The engine's text registration (KismetTextLibrary PolyglotDataToText) takes the languages as a TMap inside its
 -- struct parameter. This UE4SS build converts a Lua table there from the wrong stack slot (the outer struct's): the
