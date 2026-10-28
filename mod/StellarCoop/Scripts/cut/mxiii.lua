@@ -143,12 +143,6 @@ function Mxiii.find_map(paks,read)
     return nil,'no '..table.concat(tried,' or ')
 end
 
--- The title's batch: asks at most TRIES times a visit of the title, each RETRY s after the last answer, while the gate
--- stays shut. GATE: the refusals of a gate that stayed shut (lion/rows.h's busy, net, unread), which a later frame may
--- open; any other refusal would come back the same.
-local TRIES,RETRY=4,10
-local GATE={busy=true,net=true,unread=true}
-
 -- o: log (the [MX] lines), ask(line) the native request, status() the native status text, travel() the follow
 -- (session/travel.lua's, nil without the Steam link), paks (SB/Content/Paks, nil when unknown), read (files.read).
 function Mxiii.new(o)
@@ -226,49 +220,19 @@ function Mxiii.new(o)
         end
         return e.rows(function(ok,message) return warp(camp,command,ok,message) end)
     end
-    -- The title's batch, from main.lua's 250 ms loop: at_title (the title screen shown, no save loaded) and coop (the
-    -- game on the co-op save files, saves=coop; never your own saves). Once a game run: the mxiii line already reading
-    -- rows (a Lua reload, a coop mxiii before a return to the title) ends it, and so do no test pak (looked for once a
-    -- Lua load), a fault, or an answer that is no shut gate. The rows flow is coop mxiii's (the tables, the native
-    -- part's gate and latch, the read-back), with no EVE and no map to keep, and no travel after. The end says whether
-    -- the title still showed at the last call (shown), at most 250 ms before it; a save loads for longer than that.
-    local early,pak,tries,again,shown=nil,nil,0,0,false -- early: 'asked', then 'in' or 'off'; nil: free to ask.
-    function self.title(at_title,coop)
-        shown=at_title==true
-        if not (at_title and coop) then tries=0 return end
-        if early or tries>=TRIES or os.clock()<again or e.busy() then return end
-        local s=Enemy.parse(o.status and o.status(),'mxiii')
-        if not s or s.state=='fault' then return end -- No native part, or the rows stopped for the run.
-        if s.state=='rows' then
-            early='in'
-            return log('title: the rows are in already ('..s.line..')')
-        end
+    -- The title's batch (cut/enemy.lua's title_batch): while the game uses the co-op save files and the test pak is
+    -- there (looked for once a Lua load; with none there is nothing to add, and nothing is said: most players have
+    -- none).
+    local pak=nil
+    local title,title_stop=e.title_batch(function()
         if pak==nil then pak=select(2,Mxiii.find_map(o.paks,o.read)) end
-        if type(pak)~='number' then
-            early='off' -- No test pak: nothing to add, and nothing said (most players have none).
-            return
-        end
-        tries,early=tries+1,'asked'
-        log('title: the co-op save files and test pak v'..pak..': the rows asked before any save loads (try '..tries
-            ..' of '..TRIES..')')
-        -- The end, said here only (nothing returned, so main.lua reports nothing): a shut gate, no answer yet, or an
-        -- end before the ask (the tables not all loaded) may pass at a later try.
-        e.rows(function(ok,message)
-            local line=Enemy.parse(o.status and o.status(),'mxiii')
-            local again_later=not ok and line and (line.state=='off' or line.state=='waiting'
-                or line.state=='refused' and GATE[line.why])
-            early,again=ok and 'in' or not again_later and 'off' or nil,os.clock()+RETRY
-            local next_try=tries<TRIES and ' (asked again in '..RETRY..' s if the title still shows)'
-                or ' (no more tries this visit of the title: coop mxiii adds them)'
-            log('title: '..(not ok and tostring(message) or shown and 'the rows are in, before any save loads'
-                or 'the rows are in, after the title closed: a save may have loaded before them')
-                ..(again_later and next_try or ''))
-        end,nil,true)
-    end
+        return type(pak)=='number' and 'the co-op save files and test pak v'..pak or nil
+    end,'coop mxiii')
+    self.title=title
     self.tick=e.tick
     -- coop off ends the wait without its end, so a title batch asked is free to ask again at the next call.
     function self.stop()
-        if early=='asked' then early=nil end
+        title_stop()
         return e.stop()
     end
     return self

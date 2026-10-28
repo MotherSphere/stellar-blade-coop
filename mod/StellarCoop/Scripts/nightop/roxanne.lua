@@ -57,6 +57,61 @@ local function labels()
 end
 -- The row a picked line's text names, or nil (her own Shop and End, any other dialogue).
 function Roxanne.row_of(text,by) return (by or labels())[text] end
+-- The select widgets' picks (nightop/roxanne.lua's and story/lily.lua's): o.log(text) logs, o.paused() whether the
+-- game is paused or shows one of its screens. watch(eve, now, pick) looks for the widgets of EVE's world again at each
+-- call (every FIND_EVERY through FindAllOf), so a box the game builds for a later dialogue is watched while an older
+-- one is still valid; a widget seen before keeps its last SelectIndex. A pick: a SelectIndex turning from -1 to a line
+-- (a widget first seen on a line holds an old pick), pick(text) called with that line's text. reset() forgets the
+-- widgets.
+function Roxanne.watcher(o)
+    local log,paused=o.log,o.paused
+    local held,look_at,walk=nil,-math.huge,false -- The select widgets {obj, last}; the next look; FindAllOf's route.
+    -- The select widgets of EVE's world: the widget library's lookup (the engine's class hash), or, when that call
+    -- fails, FindAllOf (which walks every object) only while the game shows one of its screens.
+    local function widgets(eve)
+        local list={}
+        if not walk then
+            local out={}
+            local ok,e=pcall(function() U.find(WIDGETS):GetAllWidgetsOfClass(eve,out,U.find(SELECT),false) end)
+            if ok then
+                U.each(out,function(_,w) w=U.valid(w); if w then list[#list+1]={obj=w} end end)
+                return list
+            end
+            walk=true
+            log('roxanne: the widget lookup failed ('..why(e)..'): the select widget is looked for while a game '
+                ..'screen shows')
+        end
+        if not paused() then return list end
+        U.each(FindAllOf('WB_Theater_InteractionSelect_Master_C') or {},function(_,w)
+            w=U.valid(w)
+            if w and not U.text(w:GetFullName()):find('Default__',1,true) then list[#list+1]={obj=w} end
+        end)
+        return list
+    end
+    local self={}
+    function self.watch(eve,now,pick)
+        if now>=look_at then
+            look_at=now+(walk and Roxanne.FIND_EVERY or 0)
+            local seen={}
+            for _,w in ipairs(held or {}) do seen[U.address(w.obj)]=w end
+            local list=widgets(eve)
+            for k,w in ipairs(list) do list[k]=seen[U.address(w.obj)] or w end
+            held=list
+        end
+        for _,w in ipairs(held or {}) do
+            local ok,i=pcall(function() return U.value_of(w.obj.SelectIndex) end)
+            if ok and U.valid(w.obj) then
+                if w.last and w.last<0 and i>=0 then
+                    local got,text=pcall(function() return U.text(w.obj.DataArray[i+1].DisplayText) end)
+                    if got then pick(text) end
+                end
+                w.last=i
+            end
+        end
+    end
+    function self.reset() held=nil end
+    return self
+end
 -- log(text) writes an [NR] line; status() the native part's status text; ask(line) its request; paused() whether the
 -- game is paused or shows one of its screens (the UI kit's); title() whether the title screen is shown (main.lua's
 -- last puppet.world, optional); tell(build) a notice; start(level) coop nightop start <level> and shop() coop nightop
@@ -69,9 +124,9 @@ function Roxanne.new(o)
     local armed,failed=false,false -- Rows edited and asked on in this Lua load; an arm that stopped (no retry).
     local restore=false -- Off asked: the rows go back to their shipped values once her list reads off or absent.
     local asked_at=-math.huge
-    local held,look_at,walk=nil,-math.huge,false -- The select widgets {obj, last}; the next look; FindAllOf's route.
     local booked,shop_at=nil,nil -- {level, next, said}; the time the screen opens after a supplies pick.
     local save=nil -- The co-op save's index the last co-op status read.
+    local watcher=Roxanne.watcher({log=log,paused=paused}) -- The select widgets.
     local function one(...) return R.one(...) end
     local function index(text) return R.index_of(R.find_name(text)) end
     -- The rows to ours (on: the labels in culture) or back to their shipped values (the Korean sources): each checked
@@ -129,7 +184,8 @@ function Roxanne.new(o)
         local ran,ok,said=pcall(ask,'roxanne off')
         log(string.format('roxanne off (%s): %s; the 4 rows go back once her list reads off',reason,
             ran and tostring(said) or why(ok)))
-        armed,held,shop_at,restore,asked_at=false,nil,nil,true,os.clock()
+        armed,shop_at,restore,asked_at=false,nil,true,os.clock()
+        watcher.reset()
     end
     -- The rows' shipped values, once the native part reads her list off (hers, after an off it took) or absent: never
     -- while her entry may still list them.
@@ -139,28 +195,6 @@ function Roxanne.new(o)
         restore=false
         local fine,stop=pcall(rows,false)
         log('roxanne: '..(fine and (stop or 'her two choices back, the 4 rows shipped') or why(stop)))
-    end
-    -- The select widgets of EVE's world: the widget library's lookup (the engine's class hash), or, when that call
-    -- fails, FindAllOf (which walks every object) only while the game shows one of its screens.
-    local function widgets(eve)
-        local list={}
-        if not walk then
-            local out={}
-            local ok,e=pcall(function() U.find(WIDGETS):GetAllWidgetsOfClass(eve,out,U.find(SELECT),false) end)
-            if ok then
-                U.each(out,function(_,w) w=U.valid(w); if w then list[#list+1]={obj=w} end end)
-                return list
-            end
-            walk=true
-            log('roxanne: the widget lookup failed ('..why(e)..'): the select widget is looked for while a game '
-                ..'screen shows')
-        end
-        if not paused() then return list end
-        U.each(FindAllOf('WB_Theater_InteractionSelect_Master_C') or {},function(_,w)
-            w=U.valid(w)
-            if w and not U.text(w:GetFullName()):find('Default__',1,true) then list[#list+1]={obj=w} end
-        end)
-        return list
     end
     -- A pick: a level booked (or, for a guest, said to be the host's), the supplies' screen due.
     local function picked(r,raw,now)
@@ -178,30 +212,12 @@ function Roxanne.new(o)
         log('roxanne: '..r.level..' booked: it starts once EVE is out of Xion with no one within 40 m')
         if tell then tell(function(w) return w.night.booked end) end
     end
-    -- In Xion with her choices on: the select widgets looked for again at each tick (every FIND_EVERY through
-    -- FindAllOf), so a box the game builds for a later dialogue is watched while an older one is still valid; a widget
-    -- seen before keeps its last SelectIndex. A pick: a SelectIndex turning from -1 to a line (a widget first seen on a
-    -- line holds an old pick).
+    -- In Xion with her choices on: a pick of a line of ours (Roxanne.watcher's).
     local function watch(eve,raw,now)
-        if now>=look_at then
-            look_at=now+(walk and Roxanne.FIND_EVERY or 0)
-            local seen={}
-            for _,w in ipairs(held or {}) do seen[U.address(w.obj)]=w end
-            local list=widgets(eve)
-            for k,w in ipairs(list) do list[k]=seen[U.address(w.obj)] or w end
-            held=list
-        end
-        for _,w in ipairs(held or {}) do
-            local ok,i=pcall(function() return U.value_of(w.obj.SelectIndex) end)
-            if ok and U.valid(w.obj) then
-                if w.last and w.last<0 and i>=0 then
-                    local got,text=pcall(function() return U.text(w.obj.DataArray[i+1].DisplayText) end)
-                    local r=got and Roxanne.row_of(text,by)
-                    if r then picked(r,raw,now) end
-                end
-                w.last=i
-            end
-        end
+        watcher.watch(eve,now,function(text)
+            local r=Roxanne.row_of(text,by)
+            if r then picked(r,raw,now) end
+        end)
     end
     -- The booking and a supplies pick dropped, said with why.
     local function drop(why)

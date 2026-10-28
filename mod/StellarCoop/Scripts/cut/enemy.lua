@@ -669,6 +669,58 @@ function Enemy.new(o,spec)
         end
         return done(ok,message)
     end
+    -- The rows alone at the title, from main.lua's 250 ms loop (cut/mxiii.lua's batch, story/lily.lua's): at_title
+    -- (the title screen shown, no save loaded) and coop (the game on the co-op save files, saves=coop; never your own
+    -- saves). ready() gives the words the ask's log line names the files with ('the co-op save files and test pak
+    -- v3'), or nil when there is nothing to add (then nothing is said); more names the command that adds them later.
+    -- Asks at most TRIES times a visit of the title, each RETRY s after the last answer, while the gate stays shut
+    -- (GATE: the refusals of a gate that stayed shut, lion/rows.h's busy, net, unread, which a later frame may open;
+    -- any other refusal would come back the same). Once a game run: this batch's line already reading rows (a Lua
+    -- reload, a command before a return to the title) ends it, and so do ready() giving nil, a fault, or an answer that
+    -- is no shut gate. The rows flow is the commands' (the tables, the native part's gate and latch, the read-back),
+    -- with no EVE and no map to keep, and nothing after. The end says whether the title still showed at the last call
+    -- (shown), at most 250 ms before it; a save loads for longer than that. Returns title(at_title, coop) and stop()
+    -- for coop off, which ends the wait without its end, so a batch asked is free to ask again at the next call.
+    -- after(ok), when given, hears how each asked batch ended (true once the rows are in and read back).
+    local TRIES,RETRY=4,10
+    local GATE={busy=true,net=true,unread=true}
+    function self.title_batch(ready,more,after)
+        local early,tries,again,shown=nil,0,0,false -- early: 'asked', then 'in' or 'off'; nil: free to ask.
+        local function title(at_title,coop)
+            shown=at_title==true
+            if not (at_title and coop) then tries=0 return end
+            if early or tries>=TRIES or os.clock()<again or job then return end
+            local s=my_line()
+            if not s or s.state=='fault' then return end -- No native part, or the rows stopped for the run.
+            if s.state=='rows' then
+                early='in'
+                return log('title: the rows are in already ('..s.line..')')
+            end
+            local files=ready()
+            if not files then
+                early='off'
+                return
+            end
+            tries,early=tries+1,'asked'
+            log('title: '..files..': the rows asked before any save loads (try '..tries..' of '..TRIES..')')
+            -- The end, said here only (nothing returned, so main.lua reports nothing): a shut gate, no answer yet, or
+            -- an end before the ask (the tables not all loaded) may pass at a later try.
+            self.rows(function(ok,message)
+                local line=my_line()
+                local again_later=not ok and line and (line.state=='off' or line.state=='waiting'
+                    or line.state=='refused' and GATE[line.why])
+                early,again=ok and 'in' or not again_later and 'off' or nil,os.clock()+RETRY
+                if after then after(ok) end
+                local next_try=tries<TRIES and ' (asked again in '..RETRY..' s if the title still shows)'
+                    or ' (no more tries this visit of the title: '..more..' adds them)'
+                log('title: '..(not ok and tostring(message) or shown and 'the rows are in, before any save loads'
+                    or 'the rows are in, after the title closed: a save may have loaded before them')
+                    ..(again_later and next_try or ''))
+            end,nil,true)
+        end
+        local function stop() if early=='asked' then early=nil end end
+        return title,stop
+    end
     -- The bodies followed, for the spec's own commands (coop lion unfreeze).
     function self.followed() return followed end
     -- Each frame, on the game thread: the job's step when due (ok, message when it ends, also on its first error), the
