@@ -1,9 +1,10 @@
 -- The Night Operation run without the game: the monster pool and the wave schedule, the wave keys, the run byte, the
--- seeded gate order and the gate spots, the bodies paired with slots by place, the timer list, the score and the run's
--- states over a fake clock. Then a run read from another definition: waves that wait for a clear, its own limit, heals
--- and bonus, and its own spots. Then Night Operation's four levels: their waves, limits, points percents, self revives
--- and highest scores, a hard run and a nightmare wave held by the cap. A co-op down: both lines carry each side's down
--- time left and its revive of the other, and the host's run ends as failed (both) only while both are down.
+-- seeded gate order and the gate spots, a spot settled on a fake navmesh, the bodies paired with slots by place, the
+-- timer list, the score and the run's states over a fake clock. Then a run read from another definition: waves that
+-- wait for a clear, its own limit, heals and bonus, and its own spots. Then Night Operation's four levels: their waves,
+-- limits, points percents, self revives and highest scores, a hard run and a nightmare wave held by the cap. A co-op
+-- down: both lines carry each side's down time left and its revive of the other, and the host's run ends as failed
+-- (both) only while both are down.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 
@@ -108,6 +109,42 @@ local further,yaw=W.spot(P0,90,{3,1,2,4},4)
 near(math.sqrt((further.X-gate.X)^2+(further.Y-gate.Y)^2),250,'Slot 4: 2.5 m from the gate of slot 0')
 near(turn(yaw-math.deg(math.atan(P0.Y-further.Y,P0.X-further.X))),0,'Faces P0')
 near(turn(bearing(gate)-(90+140)),0,'Order {3,...}: slot 0 at gate 3')
+
+-- A spot settled on a fake navmesh (W.settle): floor(x,y) is the floor's Z there (nil: none); wall is the metres from
+-- the start at which the walk towards the spot stops (nil: none). EVE stands 90 cm over the floor at P0.
+local function fake_nav(floor,wall)
+    return {project=function(p)
+            local z=floor(p.X,p.Y)
+            return z and {X=p.X,Y=p.Y,Z=z} or nil
+        end,
+        ray=function(a,b)
+            local d=math.sqrt((b.X-a.X)^2+(b.Y-a.Y)^2)
+            if not wall or d<=wall*100 then return false,{X=b.X,Y=b.Y,Z=b.Z} end
+            local f=wall*100/d
+            return true,{X=a.X+(b.X-a.X)*f,Y=a.Y+(b.Y-a.Y)*f,Z=a.Z}
+        end}
+end
+local function flat() return P0.Z-90 end
+local function out(p) return math.sqrt((p.X-P0.X)^2+(p.Y-P0.Y)^2) end
+local spot=W.spot(P0,90,order,0)
+local at=assert(W.settle(P0,spot,fake_nav(flat)))
+assert(at.X==spot.X and at.Y==spot.Y and at.Z==spot.Z,'Flat open floor: the spot itself')
+-- A floor 3 m higher at the spot: the point stands 3 m higher too.
+at=assert(W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<500 and P0.Z-90 or P0.Z+210 end)))
+assert(at.X==spot.X and at.Y==spot.Y and at.Z==P0.Z+400,'Higher floor: '..at.Z)
+-- A wall 9 m out on the gate's bearing: the point comes back to 7.5 m on the same bearing.
+at=assert(W.settle(P0,spot,fake_nav(flat,9)))
+near(out(at),750,'1.5 m back from the wall')
+near(turn(bearing(at)-bearing(spot)),0,'On the same bearing')
+assert(at.Z==P0.Z+100,'On the same floor')
+-- A wall at 6.5 m leaves 5 m: kept; at 6.4 m: dropped.
+near(out(assert(W.settle(P0,spot,fake_nav(flat,6.5)))),500,'5 m kept')
+local none,why=W.settle(P0,spot,fake_nav(flat,6.4))
+assert(none==nil and why=='blocked',tostring(why))
+none,why=W.settle(P0,spot,fake_nav(function(x,y) return out({X=x,Y=y})<500 and P0.Z-90 or nil end))
+assert(none==nil and why=='no floor',tostring(why))
+none,why=W.settle(P0,spot,fake_nav(function() return nil end))
+assert(none==nil and why=='no navmesh under the start',tostring(why))
 
 -- Bodies to slots by place: nearest pairs first on the ground (height ignored), within the radius, one body a slot;
 -- ties in slot, then body order; a body too far, or left over, pairs with nothing.

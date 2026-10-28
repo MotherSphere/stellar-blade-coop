@@ -6,10 +6,10 @@
 -- place of the level on his line); its score also goes to the cut shooting test's widget (nightop/board.lua).
 -- nightop/waves.lua holds
 -- the waves, the keys and the run's states, read from the run's definition; this file is the game side: the start
--- checks and the census, the one spawn call, the bodies it tracks, their aggro and stuck moves, the abort watch and the
--- end, and what the player sees: a card at the top centre and a result panel on the Uplink kit (ui/kit.lua), or notices
--- while the kit is off. The run has no rule row: its clock is game time and it ends itself. Solo when no Steam session
--- holds; linked, the host starts a Night Operation run for both players: the
+-- checks and the census, the one spawn call and the navmesh ground of its spots, the bodies it tracks, their aggro and
+-- stuck moves, the abort watch and the end, and what the player sees: a card at the top centre and a result panel on
+-- the Uplink kit (ui/kit.lua), or notices while the kit is off. The run has no rule row: its clock is game time and
+-- it ends itself. Solo when no Steam session holds; linked, the host starts a Night Operation run for both players: the
 -- night line (one full state from each side through the native part, core/link.lua's night) carries his ask, her
 -- answer, his clock, waves, score and end, and her world's kills and bodies, so both worlds run the same seeded waves
 -- around his start point and both cards show one timer and one score. Each world fights its own monsters, unless the
@@ -51,9 +51,14 @@ local CLEAR=40 -- Metres: no living character but EVE this close at the start.
 local LEAVE,LEAVE_FOR,GONE_FOR=80,10,2 -- EVE farther than LEAVE m from the start for LEAVE_FOR s, or gone GONE_FOR s.
 -- Seconds after a wave's last spawn call: its bodies are looked for; one not found by the last is missing.
 local FINDS={1,2.5}
--- Metres on the ground from a slot's spot within which a new body is taken for it (W.match). Two gates stand 18 m apart
--- at least, Target Practice's spots 7.9 m. Widen it if the log shows missing monsters with a new body just past it.
+-- Metres on the ground from where a slot's spawn call stood it within which a new body is taken for it (W.match). Two
+-- gates stand 18 m apart at least, Target Practice's spots 7.9 m. Widen it if the log shows missing monsters with a new
+-- body just past it.
 local MATCH=5
+-- A spot's ground (W.settle): NavigationSystemV1's static calls, and how far from a point they look for the navmesh
+-- (cm across, then up or down).
+local NAV='/Script/NavigationSystem.Default__NavigationSystemV1'
+local EXTENT={X=100,Y=100,Z=500}
 -- Metres: a character up before a wave that stands this far or more from where it stood then is one the game took back
 -- from its pool for a spawn (a Lion body came back from 466 m on 2026-10-23, how-it-works.md), so it can be new.
 local REUSED=50
@@ -426,7 +431,7 @@ function Run.new(o)
             local slots,spots,fresh,held,taken,before,me={},{},{},{},{},r.before[k] or {},U.address(r.eve)
             for slot=0,#ids-1 do
                 local key=W.key(r.s.run,k,slot)
-                spots[slot]=W.spot(r.p0,r.yaw,r.s.order[k],slot,r.s.def)
+                spots[slot]=r.at[key] or W.spot(r.p0,r.yaw,r.s.order[k],slot,r.s.def)
                 if not r.seen[key] then slots[#slots+1]={key=key,slot=slot,at=spots[slot]} end
             end
             for _,b in pairs(r.bodies) do held[b.addr]=true end
@@ -466,15 +471,66 @@ function Run.new(o)
             log(string.format('wave %d find +%g s: tracked %d/%d',k,after,n,#ids))
         end
     end
+    -- The navmesh calls W.settle asks for, in EVE's world: project(p), the navmesh point within EXTENT of p or nil;
+    -- ray(a,b), whether the navmesh walk from a to b stops, and where.
+    local function navmesh(lib)
+        return {project=function(p)
+                local o={}
+                return lib:K2_ProjectPointToNavigation(r.eve,p,o,nil,nil,EXTENT)==true and {X=o.X,Y=o.Y,Z=o.Z} or nil
+            end,
+            ray=function(a,b)
+                local o={}
+                return lib:NavigationRaycast(r.eve,a,b,o,nil,nil)==true,{X=o.X,Y=o.Y,Z=o.Z}
+            end}
+    end
+    -- Where wave k's slot spawns, its yaw (facing the start) and the spawn line's note: its spot settled on the navmesh
+    -- (W.settle); when that drops its gate (or spot), the slot at the next one that holds; when none holds, its raw
+    -- spot. With no navmesh calls (NavigationSystemV1 not found, a call that raised, no navmesh under the start), raw
+    -- spots for the rest of the run, as before W.settle, and the note says why once.
+    -- shortcut: a slot moved to another gate shares that gate's point with the slot already there, and W.match pairs
+    -- the two bodies by place alone (their kills may swap); spread a moved slot if the log shows that.
+    local function place(k,slot)
+        local def,order=r.s.def,r.s.order[k]
+        local raw,yaw=W.spot(r.p0,r.yaw,order,slot,def)
+        local function unchecked(e)
+            r.nav=false
+            return raw,yaw,' (ground: unchecked: '..e..')'
+        end
+        if r.nav==nil then
+            local found,lib=pcall(U.find,NAV)
+            if not found then return unchecked(why(lib)) end
+            r.nav=navmesh(lib)
+        end
+        if not r.nav then return raw,yaw,'' end
+        local n,word=def.spots and #def.spots or 4,def.spots and 'spot' or 'gate'
+        local function gate(s) return def.spots and order[s+1] or order[s%4+1] end
+        local first
+        for i=0,n-1 do
+            local s=def.spots and (slot+i)%n or (slot%4+i)%4+slot//4*4
+            local spot=W.spot(r.p0,r.yaw,order,s,def)
+            local fine,at,e=pcall(W.settle,r.p0,spot,r.nav)
+            if not fine then return unchecked(why(at)) end
+            if e=='no navmesh under the start' then return unchecked(e) end
+            if at then
+                local d=math.sqrt((at.X-spot.X)^2+(at.Y-spot.Y)^2)/100
+                local note=i>0 and string.format(' (ground: %s %d %s, %s %d)',word,gate(slot),first,word,gate(s))
+                    or d>=1 and string.format(' (ground: moved %.1f m)',d) or ''
+                return at,U.yaw_to(at,r.p0),note
+            end
+            first=first or e
+        end
+        return raw,yaw,string.format(' (ground: %s %d %s, no other %s holds: raw spot)',word,gate(slot),first,word)
+    end
     local function spawn_next()
         local q=table.remove(r.queue,1)
         if not q then return end
         if q.slot==0 then r.before[q.k]=ups(refresh()) end -- What stands before the wave, read before its first call.
         local ids=r.s.def.waves[q.k].ids
         local key,id=W.key(r.s.run,q.k,q.slot),ids[q.slot+1]
-        local at,yaw=W.spot(r.p0,r.yaw,r.s.order[q.k],q.slot,r.s.def)
+        local at,yaw,note=place(q.k,q.slot)
+        r.at[key]=at -- Where find looks for its body.
         local ok,e=pcall(function() Run.spawn(assert(N.controller(),'no SB player controller'),id,at,yaw,key) end)
-        log(string.format('spawn %s %s at %s yaw %.0f%s',hex(key),W.POOL[id].alias,xyz(at),yaw,
+        log(string.format('spawn %s %s at %s yaw %.0f%s%s',hex(key),W.POOL[id].alias,xyz(at),yaw,note,
             ok and '' or ' failed: '..why(e)))
         if q.slot==#ids-1 then
             for i,after in ipairs(FINDS) do r.timers.add(r.now+after,find(q.k,i==#FINDS,after)) end
@@ -884,7 +940,7 @@ function Run.new(o)
     -- Its best so far is read from this PC's records file.
     local function begin(run,seed,now,at,yaw,map,flag,def)
         r={s=W.new{run=run,seed=seed,now=now,def=def},seed=seed,p0=at,yaw=yaw,map=map,noaggro=flag=='noaggro',
-            nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},before={},
+            nomove=flag=='nomove',timers=W.timers(),bodies={},seen={},queue={},killed={},live={},before={},at={},
             live_at=-math.huge,now=now,found={},ticks=0,gone=0,far=0,ms_n=0,ms_sum=0,ms_max=0,look_at=0,told={},asked=0,
             quiet=0,held=0,revives=(def or W.NIGHT).revives or 0,cut={}}
         local score,secs=C.best(stored(),r.s.def.id)

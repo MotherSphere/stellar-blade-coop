@@ -56,6 +56,8 @@
 -- Bodies are found by place, each reading key 0 and state 1 (executable) as in the game, in lists from the class hash:
 -- a spawn that makes no body, a field enemy and EVE on a spot before the wave, a body 4 m and one 6 m off its spot, a
 -- corpse the game's pool brings back for a later wave. A kill reads 3 with no controller, as the game's deaths do.
+-- Each spot is settled on a fake navmesh before its spawn call: a wall 9 m out, a wall 4 m out, no NavigationSystemV1
+-- and a navmesh call that raises.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local W=require('nightop.waves')
 local T=1760000000
@@ -216,6 +218,31 @@ local by_path={['/Script/SB.SBCharacter']=SBCharacter,['/Script/SB.SBNetworkPlay
         {ReportNoiseEvent=function() end}),
     ['/Script/AIModule.Default__AIBlueprintHelperLibrary']=uobject('AIHelper','AIBlueprintHelperLibrary',
         {SimpleMoveToActor=function() end})}
+-- NavigationSystemV1's static calls on a flat navmesh at Z 910 (EVE's feet at the start), so each spot settles where
+-- W.spot puts it. ground.walls: {at=, d=} each, a walk towards a point within 1 m of at stops d m from where it began;
+-- ground.raises: every call raises with it; ground.gone: the object is not valid (not in this game build).
+local ground={path='/Script/NavigationSystem.Default__NavigationSystemV1',walls={}}
+ground.nav=uobject('Nav','NavigationSystemV1',{IsValid=function() return not ground.gone end,
+    K2_ProjectPointToNavigation=function(_,context,p,out,data,filter,extent)
+        assert(context==eve and data==nil and filter==nil and extent.Z==500,'A projection in EVE\'s world')
+        if ground.raises then error(ground.raises) end
+        out.X,out.Y,out.Z=p.X,p.Y,910
+        return true
+    end,
+    NavigationRaycast=function(_,context,a,b,out,filter,querier)
+        assert(context==eve and filter==nil and querier==nil,'A navmesh walk in EVE\'s world')
+        if ground.raises then error(ground.raises) end
+        local d,hit=math.sqrt((b.X-a.X)^2+(b.Y-a.Y)^2),nil
+        for _,w in ipairs(ground.walls) do
+            if math.sqrt((b.X-w.at.X)^2+(b.Y-w.at.Y)^2)<100 and d>w.d*100 then
+                hit={X=a.X+(b.X-a.X)*w.d*100/d,Y=a.Y+(b.Y-a.Y)*w.d*100/d,Z=a.Z}
+            end
+        end
+        local at=hit or b
+        out.X,out.Y,out.Z=at.X,at.Y,at.Z
+        return hit~=nil
+    end})
+by_path[ground.path]=ground.nav
 StaticFindObject=function(path) return assert(by_path[path],'unexpected StaticFindObject '..path) end
 FindAllOf=function(name) -- The death screen's walk, and the class hash's proof (core/unreal.lua's actors_of).
     record('FindAllOf',name)
@@ -623,6 +650,71 @@ tick()
 assert(last()==string.format('kill 0x%08X M_SkullSwordAlone +40 = 80',W.key(byte,2,0)),last())
 assert(#violations==0,violations[1])
 run.stop('stop')
+
+-- 5c. The ground: each spot settled on the navmesh (W.settle) before its spawn call. A wall 9 m out on slot 0's gate
+-- brings its call back to 7.5 m on the same bearing, where its body is found (by where the call stood it: W.spot's spot
+-- is 6.5 m off); a wall 4 m out moves slot 0 to the next gate, where both bodies are found; with every gate blocked,
+-- each call stands on W.spot's spot. With no NavigationSystemV1, or a navmesh call that raises, the calls stand on
+-- W.spot's spots, the run's first spawn line says why once, and every body is found.
+do
+    local function wave1(setup)
+        bodies,calls,lines={},{},{}
+        ok,message=run.command('start')
+        assert(ok,message)
+        byte=tonumber(message:match('run 0x(%x+)'),16)
+        local order=W.new{run=byte,seed=W.seed(T,byte),now=gt}.order[1]
+        local spots={}
+        for slot=0,3 do spots[slot]=W.spot({X=0,Y=0,Z=1000},30,order,slot) end
+        setup(spots)
+        tick(28)
+        local args={}
+        for _,c in ipairs(calls) do if c.what=='PC:ServerRequest_CreateActor' then args[#args+1]=c.args end end
+        assert(#args==4 and logged('wave 1 find +1 s: tracked 4/4'),since(0))
+        return spots,args,order
+    end
+    local function spawned(slot,at,yaw,note)
+        return logged(string.format('spawn 0x%08X M_Antlion at %.0f,%.0f,1100 yaw %.0f%s',W.key(byte,1,slot),at.X,at.Y,
+            yaw,note))
+    end
+    local spots,args,order=wave1(function(sp) ground.walls={{at=sp[0],d=9}} end)
+    local at,d=args[1][2],math.sqrt(spots[0].X^2+spots[0].Y^2)
+    assert(math.abs(at.X-spots[0].X*750/d)<1e-6 and math.abs(at.Y-spots[0].Y*750/d)<1e-6 and at.Z==1100,'7.5 m out')
+    local _,yaw=W.spot({X=0,Y=0,Z=1000},30,order,0)
+    assert(math.abs(args[1][3].Yaw-yaw)<1e-6,'Facing the start')
+    assert(spawned(0,at,yaw,' (ground: moved 6.5 m)'),since(0))
+    for slot=1,3 do assert(spawned(slot,spots[slot],args[slot+1][3].Yaw,''),since(0)) end
+    run.stop('stop')
+    spots,args,order=wave1(function(sp) ground.walls={{at=sp[0],d=4}} end)
+    at=args[1][2]
+    assert(at.X==spots[1].X and at.Y==spots[1].Y and at.Z==1100 and args[1][3].Yaw==args[2][3].Yaw,'At the next gate')
+    assert(spawned(0,at,args[1][3].Yaw,string.format(' (ground: gate %d blocked, gate %d)',order[1],order[2])),
+        since(0))
+    run.stop('stop')
+    spots,args,order=wave1(function(sp) for slot=0,3 do ground.walls[slot+1]={at=sp[slot],d=4} end end)
+    for slot=0,3 do
+        at=args[slot+1][2]
+        assert(at.X==spots[slot].X and at.Y==spots[slot].Y,'Every gate blocked: W.spot\'s spot')
+        assert(spawned(slot,at,args[slot+1][3].Yaw,string.format(' (ground: gate %d blocked, no other gate holds: raw '
+            ..'spot)',order[slot+1])),since(0))
+    end
+    run.stop('stop')
+    ground.walls={}
+    for _,fault in ipairs({{gone=true,why=ground.path..' is unavailable in this game build.'},
+            {raises='nav on fire',why='nav on fire'}}) do
+        ground.gone,ground.raises=fault.gone,fault.raises
+        spots,args=wave1(function() end)
+        for slot=0,3 do
+            at=args[slot+1][2]
+            assert(at.X==spots[slot].X and at.Y==spots[slot].Y and at.Z==1100,'W.spot\'s spot')
+            assert(spawned(slot,at,args[slot+1][3].Yaw,slot==0 and ' (ground: unchecked: '..fault.why..')' or ''),
+                since(0))
+        end
+        assert(count('Nav:K2_ProjectPointToNavigation')==(fault.raises and 1 or 0),'Asked once at most')
+        run.stop('stop')
+    end
+    ground.gone,ground.raises=nil,nil
+    assert(#violations==0,violations[1])
+end
 
 -- 6. The stuck rule: 40 m from the start or 10 m below it, moved 7 m from EVE at most twice, 3 s apart, then written
 -- off; a living body near the start is left alone. nomove makes no move, noaggro no aggro.

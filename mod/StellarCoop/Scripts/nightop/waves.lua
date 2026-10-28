@@ -146,6 +146,28 @@ function W.spot(p0,yaw,order,slot,def)
     end
     return {X=x,Y=y,Z=p0.Z+UP},math.deg(math.atan(p0.Y-y,p0.X-x))
 end
+-- A spot moved onto the navmesh SB's AI walks, so that no monster spawns inside a wall (seen on 2026-10-28). The start
+-- p0 is projected onto the navmesh, then the navmesh is walked from there towards the spot. Where the walk stops (a
+-- wall, a ledge, a gap), the point comes back PULL cm from the stop; under CLOSEST cm from the start, the gate is
+-- dropped. The point lands on the floor there, as high over it as p0 stands over its own navmesh point, plus UP: on
+-- flat open ground, the spot itself. nav: project(p), the navmesh point nearest p or nil; ray(a,b), true and where
+-- when the walk from a to b stops, else false. Returns the point, or nil and why.
+local PULL,CLOSEST=150,500
+function W.settle(p0,spot,nav)
+    local s=nav.project(p0)
+    if not s then return nil,'no navmesh under the start' end
+    local to={X=spot.X,Y=spot.Y,Z=s.Z}
+    local blocked,hit=nav.ray(s,to)
+    if blocked then
+        local d=math.sqrt((hit.X-s.X)^2+(hit.Y-s.Y)^2)
+        if d-PULL<CLOSEST then return nil,'blocked' end
+        local f=(d-PULL)/d
+        to={X=s.X+(hit.X-s.X)*f,Y=s.Y+(hit.Y-s.Y)*f,Z=hit.Z}
+    end
+    local floor=nav.project(to)
+    if not floor then return nil,'no floor' end
+    return {X=floor.X,Y=floor.Y,Z=floor.Z+p0.Z-s.Z+UP}
+end
 -- A wave's new bodies to its slots by place. The key a spawn gives never reaches the character in a standalone game:
 -- SB copies it to BroadcastSpawnInfo only in its spawn broadcast (FUN_1422707f0), under net mode 1 or 2, and InitActor
 -- clears it. slots: {at=} each, where its spawn call stood it; bodies: {at=} each; radius in cm. Nearest pairs first by
