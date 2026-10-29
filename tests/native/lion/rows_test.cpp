@@ -21,10 +21,11 @@
 // in its slot), AddRow slot or row size, and no FName for a row's, a template's, a patch's or a list item's text,
 // refusing without calling AddRow, and a later run skipping the rows already in; the pool's bound and a list item's
 // FName length; FName's number split; the read-back through SB's lookups by ID (nothing found is no match); the answer
-// word, the status line and the log lines. Lily's signal batch (by hand, patches of its own): the mod's quest rows
-// (a target filter, two tasks, two groups, the quest row last of them) in the four quest tables no other batch writes,
-// its group rows' task containers (a TArray of structs of FName arrays, built in the pool), then her borrowed choice
-// row patched in place in TheaterSelectDataTable with no ID check, last, so a refusal there leaves the quest rows in.
+// word, the status line and the log lines. Lily's signal batch (by hand, patches of its own): the mod's two quests'
+// rows (8 target filters, 7 tasks, 7 groups, the two quest rows last of them) in the four quest tables no other batch
+// writes, its group rows' task containers (a TArray of structs of FName arrays, built in the pool), the 8 filters'
+// list on both "Talk to Lily" tasks, then her borrowed choice row patched in place in TheaterSelectDataTable with no ID
+// check, last, so a refusal there leaves the quest rows in.
 #include "lion/rows.h"
 
 #include <cassert>
@@ -434,25 +435,30 @@ int main() {
          !std::strcmp(table_info(Table::select).name, "TheaterSelectDataTable") &&
          table_info(Table::select).size == 0xd8 && !table_info(Table::select).id &&
          size_t(Table::select) == kTableCount - 1);
-  // Lily's signal batch, by hand with patches of its own: the target filter first (Lily's Phase 5 spawn in Xion, as
-  // the shipped M04 marker), task 1 entering Zone_DLC02_10, task 2 the shipped Talk to Lily counter tracking that
-  // filter, the two groups each holding one container with its task, then the quest row (a Sub, no next quest, no
-  // reward, its two groups), then TS_GoToTest_2 patched in place: the game's Phase 5 condition, shown or hidden,
-  // priority 3, NextTaskTagName None, her goodbye's exec. New names and IDs past the shipped ones (162, 334, 482), each
-  // patch inside its struct past the ID, no two on the same bytes, no zone or Lion table, and the zone and quest tables
-  // written by no other batch.
-  static_assert(kSignalRows == 7, "a target filter, 2 tasks, 2 groups, the quest, then the borrowed choice row");
+  // Lily's signal batch, by hand with patches of its own: 8 target filters first (one per Tetrapod Lily, each the
+  // shipped M04 marker with another spawn), then 7 tasks (On Time's M01 to M04 entering the four Matrix XIII zones, M05
+  // a counter with no marker, M06 and the prologue's task the shipped Talk to Lily counter tracking all 8 filters), the
+  // 7 groups each holding one container with its task, the two quest rows (Subs, no next quest, no reward, their
+  // groups), then TS_GoToTest_2 patched in place: the game's Phase 5 condition, shown or hidden, priority 3,
+  // NextTaskTagName None, her goodbye's exec. New names and IDs past the shipped ones (162, 334, 482), each patch inside
+  // its struct past the ID, no two on the same bytes, no zone or Lion table, and the zone and quest tables written by no
+  // other batch.
+  static_assert(kSignalRows == 25, "8 target filters, 7 tasks, 7 groups, 2 quests, then the borrowed choice row");
   {
-    const Table kOrder[] = {Table::target, Table::task,  Table::task,  Table::group,
-                            Table::group,  Table::quest, Table::select};
-    const uint32_t kIds[] = {280004001, 483, 484, 335, 336, 163, 0};
+    const uint32_t kIds[] = {280004001, 280004002, 280004003, 280004004, 280004005, 280004006, 280004007, 280004008,
+                             483, 484, 485, 486, 487, 488, 489, 335, 336, 337, 338, 339, 340, 341, 163, 164, 0};
     size_t n = 0;
     for (size_t i = 0; i < kSignalRows; ++i) {
       const Row &r = kSignalRecipe[i];
       const TableInfo &info = table_info(r.table);
-      assert(r.table == kOrder[i] && r.id == kIds[i] && r.first == n && r.count > 0);
+      const Table kind = i < 8    ? Table::target
+                         : i < 15 ? Table::task
+                         : i < 22 ? Table::group
+                         : i < 24 ? Table::quest
+                                  : Table::select;
+      assert(r.table == kind && r.id == kIds[i] && r.first == n && r.count > 0);
       assert(shipped_row(r) == (r.table == Table::select));
-      assert(shipped_row(r) || !std::strncmp(r.name, "Quest_Sub_MX13_01", 17));
+      assert(shipped_row(r) || !std::strncmp(r.name, "Quest_Sub_MX13_0", 16));
       for (size_t p = r.first; p < size_t(r.first) + r.count; ++p, ++n) {
         const Patch &x = kSignalPatches[p];
         assert(x.at >= kIdAt + (info.id ? 4 : 0) && x.at + kind_size(x.kind) <= info.size);
@@ -462,7 +468,7 @@ int main() {
                  x.at + kind_size(x.kind) <= kSignalPatches[q].at);
       }
     }
-    assert(n == sizeof kSignalPatches / sizeof kSignalPatches[0] && n == 19 && kSignal.patches == kSignalPatches);
+    assert(n == sizeof kSignalPatches / sizeof kSignalPatches[0] && n == 57 && kSignal.patches == kSignalPatches);
     for (const Row &r : all) // The quest and select tables are the signal batch's alone.
       assert(r.table != Table::quest && r.table != Table::group && r.table != Table::task && r.table != Table::target &&
              r.table != Table::select);
@@ -476,21 +482,46 @@ int main() {
       assert(false);
       return kSignalPatches[0];
     };
-    const Row &target = kSignalRecipe[0], &t1 = kSignalRecipe[1], &t2 = kSignalRecipe[2], &m1 = kSignalRecipe[3],
-              &m2 = kSignalRecipe[4], &quest = kSignalRecipe[5], &choice = kSignalRecipe[6];
-    assert(!std::strcmp(target.donor, "Quest_Epic_11_LevelTargetFilter__04_002") && at(target, 0x14).f == 2 &&
-           !std::strcmp(at(target, 0x18).text, "Xion_10_E_CharS_146"));
-    assert(!std::strcmp(t1.donor, "Quest_Epic_06_M01_T01") && at(t1, 0x30).f == 2 && at(t1, 0x40).kind == Kind::names &&
-           !std::strcmp(at(t1, 0x40).text, "Zone_DLC02_10"));
-    assert(!std::strcmp(t2.donor, "Quest_Epic_11_M04_T01") && at(t2, 0x30).f == 12 &&
-           !std::strcmp(at(t2, 0x50).text, target.name));
-    assert(at(m1, 0x30).kind == Kind::containers && !std::strcmp(at(m1, 0x30).text, t1.name) &&
-           at(m2, 0x30).kind == Kind::containers && !std::strcmp(at(m2, 0x30).text, t2.name) && at(m1, 0xa9).f == 0 &&
-           at(m2, 0xa9).f == 0);
-    assert(!std::strcmp(quest.name, "Quest_Sub_MX13_01") && !std::strcmp(quest.donor, "Quest_Sub_WLB_001") &&
-           at(quest, 0x14).f == 1 && !std::strcmp(at(quest, 0x18).text, "None") &&
-           !std::strcmp(at(quest, 0x80).text, "None") &&
-           !std::strcmp(at(quest, 0x108).text, "Quest_Sub_MX13_01_M01|Quest_Sub_MX13_01_M02"));
+    const char *const kSpawns[] = {"Xion_10_E_CharS_146", "DED10_E_CharS_173",  "DED40_E_CharS_152",
+                                   "DED40_E_CharS_167",   "WLA_30_E_CharS_105", "WLB_10_E_CharS_125",
+                                   "WLB_20_E_CharS_073",  "SE_01_E_CharS_009"};
+    std::string filters;
+    for (size_t i = 0; i < 8; ++i) {
+      const Row &f = kSignalRecipe[i];
+      assert(!std::strcmp(f.donor, "Quest_Epic_11_LevelTargetFilter__04_002") && at(f, 0x14).f == 2 &&
+             !std::strcmp(at(f, 0x18).text, kSpawns[i]));
+      filters += (i ? "|" : "") + std::string(f.name);
+    }
+    assert(filters == kLilyFilters);
+    const char *const kZones[] = {"Zone_DLC02_10", "Zone_DLC02_20", "Zone_DLC02_30", "Zone_DLC02_40"};
+    for (size_t i = 0; i < 4; ++i) { // On Time's M01 to M04: EnterZone, one zone each, no marker.
+      const Row &t = kSignalRecipe[8 + i];
+      assert(t.name == "Quest_Sub_MX13_01_M0" + std::to_string(i + 1) + "_T01" &&
+             !std::strcmp(t.donor, "Quest_Epic_06_M01_T01") && at(t, 0x30).f == 2 && at(t, 0x40).kind == Kind::names &&
+             !std::strcmp(at(t, 0x40).text, kZones[i]));
+    }
+    const Row &m05 = kSignalRecipe[12], &m06 = kSignalRecipe[13], &pro = kSignalRecipe[14];
+    assert(!std::strcmp(m05.name, "Quest_Sub_MX13_01_M05_T01") && !std::strcmp(m05.donor, "Quest_Epic_11_M04_T01") &&
+           at(m05, 0x30).f == 12 && !std::strcmp(at(m05, 0x50).text, "")); // Its template's marker cleared.
+    assert(!std::strcmp(m06.name, "Quest_Sub_MX13_01_M06_T01") && !std::strcmp(pro.name, "Quest_Sub_MX13_00_M01_T01"));
+    for (const Row *t : {&m06, &pro})
+      assert(!std::strcmp(t->donor, "Quest_Epic_11_M04_T01") && at(*t, 0x30).f == 12 &&
+             at(*t, 0x50).text == kLilyFilters);
+    for (size_t i = 0; i < 7; ++i) { // Each group its one task.
+      const Row &g = kSignalRecipe[15 + i];
+      assert(!std::strcmp(g.donor, "Quest_Sub_002_M01") && at(g, 0x30).kind == Kind::containers &&
+             !std::strcmp(at(g, 0x30).text, kSignalRecipe[8 + i].name) && at(g, 0xa9).f == 0 &&
+             std::string(g.name) + "_T01" == kSignalRecipe[8 + i].name);
+    }
+    const Row &on_time = kSignalRecipe[22], &prologue = kSignalRecipe[23], &choice = kSignalRecipe[24];
+    for (const Row *q : {&on_time, &prologue})
+      assert(!std::strcmp(q->donor, "Quest_Sub_WLB_001") && at(*q, 0x14).f == 1 &&
+             !std::strcmp(at(*q, 0x18).text, "None") && !std::strcmp(at(*q, 0x80).text, "None"));
+    assert(!std::strcmp(on_time.name, "Quest_Sub_MX13_01") &&
+           !std::strcmp(at(on_time, 0x108).text, "Quest_Sub_MX13_01_M01|Quest_Sub_MX13_01_M02|Quest_Sub_MX13_01_M03|"
+                                                 "Quest_Sub_MX13_01_M04|Quest_Sub_MX13_01_M05|Quest_Sub_MX13_01_M06"));
+    assert(!std::strcmp(prologue.name, "Quest_Sub_MX13_00") &&
+           !std::strcmp(at(prologue, 0x108).text, "Quest_Sub_MX13_00_M01"));
     assert(!std::strcmp(choice.name, "TS_GoToTest_2") && !std::strcmp(at(choice, 0x20).text, "Xion_10_Condition_051") &&
            at(choice, 0x58).f == 1 && at(choice, 0x80).kind == Kind::i32 && at(choice, 0x80).f == 3 &&
            !std::strcmp(at(choice, 0x84).text, "Success5") && !std::strcmp(at(choice, 0x78).text, "None"));
@@ -1062,31 +1093,40 @@ int main() {
     rb = sb.read_back(g, g.tables);
     assert(describe_read(kShop, rb) ==
            "shop rows by SB's lookups: CharacterTable - 0/0, SkillTable - 0/0, stance - 0/0");
-    // Lily's signal batch last, on its own Builder: its 6 quest rows added from its own patches (the groups' task
-    // containers built in the pool and read back through their headers, the IDs in the quest tables' ID maps), then
-    // TS_GoToTest_2 copied back over itself, never handed to AddRow, with no ID in the row or map to check.
+    // Lily's signal batch last, on its own Builder: its 24 quest rows added from its own patches (the groups' task
+    // containers and the filters' list built in the pool and read back through their headers, the IDs in the quest
+    // tables' ID maps), then TS_GoToTest_2 copied back over itself, never handed to AddRow, with no ID in the row or map
+    // to check.
     Builder kb(kSignal);
     const Answer ka = kb.run(g, kBase, g.tables, g.block);
     const size_t quests = shops + kShopRows;
-    assert(ka.state == State::rows && ka.added == kSignalRows && g.adds.size() == quests + 6 && g.puts.size() == 6);
+    assert(ka.state == State::rows && ka.added == kSignalRows && g.adds.size() == quests + 24 && g.puts.size() == 6);
     verify(g, kb, kSignal, quests, 5);
-    assert(g.list_field(g.adds[quests + 3], 0x30, Kind::containers) == "Quest_Sub_MX13_01_M01_T01" &&
-           g.list_field(g.adds[quests + 4], 0x30, Kind::containers) == "Quest_Sub_MX13_01_M02_T01");
-    assert(g.adds[quests + 5].table == size_t(Table::quest) &&
+    assert(g.list_field(g.adds[quests + 15], 0x30, Kind::containers) == "Quest_Sub_MX13_01_M01_T01" &&
+           g.list_field(g.adds[quests + 21], 0x30, Kind::containers) == "Quest_Sub_MX13_00_M01_T01");
+    assert(g.list_field(g.adds[quests + 13], 0x50, Kind::names) == kLilyFilters &&
+           g.list_field(g.adds[quests + 14], 0x50, Kind::names) == kLilyFilters &&
+           g.list_field(g.adds[quests + 12], 0x50, Kind::names).empty());
+    assert(g.adds[quests + 22].table == size_t(Table::quest) &&
            g.id_name(g.tables[size_t(Table::quest)], 163) == g.name("Quest_Sub_MX13_01") &&
-           g.list_field(g.adds[quests + 5], 0x108, Kind::names) == "Quest_Sub_MX13_01_M01|Quest_Sub_MX13_01_M02");
+           g.id_name(g.tables[size_t(Table::quest)], 164) == g.name("Quest_Sub_MX13_00") &&
+           g.list_field(g.adds[quests + 22], 0x108, Kind::names) ==
+               "Quest_Sub_MX13_01_M01|Quest_Sub_MX13_01_M02|Quest_Sub_MX13_01_M03|Quest_Sub_MX13_01_M04|"
+               "Quest_Sub_MX13_01_M05|Quest_Sub_MX13_01_M06" &&
+           g.list_field(g.adds[quests + 23], 0x108, Kind::names) == "Quest_Sub_MX13_00_M01");
     const Game::Put &choice = g.puts[5];
     assert(choice.table == size_t(Table::select) && g.name_text(choice.name) == "TS_GoToTest_2" &&
            g.list_field(choice, 0x20, Kind::names) == "Xion_10_Condition_051" && choice.block[0x58] == 1 &&
            Game::field<int32_t>(choice, 0x80) == 3 && g.name_text(Game::field<uint64_t>(choice, 0x84)) == "Success5");
-    assert(describe(kSignal, ka) == "signal rows: 7/7 in, 6 added through SB's AddRow 0x14417ba30 and 1 shipped rows "
-                                    "patched in place, 0 refused");
-    assert(kb.run(g, kBase, g.tables, g.block).added == kSignalRows && g.adds.size() == quests + 6 &&
+    assert(describe(kSignal, ka) ==
+           "signal rows: 25/25 in, 24 added through SB's AddRow 0x14417ba30 and 1 shipped rows "
+           "patched in place, 0 refused");
+    assert(kb.run(g, kBase, g.tables, g.block).added == kSignalRows && g.adds.size() == quests + 24 &&
            g.puts.size() == 6); // A later run adds and patches nothing again.
   }
   {
     // Lily's signal batch: a TheaterSelectDataTable whose row size is not the SDK's stops it before any row (every
-    // table is checked first); a QuestTable ID already taken stops it at the quest row, the five rows before it in.
+    // table is checked first); a QuestTable ID already taken stops it at that quest's row, the rows before it in.
     Game g;
     const uint64_t rs = g.mem.get<uint64_t>(g.tables[size_t(Table::select)] + kRowStruct);
     g.mem.put<int32_t>(rs + kPropertiesSize, 0xd0);
@@ -1094,13 +1134,13 @@ int main() {
     const Answer a = kb.run(g, kBase, g.tables, g.block);
     assert(a.state == State::refused && a.why == Why::size && a.detail == 0xd0 && g.adds.empty() && g.puts.empty());
     assert(describe(kSignal, a) ==
-           "signal rows refused TS_GoToTest_2: TheaterSelectDataTable's row size 0xd0 not 0xd8; 0/7 added");
+           "signal rows refused TS_GoToTest_2: TheaterSelectDataTable's row size 0xd0 not 0xd8; 0/25 added");
     Game h;
-    h.ids[{h.tables[size_t(Table::quest)], 163}] = h.name("SomeOtherQuest");
+    h.ids[{h.tables[size_t(Table::quest)], 164}] = h.name("SomeOtherQuest");
     Builder hb(kSignal);
     const Answer b = hb.run(h, kBase, h.tables, h.block);
-    assert(b.state == State::refused && b.why == Why::id && b.row == 5 && h.adds.size() == 5 && h.puts.empty());
-    assert(describe(kSignal, b) == "signal rows refused Quest_Sub_MX13_01: ID 163 taken; 5/7 added");
+    assert(b.state == State::refused && b.why == Why::id && b.row == 23 && h.adds.size() == 23 && h.puts.empty());
+    assert(describe(kSignal, b) == "signal rows refused Quest_Sub_MX13_00: ID 164 taken; 23/25 added");
   }
   {
     // Matrix XIII's run reads only the three zone tables: a ZoneEnvSpawnTable whose row size is not the SDK's stops it

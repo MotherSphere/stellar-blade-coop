@@ -54,10 +54,13 @@ do
     local f=assert(io.open('native/src/lion/rows.h'))
     local src=f:read('a')
     f:close()
+    -- A text as C++ writes it: adjacent literals joined; kLilyFilters by its definition.
+    local function literal(text) return (text:gsub('"%s+"','')):match('^"(.*)"$') end
+    local consts={kLilyFilters=literal(assert(src:match('constexpr const char kLilyFilters%[%] =%s*(.-);')))}
     local patches={}
     for at,kind,value,text,field in assert(src:match('constexpr Patch kSignalPatches%[%] = {\n(.-)\n};'))
         :gmatch('{(0x%x+), Kind::(%w+), ([%d%.%-]+),%s*([^}]-)},%s*// (%w+)') do
-        patches[#patches+1]={at=tonumber(at),kind=kind,f=tonumber(value),text=text:match('^"(.*)"$'),field=field}
+        patches[#patches+1]={at=tonumber(at),kind=kind,f=tonumber(value),text=literal(text) or consts[text],field=field}
     end
     local TABLES={quest='QuestTable',group='QuestTaskGroupTable',task='QuestTaskTable',target='LevelTargetFilter',
         select='TheaterSelectDataTable'}
@@ -77,8 +80,10 @@ do
             else assert(found[3]==pt.f,name..' '..pt.field) end
         end
     end
-    assert(n==7 and #Lily.ROWS==7 and #patches==19,n..' rows, '..#patches..' patches')
-    assert(Lily.ROWS[6].name==Lily.QUEST and Lily.ROWS[6].id==Lily.ID and Lily.ROWS[7].id==nil)
+    assert(n==25 and #Lily.ROWS==25 and #patches==57,n..' rows, '..#patches..' patches')
+    assert(Lily.ROWS[23].name==Lily.QUEST and Lily.ROWS[23].id==Lily.ID and Lily.ROWS[24].name==Lily.PROLOGUE
+        and Lily.ROWS[24].id==Lily.PROLOGUE_ID and Lily.ROWS[25].id==nil)
+    assert(consts.kLilyFilters==Lily.FILTERS and select(2,Lily.FILTERS:gsub('|',''))==7)
 end
 -- The words: every line in English and French; French for any French culture, English for the rest.
 for _,c in ipairs({'en','fr'}) do
@@ -191,7 +196,7 @@ end
 local function last() return logs[#logs] end
 local function logged(text) for _,l in ipairs(logs) do if l:find(text,1,true) then return l end end end
 local function count(line) local n=0; for _,a in ipairs(asked) do if a==line then n=n+1 end end; return n end
-local ROWS_IN='signal=rows added=7/7 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
+local ROWS_IN='signal=rows added=25/25 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
 -- The signal rows request: the 5 tables its rows go into, in kLionTables' order.
 local SIGNAL_REQUEST=string.format('signal rows QuestTable=0x%x QuestTaskGroupTable=0x%x QuestTaskTable=0x%x '
     ..'LevelTargetFilter=0x%x TheaterSelectDataTable=0x%x',tables.QuestTable:GetAddress(),
@@ -230,7 +235,7 @@ assert(logged('title: the co-op save files and test pak v2: the rows asked befor
 lines.signal=ROWS_IN:format(1)
 clock=clock+0.5
 ly.tick() -- The rows flow's wait ends: the read-back, then the words in the game's language.
-assert(logged('rows read back through FindRow: 7/7 authored rows'),last())
+assert(logged('rows read back through FindRow: 25/25 authored rows'),last())
 assert(logged('title: the rows are in, before any save loads'),last())
 assert(logged('text: game language fr-FR -> fr;'),last())
 local quest=tables.QuestTable.rows[Lily.QUEST]
@@ -338,7 +343,7 @@ assert(last()=='STOP: signal acquire refused: signalquest=none state=-1 group=-1
 ok,why=ly.command('now')
 assert(ok==false and why=='Use: coop lily signal [status|quest|travel]')
 ok,why=ly.command('status')
-assert(ok and why:find("^Lily's signal: her choice offered; signal=rows added=7/7") and why:find('words fr')
+assert(ok and why:find("^Lily's signal: her choice offered; signal=rows added=25/25") and why:find('words fr')
     and why:find('test pak v2'),why)
 ok,why=ly.command('travel')
 assert(ok and travels==1 and why:find('^coop mxiii'),why)
@@ -412,7 +417,7 @@ ly=new()
 for try=1,4 do
     ly.title(true,true)
     assert(#asked==try and asked[try]==SIGNAL_REQUEST,'Try '..try)
-    lines.signal='signal=refused added=0/7 asks='..try..' spawns=? why=busy table=- row=-'
+    lines.signal='signal=refused added=0/25 asks='..try..' spawns=? why=busy table=- row=-'
     clock=clock+0.5; ly.tick()
     clock=clock+10
 end
@@ -425,7 +430,7 @@ lines.slot='slot=coop index=4'
 her=eve
 clock=clock+1; ly.tick()
 assert(#asked==5 and asked[5]==SIGNAL_REQUEST,tostring(asked[5]))
-lines.signal='signal=refused added=0/7 asks=5 spawns=? why=busy table=- row=-'
+lines.signal='signal=refused added=0/25 asks=5 spawns=? why=busy table=- row=-'
 clock=clock+0.5; ly.tick()
 clock=clock+1; ly.tick()
 assert(#asked==5,'Once a Lua load')

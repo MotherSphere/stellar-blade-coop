@@ -50,11 +50,11 @@
 // engine lists as one the host lacks, so that enemy never appears in her game. The worker makes the swap when the gate
 // first opens and swaps back at coop off or after a fault in the hook, which has its own SEH latch.
 //
-// The mod's own quest (quest/own.h, Lily's signal): from Lua's first signal request (signal watch, once Lily's cheap
-// gates hold) until coop off, every 250 ms on a co-op save, the game thread reads whether the quest unit holds it,
-// Quest_Epic_12 and Quest_Sub_005, its state, group and first task, and runs Lua's signal acquire (SB's acquire by ID)
-// or signal complete (its first task's Complete) under its own SEH latch; status() gives the signalquest line, and the
-// worker logs each answer.
+// The mod's own quests (quest/own.h, Lily's signal): from Lua's first signal request (signal watch, once Lily's cheap
+// gates hold) until coop off, every 250 ms on a co-op save, the game thread reads whether the quest unit holds the
+// prologue and "On Time", Quest_Epic_11, Quest_Epic_12 and Quest_Sub_005, each of our quests' state, group and first
+// task, and runs Lua's signal asks (an acquire by ID, or one fixed group's first task's Complete) under its own SEH
+// latch; status() gives the signalquest line, and the worker logs each answer.
 //
 // The shared quests (Phase 12, quest/engine.h): every 250 ms coop_tick runs the engine's pass on the game thread, where
 // SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most one step
@@ -237,7 +237,7 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
   if (game_pinned && !quest_faulted && !blocked)
     quest_tick();
-  // The mod's own quest, its own latch: a pass each 250 ms, none after coop off or its first fault.
+  // The mod's own quests, their own latch: a pass each 250 ms, none after coop off or its first fault.
   if (game_pinned && !own_faulted && !blocked)
     own_tick();
   // The revive's guard, its own latch: a read each 250 ms, none after coop off or its first fault.

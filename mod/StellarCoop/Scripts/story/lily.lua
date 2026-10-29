@@ -43,30 +43,47 @@ local Lily={}
 local DATA='/Game/Local/Data/'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 Lily.QUEST,Lily.ID='Quest_Sub_MX13_01',163
+Lily.PROLOGUE,Lily.PROLOGUE_ID='Quest_Sub_MX13_00',164
 Lily.MAP='/game/art/bg/worldmap_dlc_01/level_p/mxiii_p' -- U.map_of of Matrix XIII's map (the test pak's MXIII_P).
 -- s: after a pick, before the acquire (her goodbye first; ponytail: a starting value, tune in game); how long the
 -- acquire waits for the quest unit; how long EVE stands in Matrix XIII at M01 before the fallback; between two asks
 -- while the native part reads otherwise.
 Lily.AFTER,Lily.WAIT,Lily.FALLBACK,Lily.ASK_EVERY=5,15,10,10
 -- The signal rows as cut/enemy.lua reads them back (rows.h's kSignalRecipe and kSignalPatches; lily_test checks them
--- against it): each patched field, changed when it differs from the template row's.
-Lily.ROWS=Enemy.rows({
-    {'LevelTargetFilter','Quest_Sub_MX13_01_LevelTargetFilter_001',280004001,
-        {{'TargetType','e',2,false},{'EventSpawnAlias','n','Xion_10_E_CharS_146',false}}},
-    {'QuestTaskTable','Quest_Sub_MX13_01_M01_T01',483,
-        {{'MissionType','e',2,false},{'TargetFilter','N','Zone_DLC02_10',true}}},
-    {'QuestTaskTable','Quest_Sub_MX13_01_M02_T01',484,
-        {{'MissionType','e',12,false},{'TrackingTargetFilter','N','Quest_Sub_MX13_01_LevelTargetFilter_001',true}}},
-    {'QuestTaskGroupTable','Quest_Sub_MX13_01_M01',335,
-        {{'TaskContainerArray','C','Quest_Sub_MX13_01_M01_T01',true},{'WarpType','e',0,false}}},
-    {'QuestTaskGroupTable','Quest_Sub_MX13_01_M02',336,
-        {{'TaskContainerArray','C','Quest_Sub_MX13_01_M02_T01',true},{'WarpType','e',0,false}}},
-    {'QuestTable','Quest_Sub_MX13_01',163,{{'QuestType','e',1,false},{'NextQuest','n','None',false},
-        {'reward','n','None',false},{'TaskGroupAlias','N','Quest_Sub_MX13_01_M01|Quest_Sub_MX13_01_M02',true}}},
-    {'TheaterSelectDataTable','TS_GoToTest_2',nil,{{'Conditions','N','Xion_10_Condition_051',true},
-        {'TextVisibleType','e',1,true},{'NextTaskTagName','n','None',false},{'SelectDataPriority','i',3,true},
-        {'InteractionGraphExec','n','Success5',true}}},
-})
+-- against it): each patched field, changed when it differs from the template row's. The 8 filters (one per Tetrapod
+-- Lily: Xion, Eidos 7, Eidos 9 at the Tetrapod and near the atelier, the Wasteland, the Great Desert, the Matrix 11
+-- entrance, Spire 4) are listed in both "Talk to Lily" tasks.
+local FILTER='Quest_Sub_MX13_01_LevelTargetFilter_'
+local SPAWNS={'Xion_10_E_CharS_146','DED10_E_CharS_173','DED40_E_CharS_152','DED40_E_CharS_167','WLA_30_E_CharS_105',
+    'WLB_10_E_CharS_125','WLB_20_E_CharS_073','SE_01_E_CharS_009'}
+local rows,filters={},{}
+for i,spawn in ipairs(SPAWNS) do
+    filters[i]=FILTER..string.format('%03d',i)
+    rows[i]={'LevelTargetFilter',filters[i],280004000+i,{{'TargetType','e',2,false},{'EventSpawnAlias','n',spawn,false}}}
+end
+Lily.FILTERS=table.concat(filters,'|')
+local function task(name,id,mission,field,value) -- An EnterZone task's TargetFilter, a counter's TrackingTargetFilter.
+    rows[#rows+1]={'QuestTaskTable',name,id,{{'MissionType','e',mission,false},{field,'N',value,true}}}
+end
+for i=1,4 do task('Quest_Sub_MX13_01_M0'..i..'_T01',482+i,2,'TargetFilter','Zone_DLC02_'..i..'0') end
+task('Quest_Sub_MX13_01_M05_T01',487,12,'TrackingTargetFilter','')
+task('Quest_Sub_MX13_01_M06_T01',488,12,'TrackingTargetFilter',Lily.FILTERS)
+task('Quest_Sub_MX13_00_M01_T01',489,12,'TrackingTargetFilter',Lily.FILTERS)
+local GROUPS={'Quest_Sub_MX13_01_M01','Quest_Sub_MX13_01_M02','Quest_Sub_MX13_01_M03','Quest_Sub_MX13_01_M04',
+    'Quest_Sub_MX13_01_M05','Quest_Sub_MX13_01_M06','Quest_Sub_MX13_00_M01'}
+for i,g in ipairs(GROUPS) do
+    rows[#rows+1]={'QuestTaskGroupTable',g,334+i,{{'TaskContainerArray','C',g..'_T01',true},{'WarpType','e',0,false}}}
+end
+local function quest(name,id,groups)
+    rows[#rows+1]={'QuestTable',name,id,{{'QuestType','e',1,false},{'NextQuest','n','None',false},
+        {'reward','n','None',false},{'TaskGroupAlias','N',groups,true}}}
+end
+quest(Lily.QUEST,Lily.ID,table.concat(GROUPS,'|',1,6))
+quest(Lily.PROLOGUE,Lily.PROLOGUE_ID,GROUPS[7])
+rows[#rows+1]={'TheaterSelectDataTable','TS_GoToTest_2',nil,{{'Conditions','N','Xion_10_Condition_051',true},
+    {'TextVisibleType','e',1,true},{'NextTaskTagName','n','None',false},{'SelectDataPriority','i',3,true},
+    {'InteractionGraphExec','n','Success5',true}}}
+Lily.ROWS=Enemy.rows(rows)
 -- The words' rows: table, row, its ID (checked before the write), the fields and their lines of story/lily_text.lua.
 -- Her choice row is checked by its ID and its exec too, so its label only goes on once the rows' patch is there.
 Lily.TEXTS={

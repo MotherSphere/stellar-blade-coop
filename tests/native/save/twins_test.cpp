@@ -308,13 +308,20 @@ int main() {
            held.find("use them up or sell them") != std::string::npos && held.find("Matrix") == std::string::npos);
     assert(mod_only(names_field("ItemQuickSlotArray", "ArrayProperty", {"None", item.alias}) + clean_body()) == held);
   }
-  // The mod's quest On Time, by its alias as the save writes it (an FString, in its quest list or as the tracked
-  // quest): no way out by playing, so no "export it again"; a longer alias that starts with it does not count.
-  const std::string on_time =
-      "the mod's quest On Time (Quest_Sub_MX13_01): nothing ends that quest yet, so this save cannot be exported";
+  // The mod's quests, the prologue and On Time, by their alias as the save writes it (an FString, in a quest list or as
+  // the tracked quest): no way out by playing, so no "export it again"; a longer alias that starts with one does not
+  // count.
+  const std::string done_too = ": the save keeps a quest's name even once it is done, so this save cannot be exported";
+  const std::string on_time = "the mod's quest On Time (Quest_Sub_MX13_01)" + done_too;
   assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_01")) == on_time);
   assert(mod_only(clean_body() + fstring("TrackingQuestAliases") + fstring("Quest_Sub_MX13_01")) == on_time);
   assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_01_M01")).empty());
+  assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_00")) ==
+         "the mod's quest A Second Signal (Quest_Sub_MX13_00)" + done_too);
+  assert(mod_only(clean_body() + fstring("CompleteQuestList") + fstring("Quest_Sub_MX13_00") +
+                  fstring("Quest_Sub_MX13_01")) ==
+         "the mod's quests A Second Signal (Quest_Sub_MX13_00) and On Time (Quest_Sub_MX13_01)" + done_too);
+  assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_00_M01") + fstring("Quest_Sub_MX13_00_M01_T01")).empty());
   assert(mod_only(clean_body() + name_field("ItemAlias", "Bullet_Shock") + fstring("Quest_Sub_MX13_01")) ==
          "the mod's items Shock Bolt (Bullet_Shock): use them up or sell them, and take them off the quick slots (Beta "
          "Seeds go back to the wallet when coop nightop shop closes); " +

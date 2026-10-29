@@ -35,23 +35,24 @@ std::string ask_quests(const coop::Request &request) {
   return quest_worker.ask(request, io);
 }
 
-// The mod's own quest (quest/own.h, story/lily.lua): signal watch (the reads start), signal acquire or signal complete
-// at the game thread's next 250 ms pass; any of them starts the reads. Refused off the pinned build, after coop off and
-// after its latch's fault.
+// The mod's own quests (quest/own.h, story/lily.lua): signal watch, or one of the asks (acquire, complete, prologue,
+// talked, zone4, tell, next) at the game thread's next 250 ms pass; any of them starts the reads. Refused off the pinned
+// build, after coop off and after its latch's fault.
 std::string ask_signal(const coop::Request &request) {
-  const std::string word = request.watch ? "signal watch" : request.complete ? "signal complete" : "signal acquire";
+  const auto ask = quest::own::Ask(uint8_t(request.signal) % quest::own::kAsks);
+  const std::string word = std::string("signal ") + quest::own::ask_word(ask);
   if (!game_pinned || own_faulted || blocked)
     return word + " refused: " +
            (own_faulted ? std::string("the quest's calls stopped for this run (a fault)")
             : blocked   ? std::string("coop off")
                         : engine_reason);
   own_watching = true;
-  if (request.watch)
+  if (ask == quest::own::Ask::watch)
     return word + " asked: the quest unit read every 250 ms on a co-op save from now on";
   {
     std::lock_guard<std::mutex> lock(own_m);
     ++own_asked;
-    own_complete = request.complete;
+    own_ask = ask;
   }
   return word + " asked: at the game thread's next pass (250 ms), on a co-op save only";
 }
@@ -76,7 +77,7 @@ void own_pass() {
   if (a.asks == own_logged)
     return;
   own_logged = a.asks;
-  say(std::string("signal ") + (a.complete ? "complete" : "acquire") +
+  say(std::string("signal ") + quest::own::ask_word(a.want) +
       (a.why == quest::own::Why::none ? std::string(": done, ")
                                       : std::string(" refused: ") + quest::own::why_word(a.why) + ", ") +
       quest::own::status_line(a));

@@ -1,5 +1,6 @@
 // The link's text protocol and its Lua requests, checked on the build machine (no Windows, no Steam).
 #include "link/protocol.h"
+#include "quest/own.h" // kAskWords: the signal words in its order
 
 #include <cassert>
 #include <cctype>
@@ -1044,15 +1045,23 @@ int main() {
   assert(parse_request("lily on").command == Command::roxanne && parse_request("lily on").on &&
          parse_request("lily on").lily && parse_request("lily off\r\n").command == Command::roxanne &&
          !parse_request("lily off").on && parse_request("lily off").lily);
-  assert(parse_request("signal acquire\n").command == Command::signal && !parse_request("signal acquire").complete &&
-         parse_request("signal complete").command == Command::signal && parse_request("signal complete").complete &&
-         !parse_request("signal acquire").watch && !parse_request("signal complete").watch);
-  assert(parse_request("signal watch\r\n").command == Command::signal && parse_request("signal watch").watch &&
-         !parse_request("signal watch").complete);
+  // Every signal word, in quest/own.h's Ask order (the glue casts the index to an Ask), and only those.
+  static_assert(kSignalWordCount == coop::quest::own::kAsks, "one word for each ask");
+  for (size_t w = 0; w < kSignalWordCount; ++w) {
+    assert(!std::strcmp(kSignalWords[w], coop::quest::own::kAskWords[w]));
+    const std::string line = std::string("signal ") + kSignalWords[w];
+    assert(parse_request(line).command == Command::signal && parse_request(line).signal == w &&
+           parse_request(line + "\r\n").signal == w);
+  }
+  assert(parse_request("signal acquire\n").signal == uint8_t(coop::quest::own::Ask::acquire) &&
+         parse_request("signal watch").signal == uint8_t(coop::quest::own::Ask::watch) &&
+         parse_request("signal next").signal == uint8_t(coop::quest::own::Ask::next));
   for (const char *bad : {"nightshop", "nightshop open shock", "nightshop opens", "nightshop close bolt", "nightshop w",
                           "nightshop  open", "Nightshop open", "roxanne", "roxanne On", "roxanne on now", "roxane on",
                           "lily", "lily On", "lily on now", "Lily on", "signal", "signal acquire 163", "signal Acquire",
-                          "signal completed", "signal rows", "signal watch on", "signal Watch"})
+                          "signal completed", "signal rows", "signal watch on", "signal Watch", "signal Prologue",
+                          "signal zone 4", "signal zone5", "signal next 1", "signal tell lily", "signal  talked",
+                          "signal talk", "signals next"})
     assert(parse_request(bad).command == Command::none);
 
   // Steam starts the game with +connect_lobby <id> when a friend accepts an invite while it is closed.

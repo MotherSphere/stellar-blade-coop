@@ -146,8 +146,9 @@ std::string ask_roxanne(const coop::Request &request);
 // Worker: coop-status.txt's shared quests lines (quest/engine.h's Worker::status), then the signalquest line
 // (quest/own.h's status_line, on the pinned build until coop off), each ending in a line break.
 std::string quest_status();
-// Worker thread, the mod's own quest (quest/own.h): Lua's signal watch (the reads start; none before any signal
-// request), signal acquire or signal complete, at the game thread's next 250 ms pass, on a co-op save only. Refused off
+// Worker thread, the mod's own quests (quest/own.h): Lua's signal watch (the reads start; none before any signal
+// request) or one of its asks (acquire, complete, prologue, talked, zone4, tell, next), at the game thread's next 250 ms
+// pass, on a co-op save only. Refused off
 // the pinned build, after coop off and after its latch's fault. Returns the line for the log; quest_pass logs the game
 // thread's answer.
 std::string ask_signal(const coop::Request &request);

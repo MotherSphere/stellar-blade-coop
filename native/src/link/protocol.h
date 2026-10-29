@@ -588,9 +588,11 @@ inline uint64_t code_lobby(std::string_view text) {
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
 // nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (story/lily.lua, the same header) "lily
-// on" and "lily off"; for the mod's own quest (story/lily.lua, quest/own.h) "signal watch" (the reads only, from then
-// on), "signal acquire" (acquire it) and "signal complete" (its first task's Complete). No console argument reaches any
-// of them: the words are fixed, and so is the quest's ID.
+// on" and "lily off"; for the mod's own quests (story/lily.lua, quest/own.h) "signal watch" (the reads only, from then
+// on), "signal acquire" (acquire On Time), "signal complete" (its M01 task's Complete), "signal prologue" (acquire the
+// prologue), "signal talked" (the prologue's task's Complete), "signal zone4" and "signal tell" (On Time's M05 and M06
+// tasks' Complete) and "signal next" (a test word: the task of On Time's active group). No console argument reaches
+// any of them: the words are fixed, and so are each word's quest ID and group.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
@@ -618,6 +620,10 @@ constexpr size_t kMaxRequestFile = 1024;
 // nightshop: what nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
 // Shop_NightOperation_CoopBolt, closed, or no call but the reads.
 enum class ShopAsk : uint8_t { open, open_bolt, close, watch };
+// signal: the words after "signal ", in quest/own.h's Ask order (protocol_test checks both lists match).
+constexpr size_t kSignalWordCount = 8;
+constexpr const char *kSignalWords[kSignalWordCount] = {"watch",  "acquire", "complete", "prologue",
+                                                        "talked", "zone4",   "tell",     "next"};
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).
@@ -645,8 +651,7 @@ struct Request {
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
   bool on = false;                       // roxanne on, lily on (true) or off.
   bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
-  bool complete = false;                 // signal: complete (true) or acquire.
-  bool watch = false;                    // signal: watch (the reads only; complete false).
+  uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -831,6 +836,13 @@ inline Request parse_rows(const std::string &text) {
   r.command = Command::rows;
   return r;
 }
+// A signal request's word as its index in kSignalWords, or kSignalWordCount for any other text.
+inline uint8_t signal_word(const std::string &text) {
+  uint8_t w = 0;
+  while (w < kSignalWordCount && (text.rfind("signal ", 0) != 0 || text.compare(7, std::string::npos, kSignalWords[w])))
+    ++w;
+  return w;
+}
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
     text.pop_back();
@@ -942,9 +954,8 @@ inline Request parse_request(std::string text) {
   } else if (text == "lily on" || text == "lily off") {
     r.command = Command::roxanne;
     r.lily = true, r.on = text.size() == 7;
-  } else if (text == "signal acquire" || text == "signal complete" || text == "signal watch") {
-    r.command = Command::signal;
-    r.complete = text[7] == 'c', r.watch = text[7] == 'w';
+  } else if (const uint8_t w = signal_word(text); w < kSignalWordCount) {
+    r.command = Command::signal, r.signal = w;
   } else if (text == "fly on" || text == "fly off" || text == "slowmo on" || text == "slowmo off") {
     r.command = Command::gate;
     r.gate = text[0] == 's' ? 1 : 0;
