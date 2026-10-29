@@ -9,8 +9,12 @@
 -- collected no longer plays. A CreateSBZoneEvent that raises puts the take back. coop scene stop fires the Stop row,
 -- and nothing while that row is no longer the row we know; coop off fires it and puts the take back at once; a new Lua
 -- load stops an earlier load's scene and puts the take back, firing nothing for a sequence in memory that no observer
--- plays and walking no object while no scene's sequence is in memory. The only zone events are the two rows' kind 6,
--- and the source names no save, quest, warp, item, row or spawn call.
+-- plays and walking no object while no scene's sequence is in memory. Lily's talks (talk()): coop scene lily refused
+-- here; a talk through Quinn's theater with its take lent and put back, its seen and done callbacks and its player; a
+-- take not honoured (Quinn's own line) stopped at once; no theater in 10 s; a talk with no theater (the rows on the
+-- sequence, no take, no Stop, not even at coop off); a sequence that is no talk's refused; a lent take put back at the
+-- next Lua load; busy() naming a playing theater. The only zone events are the two rows' kind 6, and the source names
+-- no save, quest, warp, item, row or spawn call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -52,6 +56,14 @@ local FAREWELL_SEQ='/Game/DLC_1/GameDesign/Level/Theater/LevelSequence/MV_Nier_E
 local E03='/Game/DLC_1/Art/Cinema/MV_DLC_Ending_E03.MV_DLC_Ending_E03'
 local ORCAL='/Game/Cinematics/Trailer_2022/Trailer_Resource_2022_Theater.Trailer_Resource_2022_Theater'
 local ORCAL_SEQ='/Game/Cinematics/Trailer_2022/Trailer_Resource_2022_CameraSample1.Trailer_Resource_2022_CameraSample1'
+local QUINN='/Game/GameDesign/Level/Theater/NPC/XionExtraEngineer/Theater/Subtitle_NPC_Quinn_Common_Condition1.'
+    ..'Subtitle_NPC_Quinn_Common_Condition1'
+local QUINN_SEQ='/Game/GameDesign/Level/Theater/NPC/XionExtraEngineer/Dialogue/Subtitle_NPC_Quinn_Common_Condition1.'
+    ..'Subtitle_NPC_Quinn_Common_Condition1'
+local PROLOGUE='/Game/GameDesign/Level/Subtitle/StarsDescent/Tetrapod/Subtitle_POD_1stMeetAdam_01.'
+    ..'Subtitle_POD_1stMeetAdam_01'
+local FINALE='/Game/GameDesign/Level/Subtitle/StarsDescent/Tetrapod/Subtitle_POD_1stMeetAdam_02.'
+    ..'Subtitle_POD_1stMeetAdam_02'
 local SEQ_TABLE='/Game/Local/Localize/StringTable_Seq.StringTable_Seq'
 local SEQUENCE,THEATER_DATA='/Script/LevelSequence.LevelSequence','/Script/SB.SBTheaterData'
 local WASTELAND='World /Game/Art/BG/WorldMap/E03_WasteLand_P/E03_WasteLand_P.E03_WasteLand_P'
@@ -79,13 +91,16 @@ local take=object({TakeUID=1,bTransitTake=false,TemplateSequence=farewell_seq})
 local farewell=add(THEATER_DATA,FAREWELL)
 farewell.TakeArray={transit,take}
 add(THEATER_DATA,ORCAL)
+local quinn_seq,prologue,finale=add(SEQUENCE,QUINN_SEQ),add(SEQUENCE,PROLOGUE),add(SEQUENCE,FINALE)
+local quinn_take=object({TakeUID=1,bTransitTake=false,TemplateSequence=quinn_seq})
+add(THEATER_DATA,QUINN).TakeArray={quinn_take}
 LoadAsset=function(path) if assets[path] then loaded[path]=true; return assets[path] end return invalid end
 
 -- EventTheaterTable: the two rows as shipped (FindRow gives the row itself unless copies is set).
 local rows,copies={},false
 local function row(id,control)
-    return {ID=id,ControlType=control,TheaterAssetPath=TEST,SequencePlayTransformType=0,BindTargetType=0,
-        EventSpawnAlias=fname('None'),EventCondition=fname('None'),EventConditionGroup=fname('None')}
+    return {ID=id,ControlType=control,TheaterAssetPath=TEST,LevelSeqAssetPath='',SequencePlayTransformType=0,
+        BindTargetType=0,EventSpawnAlias=fname('None'),EventCondition=fname('None'),EventConditionGroup=fname('None')}
 end
 rows[PLAY],rows[STOP]=row(111,0),row(112,1)
 local function copy(r) local c={}; for k,v in pairs(r) do c[k]=v end; return c end
@@ -106,7 +121,10 @@ local zone=object({CreateSBZoneEvent=function(_,kind,name)
     events[#events+1]=kind..' '..name:ToString()
     local theater=rows[name:ToString()].TheaterAssetPath
     if name:ToString()==PLAY and not silent then
-        observe(theater==FAREWELL and (honoured and take.TemplateSequence or farewell_seq) or orcal_seq,theater)
+        local seq=theater==FAREWELL and (honoured and take.TemplateSequence or farewell_seq)
+            or theater==QUINN and (honoured and quinn_take.TemplateSequence or quinn_seq)
+            or theater=='' and assets[rows[PLAY].LevelSeqAssetPath] or orcal_seq
+        observe(seq,theater)
     elseif name:ToString()==STOP then
         for k=#observers,1,-1 do
             if observers[k].theater==theater then table.remove(observers,k).Player.playing=false end
@@ -225,7 +243,7 @@ assert(ok==false and why=='LYC02GO_E_Theater_002 TheaterAssetPath reads '..TEST.
 copies=false
 take.TemplateSequence=orcal_seq
 ok,why=sc.command('emil')
-assert(ok==false and why=="the farewell take plays "..ORCAL_SEQ..", not the farewell's own: nothing was played",why)
+assert(ok==false and why=="the farewell take plays "..ORCAL_SEQ..", not its own sequence: nothing was played",why)
 take.TemplateSequence=farewell_seq
 assert(#events==0 and text_calls==0,'Nothing fired, no text call')
 
@@ -300,7 +318,7 @@ lines={}
 assert(sc.command('emil') and text_calls==0 and lines[3]:find('^STOP: text: this UE4SS build'),'The line again')
 at(301); sc.tick()
 assert(lines[#lines-1]=='playing: MV_Nier_Emil_GoodBye_WLA, 1.0 s after the call' and last()=="the take's write was "
-    .."not honoured: the game's own farewell plays instead",last())
+    ..'not honoured: MV_Nier_Emil_GoodBye_WLA plays instead',last())
 observers[#observers].destroyed=true -- Collected.
 at(302); ok,why=sc.tick()
 assert(ok and why=="Emil's farewell ended after 1 s." and take.TemplateSequence==farewell_seq)
@@ -359,6 +377,77 @@ finds=0
 local fresh=new()
 fresh.restore()
 assert(finds==0 and #lines==n,'No walk, no line')
+
+-- Lily's talks: coop scene lily is not this file's word; a talk anywhere (no map or stage), through Quinn's theater
+-- with its take lent, seen, then ended: its take back on Quinn's own sequence and done told.
+loaded[PROLOGUE],loaded[FINALE],loaded[QUINN_SEQ],loaded[QUINN]=nil,nil,nil,nil
+world.name,eve.at=XION,{X=0,Y=0,Z=0}
+local tk=new()
+ok,why=tk.command('lily'); assert(ok==false and why=='Use: coop scene [emil|orcal|stop]',why)
+local seen,done=0,{}
+local function opts(direct)
+    return {direct=direct,seen=function() seen=seen+1 end,done=function(...) done[#done+1]=table.pack(...) end}
+end
+ok,why=tk.talk('/Game/Other.Other',opts())
+assert(ok==false and why=='no talk plays /Game/Other.Other' and #done==0,why)
+lines={}
+at(700)
+ok,why=tk.talk(PROLOGUE,opts())
+assert(ok and rows[PLAY].TheaterAssetPath==QUINN and rows[STOP].TheaterAssetPath==QUINN
+    and rows[PLAY].LevelSeqAssetPath=='' and quinn_take.TemplateSequence==prologue and events[#events]=='6 '..PLAY,why)
+assert(lines[1]=='rows: LYC02GO_E_Theater_002 and LYC02GO_E_Theater_003 -> Subtitle_NPC_Quinn_Common_Condition1; '
+    ..'read back' and lines[2]=='take: Subtitle_NPC_Quinn_Common_Condition1 take 1 '
+    ..'Subtitle_NPC_Quinn_Common_Condition1 -> Subtitle_POD_1stMeetAdam_01; read back' and last()=='play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called'
+    and #lines==3,last())
+assert(tk.player()==nil,'No player before the observer is seen')
+at(701); tk.tick()
+assert(seen==1 and last()=='playing: Subtitle_POD_1stMeetAdam_01, 1.0 s after the call' and tk.player()~=nil
+    and tk.player()==observers[#observers].Player,last())
+ok,why=tk.talk(FINALE,opts()); assert(ok==false and why:find('is under way'),why)
+observers[#observers].Player.playing=false
+at(760); ok,why=tk.tick()
+assert(ok and why=="Lily's talk ended after 59 s." and quinn_take.TemplateSequence==quinn_seq and #done==1
+    and done[1][1]==true and done[1][2]==why and done[1][3].seen and not done[1][3].own,tostring(why))
+assert(last()=="Lily's talk ended after 59 s. (Quinn's take back on its own sequence)",last())
+-- Quinn's own line instead: stopped at once, the take back, done told with own.
+honoured=false
+at(800); assert(tk.talk(FINALE,opts()))
+at(801); ok,why=tk.tick()
+assert(ok==false and why=="Lily's talk: its theater's own sequence played; stopped" and events[#events]=='6 '..STOP
+    and #observers==0 and quinn_take.TemplateSequence==quinn_seq and done[2][3].own and done[2][3].seen,tostring(why))
+honoured=true
+-- No theater within 10 s: done told, not seen.
+silent=true
+at(900); assert(tk.talk(PROLOGUE,opts()))
+at(910); ok,why=tk.tick()
+assert(ok==false and done[3][1]==false and not done[3][3].seen and quinn_take.TemplateSequence==quinn_seq,tostring(why))
+silent=false
+-- No theater at all: both rows on the sequence, no take; no stop, not even at coop off; the rows back on a theater at
+-- the next play.
+local n_events=#events
+at(1000); ok,why=tk.talk(PROLOGUE,opts(true))
+assert(ok and rows[PLAY].TheaterAssetPath=='' and rows[PLAY].LevelSeqAssetPath==PROLOGUE
+    and rows[STOP].LevelSeqAssetPath==PROLOGUE and quinn_take.TemplateSequence==quinn_seq and #events==n_events+1,why)
+assert(lines[#lines-1]=='rows: LYC02GO_E_Theater_002 and LYC02GO_E_Theater_003 -> no theater, '
+    ..'Subtitle_POD_1stMeetAdam_01; read back',lines[#lines-1])
+at(1001); tk.tick(); assert(seen==2,'Seen (not for the take not honoured)')
+ok,why=tk.stop_talk()
+assert(ok==false and why=='No stop: Subtitle_POD_1stMeetAdam_01 plays with no theater, to its end'
+    and #events==n_events+1)
+tk.stop()
+assert(#events==n_events+1 and last()=="coop off: Lily's talk ended; no Stop for a sequence with no theater: it runs "
+    ..'to its end',last())
+observers={}
+at(1100); assert(tk.talk(FINALE,opts()))
+assert(rows[PLAY].TheaterAssetPath==QUINN and rows[PLAY].LevelSeqAssetPath=='','The rows back on the theater')
+-- A take lent at a Lua load's end is put back by the next one; busy() names what plays.
+at(1101); tk.tick()
+assert(tk.busy()=='Subtitle_POD_1stMeetAdam_02')
+local later=new()
+later.restore()
+assert(quinn_take.TemplateSequence==quinn_seq and last():find("^restore: Lily's talk of an earlier Lua load stopped; "
+    .."Quinn's take back on its own sequence"),last())
+assert(later.busy()==nil,'Nothing plays')
 
 -- The source names no save, quest, warp, item, reward, achievement, spawn, destroy, console or row call; it fires
 -- CreateSBZoneEvent at one place.
