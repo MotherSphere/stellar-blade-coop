@@ -72,9 +72,11 @@ function Move.new(o)
             world,spawned=nil,{}
             return
         end
+        -- By address: UE4SS hands out a new wrapper on every call, so two wrappers of one world never compare equal.
         local w=U.valid(eve:GetWorld())
-        if w==world and (not spawned[1] or U.valid(spawned[1])) then return end
-        world,spawned=w,{}
+        local here=w and U.address(w)
+        if here==world and (not spawned[1] or U.valid(spawned[1])) then return end
+        world,spawned=here,{}
         local made=0
         for _,m in ipairs(list) do
             local fine,a,how=pcall(spawn,eve,m)

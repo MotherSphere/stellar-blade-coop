@@ -30,7 +30,9 @@ local function new_world()
     return w
 end
 local world=new_world()
-local eve=object({IsA=function() return true end,GetWorld=function() return world end})
+-- Like UE4SS, every GetWorld call gives a new wrapper of the same world (same address).
+local function wrapper(w) return setmetatable({},{__index=w}) end
+local eve=object({IsA=function() return true end,GetWorld=function() return wrapper(world) end})
 package.loaded.UEHelpers={GetPlayer=function() return eve end,GetPlayerController=function() return nil end}
 local deferred_fails=false
 local gs=object({
