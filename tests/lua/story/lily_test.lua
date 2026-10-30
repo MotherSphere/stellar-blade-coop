@@ -403,16 +403,16 @@ clock=clock+0.25; ly.tick()
 assert(travels==1 and logged('the quest is held: signalquest=held') and logged('travel: coop mxiii: the rows are in'))
 assert(count('lily off')==1 and logged('lily off (the prologue is not at its task'),last())
 lines.lily='lily=off asks=3 want=off why=none'
--- In Matrix XIII: the arrival talk 1 s after the map turned with no screen; the fallback at M01 after 10 s, once a
+-- In Matrix XIII: the arrival talk 4 s after the map turned with no screen; the fallback at M01 after 10 s, once a
 -- visit; a later visit replays no arrival talk.
 world=MXIII
 clock=clock+1; ly.tick()
 paused=true; clock=clock+2.5; ly.tick(); paused=false
-clock=clock+0.75; ly.tick()
-assert(#plays==1,'Not before 1 s with no screen')
+clock=clock+3.75; ly.tick()
+assert(#plays==1,'Not before 4 s with no screen')
 clock=clock+0.25; ly.tick()
 assert(#plays==2 and plays[2].name=='arrival' and logged('the arrival talk, once this Lua load'),last())
-clock=clock+6; ly.tick()
+clock=clock+3; ly.tick()
 assert(count('signal complete')==0,'Not before 10 s')
 clock=clock+0.5; ly.tick()
 assert(count('signal complete')==1 and last():find('signal complete asked',1,true),last())

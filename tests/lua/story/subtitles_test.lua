@@ -2,8 +2,8 @@
 -- slot (its Duration, author, Message, Type and AuthorColor; its UpdateText calls the hook again, as a post hook
 -- would), the text library's StringTable_Seq names, the language, cut/scene.lua's talk side (talk, stop_talk, player,
 -- busy) and the kit. Covered: the three talks' windows (21, 9, 19) and lines (17, 9, 19, in English and French, each
--- with a speaker key); the window of a call (the next, the same again, a skip by Duration, a Duration that matches
--- nothing counted); a blank entry past the lines; the reading holds of every window of the three talks in both
+-- with a speaker key); the window of a call (the next, never skipped; the same again only with its text still in the
+-- slot within its time); a blank entry past the lines; the reading holds of every window of the three talks in both
 -- languages (need = 0.5 + characters / 15 against the window); the prologue through the theater: every window
 -- rewritten (author from StringTable_Seq, '' for none, the French line, Type 0 for a long line, a captured colour),
 -- the re-entry guard, a hold paused 0.15 s before its window's end and played after its length, windows 18 to 21 blank
@@ -13,7 +13,10 @@
 -- the sequence with no theater; a hook that cannot be registered, and no kit (none); coop off. A cutscene of the game
 -- at the call: looked for every 0.5 s, the theater asked 0.5 s after it ended, or anyway after 20 s; a rewritten
 -- window given as alive; a hold on the player scene.player() finds with no seen(); a talk refused because our own
--- sequence plays (theater or no theater) failed with no kit.
+-- sequence plays (theater or no theater) failed with no kit. The 2026-10-30 log: a Duration 0.035 s over each length
+-- with repeated lengths, every one of the 17 lines once and in order, SB's or our text again not counted. After a map
+-- change: window 1 later than 1 s after the observer rewritten; the guard from window 1's start plus 2 s, with the
+-- hook's call count; a slot update after the fallback logged.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -64,14 +67,15 @@ for name,n in pairs(COUNTS) do
 end
 assert(S.TALKS.prologue.sequence:find('1stMeetAdam_01') and S.TALKS.arrival.sequence:find('ArriveDED_01')
     and S.TALKS.finale.sequence:find('1stMeetAdam_02'))
--- The window of a call.
+-- The window of a call: the next, never skipped; the same again only with its text still in the slot, in its time.
 local W=S.TALKS.prologue.windows
-assert(S.window(W,0,2.10)==1 and S.window(W,1,5.31)==2 and S.window(W,2,nil)==3,'The next')
-assert(S.window(W,2,5.31)==2,'The same window again')
-assert(S.window(W,3,4.09)==5 and S.window(W,1,3.94)==10,'A skip, by the nearest later window')
-assert(S.window(W,6,1.26)==7 and S.window(W,7,1.26)==7 and S.window(W,10,1.26)==11,'Equal lengths: in order')
-assert(S.window(W,4,99)==5 and S.window(W,4,0)==5,'A Duration that matches nothing: counted')
-assert(S.window(W,21,1.88)==21 and S.window(W,21,5)==21,'Never past the last window')
+assert(S.TALKS.prologue.first==0 and S.TALKS.arrival.first==0.68 and S.TALKS.finale.first==0.53,'Window 1 starts')
+local w3={k=3,sb='SB 3',ours='Lily 3',until_at=10}
+assert(S.window(W,{k=0},nil,0)==1 and S.window(W,{k=0},'x',0)==1,'The first')
+assert(S.window(W,w3,'SB 4',5)==4 and S.window(W,w3,nil,5)==4,'Another text, or none read: the next')
+assert(S.window(W,w3,'SB 3',5)==3 and S.window(W,w3,'Lily 3',9.99)==3,'Its text still in the slot: the same')
+assert(S.window(W,w3,'SB 3',10)==4,'Past its time: the next, even with its text')
+assert(S.window(W,{k=21,sb='a',ours='b',until_at=0},'c',1)==21,'Never past the last window')
 -- The reading holds of every window, in both languages: 0.5 s plus 15 characters a second, past the window.
 local HOLDS={ -- Talk, culture: window -> hold in s (2 decimals), as the lines of story/lily_text.lua give them.
     prologue={en={[2]=1.19,[3]=0.53,[7]=0.11,[9]=0.36,[11]=0.11,[12]=1.80,[14]=0.22,[15]=1.89,[17]=0.91},
@@ -126,7 +130,13 @@ local kit={add=function(name,place,build)
 local THEME={teal='teal',text='white',grey='grey'}
 local slot=object({Duration=0,author=FText('Adam'),Message=FText('...'),Type=1,AuthorColor={R=1,G=1,B=1,A=1},updates=0})
 function slot.UpdateText(self) self.updates=self.updates+1; hook(self) end -- The hook runs again: guarded.
-local function window(d) slot.Duration=d; slot.updates=0; hook(slot); assert(slot.updates==1,'One re-call') end
+local serial=0 -- Each new window: SB's own text for it in the slot, as SB sets it before UpdateText.
+local function window(d)
+    serial=serial+1
+    slot.Duration,slot.Message,slot.updates=d,FText('SB line '..serial),0
+    hook(slot)
+    assert(slot.updates==1,'One re-call')
+end
 local done=nil
 local function finished(how) done=how end
 local P=S.new({log=function(m) logs[#logs+1]=m end,scene=scene})
@@ -234,23 +244,24 @@ assert(stops==1 and done=='failed' and logged('STOP: talk arrival: no window aft
 talks[1].o.done(true,'stopped',{seen=true}) -- Scene's end after: nothing more.
 assert(done=='failed')
 
--- Window 1 not rewritten 1 s after the observer showed: the Stop row, then the kit's lines.
+-- Window 1 not rewritten 2 s past its start (0.53 s) after the observer showed: the Stop row, then the kit's lines.
 talks,done,stops={},nil,0
 language='fr-FR'
 at(400); assert(P.play('finale',false,finished))
 talks[1].o.seen()
-at(400.99); P.tick(); assert(stops==0)
-at(401); P.tick()
-assert(stops==1 and logged('STOP: talk finale: window 1 not rewritten 1.0 s after the observer showed'),last())
+at(402.52); P.tick(); assert(stops==0)
+at(402.54); P.tick()
+local said=logged('STOP: talk finale: window 1 not rewritten 2.53 s after the observer showed (')
+assert(stops==1 and said and said:find(' UpdateText calls this Lua load, the last ',1,true),last())
 talks[1].o.done(true,'stopped',{seen=true})
 assert(shown.talk==true and last()=='talk finale: the kit version',last())
 P.tick()
 assert(view.speaker.text=='Lily' and view.speaker.col=='teal' and view.line.text==T.TALKS.finale[1][3],view.line.text)
 local F=S.TALKS.finale.windows
 local function more(k) local _,line=S.entry(T.TALKS.finale,k,'fr'); return S.hold(line,F[k]) or 0 end
-at(401+F[1]-0.01); P.tick()
+at(402.54+F[1]-0.01); P.tick()
 assert(view.line.text==T.TALKS.finale[1][3],'Line 1 for its window (no hold in French)')
-local tk=401+F[1]
+local tk=402.54+F[1]
 at(tk); P.tick(); assert(view.line.text==T.TALKS.finale[2][3] and view.speaker.text=='Lily')
 tk=tk+F[2]+more(2)
 at(tk-0.01); P.tick(); assert(view.line.text==T.TALKS.finale[2][3],'Line 2 for its reading time')
@@ -356,6 +367,56 @@ assert(#talks==2 and talks[2].o.direct and done=='failed' and shown.talk==nil
     and last()=='talk arrival: failed (0 windows rewritten)' and logged('STOP: talk arrival: the sequence with no '
     ..'theater: our own X still plays: no fallback while our own sequence plays'),last())
 scene.talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return true,'asked' end
+
+-- The 2026-10-30 log: SB's Duration is each window's length plus 0.035 s (then window 4 was taken for 6, window 5
+-- for 13); no window is skipped for it. A call with the window's text still in the slot (ours, or SB's again) is the
+-- same window: every one of the 17 lines shows once, in order.
+P.holds(false)
+talks,done,stops,logs={},nil,0,{}
+at(2000); assert(P.play('prologue',false,finished))
+talks[1].o.seen()
+local tt=2000
+for k=1,17 do
+    at(tt); window(W[k]+0.035)
+    local _,line=S.entry(T.TALKS.prologue,k,'fr')
+    assert(last()=='rewritten '..k..'/21' and slot.Message:ToString()==line,last())
+    local n=#logs
+    at(tt+0.2); slot.updates=0; hook(slot) -- Our line still in the slot: the same window, written again.
+    assert(#logs==n and slot.Message:ToString()==line and slot.updates==1,'Ours again: '..k)
+    at(tt+0.3); slot.Message=FText('SB line '..serial); hook(slot) -- SB's text for it again.
+    assert(#logs==n and slot.Message:ToString()==line,'SB again: '..k)
+    tt=tt+W[k]+0.5
+end
+local rewritten=0
+for _,l in ipairs(logs) do if l:find('^rewritten ') then rewritten=rewritten+1 end end
+assert(rewritten==17,'17 lines, each once')
+P.stop()
+P.holds(true)
+-- After a map change (the arrival in a world just loaded), on a new Lua load: window 1 more than 1 s after the
+-- observer showed is still rewritten; the guard waits for window 1's start (0.68 s) plus 2 s and says how many
+-- UpdateText calls came; a slot update after the fallback is logged (and rewritten while the Stop runs).
+local R=S.new({log=function(m) logs[#logs+1]=m end,scene=scene})
+R.hud({kit=kit,theme=THEME})
+talks,done,stops,logs={},nil,0,{}
+at(3000); assert(R.play('arrival',false,finished))
+talks[1].o.seen()
+at(3001.5); R.tick(); assert(stops==0,'Not at 1 s')
+at(3002.6); window(2.59+0.035); assert(last()=='rewritten 1/9',last())
+at(3003); R.tick(); assert(stops==0 and not logged('not rewritten'))
+R.stop()
+talks,done,stops={},nil,0
+at(3100); assert(R.play('arrival',false,finished))
+talks[1].o.seen()
+at(3102.67); R.tick(); assert(stops==0,'Within 2.68 s')
+at(3102.69); R.tick()
+assert(stops==1 and last()=='the Stop row, then the kit version: stop asked' and logged('STOP: talk arrival: window 1 '
+    ..'not rewritten 2.68 s after the observer showed (1 UpdateText calls this Lua load, the last 100.1 s ago)'),last())
+at(3103.5); window(2.59)
+assert(logged("talk arrival: SB's subtitle slot updated 3.5 s after the observer showed, after the fallback")
+    and last()=='rewritten 1/9',last())
+talks[1].o.done(true,'stopped',{seen=true})
+assert(last()=='talk arrival: the kit version',last())
+R.stop()
 
 -- A hook that cannot be registered, on a new Lua load: the kit version; no kit up: no talk (none), done at once.
 hook_raise='no UFunction'
