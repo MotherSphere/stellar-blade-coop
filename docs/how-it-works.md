@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name; `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name (`coop scene lily` handed to `story/lily.lua`'s talk); `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -74,14 +74,15 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
 | `cut/mxiii.lua` | `coop mxiii [30]`: the test pak's check (v1, v2 or v3), Matrix XIII's 10 camp rows and 5 trigger patches through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01`, or with 30 to `DLC02_30_Camp_01` on v3 only ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
-| `story/lily.lua`, `story/lily_text.lua` | Lily's signal: the signal rows asked and read back, the words written, her choice list's swap asked on and off, the pick, the quest's acquire and `coop mxiii`'s travel, the fallback's Complete, and `coop lily signal` ([Lily's signal](#lilys-signal-experimental)) |
+| `story/lily.lua`, `story/lily_text.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)) |
+| `story/subtitles.lua` | Lily's talks: an unused subtitle sequence played through `cut/scene.lua`'s talk, a hook on the subtitle slot's `UpdateText` that writes the mod's lines, the reading holds, the fallbacks and the kit version ([Lily's signal](#lilys-signal-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
 | `cut/glide.lua` | `coop glide`: sets EVE's `bGlide` while Jump is held in the air past the top of her jump, and clears it ([Cut glide](#cut-glide)) |
 | `cut/emote.lua` | `coop emote`: one of EVE's clips (a looped photo-mode pose, a wave, a clip of the Cut category played once), played by the native part through SB's custom animation call or else as a dynamic montage in `DefaultSlot`, stopped when she moves, jumps or starts a skill ([Emotes](#emotes)) |
 | `cut/mailbox.lua` | `coop gift`: the inventory read asked of the native part, the game's remove request, the gift file, the gift lines and their answers, the items coming back and the take through the shop's grant, and the cut toast ([Cut mailbox](#cut-mailbox)) |
 | `cut/wear.lua` | `coop wear`: sets the mesh of EVE's body or hair component (with the hair's animation Blueprint and physics asset) to a cut suit or hair and keeps the game's own look in `coop-wear.txt` to give it back. It puts the worn look on again when the game sets its own |
-| `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the theater observer it follows once a second and the Stop row that ends it |
+| `cut/scene.lua` | `coop scene`: two unused rows of the game's theater table pointed at a cut scene's theater and read back, the Emil farewell's take lent to E03, E03's subtitles left in Korean and Japanese (no text registration), the theater observer it follows once a second and the Stop row that ends it; Lily's talks through Quinn's theater, its take lent the same way, or through the rows' level sequence with no theater |
 | `core/unreal.lua` | Small helpers over UE4SS objects |
 
 `main.lua` runs two game-thread loops. One runs every frame: the ghost's build step, `coop_tick`, placing the ghost, the
@@ -2445,82 +2446,128 @@ each talk or keeps one (both are read).
 
 ## Lily's signal (experimental)
 
-`story/lily.lua` adds a choice to Lily's menu in Phase 5 and starts a quest of the mod's own (player's side:
-[lily-signal.md](lily-signal.md)). Nothing of it has run in game yet. It joins three pieces that exist for other
-features: a rows batch through SB's AddRow, the select cache swap of Roxanne's choices, and `coop mxiii`'s camp travel.
+`story/lily.lua` starts a prologue quest of the mod's own in Phase 5, adds a choice to Lily's menu, starts a longer
+quest of the mod's own and plays three talks (player's side: [lily-signal.md](lily-signal.md)). Nothing of it has run
+in game yet. It joins pieces that exist for other features: a rows batch through SB's AddRow, the select cache swap of
+Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp travel.
 
-1. Rows: `lion/rows.h`'s seventh batch, `kSignalRecipe` (request `signal rows`, status `signal=`), adds 6 rows to 4
-   tables no other batch writes, each a copy of a shipped row with its own patches: a LevelTargetFilter row on Lily's
-   Phase 5 spawn in Xion (`Xion_10_E_CharS_146`, the one Quest_Epic_11_M04_T01 tracks), task 1 (a copy of
-   Quest_Epic_06_M01_T01, EnterZone, its `TargetFilter` set to `Zone_DLC02_10`), task 2 (a copy of
-   Quest_Epic_11_M04_T01, the "Talk to Lily" counter, keeping its keyed text and tracking our filter row), two groups
-   (copies of Quest_Sub_002_M01, one container each, no event, no warp; `TaskContainerArray` is a TArray of structs
-   that each hold a TArray of FNames, the patch kind `containers` builds both levels in the block's pool) and the
-   quest row last of them (a copy of Quest_Sub_WLB_001, a Sub quest with no reward, event or fail condition, its
-   `TaskGroupAlias` set to the two groups). New aliases and IDs only (163, 335 and 336, 483 and 484, 280004001), all
-   free in the build 24463856 dumps. Then it patches `TS_GoToTest_2` (TheaterSelectDataTable 86, in the test list
-   `TS_GoToTest` that no story graph shows) in place: `Conditions` `[Xion_10_Condition_051]` (QuestState Quest_Epic_11
-   M04 in progress), `TextVisibleType` IsVisibility, `SelectDataPriority` 3, `NextTaskTagName` None,
-   `InteractionGraphExec` `Success5` (her goodbye, `Talk_End_Root`; `Success` runs her bike signal's point of no return
-   on every Lily node). That row is last, but only a refusal at its own row step (no template, an FName not made)
-   leaves the 6 quest rows in: the table checks (class, AddRow slot, row size) run for every table of the batch before
-   any row, so a TheaterSelectDataTable that fails them stops the batch with no row in. The batch neither writes nor
-   checks a TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds that table's IDs is not known).
-   The native part now knows 25 tables, the 5 new ones last; the signal request names those 5 only.
+1. Rows: `lion/rows.h`'s seventh batch, `kSignalRecipe` (request `signal rows`, status `signal=`), adds 24 rows to 4
+   tables no other batch writes, each a copy of a shipped row with its own patches. 8 LevelTargetFilter rows, one per
+   Tetrapod Lily of Phase 5 (Xion, Eidos 7, Eidos 9 twice, the Wasteland, the Great Desert, the Matrix 11 entrance,
+   Spire 4), each a copy of the one Quest_Epic_11_M04_T01 tracks with another `EventSpawnAlias`. 7 tasks: "On Time"'s
+   M01 to M04 (copies of Quest_Epic_06_M01_T01, EnterZone, `TargetFilter` `Zone_DLC02_10` to `40`), M05 (a copy of
+   Quest_Epic_11_M04_T01, the "Talk to Lily" counter, its tracking cleared), M06 and the prologue's task (the same
+   counter, keeping its keyed text, tracking all 8 filters). 7 groups (copies of Quest_Sub_002_M01, one container each,
+   no event, no warp; `TaskContainerArray` is a TArray of structs that each hold a TArray of FNames, the patch kind
+   `containers` builds both levels in the block's pool). The two quest rows last of them (copies of Quest_Sub_WLB_001,
+   a Sub quest with no reward, event or fail condition): "On Time" (163) with its six groups and the prologue
+   `Quest_Sub_MX13_00` (164) with one. New aliases and IDs only (163 and 164, 335 to 341, 483 to 489, 280004001 to
+   280004008), all free in the build 24463856 dumps. Then it patches `TS_GoToTest_2` (TheaterSelectDataTable 86, in
+   the test list `TS_GoToTest` that no story graph shows) in place: `Conditions` `[Xion_10_Condition_051]`
+   (QuestState Quest_Epic_11 M04 in progress), `TextVisibleType` IsVisibility, `SelectDataPriority` 3,
+   `NextTaskTagName` None, `InteractionGraphExec` `Success5` (her goodbye, `Talk_End_Root`; `Success` runs her bike
+   signal's point of no return on every Lily node). That row is last, but only a refusal at its own row step (no
+   template, an FName not made) leaves the 24 quest rows in: the table checks (class, AddRow slot, row size) run for
+   every table of the batch before any row, so a TheaterSelectDataTable that fails them stops the batch with no row
+   in. The batch neither writes nor checks a TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds
+   that table's IDs is not known). The native part knows 25 tables, the 5 quest ones last; the signal request names
+   those 5 only.
 2. When: only with the test pak, since nothing else uses the rows and AddRow on these tables has not run in game. At the
-   title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, moved there from `cut/mxiii.lua`,
-   which uses it too), so a co-op save that holds the quest finds its rows when it loads; in game on a co-op save,
-   once a Lua load, asked or, when already in, read back, also after a title batch that a shut gate (`busy`, `net`,
-   `unread`) refused at each try. Rows added in game come after the save loaded, too late for a quest it holds. Nothing
-   else runs until the rows read back as written in that Lua load. The rows share the one SEH latch of every batch, so
-   a fault here would stop the Lion's, the shop's and `coop mxiii`'s batches for the run too; the pak gate keeps that
-   risk to players who can use the feature.
-3. Words: `story/lily_text.lua`'s English and French lines go into the quest's `TitleName_` and `Description_`, the
-   groups' and task 1's `Description`, and the choice row's `DisplayText`, as FText in the game's language, through the
-   recruiter's checked edit (each row's ID checked first, the choice row's exec too, then a fresh FindRow reads them
-   back). No text key is registered, for the reason given under [Roxanne's choices](#roxannes-night-operation-choices).
-4. The list: `nightop/roxanne.h` now takes a list (its name, its own rows, ours, and whether its own rows must come in
+   title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, which `cut/mxiii.lua` uses too),
+   so a co-op save that holds a quest finds its rows when it loads; in game on a co-op save, once a Lua load, asked or,
+   when already in, read back, also after a title batch that a shut gate (`busy`, `net`, `unread`) refused at each
+   try. Rows added in game come after the save loaded, too late for a quest it holds. Nothing else runs until the rows
+   read back as written in that Lua load. The rows share the one SEH latch of every batch, so a fault here would stop
+   the Lion's, the shop's and `coop mxiii`'s batches for the run too; the pak gate keeps that risk to players who can
+   use the feature.
+3. Words: `story/lily_text.lua`'s English and French lines go into both quests' `TitleName_` and `Description_`, the
+   7 groups' and tasks 1 to 5's `Description`, and the choice row's `DisplayText`, as FText in the game's language,
+   through the recruiter's checked edit (each row's ID checked first, the choice row's exec too, then a fresh FindRow
+   reads them back). The choice row's label is written again (checked the same way) when the wanted one changes. No
+   text key is registered, for the reason given under [Roxanne's choices](#roxannes-night-operation-choices).
+4. The quests' reads and asks: `quest/own.h` (free of Windows, tested against fake memory) runs on the game thread
+   every 250 ms on a co-op save until `coop off`, under its own SEH latch, with the shared quests' save-slot line and
+   offsets, but only from Lua's first signal request: `signal watch`, which Lua sends once a Lua load when the cheap
+   gates hold (a co-op save, solo, the test pak found, the rows read back). Before it, nothing calls SB's quest unit
+   getter and the line reads `signalquest=unread`. It reads the local player's quest unit (`FUN_141c5e880`, called
+   only once the world and the manager exist, never on SB's logic thread): the ID map through its allocation bits for
+   163, 164, 24 (Quest_Epic_11), 25 (Quest_Epic_12) and 44 (Quest_Sub_005); each quest object through the quest
+   vtable check, its state at `+0x48`, its active group and that group's first task. Each request word calls one fixed
+   thing: `acquire` and `prologue` the acquire by ID a quest zone event makes (`FUN_141c5cf20`: the ID's row name
+   through the QuestTable ID map AddRow filled, then AcquireQuest and PushQuest, which refuses an ID already held) for
+   163 or 164, only while the map does not hold it; `complete`, `talked`, `zone4`, `tell` and `next` the first task's
+   own Complete through its vtable's `+0x60` (`0x141c6eb10`, or `0x141c70850`, the one that ends child tasks; the
+   glue's call refuses any other address), only while that quest is in progress at that word's group (163's M01, 164's
+   M01, 163's M05, 163's M06, or 163's active group for the test word `next`) with that task in progress in that group.
+   The answer fits one 64-bit word (each small number in 4 bits), so the worker never reads half of it. The
+   `signalquest=` line gives the read and the last request's answer. The Steam wire protocol does not change: these
+   are local requests from Lua.
+5. The prologue: once every gate below up to Quest_Sub_005 holds, Quest_Epic_11 reads group 3 (M04) in progress and
+   neither quest is held, Lua waits 20 s with the game unpaused and no game screen shown, reads `coop scene`'s
+   theater observers once (no cutscene of the game may play then), and asks `signal prologue`, once a Lua load.
+6. The list: `nightop/roxanne.h` takes a list (its name, its own rows, ours, and whether its own rows must come in
    order). Roxanne's keeps her two rows in her order; Lily's checks her eight (`TS_Xion_Lily_Choice_1` to `_8`) as a
-   set, since the cache's order of them is not known, and installs a new array of nine: the borrowed row, then her eight
-   as the entry held them. The glue keeps one state and SEH latch for each list (`lily on`, `lily off`, the `lily=`
-   line). Lua asks on while every gate holds, read in this order: a co-op save, solo, the test pak found, the rows read
-   back, the words written, the quest unit read with neither our quest nor Quest_Epic_12 in it, and Quest_Sub_005
-   complete (`sub005=` 3 or more); off as soon as one fails; a load (slot none or unknown) changes nothing. The choice
-   box has six slots, and with Quest_Sub_005 in progress Lily can show six rows of her own (her About Enya rows); ours
-   would be a seventh, which nobody has seen, so the last gate keeps it off then. If the choice box sorts by priority
-   (not checked), the borrowed row stands below the bike signal (4) and above Travel and Repair (2) and End Conversation
-   (1); if it keeps the array's order, the borrowed row comes first. End Conversation stays last either way, for the
-   cancel input.
-5. The pick, read as Roxanne's (`nightop/roxanne.lua`'s `watcher`, now shared): a `SelectIndex` turning from -1 to a
-   line whose text is the label in English or French. 5 s later, once no game screen shows, Lua asks `signal acquire`.
-6. The quest: `quest/own.h` (free of Windows, tested against fake memory) runs on the game thread every 250 ms on a
-   co-op save until `coop off`, under its own SEH latch, with the shared quests' save-slot line and offsets, but only
-   from Lua's first signal request: `signal watch`, which Lua sends once a Lua load when the first four gates above
-   hold. Before it, nothing calls SB's quest unit getter and the line reads `signalquest=unread`. It reads the local
-   player's quest unit (`FUN_141c5e880`, called only once the world and the manager exist, never on SB's logic
-   thread): the ID map through its allocation bits for 163, 25 (Quest_Epic_12) and 44 (Quest_Sub_005, whose state it
-   reads through the quest vtable check and `+0x48`, as ours), our quest's state, active group and that group's first
-   task. `signal acquire` calls the acquire by ID a quest zone event makes
-   (`FUN_141c5cf20`: the ID's row name through the QuestTable ID map AddRow filled, then AcquireQuest and PushQuest,
-   which refuses an ID already held), only while the map does not hold it. `signal complete` calls task 1's own
-   Complete through its vtable's `+0x60` (`0x141c6eb10`, or `0x141c70850`, the one that ends child tasks; the glue's
-   call refuses any other address), only while the quest is in progress at group M01 (`group=0`) with that task in
-   progress in that group. The `signalquest=` line gives the read and the last request's answer.
-7. The trip and the fallback: once the line reads `held`, Lua calls `coop mxiii` (its co-op save check, the follow's
-   guards, the test pak, the mxiii rows, the travel). Once EVE stands in the `MXIII_P` map with the quest at group M01
-   and its task in progress for 10 s (SB's EnterZone check did not fire after the camp travel), Lua asks
-   `signal complete`, once a visit. Group M02 waits for later content.
-8. Export: `save/twins.h`'s `mod_only` refuses a co-op save that names `Quest_Sub_MX13_01` anywhere (an FString in a
-   released-game save, the tracked quest included). Nothing ends the quest yet, so the refusal says the save cannot be
-   exported, with no "export it again".
+   set, since the cache's order of them is not known, and installs a new array of nine: the borrowed row, then her
+   eight as the entry held them. The glue keeps one state and SEH latch for each list (`lily on`, `lily off`, the
+   `lily=` line). Lua asks on while every gate holds, read in this order: a co-op save, solo, the test pak found, the
+   rows read back, the words written, the quest unit read, Quest_Epic_12 not in it, Quest_Sub_005 complete (`sub005=`
+   3 or more), and either the prologue at its task (label 1, "The other signal") or "On Time" at M06's task (label 2,
+   "About Matrix 13"); off as soon as one fails; a load (slot none or unknown) changes nothing. The choice box has six
+   slots, and with Quest_Sub_005 in progress Lily can show six rows of her own (her About Enya rows); ours would be a
+   seventh, which nobody has seen, so that gate keeps it off then. If the choice box sorts by priority (not checked),
+   the borrowed row stands below the bike signal (4) and above Travel and Repair (2) and End Conversation (1); if it
+   keeps the array's order, the borrowed row comes first. End Conversation stays last either way, for the cancel input.
+7. The picks, read as Roxanne's (`nightop/roxanne.lua`'s `watcher`): a `SelectIndex` turning from -1 to a line whose
+   text is the row's current label in English or French. The talk player is armed at once (its hook registered, and for
+   30 s a Lily or EVE subtitle's colour captured, should her goodbye show in the same subtitle slot). 5 s later, once
+   no game screen shows, the talk plays. After the prologue talk Lua asks `signal talked`, waits up to 15 s for the
+   prologue to complete, then asks `signal acquire` and, once the line reads `held`, calls `coop mxiii` (its co-op save
+   check, the follow's guards, the test pak, the mxiii rows, the travel). After the end talk Lua asks `signal tell`. A
+   talk that does not play, a refused ask or a wait that runs out logs a `STOP:` line and the flow goes on.
+8. The talks: `story/subtitles.lua` plays a talk by name. A talk is its unused subtitle-only sequence
+   (`Subtitle_POD_1stMeetAdam_01`, `_ArriveDED_01` or `_1stMeetAdam_02`, read offline: no binding, camera or audio
+   track) with its windows' lengths, and its lines in `story/lily_text.lua`, one per window. `cut/scene.lua`'s `talk`
+   points its two borrowed EventTheaterTable rows at Quinn's unused theater `Subtitle_NPC_Quinn_Common_Condition1`
+   and sets that theater's take's `TemplateSequence` to the talk's sequence in memory, as `coop scene emil` does with
+   the farewell's take, and puts it back on Quinn's own sequence when the talk ends. A UE4SS hook on
+   `WB_Theater_Subtitle3_Slot_C:UpdateText` (a Blueprint function; UE4SS runs such a hook after it) returns at once
+   unless a talk runs. During a talk, the k-th call is window k, checked against the slot's `Duration` (taken to be
+   the window's length, not checked): a match with the window shown is that window again, a match with a later one a
+   skip. The hook writes `author` (`+0x688`) from `KismetTextLibrary:TextFromStringTable` on `StringTable_Seq`
+   (`Seq_Actor_Lily`, `Seq_Actor_EVE`, `Seq_Actor_Announcement`, or empty), `Message` (`+0x6A0`) as FText, `Type`
+   (`+0x680`) 0 for a line longer than its window at 15 characters a second, and `AuthorColor` (`+0x76C`) when a
+   capture saw that speaker's colour, then calls `UpdateText` again under a re-entry guard. Windows past the lines get
+   an empty author and message, and the Stop row fires once the last line's window is over. A line that needs more
+   than its window (0.5 s plus 15 characters a second) pauses the theater observer's sequence player 0.15 s before the
+   window ends and plays it again after the difference; `cut/scene.lua` counts a paused player as still playing. A
+   Pause or Play that is missing or raises ends the holds for the talk; a sequence with no new window 2 s past a hold
+   is stopped. Fallbacks, in order: Quinn's own sequence seen or no observer in 10 s, the same rows with
+   `TheaterAssetPath` empty and `LevelSeqAssetPath` the sequence, as 148 shipped rows play subtitle sequences (no
+   Stop is known for that, so it runs to its end); window 1 not rewritten 1 s after the observer showed, or the hook
+   not registered, the Stop row and the kit version (`ui/kit.lua`: the speaker and the line at the bottom centre,
+   each for its window or its reading time); no kit, no talk. `cut/scene.lua`'s donor row check accepts an empty
+   theater and the talks' level sequences, and every play writes both fields.
+9. Matrix XIII: the arrival talk plays once a Lua load (Lua memory only), 3 s after EVE's map turns to `MXIII_P` with
+   "On Time" held and no game screen shown, never during another talk. Once EVE stands in that map with the quest at
+   M01 and its task in progress for 10 s (SB's EnterZone check did not fire after the camp travel), Lua asks
+   `signal complete`, once a visit. Once she stands 2 s inside the Fusion Drive room's box with the quest at M05, Lua
+   asks `signal zone4`, once a visit. The box is the planned dungeon's (zone 4's room Z4R18 in zone 1's plan frame,
+   turned into world centimetres in `story/lily.lua`); the test pak has no zone 4 room there, so `coop lily signal
+   next` stands in for it.
+10. Export: `save/twins.h`'s `mod_only` refuses a co-op save that names `Quest_Sub_MX13_00` or `Quest_Sub_MX13_01`
+    anywhere (an FString in a released-game save, the tracked quest and `CompleteQuestList` included). The save keeps
+    a finished quest's alias, so the refusal says the save cannot be exported, with no "export it again".
 
 Not checked offline: AddRow on the quest tables (only the Lion's, the shop's and `coop mxiii`'s batches went through it
 in game) and TheaterSelectDataTable's class and row size; that the quest UI reads the title and description written
 after AddRow (live or at acquire: both come after the write); that a quest acquired by ID shows the new-quest notice and
-the tracker; that EnterZone fires after a camp travel; that the game uses a quest ID as an array index anywhere (163
-follows the shipped IDs, in case it does); what a tracked quest whose rows are missing does to a save that loads
-without them (FUN_141c5b1b0's callers that read TrackingQuestAliases were not traced: Ghidra was down); and the choice
-box's handling of a seventh visible row, which the Quest_Sub_005 gate avoids rather than answers.
+the tracker; that EnterZone fires after a camp travel; that the task Complete (`+0x60`) starts the next group; how 8
+stacked markers look; that the game uses a quest ID as an array index anywhere (163 and 164 follow the shipped IDs, in
+case it does); what a tracked quest whose rows are missing does to a save that loads without them; the theater rows
+and the subtitle hook (neither has run in game: whether the slot class is loaded at registration, whether `Duration` is
+the window's length, whether the second `UpdateText` call shows the new text, whether the subtitle stays on screen
+while the sequence is paused); and the choice box's handling of a seventh visible row, which the Quest_Sub_005 gate
+avoids rather than answers.
 
 ## Developer flight and slow motion
 

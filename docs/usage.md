@@ -855,7 +855,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop mxiii 30` | The same with a travel to a second camp, in the dungeon's third zone (experimental test command, untested in game; needs the v3 test pak; solo, co-op save only) |
 | `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command, untested in game; solo, co-op save only) |
 | `coop lily signal` | [Lily's signal](lily-signal.md) by hand: the mod's quest "On Time", then `coop mxiii`'s camp travel (experimental test command, untested in game; needs the zMXIII_P test pak; solo, co-op save only) |
-| `coop lily signal quest\|travel\|status` | The quest alone, the travel alone, or one status line (the status on any save) |
+| `coop lily signal quest\|travel\|next\|status` | The quest alone, the travel alone, the task of the step "On Time" is at (a test word), or one status line (the status on any save) |
+| `coop lily talk prologue\|arrival\|finale [kit]` | One of Lily's talks by hand, in the game's subtitle box or, with `kit`, in the mod's own subtitles; `coop scene lily` is the prologue talk (same conditions as `coop lily signal`) |
+| `coop lily hold on\|off` | The talks' reading holds on or off until the next Lua load (any save) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
 | `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
@@ -1732,41 +1734,47 @@ leave, then replace the slot with `coop saves refresh <0-4>` at the title.
 
 ### Lily's signal (experimental)
 
-In Phase 5, before her "Follow the bike signal and leave", Lily's menu offers "The other signal" on a co-op save, solo,
-with the zMXIII_P test pak and Quest_Sub_005 complete. Its pick starts the mod's quest "On Time" and runs `coop mxiii`'s
-camp travel. Without the test pak the mod adds none of its rows and reads nothing. The whole feature, its conditions,
+In Phase 5, before her "Follow the bike signal and leave", on a co-op save, solo, with the zMXIII_P test pak and
+Quest_Sub_005 complete, the mod starts its prologue quest "A Second Signal" and Lily's menu offers "The other signal".
+Its pick plays a talk in the game's subtitle box, starts the mod's quest "On Time" and runs `coop mxiii`'s camp travel.
+"On Time" has six steps through Matrix XIII and ends with a second talk with Lily. Without the test pak the mod adds
+none of its rows and reads nothing. The whole feature, its conditions,
 its notes on saves and its `[StellarCoop][LY]` lines are in [lily-signal.md](lily-signal.md). None of it has been tried
 in game yet. The native part reports it in `coop-status.txt`:
 
-- `signal=`, the quest's rows and the borrowed choice row, in the same forms as the `lion=` line (see
-  [Cut boss](#cut-boss-coop-lion)): `signal=off` before an ask, `signal=rows added=7/7 asks=1 spawns=? char=0/0
-  skills=0/0 stance=0/0` once the 7 rows are in.
+- `signal=`, the quests' rows and the borrowed choice row, in the same forms as the `lion=` line (see
+  [Cut boss](#cut-boss-coop-lion)): `signal=off` before an ask, `signal=rows added=25/25 asks=1 spawns=? char=0/0
+  skills=0/0 stance=0/0` once the 25 rows are in.
 - `lily=`, her choice list, in the forms of the `roxanne=` line (see
   [Night Operation's shop screen and Roxanne's choices](#night-operations-shop-screen-and-roxannes-choices)): `on` is
   her eight rows with the borrowed one in front, `off` her own eight in any order.
-- `signalquest=`, the quest in your quest list, read every 250 ms on a co-op save once the mod asked `signal watch`
+- `signalquest=`, the quests in your quest list, read every 250 ms on a co-op save once the mod asked `signal watch`
   (solo, the test pak found, the signal rows read back; before that the line reads `unread`):
-  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> asks=<a> want=<acquire|complete>
-  why=<w>`. `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4 complete, 5 failed), its
-  active group (`0` is M01, task "Go to Matrix 13 station"; `1` is M02, task "Talk to Lily") and that group's first
-  task's state (1 in progress, 2 complete); `-1` while unread. `epic12=1` means Quest_Epic_12, the bike signal's quest,
-  is in the list. `sub005` is Quest_Sub_005's state in the same numbers, `-1` when it is not in the list; her choice
-  needs 3 or more. `asks` counts the requests handled, `want` and `why` are the last one's: `none` when it ran, `slot`
+  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> pro=<unread|none|held>
+  prostate=<s> progroup=<g> protask=<t> epic11=<g> epic11state=<s> asks=<a> want=<ask> why=<w>`. The first fields are
+  "On Time"'s: `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4 complete, 5 failed),
+  its active group (`0` is M01, the station, to `5`, M06, "Talk to Lily") and that group's first task's state (1 in
+  progress, 2 complete); `-1` while unread. `pro`, `prostate`, `progroup` and `protask` are the same for the prologue.
+  `epic11` and `epic11state` are Quest_Epic_11's active group and state (`3` and `1`: "Talk to Lily to decide on the
+  next destination" in progress), `-1` when it is not in the list. `epic12=1` means Quest_Epic_12, the bike signal's
+  quest, is in the list. `sub005` is Quest_Sub_005's state in the same numbers, `-1` when it is not in the list; her
+  choice needs 3 or more. `asks` counts the requests handled, `want` and `why` are the last one's (`want` is the word
+  after `signal `: `acquire`, `complete`, `prologue`, `talked`, `zone4`, `tell` or `next`): `none` when it ran, `slot`
   (not a co-op save), `unread` (no quest data yet), `held` (already in the list), `refused` (the game's acquire said
-  no), `absent` (no quest to complete), `group` (not in progress at group 0, M01) or `task` (its task not in progress,
-  or no task Complete in its vtable). `signalquest=fault asks=<a> where=<where>` after a fault.
+  no), `absent` (no quest to complete), `group` (not in progress at that word's group) or `task` (its task not in
+  progress, or no task Complete in its vtable). `signalquest=fault asks=<a> where=<where>` after a fault.
 
 The native part's own lines, in `coop-link.log`:
 
 | Line | What it answers |
 | --- | --- |
-| `signal rows: 7/7 in, 6 added through SB's AddRow 0x14417ba30 and 1 shipped rows patched in place, 0 refused` | The quest's 6 rows are in, and the borrowed choice row is patched |
+| `signal rows: 25/25 in, 24 added through SB's AddRow 0x14417ba30 and 1 shipped rows patched in place, 0 refused` | The quests' 24 rows are in, and the borrowed choice row is patched |
 | `signal watch asked: the quest unit read every 250 ms on a co-op save from now on` | The quest list's reads start; before this line nothing reads it |
 | `lily on: her list reads on` | Her choice list now holds the borrowed row and her eight |
 | `lily off: her list reads off` | Her own eight choices are back |
 | `lily on refused: other, her list reads other` | Her list was not the eight rows the mod knows, so it changed nothing |
-| `signal acquire: done, signalquest=held ...` | The game's acquire ran and the quest is in the list |
-| `signal complete refused: task, signalquest=held ...` | The fallback's Complete did not run, and why (the words as in the `signalquest=` line) |
+| `signal acquire: done, signalquest=held ...` | The game's acquire ran and the quest is in the list (`signal prologue: done, ...` for the prologue) |
+| `signal complete refused: task, signalquest=held ...` | A task's Complete did not run, and why (the words as in the `signalquest=` line); the same for `talked`, `zone4`, `tell` and `next` |
 | `signal quest fault 0x... in ... reading 0x...: no quest reads or calls until the game restarts` | A fault in the quest's reads or calls |
 
 ### Cut hairs and suits: `coop wear`

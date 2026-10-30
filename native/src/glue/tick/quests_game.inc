@@ -76,28 +76,28 @@ void quest_tick() {
   quest_guarded(std::string_view(slot, size), now);
 }
 
-// ---- The mod's own quest (quest/own.h): Lily's signal's "On Time" ----
+// ---- The mod's own quests (quest/own.h): Lily's signal's prologue and "On Time" ----
 // Every 250 ms on the pinned build until coop off, once Lua's first signal request came (story/lily.lua's signal watch,
 // asked once its cheap gates hold: a co-op save, solo, the test pak, the rows read back), with the same save-slot line:
-// an ask the worker handed over (with its number, taken with try_lock only) runs first, the acquire or the first task's
-// Complete, then the look, published for the worker as one word. Before that request nothing calls SB's quest unit
-// getter. Under its own SEH latch: the first fault ends the quest's calls and reads for the run.
+// an ask the worker handed over (with its number, taken with try_lock only) runs first, its one acquire or first task's
+// Complete (quest/own.h's run), then the look, published for the worker as one word. Before that request nothing calls
+// SB's quest unit getter. Under its own SEH latch: the first fault ends the quests' calls and reads for the run.
 std::atomic<bool> own_faulted{false}, own_watching{false};
 std::atomic<uint64_t> own_fault_code{0}, own_fault_rva{0}, own_fault_address{0};
-std::mutex own_m; // The worker's ask: its number, and complete or acquire.
+std::mutex own_m; // The worker's ask: its number and word.
 uint32_t own_asked = 0;
-bool own_complete = false;
+quest::own::Ask own_ask = quest::own::Ask::acquire;
 std::atomic<uint64_t> own_word{quest::own::pack(quest::own::Answer())};
 uint32_t own_taken = 0; // The game thread's own, with the rest below.
-bool own_wanted = false;
+quest::own::Ask own_wanted = quest::own::Ask::acquire;
 quest::own::Why own_why = quest::own::Why::none;
 uint64_t own_next = 0;
 __declspec(noinline) void own_body(std::string_view slot, bool ask) {
   QuestGame g;
   if (ask)
-    own_why = own_wanted ? quest::own::complete(g, base, slot) : quest::own::acquire(g, base, slot);
+    own_why = quest::own::run(g, base, slot, own_wanted);
   quest::own::Answer a;
-  a.look = quest::own::look(g, base, slot), a.why = own_why, a.complete = own_wanted, a.asks = own_taken;
+  a.look = quest::own::look(g, base, slot), a.why = own_why, a.want = own_wanted, a.asks = own_taken;
   own_word = quest::own::pack(a);
 }
 void own_tick() {
@@ -107,15 +107,16 @@ void own_tick() {
   if (now < own_next)
     return;
   own_next = now + 250;
-  bool got = false, complete = false;
+  bool got = false;
   uint32_t asked = 0;
+  quest::own::Ask want = quest::own::Ask::acquire;
   if (own_m.try_lock()) {
-    asked = own_asked, complete = own_complete;
+    asked = own_asked, want = own_ask;
     own_m.unlock();
     got = asked != own_taken;
   }
   if (got)
-    own_taken = asked, own_wanted = complete;
+    own_taken = asked, own_wanted = want;
   char slot[128];
   const size_t size = quest_slot_copy(slot, now);
   __try {

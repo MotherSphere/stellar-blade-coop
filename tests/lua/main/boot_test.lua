@@ -806,12 +806,19 @@ assert(#mx.cmds==2 and mx.cmds[1].n==1 and mx.cmds[1][1]==nil and mx.cmds[2][1]=
 status_text=plain
 -- coop lily signal (story/lily.lua): status on any save, the rest on a co-op save only; its lines [LY] lines, its
 -- status and requests the link's, its travel coop mxiii's command (with that command's co-op save check), its Paks
--- folder and file reads coop mxiii's.
+-- folder and file reads coop mxiii's, its talk player story/subtitles.lua's, built with the same log and coop scene.
 ly.o.log('picked'); assert(last()=='[StellarCoop][LY] picked\n',last())
 assert(ly.o.status()==status_text and ly.o.ask('lily on') and asked[#asked]=='lily on' and ly.o.mode()=='none'
     and ly.o.paks=='mod/StellarCoop|paks' and ly.o.read==require('core.link').files.read)
+assert(ts.o and ts.o.log==ly.o.log and ts.o.scene~=nil and ly.o.talks~=nil,'The talk player')
+local LILY_USE='[StellarCoop] STOP: Use: coop lily signal [status|quest|travel|next] | talk prologue|arrival|finale '
+    ..'[kit] | hold on|off\n'
 coop('lily'); coop('lily','signal','quest','x')
-assert(#ly.cmds==0 and last()=='[StellarCoop] STOP: Use: coop lily signal [status|quest|travel]\n',last())
+assert(#ly.cmds==0 and last()==LILY_USE,last())
+coop('lily','talk','prologue')
+assert(#ly.talks==0 and last():find('^%[StellarCoop%] STOP: coop lily talk runs only on a co%-op save'),last())
+coop('lily','hold','off'); coop('lily','hold','maybe')
+assert(#ly.holds==1 and ly.holds[1]==false and last()==LILY_USE,'hold on any save, on or off only')
 coop('lily','signal','quest')
 assert(#ly.cmds==0 and last():find('^%[StellarCoop%] STOP: coop lily signal runs only on a co%-op save'),last())
 coop('lily','signal','status')
@@ -819,6 +826,13 @@ assert(#ly.cmds==1 and ly.cmds[1][1]=='status' and last()=='[StellarCoop] OK: ly
 status_text=COOP
 coop('lily','signal'); coop('lily','signal','travel')
 assert(#ly.cmds==3 and ly.cmds[2].n==1 and ly.cmds[2][1]==nil and ly.cmds[3][1]=='travel','On a co-op save')
+status_text=plain
+coop('scene','lily')
+assert(#ly.talks==0 and last():find('^%[StellarCoop%] STOP: coop scene lily runs only on a co%-op save'),last())
+status_text=COOP
+coop('lily','talk','finale','kit'); coop('scene','lily')
+assert(#ly.talks==2 and ly.talks[1][1]=='finale' and ly.talks[1][2]=='kit' and ly.talks[2][1]=='prologue'
+    and ly.talks[2][2]==nil and last()=='[StellarCoop] OK: talk prologue\n','coop scene lily is the prologue talk')
 local travels=#mx.cmds
 assert(select(2,ly.o.travel())=='mx nil' and #mx.cmds==travels+1,'Its travel is coop mxiii, checked there')
 status_text=plain
@@ -1013,6 +1027,7 @@ rx.ticked=rx.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 assert(rx.ticks==rx.ticked+1 and rx.stops==0 and rx.stopped==false,"Roxanne's choices tick every 250 ms too")
 assert(ly.ticks>0 and ly.stops==0 and ly.stopped==false,"Lily's signal ticks every 250 ms too")
+assert(ts.ticks>0 and ts.hud and ts.hud.kit and ts.hud.theme,"Lily's talks tick each frame, with the kit's group")
 -- A tick of hers that raises is logged, and the rest of the loop goes on.
 rx.tick_raise='roxanne.lua:9: boom'
 local follows=#tv.ticks
