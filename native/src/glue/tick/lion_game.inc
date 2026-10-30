@@ -56,8 +56,10 @@ struct RowsJob {
 };
 // In link/protocol.h's kRowWords order: Request::batch indexes it.
 RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril}, bolt_job{lion::kBolt},
-    mxiii_job{lion::kMxiii}, shop_job{lion::kShop}, signal_job{lion::kSignal};
-RowsJob *const kJobs[] = {&lion_job, &gardener_job, &tendril_job, &bolt_job, &mxiii_job, &shop_job, &signal_job};
+    mxiii_job{lion::kMxiii}, shop_job{lion::kShop}, signal_job{lion::kSignal}, mxspawn_job{lion::kMxspawn},
+    mxenv_job{lion::kMxenv}, mxwarp_job{lion::kMxwarp};
+RowsJob *const kJobs[] = {&lion_job,   &gardener_job, &tendril_job, &bolt_job,  &mxiii_job,
+                          &shop_job,   &signal_job,   &mxspawn_job, &mxenv_job, &mxwarp_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
 // Shared: the spawn manager's counter (INT64_MIN until read) and the latch. No batch gets a latch of its own: no part
 // of its call stays clear of what the others use. The gate reads SB's globals; every row is built in the one lion_block
@@ -66,8 +68,8 @@ static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each r
 // SkillResultTable for the lion, tendril and bolt ones; CharacterTable, CharacterStanceTable, SkillCommandTable and
 // SkillActiveStepTable for the three Naytibas'; and five more for the lion and tendril ones); and the read-back runs
 // SB's lookups over those same tables and its registry. Only ProjectileTable (bolt), EffectTable and
-// ItemConsumableTable (lion), ShopTable and ShopItemTable (shop) and Matrix XIII's three zone tables have a single
-// batch writing them, and those rows still go through the same block and calls (its shipped trigger rows through
+// ItemConsumableTable (lion), ShopTable and ShopItemTable (shop), the signal batch's five quest tables and Matrix
+// XIII's zone and world tables (its four batches) have no other batch writing them, and those rows still go through the same block and calls (its shipped trigger rows through
 // CopyScriptStruct back over the row, never AddRow). So a fault anywhere in the call may leave
 // shared state half written, and it stops every batch. The status lines are the worker's, built from atomics with no
 // engine access. The Shock Bolt's list growth writes nothing a batch writes and keeps its own latch (shock_faulted).

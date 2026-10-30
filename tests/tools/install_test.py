@@ -172,6 +172,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
                               'cut/glide', 'cut/gardener', 'cut/leviathan',
                               'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox', 'cut/mxiii',
+                              'cut/mxiii_rows',
                               'cut/scene', 'cut/tendril', 'cut/wear', 'main',
                               'nightop/board', 'nightop/challenges',
                               'nightop/probe',

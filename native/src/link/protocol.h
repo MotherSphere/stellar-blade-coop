@@ -43,7 +43,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 14; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 15; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -61,9 +61,13 @@ constexpr int kProtocol = 14; // Bump on any wire change. 1 was the first link (
                               // night line, which a protocol-13 guest would refuse, as she would the masks of a
                               // level's extra monsters, each side's down time left and revive progress at the end of
                               // both night lines (the co-op revive), which a protocol-13 game would refuse too, and the
-                              // gift line (coop gift), which a protocol-13 peer would count invalid. An older peer (6:
+                              // gift line (coop gift), which a protocol-13 peer would count invalid; 15 adds Matrix
+                              // XIII's world rows (lion/mxiii_rows.h: spawn rows, camps, warps), and shared Naytibas
+                              // key an enemy by its spawn row's ID, so a protocol-14 peer, without those rows, would
+                              // never match the host's new enemies. An older peer (6:
                               // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
-                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3) is told why: the lobby tag, then the
+                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1 and the builds before
+                              // Matrix XIII's world rows) is told why: the lobby tag, then the
                               // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
@@ -573,9 +577,10 @@ inline uint64_t code_lobby(std::string_view text) {
 // coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt (through
 // cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (cut/mxiii.lua) "mxiii rows <Table>=0x<address>
 // ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop rows
-// <Table>=0x<address> ..." and for Lily's signal (story/lily.lua) "signal rows <Table>=0x<address> ..."
+// <Table>=0x<address> ..." and for Lily's signal (story/lily.lua) "signal rows <Table>=0x<address> ..." and for
+// Matrix XIII's other batches (cut/mxiii.lua) "mxspawn rows ...", "mxenv rows ..." and "mxwarp rows ..."
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each table the batch writes, 1 to
-// 25 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
+// 32 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
 // stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
@@ -601,9 +606,10 @@ enum class Command {
 // shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 // The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
-// kSignal), in Request::batch's order.
-constexpr size_t kRowWordCount = 7;
-constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt", "mxiii", "shop", "signal"};
+// kSignal, kMxspawn, kMxenv, kMxwarp), in Request::batch's order.
+constexpr size_t kRowWordCount = 10;
+constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",  "mxiii",
+                                                  "shop",   "signal",   "mxspawn", "mxenv", "mxwarp"};
 // The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 32;
 constexpr const char *kLionTables[kLionTableCount] = {

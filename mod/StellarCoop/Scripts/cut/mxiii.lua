@@ -3,12 +3,12 @@
 -- holds its map, /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, and no row of the game leads to its world. The zMXIII_P
 -- test pak, built outside the mod and never shipped with it, adds a map at that path. On the game thread, in order: the
 -- checks the travel needs, once a command (the follow's own guards: solo, a co-op save, the native travel there and
--- none under way; then the test pak, v1, v2 or v3); the native part's mxiii rows batch (lion/rows.h: the 8 rows of the
--- camp, ZoneCampTable DLC02_10_Camp_01, then 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp names it:
--- DLC02_10_EnvS_900, which leads the travel there, and the kit 901 to 906, which SB spawns at the v2 pak's spawn points
--- of those names, through the game's own row call with no logic task in flight; then zone 30's camp with no kit,
--- DLC02_30_Camp_01 and its row DLC02_30_EnvS_900 in Zone_DLC02_30; then 5 shipped ZoneTriggerTable rows patched in
--- place, so the zone 20 waves and the zone 40 chains of spawns fire without the cut map's gates and drain devices),
+-- none under way; then the test pak, v1, v2 or v3); the native part's mxiii rows batch (lion/mxiii_rows.h, written by
+-- tools/mxiii_rows.py from data/mxiii-world.json: the zone 10 camp DLC02_10_Camp_01 with DLC02_10_EnvS_900, which
+-- leads the travel there, and its kit 901 to 906, which SB spawns at the pak's spawn points of those names; zone 30's
+-- rest stop DLC02_30_Camp_01; 5 shipped ZoneTriggerTable rows patched in place, so the zone 20 waves and the zone 40
+-- chains of spawns fire without the cut map's gates and drain devices; then the map's other camps, their kits and
+-- coins, and zone 0's Tetrapod with Lily), added by SB's own row call with no logic task in flight,
 -- through cut/enemy.lua's rows flow (the tables, the ask, the wait, the read-back); then SB's camp travel to
 -- DLC02_10_Camp_01 through the follow's probe (session/travel.lua; the native part's game/travel.h). coop mxiii 30 is
 -- the same with the travel to DLC02_30_Camp_01, which reaches the dungeon's upper half without the zone 20 climb (it
@@ -18,7 +18,9 @@
 -- rows stay for the game run; a second coop mxiii reads them back and travels again. The same batch goes in on its own
 -- at the title, before any save loads, while the game uses the co-op save files and the test pak is there (title()
 -- below), so a co-op save that names a mod camp or row (the respawn camp at FSBActor +0x26d0, the save's activated
--- camps and last camp rows) loads with them, and coop mxiii then only reads them back and travels. The way out is
+-- camps and last camp rows) loads with them, and coop mxiii then only reads them back and travels. At the title the
+-- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the doors and lifts, the warps, then
+-- the Lion's and the Gardener's own rows that the boss spawn rows name). The way out is
 -- coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the
 -- read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the
 -- read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
@@ -65,52 +67,21 @@ local function hint(camp,command)
     return 'if [TR] says SB refused '..camp..': SB lists the camps when its world starts, maybe before these rows; '
         ..'load the save or travel to a camp, then run '..command..' again (the rows stay in)'
 end
--- The rows as cut/enemy.lua reads them back (rows.h's kMxiiiRecipe and kMxiiiPatches; mxiii_test checks them against
--- it). The camp copies ME01_Camp_03 (a FullCamp, shown in the camp list once activated) with the coin's spawn point;
--- DLC02_10_EnvS_900 copies the kit's activation-only row DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) under its own actor
--- name, with the new camp; each kit row copies its kit row (420 to 424, then the vending machine 426) and spawns its
--- blueprint at the spawn point of its own name; the vending machine switches the other five kit objects on once
--- activated (not 900, which has no object). Zone 30's camp copies ME03_Camp_03 (a FullCamp with no coin) and its row
--- is DLC02_10_EnvS_900's recipe in Zone_DLC02_30. The trigger rows are SB's own, so their read-back proves the patch:
--- none of those values is the shipped one.
-local ENV='/Game/GameDesign/Level/ZoneEnv/'
-local function kit(n,blueprint,links)
-    local name='DLC02_10_EnvS_'..n
-    local checks={{'EnvActorName','n',name,true},{'EnvBPPath','s',ENV..blueprint,true},
-        {'SpawnPointName','n',name,true},{'TargetCamp','n',Mxiii.CAMP,true}}
-    if links then checks[#checks+1]={'LinkEnvSpawnList','N',links,true} end
-    return {'ZoneEnvSpawnTable',name,2800032000+n,checks}
-end
--- The shipped trigger rows patched in place, under their shipped IDs: zone 20's three touch their wave's zone events
--- (DLC02_20_ZoneE_022 to 032, which the cut gates ran) after the events they ship with; zone 40's two start enabled
--- (InitActivate 1, shipped 2) instead of waiting for the drain devices.
-local function trigger(zone,n,touch)
-    local checks=touch and {{'TouchEvents','N',touch,true}} or {{'InitActivate','e',1,true}}
-    return {'ZoneTriggerTable',string.format('DLC02_%d_ZTrigger_%03d',zone,n),(zone==20 and 280501000 or 281501000)+n,
-        checks}
-end
-Mxiii.ROWS=Enemy.rows({
-    {'ZoneCampTable',Mxiii.CAMP,280001,
-        {{'CampType','e',3,false},{'CoinSpawnPointName','n','DLC02_10_E_ItemS_001',true}}},
-    {'ZoneEnvSpawnTable','DLC02_10_EnvS_900',2800032900,
-        {{'EnvActorName','n','DLC02_10_EnvS_900',true},{'TargetCamp','n',Mxiii.CAMP,true}}},
-    kit(901,'Env_Camp_SkillMachine.Env_Camp_SkillMachine_C'),
-    kit(902,'Env_Camp_Chair.Env_Camp_Chair_C'),
-    kit(903,'Env_Camp_Storage.Env_Camp_Storage_C'),
-    kit(904,'Env_Camp_Turntable.Env_Camp_Turntable_C'),
-    kit(905,'Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C'),
-    kit(906,'Env_VendingMachine.Env_VendingMachine_C',
-        'DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905'),
-    {'ZoneCampTable',Mxiii.CAMP30,281001,{{'CampType','e',3,false}}},
-    {'ZoneEnvSpawnTable','DLC02_30_EnvS_900',2810032900,
-        {{'ZoneList','N','Zone_DLC02_30',true},{'EnvActorName','n','DLC02_30_EnvS_900',true},
-            {'TargetCamp','n',Mxiii.CAMP30,true}}},
-    trigger(20,1,'DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025'),
-    trigger(20,5,'DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028'),
-    trigger(20,6,'DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032'),
-    trigger(40,1),
-    trigger(40,2),
-})
+-- The rows as cut/enemy.lua reads them back: cut/mxiii_rows.lua, which tools/mxiii_rows.py writes from
+-- data/mxiii-world.json with lion/mxiii_rows.h (mxiii_test checks the two agree). The mxiii batch holds the camps and
+-- what they need (their env rows, coins, zone 0's Tetrapod and Lily); the dev rows come first, in their order.
+local Rows=require('cut.mxiii_rows')
+Mxiii.ROWS=Enemy.rows(Rows.MXIII)
+-- The other batches, each its own ask: Matrix XIII's spawn rows, doors and lifts, warps (lion/mxiii_rows.h), then the
+-- Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC and M_Gardener the boss spawn rows name.
+-- At the title they go in once the mxiii rows are in, one after the other.
+Mxiii.BATCHES={
+    {word='mxspawn',name='Matrix XIII Naytiba',rows=Enemy.rows(Rows.MXSPAWN)},
+    {word='mxenv',name='Matrix XIII door and lift',rows=Enemy.rows(Rows.MXENV)},
+    {word='mxwarp',name='Matrix XIII warp',rows=Enemy.rows(Rows.MXWARP)},
+    {word='lion',name='Lion',rows=Enemy.rows(require('cut.lion_rows').ROWS)},
+    {word='gardener',name='Gardener',rows=Enemy.rows(require('cut.lion_rows').GARDENER)},
+}
 -- SB/Content/Paks from the mod's folder (...\SB\Binaries\Win64\[ue4ss\]Mods\StellarCoop), or nil.
 function Mxiii.paks_of(folder)
     local sb=type(folder)=='string' and folder:match('^(.*)[\\/][Bb]inaries[\\/][Ww]in64[\\/]')
@@ -224,15 +195,40 @@ function Mxiii.new(o)
     -- there (looked for once a Lua load; with none there is nothing to add, and nothing is said: most players have
     -- none).
     local pak=nil
-    local title,title_stop=e.title_batch(function()
+    local function ready()
         if pak==nil then pak=select(2,Mxiii.find_map(o.paks,o.read)) end
         return type(pak)=='number' and 'the co-op save files and test pak v'..pak or nil
-    end,'coop mxiii')
-    self.title=title
-    self.tick=e.tick
-    -- coop off ends the wait without its end, so a title batch asked is free to ask again at the next call.
+    end
+    local title,title_stop=e.title_batch(ready,'coop mxiii')
+    -- The other batches at the title, each once the batch before it has an answer (its line reads rows, or refused:
+    -- a refusal in one never holds the others back), so one ask runs at a time and the mxiii rows keep the first one.
+    local others,previous={},'mxiii'
+    for _,b in ipairs(Mxiii.BATCHES) do
+        local x=Enemy.new({log=function(m) log(b.word..' '..m) end,ask=o.ask,status=o.status},
+            {word=b.word,name=b.name,command='coop mxiii',tag='[MX]',rows=b.rows,ids={}})
+        local t,stop=x.title_batch(ready,'a return to the title')
+        others[#others+1]={e=x,title=t,stop=stop,after=previous}
+        previous=b.word
+    end
+    function self.title(at_title,coop)
+        title(at_title,coop)
+        for _,x in ipairs(others) do
+            local s=Enemy.parse(o.status and o.status(),x.after)
+            if s and (s.state=='rows' or s.state=='refused') then x.title(at_title,coop) end
+        end
+    end
+    function self.tick()
+        local ok,message=e.tick()
+        for _,x in ipairs(others) do x.e.tick() end
+        return ok,message
+    end
+    -- coop off ends the waits without their end, so a title batch asked is free to ask again at the next call.
     function self.stop()
         title_stop()
+        for _,x in ipairs(others) do
+            x.stop()
+            x.e.stop()
+        end
         return e.stop()
     end
     return self

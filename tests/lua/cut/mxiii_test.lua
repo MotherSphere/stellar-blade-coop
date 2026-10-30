@@ -49,37 +49,49 @@ package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerContro
 local M=require('cut.mxiii')
 local Enemy=require('cut.enemy')
 
--- The rows against rows.h's hand-written batch.
-do
-    local f=assert(io.open('native/src/lion/rows.h'))
-    local src=f:read('a')
-    f:close()
+-- The rows against lion/mxiii_rows.h, batch by batch (both written by tools/mxiii_rows.py from one data file):
+-- names, templates, IDs, each patched field's kind and value, no field more. Then the dev rows first, in their order.
+local TABLES={character='CharacterTable',camp='ZoneCampTable',env='ZoneEnvSpawnTable',trigger='ZoneTriggerTable',
+    spawn='EventSpawnTable',eitem='EventItemTable',zevent='ZoneEventTable',transition='WorldTransitionTable',
+    warp='EventZoneWarpTable',effvol='EffectVolumeTable'}
+local KINDS={name='n',string='s',names='N'}
+local function check_batch(src,cname,rows)
     local patches={}
-    for at,kind,value,text,field in assert(src:match('constexpr Patch kMxiiiPatches%[%] = {\n(.-)\n};'))
+    for at,kind,value,text,field in assert(src:match('constexpr Patch '..cname..'Patches%[%] = {\n(.-)\n};'))
         :gmatch('{(0x%x+), Kind::(%w+), ([%d%.%-]+),%s*([^}]-)},%s*// (%w+)') do
         patches[#patches+1]={at=tonumber(at),kind=kind,f=tonumber(value),text=text:match('^"(.*)"$'),field=field}
     end
-    local TABLES={camp='ZoneCampTable',env='ZoneEnvSpawnTable',trigger='ZoneTriggerTable'}
-    local KINDS={name='n',string='s',names='N'}
     local n=0
-    for t,name,donor,id,first,count in assert(src:match('constexpr Row kMxiiiRecipe%[%] = {\n(.-)\n};'))
+    for t,name,donor,id,first,count in assert(src:match('constexpr Row '..cname..'Recipe%[%] = {\n(.-)\n};'))
         :gmatch('{Table::(%a+), "([%w_]+)", "([%w_]+)", (%d+)u?, (%d+), (%d+)}') do
         n=n+1
-        local r=assert(M.ROWS[n],'Lua lacks '..name)
-        -- Only a shipped trigger row is its own template.
-        assert(r.table==TABLES[t] and r.name==name and r.id==tonumber(id) and (donor==name)==(t=='trigger'),name)
+        local r=assert(rows[n],'Lua lacks '..name)
+        assert(r.table==TABLES[t] and r.name==name and r.id==tonumber(id),name)
         assert(#r.checks==tonumber(count),name..': '..#r.checks..' checks, '..count..' patches')
         for p=tonumber(first)+1,tonumber(first)+tonumber(count) do
             local pt,found=patches[p],nil
             for _,c in ipairs(r.checks) do if c[1]==pt.field then found=c end end
             assert(found,name..' lacks '..pt.field)
-            if pt.kind=='u8' then assert(found[2]=='e' and found[3]==pt.f,name..' '..pt.field)
+            if pt.kind=='u8' then assert((found[2]=='e' or found[2]=='b') and found[3]==pt.f,name..' '..pt.field)
             else assert(KINDS[pt.kind]==found[2] and found[3]==pt.text,name..' '..pt.field) end
         end
     end
-    assert(n==15 and #M.ROWS==15 and #patches==38,n..' rows, '..#patches..' patches')
-    -- Every env-spawn row names the camp; each kit row spawns at the point of its own name; the vending machine links
-    -- the five kit objects, not 900.
+    assert(n==#rows and n>0,cname..': '..n..' rows')
+    return n,#patches
+end
+do
+    local f=assert(io.open('native/src/lion/mxiii_rows.h'))
+    local src=f:read('a')
+    f:close()
+    assert(check_batch(src,'kMxiii',M.ROWS)==78)
+    local words={}
+    for _,b in ipairs(M.BATCHES) do
+        words[#words+1]=b.word
+        if b.word:find('^mx') then check_batch(src,'kM'..b.word:sub(2),b.rows) end
+    end
+    assert(table.concat(words,' ')=='mxspawn mxenv mxwarp lion gardener','The title order after mxiii')
+    -- The dev rows: the camp, 7 env rows that name it (the kit 901 to 906 each at the point of its own name), zone 30's
+    -- rest stop and its row, the 5 trigger rows of the waves.
     assert(M.ROWS[1].name==M.CAMP and M.ROWS[1].table=='ZoneCampTable')
     local function check(r,field) for _,c in ipairs(r.checks) do if c[1]==field then return c[3] end end end
     for i=2,8 do
@@ -91,15 +103,10 @@ do
     end
     assert(check(M.ROWS[8],'LinkEnvSpawnList')=='DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|'
         ..'DLC02_10_EnvS_904|DLC02_10_EnvS_905')
-    -- Zone 30's camp: no coin, and one row in Zone_DLC02_30 that names it.
-    assert(M.ROWS[9].table=='ZoneCampTable' and M.ROWS[9].name==M.CAMP30 and M.ROWS[9].id==281001
-        and #M.ROWS[9].checks==1 and check(M.ROWS[9],'CampType')==3)
-    local env30=M.ROWS[10]
-    assert(env30.table=='ZoneEnvSpawnTable' and env30.name=='DLC02_30_EnvS_900' and env30.id==2810032900
-        and check(env30,'ZoneList')=='Zone_DLC02_30' and check(env30,'EnvActorName')==env30.name
-        and check(env30,'TargetCamp')==M.CAMP30)
-    -- The waves: each zone 20 trigger touches the zone events the cut gates ran, after the ones it ships with; the zone
-    -- 40 pair starts enabled. Each check differs from the shipped row, so a read-back that passes proves the patch.
+    assert(M.ROWS[9].name==M.CAMP30 and check(M.ROWS[9],'CampType')==2
+        and check(M.ROWS[9],'CoinSpawnPointName')=='DLC02_30_E_ItemS_001')
+    assert(M.ROWS[10].name=='DLC02_30_EnvS_900' and check(M.ROWS[10],'ZoneList')=='Zone_DLC02_30'
+        and check(M.ROWS[10],'TargetCamp')==M.CAMP30)
     local waves={'022|023|024|025','026|027|028','029|030|031|032'}
     for i,ship in ipairs({'','DLC02_20_E_EnvC_030|','DLC02_20_E_EnvC_031|'}) do
         local r=M.ROWS[10+i]
@@ -108,6 +115,14 @@ do
     end
     for i=14,15 do assert(check(M.ROWS[i],'InitActivate')==1 and M.ROWS[i].checks[1][4]==true,M.ROWS[i].name) end
 end
+-- What the read-back log says of the mxiii batch: its rows, fields and fields that differ from the template.
+local FIELDS,CHANGED=0,0
+for _,r in ipairs(M.ROWS) do
+    FIELDS=FIELDS+#r.checks
+    for _,c in ipairs(r.checks) do CHANGED=CHANGED+(c[4] and 1 or 0) end
+end
+local READ_BACK=string.format('rows read back through FindRow: 78/78 authored rows, %d fields as written (%d differ '
+    ..'from the template row)',FIELDS,CHANGED)
 
 -- The Paks folder from the mod folder, under UE4SS's ue4ss folder or not; none outside SB\Binaries\Win64.
 assert(M.paks_of('C:\\G\\SB\\Binaries\\Win64\\ue4ss\\Mods\\StellarCoop')=='C:\\G\\SB\\Content\\Paks')
@@ -167,7 +182,7 @@ assert(M.find_map(PAKS,read)==MODS)
 where,why=M.find_map(nil,read)
 assert(where==nil and why:find('game folder is unknown',1,true))
 
--- The world: EVE, the 25 tables with Matrix XIII's rows as the native part writes them, the follow.
+-- The world: EVE, the 32 tables with Matrix XIII's rows as the native part writes them, the follow.
 local world=object({GetFullName=function() return 'World /Game/Art/BG/WorldMap/Dungeon_P/Matrix_XI.Matrix_XI' end})
 local eve=object({IsA=is('/Script/SB.SBCharacter')})
 eve.GetWorld=function() return world end
@@ -175,7 +190,11 @@ player=eve
 local tables,looked={},{}
 local function fresh(t)
     local rows={}
-    for _,r in ipairs(M.ROWS) do
+    local all={table.unpack(M.ROWS)}
+    for _,batch in ipairs(M.BATCHES) do
+        if batch.word:find('^mx') then for _,r in ipairs(batch.rows) do all[#all+1]=r end end
+    end
+    for _,r in ipairs(all) do
         if r.table==t then
             local x={ID=r.id}
             for _,c in ipairs(r.checks) do
@@ -230,10 +249,12 @@ end
 local function last() return lines[#lines] end
 local function logged(text) for _,l in ipairs(lines) do if l:find(text,1,true) then return l end end end
 local function mxiii_status(t) status_text='mod=v\nslot=coop index=4 marker=4\nlion=off\nmxiii='..t..'\nlast=x\n' end
-local ROWS_IN='rows added=15/15 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
--- Only the three tables its rows go into, in kLionTables' order.
-local REQUEST=string.format('mxiii rows ZoneCampTable=0x%x ZoneEnvSpawnTable=0x%x ZoneTriggerTable=0x%x',
-    tables.ZoneCampTable:GetAddress(),tables.ZoneEnvSpawnTable:GetAddress(),tables.ZoneTriggerTable:GetAddress())
+local ROWS_IN='rows added=78/78 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
+-- Only the six tables its rows go into, in kLionTables' order.
+local REQUEST=string.format('mxiii rows ZoneCampTable=0x%x ZoneEnvSpawnTable=0x%x ZoneTriggerTable=0x%x '
+    ..'EventSpawnTable=0x%x EventItemTable=0x%x WorldTransitionTable=0x%x',tables.ZoneCampTable:GetAddress(),
+    tables.ZoneEnvSpawnTable:GetAddress(),tables.ZoneTriggerTable:GetAddress(),tables.EventSpawnTable:GetAddress(),
+    tables.EventItemTable:GetAddress(),tables.WorldTransitionTable:GetAddress())
 
 local mx=new(PAKS)
 mxiii_status('off')
@@ -269,7 +290,7 @@ assert(ok and why=='Matrix XIII rows asked of the native part: the read-back fol
 assert(#reads==4 and logged('checks: solo on a co-op save, the native travel idle, '..LOGIC..' holds '
     ..'WorldMap_DLC_01/Level_P/MXIII_P.umap beside its .pak and .ucas; test pak v2 (DLC02_10_EnvS points in its .ucas: '
     ..'the camp kit stands at the spawn points; arrival at the kit, 36624 16140 -2136)'))
-assert(logged('tables: 3/3 found: '..REQUEST:sub(12)),'R1 with every address')
+assert(logged('tables: 6/6 found: '..REQUEST:sub(12)),'R1 with every address')
 for _,p in ipairs(looked) do assert(not p:find('MXIII',1,true),'No StaticFindObject of the map: '..p) end
 ok,why=mx.command(); assert(ok==false and why=='coop mxiii is busy (the wait for the Matrix XIII rows): try again in a '
     ..'few seconds',why)
@@ -284,8 +305,7 @@ assert(ok and why=='coop mxiii: the rows are in and the travel to DLC02_10_Camp_
     tostring(why))
 assert(#probes==1 and probes[1][1]=='DLC02_10_Camp_01' and probes[1][2]==true and #reads==before,
     'The probe for its camp, the pak not looked for again')
-assert(logged('rows read back through FindRow: 15/15 authored rows, 38 fields as written (36 differ from the template '
-    ..'row)'))
+assert(logged(READ_BACK))
 assert(lines[#lines-1]=='travel to DLC02_10_Camp_01 asked: travel DLC02_10_Camp_01 asked: the result follows in this '
     ..'log and in coop-link.log',lines[#lines-1])
 assert(last():find('^if %[TR%] says SB refused DLC02_10_Camp_01: SB lists the camps when its world starts'),last())
@@ -295,7 +315,7 @@ follow.probe='a travel is under way'
 ok,why=mx.command()
 assert(ok==false and why=='coop mxiii: the rows are in, but no travel: a travel is under way' and #asked==1
     and #probes==2,tostring(why))
-assert(logged("rows already in (15/15; SB's lookups by ID: char 0/0, skills 0/0, stance 0/0): not added again"))
+assert(logged("rows already in (78/78; SB's lookups by ID: char 0/0, skills 0/0, stance 0/0): not added again"))
 follow.probe=nil
 -- An ID read back signed (UE4SS's view of a uint32 above 2^31) still matches; a TargetCamp that differs stops it.
 local env=tables.ZoneEnvSpawnTable.rows.DLC02_10_EnvS_900
@@ -345,7 +365,7 @@ mx=new(PAKS)
 mxiii_status('off')
 clock=200
 assert(mx.command() and #asked==2)
-mxiii_status('refused added=1/15 asks=1 spawns=? why=size table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900 detail=0x500')
+mxiii_status('refused added=1/78 asks=1 spawns=? why=size table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900 detail=0x500')
 clock=200.25
 ok,why=mx.tick()
 assert(ok==false and why:find('^The native part refused the Matrix XIII rows %(why=size, table=ZoneEnvSpawnTable, '
@@ -470,8 +490,14 @@ player=nil
 local base,probed=#asked,#probes
 -- The asks since base, each the mxiii rows request.
 local function title_asks()
-    for k=base+1,#asked do assert(asked[k]==REQUEST,asked[k]) end
-    return #asked-base
+    local n=0
+    for k=base+1,#asked do
+        if asked[k]:find('^mxiii rows') then
+            assert(asked[k]==REQUEST,asked[k])
+            n=n+1
+        end
+    end
+    return n
 end
 files={}
 mx=new(PAKS)
@@ -499,7 +525,7 @@ assert(title_asks()==1 and ok==false and why=='coop mxiii is busy (the wait for 
     ..'few seconds','One ask: the wait holds the rows flow')
 -- A save loaded during the wait (the title pawn an SBCharacter on the Lobby map, then EVE on another, and main.lua's
 -- next call off the title): rows only, no map to keep, so the wait goes on, and its end says the title closed first.
-mxiii_status('waiting added=0/15 asks=0 spawns=? why=net ticks=40')
+mxiii_status('waiting added=0/78 asks=0 spawns=? why=net ticks=40')
 clock=1000.25
 assert(mx.tick()==nil)
 player=eve
@@ -511,8 +537,7 @@ clock=1000.75
 ok,why=mx.tick()
 assert(ok==nil and why==nil and last()=='title: the rows are in, after the title closed: a save may have loaded '
     ..'before them' and #probes==probed,'Read back, no travel, nothing for main.lua to report: '..tostring(why))
-assert(lines[#lines-1]=='rows read back through FindRow: 15/15 authored rows, 38 fields as written (36 differ from the '
-    ..'template row)',lines[#lines-1])
+assert(lines[#lines-1]==READ_BACK,lines[#lines-1])
 said=#lines
 mx.title(false,true); mx.title(true,true)
 assert(title_asks()==1 and #lines==said,'Once a game run')
@@ -523,19 +548,19 @@ assert(ok and title_asks()==1 and probes[#probes][1]=='DLC02_10_Camp_01',
 player=nil
 mx=new(PAKS)
 mx.title(true,true)
-assert(title_asks()==1 and last()=='title: the rows are in already (mxiii=rows added=15/15 asks=1 spawns=? char=0/0 '
+assert(title_asks()==1 and last()=='title: the rows are in already (mxiii=rows added=78/78 asks=1 spawns=? char=0/0 '
     ..'skills=0/0 stance=0/0)',last())
 -- No native part, or the rows' fault this run: nothing asked.
 mx=new(PAKS)
 status_text='mod=v\n'
 mx.title(true,true)
-mxiii_status('fault added=0/15 asks=1 spawns=? where=SB.exe+0x10')
+mxiii_status('fault added=0/78 asks=1 spawns=? where=SB.exe+0x10')
 mx.title(true,true)
 assert(title_asks()==1,'No line, or a fault: nothing asked')
 -- A gate that stayed shut: asked again RETRY s after the answer, at most 4 times a visit of the title, again at the
 -- next visit; a refusal of another kind ends it for the Lua load.
 local function shut(k)
-    mxiii_status(string.format('refused added=0/15 asks=%d spawns=? why=%s table=- row=-%s',k,
+    mxiii_status(string.format('refused added=0/78 asks=%d spawns=? why=%s table=- row=-%s',k,
         k%2==1 and 'net' or 'busy',k%2==1 and ' detail=4' or ''))
     clock=clock+0.25
     assert(mx.tick()==nil)
@@ -564,7 +589,7 @@ mx.title(false,true)
 mark=#lines
 mx.title(true,true); asks=asks+1
 assert(title_asks()==asks and lines[mark+1]:find('(try 1 of 4)',1,true),'The next visit asks again')
-mxiii_status('refused added=1/15 asks=5 spawns=? why=id table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900')
+mxiii_status('refused added=1/78 asks=5 spawns=? why=id table=ZoneEnvSpawnTable row=DLC02_10_EnvS_900')
 clock=clock+0.25
 assert(mx.tick()==nil and last()=='title: The native part refused the Matrix XIII rows (why=id, '
     ..'table=ZoneEnvSpawnTable, row=DLC02_10_EnvS_900): coop-link.log says why; asking again skips the rows already '
@@ -597,6 +622,36 @@ clock=clock+0.25
 assert(mx.tick()==nil and last()=='title: the rows are in, before any save loads',last())
 mx.title(false,true); mx.title(true,true)
 assert(title_asks()==asks,'In: never asked again')
+player=eve
+
+-- The other batches at the title, after the mxiii rows: each asked once the batch before it has an answer (rows, or a
+-- refusal, which never holds the next one back), each with only its own tables; a batch with no line (an older native
+-- part) is never asked, and the chain goes no further.
+player=nil
+mx=new(PAKS)
+local function lines_of(t) status_text='mod=v\nslot=coop index=4 marker=4\nmxiii='..ROWS_IN:format(1)..'\n'..t end
+lines_of('mxspawn=off\nmxenv=off\n')
+local n0=#asked
+clock=5000
+mx.title(true,true)
+assert(#asked==n0+1 and asked[#asked]:find('^mxspawn rows CharacterTable=0x%x+ ZoneTriggerTable=0x%x+ '
+    ..'EventSpawnTable=0x%x+ ZoneEventTable=0x%x+$'),asked[#asked])
+mx.title(true,true)
+assert(#asked==n0+1,'mxenv waits for an answer on mxspawn')
+lines_of('mxspawn=refused added=3/46 asks=1 spawns=? why=id table=EventSpawnTable row=DLC02_10_E_CharS_901\n'
+    ..'mxenv=off\n')
+clock=clock+0.25
+assert(mx.tick()==nil)
+assert(logged('mxspawn title: The native part refused the Matrix XIII Naytiba rows (why=id'),'Its refusal said')
+mx.title(true,true)
+assert(#asked==n0+2 and asked[#asked]:find('^mxenv rows ZoneEnvSpawnTable=0x%x+ EffectVolumeTable=0x%x+$'),
+    asked[#asked])
+lines_of('mxspawn=refused added=3/46 asks=1 spawns=? why=id table=EventSpawnTable row=DLC02_10_E_CharS_901\n'
+    ..'mxenv=rows added=13/13 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n')
+clock=clock+0.25
+assert(mx.tick()==nil and logged('mxenv rows read back through FindRow: 13/13 authored rows'))
+mx.title(true,true)
+assert(#asked==n0+2,'No mxwarp line: nothing asked, and nothing after it')
 player=eve
 
 -- The source: no StaticFindObject or LoadAsset of its own, and no row or save call.

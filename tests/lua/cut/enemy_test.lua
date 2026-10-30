@@ -17,7 +17,9 @@ do
         assert(Enemy.TABLES[n]==t,'kLionTables order: '..t)
     end
     assert(n==32 and #Enemy.TABLES==32)
-    assert(src:find('kRowWords%[kRowWordCount%] = {"lion", "gardener", "tendril", "bolt", "mxiii", "shop", "signal"}'),
+    local words={}
+    for w in assert(src:match('kRowWords%[kRowWordCount%] = {(.-)};')):gmatch('"(%a+)"') do words[#words+1]=w end
+    assert(table.concat(words,' ')=='lion gardener tendril bolt mxiii shop signal mxspawn mxenv mxwarp',
         'The words, the batches\' order')
 end
 
