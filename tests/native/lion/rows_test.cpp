@@ -425,7 +425,7 @@ int main() {
   assert(!std::strcmp(table_info(Table::camp).name, "ZoneCampTable") && table_info(Table::camp).size == 0xa8 &&
          !std::strcmp(table_info(Table::env).name, "ZoneEnvSpawnTable") && table_info(Table::env).size == 0x508);
   assert(!std::strcmp(table_info(Table::trigger).name, "ZoneTriggerTable") && table_info(Table::trigger).size == 0xa8 &&
-         table_info(Table::trigger).id && size_t(Table::trigger) == kTableCount - 6);
+         table_info(Table::trigger).id && size_t(Table::trigger) == 19);
   // The signal batch's five tables, last: the four quest tables with IDs, TheaterSelectDataTable with none checked.
   assert(!std::strcmp(table_info(Table::quest).name, "QuestTable") && table_info(Table::quest).size == 0x188 &&
          table_info(Table::quest).id && !std::strcmp(table_info(Table::group).name, "QuestTaskGroupTable") &&
@@ -433,8 +433,24 @@ int main() {
          table_info(Table::task).size == 0x128 && !std::strcmp(table_info(Table::target).name, "LevelTargetFilter") &&
          table_info(Table::target).size == 0x50 &&
          !std::strcmp(table_info(Table::select).name, "TheaterSelectDataTable") &&
-         table_info(Table::select).size == 0xd8 && !table_info(Table::select).id &&
-         size_t(Table::select) == kTableCount - 1);
+         table_info(Table::select).size == 0xd8 && !table_info(Table::select).id && size_t(Table::select) == 24);
+  // Matrix XIII's seven world tables, last, each with an ID at +0x10 and no Transient field (SDK sizes).
+  {
+    const struct {
+      Table t;
+      const char *name;
+      uint32_t size;
+    } world[] = {{Table::spawn, "EventSpawnTable", 0x290},      {Table::eitem, "EventItemTable", 0x80},
+                 {Table::zevent, "ZoneEventTable", 0x70},       {Table::envc, "EventEnvControlTable", 0x70},
+                 {Table::transition, "WorldTransitionTable", 0x88}, {Table::warp, "EventZoneWarpTable", 0x70},
+                 {Table::effvol, "EffectVolumeTable", 0xc0}};
+    for (size_t k = 0; k < 7; ++k) {
+      const TableInfo &info = table_info(world[k].t);
+      assert(size_t(world[k].t) == 25 + k && !std::strcmp(info.name, world[k].name) && info.size == world[k].size &&
+             info.id && !info.transient[0]);
+    }
+    static_assert(kTableCount == 32, "25 tables and Matrix XIII's seven");
+  }
   // Lily's signal batch, by hand with patches of its own: 8 target filters first (one per Tetrapod Lily, each the
   // shipped M04 marker with another spawn), then 7 tasks (On Time's M01 to M04 entering the four Matrix XIII zones, M05
   // a counter with no marker, M06 and the prologue's task the shipped Talk to Lily counter tracking all 8 filters), the
