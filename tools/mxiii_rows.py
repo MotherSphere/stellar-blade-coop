@@ -27,19 +27,33 @@ FIELDS = {
         'ZoneList': (0x20, 'names', 'N'), 'EnvActorName': (0x30, 'name', 'n'), 'EnvBPPath': (0x38, 'string', 's'),
         'SpawnPointName': (0x48, 'name', 'n'), 'EnvAlias': (0x58, 'name', 'n'), 'InitActivate': (0x60, 'u8', 'e'),
         'InitStateTag': (0x64, 'name', 'n'), 'SaveType': (0x6c, 'u8', 'e'),
+        **{f'EventTagName{i}': (0x70 + 0x18 * (i - 1), 'name', 'n') for i in range(1, 11)},
         **{f'TagEventList{i}': (0x78 + 0x18 * (i - 1), 'names', 'N') for i in range(1, 11)},
-        'LinkEnvSpawnList': (0x260, 'names', 'N'), 'TargetCamp': (0x270, 'name', 'n')}),
-    'ZoneTriggerTable': ('trigger', {'InitActivate': (0x1c, 'u8', 'e'), 'TouchEvents': (0x20, 'names', 'N')}),
+        'InteractionRange': (0x214, 'f32', 'f'), 'InteractionAngle': (0x220, 'f32', 'f'),
+        'Interaction': (0x230, 'string', 's'), 'LinkEnvSpawnList': (0x260, 'names', 'N'),
+        'TargetCamp': (0x270, 'name', 'n'), 'SequenceTagNameList': (0x350, 'names', 'N'),
+        # The per-state lists, one item a state of SequenceTagNameList, in its order.
+        'OutTransitSequenceList': (0x370, 'strings', 'S'), 'OutTransitTemplatePath': (0x380, 'strings', 'S'),
+        'ActiveSequenceList': (0x3b0, 'strings', 'S')}),
+    'ZoneTriggerTable': ('trigger', {'Zone': (0x14, 'name', 'n'), 'InitActivate': (0x1c, 'u8', 'e'),
+                                     'TouchEvents': (0x20, 'names', 'N'), 'InitialDoingCount': (0x5c, 'i32', 'i'),
+                                     'SaveType': (0x68, 'u8', 'e')}),
     'EventSpawnTable': ('spawn', {
         'SpawnPointName': (0x14, 'name', 'n'), 'CharacterAlias': (0x20, 'names', 'N'), 'SpawnType': (0x30, 'u8', 'e'),
-        'Zone': (0x34, 'name', 'n'), 'SaveType': (0x44, 'u8', 'e'), 'GoPathAfterSpawn': (0xb1, 'u8', 'b'),
+        'Zone': (0x34, 'name', 'n'), 'SaveType': (0x44, 'u8', 'e'), 'EventOnDead': (0x70, 'names', 'N'),
+        'EventOnBattle': (0x80, 'names', 'N'), 'EventFirstTimeOnBattle': (0x90, 'names', 'N'),
+        'GoPathAfterSpawn': (0xb1, 'u8', 'b'),
         'PathWay': (0xb8, 'string', 's'), 'RewardGroup': (0xc8, 'name', 'n'), 'AIGroupAlias': (0xe0, 'name', 'n'),
         'AIGroupName': (0xe8, 'name', 'n')}),
     # shortcut: SpawnItemCount is an int32 written as its low byte (counts under 256, the donor's upper bytes 0);
     # add an i32 patch kind if a count of 256 or more is ever needed.
     'EventItemTable': ('eitem', {'Zone': (0x20, 'name', 'n'), 'SpawnPointName': (0x2c, 'name', 'n'),
                                  'SpawnItemAlias': (0x34, 'name', 'n'), 'SpawnItemCount': (0x3c, 'u8', 'e')}),
-    'ZoneEventTable': ('zevent', {'Type': (0x14, 'u8', 'e'), 'EventAlias': (0x18, 'name', 'n')}),
+    'ZoneEventTable': ('zevent', {'Type': (0x14, 'u8', 'e'), 'EventAlias': (0x18, 'name', 'n'),
+                                  'EventConditionCheckType': (0x30, 'u8', 'e'), 'EventDelayTime': (0x34, 'f32', 'f')}),
+    'EventEnvControlTable': ('envc', {'EnvSpawnAlias': (0x14, 'name', 'n'), 'EnvControlType': (0x1c, 'u8', 'e'),
+                                      'TagName': (0x28, 'name', 'n'), 'Activate': (0x30, 'u8', 'e'),
+                                      'AddProgressValue': (0x34, 'i32', 'i')}),
     'WorldTransitionTable': ('transition', {
         'EnvSpawnAlias': (0x30, 'name', 'n'), 'EventSpawnAliasArray': (0x38, 'names', 'N'),
         'FromWorldAlias': (0x48, 'name', 'n'), 'FromIsolatedAreaAlias': (0x50, 'name', 'n')}),
@@ -47,10 +61,11 @@ FIELDS = {
                                     'TargetSpawnPoint': (0x34, 'name', 'n')}),
     'EffectVolumeTable': ('effvol', {'ActiveZoneAlias': (0x18, 'name', 'n'), 'EnterEffectAlias': (0x20, 'name', 'n')}),
 }
-SIZE = {'u8': 1, 'name': 8, 'string': 16, 'names': 16}
+SIZE = {'u8': 1, 'f32': 4, 'i32': 4, 'name': 8, 'string': 16, 'names': 16, 'strings': 16}
 STRUCT = {'CharacterTable': 0x548, 'ZoneCampTable': 0xa8, 'ZoneEnvSpawnTable': 0x508, 'ZoneTriggerTable': 0xa8,
           'EventSpawnTable': 0x290, 'EventItemTable': 0x80, 'ZoneEventTable': 0x70, 'WorldTransitionTable': 0x88,
-          'EventZoneWarpTable': 0x70, 'EffectVolumeTable': 0xc0}
+          'EventEnvControlTable': 0x70, 'EventZoneWarpTable': 0x70, 'EffectVolumeTable': 0xc0}
+POOL = 0x1000  # lion/rows.h's kPoolBytes: a row's strings and lists must fit it.
 
 
 def cname(word):
@@ -59,7 +74,7 @@ def cname(word):
 
 def text_of(kind, value):
     """The value as lion/rows.h's patch text: names joined by '|'."""
-    return '|'.join(value) if kind == 'names' else str(value)
+    return '|'.join(value) if kind in ('names', 'strings') else str(value)
 
 
 def check(data):
@@ -74,7 +89,7 @@ def check(data):
             seen.add((r['table'], r['name']))
             assert 0 < r['id'] < 2 ** 32, r['name']
             fields = FIELDS[r['table']][1]
-            spans = []
+            spans, pool = [], 0
             for field, value, changed in r['set']:
                 at, kind, _ = fields[field]
                 assert at >= 0x14 and at + SIZE[kind] <= STRUCT[r['table']], (r['name'], field)
@@ -82,11 +97,23 @@ def check(data):
                 spans.append((at, at + SIZE[kind]))
                 if kind == 'u8':
                     assert isinstance(value, (int, bool)) and 0 <= int(value) <= 255, (r['name'], field)
+                elif kind in ('f32', 'i32'):
+                    # lion/rows.h holds both in a float: an int32 must stay exact there.
+                    assert isinstance(value, (int, float)) and not isinstance(value, bool), (r['name'], field)
+                    assert kind == 'f32' or (int(value) == value and abs(value) < 2 ** 24), (r['name'], field)
                 elif kind == 'names':
                     assert isinstance(value, list) and all(v and '|' not in v and len(v) < 128 for v in value)
+                    pool += -(-8 * len(value) // 8) * 8
+                elif kind == 'strings':
+                    # Joined by '|': one empty item alone would read as an empty list.
+                    assert isinstance(value, list) and value != [''], (r['name'], field)
+                    assert all('|' not in v and '"' not in v and '\\' not in v for v in value), (r['name'], field)
+                    pool += 16 * len(value) + sum(-(-2 * (len(v) + 1) // 8) * 8 for v in value if v)
                 else:
                     assert isinstance(value, str) and '"' not in value and '\\' not in value, (r['name'], field)
+                    pool += -(-2 * (len(value) + 1) // 8) * 8 if value else 0
                 assert isinstance(changed, bool)
+            assert pool <= POOL, (r['name'], pool, 'its strings overflow the pool')
 
 
 def header(data):
@@ -105,6 +132,10 @@ def header(data):
                 at, kind, _ = fields[field]
                 if kind == 'u8':
                     out.append(f'    {{0x{at:x}, Kind::u8, {int(value)}, nullptr}}, // {field}')
+                elif kind == 'i32':
+                    out.append(f'    {{0x{at:x}, Kind::i32, {int(value)}, nullptr}}, // {field}')
+                elif kind == 'f32':
+                    out.append(f'    {{0x{at:x}, Kind::f32, {float(value)!r}f, nullptr}}, // {field}')
                 else:
                     out.append(f'    {{0x{at:x}, Kind::{kind}, 0, "{text_of(kind, value)}"}}, // {field}')
         out.append('};')
@@ -120,9 +151,11 @@ def header(data):
 
 
 def lua_value(kind, value):
-    if kind in ('e', 'b'):
+    if kind in ('e', 'b', 'i'):
         return str(int(value))
-    if kind == 'N':
+    if kind == 'f':
+        return repr(float(value))
+    if kind in ('N', 'S'):
         value = '|'.join(value)
     return "'" + value + "'"
 
@@ -131,9 +164,10 @@ def lua(data):
     out = ['-- Generated by tools/mxiii_rows.py from data/mxiii-world.json: do not edit by hand.',
            '-- Matrix XIII\'s rows as native/src/lion/mxiii_rows.h writes them, batch by batch, for cut/mxiii.lua\'s',
            '-- read-back: {table, name, ID, checks}, each check {field, kind, value, changed} (cut/enemy.lua\'s',
-           '-- kinds). MOVE: the ladders and ledges cut/mxmove.lua spawns (at: the foot or the ledge marker, world cm;',
-           '-- yaw in degrees; height: a ladder\'s TotalHeight in cm). BOSS: the boss spawn points cut/mxboss.lua',
-           '-- watches.',
+           '-- kinds). MOVE: the ladders, ledges and ropes cut/mxmove.lua spawns (at: the actor origin, world cm;',
+           '-- yaw in degrees; a ladder\'s Meshes stack, StartUnit and CollisionBottomZAdd and the TotalHeight they',
+           '-- give; a ledge\'s mesh; a rope\'s drop, its RopeDistanceB; env: the EnvActorName binding it to its row).',
+           '-- BOSS: the boss spawn points cut/mxboss.lua watches. WARP: coop mxiii warp\'s arrival points (at, yaw).',
            'local R={}']
     for b in data['batches']:
         out.append(f'R.{b["word"].upper()}={{')
@@ -146,9 +180,18 @@ def lua(data):
         out.append('}')
     out.append('R.MOVE={')
     for m in data['move']:
-        extra = f",height={m['height']}" if 'height' in m else ''
+        extra = ''.join(f",{lk}={m[k]}" for k, lk in (('height', 'height'), ('start', 'start'), ('bottom', 'bottom'),
+                                                      ('drop', 'drop')) if k in m)
+        if 'meshes' in m:
+            extra += ',meshes={' + ','.join(str(x) for x in m['meshes']) + '}'
+        extra += ''.join(f",{k}='{m[k]}'" for k in ('mesh', 'env') if k in m)
         out.append(f"    {{key='{m['key']}',cls='{m['cls']}',at={{{m['at'][0]},{m['at'][1]},{m['at'][2]}}},"
                    f"yaw={m['yaw']}{extra},role='{m['role']}'}},")
+    out.append('}')
+    out.append('R.WARP={')
+    for w in data['warp']:
+        out.append(f"    {{n={w['n']},name='{w['name']}',mover='{w['mover']}',at={{{w['at'][0]},{w['at'][1]},"
+                   f"{w['at'][2]}}},yaw={w['yaw']}}},")
     out.append('}')
     out.append('R.BOSS={')
     for k, v in sorted(data['boss'].items()):

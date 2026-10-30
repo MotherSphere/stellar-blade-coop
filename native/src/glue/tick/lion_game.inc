@@ -57,9 +57,9 @@ struct RowsJob {
 // In link/protocol.h's kRowWords order: Request::batch indexes it.
 RowsJob lion_job{lion::kLion}, gardener_job{lion::kGardener}, tendril_job{lion::kTendril}, bolt_job{lion::kBolt},
     mxiii_job{lion::kMxiii}, shop_job{lion::kShop}, signal_job{lion::kSignal}, mxspawn_job{lion::kMxspawn},
-    mxenv_job{lion::kMxenv}, mxwarp_job{lion::kMxwarp};
-RowsJob *const kJobs[] = {&lion_job,   &gardener_job, &tendril_job, &bolt_job,  &mxiii_job,
-                          &shop_job,   &signal_job,   &mxspawn_job, &mxenv_job, &mxwarp_job};
+    mxenv_job{lion::kMxenv}, mxupper_job{lion::kMxupper}, mxmiddle_job{lion::kMxmiddle}, mxlower_job{lion::kMxlower};
+RowsJob *const kJobs[] = {&lion_job,   &gardener_job, &tendril_job, &bolt_job,    &mxiii_job,    &shop_job,
+                          &signal_job, &mxspawn_job,  &mxenv_job,   &mxupper_job, &mxmiddle_job, &mxlower_job};
 static_assert(sizeof kJobs / sizeof kJobs[0] == kRowWordCount, "a job for each rows request word");
 // Shared: the spawn manager's counter (INT64_MIN until read) and the latch. No batch gets a latch of its own: no part
 // of its call stays clear of what the others use. The gate reads SB's globals; every row is built in the one lion_block

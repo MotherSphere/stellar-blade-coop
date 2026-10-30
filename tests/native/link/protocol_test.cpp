@@ -937,7 +937,7 @@ int main() {
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
   // (batch 3), coop mxiii's (batch 4), the Night Operation shop's (batch 5), Lily's signal's (batch 6) and Matrix
-  // XIII's mxspawn, mxenv and mxwarp (batches 7 to 9): one
+  // XIII's mxspawn, mxenv, mxupper, mxmiddle and mxlower (batches 7 to 11): one
   // <Table>=0x<address> word for each table the batch writes, 1 to 32 of them, in any order, each once (the others stay
   // 0); the addresses in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request Lua
   // could write (all 32, %x, so 12 digits at most under plausible's bound) is 1043 bytes with its line end; the longest
@@ -958,7 +958,9 @@ int main() {
   const auto signal = [&rows](const std::vector<std::string> &words) { return rows("signal", words); };
   const auto mxspawn = [&rows](const std::vector<std::string> &words) { return rows("mxspawn", words); };
   const auto mxenv = [&rows](const std::vector<std::string> &words) { return rows("mxenv", words); };
-  const auto mxwarp = [&rows](const std::vector<std::string> &words) { return rows("mxwarp", words); };
+  const auto mxupper = [&rows](const std::vector<std::string> &words) { return rows("mxupper", words); };
+  const auto mxmiddle = [&rows](const std::vector<std::string> &words) { return rows("mxmiddle", words); };
+  const auto mxlower = [&rows](const std::vector<std::string> &words) { return rows("mxlower", words); };
   std::vector<std::string> words;
   for (size_t i = 0; i < kLionTableCount; ++i) {
     char word[64];
@@ -988,14 +990,19 @@ int main() {
          li.tables[31] == 0x1f4a2b3c1f00ull);
   Request si = parse_request(signal(shuffled));
   assert(si.command == Command::rows && si.batch == 6 && si.tables == li.tables);
-  // Matrix XIII's other three batches (7 to 9), each naming only its own tables.
+  // Matrix XIII's other five batches (7 to 11), each naming only its own tables.
   const Request sp = parse_request(mxspawn({words[0], words[19], words[25], words[27]}));
   assert(sp.command == Command::rows && sp.batch == 7 && sp.tables[25] == 0x1f4a2b3c1900ull &&
          sp.tables[27] == 0x1f4a2b3c1b00ull && sp.tables[26] == 0);
   const Request en = parse_request(mxenv({words[16], words[31]}));
   assert(en.command == Command::rows && en.batch == 8 && en.tables[31] == 0x1f4a2b3c1f00ull && en.tables[30] == 0);
-  const Request wa = parse_request(mxwarp(shuffled));
-  assert(wa.command == Command::rows && wa.batch == 9 && wa.tables == li.tables && kRowWordCount == 10);
+  const Request up = parse_request(mxupper({words[16], words[19], words[25], words[27], words[28]}));
+  assert(up.command == Command::rows && up.batch == 9 && up.tables[28] == 0x1f4a2b3c1c00ull && up.tables[30] == 0);
+  const Request mi = parse_request(mxmiddle(shuffled));
+  assert(mi.command == Command::rows && mi.batch == 10 && mi.tables == li.tables);
+  const Request lo = parse_request(mxlower({words[31], words[28], words[27], words[25], words[16]}));
+  assert(lo.command == Command::rows && lo.batch == 11 && lo.tables[31] == 0x1f4a2b3c1f00ull &&
+         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 12);
   assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
          !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&
          !std::strcmp(kLionTables[19], "ZoneTriggerTable") && !std::strcmp(kLionTables[20], "QuestTable") &&
@@ -1051,8 +1058,9 @@ int main() {
         mxiii(one_more), mxiii(words) + " extra", std::string("mxiii rows"), "MXIII rows" + lion(words).substr(9),
         shop(one_more), shop(words) + " extra", std::string("shop rows"), "Shop rows" + lion(words).substr(9),
         signal(one_more), signal(words) + " extra", std::string("signal rows"), "Signal rows" + lion(words).substr(9),
-        mxspawn(one_more), mxenv(words) + " extra", std::string("mxwarp rows"), "mxspawns rows" + lion(words).substr(9),
-        "mxenv  rows" + lion(words).substr(9),
+        mxspawn(one_more), mxenv(words) + " extra", std::string("mxupper rows"), mxmiddle(one_more),
+        mxlower(words) + " extra", "mxwarp rows" + lion(words).substr(9), "mxspawns rows" + lion(words).substr(9),
+        "mxenv  rows" + lion(words).substr(9), "mxlowers rows" + lion(words).substr(9),
         "leviathan rows" + lion(words).substr(9), "gardener lion rows" + lion(words).substr(9)})
     assert(parse_request(bad).command == Command::none);
 

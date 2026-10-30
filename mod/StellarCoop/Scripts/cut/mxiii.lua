@@ -19,11 +19,12 @@
 -- at the title, before any save loads, while the game uses the co-op save files and the test pak is there (title()
 -- below), so a co-op save that names a mod camp or row (the respawn camp at FSBActor +0x26d0, the save's activated
 -- camps and last camp rows) loads with them, and coop mxiii then only reads them back and travels. At the title the
--- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the doors, lifts and loot, the warps,
--- then the Lion's and the Gardener's own rows that the boss spawn rows name); coop mxiii asks no travel until they all
--- read rows. In world 2800 the tick spawns the ladders and
--- ledges (cut/mxmove.lua) and fixes the Lion and Gardener the game spawns (cut/mxboss.lua); coop mxiii boss spawns
--- the key-0 boss of the arena EVE stands in. The way out is
+-- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the loot, the mechanisms of zones 0 to
+-- 2, 3 and 4, then the Lion's and the Gardener's own rows that the boss spawn rows name); coop mxiii asks no travel
+-- until they all read rows. In world 2800 the tick spawns the ladders, ledges and ropes (cut/mxmove.lua) and fixes the
+-- Lion and Gardener the game spawns (cut/mxboss.lua); coop mxiii boss spawns the key-0 boss of the arena EVE stands
+-- in. coop mxiii warp lists the arrival points of the old warp switches, and coop mxiii warp <n|name> puts EVE on one
+-- (a test fallback: no switch stands in the map, as in Matrix 11). The way out is
 -- coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the
 -- read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the
 -- read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
@@ -94,14 +95,27 @@ end
 -- what they need (their env rows, coins, zone 0's Tetrapod and Lily); the dev rows come first, in their order.
 local Rows=require('cut.mxiii_rows')
 Mxiii.ROWS=Enemy.rows(Rows.MXIII)
--- The other batches, each its own ask: Matrix XIII's spawn rows, doors, lifts and loot (supply boxes and pickups),
--- warps (lion/mxiii_rows.h), then the Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC and
+-- coop mxiii warp's points: the arrival points the cooked map keeps from the removed warp switches.
+Mxiii.WARP=Rows.WARP
+-- A point by its number in the list or by its name (any case), or nil.
+function Mxiii.warp_point(point)
+    local n=math.tointeger(tonumber(point))
+    for _,w in ipairs(Mxiii.WARP) do
+        if w.n==n or w.name:lower()==tostring(point):lower() then return w end
+    end
+    return nil
+end
+-- The other batches, each its own ask: Matrix XIII's spawn rows, loot (supply boxes and pickups) with the device
+-- rows dev patched first, the doors, gates, lifts, arena locks and water of zones 0 to 2, of zone 3 and of zone 4
+-- (lion/mxiii_rows.h), then the Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC and
 -- M_Gardener the boss spawn rows name. At the title they go in once the mxiii rows are in, one after the other, and
 -- coop mxiii travels only once every one of them reads rows.
 Mxiii.BATCHES={
     {word='mxspawn',name='Matrix XIII Naytiba',rows=Enemy.rows(Rows.MXSPAWN)},
-    {word='mxenv',name='Matrix XIII door, lift and loot',rows=Enemy.rows(Rows.MXENV)},
-    {word='mxwarp',name='Matrix XIII warp',rows=Enemy.rows(Rows.MXWARP)},
+    {word='mxenv',name='Matrix XIII loot',rows=Enemy.rows(Rows.MXENV)},
+    {word='mxupper',name='Matrix XIII zones 0 to 2 mechanism',rows=Enemy.rows(Rows.MXUPPER)},
+    {word='mxmiddle',name='Matrix XIII zone 3 mechanism',rows=Enemy.rows(Rows.MXMIDDLE)},
+    {word='mxlower',name='Matrix XIII zone 4 mechanism',rows=Enemy.rows(Rows.MXLOWER)},
     {word='lion',name='Lion',rows=Enemy.rows(require('cut.lion_rows').ROWS)},
     {word='gardener',name='Gardener',rows=Enemy.rows(require('cut.lion_rows').GARDENER)},
 }
@@ -192,10 +206,11 @@ function Mxiii.new(o)
         return true,'coop mxiii leave: the travel to '..pick..' is asked ([TR] lines follow)'
     end
     -- coop mxiii [30]: the checks, the rows, then the travel to the zone 10 camp, or with 30 to the zone 30 camp.
-    function self.command(extra)
+    function self.command(extra,point)
         if extra=='leave' then return leave() end
         if extra=='boss' then return self.boss() end
-        if extra~=nil and extra~='30' then return false,'Use: coop mxiii [30|leave|boss]' end
+        if extra=='warp' then return self.warp(point) end
+        if extra~=nil and extra~='30' then return false,'Use: coop mxiii [30|leave|boss|warp [n|name]]' end
         local camp,command=Mxiii.CAMP,'coop mxiii'
         if extra then camp,command=Mxiii.CAMP30,'coop mxiii 30' end
         local busy=e.busy()
@@ -221,8 +236,8 @@ function Mxiii.new(o)
             return false,command..' needs the v3 zMXIII_P test pak: '..map..' is v'..said..', with no '..camp
                 ..' spawn point for the arrival: nothing was asked'
         end
-        -- The other batches go in at the title only. Without them world 2800 has no Naytibas, doors, lifts, loot or
-        -- warp switches (the fallback of every lift and ladder), and a peer's shared Naytibas match no spawn row.
+        -- The other batches go in at the title only. Without them world 2800 has no Naytibas, loot, doors, gates or
+        -- lifts, and a peer's shared Naytibas match no spawn row.
         for _,b in ipairs(Mxiii.BATCHES) do
             local s=Enemy.parse(o.status and o.status(),b.word)
             if not (s and s.state=='rows') then
@@ -252,7 +267,8 @@ function Mxiii.new(o)
         others[#others+1]={e=x,title=t,stop=stop,after=previous}
         previous=b.word
     end
-    -- The ladders and ledges (cut/mxmove.lua) and the bosses the game spawns (cut/mxboss.lua), in world 2800 only.
+    -- The ladders, ledges and ropes (cut/mxmove.lua) and the bosses the game spawns (cut/mxboss.lua), in world 2800
+    -- only.
     local move=require('cut.mxmove').new({log=function(m) log('[MXMOVE] '..m) end})
     local boss=require('cut.mxboss').new({log=function(m) log('[MXBOSS] '..m) end,lion=o.lion,gardener=o.gardener})
     function self.title(at_title,coop)
@@ -264,6 +280,40 @@ function Mxiii.new(o)
     end
     -- coop mxiii boss: the key-0 boss of the arena EVE stands in, when the game spawned none there.
     self.boss=boss.command
+    -- EVE when she stands in world 2800 (cut/mxmove.lua's map check), else nil; o.here replaces it in the tests.
+    local here=o.here or function()
+        local U,N=require('core.unreal'),require('nightop.probe')
+        local ok,eve=pcall(function()
+            local x=U.valid(N.her())
+            local map=x and U.map_of(x)
+            local want=require('cut.mxmove').MAP
+            return map and map:sub(-#want)==want and x or nil
+        end)
+        return ok and eve or nil
+    end
+    -- coop mxiii warp [n|name]: the list, or EVE put on that arrival point, under the follow's guards (solo, a co-op
+    -- save, no travel under way) and in world 2800 only.
+    function self.warp(point)
+        if point==nil then
+            for _,w in ipairs(Mxiii.WARP) do log(string.format('warp %d %s (%s)',w.n,w.name,w.mover)) end
+            return true,'coop mxiii warp: '..#Mxiii.WARP..' points listed in the log; coop mxiii warp <n|name> goes '
+                ..'to one'
+        end
+        local w=Mxiii.warp_point(point)
+        if not w then return false,'coop mxiii warp: no point '..tostring(point)..' (coop mxiii warp lists them)' end
+        local travel=o.travel()
+        if not travel then return false,'coop mxiii warp needs the Steam link' end
+        local ready,why=travel.ready()
+        if not ready then return false,'coop mxiii warp: '..tostring(why) end
+        local eve=here()
+        if not eve then return false,'coop mxiii warp works in Matrix XIII only' end
+        local at={X=w.at[1],Y=w.at[2],Z=w.at[3]}
+        local refused=eve:K2_TeleportTo(at,{Pitch=0,Yaw=w.yaw,Roll=0})==false
+        log(string.format('warp %d %s (%s) to %.0f %.0f %.0f yaw %.0f%s',w.n,w.name,w.mover,at.X,at.Y,at.Z,w.yaw,
+            refused and ': the game refused the teleport' or ''))
+        if refused then return false,'coop mxiii warp: the game refused the teleport to '..w.name end
+        return true,'coop mxiii warp: EVE is at '..w.name..' ('..w.mover..')'
+    end
     function self.tick()
         local ok,message=e.tick()
         for _,x in ipairs(others) do x.e.tick() end

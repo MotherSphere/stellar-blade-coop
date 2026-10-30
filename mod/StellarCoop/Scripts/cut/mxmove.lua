@@ -1,19 +1,26 @@
--- Matrix XIII's ladders and ledges (cut/mxiii.lua ticks it): in world 2800 only, once a world, the mod spawns SB's
--- own BP_EM_Ladder_C and BP_EM_Ledge_C at the points of cut/mxiii_rows.lua's MOVE list. A cooked map never reruns
--- construction scripts when a level streams in, so a ladder placed in the cooked map keeps the height it was cooked
--- with; one spawned at run time runs its construction script with ours. The spawn is deferred
+-- Matrix XIII's ladders, ledges and ropes (cut/mxiii.lua ticks it): in world 2800 only, once a world, the mod spawns
+-- SB's own BP_EM_Ladder_C, BP_EM_Ledge_C and Env_EM_VerticalRope_C at the points of cut/mxiii_rows.lua's MOVE list. A
+-- cooked map never reruns construction scripts when a level streams in, so a ladder placed in the cooked map keeps the
+-- components it was cooked with; one spawned at run time runs its construction script with ours. The spawn is deferred
 -- (UGameplayStatics::BeginDeferredActorSpawnFromClass, the fields set, then FinishSpawningActor) so the construction
--- script sees TotalHeight; if that call fails once, every later spawn of the Lua load uses World:SpawnActor, sets the
--- fields and calls the class's UserConstructionScript again. Each spawn logs one [MXMOVE] line with the way it took.
--- Every critical climb also has a warp switch pair (the mxwarp rows), so a ladder that does not work never blocks.
--- The ledges keep their blueprint's default spline [inference: their length was never set from a marker].
+-- script sees them; if that call fails once, every later spawn of the Lua load uses World:SpawnActor, sets the fields
+-- and calls the class's UserConstructionScript again. Each spawn logs one [MXMOVE] line with the way it took and, for
+-- a ladder, its Meshes stack as read back before the finish.
+-- A ladder's height comes from its Meshes stack (enum Enum_EM_LadderMeshes: 0 160 cm, 1 200, 2 240, 3 600, 11 40) plus
+-- the 79.885 cm head, as on 33 of the 34 shipped ladders; StartUnit and CollisionBottomZAdd sink its foot where the
+-- stack overshoots the rise (study-climb S6, S7). The actor stands on the rung line, its -X toward the upper landing.
+-- A ledge gets the shipped climbing mesh 006_B_SM (its grab line on the actor's +Y). A rope gets its drop
+-- (RopeDistanceB) and, with a ladder bound to a row, its EnvActorName, the name its env row looks for: rope rows start
+-- Off (hidden) until their winch turns them On, and ladder gate 435's lowered ladder starts with its row 437 Off.
+-- [inference] Whether an SBZoneEnvActor spawned after its zone's rows were made registers with its row is untested.
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local Rows=require('cut.mxiii_rows')
 local Move={}
 Move.MAP='/mxiii_p' -- The end of core/unreal.lua's map_of in world 2800.
 local DIR='/Game/GameDesign/Level/BluePrintActor/SBEventMove/'
-Move.ASSETS={ladder=DIR..'BP_EM_Ladder.BP_EM_Ladder',ledge=DIR..'BP_EM_Ledge.BP_EM_Ledge'}
+Move.ASSETS={ladder=DIR..'BP_EM_Ladder.BP_EM_Ladder',ledge=DIR..'BP_EM_Ledge.BP_EM_Ledge',
+    rope=DIR..'Env_EM_VerticalRope.Env_EM_VerticalRope'}
 -- The ladder's head and collision as Matrix 11's placed ladders have them (MOVERS F11).
 Move.LADDER={HeadHeight=79.885,HeadWidthHalf=34.9,CollisionWidth=40}
 local EVERY=1 -- s between looks at the world.
@@ -33,10 +40,46 @@ function Move.new(o)
         end
         return assert(c,path..' does not load')
     end
+    -- An object of the ledge's mesh, loaded once.
+    local meshes={}
+    local function mesh_of(path)
+        if not meshes[path] then
+            local m=U.valid(StaticFindObject(path))
+            if not m then
+                pcall(LoadAsset,path)
+                m=U.valid(StaticFindObject(path))
+            end
+            meshes[path]=assert(m,path..' does not load')
+        end
+        return meshes[path]
+    end
+    -- UE4SS 3.0.1 grows a TArray when it is indexed past its end, and that growth may zero the values already in it
+    -- (UE4SS #436, fixed after 3.0.1). Filled from the last item, the empty array grows once and every later write lands
+    -- inside it.
+    local function fill(array,items) for i=#items,1,-1 do array[i]=items[i] end end
+    -- The stack as the actor holds it, read back before the finish: 'stack 3,3' (or 'stack ? (why)').
+    local function stack(array)
+        local ok,s=pcall(function()
+            local n=type(array.GetArrayNum)=='function' and array:GetArrayNum() or #array
+            local t={}
+            for i=1,n do t[i]=tostring(array[i]) end
+            return table.concat(t,',')
+        end)
+        return 'stack '..(ok and s or '? ('..tostring(s)..')')
+    end
     local function fields(a,m)
-        if m.cls~='ladder' then return end
-        a.TotalHeight=m.height
-        for k,v in pairs(Move.LADDER) do a[k]=v end
+        if m.env then a.EnvActorName=FName(m.env) end
+        if m.cls=='ladder' then
+            fill(a.Meshes,m.meshes)
+            a.StartUnit,a.CollisionBottomZAdd,a.TotalHeight=m.start,m.bottom,m.height
+            for k,v in pairs(Move.LADDER) do a[k]=v end
+            return ' '..stack(a.Meshes)
+        elseif m.cls=='ledge' then
+            fill(a.Meshes,{mesh_of(m.mesh)})
+        elseif m.cls=='rope' then
+            a.RopeDistanceB=m.drop
+        end
+        return ''
     end
     -- One spawn: the deferred pair while it works, else SpawnActor and the construction script again.
     local function spawn(eve,m)
@@ -44,21 +87,21 @@ function Move.new(o)
         local rot={Pitch=0,Yaw=m.yaw,Roll=0}
         local c=class_of(m.cls)
         if deferred then
-            local ok,a=pcall(function()
+            local ok,a,got=pcall(function()
                 local gs=U.find('/Script/Engine.Default__GameplayStatics')
                 local t=U.find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform(at,rot,{X=1,Y=1,Z=1})
                 local x=assert(U.valid(gs:BeginDeferredActorSpawnFromClass(eve,c,t,ALWAYS_SPAWN,nil)),'no actor')
-                fields(x,m)
-                return assert(U.valid(gs:FinishSpawningActor(x,t)),'FinishSpawningActor gave nothing')
+                local got=fields(x,m)
+                return assert(U.valid(gs:FinishSpawningActor(x,t)),'FinishSpawningActor gave nothing'),got
             end)
-            if ok then return a,'deferred spawn' end
+            if ok then return a,got,'deferred spawn' end
             deferred=false
             log('deferred spawn failed ('..tostring(a)..'): SpawnActor and the construction script from now on')
         end
         local a=assert(U.valid(eve:GetWorld():SpawnActor(c,at,rot)),'SpawnActor gave nothing')
-        fields(a,m)
+        local got=fields(a,m)
         local ran=pcall(function() a:UserConstructionScript() end)
-        return a,ran and 'SpawnActor, construction script run again' or 'SpawnActor, construction script not run'
+        return a,got,ran and 'SpawnActor, construction script run again' or 'SpawnActor, construction script not run'
     end
     function self.tick()
         local now=os.clock()
@@ -79,18 +122,19 @@ function Move.new(o)
         world,spawned=here,{}
         local made=0
         for _,m in ipairs(list) do
-            local fine,a,how=pcall(spawn,eve,m)
+            local fine,a,got,how=pcall(spawn,eve,m)
             if fine then
                 spawned[#spawned+1]=a
                 made=made+1
+                local extra=(m.height and string.format(' height %.1f',m.height) or '')
+                    ..got..(m.drop and string.format(' drop %.0f',m.drop) or '')..(m.env and ' env '..m.env or '')
                 log(string.format('%s %s at %.0f %.0f %.0f yaw %.0f%s (%s), %s',m.cls,m.key,m.at[1],m.at[2],m.at[3],
-                    m.yaw,m.height and string.format(' height %.1f',m.height) or '',m.role,how))
+                    m.yaw,extra,m.role,how))
             else
                 log(string.format('%s %s not spawned: %s',m.cls,m.key,tostring(a)))
             end
         end
-        log(string.format('%d/%d ladders and ledges spawned in world 2800; the warp switches beside them stay',made,
-            #list))
+        log(string.format('%d/%d ladders, ledges and ropes spawned in world 2800',made,#list))
     end
     return self
 end
