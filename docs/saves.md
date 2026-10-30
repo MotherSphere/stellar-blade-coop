@@ -185,9 +185,10 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   with `DLC02_`: the camps `coop mxiii` and `coop mxiii 30` add there, their rows, `DLC02_10_EnvS_906` once the kit is
   activated, `DLC02_30_EnvS_900` after the arrival at the third zone's camp, and the dungeon's own rows, which no camp
   of the released game uses);
-- refuses it, before it writes anything, when the save names the mod's quest On Time (`Quest_Sub_MX13_01`, from Lily's
-  signal, see [lily-signal.md](lily-signal.md)) anywhere. Nothing ends that quest yet, so there is no way to clear it
-  by playing, and the refusal says so;
+- refuses it, before it writes anything, when the save names one of the mod's quests, A Second Signal
+  (`Quest_Sub_MX13_00`) or On Time (`Quest_Sub_MX13_01`, both from Lily's signal, see [lily-signal.md](lily-signal.md)),
+  anywhere. The save keeps a quest's alias even once it is complete, so there is no way to clear it by playing, and the
+  refusal says so;
 - copies `StellarBladeSave0M.sav`, when there is one, into a new folder of `StellarCoopBackups` and reads it back;
 - reads the co-op copy again, refuses it if it changed since the check, scans those bytes again as above, refuses to
   go on if `StellarBladeSave0M.sav` changed since its backup (or appeared, when there was none), writes the copy's
