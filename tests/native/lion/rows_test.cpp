@@ -559,12 +559,13 @@ int main() {
   // Then the rows the cooked map and the other batches rely on: the camp rows dev already had (280001 with its coin and
   // kit, the zone 30 rest stop now a simple camp with its coin), zone 40's two triggers, the killable Stalker first in
   // mxspawn, every new spawn row bound to the spawn point of its own name, the bosses saved once dead, no warp switch
-  // or warp row left, and the mechanisms: every door closed at the start but the airlock's outer door and the pressure
-  // door, each opener's On tag firing the ZoneEvent row of an EnvC row of the batch that opens its door, the Lion's
-  // spawn row shutting its doors on battle and opening them on its death.
+  // or warp row left, and the mechanisms: the doors that only stand open start Open with no opener (the 14 arena doors
+  // among them reset with the zone), the others closed but the airlock's outer door and the pressure door, a shortcut
+  // opener's On tag firing the ZoneEvent row of an EnvC row of the batch that opens its door, door 051 opened only
+  // by 050's link, the Lion's spawn row shutting its doors on battle and opening them on its death.
   {
-    static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 218 &&
-                      kMxmiddleRows == 226 && kMxlowerRows == 111,
+    static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 164 &&
+                      kMxmiddleRows == 106 && kMxlowerRows == 99,
                   "the data file's batches");
     const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower};
     assert(kMxiii.patches == kMxiiiPatches && kMxspawn.patches == kMxspawnPatches &&
@@ -690,8 +691,16 @@ int main() {
       for (size_t i = 0; i < b->count; ++i)
         assert(b->rows[i].table != Table::warp && !std::strstr(b->rows[i].name, "_E_ZoneWarp_"));
     // The mechanisms. Every door row the three batches add (Env_Countdown_Gate on an empty arrow at its own point)
-    // starts closed, but the airlock's outer door 608 and the pressure door 618, which close by mechanism.
-    size_t doors = 0;
+    // starts open but the 11 below: the 34 doors that only stand open (no opener row left; the 14 arena doors close by
+    // their arena lock and reset with the zone, SaveType 2), the airlock's outer door 608 and the pressure door 618.
+    static const char *const kArena[] = {"DLC02_30_EnvS_602", "DLC02_30_EnvS_603", "DLC02_30_EnvS_604", "DLC02_30_EnvS_605",
+                                         "DLC02_30_EnvS_606", "DLC02_30_EnvS_607", "DLC02_30_EnvS_608", "DLC02_30_EnvS_610",
+                                         "DLC02_30_EnvS_611", "DLC02_30_EnvS_612", "DLC02_30_EnvS_613", "DLC02_30_EnvS_614",
+                                         "DLC02_30_EnvS_616", "DLC02_40_EnvS_607"};
+    static const char *const kClosed[] = {"DLC02_10_EnvS_610", "DLC02_20_EnvS_609", "DLC02_40_EnvS_601", "DLC02_40_EnvS_602",
+                                          "DLC02_40_EnvS_603", "DLC02_40_EnvS_604", "DLC02_40_EnvS_605", "DLC02_40_EnvS_608",
+                                          "DLC02_40_EnvS_609", "DLC02_40_EnvS_610", "DLC02_40_EnvS_611"};
+    size_t doors = 0, open_doors = 0, arena_doors = 0;
     const Batch *mech[] = {&kMxupper, &kMxmiddle, &kMxlower};
     const auto in_mech = [&mech](Table t, const std::string &name) -> std::pair<const Batch *, const Row *> {
       for (const Batch *b : mech)
@@ -707,23 +716,40 @@ int main() {
         if (shipped_row(r) || !alias || std::string(alias->text) != "Env_Countdown_Gate")
           continue;
         ++doors;
-        const bool open = !std::strcmp(r.name, "DLC02_20_EnvS_608") || !std::strcmp(r.name, "DLC02_30_EnvS_618");
+        bool open = true;
+        for (const char *c : kClosed)
+          open = open && std::strcmp(r.name, c) != 0;
+        open_doors += open;
+        for (const char *a : kArena)
+          if (!std::strcmp(r.name, a)) {
+            ++arena_doors;
+            assert(value(*b, r, 0x6c) == 2); // SaveType ResetZone: a death mid-fight puts it back to Open.
+          }
         assert(text(*b, r, 0x64) == (open ? "Open" : "Close") && text(*b, r, 0x48) == r.name &&
                text(*b, r, 0x38) == "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C" &&
                text(*b, r, 0x3b0).find("/Game/MXIII_Editor/Seq/MX13_" + std::string(r.name)) == 0);
       }
-    assert(doors > 40);
-    // R03's west door: its opener's On tag (TagEventList2 +0x90 on ME_01_EnvS_026) fires the ZoneEvent row whose
-    // EnvC row of the same name sets the door Open (BaseState, Enable); the opener links the other side's opener.
-    const auto opener = in_mech(Table::env, "DLC02_10_EnvS_651");
-    assert(opener.first && text(*opener.first, *opener.second, 0x90) == "DLC02_10_E_EnvC_601" &&
-           text(*opener.first, *opener.second, 0x260) == "DLC02_10_EnvS_652" &&
+    assert(doors == 47 && open_doors == 36 && arena_doors == 14);
+    // An open door has no opener left: R03's west door 601 lost both of its (651, 652) and the EnvC pair they fired.
+    assert(!in_mech(Table::env, "DLC02_10_EnvS_651").first && !in_mech(Table::env, "DLC02_10_EnvS_652").first &&
+           !in_mech(Table::envc, "DLC02_10_E_EnvC_601").first && !in_mech(Table::zevent, "DLC02_10_E_EnvC_601").first);
+    // R12's shortcut door: its opener's On tag (TagEventList2 +0x90 on ME_01_EnvS_026) fires the ZoneEvent row whose
+    // EnvC row of the same name sets the door Open (BaseState, Enable); the opener links the locked side's notice.
+    const auto opener = in_mech(Table::env, "DLC02_10_EnvS_669");
+    assert(opener.first && text(*opener.first, *opener.second, 0x90) == "DLC02_10_E_EnvC_610" &&
+           text(*opener.first, *opener.second, 0x260) == "DLC02_10_EnvS_670" &&
            text(*opener.first, *opener.second, 0x230).find("ME_Area01_ShotCutDoor.") != std::string::npos);
-    const auto ze = in_mech(Table::zevent, "DLC02_10_E_EnvC_601");
-    const auto ec = in_mech(Table::envc, "DLC02_10_E_EnvC_601");
+    const auto ze = in_mech(Table::zevent, "DLC02_10_E_EnvC_610");
+    const auto ec = in_mech(Table::envc, "DLC02_10_E_EnvC_610");
     assert(ze.first && value(*ze.first, *ze.second, 0x14) == 10 && ec.first &&
-           text(*ec.first, *ec.second, 0x14) == "DLC02_10_EnvS_601" && text(*ec.first, *ec.second, 0x28) == "Open" &&
+           text(*ec.first, *ec.second, 0x14) == "DLC02_10_EnvS_610" && text(*ec.first, *ec.second, 0x28) == "Open" &&
            value(*ec.first, *ec.second, 0x30) == 1);
+    // Door 051 (mxenv) has no prompt: only 050's link opens it. 050's On state disables the notice row on 051's far side.
+    assert(text(kMxenv, row(kMxenv, "DLC02_20_EnvS_051"), 0x230).empty() &&
+           text(kMxenv, row(kMxenv, "DLC02_20_EnvS_050"), 0x90) == "DLC02_20_E_EnvC_934");
+    const auto ec934 = in_mech(Table::envc, "DLC02_20_E_EnvC_934");
+    assert(ec934.first && text(*ec934.first, *ec934.second, 0x14) == "DLC02_20_EnvS_934" &&
+           value(*ec934.first, *ec934.second, 0x30) == 2);
     // The Lion: its spawn row (mxspawn) shuts the fan door and D7 on battle and opens them on its death.
     const Row &lion = row(kMxspawn, "DLC02_40_E_CharS_051");
     const std::string battle = text(kMxspawn, lion, 0x80), dead = text(kMxspawn, lion, 0x70);
@@ -1587,10 +1613,10 @@ int main() {
     ms.word = pack(a, 1);
     assert(status_line(kMxiii, ms) == "mxiii=rows added=75/75 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
     Status ws;
-    a = Answer(), a.state = State::rows, a.added = 226;
+    a = Answer(), a.state = State::rows, a.added = 106;
     ws.word = pack(a, 1);
     assert(status_line(kMxmiddle, ws) ==
-           "mxmiddle=rows added=226/226 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
+           "mxmiddle=rows added=106/106 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
     // The Night Operation shop's line: its word, no CharacterTable, skill or stance row.
     Status ss;
     assert(status_line(kShop, ss) == "shop=off");

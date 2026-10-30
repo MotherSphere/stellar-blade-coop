@@ -2315,8 +2315,9 @@ rows`), so a refusal in one never stops another:
   patrol, RewardGroup `m_beach_elite1`), the four zone events that spawn the Gardener and the zone 4 trio, and the two
   trigger rows that run them.
 - `mxenv`, 160 rows: the shipped device rows dev patched first, now on the mechanism design: the one-way doors 050, 051
-  and 037 spawn an empty arrow at their point and move the cooked leaf with our sequences; the R29 gate switch spawns
-  `Env_CardControl_Switch2_C` and, with the gate, lists zones 10 and 20; the 55 m lift waits at the top with our
+  and 037 spawn an empty arrow at their point and move the cooked leaf with our sequences (051 has no prompt: 050's
+  link opens it); the R29 gate switch spawns the wall switch `Env_CardControl_Switch_Wireless_C` (below) and, with the
+  gate, lists zones 10 and 20; the 55 m lift waits at the top with our
   sequences; the 74 m lift's call switches spawn `BP_Env_LiftController_C`, disabled until the first ride up as Shift Up
   wired them; two kill volumes go under the lift shafts. Then the loot: the 10 shipped supply box rows, which ship with
   no blueprint and no spawn point, are patched in place with `BP_Env_SupplyBox01_C` (the class of
@@ -2324,14 +2325,29 @@ rows`), so a refusal in one never stops another:
   `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 86 new pickups copy
   `DLC02_10_E_ItemS_001` with the item and count of their map marker (`BetaCrystal` x12 where the marker names none).
   The 25 records wait for the records batch.
-- `mxupper` (zones 0 to 2, 218 rows), `mxmiddle` (zone 3, 226) and `mxlower` (zone 4, 111): the mechanisms, built the
+- `mxupper` (zones 0 to 2, 164 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 99): the mechanisms, built the
   way Matrix 11 builds its own. A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an
-  empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name, closed at the start; its four LevelSequences
+  empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name; its four LevelSequences
   in `/Game/MXIII_Editor/Seq` (ToOpen as the Close state's OutTransit, ToClose as the Open state's, Closed and Opened as
   the two Active ones, KeepState) move the cooked leaf and the hidden doorway blockers, as Matrix 11's `ME_04_EnvS_030`
-  moves its door. One opener row per side (`Env_EnvState_2Phase` with the graph `ME_Area01_ShotCutDoor`, a copy of
-  `ME_01_EnvS_026`) fires, from its On state, the ZoneEvent row whose EventEnvControlTable row of the same name sets the
-  door Open; a one-way door's locked side has the `_Opposite` graph, which only says it cannot be opened from there.
+  moves its door. 34 doors start in the Open state and have no opener row, so EVE walks through them and presses
+  nothing (14 of them are arena doors, below). Eleven start closed. Nine are shortcut doors opened from one side: zone
+  1's R12 door and zone 4's D2, D3, D5, D7, drive room door, Z4P07 lift door, I3 walkway door and outfall grate door.
+  The zone 4 control room door opens once E10 is dead, and the car 9 airlock's inner door opens from its panels. The
+  airlock's outer door and the zone 3 pressure door start open and close by mechanism (below). A
+  shortcut door's opener (`Env_EnvState_2Phase` with the graph `ME_Area01_ShotCutDoor`, a copy of `ME_01_EnvS_026`)
+  fires, from its On state, the ZoneEvent row whose EventEnvControlTable row of the same name sets the door Open; the
+  locked side has the `_Opposite` graph, which only says it cannot be opened from there. Zone 2's one-way doors 050
+  and 037 keep their shipped rows (graph `MT20_ShortCutDoor01`); new rows `DLC02_20_EnvS_934` and `_935` show the
+  notice on the locked side of 051 and 037, and 050 and 037 disable them from their On state. In the cook copy each of
+  these twelve leaves carries Matrix 11's lock box (`Interaction/Door/004_C_SM` at scale 0.7, 112 cm over the floor;
+  on the drive room door it sits on the bar that rises before the leaf turns), and the opener's spawn point is where
+  Matrix 11's `ME_Area01_ShotCutDoor_C` puts EVE relative to its box, so her hand lands on it. Zone 2's lattice gates
+  077, 078, 079, 081, 082 and 083 lead only to scenery: no prompt, disabled at the start, shut for good. The switches
+  of zone 1's doors 438 and 439, the shutter switches 432, 446 and 447, the R29 gate's switches 001 and 601 and the
+  sockets 027 and 038 spawn `Env_CardControl_Switch_Wireless_C`: the Off/On code of `Env_CardControl_Switch2_C` on
+  the `003_E_SM` box of the zone 2 switches (Switch2's `003_D_SM` has a second piece 4 m up). Their spawn points sit
+  on a wall beside the door, root 115 cm over the floor, with EVE 60 cm in front of the box.
   Switch gates and approach gates keep their shipped rows and switch chains with our sequences. Lifts are their shipped
   `Env_Lift` rows with our sequences per Wait state. A cab panel's graph holds EVE for a fixed time after her press
   (`WLA30_Lift` and `MT40_Lift`: the ride starts 1.5 s after the press animation, she moves again 11 s into the ride and
@@ -2340,12 +2356,13 @@ rows`), so a refusal in one never stops another:
   starts with the press and she moves again 7.25 s into it. Call switches (`MT20_DoorSwitch01` rows) send the cab to
   their landing from either of their states; the zone 4 lift I3's two call switches start enabled, since their shipped
   enabler, row `DLC02_40_EnvS_017`, has no actor in the map. Arenas use SE_08's pattern: a fight (EventOnBattle of a
-  spawn row) shuts the doors and disables their openers, each EventOnDead adds 1 to an `Env_<N>CountProgress` row (an
+  spawn row) shuts the doors, each EventOnDead adds 1 to an `Env_<N>CountProgress` row (an
   EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and the Lion's own deaths open
   theirs. The Lion shuts its fan door and gate D7 on battle (D7 through `DLC02_40_E_EnvC_630` and the
-  `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. The counters, the zone 2 wave triggers and
-  every opener a lock disables are `ResetZone` (2), as SE_08's counter `SE_08_EnvS_090` is: if EVE dies in an arena,
-  the zone reset puts them back, the doors keep their saved state, and the next fight locks them again (that a death
+  `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. The counters, the zone 2 wave triggers, the
+  14 zone 3 and fan room arena doors and every opener a lock disables (D7's) are `ResetZone` (2), as SE_08's counter
+  `SE_08_EnvS_090` is: if EVE dies in an arena, the zone reset puts them back, the arena doors to their Open start, the
+  other doors keep their saved state, and the next fight locks them again (that a death
   resets ResetZone rows and keeps Save rows is not traced). The zone 2 waves moved to new triggers 601 to 603
   (the cooked boxes inside each arena doorway), which also shut the arena gate behind EVE but leave switches 005, 007
   and 009 alone; triggers 001, 005 and 006 go back to their shipped rows. Zone 3's trigger 601 shuts the pressure door
