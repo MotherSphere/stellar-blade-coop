@@ -13,7 +13,9 @@
 -- here; a talk through Quinn's theater with its take lent and put back, its seen and done callbacks and its player; a
 -- take not honoured (Quinn's own line) stopped at once; no theater in 10 s; a talk with no theater (the rows on the
 -- sequence, no take, no Stop, not even at coop off); a sequence that is no talk's refused; a lent take put back at the
--- next Lua load; busy() naming a playing theater. The only zone events are the two rows' kind 6, and the source names
+-- next Lua load; busy() naming a playing theater; the player found by the sequence's name before tick saw it; no
+-- observer but windows rewritten (alive): ended 10 s after the last one, seen; the theater's copy named with a GUID
+-- seen as ours and followed past 10 s, and a talk asked meanwhile refused as blocked by our own sequence. The only zone events are the two rows' kind 6, and the source names
 -- no save, quest, warp, item, row or spawn call.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
@@ -111,9 +113,11 @@ local event_table=object({IsA=function(_,c) return c.path=='/Script/Engine.DataT
 -- The theater observers; the Play row starts one for the sequence its theater's take plays (silent: none), the Stop
 -- row ends those of its theater (their players stop). honoured=false: the farewell plays its own sequence whatever its take says. raise: the
 -- call raises that.
-local observers,events,silent,honoured,raise={},{},false,true,nil
+-- guid: the observer plays a copy of the sequence named after it with this GUID added, as a theater does in game.
+local observers,events,silent,honoured,raise,guid={},{},false,true,nil,nil
 local function observe(seq,theater)
     local p=object({playing=true,IsPlaying=function(self) return self.playing end})
+    if guid then seq=asset(SEQUENCE,seq.path..'_'..guid) end
     observers[#observers+1]=object({Player=p,Sequence=seq,SequenceName=fname(seq.path:match('[^.]+$')),theater=theater})
 end
 local zone=object({CreateSBZoneEvent=function(_,kind,name)
@@ -385,8 +389,9 @@ world.name,eve.at=XION,{X=0,Y=0,Z=0}
 local tk=new()
 ok,why=tk.command('lily'); assert(ok==false and why=='Use: coop scene [emil|orcal|stop]',why)
 local seen,done=0,{}
-local function opts(direct)
-    return {direct=direct,seen=function() seen=seen+1 end,done=function(...) done[#done+1]=table.pack(...) end}
+local function opts(direct,alive)
+    return {direct=direct,alive=alive,seen=function() seen=seen+1 end,
+        done=function(...) done[#done+1]=table.pack(...) end}
 end
 ok,why=tk.talk('/Game/Other.Other',opts())
 assert(ok==false and why=='no talk plays /Game/Other.Other' and #done==0,why)
@@ -399,7 +404,7 @@ assert(lines[1]=='rows: LYC02GO_E_Theater_002 and LYC02GO_E_Theater_003 -> Subti
     ..'read back' and lines[2]=='take: Subtitle_NPC_Quinn_Common_Condition1 take 1 '
     ..'Subtitle_NPC_Quinn_Common_Condition1 -> Subtitle_POD_1stMeetAdam_01; read back' and last()=='play: CreateSBZoneEvent(6, LYC02GO_E_Theater_002) called'
     and #lines==3,last())
-assert(tk.player()==nil,'No player before the observer is seen')
+assert(tk.player()==observers[#observers].Player,'Found by its sequence\'s name before tick saw it')
 at(701); tk.tick()
 assert(seen==1 and last()=='playing: Subtitle_POD_1stMeetAdam_01, 1.0 s after the call' and tk.player()~=nil
     and tk.player()==observers[#observers].Player,last())
@@ -425,7 +430,37 @@ silent=true
 at(900); assert(tk.talk(PROLOGUE,opts()))
 at(910); ok,why=tk.tick()
 assert(ok==false and done[3][1]==false and not done[3][3].seen and quinn_take.TemplateSequence==quinn_seq,tostring(why))
+-- No observer but windows rewritten (alive): no failure until 10 s after the last one, then ended and seen.
+local rewritten_at=nil
+at(920); assert(tk.talk(PROLOGUE,opts(nil,function() return rewritten_at end)))
+assert(tk.player()==nil,'No player while no observer plays it')
+at(925); rewritten_at=925
+at(930); assert(tk.tick()==nil,'Alive: not failed 10 s after the call')
+at(934); assert(tk.tick()==nil,'9 s after the last window')
+at(935); ok,why=tk.tick()
+assert(ok==true and why=="Lily's talk: no window rewritten in 10 s and its observer never seen: ended."
+    and done[4][1]==true and done[4][3].seen and quinn_take.TemplateSequence==quinn_seq,tostring(why))
 silent=false
+-- The theater's copy of the sequence, named with a GUID as in game: seen as ours, its player found by that name,
+-- followed past 10 s; a talk asked meanwhile is refused as blocked by our own sequence.
+guid='566E86D244A289A148AA1CAA771CC6E5'
+at(950); assert(tk.talk(PROLOGUE,opts()))
+assert(tk.player()==observers[#observers].Player,'The copy\'s player, by name')
+at(951); tk.tick()
+assert(last()=='playing: Subtitle_POD_1stMeetAdam_01, 1.0 s after the call' and seen==2,last())
+at(965); assert(tk.tick()==nil,'Followed past 10 s')
+local copy=observers[#observers]
+observers[#observers]=nil
+local blocker=new()
+blocker.restore()
+observers[#observers+1]=copy
+ok,why,mine=blocker.talk(FINALE,opts(true))
+assert(ok==false and mine==true and why=='our own Subtitle_POD_1stMeetAdam_01_'..guid..' still plays: nothing was '
+    ..'changed',why)
+copy.Player.playing=false
+at(970); ok,why=tk.tick()
+assert(ok and why=="Lily's talk ended after 19 s." and done[5][3].seen,tostring(why))
+guid=nil
 -- No theater at all: both rows on the sequence, no take; no stop, not even at coop off; the rows back on a theater at
 -- the next play.
 local n_events=#events
@@ -434,7 +469,7 @@ assert(ok and rows[PLAY].TheaterAssetPath=='' and rows[PLAY].LevelSeqAssetPath==
     and rows[STOP].LevelSeqAssetPath==PROLOGUE and quinn_take.TemplateSequence==quinn_seq and #events==n_events+1,why)
 assert(lines[#lines-1]=='rows: LYC02GO_E_Theater_002 and LYC02GO_E_Theater_003 -> no theater, '
     ..'Subtitle_POD_1stMeetAdam_01; read back',lines[#lines-1])
-at(1001); tk.tick(); assert(seen==2,'Seen (not for the take not honoured)')
+at(1001); tk.tick(); assert(seen==3,'Seen (not for the take not honoured)')
 ok,why=tk.stop_talk()
 assert(ok==false and why=='No stop: Subtitle_POD_1stMeetAdam_01 plays with no theater, to its end'
     and #events==n_events+1)

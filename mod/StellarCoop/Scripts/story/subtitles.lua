@@ -23,6 +23,11 @@
 --   speaker and the line at the bottom of the screen, each for its window or its reading time, whichever is longer;
 --   not SB's widget, so the player's subtitle options do not apply); no kit, no talk. Every talk ends with done(how)
 --   (theater, sequence, kit, none or failed), so the quest flow never waits on one.
+-- - The wait: a talk (the prologue or the finale after a pick, the arrival, one by hand; not the kit version by hand)
+--   starts only once no cutscene of the game plays (her goodbye after a pick), looked for every POLL s up to WAIT s,
+--   and POLL s after one it waited for ended; past WAIT s it is asked anyway and the fallbacks follow as above.
+-- - Our own sequence: a rewritten window tells scene.lua the talk plays (alive), and a talk refused because a talk's
+--   own sequence still plays gets no fallback (failed): the kit would show its lines under SB's.
 -- Nothing here reaches the save: the take, the rows and the slot's fields live in memory.
 local U=require('core.unreal')
 local T=require('story.lily_text')
@@ -36,6 +41,9 @@ local function sequence(n) return DIR..n..'.'..n end
 -- Characters read a second; s added to a line's reading time; s before a window's end that a hold pauses; s after the
 -- observer showed for window 1's rewrite; s past a hold for the next window; s a capture stays armed.
 Subtitles.READ,Subtitles.SPARE,Subtitles.EARLY,Subtitles.FIRST,Subtitles.STUCK,Subtitles.CAPTURE=15,0.5,0.15,1.0,2,30
+-- s between two looks for a cutscene of the game before a talk (each a walk of every object, 25 to 80 ms); the
+-- longest wait for it to end.
+Subtitles.POLL,Subtitles.WAIT=0.5,20
 -- The talks: the sequence each borrows and its subtitle windows' lengths in s, in order (read from the cooked
 -- sequences: 21, 9 and 19 windows).
 Subtitles.TALKS={
@@ -139,14 +147,52 @@ function Subtitles.new(o)
     end
     local function call(c,direct)
         return scene.talk(c.t.sequence,{direct=direct,seen=function() if cur==c then c.seen_at=os.clock() end end,
-            done=function(...) ended(c,...) end})
+            alive=function() return cur==c and c.last_at or nil end,done=function(...) ended(c,...) end})
+    end
+    -- Refused because a talk's own sequence still plays: no fallback, whose kit would show under SB's lines.
+    local function ours(c,what,said)
+        log('STOP: talk '..c.name..': '..what..': '..said..': no fallback while our own sequence plays')
+        finish('failed')
     end
     start_sequence=function(c) -- From the theater step: its window count and timers start again.
-        c.step,c.k,c.rewritten,c.seen_at,c.hold,c.watch,c.stop_at,c.stopping='sequence',0,0,nil,nil,nil,nil,nil
-        local ok,said=call(c,true)
+        c.step,c.k,c.rewritten,c.seen_at,c.hold,c.watch,c.stop_at,c.stopping,c.last_at='sequence',0,0,nil,nil,nil,nil,
+            nil,nil
+        local ok,said,mine=call(c,true)
         if not ok then
+            if mine then return ours(c,'the sequence with no theater',said) end
             log('STOP: talk '..c.name..': the sequence with no theater: '..said..': the kit version next')
             return start_kit(os.clock())
+        end
+    end
+    -- Before the theater: while a cutscene of the game plays, looked for every POLL s up to WAIT s; then the theater
+    -- asked, whatever plays (a refusal leads to the fallbacks).
+    local function wait(c,now)
+        if now<c.poll_at then return end
+        c.poll_at=now+Subtitles.POLL
+        local ran,busy=pcall(scene.busy)
+        busy=ran and busy or nil
+        if busy and now<c.wait_until then
+            if not c.waited then
+                c.waited=now
+                log(string.format('talk %s: waits up to %d s for a cutscene of the game to end (%s)',c.name,
+                    Subtitles.WAIT,busy))
+            end
+            return
+        end
+        if busy then
+            log(string.format('STOP: talk %s: %s still plays after %d s: the theater asked anyway',c.name,busy,
+                Subtitles.WAIT))
+        elseif c.waited and not c.clear then -- Asked one look (POLL s) after it ended, once the game settled.
+            c.clear=now
+            return log(string.format('talk %s: the cutscene ended after %.1f s: the theater in %.1f s',c.name,
+                now-c.waited,Subtitles.POLL))
+        end
+        c.step='theater'
+        local played,said,mine=call(c,false)
+        if not played then
+            if mine then return ours(c,'the theater',said) end
+            log('STOP: talk '..c.name..': the theater: '..said..': the sequence with no theater next')
+            start_sequence(c)
         end
     end
     local function stop_row(c,why_now)
@@ -157,8 +203,7 @@ function Subtitles.new(o)
         if not ok and c.step=='sequence' then finish('failed') end
     end
     local function play_player(c,what)
-        local p=scene.player()
-        local ok,e=pcall(function() assert(p,'no sequence player') p[what](p) end)
+        local ok,e=pcall(function() local p=assert(scene.player(),'no sequence player') p[what](p) end)
         if not ok then
             c.holds_off=true
             log('STOP: hold: '..what..' failed ('..why(e)..'): no more holds this talk')
@@ -188,7 +233,7 @@ function Subtitles.new(o)
         rewriting=false
         if not fine then error(e,0) end
         if again then return end
-        c.rewritten=c.rewritten+1
+        c.rewritten,c.last_at=c.rewritten+1,now
         log(string.format('%s %d/%d',line and 'rewritten' or 'blanked',k,#c.t.windows))
         local h=holds and not c.holds_off and line and Subtitles.hold(line,length) or nil
         if h then c.hold={k=k,pause_at=now+length-Subtitles.EARLY,seconds=h} end
@@ -263,12 +308,8 @@ function Subtitles.new(o)
             start_kit(now)
             return true,'talk '..name..': the kit version (no hook)'
         end
-        c.step='theater'
-        local played,said=call(c,false)
-        if not played then
-            log('STOP: talk '..name..': the theater: '..said..': the sequence with no theater next')
-            start_sequence(c)
-        end
+        c.step,c.wait_until,c.poll_at='wait',now+Subtitles.WAIT,now
+        wait(c,now)
         return true,'talk '..name..' asked: [LY] lines follow'
     end
     -- Each frame on the game thread (main.lua's loop): window 1's guard, the holds, the Stop after the last line, the
@@ -291,6 +332,7 @@ function Subtitles.new(o)
             c.next_at=now+length+(holds and Subtitles.hold(line,length) or 0)
             return
         end
+        if c.step=='wait' then return wait(c,now) end
         if c.seen_at and c.rewritten==0 and not c.failed and now-c.seen_at>=Subtitles.FIRST then
             c.failed=true
             log(string.format('STOP: talk %s: window 1 not rewritten %.1f s after the observer showed',c.name,

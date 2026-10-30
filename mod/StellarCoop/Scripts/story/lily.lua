@@ -30,8 +30,9 @@
 --   as one fails; asked again every ASK_EVERY s while the native part reads otherwise. A load (slot none or unknown)
 --   changes nothing. The game's condition on the row hides it outside Phase 5 by itself.
 -- - The pick, read from the select widgets as Roxanne's (nightop/roxanne.lua's watcher), only while her list reads
---   on: the talk player armed (its hook in place for her goodbye), then after AFTER s and once the game shows none of
---   its screens, the talk. After the prologue talk (played, fallen back or failed): signal talked (the prologue's
+--   on: the talk player armed (its hook in place for her goodbye), then the talk: once a theater of the game plays
+--   (her goodbye; looked for every 0.5 s, the talk player waits for its end), 0.5 s after one of its screens closed,
+--   or AFTER s after the pick when neither showed. After the prologue talk (played, fallen back or failed): signal talked (the prologue's
 --   task's Complete), up to WAIT s for the prologue to complete, then signal acquire (quest/own.h, SB's acquire by ID)
 --   and, once the quest unit holds it, coop mxiii (commands/cut.lua's: the co-op save check, the follow's guards, the
 --   test pak, the mxiii rows, the travel). After the end talk: signal tell (M06's task), and On Time is complete. A
@@ -58,11 +59,11 @@ local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 Lily.QUEST,Lily.ID='Quest_Sub_MX13_01',163
 Lily.PROLOGUE,Lily.PROLOGUE_ID='Quest_Sub_MX13_00',164
 Lily.MAP='/game/art/bg/worldmap_dlc_01/level_p/mxiii_p' -- U.map_of of Matrix XIII's map (the test pak's MXIII_P).
--- s: after a pick, before the talk (her goodbye first; ponytail: a starting value, tune in game); how long an ask waits
+-- s: after a pick, before the talk when neither a theater nor a screen of the game showed; how long an ask waits
 -- for the quest unit; how long EVE stands in Matrix XIII at M01 before the fallback; between two asks while the native
 -- part reads otherwise; the prologue gate held before its acquire; after the arrival before its talk; in the drive room
 -- before signal zone4.
-Lily.AFTER,Lily.WAIT,Lily.FALLBACK,Lily.ASK_EVERY,Lily.QUIET,Lily.ARRIVAL,Lily.ROOM=5,15,10,10,20,3,2
+Lily.AFTER,Lily.WAIT,Lily.FALLBACK,Lily.ASK_EVERY,Lily.QUIET,Lily.ARRIVAL,Lily.ROOM=5,15,10,10,5,1,2
 -- Zone 4's Fusion Drive room (Z4R18) as the cooked dungeon's plan places it [design numbers, not checked in a cooked
 -- map yet]: in zone 1's plan frame (metres from the zone 1 surface lift cab floor at world (40585, 35615, -939) cm,
 -- plan +y along world yaw 175, plan +x along world yaw 265), x -95 to -80, y -150 to -110, floor -156.29 m, 16.29 m
@@ -328,7 +329,11 @@ function Lily.new(o)
     -- The flow after a pick or a command, at each tick.
     local function advance(q,now)
         if flow.step=='wait' then
-            if now<flow.at or o.paused() then return end
+            if o.paused() then flow.shown,flow.look=true,now+Subtitles.POLL return end -- A screen of her goodbye.
+            if now<(flow.look or now) then return end
+            flow.look=now+Subtitles.POLL
+            local ran,busy=pcall(talks.cutscene) -- Her goodbye's theater: the talk player waits for its end.
+            if not (ran and busy) and not flow.shown and now<flow.at then return end
             local raw='\n'..(status() or '')
             local stop,want=gate(raw,q,Enemy.parse(raw,'signal'))
             local picked=flow.label
@@ -541,8 +546,8 @@ function Lily.new(o)
                     flow={step='wait',at=now+Lily.AFTER,label=n}
                     talks.arm()
                     log((n==1 and 'the other signal picked: the prologue talk, then the quest and the travel'
-                        or 'about Matrix 13 picked: the end talk, then On Time complete')..', in '..Lily.AFTER
-                        ..' s, after her goodbye')
+                        or 'about Matrix 13 picked: the end talk, then On Time complete')..', after her goodbye '
+                        ..'(in '..Lily.AFTER..' s if none shows)')
                 end
             end)
         end

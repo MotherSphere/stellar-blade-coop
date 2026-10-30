@@ -322,25 +322,25 @@ assert(count('lily on')==0 and last():find('Quest_Sub_005 is not complete (sub00
 lines.quest='signalquest=none state=-1 group=-1 task=-1 epic12=0 asks=0 want=acquire why=none'
 ly.tick()
 assert(count('lily on')==0 and last():find('(sub005=nil)',1,true),'An older native part: off')
--- The prologue: Quest_Epic_11 not at M04: nothing; at M04 in progress for 20 s with no screen and no theater: signal
+-- The prologue: Quest_Epic_11 not at M04: nothing; at M04 in progress for 5 s with no screen and no theater: signal
 -- prologue, once a Lua load. A screen, then a theater of the game, wait.
 lines.quest=quest_line({epic11=2})
 for _=1,100 do clock=clock+0.25; ly.tick() end
 assert(count('signal prologue')==0 and last():find('^her choice stays off: the prologue is not at its task'),last())
 lines.quest=quest_line()
 clock=clock+0.25; ly.tick()
-clock=clock+15; ly.tick()
-paused=true; clock=clock+10; ly.tick(); paused=false -- A screen: the 20 s start again.
+clock=clock+3; ly.tick()
+paused=true; clock=clock+10; ly.tick(); paused=false -- A screen: the 5 s start again.
 clock=clock+0.25; ly.tick()
-clock=clock+19.5; ly.tick()
-assert(count('signal prologue')==0,'Not before 20 s with no screen')
+clock=clock+4.5; ly.tick()
+assert(count('signal prologue')==0,'Not before 5 s with no screen')
 busy='DED_Area01'
 clock=clock+0.5; ly.tick()
 assert(count('signal prologue')==0 and last():find('prologue: a theater of the game plays (DED_Area01)',1,true),last())
 busy=nil
-clock=clock+19.75; ly.tick(); assert(count('signal prologue')==0)
+clock=clock+4.75; ly.tick(); assert(count('signal prologue')==0)
 clock=clock+0.25; ly.tick()
-assert(count('signal prologue')==1 and logged('Phase 5 at M04 with neither quest held, 20 s with no screen: signal '
+assert(count('signal prologue')==1 and logged('Phase 5 at M04 with neither quest held, 5 s with no screen: signal '
     ..'prologue asked'),last())
 lines.quest=quest_line({pro='held',prostate=1,progroup=0,protask=0,asks=1,want='prologue'})
 clock=clock+0.25; ly.tick()
@@ -365,8 +365,8 @@ assert(count('lily off')==0,'A load holds her choice')
 lines.slot='slot=coop index=4'
 lines.quest=quest_line({pro='held',prostate=1,progroup=0,protask=1,asks=1,want='prologue'})
 -- The pick: her list on, the widget looked for at each tick; a widget first seen on a line, her End Conversation and
--- a line of another dialogue do nothing; our label picked: the talk player armed, then after her goodbye the prologue
--- talk.
+-- a line of another dialogue do nothing; our label picked: the talk player armed, then the prologue talk 0.5 s after
+-- her goodbye's screen closed.
 widget.SelectIndex=2
 lines_of('Partir vers une autre région',"L'autre signal",'Fin de la conversation')
 clock=clock+1; ly.tick()
@@ -376,12 +376,14 @@ widget.SelectIndex=2; clock=clock+0.25; ly.tick() -- End Conversation.
 assert(not logged('the other signal picked'),'Her End Conversation does nothing')
 widget.SelectIndex=-1; clock=clock+0.25; ly.tick()
 widget.SelectIndex=1; clock=clock+0.25; ly.tick()
-assert(arms==1 and last()=='the other signal picked: the prologue talk, then the quest and the travel, in 5 s, after '
-    ..'her goodbye',last())
+assert(arms==1 and last()=='the other signal picked: the prologue talk, then the quest and the travel, after her '
+    ..'goodbye (in 5 s if none shows)',last())
 paused=true
 clock=clock+6; ly.tick()
 assert(#plays==0,'Not while her goodbye shows')
 paused=false
+clock=clock+0.25; ly.tick()
+assert(#plays==0,'Not before 0.5 s after its screen closed')
 clock=clock+0.25; ly.tick()
 assert(#plays==1 and plays[1].name=='prologue' and not plays[1].kit and talks.playing()=='prologue',last())
 local n=#asked
@@ -401,16 +403,16 @@ clock=clock+0.25; ly.tick()
 assert(travels==1 and logged('the quest is held: signalquest=held') and logged('travel: coop mxiii: the rows are in'))
 assert(count('lily off')==1 and logged('lily off (the prologue is not at its task'),last())
 lines.lily='lily=off asks=3 want=off why=none'
--- In Matrix XIII: the arrival talk 3 s after the map turned with no screen; the fallback at M01 after 10 s, once a
+-- In Matrix XIII: the arrival talk 1 s after the map turned with no screen; the fallback at M01 after 10 s, once a
 -- visit; a later visit replays no arrival talk.
 world=MXIII
 clock=clock+1; ly.tick()
 paused=true; clock=clock+2.5; ly.tick(); paused=false
-clock=clock+2.75; ly.tick()
-assert(#plays==1,'Not before 3 s with no screen')
+clock=clock+0.75; ly.tick()
+assert(#plays==1,'Not before 1 s with no screen')
 clock=clock+0.25; ly.tick()
 assert(#plays==2 and plays[2].name=='arrival' and logged('the arrival talk, once this Lua load'),last())
-clock=clock+4; ly.tick()
+clock=clock+6; ly.tick()
 assert(count('signal complete')==0,'Not before 10 s')
 clock=clock+0.5; ly.tick()
 assert(count('signal complete')==1 and last():find('signal complete asked',1,true),last())
@@ -462,9 +464,12 @@ assert(not logged('about Matrix 13 picked'),'The old label is no pick')
 lines_of('À propos de la Matrice 13','Fin de la conversation')
 widget.SelectIndex=-1; clock=clock+0.25; ly.tick()
 widget.SelectIndex=0; clock=clock+0.25; ly.tick()
-assert(arms==2 and logged('about Matrix 13 picked: the end talk, then On Time complete, in 5 s'),last())
-clock=clock+5.25; ly.tick()
+assert(arms==2 and logged('about Matrix 13 picked: the end talk, then On Time complete, after her goodbye (in 5 s '
+    ..'if none shows)'),last())
+busy='Subtitle_NPC_Start_WLBXionP5_8DF9E0F244F00B5FB379A5938C796E0C' -- Her goodbye's theater: the talk asked at once.
+clock=clock+0.5; ly.tick()
 assert(#plays==3 and plays[3].name=='finale',tostring(plays[3]))
+busy=nil
 talks.done('sequence')
 clock=clock+0.25; ly.tick()
 assert(count('signal tell')==1 and logged('talk finale ended (sequence): signal tell asked'),last())
@@ -490,7 +495,9 @@ lines_of("L'autre signal",'Fin de la conversation')
 widget.SelectIndex=-1; clock=clock+0.25; ly.tick()
 widget.SelectIndex=0; clock=clock+0.25; ly.tick()
 refuse_talk='a talk plays (arrival)'
-clock=clock+5.25; ly.tick()
+clock=clock+4.5; ly.tick()
+assert(not logged('talk prologue not played'),'No theater or screen seen: not before 5 s')
+clock=clock+0.75; ly.tick()
 assert(logged('STOP: talk prologue not played: a talk plays (arrival); the quest goes on'),last())
 refuse_talk=nil
 clock=clock+0.25; ly.tick()

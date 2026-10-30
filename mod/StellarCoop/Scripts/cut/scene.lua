@@ -29,7 +29,10 @@
 -- A scene plays on its map with EVE within 50 m of its stage (a talk anywhere) and not while a theater of the game
 -- plays. Then, once a second, its theater observer (SBTheaterLevelSequenceObserver) is looked for, and once seen it
 -- alone is read: none 10 s after the call fails it; seen, then gone (its end, the game's skip, coop scene stop, a map
--- change), it ends the scene, with the take put back and a camera fade its last frame left cleared. coop scene stop
+-- change), it ends the scene, with the take put back and a camera fade its last frame left cleared. A theater plays
+-- a copy of its sequence, named after it with a GUID added (Subtitle_POD_ArriveDED_01_566E...C6E5 in game): an
+-- observer playing either name is the sequence's. A talk's rewritten window (story/subtitles.lua's alive) also proves
+-- it plays: no 10 s failure until 10 s after the last one. coop scene stop
 -- fires the Stop row, so SB's own teardown gives the camera, input and HUD back. coop off fires it too and puts the
 -- take back at once (no tick follows), and so does the next Lua load for a scene an earlier one left. Never called
 -- here: a warp, a quest, a save, another zone event, nor the trailers' interaction graphs or spawn rows (they acquire
@@ -220,7 +223,20 @@ local function playing()
     end)
     return names,by
 end
-local function has(list,name) for _,n in ipairs(list) do if n==name then return true end end end
+-- The name in list of an observer playing seq: its short name, or that name with the GUID of a theater's copy.
+local function find(list,seq)
+    local n=short(seq)
+    for _,name in ipairs(list) do
+        if name==n or name:sub(1,#n+1)==n..'_' and name:sub(#n+2):match('^%x+$') then return name end
+    end
+end
+-- The name in list of a talk's sequence (ours), or nil.
+local function ours(list)
+    for _,seq in ipairs(Scene.TALKS) do
+        local n=find(list,seq)
+        if n then return n end
+    end
+end
 -- A camera fade the scene's last frame left (E03 fades to black at 47.8 s), cleared. Gives what it did, or nil.
 local function unfade()
     local pc=U.controller()
@@ -259,7 +275,7 @@ function Scene.new(o)
         if c.s.own and not (c.talk and c.talk.direct) then try(unswap,c.s) end
         if c.seen and not c.s.talk then try(unfade) end
         log(message..(said[1] and ' ('..table.concat(said,'; ')..')' or ''))
-        if c.talk then c.talk.done(ok,message,{seen=c.seen~=nil,own=c.own==true}) end
+        if c.talk then c.talk.done(ok,message,{seen=c.seen~=nil or c.proof==true,own=c.own==true}) end
         return ok,message
     end
     -- An earlier Lua load's scene still playing: its Stop row fired; then every lent take put back. Once, on the game
@@ -277,7 +293,7 @@ function Scene.new(o)
                         local ok,list=pcall(playing)
                         names=ok and list or {}
                     end
-                    if has(names,short(seq)) then
+                    if find(names,seq) then
                         local fine,e=pcall(fire_stop,s)
                         said[#said+1]=s.title..' of an earlier Lua load '
                             ..(fine and 'stopped' or 'not stopped: '..why(e))
@@ -322,8 +338,10 @@ function Scene.new(o)
             end
         end
         local busy=playing()
-        if busy[1] then
-            return false,'a cutscene of the game plays ('..table.concat(busy,', ')..'): nothing was changed'
+        if busy[1] then -- Third value: the one that plays is a talk's own sequence.
+            local mine=talk and ours(busy)
+            return false,(mine and 'our own '..mine..' still plays' or 'a cutscene of the game plays ('
+                ..table.concat(busy,', ')..')')..': nothing was changed',mine and true
         end
         local direct=talk and talk.direct and seq or nil
         local stop=point(s.theater,direct)
@@ -370,20 +388,31 @@ function Scene.new(o)
         return play(s)
     end
     -- Lily's talk (story/subtitles.lua): sequence (one of Scene.TALKS) through Quinn's theater, or with opts.direct
-    -- with no theater; opts.seen() once its observer is seen, opts.done(ok, message, {seen=, own=}) once it ended or
-    -- failed after the call. Ok, message (false: nothing was played, and done is never called).
+    -- with no theater; opts.seen() once its observer is seen, opts.alive() the os.clock of its last rewritten window
+    -- (or nil), opts.done(ok, message, {seen=, own=}) once it ended or failed after the call (seen: its observer seen
+    -- or a window rewritten). Ok, message (false: nothing was played, and done is never called), and true when what
+    -- blocked it is a talk's own sequence.
     function self.talk(sequence,opts)
         if not SEQS[sequence] or sequence=='' then return false,'no talk plays '..tostring(sequence) end
-        return play(Scene.SCENES.lily,{sequence=sequence,done=opts.done,seen=opts.seen,direct=opts.direct})
+        return play(Scene.SCENES.lily,{sequence=sequence,done=opts.done,seen=opts.seen,alive=opts.alive,
+            direct=opts.direct})
     end
     -- A talk's Stop row (ok, message), as coop scene stop.
     self.stop_talk=stop_scene
     -- The short name of a theater the game plays now, else nil: a walk of every object (25 to 80 ms), so once, at the
     -- moment it matters.
     function self.busy() return playing()[1] end
-    -- The sequence player of the talk's observer once seen, else nil.
+    -- The sequence player of the talk's observer; before tick saw it, the observer is looked for by its sequence's
+    -- name as busy() does (a walk of every object). Nil when none plays it; may raise.
     function self.player()
-        return cur and cur.talk and cur.observer and U.weak(valid(cur.observer) and cur.observer.Player) or nil
+        local c=cur
+        if not (c and c.talk) then return nil end
+        if not valid(c.observer) then
+            local names,by=playing()
+            local name=find(names,c.seq)
+            c.observer=name and by[name] or nil
+        end
+        return c.observer and U.weak(c.observer.Player) or nil
     end
     -- Each frame, on the game thread; the observers once a second while a scene is under way. Returns ok, message when
     -- the scene ended or failed.
@@ -397,11 +426,11 @@ function Scene.new(o)
         if c.observer then ok,names=pcall(function() return {name_of(c.observer)} end)
         else ok,names,by=pcall(playing) end
         if not ok then return finish(false,c.s.title..' no longer followed on an error: '..why(names)) end
-        local own=has(names,short(c.seq))
-        local theirs=c.s.own and not (c.talk and c.talk.direct) and has(names,short(c.s.own))
+        local own=find(names,c.seq)
+        local theirs=c.s.own and not (c.talk and c.talk.direct) and find(names,c.s.own)
         if own or theirs then
             if not c.seen then
-                c.seen,c.observer=now,by[short(own and c.seq or c.s.own)]
+                c.seen,c.observer=now,c.observer or by[own or theirs]
                 log(string.format('playing: %s, %.1f s after the call',short(own and c.seq or c.s.own),now-c.called))
                 if not own then
                     c.own=true
@@ -421,10 +450,15 @@ function Scene.new(o)
                 now-c.seen))
         end
         if c.stopping then return finish(true,c.s.title..' stopped before it showed.') end
-        if now-c.called>=START then
-            return finish(false,string.format('%s: no theater played in %d s after the call ([SC] lines in UE4SS.log).',
+        local last=c.talk and c.talk.alive and c.talk.alive()
+        if last then c.proof=true end
+        if now-math.max(c.called,last or c.called)<START then return end
+        if c.proof then -- Its windows were rewritten, so it played, though no observer was seen.
+            return finish(true,string.format('%s: no window rewritten in %d s and its observer never seen: ended.',
                 c.s.title,START))
         end
+        return finish(false,string.format('%s: no theater played in %d s after the call ([SC] lines in UE4SS.log).',
+            c.s.title,START))
     end
     -- coop off: the Stop row (none for a talk with no theater), then the take put back at once.
     function self.stop()
