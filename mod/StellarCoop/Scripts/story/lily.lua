@@ -336,8 +336,7 @@ function Lily.new(o)
             if stop or want~=picked then
                 return log('STOP: the pick: '..(stop or 'her row now reads label '..tostring(want))..': nothing asked')
             end
-            local ok,said_talk=talk(picked==1 and 'prologue' or 'finale',false,picked==1 and 'talked' or 'tell')
-            if ok then log('talk asked: '..tostring(said_talk)) end
+            talk(picked==1 and 'prologue' or 'finale',false,picked==1 and 'talked' or 'tell')
             return
         end
         if flow.step=='talk' then return end

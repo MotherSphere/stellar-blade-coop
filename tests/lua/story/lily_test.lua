@@ -284,7 +284,8 @@ assert(logged('title: the co-op save files and test pak v2: the rows asked befor
 lines.signal=ROWS_IN:format(1)
 clock=clock+0.5
 ly.tick() -- The rows flow's wait ends: the read-back, then the words in the game's language.
-assert(logged('rows read back through FindRow: 25/25 authored rows'),last())
+assert(logged('rows read back through FindRow: 25/25 authored rows, 57 fields as written (20 differ from the template '
+    ..'row)'),last())
 assert(logged('title: the rows are in, before any save loads'),last())
 assert(logged('text: game language fr-FR -> fr;'),last())
 local quest=tables.QuestTable.rows[Lily.QUEST]
