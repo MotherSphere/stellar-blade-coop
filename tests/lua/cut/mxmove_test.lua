@@ -156,7 +156,7 @@ assert(lines[#lines-1]:find('^rope R1 not spawned: .*Env_EM_VerticalRope_C does 
 -- The generated list: every ladder's height is its stack plus the head (StartUnit k with CollisionBottomZAdd 5 - 40 k,
 -- or the defaults 1 and 55; tests/tools/mxiii_climb_test.py checks where the pieces land); the ledges are R16's with
 -- the climbing mesh; the two ropes and gate 435's ladder name their rows.
-local PIECE={[0]=160.909,[1]=200,[2]=240,[3]=600,[11]=40}
+local PIECE={[0]=160.909,[1]=200,[2]=240,[3]=600,[11]=40.909}
 local ladders,critical,ledges,envs={},0,0,{}
 for _,m in ipairs(Rows.MOVE) do
     assert(#m.at==3 and type(m.yaw)=='number' and m.key and m.role,m.key)
