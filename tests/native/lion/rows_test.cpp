@@ -563,8 +563,8 @@ int main() {
   // door, each opener's On tag firing the ZoneEvent row of an EnvC row of the batch that opens its door, the Lion's
   // spawn row shutting its doors on battle and opening them on its death.
   {
-    static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 220 &&
-                      kMxmiddleRows == 226 && kMxlowerRows == 109,
+    static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 218 &&
+                      kMxmiddleRows == 226 && kMxlowerRows == 111,
                   "the data file's batches");
     const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower};
     assert(kMxiii.patches == kMxiiiPatches && kMxspawn.patches == kMxspawnPatches &&

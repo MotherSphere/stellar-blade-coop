@@ -2324,7 +2324,7 @@ rows`), so a refusal in one never stops another:
   `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 86 new pickups copy
   `DLC02_10_E_ItemS_001` with the item and count of their map marker (`BetaCrystal` x12 where the marker names none).
   The 25 records wait for the records batch.
-- `mxupper` (zones 0 to 2, 220 rows), `mxmiddle` (zone 3, 226) and `mxlower` (zone 4, 109): the mechanisms, built the
+- `mxupper` (zones 0 to 2, 218 rows), `mxmiddle` (zone 3, 226) and `mxlower` (zone 4, 111): the mechanisms, built the
   way Matrix 11 builds its own. A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an
   empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name, closed at the start; its four LevelSequences
   in `/Game/MXIII_Editor/Seq` (ToOpen as the Close state's OutTransit, ToClose as the Open state's, Closed and Opened as
@@ -2334,12 +2334,21 @@ rows`), so a refusal in one never stops another:
   door Open; a one-way door's locked side has the `_Opposite` graph, which only says it cannot be opened from there.
   Switch gates and approach gates keep their shipped rows and switch chains with our sequences. Lifts are their shipped
   `Env_Lift` rows with our sequences per Wait state; call switches (`MT20_DoorSwitch01` rows) send the cab to their
-  landing from either of their states. Arenas use SE_08's pattern: the first fight (EventFirstTimeOnBattle or
-  EventOnBattle of a spawn row) shuts the doors and disables their openers, each EventOnDead adds 1 to an
-  `Env_<N>CountProgress` row (an EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and
-  the Lion's own deaths open theirs. The zone 2 waves moved to new triggers 601 to 603 (the cooked boxes inside each
-  arena doorway), which also shut the arena gate behind EVE; triggers 001, 005 and 006 go back to their shipped rows.
-  Zone 3's trigger 601 shuts the pressure door behind EVE for good. The car 9 airlock's panel inside toggles two states:
+  landing from either of their states; the zone 4 lift I3's two call switches start enabled, since their shipped
+  enabler, row `DLC02_40_EnvS_017`, has no actor in the map. Arenas use SE_08's pattern: a fight (EventOnBattle of a
+  spawn row) shuts the doors and disables their openers, each EventOnDead adds 1 to an `Env_<N>CountProgress` row (an
+  EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and the Lion's own deaths open
+  theirs. The Lion shuts its fan door and gate D7 on battle (D7 through `DLC02_40_E_EnvC_630` and the
+  `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. The counters, the zone 2 wave triggers and
+  every opener a lock disables are `ResetZone` (2), as SE_08's counter `SE_08_EnvS_090` is: if EVE dies in an arena,
+  the zone reset puts them back, the doors keep their saved state, and the next fight locks them again (that a death
+  resets ResetZone rows and keeps Save rows is not traced). The zone 2 waves moved to new triggers 601 to 603
+  (the cooked boxes inside each arena doorway), which also shut the arena gate behind EVE but leave switches 005, 007
+  and 009 alone; triggers 001, 005 and 006 go back to their shipped rows. Zone 3's trigger 601 shuts the pressure door
+  behind EVE for good. Zone 1's shutter 429 (the two 015_B leaves between R02 and R03) starts down and rises when EVE
+  uses switch `DLC02_10_EnvS_447` on the R02 side of the pillar between them, a copy of switch 432, which opens
+  shutter 433 the same way; the shipped foot switch row 430 is an `Env_Lift` with a level-placed foothold, which the
+  map does not have. The car 9 airlock's panel inside toggles two states:
   one shuts the outer door and opens the inner one 3.5 s later, the other does the reverse, and a call panel outside
   each door sets the state that opens its own door. Zone 4's water device keeps its shipped P1, P2 and P3 states with
   our sequences, driven by its drain and pipe panels (`ME_Area04_2Phase`), with two toxic effect volumes. An enable-only
@@ -2372,7 +2381,10 @@ climbing mesh `006_B_SM`. A rope gets its drop (`RopeDistanceB`) and the `EnvAct
 made registers with its row is untested. A cooked map never reruns a placed actor's construction script, so these values
 must reach the actor at spawn. The spawn is deferred (`BeginDeferredActorSpawnFromClass`, the fields,
 `FinishSpawningActor`); if that call fails, `SpawnActor` and a second `UserConstructionScript` call take over for the
-rest of the Lua load. Each spawn logs an `[MX] [MXMOVE]` line. `cut/mxboss.lua` looks, once a second while EVE is within
+rest of the Lua load. The `Meshes` stack is written from its last piece to its first: UE4SS 3.0.1 resizes a TArray
+written past its end and may zero the values already in it (UE4SS #436, fixed after 3.0.1), so a front-to-back fill
+could turn a 3,3 stack into 0,3. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back
+before `FinishSpawningActor`. `cut/mxboss.lua` looks, once a second while EVE is within
 80 m of a boss point, for a body of the Lion's or the Gardener's blueprint within 30 m of it, and fixes it once: the
 Lion through `cut/lion.lua`'s `adopt` (its anim instance, else the hidden Behemoth leader that `coop lion` uses), the
 Gardener's mesh turned -90 degrees. While one lives, the boss bar shows its name. EVE standing 20 s within 25 m of a

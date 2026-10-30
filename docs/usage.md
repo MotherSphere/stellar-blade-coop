@@ -1707,7 +1707,9 @@ camp rows: its other camps and their kits, Lily and the Tetrapod on the zone 0 p
 bosses, and the mechanisms, built the way Matrix 11 builds its own. Every door starts closed. Its panel on either side
 shows the game's open prompt; a one-way door's far side says it cannot be opened from there. Gates open from their
 switches, a lift goes to the landing whose call switch you use, and the zone 4 water drains through its panels. Arena
-doors shut when the fight starts and open once its last enemy dies; the Lion's fan door and D7 open on its death. The
+doors shut when the fight starts and open once its last enemy dies; the Lion's fan door and D7 shut when it fights and
+open on its death. If EVE dies in an arena, its locks should reset with the zone and lock again at the next fight (not tested in game). The R02
+shutter under the surface lift starts down and rises from the switch on the pillar between its two halves. The
 car 9 airlock and the zone 3 pressure door start open and close by their own mechanism (the pressure door for good,
 behind EVE). The map has no warp switch: for tests, `coop mxiii warp` lists in `UE4SS.log` the 72 points the old
 switches led to, and `coop mxiii warp <n|name>` puts EVE on one (solo, on a co-op save, in the dungeon only). Once in
@@ -1733,10 +1735,10 @@ your own saves ([saves.md](saves.md)).
 | `mxiii rows: 75/75 in, 39 added through SB's AddRow 0x14417ba30 and 36 shipped rows patched in place, 0 refused` (`coop-link.log`) | The native part added the camp rows and changed the shipped kit and trigger rows |
 | `mxiii rows refused <row>: <why>; <n>/75 added` (`coop-link.log`) | A row the native part would not add or change, and why: no travel |
 | `[StellarCoop][MX] rows read back through FindRow: 75/75 authored rows, <n> fields as written (<k> differ from the template row)` | Every field the native part wrote reads as written |
-| `mxspawn rows: 46/46 in, ...`, `mxenv rows: 160/160 in, ...`, `mxupper rows: 220/220 in, ...`, `mxmiddle rows: 226/226 in, ...`, `mxlower rows: 109/109 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows |
+| `mxspawn rows: 46/46 in, ...`, `mxenv rows: 160/160 in, ...`, `mxupper rows: 218/218 in, ...`, `mxmiddle rows: 226/226 in, ...`, `mxlower rows: 111/111 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows |
 | `[StellarCoop][MX] refused: mxspawn rows not in` (or `mxenv`, `mxupper`, `mxmiddle`, `mxlower`, `lion`, `gardener`) | `coop mxiii` found a batch that did not go in at the title (a save loaded before the chain ended, or the tries ran out): nothing was asked; return to the title with the co-op save files, wait until `coop-link.log` shows all seven batches in, then run it again |
 | `[StellarCoop][MX] mxspawn title: ...`, `mxenv title: ...`, `mxupper title: ...`, `mxmiddle title: ...`, `mxlower title: ...`, `lion title: ...`, `gardener title: ...` | Each of those batches at the title, with the same words as the camp rows' lines |
-| `[StellarCoop][MX] [MXMOVE] ladder <key> at <x> <y> <z> yaw <d> height <h> (<role>), deferred spawn` (or `ledge`, `rope ... drop <cm> env <row>`) | In the dungeon, a ladder, ledge or rope the mod spawned, and how (`SpawnActor, construction script run again` when the deferred spawn failed) |
+| `[StellarCoop][MX] [MXMOVE] ladder <key> at <x> <y> <z> yaw <d> height <h> stack <pieces> (<role>), deferred spawn` (or `ledge`, `rope ... drop <cm> env <row>`) | In the dungeon, a ladder, ledge or rope the mod spawned, and how (`SpawnActor, construction script run again` when the deferred spawn failed). `stack` is the ladder's `Meshes` as the actor holds them before it finishes spawning (for example `3,3`); a `0` there, or `?`, means the stack did not go in and the ladder is short |
 | `[StellarCoop][MX] [MXMOVE] <n>/47 ladders, ledges and ropes spawned in world 2800` | All of them, once a world |
 | `[StellarCoop][MX] warp <n> <point> (<mover>)` | `coop mxiii warp` alone: one line per point |
 | `[StellarCoop][MX] warp <n> <point> (<mover>) to <x> <y> <z> yaw <d>` | `coop mxiii warp <n|name>` moved EVE there (`: the game refused the teleport` when it did not) |
@@ -1766,11 +1768,15 @@ leave, then replace the slot with `coop saves refresh <0-4>` at the title.
 With the full map's pak, check at the title that `coop-link.log` shows the six Matrix XIII batches and the lion and
 gardener batches in, each `rows=N/N` on its status line, and that no `[MX]` line says a table is missing. Then, in one
 session: `coop mxiii` arrives at `DLC02_10_Camp_01`; Lily and the Tetrapod stand on the plaza; the surface lift rides
-down from its cab panel and comes back to the call switch you use; every door you meet is closed and opens from its
+down from its cab panel and comes back to the call switch you use; the R02 shutter is down and rises from the switch
+on the pillar; every door you meet is closed and opens from its
 panel, and a one-way door refuses from its far side; zone 1's enemies appear in R08, R20, R23 and R26, the new rows
-included (`DLC02_10_E_CharS_901` in R20); the `[MXMOVE]` count line shows 47; the R10 ladder climbs; a rest at the R04
+included (`DLC02_10_E_CharS_901` in R20); the `[MXMOVE]` count line shows 47 and no ladder line has a `0` in its
+stack; the R10 ladder climbs; the R28 rope drops when its winch turns and ladder gate 435's lever makes its ladder
+usable (the two rows the mod's late spawns bind by `EnvActorName`); a rest at the R04
 camp brings a killed Creeper back; the R29 gate opens from its switch; zone 2's waves come at the arena doorways, the
-arena gate shuts behind you and opens after the last kill; the Gardener comes at the gantry step; the car 9 airlock
+arena gate shuts behind you and opens after the last kill, and after a death in the arena the waves and the lock come
+back at the doorway; the Gardener comes at the gantry step; the car 9 airlock
 shuts its outer door before the inner one opens; the Stalker in Z3R19 dies at 0 HP and the hall doors open then; the
 pressure door shuts behind you; the zone 4 trio appears only after trigger 004; the water drops from its panels; the
 Lion spawns with the `[MXBOSS]` fix line and its name on the boss bar, the fan door and D7 shut during the fight and

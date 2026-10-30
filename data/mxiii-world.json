@@ -3218,7 +3218,8 @@
         "DLC02_40_E_EnvC_616",
         "DLC02_40_E_EnvC_617",
         "DLC02_40_E_EnvC_618",
-        "DLC02_40_E_EnvC_620"
+        "DLC02_40_E_EnvC_620",
+        "DLC02_40_E_EnvC_630"
        ],
        true
       ],
@@ -3226,7 +3227,8 @@
        "EventOnDead",
        [
         "DLC02_40_E_EnvC_615",
-        "DLC02_40_E_EnvC_619"
+        "DLC02_40_E_EnvC_619",
+        "DLC02_40_E_EnvC_613"
        ],
        true
       ]
@@ -3556,8 +3558,8 @@
       ],
       [
        "InitActivate",
-       2,
-       false
+       1,
+       true
       ]
      ]
     },
@@ -3579,8 +3581,8 @@
       ],
       [
        "InitActivate",
-       2,
-       false
+       1,
+       true
       ]
      ]
     },
@@ -11297,6 +11299,72 @@
     },
     {
      "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_429",
+     "donor": "DLC02_10_EnvS_429",
+     "id": 2800032429,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_429",
+       true
+      ],
+      [
+       "OutTransitSequenceList",
+       [
+        "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_429_ToOpen.MX13_DLC02_10_EnvS_429_ToOpen",
+        "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_429_ToClose.MX13_DLC02_10_EnvS_429_ToClose"
+       ],
+       true
+      ],
+      [
+       "ActiveSequenceList",
+       [
+        "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_429_Closed.MX13_DLC02_10_EnvS_429_Closed",
+        "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_429_Opened.MX13_DLC02_10_EnvS_429_Opened"
+       ],
+       true
+      ]
+     ],
+     "note": "shutter 429 (R02): leaves Z1C_R02_Shutter_W and _E"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_447",
+     "donor": "DLC02_10_EnvS_432",
+     "id": 2800032447,
+     "set": [
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_447",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_447",
+       true
+      ],
+      [
+       "TagEventList2",
+       [
+        "DLC02_10_E_EnvC_616"
+       ],
+       true
+      ]
+     ],
+     "note": "shutter 429's switch, on pillar 3 (R02 side)"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
      "name": "DLC02_10_EnvS_446",
      "donor": "DLC02_10_EnvS_432",
      "id": 2800032446,
@@ -15307,62 +15375,6 @@
     },
     {
      "table": "EventEnvControlTable",
-     "name": "DLC02_20_E_EnvC_616",
-     "donor": "DLC02_20_E_EnvC_001",
-     "id": 2932,
-     "set": [
-      [
-       "EnvSpawnAlias",
-       "DLC02_20_EnvS_005",
-       true
-      ],
-      [
-       "EnvControlType",
-       1,
-       false
-      ],
-      [
-       "Activate",
-       2,
-       true
-      ],
-      [
-       "TagName",
-       "None",
-       true
-      ]
-     ]
-    },
-    {
-     "table": "ZoneEventTable",
-     "name": "DLC02_20_E_EnvC_616",
-     "donor": "DLC02_20_E_EnvC_001",
-     "id": 8626,
-     "set": [
-      [
-       "Type",
-       10,
-       false
-      ],
-      [
-       "EventAlias",
-       "DLC02_20_E_EnvC_616",
-       true
-      ],
-      [
-       "EventConditionCheckType",
-       0,
-       false
-      ],
-      [
-       "EventDelayTime",
-       0.0,
-       true
-      ]
-     ]
-    },
-    {
-     "table": "EventEnvControlTable",
      "name": "DLC02_20_E_EnvC_617",
      "donor": "DLC02_20_E_EnvC_001",
      "id": 2933,
@@ -15564,8 +15576,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -15600,8 +15612,7 @@
         "DLC02_20_ZoneE_023",
         "DLC02_20_ZoneE_024",
         "DLC02_20_ZoneE_025",
-        "DLC02_20_E_EnvC_615",
-        "DLC02_20_E_EnvC_616"
+        "DLC02_20_E_EnvC_615"
        ],
        true
       ],
@@ -15612,8 +15623,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ]
      ]
     },
@@ -15719,62 +15730,6 @@
       [
        "EventAlias",
        "DLC02_20_E_EnvC_620",
-       true
-      ],
-      [
-       "EventConditionCheckType",
-       0,
-       false
-      ],
-      [
-       "EventDelayTime",
-       0.0,
-       true
-      ]
-     ]
-    },
-    {
-     "table": "EventEnvControlTable",
-     "name": "DLC02_20_E_EnvC_621",
-     "donor": "DLC02_20_E_EnvC_001",
-     "id": 2937,
-     "set": [
-      [
-       "EnvSpawnAlias",
-       "DLC02_20_EnvS_007",
-       true
-      ],
-      [
-       "EnvControlType",
-       1,
-       false
-      ],
-      [
-       "Activate",
-       2,
-       true
-      ],
-      [
-       "TagName",
-       "None",
-       true
-      ]
-     ]
-    },
-    {
-     "table": "ZoneEventTable",
-     "name": "DLC02_20_E_EnvC_621",
-     "donor": "DLC02_20_E_EnvC_001",
-     "id": 8631,
-     "set": [
-      [
-       "Type",
-       10,
-       false
-      ],
-      [
-       "EventAlias",
-       "DLC02_20_E_EnvC_621",
        true
       ],
       [
@@ -15992,8 +15947,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -16028,8 +15983,7 @@
         "DLC02_20_ZoneE_030",
         "DLC02_20_ZoneE_031",
         "DLC02_20_ZoneE_032",
-        "DLC02_20_E_EnvC_620",
-        "DLC02_20_E_EnvC_621"
+        "DLC02_20_E_EnvC_620"
        ],
        true
       ],
@@ -16040,8 +15994,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ]
      ]
     },
@@ -16147,62 +16101,6 @@
       [
        "EventAlias",
        "DLC02_20_E_EnvC_625",
-       true
-      ],
-      [
-       "EventConditionCheckType",
-       0,
-       false
-      ],
-      [
-       "EventDelayTime",
-       0.0,
-       true
-      ]
-     ]
-    },
-    {
-     "table": "EventEnvControlTable",
-     "name": "DLC02_20_E_EnvC_626",
-     "donor": "DLC02_20_E_EnvC_001",
-     "id": 2942,
-     "set": [
-      [
-       "EnvSpawnAlias",
-       "DLC02_20_EnvS_009",
-       true
-      ],
-      [
-       "EnvControlType",
-       1,
-       false
-      ],
-      [
-       "Activate",
-       2,
-       true
-      ],
-      [
-       "TagName",
-       "None",
-       true
-      ]
-     ]
-    },
-    {
-     "table": "ZoneEventTable",
-     "name": "DLC02_20_E_EnvC_626",
-     "donor": "DLC02_20_E_EnvC_001",
-     "id": 8636,
-     "set": [
-      [
-       "Type",
-       10,
-       false
-      ],
-      [
-       "EventAlias",
-       "DLC02_20_E_EnvC_626",
        true
       ],
       [
@@ -16420,8 +16318,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -16455,8 +16353,7 @@
         "DLC02_20_ZoneE_026",
         "DLC02_20_ZoneE_027",
         "DLC02_20_ZoneE_028",
-        "DLC02_20_E_EnvC_625",
-        "DLC02_20_E_EnvC_626"
+        "DLC02_20_E_EnvC_625"
        ],
        true
       ],
@@ -16467,8 +16364,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ]
      ]
     },
@@ -17522,6 +17419,62 @@
      ]
     },
     {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_10_E_EnvC_616",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3058,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_10_EnvS_429",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "Open",
+       false
+      ]
+     ]
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_10_E_EnvC_616",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8752,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_10_E_EnvC_616",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       1.5,
+       true
+      ]
+     ]
+    },
+    {
      "table": "ZoneEnvSpawnTable",
      "name": "DLC02_10_EnvS_641",
      "donor": "DLC02_40_EnvS_021",
@@ -18072,8 +18025,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -18167,8 +18120,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -18394,8 +18347,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -18489,8 +18442,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -18716,8 +18669,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -18811,8 +18764,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -19038,8 +18991,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -19133,8 +19086,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -19360,8 +19313,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -19455,8 +19408,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -19682,8 +19635,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -19777,8 +19730,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -20004,8 +19957,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -20099,8 +20052,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -20648,8 +20601,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -20743,8 +20696,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -20970,8 +20923,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -21065,8 +21018,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -21292,8 +21245,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -21387,8 +21340,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -21614,8 +21567,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -21709,8 +21662,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -21936,8 +21889,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -22031,8 +21984,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -22580,8 +22533,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -22675,8 +22628,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -23596,8 +23549,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -23626,7 +23579,14 @@
      "id": 2810024001,
      "set": [
       [
-       "EventFirstTimeOnBattle",
+       "EventOnDead",
+       [
+        "DLC02_30_E_EnvC_626"
+       ],
+       true
+      ],
+      [
+       "EventOnBattle",
        [
         "DLC02_30_E_EnvC_618",
         "DLC02_30_E_EnvC_619",
@@ -23634,13 +23594,6 @@
         "DLC02_30_E_EnvC_622",
         "DLC02_30_E_EnvC_623",
         "DLC02_30_E_EnvC_624"
-       ],
-       true
-      ],
-      [
-       "EventOnDead",
-       [
-        "DLC02_30_E_EnvC_626"
        ],
        true
       ]
@@ -24006,8 +23959,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -24035,18 +23988,18 @@
      "id": 2810024004,
      "set": [
       [
-       "EventFirstTimeOnBattle",
+       "EventOnDead",
        [
-        "DLC02_30_E_EnvC_627",
-        "DLC02_30_E_EnvC_628",
-        "DLC02_30_E_EnvC_629"
+        "DLC02_30_E_EnvC_631"
        ],
        true
       ],
       [
-       "EventOnDead",
+       "EventOnBattle",
        [
-        "DLC02_30_E_EnvC_631"
+        "DLC02_30_E_EnvC_627",
+        "DLC02_30_E_EnvC_628",
+        "DLC02_30_E_EnvC_629"
        ],
        true
       ]
@@ -25965,8 +25918,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -25997,7 +25950,14 @@
      "id": 2810024021,
      "set": [
       [
-       "EventFirstTimeOnBattle",
+       "EventOnDead",
+       [
+        "DLC02_30_E_EnvC_664"
+       ],
+       true
+      ],
+      [
+       "EventOnBattle",
        [
         "DLC02_30_E_EnvC_648",
         "DLC02_30_E_EnvC_649",
@@ -26011,13 +25971,6 @@
         "DLC02_30_E_EnvC_660",
         "DLC02_30_E_EnvC_661",
         "DLC02_30_E_EnvC_662"
-       ],
-       true
-      ],
-      [
-       "EventOnDead",
-       [
-        "DLC02_30_E_EnvC_664"
        ],
        true
       ]
@@ -26353,8 +26306,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -26382,18 +26335,18 @@
      "id": 2810024013,
      "set": [
       [
-       "EventFirstTimeOnBattle",
+       "EventOnDead",
        [
-        "DLC02_30_E_EnvC_665",
-        "DLC02_30_E_EnvC_666",
-        "DLC02_30_E_EnvC_667"
+        "DLC02_30_E_EnvC_669"
        ],
        true
       ],
       [
-       "EventOnDead",
+       "EventOnBattle",
        [
-        "DLC02_30_E_EnvC_669"
+        "DLC02_30_E_EnvC_665",
+        "DLC02_30_E_EnvC_666",
+        "DLC02_30_E_EnvC_667"
        ],
        true
       ]
@@ -26759,8 +26712,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -26788,18 +26741,18 @@
      "id": 2810024023,
      "set": [
       [
-       "EventFirstTimeOnBattle",
+       "EventOnDead",
        [
-        "DLC02_30_E_EnvC_670",
-        "DLC02_30_E_EnvC_671",
-        "DLC02_30_E_EnvC_672"
+        "DLC02_30_E_EnvC_674"
        ],
        true
       ],
       [
-       "EventOnDead",
+       "EventOnBattle",
        [
-        "DLC02_30_E_EnvC_674"
+        "DLC02_30_E_EnvC_670",
+        "DLC02_30_E_EnvC_671",
+        "DLC02_30_E_EnvC_672"
        ],
        true
       ]
@@ -29430,8 +29383,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -29525,8 +29478,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -30523,7 +30476,7 @@
        "OutTransitSequenceList",
        [
         "/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_611_ToOpen.MX13_DLC02_40_EnvS_611_ToOpen",
-        ""
+        "/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_611_ToClose.MX13_DLC02_40_EnvS_611_ToClose"
        ],
        true
       ],
@@ -30628,8 +30581,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -30723,8 +30676,8 @@
       ],
       [
        "SaveType",
-       1,
-       false
+       2,
+       true
       ],
       [
        "Interaction",
@@ -31292,8 +31245,8 @@
       ],
       [
        "SaveType",
-       1,
-       true
+       2,
+       false
       ],
       [
        "EnvBPPath",
@@ -31986,6 +31939,62 @@
       [
        "EventAlias",
        "DLC02_40_E_EnvC_629",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       0.0,
+       true
+      ]
+     ]
+    },
+    {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_40_E_EnvC_630",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3057,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_40_EnvS_611",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "Close",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_40_E_EnvC_630",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8751,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_40_E_EnvC_630",
        true
       ],
       [
