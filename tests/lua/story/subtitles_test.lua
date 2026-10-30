@@ -10,7 +10,10 @@
 -- and the Stop row once window 17 and its hold are over, then done; holds off; a skip during a hold; a Pause that
 -- raises ending the holds; a sequence stuck after a hold stopped and failed; window 1 not rewritten in 1 s (the Stop
 -- row, then the kit's lines, each for its window or reading time); the theater's own sequence or no theater, then
--- the sequence with no theater; a hook that cannot be registered, and no kit (none); coop off.
+-- the sequence with no theater; a hook that cannot be registered, and no kit (none); coop off. A cutscene of the game
+-- at the call: looked for every 0.5 s, the theater asked 0.5 s after it ended, or anyway after 20 s; a rewritten
+-- window given as alive; a hold on the player scene.player() finds with no seen(); a talk refused because our own
+-- sequence plays (theater or no theater) failed with no kit.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -292,6 +295,67 @@ talks,done={},nil
 at(800); assert(P.play('arrival',false,finished))
 assert(#talks==2 and talks[2].o.direct and logged('STOP: talk arrival: the theater: a cutscene of the game plays'))
 P.stop()
+-- A cutscene of the game plays at the call (her goodbye): looked for every 0.5 s, the theater asked once it ended.
+scene.talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return true,'asked' end
+local looks=0
+scene.busy=function() looks=looks+1; return busy end
+busy='Subtitle_NPC_Start_WLBXionP5_8DF9E0F244F00B5FB379A5938C796E0C'
+talks,done,logs={},nil,{}
+at(1000); assert(P.play('prologue',false,finished))
+assert(#talks==0 and looks==1 and last()=='talk prologue: waits up to 20 s for a cutscene of the game to end '
+    ..'(Subtitle_NPC_Start_WLBXionP5_8DF9E0F244F00B5FB379A5938C796E0C)',last())
+at(1000.4); P.tick(); assert(looks==1,'Not before 0.5 s')
+at(1000.5); P.tick(); assert(looks==2 and #talks==0)
+for k=1,4 do at(1000.5+k*0.5); P.tick() end
+assert(looks==6 and #talks==0 and #logs==2,'Said once')
+busy=nil
+at(1003.5); P.tick()
+assert(#talks==0 and last()=='talk prologue: the cutscene ended after 3.5 s: the theater in 0.5 s',last())
+at(1003.9); P.tick(); assert(#talks==0,'Not before 0.5 s')
+at(1004); P.tick(); assert(#talks==1 and not talks[1].o.direct and looks==8,'Asked after one more clear look')
+-- A window rewritten is the proof scene.lua reads (alive); the hold's player is the one scene.player() finds when
+-- asked, the observer never seen by tick.
+assert(talks[1].o.alive()==nil,'Nothing rewritten yet')
+local asked=0
+scene.player=function() asked=asked+1; return player end
+player.pauses,player.plays=0,0
+at(1004.5); window(2.10)
+assert(talks[1].o.alive()==1004.5 and last()=='rewritten 1/21',last())
+at(1004.5+2.10-0.15); P.tick()
+assert(asked==1 and player.pauses==1 and logged('hold 1 +0.07 s'),last())
+at(1004.5+2.10-0.15+0.08); P.tick(); assert(asked==2 and player.plays==1)
+P.stop()
+-- Still playing after 20 s: the theater asked anyway, and the fallbacks as before.
+busy='Subtitle_NPC_Start_WLBXionP5_8DF9E0F244F00B5FB379A5938C796E0C'
+talks,done={},nil
+at(1100); assert(P.play('arrival',false,finished))
+for k=1,39 do at(1100+k*0.5); P.tick() end
+assert(#talks==0,'Waiting')
+at(1120); P.tick()
+assert(#talks==1 and logged('STOP: talk arrival: Subtitle_NPC_Start_WLBXionP5_8DF9E0F244F00B5FB379A5938C796E0C still '
+    ..'plays after 20 s: the theater asked anyway'),last())
+P.stop()
+busy=nil
+-- Refused because our own sequence still plays: no sequence with no theater, no kit; failed.
+scene.talk=function(seq,o)
+    talks[#talks+1]={seq=seq,o=o}
+    return false,'our own Subtitle_POD_ArriveDED_01_566E86D244A289A148AA1CAA771CC6E5 still plays: nothing was changed',
+        true
+end
+talks,done,shown.talk={},nil,nil
+at(1200); assert(P.play('arrival',false,finished))
+assert(#talks==1 and done=='failed' and shown.talk==nil and P.playing()==nil and logged('STOP: talk arrival: the '
+    ..'theater: our own Subtitle_POD_ArriveDED_01_566E86D244A289A148AA1CAA771CC6E5 still plays: nothing was changed: '
+    ..'no fallback while our own sequence plays'),last())
+scene.talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return true,'asked' end
+talks,done,shown.talk={},nil,nil
+at(1300); assert(P.play('arrival',false,finished))
+scene.talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return false,'our own X still plays',true end
+talks[1].o.done(false,'no theater played in 10 s',{seen=false}) -- The sequence step, refused the same way.
+assert(#talks==2 and talks[2].o.direct and done=='failed' and shown.talk==nil
+    and last()=='talk arrival: failed (0 windows rewritten)' and logged('STOP: talk arrival: the sequence with no '
+    ..'theater: our own X still plays: no fallback while our own sequence plays'),last())
+scene.talk=function(seq,o) talks[#talks+1]={seq=seq,o=o}; return true,'asked' end
 
 -- A hook that cannot be registered, on a new Lua load: the kit version; no kit up: no talk (none), done at once.
 hook_raise='no UFunction'
