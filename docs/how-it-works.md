@@ -2503,7 +2503,7 @@ Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp 
    `signalquest=` line gives the read and the last request's answer. The Steam wire protocol does not change: these
    are local requests from Lua.
 5. The prologue: once every gate below up to Quest_Sub_005 holds, Quest_Epic_11 reads group 3 (M04) in progress and
-   neither quest is held, Lua waits 20 s with the game unpaused and no game screen shown, reads `coop scene`'s
+   neither quest is held, Lua waits 5 s with the game unpaused and no game screen shown, reads `coop scene`'s
    theater observers once (no cutscene of the game may play then), and asks `signal prologue`, once a Lua load.
 6. The list: `nightop/roxanne.h` takes a list (its name, its own rows, ours, and whether its own rows must come in
    order). Roxanne's keeps her two rows in her order; Lily's checks her eight (`TS_Xion_Lily_Choice_1` to `_8`) as a
@@ -2519,8 +2519,9 @@ Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp 
    keeps the array's order, the borrowed row comes first. End Conversation stays last either way, for the cancel input.
 7. The picks, read as Roxanne's (`nightop/roxanne.lua`'s `watcher`): a `SelectIndex` turning from -1 to a line whose
    text is the row's current label in English or French. The talk player is armed at once (its hook registered, and for
-   30 s a Lily or EVE subtitle's colour captured, should her goodbye show in the same subtitle slot). 5 s later, once
-   no game screen shows, the talk plays. After the prologue talk Lua asks `signal talked`, waits up to 15 s for the
+   30 s a Lily or EVE subtitle's colour captured, should her goodbye show in the same subtitle slot). The talk is asked
+   as soon as a theater of the game is seen (looked for every 0.5 s; the talk player then waits for its end), 0.5 s
+   after a game screen closed, or 5 s after the pick when neither showed. After the prologue talk Lua asks `signal talked`, waits up to 15 s for the
    prologue to complete, then asks `signal acquire` and, once the line reads `held`, calls `coop mxiii` (its co-op save
    check, the follow's guards, the test pak, the mxiii rows, the travel). After the end talk Lua asks `signal tell`. A
    talk that does not play, a refused ask or a wait that runs out logs a `STOP:` line and the flow goes on.
@@ -2539,7 +2540,13 @@ Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp 
    capture saw that speaker's colour, then calls `UpdateText` again under a re-entry guard. Windows past the lines get
    an empty author and message, and the Stop row fires once the last line's window is over. A line that needs more
    than its window (0.5 s plus 15 characters a second) pauses the theater observer's sequence player 0.15 s before the
-   window ends and plays it again after the difference; `cut/scene.lua` counts a paused player as still playing. A
+   window ends and plays it again after the difference; `cut/scene.lua` counts a paused player as still playing. The
+   theater plays a copy of the sequence named with a GUID added (`Subtitle_POD_ArriveDED_01_566E...C6E5` in game), so
+   `cut/scene.lua` matches an observer's sequence by that name or the plain one, finds the hold's sequence player the
+   same way before its once-a-second look has seen the observer, and takes a rewritten window as proof the talk plays
+   (no 10 s failure until 10 s after the last one). Before the theater, a talk waits while a theater of the game
+   plays, looked for every 0.5 s, and is asked 0.5 s after it ended, or after 20 s anyway. A talk refused because a
+   talk's own sequence still plays gets no fallback. A
    Pause or Play that is missing or raises ends the holds for the talk; a sequence with no new window 2 s past a hold
    is stopped. Fallbacks, in order: Quinn's own sequence seen or no observer in 10 s, the same rows with
    `TheaterAssetPath` empty and `LevelSeqAssetPath` the sequence, as 148 shipped rows play subtitle sequences (no
@@ -2547,7 +2554,7 @@ Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp 
    not registered, the Stop row and the kit version (`ui/kit.lua`: the speaker and the line at the bottom centre,
    each for its window or its reading time); no kit, no talk. `cut/scene.lua`'s donor row check accepts an empty
    theater and the talks' level sequences, and every play writes both fields.
-9. Matrix XIII: the arrival talk plays once a Lua load (Lua memory only), 3 s after EVE's map turns to `MXIII_P` with
+9. Matrix XIII: the arrival talk plays once a Lua load (Lua memory only), 1 s after EVE's map turns to `MXIII_P` with
    "On Time" held and no game screen shown, never during another talk. Once EVE stands in that map with the quest at
    M01 and its task in progress for 10 s (SB's EnterZone check did not fire after the camp travel), Lua asks
    `signal complete`, once a visit. Once she stands 2 s inside the Fusion Drive room's box with the quest at M05, Lua

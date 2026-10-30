@@ -35,7 +35,7 @@ Without the test pak the mod adds none of the quests' rows and never reads your 
 
 The prologue starts once Quest_Epic_11's group M04 ("Talk to Lily to decide on the next destination") is in progress
 and neither of the mod's quests is in your list. The game must then stay unpaused with none of its screens open for
-20 s, and no cutscene may be playing at that moment. The mod asks for the prologue once per Lua load. A save that
+5 s, and no cutscene may be playing at that moment. The mod asks for the prologue once per Lua load. A save that
 already holds "On Time" never gets it.
 
 Its one task is the game's own "Talk to Lily". It tracks Lily at every Tetrapod where she can stand in Phase 5: Xion,
@@ -54,8 +54,9 @@ The choice has priority 3. If the game sorts her list by priority, as her rows' 
 Console (2) and End Conversation (1). If the game keeps the list's order instead, it comes first. End Conversation
 stays last either way, so the cancel input (B or Esc) still ends the conversation.
 
-Picking "The other signal" plays her goodbye. 5 s later, once no game screen shows, the prologue talk plays where she
-stands. When it ends, the prologue completes, "On Time" starts and the camp travel runs. If the talk cannot play, or
+Picking "The other signal" plays her goodbye. The prologue talk starts 0.5 s after the goodbye's cutscene ends (or its
+screen closes), where she stands. If neither a cutscene nor a screen of the game shows within 5 s of the pick, the
+talk starts then. When it ends, the prologue completes, "On Time" starts and the camp travel runs. If the talk cannot play, or
 the prologue does not complete within 15 s, the log says so and "On Time" and the travel go ahead anyway.
 
 Picking "About Matrix 13" plays her goodbye, then the end talk, and "On Time" completes.
@@ -90,7 +91,7 @@ language change they stay in the old one until the next Lua load (Ctrl+R or a ga
 | Talk | Lines | Borrowed sequence | When |
 | --- | --- | --- | --- |
 | `prologue` | 17 | `Subtitle_POD_1stMeetAdam_01` (21 subtitle windows) | After "The other signal" |
-| `arrival` | 9 | `Subtitle_POD_ArriveDED_01` (9 windows) | Once per Lua load, 3 s after EVE arrives in Matrix XIII with "On Time" held and no game screen showing |
+| `arrival` | 9 | `Subtitle_POD_ArriveDED_01` (9 windows) | Once per Lua load, 1 s after EVE arrives in Matrix XIII with "On Time" held and no game screen showing |
 | `finale` | 19 | `Subtitle_POD_1stMeetAdam_02` (19 windows) | After "About Matrix 13" |
 
 Each talk borrows an unused sequence of the game that holds only subtitles: no camera, no character and no sound. The
@@ -100,6 +101,14 @@ its own speaker and line into it. The speaker names come from the game's own tab
 "EVE" read as the game writes them. A line shows in French for a French game language and in English for any other.
 Windows past the last line stay empty, and once the last line's window is over the theater stops. The prologue uses
 the first 17 of its sequence's 21 windows.
+
+A talk never starts over a cutscene of the game. The mod looks for one every 0.5 s and starts the talk 0.5 s after it
+ends. After 20 s it asks the theater anyway, and the fallbacks below follow if the game refuses.
+
+The theater plays a copy of the borrowed sequence whose name carries a GUID, such as
+`Subtitle_POD_ArriveDED_01_566E86D244A289A148AA1CAA771CC6E5`. The mod counts that copy as its own sequence: it
+follows it, pauses it for the reading holds, and never starts a fallback while it plays. A rewritten subtitle window
+also proves the talk plays, so the talk is not stopped for want of a theater within 10 s of the last one.
 
 A line longer than its window can be read in (0.5 s plus 15 characters a second) gets a reading hold: the mod pauses
 the sequence 0.15 s before the window ends and resumes it after the missing time. Whether the game keeps the subtitle
@@ -126,7 +135,7 @@ Nothing of a talk goes into the save.
    save loads`, then `[StellarCoop][LY] title: the rows are in, before any save loads`.
 3. Load a co-op save in Phase 5, past "Talk to Lily to decide on the next destination" and before the bike signal, that
    does not hold "On Time" yet.
-4. Wait about 20 s with no menu open. The prologue's new-quest notice shows, and the tracker points at Lily.
+4. Wait about 5 s with no menu open. The prologue's new-quest notice shows, and the tracker points at Lily.
 5. Talk to Lily and pick "The other signal". Her goodbye plays, then the prologue talk, then "On Time" starts and the
    camp travel runs.
 6. In the dungeon, step 1 completes and the arrival talk plays. Use `coop lily signal next` four times to walk steps 2
@@ -193,11 +202,13 @@ back.
 [StellarCoop][LY] title: the rows are in, before any save loads
 [StellarCoop][LY] text: game language fr-FR -> fr; both quests' titles and descriptions, 7 group lines, 5 task lines and her choice's label written and read back
 [StellarCoop][LY] signal watch: asked the native part: signal watch
-[StellarCoop][LY] Phase 5 at M04 with neither quest held, 20 s with no screen: signal prologue asked: asked the native part: signal prologue
+[StellarCoop][LY] Phase 5 at M04 with neither quest held, 5 s with no screen: signal prologue asked: asked the native part: signal prologue
 [StellarCoop][LY] signal prologue: done: signalquest=none ... pro=held prostate=1 progroup=0 protask=1 epic11=3 epic11state=1 asks=1 want=prologue why=none
 [StellarCoop][LY] her choice is offered: lily on
-[StellarCoop][LY] the other signal picked: the prologue talk, then the quest and the travel, in 5 s, after her goodbye
+[StellarCoop][LY] the other signal picked: the prologue talk, then the quest and the travel, after her goodbye (in 5 s if none shows)
 [StellarCoop][LY] talk prologue: Subtitle_POD_1stMeetAdam_01, 17 lines in 21 windows, fr; holds on; colours seen: Seq_Actor_Lily
+[StellarCoop][LY] talk prologue: waits up to 20 s for a cutscene of the game to end (Subtitle_NPC_Start_WLBXionP5_8DF9E0F244F00B5FB379A5938C796E0C)
+[StellarCoop][LY] talk prologue: the cutscene ended after 2.5 s: the theater in 0.5 s
 [StellarCoop][SC] take: Subtitle_NPC_Quinn_Common_Condition1 take 1 Subtitle_NPC_Quinn_Common_Condition1 -> Subtitle_POD_1stMeetAdam_01; read back
 [StellarCoop][LY] rewritten 1/21
 [StellarCoop][LY] rewritten 2/21
@@ -218,7 +229,7 @@ line. The status lines and the native part's own lines are listed in
 
 ## What to check in game
 
-- About 20 s after control returns in the Phase 5 window: the prologue's notice, its journal text, the tracker on
+- About 5 s after control returns in the Phase 5 window: the prologue's notice, its journal text, the tracker on
   "Talk to Lily".
 - The region screen: a quest icon on each region with a Tetrapod Lily. In Eidos 9, whether a second marker sits on an
   empty spot.
