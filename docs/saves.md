@@ -185,6 +185,10 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   with `DLC02_`: the camps `coop mxiii` and `coop mxiii 30` add there, their rows, `DLC02_10_EnvS_906` once the kit is
   activated, `DLC02_30_EnvS_900` after the arrival at the third zone's camp, and the dungeon's own rows, which no camp
   of the released game uses);
+- refuses it, before it writes anything, when any other name in the save starts with `DLC02_` (names that start with
+  `Zone_DLC02_` excepted): the rows of the dungeon's zones the save keeps once it has played there, such as an enemy's
+  saved death, an opened box, a door's state or a pickup. None of the user's 15 released-game saves holds such a name.
+  The game keeps a world's zone state for good, so such a save can never be exported, and the refusal says so;
 - refuses it, before it writes anything, when the save names one of the mod's quests, A Second Signal
   (`Quest_Sub_MX13_00`) or On Time (`Quest_Sub_MX13_01`, both from Lily's signal, see [lily-signal.md](lily-signal.md)),
   anywhere. The save keeps a quest's alias even once it is complete, so there is no way to clear it by playing, and the

@@ -112,12 +112,15 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 25 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii, shop, signal) name those their batch writes, each with its address. The generated kTables describes them all,
-// the two zone tables camp (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which only
-// Matrix XIII's hand-written batch writes, and the last five, which only Lily's signal batch writes: quest
-// (QuestTable), group (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select
-// (TheaterSelectDataTable, whose ID the batch neither writes nor checks: it only patches a shipped row in place).
+// The 32 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// mxiii, shop, signal, mxspawn, mxenv, mxwarp) name those their batch writes, each with its address. kTables describes
+// them all: the generated part's, the two zone tables camp (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger
+// (ZoneTriggerTable), which Matrix XIII's batches write, the five only Lily's signal batch writes: quest (QuestTable),
+// group (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select (TheaterSelectDataTable,
+// whose ID the batch neither writes nor checks: it only patches a shipped row in place), then the seven only Matrix
+// XIII's batches write (lion/mxiii_rows.h): spawn (EventSpawnTable), eitem (EventItemTable), zevent (ZoneEventTable),
+// envc (EventEnvControlTable), transition (WorldTransitionTable), warp (EventZoneWarpTable) and effvol
+// (EffectVolumeTable). None of the seven has a Transient field (SDK stellar-sdk-647527f).
 enum class Table : uint8_t {
   character,
   appearance,
@@ -143,9 +146,16 @@ enum class Table : uint8_t {
   group,
   task,
   target,
-  select
+  select,
+  spawn,
+  eitem,
+  zevent,
+  envc,
+  transition,
+  warp,
+  effvol
 };
-constexpr size_t kTableCount = 25;
+constexpr size_t kTableCount = 32;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -311,6 +321,14 @@ constexpr TableInfo kTables[kTableCount] = {
     {"QuestTaskTable", 0x128, true, {}},         // SBQuestTaskTableProperty
     {"LevelTargetFilter", 0x50, true, {}},       // SBLevelTargetFilterTableProperty
     {"TheaterSelectDataTable", 0xd8, false, {}}, // SBTheaterSelectDataTableProperty
+    // Matrix XIII's world tables (by hand, after the generated ones: the generator knows none of them).
+    {"EventSpawnTable", 0x290, true, {}},      // SBZoneEventSpawnTableProperty
+    {"EventItemTable", 0x80, true, {}},        // SBZoneEventItemTableProperty
+    {"ZoneEventTable", 0x70, true, {}},        // SBZoneEventTableProperty
+    {"EventEnvControlTable", 0x70, true, {}},  // SBEventEnvControlTableProperty
+    {"WorldTransitionTable", 0x88, true, {}},  // SBWorldTransitionTableProperty
+    {"EventZoneWarpTable", 0x70, true, {}},    // SBEventZoneWarpTableProperty
+    {"EffectVolumeTable", 0xc0, true, {}},     // SBEffectVolumeTableProperty
 };
 constexpr Patch kPatches[] = {
     // P_Eve_Sword_Normal_Buff_1 (SkillTable, cut item)
@@ -6330,122 +6348,38 @@ constexpr Row kShopRecipe[] = {
 };
 // ---- End of the generated part ----
 
-// ---- Matrix XIII's batch (coop mxiii), written by hand: the generator holds no zone table ----
-// Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13, whose map no pak ships: the zMXIII_P test pak adds it) has no camp,
-// so SB's camp travel (game/travel.h) cannot reach it. These 8 rows give it one. The camp first. Then DLC02_10_EnvS_900,
-// the camp's first env-spawn row (FUN_141d18100 lists a camp's rows in table order, and AddRow appends), which leads
-// the travel to Zone_DLC02_10 and that zone's world and has no actor. Then the kit, 901 to 906: with EnvBPPath set,
-// FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's env rows are created, as for
-// the shipped supply boxes and DLC02_10_EnvS_441 (the kit rows 420 to 426 have none, so they look for placed actors no
-// pak holds). The zMXIII_P v2 pak has the points; on v1 SB finds none and spawns nothing. Every row names the new camp,
-// so activating, resting, the phone booth and a respawn use DLC02_10_Camp_01, not the kit's placeholder camps
-// (WLB10_Camp_05, SE02_Camp_02). The vending machine comes last: its LinkEnvSpawnList switches the other five kit
-// objects on once a coin activates the camp. It leaves out 900, which has no object (the template links 425 for the
-// camp base actor a full camp places), as Matrix 11's simple vending machine ME_01_EnvS_017 links only its objects.
-// Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK
-// (stellar-sdk-647527f), which the generated kTables reads too; none of the three structs has a Transient field.
-//
-// Then zone 30's camp, so the upper half of the dungeon is reached without the zone 20 climb, which runs on Matrix 11
-// triggers and sequences the test pak does not stream. Two rows, the least a camp travel takes: FUN_141cdd7b0 reads
-// only the camp's first env-spawn row (its Zone, else ZoneList[0], then that zone's world) and the arrival
-// FUN_141a8afe0 puts EVE at the SBSpawnPoint named after the camp, which only the zMXIII_P v3 pak holds. No kit, so
-// nothing there can be activated or rested at, and no coin. DLC02_30_EnvS_900 repeats DLC02_10_EnvS_900's recipe (no
-// DLC02_30 row is an activation-only one) with ZoneList Zone_DLC02_30 (ZoneTable 2810, world DLCMatrix13).
-//
-// Then 5 shipped ZoneTriggerTable rows, patched in place. The DLC02 data starts the zone 20 waves from gates (when
-// DLC02_20_EnvS_014, 018 and 016 reach their Open tag they run DLC02_20_ZoneE_022 to 025, 026 to 028 and 029 to 032,
-// the ZoneEvent spawns 001 to 004, 006 to 008 and 009 to 012) and the zone 40 chains (spawns 003 to 007 and 013 to
-// 015) from triggers DLC02_40_ZTrigger_001 and 002, which start disabled until the drain devices DLC02_40_EnvS_002 and
-// 003 enable them (DLC02_40_E_ObjectC_001, 002). Those gates and devices are placed props of the cut map, which no pak
-// holds (the devices' interaction graph is a greybox asset that is not in the paks either), so neither fires. The test
-// pak puts every DLC02 trigger on a box, so the waves go on three of them: DLC02_20_ZTrigger_001 at the Area02 entry
-// (shipped with no event), 005 at the entrance of the arena and 006 between its halves (each after the gate event it
-// already runs); 40_001 and 40_002 start enabled. That is the smallest set: one field a row, no new row, and every
-// spawn row and zone event stays SB's own. SaveType stays the shipped one: 001 rearms when the zone resets, 005 and 006
-// fire once a save, the zone 40 pair saves nothing.
+// ---- Matrix XIII's batches (coop mxiii), generated by tools/mxiii_rows.py from data/mxiii-world.json ----
+// Four batches, each its own ask so a refusal in one never stops another: mxiii, mxspawn, mxenv and mxwarp. They go in
+// at the title on the co-op save files with the zMXIII_P pak there (cut/mxiii.lua), so a co-op save that names one of
+// their rows loads with it. Each row copies a shipped row of its table; a row whose donor is itself is that shipped row
+// patched in place.
+// mxiii: the camps and what they need. Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13) has no camp, so SB's camp
+// travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first env row DLC02_10_EnvS_900 (no
+// actor: FUN_141cdd7b0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit 901
+// to 906. With EnvBPPath set, FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's
+// env rows are created; the shipped DLC02 kit rows have none and look for placed actors no pak holds, so every kit row
+// gets one, and its TargetCamp names its own camp instead of the placeholders WLB10_Camp_05 and SE02_Camp_02. A
+// vending machine's LinkEnvSpawnList switches its kit objects on once a coin activates the camp; it never names the
+// OnlyActivation row, which has no object (the tested rule of 906). Then zone 30's rest stop DLC02_30_Camp_01 (a simple
+// camp now; the alias stays) with its travel row, the 5 shipped trigger rows of dev (zone 20's waves from triggers 001,
+// 005 and 006, which the cook puts at the arena doorways; zone 40's 001 and 002 start enabled), the other 9 camps of
+// the map (Tetrapod, simple and full), their kits (34 shipped rows patched, 14 new), the three new coins, and zone 0's
+// Tetrapod: machine DLC02_00_EnvS_960, Lily DLC02_00_E_CharS_960 and WorldTransitionTable WT_T_MX13.
+// mxspawn: the Naytibas. The killable Stalker MX13_M_Sawshark (CharacterTable 50071, CHAL_UME_M_Sawshark_01 without
+// Passive_Immortal) first, then the 8 M_DummyC rows patched to shipped Naytibas, the zone 4 trio 035, 036 and 042 made
+// ZoneEvent spawns, 25 new enemy rows and the three bosses (Gardener M_Gardener and Lion M_LionC come from the gardener
+// and lion batches, which cut/mxiii.lua asks first), the 4 zone events that spawn the Gardener and the trio, and the
+// two trigger rows that run them. SB binds a spawn row to the placed SBSpawnPoint whose name equals the row's
+// SpawnPointName field (FUN_14228ce40); every name here is one the cooked map places.
+// mxenv: doors, switches and lifts. The one-way doors 050, 051, 037 and the new 930 to 932 spawn BP_MXIII_Door01; the
+// R29 gate switch spawns the card switch and lists zone 1 and 2; the 55 m lift waits at the top; the 74 m lift's call
+// switches spawn the lift controller, enabled from the start; two kill volumes go under the lift shafts.
+// mxwarp: 72 warp switches with their ZoneEvent_PlayerWarp rows and EventZoneWarpTable rows, one pair beside every
+// lift, rope, climb and critical ladder, so a mechanism that fails never blocks the run.
+// Free names and IDs in the build 24463856 dumps; struct sizes and offsets from the SDK (stellar-sdk-647527f).
 static_assert(kTables[kTableCount - 1].name, "the generated kTables describes every table");
 constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
-// The camp is ME01_Camp_03 (a Matrix 11 FullCamp, CampDisplayType WhenActive) with the coin's spawn point of the test
-// pak, DLC02_10_E_ItemS_001 (EventItemTable spawns the coin there). DLC02_10_EnvS_900 is the kit's activation-only row
-// DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) with its own actor name and the new camp. Each kit row is its kit row
-// (skill machine 420, chair 421, storage 422, turntable 423, phone booth 424, vending machine 426) with its own actor
-// and spawn point names, the blueprint SE02_Camp_02's full camp places, and the new camp. Zone 30's camp is
-// ME03_Camp_03, Area03's FullCamp with no coin (ME03_Camp_01, whose site the v3 pak's arrival point takes, has one).
-constexpr Patch kMxiiiPatches[] = {
-    // DLC02_10_Camp_01 (ZoneCampTable, Matrix XIII)
-    {0x28, Kind::u8, 3, nullptr},                  // CampType
-    {0x60, Kind::name, 0, "DLC02_10_E_ItemS_001"}, // CoinSpawnPointName
-    // DLC02_10_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_900"}, // EnvActorName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_10_EnvS_901 (ZoneEnvSpawnTable, Matrix XIII: skill machine)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_901"}, // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_SkillMachine.Env_Camp_SkillMachine_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_901"}, // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_10_EnvS_902 (ZoneEnvSpawnTable, Matrix XIII: chair)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_902"},                                         // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Chair.Env_Camp_Chair_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_902"},                                         // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                         // TargetCamp
-    // DLC02_10_EnvS_903 (ZoneEnvSpawnTable, Matrix XIII: storage)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_903"},                                             // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Storage.Env_Camp_Storage_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_903"},                                             // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                             // TargetCamp
-    // DLC02_10_EnvS_904 (ZoneEnvSpawnTable, Matrix XIII: turntable)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_904"},                                                 // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Turntable.Env_Camp_Turntable_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_904"},                                                 // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                                 // TargetCamp
-    // DLC02_10_EnvS_905 (ZoneEnvSpawnTable, Matrix XIII: phone booth)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_905"}, // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_905"}, // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_10_EnvS_906 (ZoneEnvSpawnTable, Matrix XIII: vending machine, linking the five kit objects, not 900)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // SpawnPointName
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905"}, // LinkEnvSpawnList
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_30_Camp_01 (ZoneCampTable, Matrix XIII zone 30)
-    {0x28, Kind::u8, 3, nullptr}, // CampType
-    // DLC02_30_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII zone 30)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"},     // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_900"}, // EnvActorName
-    {0x270, Kind::name, 0, "DLC02_30_Camp_01"}, // TargetCamp
-    // DLC02_20_ZTrigger_001 (ZoneTriggerTable, shipped: wave 1)
-    {0x20, Kind::names, 0,
-     "DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025"}, // TouchEvents
-    // DLC02_20_ZTrigger_005 (ZoneTriggerTable, shipped: its gate event, then wave 2)
-    {0x20, Kind::names, 0,
-     "DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028"}, // TouchEvents
-    // DLC02_20_ZTrigger_006 (ZoneTriggerTable, shipped: its gate event, then wave 3)
-    {0x20, Kind::names, 0,
-     "DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032"}, // TouchEvents
-    // DLC02_40_ZTrigger_001 (ZoneTriggerTable, shipped: the chain from spawn 003)
-    {0x1c, Kind::u8, 1, nullptr}, // InitActivate ESBObject_Enable (shipped 2, Disable)
-    // DLC02_40_ZTrigger_002 (ZoneTriggerTable, shipped: the chain from spawn 013)
-    {0x1c, Kind::u8, 1, nullptr}, // InitActivate ESBObject_Enable (shipped 2, Disable)
-};
-constexpr Row kMxiiiRecipe[] = {
-    {Table::camp, "DLC02_10_Camp_01", "ME01_Camp_03", 280001, 0, 2},
-    {Table::env, "DLC02_10_EnvS_900", "DLC02_10_EnvS_425", 2800032900u, 2, 2},
-    {Table::env, "DLC02_10_EnvS_901", "DLC02_10_EnvS_420", 2800032901u, 4, 4},
-    {Table::env, "DLC02_10_EnvS_902", "DLC02_10_EnvS_421", 2800032902u, 8, 4},
-    {Table::env, "DLC02_10_EnvS_903", "DLC02_10_EnvS_422", 2800032903u, 12, 4},
-    {Table::env, "DLC02_10_EnvS_904", "DLC02_10_EnvS_423", 2800032904u, 16, 4},
-    {Table::env, "DLC02_10_EnvS_905", "DLC02_10_EnvS_424", 2800032905u, 20, 4},
-    {Table::env, "DLC02_10_EnvS_906", "DLC02_10_EnvS_426", 2800032906u, 24, 5},
-    {Table::camp, "DLC02_30_Camp_01", "ME03_Camp_03", 281001, 29, 1},
-    {Table::env, "DLC02_30_EnvS_900", "DLC02_10_EnvS_425", 2810032900u, 30, 3},
-    {Table::trigger, "DLC02_20_ZTrigger_001", "DLC02_20_ZTrigger_001", 280501001, 33, 1},
-    {Table::trigger, "DLC02_20_ZTrigger_005", "DLC02_20_ZTrigger_005", 280501005, 34, 1},
-    {Table::trigger, "DLC02_20_ZTrigger_006", "DLC02_20_ZTrigger_006", 280501006, 35, 1},
-    {Table::trigger, "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_001", 281501001, 36, 1},
-    {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002, 37, 1},
-};
+#include "lion/mxiii_rows.h"
 
 // ---- Lily's signal batch (story/lily.lua), written by hand: the generator holds no quest table ----
 // The mod's own quests. The prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164, a Sub quest), which
@@ -6608,6 +6542,9 @@ constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe
 constexpr size_t kTendrilRows = sizeof kTendrilRecipe / sizeof kTendrilRecipe[0];
 constexpr size_t kBoltRows = sizeof kBoltRecipe / sizeof kBoltRecipe[0];
 constexpr size_t kMxiiiRows = sizeof kMxiiiRecipe / sizeof kMxiiiRecipe[0];
+constexpr size_t kMxspawnRows = sizeof kMxspawnRecipe / sizeof kMxspawnRecipe[0];
+constexpr size_t kMxenvRows = sizeof kMxenvRecipe / sizeof kMxenvRecipe[0];
+constexpr size_t kMxwarpRows = sizeof kMxwarpRecipe / sizeof kMxwarpRecipe[0];
 constexpr size_t kShopRows = sizeof kShopRecipe / sizeof kShopRecipe[0];
 constexpr size_t kSignalRows = sizeof kSignalRecipe / sizeof kSignalRecipe[0];
 // A batch: its rows, the patches their first and count index (the generated kPatches unless said) and its word, which
@@ -6621,7 +6558,9 @@ struct Batch {
 constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows},
     kTendril{"tendril", kTendrilRecipe, kTendrilRows}, kBolt{"bolt", kBoltRecipe, kBoltRows},
     kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches}, kShop{"shop", kShopRecipe, kShopRows},
-    kSignal{"signal", kSignalRecipe, kSignalRows, kSignalPatches};
+    kSignal{"signal", kSignalRecipe, kSignalRows, kSignalPatches},
+    kMxspawn{"mxspawn", kMxspawnRecipe, kMxspawnRows, kMxspawnPatches},
+    kMxenv{"mxenv", kMxenvRecipe, kMxenvRows, kMxenvPatches}, kMxwarp{"mxwarp", kMxwarpRecipe, kMxwarpRows, kMxwarpPatches};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -6665,7 +6604,7 @@ struct Answer {
   uint32_t detail = 0; // size: the size read (24 bits); net: the net mode read.
 };
 static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256 && kMxiiiRows < 256 &&
-                  kShopRows < 256 && kSignalRows < 256,
+                  kShopRows < 256 && kSignalRows < 256 && kMxspawnRows < 256 && kMxenvRows < 256 && kMxwarpRows < 256,
               "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
@@ -6701,7 +6640,7 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
-  // One run over the batch (see the top of this file). tables: the 25 tables' addresses as Lua found them, in Table's
+  // One run over the batch (see the top of this file). tables: the 32 tables' addresses as Lua found them, in Table's
   // order (0 for a table the batch never writes, which is never read); block: kBlock bytes of the glue's, 16-aligned;
   // base: SB's image base. Runs every row not added yet and stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
@@ -6939,7 +6878,7 @@ private:
 };
 
 // coop-status.txt's line for a batch (cut/lion.lua reads lion=, bolt= and shop=, cut/gardener.lua gardener=,
-// cut/tendril.lua tendril=, cut/mxiii.lua mxiii=, story/lily.lua signal=), from its answer word, its read-back, the
+// cut/tendril.lua tendril=, cut/mxiii.lua mxiii=, mxspawn=, mxenv= and mxwarp=, story/lily.lua signal=), from its answer word, its read-back, the
 // frames its ask waited, the spawn manager's counter and, after the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>

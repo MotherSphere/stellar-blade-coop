@@ -70,7 +70,7 @@ do
     for n in assert(src:match('constexpr TableInfo kTables%[kTableCount%] = {(.-)\n};')):gmatch('{"(%a+)", 0x') do
         names[#names+1]=n
     end
-    assert(#enum==25 and #names==25,'25 tables')
+    assert(#enum==32 and #names==32,'32 tables')
     for i,n in ipairs(names) do assert(L.TABLES[i]==n,'kLionTables order: '..n) end
     local block=assert(src:match('constexpr Patch kPatches%[%] = {\n(.-)\n};'))
     local patches,pending,line,closed_at={},nil,1,nil
@@ -1227,5 +1227,17 @@ do
     end
     assert(seen.ServerRequest_CreateActor==1 and seen.SpawnDefaultController==1 and seen.K2_DestroyComponent==1,
         'One spawn call, one controller, one destroy of its own component')
+end
+-- adopt, for a Lion the game spawned from a row (cut/mxboss.lua): nothing to do on a mesh that has an anim instance;
+-- on one without, its own class built again, which gives it one here.
+do
+    local m=object({has=true})
+    m.GetAnimInstance=function(self) return self.has and object({}) or nil end
+    m.SetAnimationMode=function(self,mode) if mode==0 then self.has=true end end
+    local body=object({Mesh=m})
+    assert(lion.adopt(body)=='its mesh has an anim instance: nothing to do')
+    m.has=false
+    local said=lion.adopt(body)
+    assert(said=='its own class built one' and m.has,said)
 end
 print('lion_test: ok')

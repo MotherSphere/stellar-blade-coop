@@ -1304,3 +1304,14 @@ do
     local text,e,code=require('core.link').files.read('tests/no such file.txt')
     assert(text==nil and type(e)=='string' and code==2,tostring(code))
 end
+-- The real read with a limit and an offset (cut/mxiii.lua reads a container's .ucas window by window).
+do
+    local path=os.tmpname()
+    local f=assert(io.open(path,'wb'))
+    f:write('0123456789')
+    f:close()
+    local read=require('core.link').files.read
+    assert(read(path)=='0123456789' and read(path,4)=='0123' and read(path,4,6)=='6789' and read(path,4,8)=='89'
+        and read(path,4,20)=='')
+    os.remove(path)
+end

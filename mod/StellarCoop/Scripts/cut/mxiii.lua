@@ -3,12 +3,12 @@
 -- holds its map, /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, and no row of the game leads to its world. The zMXIII_P
 -- test pak, built outside the mod and never shipped with it, adds a map at that path. On the game thread, in order: the
 -- checks the travel needs, once a command (the follow's own guards: solo, a co-op save, the native travel there and
--- none under way; then the test pak, v1, v2 or v3); the native part's mxiii rows batch (lion/rows.h: the 8 rows of the
--- camp, ZoneCampTable DLC02_10_Camp_01, then 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp names it:
--- DLC02_10_EnvS_900, which leads the travel there, and the kit 901 to 906, which SB spawns at the v2 pak's spawn points
--- of those names, through the game's own row call with no logic task in flight; then zone 30's camp with no kit,
--- DLC02_30_Camp_01 and its row DLC02_30_EnvS_900 in Zone_DLC02_30; then 5 shipped ZoneTriggerTable rows patched in
--- place, so the zone 20 waves and the zone 40 chains of spawns fire without the cut map's gates and drain devices),
+-- none under way; then the test pak, v1, v2 or v3); the native part's mxiii rows batch (lion/mxiii_rows.h, written by
+-- tools/mxiii_rows.py from data/mxiii-world.json: the zone 10 camp DLC02_10_Camp_01 with DLC02_10_EnvS_900, which
+-- leads the travel there, and its kit 901 to 906, which SB spawns at the pak's spawn points of those names; zone 30's
+-- rest stop DLC02_30_Camp_01; 5 shipped ZoneTriggerTable rows patched in place, so the zone 20 waves and the zone 40
+-- chains of spawns fire without the cut map's gates and drain devices; then the map's other camps, their kits and
+-- coins, and zone 0's Tetrapod with Lily), added by SB's own row call with no logic task in flight,
 -- through cut/enemy.lua's rows flow (the tables, the ask, the wait, the read-back); then SB's camp travel to
 -- DLC02_10_Camp_01 through the follow's probe (session/travel.lua; the native part's game/travel.h). coop mxiii 30 is
 -- the same with the travel to DLC02_30_Camp_01, which reaches the dungeon's upper half without the zone 20 climb (it
@@ -18,7 +18,12 @@
 -- rows stay for the game run; a second coop mxiii reads them back and travels again. The same batch goes in on its own
 -- at the title, before any save loads, while the game uses the co-op save files and the test pak is there (title()
 -- below), so a co-op save that names a mod camp or row (the respawn camp at FSBActor +0x26d0, the save's activated
--- camps and last camp rows) loads with them, and coop mxiii then only reads them back and travels. The way out is
+-- camps and last camp rows) loads with them, and coop mxiii then only reads them back and travels. At the title the
+-- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the doors, lifts and loot, the warps,
+-- then the Lion's and the Gardener's own rows that the boss spawn rows name); coop mxiii asks no travel until they all
+-- read rows. In world 2800 the tick spawns the ladders and
+-- ledges (cut/mxmove.lua) and fixes the Lion and Gardener the game spawns (cut/mxboss.lua); coop mxiii boss spawns
+-- the key-0 boss of the arena EVE stands in. The way out is
 -- coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the
 -- read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the
 -- read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
@@ -34,9 +39,12 @@
 -- keeps a number written with a leading zero as text); v1 and v2 have no such name.
 -- shortcut: the live folder, not what the engine mounted at start, so a pak copied in while the game runs passes;
 -- upgrade to the native part's start list (game/pak_list.h) if that happens in a test.
--- shortcut: the .ucas's first 16 MB, uncompressed as retoc writes it; an Oodle-compressed container, or one whose
--- MXIII_10_LD or MXIII_30_LD lies past 16 MB, reads as an older version. Upgrade to the .utoc's chunk offsets if a
--- build does either.
+-- The .ucas is read in windows of 16 MB up to its end as the .utoc's compression blocks give it (the header's block
+-- count and entry size, after the chunk IDs and offsets; UE 4.26's FIoStoreTocHeader, version 2 as retoc writes it),
+-- so a full map's container of 30 MB or more is read whole, never more than a window at a time, and the reads stop
+-- once both names are found. A .utoc whose header does not read as one gives the first window only.
+-- shortcut: an Oodle-compressed container (a compression method in the .utoc) reads as v1 or as what its compressed
+-- bytes happen to hold; retoc writes ours uncompressed.
 local Enemy=require('cut.enemy')
 local Mxiii={}
 Mxiii.CAMP='DLC02_10_Camp_01'
@@ -57,7 +65,23 @@ Mxiii.VERSIONS={
     'v3 ('..Mxiii.CAMP30..' point in its .ucas: v2 and a zone 30 camp with no kit; coop mxiii 30 arrives at 26392 '
         ..'-23650 4414)'}
 local LIMIT=1<<20 -- Bytes read of a .utoc: its directory index comes last, under 1 KB for the test pak's two maps.
-local UCAS=1<<24 -- Bytes read of a .ucas: v1's is 793 KB, with the names 9 KB in; v3's 2.2 MB.
+Mxiii.WINDOW=1<<24 -- Bytes a read of the .ucas takes: v1's is 793 KB, with the names 9 KB in; v3's 2.2 MB.
+local OVERLAP=64 -- Bytes each window repeats of the last one, so a name across two windows is found.
+-- The .ucas's size as the .utoc's compression blocks give it (the furthest offset plus compressed size), or nil when
+-- the text does not read as a .utoc header.
+function Mxiii.ucas_size(utoc)
+    if #utoc<144 or utoc:sub(1,16)~='-==--==--==--==-' then return nil end
+    local header,entries,blocks,size=string.unpack('<I4I4I4I4',utoc,21)
+    local first=header+entries*22+1 -- Past the chunk IDs (12 bytes each) and their offsets and lengths (10).
+    if header~=144 or size~=12 or blocks<1 or first+blocks*12-1>#utoc then return nil end
+    local last=0
+    for k=0,blocks-1 do
+        local at=first+k*12
+        local offset=string.unpack('<I5',utoc,at)
+        last=math.max(last,offset+string.unpack('<I3',utoc,at+5))
+    end
+    return last
+end
 -- SB lists every camp's env-spawn rows in FSBGameWorld::Init (FUN_141c97ca0 makes the zone manager, whose setup runs
 -- FUN_141d18100 over ZoneEnvSpawnTable), so the world the rows went in on may know neither camp until the next one
 -- (not when they went in at the title). Read from the code, untested.
@@ -65,59 +89,29 @@ local function hint(camp,command)
     return 'if [TR] says SB refused '..camp..': SB lists the camps when its world starts, maybe before these rows; '
         ..'load the save or travel to a camp, then run '..command..' again (the rows stay in)'
 end
--- The rows as cut/enemy.lua reads them back (rows.h's kMxiiiRecipe and kMxiiiPatches; mxiii_test checks them against
--- it). The camp copies ME01_Camp_03 (a FullCamp, shown in the camp list once activated) with the coin's spawn point;
--- DLC02_10_EnvS_900 copies the kit's activation-only row DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) under its own actor
--- name, with the new camp; each kit row copies its kit row (420 to 424, then the vending machine 426) and spawns its
--- blueprint at the spawn point of its own name; the vending machine switches the other five kit objects on once
--- activated (not 900, which has no object). Zone 30's camp copies ME03_Camp_03 (a FullCamp with no coin) and its row
--- is DLC02_10_EnvS_900's recipe in Zone_DLC02_30. The trigger rows are SB's own, so their read-back proves the patch:
--- none of those values is the shipped one.
-local ENV='/Game/GameDesign/Level/ZoneEnv/'
-local function kit(n,blueprint,links)
-    local name='DLC02_10_EnvS_'..n
-    local checks={{'EnvActorName','n',name,true},{'EnvBPPath','s',ENV..blueprint,true},
-        {'SpawnPointName','n',name,true},{'TargetCamp','n',Mxiii.CAMP,true}}
-    if links then checks[#checks+1]={'LinkEnvSpawnList','N',links,true} end
-    return {'ZoneEnvSpawnTable',name,2800032000+n,checks}
-end
--- The shipped trigger rows patched in place, under their shipped IDs: zone 20's three touch their wave's zone events
--- (DLC02_20_ZoneE_022 to 032, which the cut gates ran) after the events they ship with; zone 40's two start enabled
--- (InitActivate 1, shipped 2) instead of waiting for the drain devices.
-local function trigger(zone,n,touch)
-    local checks=touch and {{'TouchEvents','N',touch,true}} or {{'InitActivate','e',1,true}}
-    return {'ZoneTriggerTable',string.format('DLC02_%d_ZTrigger_%03d',zone,n),(zone==20 and 280501000 or 281501000)+n,
-        checks}
-end
-Mxiii.ROWS=Enemy.rows({
-    {'ZoneCampTable',Mxiii.CAMP,280001,
-        {{'CampType','e',3,false},{'CoinSpawnPointName','n','DLC02_10_E_ItemS_001',true}}},
-    {'ZoneEnvSpawnTable','DLC02_10_EnvS_900',2800032900,
-        {{'EnvActorName','n','DLC02_10_EnvS_900',true},{'TargetCamp','n',Mxiii.CAMP,true}}},
-    kit(901,'Env_Camp_SkillMachine.Env_Camp_SkillMachine_C'),
-    kit(902,'Env_Camp_Chair.Env_Camp_Chair_C'),
-    kit(903,'Env_Camp_Storage.Env_Camp_Storage_C'),
-    kit(904,'Env_Camp_Turntable.Env_Camp_Turntable_C'),
-    kit(905,'Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C'),
-    kit(906,'Env_VendingMachine.Env_VendingMachine_C',
-        'DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905'),
-    {'ZoneCampTable',Mxiii.CAMP30,281001,{{'CampType','e',3,false}}},
-    {'ZoneEnvSpawnTable','DLC02_30_EnvS_900',2810032900,
-        {{'ZoneList','N','Zone_DLC02_30',true},{'EnvActorName','n','DLC02_30_EnvS_900',true},
-            {'TargetCamp','n',Mxiii.CAMP30,true}}},
-    trigger(20,1,'DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025'),
-    trigger(20,5,'DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028'),
-    trigger(20,6,'DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032'),
-    trigger(40,1),
-    trigger(40,2),
-})
+-- The rows as cut/enemy.lua reads them back: cut/mxiii_rows.lua, which tools/mxiii_rows.py writes from
+-- data/mxiii-world.json with lion/mxiii_rows.h (mxiii_test checks the two agree). The mxiii batch holds the camps and
+-- what they need (their env rows, coins, zone 0's Tetrapod and Lily); the dev rows come first, in their order.
+local Rows=require('cut.mxiii_rows')
+Mxiii.ROWS=Enemy.rows(Rows.MXIII)
+-- The other batches, each its own ask: Matrix XIII's spawn rows, doors, lifts and loot (supply boxes and pickups),
+-- warps (lion/mxiii_rows.h), then the Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC and
+-- M_Gardener the boss spawn rows name. At the title they go in once the mxiii rows are in, one after the other, and
+-- coop mxiii travels only once every one of them reads rows.
+Mxiii.BATCHES={
+    {word='mxspawn',name='Matrix XIII Naytiba',rows=Enemy.rows(Rows.MXSPAWN)},
+    {word='mxenv',name='Matrix XIII door, lift and loot',rows=Enemy.rows(Rows.MXENV)},
+    {word='mxwarp',name='Matrix XIII warp',rows=Enemy.rows(Rows.MXWARP)},
+    {word='lion',name='Lion',rows=Enemy.rows(require('cut.lion_rows').ROWS)},
+    {word='gardener',name='Gardener',rows=Enemy.rows(require('cut.lion_rows').GARDENER)},
+}
 -- SB/Content/Paks from the mod's folder (...\SB\Binaries\Win64\[ue4ss\]Mods\StellarCoop), or nil.
 function Mxiii.paks_of(folder)
     local sb=type(folder)=='string' and folder:match('^(.*)[\\/][Bb]inaries[\\/][Ww]in64[\\/]')
     return sb and sb..'\\Content\\Paks' or nil
 end
 -- The test pak's .utoc that names the map, beside its .pak and .ucas, and its version (1, 2 or 3), or nil and why.
--- paks: SB/Content/Paks (nil: unknown); read(path, limit): core/link.lua's files.read (the text, or nil when the file
+-- paks: SB/Content/Paks (nil: unknown); read(path, limit, offset): core/link.lua's files.read (the text, or nil when the file
 -- cannot be opened).
 function Mxiii.find_map(paks,read)
     if not paks then return nil,'the game folder is unknown (the mod folder is not under SB\\Binaries\\Win64)' end
@@ -132,11 +126,19 @@ function Mxiii.find_map(paks,read)
             local got={}
             for _,ext in ipairs({'.pak','.ucas'}) do
                 local other=path:sub(1,-6)..ext
-                got[ext]=read(other,ext=='.ucas' and UCAS or 1)
+                got[ext]=read(other,ext=='.ucas' and Mxiii.WINDOW or 1)
                 if not got[ext] then return nil,'no '..other..' beside '..path end
             end
-            local ucas=got['.ucas']
-            return path,ucas:find(Mxiii.CAMP30,1,true) and 3 or ucas:find(Mxiii.KIT,1,true) and 2 or 1
+            -- The .ucas, window after window (the first one read above), while a name is still unseen.
+            local ucas,size=path:sub(1,-6)..'.ucas',Mxiii.ucas_size(text) or Mxiii.WINDOW
+            local camp30,kit,at=false,false,0
+            repeat
+                local window=at==0 and got['.ucas'] or read(ucas,Mxiii.WINDOW,at) or ''
+                camp30=camp30 or window:find(Mxiii.CAMP30,1,true)~=nil
+                kit=kit or window:find(Mxiii.KIT,1,true)~=nil
+                at=at+Mxiii.WINDOW-OVERLAP
+            until (camp30 and kit) or at>=size or #window<Mxiii.WINDOW
+            return path,camp30 and 3 or kit and 2 or 1
         end
         tried[#tried+1]=path
     end
@@ -192,7 +194,8 @@ function Mxiii.new(o)
     -- coop mxiii [30]: the checks, the rows, then the travel to the zone 10 camp, or with 30 to the zone 30 camp.
     function self.command(extra)
         if extra=='leave' then return leave() end
-        if extra~=nil and extra~='30' then return false,'Use: coop mxiii [30|leave]' end
+        if extra=='boss' then return self.boss() end
+        if extra~=nil and extra~='30' then return false,'Use: coop mxiii [30|leave|boss]' end
         local camp,command=Mxiii.CAMP,'coop mxiii'
         if extra then camp,command=Mxiii.CAMP30,'coop mxiii 30' end
         local busy=e.busy()
@@ -218,21 +221,63 @@ function Mxiii.new(o)
             return false,command..' needs the v3 zMXIII_P test pak: '..map..' is v'..said..', with no '..camp
                 ..' spawn point for the arrival: nothing was asked'
         end
+        -- The other batches go in at the title only. Without them world 2800 has no Naytibas, doors, lifts, loot or
+        -- warp switches (the fallback of every lift and ladder), and a peer's shared Naytibas match no spawn row.
+        for _,b in ipairs(Mxiii.BATCHES) do
+            local s=Enemy.parse(o.status and o.status(),b.word)
+            if not (s and s.state=='rows') then
+                log('refused: '..b.word..' rows not in')
+                return false,command..': the '..b.name..' rows are not in ('..(s and s.state or 'no line')
+                    ..'): return to the title with the co-op save files, then run '..command..' again'
+            end
+        end
         return e.rows(function(ok,message) return warp(camp,command,ok,message) end)
     end
     -- The title's batch (cut/enemy.lua's title_batch): while the game uses the co-op save files and the test pak is
     -- there (looked for once a Lua load; with none there is nothing to add, and nothing is said: most players have
     -- none).
     local pak=nil
-    local title,title_stop=e.title_batch(function()
+    local function ready()
         if pak==nil then pak=select(2,Mxiii.find_map(o.paks,o.read)) end
         return type(pak)=='number' and 'the co-op save files and test pak v'..pak or nil
-    end,'coop mxiii')
-    self.title=title
-    self.tick=e.tick
-    -- coop off ends the wait without its end, so a title batch asked is free to ask again at the next call.
+    end
+    local title,title_stop=e.title_batch(ready,'coop mxiii')
+    -- The other batches at the title, each once the batch before it has an answer (its line reads rows, or refused:
+    -- a refusal in one never holds the others back), so one ask runs at a time and the mxiii rows keep the first one.
+    local others,previous={},'mxiii'
+    for _,b in ipairs(Mxiii.BATCHES) do
+        local x=Enemy.new({log=function(m) log(b.word..' '..m) end,ask=o.ask,status=o.status},
+            {word=b.word,name=b.name,command='coop mxiii',tag='[MX]',rows=b.rows,ids={}})
+        local t,stop=x.title_batch(ready,'a return to the title')
+        others[#others+1]={e=x,title=t,stop=stop,after=previous}
+        previous=b.word
+    end
+    -- The ladders and ledges (cut/mxmove.lua) and the bosses the game spawns (cut/mxboss.lua), in world 2800 only.
+    local move=require('cut.mxmove').new({log=function(m) log('[MXMOVE] '..m) end})
+    local boss=require('cut.mxboss').new({log=function(m) log('[MXBOSS] '..m) end,lion=o.lion,gardener=o.gardener})
+    function self.title(at_title,coop)
+        title(at_title,coop)
+        for _,x in ipairs(others) do
+            local s=Enemy.parse(o.status and o.status(),x.after)
+            if s and (s.state=='rows' or s.state=='refused') then x.title(at_title,coop) end
+        end
+    end
+    -- coop mxiii boss: the key-0 boss of the arena EVE stands in, when the game spawned none there.
+    self.boss=boss.command
+    function self.tick()
+        local ok,message=e.tick()
+        for _,x in ipairs(others) do x.e.tick() end
+        move.tick()
+        boss.tick()
+        return ok,message
+    end
+    -- coop off ends the waits without their end, so a title batch asked is free to ask again at the next call.
     function self.stop()
         title_stop()
+        for _,x in ipairs(others) do
+            x.stop()
+            x.e.stop()
+        end
         return e.stop()
     end
     return self

@@ -73,7 +73,9 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
-| `cut/mxiii.lua` | `coop mxiii [30]`: the test pak's check (v1, v2 or v3), Matrix XIII's 10 camp rows and 5 trigger patches through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01`, or with 30 to `DLC02_30_Camp_01` on v3 only ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `cut/mxiii.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1, v2 or v3, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01`, or with 30 to `DLC02_30_Camp_01` on v3 only; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `cut/mxiii_rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders and ledges and the boss points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
+| `cut/mxmove.lua`, `cut/mxboss.lua` | In world 2800: the ladders and ledges spawned at run time, and the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `story/lily.lua`, `story/lily_text.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)) |
 | `story/subtitles.lua` | Lily's talks: an unused subtitle sequence played through `cut/scene.lua`'s talk, a hook on the subtitle slot's `UpdateText` that writes the mod's lines, the reading holds, the fallbacks and the kit version ([Lily's signal](#lilys-signal-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
@@ -1595,13 +1597,14 @@ TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<addres
 ItemConsumableTable=0x<address>
 ```
 
-It is one line in `coop-request.txt`. The native part knows 25 tables (`kLionTables`, the 14 above, then
+It is one line in `coop-request.txt`. The native part knows 32 tables (`kLionTables`, the 14 above, then
 ProjectileTable, ZoneCampTable, ZoneEnvSpawnTable, ShopTable, ShopItemTable, ZoneTriggerTable, QuestTable,
-QuestTaskGroupTable, QuestTaskTable, LevelTargetFilter and TheaterSelectDataTable); a request names 1 to 25 of them,
-each once, in any order, and the others stay 0, which a batch that writes that table refuses as no UDataTable. So a
-table no row of the batch uses, not loaded at that moment, stops nothing. A request naming all 25 would take 813 bytes
-at most with the 12 hex digits Lua's `%x` gives the highest plausible address and its line end; the native part reads
-up to 1024 bytes of that file.
+QuestTaskGroupTable, QuestTaskTable, LevelTargetFilter, TheaterSelectDataTable, then Matrix XIII's EventSpawnTable,
+EventItemTable, ZoneEventTable, EventEnvControlTable, WorldTransitionTable, EventZoneWarpTable and EffectVolumeTable);
+a request names 1 to 32 of them, each once, in any order, and the others stay 0, which a batch that writes that table
+refuses as no UDataTable. So a table no row of the batch uses, not loaded at that moment, stops nothing. A request
+naming all 32 would take 1043 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible address and
+its line end (1171 with 16 digits); the native part reads up to 2048 bytes of that file.
 Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console
 word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
 slot and its row size.
@@ -2123,8 +2126,8 @@ site: their rows belong to `Zone_ME_03`, which never starts in this world, and t
 other Matrix 11 camps in its levels: two more in Area03, two in Area04 and one in Area01
 ([Achievements](#achievements)).
 
-The two zone tables are the sixteenth and seventeenth of the 25 tables every rows request names (`kLionTables`), and
-only this batch writes them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
+The two zone tables are the sixteenth and seventeenth of the 32 tables every rows request names (`kLionTables`), and
+only Matrix XIII's batches write them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
 line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
 its 38 patched fields back (the 33 of the camp rows and the 5 of the trigger rows below), `EnvBPPath` as text and
@@ -2236,7 +2239,7 @@ run.
 `cut/mxiii.lua`'s `title()`, called from `main.lua`'s 250 ms loop, asks the batch when three things hold: the title
 screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of `session/saves.lua`, so
 never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a Lua load, and nothing
-is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to keep: the 25 tables
+is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to keep: the tables
 found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic task in flight), the
 shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`, nothing is asked again
 in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its 300
@@ -2275,6 +2278,74 @@ What the title holds, read in Ghidra on build 24463856:
 
 The rows stay in for the game run, also when the player then turns the co-op saves off and loads one of their own:
 nothing in the main game leads to the dungeon or its camps.
+
+### Matrix XIII's world rows
+
+The cooked map (the full-build pak of all four zones) places a spawn point, trigger box, zone volume and waypoint
+chain for every row the dungeon needs, and the rows themselves come from the mod. `data/mxiii-world.json` holds them
+all, each as a copy of a shipped row (its donor) with the fields that differ; `tools/mxiii_rows.py` writes
+`native/src/lion/mxiii_rows.h` and `cut/mxiii_rows.lua` from it, so the native batches and the Lua read-back never
+disagree (`tests/tools/mxiii_rows_test.py` fails when either file is out of date). The generator knows each field's
+offset in its row struct from the SDK (stellar-sdk-647527f) and refuses an unknown field, two fields on the same
+bytes, a batch of 256 rows or more, and a name given twice. The data file is built outside the repository from the
+cook's manifest and the build 24463856 table dumps.
+
+Four batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxwarp rows`), so a refusal in one never
+stops another:
+
+- `mxiii`, 78 rows: the 15 rows of the camp work above (the zone 3 rest stop `DLC02_30_Camp_01` is now a simple camp
+  with its coin `DLC02_30_E_ItemS_001`), then the nine other camps of the map (the zone 0 Tetrapod camp
+  `DLC02_00_Camp_00`, simple and full camps in every zone), their kits (34 shipped rows patched in place with a
+  blueprint, a spawn point and the camp's name; 14 new rows for the two new full camps), the three new coins, and zone
+  0's Tetrapod: the machine `DLC02_00_EnvS_960`, Lily `DLC02_00_E_CharS_960` (a copy of her Great Desert row with her
+  Tetrapod graph) and WorldTransitionTable `WT_T_MX13`. Every vending machine links its kit objects but never an
+  OnlyActivation row, the rule the zone 1 camp's 906 tested.
+- `mxspawn`, 46 rows: `MX13_M_Sawshark` (CharacterTable 50071, the Stalker `CHAL_UME_M_Sawshark_01` without
+  `Passive_Immortal`, so it dies at 0 HP without Matrix 11's finisher), the 8 `M_DummyC` rows patched to shipped
+  Naytibas (zone 3's to `DED_M_ClriketAGround_01`, zone 4's to `WLB_M_AntlionE_01`), the zone 4 rows 035, 036 and 042
+  made ZoneEvent spawns, 25 new enemy rows from the 29 October roster (each bound to the spawn point of its own name,
+  walking its waypoint chain), the three bosses (`DLC02_20_E_CharS_904` the Gardener, a ZoneEvent spawn from
+  `DLC02_20_ZTrigger_002`; `DLC02_30_E_CharS_029` the Stalker; `DLC02_40_E_CharS_051` the Lion; all SaveType Save, no
+  patrol, RewardGroup `m_beach_elite1`), the four zone events that spawn the Gardener and the zone 4 trio, and the two
+  trigger rows that run them.
+- `mxenv`, 163 rows: the one-way doors 050, 051 and 037 and new doors 930 to 932 spawn `BP_MXIII_Door01_C`; the R29
+  gate switch spawns `Env_CardControl_Switch2_C` and, with the gate, lists zones 10 and 20; the 55 m lift waits at the
+  top; the 74 m lift's call switches spawn `BP_Env_LiftController_C` enabled from the start; two kill volumes go under
+  the lift shafts. Then the loot: the 10 shipped supply box rows, which ship with no blueprint and no spawn point, are
+  patched in place with `BP_Env_SupplyBox01_C` (the class of `Env_SupplyBox_Normal01` boxes in the shipped levels) and
+  the point of their own name; 54 new boxes copy `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and
+  in their zone; 86 new pickups copy `DLC02_10_E_ItemS_001` with the item and count of their map marker
+  (`BetaCrystal` x12 where the marker names none). The 25 records wait for the records batch.
+- `mxwarp`, 216 rows: 72 warp switches (copies of the two-phase switch `DLC02_10_EnvS_432` with the card switch
+  blueprint, SaveType None so a rest brings a used one back), each with a ZoneEvent_PlayerWarp row and an
+  EventZoneWarpTable row of the same name that sends EVE to the cooked spawn point `DLC02_<zone>_WarpPoint_<n>` in
+  `DLCMatrix13`. There is one pair beside every lift, rope, climb and critical ladder, so a mechanism that does not
+  work never blocks the way.
+
+At the title, once the `mxiii=` line has an answer, `cut/mxiii.lua` asks the others one at a time, each once the batch
+before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`, `mxwarp`, then
+the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC` and `M_Gardener` the boss spawn rows name. All
+go in before any save loads, since the zone manager lists a world's rows when the world starts. `coop mxiii` asks no
+travel until every one of these lines reads `rows`, and names the first batch that does not: the travel would reach a
+dungeon without its Naytibas or its warp switches, and a peer's shared Naytibas would match no spawn row.
+
+In world 2800, `cut/mxiii.lua`'s tick runs two more files. `cut/mxmove.lua` spawns SB's `BP_EM_Ladder_C` at the 37
+ladder feet of the map with each one's `TotalHeight` (and Matrix 11's head and collision values) and `BP_EM_Ledge_C` at
+the five R16 climb markers, once a world: a cooked map never reruns a placed actor's construction script, so the
+height must reach it at spawn. The spawn is deferred (`BeginDeferredActorSpawnFromClass`, the fields,
+`FinishSpawningActor`); if that call fails, `SpawnActor` and a second `UserConstructionScript` call take over for the
+rest of the Lua load. Each spawn logs an `[MX] [MXMOVE]` line. `cut/mxboss.lua` looks, once a second while EVE is within
+80 m of a boss point, for a body of the Lion's or the Gardener's blueprint within 30 m of it, and fixes it once: the
+Lion through `cut/lion.lua`'s `adopt` (its anim instance, else the hidden Behemoth leader that `coop lion` uses), the
+Gardener's mesh turned -90 degrees. While one lives, the boss bar shows its name. EVE standing 20 s within 25 m of a
+boss point with no body there gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that arena's boss
+through `coop lion` or `coop gardener fight` (key 0, no saved death). It never runs by itself: a boss killed before
+stays dead through its row's SaveType, and an automatic spawn would bring it back at each visit.
+
+The export check (`save/twins.h`) refuses a co-op save holding any FString that starts with `DLC02_` outside the camp
+fields it already reads (names that start with `Zone_DLC02_` excepted, every save holds them). None of the user's 15
+released-game saves holds one; a save that played the dungeon keeps its zones' rows for good, so it can never be
+exported.
 
 ### Open questions
 
@@ -2470,8 +2541,8 @@ Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp 
    template, an FName not made) leaves the 24 quest rows in: the table checks (class, AddRow slot, row size) run for
    every table of the batch before any row, so a TheaterSelectDataTable that fails them stops the batch with no row
    in. The batch neither writes nor checks a TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds
-   that table's IDs is not known). The native part knows 25 tables, the 5 quest ones last; the signal request names
-   those 5 only.
+   that table's IDs is not known). The native part knows 32 tables, the 5 quest ones after the first 20; the signal
+   request names those 5 only.
 2. When: only with the test pak, since nothing else uses the rows and AddRow on these tables has not run in game. At the
    title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, which `cut/mxiii.lua` uses too),
    so a co-op save that holds a quest finds its rows when it loads; in game on a co-op save, once a Lua load, asked or,

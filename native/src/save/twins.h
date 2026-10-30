@@ -228,12 +228,13 @@ inline std::string mod_only(const std::string &b) {
     return w;
   };
   // Where a camp field's value is a row of the dungeon: head is the field up to the value, skip the bytes between.
+  std::vector<size_t> camp_values; // Where those values start, which the dungeon's other names below leave out.
   auto cut = [&](const std::string &head, size_t skip) {
     int w = 0;
     for (size_t at = b.find(head); at != std::string::npos; at = b.find(head, at + 1)) {
       const size_t value = std::min<size_t>(at + head.size() + skip + 4, b.size()); // Past the FString's length.
       if (b.compare(value, sizeof kMxiiiRows - 1, kMxiiiRows) == 0)
-        w |= in(at);
+        w |= in(at), camp_values.push_back(value);
     }
     return w;
   };
@@ -309,14 +310,34 @@ inline std::string mod_only(const std::string &b) {
         stuck + " in its New Game+ snapshot: playing does not change that snapshot, so only a copy by hand takes this "
                 "save out (docs/saves.md)",
         "; ");
+  // Any other FString that starts with the dungeon's prefix: the rows of its zones the save keeps once played there
+  // (an enemy's death, a box opened, an env state, a pickup), which no released-game save holds (none of the user's 15
+  // saves does). Zone_DLC02_ names start otherwise, and every save holds them.
+  size_t rows = 0;
+  std::string first_row;
+  for (size_t at = b.find(kMxiiiRows); at != std::string::npos; at = b.find(kMxiiiRows, at + 1)) {
+    int32_t n = 0;
+    if (at < 4 || std::find(camp_values.begin(), camp_values.end(), at) != camp_values.end())
+      continue;
+    std::memcpy(&n, b.data() + at - 4, 4);
+    if (n <= int32_t(sizeof kMxiiiRows) || n > 128 || at + size_t(n) > b.size() || b[at + size_t(n) - 1] != 0)
+      continue;
+    if (!rows++)
+      first_row = b.substr(at, size_t(n) - 1);
+  }
   std::string quests;
   int held = 0;
   for (const auto &q : {std::pair<const char *, const char *>{"A Second Signal", "Quest_Sub_MX13_00"},
                         std::pair<const char *, const char *>{"On Time", "Quest_Sub_MX13_01"}})
     if (where(fstring(q.second)))
       add(quests, std::string(q.first) + " (" + q.second + ")", " and "), ++held;
-  if (stuck.empty() && !why.empty() && !held)
+  if (stuck.empty() && !why.empty() && !held && !rows)
     why += "; then save and export it again";
+  if (rows)
+    add(why,
+        "the cut Matrix XIII dungeon's rows (" + std::to_string(rows) + (rows > 1 ? " names, first " : " name, ") +
+            first_row + "): the save keeps them once it has played there, so this save cannot be exported",
+        "; ");
   if (held)
     add(why,
         std::string("the mod's quest") + (held > 1 ? "s " : " ") + quests +

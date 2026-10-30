@@ -268,15 +268,17 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
             -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
             return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
         end} or nil})
--- coop mxiii [30] (cut/mxiii.lua), logging [MX] lines: Matrix XIII's 15 rows asked of the native part, then the
+-- coop mxiii [30] (cut/mxiii.lua), logging [MX] lines: Matrix XIII's camp rows asked of the native part, then the
 -- follow's camp travel (read at each call: built below), once the zMXIII_P test pak is found under SB/Content/Paks;
 -- coop mxiii leave, the follow's probe to the camp EVE respawned at before coop mxiii, or another camp this save has
 -- activated. The same rows alone at the title, before any save loads, while the game uses the co-op save files (the
--- 250 ms loop below: mxiii.title).
+-- 250 ms loop below: mxiii.title), then its spawn, door and warp rows and the Lion's and the Gardener's. In world
+-- 2800 its tick spawns the ladders and ledges (cut/mxmove.lua) and fixes the bosses the game spawns (cut/mxboss.lua,
+-- with coop lion's and coop gardener fight's instances); coop mxiii boss is their key-0 fallback.
 local mxiii=require('cut.mxiii').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     travel=function() return travel end,paks=require('cut.mxiii').paks_of(folder),
-    read=require('core.link').files.read})
+    read=require('core.link').files.read,lion=lion,gardener=gardener})
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('nightop.recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- The UI kit's lines.

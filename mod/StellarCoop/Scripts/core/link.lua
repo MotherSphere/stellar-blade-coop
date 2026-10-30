@@ -380,10 +380,11 @@ function Link.parse_settings(text)
 end
 Link.files={
     -- nil, then io.open's message and errno, when the file cannot be opened (errno 2: there is none). limit: at most
-    -- that many bytes (the whole file without it).
-    read=function(path,limit)
+    -- that many bytes (the whole file without it); offset: from that byte (the start without it).
+    read=function(path,limit,offset)
         local f,e,code=io.open(path,'rb')
         if not f then return nil,e,code end
+        if offset and not f:seek('set',offset) then f:close(); return '' end
         local text=f:read(limit or 'a') or ''; f:close(); return text
     end,
     -- A full disk fails at the write or only at the close's flush: either one is a failed write.
