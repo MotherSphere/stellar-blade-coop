@@ -61,9 +61,10 @@ Lily.PROLOGUE,Lily.PROLOGUE_ID='Quest_Sub_MX13_00',164
 Lily.MAP='/game/art/bg/worldmap_dlc_01/level_p/mxiii_p' -- U.map_of of Matrix XIII's map (the test pak's MXIII_P).
 -- s: after a pick, before the talk when neither a theater nor a screen of the game showed; how long an ask waits
 -- for the quest unit; how long EVE stands in Matrix XIII at M01 before the fallback; between two asks while the native
--- part reads otherwise; the prologue gate held before its acquire; after the arrival before its talk; in the drive room
--- before signal zone4.
-Lily.AFTER,Lily.WAIT,Lily.FALLBACK,Lily.ASK_EVERY,Lily.QUIET,Lily.ARRIVAL,Lily.ROOM=5,15,10,10,5,1,2
+-- part reads otherwise; the prologue gate held before its acquire; after the arrival before its talk (on 2026-10-30
+-- the camp travel's warp ended about 2 s and the new world's characters loaded about 2.5 s after the map turned; a
+-- talk asked 1 s after it got no subtitle window in time); in the drive room before signal zone4.
+Lily.AFTER,Lily.WAIT,Lily.FALLBACK,Lily.ASK_EVERY,Lily.QUIET,Lily.ARRIVAL,Lily.ROOM=5,15,10,10,5,4,2
 -- Zone 4's Fusion Drive room (Z4R18) as the cooked dungeon's plan places it [design numbers, not checked in a cooked
 -- map yet]: in zone 1's plan frame (metres from the zone 1 surface lift cab floor at world (40585, 35615, -939) cm,
 -- plan +y along world yaw 175, plan +x along world yaw 265), x -95 to -80, y -150 to -110, floor -156.29 m, 16.29 m

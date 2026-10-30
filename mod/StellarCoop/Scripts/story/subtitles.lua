@@ -4,9 +4,12 @@
 -- per window, come from lily_text.lua, and windows past the last line show nothing.
 -- - The rewrite: a UE4SS hook on the subtitle slot Blueprint's UpdateText (registered once a Lua load, at the first
 --   talk or arm(); UE4SS runs a hook on a Blueprint-only function after it), which returns at once unless a talk runs
---   or a capture is armed. Window k is the k-th call of the talk, checked against the slot's Duration (+0x6B8, taken to
---   be the window's length [guess]): a call whose Duration matches the window already shown is that window again, one
---   that matches a later window is a skip with the jump button. Each window gets author (+0x688) from StringTable_Seq
+--   or a capture is armed. Window k is the k-th new window of the talk, never skipped (bSkipAllow is false on every POD
+--   subtitle section, so the jump button cannot skip one): a call is the window already shown again when the slot
+--   still holds that window's text (SB's or ours) within the window's time (its length and hold); any other call is
+--   the next window. The slot's Duration (+0x6B8) names no window: it read each window's length plus 0.03 to 0.04 s
+--   in game (2026-10-30), and the talks repeat lengths (1.26 twice, 2.56 and 2.61, 4.03 and 4.09), so matching it
+--   jumped from window 3 to 6 and 13. Each window gets author (+0x688) from StringTable_Seq
 --   (SB's own localized speaker names: Seq_Actor_Lily, Seq_Actor_EVE, Seq_Actor_Announcement; '' an empty author),
 --   Message (+0x6A0) the line in the game's language (French for a French culture, else English), Type (+0x680) 0
 --   (shown at once) for a line longer than its window at READ characters a second, and AuthorColor (+0x76C) once a
@@ -19,7 +22,9 @@
 -- - The end: once the last line's window (and its hold) is over and the sequence has more windows, the Stop row.
 -- - The fallbacks, each logged: the theater's own sequence played or no observer in 10 s, the same rows on the
 --   sequence with no theater (no Stop: it runs to its end, windows past the lines shown empty); window 1 not rewritten
---   FIRST s after the observer showed (or the hook not registered), the Stop row and the kit version (ui/kit.lua: the
+--   FIRST s past its start in the sequence, counted from when the observer showed (the observer is looked for once a
+--   second, so it shows up to 1 s after the sequence starts; in a world just loaded the first window came later than
+--   1 s after it), or the hook not registered, the Stop row and the kit version (ui/kit.lua: the
 --   speaker and the line at the bottom of the screen, each for its window or its reading time, whichever is longer;
 --   not SB's widget, so the player's subtitle options do not apply); no kit, no talk. Every talk ends with done(how)
 --   (theater, sequence, kit, none or failed), so the quest flow never waits on one.
@@ -38,38 +43,30 @@ local TEXT_LIB='/Script/Engine.Default__KismetTextLibrary'
 local LANGUAGE='/Script/Engine.Default__KismetInternationalizationLibrary'
 local DIR='/Game/GameDesign/Level/Subtitle/StarsDescent/Tetrapod/'
 local function sequence(n) return DIR..n..'.'..n end
--- Characters read a second; s added to a line's reading time; s before a window's end that a hold pauses; s after the
--- observer showed for window 1's rewrite; s past a hold for the next window; s a capture stays armed.
-Subtitles.READ,Subtitles.SPARE,Subtitles.EARLY,Subtitles.FIRST,Subtitles.STUCK,Subtitles.CAPTURE=15,0.5,0.15,1.0,2,30
+-- Characters read a second; s added to a line's reading time; s before a window's end that a hold pauses; s past
+-- window 1's start (after the observer showed) for its rewrite; s past a hold for the next window; s a capture stays
+-- armed.
+Subtitles.READ,Subtitles.SPARE,Subtitles.EARLY,Subtitles.FIRST,Subtitles.STUCK,Subtitles.CAPTURE=15,0.5,0.15,2.0,2,30
 -- s between two looks for a cutscene of the game before a talk (each a walk of every object, 25 to 80 ms); the
 -- longest wait for it to end.
 Subtitles.POLL,Subtitles.WAIT=0.5,20
--- The talks: the sequence each borrows and its subtitle windows' lengths in s, in order (read from the cooked
--- sequences: 21, 9 and 19 windows).
+-- The talks: the sequence each borrows, its window 1's start in s and its subtitle windows' lengths in s, in order
+-- (read from the cooked sequences: 21, 9 and 19 windows).
 Subtitles.TALKS={
-    prologue={sequence=sequence('Subtitle_POD_1stMeetAdam_01'),windows={2.10,5.31,5.50,2.56,4.09,2.61,1.26,3.17,2.94,
-        3.94,1.26,5.03,4.03,3.28,4.28,2.03,2.92,0.92,5.04,3.43,1.88}},
-    arrival={sequence=sequence('Subtitle_POD_ArriveDED_01'),windows={2.59,2.27,2.06,2.24,1.64,4.32,3.15,2.88,1.57}},
-    finale={sequence=sequence('Subtitle_POD_1stMeetAdam_02'),windows={1.58,2.39,3.72,2.82,4.58,2.54,2.94,2.47,4.94,
-        3.42,3.29,0.95,2.67,3.29,2.56,2.05,3.23,5.39,1.63}},
+    prologue={sequence=sequence('Subtitle_POD_1stMeetAdam_01'),first=0,windows={2.10,5.31,5.50,2.56,4.09,2.61,1.26,
+        3.17,2.94,3.94,1.26,5.03,4.03,3.28,4.28,2.03,2.92,0.92,5.04,3.43,1.88}},
+    arrival={sequence=sequence('Subtitle_POD_ArriveDED_01'),first=0.68,windows={2.59,2.27,2.06,2.24,1.64,4.32,3.15,
+        2.88,1.57}},
+    finale={sequence=sequence('Subtitle_POD_1stMeetAdam_02'),first=0.53,windows={1.58,2.39,3.72,2.82,4.58,2.54,2.94,
+        2.47,4.94,3.42,3.29,0.95,2.67,3.29,2.56,2.05,3.23,5.39,1.63}},
 }
-local NEAR,MATCH=0.02,0.1 -- s: a Duration this close to a window's length is that window; none within MATCH: counted.
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
--- The window of a talk's call: windows (lengths), k the window shown last (0 before the first), duration the slot's
--- (nil when unread). The next window when its length matches or nothing is known; the one shown when it matches
--- (UpdateText called again); else the nearest later window within MATCH (a skip); else the next.
-function Subtitles.window(windows,k,duration)
-    local next=math.min(k+1,#windows)
-    if not duration or math.abs(windows[next]-duration)<=NEAR then return next end
-    if k>0 and math.abs(windows[k]-duration)<=NEAR then return k end
-    local best,gap=nil,MATCH
-    for j=next+1,#windows do
-        local d=math.abs(windows[j]-duration)
-        if d<=gap then
-            if not best or d<gap then best,gap=j,d end
-        end
-    end
-    return best or next
+-- The window of a talk's call: windows (lengths), w the window shown last ({k=, sb=, ours=, until_at=}; k 0 before
+-- the first), shown the slot's text at the call (nil when unread), now the os.clock. The window shown again when the
+-- slot still holds its text (SB's or ours) before until_at; else the next, never past the last.
+function Subtitles.window(windows,w,shown,now)
+    if w.k>0 and shown~=nil and (shown==w.sb or shown==w.ours) and now<w.until_at then return w.k end
+    return math.min(w.k+1,#windows)
 end
 -- Window k's speaker key and line in culture ('en' or 'fr'), or nil past the talk's lines.
 function Subtitles.entry(lines,k,culture)
@@ -100,6 +97,7 @@ function Subtitles.new(o)
     local holds=true -- coop lily hold on|off: Lua memory only.
     local kit,theme=nil,nil
     local rewriting=false
+    local calls,last_call=0,nil -- SB's UpdateText calls the hook saw this Lua load (ours left out), the last's clock.
     -- A speaker's name as SB's StringTable_Seq gives it (an FText, '' for none), read once a talk; on a failure an
     -- empty one, said once a talk.
     local function speaker(c,key)
@@ -155,6 +153,7 @@ function Subtitles.new(o)
         finish('failed')
     end
     start_sequence=function(c) -- From the theater step: its window count and timers start again.
+        c.w={k=0}
         c.step,c.k,c.rewritten,c.seen_at,c.hold,c.watch,c.stop_at,c.stopping,c.last_at='sequence',0,0,nil,nil,nil,nil,
             nil,nil
         local ok,said,mine=call(c,true)
@@ -213,10 +212,11 @@ function Subtitles.new(o)
     -- The hook's work for one call of a talk's window.
     local function rewrite(c,slot)
         local now=os.clock()
-        local ok,d=pcall(function() return tonumber(U.value_of(slot.Duration)) end)
-        local k=Subtitles.window(c.t.windows,c.k,ok and d or nil)
+        local read,shown=pcall(function() return U.text(slot.Message) end)
+        shown=read and shown or nil
+        local k=Subtitles.window(c.t.windows,c.w,shown,now)
         local again=k==c.k
-        if not again and c.hold then -- A skip during a hold ends it.
+        if not again and c.hold then -- A new window during a hold ends it.
             if c.hold.paused then play_player(c,'Play') end
             log(string.format('hold %d cancelled: window %d showed',c.hold.k,k))
             c.hold=nil
@@ -236,6 +236,7 @@ function Subtitles.new(o)
         c.rewritten,c.last_at=c.rewritten+1,now
         log(string.format('%s %d/%d',line and 'rewritten' or 'blanked',k,#c.t.windows))
         local h=holds and not c.holds_off and line and Subtitles.hold(line,length) or nil
+        c.w={k=k,sb=shown,ours=line or '',until_at=now+length+(h or 0)}
         if h then c.hold={k=k,pause_at=now+length-Subtitles.EARLY,seconds=h} end
         if line and k==#c.lines and #c.lines<#c.t.windows then c.stop_at=now+length+(h or 0) end
         if not line then c.stop_at=c.stop_at or now end
@@ -257,12 +258,20 @@ function Subtitles.new(o)
         end
     end
     local function on_update(ctx)
+        if rewriting then return end
+        local now=os.clock()
+        calls,last_call=calls+1,now
         local c=cur
         if not c then
-            if os.clock()<=capture_until then pcall(capture,U.valid(ctx)) end
+            if now<=capture_until then pcall(capture,U.valid(ctx)) end
             return
         end
-        if rewriting or (c.step~='theater' and c.step~='sequence') then return end
+        if c.failed and not c.late then -- Evidence for the guard: how late SB's first window came.
+            c.late=true
+            log(string.format('talk %s: SB\'s subtitle slot updated %.1f s after the observer showed, after the '
+                ..'fallback',c.name,now-(c.seen_at or now)))
+        end
+        if c.step~='theater' and c.step~='sequence' then return end
         local ok,e=pcall(rewrite,c,U.valid(ctx))
         if not ok and not c.said then
             c.said=true
@@ -290,7 +299,7 @@ function Subtitles.new(o)
         local t,lines=Subtitles.TALKS[name],T.TALKS[name]
         if not t or not lines then return false,'no talk '..tostring(name) end
         local now=os.clock()
-        cur={name=name,t=t,lines=lines,culture=culture(),k=0,rewritten=0,names={},done=done}
+        cur={name=name,t=t,lines=lines,culture=culture(),k=0,w={k=0},rewritten=0,names={},done=done}
         local c=cur
         local known={}
         for key in pairs(colors) do known[#known+1]=key end
@@ -333,10 +342,12 @@ function Subtitles.new(o)
             return
         end
         if c.step=='wait' then return wait(c,now) end
-        if c.seen_at and c.rewritten==0 and not c.failed and now-c.seen_at>=Subtitles.FIRST then
+        local first=c.t.first+Subtitles.FIRST
+        if c.seen_at and c.rewritten==0 and not c.failed and now-c.seen_at>=first then
             c.failed=true
-            log(string.format('STOP: talk %s: window 1 not rewritten %.1f s after the observer showed',c.name,
-                Subtitles.FIRST))
+            log(string.format('STOP: talk %s: window 1 not rewritten %.2f s after the observer showed (%d UpdateText '
+                ..'calls this Lua load%s)',c.name,first,calls,
+                last_call and string.format(', the last %.1f s ago',now-last_call) or ''))
             if c.step=='theater' then return stop_row(c,'the Stop row, then the kit version') end
             return start_kit(now) -- No Stop for a sequence with no theater: SB's own lines go on under the kit's.
         end
