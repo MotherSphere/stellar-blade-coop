@@ -140,10 +140,11 @@ local UCAS2=UCAS1..('\0'):rep(100278-#UCAS1)..'\13DLC02_10_EnvS\20DLC02_10_E_Ite
 -- v3's adds the zone 30 camp's point, whole (FName keeps _01 as text).
 local UCAS3=UCAS2..'\16DLC02_30_Camp_01'
 local files,reads={},{}
-local function read(path,limit) -- files.read: at most limit bytes.
+local function read(path,limit,offset) -- files.read: at most limit bytes, from offset.
     reads[#reads+1]=path
     assert(limit and limit>=1,'A bounded read')
-    return files[path] and files[path]:sub(1,limit)
+    offset=offset or 0
+    return files[path] and files[path]:sub(offset+1,offset+limit)
 end
 local function put(utoc,text,ucas) -- The three files of the container (v1's .ucas unless given), or its .utoc alone.
     files[utoc]=text or UTOC
@@ -181,6 +182,34 @@ put(MODS)
 assert(M.find_map(PAKS,read)==MODS)
 where,why=M.find_map(nil,read)
 assert(where==nil and why:find('game folder is unknown',1,true))
+-- A full map's container: its .utoc's header (UE 4.26, 144 bytes), 2 chunks and 3 compression blocks giving the
+-- .ucas's size; the .ucas read window after window (here 1000 bytes each) until both names are seen, a name across two
+-- windows found, nothing read past the blocks' end.
+do
+    local function utoc(blocks)
+        local t='-==--==--==--==-'..string.pack('<BBI2I4I4I4I4I4I4I4I4',2,0,0,144,2,#blocks,12,0,32,65536,0)
+        t=t..('\0'):rep(144-#t)..('\0'):rep(2*22)
+        for _,b in ipairs(blocks) do t=t..string.pack('<I5I3I3B',b[1],b[2],b[2],0) end
+        return t..'SB\0Content\0WorldMap_DLC_01\0Level_P\0MXIII_P.umap\0'
+    end
+    assert(M.ucas_size(utoc({{0,1000},{1000,1000},{2000,1200}}))==3200)
+    assert(M.ucas_size(UTOC)==nil and M.ucas_size('-==--==--==--==-')==nil,'Not a header: no size')
+    local window=M.WINDOW
+    M.WINDOW=1000
+    local big=('\0'):rep(980)..'\13DLC02_10_EnvS'..('\0'):rep(1500)..'\16DLC02_30_Camp_01'..('\0'):rep(4000)
+    files={}
+    files[MODS]=utoc({{0,1000},{1000,1000},{2000,1200}})
+    files[MODS:sub(1,-6)..'.pak'],files[MODS:sub(1,-6)..'.ucas']='',big
+    reads={}
+    where,version=M.find_map(PAKS,read)
+    assert(where==MODS and version==3,'v3 from the third window: '..tostring(version))
+    assert(#reads==5,'The .utoc, the .pak, three windows of the .ucas: '..#reads)
+    files[MODS]=utoc({{0,1000},{1000,500}}) -- The blocks end before the zone 30 name: never read.
+    reads={}
+    where,version=M.find_map(PAKS,read)
+    assert(where==MODS and version==2 and #reads==4,'v2, two windows: '..tostring(version)..' '..#reads)
+    M.WINDOW=window
+end
 
 -- The world: EVE, the 32 tables with Matrix XIII's rows as the native part writes them, the follow.
 local world=object({GetFullName=function() return 'World /Game/Art/BG/WorldMap/Dungeon_P/Matrix_XI.Matrix_XI' end})

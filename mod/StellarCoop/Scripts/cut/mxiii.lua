@@ -38,9 +38,12 @@
 -- keeps a number written with a leading zero as text); v1 and v2 have no such name.
 -- shortcut: the live folder, not what the engine mounted at start, so a pak copied in while the game runs passes;
 -- upgrade to the native part's start list (game/pak_list.h) if that happens in a test.
--- shortcut: the .ucas's first 16 MB, uncompressed as retoc writes it; an Oodle-compressed container, or one whose
--- MXIII_10_LD or MXIII_30_LD lies past 16 MB, reads as an older version. Upgrade to the .utoc's chunk offsets if a
--- build does either.
+-- The .ucas is read in windows of 16 MB up to its end as the .utoc's compression blocks give it (the header's block
+-- count and entry size, after the chunk IDs and offsets; UE 4.26's FIoStoreTocHeader, version 2 as retoc writes it),
+-- so a full map's container of 30 MB or more is read whole, never more than a window at a time, and the reads stop
+-- once both names are found. A .utoc whose header does not read as one gives the first window only.
+-- shortcut: an Oodle-compressed container (a compression method in the .utoc) reads as v1 or as what its compressed
+-- bytes happen to hold; retoc writes ours uncompressed.
 local Enemy=require('cut.enemy')
 local Mxiii={}
 Mxiii.CAMP='DLC02_10_Camp_01'
@@ -61,7 +64,23 @@ Mxiii.VERSIONS={
     'v3 ('..Mxiii.CAMP30..' point in its .ucas: v2 and a zone 30 camp with no kit; coop mxiii 30 arrives at 26392 '
         ..'-23650 4414)'}
 local LIMIT=1<<20 -- Bytes read of a .utoc: its directory index comes last, under 1 KB for the test pak's two maps.
-local UCAS=1<<24 -- Bytes read of a .ucas: v1's is 793 KB, with the names 9 KB in; v3's 2.2 MB.
+Mxiii.WINDOW=1<<24 -- Bytes a read of the .ucas takes: v1's is 793 KB, with the names 9 KB in; v3's 2.2 MB.
+local OVERLAP=64 -- Bytes each window repeats of the last one, so a name across two windows is found.
+-- The .ucas's size as the .utoc's compression blocks give it (the furthest offset plus compressed size), or nil when
+-- the text does not read as a .utoc header.
+function Mxiii.ucas_size(utoc)
+    if #utoc<144 or utoc:sub(1,16)~='-==--==--==--==-' then return nil end
+    local header,entries,blocks,size=string.unpack('<I4I4I4I4',utoc,21)
+    local first=header+entries*22+1 -- Past the chunk IDs (12 bytes each) and their offsets and lengths (10).
+    if header~=144 or size~=12 or blocks<1 or first+blocks*12-1>#utoc then return nil end
+    local last=0
+    for k=0,blocks-1 do
+        local at=first+k*12
+        local offset=string.unpack('<I5',utoc,at)
+        last=math.max(last,offset+string.unpack('<I3',utoc,at+5))
+    end
+    return last
+end
 -- SB lists every camp's env-spawn rows in FSBGameWorld::Init (FUN_141c97ca0 makes the zone manager, whose setup runs
 -- FUN_141d18100 over ZoneEnvSpawnTable), so the world the rows went in on may know neither camp until the next one
 -- (not when they went in at the title). Read from the code, untested.
@@ -90,7 +109,7 @@ function Mxiii.paks_of(folder)
     return sb and sb..'\\Content\\Paks' or nil
 end
 -- The test pak's .utoc that names the map, beside its .pak and .ucas, and its version (1, 2 or 3), or nil and why.
--- paks: SB/Content/Paks (nil: unknown); read(path, limit): core/link.lua's files.read (the text, or nil when the file
+-- paks: SB/Content/Paks (nil: unknown); read(path, limit, offset): core/link.lua's files.read (the text, or nil when the file
 -- cannot be opened).
 function Mxiii.find_map(paks,read)
     if not paks then return nil,'the game folder is unknown (the mod folder is not under SB\\Binaries\\Win64)' end
@@ -105,11 +124,19 @@ function Mxiii.find_map(paks,read)
             local got={}
             for _,ext in ipairs({'.pak','.ucas'}) do
                 local other=path:sub(1,-6)..ext
-                got[ext]=read(other,ext=='.ucas' and UCAS or 1)
+                got[ext]=read(other,ext=='.ucas' and Mxiii.WINDOW or 1)
                 if not got[ext] then return nil,'no '..other..' beside '..path end
             end
-            local ucas=got['.ucas']
-            return path,ucas:find(Mxiii.CAMP30,1,true) and 3 or ucas:find(Mxiii.KIT,1,true) and 2 or 1
+            -- The .ucas, window after window (the first one read above), while a name is still unseen.
+            local ucas,size=path:sub(1,-6)..'.ucas',Mxiii.ucas_size(text) or Mxiii.WINDOW
+            local camp30,kit,at=false,false,0
+            repeat
+                local window=at==0 and got['.ucas'] or read(ucas,Mxiii.WINDOW,at) or ''
+                camp30=camp30 or window:find(Mxiii.CAMP30,1,true)~=nil
+                kit=kit or window:find(Mxiii.KIT,1,true)~=nil
+                at=at+Mxiii.WINDOW-OVERLAP
+            until (camp30 and kit) or at>=size or #window<Mxiii.WINDOW
+            return path,camp30 and 3 or kit and 2 or 1
         end
         tried[#tried+1]=path
     end
