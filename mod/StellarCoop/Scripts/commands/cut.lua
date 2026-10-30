@@ -21,7 +21,8 @@
 -- runs on a co-op save only: every word of it.
 -- coop mxiii, the camp travel into the cut Matrix XIII dungeon (cut/mxiii.lua, o.mxiii; a test tool left out of the
 -- usage line, needing the zMXIII_P test pak), coop mxiii 30, the same to its third zone's camp, and coop mxiii leave,
--- its way out, run on a co-op save only.
+-- its way out, and coop mxiii boss, the key-0 Lion or Gardener of the arena EVE stands in (cut/mxboss.lua), run on a
+-- co-op save only.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion

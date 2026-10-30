@@ -260,8 +260,8 @@ local mx=new(PAKS)
 mxiii_status('off')
 -- Usage, the follow missing or refusing, the test pak missing: nothing asked, no table looked up.
 local ok
-ok,why=mx.command('now'); assert(ok==false and why=='Use: coop mxiii [30|leave]',why)
-ok,why=mx.command('31'); assert(ok==false and why=='Use: coop mxiii [30|leave]',why)
+ok,why=mx.command('now'); assert(ok==false and why=='Use: coop mxiii [30|leave|boss]',why)
+ok,why=mx.command('31'); assert(ok==false and why=='Use: coop mxiii [30|leave|boss]',why)
 have_travel=false
 ok,why=mx.command(); assert(ok==false and why=='coop mxiii needs the Steam link',why)
 have_travel=true

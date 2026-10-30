@@ -20,7 +20,9 @@
 -- below), so a co-op save that names a mod camp or row (the respawn camp at FSBActor +0x26d0, the save's activated
 -- camps and last camp rows) loads with them, and coop mxiii then only reads them back and travels. At the title the
 -- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the doors and lifts, the warps, then
--- the Lion's and the Gardener's own rows that the boss spawn rows name). The way out is
+-- the Lion's and the Gardener's own rows that the boss spawn rows name). In world 2800 the tick spawns the ladders and
+-- ledges (cut/mxmove.lua) and fixes the Lion and Gardener the game spawns (cut/mxboss.lua); coop mxiii boss spawns
+-- the key-0 boss of the arena EVE stands in. The way out is
 -- coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the
 -- read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the
 -- read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
@@ -163,7 +165,8 @@ function Mxiii.new(o)
     -- coop mxiii [30]: the checks, the rows, then the travel to the zone 10 camp, or with 30 to the zone 30 camp.
     function self.command(extra)
         if extra=='leave' then return leave() end
-        if extra~=nil and extra~='30' then return false,'Use: coop mxiii [30|leave]' end
+        if extra=='boss' then return self.boss() end
+        if extra~=nil and extra~='30' then return false,'Use: coop mxiii [30|leave|boss]' end
         local camp,command=Mxiii.CAMP,'coop mxiii'
         if extra then camp,command=Mxiii.CAMP30,'coop mxiii 30' end
         local busy=e.busy()
@@ -210,6 +213,9 @@ function Mxiii.new(o)
         others[#others+1]={e=x,title=t,stop=stop,after=previous}
         previous=b.word
     end
+    -- The ladders and ledges (cut/mxmove.lua) and the bosses the game spawns (cut/mxboss.lua), in world 2800 only.
+    local move=require('cut.mxmove').new({log=function(m) log('[MXMOVE] '..m) end})
+    local boss=require('cut.mxboss').new({log=function(m) log('[MXBOSS] '..m) end,lion=o.lion,gardener=o.gardener})
     function self.title(at_title,coop)
         title(at_title,coop)
         for _,x in ipairs(others) do
@@ -217,9 +223,13 @@ function Mxiii.new(o)
             if s and (s.state=='rows' or s.state=='refused') then x.title(at_title,coop) end
         end
     end
+    -- coop mxiii boss: the key-0 boss of the arena EVE stands in, when the game spawned none there.
+    self.boss=boss.command
     function self.tick()
         local ok,message=e.tick()
         for _,x in ipairs(others) do x.e.tick() end
+        move.tick()
+        boss.tick()
         return ok,message
     end
     -- coop off ends the waits without their end, so a title batch asked is free to ask again at the next call.

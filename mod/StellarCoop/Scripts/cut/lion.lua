@@ -297,6 +297,22 @@ function Lion.new(o)
     -- with the lion rows batch, with word bolt the bolt rows batch (the shop's Shock Bolt: a buy of it, and the shop's
     -- screen), with word shop the shop rows batch (the shop's screen only).
     function self.rows(done,word) return (word=='bolt' and bolt or word=='shop' and shop or e).rows(done,brain) end
+    -- A Lion body the game spawned from a spawn row (cut/mxboss.lua, Matrix XIII's DLC02_40_E_CharS_051): the fix a
+    -- body of ours gets in follow, once, when its mesh has no anim instance (its own class again, then the leader),
+    -- and the leader ticked whatever it draws. Returns what it did, as words.
+    function self.adopt(c)
+        local m=assert(valid(c.Mesh),'no mesh on the body')
+        if valid(m:GetAnimInstance()) then return 'its mesh has an anim instance: nothing to do' end
+        local fine,said=pcall(give_anim,m)
+        said=fine and said or 'not given ('..why(said)..')'
+        if not valid(m:GetAnimInstance()) then
+            local led,l=pcall(lead,c)
+            said=said..'; leader: '..(led and 'the Lion AnimBP runs on a hidden '..LEADER_MESH.name or 'failed ('
+                ..why(l)..')')
+            if led then pcall(function() m.VisibilityBasedAnimTickOption=0 end) end
+        end
+        return said
+    end
     -- brain sets the ID of the next spawns, even while a command runs; the others wait for it.
     function self.command(sub,a,extra)
         if extra~=nil then return false,USE end
