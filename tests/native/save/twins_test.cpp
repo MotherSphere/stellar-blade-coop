@@ -371,10 +371,24 @@ int main() {
                   name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900")) ==
          "the cut Matrix XIII dungeon as its map, its camp, its last full camp" + rest +
              "; then save and export it again");
-  // The camp's row elsewhere (the zone's list of camps it activated) and the map's name in a level actor's path do not.
-  assert(mod_only(name_field("EnvAlias", "DLC02_10_EnvS_900") +
-                  fstring("/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P/MXIII_Area01.Actor_1"))
+  // The map's name in a level actor's path and the zones' names (every save holds Zone_DLC02_10 to 40) do not count;
+  // any other name of the dungeon's rows does, wherever it is (a zone's activated camps, an enemy's saved death, an
+  // env state, a pickup), and the save can never be exported: the game keeps a world's zone state.
+  assert(mod_only(fstring("/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P/MXIII_Area01.Actor_1") +
+                  name_field("ZoneAlias", "Zone_DLC02_40") + fstring("Zone_DLC02_10") + fstring("DLC02_"))
              .empty());
+  assert(mod_only(name_field("EnvAlias", "DLC02_10_EnvS_900")) ==
+         "the cut Matrix XIII dungeon's rows (1 name, DLC02_10_EnvS_900): the save keeps them once it has played "
+         "there, so this save cannot be exported");
+  assert(mod_only(clean_body() + fstring("DLC02_40_E_CharS_051") + name_field("EventSpawnAlias", "DLC02_10_E_CharS_901") +
+                  name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_906")) ==
+         "the cut Matrix XIII dungeon as its last full camp" + rest +
+             "; the cut Matrix XIII dungeon's rows (2 names, first DLC02_40_E_CharS_051): the save keeps them once it "
+             "has played there, so this save cannot be exported");
+  // A length that does not end on its NUL is no FString.
+  std::string odd_row = fstring("DLC02_10_EnvS_901");
+  odd_row.back() = 'x';
+  assert(mod_only(odd_row).empty());
   const std::string both = mod_only(name_field("ItemAlias", "Money_NightOperation") + fstring("MapName") +
                                     fstring("MXIII_P"));
   assert(both.rfind("the mod's items Beta Seed (Money_NightOperation): ", 0) == 0 &&
