@@ -16495,6 +16495,11 @@
        true
       ],
       [
+       "Interaction",
+       "/Game/GameDesign/Level/ToolData/InteractionGraph/DrownedEidosDistrict/DED02/DED02_RooftopLift.DED02_RooftopLift",
+       true
+      ],
+      [
        "TagEventList3",
        [
         "DLC02_10_E_EnvC_613"
@@ -17138,7 +17143,7 @@
       ],
       [
        "Interaction",
-       "/Game/GameDesign/Level/ToolData/InteractionGraph/WasteLandA/Zone_WLA_30/WLA30_Lift.WLA30_Lift",
+       "/Game/GameDesign/Level/ToolData/InteractionGraph/DrownedEidosDistrict/DED02/DED02_RooftopLift.DED02_RooftopLift",
        true
       ],
       [

@@ -2333,8 +2333,12 @@ rows`), so a refusal in one never stops another:
   `ME_01_EnvS_026`) fires, from its On state, the ZoneEvent row whose EventEnvControlTable row of the same name sets the
   door Open; a one-way door's locked side has the `_Opposite` graph, which only says it cannot be opened from there.
   Switch gates and approach gates keep their shipped rows and switch chains with our sequences. Lifts are their shipped
-  `Env_Lift` rows with our sequences per Wait state; call switches (`MT20_DoorSwitch01` rows) send the cab to their
-  landing from either of their states; the zone 4 lift I3's two call switches start enabled, since their shipped
+  `Env_Lift` rows with our sequences per Wait state. A cab panel's graph holds EVE for a fixed time after her press
+  (`WLA30_Lift` and `MT40_Lift`: the ride starts 1.5 s after the press animation, she moves again 11 s into the ride and
+  the panel comes back 1.5 s later), so the ride has to end when that time does. The surface lift 431 and the train lift
+  R13 (row 621) ride for 6 to 7 s and take Drowned Eidos's rooftop lift graph `DED02_RooftopLift` instead: the ride
+  starts with the press and she moves again 7.25 s into it. Call switches (`MT20_DoorSwitch01` rows) send the cab to
+  their landing from either of their states; the zone 4 lift I3's two call switches start enabled, since their shipped
   enabler, row `DLC02_40_EnvS_017`, has no actor in the map. Arenas use SE_08's pattern: a fight (EventOnBattle of a
   spawn row) shuts the doors and disables their openers, each EventOnDead adds 1 to an `Env_<N>CountProgress` row (an
   EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and the Lion's own deaths open

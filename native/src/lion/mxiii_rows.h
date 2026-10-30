@@ -3052,6 +3052,7 @@ constexpr Patch kMxupperPatches[] = {
     // DLC02_10_EnvS_431 (ZoneEnvSpawnTable)
     {0x370, Kind::strings, 0, "|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_431_Down.MX13_DLC02_10_EnvS_431_Down|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_431_Up.MX13_DLC02_10_EnvS_431_Up|||"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_431_WaitTop.MX13_DLC02_10_EnvS_431_WaitTop|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_431_WaitBottom.MX13_DLC02_10_EnvS_431_WaitBottom|||"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/DrownedEidosDistrict/DED02/DED02_RooftopLift.DED02_RooftopLift"}, // Interaction
     {0xa8, Kind::names, 0, "DLC02_10_E_EnvC_613"}, // TagEventList3
     // DLC02_10_EnvS_671 (ZoneEnvSpawnTable)
     {0x30, Kind::name, 0, "DLC02_10_EnvS_671"}, // EnvActorName
@@ -3163,7 +3164,7 @@ constexpr Patch kMxupperPatches[] = {
     {0x58, Kind::name, 0, "Env_Lift"}, // EnvAlias
     {0x64, Kind::name, 0, "WaitBottom"}, // InitStateTag
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/WasteLandA/Zone_WLA_30/WLA30_Lift.WLA30_Lift"}, // Interaction
+    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/DrownedEidosDistrict/DED02/DED02_RooftopLift.DED02_RooftopLift"}, // Interaction
     {0x214, Kind::f32, 200.0f, nullptr}, // InteractionRange
     {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
     {0x260, Kind::names, 0, ""}, // LinkEnvSpawnList
@@ -3426,32 +3427,32 @@ constexpr Row kMxupperRecipe[] = {
     {Table::spawn, "DLC02_20_E_CharS_008", "DLC02_20_E_CharS_008", 2805024008u, 1228, 1},
     {Table::env, "DLC02_20_EnvS_063", "DLC02_20_EnvS_063", 2805032063u, 1229, 3},
     {Table::env, "DLC02_20_EnvS_064", "DLC02_20_EnvS_064", 2805032064u, 1232, 1},
-    {Table::env, "DLC02_10_EnvS_431", "DLC02_10_EnvS_431", 2800032431u, 1233, 3},
-    {Table::env, "DLC02_10_EnvS_671", "DLC02_20_EnvS_009", 2800032671u, 1236, 12},
-    {Table::envc, "DLC02_10_E_EnvC_611", "DLC02_20_E_EnvC_001", 3021u, 1248, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_611", "DLC02_20_E_EnvC_001", 8715u, 1252, 4},
-    {Table::env, "DLC02_10_EnvS_672", "DLC02_20_EnvS_009", 2800032672u, 1256, 12},
-    {Table::envc, "DLC02_10_E_EnvC_612", "DLC02_20_E_EnvC_001", 3022u, 1268, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_612", "DLC02_20_E_EnvC_001", 8716u, 1272, 4},
-    {Table::envc, "DLC02_10_E_EnvC_613", "DLC02_20_E_EnvC_001", 3023u, 1276, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_613", "DLC02_20_E_EnvC_001", 8717u, 1280, 4},
-    {Table::env, "DLC02_20_EnvS_666", "DLC02_20_EnvS_009", 2805032666u, 1284, 12},
-    {Table::envc, "DLC02_20_E_EnvC_630", "DLC02_20_E_EnvC_001", 3024u, 1296, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_630", "DLC02_20_E_EnvC_001", 8718u, 1300, 4},
-    {Table::env, "DLC02_20_EnvS_667", "DLC02_20_EnvS_009", 2805032667u, 1304, 12},
-    {Table::envc, "DLC02_20_E_EnvC_631", "DLC02_20_E_EnvC_001", 3025u, 1316, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_631", "DLC02_20_E_EnvC_001", 8719u, 1320, 4},
-    {Table::env, "DLC02_10_EnvS_621", "DLC02_20_EnvS_063", 2800032621u, 1324, 11},
-    {Table::env, "DLC02_10_EnvS_673", "DLC02_20_EnvS_009", 2800032673u, 1335, 12},
-    {Table::envc, "DLC02_10_E_EnvC_614", "DLC02_20_E_EnvC_001", 3028u, 1347, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_614", "DLC02_20_E_EnvC_001", 8722u, 1351, 4},
-    {Table::env, "DLC02_10_EnvS_674", "DLC02_20_EnvS_009", 2800032674u, 1355, 12},
-    {Table::envc, "DLC02_10_E_EnvC_615", "DLC02_20_E_EnvC_001", 3029u, 1367, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_615", "DLC02_20_E_EnvC_001", 8723u, 1371, 4},
-    {Table::envc, "DLC02_10_E_EnvC_616", "DLC02_20_E_EnvC_001", 3058u, 1375, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_616", "DLC02_20_E_EnvC_001", 8752u, 1379, 4},
-    {Table::env, "DLC02_10_EnvS_641", "DLC02_40_EnvS_021", 2800032641u, 1383, 5},
-    {Table::env, "DLC02_10_EnvS_642", "DLC02_40_EnvS_022", 2800032642u, 1388, 2},
+    {Table::env, "DLC02_10_EnvS_431", "DLC02_10_EnvS_431", 2800032431u, 1233, 4},
+    {Table::env, "DLC02_10_EnvS_671", "DLC02_20_EnvS_009", 2800032671u, 1237, 12},
+    {Table::envc, "DLC02_10_E_EnvC_611", "DLC02_20_E_EnvC_001", 3021u, 1249, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_611", "DLC02_20_E_EnvC_001", 8715u, 1253, 4},
+    {Table::env, "DLC02_10_EnvS_672", "DLC02_20_EnvS_009", 2800032672u, 1257, 12},
+    {Table::envc, "DLC02_10_E_EnvC_612", "DLC02_20_E_EnvC_001", 3022u, 1269, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_612", "DLC02_20_E_EnvC_001", 8716u, 1273, 4},
+    {Table::envc, "DLC02_10_E_EnvC_613", "DLC02_20_E_EnvC_001", 3023u, 1277, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_613", "DLC02_20_E_EnvC_001", 8717u, 1281, 4},
+    {Table::env, "DLC02_20_EnvS_666", "DLC02_20_EnvS_009", 2805032666u, 1285, 12},
+    {Table::envc, "DLC02_20_E_EnvC_630", "DLC02_20_E_EnvC_001", 3024u, 1297, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_630", "DLC02_20_E_EnvC_001", 8718u, 1301, 4},
+    {Table::env, "DLC02_20_EnvS_667", "DLC02_20_EnvS_009", 2805032667u, 1305, 12},
+    {Table::envc, "DLC02_20_E_EnvC_631", "DLC02_20_E_EnvC_001", 3025u, 1317, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_631", "DLC02_20_E_EnvC_001", 8719u, 1321, 4},
+    {Table::env, "DLC02_10_EnvS_621", "DLC02_20_EnvS_063", 2800032621u, 1325, 11},
+    {Table::env, "DLC02_10_EnvS_673", "DLC02_20_EnvS_009", 2800032673u, 1336, 12},
+    {Table::envc, "DLC02_10_E_EnvC_614", "DLC02_20_E_EnvC_001", 3028u, 1348, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_614", "DLC02_20_E_EnvC_001", 8722u, 1352, 4},
+    {Table::env, "DLC02_10_EnvS_674", "DLC02_20_EnvS_009", 2800032674u, 1356, 12},
+    {Table::envc, "DLC02_10_E_EnvC_615", "DLC02_20_E_EnvC_001", 3029u, 1368, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_615", "DLC02_20_E_EnvC_001", 8723u, 1372, 4},
+    {Table::envc, "DLC02_10_E_EnvC_616", "DLC02_20_E_EnvC_001", 3058u, 1376, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_616", "DLC02_20_E_EnvC_001", 8752u, 1380, 4},
+    {Table::env, "DLC02_10_EnvS_641", "DLC02_40_EnvS_021", 2800032641u, 1384, 5},
+    {Table::env, "DLC02_10_EnvS_642", "DLC02_40_EnvS_022", 2800032642u, 1389, 2},
 };
 
 constexpr Patch kMxmiddlePatches[] = {
