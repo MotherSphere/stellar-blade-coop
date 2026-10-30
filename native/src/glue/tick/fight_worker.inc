@@ -491,12 +491,12 @@ void filter_pass() {
 }
 } // namespace
 
-// coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's, coop mxiii's four, the Night
+// coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's, coop mxiii's six, the Night
 // Operation shop's and Lily's signal's rows (Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop
-// rows, signal rows, mxspawn rows, mxenv rows and mxwarp rows requests): the addresses of the tables that batch writes (0 for the others) for the game thread, which
-// adds that batch's rows at the first frame its gate holds. An ask it has not taken yet is replaced. Refused off the
-// pinned build, after coop off and after the rows' fault; once every row of a batch is in, nothing more is asked of it
-// (the rows stay for the game run).
+// rows, signal rows, mxspawn rows, mxenv rows, mxupper rows, mxmiddle rows and mxlower rows requests): the addresses of
+// the tables that batch writes (0 for the others) for the game thread, which adds that batch's rows at the first frame
+// its gate holds. An ask it has not taken yet is replaced. Refused off the pinned build, after coop off and after the
+// rows' fault; once every row of a batch is in, nothing more is asked of it (the rows stay for the game run).
 std::string ask_rows(const coop::Request &request) {
   RowsJob &j = *kJobs[request.batch < kRowWordCount ? request.batch : 0];
   const std::string word = j.batch.word, n = std::to_string(j.batch.count);

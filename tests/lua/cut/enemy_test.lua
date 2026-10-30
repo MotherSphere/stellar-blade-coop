@@ -19,7 +19,8 @@ do
     assert(n==32 and #Enemy.TABLES==32)
     local words={}
     for w in assert(src:match('kRowWords%[kRowWordCount%] = {(.-)};')):gmatch('"(%a+)"') do words[#words+1]=w end
-    assert(table.concat(words,' ')=='lion gardener tendril bolt mxiii shop signal mxspawn mxenv mxwarp',
+    assert(table.concat(words,' ')=='lion gardener tendril bolt mxiii shop signal mxspawn mxenv mxupper mxmiddle '
+        ..'mxlower',
         'The words, the batches\' order')
 end
 

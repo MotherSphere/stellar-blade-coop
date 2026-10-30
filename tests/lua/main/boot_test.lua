@@ -800,9 +800,10 @@ assert(type(mx.o.travel().probe)=='function','The follow')
 coop('mxiii')
 assert(#mx.cmds==0 and last():find('^%[StellarCoop%] STOP: coop mxiii runs only on a co%-op save'),last())
 status_text=COOP
-coop('mxiii'); coop('mxiii','x')
-assert(#mx.cmds==2 and mx.cmds[1].n==1 and mx.cmds[1][1]==nil and mx.cmds[2][1]=='x'
-    and last()=='[StellarCoop] OK: mx x\n','On a co-op save: its word reaches it, an extra one to be refused there')
+coop('mxiii'); coop('mxiii','x'); coop('mxiii','warp','12')
+assert(#mx.cmds==3 and mx.cmds[1].n==2 and mx.cmds[1][1]==nil and mx.cmds[2][1]=='x' and mx.cmds[2][2]==nil
+    and mx.cmds[3][1]=='warp' and mx.cmds[3][2]=='12' and last()=='[StellarCoop] OK: mx warp\n',
+    'On a co-op save: its words reach it (coop mxiii warp <n> with its point), an extra one to be refused there')
 status_text=plain
 -- coop lily signal (story/lily.lua): status on any save, the rest on a co-op save only; its lines [LY] lines, its
 -- status and requests the link's, its travel coop mxiii's command (with that command's co-op save check), its Paks
