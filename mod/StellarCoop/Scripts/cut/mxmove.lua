@@ -6,9 +6,13 @@
 -- script sees them; if that call fails once, every later spawn of the Lua load uses World:SpawnActor, sets the fields
 -- and calls the class's UserConstructionScript again. Each spawn logs one [MXMOVE] line with the way it took and, for
 -- a ladder, its Meshes stack as read back before the finish.
--- A ladder's height comes from its Meshes stack (enum Enum_EM_LadderMeshes: 0 160 cm, 1 200, 2 240, 3 600, 11 40) plus
--- the 79.885 cm head, as on 33 of the 34 shipped ladders; StartUnit and CollisionBottomZAdd sink its foot where the
--- stack overshoots the rise (study-climb S6, S7). The actor stands on the rung line, its -X toward the upper landing.
+-- A ladder's height comes from its Meshes stack (enum Enum_EM_LadderMeshes: 0 160.9 cm, 1 200, 2 240, 3 600, 11 40.9)
+-- plus the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, the foot, starting at
+-- whatever TotalHeight holds and adding each piece to it. So TotalHeight is left at its class default 0 (the SpawnActor
+-- way puts it back to 0 before its second run), and HeadHeight, HeadWidthHalf and CollisionWidth, which the script
+-- writes too, are not set: a TotalHeight set before the finish lifted every ladder by its own height (2026-10-31).
+-- The actor stands on the rung line, its -X toward the upper landing, at the points tools/mxiii_climb.py takes from
+-- the editor's proxy ladders. The line gives the TotalHeight read back after the finish ('built').
 -- A ledge gets the shipped climbing mesh 006_B_SM (its grab line on the actor's +Y). A rope gets its drop
 -- (RopeDistanceB) and, with a ladder bound to a row, its EnvActorName, the name its env row looks for: rope rows start
 -- Off (hidden) until their winch turns them On, and ladder gate 435's lowered ladder starts with its row 437 Off.
@@ -21,8 +25,6 @@ Move.MAP='/mxiii_p' -- The end of core/unreal.lua's map_of in world 2800.
 local DIR='/Game/GameDesign/Level/BluePrintActor/SBEventMove/'
 Move.ASSETS={ladder=DIR..'BP_EM_Ladder.BP_EM_Ladder',ledge=DIR..'BP_EM_Ledge.BP_EM_Ledge',
     rope=DIR..'Env_EM_VerticalRope.Env_EM_VerticalRope'}
--- The ladder's head and collision as Matrix 11's placed ladders have them (MOVERS F11).
-Move.LADDER={HeadHeight=79.885,HeadWidthHalf=34.9,CollisionWidth=40}
 local EVERY=1 -- s between looks at the world.
 local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
 
@@ -71,8 +73,7 @@ function Move.new(o)
         if m.env then a.EnvActorName=FName(m.env) end
         if m.cls=='ladder' then
             fill(a.Meshes,m.meshes)
-            a.StartUnit,a.CollisionBottomZAdd,a.TotalHeight=m.start,m.bottom,m.height
-            for k,v in pairs(Move.LADDER) do a[k]=v end
+            a.StartUnit,a.CollisionBottomZAdd=m.start,m.bottom
             return ' '..stack(a.Meshes)
         elseif m.cls=='ledge' then
             fill(a.Meshes,{mesh})
@@ -80,6 +81,11 @@ function Move.new(o)
             a.RopeDistanceB=m.drop
         end
         return ''
+    end
+    -- The TotalHeight the construction script built: ' built 1279.9' (or nothing when it does not read).
+    local function built(a)
+        local ok,h=pcall(function() return a.TotalHeight end)
+        return ok and type(h)=='number' and string.format(' built %.1f',h) or ''
     end
     -- One spawn: the deferred pair while it works, else SpawnActor and the construction script again.
     local function spawn(eve,m)
@@ -102,6 +108,8 @@ function Move.new(o)
         end
         local a=assert(U.valid(eve:GetWorld():SpawnActor(c,at,rot)),'SpawnActor gave nothing')
         local got=fields(a,m,mesh)
+        -- The spawn already ran the script once: its running sum back to the class default before the second run.
+        if m.cls=='ladder' then a.TotalHeight=0 end
         local ran=pcall(function() a:UserConstructionScript() end)
         return a,got,ran and 'SpawnActor, construction script run again' or 'SpawnActor, construction script not run'
     end
@@ -129,7 +137,8 @@ function Move.new(o)
                 spawned[#spawned+1]=a
                 made=made+1
                 local extra=(m.height and string.format(' height %.1f',m.height) or '')
-                    ..got..(m.drop and string.format(' drop %.0f',m.drop) or '')..(m.env and ' env '..m.env or '')
+                    ..got..(m.cls=='ladder' and built(a) or '')..(m.drop and string.format(' drop %.0f',m.drop) or '')
+                    ..(m.env and ' env '..m.env or '')
                 log(string.format('%s %s at %.0f %.0f %.0f yaw %.0f%s (%s), %s',m.cls,m.key,m.at[1],m.at[2],m.at[3],
                     m.yaw,extra,m.role,how))
             else

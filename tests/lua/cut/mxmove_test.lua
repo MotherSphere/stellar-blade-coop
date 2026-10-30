@@ -1,10 +1,12 @@
 -- cut/mxmove.lua with fake UE4SS objects: outside world 2800 nothing; in it, once a world, every ladder, ledge and
 -- rope of the MOVE list spawned by the deferred pair (BeginDeferredActorSpawnFromClass, then the ladder's Meshes,
--- StartUnit, CollisionBottomZAdd and head, the ledge's mesh, the rope's drop and EnvActorName set before
--- FinishSpawningActor, at its point with its yaw), one [MXMOVE] line each and a count; a class or mesh not in memory
+-- StartUnit and CollisionBottomZAdd, the ledge's mesh, the rope's drop and EnvActorName set before
+-- FinishSpawningActor, at its point with its yaw; never the ladder's TotalHeight, the construction script's running
+-- sum, nor the head values it writes), one [MXMOVE] line each, a ladder's with the TotalHeight it built, and a count;
+-- a class or mesh not in memory
 -- loaded first; nothing again in the same world, all again in a new one. When the deferred call fails, that spawn and
--- every later one go through SpawnActor and the construction script, and the line says so. The MOVE list: each
--- ladder's height is its Meshes stack plus the head and agrees with study-climb's recipe, the ledges carry 006_B_SM,
+-- every later one go through SpawnActor and the construction script (TotalHeight back to 0 before it), and the line
+-- says so. The MOVE list: each ladder's height is its Meshes stack plus the head, the ledges carry 006_B_SM,
 -- the ropes and gate 435's ladder name their rows. The fake Meshes array zeroes its values when it grows (UE4SS #436),
 -- so a stack filled front to back would read 0,3.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -36,8 +38,10 @@ local spawned,worlds={},{}
 local function new_world()
     local w=object({GetFullName=function() return world_name end})
     w.SpawnActor=function(_,class,at,rot)
-        local a=object({class=class,at=at,rot=rot,how='SpawnActor',Meshes=tarray()})
-        a.UserConstructionScript=function(self) self.rerun=true end
+        -- Spawned, its script has run once with no Meshes: the head alone.
+        local a=object({class=class,at=at,rot=rot,how='SpawnActor',Meshes=tarray(),TotalHeight=79.885})
+        -- Like the game's script: the stack starts at TotalHeight and adds to it (L1's 600+600 and head).
+        a.UserConstructionScript=function(self) self.rerun=true; self.TotalHeight=self.TotalHeight+1279.885 end
         spawned[#spawned+1]=a
         return a
     end
@@ -63,6 +67,7 @@ local gs=object({
     FinishSpawningActor=function(_,a,t)
         in_deferred=false
         a.finished,a.height_at_finish,a.meshes_at_finish=t,a.TotalHeight,#a.Meshes
+        if a.class.path:find('BP_EM_Ladder') then a.TotalHeight=(a.TotalHeight or 0)+1279.885 end
         return a
     end})
 local km=object({MakeTransform=function(_,at,rot,scale) return {at=at,rot=rot,scale=scale} end})
@@ -107,14 +112,15 @@ local ladder,ledge,rope=spawned[1],spawned[2],spawned[3]
 assert(ladder.how=='deferred' and ladder.class.path==M.ASSETS.ladder..'_C' and ladder.at.X==10 and ladder.at.Z==30
     and ladder.rot.Yaw==175 and ladder.meshes_at_finish==2 and ladder.Meshes[1]==3 and ladder.Meshes[2]==3
     and ladder.StartUnit==2
-    and ladder.CollisionBottomZAdd==-75 and ladder.height_at_finish==1279.885 and ladder.HeadHeight==79.885
-    and ladder.HeadWidthHalf==34.9 and ladder.CollisionWidth==40 and ladder.EnvActorName==nil,
-    'The ladder: its stack (no piece zeroed by the growth) and foot set before the finish')
+    and ladder.CollisionBottomZAdd==-75 and ladder.height_at_finish==nil and ladder.HeadHeight==nil
+    and ladder.HeadWidthHalf==nil and ladder.CollisionWidth==nil and ladder.EnvActorName==nil,
+    'The ladder: its stack (no piece zeroed by the growth) and foot set before the finish, TotalHeight left alone')
 assert(ledge.how=='deferred' and ledge.TotalHeight==nil and ledge.finished and ledge.meshes_at_finish==1
     and ledge.Meshes[1]==classes[MESH],'The ledge: the climbing mesh')
 assert(rope.class.path==M.ASSETS.rope..'_C' and rope.RopeDistanceB==1200 and rope.EnvActorName.name=='DLC02_10_EnvS_642'
     and rope.finished,'The rope: its drop and its row')
-assert(lines[1]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 3,3 (critical), deferred spawn',lines[1])
+assert(lines[1]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 3,3 built 1279.9 (critical), deferred spawn',
+    lines[1])
 assert(lines[2]=='ledge E1 at 1 2 3 yaw 85 (climb_R16), deferred spawn',lines[2])
 assert(lines[3]=='rope R1 at 4 5 6 yaw -95 drop 1200 env DLC02_10_EnvS_642 (critical), deferred spawn',lines[3])
 assert(lines[4]=='3/3 ladders, ledges and ropes spawned in world 2800',lines[4])
@@ -128,8 +134,8 @@ assert(#spawned==6 and spawned[4].how=='SpawnActor' and spawned[4].rerun and spa
     and spawned[5].how=='SpawnActor','SpawnActor with the fields, then the construction script')
 assert(lines[5]:find('^deferred spawn failed %(.*no such function%): SpawnActor and the construction script from now '
     ..'on$'),lines[5])
-assert(lines[6]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 3,3 (critical), SpawnActor, construction script run '
-    ..'again',
+assert(lines[6]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 3,3 built 1279.9 (critical), SpawnActor, '
+    ..'construction script run again',
     lines[6])
 deferred_fails=false
 world=new_world()
@@ -147,9 +153,9 @@ assert(lines[#lines]=='1/3 ladders, ledges and ropes spawned in world 2800',line
 assert(lines[#lines-3]:find('^ladder L1 not spawned: .*BP_EM_Ladder_C does not load'),lines[#lines-3])
 assert(lines[#lines-1]:find('^rope R1 not spawned: .*Env_EM_VerticalRope_C does not load'),lines[#lines-1])
 
--- The generated list: every ladder's height is its stack plus the head, its foot sunk as the stack overshoots
--- (StartUnit k, CollisionBottomZAdd 5 - 40 k, or the defaults 1 and 55); the ledges are R16's with the climbing mesh;
--- the two ropes and gate 435's ladder name their rows.
+-- The generated list: every ladder's height is its stack plus the head (StartUnit k with CollisionBottomZAdd 5 - 40 k,
+-- or the defaults 1 and 55; tests/tools/mxiii_climb_test.py checks where the pieces land); the ledges are R16's with
+-- the climbing mesh; the two ropes and gate 435's ladder name their rows.
 local PIECE={[0]=160.909,[1]=200,[2]=240,[3]=600,[11]=40}
 local ladders,critical,ledges,envs={},0,0,{}
 for _,m in ipairs(Rows.MOVE) do
