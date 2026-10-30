@@ -201,11 +201,11 @@ end
 -- struct's): PolyglotDataToText raises, or may read an FText as an FString. So nothing calls it.
 local TEXT_NO='STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter '
     ..'(PolyglotDataToText LocalizedStrings): not registered, the lines stay Korean and Japanese'
--- The short name of the sequence a theater observer plays now, else nil.
+-- The short name of the sequence a theater observer plays now (or holds paused: a talk's reading hold), else nil.
 local function name_of(ob)
     ob=valid(ob)
     local player=ob and U.weak(ob.Player)
-    if not (player and player:IsPlaying()==true) then return nil end
+    if not (player and (player:IsPlaying()==true or player.IsPaused and player:IsPaused()==true)) then return nil end
     local s=U.weak(ob.Sequence)
     return s and short(path_of(s)) or text(ob.SequenceName)
 end

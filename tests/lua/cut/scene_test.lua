@@ -404,6 +404,10 @@ at(701); tk.tick()
 assert(seen==1 and last()=='playing: Subtitle_POD_1stMeetAdam_01, 1.0 s after the call' and tk.player()~=nil
     and tk.player()==observers[#observers].Player,last())
 ok,why=tk.talk(FINALE,opts()); assert(ok==false and why:find('is under way'),why)
+local held=observers[#observers].Player -- A reading hold: paused, still under way.
+held.playing,held.IsPaused=false,function() return true end
+at(730); assert(tk.tick()==nil and tk.player()==held,'Paused is not over')
+held.IsPaused=nil
 observers[#observers].Player.playing=false
 at(760); ok,why=tk.tick()
 assert(ok and why=="Lily's talk ended after 59 s." and quinn_take.TemplateSequence==quinn_seq and #done==1
