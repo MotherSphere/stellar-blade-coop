@@ -559,7 +559,7 @@ int main() {
   // first in mxspawn, every new spawn row bound to the spawn point of its own name, the bosses saved once dead, and each
   // warp switch's On tag running the PlayerWarp event of its own number, whose warp row names an arrival point.
   {
-    static_assert(kMxiiiRows == 78 && kMxspawnRows == 46 && kMxenvRows == 13 && kMxwarpRows == 216,
+    static_assert(kMxiiiRows == 78 && kMxspawnRows == 46 && kMxenvRows == 163 && kMxwarpRows == 216,
                   "the data file's batches");
     const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxwarp};
     assert(kMxiii.patches == kMxiiiPatches && kMxspawn.patches == kMxspawnPatches &&

@@ -736,6 +736,736 @@ constexpr Patch kMxenvPatches[] = {
     // DLC02_20_EffVol_002 (EffectVolumeTable, kill pit under a lift shaft, no softlock)
     {0x18, Kind::name, 0, "Zone_DLC02_20"}, // ActiveZoneAlias
     {0x20, Kind::name, 0, "LV_Dead_Falling"}, // EnterEffectAlias
+    // DLC02_10_EnvS_419 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_419"}, // SpawnPointName
+    // DLC02_10_EnvS_418 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_418"}, // SpawnPointName
+    // DLC02_10_EnvS_427 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_427"}, // SpawnPointName
+    // DLC02_20_EnvS_093 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_093"}, // SpawnPointName
+    // DLC02_20_EnvS_028 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_028"}, // SpawnPointName
+    // DLC02_20_EnvS_033 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_033"}, // SpawnPointName
+    // DLC02_20_EnvS_032 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_032"}, // SpawnPointName
+    // DLC02_20_EnvS_035 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_035"}, // SpawnPointName
+    // DLC02_10_EnvS_440 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_440"}, // SpawnPointName
+    // DLC02_00_EnvS_008 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_00_EnvS_008"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_00_EnvS_008"}, // SpawnPointName
+    // DLC02_00_EnvS_009 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_00_EnvS_009"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_00_EnvS_009"}, // SpawnPointName
+    // DLC02_00_E_ItemS_002 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_00_E_ItemS_002"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_00_E_ItemS_003 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_00_E_ItemS_003"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_00_E_ItemS_004 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_00_E_ItemS_004"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_007 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_007"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_010 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_010"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_EnvS_442 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_442"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_442"}, // SpawnPointName
+    // DLC02_10_E_ItemS_013 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_013"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_003 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_003"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_EnvS_445 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_445"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_445"}, // SpawnPointName
+    // DLC02_10_E_ItemS_008 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_008"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_EnvS_444 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_444"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_444"}, // SpawnPointName
+    // DLC02_10_E_ItemS_009 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_009"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_EnvS_443 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_443"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_443"}, // SpawnPointName
+    // DLC02_10_E_ItemS_011 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_011"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_004 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_004"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_005 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_005"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_006 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_006"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_012 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_012"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_002 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_002"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_021 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_021"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_EnvS_094 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_094"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_094"}, // SpawnPointName
+    // DLC02_20_EnvS_095 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_095"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_095"}, // SpawnPointName
+    // DLC02_20_EnvS_096 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_096"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_096"}, // SpawnPointName
+    // DLC02_20_EnvS_097 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_097"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_097"}, // SpawnPointName
+    // DLC02_20_EnvS_098 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_098"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_098"}, // SpawnPointName
+    // DLC02_20_EnvS_099 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_099"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_099"}, // SpawnPointName
+    // DLC02_20_EnvS_100 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_100"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_100"}, // SpawnPointName
+    // DLC02_20_EnvS_101 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_101"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_101"}, // SpawnPointName
+    // DLC02_20_EnvS_102 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_102"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_102"}, // SpawnPointName
+    // DLC02_20_EnvS_103 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_103"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_103"}, // SpawnPointName
+    // DLC02_20_EnvS_104 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_104"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_104"}, // SpawnPointName
+    // DLC02_20_E_ItemS_004 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_004"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_005 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_005"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_006 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_006"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_007 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_007"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_008 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_008"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_009 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_009"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_010 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_010"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_011 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_011"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_012 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_012"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_013 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_013"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_014 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_014"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_015 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_015"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_016 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_016"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_017 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_017"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_018 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_018"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_019 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_019"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_20_E_ItemS_020 (EventItemTable, pickup, label names no item)
+    {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_020"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_EnvS_026 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_026"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_026"}, // SpawnPointName
+    // DLC02_40_EnvS_027 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_027"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_027"}, // SpawnPointName
+    // DLC02_40_EnvS_028 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_028"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_028"}, // SpawnPointName
+    // DLC02_40_EnvS_029 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_029"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_029"}, // SpawnPointName
+    // DLC02_40_EnvS_030 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_030"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_030"}, // SpawnPointName
+    // DLC02_40_EnvS_031 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_031"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_031"}, // SpawnPointName
+    // DLC02_40_EnvS_032 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_032"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_032"}, // SpawnPointName
+    // DLC02_40_EnvS_033 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_033"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_033"}, // SpawnPointName
+    // DLC02_40_EnvS_034 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_034"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_034"}, // SpawnPointName
+    // DLC02_40_EnvS_035 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_035"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_035"}, // SpawnPointName
+    // DLC02_40_EnvS_036 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_036"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_036"}, // SpawnPointName
+    // DLC02_40_EnvS_037 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_037"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_037"}, // SpawnPointName
+    // DLC02_40_EnvS_038 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_038"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_038"}, // SpawnPointName
+    // DLC02_40_EnvS_039 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_039"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_039"}, // SpawnPointName
+    // DLC02_40_EnvS_040 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_040"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_040"}, // SpawnPointName
+    // DLC02_40_EnvS_041 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_041"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_041"}, // SpawnPointName
+    // DLC02_40_EnvS_042 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_042"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_042"}, // SpawnPointName
+    // DLC02_40_EnvS_043 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_043"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_043"}, // SpawnPointName
+    // DLC02_40_EnvS_044 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_044"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_044"}, // SpawnPointName
+    // DLC02_40_E_ItemS_002 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_002"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_003 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_003"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_004 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_004"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_005 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_005"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_006 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_006"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 7, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_007 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_007"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_008 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_008"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_009 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_009"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_010 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_010"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_011 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_011"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_012 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_012"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 7, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_013 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_013"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 9, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_014 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_014"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 9, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_015 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_015"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_016 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_016"}, // SpawnPointName
+    {0x34, Kind::name, 0, "PolymerOrganicFilm"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 4, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_017 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_017"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_018 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_018"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 7, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_019 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_019"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_020 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_020"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_021 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_021"}, // SpawnPointName
+    {0x34, Kind::name, 0, "HP_Potion_Small"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_022 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_022"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 7, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_023 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_023"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ECelluloseRayon"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 2, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_024 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_024"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_025 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_025"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_026 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_026"}, // SpawnPointName
+    {0x34, Kind::name, 0, "HighDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 4, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_027 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_027"}, // SpawnPointName
+    {0x34, Kind::name, 0, "2DQuantumWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_028 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_028"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 9, nullptr}, // SpawnItemCount
+    // DLC02_10_EnvS_428 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_428"}, // SpawnPointName
+    // DLC02_30_EnvS_012 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_012"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_012"}, // SpawnPointName
+    // DLC02_30_EnvS_013 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_013"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_013"}, // SpawnPointName
+    // DLC02_30_EnvS_014 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_014"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_014"}, // SpawnPointName
+    // DLC02_30_EnvS_015 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_015"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_015"}, // SpawnPointName
+    // DLC02_30_EnvS_016 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_016"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_016"}, // SpawnPointName
+    // DLC02_30_EnvS_017 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_017"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_017"}, // SpawnPointName
+    // DLC02_30_EnvS_018 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_018"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_018"}, // SpawnPointName
+    // DLC02_30_EnvS_019 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_019"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_019"}, // SpawnPointName
+    // DLC02_30_EnvS_020 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_020"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_020"}, // SpawnPointName
+    // DLC02_30_EnvS_021 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_021"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_021"}, // SpawnPointName
+    // DLC02_30_EnvS_022 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_022"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_022"}, // SpawnPointName
+    // DLC02_30_EnvS_023 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_023"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_023"}, // SpawnPointName
+    // DLC02_30_EnvS_024 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_024"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_024"}, // SpawnPointName
+    // DLC02_30_EnvS_025 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_025"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_025"}, // SpawnPointName
+    // DLC02_30_EnvS_026 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_026"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_026"}, // SpawnPointName
+    // DLC02_30_EnvS_027 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_027"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_027"}, // SpawnPointName
+    // DLC02_30_EnvS_028 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_028"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_028"}, // SpawnPointName
+    // DLC02_30_EnvS_029 (ZoneEnvSpawnTable, supply box)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_029"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_029"}, // SpawnPointName
+    // DLC02_30_E_ItemS_003 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_003"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_004 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_004"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 7, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_005 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_005"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 9, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_006 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_006"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_007 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_007"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_008 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_008"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 9, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_009 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_009"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 7, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_010 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_010"}, // SpawnPointName
+    {0x34, Kind::name, 0, "PolymerOrganicFilm"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 4, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_011 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_011"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_012 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_012"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 7, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_013 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_013"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_014 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_014"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 9, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_015 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_015"}, // SpawnPointName
+    {0x34, Kind::name, 0, "HighDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 4, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_016 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_016"}, // SpawnPointName
+    {0x34, Kind::name, 0, "2DQuantumWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_017 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_017"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_018 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_018"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 7, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_019 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_019"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_020 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_020"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ECelluloseRayon"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 2, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_021 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_021"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_022 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_022"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_023 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_023"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 9, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_024 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_024"}, // SpawnPointName
+    {0x34, Kind::name, 0, "HP_Potion_Small"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_025 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_025"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_026 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_026"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ETC_Item_VendingMachineCoin"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_027 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_027"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_028 (EventItemTable, pickup)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_028"}, // SpawnPointName
+    {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
 };
 constexpr Row kMxenvRecipe[] = {
     {Table::env, "DLC02_20_EnvS_050", "DLC02_20_EnvS_050", 2805032050u, 0, 2},
@@ -751,6 +1481,156 @@ constexpr Row kMxenvRecipe[] = {
     {Table::env, "DLC02_40_EnvS_005", "DLC02_40_EnvS_005", 2815032005u, 29, 3},
     {Table::effvol, "DLC02_40_EffVol_001", "DLC02_20_EffVol_001", 2815052001u, 32, 2},
     {Table::effvol, "DLC02_20_EffVol_002", "DLC02_20_EffVol_001", 2805052002u, 34, 2},
+    {Table::env, "DLC02_10_EnvS_419", "DLC02_10_EnvS_419", 2800032419u, 36, 2},
+    {Table::env, "DLC02_10_EnvS_418", "DLC02_10_EnvS_418", 2800032418u, 38, 2},
+    {Table::env, "DLC02_10_EnvS_427", "DLC02_10_EnvS_427", 2800032427u, 40, 2},
+    {Table::env, "DLC02_20_EnvS_093", "DLC02_20_EnvS_093", 2805032093u, 42, 2},
+    {Table::env, "DLC02_20_EnvS_028", "DLC02_20_EnvS_028", 2805032028u, 44, 2},
+    {Table::env, "DLC02_20_EnvS_033", "DLC02_20_EnvS_033", 2805032033u, 46, 2},
+    {Table::env, "DLC02_20_EnvS_032", "DLC02_20_EnvS_032", 2805032032u, 48, 2},
+    {Table::env, "DLC02_20_EnvS_035", "DLC02_20_EnvS_035", 2805032035u, 50, 2},
+    {Table::env, "DLC02_10_EnvS_440", "DLC02_10_EnvS_440", 2800032440u, 52, 2},
+    {Table::env, "DLC02_00_EnvS_008", "DLC02_10_EnvS_440", 2800037008u, 54, 4},
+    {Table::env, "DLC02_00_EnvS_009", "DLC02_10_EnvS_440", 2800037009u, 58, 4},
+    {Table::eitem, "DLC02_00_E_ItemS_002", "DLC02_10_E_ItemS_001", 2800027002u, 62, 4},
+    {Table::eitem, "DLC02_00_E_ItemS_003", "DLC02_10_E_ItemS_001", 2800027003u, 66, 4},
+    {Table::eitem, "DLC02_00_E_ItemS_004", "DLC02_10_E_ItemS_001", 2800027004u, 70, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_007", "DLC02_10_E_ItemS_001", 2800020007u, 74, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_010", "DLC02_10_E_ItemS_001", 2800020010u, 78, 4},
+    {Table::env, "DLC02_10_EnvS_442", "DLC02_10_EnvS_440", 2800032442u, 82, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_013", "DLC02_10_E_ItemS_001", 2800020013u, 86, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_003", "DLC02_10_E_ItemS_001", 2800020003u, 90, 4},
+    {Table::env, "DLC02_10_EnvS_445", "DLC02_10_EnvS_440", 2800032445u, 94, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_008", "DLC02_10_E_ItemS_001", 2800020008u, 98, 4},
+    {Table::env, "DLC02_10_EnvS_444", "DLC02_10_EnvS_440", 2800032444u, 102, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_009", "DLC02_10_E_ItemS_001", 2800020009u, 106, 4},
+    {Table::env, "DLC02_10_EnvS_443", "DLC02_10_EnvS_440", 2800032443u, 110, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_011", "DLC02_10_E_ItemS_001", 2800020011u, 114, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_004", "DLC02_10_E_ItemS_001", 2800020004u, 118, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_005", "DLC02_10_E_ItemS_001", 2800020005u, 122, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_006", "DLC02_10_E_ItemS_001", 2800020006u, 126, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_012", "DLC02_10_E_ItemS_001", 2800020012u, 130, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_002", "DLC02_10_E_ItemS_001", 2800020002u, 134, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_021", "DLC02_10_E_ItemS_001", 2805020021u, 138, 4},
+    {Table::env, "DLC02_20_EnvS_094", "DLC02_10_EnvS_440", 2805032094u, 142, 4},
+    {Table::env, "DLC02_20_EnvS_095", "DLC02_10_EnvS_440", 2805032095u, 146, 4},
+    {Table::env, "DLC02_20_EnvS_096", "DLC02_10_EnvS_440", 2805032096u, 150, 4},
+    {Table::env, "DLC02_20_EnvS_097", "DLC02_10_EnvS_440", 2805032097u, 154, 4},
+    {Table::env, "DLC02_20_EnvS_098", "DLC02_10_EnvS_440", 2805032098u, 158, 4},
+    {Table::env, "DLC02_20_EnvS_099", "DLC02_10_EnvS_440", 2805032099u, 162, 4},
+    {Table::env, "DLC02_20_EnvS_100", "DLC02_10_EnvS_440", 2805032100u, 166, 4},
+    {Table::env, "DLC02_20_EnvS_101", "DLC02_10_EnvS_440", 2805032101u, 170, 4},
+    {Table::env, "DLC02_20_EnvS_102", "DLC02_10_EnvS_440", 2805032102u, 174, 4},
+    {Table::env, "DLC02_20_EnvS_103", "DLC02_10_EnvS_440", 2805032103u, 178, 4},
+    {Table::env, "DLC02_20_EnvS_104", "DLC02_10_EnvS_440", 2805032104u, 182, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_004", "DLC02_10_E_ItemS_001", 2805020004u, 186, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_005", "DLC02_10_E_ItemS_001", 2805020005u, 190, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_006", "DLC02_10_E_ItemS_001", 2805020006u, 194, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_007", "DLC02_10_E_ItemS_001", 2805020007u, 198, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_008", "DLC02_10_E_ItemS_001", 2805020008u, 202, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_009", "DLC02_10_E_ItemS_001", 2805020009u, 206, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_010", "DLC02_10_E_ItemS_001", 2805020010u, 210, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_011", "DLC02_10_E_ItemS_001", 2805020011u, 214, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_012", "DLC02_10_E_ItemS_001", 2805020012u, 218, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_013", "DLC02_10_E_ItemS_001", 2805020013u, 222, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_014", "DLC02_10_E_ItemS_001", 2805020014u, 226, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_015", "DLC02_10_E_ItemS_001", 2805020015u, 230, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_016", "DLC02_10_E_ItemS_001", 2805020016u, 234, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_017", "DLC02_10_E_ItemS_001", 2805020017u, 238, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_018", "DLC02_10_E_ItemS_001", 2805020018u, 242, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_019", "DLC02_10_E_ItemS_001", 2805020019u, 246, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_020", "DLC02_10_E_ItemS_001", 2805020020u, 250, 4},
+    {Table::env, "DLC02_40_EnvS_026", "DLC02_10_EnvS_440", 2815032026u, 254, 4},
+    {Table::env, "DLC02_40_EnvS_027", "DLC02_10_EnvS_440", 2815032027u, 258, 4},
+    {Table::env, "DLC02_40_EnvS_028", "DLC02_10_EnvS_440", 2815032028u, 262, 4},
+    {Table::env, "DLC02_40_EnvS_029", "DLC02_10_EnvS_440", 2815032029u, 266, 4},
+    {Table::env, "DLC02_40_EnvS_030", "DLC02_10_EnvS_440", 2815032030u, 270, 4},
+    {Table::env, "DLC02_40_EnvS_031", "DLC02_10_EnvS_440", 2815032031u, 274, 4},
+    {Table::env, "DLC02_40_EnvS_032", "DLC02_10_EnvS_440", 2815032032u, 278, 4},
+    {Table::env, "DLC02_40_EnvS_033", "DLC02_10_EnvS_440", 2815032033u, 282, 4},
+    {Table::env, "DLC02_40_EnvS_034", "DLC02_10_EnvS_440", 2815032034u, 286, 4},
+    {Table::env, "DLC02_40_EnvS_035", "DLC02_10_EnvS_440", 2815032035u, 290, 4},
+    {Table::env, "DLC02_40_EnvS_036", "DLC02_10_EnvS_440", 2815032036u, 294, 4},
+    {Table::env, "DLC02_40_EnvS_037", "DLC02_10_EnvS_440", 2815032037u, 298, 4},
+    {Table::env, "DLC02_40_EnvS_038", "DLC02_10_EnvS_440", 2815032038u, 302, 4},
+    {Table::env, "DLC02_40_EnvS_039", "DLC02_10_EnvS_440", 2815032039u, 306, 4},
+    {Table::env, "DLC02_40_EnvS_040", "DLC02_10_EnvS_440", 2815032040u, 310, 4},
+    {Table::env, "DLC02_40_EnvS_041", "DLC02_10_EnvS_440", 2815032041u, 314, 4},
+    {Table::env, "DLC02_40_EnvS_042", "DLC02_10_EnvS_440", 2815032042u, 318, 4},
+    {Table::env, "DLC02_40_EnvS_043", "DLC02_10_EnvS_440", 2815032043u, 322, 4},
+    {Table::env, "DLC02_40_EnvS_044", "DLC02_10_EnvS_440", 2815032044u, 326, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_002", "DLC02_10_E_ItemS_001", 2815020002u, 330, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_003", "DLC02_10_E_ItemS_001", 2815020003u, 334, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_004", "DLC02_10_E_ItemS_001", 2815020004u, 338, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_005", "DLC02_10_E_ItemS_001", 2815020005u, 342, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_006", "DLC02_10_E_ItemS_001", 2815020006u, 346, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_007", "DLC02_10_E_ItemS_001", 2815020007u, 350, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_008", "DLC02_10_E_ItemS_001", 2815020008u, 354, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_009", "DLC02_10_E_ItemS_001", 2815020009u, 358, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_010", "DLC02_10_E_ItemS_001", 2815020010u, 362, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_011", "DLC02_10_E_ItemS_001", 2815020011u, 366, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_012", "DLC02_10_E_ItemS_001", 2815020012u, 370, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_013", "DLC02_10_E_ItemS_001", 2815020013u, 374, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_014", "DLC02_10_E_ItemS_001", 2815020014u, 378, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_015", "DLC02_10_E_ItemS_001", 2815020015u, 382, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_016", "DLC02_10_E_ItemS_001", 2815020016u, 386, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_017", "DLC02_10_E_ItemS_001", 2815020017u, 390, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_018", "DLC02_10_E_ItemS_001", 2815020018u, 394, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_019", "DLC02_10_E_ItemS_001", 2815020019u, 398, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_020", "DLC02_10_E_ItemS_001", 2815020020u, 402, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_021", "DLC02_10_E_ItemS_001", 2815020021u, 406, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_022", "DLC02_10_E_ItemS_001", 2815020022u, 410, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_023", "DLC02_10_E_ItemS_001", 2815020023u, 414, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_024", "DLC02_10_E_ItemS_001", 2815020024u, 418, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_025", "DLC02_10_E_ItemS_001", 2815020025u, 422, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_026", "DLC02_10_E_ItemS_001", 2815020026u, 426, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_027", "DLC02_10_E_ItemS_001", 2815020027u, 430, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_028", "DLC02_10_E_ItemS_001", 2815020028u, 434, 4},
+    {Table::env, "DLC02_10_EnvS_428", "DLC02_10_EnvS_428", 2800032428u, 438, 2},
+    {Table::env, "DLC02_30_EnvS_012", "DLC02_10_EnvS_440", 2810032012u, 440, 4},
+    {Table::env, "DLC02_30_EnvS_013", "DLC02_10_EnvS_440", 2810032013u, 444, 4},
+    {Table::env, "DLC02_30_EnvS_014", "DLC02_10_EnvS_440", 2810032014u, 448, 4},
+    {Table::env, "DLC02_30_EnvS_015", "DLC02_10_EnvS_440", 2810032015u, 452, 4},
+    {Table::env, "DLC02_30_EnvS_016", "DLC02_10_EnvS_440", 2810032016u, 456, 4},
+    {Table::env, "DLC02_30_EnvS_017", "DLC02_10_EnvS_440", 2810032017u, 460, 4},
+    {Table::env, "DLC02_30_EnvS_018", "DLC02_10_EnvS_440", 2810032018u, 464, 4},
+    {Table::env, "DLC02_30_EnvS_019", "DLC02_10_EnvS_440", 2810032019u, 468, 4},
+    {Table::env, "DLC02_30_EnvS_020", "DLC02_10_EnvS_440", 2810032020u, 472, 4},
+    {Table::env, "DLC02_30_EnvS_021", "DLC02_10_EnvS_440", 2810032021u, 476, 4},
+    {Table::env, "DLC02_30_EnvS_022", "DLC02_10_EnvS_440", 2810032022u, 480, 4},
+    {Table::env, "DLC02_30_EnvS_023", "DLC02_10_EnvS_440", 2810032023u, 484, 4},
+    {Table::env, "DLC02_30_EnvS_024", "DLC02_10_EnvS_440", 2810032024u, 488, 4},
+    {Table::env, "DLC02_30_EnvS_025", "DLC02_10_EnvS_440", 2810032025u, 492, 4},
+    {Table::env, "DLC02_30_EnvS_026", "DLC02_10_EnvS_440", 2810032026u, 496, 4},
+    {Table::env, "DLC02_30_EnvS_027", "DLC02_10_EnvS_440", 2810032027u, 500, 4},
+    {Table::env, "DLC02_30_EnvS_028", "DLC02_10_EnvS_440", 2810032028u, 504, 4},
+    {Table::env, "DLC02_30_EnvS_029", "DLC02_10_EnvS_440", 2810032029u, 508, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_003", "DLC02_10_E_ItemS_001", 2810020003u, 512, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_004", "DLC02_10_E_ItemS_001", 2810020004u, 516, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_005", "DLC02_10_E_ItemS_001", 2810020005u, 520, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_006", "DLC02_10_E_ItemS_001", 2810020006u, 524, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_007", "DLC02_10_E_ItemS_001", 2810020007u, 528, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_008", "DLC02_10_E_ItemS_001", 2810020008u, 532, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_009", "DLC02_10_E_ItemS_001", 2810020009u, 536, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_010", "DLC02_10_E_ItemS_001", 2810020010u, 540, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_011", "DLC02_10_E_ItemS_001", 2810020011u, 544, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_012", "DLC02_10_E_ItemS_001", 2810020012u, 548, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_013", "DLC02_10_E_ItemS_001", 2810020013u, 552, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_014", "DLC02_10_E_ItemS_001", 2810020014u, 556, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_015", "DLC02_10_E_ItemS_001", 2810020015u, 560, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_016", "DLC02_10_E_ItemS_001", 2810020016u, 564, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_017", "DLC02_10_E_ItemS_001", 2810020017u, 568, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_018", "DLC02_10_E_ItemS_001", 2810020018u, 572, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_019", "DLC02_10_E_ItemS_001", 2810020019u, 576, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_020", "DLC02_10_E_ItemS_001", 2810020020u, 580, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_021", "DLC02_10_E_ItemS_001", 2810020021u, 584, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_022", "DLC02_10_E_ItemS_001", 2810020022u, 588, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_023", "DLC02_10_E_ItemS_001", 2810020023u, 592, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_024", "DLC02_10_E_ItemS_001", 2810020024u, 596, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_025", "DLC02_10_E_ItemS_001", 2810020025u, 600, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_026", "DLC02_10_E_ItemS_001", 2810020026u, 604, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_027", "DLC02_10_E_ItemS_001", 2810020027u, 608, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_028", "DLC02_10_E_ItemS_001", 2810020028u, 612, 4},
 };
 
 constexpr Patch kMxwarpPatches[] = {

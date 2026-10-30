@@ -35,7 +35,10 @@ FIELDS = {
         'Zone': (0x34, 'name', 'n'), 'SaveType': (0x44, 'u8', 'e'), 'GoPathAfterSpawn': (0xb1, 'u8', 'b'),
         'PathWay': (0xb8, 'string', 's'), 'RewardGroup': (0xc8, 'name', 'n'), 'AIGroupAlias': (0xe0, 'name', 'n'),
         'AIGroupName': (0xe8, 'name', 'n')}),
-    'EventItemTable': ('eitem', {'Zone': (0x20, 'name', 'n'), 'SpawnPointName': (0x2c, 'name', 'n')}),
+    # shortcut: SpawnItemCount is an int32 written as its low byte (counts under 256, the donor's upper bytes 0);
+    # add an i32 patch kind if a count of 256 or more is ever needed.
+    'EventItemTable': ('eitem', {'Zone': (0x20, 'name', 'n'), 'SpawnPointName': (0x2c, 'name', 'n'),
+                                 'SpawnItemAlias': (0x34, 'name', 'n'), 'SpawnItemCount': (0x3c, 'u8', 'e')}),
     'ZoneEventTable': ('zevent', {'Type': (0x14, 'u8', 'e'), 'EventAlias': (0x18, 'name', 'n')}),
     'WorldTransitionTable': ('transition', {
         'EnvSpawnAlias': (0x30, 'name', 'n'), 'EventSpawnAliasArray': (0x38, 'names', 'N'),

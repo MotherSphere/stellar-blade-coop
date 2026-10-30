@@ -3608,6 +3608,4364 @@
       ]
      ],
      "note": "kill pit under a lift shaft, no softlock"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_419",
+     "donor": "DLC02_10_EnvS_419",
+     "id": 2800032419,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_419",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_418",
+     "donor": "DLC02_10_EnvS_418",
+     "id": 2800032418,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_418",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_427",
+     "donor": "DLC02_10_EnvS_427",
+     "id": 2800032427,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_427",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_093",
+     "donor": "DLC02_20_EnvS_093",
+     "id": 2805032093,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_093",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_028",
+     "donor": "DLC02_20_EnvS_028",
+     "id": 2805032028,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_028",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_033",
+     "donor": "DLC02_20_EnvS_033",
+     "id": 2805032033,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_033",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_032",
+     "donor": "DLC02_20_EnvS_032",
+     "id": 2805032032,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_032",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_035",
+     "donor": "DLC02_20_EnvS_035",
+     "id": 2805032035,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_035",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_440",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800032440,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_440",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_00_EnvS_008",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800037008,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       false
+      ],
+      [
+       "EnvActorName",
+       "DLC02_00_EnvS_008",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_EnvS_008",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_00_EnvS_009",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800037009,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       false
+      ],
+      [
+       "EnvActorName",
+       "DLC02_00_EnvS_009",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_EnvS_009",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_00_E_ItemS_002",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800027002,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_E_ItemS_002",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_00_E_ItemS_003",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800027003,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_E_ItemS_003",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_00_E_ItemS_004",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800027004,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_E_ItemS_004",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_007",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020007,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_007",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_010",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020010,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_010",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_442",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800032442,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       false
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_442",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_442",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_013",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020013,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_013",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_003",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020003,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_003",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_445",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800032445,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       false
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_445",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_445",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_008",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020008,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_008",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_444",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800032444,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       false
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_444",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_444",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_009",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020009,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_009",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_443",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800032443,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       false
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_443",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_443",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_011",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020011,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_011",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_004",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020004,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_004",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_005",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020005,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_005",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_006",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020006,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_006",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_012",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020012,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_012",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_002",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020002,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_002",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_021",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020021,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_021",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_094",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032094,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_094",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_094",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_095",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032095,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_095",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_095",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_096",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032096,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_096",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_096",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_097",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032097,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_097",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_097",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_098",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032098,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_098",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_098",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_099",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032099,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_099",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_099",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_100",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032100,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_100",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_100",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_101",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032101,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_101",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_101",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_102",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032102,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_102",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_102",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_103",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032103,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_103",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_103",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_104",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2805032104,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_104",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_104",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_004",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020004,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_004",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_005",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020005,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_005",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_006",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020006,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_006",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_007",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020007,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_007",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_008",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020008,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_008",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_009",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020009,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_009",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_010",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020010,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_010",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_011",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020011,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_011",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_012",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020012,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_012",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_013",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020013,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_013",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_014",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020014,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_014",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_015",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020015,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_015",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_016",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020016,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_016",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_017",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020017,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_017",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_018",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020018,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_018",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_019",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020019,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_019",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_020",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020020,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_020",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup, label names no item"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_026",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032026,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_026",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_026",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_027",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032027,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_027",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_027",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_028",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032028,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_028",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_028",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_029",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032029,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_029",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_029",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_030",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032030,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_030",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_030",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_031",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032031,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_031",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_031",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_032",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032032,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_032",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_032",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_033",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032033,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_033",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_033",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_034",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032034,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_034",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_034",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_035",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032035,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_035",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_035",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_036",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032036,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_036",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_036",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_037",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032037,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_037",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_037",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_038",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032038,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_038",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_038",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_039",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032039,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_039",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_039",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_040",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032040,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_040",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_040",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_041",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032041,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_041",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_041",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_042",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032042,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_042",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_042",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_043",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032043,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_043",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_043",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_044",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2815032044,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_044",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_044",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_002",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020002,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_002",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_003",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020003,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_003",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_004",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020004,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_004",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_005",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020005,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_005",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_006",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020006,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_006",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_007",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020007,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_007",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_008",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020008,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_008",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_009",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020009,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_009",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_010",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020010,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_010",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_011",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020011,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_011",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_012",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020012,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_012",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_013",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020013,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_013",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_014",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020014,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_014",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_015",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020015,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_015",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_016",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020016,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_016",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "PolymerOrganicFilm",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_017",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020017,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_017",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_018",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020018,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_018",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_019",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020019,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_019",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_020",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020020,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_020",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_021",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020021,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_021",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "HP_Potion_Small",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_022",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020022,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_022",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_023",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020023,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_023",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ECelluloseRayon",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       2,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_024",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020024,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_024",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_025",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020025,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_025",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_026",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020026,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_026",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "HighDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_027",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020027,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_027",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "2DQuantumWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_028",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020028,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_028",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_428",
+     "donor": "DLC02_10_EnvS_428",
+     "id": 2800032428,
+     "set": [
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_428",
+       true
+      ]
+     ],
+     "note": "supply box, shipped row with no class or point"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_012",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032012,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_012",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_012",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_013",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032013,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_013",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_013",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_014",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032014,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_014",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_014",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_015",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032015,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_015",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_015",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_016",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032016,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_016",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_016",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_017",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032017,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_017",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_017",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_018",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032018,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_018",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_018",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_019",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032019,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_019",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_019",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_020",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032020,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_020",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_020",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_021",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032021,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_021",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_021",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_022",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032022,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_022",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_022",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_023",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032023,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_023",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_023",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_024",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032024,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_024",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_024",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_025",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032025,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_025",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_025",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_026",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032026,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_026",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_026",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_027",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032027,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_027",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_027",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_028",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032028,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_028",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_028",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_029",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2810032029,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_029",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_029",
+       true
+      ]
+     ],
+     "note": "supply box"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_003",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020003,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_003",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_004",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020004,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_004",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_005",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020005,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_005",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_006",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020006,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_006",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_007",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020007,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_007",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_008",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020008,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_008",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_009",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020009,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_009",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_010",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020010,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_010",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "PolymerOrganicFilm",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_011",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020011,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_011",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_012",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020012,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_012",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_013",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020013,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_013",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_014",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020014,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_014",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_015",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020015,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_015",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "HighDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_016",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020016,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_016",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "2DQuantumWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_017",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020017,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_017",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_018",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020018,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_018",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_019",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020019,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_019",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_020",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020020,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_020",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ECelluloseRayon",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       2,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_021",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020021,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_021",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_022",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020022,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_022",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_023",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020023,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_023",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_024",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020024,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_024",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "HP_Potion_Small",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_025",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020025,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_025",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_026",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020026,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_026",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ETC_Item_VendingMachineCoin",
+       false
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       false
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_027",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020027,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_027",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_028",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020028,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_028",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "BetaCrystal",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       12,
+       true
+      ]
+     ],
+     "note": "pickup"
     }
    ]
   },
