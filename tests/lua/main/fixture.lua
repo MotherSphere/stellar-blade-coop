@@ -400,7 +400,7 @@ end}
 sc={}
 package.loaded['cut.scene']={new=function(o)
     sc.o=o
-    return {SCENES={emil=true,orcal=true},
+    return {SCENES={emil=true,orcal=true,lily=true},
         command=function(...) sc.cmds[#sc.cmds+1]={...}; return true,'sc '..tostring((...)) end,
         restore=function() sc.restores=sc.restores+1 end,
         tick=function() sc.ticks=sc.ticks+1; if sc.says then return table.unpack(sc.says) end end,
@@ -485,13 +485,21 @@ package.loaded['nightop.roxanne']={new=function(o)
 end}
 -- Lily's signal (story/lily.lua; lily_test tests it): what lily.new got (o), its ticks (the last one's stopped), title
 -- calls, stops and commands.
-ly={o=nil,ticks=0,stops=0,titles={},cmds={}}
+ly={o=nil,ticks=0,stops=0,titles={},cmds={},talks={},holds={}}
 package.loaded['story.lily']={new=function(o)
     ly.o=o
     return {tick=function(stopped) ly.ticks,ly.stopped=ly.ticks+1,stopped end,
         title=function(...) ly.titles[#ly.titles+1]=table.pack(...) end,
         stop=function() ly.stops=ly.stops+1 end,
-        command=function(...) ly.cmds[#ly.cmds+1]=table.pack(...); return true,'ly '..tostring((...)) end}
+        command=function(...) ly.cmds[#ly.cmds+1]=table.pack(...); return true,'ly '..tostring((...)) end,
+        talk=function(...) ly.talks[#ly.talks+1]=table.pack(...); return true,'talk '..tostring((...)) end,
+        hold=function(on) ly.holds[#ly.holds+1]=on; return true,'hold '..tostring(on) end}
+end}
+-- Lily's talks (story/subtitles.lua; subtitles_test tests it): what new got (o), the kit hud, its frame ticks.
+ts={o=nil,hud=nil,ticks=0}
+package.loaded['story.subtitles']={new=function(o)
+    ts.o=o
+    return {hud=function(h) ts.hud=h end,tick=function() ts.ticks=ts.ticks+1 end}
 end}
 rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
 package.loaded['nightop.recruiter']={new=function(log)
@@ -669,7 +677,8 @@ function load_main(with_native,no_folder,source)
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
     mx.o,mx.folder,mx.cmds,mx.ticks,mx.stops,mx.says,mx.titles=nil,nil,{},0,0,nil,{}
-    ly.o,ly.ticks,ly.stops,ly.titles,ly.cmds,ly.stopped=nil,0,0,{},{},nil
+    ly.o,ly.ticks,ly.stops,ly.titles,ly.cmds,ly.stopped,ly.talks,ly.holds=nil,0,0,{},{},nil,{},{}
+    ts.o,ts.hud,ts.ticks=nil,nil,0
     cs.o,cs.cmds=nil,{}
     dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
     gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0

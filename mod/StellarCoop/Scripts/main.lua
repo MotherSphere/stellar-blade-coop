@@ -558,15 +558,18 @@ o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][N
     start=function(level) return commands.nightop('start',level) end,
     shop=function() return commands.nightop('shop') end,phase=function() return night.phase() end})
 -- Lily's signal (story/lily.lua, experimental), logging [LY] lines: on a co-op save, solo, with the zMXIII_P test pak,
--- in Phase 5 her choice list offers "The other signal"; its pick starts the mod's quest "On Time" and runs coop mxiii's
--- travel; coop lily signal [status|quest|travel] by hand. Ticked in the 250 ms loop below (with the Steam link only),
--- after coop off too: coop off puts her list back. Its rows also go in at the title on the co-op save files, with the
--- test pak only (lily.title).
-o.lily=require('story.lily').new({log=function(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end,
+-- in Phase 5 the mod's prologue starts and her choice list offers "The other signal"; its pick plays the prologue talk,
+-- starts the mod's quest "On Time" and runs coop mxiii's travel; coop lily signal|talk|hold by hand. Ticked in the
+-- 250 ms loop below (with the Steam link only), after coop off too: coop off puts her list back. Its rows also go in at
+-- the title on the co-op save files, with the test pak only (lily.title). Its talks (story/subtitles.lua) play through
+-- coop scene's rows, ticked each frame below.
+local function lily_log(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end
+local talks=require('story.subtitles').new({log=lily_log,scene=scene})
+o.lily=require('story.lily').new({log=lily_log,
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
     mode=function() return link and link.mode() end,paused=function() return kit~=nil and kit.paused(true) end,
     travel=function() return commands.mxiii() end,paks=require('cut.mxiii').paks_of(folder),
-    read=require('core.link').files.read})
+    read=require('core.link').files.read,talks=talks})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
@@ -597,6 +600,7 @@ if settings then
     hud=require('partner.hud').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME})
     night.hud({kit=kit,theme=Ui.THEME,settings=settings})
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
+    talks.hud({kit=kit,theme=Ui.THEME}) -- The kit version of Lily's talks.
     local Join=require('session.join')
     code_box=Join.box({kit=kit,link=link,settings=settings,theme=Ui.THEME,run=run})
     -- The first-launch guide (ui/guide.lua): the menu's Guide row and coop guide open it; in front of the co-op saves'
@@ -740,6 +744,7 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     ok,message=guarded('scene',scene.tick)
     if message then report(ok,message) end
+    guarded('talks',talks.tick) -- Lily's talks: a hold, the Stop after the last line, the kit's lines.
     guarded('flight',flight.tick)
     ok,message=guarded('lines',cut_lines.tick)
     if message then report(ok,message) end
