@@ -1655,6 +1655,9 @@ the fourth zone start switched on:
 | Fourth | `DLC02_40_ZTrigger_001`, the main hall | off until a drain device | on: 5 Antlions, one after another |
 | Fourth | `DLC02_40_ZTrigger_002`, the main hall | off until a drain device | on: 3 Clrikets, one after another |
 
+With the full map's pak, the second zone's waves come from three triggers of their own inside the arena doorways,
+which also shut the arena gate behind EVE; the three triggers above are back to what the game ships.
+
 The rows keep how the game saves each trigger. From the rows (not checked in game): the zone's reset re-arms the
 first wave's trigger, the triggers of waves 2 and 3 fire once per save, and the two in the fourth zone save nothing.
 The change lives in memory for the game run, like the camp's rows, and these rows belong to zones that only this
@@ -1699,17 +1702,21 @@ in for them. `coop mxiii 30` goes around that climb.
 - `coop off` ends the wait for the rows. A travel the game already took goes on. At the title, the mod asks for the
   rows again after `coop on`.
 
-With the full map's pak (all four zones, from the cook of 30 October), the title adds the rest of the dungeon after
-the camp rows: its other camps and their kits, Lily and the Tetrapod on the zone 0 plaza, the zones' enemies with the
-three bosses, the doors, switches and lift rows, and a warp switch pair beside every lift, rope, climb and critical
-ladder. A warp switch shows the game's own prompt; pressing it fades EVE to the switch's other end in the same world.
-Use them where a lift does not move or a ladder does not climb. A used switch comes back after a rest. Once in the
-dungeon, the mod spawns the ladders and ledges itself (`[MXMOVE]` lines) and fixes the Lion and the Gardener when the
-game spawns them (`[MXBOSS]` lines). `coop mxiii boss`, typed within 25 m of the Lion's or the Gardener's spawn point,
-spawns that boss as `coop lion` or `coop gardener fight` would (no saved death), for when the game spawned none there.
-The boss arenas are not locked, so a missing boss never blocks the way. The link protocol is 15: both players need a
-build with the same rows. A co-op save that played in the dungeon can no longer be exported to your own saves
-([saves.md](saves.md)).
+With the full map's pak (all four zones, cooked with the mechanisms), the title adds the rest of the dungeon after the
+camp rows: its other camps and their kits, Lily and the Tetrapod on the zone 0 plaza, the zones' enemies with the three
+bosses, and the mechanisms, built the way Matrix 11 builds its own. Every door starts closed. Its panel on either side
+shows the game's open prompt; a one-way door's far side says it cannot be opened from there. Gates open from their
+switches, a lift goes to the landing whose call switch you use, and the zone 4 water drains through its panels. Arena
+doors shut when the fight starts and open once its last enemy dies; the Lion's fan door and D7 open on its death. The
+car 9 airlock and the zone 3 pressure door start open and close by their own mechanism (the pressure door for good,
+behind EVE). The map has no warp switch: for tests, `coop mxiii warp` lists in `UE4SS.log` the 72 points the old
+switches led to, and `coop mxiii warp <n|name>` puts EVE on one (solo, on a co-op save, in the dungeon only). Once in
+the dungeon, the mod spawns the ladders, ledges and the two ropes itself (`[MXMOVE]` lines) and fixes the Lion and the
+Gardener when the game spawns them (`[MXBOSS]` lines). `coop mxiii boss`, typed within 25 m of the Lion's or the
+Gardener's spawn point, spawns that boss as `coop lion` or `coop gardener fight` would (no saved death), for when the
+game spawned none there. A boss that never spawns locks nothing: its doors lock on its first fight. The link protocol is
+15: both players need a build with the same rows. A co-op save that played in the dungeon can no longer be exported to
+your own saves ([saves.md](saves.md)).
 
 | Line | What it answers |
 | --- | --- |
@@ -1723,14 +1730,16 @@ build with the same rows. A co-op save that played in the dungeon can no longer 
 | `[StellarCoop][MX] refused: no test pak: no <path> or <path>` | No test pak in either folder: nothing was asked |
 | `[StellarCoop][MX] refused: no test pak: <path> does not hold <name>` or `no <path> beside <path>` | The `.utoc` names the map under another folder or not at all, or its `.pak` or `.ucas` is missing: nothing was asked |
 | `[StellarCoop][MX] refused: <why>` | A condition of the travel failed (a session, another save, a travel under way or under 10 s ago, the native travel stopped by a fault): nothing was asked |
-| `mxiii rows: 78/78 in, 39 added through SB's AddRow 0x14417ba30 and 39 shipped rows patched in place, 0 refused` (`coop-link.log`) | The native part added the camp rows and changed the shipped kit and trigger rows |
-| `mxiii rows refused <row>: <why>; <n>/78 added` (`coop-link.log`) | A row the native part would not add or change, and why: no travel |
-| `[StellarCoop][MX] rows read back through FindRow: 78/78 authored rows, <n> fields as written (<k> differ from the template row)` | Every field the native part wrote reads as written |
-| `mxspawn rows: 46/46 in, ...`, `mxenv rows: 163/163 in, ...`, `mxwarp rows: 216/216 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows |
-| `[StellarCoop][MX] refused: mxspawn rows not in` (or `mxenv`, `mxwarp`, `lion`, `gardener`) | `coop mxiii` found a batch that did not go in at the title (a save loaded before the chain ended, or the tries ran out): nothing was asked; return to the title with the co-op save files, wait until `coop-link.log` shows all five batches in, then run it again |
-| `[StellarCoop][MX] mxspawn title: ...`, `mxenv title: ...`, `mxwarp title: ...`, `lion title: ...`, `gardener title: ...` | Each of those batches at the title, with the same words as the camp rows' lines |
-| `[StellarCoop][MX] [MXMOVE] ladder <key> at <x> <y> <z> yaw <d> height <h> (<role>), deferred spawn` | In the dungeon, a ladder or ledge the mod spawned, and how (`SpawnActor, construction script run again` when the deferred spawn failed) |
-| `[StellarCoop][MX] [MXMOVE] <n>/42 ladders and ledges spawned in world 2800; the warp switches beside them stay` | All of them, once a world |
+| `mxiii rows: 75/75 in, 39 added through SB's AddRow 0x14417ba30 and 36 shipped rows patched in place, 0 refused` (`coop-link.log`) | The native part added the camp rows and changed the shipped kit and trigger rows |
+| `mxiii rows refused <row>: <why>; <n>/75 added` (`coop-link.log`) | A row the native part would not add or change, and why: no travel |
+| `[StellarCoop][MX] rows read back through FindRow: 75/75 authored rows, <n> fields as written (<k> differ from the template row)` | Every field the native part wrote reads as written |
+| `mxspawn rows: 46/46 in, ...`, `mxenv rows: 160/160 in, ...`, `mxupper rows: 220/220 in, ...`, `mxmiddle rows: 226/226 in, ...`, `mxlower rows: 109/109 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows |
+| `[StellarCoop][MX] refused: mxspawn rows not in` (or `mxenv`, `mxupper`, `mxmiddle`, `mxlower`, `lion`, `gardener`) | `coop mxiii` found a batch that did not go in at the title (a save loaded before the chain ended, or the tries ran out): nothing was asked; return to the title with the co-op save files, wait until `coop-link.log` shows all seven batches in, then run it again |
+| `[StellarCoop][MX] mxspawn title: ...`, `mxenv title: ...`, `mxupper title: ...`, `mxmiddle title: ...`, `mxlower title: ...`, `lion title: ...`, `gardener title: ...` | Each of those batches at the title, with the same words as the camp rows' lines |
+| `[StellarCoop][MX] [MXMOVE] ladder <key> at <x> <y> <z> yaw <d> height <h> (<role>), deferred spawn` (or `ledge`, `rope ... drop <cm> env <row>`) | In the dungeon, a ladder, ledge or rope the mod spawned, and how (`SpawnActor, construction script run again` when the deferred spawn failed) |
+| `[StellarCoop][MX] [MXMOVE] <n>/47 ladders, ledges and ropes spawned in world 2800` | All of them, once a world |
+| `[StellarCoop][MX] warp <n> <point> (<mover>)` | `coop mxiii warp` alone: one line per point |
+| `[StellarCoop][MX] warp <n> <point> (<mover>) to <x> <y> <z> yaw <d>` | `coop mxiii warp <n|name>` moved EVE there (`: the game refused the teleport` when it did not) |
 | `[StellarCoop][MX] [MXBOSS] Lion DLC02_40_E_CharS_051 found near its point: <what was done>` (or the Gardener) | The game spawned the boss from its row and the mod fixed it |
 | `[StellarCoop][MX] [MXBOSS] no Lion body within 30 m of DLC02_40_E_CharS_051 after 20 s: coop mxiii boss spawns one (key 0, no saved death)` | No body at the arena: type `coop mxiii boss` there for the fallback fight |
 | `[StellarCoop][MX] travel to DLC02_10_Camp_01 asked: ...` (or `DLC02_30_Camp_01`) | The camp travel went to the native part |
@@ -1754,15 +1763,19 @@ room, and that `coop mxiii leave` from there goes back out. To check that v2 ref
 after that `coop mxiii leave`, with the game closed. Check that the game keeps running and saves normally after you
 leave, then replace the slot with `coop saves refresh <0-4>` at the title.
 
-With the full map's pak, check at the title that `coop-link.log` shows the four Matrix XIII batches and the lion and
-gardener batches in, each `rows=N/N` on its status line, and that no `[MX]` line says a table is missing (the seven
-world tables are new to the mod). Then, in one session: `coop mxiii` arrives at `DLC02_10_Camp_01`; Lily and the
-Tetrapod stand on the plaza; the surface lift rides down, else its warp switches work; zone 1's enemies appear in R08,
-R20, R23 and R26, the new rows included (`DLC02_10_E_CharS_901` in R20); the `[MXMOVE]` count line shows 42; the R10
-ladder climbs, else its warp switch; a rest at the R04 camp brings a killed Creeper back; the R29 gate opens from its
-switch; zone 2's waves come at the arena doorways and the Gardener at the gantry step; the Stalker in Z3R19 dies at 0
-HP; the zone 4 trio appears only after trigger 004; the Lion spawns with the `[MXBOSS]` fix line and its name on the
-boss bar; and `coop saves export` refuses the save afterwards.
+With the full map's pak, check at the title that `coop-link.log` shows the six Matrix XIII batches and the lion and
+gardener batches in, each `rows=N/N` on its status line, and that no `[MX]` line says a table is missing. Then, in one
+session: `coop mxiii` arrives at `DLC02_10_Camp_01`; Lily and the Tetrapod stand on the plaza; the surface lift rides
+down from its cab panel and comes back to the call switch you use; every door you meet is closed and opens from its
+panel, and a one-way door refuses from its far side; zone 1's enemies appear in R08, R20, R23 and R26, the new rows
+included (`DLC02_10_E_CharS_901` in R20); the `[MXMOVE]` count line shows 47; the R10 ladder climbs; a rest at the R04
+camp brings a killed Creeper back; the R29 gate opens from its switch; zone 2's waves come at the arena doorways, the
+arena gate shuts behind you and opens after the last kill; the Gardener comes at the gantry step; the car 9 airlock
+shuts its outer door before the inner one opens; the Stalker in Z3R19 dies at 0 HP and the hall doors open then; the
+pressure door shuts behind you; the zone 4 trio appears only after trigger 004; the water drops from its panels; the
+Lion spawns with the `[MXBOSS]` fix line and its name on the boss bar, the fan door and D7 shut during the fight and
+open on its death; `coop mxiii warp 1` puts EVE at the surface lift; and `coop saves export` refuses the save
+afterwards.
 
 ### Lily's signal (experimental)
 

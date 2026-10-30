@@ -354,7 +354,8 @@ build/host/pose_codec_test
     fixture `story/dump_test` reads, against the tool's own sample;
   - `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder;
   - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
-    and the data holds the camps, bosses and warp rows the cooked map expects. After a change to the data file, run
+    and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the
+    names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
     `python3 tools/mxiii_rows.py` and commit the two files it writes;
   - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
     (see [night-operation.md](night-operation.md#how-the-original-matchmaking-is-blocked)).
@@ -444,8 +445,8 @@ Platform-free headers, tested on the build machine:
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
 | `nightop/roxanne.h` | Roxanne's Night Operation choices and Lily's signal choice: a choice list's entry in SB's select cache pointed at rows of ours followed by the list's own, and put back; the checks and the `roxanne=` and `lily=` lines |
 | `nightop/shop_ui.h` | The Night Operation shop in SB's own shop screen: the guard, the answer word, the `nightshop=` line and the log lines |
-| `lion/rows.h` | Ten batches of rows (the first four and the shop's with their data part written by a generator outside the repository, which also describes the first 25 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, the Night Operation shop screen's 6, Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand, and Matrix XIII's four from `lion/mxiii_rows.h`; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=`, `signal=`, `mxspawn=`, `mxenv=` and `mxwarp=` lines and the log lines |
-| `lion/mxiii_rows.h` | Matrix XIII's four batches (`mxiii` 78 rows, `mxspawn` 46, `mxenv` 163, `mxwarp` 216), written by `tools/mxiii_rows.py` from `data/mxiii-world.json`: do not edit it by hand |
+| `lion/rows.h` | Twelve batches of rows (the first four and the shop's with their data part written by a generator outside the repository, which also describes the first 25 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, the Night Operation shop screen's 6, Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand, and Matrix XIII's six from `lion/mxiii_rows.h`; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=`, `signal=`, `mxspawn=`, `mxenv=`, `mxupper=`, `mxmiddle=` and `mxlower=` lines and the log lines |
+| `lion/mxiii_rows.h` | Matrix XIII's six batches (`mxiii` 75 rows, `mxspawn` 46, `mxenv` 160, `mxupper` 220, `mxmiddle` 226, `mxlower` 109), written by `tools/mxiii_rows.py` from `data/mxiii-world.json`: do not edit it by hand |
 | `lion/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |

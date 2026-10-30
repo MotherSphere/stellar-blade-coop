@@ -74,8 +74,8 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
 | `cut/mxiii.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1, v2 or v3, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01`, or with 30 to `DLC02_30_Camp_01` on v3 only; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
-| `cut/mxiii_rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders and ledges and the boss points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
-| `cut/mxmove.lua`, `cut/mxboss.lua` | In world 2800: the ladders and ledges spawned at run time, and the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
+| `cut/mxiii_rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
+| `cut/mxmove.lua`, `cut/mxboss.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, and the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `story/lily.lua`, `story/lily_text.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)) |
 | `story/subtitles.lua` | Lily's talks: an unused subtitle sequence played through `cut/scene.lua`'s talk, a hook on the subtitle slot's `UpdateText` that writes the mod's lines, the reading holds, the fallbacks and the kit version ([Lily's signal](#lilys-signal-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
@@ -2154,6 +2154,10 @@ one field in five shipped ZoneTriggerTable rows:
 | `DLC02_40_ZTrigger_001` | 281501001 | `InitActivate` (`+0x1c`) | 2, Disable | 1, Enable |
 | `DLC02_40_ZTrigger_002` | 281501002 | `InitActivate` | 2, Disable | 1, Enable |
 
+The mechanism batches later took the three zone 2 patches back out: the waves now run from triggers 601 to 603 of
+the `mxupper` batch, which also shut the arena gate behind EVE, and 001, 005 and 006 are their shipped rows again
+([Matrix XIII's world rows](#matrix-xiiis-world-rows)).
+
 ZoneTriggerTable (row struct `0xa8` bytes, ID at `+0x10`, no Transient field) is the twentieth table of `kLionTables`,
 and only this batch reads it. A row whose template is itself is a shipped row patched in place: the builder needs it in
 RowMap under its name and its ID in the ID map naming it, copies it into the block, patches the block and copies the
@@ -2287,13 +2291,15 @@ all, each as a copy of a shipped row (its donor) with the fields that differ; `t
 `native/src/lion/mxiii_rows.h` and `cut/mxiii_rows.lua` from it, so the native batches and the Lua read-back never
 disagree (`tests/tools/mxiii_rows_test.py` fails when either file is out of date). The generator knows each field's
 offset in its row struct from the SDK (stellar-sdk-647527f) and refuses an unknown field, two fields on the same
-bytes, a batch of 256 rows or more, and a name given twice. The data file is built outside the repository from the
-cook's manifest and the build 24463856 table dumps.
+bytes, a batch of 256 rows or more, a name given twice, a string list of one empty item (its `|`-joined text would read
+as no item) and a row whose strings and lists overflow the native part's 4 KB pool. The data file is built outside the
+repository from the cook's manifest, the mechanism design and the build 24463856 table dumps.
 
-Four batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxwarp rows`), so a refusal in one never
-stops another:
+Six batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxupper rows`, `mxmiddle rows`, `mxlower
+rows`), so a refusal in one never stops another:
 
-- `mxiii`, 78 rows: the 15 rows of the camp work above (the zone 3 rest stop `DLC02_30_Camp_01` is now a simple camp
+- `mxiii`, 75 rows: the 15 rows of the camp work above, less the three zone 2 trigger patches (the waves moved to
+  triggers of their own, below) (the zone 3 rest stop `DLC02_30_Camp_01` is now a simple camp
   with its coin `DLC02_30_E_ItemS_001`), then the nine other camps of the map (the zone 0 Tetrapod camp
   `DLC02_00_Camp_00`, simple and full camps in every zone), their kits (34 shipped rows patched in place with a
   blueprint, a spawn point and the camp's name; 14 new rows for the two new full camps), the three new coins, and zone
@@ -2308,39 +2314,71 @@ stops another:
   `DLC02_20_ZTrigger_002`; `DLC02_30_E_CharS_029` the Stalker; `DLC02_40_E_CharS_051` the Lion; all SaveType Save, no
   patrol, RewardGroup `m_beach_elite1`), the four zone events that spawn the Gardener and the zone 4 trio, and the two
   trigger rows that run them.
-- `mxenv`, 163 rows: the one-way doors 050, 051 and 037 and new doors 930 to 932 spawn `BP_MXIII_Door01_C`; the R29
-  gate switch spawns `Env_CardControl_Switch2_C` and, with the gate, lists zones 10 and 20; the 55 m lift waits at the
-  top; the 74 m lift's call switches spawn `BP_Env_LiftController_C` enabled from the start; two kill volumes go under
-  the lift shafts. Then the loot: the 10 shipped supply box rows, which ship with no blueprint and no spawn point, are
-  patched in place with `BP_Env_SupplyBox01_C` (the class of `Env_SupplyBox_Normal01` boxes in the shipped levels) and
-  the point of their own name; 54 new boxes copy `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and
-  in their zone; 86 new pickups copy `DLC02_10_E_ItemS_001` with the item and count of their map marker
-  (`BetaCrystal` x12 where the marker names none). The 25 records wait for the records batch.
-- `mxwarp`, 216 rows: 72 warp switches (copies of the two-phase switch `DLC02_10_EnvS_432` with the card switch
-  blueprint, SaveType None so a rest brings a used one back), each with a ZoneEvent_PlayerWarp row and an
-  EventZoneWarpTable row of the same name that sends EVE to the cooked spawn point `DLC02_<zone>_WarpPoint_<n>` in
-  `DLCMatrix13`. There is one pair beside every lift, rope, climb and critical ladder, so a mechanism that does not
-  work never blocks the way.
+- `mxenv`, 160 rows: the shipped device rows dev patched first, now on the mechanism design: the one-way doors 050, 051
+  and 037 spawn an empty arrow at their point and move the cooked leaf with our sequences; the R29 gate switch spawns
+  `Env_CardControl_Switch2_C` and, with the gate, lists zones 10 and 20; the 55 m lift waits at the top with our
+  sequences; the 74 m lift's call switches spawn `BP_Env_LiftController_C`, disabled until the first ride up as Shift Up
+  wired them; two kill volumes go under the lift shafts. Then the loot: the 10 shipped supply box rows, which ship with
+  no blueprint and no spawn point, are patched in place with `BP_Env_SupplyBox01_C` (the class of
+  `Env_SupplyBox_Normal01` boxes in the shipped levels) and the point of their own name; 54 new boxes copy
+  `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 86 new pickups copy
+  `DLC02_10_E_ItemS_001` with the item and count of their map marker (`BetaCrystal` x12 where the marker names none).
+  The 25 records wait for the records batch.
+- `mxupper` (zones 0 to 2, 220 rows), `mxmiddle` (zone 3, 226) and `mxlower` (zone 4, 109): the mechanisms, built the
+  way Matrix 11 builds its own. A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an
+  empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name, closed at the start; its four LevelSequences
+  in `/Game/MXIII_Editor/Seq` (ToOpen as the Close state's OutTransit, ToClose as the Open state's, Closed and Opened as
+  the two Active ones, KeepState) move the cooked leaf and the hidden doorway blockers, as Matrix 11's `ME_04_EnvS_030`
+  moves its door. One opener row per side (`Env_EnvState_2Phase` with the graph `ME_Area01_ShotCutDoor`, a copy of
+  `ME_01_EnvS_026`) fires, from its On state, the ZoneEvent row whose EventEnvControlTable row of the same name sets the
+  door Open; a one-way door's locked side has the `_Opposite` graph, which only says it cannot be opened from there.
+  Switch gates and approach gates keep their shipped rows and switch chains with our sequences. Lifts are their shipped
+  `Env_Lift` rows with our sequences per Wait state; call switches (`MT20_DoorSwitch01` rows) send the cab to their
+  landing from either of their states. Arenas use SE_08's pattern: the first fight (EventFirstTimeOnBattle or
+  EventOnBattle of a spawn row) shuts the doors and disables their openers, each EventOnDead adds 1 to an
+  `Env_<N>CountProgress` row (an EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and
+  the Lion's own deaths open theirs. The zone 2 waves moved to new triggers 601 to 603 (the cooked boxes inside each
+  arena doorway), which also shut the arena gate behind EVE; triggers 001, 005 and 006 go back to their shipped rows.
+  Zone 3's trigger 601 shuts the pressure door behind EVE for good. The car 9 airlock's panel inside toggles two states:
+  one shuts the outer door and opens the inner one 3.5 s later, the other does the reverse, and a call panel outside
+  each door sets the state that opens its own door. Zone 4's water device keeps its shipped P1, P2 and P3 states with
+  our sequences, driven by its drain and pipe panels (`ME_Area04_2Phase`), with two toxic effect volumes. An enable-only
+  EnvC row has TagName None, as 100 shipped rows do. Every new name and ID is free in the dumps, and every event a row
+  fires resolves to a ZoneEvent row of the data or of the game.
+
+The 72 warp switches of the first full build are gone (Matrix 11 has none): their rows went with the `mxwarp` batch,
+and their spawn points in the cooked map stay empty. `coop mxiii warp` lists the 72 arrival points they led to
+(`DLC02_<zone>_WarpPoint_<n>`, kept in the cooked map and in `cut/mxiii_rows.lua`'s WARP list), and `coop mxiii warp
+<n|name>` puts EVE on one with `K2_TeleportTo`, under the follow's guards (solo, a co-op save, no travel under way) and
+in world 2800 only, as a test fallback.
 
 At the title, once the `mxiii=` line has an answer, `cut/mxiii.lua` asks the others one at a time, each once the batch
-before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`, `mxwarp`, then
-the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC` and `M_Gardener` the boss spawn rows name. All
-go in before any save loads, since the zone manager lists a world's rows when the world starts. `coop mxiii` asks no
-travel until every one of these lines reads `rows`, and names the first batch that does not: the travel would reach a
-dungeon without its Naytibas or its warp switches, and a peer's shared Naytibas would match no spawn row.
+before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`, `mxupper`,
+`mxmiddle`, `mxlower`, then the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC` and `M_Gardener` the
+boss spawn rows name. All go in before any save loads, since the zone manager lists a world's rows when the world
+starts. `coop mxiii` asks no travel until every one of these lines reads `rows`, and names the first batch that does
+not: the travel would reach a dungeon without its Naytibas or its doors, and a peer's shared Naytibas would match no
+spawn row.
 
-In world 2800, `cut/mxiii.lua`'s tick runs two more files. `cut/mxmove.lua` spawns SB's `BP_EM_Ladder_C` at the 37
-ladder feet of the map with each one's `TotalHeight` (and Matrix 11's head and collision values) and `BP_EM_Ledge_C` at
-the five R16 climb markers, once a world: a cooked map never reruns a placed actor's construction script, so the
-height must reach it at spawn. The spawn is deferred (`BeginDeferredActorSpawnFromClass`, the fields,
+In world 2800, `cut/mxiii.lua`'s tick runs two more files. `cut/mxmove.lua` spawns, once a world, SB's `BP_EM_Ladder_C`
+at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder), `BP_EM_Ledge_C` at the
+three R16 ledges and the shimmy, and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A ladder's height comes from
+its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160, 200, 240, 600 or 40 cm pieces) plus the 79.885 cm head, as on 33
+of the 34 shipped ladders; `StartUnit` and `CollisionBottomZAdd` sink its foot where the stack overshoots the rise (`5 -
+40 k`, the shipped pairs' rule), and it stands on the rung line with its -X toward the upper landing. A ledge gets the
+climbing mesh `006_B_SM`. A rope gets its drop (`RopeDistanceB`) and the `EnvActorName` of its row (R28's
+`DLC02_10_EnvS_642`, zone 4's `DLC02_40_EnvS_022`), which its winch turns On; gate 435's ladder gets
+`DLC02_10_EnvS_437`, the row the gate's lever turns On. Whether an SBZoneEnvActor spawned after its zone's rows were
+made registers with its row is untested. A cooked map never reruns a placed actor's construction script, so these values
+must reach the actor at spawn. The spawn is deferred (`BeginDeferredActorSpawnFromClass`, the fields,
 `FinishSpawningActor`); if that call fails, `SpawnActor` and a second `UserConstructionScript` call take over for the
 rest of the Lua load. Each spawn logs an `[MX] [MXMOVE]` line. `cut/mxboss.lua` looks, once a second while EVE is within
 80 m of a boss point, for a body of the Lion's or the Gardener's blueprint within 30 m of it, and fixes it once: the
 Lion through `cut/lion.lua`'s `adopt` (its anim instance, else the hidden Behemoth leader that `coop lion` uses), the
 Gardener's mesh turned -90 degrees. While one lives, the boss bar shows its name. EVE standing 20 s within 25 m of a
-boss point with no body there gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that arena's boss
-through `coop lion` or `coop gardener fight` (key 0, no saved death). It never runs by itself: a boss killed before
-stays dead through its row's SaveType, and an automatic spawn would bring it back at each visit.
+boss point with no body there gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that arena's boss through
+`coop lion` or `coop gardener fight` (key 0, no saved death). It never runs by itself: a boss killed before stays dead
+through its row's SaveType, and an automatic spawn would bring it back at each visit.
 
 The export check (`save/twins.h`) refuses a co-op save holding any FString that starts with `DLC02_` outside the camp
 fields it already reads (names that start with `Zone_DLC02_` excepted, every save holds them). None of the user's 15
