@@ -50,15 +50,18 @@ local function wrapper(w) return setmetatable({},{__index=w}) end
 local eve=object({IsA=function() return true end,GetWorld=function() return wrapper(world) end})
 package.loaded.UEHelpers={GetPlayer=function() return eve end,GetPlayerController=function() return nil end}
 local deferred_fails=false
+local in_deferred=false -- Between BeginDeferredActorSpawnFromClass and FinishSpawningActor.
 local gs=object({
     BeginDeferredActorSpawnFromClass=function(_,ctx,class,t,how,owner)
         assert(ctx==eve and how==1 and owner==nil)
         if deferred_fails then error('no such function') end
+        in_deferred=true
         local a=object({class=class,at=t.at,rot=t.rot,how='deferred',Meshes=tarray()})
         spawned[#spawned+1]=a
         return a
     end,
     FinishSpawningActor=function(_,a,t)
+        in_deferred=false
         a.finished,a.height_at_finish,a.meshes_at_finish=t,a.TotalHeight,#a.Meshes
         return a
     end})
@@ -78,7 +81,7 @@ StaticFindObject=function(path)
     end
     return nil
 end
-LoadAsset=function(path) loaded[path]=true end
+LoadAsset=function(path) assert(not in_deferred,'LoadAsset inside a deferred spawn: '..path); loaded[path]=true end
 FName=function(t) return {name=t} end
 local M=require('cut.mxmove')
 local Rows=require('cut.mxiii_rows')
@@ -135,7 +138,10 @@ assert(spawned[7].how=='SpawnActor','The fallback stays for the Lua load')
 -- A class that does not load: its line says so, the others still spawn.
 world=new_world()
 loaded,classes={},{}
-LoadAsset=function(path) if path==M.ASSETS.ledge or path==MESH then loaded[path]=true end end
+LoadAsset=function(path)
+    assert(not in_deferred,'LoadAsset inside a deferred spawn: '..path)
+    if path==M.ASSETS.ledge or path==MESH then loaded[path]=true end
+end
 clock=5.0; mv.tick()
 assert(lines[#lines]=='1/3 ladders, ledges and ropes spawned in world 2800',lines[#lines])
 assert(lines[#lines-3]:find('^ladder L1 not spawned: .*BP_EM_Ladder_C does not load'),lines[#lines-3])
@@ -166,4 +172,18 @@ end
 assert(#ladders==41 and ledges==4 and critical>20,#ladders..' '..ledges..' '..critical)
 assert(envs.Rope_R28=='DLC02_10_EnvS_642' and envs.Rope_Z4=='DLC02_40_EnvS_022'
     and envs.R20_LadderGate435=='DLC02_10_EnvS_437','The rows the ropes and the gate ladder bind')
+-- A ledge whose mesh is not in memory yet: it loads before the deferred pair, never between Begin and Finish (an asset
+-- load there crashed the game on 2026-10-30).
+do
+    world=new_world()
+    loaded,classes={},{}
+    loaded[M.ASSETS.ledge]=true
+    LoadAsset=function(path) assert(not in_deferred,'LoadAsset inside a deferred spawn: '..path); loaded[path]=true end
+    local before=#spawned
+    local mv3=M.new({log=function() end,list={{cls='ledge',key='E9',at={0,0,0},yaw=0,role='test',mesh=MESH}}})
+    clock=clock+10; mv3.tick()
+    assert(#spawned==before+1,'one actor spawned: '..(#spawned-before))
+    local a=spawned[#spawned]
+    assert(a.how=='deferred' and a.finished and a.Meshes[1],'the ledge spawned by the deferred pair, its mesh set')
+end
 print('mxmove_test: ok')

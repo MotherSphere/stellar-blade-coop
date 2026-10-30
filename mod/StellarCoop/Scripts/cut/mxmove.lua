@@ -67,7 +67,7 @@ function Move.new(o)
         end)
         return 'stack '..(ok and s or '? ('..tostring(s)..')')
     end
-    local function fields(a,m)
+    local function fields(a,m,mesh)
         if m.env then a.EnvActorName=FName(m.env) end
         if m.cls=='ladder' then
             fill(a.Meshes,m.meshes)
@@ -75,7 +75,7 @@ function Move.new(o)
             for k,v in pairs(Move.LADDER) do a[k]=v end
             return ' '..stack(a.Meshes)
         elseif m.cls=='ledge' then
-            fill(a.Meshes,{mesh_of(m.mesh)})
+            fill(a.Meshes,{mesh})
         elseif m.cls=='rope' then
             a.RopeDistanceB=m.drop
         end
@@ -86,12 +86,14 @@ function Move.new(o)
         local at={X=m.at[1],Y=m.at[2],Z=m.at[3]}
         local rot={Pitch=0,Yaw=m.yaw,Roll=0}
         local c=class_of(m.cls)
+        -- Loaded before the deferred pair: an asset load between Begin and Finish crashed the game (2026-10-30).
+        local mesh=m.cls=='ledge' and mesh_of(m.mesh) or nil
         if deferred then
             local ok,a,got=pcall(function()
                 local gs=U.find('/Script/Engine.Default__GameplayStatics')
                 local t=U.find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform(at,rot,{X=1,Y=1,Z=1})
                 local x=assert(U.valid(gs:BeginDeferredActorSpawnFromClass(eve,c,t,ALWAYS_SPAWN,nil)),'no actor')
-                local got=fields(x,m)
+                local got=fields(x,m,mesh)
                 return assert(U.valid(gs:FinishSpawningActor(x,t)),'FinishSpawningActor gave nothing'),got
             end)
             if ok then return a,got,'deferred spawn' end
@@ -99,7 +101,7 @@ function Move.new(o)
             log('deferred spawn failed ('..tostring(a)..'): SpawnActor and the construction script from now on')
         end
         local a=assert(U.valid(eve:GetWorld():SpawnActor(c,at,rot)),'SpawnActor gave nothing')
-        local got=fields(a,m)
+        local got=fields(a,m,mesh)
         local ran=pcall(function() a:UserConstructionScript() end)
         return a,got,ran and 'SpawnActor, construction script run again' or 'SpawnActor, construction script not run'
     end
