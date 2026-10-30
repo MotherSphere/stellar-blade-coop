@@ -417,7 +417,7 @@ int main() {
       if (round % 3 == 0) {
         text.resize(rng() % 600);
         for (char &c : text)
-          c = static_cast<char>(rng() % 3 ? "0123456789: SBF14onfworldupdeadhpit"[rng() % 35] : char(rng()));
+          c = static_cast<char>(rng() % 3 ? "0123456789: SBF15onfworldupdeadhpit"[rng() % 35] : char(rng()));
       } else {
         text = seeds[rng() % (sizeof seeds / sizeof seeds[0])];
         for (int k = rng() % 4; k >= 0 && !text.empty(); --k) {
@@ -465,7 +465,7 @@ int main() {
     // Her on: the whole list, then every value at once; n counts the turns of values.
     h.receive(msg("SBF15 on"), 5, w);
     step(h, w, 2, 10);
-    assert(w.lines() == "SBF15 world 1\nSBF14 up 1 101 5001 0 900 1600\nSBF14 up 1 102 5002 1 900 1600\n"
+    assert(w.lines() == "SBF15 world 1\nSBF15 up 1 101 5001 0 900 1600\nSBF15 up 1 102 5002 1 900 1600\n"
                         "SBF15 hp 1 1 0 101:1600:100:200 102:1599:100:200\n");
     step(h, w, 3, 20);
     assert(w.sent.empty()); // Nothing changed.
@@ -504,22 +504,22 @@ int main() {
     step(h, w, 13, 2400);
     std::string sent = w.lines();
     assert(h.linked() == 16 && !has(sent, " 300 ") && !has(sent, " 216 ") && has(sent, "SBF15 up 1 215 6015 0"));
-    assert(has(sent, "SBF15 hp 1 5 0 200:") && has(sent, " 211:1600:100:200\nSBF14 hp 1 5 0 212:"));
+    assert(has(sent, "SBF15 hp 1 5 0 200:") && has(sent, " 211:1600:100:200\nSBF15 hp 1 5 0 212:"));
     w.remove(203);
     step(h, w, 14, 2500);
-    assert(w.lines() == "SBF15 down 1 203\nSBF14 up 1 216 6016 0 900 1600\nSBF14 hp 1 6 0 216:1600:100:200\n");
+    assert(w.lines() == "SBF15 down 1 203\nSBF15 up 1 216 6016 0 900 1600\nSBF15 hp 1 6 0 216:1600:100:200\n");
 
     // Our feature restarted: a new generation and the whole list (she is still on).
     h.clear();
     step(h, w, 15, 2600);
     sent = w.lines();
-    assert(sent.rfind("SBF15 world 2\nSBF14 up 2 ", 0) == 0 && h.gen() == 2);
+    assert(sent.rfind("SBF15 world 2\nSBF15 up 2 ", 0) == 0 && h.gen() == 2);
     // Her on again, well within the second after a refresh: still every value at once.
     h.receive(msg("SBF15 on"), 2700, w);
     step(h, w, 16, 2700);
     sent = w.lines();
-    assert(sent.rfind("SBF15 world 2\nSBF14 up 2 ", 0) == 0 && has(sent, "\nSBF14 hp 2 8 0 200:") &&
-           has(sent, "\nSBF14 hp 2 8 0 213:"));
+    assert(sent.rfind("SBF15 world 2\nSBF15 up 2 ", 0) == 0 && has(sent, "\nSBF15 hp 2 8 0 200:") &&
+           has(sent, "\nSBF15 hp 2 8 0 213:"));
   }
 
   // ---- Host: with every place taken, a hurt enemy takes the place of one out of any fight ----
@@ -537,7 +537,7 @@ int main() {
     assert(w.sent.empty() && h.linked() == 16);
     w.hit(216, kHp, 100);
     step(h, w, 3, 200);
-    assert(w.lines() == "SBF15 down 1 200\nSBF14 up 1 216 6016 0 900 1600\nSBF14 hp 1 2 0 216:1500:100:200\n");
+    assert(w.lines() == "SBF15 down 1 200\nSBF15 up 1 216 6016 0 900 1600\nSBF15 hp 1 2 0 216:1500:100:200\n");
     assert(h.linked() == 16 && w.count("full") == 0);
     step(h, w, 4, 300); // 200, at full HP and followed no more, does not come back.
     assert(w.sent.empty());
@@ -549,7 +549,7 @@ int main() {
     w.add(217, 6017, 0);
     w.hit(217, kHp, 100);
     step(h, w, 6, 500);
-    assert(w.lines().rfind("SBF15 down 1 202\nSBF14 up 1 217 6017 0 900 1600\n", 0) == 0);
+    assert(w.lines().rfind("SBF15 down 1 202\nSBF15 up 1 217 6017 0 900 1600\n", 0) == 0);
     // Every one in a fight: no place, said once in this world.
     uint32_t guids[kMaxTracked];
     for (size_t i = 0, n = h.tracked(guids); i < n; ++i)
@@ -608,7 +608,7 @@ int main() {
     wrote(w, 0, 110, kHp, -560, true, true);
     wrote(w, 1, 111, kHp, -400, false, true); // Refused: the plain drop, logged and counted.
     assert(w.hp(111) == 161 && h.counts.refused == 1 && w.count("lethal-refused") == 1);
-    assert(w.lines() == "SBF15 dead 1 110\nSBF14 hp 1 6 5 111:161:100:200\n");
+    assert(w.lines() == "SBF15 dead 1 110\nSBF15 hp 1 6 5 111:161:100:200\n");
 
     // A kill that a floor holds (Immortal, MinimumHP): dead-floored, no dead, still ours.
     w.add(112, 5012, 0).floor = 1;
@@ -650,7 +650,7 @@ int main() {
     wrote(w, 2, 102, kHp, -1599, false, true);
     wrote(w, 3, 103, kHp, -1600, true, true);
     assert(w.hp(101) == 1 && w.hp(102) == 1 && h.counts.held == 2 && w.count("kill held", "NoDamageNoHit") == 2);
-    assert(w.lines() == "SBF15 dead 1 103\nSBF14 hp 1 2 3 101:0:90:200 102:0:100:200\n" && h.linked() == 2);
+    assert(w.lines() == "SBF15 dead 1 103\nSBF15 hp 1 2 3 101:0:90:200 102:0:100:200\n" && h.linked() == 2);
     // A later claim on a waiting kill changes Shield and Stamina only.
     h.receive(msg("SBF15 hit 1 4 101 50 5 0 1 1"), 200, w);
     step(h, w, 3, 200);
@@ -689,7 +689,7 @@ int main() {
     assert(h.scaled(guids) == 0 && w.sent.empty()); // Her on has not come.
     h.receive(msg("SBF15 on"), 5, w);
     step(h, w, 2, 10);
-    assert(w.lines() == "SBF15 world 1\nSBF14 scale 1 135 115\nSBF14 up 1 101 5001 0 900 1600\n"
+    assert(w.lines() == "SBF15 world 1\nSBF15 scale 1 135 115\nSBF15 up 1 101 5001 0 900 1600\n"
                         "SBF15 up 1 102 5002 0 900 1600\n"); // Their values wait for the engine's scaling.
     assert(h.scaled(guids) == 2 && guids[0] == 101 && guids[1] == 102 && h.scale(kScaleHp) == 135 &&
            h.scale(kScaleBalance) == 115);
@@ -701,7 +701,7 @@ int main() {
     assert(w.lines() == "SBF15 hp 1 1 0 101:2160:100:230 102:2160:100:230\n" && h.linked() == 2);
     h.receive(msg("SBF15 world 4"), 110, w); // Her world changed: the whole list again, with the game's own MaxHP.
     step(h, w, 4, 110);
-    assert(w.lines().rfind("SBF15 world 1\nSBF14 scale 1 135 115\nSBF14 up 1 101 5001 0 900 1600\n", 0) == 0);
+    assert(w.lines().rfind("SBF15 world 1\nSBF15 scale 1 135 115\nSBF15 up 1 101 5001 0 900 1600\n", 0) == 0);
     h.receive(msg("SBF15 off photo mode"), 120, w); // Her off: still scaled.
     step(h, w, 5, 120);
     assert(h.scaled(guids) == 2);
@@ -727,7 +727,7 @@ int main() {
     step(h, w, 10, 170);
     assert(w.writes.size() == 1);
     wrote(w, 0, 102, kHp, -2160, true, true);
-    assert(h.counts.kills == 1 && h.counts.unshared == 1 && w.lines() == "SBF15 dead 1 101\nSBF14 dead 1 102\n");
+    assert(h.counts.kills == 1 && h.counts.unshared == 1 && w.lines() == "SBF15 dead 1 101\nSBF15 dead 1 102\n");
     assert(w.hp(101) == 2160 && !w.actor(101)->s.dying && w.unshared == std::vector<uint32_t>{101});
     assert(w.count("kill-unshared", "not taken part") == 1 && w.count("dead") == 1);
     assert(h.scaled(guids) == 1 && guids[0] == 103); // Both left the list: the engine lets them go.
@@ -756,7 +756,7 @@ int main() {
     Host plain;
     plain.receive(msg("SBF15 on"), 0, v);
     step(plain, v, 1, 0);
-    assert(v.lines().rfind("SBF15 world 1\nSBF14 up 1 201 ", 0) == 0 && plain.scaled(guids) == 0);
+    assert(v.lines().rfind("SBF15 world 1\nSBF15 up 1 201 ", 0) == 0 && plain.scaled(guids) == 0);
     plain.receive(msg("SBF15 hit 1 1 201 1600 0 0 1600 1"), 10, v);
     step(plain, v, 2, 10);
     wrote(v, 0, 201, kHp, -1600, true, true);
@@ -843,7 +843,7 @@ int main() {
     assert(w.sent.empty()); // Her on has not come.
     h.receive(msg("SBF15 on"), 5, w);
     step(h, w, 2, 10);
-    assert(w.lines().rfind("SBF15 world 1\nSBF14 place 1 1\nSBF14 up 1 101 ", 0) == 0);
+    assert(w.lines().rfind("SBF15 world 1\nSBF15 place 1 1\nSBF15 up 1 101 ", 0) == 0);
     step(h, w, 3, 20);
     assert(!has(w.lines(), "place"));
     h.set_place(false); // coop fight pilot off, or the pilot's latch.
@@ -857,7 +857,7 @@ int main() {
     assert(!has(w.lines(), "place"));
     h.receive(msg("SBF15 on"), 60, w);
     step(h, w, 7, 60);
-    assert(w.lines().rfind("SBF15 world 1\nSBF14 place 1 1\nSBF14 up 1 101 ", 0) == 0);
+    assert(w.lines().rfind("SBF15 world 1\nSBF15 place 1 1\nSBF15 up 1 101 ", 0) == 0);
     World v; // With scaling: world, scale, place, then the ups. Off: no place line at all.
     v.add(201, 6001, 0);
     Host scaled;
@@ -865,7 +865,7 @@ int main() {
     scaled.set_place(true);
     scaled.receive(msg("SBF15 on"), 0, v);
     step(scaled, v, 1, 0);
-    assert(v.lines().rfind("SBF15 world 1\nSBF14 scale 1 135 115\nSBF14 place 1 1\nSBF14 up 1 201 ", 0) == 0);
+    assert(v.lines().rfind("SBF15 world 1\nSBF15 scale 1 135 115\nSBF15 place 1 1\nSBF15 up 1 201 ", 0) == 0);
     World u;
     u.add(301, 7001, 0);
     Host plain;
@@ -887,7 +887,7 @@ int main() {
     h.set_aggro(true);
     h.receive(msg("SBF15 on"), 0, w);
     step(h, w, 1, 0);
-    assert(w.lines().rfind("SBF15 world 1\nSBF14 place 1 1\nSBF14 aggro 1 host\nSBF14 up 1 101 ", 0) == 0);
+    assert(w.lines().rfind("SBF15 world 1\nSBF15 place 1 1\nSBF15 aggro 1 host\nSBF15 up 1 101 ", 0) == 0);
     step(h, w, 2, 20);
     assert(!has(w.lines(), "aggro"));
     h.set_aggro(false);
@@ -945,7 +945,7 @@ int main() {
     h.receive(msg("SBF15 on"), 0, w);
     step(h, w, 1, 0);
     const std::string first = w.lines();
-    assert(first.rfind("SBF15 world 1\nSBF14 aggro 1 host\nSBF14 bosses 1 200\nSBF14 up 1 102 5002 0 15005100 1600\n"
+    assert(first.rfind("SBF15 world 1\nSBF15 aggro 1 host\nSBF15 bosses 1 200\nSBF15 up 1 102 5002 0 15005100 1600\n"
                        "SBF15 up 1 101 5001 0 900 1600\n",
                        0) == 0 &&
            !has(first, " hp "));
@@ -963,7 +963,7 @@ int main() {
     flat.set_bosses(100);
     flat.receive(msg("SBF15 on"), 0, u);
     step(flat, u, 1, 0);
-    assert(has(u.lines(), "SBF15 world 1\nSBF14 bosses 1 100\nSBF14 up 1 102 ") && !flat.scaled(guids));
+    assert(has(u.lines(), "SBF15 world 1\nSBF15 bosses 1 100\nSBF15 up 1 102 ") && !flat.scaled(guids));
     Host off; // Bosses off: no line.
     off.receive(msg("SBF15 on"), 0, u);
     step(off, u, 1, 0);
@@ -980,7 +980,7 @@ int main() {
     w.add(300, 7000, 0, 15005100).s.boss = true;
     h.receive(msg("SBF15 on"), 0, w);
     step(h, w, 1, 0);
-    assert(h.linked() == 16 && has(w.lines(), "SBF15 world 1\nSBF14 up 1 300 7000 0 15005100 1600\nSBF14 up 1 200 "));
+    assert(h.linked() == 16 && has(w.lines(), "SBF15 world 1\nSBF15 up 1 300 7000 0 15005100 1600\nSBF15 up 1 200 "));
     uint32_t guids[kMaxTracked];
     std::vector<uint32_t> held(guids, guids + h.tracked(guids));
     assert(held[0] == 300 && std::count(held.begin(), held.end(), 215) == 0); // At full HP, the last waits.
@@ -988,7 +988,7 @@ int main() {
       w.hit(200 + i, kHp, 1);
     w.add(301, 7001, 0, 15005100).s.boss = true;
     step(h, w, 2, 100);
-    assert(w.lines().rfind("SBF15 down 1 200\nSBF14 up 1 301 7001 0 15005100 1600\n", 0) == 0 && h.linked() == 16);
+    assert(w.lines().rfind("SBF15 down 1 200\nSBF15 up 1 301 7001 0 15005100 1600\n", 0) == 0 && h.linked() == 16);
     w.hit(215, kHp, 100);
     w.add(216, 6016, 0);
     w.hit(216, kHp, 100);
@@ -1019,7 +1019,7 @@ int main() {
     w.lines();
     w.add(300, 7000, 0, 15005100).s.boss = true;
     step(h, w, 3, 200);
-    assert(w.lines().rfind("SBF15 down 1 202\nSBF14 up 1 300 ", 0) == 0 && h.linked() == 16);
+    assert(w.lines().rfind("SBF15 down 1 202\nSBF15 up 1 300 ", 0) == 0 && h.linked() == 16);
     w.actor(200)->s.nodamage = 0;
     step(h, w, 4, 300);
     assert(has(w.lines(), "SBF15 dead 1 200\n") && h.counts.kills == 1);
@@ -1384,7 +1384,7 @@ int main() {
     h.receive(msg("SBF15 hit 1 2 102 1 0 0 1600 0"), 6100, w);
     h.receive(msg("SBF15 world 1"), 6100, w);
     step(h, w, 8, 6100);
-    assert(w.writes.size() == 1 && w.lines().rfind("SBF15 world 1\nSBF14 up 1 10", 0) == 0);
+    assert(w.writes.size() == 1 && w.lines().rfind("SBF15 world 1\nSBF15 up 1 10", 0) == 0);
 
     // A host's line from the guest, or junk, is bad; at kMaxBad, the peer is ignored for the session, logged once.
     h.receive(msg("SBF15 up 1 77 50110 2 1 1600"), 6200, w);
@@ -1410,7 +1410,7 @@ int main() {
     h.receive(msg("SBF15 hit 1 1 101 10 0 0 1600 0"), 100, w);
     step(h, w, 3, 100);
     assert(w.writes.empty() && w.count("world", "turn went back") == 1 && h.gen() == 2);
-    assert(w.lines() == "SBF15 world 2\nSBF14 up 2 101 5001 0 900 1600\nSBF14 hp 2 2 1 101:1600:100:200\n");
+    assert(w.lines() == "SBF15 world 2\nSBF15 up 2 101 5001 0 900 1600\nSBF15 hp 2 2 1 101:1600:100:200\n");
     h.receive(msg("SBF15 hit 1 2 101 10 0 0 1600 0"), 200, w); // Her claim from the old world.
     assert(h.counts.stale == 1);
     // A pass that shares no GUID with the last one (a warp): the same.
@@ -1418,7 +1418,7 @@ int main() {
     w.add(201, 5001, 0);
     step(h, w, 4, 300);
     assert(w.count("world", "enemies replaced") == 1 &&
-           w.lines().rfind("SBF15 world 3\nSBF14 up 3 201 5001 0", 0) == 0);
+           w.lines().rfind("SBF15 world 3\nSBF15 up 3 201 5001 0", 0) == 0);
     // A pass with nobody is no world change: the enemy is just gone.
     w.actors.clear();
     step(h, w, 5, 400);
@@ -1556,7 +1556,7 @@ int main() {
     g.hit(501, kHp, 10);
     g.hit(502, kHp, 5);
     step(gu, g, 15, 1030);
-    assert(g.lines() == "SBF15 hit 4 3 101 10 0 0 1400 0\nSBF14 hit 4 4 102 5 0 0 1600 0\n");
+    assert(g.lines() == "SBF15 hit 4 3 101 10 0 0 1400 0\nSBF15 hit 4 4 102 5 0 0 1600 0\n");
     step(gu, g, 16, 1054); // Its 50 ms passed at 1050, but 102's claim took the 25 ms in all until 1055.
     assert(g.sent.empty());
     step(gu, g, 17, 1055);
@@ -1609,7 +1609,7 @@ int main() {
     step(gu, g, 2, 100);
     g.hit(501, kHp, 1500);
     step(gu, g, 3, 110);
-    assert(g.lines() == "SBF15 hit 1 1 101 100 0 0 1600 0\nSBF14 hit 1 2 101 1500 0 0 1500 1\n");
+    assert(g.lines() == "SBF15 hit 1 1 101 100 0 0 1600 0\nSBF15 hit 1 2 101 1500 0 0 1500 1\n");
     uint32_t guids[kMaxTracked];
     assert(gu.linked() == 2 && gu.tracked(guids) == 2);
     // The host's values still alive once it took the claim: refused there, our copy stays dead (desync guest-dead).
@@ -1979,7 +1979,7 @@ int main() {
       step(gu, g, uint32_t(t), t);
     }
     step(gu, g, 150, 150);
-    assert(g.lines() == "SBF15 hit 1 1 100 1000 0 200 1600 0\nSBF14 hit 1 2 100 1600 0 200 1600 0\n");
+    assert(g.lines() == "SBF15 hit 1 1 100 1000 0 200 1600 0\nSBF15 hit 1 2 100 1600 0 200 1600 0\n");
     // Steady drops on two enemies every turn, one hit on a third: it still gets a turn within a few claims.
     std::string sent;
     for (uint64_t t = 160, turn = 160; t <= 300; t += 16, ++turn) {
@@ -2374,7 +2374,7 @@ int main() {
     step(h, hw, 2, 100);
     assert(hw.hp(101) == 1 && hw.hp(102) == 1 && hw.actor(103)->s.dying && hw.actor(104)->s.dying);
     assert(h.counts.finish_held == 1 && hw.count("finish-held") == 1 && h.counts.held == 1 && h.linked() == 2);
-    assert(hw.lines() == "SBF15 dead 1 103\nSBF14 dead 1 104\nSBF14 hp 1 2 4 101:1:100:200 102:0:100:200\n");
+    assert(hw.lines() == "SBF15 dead 1 103\nSBF15 dead 1 104\nSBF15 hp 1 2 4 101:1:100:200 102:0:100:200\n");
     hw.actor(102)->s.finish = true; // Its HP under 2 brings its Finish stance meanwhile.
     uint32_t seq = 5, turn = 3;
     for (const uint64_t t : {uint64_t(200), 100 + kHoldMs, 100 + 2 * kHoldMs}) { // Her lethal claims on 101 go on.
@@ -2534,7 +2534,7 @@ int main() {
       std::string text = file.substr(0, 400 + rng() % 400);
       text = text.substr(0, text.rfind('\n') + 1);
       for (int k = rng() % 3; k >= 0; --k)
-        text[rng() % text.size()] = "0123456789 :\nSBF14wordhp"[rng() % 23];
+        text[rng() % text.size()] = "0123456789 :\nSBF15wordhp"[rng() % 23];
       std::vector<Line> out;
       if (parse_recording(text, out))
         continue;

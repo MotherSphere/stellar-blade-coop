@@ -308,7 +308,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF14" for the shared fight, "SBQ14" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF15" for the shared fight, "SBQ15" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 

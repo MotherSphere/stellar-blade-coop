@@ -259,8 +259,8 @@ int main() {
     h.have(msg("SBF15 have 1 1 2 2 7030:0 7031:0 7032:0 7004:0 7005:0"), 1, 3000);
     host_step(h, ep, w, 3100);
     const std::string answer = w.lines();
-    assert(answer == "SBF15 spawn 1 1 7001 0 900 1 -250 13 270\nSBF14 spawn 1 1 7003 0 900 3 -250 13 270\n"
-                     "SBF15 spawn 1 1 7024 0 900 24 -250 13 270\nSBF14 spawn 1 1 7025 0 900 25 -250 13 270\n"
+    assert(answer == "SBF15 spawn 1 1 7001 0 900 1 -250 13 270\nSBF15 spawn 1 1 7003 0 900 3 -250 13 270\n"
+                     "SBF15 spawn 1 1 7024 0 900 24 -250 13 270\nSBF15 spawn 1 1 7025 0 900 25 -250 13 270\n"
                      "SBF15 drop 1 1 7006 0\n");
     assert(h.counts.answered == 1 && h.counts.spawn_lines == 4 && h.counts.drop_lines == 1);
     assert(w.count("spawn sent") == 4 && w.count("drop sent") == 1);
@@ -321,7 +321,7 @@ int main() {
     epoch(fep, far, 0xA1, 3, 0);
     fh.have(msg("SBF15 have 1 1 1 1"), 1, kGraceMs);
     host_step(fh, fep, far, kGraceMs);
-    assert(far.lines() == "SBF15 epoch 1 40 1\nSBF14 spawn 1 1 2 0 900 2 -250 13 270\n");
+    assert(far.lines() == "SBF15 epoch 1 40 1\nSBF15 spawn 1 1 2 0 900 2 -250 13 270\n");
     const float nearer[3] = {60000, 0, 0};
     fh.have(msg("SBF15 have 1 1 1 1 2:0"), 1, kGraceMs + kRoundMs);
     host_step(fh, fep, far, kGraceMs + kRoundMs, true, kZone, nearer);
@@ -355,7 +355,7 @@ int main() {
     assert(w.sent.empty());
     guest_step(g, ep, w, 5000);
     std::string round = w.lines();
-    assert(round.rfind("SBF15 have 1 1 1 2 7001:0 7002:0 ", 0) == 0 && has(round, "\nSBF14 have 1 1 2 2 7025:0 ") &&
+    assert(round.rfind("SBF15 have 1 1 1 2 7001:0 7002:0 ", 0) == 0 && has(round, "\nSBF15 have 1 1 2 2 7025:0 ") &&
            has(round, " 7030:0\n") && !has(round, "704") && !has(round, "7099") && !has(round, "7001:1"));
     assert(g.counts.haves == 1 && w.created.empty());
     guest_step(g, ep, w, 5500);
@@ -689,7 +689,7 @@ int main() {
     epoch(hep, h, 0xA1, 3, 0);
     sh.have(msg("SBF15 have 1 1 1 1 1:0 3758096641:1 3758096897:1"), 1, kGraceMs); // 0xE0000101, 0xE0000201.
     host_step(sh, hep, h, kGraceMs);
-    assert(h.lines() == "SBF15 epoch 1 40 1\nSBF14 spawn 1 1 3758096642 2 900 642 -250 13 270\n"
+    assert(h.lines() == "SBF15 epoch 1 40 1\nSBF15 spawn 1 1 3758096642 2 900 642 -250 13 270\n"
                         "SBF15 drop 1 1 3758096897 1\n");
     World g;
     g.row(1, kReset), g.row(0xE0000301, kReset); // A row of hers in the extras' range.
