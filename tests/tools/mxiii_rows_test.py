@@ -3,7 +3,8 @@ fields are known with their offsets inside the row struct, and the checks refuse
 misread: an unknown field, two patches on the same bytes, a batch of 256 rows, a name given twice, a list item with
 the separator in it, a string list of one empty item, a row whose strings overflow the native pool. The data file holds
 the rows the cooked map's manifest expects: the camps, the three bosses, no warp switch left (only coop mxiii warp's 72
-arrival points), the doors closed at the start, and the mechanism rows' names chained: every event a row fires that
+arrival points), the doors that stand open with no opener and the others closed at the start, and the mechanism
+rows' names chained: every event a row fires that
 the data adds is a ZoneEvent row of the data, every EnvC row the data adds has its ZoneEvent row and targets an env
 row."""
 import copy
@@ -68,16 +69,23 @@ assert not [n for (t, n) in rows if t == 'EventZoneWarpTable' or '_E_ZoneWarp_' 
 assert not [n for (t, n) in rows if t == 'ZoneEnvSpawnTable' and n[-3:].isdigit() and 970 <= int(n[-3:]) <= 993]
 assert len(data['warp']) == 72 and [w['n'] for w in data['warp']] == list(range(1, 73))
 assert all(w['name'].startswith('DLC02_') and '_WarpPoint_' in w['name'] for w in data['warp'])
-# Every door the data adds starts closed, with its four sequences, at the spawn point of its own name. The two that
-# start open close by mechanism: the car 9 airlock's outer door (its panel shuts it before the inner one opens) and the
-# zone 3 pressure door (trigger 601 shuts it behind EVE).
+# Every door the data adds has its four sequences at the spawn point of its own name. Eleven start closed: the R12 and
+# zone 4 shortcut doors, opened from one side, the control room door, opened once E10 is dead, and the car 9 airlock's
+# inner door. The others start open: the 34 doors with no opener row (the 14 arena doors among them close by their
+# arena lock and are ResetZone rows, so a death puts them back to Open), the airlock's outer door (its panel shuts it
+# before the inner one opens) and the zone 3 pressure door (trigger 601 shuts it behind EVE).
+CLOSED = {'DLC02_10_EnvS_610', 'DLC02_20_EnvS_609', 'DLC02_40_EnvS_601', 'DLC02_40_EnvS_602', 'DLC02_40_EnvS_603',
+          'DLC02_40_EnvS_604', 'DLC02_40_EnvS_605', 'DLC02_40_EnvS_608', 'DLC02_40_EnvS_609', 'DLC02_40_EnvS_610',
+          'DLC02_40_EnvS_611'}
+ARENA = {'DLC02_30_EnvS_6%02d' % n for n in (2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 16)} | {'DLC02_40_EnvS_607'}
 added = {n: r for (t, n), r in rows.items() if r['donor'] != n}
 doors = [r for r in added.values() if dict((f, v) for f, v, _ in r['set']).get('EnvAlias') == 'Env_Countdown_Gate']
-assert len(doors) > 40
+assert len(doors) == 47
 for r in doors:
     s = dict((f, v) for f, v, _ in r['set'])
-    start = 'Open' if r['name'] in ('DLC02_20_EnvS_608', 'DLC02_30_EnvS_618') else 'Close'
+    start = 'Close' if r['name'] in CLOSED else 'Open'
     assert s['InitStateTag'] == start and s['SpawnPointName'] == r['name'], r['name']
+    assert (s['SaveType'] == 2) == (r['name'] in ARENA), r['name']
     assert len(s['OutTransitSequenceList']) == 2 and all(p.startswith('/Game/MXIII_Editor/Seq/MX13_' + r['name'])
                                                          for p in s['ActiveSequenceList']), r['name']
 # The names chained: what a data row fires, the EnvC rows and the env rows they drive.

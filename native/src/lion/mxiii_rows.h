@@ -611,7 +611,7 @@ constexpr Patch kMxspawnPatches[] = {
     {0xb1, Kind::u8, 0, nullptr}, // GoPathAfterSpawn
     {0xb8, Kind::string, 0, ""}, // PathWay
     {0xc8, Kind::name, 0, "m_beach_elite1"}, // RewardGroup
-    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_632|DLC02_30_E_EnvC_633|DLC02_30_E_EnvC_634|DLC02_30_E_EnvC_636|DLC02_30_E_EnvC_637|DLC02_30_E_EnvC_638|DLC02_30_E_EnvC_640|DLC02_30_E_EnvC_641|DLC02_30_E_EnvC_642|DLC02_30_E_EnvC_644|DLC02_30_E_EnvC_645|DLC02_30_E_EnvC_646"}, // EventOnBattle
+    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_632|DLC02_30_E_EnvC_636|DLC02_30_E_EnvC_640|DLC02_30_E_EnvC_644"}, // EventOnBattle
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_635|DLC02_30_E_EnvC_639|DLC02_30_E_EnvC_643|DLC02_30_E_EnvC_647"}, // EventOnDead
     // DLC02_40_E_CharS_051 (EventSpawnTable)
     {0x14, Kind::name, 0, "DLC02_40_E_CharS_051"}, // SpawnPointName
@@ -621,7 +621,7 @@ constexpr Patch kMxspawnPatches[] = {
     {0xb1, Kind::u8, 0, nullptr}, // GoPathAfterSpawn
     {0xb8, Kind::string, 0, ""}, // PathWay
     {0xc8, Kind::name, 0, "m_beach_elite1"}, // RewardGroup
-    {0x80, Kind::names, 0, "DLC02_40_E_EnvC_614|DLC02_40_E_EnvC_616|DLC02_40_E_EnvC_617|DLC02_40_E_EnvC_618|DLC02_40_E_EnvC_620|DLC02_40_E_EnvC_630"}, // EventOnBattle
+    {0x80, Kind::names, 0, "DLC02_40_E_EnvC_614|DLC02_40_E_EnvC_618|DLC02_40_E_EnvC_620|DLC02_40_E_EnvC_630"}, // EventOnBattle
     {0x70, Kind::names, 0, "DLC02_40_E_EnvC_615|DLC02_40_E_EnvC_619|DLC02_40_E_EnvC_613"}, // EventOnDead
     // DLC02_20_ZoneE_033 (ZoneEventTable)
     {0x18, Kind::name, 0, "DLC02_20_E_CharS_904"}, // EventAlias
@@ -691,19 +691,22 @@ constexpr Patch kMxenvPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_050"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_050_ToOpen.MX13_DLC02_20_EnvS_050_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_050_Closed.MX13_DLC02_20_EnvS_050_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_050_Opened.MX13_DLC02_20_EnvS_050_Opened"}, // ActiveSequenceList
+    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_934"}, // TagEventList2
     // DLC02_20_EnvS_051 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_051"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_051_ToOpen.MX13_DLC02_20_EnvS_051_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_051_Closed.MX13_DLC02_20_EnvS_051_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_051_Opened.MX13_DLC02_20_EnvS_051_Opened"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, ""}, // Interaction
     // DLC02_20_EnvS_037 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_037"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_037_ToOpen.MX13_DLC02_20_EnvS_037_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_037_Closed.MX13_DLC02_20_EnvS_037_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_037_Opened.MX13_DLC02_20_EnvS_037_Opened"}, // ActiveSequenceList
+    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_935"}, // TagEventList2
     // DLC02_20_EnvS_001 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_20|Zone_DLC02_10"}, // ZoneList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_001"}, // SpawnPointName
     // DLC02_20_EnvS_002 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_20|Zone_DLC02_10"}, // ZoneList
@@ -1461,166 +1464,166 @@ constexpr Patch kMxenvPatches[] = {
     {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
 };
 constexpr Row kMxenvRecipe[] = {
-    {Table::env, "DLC02_20_EnvS_050", "DLC02_20_EnvS_050", 2805032050u, 0, 4},
-    {Table::env, "DLC02_20_EnvS_051", "DLC02_20_EnvS_051", 2805032051u, 4, 4},
-    {Table::env, "DLC02_20_EnvS_037", "DLC02_20_EnvS_037", 2805032037u, 8, 4},
-    {Table::env, "DLC02_20_EnvS_001", "DLC02_20_EnvS_001", 2805032001u, 12, 3},
-    {Table::env, "DLC02_20_EnvS_002", "DLC02_20_EnvS_002", 2805032002u, 15, 4},
-    {Table::env, "DLC02_20_EnvS_019", "DLC02_20_EnvS_019", 2805032019u, 19, 4},
-    {Table::env, "DLC02_40_EnvS_004", "DLC02_40_EnvS_004", 2815032004u, 23, 3},
-    {Table::env, "DLC02_40_EnvS_005", "DLC02_40_EnvS_005", 2815032005u, 26, 3},
-    {Table::effvol, "DLC02_40_EffVol_001", "DLC02_20_EffVol_001", 2815052001u, 29, 2},
-    {Table::effvol, "DLC02_20_EffVol_002", "DLC02_20_EffVol_001", 2805052002u, 31, 2},
-    {Table::env, "DLC02_10_EnvS_419", "DLC02_10_EnvS_419", 2800032419u, 33, 2},
-    {Table::env, "DLC02_10_EnvS_418", "DLC02_10_EnvS_418", 2800032418u, 35, 2},
-    {Table::env, "DLC02_10_EnvS_427", "DLC02_10_EnvS_427", 2800032427u, 37, 2},
-    {Table::env, "DLC02_20_EnvS_093", "DLC02_20_EnvS_093", 2805032093u, 39, 2},
-    {Table::env, "DLC02_20_EnvS_028", "DLC02_20_EnvS_028", 2805032028u, 41, 2},
-    {Table::env, "DLC02_20_EnvS_033", "DLC02_20_EnvS_033", 2805032033u, 43, 2},
-    {Table::env, "DLC02_20_EnvS_032", "DLC02_20_EnvS_032", 2805032032u, 45, 2},
-    {Table::env, "DLC02_20_EnvS_035", "DLC02_20_EnvS_035", 2805032035u, 47, 2},
-    {Table::env, "DLC02_10_EnvS_440", "DLC02_10_EnvS_440", 2800032440u, 49, 2},
-    {Table::env, "DLC02_00_EnvS_008", "DLC02_10_EnvS_440", 2800037008u, 51, 4},
-    {Table::env, "DLC02_00_EnvS_009", "DLC02_10_EnvS_440", 2800037009u, 55, 4},
-    {Table::eitem, "DLC02_00_E_ItemS_002", "DLC02_10_E_ItemS_001", 2800027002u, 59, 4},
-    {Table::eitem, "DLC02_00_E_ItemS_003", "DLC02_10_E_ItemS_001", 2800027003u, 63, 4},
-    {Table::eitem, "DLC02_00_E_ItemS_004", "DLC02_10_E_ItemS_001", 2800027004u, 67, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_007", "DLC02_10_E_ItemS_001", 2800020007u, 71, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_010", "DLC02_10_E_ItemS_001", 2800020010u, 75, 4},
-    {Table::env, "DLC02_10_EnvS_442", "DLC02_10_EnvS_440", 2800032442u, 79, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_013", "DLC02_10_E_ItemS_001", 2800020013u, 83, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_003", "DLC02_10_E_ItemS_001", 2800020003u, 87, 4},
-    {Table::env, "DLC02_10_EnvS_445", "DLC02_10_EnvS_440", 2800032445u, 91, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_008", "DLC02_10_E_ItemS_001", 2800020008u, 95, 4},
-    {Table::env, "DLC02_10_EnvS_444", "DLC02_10_EnvS_440", 2800032444u, 99, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_009", "DLC02_10_E_ItemS_001", 2800020009u, 103, 4},
-    {Table::env, "DLC02_10_EnvS_443", "DLC02_10_EnvS_440", 2800032443u, 107, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_011", "DLC02_10_E_ItemS_001", 2800020011u, 111, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_004", "DLC02_10_E_ItemS_001", 2800020004u, 115, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_005", "DLC02_10_E_ItemS_001", 2800020005u, 119, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_006", "DLC02_10_E_ItemS_001", 2800020006u, 123, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_012", "DLC02_10_E_ItemS_001", 2800020012u, 127, 4},
-    {Table::eitem, "DLC02_10_E_ItemS_002", "DLC02_10_E_ItemS_001", 2800020002u, 131, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_021", "DLC02_10_E_ItemS_001", 2805020021u, 135, 4},
-    {Table::env, "DLC02_20_EnvS_094", "DLC02_10_EnvS_440", 2805032094u, 139, 4},
-    {Table::env, "DLC02_20_EnvS_095", "DLC02_10_EnvS_440", 2805032095u, 143, 4},
-    {Table::env, "DLC02_20_EnvS_096", "DLC02_10_EnvS_440", 2805032096u, 147, 4},
-    {Table::env, "DLC02_20_EnvS_097", "DLC02_10_EnvS_440", 2805032097u, 151, 4},
-    {Table::env, "DLC02_20_EnvS_098", "DLC02_10_EnvS_440", 2805032098u, 155, 4},
-    {Table::env, "DLC02_20_EnvS_099", "DLC02_10_EnvS_440", 2805032099u, 159, 4},
-    {Table::env, "DLC02_20_EnvS_100", "DLC02_10_EnvS_440", 2805032100u, 163, 4},
-    {Table::env, "DLC02_20_EnvS_101", "DLC02_10_EnvS_440", 2805032101u, 167, 4},
-    {Table::env, "DLC02_20_EnvS_102", "DLC02_10_EnvS_440", 2805032102u, 171, 4},
-    {Table::env, "DLC02_20_EnvS_103", "DLC02_10_EnvS_440", 2805032103u, 175, 4},
-    {Table::env, "DLC02_20_EnvS_104", "DLC02_10_EnvS_440", 2805032104u, 179, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_004", "DLC02_10_E_ItemS_001", 2805020004u, 183, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_005", "DLC02_10_E_ItemS_001", 2805020005u, 187, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_006", "DLC02_10_E_ItemS_001", 2805020006u, 191, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_007", "DLC02_10_E_ItemS_001", 2805020007u, 195, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_008", "DLC02_10_E_ItemS_001", 2805020008u, 199, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_009", "DLC02_10_E_ItemS_001", 2805020009u, 203, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_010", "DLC02_10_E_ItemS_001", 2805020010u, 207, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_011", "DLC02_10_E_ItemS_001", 2805020011u, 211, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_012", "DLC02_10_E_ItemS_001", 2805020012u, 215, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_013", "DLC02_10_E_ItemS_001", 2805020013u, 219, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_014", "DLC02_10_E_ItemS_001", 2805020014u, 223, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_015", "DLC02_10_E_ItemS_001", 2805020015u, 227, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_016", "DLC02_10_E_ItemS_001", 2805020016u, 231, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_017", "DLC02_10_E_ItemS_001", 2805020017u, 235, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_018", "DLC02_10_E_ItemS_001", 2805020018u, 239, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_019", "DLC02_10_E_ItemS_001", 2805020019u, 243, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_020", "DLC02_10_E_ItemS_001", 2805020020u, 247, 4},
-    {Table::env, "DLC02_40_EnvS_026", "DLC02_10_EnvS_440", 2815032026u, 251, 4},
-    {Table::env, "DLC02_40_EnvS_027", "DLC02_10_EnvS_440", 2815032027u, 255, 4},
-    {Table::env, "DLC02_40_EnvS_028", "DLC02_10_EnvS_440", 2815032028u, 259, 4},
-    {Table::env, "DLC02_40_EnvS_029", "DLC02_10_EnvS_440", 2815032029u, 263, 4},
-    {Table::env, "DLC02_40_EnvS_030", "DLC02_10_EnvS_440", 2815032030u, 267, 4},
-    {Table::env, "DLC02_40_EnvS_031", "DLC02_10_EnvS_440", 2815032031u, 271, 4},
-    {Table::env, "DLC02_40_EnvS_032", "DLC02_10_EnvS_440", 2815032032u, 275, 4},
-    {Table::env, "DLC02_40_EnvS_033", "DLC02_10_EnvS_440", 2815032033u, 279, 4},
-    {Table::env, "DLC02_40_EnvS_034", "DLC02_10_EnvS_440", 2815032034u, 283, 4},
-    {Table::env, "DLC02_40_EnvS_035", "DLC02_10_EnvS_440", 2815032035u, 287, 4},
-    {Table::env, "DLC02_40_EnvS_036", "DLC02_10_EnvS_440", 2815032036u, 291, 4},
-    {Table::env, "DLC02_40_EnvS_037", "DLC02_10_EnvS_440", 2815032037u, 295, 4},
-    {Table::env, "DLC02_40_EnvS_038", "DLC02_10_EnvS_440", 2815032038u, 299, 4},
-    {Table::env, "DLC02_40_EnvS_039", "DLC02_10_EnvS_440", 2815032039u, 303, 4},
-    {Table::env, "DLC02_40_EnvS_040", "DLC02_10_EnvS_440", 2815032040u, 307, 4},
-    {Table::env, "DLC02_40_EnvS_041", "DLC02_10_EnvS_440", 2815032041u, 311, 4},
-    {Table::env, "DLC02_40_EnvS_042", "DLC02_10_EnvS_440", 2815032042u, 315, 4},
-    {Table::env, "DLC02_40_EnvS_043", "DLC02_10_EnvS_440", 2815032043u, 319, 4},
-    {Table::env, "DLC02_40_EnvS_044", "DLC02_10_EnvS_440", 2815032044u, 323, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_002", "DLC02_10_E_ItemS_001", 2815020002u, 327, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_003", "DLC02_10_E_ItemS_001", 2815020003u, 331, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_004", "DLC02_10_E_ItemS_001", 2815020004u, 335, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_005", "DLC02_10_E_ItemS_001", 2815020005u, 339, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_006", "DLC02_10_E_ItemS_001", 2815020006u, 343, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_007", "DLC02_10_E_ItemS_001", 2815020007u, 347, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_008", "DLC02_10_E_ItemS_001", 2815020008u, 351, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_009", "DLC02_10_E_ItemS_001", 2815020009u, 355, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_010", "DLC02_10_E_ItemS_001", 2815020010u, 359, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_011", "DLC02_10_E_ItemS_001", 2815020011u, 363, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_012", "DLC02_10_E_ItemS_001", 2815020012u, 367, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_013", "DLC02_10_E_ItemS_001", 2815020013u, 371, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_014", "DLC02_10_E_ItemS_001", 2815020014u, 375, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_015", "DLC02_10_E_ItemS_001", 2815020015u, 379, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_016", "DLC02_10_E_ItemS_001", 2815020016u, 383, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_017", "DLC02_10_E_ItemS_001", 2815020017u, 387, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_018", "DLC02_10_E_ItemS_001", 2815020018u, 391, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_019", "DLC02_10_E_ItemS_001", 2815020019u, 395, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_020", "DLC02_10_E_ItemS_001", 2815020020u, 399, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_021", "DLC02_10_E_ItemS_001", 2815020021u, 403, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_022", "DLC02_10_E_ItemS_001", 2815020022u, 407, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_023", "DLC02_10_E_ItemS_001", 2815020023u, 411, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_024", "DLC02_10_E_ItemS_001", 2815020024u, 415, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_025", "DLC02_10_E_ItemS_001", 2815020025u, 419, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_026", "DLC02_10_E_ItemS_001", 2815020026u, 423, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_027", "DLC02_10_E_ItemS_001", 2815020027u, 427, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_028", "DLC02_10_E_ItemS_001", 2815020028u, 431, 4},
-    {Table::env, "DLC02_10_EnvS_428", "DLC02_10_EnvS_428", 2800032428u, 435, 2},
-    {Table::env, "DLC02_30_EnvS_012", "DLC02_10_EnvS_440", 2810032012u, 437, 4},
-    {Table::env, "DLC02_30_EnvS_013", "DLC02_10_EnvS_440", 2810032013u, 441, 4},
-    {Table::env, "DLC02_30_EnvS_014", "DLC02_10_EnvS_440", 2810032014u, 445, 4},
-    {Table::env, "DLC02_30_EnvS_015", "DLC02_10_EnvS_440", 2810032015u, 449, 4},
-    {Table::env, "DLC02_30_EnvS_016", "DLC02_10_EnvS_440", 2810032016u, 453, 4},
-    {Table::env, "DLC02_30_EnvS_017", "DLC02_10_EnvS_440", 2810032017u, 457, 4},
-    {Table::env, "DLC02_30_EnvS_018", "DLC02_10_EnvS_440", 2810032018u, 461, 4},
-    {Table::env, "DLC02_30_EnvS_019", "DLC02_10_EnvS_440", 2810032019u, 465, 4},
-    {Table::env, "DLC02_30_EnvS_020", "DLC02_10_EnvS_440", 2810032020u, 469, 4},
-    {Table::env, "DLC02_30_EnvS_021", "DLC02_10_EnvS_440", 2810032021u, 473, 4},
-    {Table::env, "DLC02_30_EnvS_022", "DLC02_10_EnvS_440", 2810032022u, 477, 4},
-    {Table::env, "DLC02_30_EnvS_023", "DLC02_10_EnvS_440", 2810032023u, 481, 4},
-    {Table::env, "DLC02_30_EnvS_024", "DLC02_10_EnvS_440", 2810032024u, 485, 4},
-    {Table::env, "DLC02_30_EnvS_025", "DLC02_10_EnvS_440", 2810032025u, 489, 4},
-    {Table::env, "DLC02_30_EnvS_026", "DLC02_10_EnvS_440", 2810032026u, 493, 4},
-    {Table::env, "DLC02_30_EnvS_027", "DLC02_10_EnvS_440", 2810032027u, 497, 4},
-    {Table::env, "DLC02_30_EnvS_028", "DLC02_10_EnvS_440", 2810032028u, 501, 4},
-    {Table::env, "DLC02_30_EnvS_029", "DLC02_10_EnvS_440", 2810032029u, 505, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_003", "DLC02_10_E_ItemS_001", 2810020003u, 509, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_004", "DLC02_10_E_ItemS_001", 2810020004u, 513, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_005", "DLC02_10_E_ItemS_001", 2810020005u, 517, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_006", "DLC02_10_E_ItemS_001", 2810020006u, 521, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_007", "DLC02_10_E_ItemS_001", 2810020007u, 525, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_008", "DLC02_10_E_ItemS_001", 2810020008u, 529, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_009", "DLC02_10_E_ItemS_001", 2810020009u, 533, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_010", "DLC02_10_E_ItemS_001", 2810020010u, 537, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_011", "DLC02_10_E_ItemS_001", 2810020011u, 541, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_012", "DLC02_10_E_ItemS_001", 2810020012u, 545, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_013", "DLC02_10_E_ItemS_001", 2810020013u, 549, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_014", "DLC02_10_E_ItemS_001", 2810020014u, 553, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_015", "DLC02_10_E_ItemS_001", 2810020015u, 557, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_016", "DLC02_10_E_ItemS_001", 2810020016u, 561, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_017", "DLC02_10_E_ItemS_001", 2810020017u, 565, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_018", "DLC02_10_E_ItemS_001", 2810020018u, 569, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_019", "DLC02_10_E_ItemS_001", 2810020019u, 573, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_020", "DLC02_10_E_ItemS_001", 2810020020u, 577, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_021", "DLC02_10_E_ItemS_001", 2810020021u, 581, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_022", "DLC02_10_E_ItemS_001", 2810020022u, 585, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_023", "DLC02_10_E_ItemS_001", 2810020023u, 589, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_024", "DLC02_10_E_ItemS_001", 2810020024u, 593, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_025", "DLC02_10_E_ItemS_001", 2810020025u, 597, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_026", "DLC02_10_E_ItemS_001", 2810020026u, 601, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_027", "DLC02_10_E_ItemS_001", 2810020027u, 605, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_028", "DLC02_10_E_ItemS_001", 2810020028u, 609, 4},
+    {Table::env, "DLC02_20_EnvS_050", "DLC02_20_EnvS_050", 2805032050u, 0, 5},
+    {Table::env, "DLC02_20_EnvS_051", "DLC02_20_EnvS_051", 2805032051u, 5, 5},
+    {Table::env, "DLC02_20_EnvS_037", "DLC02_20_EnvS_037", 2805032037u, 10, 5},
+    {Table::env, "DLC02_20_EnvS_001", "DLC02_20_EnvS_001", 2805032001u, 15, 3},
+    {Table::env, "DLC02_20_EnvS_002", "DLC02_20_EnvS_002", 2805032002u, 18, 4},
+    {Table::env, "DLC02_20_EnvS_019", "DLC02_20_EnvS_019", 2805032019u, 22, 4},
+    {Table::env, "DLC02_40_EnvS_004", "DLC02_40_EnvS_004", 2815032004u, 26, 3},
+    {Table::env, "DLC02_40_EnvS_005", "DLC02_40_EnvS_005", 2815032005u, 29, 3},
+    {Table::effvol, "DLC02_40_EffVol_001", "DLC02_20_EffVol_001", 2815052001u, 32, 2},
+    {Table::effvol, "DLC02_20_EffVol_002", "DLC02_20_EffVol_001", 2805052002u, 34, 2},
+    {Table::env, "DLC02_10_EnvS_419", "DLC02_10_EnvS_419", 2800032419u, 36, 2},
+    {Table::env, "DLC02_10_EnvS_418", "DLC02_10_EnvS_418", 2800032418u, 38, 2},
+    {Table::env, "DLC02_10_EnvS_427", "DLC02_10_EnvS_427", 2800032427u, 40, 2},
+    {Table::env, "DLC02_20_EnvS_093", "DLC02_20_EnvS_093", 2805032093u, 42, 2},
+    {Table::env, "DLC02_20_EnvS_028", "DLC02_20_EnvS_028", 2805032028u, 44, 2},
+    {Table::env, "DLC02_20_EnvS_033", "DLC02_20_EnvS_033", 2805032033u, 46, 2},
+    {Table::env, "DLC02_20_EnvS_032", "DLC02_20_EnvS_032", 2805032032u, 48, 2},
+    {Table::env, "DLC02_20_EnvS_035", "DLC02_20_EnvS_035", 2805032035u, 50, 2},
+    {Table::env, "DLC02_10_EnvS_440", "DLC02_10_EnvS_440", 2800032440u, 52, 2},
+    {Table::env, "DLC02_00_EnvS_008", "DLC02_10_EnvS_440", 2800037008u, 54, 4},
+    {Table::env, "DLC02_00_EnvS_009", "DLC02_10_EnvS_440", 2800037009u, 58, 4},
+    {Table::eitem, "DLC02_00_E_ItemS_002", "DLC02_10_E_ItemS_001", 2800027002u, 62, 4},
+    {Table::eitem, "DLC02_00_E_ItemS_003", "DLC02_10_E_ItemS_001", 2800027003u, 66, 4},
+    {Table::eitem, "DLC02_00_E_ItemS_004", "DLC02_10_E_ItemS_001", 2800027004u, 70, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_007", "DLC02_10_E_ItemS_001", 2800020007u, 74, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_010", "DLC02_10_E_ItemS_001", 2800020010u, 78, 4},
+    {Table::env, "DLC02_10_EnvS_442", "DLC02_10_EnvS_440", 2800032442u, 82, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_013", "DLC02_10_E_ItemS_001", 2800020013u, 86, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_003", "DLC02_10_E_ItemS_001", 2800020003u, 90, 4},
+    {Table::env, "DLC02_10_EnvS_445", "DLC02_10_EnvS_440", 2800032445u, 94, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_008", "DLC02_10_E_ItemS_001", 2800020008u, 98, 4},
+    {Table::env, "DLC02_10_EnvS_444", "DLC02_10_EnvS_440", 2800032444u, 102, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_009", "DLC02_10_E_ItemS_001", 2800020009u, 106, 4},
+    {Table::env, "DLC02_10_EnvS_443", "DLC02_10_EnvS_440", 2800032443u, 110, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_011", "DLC02_10_E_ItemS_001", 2800020011u, 114, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_004", "DLC02_10_E_ItemS_001", 2800020004u, 118, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_005", "DLC02_10_E_ItemS_001", 2800020005u, 122, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_006", "DLC02_10_E_ItemS_001", 2800020006u, 126, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_012", "DLC02_10_E_ItemS_001", 2800020012u, 130, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_002", "DLC02_10_E_ItemS_001", 2800020002u, 134, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_021", "DLC02_10_E_ItemS_001", 2805020021u, 138, 4},
+    {Table::env, "DLC02_20_EnvS_094", "DLC02_10_EnvS_440", 2805032094u, 142, 4},
+    {Table::env, "DLC02_20_EnvS_095", "DLC02_10_EnvS_440", 2805032095u, 146, 4},
+    {Table::env, "DLC02_20_EnvS_096", "DLC02_10_EnvS_440", 2805032096u, 150, 4},
+    {Table::env, "DLC02_20_EnvS_097", "DLC02_10_EnvS_440", 2805032097u, 154, 4},
+    {Table::env, "DLC02_20_EnvS_098", "DLC02_10_EnvS_440", 2805032098u, 158, 4},
+    {Table::env, "DLC02_20_EnvS_099", "DLC02_10_EnvS_440", 2805032099u, 162, 4},
+    {Table::env, "DLC02_20_EnvS_100", "DLC02_10_EnvS_440", 2805032100u, 166, 4},
+    {Table::env, "DLC02_20_EnvS_101", "DLC02_10_EnvS_440", 2805032101u, 170, 4},
+    {Table::env, "DLC02_20_EnvS_102", "DLC02_10_EnvS_440", 2805032102u, 174, 4},
+    {Table::env, "DLC02_20_EnvS_103", "DLC02_10_EnvS_440", 2805032103u, 178, 4},
+    {Table::env, "DLC02_20_EnvS_104", "DLC02_10_EnvS_440", 2805032104u, 182, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_004", "DLC02_10_E_ItemS_001", 2805020004u, 186, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_005", "DLC02_10_E_ItemS_001", 2805020005u, 190, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_006", "DLC02_10_E_ItemS_001", 2805020006u, 194, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_007", "DLC02_10_E_ItemS_001", 2805020007u, 198, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_008", "DLC02_10_E_ItemS_001", 2805020008u, 202, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_009", "DLC02_10_E_ItemS_001", 2805020009u, 206, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_010", "DLC02_10_E_ItemS_001", 2805020010u, 210, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_011", "DLC02_10_E_ItemS_001", 2805020011u, 214, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_012", "DLC02_10_E_ItemS_001", 2805020012u, 218, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_013", "DLC02_10_E_ItemS_001", 2805020013u, 222, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_014", "DLC02_10_E_ItemS_001", 2805020014u, 226, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_015", "DLC02_10_E_ItemS_001", 2805020015u, 230, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_016", "DLC02_10_E_ItemS_001", 2805020016u, 234, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_017", "DLC02_10_E_ItemS_001", 2805020017u, 238, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_018", "DLC02_10_E_ItemS_001", 2805020018u, 242, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_019", "DLC02_10_E_ItemS_001", 2805020019u, 246, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_020", "DLC02_10_E_ItemS_001", 2805020020u, 250, 4},
+    {Table::env, "DLC02_40_EnvS_026", "DLC02_10_EnvS_440", 2815032026u, 254, 4},
+    {Table::env, "DLC02_40_EnvS_027", "DLC02_10_EnvS_440", 2815032027u, 258, 4},
+    {Table::env, "DLC02_40_EnvS_028", "DLC02_10_EnvS_440", 2815032028u, 262, 4},
+    {Table::env, "DLC02_40_EnvS_029", "DLC02_10_EnvS_440", 2815032029u, 266, 4},
+    {Table::env, "DLC02_40_EnvS_030", "DLC02_10_EnvS_440", 2815032030u, 270, 4},
+    {Table::env, "DLC02_40_EnvS_031", "DLC02_10_EnvS_440", 2815032031u, 274, 4},
+    {Table::env, "DLC02_40_EnvS_032", "DLC02_10_EnvS_440", 2815032032u, 278, 4},
+    {Table::env, "DLC02_40_EnvS_033", "DLC02_10_EnvS_440", 2815032033u, 282, 4},
+    {Table::env, "DLC02_40_EnvS_034", "DLC02_10_EnvS_440", 2815032034u, 286, 4},
+    {Table::env, "DLC02_40_EnvS_035", "DLC02_10_EnvS_440", 2815032035u, 290, 4},
+    {Table::env, "DLC02_40_EnvS_036", "DLC02_10_EnvS_440", 2815032036u, 294, 4},
+    {Table::env, "DLC02_40_EnvS_037", "DLC02_10_EnvS_440", 2815032037u, 298, 4},
+    {Table::env, "DLC02_40_EnvS_038", "DLC02_10_EnvS_440", 2815032038u, 302, 4},
+    {Table::env, "DLC02_40_EnvS_039", "DLC02_10_EnvS_440", 2815032039u, 306, 4},
+    {Table::env, "DLC02_40_EnvS_040", "DLC02_10_EnvS_440", 2815032040u, 310, 4},
+    {Table::env, "DLC02_40_EnvS_041", "DLC02_10_EnvS_440", 2815032041u, 314, 4},
+    {Table::env, "DLC02_40_EnvS_042", "DLC02_10_EnvS_440", 2815032042u, 318, 4},
+    {Table::env, "DLC02_40_EnvS_043", "DLC02_10_EnvS_440", 2815032043u, 322, 4},
+    {Table::env, "DLC02_40_EnvS_044", "DLC02_10_EnvS_440", 2815032044u, 326, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_002", "DLC02_10_E_ItemS_001", 2815020002u, 330, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_003", "DLC02_10_E_ItemS_001", 2815020003u, 334, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_004", "DLC02_10_E_ItemS_001", 2815020004u, 338, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_005", "DLC02_10_E_ItemS_001", 2815020005u, 342, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_006", "DLC02_10_E_ItemS_001", 2815020006u, 346, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_007", "DLC02_10_E_ItemS_001", 2815020007u, 350, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_008", "DLC02_10_E_ItemS_001", 2815020008u, 354, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_009", "DLC02_10_E_ItemS_001", 2815020009u, 358, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_010", "DLC02_10_E_ItemS_001", 2815020010u, 362, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_011", "DLC02_10_E_ItemS_001", 2815020011u, 366, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_012", "DLC02_10_E_ItemS_001", 2815020012u, 370, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_013", "DLC02_10_E_ItemS_001", 2815020013u, 374, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_014", "DLC02_10_E_ItemS_001", 2815020014u, 378, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_015", "DLC02_10_E_ItemS_001", 2815020015u, 382, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_016", "DLC02_10_E_ItemS_001", 2815020016u, 386, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_017", "DLC02_10_E_ItemS_001", 2815020017u, 390, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_018", "DLC02_10_E_ItemS_001", 2815020018u, 394, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_019", "DLC02_10_E_ItemS_001", 2815020019u, 398, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_020", "DLC02_10_E_ItemS_001", 2815020020u, 402, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_021", "DLC02_10_E_ItemS_001", 2815020021u, 406, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_022", "DLC02_10_E_ItemS_001", 2815020022u, 410, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_023", "DLC02_10_E_ItemS_001", 2815020023u, 414, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_024", "DLC02_10_E_ItemS_001", 2815020024u, 418, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_025", "DLC02_10_E_ItemS_001", 2815020025u, 422, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_026", "DLC02_10_E_ItemS_001", 2815020026u, 426, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_027", "DLC02_10_E_ItemS_001", 2815020027u, 430, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_028", "DLC02_10_E_ItemS_001", 2815020028u, 434, 4},
+    {Table::env, "DLC02_10_EnvS_428", "DLC02_10_EnvS_428", 2800032428u, 438, 2},
+    {Table::env, "DLC02_30_EnvS_012", "DLC02_10_EnvS_440", 2810032012u, 440, 4},
+    {Table::env, "DLC02_30_EnvS_013", "DLC02_10_EnvS_440", 2810032013u, 444, 4},
+    {Table::env, "DLC02_30_EnvS_014", "DLC02_10_EnvS_440", 2810032014u, 448, 4},
+    {Table::env, "DLC02_30_EnvS_015", "DLC02_10_EnvS_440", 2810032015u, 452, 4},
+    {Table::env, "DLC02_30_EnvS_016", "DLC02_10_EnvS_440", 2810032016u, 456, 4},
+    {Table::env, "DLC02_30_EnvS_017", "DLC02_10_EnvS_440", 2810032017u, 460, 4},
+    {Table::env, "DLC02_30_EnvS_018", "DLC02_10_EnvS_440", 2810032018u, 464, 4},
+    {Table::env, "DLC02_30_EnvS_019", "DLC02_10_EnvS_440", 2810032019u, 468, 4},
+    {Table::env, "DLC02_30_EnvS_020", "DLC02_10_EnvS_440", 2810032020u, 472, 4},
+    {Table::env, "DLC02_30_EnvS_021", "DLC02_10_EnvS_440", 2810032021u, 476, 4},
+    {Table::env, "DLC02_30_EnvS_022", "DLC02_10_EnvS_440", 2810032022u, 480, 4},
+    {Table::env, "DLC02_30_EnvS_023", "DLC02_10_EnvS_440", 2810032023u, 484, 4},
+    {Table::env, "DLC02_30_EnvS_024", "DLC02_10_EnvS_440", 2810032024u, 488, 4},
+    {Table::env, "DLC02_30_EnvS_025", "DLC02_10_EnvS_440", 2810032025u, 492, 4},
+    {Table::env, "DLC02_30_EnvS_026", "DLC02_10_EnvS_440", 2810032026u, 496, 4},
+    {Table::env, "DLC02_30_EnvS_027", "DLC02_10_EnvS_440", 2810032027u, 500, 4},
+    {Table::env, "DLC02_30_EnvS_028", "DLC02_10_EnvS_440", 2810032028u, 504, 4},
+    {Table::env, "DLC02_30_EnvS_029", "DLC02_10_EnvS_440", 2810032029u, 508, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_003", "DLC02_10_E_ItemS_001", 2810020003u, 512, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_004", "DLC02_10_E_ItemS_001", 2810020004u, 516, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_005", "DLC02_10_E_ItemS_001", 2810020005u, 520, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_006", "DLC02_10_E_ItemS_001", 2810020006u, 524, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_007", "DLC02_10_E_ItemS_001", 2810020007u, 528, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_008", "DLC02_10_E_ItemS_001", 2810020008u, 532, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_009", "DLC02_10_E_ItemS_001", 2810020009u, 536, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_010", "DLC02_10_E_ItemS_001", 2810020010u, 540, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_011", "DLC02_10_E_ItemS_001", 2810020011u, 544, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_012", "DLC02_10_E_ItemS_001", 2810020012u, 548, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_013", "DLC02_10_E_ItemS_001", 2810020013u, 552, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_014", "DLC02_10_E_ItemS_001", 2810020014u, 556, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_015", "DLC02_10_E_ItemS_001", 2810020015u, 560, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_016", "DLC02_10_E_ItemS_001", 2810020016u, 564, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_017", "DLC02_10_E_ItemS_001", 2810020017u, 568, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_018", "DLC02_10_E_ItemS_001", 2810020018u, 572, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_019", "DLC02_10_E_ItemS_001", 2810020019u, 576, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_020", "DLC02_10_E_ItemS_001", 2810020020u, 580, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_021", "DLC02_10_E_ItemS_001", 2810020021u, 584, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_022", "DLC02_10_E_ItemS_001", 2810020022u, 588, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_023", "DLC02_10_E_ItemS_001", 2810020023u, 592, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_024", "DLC02_10_E_ItemS_001", 2810020024u, 596, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_025", "DLC02_10_E_ItemS_001", 2810020025u, 600, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_026", "DLC02_10_E_ItemS_001", 2810020026u, 604, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_027", "DLC02_10_E_ItemS_001", 2810020027u, 608, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_028", "DLC02_10_E_ItemS_001", 2810020028u, 612, 4},
 };
 
 constexpr Patch kMxupperPatches[] = {
@@ -1628,7 +1631,7 @@ constexpr Patch kMxupperPatches[] = {
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_601"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -1637,53 +1640,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_601"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_601_ToOpen.MX13_DLC02_10_EnvS_601_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_601_ToClose.MX13_DLC02_10_EnvS_601_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_601_Closed.MX13_DLC02_10_EnvS_601_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_601_Opened.MX13_DLC02_10_EnvS_601_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_601 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_601"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_601 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_601"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_651 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_651"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_652"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_651"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_601"}, // TagEventList2
-    // DLC02_10_EnvS_652 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_652"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_651"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_652"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_601"}, // TagEventList2
     // DLC02_10_EnvS_602 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_602"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -1692,53 +1653,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_602"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_602_ToOpen.MX13_DLC02_10_EnvS_602_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_602_ToClose.MX13_DLC02_10_EnvS_602_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_602_Closed.MX13_DLC02_10_EnvS_602_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_602_Opened.MX13_DLC02_10_EnvS_602_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_602 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_602"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_602 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_602"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_653 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_653"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_654"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_653"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_602"}, // TagEventList2
-    // DLC02_10_EnvS_654 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_654"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_653"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_654"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_602"}, // TagEventList2
     // DLC02_10_EnvS_603 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_603"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -1747,53 +1666,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_603"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_603_ToOpen.MX13_DLC02_10_EnvS_603_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_603_ToClose.MX13_DLC02_10_EnvS_603_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_603_Closed.MX13_DLC02_10_EnvS_603_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_603_Opened.MX13_DLC02_10_EnvS_603_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_603 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_603"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_603 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_603"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_655 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_655"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_656"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_655"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_603"}, // TagEventList2
-    // DLC02_10_EnvS_656 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_656"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_655"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_656"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_603"}, // TagEventList2
     // DLC02_10_EnvS_604 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_604"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -1802,53 +1679,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_604"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_604_ToOpen.MX13_DLC02_10_EnvS_604_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_604_ToClose.MX13_DLC02_10_EnvS_604_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_604_Closed.MX13_DLC02_10_EnvS_604_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_604_Opened.MX13_DLC02_10_EnvS_604_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_604 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_604"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_604 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_604"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_657 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_657"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_658"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_657"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_604"}, // TagEventList2
-    // DLC02_10_EnvS_658 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_658"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_657"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_658"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_604"}, // TagEventList2
     // DLC02_10_EnvS_605 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_605"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -1857,53 +1692,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_605"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_605_ToOpen.MX13_DLC02_10_EnvS_605_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_605_ToClose.MX13_DLC02_10_EnvS_605_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_605_Closed.MX13_DLC02_10_EnvS_605_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_605_Opened.MX13_DLC02_10_EnvS_605_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_605 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_605"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_605 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_605"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_659 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_659"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_660"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_659"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_605"}, // TagEventList2
-    // DLC02_10_EnvS_660 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_660"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_659"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_660"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_605"}, // TagEventList2
     // DLC02_10_EnvS_606 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_606"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -1912,53 +1705,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_606"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_606_ToOpen.MX13_DLC02_10_EnvS_606_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_606_ToClose.MX13_DLC02_10_EnvS_606_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_606_Closed.MX13_DLC02_10_EnvS_606_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_606_Opened.MX13_DLC02_10_EnvS_606_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_606 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_606"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_606 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_606"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_661 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_661"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_662"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_661"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_606"}, // TagEventList2
-    // DLC02_10_EnvS_662 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_662"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_661"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_662"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_606"}, // TagEventList2
     // DLC02_10_EnvS_607 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_607"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -1967,53 +1718,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_607"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_607_ToOpen.MX13_DLC02_10_EnvS_607_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_607_ToClose.MX13_DLC02_10_EnvS_607_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_607_Closed.MX13_DLC02_10_EnvS_607_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_607_Opened.MX13_DLC02_10_EnvS_607_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_607 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_607"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_607 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_607"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_663 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_663"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_664"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_663"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_607"}, // TagEventList2
-    // DLC02_10_EnvS_664 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_664"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_663"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_664"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_607"}, // TagEventList2
     // DLC02_10_EnvS_608 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_608"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -2022,53 +1731,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_608"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_608_ToOpen.MX13_DLC02_10_EnvS_608_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_608_ToClose.MX13_DLC02_10_EnvS_608_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_608_Closed.MX13_DLC02_10_EnvS_608_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_608_Opened.MX13_DLC02_10_EnvS_608_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_608 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_608"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_608 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_608"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_665 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_665"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_666"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_665"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_608"}, // TagEventList2
-    // DLC02_10_EnvS_666 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_666"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_665"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_666"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_608"}, // TagEventList2
     // DLC02_10_EnvS_609 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_609"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -2077,48 +1744,6 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_10_EnvS_609"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_609_ToOpen.MX13_DLC02_10_EnvS_609_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_609_ToClose.MX13_DLC02_10_EnvS_609_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_609_Closed.MX13_DLC02_10_EnvS_609_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_609_Opened.MX13_DLC02_10_EnvS_609_Opened"}, // ActiveSequenceList
-    // DLC02_10_E_EnvC_609 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_10_EnvS_609"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_10_E_EnvC_609 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_10_E_EnvC_609"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_10_EnvS_667 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_667"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_668"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_667"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_609"}, // TagEventList2
-    // DLC02_10_EnvS_668 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_668"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_667"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_668"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_10_E_EnvC_609"}, // TagEventList2
     // DLC02_10_EnvS_610 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_610"}, // EnvActorName
@@ -2171,12 +1796,12 @@ constexpr Patch kMxupperPatches[] = {
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_670"}, // SpawnPointName
     // DLC02_10_EnvS_438 (ZoneEnvSpawnTable)
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_438"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_438_ToOpen.MX13_DLC02_10_EnvS_438_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_438_ToClose.MX13_DLC02_10_EnvS_438_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_438_Closed.MX13_DLC02_10_EnvS_438_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_438_Opened.MX13_DLC02_10_EnvS_438_Opened"}, // ActiveSequenceList
     // DLC02_10_EnvS_439 (ZoneEnvSpawnTable)
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_439"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_439_ToOpen.MX13_DLC02_10_EnvS_439_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_439_ToClose.MX13_DLC02_10_EnvS_439_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_439_Closed.MX13_DLC02_10_EnvS_439_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_439_Opened.MX13_DLC02_10_EnvS_439_Opened"}, // ActiveSequenceList
@@ -2186,7 +1811,7 @@ constexpr Patch kMxupperPatches[] = {
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_433_ToOpen.MX13_DLC02_10_EnvS_433_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_433_ToClose.MX13_DLC02_10_EnvS_433_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_433_Closed.MX13_DLC02_10_EnvS_433_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_433_Opened.MX13_DLC02_10_EnvS_433_Opened"}, // ActiveSequenceList
     // DLC02_10_EnvS_432 (ZoneEnvSpawnTable)
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_432"}, // SpawnPointName
     // DLC02_10_EnvS_429 (ZoneEnvSpawnTable, shutter 429 (R02): leaves Z1C_R02_Shutter_W and _E)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
@@ -2195,12 +1820,12 @@ constexpr Patch kMxupperPatches[] = {
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_429_Closed.MX13_DLC02_10_EnvS_429_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_429_Opened.MX13_DLC02_10_EnvS_429_Opened"}, // ActiveSequenceList
     // DLC02_10_EnvS_447 (ZoneEnvSpawnTable, shutter 429's switch, on pillar 3 (R02 side))
     {0x30, Kind::name, 0, "DLC02_10_EnvS_447"}, // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_447"}, // SpawnPointName
     {0x90, Kind::names, 0, "DLC02_10_E_EnvC_616"}, // TagEventList2
     // DLC02_10_EnvS_446 (ZoneEnvSpawnTable)
     {0x30, Kind::name, 0, "DLC02_10_EnvS_446"}, // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_446"}, // SpawnPointName
     {0x90, Kind::names, 0, "DLC02_10_E_EnvC_013"}, // TagEventList2
     // DLC02_10_E_EnvC_013 (EventEnvControlTable)
@@ -2213,7 +1838,7 @@ constexpr Patch kMxupperPatches[] = {
     {0x18, Kind::name, 0, "DLC02_10_E_EnvC_013"}, // EventAlias
     // DLC02_20_EnvS_601 (ZoneEnvSpawnTable)
     {0x30, Kind::name, 0, "DLC02_20_EnvS_601"}, // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_601"}, // SpawnPointName
     {0x90, Kind::names, 0, "DLC02_20_E_EnvC_001"}, // TagEventList2
     // DLC02_10_EnvS_434 (ZoneEnvSpawnTable)
@@ -2236,7 +1861,7 @@ constexpr Patch kMxupperPatches[] = {
     {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/WasteLandB/Zone_WLB_10/WLB10_DoorSwitch.WLB10_DoorSwitch"}, // Interaction
     {0x214, Kind::f32, 200.0f, nullptr}, // InteractionRange
     {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_027"}, // SpawnPointName
     // DLC02_20_EnvS_013 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
@@ -2353,31 +1978,43 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_077"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_077_ToOpen.MX13_DLC02_20_EnvS_077_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_077_Closed.MX13_DLC02_20_EnvS_077_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_077_Opened.MX13_DLC02_20_EnvS_077_Opened"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, ""}, // Interaction
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_20_EnvS_078 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_078"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_078_ToOpen.MX13_DLC02_20_EnvS_078_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_078_Closed.MX13_DLC02_20_EnvS_078_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_078_Opened.MX13_DLC02_20_EnvS_078_Opened"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, ""}, // Interaction
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_20_EnvS_079 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_079"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_079_ToOpen.MX13_DLC02_20_EnvS_079_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_079_Closed.MX13_DLC02_20_EnvS_079_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_079_Opened.MX13_DLC02_20_EnvS_079_Opened"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, ""}, // Interaction
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_20_EnvS_081 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_081"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_081_ToOpen.MX13_DLC02_20_EnvS_081_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_081_Closed.MX13_DLC02_20_EnvS_081_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_081_Opened.MX13_DLC02_20_EnvS_081_Opened"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, ""}, // Interaction
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_20_EnvS_082 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_082"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_082_ToOpen.MX13_DLC02_20_EnvS_082_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_082_Closed.MX13_DLC02_20_EnvS_082_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_082_Opened.MX13_DLC02_20_EnvS_082_Opened"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, ""}, // Interaction
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_20_EnvS_083 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_083"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_083_ToOpen.MX13_DLC02_20_EnvS_083_ToOpen|"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_083_Closed.MX13_DLC02_20_EnvS_083_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_083_Opened.MX13_DLC02_20_EnvS_083_Opened"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, ""}, // Interaction
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_20_EnvS_089 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_089"}, // SpawnPointName
@@ -2393,7 +2030,7 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_036"}, // SpawnPointName
     // DLC02_20_EnvS_038 (ZoneEnvSpawnTable)
     {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/WasteLandB/Zone_WLB_10/WLB10_DoorSwitch.WLB10_DoorSwitch"}, // Interaction
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_038"}, // SpawnPointName
     // DLC02_20_E_EnvC_601 (EventEnvControlTable)
     {0x14, Kind::name, 0, "DLC02_20_EnvS_089"}, // EnvSpawnAlias
@@ -2419,7 +2056,7 @@ constexpr Patch kMxupperPatches[] = {
     {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_20_EnvS_602"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -2428,53 +2065,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_602"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_602_ToOpen.MX13_DLC02_20_EnvS_602_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_602_ToClose.MX13_DLC02_20_EnvS_602_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_602_Closed.MX13_DLC02_20_EnvS_602_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_602_Opened.MX13_DLC02_20_EnvS_602_Opened"}, // ActiveSequenceList
-    // DLC02_20_E_EnvC_603 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_20_EnvS_602"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_20_E_EnvC_603 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_20_E_EnvC_603"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_20_EnvS_651 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_651"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_652"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_651"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_603"}, // TagEventList2
-    // DLC02_20_EnvS_652 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_652"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_651"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_652"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_603"}, // TagEventList2
     // DLC02_20_EnvS_603 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_20_EnvS_603"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -2483,53 +2078,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_603"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_603_ToOpen.MX13_DLC02_20_EnvS_603_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_603_ToClose.MX13_DLC02_20_EnvS_603_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_603_Closed.MX13_DLC02_20_EnvS_603_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_603_Opened.MX13_DLC02_20_EnvS_603_Opened"}, // ActiveSequenceList
-    // DLC02_20_E_EnvC_604 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_20_EnvS_603"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_20_E_EnvC_604 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_20_E_EnvC_604"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_20_EnvS_653 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_653"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_654"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_653"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_604"}, // TagEventList2
-    // DLC02_20_EnvS_654 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_654"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_653"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_654"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_604"}, // TagEventList2
     // DLC02_20_EnvS_604 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_20_EnvS_604"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -2538,53 +2091,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_604"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_604_ToOpen.MX13_DLC02_20_EnvS_604_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_604_ToClose.MX13_DLC02_20_EnvS_604_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_604_Closed.MX13_DLC02_20_EnvS_604_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_604_Opened.MX13_DLC02_20_EnvS_604_Opened"}, // ActiveSequenceList
-    // DLC02_20_E_EnvC_605 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_20_EnvS_604"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_20_E_EnvC_605 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_20_E_EnvC_605"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_20_EnvS_655 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_655"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_656"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_655"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_605"}, // TagEventList2
-    // DLC02_20_EnvS_656 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_656"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_655"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_656"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_605"}, // TagEventList2
     // DLC02_20_EnvS_605 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_20_EnvS_605"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -2593,53 +2104,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_605"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_605_ToOpen.MX13_DLC02_20_EnvS_605_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_605_ToClose.MX13_DLC02_20_EnvS_605_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_605_Closed.MX13_DLC02_20_EnvS_605_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_605_Opened.MX13_DLC02_20_EnvS_605_Opened"}, // ActiveSequenceList
-    // DLC02_20_E_EnvC_606 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_20_EnvS_605"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_20_E_EnvC_606 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_20_E_EnvC_606"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_20_EnvS_657 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_657"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_658"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_657"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_606"}, // TagEventList2
-    // DLC02_20_EnvS_658 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_658"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_657"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_658"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_606"}, // TagEventList2
     // DLC02_20_EnvS_606 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_20_EnvS_606"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -2648,53 +2117,11 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_606"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_606_ToOpen.MX13_DLC02_20_EnvS_606_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_606_ToClose.MX13_DLC02_20_EnvS_606_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_606_Closed.MX13_DLC02_20_EnvS_606_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_606_Opened.MX13_DLC02_20_EnvS_606_Opened"}, // ActiveSequenceList
-    // DLC02_20_E_EnvC_607 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_20_EnvS_606"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_20_E_EnvC_607 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_20_E_EnvC_607"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_20_EnvS_659 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_659"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_660"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_659"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_607"}, // TagEventList2
-    // DLC02_20_EnvS_660 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_660"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_659"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_660"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_607"}, // TagEventList2
     // DLC02_20_EnvS_607 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_20_EnvS_607"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -2703,48 +2130,6 @@ constexpr Patch kMxupperPatches[] = {
     {0x48, Kind::name, 0, "DLC02_20_EnvS_607"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_607_ToOpen.MX13_DLC02_20_EnvS_607_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_607_ToClose.MX13_DLC02_20_EnvS_607_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_607_Closed.MX13_DLC02_20_EnvS_607_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_607_Opened.MX13_DLC02_20_EnvS_607_Opened"}, // ActiveSequenceList
-    // DLC02_20_E_EnvC_608 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_20_EnvS_607"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_20_E_EnvC_608 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_20_E_EnvC_608"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_20_EnvS_661 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_661"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_662"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_661"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_608"}, // TagEventList2
-    // DLC02_20_EnvS_662 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_20_EnvS_662"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_20_EnvS_661"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_20_EnvS_662"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_20_E_EnvC_608"}, // TagEventList2
     // DLC02_20_EnvS_608 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_20_EnvS_608"}, // EnvActorName
@@ -3052,6 +2437,7 @@ constexpr Patch kMxupperPatches[] = {
     // DLC02_10_EnvS_431 (ZoneEnvSpawnTable)
     {0x370, Kind::strings, 0, "|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_431_Down.MX13_DLC02_10_EnvS_431_Down|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_431_Up.MX13_DLC02_10_EnvS_431_Up|||"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_431_WaitTop.MX13_DLC02_10_EnvS_431_WaitTop|/Game/MXIII_Editor/Seq/MX13_DLC02_10_EnvS_431_WaitBottom.MX13_DLC02_10_EnvS_431_WaitBottom|||"}, // ActiveSequenceList
+    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/DrownedEidosDistrict/DED02/DED02_RooftopLift.DED02_RooftopLift"}, // Interaction
     {0xa8, Kind::names, 0, "DLC02_10_E_EnvC_613"}, // TagEventList3
     // DLC02_10_EnvS_671 (ZoneEnvSpawnTable)
     {0x30, Kind::name, 0, "DLC02_10_EnvS_671"}, // EnvActorName
@@ -3163,7 +2549,7 @@ constexpr Patch kMxupperPatches[] = {
     {0x58, Kind::name, 0, "Env_Lift"}, // EnvAlias
     {0x64, Kind::name, 0, "WaitBottom"}, // InitStateTag
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/WasteLandA/Zone_WLA_30/WLA30_Lift.WLA30_Lift"}, // Interaction
+    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/DrownedEidosDistrict/DED02/DED02_RooftopLift.DED02_RooftopLift"}, // Interaction
     {0x214, Kind::f32, 200.0f, nullptr}, // InteractionRange
     {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
     {0x260, Kind::names, 0, ""}, // LinkEnvSpawnList
@@ -3232,226 +2618,216 @@ constexpr Patch kMxupperPatches[] = {
     // DLC02_10_EnvS_642 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_10_EnvS_642"}, // EnvActorName
+    // DLC02_20_EnvS_934 (ZoneEnvSpawnTable, fail notice on the locked side of door 051 (test6 door design))
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_934"}, // EnvActorName
+    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
+    {0x64, Kind::name, 0, "Off"}, // InitStateTag
+    {0x60, Kind::u8, 1, nullptr}, // InitActivate
+    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor_Opposite.ME_Area01_ShotCutDoor_Opposite"}, // Interaction
+    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
+    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_934"}, // SpawnPointName
+    // DLC02_20_E_EnvC_934 (EventEnvControlTable)
+    {0x14, Kind::name, 0, "DLC02_20_EnvS_934"}, // EnvSpawnAlias
+    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
+    {0x30, Kind::u8, 2, nullptr}, // Activate
+    {0x28, Kind::name, 0, "None"}, // TagName
+    // DLC02_20_E_EnvC_934 (ZoneEventTable)
+    {0x14, Kind::u8, 10, nullptr}, // Type
+    {0x18, Kind::name, 0, "DLC02_20_E_EnvC_934"}, // EventAlias
+    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
+    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
+    // DLC02_20_EnvS_935 (ZoneEnvSpawnTable, fail notice on the locked side of door 037 (test6 door design))
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_935"}, // EnvActorName
+    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
+    {0x64, Kind::name, 0, "Off"}, // InitStateTag
+    {0x60, Kind::u8, 1, nullptr}, // InitActivate
+    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor_Opposite.ME_Area01_ShotCutDoor_Opposite"}, // Interaction
+    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
+    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_935"}, // SpawnPointName
+    // DLC02_20_E_EnvC_935 (EventEnvControlTable)
+    {0x14, Kind::name, 0, "DLC02_20_EnvS_935"}, // EnvSpawnAlias
+    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
+    {0x30, Kind::u8, 2, nullptr}, // Activate
+    {0x28, Kind::name, 0, "None"}, // TagName
+    // DLC02_20_E_EnvC_935 (ZoneEventTable)
+    {0x14, Kind::u8, 10, nullptr}, // Type
+    {0x18, Kind::name, 0, "DLC02_20_E_EnvC_935"}, // EventAlias
+    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
+    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
 };
 constexpr Row kMxupperRecipe[] = {
     {Table::env, "DLC02_10_EnvS_601", "DLC02_20_EnvS_076", 2800032601u, 0, 12},
-    {Table::envc, "DLC02_10_E_EnvC_601", "DLC02_20_E_EnvC_001", 2906u, 12, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_601", "DLC02_20_E_EnvC_001", 8600u, 16, 4},
-    {Table::env, "DLC02_10_EnvS_651", "ME_01_EnvS_026", 2800032651u, 20, 15},
-    {Table::env, "DLC02_10_EnvS_652", "ME_01_EnvS_026", 2800032652u, 35, 15},
-    {Table::env, "DLC02_10_EnvS_602", "DLC02_20_EnvS_076", 2800032602u, 50, 12},
-    {Table::envc, "DLC02_10_E_EnvC_602", "DLC02_20_E_EnvC_001", 2907u, 62, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_602", "DLC02_20_E_EnvC_001", 8601u, 66, 4},
-    {Table::env, "DLC02_10_EnvS_653", "ME_01_EnvS_026", 2800032653u, 70, 15},
-    {Table::env, "DLC02_10_EnvS_654", "ME_01_EnvS_026", 2800032654u, 85, 15},
-    {Table::env, "DLC02_10_EnvS_603", "DLC02_20_EnvS_076", 2800032603u, 100, 12},
-    {Table::envc, "DLC02_10_E_EnvC_603", "DLC02_20_E_EnvC_001", 2908u, 112, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_603", "DLC02_20_E_EnvC_001", 8602u, 116, 4},
-    {Table::env, "DLC02_10_EnvS_655", "ME_01_EnvS_026", 2800032655u, 120, 15},
-    {Table::env, "DLC02_10_EnvS_656", "ME_01_EnvS_026", 2800032656u, 135, 15},
-    {Table::env, "DLC02_10_EnvS_604", "DLC02_20_EnvS_076", 2800032604u, 150, 12},
-    {Table::envc, "DLC02_10_E_EnvC_604", "DLC02_20_E_EnvC_001", 2909u, 162, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_604", "DLC02_20_E_EnvC_001", 8603u, 166, 4},
-    {Table::env, "DLC02_10_EnvS_657", "ME_01_EnvS_026", 2800032657u, 170, 15},
-    {Table::env, "DLC02_10_EnvS_658", "ME_01_EnvS_026", 2800032658u, 185, 15},
-    {Table::env, "DLC02_10_EnvS_605", "DLC02_20_EnvS_076", 2800032605u, 200, 12},
-    {Table::envc, "DLC02_10_E_EnvC_605", "DLC02_20_E_EnvC_001", 2910u, 212, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_605", "DLC02_20_E_EnvC_001", 8604u, 216, 4},
-    {Table::env, "DLC02_10_EnvS_659", "ME_01_EnvS_026", 2800032659u, 220, 15},
-    {Table::env, "DLC02_10_EnvS_660", "ME_01_EnvS_026", 2800032660u, 235, 15},
-    {Table::env, "DLC02_10_EnvS_606", "DLC02_20_EnvS_076", 2800032606u, 250, 12},
-    {Table::envc, "DLC02_10_E_EnvC_606", "DLC02_20_E_EnvC_001", 2911u, 262, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_606", "DLC02_20_E_EnvC_001", 8605u, 266, 4},
-    {Table::env, "DLC02_10_EnvS_661", "ME_01_EnvS_026", 2800032661u, 270, 15},
-    {Table::env, "DLC02_10_EnvS_662", "ME_01_EnvS_026", 2800032662u, 285, 15},
-    {Table::env, "DLC02_10_EnvS_607", "DLC02_20_EnvS_076", 2800032607u, 300, 12},
-    {Table::envc, "DLC02_10_E_EnvC_607", "DLC02_20_E_EnvC_001", 2912u, 312, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_607", "DLC02_20_E_EnvC_001", 8606u, 316, 4},
-    {Table::env, "DLC02_10_EnvS_663", "ME_01_EnvS_026", 2800032663u, 320, 15},
-    {Table::env, "DLC02_10_EnvS_664", "ME_01_EnvS_026", 2800032664u, 335, 15},
-    {Table::env, "DLC02_10_EnvS_608", "DLC02_20_EnvS_076", 2800032608u, 350, 12},
-    {Table::envc, "DLC02_10_E_EnvC_608", "DLC02_20_E_EnvC_001", 2913u, 362, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_608", "DLC02_20_E_EnvC_001", 8607u, 366, 4},
-    {Table::env, "DLC02_10_EnvS_665", "ME_01_EnvS_026", 2800032665u, 370, 15},
-    {Table::env, "DLC02_10_EnvS_666", "ME_01_EnvS_026", 2800032666u, 385, 15},
-    {Table::env, "DLC02_10_EnvS_609", "DLC02_20_EnvS_076", 2800032609u, 400, 12},
-    {Table::envc, "DLC02_10_E_EnvC_609", "DLC02_20_E_EnvC_001", 2914u, 412, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_609", "DLC02_20_E_EnvC_001", 8608u, 416, 4},
-    {Table::env, "DLC02_10_EnvS_667", "ME_01_EnvS_026", 2800032667u, 420, 15},
-    {Table::env, "DLC02_10_EnvS_668", "ME_01_EnvS_026", 2800032668u, 435, 15},
-    {Table::env, "DLC02_10_EnvS_610", "DLC02_20_EnvS_076", 2800032610u, 450, 12},
-    {Table::envc, "DLC02_10_E_EnvC_610", "DLC02_20_E_EnvC_001", 2915u, 462, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_610", "DLC02_20_E_EnvC_001", 8609u, 466, 4},
-    {Table::env, "DLC02_10_EnvS_669", "ME_01_EnvS_026", 2800032669u, 470, 15},
-    {Table::env, "DLC02_10_EnvS_670", "ME_01_EnvS_044", 2800032670u, 485, 11},
-    {Table::env, "DLC02_10_EnvS_438", "DLC02_10_EnvS_438", 2800032438u, 496, 4},
-    {Table::env, "DLC02_10_EnvS_439", "DLC02_10_EnvS_439", 2800032439u, 500, 4},
-    {Table::env, "DLC02_10_EnvS_433", "DLC02_10_EnvS_433", 2800032433u, 504, 4},
-    {Table::env, "DLC02_10_EnvS_432", "DLC02_10_EnvS_432", 2800032432u, 508, 2},
-    {Table::env, "DLC02_10_EnvS_429", "DLC02_10_EnvS_429", 2800032429u, 510, 4},
-    {Table::env, "DLC02_10_EnvS_447", "DLC02_10_EnvS_432", 2800032447u, 514, 4},
-    {Table::env, "DLC02_10_EnvS_446", "DLC02_10_EnvS_432", 2800032446u, 518, 4},
-    {Table::envc, "DLC02_10_E_EnvC_013", "DLC02_10_E_EnvC_009", 2916u, 522, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_013", "DLC02_10_E_EnvC_009", 8610u, 526, 2},
-    {Table::env, "DLC02_20_EnvS_601", "DLC02_20_EnvS_001", 2805032601u, 528, 4},
-    {Table::env, "DLC02_10_EnvS_434", "DLC02_10_EnvS_434", 2800032434u, 532, 2},
-    {Table::env, "DLC02_10_EnvS_435", "DLC02_10_EnvS_435", 2800032435u, 534, 4},
-    {Table::env, "DLC02_20_EnvS_011", "DLC02_20_EnvS_011", 2805032011u, 538, 4},
-    {Table::env, "DLC02_20_EnvS_010", "DLC02_20_EnvS_010", 2805032010u, 542, 2},
-    {Table::env, "DLC02_20_EnvS_027", "DLC02_20_EnvS_027", 2805032027u, 544, 5},
-    {Table::env, "DLC02_20_EnvS_013", "DLC02_20_EnvS_013", 2805032013u, 549, 4},
-    {Table::env, "DLC02_20_EnvS_004", "DLC02_20_EnvS_004", 2805032004u, 553, 2},
-    {Table::env, "DLC02_20_EnvS_014", "DLC02_20_EnvS_014", 2805032014u, 555, 5},
-    {Table::env, "DLC02_20_EnvS_005", "DLC02_20_EnvS_005", 2805032005u, 560, 2},
-    {Table::env, "DLC02_20_EnvS_022", "DLC02_20_EnvS_022", 2805032022u, 562, 5},
-    {Table::env, "DLC02_20_EnvS_015", "DLC02_20_EnvS_015", 2805032015u, 567, 4},
-    {Table::env, "DLC02_20_EnvS_006", "DLC02_20_EnvS_006", 2805032006u, 571, 2},
-    {Table::env, "DLC02_20_EnvS_023", "DLC02_20_EnvS_023", 2805032023u, 573, 5},
-    {Table::env, "DLC02_20_EnvS_016", "DLC02_20_EnvS_016", 2805032016u, 578, 5},
-    {Table::env, "DLC02_20_EnvS_007", "DLC02_20_EnvS_007", 2805032007u, 583, 2},
-    {Table::env, "DLC02_20_EnvS_024", "DLC02_20_EnvS_024", 2805032024u, 585, 5},
-    {Table::env, "DLC02_20_EnvS_018", "DLC02_20_EnvS_018", 2805032018u, 590, 5},
-    {Table::env, "DLC02_20_EnvS_009", "DLC02_20_EnvS_009", 2805032009u, 595, 2},
-    {Table::env, "DLC02_20_EnvS_066", "DLC02_20_EnvS_066", 2805032066u, 597, 4},
-    {Table::env, "DLC02_20_EnvS_065", "DLC02_20_EnvS_065", 2805032065u, 601, 2},
-    {Table::env, "DLC02_20_EnvS_086", "DLC02_20_EnvS_086", 2805032086u, 603, 4},
-    {Table::env, "DLC02_20_EnvS_085", "DLC02_20_EnvS_085", 2805032085u, 607, 2},
-    {Table::env, "DLC02_20_EnvS_088", "DLC02_20_EnvS_088", 2805032088u, 609, 4},
-    {Table::env, "DLC02_20_EnvS_087", "DLC02_20_EnvS_087", 2805032087u, 613, 2},
-    {Table::env, "DLC02_20_EnvS_067", "DLC02_20_EnvS_067", 2805032067u, 615, 4},
-    {Table::env, "DLC02_20_EnvS_075", "DLC02_20_EnvS_075", 2805032075u, 619, 4},
-    {Table::env, "DLC02_20_EnvS_076", "DLC02_20_EnvS_076", 2805032076u, 623, 4},
-    {Table::env, "DLC02_20_EnvS_091", "DLC02_20_EnvS_091", 2805032091u, 627, 4},
-    {Table::env, "DLC02_20_EnvS_092", "DLC02_20_EnvS_092", 2805032092u, 631, 4},
-    {Table::env, "DLC02_20_EnvS_077", "DLC02_20_EnvS_077", 2805032077u, 635, 4},
-    {Table::env, "DLC02_20_EnvS_078", "DLC02_20_EnvS_078", 2805032078u, 639, 4},
-    {Table::env, "DLC02_20_EnvS_079", "DLC02_20_EnvS_079", 2805032079u, 643, 4},
-    {Table::env, "DLC02_20_EnvS_081", "DLC02_20_EnvS_081", 2805032081u, 647, 4},
-    {Table::env, "DLC02_20_EnvS_082", "DLC02_20_EnvS_082", 2805032082u, 651, 4},
-    {Table::env, "DLC02_20_EnvS_083", "DLC02_20_EnvS_083", 2805032083u, 655, 4},
-    {Table::env, "DLC02_20_EnvS_089", "DLC02_20_EnvS_089", 2805032089u, 659, 4},
-    {Table::env, "DLC02_20_EnvS_036", "DLC02_20_EnvS_036", 2805032036u, 663, 7},
-    {Table::env, "DLC02_20_EnvS_038", "DLC02_20_EnvS_038", 2805032038u, 670, 3},
-    {Table::envc, "DLC02_20_E_EnvC_601", "DLC02_20_E_EnvC_001", 2917u, 673, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_601", "DLC02_20_E_EnvC_001", 8611u, 677, 4},
-    {Table::envc, "DLC02_20_E_EnvC_602", "DLC02_20_E_EnvC_001", 2918u, 681, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_602", "DLC02_20_E_EnvC_001", 8612u, 685, 4},
-    {Table::env, "DLC02_20_EnvS_602", "DLC02_20_EnvS_076", 2805032602u, 689, 12},
-    {Table::envc, "DLC02_20_E_EnvC_603", "DLC02_20_E_EnvC_001", 2919u, 701, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_603", "DLC02_20_E_EnvC_001", 8613u, 705, 4},
-    {Table::env, "DLC02_20_EnvS_651", "ME_01_EnvS_026", 2805032651u, 709, 15},
-    {Table::env, "DLC02_20_EnvS_652", "ME_01_EnvS_026", 2805032652u, 724, 15},
-    {Table::env, "DLC02_20_EnvS_603", "DLC02_20_EnvS_076", 2805032603u, 739, 12},
-    {Table::envc, "DLC02_20_E_EnvC_604", "DLC02_20_E_EnvC_001", 2920u, 751, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_604", "DLC02_20_E_EnvC_001", 8614u, 755, 4},
-    {Table::env, "DLC02_20_EnvS_653", "ME_01_EnvS_026", 2805032653u, 759, 15},
-    {Table::env, "DLC02_20_EnvS_654", "ME_01_EnvS_026", 2805032654u, 774, 15},
-    {Table::env, "DLC02_20_EnvS_604", "DLC02_20_EnvS_076", 2805032604u, 789, 12},
-    {Table::envc, "DLC02_20_E_EnvC_605", "DLC02_20_E_EnvC_001", 2921u, 801, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_605", "DLC02_20_E_EnvC_001", 8615u, 805, 4},
-    {Table::env, "DLC02_20_EnvS_655", "ME_01_EnvS_026", 2805032655u, 809, 15},
-    {Table::env, "DLC02_20_EnvS_656", "ME_01_EnvS_026", 2805032656u, 824, 15},
-    {Table::env, "DLC02_20_EnvS_605", "DLC02_20_EnvS_076", 2805032605u, 839, 12},
-    {Table::envc, "DLC02_20_E_EnvC_606", "DLC02_20_E_EnvC_001", 2922u, 851, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_606", "DLC02_20_E_EnvC_001", 8616u, 855, 4},
-    {Table::env, "DLC02_20_EnvS_657", "ME_01_EnvS_026", 2805032657u, 859, 15},
-    {Table::env, "DLC02_20_EnvS_658", "ME_01_EnvS_026", 2805032658u, 874, 15},
-    {Table::env, "DLC02_20_EnvS_606", "DLC02_20_EnvS_076", 2805032606u, 889, 12},
-    {Table::envc, "DLC02_20_E_EnvC_607", "DLC02_20_E_EnvC_001", 2923u, 901, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_607", "DLC02_20_E_EnvC_001", 8617u, 905, 4},
-    {Table::env, "DLC02_20_EnvS_659", "ME_01_EnvS_026", 2805032659u, 909, 15},
-    {Table::env, "DLC02_20_EnvS_660", "ME_01_EnvS_026", 2805032660u, 924, 15},
-    {Table::env, "DLC02_20_EnvS_607", "DLC02_20_EnvS_076", 2805032607u, 939, 12},
-    {Table::envc, "DLC02_20_E_EnvC_608", "DLC02_20_E_EnvC_001", 2924u, 951, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_608", "DLC02_20_E_EnvC_001", 8618u, 955, 4},
-    {Table::env, "DLC02_20_EnvS_661", "ME_01_EnvS_026", 2805032661u, 959, 15},
-    {Table::env, "DLC02_20_EnvS_662", "ME_01_EnvS_026", 2805032662u, 974, 15},
-    {Table::env, "DLC02_20_EnvS_608", "DLC02_20_EnvS_076", 2805032608u, 989, 12},
-    {Table::env, "DLC02_20_EnvS_609", "DLC02_20_EnvS_076", 2805032609u, 1001, 12},
-    {Table::envc, "DLC02_20_E_EnvC_609", "DLC02_20_E_EnvC_001", 2925u, 1013, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_609", "DLC02_20_E_EnvC_001", 8619u, 1017, 4},
-    {Table::envc, "DLC02_20_E_EnvC_610", "DLC02_20_E_EnvC_001", 2926u, 1021, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_610", "DLC02_20_E_EnvC_001", 8620u, 1025, 4},
-    {Table::envc, "DLC02_20_E_EnvC_611", "DLC02_20_E_EnvC_001", 2927u, 1029, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_611", "DLC02_20_E_EnvC_001", 8621u, 1033, 4},
-    {Table::envc, "DLC02_20_E_EnvC_612", "DLC02_20_E_EnvC_001", 2928u, 1037, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_612", "DLC02_20_E_EnvC_001", 8622u, 1041, 4},
-    {Table::envc, "DLC02_20_E_EnvC_613", "DLC02_20_E_EnvC_001", 2929u, 1045, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_613", "DLC02_20_E_EnvC_001", 8623u, 1049, 4},
-    {Table::envc, "DLC02_20_E_EnvC_614", "DLC02_20_E_EnvC_001", 2930u, 1053, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_614", "DLC02_20_E_EnvC_001", 8624u, 1057, 4},
-    {Table::env, "DLC02_20_EnvS_663", "DLC02_20_EnvS_009", 2805032663u, 1061, 9},
-    {Table::env, "DLC02_20_EnvS_664", "DLC02_20_EnvS_009", 2805032664u, 1070, 8},
-    {Table::env, "DLC02_20_EnvS_665", "DLC02_20_EnvS_009", 2805032665u, 1078, 8},
-    {Table::envc, "DLC02_20_E_EnvC_615", "DLC02_20_E_EnvC_001", 2931u, 1086, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_615", "DLC02_20_E_EnvC_001", 8625u, 1090, 4},
-    {Table::envc, "DLC02_20_E_EnvC_617", "DLC02_20_E_EnvC_001", 2933u, 1094, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_617", "DLC02_20_E_EnvC_001", 8627u, 1098, 4},
-    {Table::envc, "DLC02_20_E_EnvC_618", "DLC02_20_E_EnvC_001", 2934u, 1102, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_618", "DLC02_20_E_EnvC_001", 8628u, 1106, 4},
-    {Table::envc, "DLC02_20_E_EnvC_619", "SE_08_E_EnvC_095", 2935u, 1110, 5},
-    {Table::zevent, "DLC02_20_E_EnvC_619", "DLC02_20_E_EnvC_001", 8629u, 1115, 4},
-    {Table::env, "DLC02_20_EnvS_701", "SE_08_EnvS_090", 2805032701u, 1119, 8},
-    {Table::trigger, "DLC02_20_ZTrigger_601", "DLC02_20_ZTrigger_005", 280501601u, 1127, 3},
-    {Table::spawn, "DLC02_20_E_CharS_001", "DLC02_20_E_CharS_001", 2805024001u, 1130, 1},
-    {Table::spawn, "DLC02_20_E_CharS_002", "DLC02_20_E_CharS_002", 2805024002u, 1131, 1},
-    {Table::spawn, "DLC02_20_E_CharS_003", "DLC02_20_E_CharS_003", 2805024003u, 1132, 1},
-    {Table::spawn, "DLC02_20_E_CharS_004", "DLC02_20_E_CharS_004", 2805024004u, 1133, 1},
-    {Table::envc, "DLC02_20_E_EnvC_620", "DLC02_20_E_EnvC_001", 2936u, 1134, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_620", "DLC02_20_E_EnvC_001", 8630u, 1138, 4},
-    {Table::envc, "DLC02_20_E_EnvC_622", "DLC02_20_E_EnvC_001", 2938u, 1142, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_622", "DLC02_20_E_EnvC_001", 8632u, 1146, 4},
-    {Table::envc, "DLC02_20_E_EnvC_623", "DLC02_20_E_EnvC_001", 2939u, 1150, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_623", "DLC02_20_E_EnvC_001", 8633u, 1154, 4},
-    {Table::envc, "DLC02_20_E_EnvC_624", "SE_08_E_EnvC_095", 2940u, 1158, 5},
-    {Table::zevent, "DLC02_20_E_EnvC_624", "DLC02_20_E_EnvC_001", 8634u, 1163, 4},
-    {Table::env, "DLC02_20_EnvS_702", "SE_08_EnvS_090", 2805032702u, 1167, 8},
-    {Table::trigger, "DLC02_20_ZTrigger_602", "DLC02_20_ZTrigger_005", 280501602u, 1175, 3},
-    {Table::spawn, "DLC02_20_E_CharS_009", "DLC02_20_E_CharS_009", 2805024009u, 1178, 1},
-    {Table::spawn, "DLC02_20_E_CharS_010", "DLC02_20_E_CharS_010", 2805024010u, 1179, 1},
-    {Table::spawn, "DLC02_20_E_CharS_011", "DLC02_20_E_CharS_011", 2805024011u, 1180, 1},
-    {Table::spawn, "DLC02_20_E_CharS_012", "DLC02_20_E_CharS_012", 2805024012u, 1181, 1},
-    {Table::envc, "DLC02_20_E_EnvC_625", "DLC02_20_E_EnvC_001", 2941u, 1182, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_625", "DLC02_20_E_EnvC_001", 8635u, 1186, 4},
-    {Table::envc, "DLC02_20_E_EnvC_627", "DLC02_20_E_EnvC_001", 2943u, 1190, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_627", "DLC02_20_E_EnvC_001", 8637u, 1194, 4},
-    {Table::envc, "DLC02_20_E_EnvC_628", "DLC02_20_E_EnvC_001", 2944u, 1198, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_628", "DLC02_20_E_EnvC_001", 8638u, 1202, 4},
-    {Table::envc, "DLC02_20_E_EnvC_629", "SE_08_E_EnvC_095", 2945u, 1206, 5},
-    {Table::zevent, "DLC02_20_E_EnvC_629", "DLC02_20_E_EnvC_001", 8639u, 1211, 4},
-    {Table::env, "DLC02_20_EnvS_703", "SE_08_EnvS_090", 2805032703u, 1215, 8},
-    {Table::trigger, "DLC02_20_ZTrigger_603", "DLC02_20_ZTrigger_005", 280501603u, 1223, 3},
-    {Table::spawn, "DLC02_20_E_CharS_006", "DLC02_20_E_CharS_006", 2805024006u, 1226, 1},
-    {Table::spawn, "DLC02_20_E_CharS_007", "DLC02_20_E_CharS_007", 2805024007u, 1227, 1},
-    {Table::spawn, "DLC02_20_E_CharS_008", "DLC02_20_E_CharS_008", 2805024008u, 1228, 1},
-    {Table::env, "DLC02_20_EnvS_063", "DLC02_20_EnvS_063", 2805032063u, 1229, 3},
-    {Table::env, "DLC02_20_EnvS_064", "DLC02_20_EnvS_064", 2805032064u, 1232, 1},
-    {Table::env, "DLC02_10_EnvS_431", "DLC02_10_EnvS_431", 2800032431u, 1233, 3},
-    {Table::env, "DLC02_10_EnvS_671", "DLC02_20_EnvS_009", 2800032671u, 1236, 12},
-    {Table::envc, "DLC02_10_E_EnvC_611", "DLC02_20_E_EnvC_001", 3021u, 1248, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_611", "DLC02_20_E_EnvC_001", 8715u, 1252, 4},
-    {Table::env, "DLC02_10_EnvS_672", "DLC02_20_EnvS_009", 2800032672u, 1256, 12},
-    {Table::envc, "DLC02_10_E_EnvC_612", "DLC02_20_E_EnvC_001", 3022u, 1268, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_612", "DLC02_20_E_EnvC_001", 8716u, 1272, 4},
-    {Table::envc, "DLC02_10_E_EnvC_613", "DLC02_20_E_EnvC_001", 3023u, 1276, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_613", "DLC02_20_E_EnvC_001", 8717u, 1280, 4},
-    {Table::env, "DLC02_20_EnvS_666", "DLC02_20_EnvS_009", 2805032666u, 1284, 12},
-    {Table::envc, "DLC02_20_E_EnvC_630", "DLC02_20_E_EnvC_001", 3024u, 1296, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_630", "DLC02_20_E_EnvC_001", 8718u, 1300, 4},
-    {Table::env, "DLC02_20_EnvS_667", "DLC02_20_EnvS_009", 2805032667u, 1304, 12},
-    {Table::envc, "DLC02_20_E_EnvC_631", "DLC02_20_E_EnvC_001", 3025u, 1316, 4},
-    {Table::zevent, "DLC02_20_E_EnvC_631", "DLC02_20_E_EnvC_001", 8719u, 1320, 4},
-    {Table::env, "DLC02_10_EnvS_621", "DLC02_20_EnvS_063", 2800032621u, 1324, 11},
-    {Table::env, "DLC02_10_EnvS_673", "DLC02_20_EnvS_009", 2800032673u, 1335, 12},
-    {Table::envc, "DLC02_10_E_EnvC_614", "DLC02_20_E_EnvC_001", 3028u, 1347, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_614", "DLC02_20_E_EnvC_001", 8722u, 1351, 4},
-    {Table::env, "DLC02_10_EnvS_674", "DLC02_20_EnvS_009", 2800032674u, 1355, 12},
-    {Table::envc, "DLC02_10_E_EnvC_615", "DLC02_20_E_EnvC_001", 3029u, 1367, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_615", "DLC02_20_E_EnvC_001", 8723u, 1371, 4},
-    {Table::envc, "DLC02_10_E_EnvC_616", "DLC02_20_E_EnvC_001", 3058u, 1375, 4},
-    {Table::zevent, "DLC02_10_E_EnvC_616", "DLC02_20_E_EnvC_001", 8752u, 1379, 4},
-    {Table::env, "DLC02_10_EnvS_641", "DLC02_40_EnvS_021", 2800032641u, 1383, 5},
-    {Table::env, "DLC02_10_EnvS_642", "DLC02_40_EnvS_022", 2800032642u, 1388, 2},
+    {Table::env, "DLC02_10_EnvS_602", "DLC02_20_EnvS_076", 2800032602u, 12, 12},
+    {Table::env, "DLC02_10_EnvS_603", "DLC02_20_EnvS_076", 2800032603u, 24, 12},
+    {Table::env, "DLC02_10_EnvS_604", "DLC02_20_EnvS_076", 2800032604u, 36, 12},
+    {Table::env, "DLC02_10_EnvS_605", "DLC02_20_EnvS_076", 2800032605u, 48, 12},
+    {Table::env, "DLC02_10_EnvS_606", "DLC02_20_EnvS_076", 2800032606u, 60, 12},
+    {Table::env, "DLC02_10_EnvS_607", "DLC02_20_EnvS_076", 2800032607u, 72, 12},
+    {Table::env, "DLC02_10_EnvS_608", "DLC02_20_EnvS_076", 2800032608u, 84, 12},
+    {Table::env, "DLC02_10_EnvS_609", "DLC02_20_EnvS_076", 2800032609u, 96, 12},
+    {Table::env, "DLC02_10_EnvS_610", "DLC02_20_EnvS_076", 2800032610u, 108, 12},
+    {Table::envc, "DLC02_10_E_EnvC_610", "DLC02_20_E_EnvC_001", 2915u, 120, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_610", "DLC02_20_E_EnvC_001", 8609u, 124, 4},
+    {Table::env, "DLC02_10_EnvS_669", "ME_01_EnvS_026", 2800032669u, 128, 15},
+    {Table::env, "DLC02_10_EnvS_670", "ME_01_EnvS_044", 2800032670u, 143, 11},
+    {Table::env, "DLC02_10_EnvS_438", "DLC02_10_EnvS_438", 2800032438u, 154, 4},
+    {Table::env, "DLC02_10_EnvS_439", "DLC02_10_EnvS_439", 2800032439u, 158, 4},
+    {Table::env, "DLC02_10_EnvS_433", "DLC02_10_EnvS_433", 2800032433u, 162, 4},
+    {Table::env, "DLC02_10_EnvS_432", "DLC02_10_EnvS_432", 2800032432u, 166, 2},
+    {Table::env, "DLC02_10_EnvS_429", "DLC02_10_EnvS_429", 2800032429u, 168, 4},
+    {Table::env, "DLC02_10_EnvS_447", "DLC02_10_EnvS_432", 2800032447u, 172, 4},
+    {Table::env, "DLC02_10_EnvS_446", "DLC02_10_EnvS_432", 2800032446u, 176, 4},
+    {Table::envc, "DLC02_10_E_EnvC_013", "DLC02_10_E_EnvC_009", 2916u, 180, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_013", "DLC02_10_E_EnvC_009", 8610u, 184, 2},
+    {Table::env, "DLC02_20_EnvS_601", "DLC02_20_EnvS_001", 2805032601u, 186, 4},
+    {Table::env, "DLC02_10_EnvS_434", "DLC02_10_EnvS_434", 2800032434u, 190, 2},
+    {Table::env, "DLC02_10_EnvS_435", "DLC02_10_EnvS_435", 2800032435u, 192, 4},
+    {Table::env, "DLC02_20_EnvS_011", "DLC02_20_EnvS_011", 2805032011u, 196, 4},
+    {Table::env, "DLC02_20_EnvS_010", "DLC02_20_EnvS_010", 2805032010u, 200, 2},
+    {Table::env, "DLC02_20_EnvS_027", "DLC02_20_EnvS_027", 2805032027u, 202, 5},
+    {Table::env, "DLC02_20_EnvS_013", "DLC02_20_EnvS_013", 2805032013u, 207, 4},
+    {Table::env, "DLC02_20_EnvS_004", "DLC02_20_EnvS_004", 2805032004u, 211, 2},
+    {Table::env, "DLC02_20_EnvS_014", "DLC02_20_EnvS_014", 2805032014u, 213, 5},
+    {Table::env, "DLC02_20_EnvS_005", "DLC02_20_EnvS_005", 2805032005u, 218, 2},
+    {Table::env, "DLC02_20_EnvS_022", "DLC02_20_EnvS_022", 2805032022u, 220, 5},
+    {Table::env, "DLC02_20_EnvS_015", "DLC02_20_EnvS_015", 2805032015u, 225, 4},
+    {Table::env, "DLC02_20_EnvS_006", "DLC02_20_EnvS_006", 2805032006u, 229, 2},
+    {Table::env, "DLC02_20_EnvS_023", "DLC02_20_EnvS_023", 2805032023u, 231, 5},
+    {Table::env, "DLC02_20_EnvS_016", "DLC02_20_EnvS_016", 2805032016u, 236, 5},
+    {Table::env, "DLC02_20_EnvS_007", "DLC02_20_EnvS_007", 2805032007u, 241, 2},
+    {Table::env, "DLC02_20_EnvS_024", "DLC02_20_EnvS_024", 2805032024u, 243, 5},
+    {Table::env, "DLC02_20_EnvS_018", "DLC02_20_EnvS_018", 2805032018u, 248, 5},
+    {Table::env, "DLC02_20_EnvS_009", "DLC02_20_EnvS_009", 2805032009u, 253, 2},
+    {Table::env, "DLC02_20_EnvS_066", "DLC02_20_EnvS_066", 2805032066u, 255, 4},
+    {Table::env, "DLC02_20_EnvS_065", "DLC02_20_EnvS_065", 2805032065u, 259, 2},
+    {Table::env, "DLC02_20_EnvS_086", "DLC02_20_EnvS_086", 2805032086u, 261, 4},
+    {Table::env, "DLC02_20_EnvS_085", "DLC02_20_EnvS_085", 2805032085u, 265, 2},
+    {Table::env, "DLC02_20_EnvS_088", "DLC02_20_EnvS_088", 2805032088u, 267, 4},
+    {Table::env, "DLC02_20_EnvS_087", "DLC02_20_EnvS_087", 2805032087u, 271, 2},
+    {Table::env, "DLC02_20_EnvS_067", "DLC02_20_EnvS_067", 2805032067u, 273, 4},
+    {Table::env, "DLC02_20_EnvS_075", "DLC02_20_EnvS_075", 2805032075u, 277, 4},
+    {Table::env, "DLC02_20_EnvS_076", "DLC02_20_EnvS_076", 2805032076u, 281, 4},
+    {Table::env, "DLC02_20_EnvS_091", "DLC02_20_EnvS_091", 2805032091u, 285, 4},
+    {Table::env, "DLC02_20_EnvS_092", "DLC02_20_EnvS_092", 2805032092u, 289, 4},
+    {Table::env, "DLC02_20_EnvS_077", "DLC02_20_EnvS_077", 2805032077u, 293, 6},
+    {Table::env, "DLC02_20_EnvS_078", "DLC02_20_EnvS_078", 2805032078u, 299, 6},
+    {Table::env, "DLC02_20_EnvS_079", "DLC02_20_EnvS_079", 2805032079u, 305, 6},
+    {Table::env, "DLC02_20_EnvS_081", "DLC02_20_EnvS_081", 2805032081u, 311, 6},
+    {Table::env, "DLC02_20_EnvS_082", "DLC02_20_EnvS_082", 2805032082u, 317, 6},
+    {Table::env, "DLC02_20_EnvS_083", "DLC02_20_EnvS_083", 2805032083u, 323, 6},
+    {Table::env, "DLC02_20_EnvS_089", "DLC02_20_EnvS_089", 2805032089u, 329, 4},
+    {Table::env, "DLC02_20_EnvS_036", "DLC02_20_EnvS_036", 2805032036u, 333, 7},
+    {Table::env, "DLC02_20_EnvS_038", "DLC02_20_EnvS_038", 2805032038u, 340, 3},
+    {Table::envc, "DLC02_20_E_EnvC_601", "DLC02_20_E_EnvC_001", 2917u, 343, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_601", "DLC02_20_E_EnvC_001", 8611u, 347, 4},
+    {Table::envc, "DLC02_20_E_EnvC_602", "DLC02_20_E_EnvC_001", 2918u, 351, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_602", "DLC02_20_E_EnvC_001", 8612u, 355, 4},
+    {Table::env, "DLC02_20_EnvS_602", "DLC02_20_EnvS_076", 2805032602u, 359, 12},
+    {Table::env, "DLC02_20_EnvS_603", "DLC02_20_EnvS_076", 2805032603u, 371, 12},
+    {Table::env, "DLC02_20_EnvS_604", "DLC02_20_EnvS_076", 2805032604u, 383, 12},
+    {Table::env, "DLC02_20_EnvS_605", "DLC02_20_EnvS_076", 2805032605u, 395, 12},
+    {Table::env, "DLC02_20_EnvS_606", "DLC02_20_EnvS_076", 2805032606u, 407, 12},
+    {Table::env, "DLC02_20_EnvS_607", "DLC02_20_EnvS_076", 2805032607u, 419, 12},
+    {Table::env, "DLC02_20_EnvS_608", "DLC02_20_EnvS_076", 2805032608u, 431, 12},
+    {Table::env, "DLC02_20_EnvS_609", "DLC02_20_EnvS_076", 2805032609u, 443, 12},
+    {Table::envc, "DLC02_20_E_EnvC_609", "DLC02_20_E_EnvC_001", 2925u, 455, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_609", "DLC02_20_E_EnvC_001", 8619u, 459, 4},
+    {Table::envc, "DLC02_20_E_EnvC_610", "DLC02_20_E_EnvC_001", 2926u, 463, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_610", "DLC02_20_E_EnvC_001", 8620u, 467, 4},
+    {Table::envc, "DLC02_20_E_EnvC_611", "DLC02_20_E_EnvC_001", 2927u, 471, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_611", "DLC02_20_E_EnvC_001", 8621u, 475, 4},
+    {Table::envc, "DLC02_20_E_EnvC_612", "DLC02_20_E_EnvC_001", 2928u, 479, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_612", "DLC02_20_E_EnvC_001", 8622u, 483, 4},
+    {Table::envc, "DLC02_20_E_EnvC_613", "DLC02_20_E_EnvC_001", 2929u, 487, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_613", "DLC02_20_E_EnvC_001", 8623u, 491, 4},
+    {Table::envc, "DLC02_20_E_EnvC_614", "DLC02_20_E_EnvC_001", 2930u, 495, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_614", "DLC02_20_E_EnvC_001", 8624u, 499, 4},
+    {Table::env, "DLC02_20_EnvS_663", "DLC02_20_EnvS_009", 2805032663u, 503, 9},
+    {Table::env, "DLC02_20_EnvS_664", "DLC02_20_EnvS_009", 2805032664u, 512, 8},
+    {Table::env, "DLC02_20_EnvS_665", "DLC02_20_EnvS_009", 2805032665u, 520, 8},
+    {Table::envc, "DLC02_20_E_EnvC_615", "DLC02_20_E_EnvC_001", 2931u, 528, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_615", "DLC02_20_E_EnvC_001", 8625u, 532, 4},
+    {Table::envc, "DLC02_20_E_EnvC_617", "DLC02_20_E_EnvC_001", 2933u, 536, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_617", "DLC02_20_E_EnvC_001", 8627u, 540, 4},
+    {Table::envc, "DLC02_20_E_EnvC_618", "DLC02_20_E_EnvC_001", 2934u, 544, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_618", "DLC02_20_E_EnvC_001", 8628u, 548, 4},
+    {Table::envc, "DLC02_20_E_EnvC_619", "SE_08_E_EnvC_095", 2935u, 552, 5},
+    {Table::zevent, "DLC02_20_E_EnvC_619", "DLC02_20_E_EnvC_001", 8629u, 557, 4},
+    {Table::env, "DLC02_20_EnvS_701", "SE_08_EnvS_090", 2805032701u, 561, 8},
+    {Table::trigger, "DLC02_20_ZTrigger_601", "DLC02_20_ZTrigger_005", 280501601u, 569, 3},
+    {Table::spawn, "DLC02_20_E_CharS_001", "DLC02_20_E_CharS_001", 2805024001u, 572, 1},
+    {Table::spawn, "DLC02_20_E_CharS_002", "DLC02_20_E_CharS_002", 2805024002u, 573, 1},
+    {Table::spawn, "DLC02_20_E_CharS_003", "DLC02_20_E_CharS_003", 2805024003u, 574, 1},
+    {Table::spawn, "DLC02_20_E_CharS_004", "DLC02_20_E_CharS_004", 2805024004u, 575, 1},
+    {Table::envc, "DLC02_20_E_EnvC_620", "DLC02_20_E_EnvC_001", 2936u, 576, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_620", "DLC02_20_E_EnvC_001", 8630u, 580, 4},
+    {Table::envc, "DLC02_20_E_EnvC_622", "DLC02_20_E_EnvC_001", 2938u, 584, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_622", "DLC02_20_E_EnvC_001", 8632u, 588, 4},
+    {Table::envc, "DLC02_20_E_EnvC_623", "DLC02_20_E_EnvC_001", 2939u, 592, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_623", "DLC02_20_E_EnvC_001", 8633u, 596, 4},
+    {Table::envc, "DLC02_20_E_EnvC_624", "SE_08_E_EnvC_095", 2940u, 600, 5},
+    {Table::zevent, "DLC02_20_E_EnvC_624", "DLC02_20_E_EnvC_001", 8634u, 605, 4},
+    {Table::env, "DLC02_20_EnvS_702", "SE_08_EnvS_090", 2805032702u, 609, 8},
+    {Table::trigger, "DLC02_20_ZTrigger_602", "DLC02_20_ZTrigger_005", 280501602u, 617, 3},
+    {Table::spawn, "DLC02_20_E_CharS_009", "DLC02_20_E_CharS_009", 2805024009u, 620, 1},
+    {Table::spawn, "DLC02_20_E_CharS_010", "DLC02_20_E_CharS_010", 2805024010u, 621, 1},
+    {Table::spawn, "DLC02_20_E_CharS_011", "DLC02_20_E_CharS_011", 2805024011u, 622, 1},
+    {Table::spawn, "DLC02_20_E_CharS_012", "DLC02_20_E_CharS_012", 2805024012u, 623, 1},
+    {Table::envc, "DLC02_20_E_EnvC_625", "DLC02_20_E_EnvC_001", 2941u, 624, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_625", "DLC02_20_E_EnvC_001", 8635u, 628, 4},
+    {Table::envc, "DLC02_20_E_EnvC_627", "DLC02_20_E_EnvC_001", 2943u, 632, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_627", "DLC02_20_E_EnvC_001", 8637u, 636, 4},
+    {Table::envc, "DLC02_20_E_EnvC_628", "DLC02_20_E_EnvC_001", 2944u, 640, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_628", "DLC02_20_E_EnvC_001", 8638u, 644, 4},
+    {Table::envc, "DLC02_20_E_EnvC_629", "SE_08_E_EnvC_095", 2945u, 648, 5},
+    {Table::zevent, "DLC02_20_E_EnvC_629", "DLC02_20_E_EnvC_001", 8639u, 653, 4},
+    {Table::env, "DLC02_20_EnvS_703", "SE_08_EnvS_090", 2805032703u, 657, 8},
+    {Table::trigger, "DLC02_20_ZTrigger_603", "DLC02_20_ZTrigger_005", 280501603u, 665, 3},
+    {Table::spawn, "DLC02_20_E_CharS_006", "DLC02_20_E_CharS_006", 2805024006u, 668, 1},
+    {Table::spawn, "DLC02_20_E_CharS_007", "DLC02_20_E_CharS_007", 2805024007u, 669, 1},
+    {Table::spawn, "DLC02_20_E_CharS_008", "DLC02_20_E_CharS_008", 2805024008u, 670, 1},
+    {Table::env, "DLC02_20_EnvS_063", "DLC02_20_EnvS_063", 2805032063u, 671, 3},
+    {Table::env, "DLC02_20_EnvS_064", "DLC02_20_EnvS_064", 2805032064u, 674, 1},
+    {Table::env, "DLC02_10_EnvS_431", "DLC02_10_EnvS_431", 2800032431u, 675, 4},
+    {Table::env, "DLC02_10_EnvS_671", "DLC02_20_EnvS_009", 2800032671u, 679, 12},
+    {Table::envc, "DLC02_10_E_EnvC_611", "DLC02_20_E_EnvC_001", 3021u, 691, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_611", "DLC02_20_E_EnvC_001", 8715u, 695, 4},
+    {Table::env, "DLC02_10_EnvS_672", "DLC02_20_EnvS_009", 2800032672u, 699, 12},
+    {Table::envc, "DLC02_10_E_EnvC_612", "DLC02_20_E_EnvC_001", 3022u, 711, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_612", "DLC02_20_E_EnvC_001", 8716u, 715, 4},
+    {Table::envc, "DLC02_10_E_EnvC_613", "DLC02_20_E_EnvC_001", 3023u, 719, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_613", "DLC02_20_E_EnvC_001", 8717u, 723, 4},
+    {Table::env, "DLC02_20_EnvS_666", "DLC02_20_EnvS_009", 2805032666u, 727, 12},
+    {Table::envc, "DLC02_20_E_EnvC_630", "DLC02_20_E_EnvC_001", 3024u, 739, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_630", "DLC02_20_E_EnvC_001", 8718u, 743, 4},
+    {Table::env, "DLC02_20_EnvS_667", "DLC02_20_EnvS_009", 2805032667u, 747, 12},
+    {Table::envc, "DLC02_20_E_EnvC_631", "DLC02_20_E_EnvC_001", 3025u, 759, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_631", "DLC02_20_E_EnvC_001", 8719u, 763, 4},
+    {Table::env, "DLC02_10_EnvS_621", "DLC02_20_EnvS_063", 2800032621u, 767, 11},
+    {Table::env, "DLC02_10_EnvS_673", "DLC02_20_EnvS_009", 2800032673u, 778, 12},
+    {Table::envc, "DLC02_10_E_EnvC_614", "DLC02_20_E_EnvC_001", 3028u, 790, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_614", "DLC02_20_E_EnvC_001", 8722u, 794, 4},
+    {Table::env, "DLC02_10_EnvS_674", "DLC02_20_EnvS_009", 2800032674u, 798, 12},
+    {Table::envc, "DLC02_10_E_EnvC_615", "DLC02_20_E_EnvC_001", 3029u, 810, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_615", "DLC02_20_E_EnvC_001", 8723u, 814, 4},
+    {Table::envc, "DLC02_10_E_EnvC_616", "DLC02_20_E_EnvC_001", 3058u, 818, 4},
+    {Table::zevent, "DLC02_10_E_EnvC_616", "DLC02_20_E_EnvC_001", 8752u, 822, 4},
+    {Table::env, "DLC02_10_EnvS_641", "DLC02_40_EnvS_021", 2800032641u, 826, 5},
+    {Table::env, "DLC02_10_EnvS_642", "DLC02_40_EnvS_022", 2800032642u, 831, 2},
+    {Table::env, "DLC02_20_EnvS_934", "ME_01_EnvS_044", 2805032934u, 833, 11},
+    {Table::envc, "DLC02_20_E_EnvC_934", "DLC02_20_E_EnvC_001", 3059u, 844, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_934", "DLC02_20_E_EnvC_001", 8753u, 848, 4},
+    {Table::env, "DLC02_20_EnvS_935", "ME_01_EnvS_044", 2805032935u, 852, 11},
+    {Table::envc, "DLC02_20_E_EnvC_935", "DLC02_20_E_EnvC_001", 3060u, 863, 4},
+    {Table::zevent, "DLC02_20_E_EnvC_935", "DLC02_20_E_EnvC_001", 8754u, 867, 4},
 };
 
 constexpr Patch kMxmiddlePatches[] = {
@@ -3459,7 +2835,7 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_601"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -3468,438 +2844,102 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x48, Kind::name, 0, "DLC02_30_EnvS_601"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_601_ToOpen.MX13_DLC02_30_EnvS_601_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_601_ToClose.MX13_DLC02_30_EnvS_601_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_601_Closed.MX13_DLC02_30_EnvS_601_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_601_Opened.MX13_DLC02_30_EnvS_601_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_601 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_601"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_601 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_601"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_651 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_651"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_652"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_651"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_601"}, // TagEventList2
-    // DLC02_30_EnvS_652 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_652"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_651"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_652"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_601"}, // TagEventList2
     // DLC02_30_EnvS_602 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_602"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_602"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_602_ToOpen.MX13_DLC02_30_EnvS_602_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_602_ToClose.MX13_DLC02_30_EnvS_602_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_602_Closed.MX13_DLC02_30_EnvS_602_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_602_Opened.MX13_DLC02_30_EnvS_602_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_602 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_602"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_602 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_602"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_653 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_653"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_654"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_653"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_602"}, // TagEventList2
-    // DLC02_30_EnvS_654 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_654"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_653"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_654"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_602"}, // TagEventList2
     // DLC02_30_EnvS_603 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_603"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_603"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_603_ToOpen.MX13_DLC02_30_EnvS_603_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_603_ToClose.MX13_DLC02_30_EnvS_603_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_603_Closed.MX13_DLC02_30_EnvS_603_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_603_Opened.MX13_DLC02_30_EnvS_603_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_603 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_603"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_603 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_603"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_655 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_655"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_656"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_655"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_603"}, // TagEventList2
-    // DLC02_30_EnvS_656 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_656"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_655"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_656"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_603"}, // TagEventList2
     // DLC02_30_EnvS_604 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_604"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_604"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_604_ToOpen.MX13_DLC02_30_EnvS_604_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_604_ToClose.MX13_DLC02_30_EnvS_604_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_604_Closed.MX13_DLC02_30_EnvS_604_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_604_Opened.MX13_DLC02_30_EnvS_604_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_604 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_604"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_604 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_604"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_657 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_657"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_658"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_657"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_604"}, // TagEventList2
-    // DLC02_30_EnvS_658 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_658"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_657"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_658"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_604"}, // TagEventList2
     // DLC02_30_EnvS_605 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_605"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_605"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_605_ToOpen.MX13_DLC02_30_EnvS_605_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_605_ToClose.MX13_DLC02_30_EnvS_605_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_605_Closed.MX13_DLC02_30_EnvS_605_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_605_Opened.MX13_DLC02_30_EnvS_605_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_605 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_605"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_605 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_605"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_659 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_659"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_660"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_659"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_605"}, // TagEventList2
-    // DLC02_30_EnvS_660 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_660"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_659"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_660"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_605"}, // TagEventList2
     // DLC02_30_EnvS_606 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_606"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_606"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_606_ToOpen.MX13_DLC02_30_EnvS_606_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_606_ToClose.MX13_DLC02_30_EnvS_606_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_606_Closed.MX13_DLC02_30_EnvS_606_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_606_Opened.MX13_DLC02_30_EnvS_606_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_606 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_606"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_606 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_606"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_661 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_661"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_662"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_661"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_606"}, // TagEventList2
-    // DLC02_30_EnvS_662 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_662"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_661"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_662"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_606"}, // TagEventList2
     // DLC02_30_EnvS_607 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_607"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_607"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_607_ToOpen.MX13_DLC02_30_EnvS_607_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_607_ToClose.MX13_DLC02_30_EnvS_607_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_607_Closed.MX13_DLC02_30_EnvS_607_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_607_Opened.MX13_DLC02_30_EnvS_607_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_607 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_607"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_607 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_607"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_663 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_663"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_664"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_663"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_607"}, // TagEventList2
-    // DLC02_30_EnvS_664 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_664"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_663"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_664"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_607"}, // TagEventList2
     // DLC02_30_EnvS_608 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_608"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_608"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_608_ToOpen.MX13_DLC02_30_EnvS_608_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_608_ToClose.MX13_DLC02_30_EnvS_608_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_608_Closed.MX13_DLC02_30_EnvS_608_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_608_Opened.MX13_DLC02_30_EnvS_608_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_608 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_608"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_608 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_608"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_665 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_665"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_666"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_665"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_608"}, // TagEventList2
-    // DLC02_30_EnvS_666 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_666"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_665"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_666"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_608"}, // TagEventList2
     // DLC02_30_EnvS_609 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_609"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -3908,328 +2948,76 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x48, Kind::name, 0, "DLC02_30_EnvS_609"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_609_ToOpen.MX13_DLC02_30_EnvS_609_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_609_ToClose.MX13_DLC02_30_EnvS_609_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_609_Closed.MX13_DLC02_30_EnvS_609_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_609_Opened.MX13_DLC02_30_EnvS_609_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_609 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_609"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_609 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_609"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_667 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_667"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_668"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_667"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_609"}, // TagEventList2
-    // DLC02_30_EnvS_668 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_668"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_667"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_668"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_609"}, // TagEventList2
     // DLC02_30_EnvS_610 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_610"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_610"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_610_ToOpen.MX13_DLC02_30_EnvS_610_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_610_ToClose.MX13_DLC02_30_EnvS_610_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_610_Closed.MX13_DLC02_30_EnvS_610_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_610_Opened.MX13_DLC02_30_EnvS_610_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_610 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_610"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_610 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_610"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_669 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_669"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_670"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_669"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_610"}, // TagEventList2
-    // DLC02_30_EnvS_670 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_670"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_669"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_670"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_610"}, // TagEventList2
     // DLC02_30_EnvS_611 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_611"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_611"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_611_ToOpen.MX13_DLC02_30_EnvS_611_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_611_ToClose.MX13_DLC02_30_EnvS_611_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_611_Closed.MX13_DLC02_30_EnvS_611_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_611_Opened.MX13_DLC02_30_EnvS_611_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_611 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_611"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_611 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_611"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_671 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_671"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_672"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_671"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_611"}, // TagEventList2
-    // DLC02_30_EnvS_672 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_672"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_671"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_672"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_611"}, // TagEventList2
     // DLC02_30_EnvS_612 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_612"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_612"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_612_ToOpen.MX13_DLC02_30_EnvS_612_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_612_ToClose.MX13_DLC02_30_EnvS_612_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_612_Closed.MX13_DLC02_30_EnvS_612_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_612_Opened.MX13_DLC02_30_EnvS_612_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_612 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_612"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_612 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_612"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_673 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_673"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_674"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_673"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_612"}, // TagEventList2
-    // DLC02_30_EnvS_674 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_674"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_673"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_674"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_612"}, // TagEventList2
     // DLC02_30_EnvS_613 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_613"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_613"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_613_ToOpen.MX13_DLC02_30_EnvS_613_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_613_ToClose.MX13_DLC02_30_EnvS_613_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_613_Closed.MX13_DLC02_30_EnvS_613_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_613_Opened.MX13_DLC02_30_EnvS_613_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_613 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_613"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_613 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_613"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_675 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_675"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_676"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_675"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_613"}, // TagEventList2
-    // DLC02_30_EnvS_676 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_676"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_675"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_676"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_613"}, // TagEventList2
     // DLC02_30_EnvS_614 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_614"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_614"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_614_ToOpen.MX13_DLC02_30_EnvS_614_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_614_ToClose.MX13_DLC02_30_EnvS_614_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_614_Closed.MX13_DLC02_30_EnvS_614_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_614_Opened.MX13_DLC02_30_EnvS_614_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_614 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_614"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_614 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_614"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_677 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_677"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_678"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_677"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_614"}, // TagEventList2
-    // DLC02_30_EnvS_678 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_678"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_677"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_678"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_614"}, // TagEventList2
     // DLC02_30_EnvS_615 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_615"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -4238,108 +3026,24 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x48, Kind::name, 0, "DLC02_30_EnvS_615"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_615_ToOpen.MX13_DLC02_30_EnvS_615_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_615_ToClose.MX13_DLC02_30_EnvS_615_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_615_Closed.MX13_DLC02_30_EnvS_615_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_615_Opened.MX13_DLC02_30_EnvS_615_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_615 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_615"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_615 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_615"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_679 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_679"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_680"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_679"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_615"}, // TagEventList2
-    // DLC02_30_EnvS_680 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_680"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_679"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_680"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_615"}, // TagEventList2
     // DLC02_30_EnvS_616 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_616"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_616"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_616_ToOpen.MX13_DLC02_30_EnvS_616_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_616_ToClose.MX13_DLC02_30_EnvS_616_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_616_Closed.MX13_DLC02_30_EnvS_616_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_616_Opened.MX13_DLC02_30_EnvS_616_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_616 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_616"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_616 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_616"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_681 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_681"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_682"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_681"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_616"}, // TagEventList2
-    // DLC02_30_EnvS_682 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_682"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_681"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_682"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_616"}, // TagEventList2
     // DLC02_30_EnvS_617 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_617"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -4348,48 +3052,6 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x48, Kind::name, 0, "DLC02_30_EnvS_617"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_617_ToOpen.MX13_DLC02_30_EnvS_617_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_617_ToClose.MX13_DLC02_30_EnvS_617_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_617_Closed.MX13_DLC02_30_EnvS_617_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_30_EnvS_617_Opened.MX13_DLC02_30_EnvS_617_Opened"}, // ActiveSequenceList
-    // DLC02_30_E_EnvC_617 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_617"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_30_E_EnvC_617 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_617"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_EnvS_683 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_683"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_684"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_683"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_617"}, // TagEventList2
-    // DLC02_30_EnvS_684 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_684"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_30_EnvS_683"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_30_EnvS_684"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_30_E_EnvC_617"}, // TagEventList2
     // DLC02_30_E_EnvC_618 (EventEnvControlTable)
     {0x14, Kind::name, 0, "DLC02_30_EnvS_602"}, // EnvSpawnAlias
     {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
@@ -4398,26 +3060,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_618 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_618"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_619 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_653"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_619 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_619"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_620 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_654"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_620 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_620"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_621 (EventEnvControlTable)
@@ -4438,26 +3080,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_622 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_622"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_623 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_655"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_623 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_623"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_624 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_656"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_624 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_624"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_625 (EventEnvControlTable)
@@ -4492,7 +3114,7 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x90, Kind::names, 0, "DLC02_30_E_EnvC_621|DLC02_30_E_EnvC_625"}, // TagEventList2
     // DLC02_30_E_CharS_001 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_626"}, // EventOnDead
-    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_618|DLC02_30_E_EnvC_619|DLC02_30_E_EnvC_620|DLC02_30_E_EnvC_622|DLC02_30_E_EnvC_623|DLC02_30_E_EnvC_624"}, // EventOnBattle
+    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_618|DLC02_30_E_EnvC_622"}, // EventOnBattle
     // DLC02_30_E_CharS_002 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_626"}, // EventOnDead
     // DLC02_30_E_CharS_003 (EventSpawnTable)
@@ -4507,26 +3129,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_627 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_627"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_628 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_657"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_628 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_628"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_629 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_658"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_629 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_629"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_630 (EventEnvControlTable)
@@ -4561,7 +3163,7 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x90, Kind::names, 0, "DLC02_30_E_EnvC_630"}, // TagEventList2
     // DLC02_30_E_CharS_004 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_631"}, // EventOnDead
-    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_627|DLC02_30_E_EnvC_628|DLC02_30_E_EnvC_629"}, // EventOnBattle
+    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_627"}, // EventOnBattle
     // DLC02_30_E_CharS_006 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_631"}, // EventOnDead
     // DLC02_30_E_CharS_008 (EventSpawnTable)
@@ -4574,26 +3176,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_632 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_632"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_633 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_659"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_633 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_633"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_634 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_660"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_634 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_634"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_635 (EventEnvControlTable)
@@ -4616,26 +3198,6 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_636"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_637 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_661"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_637 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_637"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_638 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_662"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_638 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_638"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_639 (EventEnvControlTable)
     {0x14, Kind::name, 0, "DLC02_30_EnvS_606"}, // EnvSpawnAlias
     {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
@@ -4654,26 +3216,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_640 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_640"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_641 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_663"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_641 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_641"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_642 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_664"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_642 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_642"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_643 (EventEnvControlTable)
@@ -4696,26 +3238,6 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_644"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_645 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_665"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_645 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_645"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_646 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_666"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_646 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_646"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_647 (EventEnvControlTable)
     {0x14, Kind::name, 0, "DLC02_30_EnvS_608"}, // EnvSpawnAlias
     {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
@@ -4734,26 +3256,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_648 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_648"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_649 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_669"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_649 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_649"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_650 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_670"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_650 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_650"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_651 (EventEnvControlTable)
@@ -4776,26 +3278,6 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_652"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_653 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_671"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_653 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_653"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_654 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_672"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_654 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_654"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_655 (EventEnvControlTable)
     {0x14, Kind::name, 0, "DLC02_30_EnvS_611"}, // EnvSpawnAlias
     {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
@@ -4816,26 +3298,6 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_656"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_657 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_673"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_657 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_657"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_658 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_674"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_658 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_658"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_659 (EventEnvControlTable)
     {0x14, Kind::name, 0, "DLC02_30_EnvS_612"}, // EnvSpawnAlias
     {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
@@ -4854,26 +3316,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_660 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_660"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_661 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_675"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_661 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_661"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_662 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_676"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_662 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_662"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_663 (EventEnvControlTable)
@@ -4908,7 +3350,7 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x90, Kind::names, 0, "DLC02_30_E_EnvC_651|DLC02_30_E_EnvC_655|DLC02_30_E_EnvC_659|DLC02_30_E_EnvC_663"}, // TagEventList2
     // DLC02_30_E_CharS_021 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_664"}, // EventOnDead
-    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_648|DLC02_30_E_EnvC_649|DLC02_30_E_EnvC_650|DLC02_30_E_EnvC_652|DLC02_30_E_EnvC_653|DLC02_30_E_EnvC_654|DLC02_30_E_EnvC_656|DLC02_30_E_EnvC_657|DLC02_30_E_EnvC_658|DLC02_30_E_EnvC_660|DLC02_30_E_EnvC_661|DLC02_30_E_EnvC_662"}, // EventOnBattle
+    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_648|DLC02_30_E_EnvC_652|DLC02_30_E_EnvC_656|DLC02_30_E_EnvC_660"}, // EventOnBattle
     // DLC02_30_E_CharS_009 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_664"}, // EventOnDead
     // DLC02_30_E_EnvC_665 (EventEnvControlTable)
@@ -4919,26 +3361,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_665 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_665"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_666 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_677"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_666 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_666"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_667 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_678"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_667 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_667"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_668 (EventEnvControlTable)
@@ -4973,7 +3395,7 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x90, Kind::names, 0, "DLC02_30_E_EnvC_668"}, // TagEventList2
     // DLC02_30_E_CharS_013 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_669"}, // EventOnDead
-    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_665|DLC02_30_E_EnvC_666|DLC02_30_E_EnvC_667"}, // EventOnBattle
+    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_665"}, // EventOnBattle
     // DLC02_30_E_CharS_019 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_669"}, // EventOnDead
     // DLC02_30_E_CharS_020 (EventSpawnTable)
@@ -4988,26 +3410,6 @@ constexpr Patch kMxmiddlePatches[] = {
     // DLC02_30_E_EnvC_670 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_30_E_EnvC_670"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_671 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_681"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_671 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_671"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_30_E_EnvC_672 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_30_EnvS_682"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_30_E_EnvC_672 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_30_E_EnvC_672"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_30_E_EnvC_673 (EventEnvControlTable)
@@ -5042,7 +3444,7 @@ constexpr Patch kMxmiddlePatches[] = {
     {0x90, Kind::names, 0, "DLC02_30_E_EnvC_673"}, // TagEventList2
     // DLC02_30_E_CharS_023 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_674"}, // EventOnDead
-    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_670|DLC02_30_E_EnvC_671|DLC02_30_E_EnvC_672"}, // EventOnBattle
+    {0x80, Kind::names, 0, "DLC02_30_E_EnvC_670"}, // EventOnBattle
     // DLC02_30_E_CharS_005 (EventSpawnTable)
     {0x70, Kind::names, 0, "DLC02_30_E_EnvC_674"}, // EventOnDead
     // DLC02_30_EnvS_618 (ZoneEnvSpawnTable)
@@ -5097,231 +3499,111 @@ constexpr Patch kMxmiddlePatches[] = {
 };
 constexpr Row kMxmiddleRecipe[] = {
     {Table::env, "DLC02_30_EnvS_601", "DLC02_20_EnvS_076", 2810032601u, 0, 12},
-    {Table::envc, "DLC02_30_E_EnvC_601", "DLC02_20_E_EnvC_001", 2946u, 12, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_601", "DLC02_20_E_EnvC_001", 8640u, 16, 4},
-    {Table::env, "DLC02_30_EnvS_651", "ME_01_EnvS_026", 2810032651u, 20, 15},
-    {Table::env, "DLC02_30_EnvS_652", "ME_01_EnvS_026", 2810032652u, 35, 15},
-    {Table::env, "DLC02_30_EnvS_602", "DLC02_20_EnvS_076", 2810032602u, 50, 12},
-    {Table::envc, "DLC02_30_E_EnvC_602", "DLC02_20_E_EnvC_001", 2947u, 62, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_602", "DLC02_20_E_EnvC_001", 8641u, 66, 4},
-    {Table::env, "DLC02_30_EnvS_653", "ME_01_EnvS_026", 2810032653u, 70, 15},
-    {Table::env, "DLC02_30_EnvS_654", "ME_01_EnvS_026", 2810032654u, 85, 15},
-    {Table::env, "DLC02_30_EnvS_603", "DLC02_20_EnvS_076", 2810032603u, 100, 12},
-    {Table::envc, "DLC02_30_E_EnvC_603", "DLC02_20_E_EnvC_001", 2948u, 112, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_603", "DLC02_20_E_EnvC_001", 8642u, 116, 4},
-    {Table::env, "DLC02_30_EnvS_655", "ME_01_EnvS_026", 2810032655u, 120, 15},
-    {Table::env, "DLC02_30_EnvS_656", "ME_01_EnvS_026", 2810032656u, 135, 15},
-    {Table::env, "DLC02_30_EnvS_604", "DLC02_20_EnvS_076", 2810032604u, 150, 12},
-    {Table::envc, "DLC02_30_E_EnvC_604", "DLC02_20_E_EnvC_001", 2949u, 162, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_604", "DLC02_20_E_EnvC_001", 8643u, 166, 4},
-    {Table::env, "DLC02_30_EnvS_657", "ME_01_EnvS_026", 2810032657u, 170, 15},
-    {Table::env, "DLC02_30_EnvS_658", "ME_01_EnvS_026", 2810032658u, 185, 15},
-    {Table::env, "DLC02_30_EnvS_605", "DLC02_20_EnvS_076", 2810032605u, 200, 12},
-    {Table::envc, "DLC02_30_E_EnvC_605", "DLC02_20_E_EnvC_001", 2950u, 212, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_605", "DLC02_20_E_EnvC_001", 8644u, 216, 4},
-    {Table::env, "DLC02_30_EnvS_659", "ME_01_EnvS_026", 2810032659u, 220, 15},
-    {Table::env, "DLC02_30_EnvS_660", "ME_01_EnvS_026", 2810032660u, 235, 15},
-    {Table::env, "DLC02_30_EnvS_606", "DLC02_20_EnvS_076", 2810032606u, 250, 12},
-    {Table::envc, "DLC02_30_E_EnvC_606", "DLC02_20_E_EnvC_001", 2951u, 262, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_606", "DLC02_20_E_EnvC_001", 8645u, 266, 4},
-    {Table::env, "DLC02_30_EnvS_661", "ME_01_EnvS_026", 2810032661u, 270, 15},
-    {Table::env, "DLC02_30_EnvS_662", "ME_01_EnvS_026", 2810032662u, 285, 15},
-    {Table::env, "DLC02_30_EnvS_607", "DLC02_20_EnvS_076", 2810032607u, 300, 12},
-    {Table::envc, "DLC02_30_E_EnvC_607", "DLC02_20_E_EnvC_001", 2952u, 312, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_607", "DLC02_20_E_EnvC_001", 8646u, 316, 4},
-    {Table::env, "DLC02_30_EnvS_663", "ME_01_EnvS_026", 2810032663u, 320, 15},
-    {Table::env, "DLC02_30_EnvS_664", "ME_01_EnvS_026", 2810032664u, 335, 15},
-    {Table::env, "DLC02_30_EnvS_608", "DLC02_20_EnvS_076", 2810032608u, 350, 12},
-    {Table::envc, "DLC02_30_E_EnvC_608", "DLC02_20_E_EnvC_001", 2953u, 362, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_608", "DLC02_20_E_EnvC_001", 8647u, 366, 4},
-    {Table::env, "DLC02_30_EnvS_665", "ME_01_EnvS_026", 2810032665u, 370, 15},
-    {Table::env, "DLC02_30_EnvS_666", "ME_01_EnvS_026", 2810032666u, 385, 15},
-    {Table::env, "DLC02_30_EnvS_609", "DLC02_20_EnvS_076", 2810032609u, 400, 12},
-    {Table::envc, "DLC02_30_E_EnvC_609", "DLC02_20_E_EnvC_001", 2954u, 412, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_609", "DLC02_20_E_EnvC_001", 8648u, 416, 4},
-    {Table::env, "DLC02_30_EnvS_667", "ME_01_EnvS_026", 2810032667u, 420, 15},
-    {Table::env, "DLC02_30_EnvS_668", "ME_01_EnvS_026", 2810032668u, 435, 15},
-    {Table::env, "DLC02_30_EnvS_610", "DLC02_20_EnvS_076", 2810032610u, 450, 12},
-    {Table::envc, "DLC02_30_E_EnvC_610", "DLC02_20_E_EnvC_001", 2955u, 462, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_610", "DLC02_20_E_EnvC_001", 8649u, 466, 4},
-    {Table::env, "DLC02_30_EnvS_669", "ME_01_EnvS_026", 2810032669u, 470, 15},
-    {Table::env, "DLC02_30_EnvS_670", "ME_01_EnvS_026", 2810032670u, 485, 15},
-    {Table::env, "DLC02_30_EnvS_611", "DLC02_20_EnvS_076", 2810032611u, 500, 12},
-    {Table::envc, "DLC02_30_E_EnvC_611", "DLC02_20_E_EnvC_001", 2956u, 512, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_611", "DLC02_20_E_EnvC_001", 8650u, 516, 4},
-    {Table::env, "DLC02_30_EnvS_671", "ME_01_EnvS_026", 2810032671u, 520, 15},
-    {Table::env, "DLC02_30_EnvS_672", "ME_01_EnvS_026", 2810032672u, 535, 15},
-    {Table::env, "DLC02_30_EnvS_612", "DLC02_20_EnvS_076", 2810032612u, 550, 12},
-    {Table::envc, "DLC02_30_E_EnvC_612", "DLC02_20_E_EnvC_001", 2957u, 562, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_612", "DLC02_20_E_EnvC_001", 8651u, 566, 4},
-    {Table::env, "DLC02_30_EnvS_673", "ME_01_EnvS_026", 2810032673u, 570, 15},
-    {Table::env, "DLC02_30_EnvS_674", "ME_01_EnvS_026", 2810032674u, 585, 15},
-    {Table::env, "DLC02_30_EnvS_613", "DLC02_20_EnvS_076", 2810032613u, 600, 12},
-    {Table::envc, "DLC02_30_E_EnvC_613", "DLC02_20_E_EnvC_001", 2958u, 612, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_613", "DLC02_20_E_EnvC_001", 8652u, 616, 4},
-    {Table::env, "DLC02_30_EnvS_675", "ME_01_EnvS_026", 2810032675u, 620, 15},
-    {Table::env, "DLC02_30_EnvS_676", "ME_01_EnvS_026", 2810032676u, 635, 15},
-    {Table::env, "DLC02_30_EnvS_614", "DLC02_20_EnvS_076", 2810032614u, 650, 12},
-    {Table::envc, "DLC02_30_E_EnvC_614", "DLC02_20_E_EnvC_001", 2959u, 662, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_614", "DLC02_20_E_EnvC_001", 8653u, 666, 4},
-    {Table::env, "DLC02_30_EnvS_677", "ME_01_EnvS_026", 2810032677u, 670, 15},
-    {Table::env, "DLC02_30_EnvS_678", "ME_01_EnvS_026", 2810032678u, 685, 15},
-    {Table::env, "DLC02_30_EnvS_615", "DLC02_20_EnvS_076", 2810032615u, 700, 12},
-    {Table::envc, "DLC02_30_E_EnvC_615", "DLC02_20_E_EnvC_001", 2960u, 712, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_615", "DLC02_20_E_EnvC_001", 8654u, 716, 4},
-    {Table::env, "DLC02_30_EnvS_679", "ME_01_EnvS_026", 2810032679u, 720, 15},
-    {Table::env, "DLC02_30_EnvS_680", "ME_01_EnvS_026", 2810032680u, 735, 15},
-    {Table::env, "DLC02_30_EnvS_616", "DLC02_20_EnvS_076", 2810032616u, 750, 12},
-    {Table::envc, "DLC02_30_E_EnvC_616", "DLC02_20_E_EnvC_001", 2961u, 762, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_616", "DLC02_20_E_EnvC_001", 8655u, 766, 4},
-    {Table::env, "DLC02_30_EnvS_681", "ME_01_EnvS_026", 2810032681u, 770, 15},
-    {Table::env, "DLC02_30_EnvS_682", "ME_01_EnvS_026", 2810032682u, 785, 15},
-    {Table::env, "DLC02_30_EnvS_617", "DLC02_20_EnvS_076", 2810032617u, 800, 12},
-    {Table::envc, "DLC02_30_E_EnvC_617", "DLC02_20_E_EnvC_001", 2962u, 812, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_617", "DLC02_20_E_EnvC_001", 8656u, 816, 4},
-    {Table::env, "DLC02_30_EnvS_683", "ME_01_EnvS_026", 2810032683u, 820, 15},
-    {Table::env, "DLC02_30_EnvS_684", "ME_01_EnvS_026", 2810032684u, 835, 15},
-    {Table::envc, "DLC02_30_E_EnvC_618", "DLC02_20_E_EnvC_001", 2963u, 850, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_618", "DLC02_20_E_EnvC_001", 8657u, 854, 4},
-    {Table::envc, "DLC02_30_E_EnvC_619", "DLC02_20_E_EnvC_001", 2964u, 858, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_619", "DLC02_20_E_EnvC_001", 8658u, 862, 4},
-    {Table::envc, "DLC02_30_E_EnvC_620", "DLC02_20_E_EnvC_001", 2965u, 866, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_620", "DLC02_20_E_EnvC_001", 8659u, 870, 4},
-    {Table::envc, "DLC02_30_E_EnvC_621", "DLC02_20_E_EnvC_001", 2966u, 874, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_621", "DLC02_20_E_EnvC_001", 8660u, 878, 4},
-    {Table::envc, "DLC02_30_E_EnvC_622", "DLC02_20_E_EnvC_001", 2967u, 882, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_622", "DLC02_20_E_EnvC_001", 8661u, 886, 4},
-    {Table::envc, "DLC02_30_E_EnvC_623", "DLC02_20_E_EnvC_001", 2968u, 890, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_623", "DLC02_20_E_EnvC_001", 8662u, 894, 4},
-    {Table::envc, "DLC02_30_E_EnvC_624", "DLC02_20_E_EnvC_001", 2969u, 898, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_624", "DLC02_20_E_EnvC_001", 8663u, 902, 4},
-    {Table::envc, "DLC02_30_E_EnvC_625", "DLC02_20_E_EnvC_001", 2970u, 906, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_625", "DLC02_20_E_EnvC_001", 8664u, 910, 4},
-    {Table::envc, "DLC02_30_E_EnvC_626", "SE_08_E_EnvC_095", 2971u, 914, 5},
-    {Table::zevent, "DLC02_30_E_EnvC_626", "DLC02_20_E_EnvC_001", 8665u, 919, 4},
-    {Table::env, "DLC02_30_EnvS_701", "SE_08_EnvS_090", 2810032701u, 923, 8},
-    {Table::spawn, "DLC02_30_E_CharS_001", "DLC02_30_E_CharS_001", 2810024001u, 931, 2},
-    {Table::spawn, "DLC02_30_E_CharS_002", "DLC02_30_E_CharS_002", 2810024002u, 933, 1},
-    {Table::spawn, "DLC02_30_E_CharS_003", "DLC02_30_E_CharS_003", 2810024003u, 934, 1},
-    {Table::spawn, "DLC02_30_E_CharS_007", "DLC02_30_E_CharS_007", 2810024007u, 935, 1},
-    {Table::envc, "DLC02_30_E_EnvC_627", "DLC02_20_E_EnvC_001", 2972u, 936, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_627", "DLC02_20_E_EnvC_001", 8666u, 940, 4},
-    {Table::envc, "DLC02_30_E_EnvC_628", "DLC02_20_E_EnvC_001", 2973u, 944, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_628", "DLC02_20_E_EnvC_001", 8667u, 948, 4},
-    {Table::envc, "DLC02_30_E_EnvC_629", "DLC02_20_E_EnvC_001", 2974u, 952, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_629", "DLC02_20_E_EnvC_001", 8668u, 956, 4},
-    {Table::envc, "DLC02_30_E_EnvC_630", "DLC02_20_E_EnvC_001", 2975u, 960, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_630", "DLC02_20_E_EnvC_001", 8669u, 964, 4},
-    {Table::envc, "DLC02_30_E_EnvC_631", "SE_08_E_EnvC_095", 2976u, 968, 5},
-    {Table::zevent, "DLC02_30_E_EnvC_631", "DLC02_20_E_EnvC_001", 8670u, 973, 4},
-    {Table::env, "DLC02_30_EnvS_702", "SE_08_EnvS_090", 2810032702u, 977, 8},
-    {Table::spawn, "DLC02_30_E_CharS_004", "DLC02_30_E_CharS_004", 2810024004u, 985, 2},
-    {Table::spawn, "DLC02_30_E_CharS_006", "DLC02_30_E_CharS_006", 2810024006u, 987, 1},
-    {Table::spawn, "DLC02_30_E_CharS_008", "DLC02_30_E_CharS_008", 2810024008u, 988, 1},
-    {Table::envc, "DLC02_30_E_EnvC_632", "DLC02_20_E_EnvC_001", 2977u, 989, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_632", "DLC02_20_E_EnvC_001", 8671u, 993, 4},
-    {Table::envc, "DLC02_30_E_EnvC_633", "DLC02_20_E_EnvC_001", 2978u, 997, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_633", "DLC02_20_E_EnvC_001", 8672u, 1001, 4},
-    {Table::envc, "DLC02_30_E_EnvC_634", "DLC02_20_E_EnvC_001", 2979u, 1005, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_634", "DLC02_20_E_EnvC_001", 8673u, 1009, 4},
-    {Table::envc, "DLC02_30_E_EnvC_635", "DLC02_20_E_EnvC_001", 2980u, 1013, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_635", "DLC02_20_E_EnvC_001", 8674u, 1017, 4},
-    {Table::envc, "DLC02_30_E_EnvC_636", "DLC02_20_E_EnvC_001", 2981u, 1021, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_636", "DLC02_20_E_EnvC_001", 8675u, 1025, 4},
-    {Table::envc, "DLC02_30_E_EnvC_637", "DLC02_20_E_EnvC_001", 2982u, 1029, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_637", "DLC02_20_E_EnvC_001", 8676u, 1033, 4},
-    {Table::envc, "DLC02_30_E_EnvC_638", "DLC02_20_E_EnvC_001", 2983u, 1037, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_638", "DLC02_20_E_EnvC_001", 8677u, 1041, 4},
-    {Table::envc, "DLC02_30_E_EnvC_639", "DLC02_20_E_EnvC_001", 2984u, 1045, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_639", "DLC02_20_E_EnvC_001", 8678u, 1049, 4},
-    {Table::envc, "DLC02_30_E_EnvC_640", "DLC02_20_E_EnvC_001", 2985u, 1053, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_640", "DLC02_20_E_EnvC_001", 8679u, 1057, 4},
-    {Table::envc, "DLC02_30_E_EnvC_641", "DLC02_20_E_EnvC_001", 2986u, 1061, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_641", "DLC02_20_E_EnvC_001", 8680u, 1065, 4},
-    {Table::envc, "DLC02_30_E_EnvC_642", "DLC02_20_E_EnvC_001", 2987u, 1069, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_642", "DLC02_20_E_EnvC_001", 8681u, 1073, 4},
-    {Table::envc, "DLC02_30_E_EnvC_643", "DLC02_20_E_EnvC_001", 2988u, 1077, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_643", "DLC02_20_E_EnvC_001", 8682u, 1081, 4},
-    {Table::envc, "DLC02_30_E_EnvC_644", "DLC02_20_E_EnvC_001", 2989u, 1085, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_644", "DLC02_20_E_EnvC_001", 8683u, 1089, 4},
-    {Table::envc, "DLC02_30_E_EnvC_645", "DLC02_20_E_EnvC_001", 2990u, 1093, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_645", "DLC02_20_E_EnvC_001", 8684u, 1097, 4},
-    {Table::envc, "DLC02_30_E_EnvC_646", "DLC02_20_E_EnvC_001", 2991u, 1101, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_646", "DLC02_20_E_EnvC_001", 8685u, 1105, 4},
-    {Table::envc, "DLC02_30_E_EnvC_647", "DLC02_20_E_EnvC_001", 2992u, 1109, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_647", "DLC02_20_E_EnvC_001", 8686u, 1113, 4},
-    {Table::envc, "DLC02_30_E_EnvC_648", "DLC02_20_E_EnvC_001", 2993u, 1117, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_648", "DLC02_20_E_EnvC_001", 8687u, 1121, 4},
-    {Table::envc, "DLC02_30_E_EnvC_649", "DLC02_20_E_EnvC_001", 2994u, 1125, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_649", "DLC02_20_E_EnvC_001", 8688u, 1129, 4},
-    {Table::envc, "DLC02_30_E_EnvC_650", "DLC02_20_E_EnvC_001", 2995u, 1133, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_650", "DLC02_20_E_EnvC_001", 8689u, 1137, 4},
-    {Table::envc, "DLC02_30_E_EnvC_651", "DLC02_20_E_EnvC_001", 2996u, 1141, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_651", "DLC02_20_E_EnvC_001", 8690u, 1145, 4},
-    {Table::envc, "DLC02_30_E_EnvC_652", "DLC02_20_E_EnvC_001", 2997u, 1149, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_652", "DLC02_20_E_EnvC_001", 8691u, 1153, 4},
-    {Table::envc, "DLC02_30_E_EnvC_653", "DLC02_20_E_EnvC_001", 2998u, 1157, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_653", "DLC02_20_E_EnvC_001", 8692u, 1161, 4},
-    {Table::envc, "DLC02_30_E_EnvC_654", "DLC02_20_E_EnvC_001", 2999u, 1165, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_654", "DLC02_20_E_EnvC_001", 8693u, 1169, 4},
-    {Table::envc, "DLC02_30_E_EnvC_655", "DLC02_20_E_EnvC_001", 3000u, 1173, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_655", "DLC02_20_E_EnvC_001", 8694u, 1177, 4},
-    {Table::envc, "DLC02_30_E_EnvC_656", "DLC02_20_E_EnvC_001", 3001u, 1181, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_656", "DLC02_20_E_EnvC_001", 8695u, 1185, 4},
-    {Table::envc, "DLC02_30_E_EnvC_657", "DLC02_20_E_EnvC_001", 3002u, 1189, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_657", "DLC02_20_E_EnvC_001", 8696u, 1193, 4},
-    {Table::envc, "DLC02_30_E_EnvC_658", "DLC02_20_E_EnvC_001", 3003u, 1197, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_658", "DLC02_20_E_EnvC_001", 8697u, 1201, 4},
-    {Table::envc, "DLC02_30_E_EnvC_659", "DLC02_20_E_EnvC_001", 3004u, 1205, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_659", "DLC02_20_E_EnvC_001", 8698u, 1209, 4},
-    {Table::envc, "DLC02_30_E_EnvC_660", "DLC02_20_E_EnvC_001", 3005u, 1213, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_660", "DLC02_20_E_EnvC_001", 8699u, 1217, 4},
-    {Table::envc, "DLC02_30_E_EnvC_661", "DLC02_20_E_EnvC_001", 3006u, 1221, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_661", "DLC02_20_E_EnvC_001", 8700u, 1225, 4},
-    {Table::envc, "DLC02_30_E_EnvC_662", "DLC02_20_E_EnvC_001", 3007u, 1229, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_662", "DLC02_20_E_EnvC_001", 8701u, 1233, 4},
-    {Table::envc, "DLC02_30_E_EnvC_663", "DLC02_20_E_EnvC_001", 3008u, 1237, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_663", "DLC02_20_E_EnvC_001", 8702u, 1241, 4},
-    {Table::envc, "DLC02_30_E_EnvC_664", "SE_08_E_EnvC_095", 3009u, 1245, 5},
-    {Table::zevent, "DLC02_30_E_EnvC_664", "DLC02_20_E_EnvC_001", 8703u, 1250, 4},
-    {Table::env, "DLC02_30_EnvS_703", "SE_08_EnvS_090", 2810032703u, 1254, 8},
-    {Table::spawn, "DLC02_30_E_CharS_021", "DLC02_30_E_CharS_021", 2810024021u, 1262, 2},
-    {Table::spawn, "DLC02_30_E_CharS_009", "DLC02_30_E_CharS_009", 2810024009u, 1264, 1},
-    {Table::envc, "DLC02_30_E_EnvC_665", "DLC02_20_E_EnvC_001", 3010u, 1265, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_665", "DLC02_20_E_EnvC_001", 8704u, 1269, 4},
-    {Table::envc, "DLC02_30_E_EnvC_666", "DLC02_20_E_EnvC_001", 3011u, 1273, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_666", "DLC02_20_E_EnvC_001", 8705u, 1277, 4},
-    {Table::envc, "DLC02_30_E_EnvC_667", "DLC02_20_E_EnvC_001", 3012u, 1281, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_667", "DLC02_20_E_EnvC_001", 8706u, 1285, 4},
-    {Table::envc, "DLC02_30_E_EnvC_668", "DLC02_20_E_EnvC_001", 3013u, 1289, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_668", "DLC02_20_E_EnvC_001", 8707u, 1293, 4},
-    {Table::envc, "DLC02_30_E_EnvC_669", "SE_08_E_EnvC_095", 3014u, 1297, 5},
-    {Table::zevent, "DLC02_30_E_EnvC_669", "DLC02_20_E_EnvC_001", 8708u, 1302, 4},
-    {Table::env, "DLC02_30_EnvS_704", "SE_08_EnvS_090", 2810032704u, 1306, 8},
-    {Table::spawn, "DLC02_30_E_CharS_013", "DLC02_30_E_CharS_013", 2810024013u, 1314, 2},
-    {Table::spawn, "DLC02_30_E_CharS_019", "DLC02_30_E_CharS_019", 2810024019u, 1316, 1},
-    {Table::spawn, "DLC02_30_E_CharS_020", "DLC02_30_E_CharS_020", 2810024020u, 1317, 1},
-    {Table::spawn, "DLC02_30_E_CharS_022", "DLC02_30_E_CharS_022", 2810024022u, 1318, 1},
-    {Table::envc, "DLC02_30_E_EnvC_670", "DLC02_20_E_EnvC_001", 3015u, 1319, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_670", "DLC02_20_E_EnvC_001", 8709u, 1323, 4},
-    {Table::envc, "DLC02_30_E_EnvC_671", "DLC02_20_E_EnvC_001", 3016u, 1327, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_671", "DLC02_20_E_EnvC_001", 8710u, 1331, 4},
-    {Table::envc, "DLC02_30_E_EnvC_672", "DLC02_20_E_EnvC_001", 3017u, 1335, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_672", "DLC02_20_E_EnvC_001", 8711u, 1339, 4},
-    {Table::envc, "DLC02_30_E_EnvC_673", "DLC02_20_E_EnvC_001", 3018u, 1343, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_673", "DLC02_20_E_EnvC_001", 8712u, 1347, 4},
-    {Table::envc, "DLC02_30_E_EnvC_674", "SE_08_E_EnvC_095", 3019u, 1351, 5},
-    {Table::zevent, "DLC02_30_E_EnvC_674", "DLC02_20_E_EnvC_001", 8713u, 1356, 4},
-    {Table::env, "DLC02_30_EnvS_705", "SE_08_EnvS_090", 2810032705u, 1360, 8},
-    {Table::spawn, "DLC02_30_E_CharS_023", "DLC02_30_E_CharS_023", 2810024023u, 1368, 2},
-    {Table::spawn, "DLC02_30_E_CharS_005", "DLC02_30_E_CharS_005", 2810024005u, 1370, 1},
-    {Table::env, "DLC02_30_EnvS_618", "DLC02_20_EnvS_076", 2810032618u, 1371, 12},
-    {Table::envc, "DLC02_30_E_EnvC_675", "DLC02_20_E_EnvC_001", 3020u, 1383, 4},
-    {Table::zevent, "DLC02_30_E_EnvC_675", "DLC02_20_E_EnvC_001", 8714u, 1387, 4},
-    {Table::trigger, "DLC02_30_ZTrigger_601", "DLC02_20_ZTrigger_005", 281001601u, 1391, 4},
-    {Table::env, "DLC02_30_EnvS_001", "DLC02_30_EnvS_001", 2810032001u, 1395, 5},
-    {Table::env, "DLC02_30_EnvS_002", "DLC02_30_EnvS_002", 2810032002u, 1400, 6},
-    {Table::env, "DLC02_30_EnvS_003", "DLC02_30_EnvS_003", 2810032003u, 1406, 7},
+    {Table::env, "DLC02_30_EnvS_602", "DLC02_20_EnvS_076", 2810032602u, 12, 12},
+    {Table::env, "DLC02_30_EnvS_603", "DLC02_20_EnvS_076", 2810032603u, 24, 12},
+    {Table::env, "DLC02_30_EnvS_604", "DLC02_20_EnvS_076", 2810032604u, 36, 12},
+    {Table::env, "DLC02_30_EnvS_605", "DLC02_20_EnvS_076", 2810032605u, 48, 12},
+    {Table::env, "DLC02_30_EnvS_606", "DLC02_20_EnvS_076", 2810032606u, 60, 12},
+    {Table::env, "DLC02_30_EnvS_607", "DLC02_20_EnvS_076", 2810032607u, 72, 12},
+    {Table::env, "DLC02_30_EnvS_608", "DLC02_20_EnvS_076", 2810032608u, 84, 12},
+    {Table::env, "DLC02_30_EnvS_609", "DLC02_20_EnvS_076", 2810032609u, 96, 12},
+    {Table::env, "DLC02_30_EnvS_610", "DLC02_20_EnvS_076", 2810032610u, 108, 12},
+    {Table::env, "DLC02_30_EnvS_611", "DLC02_20_EnvS_076", 2810032611u, 120, 12},
+    {Table::env, "DLC02_30_EnvS_612", "DLC02_20_EnvS_076", 2810032612u, 132, 12},
+    {Table::env, "DLC02_30_EnvS_613", "DLC02_20_EnvS_076", 2810032613u, 144, 12},
+    {Table::env, "DLC02_30_EnvS_614", "DLC02_20_EnvS_076", 2810032614u, 156, 12},
+    {Table::env, "DLC02_30_EnvS_615", "DLC02_20_EnvS_076", 2810032615u, 168, 12},
+    {Table::env, "DLC02_30_EnvS_616", "DLC02_20_EnvS_076", 2810032616u, 180, 12},
+    {Table::env, "DLC02_30_EnvS_617", "DLC02_20_EnvS_076", 2810032617u, 192, 12},
+    {Table::envc, "DLC02_30_E_EnvC_618", "DLC02_20_E_EnvC_001", 2963u, 204, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_618", "DLC02_20_E_EnvC_001", 8657u, 208, 4},
+    {Table::envc, "DLC02_30_E_EnvC_621", "DLC02_20_E_EnvC_001", 2966u, 212, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_621", "DLC02_20_E_EnvC_001", 8660u, 216, 4},
+    {Table::envc, "DLC02_30_E_EnvC_622", "DLC02_20_E_EnvC_001", 2967u, 220, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_622", "DLC02_20_E_EnvC_001", 8661u, 224, 4},
+    {Table::envc, "DLC02_30_E_EnvC_625", "DLC02_20_E_EnvC_001", 2970u, 228, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_625", "DLC02_20_E_EnvC_001", 8664u, 232, 4},
+    {Table::envc, "DLC02_30_E_EnvC_626", "SE_08_E_EnvC_095", 2971u, 236, 5},
+    {Table::zevent, "DLC02_30_E_EnvC_626", "DLC02_20_E_EnvC_001", 8665u, 241, 4},
+    {Table::env, "DLC02_30_EnvS_701", "SE_08_EnvS_090", 2810032701u, 245, 8},
+    {Table::spawn, "DLC02_30_E_CharS_001", "DLC02_30_E_CharS_001", 2810024001u, 253, 2},
+    {Table::spawn, "DLC02_30_E_CharS_002", "DLC02_30_E_CharS_002", 2810024002u, 255, 1},
+    {Table::spawn, "DLC02_30_E_CharS_003", "DLC02_30_E_CharS_003", 2810024003u, 256, 1},
+    {Table::spawn, "DLC02_30_E_CharS_007", "DLC02_30_E_CharS_007", 2810024007u, 257, 1},
+    {Table::envc, "DLC02_30_E_EnvC_627", "DLC02_20_E_EnvC_001", 2972u, 258, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_627", "DLC02_20_E_EnvC_001", 8666u, 262, 4},
+    {Table::envc, "DLC02_30_E_EnvC_630", "DLC02_20_E_EnvC_001", 2975u, 266, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_630", "DLC02_20_E_EnvC_001", 8669u, 270, 4},
+    {Table::envc, "DLC02_30_E_EnvC_631", "SE_08_E_EnvC_095", 2976u, 274, 5},
+    {Table::zevent, "DLC02_30_E_EnvC_631", "DLC02_20_E_EnvC_001", 8670u, 279, 4},
+    {Table::env, "DLC02_30_EnvS_702", "SE_08_EnvS_090", 2810032702u, 283, 8},
+    {Table::spawn, "DLC02_30_E_CharS_004", "DLC02_30_E_CharS_004", 2810024004u, 291, 2},
+    {Table::spawn, "DLC02_30_E_CharS_006", "DLC02_30_E_CharS_006", 2810024006u, 293, 1},
+    {Table::spawn, "DLC02_30_E_CharS_008", "DLC02_30_E_CharS_008", 2810024008u, 294, 1},
+    {Table::envc, "DLC02_30_E_EnvC_632", "DLC02_20_E_EnvC_001", 2977u, 295, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_632", "DLC02_20_E_EnvC_001", 8671u, 299, 4},
+    {Table::envc, "DLC02_30_E_EnvC_635", "DLC02_20_E_EnvC_001", 2980u, 303, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_635", "DLC02_20_E_EnvC_001", 8674u, 307, 4},
+    {Table::envc, "DLC02_30_E_EnvC_636", "DLC02_20_E_EnvC_001", 2981u, 311, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_636", "DLC02_20_E_EnvC_001", 8675u, 315, 4},
+    {Table::envc, "DLC02_30_E_EnvC_639", "DLC02_20_E_EnvC_001", 2984u, 319, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_639", "DLC02_20_E_EnvC_001", 8678u, 323, 4},
+    {Table::envc, "DLC02_30_E_EnvC_640", "DLC02_20_E_EnvC_001", 2985u, 327, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_640", "DLC02_20_E_EnvC_001", 8679u, 331, 4},
+    {Table::envc, "DLC02_30_E_EnvC_643", "DLC02_20_E_EnvC_001", 2988u, 335, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_643", "DLC02_20_E_EnvC_001", 8682u, 339, 4},
+    {Table::envc, "DLC02_30_E_EnvC_644", "DLC02_20_E_EnvC_001", 2989u, 343, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_644", "DLC02_20_E_EnvC_001", 8683u, 347, 4},
+    {Table::envc, "DLC02_30_E_EnvC_647", "DLC02_20_E_EnvC_001", 2992u, 351, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_647", "DLC02_20_E_EnvC_001", 8686u, 355, 4},
+    {Table::envc, "DLC02_30_E_EnvC_648", "DLC02_20_E_EnvC_001", 2993u, 359, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_648", "DLC02_20_E_EnvC_001", 8687u, 363, 4},
+    {Table::envc, "DLC02_30_E_EnvC_651", "DLC02_20_E_EnvC_001", 2996u, 367, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_651", "DLC02_20_E_EnvC_001", 8690u, 371, 4},
+    {Table::envc, "DLC02_30_E_EnvC_652", "DLC02_20_E_EnvC_001", 2997u, 375, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_652", "DLC02_20_E_EnvC_001", 8691u, 379, 4},
+    {Table::envc, "DLC02_30_E_EnvC_655", "DLC02_20_E_EnvC_001", 3000u, 383, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_655", "DLC02_20_E_EnvC_001", 8694u, 387, 4},
+    {Table::envc, "DLC02_30_E_EnvC_656", "DLC02_20_E_EnvC_001", 3001u, 391, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_656", "DLC02_20_E_EnvC_001", 8695u, 395, 4},
+    {Table::envc, "DLC02_30_E_EnvC_659", "DLC02_20_E_EnvC_001", 3004u, 399, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_659", "DLC02_20_E_EnvC_001", 8698u, 403, 4},
+    {Table::envc, "DLC02_30_E_EnvC_660", "DLC02_20_E_EnvC_001", 3005u, 407, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_660", "DLC02_20_E_EnvC_001", 8699u, 411, 4},
+    {Table::envc, "DLC02_30_E_EnvC_663", "DLC02_20_E_EnvC_001", 3008u, 415, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_663", "DLC02_20_E_EnvC_001", 8702u, 419, 4},
+    {Table::envc, "DLC02_30_E_EnvC_664", "SE_08_E_EnvC_095", 3009u, 423, 5},
+    {Table::zevent, "DLC02_30_E_EnvC_664", "DLC02_20_E_EnvC_001", 8703u, 428, 4},
+    {Table::env, "DLC02_30_EnvS_703", "SE_08_EnvS_090", 2810032703u, 432, 8},
+    {Table::spawn, "DLC02_30_E_CharS_021", "DLC02_30_E_CharS_021", 2810024021u, 440, 2},
+    {Table::spawn, "DLC02_30_E_CharS_009", "DLC02_30_E_CharS_009", 2810024009u, 442, 1},
+    {Table::envc, "DLC02_30_E_EnvC_665", "DLC02_20_E_EnvC_001", 3010u, 443, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_665", "DLC02_20_E_EnvC_001", 8704u, 447, 4},
+    {Table::envc, "DLC02_30_E_EnvC_668", "DLC02_20_E_EnvC_001", 3013u, 451, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_668", "DLC02_20_E_EnvC_001", 8707u, 455, 4},
+    {Table::envc, "DLC02_30_E_EnvC_669", "SE_08_E_EnvC_095", 3014u, 459, 5},
+    {Table::zevent, "DLC02_30_E_EnvC_669", "DLC02_20_E_EnvC_001", 8708u, 464, 4},
+    {Table::env, "DLC02_30_EnvS_704", "SE_08_EnvS_090", 2810032704u, 468, 8},
+    {Table::spawn, "DLC02_30_E_CharS_013", "DLC02_30_E_CharS_013", 2810024013u, 476, 2},
+    {Table::spawn, "DLC02_30_E_CharS_019", "DLC02_30_E_CharS_019", 2810024019u, 478, 1},
+    {Table::spawn, "DLC02_30_E_CharS_020", "DLC02_30_E_CharS_020", 2810024020u, 479, 1},
+    {Table::spawn, "DLC02_30_E_CharS_022", "DLC02_30_E_CharS_022", 2810024022u, 480, 1},
+    {Table::envc, "DLC02_30_E_EnvC_670", "DLC02_20_E_EnvC_001", 3015u, 481, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_670", "DLC02_20_E_EnvC_001", 8709u, 485, 4},
+    {Table::envc, "DLC02_30_E_EnvC_673", "DLC02_20_E_EnvC_001", 3018u, 489, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_673", "DLC02_20_E_EnvC_001", 8712u, 493, 4},
+    {Table::envc, "DLC02_30_E_EnvC_674", "SE_08_E_EnvC_095", 3019u, 497, 5},
+    {Table::zevent, "DLC02_30_E_EnvC_674", "DLC02_20_E_EnvC_001", 8713u, 502, 4},
+    {Table::env, "DLC02_30_EnvS_705", "SE_08_EnvS_090", 2810032705u, 506, 8},
+    {Table::spawn, "DLC02_30_E_CharS_023", "DLC02_30_E_CharS_023", 2810024023u, 514, 2},
+    {Table::spawn, "DLC02_30_E_CharS_005", "DLC02_30_E_CharS_005", 2810024005u, 516, 1},
+    {Table::env, "DLC02_30_EnvS_618", "DLC02_20_EnvS_076", 2810032618u, 517, 12},
+    {Table::envc, "DLC02_30_E_EnvC_675", "DLC02_20_E_EnvC_001", 3020u, 529, 4},
+    {Table::zevent, "DLC02_30_E_EnvC_675", "DLC02_20_E_EnvC_001", 8714u, 533, 4},
+    {Table::trigger, "DLC02_30_ZTrigger_601", "DLC02_20_ZTrigger_005", 281001601u, 537, 4},
+    {Table::env, "DLC02_30_EnvS_001", "DLC02_30_EnvS_001", 2810032001u, 541, 5},
+    {Table::env, "DLC02_30_EnvS_002", "DLC02_30_EnvS_002", 2810032002u, 546, 6},
+    {Table::env, "DLC02_30_EnvS_003", "DLC02_30_EnvS_003", 2810032003u, 552, 7},
 };
 
 constexpr Patch kMxlowerPatches[] = {
@@ -5642,7 +3924,7 @@ constexpr Patch kMxlowerPatches[] = {
     {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_40_EnvS_606"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
     {0x6c, Kind::u8, 1, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
@@ -5651,103 +3933,19 @@ constexpr Patch kMxlowerPatches[] = {
     {0x48, Kind::name, 0, "DLC02_40_EnvS_606"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_606_ToOpen.MX13_DLC02_40_EnvS_606_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_606_ToClose.MX13_DLC02_40_EnvS_606_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_606_Closed.MX13_DLC02_40_EnvS_606_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_606_Opened.MX13_DLC02_40_EnvS_606_Opened"}, // ActiveSequenceList
-    // DLC02_40_E_EnvC_608 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_40_EnvS_606"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_40_E_EnvC_608 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_608"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_40_EnvS_661 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_40_EnvS_661"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_40_EnvS_662"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_40_EnvS_661"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_40_E_EnvC_608"}, // TagEventList2
-    // DLC02_40_EnvS_662 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_40_EnvS_662"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_40_EnvS_661"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_40_EnvS_662"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_40_E_EnvC_608"}, // TagEventList2
     // DLC02_40_EnvS_607 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_40_EnvS_607"}, // EnvActorName
     {0x58, Kind::name, 0, "Env_Countdown_Gate"}, // EnvAlias
-    {0x64, Kind::name, 0, "Close"}, // InitStateTag
+    {0x64, Kind::name, 0, "Open"}, // InitStateTag
     {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 1, nullptr}, // SaveType
+    {0x6c, Kind::u8, 2, nullptr}, // SaveType
     {0x230, Kind::string, 0, ""}, // Interaction
     {0x214, Kind::f32, 0.0f, nullptr}, // InteractionRange
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_607"}, // SpawnPointName
     {0x370, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_607_ToOpen.MX13_DLC02_40_EnvS_607_ToOpen|/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_607_ToClose.MX13_DLC02_40_EnvS_607_ToClose"}, // OutTransitSequenceList
     {0x3b0, Kind::strings, 0, "/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_607_Closed.MX13_DLC02_40_EnvS_607_Closed|/Game/MXIII_Editor/Seq/MX13_DLC02_40_EnvS_607_Opened.MX13_DLC02_40_EnvS_607_Opened"}, // ActiveSequenceList
-    // DLC02_40_E_EnvC_609 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_40_EnvS_607"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 1, nullptr}, // Activate
-    {0x28, Kind::name, 0, "Open"}, // TagName
-    // DLC02_40_E_EnvC_609 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_609"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_40_EnvS_663 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_40_EnvS_663"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_40_EnvS_664"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_40_EnvS_663"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_40_E_EnvC_609"}, // TagEventList2
-    // DLC02_40_EnvS_664 (ZoneEnvSpawnTable)
-    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
-    {0x30, Kind::name, 0, "DLC02_40_EnvS_664"}, // EnvActorName
-    {0x58, Kind::name, 0, "Env_EnvState_2Phase"}, // EnvAlias
-    {0x64, Kind::name, 0, "Off"}, // InitStateTag
-    {0x60, Kind::u8, 1, nullptr}, // InitActivate
-    {0x6c, Kind::u8, 2, nullptr}, // SaveType
-    {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/Matrix/MatrixXI/ME01/ME_Area01_ShotCutDoor.ME_Area01_ShotCutDoor"}, // Interaction
-    {0x214, Kind::f32, 150.0f, nullptr}, // InteractionRange
-    {0x220, Kind::f32, 120.0f, nullptr}, // InteractionAngle
-    {0x260, Kind::names, 0, "DLC02_40_EnvS_663"}, // LinkEnvSpawnList
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_40_EnvS_664"}, // SpawnPointName
-    {0x370, Kind::strings, 0, "|"}, // OutTransitSequenceList
-    {0x3b0, Kind::strings, 0, "|"}, // ActiveSequenceList
-    {0x90, Kind::names, 0, "DLC02_40_E_EnvC_609"}, // TagEventList2
     // DLC02_40_EnvS_608 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_40_EnvS_608"}, // EnvActorName
@@ -5970,26 +4168,6 @@ constexpr Patch kMxlowerPatches[] = {
     // DLC02_40_E_EnvC_615 (ZoneEventTable)
     {0x14, Kind::u8, 10, nullptr}, // Type
     {0x18, Kind::name, 0, "DLC02_40_E_EnvC_615"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_40_E_EnvC_616 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_40_EnvS_663"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_40_E_EnvC_616 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_616"}, // EventAlias
-    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
-    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
-    // DLC02_40_E_EnvC_617 (EventEnvControlTable)
-    {0x14, Kind::name, 0, "DLC02_40_EnvS_664"}, // EnvSpawnAlias
-    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
-    {0x30, Kind::u8, 2, nullptr}, // Activate
-    {0x28, Kind::name, 0, "None"}, // TagName
-    // DLC02_40_E_EnvC_617 (ZoneEventTable)
-    {0x14, Kind::u8, 10, nullptr}, // Type
-    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_617"}, // EventAlias
     {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
     {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
     // DLC02_40_E_EnvC_618 (EventEnvControlTable)
@@ -6231,82 +4409,70 @@ constexpr Row kMxlowerRecipe[] = {
     {Table::env, "DLC02_40_EnvS_659", "ME_01_EnvS_026", 2815032659u, 254, 15},
     {Table::env, "DLC02_40_EnvS_660", "ME_01_EnvS_044", 2815032660u, 269, 11},
     {Table::env, "DLC02_40_EnvS_606", "DLC02_20_EnvS_076", 2815032606u, 280, 12},
-    {Table::envc, "DLC02_40_E_EnvC_608", "DLC02_20_E_EnvC_001", 3035u, 292, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_608", "DLC02_20_E_EnvC_001", 8729u, 296, 4},
-    {Table::env, "DLC02_40_EnvS_661", "ME_01_EnvS_026", 2815032661u, 300, 15},
-    {Table::env, "DLC02_40_EnvS_662", "ME_01_EnvS_026", 2815032662u, 315, 15},
-    {Table::env, "DLC02_40_EnvS_607", "DLC02_20_EnvS_076", 2815032607u, 330, 12},
-    {Table::envc, "DLC02_40_E_EnvC_609", "DLC02_20_E_EnvC_001", 3036u, 342, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_609", "DLC02_20_E_EnvC_001", 8730u, 346, 4},
-    {Table::env, "DLC02_40_EnvS_663", "ME_01_EnvS_026", 2815032663u, 350, 15},
-    {Table::env, "DLC02_40_EnvS_664", "ME_01_EnvS_026", 2815032664u, 365, 15},
-    {Table::env, "DLC02_40_EnvS_608", "DLC02_20_EnvS_076", 2815032608u, 380, 12},
-    {Table::envc, "DLC02_40_E_EnvC_610", "DLC02_20_E_EnvC_001", 3037u, 392, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_610", "DLC02_20_E_EnvC_001", 8731u, 396, 4},
-    {Table::env, "DLC02_40_EnvS_665", "ME_01_EnvS_026", 2815032665u, 400, 15},
-    {Table::env, "DLC02_40_EnvS_666", "ME_01_EnvS_044", 2815032666u, 415, 11},
-    {Table::env, "DLC02_40_EnvS_609", "DLC02_20_EnvS_076", 2815032609u, 426, 12},
-    {Table::envc, "DLC02_40_E_EnvC_611", "DLC02_20_E_EnvC_001", 3038u, 438, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_611", "DLC02_20_E_EnvC_001", 8732u, 442, 4},
-    {Table::env, "DLC02_40_EnvS_667", "ME_01_EnvS_026", 2815032667u, 446, 15},
-    {Table::env, "DLC02_40_EnvS_668", "ME_01_EnvS_044", 2815032668u, 461, 11},
-    {Table::env, "DLC02_40_EnvS_610", "DLC02_20_EnvS_076", 2815032610u, 472, 12},
-    {Table::envc, "DLC02_40_E_EnvC_612", "DLC02_20_E_EnvC_001", 3039u, 484, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_612", "DLC02_20_E_EnvC_001", 8733u, 488, 4},
-    {Table::env, "DLC02_40_EnvS_669", "ME_01_EnvS_026", 2815032669u, 492, 15},
-    {Table::env, "DLC02_40_EnvS_670", "ME_01_EnvS_044", 2815032670u, 507, 11},
-    {Table::env, "DLC02_40_EnvS_611", "DLC02_20_EnvS_076", 2815032611u, 518, 12},
-    {Table::envc, "DLC02_40_E_EnvC_613", "DLC02_20_E_EnvC_001", 3040u, 530, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_613", "DLC02_20_E_EnvC_001", 8734u, 534, 4},
-    {Table::env, "DLC02_40_EnvS_671", "ME_01_EnvS_026", 2815032671u, 538, 15},
-    {Table::env, "DLC02_40_EnvS_672", "ME_01_EnvS_044", 2815032672u, 553, 11},
-    {Table::envc, "DLC02_40_E_EnvC_614", "DLC02_20_E_EnvC_001", 3041u, 564, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_614", "DLC02_20_E_EnvC_001", 8735u, 568, 4},
-    {Table::envc, "DLC02_40_E_EnvC_615", "DLC02_20_E_EnvC_001", 3042u, 572, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_615", "DLC02_20_E_EnvC_001", 8736u, 576, 4},
-    {Table::envc, "DLC02_40_E_EnvC_616", "DLC02_20_E_EnvC_001", 3043u, 580, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_616", "DLC02_20_E_EnvC_001", 8737u, 584, 4},
-    {Table::envc, "DLC02_40_E_EnvC_617", "DLC02_20_E_EnvC_001", 3044u, 588, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_617", "DLC02_20_E_EnvC_001", 8738u, 592, 4},
-    {Table::envc, "DLC02_40_E_EnvC_618", "DLC02_20_E_EnvC_001", 3045u, 596, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_618", "DLC02_20_E_EnvC_001", 8739u, 600, 4},
-    {Table::envc, "DLC02_40_E_EnvC_619", "DLC02_20_E_EnvC_001", 3046u, 604, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_619", "DLC02_20_E_EnvC_001", 8740u, 608, 4},
-    {Table::envc, "DLC02_40_E_EnvC_620", "DLC02_20_E_EnvC_001", 3047u, 612, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_620", "DLC02_20_E_EnvC_001", 8741u, 616, 4},
-    {Table::envc, "DLC02_40_E_EnvC_621", "SE_08_E_EnvC_095", 3048u, 620, 5},
-    {Table::zevent, "DLC02_40_E_EnvC_621", "DLC02_20_E_EnvC_001", 8742u, 625, 4},
-    {Table::envc, "DLC02_40_E_EnvC_622", "DLC02_20_E_EnvC_001", 3049u, 629, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_622", "DLC02_20_E_EnvC_001", 8743u, 633, 4},
-    {Table::env, "DLC02_40_EnvS_701", "SE_08_EnvS_090", 2815032701u, 637, 8},
-    {Table::spawn, "DLC02_40_E_CharS_039", "DLC02_40_E_CharS_039", 2815024039u, 645, 1},
-    {Table::spawn, "DLC02_40_E_CharS_040", "DLC02_40_E_CharS_040", 2815024040u, 646, 1},
-    {Table::env, "DLC02_40_EnvS_001", "DLC02_40_EnvS_001", 2815032001u, 647, 6},
-    {Table::env, "DLC02_40_EnvS_006", "DLC02_40_EnvS_006", 2815032006u, 653, 8},
-    {Table::env, "DLC02_40_EnvS_007", "DLC02_40_EnvS_007", 2815032007u, 661, 8},
-    {Table::env, "DLC02_40_EnvS_002", "DLC02_40_EnvS_002", 2815032002u, 669, 4},
-    {Table::env, "DLC02_40_EnvS_003", "DLC02_40_EnvS_003", 2815032003u, 673, 4},
-    {Table::effvol, "DLC02_40_EffVol_002", "DED20_EffVol_003", 2815052002u, 677, 2},
-    {Table::effvol, "DLC02_40_EffVol_003", "DED20_EffVol_003", 2815052003u, 679, 2},
-    {Table::envc, "DLC02_40_E_EnvC_623", "DLC02_20_E_EnvC_001", 3050u, 681, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_623", "DLC02_20_E_EnvC_001", 8744u, 685, 4},
-    {Table::envc, "DLC02_40_E_EnvC_624", "DLC02_20_E_EnvC_001", 3051u, 689, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_624", "DLC02_20_E_EnvC_001", 8745u, 693, 4},
-    {Table::envc, "DLC02_40_E_EnvC_625", "DLC02_20_E_EnvC_001", 3052u, 697, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_625", "DLC02_20_E_EnvC_001", 8746u, 701, 4},
-    {Table::envc, "DLC02_40_E_EnvC_626", "DLC02_20_E_EnvC_001", 3053u, 705, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_626", "DLC02_20_E_EnvC_001", 8747u, 709, 4},
-    {Table::envc, "DLC02_40_E_EnvC_627", "DLC02_20_E_EnvC_001", 3054u, 713, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_627", "DLC02_20_E_EnvC_001", 8748u, 717, 4},
-    {Table::envc, "DLC02_40_E_EnvC_628", "DLC02_20_E_EnvC_001", 3055u, 721, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_628", "DLC02_20_E_EnvC_001", 8749u, 725, 4},
-    {Table::envc, "DLC02_40_E_EnvC_629", "DLC02_20_E_EnvC_001", 3056u, 729, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_629", "DLC02_20_E_EnvC_001", 8750u, 733, 4},
-    {Table::envc, "DLC02_40_E_EnvC_630", "DLC02_20_E_EnvC_001", 3057u, 737, 4},
-    {Table::zevent, "DLC02_40_E_EnvC_630", "DLC02_20_E_EnvC_001", 8751u, 741, 4},
-    {Table::env, "DLC02_40_EnvS_023", "DLC02_40_EnvS_023", 2815032023u, 745, 4},
-    {Table::env, "DLC02_40_EnvS_024", "DLC02_40_EnvS_024", 2815032024u, 749, 4},
-    {Table::env, "DLC02_40_EnvS_025", "DLC02_40_EnvS_025", 2815032025u, 753, 4},
-    {Table::env, "DLC02_40_EnvS_021", "DLC02_40_EnvS_021", 2815032021u, 757, 2},
+    {Table::env, "DLC02_40_EnvS_607", "DLC02_20_EnvS_076", 2815032607u, 292, 12},
+    {Table::env, "DLC02_40_EnvS_608", "DLC02_20_EnvS_076", 2815032608u, 304, 12},
+    {Table::envc, "DLC02_40_E_EnvC_610", "DLC02_20_E_EnvC_001", 3037u, 316, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_610", "DLC02_20_E_EnvC_001", 8731u, 320, 4},
+    {Table::env, "DLC02_40_EnvS_665", "ME_01_EnvS_026", 2815032665u, 324, 15},
+    {Table::env, "DLC02_40_EnvS_666", "ME_01_EnvS_044", 2815032666u, 339, 11},
+    {Table::env, "DLC02_40_EnvS_609", "DLC02_20_EnvS_076", 2815032609u, 350, 12},
+    {Table::envc, "DLC02_40_E_EnvC_611", "DLC02_20_E_EnvC_001", 3038u, 362, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_611", "DLC02_20_E_EnvC_001", 8732u, 366, 4},
+    {Table::env, "DLC02_40_EnvS_667", "ME_01_EnvS_026", 2815032667u, 370, 15},
+    {Table::env, "DLC02_40_EnvS_668", "ME_01_EnvS_044", 2815032668u, 385, 11},
+    {Table::env, "DLC02_40_EnvS_610", "DLC02_20_EnvS_076", 2815032610u, 396, 12},
+    {Table::envc, "DLC02_40_E_EnvC_612", "DLC02_20_E_EnvC_001", 3039u, 408, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_612", "DLC02_20_E_EnvC_001", 8733u, 412, 4},
+    {Table::env, "DLC02_40_EnvS_669", "ME_01_EnvS_026", 2815032669u, 416, 15},
+    {Table::env, "DLC02_40_EnvS_670", "ME_01_EnvS_044", 2815032670u, 431, 11},
+    {Table::env, "DLC02_40_EnvS_611", "DLC02_20_EnvS_076", 2815032611u, 442, 12},
+    {Table::envc, "DLC02_40_E_EnvC_613", "DLC02_20_E_EnvC_001", 3040u, 454, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_613", "DLC02_20_E_EnvC_001", 8734u, 458, 4},
+    {Table::env, "DLC02_40_EnvS_671", "ME_01_EnvS_026", 2815032671u, 462, 15},
+    {Table::env, "DLC02_40_EnvS_672", "ME_01_EnvS_044", 2815032672u, 477, 11},
+    {Table::envc, "DLC02_40_E_EnvC_614", "DLC02_20_E_EnvC_001", 3041u, 488, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_614", "DLC02_20_E_EnvC_001", 8735u, 492, 4},
+    {Table::envc, "DLC02_40_E_EnvC_615", "DLC02_20_E_EnvC_001", 3042u, 496, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_615", "DLC02_20_E_EnvC_001", 8736u, 500, 4},
+    {Table::envc, "DLC02_40_E_EnvC_618", "DLC02_20_E_EnvC_001", 3045u, 504, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_618", "DLC02_20_E_EnvC_001", 8739u, 508, 4},
+    {Table::envc, "DLC02_40_E_EnvC_619", "DLC02_20_E_EnvC_001", 3046u, 512, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_619", "DLC02_20_E_EnvC_001", 8740u, 516, 4},
+    {Table::envc, "DLC02_40_E_EnvC_620", "DLC02_20_E_EnvC_001", 3047u, 520, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_620", "DLC02_20_E_EnvC_001", 8741u, 524, 4},
+    {Table::envc, "DLC02_40_E_EnvC_621", "SE_08_E_EnvC_095", 3048u, 528, 5},
+    {Table::zevent, "DLC02_40_E_EnvC_621", "DLC02_20_E_EnvC_001", 8742u, 533, 4},
+    {Table::envc, "DLC02_40_E_EnvC_622", "DLC02_20_E_EnvC_001", 3049u, 537, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_622", "DLC02_20_E_EnvC_001", 8743u, 541, 4},
+    {Table::env, "DLC02_40_EnvS_701", "SE_08_EnvS_090", 2815032701u, 545, 8},
+    {Table::spawn, "DLC02_40_E_CharS_039", "DLC02_40_E_CharS_039", 2815024039u, 553, 1},
+    {Table::spawn, "DLC02_40_E_CharS_040", "DLC02_40_E_CharS_040", 2815024040u, 554, 1},
+    {Table::env, "DLC02_40_EnvS_001", "DLC02_40_EnvS_001", 2815032001u, 555, 6},
+    {Table::env, "DLC02_40_EnvS_006", "DLC02_40_EnvS_006", 2815032006u, 561, 8},
+    {Table::env, "DLC02_40_EnvS_007", "DLC02_40_EnvS_007", 2815032007u, 569, 8},
+    {Table::env, "DLC02_40_EnvS_002", "DLC02_40_EnvS_002", 2815032002u, 577, 4},
+    {Table::env, "DLC02_40_EnvS_003", "DLC02_40_EnvS_003", 2815032003u, 581, 4},
+    {Table::effvol, "DLC02_40_EffVol_002", "DED20_EffVol_003", 2815052002u, 585, 2},
+    {Table::effvol, "DLC02_40_EffVol_003", "DED20_EffVol_003", 2815052003u, 587, 2},
+    {Table::envc, "DLC02_40_E_EnvC_623", "DLC02_20_E_EnvC_001", 3050u, 589, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_623", "DLC02_20_E_EnvC_001", 8744u, 593, 4},
+    {Table::envc, "DLC02_40_E_EnvC_624", "DLC02_20_E_EnvC_001", 3051u, 597, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_624", "DLC02_20_E_EnvC_001", 8745u, 601, 4},
+    {Table::envc, "DLC02_40_E_EnvC_625", "DLC02_20_E_EnvC_001", 3052u, 605, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_625", "DLC02_20_E_EnvC_001", 8746u, 609, 4},
+    {Table::envc, "DLC02_40_E_EnvC_626", "DLC02_20_E_EnvC_001", 3053u, 613, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_626", "DLC02_20_E_EnvC_001", 8747u, 617, 4},
+    {Table::envc, "DLC02_40_E_EnvC_627", "DLC02_20_E_EnvC_001", 3054u, 621, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_627", "DLC02_20_E_EnvC_001", 8748u, 625, 4},
+    {Table::envc, "DLC02_40_E_EnvC_628", "DLC02_20_E_EnvC_001", 3055u, 629, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_628", "DLC02_20_E_EnvC_001", 8749u, 633, 4},
+    {Table::envc, "DLC02_40_E_EnvC_629", "DLC02_20_E_EnvC_001", 3056u, 637, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_629", "DLC02_20_E_EnvC_001", 8750u, 641, 4},
+    {Table::envc, "DLC02_40_E_EnvC_630", "DLC02_20_E_EnvC_001", 3057u, 645, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_630", "DLC02_20_E_EnvC_001", 8751u, 649, 4},
+    {Table::env, "DLC02_40_EnvS_023", "DLC02_40_EnvS_023", 2815032023u, 653, 4},
+    {Table::env, "DLC02_40_EnvS_024", "DLC02_40_EnvS_024", 2815032024u, 657, 4},
+    {Table::env, "DLC02_40_EnvS_025", "DLC02_40_EnvS_025", 2815032025u, 661, 4},
+    {Table::env, "DLC02_40_EnvS_021", "DLC02_40_EnvS_021", 2815032021u, 665, 2},
 };
 
