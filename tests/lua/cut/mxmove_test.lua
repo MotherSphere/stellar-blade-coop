@@ -5,7 +5,8 @@
 -- loaded first; nothing again in the same world, all again in a new one. When the deferred call fails, that spawn and
 -- every later one go through SpawnActor and the construction script, and the line says so. The MOVE list: each
 -- ladder's height is its Meshes stack plus the head and agrees with study-climb's recipe, the ledges carry 006_B_SM,
--- the ropes and gate 435's ladder name their rows.
+-- the ropes and gate 435's ladder name their rows. The fake Meshes array zeroes its values when it grows (UE4SS #436),
+-- so a stack filled front to back would read 0,3.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -18,12 +19,24 @@ local function object(fields)
     o.GetAddress=function() return at end
     return o
 end
+-- A TArray as UE4SS 3.0.1 may treat it (#436): a write past the end resizes it and zeroes every value already in it.
+local function tarray()
+    local v,n={},0
+    return setmetatable({},{__index=function(_,i) return v[i] end,__len=function() return n end,
+        __newindex=function(_,i,x)
+            if i>n then
+                for k=1,i do v[k]=0 end
+                n=i
+            end
+            v[i]=x
+        end})
+end
 local world_name='World /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P.MXIII_P'
 local spawned,worlds={},{}
 local function new_world()
     local w=object({GetFullName=function() return world_name end})
     w.SpawnActor=function(_,class,at,rot)
-        local a=object({class=class,at=at,rot=rot,how='SpawnActor',Meshes={}})
+        local a=object({class=class,at=at,rot=rot,how='SpawnActor',Meshes=tarray()})
         a.UserConstructionScript=function(self) self.rerun=true end
         spawned[#spawned+1]=a
         return a
@@ -41,7 +54,7 @@ local gs=object({
     BeginDeferredActorSpawnFromClass=function(_,ctx,class,t,how,owner)
         assert(ctx==eve and how==1 and owner==nil)
         if deferred_fails then error('no such function') end
-        local a=object({class=class,at=t.at,rot=t.rot,how='deferred',Meshes={}})
+        local a=object({class=class,at=t.at,rot=t.rot,how='deferred',Meshes=tarray()})
         spawned[#spawned+1]=a
         return a
     end,
@@ -72,7 +85,7 @@ local Rows=require('cut.mxiii_rows')
 local lines={}
 local MESH='/Game/Art/BG/Actor/Interaction/Climbing/006_B_SM.006_B_SM'
 local list={
-    {key='L1',cls='ladder',at={10,20,30},yaw=175,height=679.885,meshes={3},start=2,bottom=-75,role='critical'},
+    {key='L1',cls='ladder',at={10,20,30},yaw=175,height=1279.885,meshes={3,3},start=2,bottom=-75,role='critical'},
     {key='E1',cls='ledge',at={1,2,3},yaw=85,mesh=MESH,role='climb_R16'},
     {key='R1',cls='rope',at={4,5,6},yaw=-95,drop=1200,env='DLC02_10_EnvS_642',role='critical'},
 }
@@ -89,15 +102,16 @@ assert(#spawned==3 and loaded[M.ASSETS.ladder] and loaded[M.ASSETS.ledge] and lo
     'Every class and the mesh loaded, all spawned')
 local ladder,ledge,rope=spawned[1],spawned[2],spawned[3]
 assert(ladder.how=='deferred' and ladder.class.path==M.ASSETS.ladder..'_C' and ladder.at.X==10 and ladder.at.Z==30
-    and ladder.rot.Yaw==175 and ladder.meshes_at_finish==1 and ladder.Meshes[1]==3 and ladder.StartUnit==2
-    and ladder.CollisionBottomZAdd==-75 and ladder.height_at_finish==679.885 and ladder.HeadHeight==79.885
+    and ladder.rot.Yaw==175 and ladder.meshes_at_finish==2 and ladder.Meshes[1]==3 and ladder.Meshes[2]==3
+    and ladder.StartUnit==2
+    and ladder.CollisionBottomZAdd==-75 and ladder.height_at_finish==1279.885 and ladder.HeadHeight==79.885
     and ladder.HeadWidthHalf==34.9 and ladder.CollisionWidth==40 and ladder.EnvActorName==nil,
-    'The ladder: its stack and foot set before the finish')
+    'The ladder: its stack (no piece zeroed by the growth) and foot set before the finish')
 assert(ledge.how=='deferred' and ledge.TotalHeight==nil and ledge.finished and ledge.meshes_at_finish==1
     and ledge.Meshes[1]==classes[MESH],'The ledge: the climbing mesh')
 assert(rope.class.path==M.ASSETS.rope..'_C' and rope.RopeDistanceB==1200 and rope.EnvActorName.name=='DLC02_10_EnvS_642'
     and rope.finished,'The rope: its drop and its row')
-assert(lines[1]=='ladder L1 at 10 20 30 yaw 175 height 679.9 (critical), deferred spawn',lines[1])
+assert(lines[1]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 3,3 (critical), deferred spawn',lines[1])
 assert(lines[2]=='ledge E1 at 1 2 3 yaw 85 (climb_R16), deferred spawn',lines[2])
 assert(lines[3]=='rope R1 at 4 5 6 yaw -95 drop 1200 env DLC02_10_EnvS_642 (critical), deferred spawn',lines[3])
 assert(lines[4]=='3/3 ladders, ledges and ropes spawned in world 2800',lines[4])
@@ -107,11 +121,12 @@ assert(#spawned==3 and #lines==4,'Once a world')
 world=new_world()
 deferred_fails=true
 clock=3.0; mv.tick()
-assert(#spawned==6 and spawned[4].how=='SpawnActor' and spawned[4].rerun and spawned[4].Meshes[1]==3
+assert(#spawned==6 and spawned[4].how=='SpawnActor' and spawned[4].rerun and spawned[4].Meshes[1]==3 and spawned[4].Meshes[2]==3
     and spawned[5].how=='SpawnActor','SpawnActor with the fields, then the construction script')
 assert(lines[5]:find('^deferred spawn failed %(.*no such function%): SpawnActor and the construction script from now '
     ..'on$'),lines[5])
-assert(lines[6]=='ladder L1 at 10 20 30 yaw 175 height 679.9 (critical), SpawnActor, construction script run again',
+assert(lines[6]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 3,3 (critical), SpawnActor, construction script run '
+    ..'again',
     lines[6])
 deferred_fails=false
 world=new_world()

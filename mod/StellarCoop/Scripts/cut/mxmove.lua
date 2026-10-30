@@ -4,7 +4,8 @@
 -- components it was cooked with; one spawned at run time runs its construction script with ours. The spawn is deferred
 -- (UGameplayStatics::BeginDeferredActorSpawnFromClass, the fields set, then FinishSpawningActor) so the construction
 -- script sees them; if that call fails once, every later spawn of the Lua load uses World:SpawnActor, sets the fields
--- and calls the class's UserConstructionScript again. Each spawn logs one [MXMOVE] line with the way it took.
+-- and calls the class's UserConstructionScript again. Each spawn logs one [MXMOVE] line with the way it took and, for
+-- a ladder, its Meshes stack as read back before the finish.
 -- A ladder's height comes from its Meshes stack (enum Enum_EM_LadderMeshes: 0 160 cm, 1 200, 2 240, 3 600, 11 40) plus
 -- the 79.885 cm head, as on 33 of the 34 shipped ladders; StartUnit and CollisionBottomZAdd sink its foot where the
 -- stack overshoots the rise (study-climb S6, S7). The actor stands on the rung line, its -X toward the upper landing.
@@ -52,19 +53,33 @@ function Move.new(o)
         end
         return meshes[path]
     end
-    -- UE4SS 3.0.1 grows a TArray when it is indexed one past its end.
-    local function fill(array,items) for i,v in ipairs(items) do array[i]=v end end
+    -- UE4SS 3.0.1 grows a TArray when it is indexed past its end, and that growth may zero the values already in it
+    -- (UE4SS #436, fixed after 3.0.1). Filled from the last item, the empty array grows once and every later write lands
+    -- inside it.
+    local function fill(array,items) for i=#items,1,-1 do array[i]=items[i] end end
+    -- The stack as the actor holds it, read back before the finish: 'stack 3,3' (or 'stack ? (why)').
+    local function stack(array)
+        local ok,s=pcall(function()
+            local n=type(array.GetArrayNum)=='function' and array:GetArrayNum() or #array
+            local t={}
+            for i=1,n do t[i]=tostring(array[i]) end
+            return table.concat(t,',')
+        end)
+        return 'stack '..(ok and s or '? ('..tostring(s)..')')
+    end
     local function fields(a,m)
         if m.env then a.EnvActorName=FName(m.env) end
         if m.cls=='ladder' then
             fill(a.Meshes,m.meshes)
             a.StartUnit,a.CollisionBottomZAdd,a.TotalHeight=m.start,m.bottom,m.height
             for k,v in pairs(Move.LADDER) do a[k]=v end
+            return ' '..stack(a.Meshes)
         elseif m.cls=='ledge' then
             fill(a.Meshes,{mesh_of(m.mesh)})
         elseif m.cls=='rope' then
             a.RopeDistanceB=m.drop
         end
+        return ''
     end
     -- One spawn: the deferred pair while it works, else SpawnActor and the construction script again.
     local function spawn(eve,m)
@@ -72,21 +87,21 @@ function Move.new(o)
         local rot={Pitch=0,Yaw=m.yaw,Roll=0}
         local c=class_of(m.cls)
         if deferred then
-            local ok,a=pcall(function()
+            local ok,a,got=pcall(function()
                 local gs=U.find('/Script/Engine.Default__GameplayStatics')
                 local t=U.find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform(at,rot,{X=1,Y=1,Z=1})
                 local x=assert(U.valid(gs:BeginDeferredActorSpawnFromClass(eve,c,t,ALWAYS_SPAWN,nil)),'no actor')
-                fields(x,m)
-                return assert(U.valid(gs:FinishSpawningActor(x,t)),'FinishSpawningActor gave nothing')
+                local got=fields(x,m)
+                return assert(U.valid(gs:FinishSpawningActor(x,t)),'FinishSpawningActor gave nothing'),got
             end)
-            if ok then return a,'deferred spawn' end
+            if ok then return a,got,'deferred spawn' end
             deferred=false
             log('deferred spawn failed ('..tostring(a)..'): SpawnActor and the construction script from now on')
         end
         local a=assert(U.valid(eve:GetWorld():SpawnActor(c,at,rot)),'SpawnActor gave nothing')
-        fields(a,m)
+        local got=fields(a,m)
         local ran=pcall(function() a:UserConstructionScript() end)
-        return a,ran and 'SpawnActor, construction script run again' or 'SpawnActor, construction script not run'
+        return a,got,ran and 'SpawnActor, construction script run again' or 'SpawnActor, construction script not run'
     end
     function self.tick()
         local now=os.clock()
@@ -107,12 +122,12 @@ function Move.new(o)
         world,spawned=here,{}
         local made=0
         for _,m in ipairs(list) do
-            local fine,a,how=pcall(spawn,eve,m)
+            local fine,a,got,how=pcall(spawn,eve,m)
             if fine then
                 spawned[#spawned+1]=a
                 made=made+1
                 local extra=(m.height and string.format(' height %.1f',m.height) or '')
-                    ..(m.drop and string.format(' drop %.0f',m.drop) or '')..(m.env and ' env '..m.env or '')
+                    ..got..(m.drop and string.format(' drop %.0f',m.drop) or '')..(m.env and ' env '..m.env or '')
                 log(string.format('%s %s at %.0f %.0f %.0f yaw %.0f%s (%s), %s',m.cls,m.key,m.at[1],m.at[2],m.at[3],
                     m.yaw,extra,m.role,how))
             else
