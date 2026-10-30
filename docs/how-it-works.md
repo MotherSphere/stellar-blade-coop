@@ -2308,10 +2308,14 @@ stops another:
   `DLC02_20_ZTrigger_002`; `DLC02_30_E_CharS_029` the Stalker; `DLC02_40_E_CharS_051` the Lion; all SaveType Save, no
   patrol, RewardGroup `m_beach_elite1`), the four zone events that spawn the Gardener and the zone 4 trio, and the two
   trigger rows that run them.
-- `mxenv`, 13 rows: the one-way doors 050, 051 and 037 and new doors 930 to 932 spawn `BP_MXIII_Door01_C`; the R29
+- `mxenv`, 163 rows: the one-way doors 050, 051 and 037 and new doors 930 to 932 spawn `BP_MXIII_Door01_C`; the R29
   gate switch spawns `Env_CardControl_Switch2_C` and, with the gate, lists zones 10 and 20; the 55 m lift waits at the
   top; the 74 m lift's call switches spawn `BP_Env_LiftController_C` enabled from the start; two kill volumes go under
-  the lift shafts.
+  the lift shafts. Then the loot: the 10 shipped supply box rows, which ship with no blueprint and no spawn point, are
+  patched in place with `BP_Env_SupplyBox01_C` (the class of `Env_SupplyBox_Normal01` boxes in the shipped levels) and
+  the point of their own name; 54 new boxes copy `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and
+  in their zone; 86 new pickups copy `DLC02_10_E_ItemS_001` with the item and count of their map marker
+  (`BetaCrystal` x12 where the marker names none). The 25 records wait for the records batch.
 - `mxwarp`, 216 rows: 72 warp switches (copies of the two-phase switch `DLC02_10_EnvS_432` with the card switch
   blueprint, SaveType None so a rest brings a used one back), each with a ZoneEvent_PlayerWarp row and an
   EventZoneWarpTable row of the same name that sends EVE to the cooked spawn point `DLC02_<zone>_WarpPoint_<n>` in
@@ -2321,7 +2325,9 @@ stops another:
 At the title, once the `mxiii=` line has an answer, `cut/mxiii.lua` asks the others one at a time, each once the batch
 before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`, `mxwarp`, then
 the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC` and `M_Gardener` the boss spawn rows name. All
-go in before any save loads, since the zone manager lists a world's rows when the world starts.
+go in before any save loads, since the zone manager lists a world's rows when the world starts. `coop mxiii` asks no
+travel until every one of these lines reads `rows`, and names the first batch that does not: the travel would reach a
+dungeon without its Naytibas or its warp switches, and a peer's shared Naytibas would match no spawn row.
 
 In world 2800, `cut/mxiii.lua`'s tick runs two more files. `cut/mxmove.lua` spawns SB's `BP_EM_Ladder_C` at the 37
 ladder feet of the map with each one's `TotalHeight` (and Matrix 11's head and collision values) and `BP_EM_Ledge_C` at

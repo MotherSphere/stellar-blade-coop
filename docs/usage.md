@@ -1601,7 +1601,10 @@ those levels, since activating a Matrix 11 camp counts toward the camp trophy. v
    row for each of the camp's six objects, and the third zone's camp `DLC02_30_Camp_01` with the row in
    `Zone_DLC02_30` that leads there. It also changes five of the dungeon's own trigger rows in memory, so
    the enemies of the second and fourth zones that wait for missing props appear (see below). Then it asks the game's
-   own camp travel to go there, as `coop travel probe` does for an activated camp.
+   own camp travel to go there, as `coop travel probe` does for an activated camp. Before any of that it checks that
+   the other five batches (Naytibas; doors, lifts and loot; warps; the Lion's and the Gardener's rows) went
+   in at the title. If one did not, it asks nothing and names it: return to the title with the co-op save files, wait
+   until `coop-link.log` shows all five in, then load the save and type `coop mxiii` again.
 4. If the log says `travel: SB refused DLC02_10_Camp_01`, the game listed its camps when the map started, before the
    rows went in (they did not go in at the title). Load the save again (or travel to any camp), then type `coop mxiii`
    again: the rows stay until the game exits, so the second time it only travels.
@@ -1723,7 +1726,8 @@ build with the same rows. A co-op save that played in the dungeon can no longer 
 | `mxiii rows: 78/78 in, 39 added through SB's AddRow 0x14417ba30 and 39 shipped rows patched in place, 0 refused` (`coop-link.log`) | The native part added the camp rows and changed the shipped kit and trigger rows |
 | `mxiii rows refused <row>: <why>; <n>/78 added` (`coop-link.log`) | A row the native part would not add or change, and why: no travel |
 | `[StellarCoop][MX] rows read back through FindRow: 78/78 authored rows, <n> fields as written (<k> differ from the template row)` | Every field the native part wrote reads as written |
-| `mxspawn rows: 46/46 in, ...`, `mxenv rows: 13/13 in, ...`, `mxwarp rows: 216/216 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows |
+| `mxspawn rows: 46/46 in, ...`, `mxenv rows: 163/163 in, ...`, `mxwarp rows: 216/216 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows |
+| `[StellarCoop][MX] refused: mxspawn rows not in` (or `mxenv`, `mxwarp`, `lion`, `gardener`) | `coop mxiii` found a batch that did not go in at the title (a save loaded before the chain ended, or the tries ran out): nothing was asked; return to the title with the co-op save files, wait until `coop-link.log` shows all five batches in, then run it again |
 | `[StellarCoop][MX] mxspawn title: ...`, `mxenv title: ...`, `mxwarp title: ...`, `lion title: ...`, `gardener title: ...` | Each of those batches at the title, with the same words as the camp rows' lines |
 | `[StellarCoop][MX] [MXMOVE] ladder <key> at <x> <y> <z> yaw <d> height <h> (<role>), deferred spawn` | In the dungeon, a ladder or ledge the mod spawned, and how (`SpawnActor, construction script run again` when the deferred spawn failed) |
 | `[StellarCoop][MX] [MXMOVE] <n>/42 ladders and ledges spawned in world 2800; the warp switches beside them stay` | All of them, once a world |

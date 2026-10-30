@@ -1,21 +1,22 @@
 -- cut/mxiii.lua with fake UE4SS objects and a fake follow. Its 15 rows match native/src/lion/rows.h's kMxiiiRecipe and
--- kMxiiiPatches (names, templates, IDs, each patched field's kind and value, no field more): the camp, then 7
--- env-spawn rows that all name it, the kit's 6 each at the spawn point of its own name, then zone 30's camp and its
--- one row in Zone_DLC02_30, then the 5 shipped trigger rows patched in place (their own templates), zone 20's touching
--- their waves, zone 40's starting enabled. The Paks folder comes from the mod folder; the test pak counts only when its
--- .utoc in ~mods or LogicMods names WorldMap_DLC_01, Level_P and MXIII_P.umap, with its .pak and .ucas beside it; it is
--- v3 when its .ucas names DLC02_30_Camp_01, v2 when it names DLC02_10_EnvS, else v1. coop mxiii:
--- usage; busy; without the follow, with a follow guard failing or without the test pak it asks nothing (the pak looked
--- for once a command, by its file, never by StaticFindObject); with all of them it asks the mxiii rows with the 20
--- addresses, waits for the mxiii line, reads the 15 rows back, then asks the follow's probe for DLC02_10_Camp_01 (a camp
--- in no table) and names the way out; a native refusal, a row that reads back wrong or a probe the follow refuses ends
--- it with no travel; rows already in are read back with no ask; coop off ends the wait, and no travel follows. coop
--- mxiii leave: the follow's probe for the camp EVE respawned at when coop mxiii asked its travel, else the one she
--- respawns at, else the first travel camp the read lists as activated. coop mxiii 30: on v1 or v2 nothing asked; on v3
--- the same rows, then the probe for DLC02_30_Camp_01; leave from there still takes the camp of before coop mxiii. The
--- title's batch: the same rows with no EVE, only at the title on the co-op save files with the test pak, once a game
--- run, asked again after a shut gate (at most 4 times a visit of the title) or a coop off during the wait, never after
--- another refusal; its end says whether the title closed during the wait.
+-- kMxiiiPatches (names, templates, IDs, each patched field's kind and value, no field more): the camp, then 7 env-spawn
+-- rows that all name it, the kit's 6 each at the spawn point of its own name, then zone 30's camp and its one row in
+-- Zone_DLC02_30, then the 5 shipped trigger rows patched in place (their own templates), zone 20's touching their
+-- waves, zone 40's starting enabled. The Paks folder comes from the mod folder; the test pak counts only when its .utoc
+-- in ~mods or LogicMods names WorldMap_DLC_01, Level_P and MXIII_P.umap, with its .pak and .ucas beside it; it is v3
+-- when its .ucas names DLC02_30_Camp_01, v2 when it names DLC02_10_EnvS, else v1. coop mxiii: usage; busy; without the
+-- follow, with a follow guard failing or without the test pak it asks nothing (the pak looked for once a command, by
+-- its file, never by StaticFindObject) or with another batch not in (mxspawn, mxenv, mxwarp, lion, gardener: those go
+-- in at the title only) it asks nothing; with all of them it asks the mxiii rows with the 20 addresses, waits for the
+-- mxiii line, reads the 15 rows back, then asks the follow's probe for DLC02_10_Camp_01 (a camp in no table) and names
+-- the way out; a native refusal, a row that reads back wrong or a probe the follow refuses ends it with no travel; rows
+-- already in are read back with no ask; coop off ends the wait, and no travel follows. coop mxiii leave: the follow's
+-- probe for the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at, else the first
+-- travel camp the read lists as activated. coop mxiii 30: on v1 or v2 nothing asked; on v3 the same rows, then the
+-- probe for DLC02_30_Camp_01; leave from there still takes the camp of before coop mxiii. The title's batch: the same
+-- rows with no EVE, only at the title on the co-op save files with the test pak, once a game run, asked again after a
+-- shut gate (at most 4 times a visit of the title) or a coop off during the wait, never after another refusal; its end
+-- says whether the title closed during the wait.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -277,7 +278,14 @@ local function new(paks)
 end
 local function last() return lines[#lines] end
 local function logged(text) for _,l in ipairs(lines) do if l:find(text,1,true) then return l end end end
-local function mxiii_status(t) status_text='mod=v\nslot=coop index=4 marker=4\nlion=off\nmxiii='..t..'\nlast=x\n' end
+-- The other batches' lines, every one in (coop mxiii travels only then); others: those mxiii_status writes.
+local OTHERS=''
+for _,b in ipairs(M.BATCHES) do
+    OTHERS=OTHERS..string.format('%s=rows added=%d/%d asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n',b.word,
+        #b.rows,#b.rows)
+end
+local others=OTHERS
+local function mxiii_status(t) status_text='mod=v\nslot=coop index=4 marker=4\n'..others..'mxiii='..t..'\nlast=x\n' end
 local ROWS_IN='rows added=78/78 asks=%d spawns=? char=0/0 skills=0/0 stance=0/0'
 -- Only the six tables its rows go into, in kLionTables' order.
 local REQUEST=string.format('mxiii rows ZoneCampTable=0x%x ZoneEnvSpawnTable=0x%x ZoneTriggerTable=0x%x '
@@ -309,6 +317,25 @@ ok,why=new(nil).command()
 assert(ok==false and why:find('game folder is unknown',1,true),why)
 assert(#asked==0 and #looked==0 and #probes==0,'Nothing asked, nothing looked up')
 
+-- Another batch not in (the title's chain cut short by a save loaded early, or no line from an older native part):
+-- the batch named, nothing asked and no travel.
+put(LOGIC,nil,UCAS2)
+others=(OTHERS:gsub('mxspawn=rows[^\n]*','mxspawn=waiting added=0/46 asks=1 spawns=? why=busy ticks=3'))
+mxiii_status('off')
+ok,why=mx.command()
+assert(ok==false and why=='coop mxiii: the Matrix XIII Naytiba rows are not in (waiting): return to the title with the '
+    ..'co-op save files, then run coop mxiii again' and #asked==0 and #probes==0,tostring(why))
+assert(last()=='refused: mxspawn rows not in',last())
+others=(OTHERS:gsub('gardener=[^\n]*\n',''))
+mxiii_status('off')
+ok,why=mx.command('30')
+assert(ok==false and why:find('^coop mxiii 30 needs the v3 zMXIII_P test pak'),'The pak checks first: '..tostring(why))
+put(LOGIC,nil,UCAS3)
+ok,why=mx.command('30')
+assert(ok==false and why=='coop mxiii 30: the Gardener rows are not in (no line): return to the title with the co-op '
+    ..'save files, then run coop mxiii 30 again' and #asked==0 and #probes==0,tostring(why))
+others=OTHERS
+mxiii_status('off')
 -- With everything there (a v2 pak): the checks line with its version, its 3 tables, one ask, then the wait.
 put(LOGIC,nil,UCAS2)
 reads={}
@@ -516,6 +543,7 @@ follow.list,follow.rested=nil,nil
 -- read-back, no travel and nothing returned for main.lua to report; once in, never again, and coop mxiii then only
 -- reads them back and travels.
 player=nil
+others='' -- No other batch's line: the chain after the mxiii rows stays out of these lines.
 local base,probed=#asked,#probes
 -- The asks since base, each the mxiii rows request.
 local function title_asks()
@@ -570,9 +598,13 @@ assert(lines[#lines-1]==READ_BACK,lines[#lines-1])
 said=#lines
 mx.title(false,true); mx.title(true,true)
 assert(title_asks()==1 and #lines==said,'Once a game run')
+others=OTHERS
+mxiii_status(ROWS_IN:format(1))
 ok,why=mx.command()
 assert(ok and title_asks()==1 and probes[#probes][1]=='DLC02_10_Camp_01',
     'coop mxiii then only travels: '..tostring(why))
+others=''
+mxiii_status(ROWS_IN:format(1))
 -- Rows already in at the first call (a Lua reload, or a coop mxiii before a return to the title): said, not asked.
 player=nil
 mx=new(PAKS)
@@ -673,12 +705,13 @@ clock=clock+0.25
 assert(mx.tick()==nil)
 assert(logged('mxspawn title: The native part refused the Matrix XIII Naytiba rows (why=id'),'Its refusal said')
 mx.title(true,true)
-assert(#asked==n0+2 and asked[#asked]:find('^mxenv rows ZoneEnvSpawnTable=0x%x+ EffectVolumeTable=0x%x+$'),
+assert(#asked==n0+2 and asked[#asked]:find('^mxenv rows ZoneEnvSpawnTable=0x%x+ EventItemTable=0x%x+ '
+    ..'EffectVolumeTable=0x%x+$'),
     asked[#asked])
 lines_of('mxspawn=refused added=3/46 asks=1 spawns=? why=id table=EventSpawnTable row=DLC02_10_E_CharS_901\n'
-    ..'mxenv=rows added=13/13 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n')
+    ..'mxenv=rows added=163/163 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n')
 clock=clock+0.25
-assert(mx.tick()==nil and logged('mxenv rows read back through FindRow: 13/13 authored rows'))
+assert(mx.tick()==nil and logged('mxenv rows read back through FindRow: 163/163 authored rows'))
 mx.title(true,true)
 assert(#asked==n0+2,'No mxwarp line: nothing asked, and nothing after it')
 player=eve

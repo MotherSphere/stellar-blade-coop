@@ -19,8 +19,9 @@
 -- at the title, before any save loads, while the game uses the co-op save files and the test pak is there (title()
 -- below), so a co-op save that names a mod camp or row (the respawn camp at FSBActor +0x26d0, the save's activated
 -- camps and last camp rows) loads with them, and coop mxiii then only reads them back and travels. At the title the
--- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the doors and lifts, the warps, then
--- the Lion's and the Gardener's own rows that the boss spawn rows name). In world 2800 the tick spawns the ladders and
+-- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the doors, lifts and loot, the warps,
+-- then the Lion's and the Gardener's own rows that the boss spawn rows name); coop mxiii asks no travel until they all
+-- read rows. In world 2800 the tick spawns the ladders and
 -- ledges (cut/mxmove.lua) and fixes the Lion and Gardener the game spawns (cut/mxboss.lua); coop mxiii boss spawns
 -- the key-0 boss of the arena EVE stands in. The way out is
 -- coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the
@@ -93,12 +94,13 @@ end
 -- what they need (their env rows, coins, zone 0's Tetrapod and Lily); the dev rows come first, in their order.
 local Rows=require('cut.mxiii_rows')
 Mxiii.ROWS=Enemy.rows(Rows.MXIII)
--- The other batches, each its own ask: Matrix XIII's spawn rows, doors and lifts, warps (lion/mxiii_rows.h), then the
--- Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC and M_Gardener the boss spawn rows name.
--- At the title they go in once the mxiii rows are in, one after the other.
+-- The other batches, each its own ask: Matrix XIII's spawn rows, doors, lifts and loot (supply boxes and pickups),
+-- warps (lion/mxiii_rows.h), then the Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC and
+-- M_Gardener the boss spawn rows name. At the title they go in once the mxiii rows are in, one after the other, and
+-- coop mxiii travels only once every one of them reads rows.
 Mxiii.BATCHES={
     {word='mxspawn',name='Matrix XIII Naytiba',rows=Enemy.rows(Rows.MXSPAWN)},
-    {word='mxenv',name='Matrix XIII door and lift',rows=Enemy.rows(Rows.MXENV)},
+    {word='mxenv',name='Matrix XIII door, lift and loot',rows=Enemy.rows(Rows.MXENV)},
     {word='mxwarp',name='Matrix XIII warp',rows=Enemy.rows(Rows.MXWARP)},
     {word='lion',name='Lion',rows=Enemy.rows(require('cut.lion_rows').ROWS)},
     {word='gardener',name='Gardener',rows=Enemy.rows(require('cut.lion_rows').GARDENER)},
@@ -218,6 +220,16 @@ function Mxiii.new(o)
             log('refused: test pak v'..said..' has no '..camp..' spawn point')
             return false,command..' needs the v3 zMXIII_P test pak: '..map..' is v'..said..', with no '..camp
                 ..' spawn point for the arrival: nothing was asked'
+        end
+        -- The other batches go in at the title only. Without them world 2800 has no Naytibas, doors, lifts, loot or
+        -- warp switches (the fallback of every lift and ladder), and a peer's shared Naytibas match no spawn row.
+        for _,b in ipairs(Mxiii.BATCHES) do
+            local s=Enemy.parse(o.status and o.status(),b.word)
+            if not (s and s.state=='rows') then
+                log('refused: '..b.word..' rows not in')
+                return false,command..': the '..b.name..' rows are not in ('..(s and s.state or 'no line')
+                    ..'): return to the title with the co-op save files, then run '..command..' again'
+            end
         end
         return e.rows(function(ok,message) return warp(camp,command,ok,message) end)
     end
