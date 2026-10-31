@@ -2393,19 +2393,29 @@ spawn row.
 In world 2800, `cut/mxiii.lua`'s tick runs two more files. `cut/mxmove.lua` spawns, once a world, SB's `BP_EM_Ladder_C`
 at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder), `BP_EM_Ledge_C` at the
 three R16 ledges and the shimmy, and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A ladder's height comes from
-its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160, 200, 240, 600 or 40 cm pieces) plus the 79.885 cm head, as on 33
-of the 34 shipped ladders; `StartUnit` and `CollisionBottomZAdd` sink its foot where the stack overshoots the rise (`5 -
-40 k`, the shipped pairs' rule), and it stands on the rung line with its -X toward the upper landing. A ledge gets the
+its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160.9, 200, 240, 600 or 40.9 cm pieces) plus the 79.885 cm head. Its
+construction script stacks the pieces up from the actor's origin, starting at the actor's `TotalHeight` and adding each
+piece to it, so the mod leaves `TotalHeight` at its class default 0: written before the finish, it lifted every ladder
+by its own height. `tools/mxiii_climb.py` takes each map ladder's stack, foot and rung line from the editor's proxy
+ladder (`data/mxiii-climb.json`), its -X toward the upper landing, and checks that the pieces, rebuilt as the script
+builds them, lie within 2 cm of the proxies; it checks the ledges and ropes against their editor ledges and markers the
+same way. At the top EVE steps off onto the floor a trace from 25 cm over the stack's top to 25 cm under it finds at
+x -60, else into the air. The editor's stacks miss that at 20 ladders: 17 tops stand 23 to 100 cm over their landing,
+R11_R08's and Z3P08's 78 and 60 cm under their deck, and Z4_L1's foot floats 24 cm over its floor. Those ladders
+get the stack and foot that put the landing within 20 cm of the top and the foot on its floor, with the rungs nearest
+the editor's, and match the proxies on the rail line only. A ledge gets the
 climbing mesh `006_B_SM`. A rope gets its drop (`RopeDistanceB`) and the `EnvActorName` of its row (R28's
 `DLC02_10_EnvS_642`, zone 4's `DLC02_40_EnvS_022`), which its winch turns On; gate 435's ladder gets
 `DLC02_10_EnvS_437`, the row the gate's lever turns On. Whether an SBZoneEnvActor spawned after its zone's rows were
 made registers with its row is untested. A cooked map never reruns a placed actor's construction script, so these values
 must reach the actor at spawn. The spawn is deferred (`BeginDeferredActorSpawnFromClass`, the fields,
 `FinishSpawningActor`); if that call fails, `SpawnActor` and a second `UserConstructionScript` call take over for the
-rest of the Lua load. The `Meshes` stack is written from its last piece to its first: UE4SS 3.0.1 resizes a TArray
-written past its end and may zero the values already in it (UE4SS #436, fixed after 3.0.1), so a front-to-back fill
-could turn a 3,3 stack into 0,3. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back
-before `FinishSpawningActor`. `cut/mxboss.lua` looks, once a second while EVE is within
+rest of the Lua load. UE4SS 3.0.1 grows a TArray written two or more past its end to the index before and loses the
+value (its TArray fix, #436, came in 4.0): filled from its last piece, every multi-piece stack read back one piece
+short in game (R28's 3,3 as 3). The `Meshes` stack now gets its first piece, then a write one past its last piece
+that only sizes the array, then every piece inside it. It is read back; a stack that differs is emptied and written
+front to back, and one that still differs is destroyed before its finish and named in the log. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back
+before `FinishSpawningActor` and the `TotalHeight` its script built. `cut/mxboss.lua` looks, once a second while EVE is within
 80 m of a boss point, for a body of the Lion's or the Gardener's blueprint within 30 m of it, and fixes it once: the
 Lion through `cut/lion.lua`'s `adopt` (its anim instance, else the hidden Behemoth leader that `coop lion` uses), the
 Gardener's mesh turned -90 degrees. While one lives, the boss bar shows its name. EVE standing 20 s within 25 m of a

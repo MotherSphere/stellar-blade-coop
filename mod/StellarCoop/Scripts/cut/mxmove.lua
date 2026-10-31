@@ -5,10 +5,15 @@
 -- (UGameplayStatics::BeginDeferredActorSpawnFromClass, the fields set, then FinishSpawningActor) so the construction
 -- script sees them; if that call fails once, every later spawn of the Lua load uses World:SpawnActor, sets the fields
 -- and calls the class's UserConstructionScript again. Each spawn logs one [MXMOVE] line with the way it took and, for
--- a ladder, its Meshes stack as read back before the finish.
--- A ladder's height comes from its Meshes stack (enum Enum_EM_LadderMeshes: 0 160 cm, 1 200, 2 240, 3 600, 11 40) plus
--- the 79.885 cm head, as on 33 of the 34 shipped ladders; StartUnit and CollisionBottomZAdd sink its foot where the
--- stack overshoots the rise (study-climb S6, S7). The actor stands on the rung line, its -X toward the upper landing.
+-- a ladder, its Meshes stack as read back before the finish; a ladder whose stack does not read back as written is
+-- destroyed before its finish and its line says so.
+-- A ladder's height comes from its Meshes stack (enum Enum_EM_LadderMeshes: 0 160.9 cm, 1 200, 2 240, 3 600, 11 40.9)
+-- plus the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, the foot, starting at
+-- whatever TotalHeight holds and adding each piece to it. So TotalHeight is left at its class default 0 (the SpawnActor
+-- way puts it back to 0 before its second run), and HeadHeight, HeadWidthHalf and CollisionWidth, which the script
+-- writes too, are not set: a TotalHeight set before the finish lifted every ladder by its own height (2026-10-31).
+-- The actor stands on the rung line, its -X toward the upper landing, at the points tools/mxiii_climb.py takes from
+-- the editor's proxy ladders. The line gives the TotalHeight read back after the finish ('built').
 -- A ledge gets the shipped climbing mesh 006_B_SM (its grab line on the actor's +Y). A rope gets its drop
 -- (RopeDistanceB) and, with a ladder bound to a row, its EnvActorName, the name its env row looks for: rope rows start
 -- Off (hidden) until their winch turns them On, and ladder gate 435's lowered ladder starts with its row 437 Off.
@@ -21,8 +26,6 @@ Move.MAP='/mxiii_p' -- The end of core/unreal.lua's map_of in world 2800.
 local DIR='/Game/GameDesign/Level/BluePrintActor/SBEventMove/'
 Move.ASSETS={ladder=DIR..'BP_EM_Ladder.BP_EM_Ladder',ledge=DIR..'BP_EM_Ledge.BP_EM_Ledge',
     rope=DIR..'Env_EM_VerticalRope.Env_EM_VerticalRope'}
--- The ladder's head and collision as Matrix 11's placed ladders have them (MOVERS F11).
-Move.LADDER={HeadHeight=79.885,HeadWidthHalf=34.9,CollisionWidth=40}
 local EVERY=1 -- s between looks at the world.
 local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
 
@@ -53,11 +56,8 @@ function Move.new(o)
         end
         return meshes[path]
     end
-    -- UE4SS 3.0.1 grows a TArray when it is indexed past its end, and that growth may zero the values already in it
-    -- (UE4SS #436, fixed after 3.0.1). Filled from the last item, the empty array grows once and every later write lands
-    -- inside it.
-    local function fill(array,items) for i=#items,1,-1 do array[i]=items[i] end end
-    -- The stack as the actor holds it, read back before the finish: 'stack 3,3' (or 'stack ? (why)').
+    -- The stack as the actor holds it: 'stack 3,3' (or 'stack ? (why)'). Only indexes inside the array are read: on
+    -- UE4SS 3.0.1 a read past the end grows the array too.
     local function stack(array)
         local ok,s=pcall(function()
             local n=type(array.GetArrayNum)=='function' and array:GetArrayNum() or #array
@@ -67,19 +67,54 @@ function Move.new(o)
         end)
         return 'stack '..(ok and s or '? ('..tostring(s)..')')
     end
+    local function holds(array,items)
+        local ok,same=pcall(function()
+            if array:GetArrayNum()~=#items then return false end
+            for i,v in ipairs(items) do if array[i]~=v then return false end end
+            return true
+        end)
+        return ok and same
+    end
+    -- UE4SS 3.0.1 (this game's; its TArray fix #436 came in 4.0): a write two or more past the end grows the array to
+    -- index-1 and loses the value, a write at 1 into the empty array lands. The 2026-10-30 23:03 UE4SS.log read all 41
+    -- stacks, filled from their last piece, back that way: each multi-piece one a piece short (R28's 3,3 as 3, Z4_L1's
+    -- 3,3,3,2,1 as 3,3,3,2), the 1-piece ones whole. So the first item goes in, a write one past the last item sizes
+    -- the array, and every item then lands inside it. The array is read back; when it differs, it is emptied and filled
+    -- front to back (what a fixed UE4SS takes) and read back again.
+    -- Gives '' or ' (first fill read stack ..., filled again front to back)', or nil and why it is wrong.
+    local function fill(array,items)
+        local n=#items
+        array[1]=items[1]
+        if n>1 then array[n+1]=items[n] end
+        for i=n,1,-1 do array[i]=items[i] end
+        if holds(array,items) then return '' end
+        local first=stack(array)
+        local ok,why=pcall(function()
+            array:Empty()
+            for i=1,n do array[i]=items[i] end
+        end)
+        if ok and holds(array,items) then return ' (first fill read '..first..', filled again front to back)' end
+        return nil,string.format('Meshes read back %s, then %s, for %s: nothing spawned',first,
+            ok and stack(array) or 'no refill ('..tostring(why)..')',table.concat(items,','))
+    end
     local function fields(a,m,mesh)
         if m.env then a.EnvActorName=FName(m.env) end
         if m.cls=='ladder' then
-            fill(a.Meshes,m.meshes)
-            a.StartUnit,a.CollisionBottomZAdd,a.TotalHeight=m.start,m.bottom,m.height
-            for k,v in pairs(Move.LADDER) do a[k]=v end
-            return ' '..stack(a.Meshes)
+            local note,why=fill(a.Meshes,m.meshes)
+            if not note then return nil,why end
+            a.StartUnit,a.CollisionBottomZAdd=m.start,m.bottom
+            return ' '..stack(a.Meshes)..note
         elseif m.cls=='ledge' then
-            fill(a.Meshes,{mesh})
+            a.Meshes[1]=mesh -- One write into the empty array: 3.0.1 appends it (the 1-piece stacks read back whole).
         elseif m.cls=='rope' then
             a.RopeDistanceB=m.drop
         end
         return ''
+    end
+    -- The TotalHeight the construction script built: ' built 1279.9' (or nothing when it does not read).
+    local function built(a)
+        local ok,h=pcall(function() return a.TotalHeight end)
+        return ok and type(h)=='number' and string.format(' built %.1f',h) or ''
     end
     -- One spawn: the deferred pair while it works, else SpawnActor and the construction script again.
     local function spawn(eve,m)
@@ -93,15 +128,20 @@ function Move.new(o)
                 local gs=U.find('/Script/Engine.Default__GameplayStatics')
                 local t=U.find('/Script/Engine.Default__KismetMathLibrary'):MakeTransform(at,rot,{X=1,Y=1,Z=1})
                 local x=assert(U.valid(gs:BeginDeferredActorSpawnFromClass(eve,c,t,ALWAYS_SPAWN,nil)),'no actor')
-                local got=fields(x,m,mesh)
+                local got,why=fields(x,m,mesh)
+                if not got then pcall(function() x:K2_DestroyActor() end); return false,why end
                 return assert(U.valid(gs:FinishSpawningActor(x,t)),'FinishSpawningActor gave nothing'),got
             end)
+            if ok and not a then error(got,0) end -- A stack that would not fill: this ladder only, not the way.
             if ok then return a,got,'deferred spawn' end
             deferred=false
             log('deferred spawn failed ('..tostring(a)..'): SpawnActor and the construction script from now on')
         end
         local a=assert(U.valid(eve:GetWorld():SpawnActor(c,at,rot)),'SpawnActor gave nothing')
-        local got=fields(a,m,mesh)
+        local got,why=fields(a,m,mesh)
+        if not got then pcall(function() a:K2_DestroyActor() end); error(why,0) end
+        -- The spawn already ran the script once: its running sum back to the class default before the second run.
+        if m.cls=='ladder' then a.TotalHeight=0 end
         local ran=pcall(function() a:UserConstructionScript() end)
         return a,got,ran and 'SpawnActor, construction script run again' or 'SpawnActor, construction script not run'
     end
@@ -129,7 +169,8 @@ function Move.new(o)
                 spawned[#spawned+1]=a
                 made=made+1
                 local extra=(m.height and string.format(' height %.1f',m.height) or '')
-                    ..got..(m.drop and string.format(' drop %.0f',m.drop) or '')..(m.env and ' env '..m.env or '')
+                    ..got..(m.cls=='ladder' and built(a) or '')..(m.drop and string.format(' drop %.0f',m.drop) or '')
+                    ..(m.env and ' env '..m.env or '')
                 log(string.format('%s %s at %.0f %.0f %.0f yaw %.0f%s (%s), %s',m.cls,m.key,m.at[1],m.at[2],m.at[3],
                     m.yaw,extra,m.role,how))
             else
