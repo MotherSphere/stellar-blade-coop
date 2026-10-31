@@ -2151,21 +2151,20 @@ rows, each a copy of a shipped row with its own name and ID:
 | Row | Table | ID | Template | Changes |
 | --- | --- | --- | --- | --- |
 | `DLC02_10_Camp_01` | ZoneCampTable | 280001 | `ME01_Camp_03` | `CoinSpawnPointName` `DLC02_10_E_ItemS_001`; `CampType` stays FullCamp, `CampDisplayType` stays WhenActive |
-| `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`, `EnvActorName` its own name; `ZoneList` stays `Zone_DLC02_10` |
+| `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` and `SpawnPointName` its own name; `EnvBPPath` the camp base `Env_Camp_Base`; `ZoneList` stays `Zone_DLC02_10` |
 | `DLC02_10_EnvS_901` to `_905` | ZoneEnvSpawnTable | 2800032901 to 2800032905 | `DLC02_10_EnvS_420` to `_424` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` and `SpawnPointName` their own name; `EnvBPPath` the skill machine, chair, storage, turntable and phone booth blueprints under `/Game/GameDesign/Level/ZoneEnv/` |
-| `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same four, with `Env_VendingMachine`; `LinkEnvSpawnList` 901 to 905, in the template's order |
+| `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same four, with `Env_VendingMachine`; `LinkEnvSpawnList` 901, 902, 900, 903, 904, 905, in the shipped order; `ShopDataList` its own name |
 | `DLC02_30_Camp_01` | ZoneCampTable | 281001 | `ME01_Camp_02` | `CampType` stays SimplyCamp, `CoinSpawnPointName` `DLC02_30_E_ItemS_001`, Region `Matrix13` |
 | `DLC02_30_EnvS_900` | ZoneEnvSpawnTable | 2810032900 | `DLC02_10_EnvS_425` | `ZoneList` `Zone_DLC02_30`, `TargetCamp` `DLC02_30_Camp_01`, `EnvActorName` its own name |
 
 `FUN_141d18100` lists a camp's rows in table order, and AddRow appends, so row 900 stays the camp's first: it leads the
-travel to `Zone_DLC02_10` and has no actor. The other six spawn their objects. `FUN_141d1e5b0`, which makes a zone's
+travel to `Zone_DLC02_10`. All seven spawn their objects. `FUN_141d1e5b0`, which makes a zone's
 env objects, looks for a placed actor named `EnvActorName` when `EnvBPPath` is empty; with `EnvBPPath` set it spawns
 that class at the actor named `SpawnPointName`, as 137 shipped rows do (Xion's supply boxes, `DLC02_10_EnvS_441`), none
 of them a camp object until now. The blueprints are the six kit actors of the Space Elevator's full camp
 `SE02_Camp_02`. The vending machine row starts enabled and the others disabled: activating the camp with a coin sets
-it and every row in its `LinkEnvSpawnList` on. That list leaves out 900: the template links 425 for the camp base
-actor that a full camp places, and 900 has no object, as Matrix 11's simple camp `ME01_Camp_01` links only its
-objects. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
+it and every row in its `LinkEnvSpawnList` on, 900 included, as the shipped full camp `ME03_Camp_01` links its base
+row `ME_03_EnvS_012`. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
 at the spawn point of that name when EVE enters the zone. The camp keeps
 `ME01_Camp_03`'s picture, and its name until [the camp names](#the-camp-names) replace it. Its Region is `Matrix13`, a name the game makes a bucket for on first sight, so a full
 camp's list shows only the dungeon's full camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11`. The
@@ -2189,7 +2188,7 @@ The two zone tables are the sixteenth and seventeenth of the 34 tables every row
 only Matrix XIII's batches write them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
 line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
-its 38 patched fields back (the 33 of the camp rows and the 5 of the trigger rows below), `EnvBPPath` as text and
+its 41 patched fields back (the 36 of the camp rows and the 5 of the trigger rows below), `EnvBPPath` as text and
 `LinkEnvSpawnList`, `ZoneList` and `TouchEvents` as lists of names. The read-back compares an ID
 on its 32 bits, so 2800032900 matches whether UE4SS reads it as signed or not.
 
@@ -2290,7 +2289,9 @@ spending a coin there. Of the game's 105 full and simple camps, 80 point at a Vi
 
 A save that has been in the dungeon keeps what happened there. The camp records and the taken coin are saved rows
 (SaveType Save), so a camp activated in an earlier test stays active and its coin stays gone. The mod leaves those
-records alone; a co-op slot with no DLC02 record shows the inactive state.
+records alone; a co-op slot with no DLC02 record shows the inactive state. The link to the base row runs only when the
+coin is used, so a full camp activated before the base rows existed has no saved On state for its base, and row data
+says the base then spawns Off (`SaveType` Save, `InitStateTag` Off; not seen in game).
 
 ### Lily's menu
 
@@ -2415,8 +2416,24 @@ rows`, `mxlily rows`, `mxnames rows`), so a refusal in one never stops another (
   `DLC02_00_Camp_00`, simple and full camps in every zone), their kits (34 shipped rows patched in place with a
   blueprint, a spawn point and the camp's name; 14 new rows for the two new full camps), the three new coins, and zone
   0's Tetrapod: the machine `DLC02_00_EnvS_960`, Lily `DLC02_00_E_CharS_960` (a copy of her Great Desert row with her
-  Tetrapod graph) and WorldTransitionTable `WT_T_MX13`. Every vending machine links its kit objects but never an
-  OnlyActivation row, the rule the zone 1 camp's 906 tested.
+  Tetrapod graph) and WorldTransitionTable `WT_T_MX13`. Each of the ten coin camps holds the rows of the shipped camp of
+  its type. A full camp, like `ME03_Camp_01`, has the base `Env_Camp_Base` (floor, parasol, brazier and its fire, lights
+  and shield belt, its row's alias `Env_Camp_OnlyActivation`), skill machine, chair, storage, turntable, phone and
+  `Env_VendingMachine`. A simple camp, like `ME01_Camp_02`, has skill machine, chair, turntable and
+  `Env_VendingMachine_Simple`, with no base, storage or phone. No shipped camp spawns these objects from a row: the
+  levels place them. Here each row spawns its blueprint at the point of its own name. The vending machine links every
+  other object of its camp, 6 on a full camp and 3 on a simple one, and the game's graph has 7 link nodes. The base rows
+  are `DLC02_10_EnvS_900`, `DLC02_20_EnvS_048`, `DLC02_20_EnvS_110`, `DLC02_30_EnvS_033` and `DLC02_40_EnvS_015`. The
+  pak had points for the last four, each where the shipped offsets put the base from its vending machine, within
+  0.01 unit. `DLC02_10_EnvS_900` needs a point at (39693.4, 36897.6, 587.0), yaw 15.07, in `MXIII_Z0_LD`, where the
+  cooked `Z0_Camp_Floor` mesh stands; until a pak has it, that row makes no object. The cooked levels also hold static
+  copies of the base's meshes (`Z0_Camp_*`, `Z2_Z2R06_D_Camp_*`, `Z2_Z2R17_D_CampD_*`, `Z3_Z3R35_D_Camp_*`,
+  `Z4_Z4R03_D_Camp_*`) and, at the last four camps, a static `VendingMachine` mesh at the row's machine. A pak has to
+  remove them, or the spawned objects stand on top of them and the static ones stay as they are after activation. The
+  DLC02 kits ship with the
+  `ShopDataList` `SE_02_EnvS_010`, a row one of the 89 `ChangeState_ZoneEnv_*_Camp` trophy rows counts, so each of the
+  ten vending machines names itself there instead, as 77 shipped machines do. The rows name no trophy row, in their own
+  fields or in those their donors give them.
 - `mxspawn`, 46 rows: `MX13_M_Sawshark` (CharacterTable 50071, the Stalker `CHAL_UME_M_Sawshark_01` without
   `Passive_Immortal`, so it dies at 0 HP without Matrix 11's finisher), the 8 `M_DummyC` rows patched to shipped
   Naytibas (zone 3's to `DED_M_ClriketAGround_01`, zone 4's to `WLB_M_AntlionE_01`), the zone 4 rows 035, 036 and 042
@@ -2598,7 +2615,9 @@ return to the title.
 - whether the camp arrival (`FUN_141a8afe0`) finds the spawn points named `DLC02_00_Camp_00`, `DLC02_10_Camp_01` and
   `DLC02_30_Camp_01` in the test map, whether a floor coin spawns in any zone of the map, whether the `mxlily` patch
   opens Lily's menu and leaves the Great Desert Lily as she was, and whether a death in the third or fourth zone brings EVE back to the second camp;
-- whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset), and
+- whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset; the
+  base has no kit attached to its capsule, and its meshes stand on the cook's copies of the same meshes at the five
+  full camps until a pak drops those), and
   whether the camp list shows the camp once the vending machine has activated it: the list takes a camp with a row
   whose active state is Active ([Following the host](#following-the-host)), and whether the vending machine's graph
   sets that on the mod's rows was read from the interaction graphs, not run;

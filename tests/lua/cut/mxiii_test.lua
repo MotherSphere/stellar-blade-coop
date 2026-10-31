@@ -98,19 +98,19 @@ do
     end
     assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxlily mxnames',
         'The title order after mxiii')
-    -- The dev rows: the camp, 7 env rows that name it (the kit 901 to 906 each at the point of its own name), zone 30's
-    -- rest stop and its row, zone 40's two triggers.
+    -- The dev rows: the camp, 7 env rows that name it (base 900 and kit 901 to 906, each at the point of its own
+    -- name), zone 30's rest stop and its row, zone 40's two triggers.
     assert(M.ROWS[1].name==M.CAMP and M.ROWS[1].table=='ZoneCampTable')
     local function check(r,field) for _,c in ipairs(r.checks) do if c[1]==field then return c[3] end end end
     for i=2,8 do
         local r=M.ROWS[i]
         assert(r.table=='ZoneEnvSpawnTable' and check(r,'TargetCamp')==M.CAMP and check(r,'EnvActorName')==r.name,
             r.name)
-        assert(i==2 or check(r,'SpawnPointName')==r.name
+        assert(check(r,'SpawnPointName')==r.name
             and check(r,'EnvBPPath'):find('^/Game/GameDesign/Level/ZoneEnv/'),r.name)
     end
-    assert(check(M.ROWS[8],'LinkEnvSpawnList')=='DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|'
-        ..'DLC02_10_EnvS_904|DLC02_10_EnvS_905')
+    assert(check(M.ROWS[8],'LinkEnvSpawnList')=='DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_900|'
+        ..'DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905')
     assert(M.ROWS[9].name==M.CAMP30 and check(M.ROWS[9],'CampType')==2
         and check(M.ROWS[9],'CoinSpawnPointName')=='DLC02_30_E_ItemS_001')
     assert(M.ROWS[10].name=='DLC02_30_EnvS_900' and check(M.ROWS[10],'ZoneList')=='Zone_DLC02_30'

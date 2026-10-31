@@ -35,7 +35,7 @@ FIELDS = {
         'TargetCamp': (0x270, 'name', 'n'), 'SequenceTagNameList': (0x350, 'names', 'N'),
         # The per-state lists, one item a state of SequenceTagNameList, in its order.
         'OutTransitSequenceList': (0x370, 'strings', 'S'), 'OutTransitTemplatePath': (0x380, 'strings', 'S'),
-        'ActiveSequenceList': (0x3b0, 'strings', 'S')}),
+        'ActiveSequenceList': (0x3b0, 'strings', 'S'), 'ShopDataList': (0x460, 'names', 'N')}),
     'ZoneTriggerTable': ('trigger', {'Zone': (0x14, 'name', 'n'), 'InitActivate': (0x1c, 'u8', 'e'),
                                      'TouchEvents': (0x20, 'names', 'N'), 'InitialDoingCount': (0x5c, 'i32', 'i'),
                                      'SaveType': (0x68, 'u8', 'e')}),

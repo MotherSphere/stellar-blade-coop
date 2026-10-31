@@ -1647,9 +1647,20 @@ Tetrapod camp beside Lily. v3 and v4 take `coop mxiii 30`.
    try again a few seconds later.
 
 On the full map every full and simple camp stands inactive with its own coin on the floor beside its vending machine,
-put there when EVE enters that camp's zone. Pick the coin up and use it at the machine to activate the camp. A camp
+put there when EVE enters that camp's zone. A full camp has the tall vending machine, a skill machine, a chair, a
+storage box, a turntable, a phone booth and the base with its parasol and fire, which light up on activation. A simple
+camp has the small vending machine, a skill machine, a chair and a turntable, as in the base game. Pick the coin up and
+use it at the machine to activate the camp. A camp
 you activated in an earlier test stays active in that save and its coin stays taken, so check this on a co-op slot
-that has not been in the dungeon. Lily's Talk prompt opens her menu there: the other region (the teleport screen), the
+that has not been in the dungeon. A full camp activated before the base rows existed keeps an unlit base with no way to
+light it: the shield belt and the off light, no parasol or fire (read from the row data, not seen in game).
+
+The installed pak has two gaps at the full camps. It has no spawn point for `DLC02_10_EnvS_900`, so
+`DLC02_10_Camp_01` has no spawned base; its coin and kit work, and the cooked floor, brazier and table stand there
+unlit. The other four full camps still have cooked copies of the base's meshes and a cooked vending machine under the
+working one, so those objects appear twice, and a machine that failed to spawn would look present.
+
+Lily's Talk prompt opens her menu there: the other region (the teleport screen), the
 console and her goodbye, the bike signal once its conditions hold, and the mod's row at the end of On Time. Picking
 "leave" under the bike signal ends the trip for Quest_Epic_11 and there is no row back, so a save with On Time
 running should not take it.
@@ -1657,7 +1668,7 @@ running should not take it.
 With v2 the camp stands where EVE arrives: a vending machine, a chair, a skill machine, a storage box, a turntable and
 a phone booth, the same objects as a full camp elsewhere in the game. The vending machine coin it needs lies on the
 floor beside them; the zone puts it there when EVE enters. At first only the vending machine works. Activate the camp
-with the coin and the other five objects switch on. The camp then shows in the camp list under Matrix 11, with the name
+with the coin and the other objects switch on. The camp then shows in the camp list under Matrix 11, with the name
 and picture of Matrix 11's first full camp, since the game has no text for Matrix XIII. On a save that has activated
 that camp (`ME01_Camp_03`, Matrix 11's start camp), the list shows two entries that look the same, and which one comes
 first has not been checked. After a travel from the list, `coop where` tells you where EVE landed: `map=` ends in

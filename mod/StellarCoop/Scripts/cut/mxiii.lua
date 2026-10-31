@@ -5,7 +5,8 @@
 -- checks the travel needs, once a command (the follow's own guards: solo, a co-op save, the native travel there and
 -- none under way; then the test pak, v1 to v4); the native part's mxiii rows batch (lion/mxiii_rows.h, written by
 -- tools/mxiii_rows.py from data/mxiii-world.json: the zone 10 camp DLC02_10_Camp_01 with DLC02_10_EnvS_900, which
--- leads the travel there, and its kit 901 to 906, which SB spawns at the pak's spawn points of those names; zone 30's
+-- leads the travel there and is the camp base, and its kit 901 to 906, which SB spawns at the pak's spawn points of
+-- those names; zone 30's
 -- rest stop DLC02_30_Camp_01; 5 shipped ZoneTriggerTable rows patched in place, so the zone 20 waves and the zone 40
 -- chains of spawns fire without the cut map's gates and drain devices; then the map's other camps, their kits and
 -- coins, and zone 0's Tetrapod with Lily), added by SB's own row call with no logic task in flight,
