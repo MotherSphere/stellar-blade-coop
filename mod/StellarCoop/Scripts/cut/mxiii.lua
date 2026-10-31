@@ -14,7 +14,7 @@
 -- game/travel.h). The travel activates no camp: only a coin at a vending machine does. A pak before v4 has no spawn
 -- point of that name, and the travel goes to DLC02_10_Camp_01 instead. coop mxiii 30 is
 -- the same with the travel to DLC02_30_Camp_01, which reaches the dungeon's upper half without the zone 20 climb (it
--- runs on Matrix 11 triggers and sequences the test pak leaves out); it needs the v3 pak, the only one with that camp's
+-- runs on Matrix 11 triggers and sequences the test pak leaves out); it needs the v3 pak or later, the first with that camp's
 -- spawn point, and asks nothing on v1 or v2. Each step logs an [MX] line, the travel's result a [TR] line. A warp into
 -- a world the save has never been in may write that world into the save: main.lua lets it run on a co-op save only. The
 -- rows stay for the game run; a second coop mxiii reads them back and travels again. The same batch goes in on its own
@@ -53,7 +53,7 @@ local Enemy=require('cut.enemy')
 local Mxiii={}
 Mxiii.CAMP='DLC02_10_Camp_01'
 Mxiii.ARRIVAL='DLC02_00_Camp_00' -- coop mxiii's camp from v4 on, and the name of its spawn point in that pak.
-Mxiii.CAMP30='DLC02_30_Camp_01' -- coop mxiii 30's camp, and the name of its spawn point in the v3 pak.
+Mxiii.CAMP30='DLC02_30_Camp_01' -- coop mxiii 30's camp, and the name of its spawn point from the v3 pak on.
 Mxiii.EXIT='coop mxiii leave'
 Mxiii.PAK='zMXIII_P'
 Mxiii.MAP='MXIII_P.umap'

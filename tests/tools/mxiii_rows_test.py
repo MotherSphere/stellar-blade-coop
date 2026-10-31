@@ -89,7 +89,7 @@ for camp in ('DLC02_00_Camp_00', 'DLC02_10_Camp_01', 'DLC02_10_Camp_02', 'DLC02_
              'DLC02_20_Camp_03', 'DLC02_20_Camp_04', 'DLC02_30_Camp_01', 'DLC02_30_Camp_02', 'DLC02_30_Camp_03',
              'DLC02_40_Camp_01'):
     assert ('ZoneCampTable', camp) in rows, camp
-    # Its own camp list; the Tetrapod stays in Matrix 11's bucket, whose order keeps it among the 7 tabs.
+    # Its own camp list; the Tetrapod stays in Matrix 11's bucket, so a bucket of its own does not put it past the game's 7 tabs.
     region = dict((f, v) for f, v, _ in rows[('ZoneCampTable', camp)]['set']).get('Region')
     assert region == (None if camp == 'DLC02_00_Camp_00' else 'Matrix13'), camp
 # EVE arrives at the Tetrapod with no camp active: its machine is the only camp row that starts Enable with no coin.

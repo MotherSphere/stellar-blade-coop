@@ -73,7 +73,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
-| `cut/mxiii.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v4, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_10_Camp_01`, or with 30 to `DLC02_30_Camp_01` on v3 only; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `cut/mxiii.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v4, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00` on v4 (`DLC02_10_Camp_01` on older paks), or with 30 to `DLC02_30_Camp_01` on v3 or later; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
 | `cut/mxiii_rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `cut/mxmove.lua`, `cut/mxboss.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, and the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `story/lily.lua`, `story/lily_text.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)) |
@@ -2168,8 +2168,9 @@ actor that a full camp places, and 900 has no object, as Matrix 11's simple camp
 objects. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
 at the spawn point of that name when EVE enters the zone. The camp keeps
 `ME01_Camp_03`'s picture, and its name until [the camp names](#the-camp-names) replace it. Its Region is `Matrix13`, a name the game makes a bucket for on first sight, so a full
-camp's list shows only the dungeon's full camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11`, since the
-teleport screen has 7 tabs and fills them in bucket order. No dungeon has a world map in the
+camp's list shows only the dungeon's full camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11`. The
+teleport screen fills its tabs in bucket order, and a bucket of its own, made after the shipped ones, would put this
+Tetrapod past the game's 7 tabs when 7 others are active, where only [the mod's tabs 8 and 9](#the-teleport-screens-extra-tabs) would show it. No dungeon has a world map in the
 game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
 
 The third zone's camp gives `coop mxiii 30` a way past the climb from `Zone_DLC02_20` (see below). The travel reads
@@ -2315,7 +2316,7 @@ world condition: the bike signal, the other region, the console and the end show
 The batch goes in at the title like the others, so only with the test pak and on the co-op save files, and the patch
 stays for the game run. It is optional: `coop mxiii` does not wait for it, a refusal or a table that does not load
 leaves her with no menu, and no other batch waits for it (`mxnames` waits only while its ask runs). The other region
-row opens the teleport screen with this Tetrapod as the eighth tab; the bike signal's leave warps to the Wasteland
+row opens the teleport screen with this Tetrapod among its tabs; the bike signal's leave warps to the Wasteland
 through `Xion_10_E_ZoneWarp_012` (Quest_Epic_11 M04), the main quest's point of no return, so a save that takes it with
 On Time running leaves that quest unfinished.
 
