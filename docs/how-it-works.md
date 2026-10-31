@@ -1169,6 +1169,54 @@ game yet, and in this version it never travels: `main.lua` leaves it off until t
   cutscene in her game, and while shared enemies run no boss fight and no enemy in battle within 30 m on her side (the
   `fight=` line's `boss=` and `battle=`), and 10 s since the last accepted travel.
 
+## The teleport screen's extra tabs
+
+The between-regions teleport screen, `WB_AreaTeleport_Set`, has 7 tabs, and an 8th active Tetrapod never shows. The Region
+logic (`FSBUILogic` type 0xBC, vtable `0x145c3eb08`) fills its tab array once per open and holds child logic objects of
+type 0xBD, not widgets. A node exists only for a widget in the list of 0x2C records that `FUN_14252de30` builds from the
+widget's class properties. `AddChildSBUserWidget` and `CreateDynamicChildUserWidget` discard their records, so a tab made
+at run time gets no node and no camp.
+
+`ui/region_tabs.lua` hooks the Set's `Construct` and makes tabs 8 to 10 with `CreateDynamicChildUserWidget`, with `TabCount`
+and `TabName` set (`WB_AreaTeleport_Tab_8` and so on, as the Set stores for its own). The trailing spacer is removed first
+and added back after them. Each tab starts collapsed. The game shows a tab only through its logic (`FUN_141f690e0` sets
+each filled tab to `SelfHitTestInvisible` and each surplus one to `Collapsed`), so a tab that got no node stays hidden and
+takes no focus. That is the fallback for every failure below.
+
+`FUN_141fc4d20` builds the root node, calls its vtable +0x30, and only then walks the records (`0x141fc4e5a`). The native
+part swaps that slot, `.rdata` `0x145c3eb38`, from `FUN_141f66a00` to a hook, once a run, by the same aligned
+compare-and-swap as [the spawn filter](#the-spawn-filter). No instruction byte changes. The hook acts only when its return
+address is `0x141fc4e21`, the root's call: the other call site, a child's at `0x141fc4fa2`, holds a pointer into the list
+that a grow would leave dangling. It reads the list's address from `0x141fc4d20`'s fifth argument on the stack
+(`[rbp+0x50]`, 0xb8 above the hook's return address). The list must look sane and hold at least one child of
+`HB_AreaTeleportRoot`, otherwise nothing changes. That child's class is the tab class. Each panel child of that class with
+no record then gets what `FUN_1425303c0` gives a class-property widget: `+0x4d0 = 0xBD`, `FUN_1425315e0` and a GUID from
+`FUN_142269830`. Its record `{name, guid, 0xBD, node+0x44}` is appended with the count raised before the grow
+(`FUN_1418fc350`), as the game's own code does. Node creation, the delegates, the array and the camp list then run unchanged.
+
+Surplus tabs stay collapsed by `FUN_141f690e0`, so a save with 8 regions shows 8 tabs. The row is `HB_AreaTeleportRoot`, a
+horizontal ScrollBox that ships with `ScrollBarVisibility` `Hidden`. A tab is 410 units wide in the row and the space is
+3528, so 8 tabs fit in 3340 and 9 need 3750. The Lua sets `SetClipping(1)`, `SetScrollBarVisibility(0)` and
+`SetScrollbarThickness` once. The engine collapses the bar while nothing overflows. The bar keeps the engine's default
+look, since `WidgetBarStyle` applies only when the Slate widget is built.
+
+Which camp a hold takes comes from `+0xb4`, which the handler `FUN_141f68750` sets from the last `_` token of a
+`NotifyBlueprint` string. The Set's `Construct` binds its `EventFocusSlotN` chain for Tab_1 to Tab_7 only, so a focus on tab 8
+would leave `+0xb4` on the last vanilla tab and a keyboard or gamepad hold would travel to that tab's camp. The Lua hooks
+the Tab's `EventWidgetFocusActive`: for `TabCount` above 7 it calls `ParentWidget:NotifyBlueprint(TabName)`. The focus hook
+is registered before the `Construct` hook, and a failed send collapses that tab. The focus hook keeps running after coop
+off and after a failure, for tabs already on screen. A mouse press takes `+0xb4` from the slot's own `+0x2f4` through the slot's
+delegate. An out-of-range `+0xb4` can start no hold: `FUN_141f67d80` checks it against the array's count.
+
+The game can unload a Blueprint class that nothing references, and a class loaded again would have no hook. A rooted
+instance of the Set class (`StellarCoop_RegionTabsKeeper`, never added to a screen) holds both classes. The asset load and
+the hooks run once a Lua load, at the first tick with a player controller.
+
+The slot goes back at coop off and after a fault in the hook, by a compare-and-swap from the hook only. The DLL is pinned
+and is never unloaded, so nothing restores the slot at unload, as with the spawn filter. The feature writes only to UI
+objects and the records list: no save, trophy, inventory or table write. The `0xb8` offset and every address hold only on
+build 24463856, and the hook is never installed off the pinned build.
+
 ## A player down
 
 Each game reads its own EVE's life state with its vitals (`life=` in `coop status`) and the friend's from her vit line:

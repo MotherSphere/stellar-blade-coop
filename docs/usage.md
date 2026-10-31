@@ -804,6 +804,27 @@ radius by hand, from 300 to 3000. The file keeps this form: whole numbers, singl
 checkpoints, each at least 15 m from the one before it (the first from the start line), at most 4096 bytes.
 `coop race start` refuses a file that breaks a rule, with the reason.
 
+## Teleport screen
+
+The game's between-regions teleport screen has 7 tabs and drops every active Tetrapod past the 7th. The mod adds up to 3
+more tabs, so it shows up to 10 regions, in the game's own order. Holding on a tab travels as on the game's own tabs, with
+the mouse, the keyboard or a gamepad. Tabs without a region stay hidden.
+
+8 tabs fit on the screen. From 9, a horizontal bar appears under the row: drag it with the mouse or use the wheel. With
+the keyboard or a gamepad, moving left and right should follow the focus. A region past the 10th still does not show.
+Added tabs appear at once, without the game's fade-in.
+
+The screen writes nothing to your save and unlocks no trophy. After `coop off`, or if a check fails, the screen goes back to the game's 7
+tabs. Screens already open keep their tabs until they close. These lines tell you what happened:
+
+- `coop-link.log`: `region tabs on: 0x145c3eb38 swapped from the Region logic's init to our hook` at start, and
+  `region tabs: <n> records added, <n> in the list, <n> tabs in the Region logic` once, for the first screen opened. With
+  0 records added on a screen that opened with the mod's hooks on, the screen was built in another order than expected.
+- `coop-link.log`: `region tabs refused: ...` means another mod holds that pointer or its page would not change.
+  `region tabs fault ...: off for this run` means a fault in the mod's hook. The screen keeps its 7 tabs in both cases.
+- `UE4SS.log`: `[RT] hooks on: ...` once a Lua load, or `[RT] STOP: <why>; the teleport screen keeps its 7 tabs until the
+  mod reloads`.
+
 ## Console commands
 
 The console comes with ConsoleEnablerMod (see [INSTALL.md](../INSTALL.md#requirements)) and opens with F10 or `~`.

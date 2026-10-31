@@ -259,6 +259,7 @@ package.loaded['ui.notice']={new=function()
     return the_notice
 end}
 probe,probe_runs,probe_ticks=nil,{},0 -- What nightop.new got, coop no's arguments, its ticks.
+package.loaded['ui.region_tabs']={new=function() return {tick=function() end,stop=function() end} end}
 package.loaded['nightop.probe']={new=function(log,ask,status)
     probe={log=log,ask=ask,status=status}
     return {run=function(sub,extra) probe_runs[#probe_runs+1]={sub,extra}; return true,'probe '..tostring(sub) end,
