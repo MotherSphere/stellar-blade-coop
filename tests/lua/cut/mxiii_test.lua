@@ -18,7 +18,8 @@
 -- rows with no EVE, only at the title on the co-op save files with the test pak, once a game run, asked again after a
 -- shut gate (at most 4 times a visit of the title) or a coop off during the wait, never after another refusal; its end
 -- says whether the title closed during the wait. The optional mxnames batch: asked last, only with camptext=ready, and
--- no travel waits for it.
+-- no travel waits for it; the optional mxlily batch: asked once the gardener's line has its answer, holding no batch
+-- back, with no travel waiting for it. On a v4 pak coop mxiii asks the probe for the Tetrapod camp DLC02_00_Camp_00.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -56,7 +57,8 @@ local Enemy=require('cut.enemy')
 -- names, templates, IDs, each patched field's kind and value, no field more. Then the dev rows first, in their order.
 local TABLES={character='CharacterTable',camp='ZoneCampTable',env='ZoneEnvSpawnTable',trigger='ZoneTriggerTable',
     spawn='EventSpawnTable',eitem='EventItemTable',zevent='ZoneEventTable',transition='WorldTransitionTable',
-    envc='EventEnvControlTable',warp='EventZoneWarpTable',effvol='EffectVolumeTable'}
+    envc='EventEnvControlTable',warp='EventZoneWarpTable',effvol='EffectVolumeTable',condition='ConditionTable',
+    cgroup='ConditionGroupTable'}
 local KINDS={name='n',string='s',names='N',strings='S'}
 local function check_batch(src,cname,rows)
     local patches={}
@@ -94,7 +96,7 @@ do
         words[#words+1]=b.word
         if b.word:find('^mx') then check_batch(src,'kM'..b.word:sub(2),b.rows) end
     end
-    assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxnames',
+    assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxlily mxnames',
         'The title order after mxiii')
     -- The dev rows: the camp, 7 env rows that name it (the kit 901 to 906 each at the point of its own name), zone 30's
     -- rest stop and its row, zone 40's two triggers.
@@ -142,6 +144,8 @@ local UCAS1=('\0'):rep(16)..'\20DLC02_10_E_CharS_001\16DLC02_10_Camp_01\12SBSpaw
 local UCAS2=UCAS1..('\0'):rep(100278-#UCAS1)..'\13DLC02_10_EnvS\20DLC02_10_E_ItemS_001'
 -- v3's adds the zone 30 camp's point, whole (FName keeps _01 as text).
 local UCAS3=UCAS2..'\16DLC02_30_Camp_01'
+-- v4's adds the Tetrapod camp's point, whole too.
+local UCAS4=UCAS3..'\16DLC02_00_Camp_00'
 local files,reads={},{}
 local function read(path,limit,offset) -- files.read: at most limit bytes, from offset.
     reads[#reads+1]=path
@@ -171,6 +175,9 @@ assert(where==LOGIC and version==2,'v2: the kit points named in its .ucas')
 put(LOGIC,nil,UCAS3)
 where,version=M.find_map(PAKS,read)
 assert(where==LOGIC and version==3,'v3: the zone 30 camp point named in its .ucas')
+put(LOGIC,nil,UCAS4)
+where,version=M.find_map(PAKS,read)
+assert(where==LOGIC and version==4,'v4: the Tetrapod camp point named in its .ucas')
 put(LOGIC)
 put(MODS,'-==--==--==--==-\0Matrix_XI.umap\0')
 where,why=M.find_map(PAKS,read)
@@ -206,7 +213,7 @@ do
     reads={}
     where,version=M.find_map(PAKS,read)
     assert(where==MODS and version==3,'v3 from the third window: '..tostring(version))
-    assert(#reads==5,'The .utoc, the .pak, three windows of the .ucas: '..#reads)
+    assert(#reads==6,'The .utoc, the .pak, every window of the .ucas, no Tetrapod name in it: '..#reads)
     files[MODS]=utoc({{0,1000},{1000,500}}) -- The blocks end before the zone 30 name: never read.
     reads={}
     where,version=M.find_map(PAKS,read)
@@ -368,6 +375,16 @@ assert(logged(READ_BACK))
 assert(lines[#lines-1]=='travel to DLC02_10_Camp_01 asked: travel DLC02_10_Camp_01 asked: the result follows in this '
     ..'log and in coop-link.log',lines[#lines-1])
 assert(last():find('^if %[TR%] says SB refused DLC02_10_Camp_01: SB lists the camps when its world starts'),last())
+-- On a v4 pak the travel goes to the Tetrapod camp, beside Lily; coop mxiii 30 keeps its own camp.
+put(LOGIC,nil,UCAS4)
+ok,why=mx.command()
+assert(ok and why=='coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 is asked ([TR] lines follow); way '
+    ..'out: coop mxiii leave' and probes[#probes][1]=='DLC02_00_Camp_00' and probes[#probes][2]==true,tostring(why))
+assert(logged('v4 (DLC02_00_Camp_00 point in its .ucas: coop mxiii arrives beside Lily at the Tetrapod'))
+ok,why=mx.command('30')
+assert(ok and probes[#probes][1]=='DLC02_30_Camp_01',tostring(why))
+probes[#probes],probes[#probes-1]=nil,nil
+put(LOGIC,nil,UCAS2)
 
 -- Rows already in: read back and the travel asked at once, no new ask; a probe the follow refuses says so.
 follow.probe='a travel is under way'
@@ -725,6 +742,20 @@ end
 names_status('camptext=ready\n')
 mx.title(true,true)
 assert(#asked==n1+1 and asked[#asked]:find('^mxnames rows ZoneCampTable=0x%x+$'),asked[#asked])
+-- Lily's menu: asked on the gardener's answer, with no camptext; while its ask runs the names wait, and a refusal
+-- leaves them free.
+mx=new(PAKS)
+n1=#asked
+names_status('mxlily=off\ncamptext=ready\n')
+mx.title(true,true)
+assert(#asked==n1+1 and asked[#asked]:find('^mxlily rows ConditionTable=0x%x+ ConditionGroupTable=0x%x+$'),asked[#asked])
+mx.title(true,true)
+assert(#asked==n1+1,'One ask at a time')
+names_status('mxlily=refused added=0/6 asks=1 spawns=? why=id table=ConditionTable row=x\ncamptext=ready\n')
+clock=clock+0.25
+assert(mx.tick()==nil and logged('mxlily title: The native part refused'),'Its refusal said')
+mx.title(true,true)
+assert(#asked==n1+2 and asked[#asked]:find('^mxnames rows '),asked[#asked])
 player=eve
 
 -- coop mxiii warp: the list of the 72 arrival points in the log; a point by number or name, under the follow's guards

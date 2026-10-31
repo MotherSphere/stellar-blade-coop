@@ -668,6 +668,14 @@ R.MXLOWER={
     {'ZoneEnvSpawnTable','DLC02_40_EnvS_025',2815032025,{{'Interaction','s','/Game/GameDesign/Level/ToolData/InteractionGraph/DLC_MXIII/Zone_MXIII_40/MT40_ShortCutRope_01_On.MT40_ShortCutRope_01_On',true},{'EnvBPPath','s','/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C',true},{'SpawnPointName','n','DLC02_40_EnvS_025',true},{'TagEventList2','N','',true}}},
     {'ZoneEnvSpawnTable','DLC02_40_EnvS_021',2815032021,{{'EnvBPPath','s','/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C',true},{'SpawnPointName','n','DLC02_40_EnvS_021',true}}},
 }
+R.MXLILY={
+    {'ConditionTable','Xion01_NPC_Lily_01_IACC__075',1202,{{'CustomStr01','s','DLCMatrix13',true}}},
+    {'ConditionTable','Xion01_NPC_Lily_01_IACC__073',1194,{{'CustomStr01','s','DLCMatrix13',true}}},
+    {'ConditionTable','Xion01_NPC_Lily_01_IACC__077',1204,{{'CustomStr01','s','DLCMatrix13',true}}},
+    {'ConditionGroupTable','Xion01_NPC_Lily_01_ConditionGroup_019',244,{{'ConditionEq','e',3,true}}},
+    {'ConditionGroupTable','Xion01_NPC_Lily_01_ConditionGroup_017',243,{{'ConditionEq','e',3,true}}},
+    {'ConditionGroupTable','Xion01_NPC_Lily_01_ConditionGroup_018',245,{{'ConditionEq','e',3,true}}},
+}
 R.MXNAMES={
     {'ZoneCampTable','DLC02_00_Camp_00',280000,{{'CampName','s','MX13_Camp_DLC02_00_Camp_00',true},{'RegionName','n','MX13_Region',true}}},
     {'ZoneCampTable','DLC02_10_Camp_01',280001,{{'CampName','s','MX13_Camp_DLC02_10_Camp_01',true},{'RegionName','n','MX13_Region',true}}},

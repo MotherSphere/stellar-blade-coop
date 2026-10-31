@@ -156,6 +156,7 @@ struct Game {
     donor_rows(kMxupper);
     donor_rows(kMxmiddle);
     donor_rows(kMxlower);
+    donor_rows(kMxlily);
   }
   uint64_t vtable_at = 0;
 
@@ -461,7 +462,12 @@ int main() {
       assert(size_t(world[k].t) == 25 + k && !std::strcmp(info.name, world[k].name) && info.size == world[k].size &&
              info.id && !info.transient[0]);
     }
-    static_assert(kTableCount == 32, "25 tables and Matrix XIII's seven");
+    static_assert(kTableCount == 34, "25 tables, Matrix XIII's seven and Lily's two");
+    assert(size_t(Table::condition) == 32 && !std::strcmp(table_info(Table::condition).name, "ConditionTable") &&
+           table_info(Table::condition).size == 0x78 && table_info(Table::condition).id &&
+           !table_info(Table::condition).transient[0] && size_t(Table::cgroup) == 33 &&
+           !std::strcmp(table_info(Table::cgroup).name, "ConditionGroupTable") && table_info(Table::cgroup).size == 0x50 &&
+           table_info(Table::cgroup).id && !table_info(Table::cgroup).transient[0]);
   }
   // Lily's signal batch, by hand with patches of its own: 8 target filters first (one per Tetrapod Lily, each the
   // shipped M04 marker with another spawn), then 7 tasks (On Time's M01 to M04 entering the four Matrix XIII zones, M05
@@ -554,7 +560,7 @@ int main() {
            at(choice, 0x58).f == 1 && at(choice, 0x80).kind == Kind::i32 && at(choice, 0x80).f == 3 &&
            !std::strcmp(at(choice, 0x84).text, "Success5") && !std::strcmp(at(choice, 0x78).text, "None"));
   }
-  // Matrix XIII's seven batches (lion/mxiii_rows.h, generated from data/mxiii-world.json): each under 256 rows with its
+  // Matrix XIII's eight batches (lion/mxiii_rows.h, generated from data/mxiii-world.json): each under 256 rows with its
   // own patches; names unique per table across the first six, IDs unique per table, and mxnames only the mxiii batch's
   // rows again, patched in place, under the same names and IDs; each row's patches in order, inside its
   // struct past the ID, none on the same bytes; a shipped row patched in place only in a table with no Transient array.
@@ -567,13 +573,13 @@ int main() {
   // by 050's link, the Lion's spawn row shutting its doors on battle and opening them on its death.
   {
     static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 164 &&
-                      kMxmiddleRows == 106 && kMxlowerRows == 99 && kMxnamesRows == 11,
+                      kMxmiddleRows == 106 && kMxlowerRows == 99 && kMxnamesRows == 11 && kMxlilyRows == 6,
                   "the data file's batches");
-    const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower, &kMxnames};
+    const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower, &kMxnames, &kMxlily};
     assert(kMxiii.patches == kMxiiiPatches && kMxspawn.patches == kMxspawnPatches &&
            kMxenv.patches == kMxenvPatches && kMxupper.patches == kMxupperPatches &&
            kMxmiddle.patches == kMxmiddlePatches && kMxlower.patches == kMxlowerPatches &&
-           kMxnames.patches == kMxnamesPatches && kLion.patches == kPatches && kBolt.patches == kPatches && kShop.patches == kPatches);
+           kMxnames.patches == kMxnamesPatches && kMxlily.patches == kMxlilyPatches && kLion.patches == kPatches && kBolt.patches == kPatches && kShop.patches == kPatches);
     std::set<std::pair<size_t, std::string>> names;
     std::set<std::pair<size_t, uint32_t>> ids;
     const size_t sizes[] = {sizeof kMxiiiPatches / sizeof kMxiiiPatches[0],
@@ -582,8 +588,9 @@ int main() {
                             sizeof kMxupperPatches / sizeof kMxupperPatches[0],
                             sizeof kMxmiddlePatches / sizeof kMxmiddlePatches[0],
                             sizeof kMxlowerPatches / sizeof kMxlowerPatches[0],
-                            sizeof kMxnamesPatches / sizeof kMxnamesPatches[0]};
-    for (size_t k = 0; k < 7; ++k) {
+                            sizeof kMxnamesPatches / sizeof kMxnamesPatches[0],
+                            sizeof kMxlilyPatches / sizeof kMxlilyPatches[0]};
+    for (size_t k = 0; k < 8; ++k) {
       const Batch &b = *mx[k];
       size_t n = 0;
       for (size_t i = 0; i < b.count; ++i) {
@@ -1317,6 +1324,24 @@ int main() {
     assert(describe(kMxnames, na) == "mxnames rows: 11/11 in, 0 added through SB's AddRow 0x14417ba30 and 11 shipped "
                                      "rows patched in place, 0 refused");
     assert(nb.run(g, kBase, g.tables, g.block).added == kMxnamesRows && g.puts.size() == puts + kMxnamesRows);
+    // Lily's menu: three IsInWorld conditions naming the dungeon's world (CustomStr01, +0x18), then three groups turned
+    // from AND to OR (ConditionEq, +0x28), shipped rows in place: no AddRow, every other byte what the row held.
+    const size_t lily_puts = g.puts.size();
+    Builder lb(kMxlily);
+    const Answer la = lb.run(g, kBase, g.tables, g.block);
+    assert(la.state == State::rows && la.added == 6 && g.adds.size() == adds && g.puts.size() == lily_puts + 6);
+    for (size_t i = 0; i < 6; ++i) {
+      const Row &r = kMxlilyRecipe[i];
+      const Game::Put &p = g.puts[lily_puts + i];
+      const bool cond = i < 3;
+      const size_t at = cond ? 0x18 : 0x28, n = cond ? kind_size(Kind::string) : 1;
+      assert(shipped_row(r) && r.table == (cond ? Table::condition : Table::cgroup) && g.name_text(p.name) == r.name);
+      assert(cond ? g.string_field(p, at) == "DLCMatrix13" : p.block[at] == 3);
+      for (size_t k = 0x14; k < table_info(r.table).size; ++k)
+        assert((k >= at && k < at + n) || p.block[k] == p.before[k]);
+    }
+    assert(describe(kMxlily, la) == "mxlily rows: 6/6 in, 0 added through SB's AddRow 0x14417ba30 and 6 shipped rows "
+                                    "patched in place, 0 refused");
   }
   {
     // Lily's signal batch: a TheaterSelectDataTable whose row size is not the SDK's stops it before any row (every

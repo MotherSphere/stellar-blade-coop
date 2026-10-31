@@ -419,7 +419,7 @@ int main() {
          mod_only(long_kept).find("snapshot") == std::string::npos);
   // Any row of the dungeon counts in those fields, in the save as played and in the snapshot: the kit's vending
   // machine, where the activation leaves the camp; the mod's camp by its name; a row of another of its zones.
-  for (const char *row : {"DLC02_10_EnvS_906", "DLC02_10_Camp_01", "DLC02_30_EnvS_011"}) {
+  for (const char *row : {"DLC02_10_EnvS_906", "DLC02_10_Camp_01", "DLC02_30_EnvS_011", "DLC02_00_Camp_00"}) {
     assert(mod_only(clean_body() + fstring("CampAlias") + fstring(row)) ==
            "the cut Matrix XIII dungeon as its camp" + rest + "; then save and export it again");
     assert(mod_only(clean_body() + name_field("CampEnvSpawnAlias", row) + name_field("LastFullCampEnvSpawnAlias", row) +

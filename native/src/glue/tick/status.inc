@@ -82,8 +82,8 @@ std::string camp_text_status() {
                                            : camp_text::State::wait);
 }
 
-// coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower and
-// mxnames lines (lion/rows.h's status_line), from what the game thread published, then the shock line (lion/shock.h's
+// coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower,
+// mxnames and mxlily lines (lion/rows.h's status_line), from what the game thread published, then the shock line (lion/shock.h's
 // shock_line), read after the bolt line it was published before, then the nightshop, roxanne and lily lines
 // (nightop_worker.inc's nightop_status).
 std::string rows_status() {

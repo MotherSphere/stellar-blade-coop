@@ -937,11 +937,11 @@ int main() {
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
   // (batch 3), coop mxiii's (batch 4), the Night Operation shop's (batch 5), Lily's signal's (batch 6) and Matrix
-  // XIII's mxspawn, mxenv, mxupper, mxmiddle, mxlower and mxnames (batches 7 to 12): one
-  // <Table>=0x<address> word for each table the batch writes, 1 to 32 of them, in any order, each once (the others stay
+  // XIII's mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames and mxlily (batches 7 to 13): one
+  // <Table>=0x<address> word for each table the batch writes, 1 to 34 of them, in any order, each once (the others stay
   // 0); the addresses in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request Lua
-  // could write (all 32, %x, so 12 digits at most under plausible's bound) is 1043 bytes with its line end; the longest
-  // one parsed (16 digits each, 1171 bytes) fits the native part's read of its request file (kMaxRequestFile 2048, up
+  // could write (all 34, %x, so 12 digits at most under plausible's bound) is 1108 bytes with its line end; the longest
+  // one parsed (16 digits each, 1244 bytes) fits the native part's read of its request file (kMaxRequestFile 2048, up
   // from 1024 when the table list passed 27). Anything off is refused.
   const auto rows = [](const char *word, const std::vector<std::string> &words) {
     std::string text = std::string(word) + " rows";
@@ -984,7 +984,7 @@ int main() {
   Request mx = parse_request(mxiii(shuffled));
   assert(mx.command == Command::rows && mx.batch == 4 && mx.tables == li.tables);
   Request so = parse_request(shop(shuffled));
-  assert(so.command == Command::rows && so.batch == 5 && so.tables == li.tables && kLionTableCount == 32 &&
+  assert(so.command == Command::rows && so.batch == 5 && so.tables == li.tables && kLionTableCount == 34 &&
          li.tables[17] == 0x1f4a2b3c1100ull && li.tables[18] == 0x1f4a2b3c1200ull &&
          li.tables[19] == 0x1f4a2b3c1300ull && li.tables[24] == 0x1f4a2b3c1800ull &&
          li.tables[31] == 0x1f4a2b3c1f00ull);
@@ -1002,9 +1002,11 @@ int main() {
   assert(mi.command == Command::rows && mi.batch == 10 && mi.tables == li.tables);
   const Request lo = parse_request(mxlower({words[31], words[28], words[27], words[25], words[16]}));
   assert(lo.command == Command::rows && lo.batch == 11 && lo.tables[31] == 0x1f4a2b3c1f00ull &&
-         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 13);
+         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 14);
   const Request na = parse_request(rows("mxnames", {words[15]}));
   assert(na.command == Command::rows && na.batch == 12 && na.tables[15] != 0 && na.tables[16] == 0);
+  const Request ly = parse_request(rows("mxlily", {words[32], words[33]}));
+  assert(ly.command == Command::rows && ly.batch == 13 && ly.tables[32] != 0 && ly.tables[33] != 0 && ly.tables[15] == 0);
   assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
          !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&
          !std::strcmp(kLionTables[19], "ZoneTriggerTable") && !std::strcmp(kLionTables[20], "QuestTable") &&
@@ -1013,18 +1015,19 @@ int main() {
          !std::strcmp(kLionTables[25], "EventSpawnTable") && !std::strcmp(kLionTables[26], "EventItemTable") &&
          !std::strcmp(kLionTables[27], "ZoneEventTable") && !std::strcmp(kLionTables[28], "EventEnvControlTable") &&
          !std::strcmp(kLionTables[29], "WorldTransitionTable") && !std::strcmp(kLionTables[30], "EventZoneWarpTable") &&
-         !std::strcmp(kLionTables[31], "EffectVolumeTable"));
+         !std::strcmp(kLionTables[31], "EffectVolumeTable") &&
+         !std::strcmp(kLionTables[32], "ConditionTable") && !std::strcmp(kLionTables[33], "ConditionGroupTable"));
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
     tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
-  assert(gardener(tables_longest).size() + 1 == 1043 &&
+  assert(gardener(tables_longest).size() + 1 == 1108 &&
          parse_request(gardener(tables_longest)).command == Command::rows);
   assert(parse_request(lion(tables_longest)).command == Command::rows);
   tables_longest[0] = "CharacterTable=0x00007ffffffefff8"; // Leading zeros Lua never writes: still parsed.
   assert(parse_request(lion(tables_longest)).command == Command::rows);
   for (std::string &w : tables_longest)
     w = w.substr(0, w.find('=')) + "=0x00007ffffffefff8";
-  assert(gardener(tables_longest).size() + 1 == 1171 && gardener(tables_longest).size() + 1 <= kMaxRequestFile &&
+  assert(gardener(tables_longest).size() + 1 == 1244 && gardener(tables_longest).size() + 1 <= kMaxRequestFile &&
          parse_request(gardener(tables_longest)).command == Command::rows);
   const auto with = [&words](size_t i, const std::string &w) {
     std::vector<std::string> v = words;
@@ -1042,7 +1045,7 @@ int main() {
   assert(lone.command == Command::rows && lone.batch == 6 && lone.tables[20] == 0x1f4a2b3c1400ull &&
          lone.tables[21] == 0);
   const Request short_one = parse_request(lion(one_short));
-  assert(short_one.command == Command::rows && short_one.tables[30] == 0x1f4a2b3c1e00ull && short_one.tables[31] == 0);
+  assert(short_one.command == Command::rows && short_one.tables[31] == 0x1f4a2b3c1f00ull && short_one.tables[33] == 0);
   std::vector<std::string> doubled = {words[3], words[7], words[3]};
   for (const std::string &bad :
        {lion(one_more), lion(with(1, words[0])), lion(doubled), signal({}) + " ",

@@ -842,9 +842,9 @@ local travels=#mx.cmds
 assert(select(2,ly.o.travel())=='mx nil' and #mx.cmds==travels+1,'Its travel is coop mxiii, checked there')
 status_text=plain
 assert(ly.o.travel()==false and #mx.cmds==travels+1,'Off a co-op save, coop mxiii refuses it')
-mx.t,mx.says=mx.ticks,{true,'coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked'}
+mx.t,mx.says=mx.ticks,{true,'coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 is asked'}
 loops[1].f()
-assert(mx.ticks==mx.t+1 and last()=='[StellarCoop] OK: coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 '
+assert(mx.ticks==mx.t+1 and last()=='[StellarCoop] OK: coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 '
     ..'is asked\n',last())
 mx.says=nil
 -- coop wear: all its words to cut/wear.lua on any save, coop-wear.txt through the link; each frame its restore (done

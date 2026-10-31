@@ -61,11 +61,14 @@ FIELDS = {
     'EventZoneWarpTable': ('warp', {'TargetWorld': (0x24, 'name', 'n'), 'TargetZoneCamp': (0x2c, 'name', 'n'),
                                     'TargetSpawnPoint': (0x34, 'name', 'n')}),
     'EffectVolumeTable': ('effvol', {'ActiveZoneAlias': (0x18, 'name', 'n'), 'EnterEffectAlias': (0x20, 'name', 'n')}),
+    'ConditionTable': ('condition', {'CustomStr01': (0x18, 'string', 's')}),
+    'ConditionGroupTable': ('cgroup', {'ConditionEq': (0x28, 'u8', 'e')}),
 }
 SIZE = {'u8': 1, 'f32': 4, 'i32': 4, 'name': 8, 'string': 16, 'names': 16, 'strings': 16}
 STRUCT = {'CharacterTable': 0x548, 'ZoneCampTable': 0xa8, 'ZoneEnvSpawnTable': 0x508, 'ZoneTriggerTable': 0xa8,
           'EventSpawnTable': 0x290, 'EventItemTable': 0x80, 'ZoneEventTable': 0x70, 'WorldTransitionTable': 0x88,
-          'EventEnvControlTable': 0x70, 'EventZoneWarpTable': 0x70, 'EffectVolumeTable': 0xc0}
+          'EventEnvControlTable': 0x70, 'EventZoneWarpTable': 0x70, 'EffectVolumeTable': 0xc0, 'ConditionTable': 0x78,
+          'ConditionGroupTable': 0x50}
 POOL = 0x1000  # lion/rows.h's kPoolBytes: a row's strings and lists must fit it.
 
 
