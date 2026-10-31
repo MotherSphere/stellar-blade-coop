@@ -2110,7 +2110,7 @@ it and every row in its `LinkEnvSpawnList` on. That list leaves out 900: the tem
 actor that a full camp places, and 900 has no object, as Matrix 11's simple camp `ME01_Camp_01` links only its
 objects. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
 at the spawn point of that name when EVE enters the zone. The camp keeps
-`ME01_Camp_03`'s name and picture. Its Region is `Matrix13`, a name the game makes a bucket for on first sight, so a full
+`ME01_Camp_03`'s picture, and its name until [the camp names](#the-camp-names) replace it. Its Region is `Matrix13`, a name the game makes a bucket for on first sight, so a full
 camp's list shows only the dungeon's full camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11`, since the
 teleport screen has 7 tabs and fills them in bucket order. No dungeon has a world map in the
 game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
@@ -2297,8 +2297,8 @@ bytes, a batch of 256 rows or more, a name given twice, a string list of one emp
 as no item) and a row whose strings and lists overflow the native part's 4 KB pool. The data file is built outside the
 repository from the cook's manifest, the mechanism design and the build 24463856 table dumps.
 
-Six batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxupper rows`, `mxmiddle rows`, `mxlower
-rows`), so a refusal in one never stops another:
+Seven batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxupper rows`, `mxmiddle rows`, `mxlower
+rows`, `mxnames rows`), so a refusal in one never stops another:
 
 - `mxiii`, 75 rows: the 15 rows of the camp work above, less the three zone 2 trigger patches (the waves moved to
   triggers of their own, below) (the zone 3 rest stop `DLC02_30_Camp_01` is now a simple camp
@@ -2387,10 +2387,10 @@ in world 2800 only, as a test fallback.
 At the title, once the `mxiii=` line has an answer, `cut/mxiii.lua` asks the others one at a time, each once the batch
 before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`, `mxupper`,
 `mxmiddle`, `mxlower`, then the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC` and `M_Gardener` the
-boss spawn rows name. All go in before any save loads, since the zone manager lists a world's rows when the world
-starts. `coop mxiii` asks no travel until every one of these lines reads `rows`, and names the first batch that does
-not: the travel would reach a dungeon without its Naytibas or its doors, and a peer's shared Naytibas would match no
-spawn row.
+boss spawn rows name, and last `mxnames` ([below](#the-camp-names)). All go in before any save loads, since the zone
+manager lists a world's rows when the world starts. `coop mxiii` asks no travel until every one of these lines but
+`mxnames` reads `rows`, and names the first batch that does not: the travel would reach a dungeon without its Naytibas
+or its doors, and a peer's shared Naytibas would match no spawn row.
 
 In world 2800, `cut/mxdrone.lua` gives the drone's spot light 20 % more range and cone at the same intensity: a post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes each tick, and the cone goes back to 30/40 degrees on leaving the world.
 
@@ -2431,6 +2431,54 @@ The export check (`save/twins.h`) refuses a co-op save holding any FString that 
 fields it already reads (names that start with `Zone_DLC02_` excepted, every save holds them). None of the user's 15
 released-game saves holds one; a save that played the dungeon keeps its zones' rows for good, so it can never be
 exported.
+
+### The camp names
+
+The camps have names of their own in French and English, and every other language shows the English. The region's key
+is `MX13_Region`, and a camp's is `MX13_Camp_<row>`:
+
+| Row | French | English |
+| --- | --- | --- |
+| `MX13_Region` | Matrice 13 | Matrix 13 |
+| `DLC02_00_Camp_00` | Matrice 13 | Matrix 13 |
+| `DLC02_10_Camp_01` | Tête d'ascenseur | Lift Head |
+| `DLC02_10_Camp_02` | Bureau du chef de gare | Station Master's Office |
+| `DLC02_20_Camp_01` | Sas de la voiture 9 | Car 9 Airlock |
+| `DLC02_20_Camp_02` | Voies de garage | Sidings |
+| `DLC02_20_Camp_03` | Hall de l'ascenseur | Lift Hall |
+| `DLC02_20_Camp_04` | Salle des signaux | Signal Room |
+| `DLC02_30_Camp_01` | Première halte | First Rest Stop |
+| `DLC02_30_Camp_02` | Deuxième halte | Second Rest Stop |
+| `DLC02_30_Camp_03` | Puits de pompage | Pump Shaft |
+| `DLC02_40_Camp_01` | Salle des pompes | Pump Hall |
+
+The rows hold keys of `StringTable_UI`, so the names go in two steps, in this order:
+
+1. `game/camp_text.h` and `glue/tick/camp_text_game.inc` add the 12 entries to the live table from `coop_tick`. Each 250
+   ms, at the title and with coop off too, the game thread reads the culture and, while a pass is due, looks for the
+   table. It waits until the table's loaded byte is set: the table is registered in its constructor, and `Serialize`
+   empties it later. `coop-status.txt` then goes from `camptext=wait` to `camptext=ready`.
+2. `cut/mxiii.lua` asks `mxnames` at the title once `gardener=` has an answer and the line reads `camptext=ready`. The
+   batch is 11 rows that name themselves as donor: the existing in-place form, with the same IDs, applied to rows the
+   `mxiii` batch added. It writes `CampName` (`+0x18`) and `RegionName` (`+0x34`) and no other field, on the Tetrapod row
+   `DLC02_00_Camp_00` too, which keeps Region `Matrix11` for the reason [above](#its-rows-2).
+
+The order is there because of what this build does with a key it cannot find: `FUN_142879140` shows `<key>`. A row names
+a key only after its entry exists, so this path cannot show `<key>`. If the pass faults (`camptext=fault`, with a `camp
+names off` line in the log) or the table never loads at the title, `mxnames` is never asked, the rows keep their donors'
+keys and show the donors' names. `coop mxiii` does not wait for this batch, so the travel works either way.
+
+This build has no `FStringTable::SetSourceString`, and `ImportStrings` clears the table first, so the pass makes each
+entry with the out of line calls `ImportStrings` makes (`14285a4f2`-`14285a643`), under the table's lock. The first fault
+latches the passes off for the run; the handler lets go of the locks the mod's code took. `FUN_14287d320` overrides an
+existing display string only under the culture `ko`, so on a language change the pass assigns the display string and
+the source directly, under the manager's lock. Saves hold the camp's alias and are not touched: only rows in memory
+and the live table change.
+
+All of this comes from reading build 24463856's code and has not run in game. The first run has to show
+`camptext=ready` at the title in a French and an English boot, `mxnames=rows`, the names on the TeleportCamp title,
+`WB_TeleportSlot`, `WB_Teleport_Preview`, `WB_AreaTeleport_Tab` and the load slot, and no fault over two boots and a
+return to the title.
 
 ### Open questions
 

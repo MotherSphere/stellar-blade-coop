@@ -76,6 +76,10 @@
 // the camp EVE respawns at, under its own SEH latch; camps_status() gives both as coop-status.txt's activated line for
 // session/travel.lua and cut/mxiii.lua. A load drops the list until the next read.
 //
+// Matrix XIII's camp names (game/camp_text.h): every 250 ms, at the title and with coop off too, the game thread adds
+// its 12 entries to StringTable_UI once the table has loaded, and rewrites them on a language change, under its own SEH
+// latch; camp_text_status() gives coop-status.txt's camptext line, which cut/mxiii.lua waits for.
+//
 // coop fly and coop slowmo (game/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
 // (on a co-op save; slow motion with no friend linked); every 250 ms the game thread sets each wanted gate's byte in
 // SB's settings map and puts back the value from before once it is no longer wanted (an off, coop off, the next Lua
@@ -146,6 +150,7 @@
 #include <vector>
 
 #include "fight/worker.h"
+#include "game/camp_text.h"
 #include "game/camps.h"
 #include "game/anim.h"
 #include "game/debug_keys.h"
@@ -184,6 +189,7 @@
 #include "glue/tick/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "glue/tick/nightop_game.inc"
 #include "glue/tick/anim_game.inc"
+#include "glue/tick/camp_text_game.inc" // After anim_game.inc and freeze_game.inc: their FStringArg and MakeName.
 #include "glue/tick/shortcut_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
@@ -249,6 +255,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The activated camps' read, its own latch: a check each 250 ms, none after coop off or its first fault.
   if (game_pinned && !camps_faulted && !blocked)
     camps_tick();
+  // Matrix XIII's camp names, their own latch: a check each 250 ms, at the title too, none after their first fault.
+  if (game_pinned && !camp_text_faulted)
+    camp_text_tick();
   // The rows of every batch, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no
   // call made.
   if (game_pinned && !lion_faulted)

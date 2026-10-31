@@ -4486,3 +4486,52 @@ constexpr Row kMxlowerRecipe[] = {
     {Table::env, "DLC02_40_EnvS_021", "DLC02_40_EnvS_021", 2815032021u, 665, 2},
 };
 
+constexpr Patch kMxnamesPatches[] = {
+    // DLC02_00_Camp_00 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_00_Camp_00"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_10_Camp_01 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_10_Camp_01"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_10_Camp_02 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_10_Camp_02"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_20_Camp_01 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_20_Camp_01"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_20_Camp_02 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_20_Camp_02"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_20_Camp_03 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_20_Camp_03"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_20_Camp_04 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_20_Camp_04"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_30_Camp_01 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_30_Camp_01"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_30_Camp_02 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_30_Camp_02"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_30_Camp_03 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_30_Camp_03"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+    // DLC02_40_Camp_01 (ZoneCampTable)
+    {0x18, Kind::string, 0, "MX13_Camp_DLC02_40_Camp_01"}, // CampName
+    {0x34, Kind::name, 0, "MX13_Region"}, // RegionName
+};
+constexpr Row kMxnamesRecipe[] = {
+    {Table::camp, "DLC02_00_Camp_00", "DLC02_00_Camp_00", 280000u, 0, 2},
+    {Table::camp, "DLC02_10_Camp_01", "DLC02_10_Camp_01", 280001u, 2, 2},
+    {Table::camp, "DLC02_10_Camp_02", "DLC02_10_Camp_02", 280002u, 4, 2},
+    {Table::camp, "DLC02_20_Camp_01", "DLC02_20_Camp_01", 280501u, 6, 2},
+    {Table::camp, "DLC02_20_Camp_02", "DLC02_20_Camp_02", 280502u, 8, 2},
+    {Table::camp, "DLC02_20_Camp_03", "DLC02_20_Camp_03", 280503u, 10, 2},
+    {Table::camp, "DLC02_20_Camp_04", "DLC02_20_Camp_04", 280504u, 12, 2},
+    {Table::camp, "DLC02_30_Camp_01", "DLC02_30_Camp_01", 281001u, 14, 2},
+    {Table::camp, "DLC02_30_Camp_02", "DLC02_30_Camp_02", 281002u, 16, 2},
+    {Table::camp, "DLC02_30_Camp_03", "DLC02_30_Camp_03", 281003u, 18, 2},
+    {Table::camp, "DLC02_40_Camp_01", "DLC02_40_Camp_01", 281501u, 20, 2},
+};
+

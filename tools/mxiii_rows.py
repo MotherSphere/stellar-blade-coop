@@ -21,7 +21,8 @@ LUA = ROOT / 'mod/StellarCoop/Scripts/cut/mxiii_rows.lua'
 # Table asset name: (lion/rows.h Table, {field: (offset, patch kind, read-back kind)}).
 FIELDS = {
     'CharacterTable': ('character', {'DefaultEffectArray': (0x220, 'names', 'N')}),
-    'ZoneCampTable': ('camp', {'CampType': (0x28, 'u8', 'e'), 'Region': (0x2c, 'name', 'n'),
+    'ZoneCampTable': ('camp', {'CampName': (0x18, 'string', 's'), 'CampType': (0x28, 'u8', 'e'),
+                               'Region': (0x2c, 'name', 'n'), 'RegionName': (0x34, 'name', 'n'),
                                'CoinSpawnPointName': (0x60, 'name', 'n'), 'CampDisplayType': (0x6c, 'u8', 'e')}),
     'ZoneEnvSpawnTable': ('env', {
         'ZoneList': (0x20, 'names', 'N'), 'EnvActorName': (0x30, 'name', 'n'), 'EnvBPPath': (0x38, 'string', 's'),
@@ -79,14 +80,16 @@ def text_of(kind, value):
 
 def check(data):
     """Raises on data the native part would refuse or misread."""
-    seen = set()
+    seen = {}
     for b in data['batches']:
         assert b['word'].isalpha() and b['word'].islower(), b['word']
         assert 0 < len(b['rows']) < 256, (b['word'], 'a row index fits a byte')
         for r in b['rows']:
             assert r['table'] in FIELDS, r['table']
-            assert (r['table'], r['name']) not in seen, r['name']
-            seen.add((r['table'], r['name']))
+            # A name once, but for a later batch patching a row in place (mxnames, on the mxiii batch's camps).
+            before = seen.get((r['table'], r['name']))
+            assert before is None or (before != b['word'] and r['donor'] == r['name']), r['name']
+            seen[(r['table'], r['name'])] = b['word']
             assert 0 < r['id'] < 2 ** 32, r['name']
             fields = FIELDS[r['table']][1]
             spans, pool = [], 0

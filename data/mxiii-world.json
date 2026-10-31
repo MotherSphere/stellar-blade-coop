@@ -22530,6 +22530,209 @@
      ]
     }
    ]
+  },
+  {
+   "word": "mxnames",
+   "rows": [
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_00_Camp_00",
+     "donor": "DLC02_00_Camp_00",
+     "id": 280000,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_00_Camp_00",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_10_Camp_01",
+     "donor": "DLC02_10_Camp_01",
+     "id": 280001,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_10_Camp_01",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_10_Camp_02",
+     "donor": "DLC02_10_Camp_02",
+     "id": 280002,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_10_Camp_02",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_20_Camp_01",
+     "donor": "DLC02_20_Camp_01",
+     "id": 280501,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_20_Camp_01",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_20_Camp_02",
+     "donor": "DLC02_20_Camp_02",
+     "id": 280502,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_20_Camp_02",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_20_Camp_03",
+     "donor": "DLC02_20_Camp_03",
+     "id": 280503,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_20_Camp_03",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_20_Camp_04",
+     "donor": "DLC02_20_Camp_04",
+     "id": 280504,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_20_Camp_04",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_30_Camp_01",
+     "donor": "DLC02_30_Camp_01",
+     "id": 281001,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_30_Camp_01",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_30_Camp_02",
+     "donor": "DLC02_30_Camp_02",
+     "id": 281002,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_30_Camp_02",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_30_Camp_03",
+     "donor": "DLC02_30_Camp_03",
+     "id": 281003,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_30_Camp_03",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneCampTable",
+     "name": "DLC02_40_Camp_01",
+     "donor": "DLC02_40_Camp_01",
+     "id": 281501,
+     "set": [
+      [
+       "CampName",
+       "MX13_Camp_DLC02_40_Camp_01",
+       true
+      ],
+      [
+       "RegionName",
+       "MX13_Region",
+       true
+      ]
+     ]
+    }
+   ]
   }
  ],
  "move": [

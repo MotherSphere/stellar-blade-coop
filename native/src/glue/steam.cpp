@@ -485,10 +485,11 @@ std::string status_text() {
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   const std::string camps = coop::pose::camps_status();
+  const std::string camp_text = coop::pose::camp_text_status();
   return head + cns_line + coop::pose::status() + "\n" + (camps.empty() ? camps : camps + "\n") +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
-         coop::pose::rows_status() + "\n" +
+         coop::pose::rows_status() + "\n" + (camp_text.empty() ? camp_text : camp_text + "\n") +
          coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
          "last=" + journal.last() + "\n";
 }

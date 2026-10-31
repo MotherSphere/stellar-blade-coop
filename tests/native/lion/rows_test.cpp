@@ -238,6 +238,7 @@ struct Game {
     const uint64_t copy = mem.alloc(info.size);
     std::memcpy(mem.at(copy, info.size), mem.at(block, info.size), info.size);
     rows[{table, n}] = copy;
+    donors[copy] = t; // A later batch may patch it in place, as mxnames does.
     if (info.id)
       ids[{table, mem.get<uint32_t>(block + kIdAt)}] = n;
   }
@@ -553,8 +554,9 @@ int main() {
            at(choice, 0x58).f == 1 && at(choice, 0x80).kind == Kind::i32 && at(choice, 0x80).f == 3 &&
            !std::strcmp(at(choice, 0x84).text, "Success5") && !std::strcmp(at(choice, 0x78).text, "None"));
   }
-  // Matrix XIII's six batches (lion/mxiii_rows.h, generated from data/mxiii-world.json): each under 256 rows with its
-  // own patches; names unique per table across the six, IDs unique per table; each row's patches in order, inside its
+  // Matrix XIII's seven batches (lion/mxiii_rows.h, generated from data/mxiii-world.json): each under 256 rows with its
+  // own patches; names unique per table across the first six, IDs unique per table, and mxnames only the mxiii batch's
+  // rows again, patched in place, under the same names and IDs; each row's patches in order, inside its
   // struct past the ID, none on the same bytes; a shipped row patched in place only in a table with no Transient array.
   // Then the rows the cooked map and the other batches rely on: the camp rows dev already had (280001 with its coin and
   // kit, the zone 30 rest stop now a simple camp with its coin), zone 40's two triggers, the killable Stalker first in
@@ -565,13 +567,13 @@ int main() {
   // by 050's link, the Lion's spawn row shutting its doors on battle and opening them on its death.
   {
     static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 164 &&
-                      kMxmiddleRows == 106 && kMxlowerRows == 99,
+                      kMxmiddleRows == 106 && kMxlowerRows == 99 && kMxnamesRows == 11,
                   "the data file's batches");
-    const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower};
+    const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower, &kMxnames};
     assert(kMxiii.patches == kMxiiiPatches && kMxspawn.patches == kMxspawnPatches &&
            kMxenv.patches == kMxenvPatches && kMxupper.patches == kMxupperPatches &&
-           kMxmiddle.patches == kMxmiddlePatches && kMxlower.patches == kMxlowerPatches && kLion.patches == kPatches &&
-           kBolt.patches == kPatches && kShop.patches == kPatches);
+           kMxmiddle.patches == kMxmiddlePatches && kMxlower.patches == kMxlowerPatches &&
+           kMxnames.patches == kMxnamesPatches && kLion.patches == kPatches && kBolt.patches == kPatches && kShop.patches == kPatches);
     std::set<std::pair<size_t, std::string>> names;
     std::set<std::pair<size_t, uint32_t>> ids;
     const size_t sizes[] = {sizeof kMxiiiPatches / sizeof kMxiiiPatches[0],
@@ -579,15 +581,18 @@ int main() {
                             sizeof kMxenvPatches / sizeof kMxenvPatches[0],
                             sizeof kMxupperPatches / sizeof kMxupperPatches[0],
                             sizeof kMxmiddlePatches / sizeof kMxmiddlePatches[0],
-                            sizeof kMxlowerPatches / sizeof kMxlowerPatches[0]};
-    for (size_t k = 0; k < 6; ++k) {
+                            sizeof kMxlowerPatches / sizeof kMxlowerPatches[0],
+                            sizeof kMxnamesPatches / sizeof kMxnamesPatches[0]};
+    for (size_t k = 0; k < 7; ++k) {
       const Batch &b = *mx[k];
       size_t n = 0;
       for (size_t i = 0; i < b.count; ++i) {
         const Row &r = b.rows[i];
         const TableInfo &info = table_info(r.table);
         assert(r.first == n && r.count > 0 && info.id && r.id);
-        assert(names.insert({size_t(r.table), r.name}).second && ids.insert({size_t(r.table), r.id}).second);
+        const bool again = &b == &kMxnames;
+        assert(names.insert({size_t(r.table), r.name}).second != again &&
+               ids.insert({size_t(r.table), r.id}).second != again && (!again || shipped_row(r)));
         assert(r.table != Table::quest && r.table != Table::group && r.table != Table::task &&
                r.table != Table::target && r.table != Table::select);
         for (uint16_t at : info.transient)
@@ -1288,6 +1293,30 @@ int main() {
            g.id_name(g.tables[size_t(Table::character)], 50071) == g.name("MX13_M_Sawshark"));
     assert(describe_read(kMxspawn, Builder(kMxspawn).read_back(g, g.tables)) ==
            "mxspawn rows by SB's lookups: CharacterTable 50071 1/1, SkillTable - 0/0, stance - 0/0");
+    // The camp names last, in place on rows the mxiii batch added or patched: no AddRow, CampName (+0x18) and RegionName
+    // (+0x34) written, every other byte what the row held, Region (+0x2c) and CampType (+0x28) among them.
+    Builder nb(kMxnames);
+    const Answer na = nb.run(g, kBase, g.tables, g.block);
+    assert(na.state == State::rows && na.added == kMxnamesRows && g.adds.size() == adds &&
+           g.puts.size() == puts + kMxnamesRows);
+    for (size_t i = 0; i < kMxnamesRows; ++i) {
+      const Row &r = kMxnamesRecipe[i];
+      const Game::Put &p = g.puts[puts + i];
+      const uint32_t size = table_info(r.table).size;
+      assert(r.table == Table::camp && g.name_text(p.name) == r.name &&
+             g.find(g.tables[size_t(r.table)], p.name) == p.row);
+      assert(g.string_field(p, 0x18) == std::string("MX13_Camp_") + r.name &&
+             g.name_text(Game::field<uint64_t>(p, 0x34)) == "MX13_Region");
+      for (size_t k = 0x14; k < size; ++k)
+        assert((k >= 0x18 && k < 0x18 + kind_size(Kind::string)) || (k >= 0x34 && k < 0x34 + kind_size(Kind::name)) ||
+               p.block[k] == p.before[k]);
+      assert(!std::memcmp(g.mem.at(p.row, size), p.block.data(), size));
+    }
+    assert(!std::strcmp(kMxnamesRecipe[1].name, "DLC02_10_Camp_01") &&
+           g.name_text(Game::field<uint64_t>(g.puts[puts + 1], 0x2c)) == "Matrix13");
+    assert(describe(kMxnames, na) == "mxnames rows: 11/11 in, 0 added through SB's AddRow 0x14417ba30 and 11 shipped "
+                                     "rows patched in place, 0 refused");
+    assert(nb.run(g, kBase, g.tables, g.block).added == kMxnamesRows && g.puts.size() == puts + kMxnamesRows);
   }
   {
     // Lily's signal batch: a TheaterSelectDataTable whose row size is not the SDK's stops it before any row (every
