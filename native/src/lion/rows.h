@@ -6361,13 +6361,13 @@ constexpr Row kShopRecipe[] = {
 // that names one of their rows loads with it. Each row copies a shipped row of its table; a row whose donor is itself
 // is that shipped row patched in place.
 // mxiii: the camps and what they need. Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13) has no camp, so SB's camp
-// travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first env row DLC02_10_EnvS_900 (no
-// actor: FUN_141cdd7b0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit 901
-// to 906. With EnvBPPath set, FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's
+// travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first env row DLC02_10_EnvS_900 (the
+// camp base; FUN_141cdd7b0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit
+// 901 to 906. With EnvBPPath set, FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's
 // env rows are created; the shipped DLC02 kit rows have none and look for placed actors no pak holds, so every kit row
 // gets one, and its TargetCamp names its own camp instead of the placeholders WLB10_Camp_05 and SE02_Camp_02. A vending
-// machine's LinkEnvSpawnList switches its kit objects on once a coin activates the camp; it never names the
-// OnlyActivation row, which has no object (the tested rule of 906). Then zone 30's rest stop DLC02_30_Camp_01 (a simple
+// machine's LinkEnvSpawnList switches its kit objects on once a coin activates the camp; a full camp's lists its base
+// row too, in the shipped order (not yet run in game). Then zone 30's rest stop DLC02_30_Camp_01 (a simple
 // camp now; the alias stays) with its travel row, zone 40's triggers 001 and 002 (enabled from the start), the other 9
 // camps of the map (Tetrapod, simple and full), their kits (34 shipped rows patched, 14 new), the three new coins, and
 // zone 0's Tetrapod: machine DLC02_00_EnvS_960, Lily DLC02_00_E_CharS_960 and WorldTransitionTable WT_T_MX13.

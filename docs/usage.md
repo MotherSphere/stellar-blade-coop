@@ -1652,7 +1652,15 @@ storage box, a turntable, a phone booth and the base with its parasol and fire, 
 camp has the small vending machine, a skill machine, a chair and a turntable, as in the base game. Pick the coin up and
 use it at the machine to activate the camp. A camp
 you activated in an earlier test stays active in that save and its coin stays taken, so check this on a co-op slot
-that has not been in the dungeon. Lily's Talk prompt opens her menu there: the other region (the teleport screen), the
+that has not been in the dungeon. A full camp activated before the base rows existed keeps an unlit base with no way to
+light it: the shield belt and the off light, no parasol or fire (read from the row data, not seen in game).
+
+The installed pak has two gaps at the full camps. It has no spawn point for `DLC02_10_EnvS_900`, so
+`DLC02_10_Camp_01` has no spawned base; its coin and kit work, and the cooked floor, brazier and table stand there
+unlit. The other four full camps still have cooked copies of the base's meshes and a cooked vending machine under the
+working one, so those objects appear twice, and a machine that failed to spawn would look present.
+
+Lily's Talk prompt opens her menu there: the other region (the teleport screen), the
 console and her goodbye, the bike signal once its conditions hold, and the mod's row at the end of On Time. Picking
 "leave" under the bike signal ends the trip for Quest_Epic_11 and there is no row back, so a save with On Time
 running should not take it.

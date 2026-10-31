@@ -2289,7 +2289,9 @@ spending a coin there. Of the game's 105 full and simple camps, 80 point at a Vi
 
 A save that has been in the dungeon keeps what happened there. The camp records and the taken coin are saved rows
 (SaveType Save), so a camp activated in an earlier test stays active and its coin stays gone. The mod leaves those
-records alone; a co-op slot with no DLC02 record shows the inactive state.
+records alone; a co-op slot with no DLC02 record shows the inactive state. The link to the base row runs only when the
+coin is used, so a full camp activated before the base rows existed has no saved On state for its base, and row data
+says the base then spawns Off (`SaveType` Save, `InitStateTag` Off; not seen in game).
 
 ### Lily's menu
 
@@ -2424,7 +2426,11 @@ rows`, `mxlily rows`, `mxnames rows`), so a refusal in one never stops another (
   are `DLC02_10_EnvS_900`, `DLC02_20_EnvS_048`, `DLC02_20_EnvS_110`, `DLC02_30_EnvS_033` and `DLC02_40_EnvS_015`. The
   pak had points for the last four, each where the shipped offsets put the base from its vending machine, within
   0.01 unit. `DLC02_10_EnvS_900` needs a point at (39693.4, 36897.6, 587.0), yaw 15.07, in `MXIII_Z0_LD`, where the
-  cooked `Z0_Camp_Floor` mesh stands; until a pak has it, that row makes no object. The DLC02 kits ship with the
+  cooked `Z0_Camp_Floor` mesh stands; until a pak has it, that row makes no object. The cooked levels also hold static
+  copies of the base's meshes (`Z0_Camp_*`, `Z2_Z2R06_D_Camp_*`, `Z2_Z2R17_D_CampD_*`, `Z3_Z3R35_D_Camp_*`,
+  `Z4_Z4R03_D_Camp_*`) and, at the last four camps, a static `VendingMachine` mesh at the row's machine. A pak has to
+  remove them, or the spawned objects stand on top of them and the static ones stay as they are after activation. The
+  DLC02 kits ship with the
   `ShopDataList` `SE_02_EnvS_010`, a row one of the 89 `ChangeState_ZoneEnv_*_Camp` trophy rows counts, so each of the
   ten vending machines names itself there instead, as 77 shipped machines do. The rows name no trophy row, in their own
   fields or in those their donors give them.
