@@ -8,6 +8,7 @@ constexpr Patch kMxiiiPatches[] = {
     // DLC02_10_Camp_01 (ZoneCampTable, zone 0 lift head, full camp)
     {0x28, Kind::u8, 3, nullptr}, // CampType
     {0x60, Kind::name, 0, "DLC02_10_E_ItemS_001"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_10_EnvS_900 (ZoneEnvSpawnTable, leads the travel)
     {0x30, Kind::name, 0, "DLC02_10_EnvS_900"}, // EnvActorName
     {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
@@ -45,6 +46,7 @@ constexpr Patch kMxiiiPatches[] = {
     // DLC02_30_Camp_01 (ZoneCampTable, zone 3 rest stop 1, simple)
     {0x28, Kind::u8, 2, nullptr}, // CampType
     {0x60, Kind::name, 0, "DLC02_30_E_ItemS_001"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_30_EnvS_900 (ZoneEnvSpawnTable)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_900"}, // EnvActorName
@@ -60,34 +62,42 @@ constexpr Patch kMxiiiPatches[] = {
     {0x28, Kind::u8, 2, nullptr}, // CampType
     {0x6c, Kind::u8, 1, nullptr}, // CampDisplayType
     {0x60, Kind::name, 0, "DLC02_10_E_ItemS_014"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_20_Camp_01 (ZoneCampTable)
     {0x28, Kind::u8, 3, nullptr}, // CampType
     {0x6c, Kind::u8, 1, nullptr}, // CampDisplayType
     {0x60, Kind::name, 0, "DLC02_20_E_ItemS_001"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_20_Camp_02 (ZoneCampTable)
     {0x28, Kind::u8, 2, nullptr}, // CampType
     {0x6c, Kind::u8, 1, nullptr}, // CampDisplayType
     {0x60, Kind::name, 0, "DLC02_20_E_ItemS_002"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_20_Camp_03 (ZoneCampTable)
     {0x28, Kind::u8, 2, nullptr}, // CampType
     {0x6c, Kind::u8, 1, nullptr}, // CampDisplayType
     {0x60, Kind::name, 0, "DLC02_20_E_ItemS_003"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_20_Camp_04 (ZoneCampTable)
     {0x28, Kind::u8, 3, nullptr}, // CampType
     {0x6c, Kind::u8, 1, nullptr}, // CampDisplayType
     {0x60, Kind::name, 0, "DLC02_20_E_ItemS_022"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_30_Camp_02 (ZoneCampTable)
     {0x28, Kind::u8, 2, nullptr}, // CampType
     {0x6c, Kind::u8, 1, nullptr}, // CampDisplayType
     {0x60, Kind::name, 0, "DLC02_30_E_ItemS_002"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_30_Camp_03 (ZoneCampTable)
     {0x28, Kind::u8, 3, nullptr}, // CampType
     {0x6c, Kind::u8, 1, nullptr}, // CampDisplayType
     {0x60, Kind::name, 0, "DLC02_30_E_ItemS_029"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_40_Camp_01 (ZoneCampTable)
     {0x28, Kind::u8, 3, nullptr}, // CampType
     {0x6c, Kind::u8, 1, nullptr}, // CampDisplayType
     {0x60, Kind::name, 0, "DLC02_40_E_ItemS_001"}, // CoinSpawnPointName
+    {0x2c, Kind::name, 0, "Matrix13"}, // Region
     // DLC02_10_EnvS_420 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_SkillMachine.Env_Camp_SkillMachine_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_420"}, // SpawnPointName
@@ -331,81 +341,81 @@ constexpr Patch kMxiiiPatches[] = {
     {0x50, Kind::name, 0, "None"}, // FromIsolatedAreaAlias
 };
 constexpr Row kMxiiiRecipe[] = {
-    {Table::camp, "DLC02_10_Camp_01", "ME01_Camp_03", 280001u, 0, 2},
-    {Table::env, "DLC02_10_EnvS_900", "DLC02_10_EnvS_425", 2800032900u, 2, 2},
-    {Table::env, "DLC02_10_EnvS_901", "DLC02_10_EnvS_420", 2800032901u, 4, 4},
-    {Table::env, "DLC02_10_EnvS_902", "DLC02_10_EnvS_421", 2800032902u, 8, 4},
-    {Table::env, "DLC02_10_EnvS_903", "DLC02_10_EnvS_422", 2800032903u, 12, 4},
-    {Table::env, "DLC02_10_EnvS_904", "DLC02_10_EnvS_423", 2800032904u, 16, 4},
-    {Table::env, "DLC02_10_EnvS_905", "DLC02_10_EnvS_424", 2800032905u, 20, 4},
-    {Table::env, "DLC02_10_EnvS_906", "DLC02_10_EnvS_426", 2800032906u, 24, 5},
-    {Table::camp, "DLC02_30_Camp_01", "ME01_Camp_02", 281001u, 29, 2},
-    {Table::env, "DLC02_30_EnvS_900", "DLC02_10_EnvS_425", 2810032900u, 31, 3},
-    {Table::trigger, "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_001", 281501001u, 34, 1},
-    {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002u, 35, 1},
-    {Table::camp, "DLC02_00_Camp_00", "ME01_Camp_00", 280000u, 36, 2},
-    {Table::camp, "DLC02_10_Camp_02", "ME01_Camp_02", 280002u, 38, 3},
-    {Table::camp, "DLC02_20_Camp_01", "ME01_Camp_03", 280501u, 41, 3},
-    {Table::camp, "DLC02_20_Camp_02", "ME01_Camp_02", 280502u, 44, 3},
-    {Table::camp, "DLC02_20_Camp_03", "ME01_Camp_02", 280503u, 47, 3},
-    {Table::camp, "DLC02_20_Camp_04", "WLB20_Camp_01", 280504u, 50, 3},
-    {Table::camp, "DLC02_30_Camp_02", "ME01_Camp_02", 281002u, 53, 3},
-    {Table::camp, "DLC02_30_Camp_03", "ME01_Camp_03", 281003u, 56, 3},
-    {Table::camp, "DLC02_40_Camp_01", "ME01_Camp_03", 281501u, 59, 3},
-    {Table::env, "DLC02_10_EnvS_420", "DLC02_10_EnvS_420", 2800032420u, 62, 3},
-    {Table::env, "DLC02_10_EnvS_421", "DLC02_10_EnvS_421", 2800032421u, 65, 3},
-    {Table::env, "DLC02_10_EnvS_423", "DLC02_10_EnvS_423", 2800032423u, 68, 3},
-    {Table::env, "DLC02_10_EnvS_426", "DLC02_10_EnvS_426", 2800032426u, 71, 5},
-    {Table::env, "DLC02_20_EnvS_043", "DLC02_20_EnvS_043", 2805032043u, 76, 3},
-    {Table::env, "DLC02_20_EnvS_044", "DLC02_20_EnvS_044", 2805032044u, 79, 3},
-    {Table::env, "DLC02_20_EnvS_045", "DLC02_20_EnvS_045", 2805032045u, 82, 3},
-    {Table::env, "DLC02_20_EnvS_046", "DLC02_20_EnvS_046", 2805032046u, 85, 3},
-    {Table::env, "DLC02_20_EnvS_047", "DLC02_20_EnvS_047", 2805032047u, 88, 3},
-    {Table::env, "DLC02_20_EnvS_048", "DLC02_20_EnvS_048", 2805032048u, 91, 1},
-    {Table::env, "DLC02_20_EnvS_049", "DLC02_20_EnvS_049", 2805032049u, 92, 4},
-    {Table::env, "DLC02_20_EnvS_056", "DLC02_20_EnvS_056", 2805032056u, 96, 3},
-    {Table::env, "DLC02_20_EnvS_057", "DLC02_20_EnvS_057", 2805032057u, 99, 3},
-    {Table::env, "DLC02_20_EnvS_059", "DLC02_20_EnvS_059", 2805032059u, 102, 3},
-    {Table::env, "DLC02_20_EnvS_062", "DLC02_20_EnvS_062", 2805032062u, 105, 5},
-    {Table::env, "DLC02_20_EnvS_068", "DLC02_20_EnvS_068", 2805032068u, 110, 3},
-    {Table::env, "DLC02_20_EnvS_069", "DLC02_20_EnvS_069", 2805032069u, 113, 3},
-    {Table::env, "DLC02_20_EnvS_071", "DLC02_20_EnvS_071", 2805032071u, 116, 3},
-    {Table::env, "DLC02_20_EnvS_074", "DLC02_20_EnvS_074", 2805032074u, 119, 5},
-    {Table::env, "DLC02_30_EnvS_005", "DLC02_30_EnvS_005", 2810032005u, 124, 3},
-    {Table::env, "DLC02_30_EnvS_006", "DLC02_30_EnvS_006", 2810032006u, 127, 3},
-    {Table::env, "DLC02_30_EnvS_007", "DLC02_30_EnvS_007", 2810032007u, 130, 3},
-    {Table::env, "DLC02_30_EnvS_004", "DLC02_30_EnvS_004", 2810032004u, 133, 4},
-    {Table::env, "DLC02_30_EnvS_009", "DLC02_30_EnvS_009", 2810032009u, 137, 3},
-    {Table::env, "DLC02_30_EnvS_010", "DLC02_30_EnvS_010", 2810032010u, 140, 3},
-    {Table::env, "DLC02_30_EnvS_011", "DLC02_30_EnvS_011", 2810032011u, 143, 3},
-    {Table::env, "DLC02_30_EnvS_008", "DLC02_30_EnvS_008", 2810032008u, 146, 4},
-    {Table::env, "DLC02_40_EnvS_010", "DLC02_40_EnvS_010", 2815032010u, 150, 3},
-    {Table::env, "DLC02_40_EnvS_011", "DLC02_40_EnvS_011", 2815032011u, 153, 3},
-    {Table::env, "DLC02_40_EnvS_012", "DLC02_40_EnvS_012", 2815032012u, 156, 3},
-    {Table::env, "DLC02_40_EnvS_013", "DLC02_40_EnvS_013", 2815032013u, 159, 3},
-    {Table::env, "DLC02_40_EnvS_014", "DLC02_40_EnvS_014", 2815032014u, 162, 3},
-    {Table::env, "DLC02_40_EnvS_015", "DLC02_40_EnvS_015", 2815032015u, 165, 1},
-    {Table::env, "DLC02_40_EnvS_009", "DLC02_40_EnvS_009", 2815032009u, 166, 4},
-    {Table::env, "DLC02_20_EnvS_110", "DLC02_20_EnvS_048", 2805032110u, 170, 2},
-    {Table::env, "DLC02_20_EnvS_105", "DLC02_20_EnvS_043", 2805032105u, 172, 4},
-    {Table::env, "DLC02_20_EnvS_106", "DLC02_20_EnvS_044", 2805032106u, 176, 4},
-    {Table::env, "DLC02_20_EnvS_107", "DLC02_20_EnvS_045", 2805032107u, 180, 4},
-    {Table::env, "DLC02_20_EnvS_108", "DLC02_20_EnvS_046", 2805032108u, 184, 4},
-    {Table::env, "DLC02_20_EnvS_109", "DLC02_20_EnvS_047", 2805032109u, 188, 4},
-    {Table::env, "DLC02_20_EnvS_111", "DLC02_20_EnvS_049", 2805032111u, 192, 5},
-    {Table::env, "DLC02_30_EnvS_033", "DLC02_20_EnvS_048", 2810032033u, 197, 3},
-    {Table::env, "DLC02_30_EnvS_031", "DLC02_20_EnvS_043", 2810032031u, 200, 5},
-    {Table::env, "DLC02_30_EnvS_032", "DLC02_20_EnvS_044", 2810032032u, 205, 5},
-    {Table::env, "DLC02_30_EnvS_034", "DLC02_20_EnvS_045", 2810032034u, 210, 5},
-    {Table::env, "DLC02_30_EnvS_035", "DLC02_20_EnvS_046", 2810032035u, 215, 5},
-    {Table::env, "DLC02_30_EnvS_036", "DLC02_20_EnvS_047", 2810032036u, 220, 5},
-    {Table::env, "DLC02_30_EnvS_030", "DLC02_20_EnvS_049", 2810032030u, 225, 6},
-    {Table::eitem, "DLC02_10_E_ItemS_014", "DLC02_10_E_ItemS_001", 2800020014u, 231, 1},
-    {Table::eitem, "DLC02_20_E_ItemS_022", "DLC02_10_E_ItemS_001", 2805020022u, 232, 2},
-    {Table::eitem, "DLC02_30_E_ItemS_029", "DLC02_10_E_ItemS_001", 2810020029u, 234, 2},
-    {Table::env, "DLC02_00_EnvS_960", "WLB_20_EnvS_056", 2800032960u, 236, 7},
-    {Table::spawn, "DLC02_00_E_CharS_960", "WLB_20_E_CharS_073", 2800024960u, 243, 2},
-    {Table::transition, "WT_T_MX13", "WT_T_ME", 1008u, 245, 4},
+    {Table::camp, "DLC02_10_Camp_01", "ME01_Camp_03", 280001u, 0, 3},
+    {Table::env, "DLC02_10_EnvS_900", "DLC02_10_EnvS_425", 2800032900u, 3, 2},
+    {Table::env, "DLC02_10_EnvS_901", "DLC02_10_EnvS_420", 2800032901u, 5, 4},
+    {Table::env, "DLC02_10_EnvS_902", "DLC02_10_EnvS_421", 2800032902u, 9, 4},
+    {Table::env, "DLC02_10_EnvS_903", "DLC02_10_EnvS_422", 2800032903u, 13, 4},
+    {Table::env, "DLC02_10_EnvS_904", "DLC02_10_EnvS_423", 2800032904u, 17, 4},
+    {Table::env, "DLC02_10_EnvS_905", "DLC02_10_EnvS_424", 2800032905u, 21, 4},
+    {Table::env, "DLC02_10_EnvS_906", "DLC02_10_EnvS_426", 2800032906u, 25, 5},
+    {Table::camp, "DLC02_30_Camp_01", "ME01_Camp_02", 281001u, 30, 3},
+    {Table::env, "DLC02_30_EnvS_900", "DLC02_10_EnvS_425", 2810032900u, 33, 3},
+    {Table::trigger, "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_001", 281501001u, 36, 1},
+    {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002u, 37, 1},
+    {Table::camp, "DLC02_00_Camp_00", "ME01_Camp_00", 280000u, 38, 2},
+    {Table::camp, "DLC02_10_Camp_02", "ME01_Camp_02", 280002u, 40, 4},
+    {Table::camp, "DLC02_20_Camp_01", "ME01_Camp_03", 280501u, 44, 4},
+    {Table::camp, "DLC02_20_Camp_02", "ME01_Camp_02", 280502u, 48, 4},
+    {Table::camp, "DLC02_20_Camp_03", "ME01_Camp_02", 280503u, 52, 4},
+    {Table::camp, "DLC02_20_Camp_04", "WLB20_Camp_01", 280504u, 56, 4},
+    {Table::camp, "DLC02_30_Camp_02", "ME01_Camp_02", 281002u, 60, 4},
+    {Table::camp, "DLC02_30_Camp_03", "ME01_Camp_03", 281003u, 64, 4},
+    {Table::camp, "DLC02_40_Camp_01", "ME01_Camp_03", 281501u, 68, 4},
+    {Table::env, "DLC02_10_EnvS_420", "DLC02_10_EnvS_420", 2800032420u, 72, 3},
+    {Table::env, "DLC02_10_EnvS_421", "DLC02_10_EnvS_421", 2800032421u, 75, 3},
+    {Table::env, "DLC02_10_EnvS_423", "DLC02_10_EnvS_423", 2800032423u, 78, 3},
+    {Table::env, "DLC02_10_EnvS_426", "DLC02_10_EnvS_426", 2800032426u, 81, 5},
+    {Table::env, "DLC02_20_EnvS_043", "DLC02_20_EnvS_043", 2805032043u, 86, 3},
+    {Table::env, "DLC02_20_EnvS_044", "DLC02_20_EnvS_044", 2805032044u, 89, 3},
+    {Table::env, "DLC02_20_EnvS_045", "DLC02_20_EnvS_045", 2805032045u, 92, 3},
+    {Table::env, "DLC02_20_EnvS_046", "DLC02_20_EnvS_046", 2805032046u, 95, 3},
+    {Table::env, "DLC02_20_EnvS_047", "DLC02_20_EnvS_047", 2805032047u, 98, 3},
+    {Table::env, "DLC02_20_EnvS_048", "DLC02_20_EnvS_048", 2805032048u, 101, 1},
+    {Table::env, "DLC02_20_EnvS_049", "DLC02_20_EnvS_049", 2805032049u, 102, 4},
+    {Table::env, "DLC02_20_EnvS_056", "DLC02_20_EnvS_056", 2805032056u, 106, 3},
+    {Table::env, "DLC02_20_EnvS_057", "DLC02_20_EnvS_057", 2805032057u, 109, 3},
+    {Table::env, "DLC02_20_EnvS_059", "DLC02_20_EnvS_059", 2805032059u, 112, 3},
+    {Table::env, "DLC02_20_EnvS_062", "DLC02_20_EnvS_062", 2805032062u, 115, 5},
+    {Table::env, "DLC02_20_EnvS_068", "DLC02_20_EnvS_068", 2805032068u, 120, 3},
+    {Table::env, "DLC02_20_EnvS_069", "DLC02_20_EnvS_069", 2805032069u, 123, 3},
+    {Table::env, "DLC02_20_EnvS_071", "DLC02_20_EnvS_071", 2805032071u, 126, 3},
+    {Table::env, "DLC02_20_EnvS_074", "DLC02_20_EnvS_074", 2805032074u, 129, 5},
+    {Table::env, "DLC02_30_EnvS_005", "DLC02_30_EnvS_005", 2810032005u, 134, 3},
+    {Table::env, "DLC02_30_EnvS_006", "DLC02_30_EnvS_006", 2810032006u, 137, 3},
+    {Table::env, "DLC02_30_EnvS_007", "DLC02_30_EnvS_007", 2810032007u, 140, 3},
+    {Table::env, "DLC02_30_EnvS_004", "DLC02_30_EnvS_004", 2810032004u, 143, 4},
+    {Table::env, "DLC02_30_EnvS_009", "DLC02_30_EnvS_009", 2810032009u, 147, 3},
+    {Table::env, "DLC02_30_EnvS_010", "DLC02_30_EnvS_010", 2810032010u, 150, 3},
+    {Table::env, "DLC02_30_EnvS_011", "DLC02_30_EnvS_011", 2810032011u, 153, 3},
+    {Table::env, "DLC02_30_EnvS_008", "DLC02_30_EnvS_008", 2810032008u, 156, 4},
+    {Table::env, "DLC02_40_EnvS_010", "DLC02_40_EnvS_010", 2815032010u, 160, 3},
+    {Table::env, "DLC02_40_EnvS_011", "DLC02_40_EnvS_011", 2815032011u, 163, 3},
+    {Table::env, "DLC02_40_EnvS_012", "DLC02_40_EnvS_012", 2815032012u, 166, 3},
+    {Table::env, "DLC02_40_EnvS_013", "DLC02_40_EnvS_013", 2815032013u, 169, 3},
+    {Table::env, "DLC02_40_EnvS_014", "DLC02_40_EnvS_014", 2815032014u, 172, 3},
+    {Table::env, "DLC02_40_EnvS_015", "DLC02_40_EnvS_015", 2815032015u, 175, 1},
+    {Table::env, "DLC02_40_EnvS_009", "DLC02_40_EnvS_009", 2815032009u, 176, 4},
+    {Table::env, "DLC02_20_EnvS_110", "DLC02_20_EnvS_048", 2805032110u, 180, 2},
+    {Table::env, "DLC02_20_EnvS_105", "DLC02_20_EnvS_043", 2805032105u, 182, 4},
+    {Table::env, "DLC02_20_EnvS_106", "DLC02_20_EnvS_044", 2805032106u, 186, 4},
+    {Table::env, "DLC02_20_EnvS_107", "DLC02_20_EnvS_045", 2805032107u, 190, 4},
+    {Table::env, "DLC02_20_EnvS_108", "DLC02_20_EnvS_046", 2805032108u, 194, 4},
+    {Table::env, "DLC02_20_EnvS_109", "DLC02_20_EnvS_047", 2805032109u, 198, 4},
+    {Table::env, "DLC02_20_EnvS_111", "DLC02_20_EnvS_049", 2805032111u, 202, 5},
+    {Table::env, "DLC02_30_EnvS_033", "DLC02_20_EnvS_048", 2810032033u, 207, 3},
+    {Table::env, "DLC02_30_EnvS_031", "DLC02_20_EnvS_043", 2810032031u, 210, 5},
+    {Table::env, "DLC02_30_EnvS_032", "DLC02_20_EnvS_044", 2810032032u, 215, 5},
+    {Table::env, "DLC02_30_EnvS_034", "DLC02_20_EnvS_045", 2810032034u, 220, 5},
+    {Table::env, "DLC02_30_EnvS_035", "DLC02_20_EnvS_046", 2810032035u, 225, 5},
+    {Table::env, "DLC02_30_EnvS_036", "DLC02_20_EnvS_047", 2810032036u, 230, 5},
+    {Table::env, "DLC02_30_EnvS_030", "DLC02_20_EnvS_049", 2810032030u, 235, 6},
+    {Table::eitem, "DLC02_10_E_ItemS_014", "DLC02_10_E_ItemS_001", 2800020014u, 241, 1},
+    {Table::eitem, "DLC02_20_E_ItemS_022", "DLC02_10_E_ItemS_001", 2805020022u, 242, 2},
+    {Table::eitem, "DLC02_30_E_ItemS_029", "DLC02_10_E_ItemS_001", 2810020029u, 244, 2},
+    {Table::env, "DLC02_00_EnvS_960", "WLB_20_EnvS_056", 2800032960u, 246, 7},
+    {Table::spawn, "DLC02_00_E_CharS_960", "WLB_20_E_CharS_073", 2800024960u, 253, 2},
+    {Table::transition, "WT_T_MX13", "WT_T_ME", 1008u, 255, 4},
 };
 
 constexpr Patch kMxspawnPatches[] = {
