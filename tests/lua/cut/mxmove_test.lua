@@ -130,7 +130,7 @@ assert(#spawned==3 and loaded[M.ASSETS.ladder] and loaded[M.ASSETS.ledge] and lo
     'Every class and the mesh loaded, all spawned')
 local ladder,ledge,rope=spawned[1],spawned[2],spawned[3]
 assert(ladder.how=='deferred' and ladder.class.path==M.ASSETS.ladder..'_C' and ladder.at.X==10 and ladder.at.Z==30
-    and ladder.rot.Yaw==175 and ladder.meshes_at_finish==2 and ladder.Meshes[1]==3 and ladder.Meshes[2]==3
+    and ladder.rot.Yaw==175 and ladder.meshes_at_finish==2 and ladder.Meshes[1]==5 and ladder.Meshes[2]==5
     and ladder.StartUnit==2
     and ladder.CollisionBottomZAdd==-75 and ladder.height_at_finish==nil and ladder.HeadHeight==nil
     and ladder.HeadWidthHalf==nil and ladder.CollisionWidth==nil and ladder.EnvActorName==nil,
@@ -139,7 +139,7 @@ assert(ledge.how=='deferred' and ledge.TotalHeight==nil and ledge.finished and l
     and ledge.Meshes[1]==classes[MESH],'The ledge: the climbing mesh')
 assert(rope.class.path==M.ASSETS.rope..'_C' and rope.RopeDistanceB==1200 and rope.EnvActorName.name=='DLC02_10_EnvS_642'
     and rope.finished,'The rope: its drop and its row')
-assert(lines[1]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 3,3 built 1279.9 (critical), deferred spawn',
+assert(lines[1]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 5,5 built 1279.9 (critical), deferred spawn',
     lines[1])
 assert(lines[2]=='ledge E1 at 1 2 3 yaw 85 (climb_R16), deferred spawn',lines[2])
 assert(lines[3]=='rope R1 at 4 5 6 yaw -95 drop 1200 env DLC02_10_EnvS_642 (critical), deferred spawn',lines[3])
@@ -150,11 +150,11 @@ assert(#spawned==3 and #lines==4,'Once a world')
 world=new_world()
 deferred_fails=true
 clock=3.0; mv.tick()
-assert(#spawned==6 and spawned[4].how=='SpawnActor' and spawned[4].rerun and spawned[4].Meshes[1]==3 and spawned[4].Meshes[2]==3
+assert(#spawned==6 and spawned[4].how=='SpawnActor' and spawned[4].rerun and spawned[4].Meshes[1]==5 and spawned[4].Meshes[2]==5
     and spawned[5].how=='SpawnActor','SpawnActor with the fields, then the construction script')
 assert(lines[5]:find('^deferred spawn failed %(.*no such function%): SpawnActor and the construction script from now '
     ..'on$'),lines[5])
-assert(lines[6]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 3,3 built 1279.9 (critical), SpawnActor, '
+assert(lines[6]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 5,5 built 1279.9 (critical), SpawnActor, '
     ..'construction script run again',
     lines[6])
 deferred_fails=false
@@ -192,11 +192,11 @@ do
         return got,spawned[before+1],spawned[before+2]
     end
     local got,a=one('fixed',{3,3,2})
-    assert(got[1]=='ladder L2 at 0 0 0 yaw 0 height 999.0 stack 3,3,2 (first fill read stack 3,3,2,2, filled again '
+    assert(got[1]=='ladder L2 at 0 0 0 yaw 0 height 999.0 stack 5,5,4 (first fill read stack 5,5,4,4, filled again '
         ..'front to back) built 1279.9 (test), deferred spawn',got[1])
     assert(a.finished and a.Meshes:GetArrayNum()==3,'The refilled stack reaches the finish')
     local got2,b,c=one('broken',{3,3})
-    assert(got2[1]=='ladder L2 not spawned: Meshes read back stack 3, then stack 3, for 3,3: nothing spawned',got2[1])
+    assert(got2[1]=='ladder L2 not spawned: Meshes read back stack 5, then stack 5, for 5,5: nothing spawned',got2[1])
     assert(b.destroyed and not b.finished,'The ladder that would not fill is destroyed before its finish')
     assert(c.how=='deferred' and c.finished and got2[2]:find('deferred spawn$'),'The next ladder still spawns deferred')
     assert(got2[3]=='1/2 ladders, ledges and ropes spawned in world 2800',got2[3])
