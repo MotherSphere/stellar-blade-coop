@@ -21,8 +21,8 @@ LUA = ROOT / 'mod/StellarCoop/Scripts/cut/mxiii_rows.lua'
 # Table asset name: (lion/rows.h Table, {field: (offset, patch kind, read-back kind)}).
 FIELDS = {
     'CharacterTable': ('character', {'DefaultEffectArray': (0x220, 'names', 'N')}),
-    'ZoneCampTable': ('camp', {'CampType': (0x28, 'u8', 'e'), 'CoinSpawnPointName': (0x60, 'name', 'n'),
-                               'CampDisplayType': (0x6c, 'u8', 'e')}),
+    'ZoneCampTable': ('camp', {'CampType': (0x28, 'u8', 'e'), 'Region': (0x2c, 'name', 'n'),
+                               'CoinSpawnPointName': (0x60, 'name', 'n'), 'CampDisplayType': (0x6c, 'u8', 'e')}),
     'ZoneEnvSpawnTable': ('env', {
         'ZoneList': (0x20, 'names', 'N'), 'EnvActorName': (0x30, 'name', 'n'), 'EnvBPPath': (0x38, 'string', 's'),
         'SpawnPointName': (0x48, 'name', 'n'), 'EnvAlias': (0x58, 'name', 'n'), 'InitActivate': (0x60, 'u8', 'e'),

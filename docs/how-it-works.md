@@ -2110,7 +2110,9 @@ it and every row in its `LinkEnvSpawnList` on. That list leaves out 900: the tem
 actor that a full camp places, and 900 has no object, as Matrix 11's simple camp `ME01_Camp_01` links only its
 objects. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
 at the spawn point of that name when EVE enters the zone. The camp keeps
-`ME01_Camp_03`'s name, picture and region, so the camp list shows it under Matrix 11. No dungeon has a world map in the
+`ME01_Camp_03`'s name and picture. Its Region is `Matrix13`, a name the game makes a bucket for on first sight, so a full
+camp's list shows only the dungeon's full camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11`, since the
+teleport screen has 7 tabs and fills them in bucket order. No dungeon has a world map in the
 game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
 
 The third zone's camp gives `coop mxiii 30` a way past the climb from `Zone_DLC02_20` (see below). It has the two rows
