@@ -266,9 +266,15 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             asset=ok and valid(loaded) or nil
         end
         if asset and not asset:IsA(find(class)) then asset=nil end
+        -- A Poseable's SetSkeletalMesh reads the mesh's Skeleton unchecked: null is an access violation no pcall catches
+        -- (a CNS mesh did it on 2026-10-31, the same crash in two minidumps).
+        local no_skeleton=asset and class=='/Script/Engine.SkeletalMesh' and not valid(asset.Skeleton)
+        if no_skeleton then asset=nil end
         cache[key]=asset or false
         counts.loaded,counts.ms=counts.loaded+1,counts.ms+(os.clock()-started)*1000
-        if mod then counts.mods[#counts.mods+1]=path..' '..(asset and by or 'missing') end
+        if mod then
+            counts.mods[#counts.mods+1]=path..' '..(asset and by or no_skeleton and 'has no skeleton' or 'missing')
+        end
         return asset
     end
     -- An asset a peer named (a part's mesh, one of its materials, its cloth's collision, the one named from her body):
