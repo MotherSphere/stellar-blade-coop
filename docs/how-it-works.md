@@ -2461,7 +2461,7 @@ The rows hold keys of `StringTable_UI`, so the names go in two steps, in this or
 2. `cut/mxiii.lua` asks `mxnames` at the title once `gardener=` has an answer and the line reads `camptext=ready`. The
    batch is 11 rows that name themselves as donor: the existing in-place form, with the same IDs, applied to rows the
    `mxiii` batch added. It writes `CampName` (`+0x18`) and `RegionName` (`+0x34`) and no other field, on the Tetrapod row
-   `DLC02_00_Camp_00` too, which keeps Region `Matrix11` for the reason [above](#its-rows).
+   `DLC02_00_Camp_00` too, which keeps Region `Matrix11` for the reason [above](#its-rows-2).
 
 The order is there because of what this build does with a key it cannot find: `FUN_142879140` shows `<key>`. A row names
 a key only after its entry exists, so this path cannot show `<key>`. If the pass faults (`camptext=fault`, with a `camp

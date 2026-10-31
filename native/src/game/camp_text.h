@@ -46,14 +46,14 @@ struct Entry {
 constexpr Entry kEntries[] = {
     {u"MX13_Region", u"Matrice 13", u"Matrix 13"},
     {u"MX13_Camp_DLC02_00_Camp_00", u"Matrice 13", u"Matrix 13"},
-    {u"MX13_Camp_DLC02_10_Camp_01", u"Tête d'ascenseur", u"Lift Head"},
+    {u"MX13_Camp_DLC02_10_Camp_01", u"T\u00eate d'ascenseur", u"Lift Head"},
     {u"MX13_Camp_DLC02_10_Camp_02", u"Bureau du chef de gare", u"Station Master's Office"},
     {u"MX13_Camp_DLC02_20_Camp_01", u"Sas de la voiture 9", u"Car 9 Airlock"},
     {u"MX13_Camp_DLC02_20_Camp_02", u"Voies de garage", u"Sidings"},
     {u"MX13_Camp_DLC02_20_Camp_03", u"Hall de l'ascenseur", u"Lift Hall"},
     {u"MX13_Camp_DLC02_20_Camp_04", u"Salle des signaux", u"Signal Room"},
-    {u"MX13_Camp_DLC02_30_Camp_01", u"Première halte", u"First Rest Stop"},
-    {u"MX13_Camp_DLC02_30_Camp_02", u"Deuxième halte", u"Second Rest Stop"},
+    {u"MX13_Camp_DLC02_30_Camp_01", u"Premi\u00e8re halte", u"First Rest Stop"},
+    {u"MX13_Camp_DLC02_30_Camp_02", u"Deuxi\u00e8me halte", u"Second Rest Stop"},
     {u"MX13_Camp_DLC02_30_Camp_03", u"Puits de pompage", u"Pump Shaft"},
     {u"MX13_Camp_DLC02_40_Camp_01", u"Salle des pompes", u"Pump Hall"},
 };

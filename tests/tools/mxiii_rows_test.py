@@ -43,7 +43,7 @@ def refused(change):
 # 2. What the checks refuse.
 assert refused(lambda d: d['batches'][0]['rows'][0]['set'].append(['NoSuchField', 'x', True]))
 assert refused(lambda d: d['batches'][0]['rows'][0]['set'].append(['CampType', 2, True]))  # The same bytes again.
-assert refused(lambda d: d['batches'][3]['rows'].extend(d['batches'][3]['rows'][:40]))  # 260 rows, names twice.
+assert refused(lambda d: d['batches'][3]['rows'].extend(d['batches'][3]['rows'][:40]))  # Names twice, in one batch.
 assert refused(lambda d: d['batches'][1]['rows'].append(d['batches'][0]['rows'][0]))  # A name in two batches.
 assert data['batches'][0]['rows'][7]['set'][3][0] == 'LinkEnvSpawnList'
 assert refused(lambda d: d['batches'][0]['rows'][7]['set'][3].__setitem__(1, ['A|B']))  # A separator in an item.

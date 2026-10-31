@@ -1735,10 +1735,11 @@ your own saves ([saves.md](saves.md)).
 | `mxiii rows: 75/75 in, 39 added through SB's AddRow 0x14417ba30 and 36 shipped rows patched in place, 0 refused` (`coop-link.log`) | The native part added the camp rows and changed the shipped kit and trigger rows |
 | `mxiii rows refused <row>: <why>; <n>/75 added` (`coop-link.log`) | A row the native part would not add or change, and why: no travel |
 | `[StellarCoop][MX] rows read back through FindRow: 75/75 authored rows, <n> fields as written (<k> differ from the template row)` | Every field the native part wrote reads as written |
-| `mxspawn rows: 46/46 in, ...`, `mxenv rows: 160/160 in, ...`, `mxupper rows: 218/218 in, ...`, `mxmiddle rows: 226/226 in, ...`, `mxlower rows: 111/111 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows |
+| `mxspawn rows: 46/46 in, ...`, `mxenv rows: 160/160 in, ...`, `mxupper rows: 164/164 in, ...`, `mxmiddle rows: 106/106 in, ...`, `mxlower rows: 99/99 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows |
+| `mxnames rows: 11/11 in, ...` (`coop-link.log`) | The camps' names went in, last of all and only after `camptext=ready` |
 | `[StellarCoop][MX] refused: mxspawn rows not in` (or `mxenv`, `mxupper`, `mxmiddle`, `mxlower`, `lion`, `gardener`) | `coop mxiii` found a batch that did not go in at the title (a save loaded before the chain ended, or the tries ran out): nothing was asked; return to the title with the co-op save files, wait until `coop-link.log` shows all seven batches in, then run it again |
 | `camptext=wait` that never turns `ready`, or `camptext=fault` (`coop-status.txt`) | Matrix XIII's camps keep their donors' names and travel still works: `coop mxiii` does not wait for the `mxnames` batch. On a fault `coop-link.log` has a `camp names off` line, and the names stay off until the game restarts |
-| `[StellarCoop][MX] mxspawn title: ...`, `mxenv title: ...`, `mxupper title: ...`, `mxmiddle title: ...`, `mxlower title: ...`, `lion title: ...`, `gardener title: ...` | Each of those batches at the title, with the same words as the camp rows' lines |
+| `[StellarCoop][MX] mxspawn title: ...`, `mxenv title: ...`, `mxupper title: ...`, `mxmiddle title: ...`, `mxlower title: ...`, `lion title: ...`, `gardener title: ...`, `mxnames title: ...` | Each of those batches at the title, with the same words as the camp rows' lines |
 | `[StellarCoop][MX] [MXMOVE] ladder <key> at <x> <y> <z> yaw <d> height <h> stack <pieces> built <h> (<role>), deferred spawn` (or `ledge`, `rope ... drop <cm> env <row>`) | In the dungeon, a ladder, ledge or rope the mod spawned, and how (`SpawnActor, construction script run again` when the deferred spawn failed). `stack` is the ladder's `Meshes` as the actor holds them before it finishes spawning (for example `3,3`); a `0` there, or `?`, means the stack did not go in and the ladder is short. `built` is the `TotalHeight` its construction script came to and should equal `height`; when it is larger, the ladder stands `built - height` cm too high |
 | `[StellarCoop][MX] [MXMOVE] <n>/47 ladders, ledges and ropes spawned in world 2800` | All of them, once a world |
 | `[StellarCoop][MX] warp <n> <point> (<mover>)` | `coop mxiii warp` alone: one line per point |
@@ -1767,8 +1768,10 @@ after that `coop mxiii leave`, with the game closed. Check that the game keeps r
 leave, then replace the slot with `coop saves refresh <0-4>` at the title.
 
 With the full map's pak, check at the title that `coop-link.log` shows the six Matrix XIII batches and the lion and
-gardener batches in, each `rows=N/N` on its status line, and that no `[MX]` line says a table is missing. Then, in one
-session: `coop mxiii` arrives at `DLC02_10_Camp_01`; Lily and the Tetrapod stand on the plaza; the surface lift rides
+gardener batches in, each `rows=N/N` on its status line, and that no `[MX]` line says a table is missing. The seventh
+Matrix XIII batch, `mxnames`, comes after them and is asked only once `coop-status.txt` reads `camptext=ready`: check
+for `mxnames rows: 11/11 in` in `coop-link.log`. `mxnames=off` with `camptext=wait` is no failure, only a batch not
+asked yet. Then, in one session: `coop mxiii` arrives at `DLC02_10_Camp_01`; Lily and the Tetrapod stand on the plaza; the surface lift rides
 down from its cab panel and comes back to the call switch you use; the R02 shutter is down and rises from the switch
 on the pillar; every door you meet is closed and opens from its
 panel, and a one-way door refuses from its far side; zone 1's enemies appear in R08, R20, R23 and R26, the new rows
