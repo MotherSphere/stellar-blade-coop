@@ -2390,6 +2390,8 @@ starts. `coop mxiii` asks no travel until every one of these lines reads `rows`,
 not: the travel would reach a dungeon without its Naytibas or its doors, and a peer's shared Naytibas would match no
 spawn row.
 
+In world 2800, `cut/mxdrone.lua` gives the drone's spot light 20 % more range and cone at the same intensity: a post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes each tick, and the cone goes back to 30/40 degrees on leaving the world.
+
 In world 2800, `cut/mxiii.lua`'s tick runs two more files. `cut/mxmove.lua` spawns, once a world, SB's `BP_EM_Ladder_C`
 at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder), `BP_EM_Ledge_C` at the
 three R16 ledges and the shimmy, and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A ladder's height comes from
