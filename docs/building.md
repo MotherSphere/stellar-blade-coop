@@ -157,7 +157,7 @@ build/host/pose_codec_test
     Behemoth row or asset but the sound set; the Gardener's ToxicBeam steps, skills, stance at speed 0 and
     CharacterTable rows; the Tendril's skills on their run-time Shows, its Hit steps on its own areas, its stance, dead
     and CharacterTable rows; the Shock Bolt's 4 rows; Matrix XIII's camp, the env-spawn row that leads the travel there
-    and the 6 camp objects, each naming the camp and spawning its blueprint at the spawn point of its own name, the
+    (the camp base) and the 6 camp objects, each naming the camp and spawning its blueprint at the spawn point of its own name, the
     third zone's camp with no coin and its row in `Zone_DLC02_30`, then the 5 trigger rows patched in place, in a table
     with no parsed arrays; the shop's Beta Seed, shop items and shops), a whole run of each batch (each row built from
     its template with the game's lazy-init flag and parsed arrays reset, its ID and patches of every kind, AddRow given

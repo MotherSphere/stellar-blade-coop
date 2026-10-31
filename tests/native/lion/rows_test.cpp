@@ -646,15 +646,16 @@ int main() {
            camp.id == 280001 && value(kMxiii, camp, 0x28) == 3 &&
            text(kMxiii, camp, 0x60) == "DLC02_10_E_ItemS_001" && !find(kMxiii, camp, 0x6c));
     assert(!std::strcmp(first.name, "DLC02_10_EnvS_900") && !std::strcmp(first.donor, "DLC02_10_EnvS_425") &&
-           first.count == 2 && !find(kMxiii, first, 0x38) && text(kMxiii, first, 0x270) == camp.name);
+           first.count == 4 && text(kMxiii, first, 0x38).find("Env_Camp_Base_C") != std::string::npos &&
+           text(kMxiii, first, 0x48) == first.name && text(kMxiii, first, 0x270) == camp.name);
     for (size_t i = 2; i < 8; ++i) {
       const Row &r = kMxiiiRecipe[i];
       assert(r.id == 2800032900u + i - 1 && text(kMxiii, r, 0x48) == r.name && text(kMxiii, r, 0x30) == r.name &&
              text(kMxiii, r, 0x38).rfind("/Game/GameDesign/Level/ZoneEnv/", 0) == 0 &&
              text(kMxiii, r, 0x270) == camp.name);
     }
-    assert(text(kMxiii, vending, 0x260) ==
-           "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905");
+    assert(text(kMxiii, vending, 0x260) == "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_900|DLC02_10_EnvS_903|"
+                                           "DLC02_10_EnvS_904|DLC02_10_EnvS_905");
     const Row &camp30 = kMxiiiRecipe[8];
     assert(!std::strcmp(camp30.name, "DLC02_30_Camp_01") && camp30.id == 281001 &&
            !std::strcmp(camp30.donor, "ME01_Camp_02") && value(kMxiii, camp30, 0x28) == 2 &&
@@ -666,14 +667,18 @@ int main() {
       assert(shipped_row(r) && r.table == Table::trigger && !std::strcmp(r.name, kTriggers[i - 10]) && r.count == 1);
       assert(value(kMxiii, r, 0x1c) == 1);
     }
-    // Every vending machine links only objects of its own camp, never an OnlyActivation row.
-    for (const char *v : {"DLC02_10_EnvS_426", "DLC02_20_EnvS_049", "DLC02_20_EnvS_062", "DLC02_20_EnvS_074",
-                          "DLC02_30_EnvS_004", "DLC02_30_EnvS_008", "DLC02_40_EnvS_009", "DLC02_20_EnvS_111",
-                          "DLC02_30_EnvS_030"}) {
-      const std::string links = text(kMxiii, row(kMxiii, v), 0x260);
-      for (const char *only : {"_425", "_048", "_015", "_110", "_033"})
-        assert(links.find(only) == std::string::npos);
-    }
+    // A full camp's vending machine links its base row too, in the shipped place, and each machine is its own shop.
+    static const char *const kBases[][2] = {{"DLC02_10_EnvS_906", "_900"},
+                                            {"DLC02_20_EnvS_049", "_048"},
+                                            {"DLC02_20_EnvS_111", "_110"},
+                                            {"DLC02_30_EnvS_030", "_033"},
+                                            {"DLC02_40_EnvS_009", "_015"}};
+    for (const auto &b : kBases)
+      assert(text(kMxiii, row(kMxiii, b[0]), 0x260).find(b[1]) != std::string::npos);
+    for (const char *v : {"DLC02_10_EnvS_906", "DLC02_10_EnvS_426", "DLC02_20_EnvS_049", "DLC02_20_EnvS_062",
+                          "DLC02_20_EnvS_074", "DLC02_20_EnvS_111", "DLC02_30_EnvS_004", "DLC02_30_EnvS_008",
+                          "DLC02_30_EnvS_030", "DLC02_40_EnvS_009"})
+      assert(text(kMxiii, row(kMxiii, v), 0x460) == v);
     // Lily and her Tetrapod: the transition row names the machine and her spawn row.
     const Row &wt = row(kMxiii, "WT_T_MX13");
     assert(wt.table == Table::transition && wt.id == 1008 && text(kMxiii, wt, 0x30) == "DLC02_00_EnvS_960" &&
@@ -1163,7 +1168,7 @@ int main() {
     // Matrix XIII's camp batch after them all, on its own Builder: its new rows from its own patches (AddRow), its
     // shipped rows copied back over themselves and never handed to AddRow, so the ID map still names each and RowMap
     // still holds it at its address. Its IDs above 2^31 go in whole; the zone 10 camp's rows name it, the vending
-    // machine with its blueprint path and its 5 links (901 to 905, not 900). SB's lookups by ID have nothing of it to
+    // machine with its blueprint path and its 6 links (901 to 905 and the base row 900). SB's lookups by ID have nothing of it to
     // find.
     const auto shipped_count = [](const Batch &batch) {
       size_t n = 0;
@@ -1196,8 +1201,8 @@ int main() {
     const Game::Add &machine = g.adds[zone + 7];
     assert(g.string_field(machine, 0x38) == "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C" &&
            g.name_text(Game::field<uint64_t>(machine, 0x48)) == "DLC02_10_EnvS_906" &&
-           g.list_field(machine, 0x260, Kind::names) ==
-               "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905");
+           g.list_field(machine, 0x260, Kind::names) == "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_900|"
+                                                         "DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905");
     assert(g.id_name(g.tables[size_t(Table::env)], 2800032900u) == g.name("DLC02_10_EnvS_900") &&
            g.id_name(g.tables[size_t(Table::env)], 2800032906u) == g.name("DLC02_10_EnvS_906"));
     const Game::Add &camp30 = g.adds[zone + 8], &env30 = g.adds[zone + 9];

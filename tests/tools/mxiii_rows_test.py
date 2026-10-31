@@ -124,6 +124,39 @@ assert not [n for (t, n) in rows if t == 'EventZoneWarpTable' or '_E_ZoneWarp_' 
 assert not [n for (t, n) in rows if t == 'ZoneEnvSpawnTable' and n[-3:].isdigit() and 970 <= int(n[-3:]) <= 993]
 assert len(data['warp']) == 72 and [w['n'] for w in data['warp']] == list(range(1, 73))
 assert all(w['name'].startswith('DLC02_') and '_WarpPoint_' in w['name'] for w in data['warp'])
+# Each camp holds the kit of its shipped type. A full camp (ME03_Camp_01): the base at the point of its row's name, skill
+# machine, chair, storage, turntable, phone and vending machine. A simple camp (ME01_Camp_02): skill machine, chair,
+# turntable and the small vending machine, no base, storage or phone. Every object row spawns its blueprint at the point
+# of its own name, the vending machine links all the others in the shipped order, and it is its own shop. No value names
+# SE_02_EnvS_010, the trophy row the DLC02 kits inherit their shop from.
+ZE = '/Game/GameDesign/Level/ZoneEnv/'
+KIT = {'Env_Camp_SkillMachine', 'Env_Camp_Chair', 'Env_Camp_Turntable'}
+FULL = {'DLC02_10_Camp_01': ('906', '900', '901 902 900 903 904 905'),
+        'DLC02_20_Camp_01': ('049', '048', '043 044 048 045 046 047'),
+        'DLC02_20_Camp_04': ('111', '110', '105 106 110 107 108 109'),
+        'DLC02_30_Camp_03': ('030', '033', '031 032 033 034 035 036'),
+        'DLC02_40_Camp_01': ('009', '015', '010 011 015 012 013 014')}
+SIMPLE = {'DLC02_10_Camp_02': ('426', '420 421 423'), 'DLC02_20_Camp_02': ('062', '056 057 059'),
+          'DLC02_20_Camp_03': ('074', '068 069 071'), 'DLC02_30_Camp_01': ('004', '005 006 007'),
+          'DLC02_30_Camp_02': ('008', '009 010 011')}
+assert set(FULL) | set(SIMPLE) == set(coins)
+for camp, parts in {**FULL, **{c: (v, None, l) for c, (v, l) in SIMPLE.items()}}.items():
+    vend, base, links = parts
+    env = camp[:8] + '_EnvS_'
+    want = [env + n for n in links.split()]
+    machine = dict((f, v) for f, v, _ in rows[('ZoneEnvSpawnTable', env + vend)]['set'])
+    assert machine['LinkEnvSpawnList'] == want and machine['ShopDataList'] == [env + vend], camp
+    assert machine['EnvBPPath'] == ZE + ('Env_VendingMachine.Env_VendingMachine_C' if base
+                                         else 'Env_VendingMachine_Simple.Env_VendingMachine_Simple_C'), camp
+    assert len(want) == (6 if base else 3), camp
+    classes = set()
+    for n in want + [env + vend]:
+        s = dict((f, v) for f, v, _ in rows[('ZoneEnvSpawnTable', n)]['set'])
+        assert s['TargetCamp'] == camp and s['SpawnPointName'] == n and s['EnvBPPath'].startswith(ZE), n
+        classes.add(s['EnvBPPath'][len(ZE):].split('.')[0])
+    assert classes - {'Env_VendingMachine', 'Env_VendingMachine_Simple'} == (
+        KIT | {'Env_Camp_Base', 'Env_Camp_Storage', 'Env_Camp_TeleportMachine'} if base else KIT), camp
+assert not [n for (t, n), r in rows.items() if t == 'ZoneEnvSpawnTable' and 'SE_02_EnvS_010' in str(r['set'])]
 # Every door the data adds has its four sequences at the spawn point of its own name. Eleven start closed: the R12 and
 # zone 4 shortcut doors, opened from one side, the control room door, opened once E10 is dead, and the car 9 airlock's
 # inner door. The others start open: the 34 doors with no opener row (the 14 arena doors among them close by their
