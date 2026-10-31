@@ -108,8 +108,11 @@ end
 -- The other batches, each its own ask: Matrix XIII's spawn rows, loot (supply boxes and pickups) with the device
 -- rows dev patched first, the doors, gates, lifts, arena locks and water of zones 0 to 2, of zone 3 and of zone 4
 -- (lion/mxiii_rows.h), then the Lion's and the Gardener's own batches, whose CharacterTable rows M_LionC and
--- M_Gardener the boss spawn rows name. At the title they go in once the mxiii rows are in, one after the other, and
--- coop mxiii travels only once every one of them reads rows.
+-- M_Gardener the boss spawn rows name, then the camps' display keys. At the title they go in once the mxiii rows are
+-- in, one after the other, and coop mxiii travels only once every one of them but an optional one reads rows.
+-- optional: the travel never waits for it. ready: the title asks it only when this holds on the status text, here once
+-- the native part has made the keys' entries (game/camp_text.h), so a row can never name a key with no text: SB would
+-- show <key>. A fault, or a table that never loads, leaves the rows with their donors' names.
 Mxiii.BATCHES={
     {word='mxspawn',name='Matrix XIII Naytiba',rows=Enemy.rows(Rows.MXSPAWN)},
     {word='mxenv',name='Matrix XIII loot',rows=Enemy.rows(Rows.MXENV)},
@@ -118,6 +121,10 @@ Mxiii.BATCHES={
     {word='mxlower',name='Matrix XIII zone 4 mechanism',rows=Enemy.rows(Rows.MXLOWER)},
     {word='lion',name='Lion',rows=Enemy.rows(require('cut.lion_rows').ROWS)},
     {word='gardener',name='Gardener',rows=Enemy.rows(require('cut.lion_rows').GARDENER)},
+    {word='mxnames',name='Matrix XIII camp names',rows=Enemy.rows(Rows.MXNAMES),optional=true,ready=function(status)
+        local s=Enemy.parse(status,'camptext')
+        return s~=nil and s.state=='ready'
+    end},
 }
 -- SB/Content/Paks from the mod's folder (...\SB\Binaries\Win64\[ue4ss\]Mods\StellarCoop), or nil.
 function Mxiii.paks_of(folder)
@@ -240,7 +247,7 @@ function Mxiii.new(o)
         -- lifts, and a peer's shared Naytibas match no spawn row.
         for _,b in ipairs(Mxiii.BATCHES) do
             local s=Enemy.parse(o.status and o.status(),b.word)
-            if not (s and s.state=='rows') then
+            if not b.optional and not (s and s.state=='rows') then
                 log('refused: '..b.word..' rows not in')
                 return false,command..': the '..b.name..' rows are not in ('..(s and s.state or 'no line')
                     ..'): return to the title with the co-op save files, then run '..command..' again'
@@ -264,7 +271,7 @@ function Mxiii.new(o)
         local x=Enemy.new({log=function(m) log(b.word..' '..m) end,ask=o.ask,status=o.status},
             {word=b.word,name=b.name,command='coop mxiii',tag='[MX]',rows=b.rows,ids={}})
         local t,stop=x.title_batch(ready,'a return to the title')
-        others[#others+1]={e=x,title=t,stop=stop,after=previous}
+        others[#others+1]={e=x,title=t,stop=stop,after=previous,ready=b.ready}
         previous=b.word
     end
     -- The ladders, ledges and ropes (cut/mxmove.lua) and the bosses the game spawns (cut/mxboss.lua), in world 2800
@@ -275,7 +282,11 @@ function Mxiii.new(o)
         title(at_title,coop)
         for _,x in ipairs(others) do
             local s=Enemy.parse(o.status and o.status(),x.after)
-            if s and (s.state=='rows' or s.state=='refused') then x.title(at_title,coop) end
+            -- Before x.title: a title_batch whose own ready says no never asks again.
+            if s and (s.state=='rows' or s.state=='refused')
+                and (not x.ready or x.ready(o.status and o.status())) then
+                x.title(at_title,coop)
+            end
         end
     end
     -- coop mxiii boss: the key-0 boss of the arena EVE stands in, when the game spawned none there.

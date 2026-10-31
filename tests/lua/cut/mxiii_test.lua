@@ -17,7 +17,8 @@
 -- probe for DLC02_30_Camp_01; leave from there still takes the camp of before coop mxiii. The title's batch: the same
 -- rows with no EVE, only at the title on the co-op save files with the test pak, once a game run, asked again after a
 -- shut gate (at most 4 times a visit of the title) or a coop off during the wait, never after another refusal; its end
--- says whether the title closed during the wait.
+-- says whether the title closed during the wait. The optional mxnames batch: asked last, only with camptext=ready, and
+-- no travel waits for it.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -93,7 +94,7 @@ do
         words[#words+1]=b.word
         if b.word:find('^mx') then check_batch(src,'kM'..b.word:sub(2),b.rows) end
     end
-    assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener',
+    assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxnames',
         'The title order after mxiii')
     -- The dev rows: the camp, 7 env rows that name it (the kit 901 to 906 each at the point of its own name), zone 30's
     -- rest stop and its row, zone 40's two triggers.
@@ -227,7 +228,7 @@ local function fresh(t)
     end
     for _,r in ipairs(all) do
         if r.table==t then
-            local x={ID=r.id}
+            local x=rows[r.name] or {ID=r.id} -- mxnames patches the mxiii batch's camps.
             for _,c in ipairs(r.checks) do
                 local v=c[3]
                 if c[2]=='n' then v=fname(v)
@@ -279,11 +280,12 @@ local function new(paks)
 end
 local function last() return lines[#lines] end
 local function logged(text) for _,l in ipairs(lines) do if l:find(text,1,true) then return l end end end
--- The other batches' lines, every one in (coop mxiii travels only then); others: those mxiii_status writes.
+-- The other batches' lines, every one in (coop mxiii travels only then); others: those mxiii_status writes. No mxnames
+-- line: every travel below goes without it, the optional batch it waits for never.
 local OTHERS=''
 for _,b in ipairs(M.BATCHES) do
-    OTHERS=OTHERS..string.format('%s=rows added=%d/%d asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n',b.word,
-        #b.rows,#b.rows)
+    if not b.optional then OTHERS=OTHERS..string.format('%s=rows added=%d/%d asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n',b.word,
+        #b.rows,#b.rows) end
 end
 local others=OTHERS
 local function mxiii_status(t) status_text='mod=v\nslot=coop index=4 marker=4\n'..others..'mxiii='..t..'\nlast=x\n' end
@@ -707,6 +709,22 @@ clock=clock+0.25
 assert(mx.tick()==nil and logged('mxenv rows read back through FindRow: 160/160 authored rows'))
 mx.title(true,true)
 assert(#asked==n0+2,'No mxupper line: nothing asked, and nothing after it')
+-- The camp names: after the gardener's answer and only with camptext=ready. wait, fault or no line ask nothing, and a
+-- later ready still asks (the title batch's own ready would have closed it for good). The keys go into ZoneCampTable
+-- alone.
+mx=new(PAKS)
+local function names_status(line)
+    status_text='mod=v\nslot=coop index=4 marker=4\nmxiii='..ROWS_IN:format(1)..'\n'..OTHERS..'mxnames=off\n'..line
+end
+local n1=#asked
+for _,line in ipairs({'','camptext=wait\n','camptext=fault\n'}) do
+    names_status(line)
+    mx.title(true,true)
+    assert(#asked==n1,'No names with: '..line)
+end
+names_status('camptext=ready\n')
+mx.title(true,true)
+assert(#asked==n1+1 and asked[#asked]:find('^mxnames rows ZoneCampTable=0x%x+$'),asked[#asked])
 player=eve
 
 -- coop mxiii warp: the list of the 72 arrival points in the log; a point by number or name, under the follow's guards

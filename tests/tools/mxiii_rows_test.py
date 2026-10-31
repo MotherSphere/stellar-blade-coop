@@ -26,8 +26,8 @@ assert done.returncode == 0, done.stderr
 data = json.loads((ROOT / 'data/mxiii-world.json').read_text())
 gen.check(data)
 words = [b['word'] for b in data['batches']]
-assert words == ['mxiii', 'mxspawn', 'mxenv', 'mxupper', 'mxmiddle', 'mxlower'], words
-rows = {(r['table'], r['name']): r for b in data['batches'] for r in b['rows']}
+assert words == ['mxiii', 'mxspawn', 'mxenv', 'mxupper', 'mxmiddle', 'mxlower', 'mxnames'], words
+rows = {(r['table'], r['name']): r for b in data['batches'][:-1] for r in b['rows']}
 
 
 def refused(change):
@@ -54,6 +54,21 @@ assert door['set'][10][0] == 'OutTransitSequenceList', door['set'][10]
 assert refused(lambda d: d['batches'][3]['rows'][0]['set'][10].__setitem__(1, ['']))  # Would read as no item.
 assert refused(lambda d: d['batches'][3]['rows'][0]['set'][10].__setitem__(1, ['/Game/' + 'x' * 2100]))  # The pool.
 assert refused(lambda d: d['batches'][3]['rows'][0]['set'][7].__setitem__(1, 'x'))  # A float that is no number.
+
+# 2b. The camp names: the last batch, the 11 camps patched in place on their own IDs, with no other field; each key has
+# its entry in game/camp_text.h, and no other batch writes the two fields.
+names = data['batches'][-1]['rows']
+camps = sorted(n for t, n in rows if t == 'ZoneCampTable')
+assert [r['name'] for r in names] == camps and len(camps) == 11
+text = (ROOT / 'native/src/game/camp_text.h').read_text()
+for r in names:
+    assert r['table'] == 'ZoneCampTable' and r['donor'] == r['name'], r['name']
+    assert r['id'] == rows[('ZoneCampTable', r['name'])]['id'], r['name']
+    assert [s[:2] for s in r['set']] == [['CampName', 'MX13_Camp_' + r['name']],
+                                         ['RegionName', 'MX13_Region']], r['name']
+    assert f'{{u"MX13_Camp_{r["name"]}", ' in text, r['name']
+assert '{u"MX13_Region", ' in text and text.count('{u"MX13_') == 12
+assert not [f for r in rows.values() for f, _, _ in r['set'] if f in ('CampName', 'RegionName')]
 
 # 3. The rows the cooked map relies on (the manifest's spawn point names and row keys).
 for camp in ('DLC02_00_Camp_00', 'DLC02_10_Camp_01', 'DLC02_10_Camp_02', 'DLC02_20_Camp_01', 'DLC02_20_Camp_02',

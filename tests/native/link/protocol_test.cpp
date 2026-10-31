@@ -937,7 +937,7 @@ int main() {
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
   // (batch 3), coop mxiii's (batch 4), the Night Operation shop's (batch 5), Lily's signal's (batch 6) and Matrix
-  // XIII's mxspawn, mxenv, mxupper, mxmiddle and mxlower (batches 7 to 11): one
+  // XIII's mxspawn, mxenv, mxupper, mxmiddle, mxlower and mxnames (batches 7 to 12): one
   // <Table>=0x<address> word for each table the batch writes, 1 to 32 of them, in any order, each once (the others stay
   // 0); the addresses in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request Lua
   // could write (all 32, %x, so 12 digits at most under plausible's bound) is 1043 bytes with its line end; the longest
@@ -1002,7 +1002,9 @@ int main() {
   assert(mi.command == Command::rows && mi.batch == 10 && mi.tables == li.tables);
   const Request lo = parse_request(mxlower({words[31], words[28], words[27], words[25], words[16]}));
   assert(lo.command == Command::rows && lo.batch == 11 && lo.tables[31] == 0x1f4a2b3c1f00ull &&
-         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 12);
+         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 13);
+  const Request na = parse_request(rows("mxnames", {words[15]}));
+  assert(na.command == Command::rows && na.batch == 12 && na.tables[15] != 0 && na.tables[16] == 0);
   assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
          !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&
          !std::strcmp(kLionTables[19], "ZoneTriggerTable") && !std::strcmp(kLionTables[20], "QuestTable") &&

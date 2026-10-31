@@ -71,8 +71,18 @@ std::string camps_status() {
   return camps_text;
 }
 
-// coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle and mxlower
-// lines (lion/rows.h's status_line), from what the game thread published, then the shock line (lion/shock.h's
+// coop-status.txt's camptext line (game/camp_text.h), which cut/mxiii.lua waits for before it asks the mxnames rows;
+// from atomics, with no engine access.
+std::string camp_text_status() {
+  if (!game_pinned)
+    return std::string();
+  return camp_text::line(camp_text_faulted ? camp_text::State::fault
+                         : camp_text_ready ? camp_text::State::ready
+                                           : camp_text::State::wait);
+}
+
+// coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower and
+// mxnames lines (lion/rows.h's status_line), from what the game thread published, then the shock line (lion/shock.h's
 // shock_line), read after the bolt line it was published before, then the nightshop, roxanne and lily lines
 // (nightop_worker.inc's nightop_status).
 std::string rows_status() {

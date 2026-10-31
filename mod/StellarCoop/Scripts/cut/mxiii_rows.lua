@@ -668,6 +668,19 @@ R.MXLOWER={
     {'ZoneEnvSpawnTable','DLC02_40_EnvS_025',2815032025,{{'Interaction','s','/Game/GameDesign/Level/ToolData/InteractionGraph/DLC_MXIII/Zone_MXIII_40/MT40_ShortCutRope_01_On.MT40_ShortCutRope_01_On',true},{'EnvBPPath','s','/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C',true},{'SpawnPointName','n','DLC02_40_EnvS_025',true},{'TagEventList2','N','',true}}},
     {'ZoneEnvSpawnTable','DLC02_40_EnvS_021',2815032021,{{'EnvBPPath','s','/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C',true},{'SpawnPointName','n','DLC02_40_EnvS_021',true}}},
 }
+R.MXNAMES={
+    {'ZoneCampTable','DLC02_00_Camp_00',280000,{{'CampName','s','MX13_Camp_DLC02_00_Camp_00',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_10_Camp_01',280001,{{'CampName','s','MX13_Camp_DLC02_10_Camp_01',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_10_Camp_02',280002,{{'CampName','s','MX13_Camp_DLC02_10_Camp_02',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_20_Camp_01',280501,{{'CampName','s','MX13_Camp_DLC02_20_Camp_01',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_20_Camp_02',280502,{{'CampName','s','MX13_Camp_DLC02_20_Camp_02',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_20_Camp_03',280503,{{'CampName','s','MX13_Camp_DLC02_20_Camp_03',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_20_Camp_04',280504,{{'CampName','s','MX13_Camp_DLC02_20_Camp_04',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_30_Camp_01',281001,{{'CampName','s','MX13_Camp_DLC02_30_Camp_01',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_30_Camp_02',281002,{{'CampName','s','MX13_Camp_DLC02_30_Camp_02',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_30_Camp_03',281003,{{'CampName','s','MX13_Camp_DLC02_30_Camp_03',true},{'RegionName','n','MX13_Region',true}}},
+    {'ZoneCampTable','DLC02_40_Camp_01',281501,{{'CampName','s','MX13_Camp_DLC02_40_Camp_01',true},{'RegionName','n','MX13_Region',true}}},
+}
 R.MOVE={
     {key='M6_ladder_R08_0',cls='ladder',at={35992.3,37037.57,-1428.0},yaw=-95.0,height=240.794,start=1,bottom=55.0,meshes={0},role='optional'},
     {key='M6_ladder_R08_1',cls='ladder',at={33103.34,37290.32,-1428.0},yaw=-95.0,height=240.794,start=1,bottom=55.0,meshes={0},role='optional'},

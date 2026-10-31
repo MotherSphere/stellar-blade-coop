@@ -198,6 +198,8 @@ std::string status();
 // respawns at as of the game thread's last check: "activated=<n>:<alias>,..." with " rested=<alias>" when known, or
 // "activated=none:<why>"; empty before the first check, off the pinned build and after coop off.
 std::string camps_status();
+// Worker: coop-status.txt's camptext line (game/camp_text.h's line): wait, ready or fault; empty off the pinned build.
+std::string camp_text_status();
 // A complete file: written beside it, then renamed over it (glue/steam.cpp).
 bool write_text(const std::wstring &path, const std::string &bytes);
 // At most about max bytes of a file, shared for delete; exists says whether it opened (glue/tick.cpp). Shared with

@@ -579,7 +579,7 @@ inline uint64_t code_lobby(std::string_view text) {
 // ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop rows
 // <Table>=0x<address> ..." and for Lily's signal (story/lily.lua) "signal rows <Table>=0x<address> ..." and for
 // Matrix XIII's other batches (cut/mxiii.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper rows ...", "mxmiddle
-// rows ..." and "mxlower rows ..."
+// rows ...", "mxlower rows ..." and "mxnames rows ..."
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each table the batch writes, 1 to
 // 32 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
 // stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
@@ -607,10 +607,11 @@ enum class Command {
 // shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 // The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
-// kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower), in Request::batch's order.
-constexpr size_t kRowWordCount = 12;
+// kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames), in Request::batch's order.
+constexpr size_t kRowWordCount = 13;
 constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",    "mxiii",    "shop",
-                                                  "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower"};
+                                                  "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower",
+                                                  "mxnames"};
 // The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
 constexpr size_t kLionTableCount = 32;
 constexpr const char *kLionTables[kLionTableCount] = {
