@@ -12,8 +12,9 @@ signal" ("L'autre signal"). Picking it plays her goodbye, then the prologue talk
 Time" starts with the game's new-quest notice, a journal entry and the tracker, and EVE travels into Matrix XIII.
 
 The dungeon's map does not come with the game or with the mod. It needs the zMXIII_P test pak, the same one
-`coop mxiii` needs (see [usage.md](usage.md#cut-dungeon-coop-mxiii-experimental)). The trip lands at the camp the test
-pak gives the dungeon's first zone, `DLC02_10_Camp_01`. A desert surface with the lift down to the station is planned
+`coop mxiii` needs (see [usage.md](usage.md#cut-dungeon-coop-mxiii-experimental)). The trip lands at the Tetrapod camp
+`DLC02_00_Camp_00`, beside the dungeon's Lily, with the dungeon's camps inactive (an older test pak: at
+`DLC02_10_Camp_01`). A desert surface with the lift down to the station is planned
 but not built: the pak has no such map yet.
 
 ## What has to hold
@@ -219,7 +220,7 @@ back.
 [StellarCoop][LY] the prologue is complete: signalquest=none ... pro=held prostate=3 ...
 [StellarCoop][LY] signal acquire asked (signalquest=none ...); the travel follows once the quest is held
 [StellarCoop][LY] the quest is held: signalquest=held state=1 group=0 task=1 ...
-[StellarCoop][LY] travel: coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked ([TR] lines follow); way out: coop mxiii leave
+[StellarCoop][LY] travel: coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 is asked ([TR] lines follow); way out: coop mxiii leave
 [StellarCoop][LY] in Matrix XIII with On Time held: the arrival talk, once this Lua load
 ```
 

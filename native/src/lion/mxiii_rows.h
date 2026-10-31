@@ -4486,6 +4486,29 @@ constexpr Row kMxlowerRecipe[] = {
     {Table::env, "DLC02_40_EnvS_021", "DLC02_40_EnvS_021", 2815032021u, 665, 2},
 };
 
+constexpr Patch kMxlilyPatches[] = {
+    // Xion01_NPC_Lily_01_IACC__075 (ConditionTable, IsInWorld, Lily's Tetrapod graph)
+    {0x18, Kind::string, 0, "DLCMatrix13"}, // CustomStr01
+    // Xion01_NPC_Lily_01_IACC__073 (ConditionTable, IsInWorld, Lily's Tetrapod graph)
+    {0x18, Kind::string, 0, "DLCMatrix13"}, // CustomStr01
+    // Xion01_NPC_Lily_01_IACC__077 (ConditionTable, IsInWorld, Lily's Tetrapod graph)
+    {0x18, Kind::string, 0, "DLCMatrix13"}, // CustomStr01
+    // Xion01_NPC_Lily_01_ConditionGroup_019 (ConditionGroupTable, OR: her start line, root pin 9)
+    {0x28, Kind::u8, 3, nullptr}, // ConditionEq
+    // Xion01_NPC_Lily_01_ConditionGroup_017 (ConditionGroupTable, OR: her console line, Switch_1 pin 8)
+    {0x28, Kind::u8, 3, nullptr}, // ConditionEq
+    // Xion01_NPC_Lily_01_ConditionGroup_018 (ConditionGroupTable, OR: her end line, Switch_2 pin 8)
+    {0x28, Kind::u8, 3, nullptr}, // ConditionEq
+};
+constexpr Row kMxlilyRecipe[] = {
+    {Table::condition, "Xion01_NPC_Lily_01_IACC__075", "Xion01_NPC_Lily_01_IACC__075", 1202u, 0, 1},
+    {Table::condition, "Xion01_NPC_Lily_01_IACC__073", "Xion01_NPC_Lily_01_IACC__073", 1194u, 1, 1},
+    {Table::condition, "Xion01_NPC_Lily_01_IACC__077", "Xion01_NPC_Lily_01_IACC__077", 1204u, 2, 1},
+    {Table::cgroup, "Xion01_NPC_Lily_01_ConditionGroup_019", "Xion01_NPC_Lily_01_ConditionGroup_019", 244u, 3, 1},
+    {Table::cgroup, "Xion01_NPC_Lily_01_ConditionGroup_017", "Xion01_NPC_Lily_01_ConditionGroup_017", 243u, 4, 1},
+    {Table::cgroup, "Xion01_NPC_Lily_01_ConditionGroup_018", "Xion01_NPC_Lily_01_ConditionGroup_018", 245u, 5, 1},
+};
+
 constexpr Patch kMxnamesPatches[] = {
     // DLC02_00_Camp_00 (ZoneCampTable)
     {0x18, Kind::string, 0, "MX13_Camp_DLC02_00_Camp_00"}, // CampName

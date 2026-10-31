@@ -4,7 +4,7 @@
 -- choice list then offers one more line, "The other signal", above her Travel, Repair and End rows. Picking it plays
 -- her goodbye, then the prologue talk (story/subtitles.lua), then completes the prologue and starts the mod's long
 -- quest "On Time" (Quest_Sub_MX13_01, QuestTable 163) and sends EVE into Matrix XIII through coop mxiii's camp travel
--- (today the test pak's zone 1 camp, DLC02_10_Camp_01). On Time has six steps: reach the station (M01) and zones 2 to 4
+-- (the Tetrapod camp DLC02_00_Camp_00, beside the dungeon's Lily, on the v4 pak). On Time has six steps: reach the station (M01) and zones 2 to 4
 -- (M02 to M04, each SB's own EnterZone), the Fusion Drive room in zone 4 (M05, which this file completes), and telling
 -- Lily (M06), when her row returns as "About Matrix 13" and plays the end talk. The pieces, in order:
 -- - The signal rows (lion/rows.h's kSignalRecipe, through cut/enemy.lua's rows flow and read back): both quests' rows

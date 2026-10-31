@@ -22532,6 +22532,95 @@
    ]
   },
   {
+   "word": "mxlily",
+   "rows": [
+    {
+     "table": "ConditionTable",
+     "name": "Xion01_NPC_Lily_01_IACC__075",
+     "donor": "Xion01_NPC_Lily_01_IACC__075",
+     "id": 1202,
+     "note": "IsInWorld, Lily's Tetrapod graph",
+     "set": [
+      [
+       "CustomStr01",
+       "DLCMatrix13",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ConditionTable",
+     "name": "Xion01_NPC_Lily_01_IACC__073",
+     "donor": "Xion01_NPC_Lily_01_IACC__073",
+     "id": 1194,
+     "note": "IsInWorld, Lily's Tetrapod graph",
+     "set": [
+      [
+       "CustomStr01",
+       "DLCMatrix13",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ConditionTable",
+     "name": "Xion01_NPC_Lily_01_IACC__077",
+     "donor": "Xion01_NPC_Lily_01_IACC__077",
+     "id": 1204,
+     "note": "IsInWorld, Lily's Tetrapod graph",
+     "set": [
+      [
+       "CustomStr01",
+       "DLCMatrix13",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ConditionGroupTable",
+     "name": "Xion01_NPC_Lily_01_ConditionGroup_019",
+     "donor": "Xion01_NPC_Lily_01_ConditionGroup_019",
+     "id": 244,
+     "note": "OR: her start line, root pin 9",
+     "set": [
+      [
+       "ConditionEq",
+       3,
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ConditionGroupTable",
+     "name": "Xion01_NPC_Lily_01_ConditionGroup_017",
+     "donor": "Xion01_NPC_Lily_01_ConditionGroup_017",
+     "id": 243,
+     "note": "OR: her console line, Switch_1 pin 8",
+     "set": [
+      [
+       "ConditionEq",
+       3,
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ConditionGroupTable",
+     "name": "Xion01_NPC_Lily_01_ConditionGroup_018",
+     "donor": "Xion01_NPC_Lily_01_ConditionGroup_018",
+     "id": 245,
+     "note": "OR: her end line, Switch_2 pin 8",
+     "set": [
+      [
+       "ConditionEq",
+       3,
+       true
+      ]
+     ]
+    }
+   ]
+  },
+  {
    "word": "mxnames",
    "rows": [
     {

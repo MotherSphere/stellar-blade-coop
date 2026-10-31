@@ -205,7 +205,7 @@ local function read(path,limit) return files[path] and files[path]:sub(1,limit) 
 
 local logs,asked,travels={},{},0
 local mode,paused='none',false
-local travel_answer={true,'coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked'}
+local travel_answer={true,'coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 is asked'}
 -- The signalquest line: unread, or none with Quest_Sub_005 complete and Quest_Epic_11 at M04 in progress, unless said.
 local function quest_line(t)
     local d={'none',-1,-1,-1,0,3,'none',-1,-1,-1,3,1,0,'acquire','none'}

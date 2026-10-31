@@ -26,7 +26,7 @@ assert done.returncode == 0, done.stderr
 data = json.loads((ROOT / 'data/mxiii-world.json').read_text())
 gen.check(data)
 words = [b['word'] for b in data['batches']]
-assert words == ['mxiii', 'mxspawn', 'mxenv', 'mxupper', 'mxmiddle', 'mxlower', 'mxnames'], words
+assert words == ['mxiii', 'mxspawn', 'mxenv', 'mxupper', 'mxmiddle', 'mxlower', 'mxlily', 'mxnames'], words
 rows = {(r['table'], r['name']): r for b in data['batches'][:-1] for r in b['rows']}
 
 
@@ -70,6 +70,20 @@ for r in names:
 assert '{u"MX13_Region", ' in text and text.count('{u"MX13_') == 12
 assert not [f for r in rows.values() for f, _, _ in r['set'] if f in ('CampName', 'RegionName')]
 
+# 2c. Lily's menu: the three IsInWorld rows name the dungeon's world, each group of the Great Desert branch turns to OR
+# (one of its two conditions is that world's, the other the Great Desert actor), shipped rows on their own IDs.
+lily = {r['name']: r for b in data['batches'] if b['word'] == 'mxlily' for r in b['rows']}
+P = 'Xion01_NPC_Lily_01_'
+for name, table, id_, s in ((P + 'IACC__075', 'ConditionTable', 1202, ['CustomStr01', 'DLCMatrix13', True]),
+                            (P + 'IACC__073', 'ConditionTable', 1194, ['CustomStr01', 'DLCMatrix13', True]),
+                            (P + 'IACC__077', 'ConditionTable', 1204, ['CustomStr01', 'DLCMatrix13', True]),
+                            (P + 'ConditionGroup_019', 'ConditionGroupTable', 244, ['ConditionEq', 3, True]),
+                            (P + 'ConditionGroup_017', 'ConditionGroupTable', 243, ['ConditionEq', 3, True]),
+                            (P + 'ConditionGroup_018', 'ConditionGroupTable', 245, ['ConditionEq', 3, True])):
+    r = lily[name]
+    assert (r['table'], r['donor'], r['id'], r['set']) == (table, name, id_, [s]), name
+assert len(lily) == 6
+
 # 3. The rows the cooked map relies on (the manifest's spawn point names and row keys).
 for camp in ('DLC02_00_Camp_00', 'DLC02_10_Camp_01', 'DLC02_10_Camp_02', 'DLC02_20_Camp_01', 'DLC02_20_Camp_02',
              'DLC02_20_Camp_03', 'DLC02_20_Camp_04', 'DLC02_30_Camp_01', 'DLC02_30_Camp_02', 'DLC02_30_Camp_03',
@@ -78,6 +92,29 @@ for camp in ('DLC02_00_Camp_00', 'DLC02_10_Camp_01', 'DLC02_10_Camp_02', 'DLC02_
     # Its own camp list; the Tetrapod stays in Matrix 11's bucket, whose order keeps it among the 7 tabs.
     region = dict((f, v) for f, v, _ in rows[('ZoneCampTable', camp)]['set']).get('Region')
     assert region == (None if camp == 'DLC02_00_Camp_00' else 'Matrix13'), camp
+# EVE arrives at the Tetrapod with no camp active: its machine is the only camp row that starts Enable with no coin.
+# Every other camp names a coin of its own, spawned at the point of its name, and its kit stays off until that coin
+# is spent at the vending machine: no kit row changes its donor's start state (Enable, Off on the vending machine,
+# Disable, Off on the others).
+coins = {}
+for (t, n), r in rows.items():
+    if t != 'ZoneCampTable':
+        continue
+    s = dict((f, v) for f, v, _ in r['set'])
+    if n == 'DLC02_00_Camp_00':
+        assert s.get('CampType') == 4 and 'CoinSpawnPointName' not in s
+    else:
+        assert s.get('CampType') in (2, 3) and s['CoinSpawnPointName'].startswith(n[:8] + '_E_ItemS_'), n
+        coins[n] = s['CoinSpawnPointName']
+assert len(coins) == 10 and len(set(coins.values())) == 10
+for coin in ('DLC02_10_E_ItemS_014', 'DLC02_20_E_ItemS_022', 'DLC02_30_E_ItemS_029'):  # The rest are the game's rows.
+    assert coin in coins.values(), coin
+    s = dict((f, v) for f, v, _ in rows[('EventItemTable', coin)]['set'])
+    assert s['SpawnPointName'] == coin and s.get('Zone', 'Zone_DLC02_10') == 'Zone_' + coin[:8], coin  # Donor: zone 10.
+for (t, n), r in rows.items():
+    s = dict((f, v) for f, v, _ in r['set'])
+    if t == 'ZoneEnvSpawnTable' and s.get('TargetCamp') in coins:
+        assert 'InitActivate' not in s and 'InitStateTag' not in s, n
 for boss, char in (('DLC02_20_E_CharS_904', 'M_Gardener'), ('DLC02_30_E_CharS_029', 'MX13_M_Sawshark'),
                    ('DLC02_40_E_CharS_051', 'M_LionC')):
     s = dict((f, v) for f, v, _ in rows[('EventSpawnTable', boss)]['set'])
