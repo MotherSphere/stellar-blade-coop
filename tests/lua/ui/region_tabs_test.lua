@@ -1,9 +1,10 @@
 -- The teleport screen's extra tabs (ui/region_tabs.lua) over fakes. Covered: nothing before the game is ready; the
--- classes loaded when not in memory, the keeper made once, the focus hook registered before the Construct hook; tabs 8 to
--- 10 made collapsed with their count, name, slot and number, the trailing spacer last, the row clipped with its bar; a
+-- classes loaded when not in memory, the keeper made once, the focus hook registered before the Construct hook; tabs 8
+-- and 9 made collapsed with their count, name, slot and number, the trailing spacer last, the row clipped with its bar; a
 -- second Construct adds nothing; a row of another shape, a tab that keeps no name or a failed hook leaves 7 tabs with one
--- log line; focus on tab 8 sends its name to the screen, focus on tab 7 sends nothing, a failed send collapses the tab,
--- and focus still sends after coop off, which stops new tabs.
+-- log line; focus on tab 8 sends its name to the screen, focus on tab 7 sends nothing, a failed send collapses the tab
+-- with one log line however often it fails, and focus still sends after coop off, which stops new tabs; a coop off
+-- before the first tick registers and loads nothing.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(fields)
     fields=fields or {}
@@ -96,6 +97,13 @@ local notyet=new(false)
 notyet.tick()
 assert(#hooks==0 and #loaded==0 and #constructed==0)
 
+-- coop off before the first tick: nothing registered, nothing loaded, no keeper.
+reset()
+local early=new()
+early.stop()
+early.tick()
+assert(#hooks==0 and #loaded==0 and #constructed==0)
+
 -- The install: loaded, kept, focus first, and once.
 reset()
 local tabs=new()
@@ -107,12 +115,12 @@ assert(#hooks==2 and hooks[1].path==TAB..'_C:EventWidgetFocusActive' and hooks[2
 assert(#logs==1 and logs[1]:find('hooks on',1,true))
 local on_focus,on_construct=hooks[1].f,hooks[2].f
 
--- Construct: three tabs, the spacer last, the row clipped with its bar.
+-- Construct: two tabs, the spacer last, the row clipped with its bar.
 local set,root,children=screen(9)
 local spacer=children[9]
 on_construct(set)
-assert(#children==12 and children[12]==spacer)
-for i=9,11 do
+assert(#children==11 and children[11]==spacer)
+for i=9,10 do
     local t,n=children[i],i-1
     assert(t.visibility==1 and t.TabCount==n and t.TabName=='WB_AreaTeleport_Tab_'..n and t.pre==false)
     assert(t.Slot.padding.Left==-20 and t.Slot.padding.Top==20 and t.Slot.h==2 and t.Slot.v==2)
@@ -120,24 +128,29 @@ end
 assert(root.clipping==1 and root.bar==0 and root.thickness.X==24)
 -- Again on the same screen: nothing more, and no log line.
 on_construct(set)
-assert(#children==12 and #logs==1)
+assert(#children==11 and #logs==1)
 
 -- Focus: tab 8 sends its name; a vanilla tab sends nothing; a failed send collapses the tab.
 on_focus(children[9])
 assert(#sent==1 and sent[1]=='WB_AreaTeleport_Tab_8')
-on_focus(object({TabCount=7}))
-assert(#sent==1)
+on_focus(object({TabCount=7,TabName='WB_AreaTeleport_Tab_7',ParentWidget=object({NotifyBlueprint=function(_,s)
+    sent[#sent+1]=s
+end})}))
+assert(#sent==1 and #logs==1)
 children[10].visibility=4
 refuse_send=true
 on_focus(children[10])
 assert(children[10].visibility==1 and #logs==2 and logs[2]:find('STOP',1,true))
+-- Still failing on another tab: collapsed too, and no second line.
+on_focus(children[9])
+assert(children[9].visibility==1 and #logs==2)
 -- That failure stops new tabs on the next screen, but keeps a tab on screen sending.
 refuse_send=false
 local later=screen(9)
 on_construct(later)
 assert(later.HB_AreaTeleportRoot.clipping==nil)
-on_focus(children[11])
-assert(sent[#sent]=='WB_AreaTeleport_Tab_10')
+on_focus(children[10])
+assert(sent[#sent]=='WB_AreaTeleport_Tab_9')
 
 -- A row of another shape: 7 tabs left, one line, and no more tries.
 reset()

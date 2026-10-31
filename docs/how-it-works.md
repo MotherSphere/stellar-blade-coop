@@ -1177,7 +1177,7 @@ type 0xBD, not widgets. A node exists only for a widget in the list of 0x2C reco
 widget's class properties. `AddChildSBUserWidget` and `CreateDynamicChildUserWidget` discard their records, so a tab made
 at run time gets no node and no camp.
 
-`ui/region_tabs.lua` hooks the Set's `Construct` and makes tabs 8 to 10 with `CreateDynamicChildUserWidget`, with `TabCount`
+`ui/region_tabs.lua` hooks the Set's `Construct` and makes tabs 8 and 9 with `CreateDynamicChildUserWidget`, with `TabCount`
 and `TabName` set (`WB_AreaTeleport_Tab_8` and so on, as the Set stores for its own). The trailing spacer is removed first
 and added back after them. Each tab starts collapsed. The game shows a tab only through its logic (`FUN_141f690e0` sets
 each filled tab to `SelfHitTestInvisible` and each surplus one to `Collapsed`), so a tab that got no node stays hidden and
@@ -1199,6 +1199,12 @@ horizontal ScrollBox that ships with `ScrollBarVisibility` `Hidden`. A tab is 41
 3528, so 8 tabs fit in 3340 and 9 need 3750. The Lua sets `SetClipping(1)`, `SetScrollBarVisibility(0)` and
 `SetScrollbarThickness` once. The engine collapses the bar while nothing overflows. The bar keeps the engine's default
 look, since `WidgetBarStyle` applies only when the Slate widget is built.
+
+There is no tab 10. While a newly activated camp's tab plays `Unlock`, the logic's `+0x128` stays set (`0x141f67478` sets
+it, `0x141f68f05` clears it once the unlock list is empty), and `FUN_141f67cc0` returns early on it, which blocks the hold
+and the close. A 10th tab would start at about 3700, wholly outside the row at scroll 0. From UE 4.26's source, Slate then
+does not paint it, it gets no tick, and its animation does not advance, so the lock would never clear. That engine step
+has not been run in game. With 9 tabs the row scrolls only 222 units, so every 410-wide tab stays partly painted.
 
 Which camp a hold takes comes from `+0xb4`, which the handler `FUN_141f68750` sets from the last `_` token of a
 `NotifyBlueprint` string. The Set's `Construct` binds its `EventFocusSlotN` chain for Tab_1 to Tab_7 only, so a focus on tab 8

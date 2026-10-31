@@ -1,11 +1,15 @@
 -- The between-regions teleport screen's extra tabs. WB_AreaTeleport_Set has 7 tabs, and SB's Region logic drops every
--- active Tetrapod past them. This makes tabs 8 to 10 when the screen is built, and SB fills them: the native part
+-- active Tetrapod past them. This makes tabs 8 and 9 when the screen is built, and SB fills them: the native part
 -- (game/region_tabs.h) gives each one the logic node a class-property tab gets, so its camp, thumbnail, unlock and
 -- travel all run SB's own code. Each tab starts collapsed and only that logic shows it, so a tab without a node (the
 -- native hook refused or faulted, coop off, the screen built in another order) is never seen and can take no focus; SB
 -- collapses the tabs it has no camp for. The row clips and shows a horizontal bar once it overflows, which 9 tabs do
 -- (3750 units across 3528), and the engine keeps the bar collapsed until then. The bar drags with the mouse. Only UI: no
 -- save, trophy or inventory call.
+--
+-- Tabs stop at 9 because SB's input stays locked until every unlocking tab's animation ends, and Slate neither paints nor
+-- ticks a widget wholly outside the row. 9 tabs scroll 222 units and each is 410 wide, so all stay partly painted. A 10th
+-- would start at 3700 and could hang the screen.
 --
 -- Keyboard and gamepad: focus on a tab tells the Region logic which camp a hold takes, through NotifyBlueprint with the
 -- tab's name, whose last token is its 1-based place. The Set's Construct binds that for Tab_1 to Tab_7 only, so the
@@ -16,7 +20,7 @@
 -- keeps its class and the Tab class. Every engine call runs in pcall on the game thread; the first error stops new tabs
 -- until the next Lua load, with one log line. tests/lua/ui/region_tabs_test.lua covers it over fakes.
 local U=require('core.unreal')
-local Tabs={FIRST=8,LAST=10}
+local Tabs={FIRST=8,LAST=9}
 local FOLDER='/Game/Art/UI/Widget/GameMenu/Teleport/'
 local SET=FOLDER..'WB_AreaTeleport_Set.WB_AreaTeleport_Set'
 local TAB=FOLDER..'WB_AreaTeleport_Tab.WB_AreaTeleport_Tab'
@@ -113,7 +117,7 @@ function Tabs.new(o)
     local self={}
     -- Once a Lua load, as soon as the game is far enough. Nothing after that.
     function self.tick()
-        if hooked or failed or stopped or not o.ready() then return end
+        if hooked or stopped or not o.ready() then return end
         hooked=true
         local ok,e=pcall(install)
         if not ok then fail(e) end

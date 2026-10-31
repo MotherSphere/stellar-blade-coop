@@ -806,12 +806,12 @@ checkpoints, each at least 15 m from the one before it (the first from the start
 
 ## Teleport screen
 
-The game's between-regions teleport screen has 7 tabs and drops every active Tetrapod past the 7th. The mod adds up to 3
-more tabs, so it shows up to 10 regions, in the game's own order. Holding on a tab travels as on the game's own tabs, with
+The game's between-regions teleport screen has 7 tabs and drops every active Tetrapod past the 7th. The mod adds up to 2
+more tabs, so it shows up to 9 regions, in the game's own order. Holding on a tab travels as on the game's own tabs, with
 the mouse, the keyboard or a gamepad. Tabs without a region stay hidden.
 
-8 tabs fit on the screen. From 9, a horizontal bar appears under the row: drag it with the mouse or use the wheel. With
-the keyboard or a gamepad, moving left and right should follow the focus. A region past the 10th still does not show.
+8 tabs fit on the screen. With 9, a horizontal bar appears under the row: drag it with the mouse or use the wheel. With
+the keyboard or a gamepad, moving left and right should follow the focus. A region past the 9th still does not show.
 Added tabs appear at once, without the game's fade-in.
 
 The screen writes nothing to your save and unlocks no trophy. After `coop off`, or if a check fails, the screen goes back to the game's 7

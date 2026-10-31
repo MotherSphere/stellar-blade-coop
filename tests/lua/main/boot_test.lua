@@ -174,6 +174,10 @@ assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load
 loops[1].f(); loops[1].f()
 assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ra.ticks==2,
     'The native tick, the notices, the probe, the recruiter and the race run every frame')
+assert(rt.ticks==2 and rt.stops==0,'The teleport tabs tick every frame')
+assert(rt.o.ready()==true,'A link and a player controller: the teleport tabs may load')
+cv.pc=nil; assert(rt.o.ready()==false,'No player controller yet'); cv.pc=cv.stale
+assert(rt.o.ready()==false,'Another object at the old address'); cv.pc=cv.PC
 assert(ra.steers==2 and ra.steered_at==1,'The driving each frame, before the native tick: the pose has its yaw')
 -- coop race: its words to race/run.lua (record, cp, save, cancel, quit on any slot), its start on the co-op save slot
 -- only; race.new got the [DR] logger, the link, the ghost, the Doro look, the notices, Night Operation's run, the slot
@@ -1121,6 +1125,7 @@ coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
 assert(ticks==24 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
+assert(rt.stops==1,'coop off stops new teleport tabs')
 before=#probe_runs
 coop('no')
 assert(#probe_runs==before and last():find('STOP: coop off is active until the game restarts',1,true),last())
@@ -1225,6 +1230,7 @@ coop('fight','on'); assert(last():find('STOP: the native tick is unavailable',1,
 local refused,refusal=probe.ask('nightop')
 assert(not refused and refusal=='the Steam link needs the native part' and probe.status()==nil and #asked==0)
 loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
+assert(rt.ticks==1 and rt.o.ready()==false,'The teleport tabs tick and stay off without the link')
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())

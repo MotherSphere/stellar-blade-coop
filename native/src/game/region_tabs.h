@@ -13,7 +13,7 @@
 namespace coop::region_tabs {
 
 constexpr uint64_t kSlot = 0x145c3eb38;       // .rdata: the Region logic's vtable +0x30.
-constexpr uint64_t kInit = 0x141f66a00;       // What the slot holds: reads the logic only.
+constexpr uint64_t kInit = 0x141f66a00;       // What the slot holds: the Region logic's init (resets its fields).
 constexpr uint64_t kRootReturn = 0x141fc4e21; // The call for the root node. 0x141fc4fa2, a child's, holds a pointer
                                               // into the list that a grow would leave dangling.
 constexpr uint64_t kManagers = 0x141a97cb0, kWidgetByGuid = 0x141e39bc0, kChildByName = 0x142537960,

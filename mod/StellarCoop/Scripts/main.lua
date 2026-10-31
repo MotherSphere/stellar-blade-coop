@@ -280,10 +280,10 @@ local mxiii=require('cut.mxiii').new({log=function(m) print('[StellarCoop][MX] '
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     travel=function() return travel end,paks=require('cut.mxiii').paks_of(folder),
     read=require('core.link').files.read,lion=lion,gardener=gardener})
--- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 -- The teleport screen's extra tabs (ui/region_tabs.lua), logging [RT] lines. Their records come from the native part.
 local region_tabs=require('ui.region_tabs').new({log=function(m) print('[StellarCoop][RT] '..tostring(m)..'\n') end,
     ready=function() return link~=nil and require('core.unreal').controller()~=nil end})
+-- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('nightop.recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- The UI kit's lines.
 -- The Doro look and probe (race/doro.lua), logging [DR] lines. coop-look.txt lets the next Lua load restore EVE.
