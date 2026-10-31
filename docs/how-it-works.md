@@ -2406,9 +2406,11 @@ climbing mesh `006_B_SM`. A rope gets its drop (`RopeDistanceB`) and the `EnvAct
 made registers with its row is untested. A cooked map never reruns a placed actor's construction script, so these values
 must reach the actor at spawn. The spawn is deferred (`BeginDeferredActorSpawnFromClass`, the fields,
 `FinishSpawningActor`); if that call fails, `SpawnActor` and a second `UserConstructionScript` call take over for the
-rest of the Lua load. The `Meshes` stack is written from its last piece to its first: UE4SS 3.0.1 resizes a TArray
-written past its end and may zero the values already in it (UE4SS #436, fixed after 3.0.1), so a front-to-back fill
-could turn a 3,3 stack into 0,3. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back
+rest of the Lua load. UE4SS 3.0.1 grows a TArray written two or more past its end to the index before and loses the
+value (its TArray fix, #436, came in 4.0): filled from its last piece, every multi-piece stack read back one piece
+short in game (R28's 3,3 as 3). The `Meshes` stack now gets its first piece, then a write one past its last piece
+that only sizes the array, then every piece inside it. It is read back; a stack that differs is emptied and written
+front to back, and one that still differs is destroyed before its finish and named in the log. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back
 before `FinishSpawningActor` and the `TotalHeight` its script built. `cut/mxboss.lua` looks, once a second while EVE is within
 80 m of a boss point, for a body of the Lion's or the Gardener's blueprint within 30 m of it, and fixes it once: the
 Lion through `cut/lion.lua`'s `adopt` (its anim instance, else the hidden Behemoth leader that `coop lion` uses), the

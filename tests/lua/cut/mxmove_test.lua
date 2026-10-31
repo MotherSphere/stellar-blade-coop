@@ -7,8 +7,10 @@
 -- loaded first; nothing again in the same world, all again in a new one. When the deferred call fails, that spawn and
 -- every later one go through SpawnActor and the construction script (TotalHeight back to 0 before it), and the line
 -- says so. The MOVE list: each ladder's height is its Meshes stack plus the head, the ledges carry 006_B_SM,
--- the ropes and gate 435's ladder name their rows. The fake Meshes array zeroes its values when it grows (UE4SS #436),
--- so a stack filled front to back would read 0,3.
+-- the ropes and gate 435's ladder name their rows. The fake Meshes array writes like UE4SS 3.0.1 (a write past the end
+-- grows it to index-1 and loses the value), so the fill from the last piece, which read every multi-piece stack back
+-- a piece short in game on 2026-10-30, reads 3,3 as 3 here too. A stack that reads back wrong is emptied and filled
+-- front to back (a fixed UE4SS's way); one that still reads wrong spawns nothing for that ladder, and says so.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -19,19 +21,37 @@ local function object(fields)
     o.type=function() return 'UObject' end
     o.IsValid=o.IsValid or function(self) return not self.destroyed end
     o.GetAddress=function() return at end
+    o.K2_DestroyActor=function(self) self.destroyed=true end
     return o
 end
--- A TArray as UE4SS 3.0.1 may treat it (#436): a write past the end resizes it and zeroes every value already in it.
+-- A TArray of the deferred ladder's Meshes. '3.0.1': UE4SS 3.0.1's index access (LuaTArray.cpp prepare_to_handle,
+-- reads and writes alike): an index past the end grows the array to index-1 (index 1 of the empty array grows it to
+-- 1), and the value lands only inside the array. This fits all 41 stacks the 2026-10-30 23:03 UE4SS.log read back;
+-- a write at Num+1 into a non-empty array is lost here, the stricter of the two readings the log allows.
+-- 'fixed': a write past the end grows the array to that index and lands (UE4SS 4.0). 'broken': nothing past 1 lands.
+local tarray_kind='3.0.1'
 local function tarray()
-    local v,n={},0
-    return setmetatable({},{__index=function(_,i) return v[i] end,__len=function() return n end,
-        __newindex=function(_,i,x)
-            if i>n then
-                for k=1,i do v[k]=0 end
-                n=i
-            end
-            v[i]=x
-        end})
+    local v,n,kind={},0,tarray_kind
+    local function reach(i)
+        if kind=='3.0.1' and (i-1>n or n==0) then
+            local grow=i==1 and 1 or i-1-n
+            for k=n+1,n+grow do v[k]=0 end
+            n=n+grow
+        elseif kind=='fixed' and i>n then
+            for k=n+1,i do v[k]=0 end
+            n=i
+        elseif kind=='broken' and n==0 then
+            v[1],n=0,1
+        end
+        return i<=n
+    end
+    local methods={GetArrayNum=function() return n end,Empty=function() v,n={},0 end}
+    return setmetatable({},{__len=function() return n end,
+        __index=function(_,i)
+            if methods[i] then return methods[i] end
+            return reach(i) and v[i] or nil
+        end,
+        __newindex=function(_,i,x) if reach(i) then v[i]=x end end})
 end
 local world_name='World /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P.MXIII_P'
 local spawned,worlds={},{}
@@ -114,7 +134,7 @@ assert(ladder.how=='deferred' and ladder.class.path==M.ASSETS.ladder..'_C' and l
     and ladder.StartUnit==2
     and ladder.CollisionBottomZAdd==-75 and ladder.height_at_finish==nil and ladder.HeadHeight==nil
     and ladder.HeadWidthHalf==nil and ladder.CollisionWidth==nil and ladder.EnvActorName==nil,
-    'The ladder: its stack (no piece zeroed by the growth) and foot set before the finish, TotalHeight left alone')
+    'The ladder: its whole stack and foot set before the finish, TotalHeight left alone')
 assert(ledge.how=='deferred' and ledge.TotalHeight==nil and ledge.finished and ledge.meshes_at_finish==1
     and ledge.Meshes[1]==classes[MESH],'The ledge: the climbing mesh')
 assert(rope.class.path==M.ASSETS.rope..'_C' and rope.RopeDistanceB==1200 and rope.EnvActorName.name=='DLC02_10_EnvS_642'
@@ -152,6 +172,35 @@ clock=5.0; mv.tick()
 assert(lines[#lines]=='1/3 ladders, ledges and ropes spawned in world 2800',lines[#lines])
 assert(lines[#lines-3]:find('^ladder L1 not spawned: .*BP_EM_Ladder_C does not load'),lines[#lines-3])
 assert(lines[#lines-1]:find('^rope R1 not spawned: .*Env_EM_VerticalRope_C does not load'),lines[#lines-1])
+
+-- A UE4SS whose arrays grow to the index written: the first fill reads one piece long, the refill front to back holds.
+-- One whose writes past the first never land: that ladder is destroyed before its finish, named, and the deferred way
+-- stays for the others.
+do
+    local function one(kind,meshes)
+        world=new_world()
+        loaded,classes={},{}
+        LoadAsset=function(path) loaded[path]=true end
+        tarray_kind=kind
+        local got={}
+        local before=#spawned
+        local mv4=M.new({log=function(l) got[#got+1]=l end,list={
+            {key='L2',cls='ladder',at={0,0,0},yaw=0,height=999,meshes=meshes,start=1,bottom=55,role='test'},
+            {key='L3',cls='ladder',at={0,0,0},yaw=0,height=279.885,meshes={1},start=1,bottom=55,role='test'}}})
+        clock=clock+10; mv4.tick()
+        tarray_kind='3.0.1'
+        return got,spawned[before+1],spawned[before+2]
+    end
+    local got,a=one('fixed',{3,3,2})
+    assert(got[1]=='ladder L2 at 0 0 0 yaw 0 height 999.0 stack 3,3,2 (first fill read stack 3,3,2,2, filled again '
+        ..'front to back) built 1279.9 (test), deferred spawn',got[1])
+    assert(a.finished and a.Meshes:GetArrayNum()==3,'The refilled stack reaches the finish')
+    local got2,b,c=one('broken',{3,3})
+    assert(got2[1]=='ladder L2 not spawned: Meshes read back stack 3, then stack 3, for 3,3: nothing spawned',got2[1])
+    assert(b.destroyed and not b.finished,'The ladder that would not fill is destroyed before its finish')
+    assert(c.how=='deferred' and c.finished and got2[2]:find('deferred spawn$'),'The next ladder still spawns deferred')
+    assert(got2[3]=='1/2 ladders, ledges and ropes spawned in world 2800',got2[3])
+end
 
 -- The generated list: every ladder's height is its stack plus the head (StartUnit k with CollisionBottomZAdd 5 - 40 k,
 -- or the defaults 1 and 55; tests/tools/mxiii_climb_test.py checks where the pieces land); the ledges are R16's with
