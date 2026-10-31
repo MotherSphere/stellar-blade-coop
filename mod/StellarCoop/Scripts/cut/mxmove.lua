@@ -7,8 +7,9 @@
 -- and calls the class's UserConstructionScript again. Each spawn logs one [MXMOVE] line with the way it took and, for
 -- a ladder, its Meshes stack as read back before the finish; a ladder whose stack does not read back as written is
 -- destroyed before its finish and its line says so.
--- A ladder's height comes from its Meshes stack (enum Enum_EM_LadderMeshes: 0 160.9 cm, 1 200, 2 240, 3 600, 11 40.9)
--- plus the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, the foot, starting at
+-- A ladder's height comes from its Meshes stack (the list names Enum_EM_LadderMeshes' NewEnumeratorN: 0 160.9 cm, 1 200,
+-- 2 240, 3 600, 11 40.9) plus the 79.885 cm head. A stack holds an enumerator's value, its place in the enum, not N:
+-- BYTE below, read from the cooked enum (N written raw built ladders short with their head mid-way, 2026-10-31). Its construction script stacks the pieces up from the actor's origin, the foot, starting at
 -- whatever TotalHeight holds and adding each piece to it. So TotalHeight is left at its class default 0 (the SpawnActor
 -- way puts it back to 0 before its second run), and HeadHeight, HeadWidthHalf and CollisionWidth, which the script
 -- writes too, are not set: a TotalHeight set before the finish lifted every ladder by its own height (2026-10-31).
@@ -24,6 +25,7 @@ local Rows=require('cut.mxiii_rows')
 local Move={}
 Move.MAP='/mxiii_p' -- The end of core/unreal.lua's map_of in world 2800.
 local DIR='/Game/GameDesign/Level/BluePrintActor/SBEventMove/'
+local BYTE={[11]=1,[0]=2,[1]=3,[2]=4,[3]=5} -- NewEnumeratorN to its value (10 None 0, 9 600_Guard 6 are unused).
 Move.ASSETS={ladder=DIR..'BP_EM_Ladder.BP_EM_Ladder',ledge=DIR..'BP_EM_Ledge.BP_EM_Ledge',
     rope=DIR..'Env_EM_VerticalRope.Env_EM_VerticalRope'}
 local EVERY=1 -- s between looks at the world.
@@ -100,7 +102,9 @@ function Move.new(o)
     local function fields(a,m,mesh)
         if m.env then a.EnvActorName=FName(m.env) end
         if m.cls=='ladder' then
-            local note,why=fill(a.Meshes,m.meshes)
+            local bytes={}
+            for i,n in ipairs(m.meshes) do bytes[i]=assert(BYTE[n],'no enumerator '..tostring(n)) end
+            local note,why=fill(a.Meshes,bytes)
             if not note then return nil,why end
             a.StartUnit,a.CollisionBottomZAdd=m.start,m.bottom
             return ' '..stack(a.Meshes)..note
