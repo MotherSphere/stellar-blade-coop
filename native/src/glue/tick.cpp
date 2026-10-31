@@ -126,6 +126,10 @@
 // opens the one asked with the game's own calls, under its own SEH latch, after coop off too (coop off asks off first);
 // the worker logs each answer.
 //
+// The teleport screen's extra tabs (game/region_tabs.h): the worker swaps one pointer of the game's image once a run, the
+// Region logic's vtable +0x30, for a hook that adds a record for each tab ui/region_tabs.lua made, under its own SEH
+// latch, on the game thread. It swaps back at coop off and after a fault, and logs the first screen once.
+//
 // coop gift's inventory read (game/items.h) is the worker's alone: on Lua's items request it reads how many of one item
 // our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cut/mailbox.lua.
@@ -137,6 +141,8 @@
 #define NOMINMAX // std::min and std::max in pose/stream.h.
 #include <windows.h>
 #include <xinput.h>
+
+#include <intrin.h>
 
 #include <array>
 #include <atomic>
@@ -159,6 +165,7 @@
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
+#include "game/region_tabs.h"
 #include "game/travel.h"
 #include "glue/tick.h"
 #include "link/protocol.h"
@@ -194,6 +201,7 @@
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
+#include "glue/tick/region_tabs_worker.inc"
 #include "glue/tick/nightop_worker.inc"
 #include "glue/tick/travel_worker.inc"
 #include "glue/tick/shortcut_worker.inc"

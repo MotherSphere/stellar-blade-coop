@@ -280,6 +280,9 @@ local mxiii=require('cut.mxiii').new({log=function(m) print('[StellarCoop][MX] '
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
     travel=function() return travel end,paks=require('cut.mxiii').paks_of(folder),
     read=require('core.link').files.read,lion=lion,gardener=gardener})
+-- The teleport screen's extra tabs (ui/region_tabs.lua), logging [RT] lines. Their records come from the native part.
+local region_tabs=require('ui.region_tabs').new({log=function(m) print('[StellarCoop][RT] '..tostring(m)..'\n') end,
+    ready=function() return link~=nil and require('core.unreal').controller()~=nil end})
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('nightop.recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- The UI kit's lines.
@@ -492,6 +495,7 @@ local commands={
         -- A failing despawn or run end is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
+        region_tabs.stop() -- No more tabs: only a flag.
         stopped,e=pcall(wear.stop) -- EVE's own meshes back.
         if not stopped then log('wear: '..tostring(e)) end
         if o.roxanne then -- Her two choices back before the native part stops taking requests.
@@ -747,6 +751,7 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     ok,message=guarded('scene',scene.tick)
     if message then report(ok,message) end
+    guarded('region tabs',region_tabs.tick) -- Once a load: its two hooks, once there is a player controller.
     guarded('talks',talks.tick) -- Lily's talks: a hold, the Stop after the last line, the kit's lines.
     guarded('flight',flight.tick)
     ok,message=guarded('lines',cut_lines.tick)

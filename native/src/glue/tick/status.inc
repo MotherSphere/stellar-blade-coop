@@ -10,6 +10,7 @@ void block() {
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   filter_undo("coop off");
   hold_undo("coop off");
+  region_tabs_undo("coop off");
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
 }
