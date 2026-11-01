@@ -1,6 +1,6 @@
 // The component table and the display file on the build machine: round trips, every refusal one defect at a time,
-// the mesh path rule (material and cloth paths too, the game's folders and a mod's), the cloth, mod, value, hide and
-// morph lines, the capture's effect lines and the display's effect boxes, and mutated tables, which must re-format to
+// the mesh path rule (material and cloth paths too, the game's folders and a mod's), the cloth, mod, value and hide
+// lines, the capture's effect lines and the display's effect boxes, and mutated tables, which must re-format to
 // the same bytes whenever they are accepted.
 #include "pose/table.h"
 
@@ -39,8 +39,6 @@ const std::string kLocal = "generation 100001\n"
                            "value 0 2 s Iris~UV~Radius 0.5\n"
                            "value 0 2 t IrisColor " + kIris + "\n"
                            "hide 0 1 5 63\n"
-                           "morph 0 Breast~Size .25\n"
-                           "morph 0 Waist -1\n"
                            "names 0 Root Bip001 Bip001-Pelvis\n"
                            "read 0 0x1000 0xC1A55 0xAE5\n"
                            "part 1 0 0 - 1 0 Mesh_Face " + kFace + "\n"
@@ -73,8 +71,6 @@ const std::string kWire = kSbt +
                           "value 0 2 s Iris~UV~Radius 0.5\n"
                           "value 0 2 t IrisColor " + kIris + "\n"
                           "hide 0 1 5 63\n"
-                          "morph 0 Breast~Size 0.25\n"
-                          "morph 0 Waist -1\n"
                           "names 0 Root Bip001 Bip001-Pelvis\n"
                           "part 1 0 0 - 1 0 Mesh_Face " + kFace + "\n"
                           "place 1 0 0 0 1 0 0 0 1 1 1\n"
@@ -110,7 +106,7 @@ bool same(const Table &a, const Table &b, bool addresses) {
       return false;
     if (l.name != m.name || l.path != m.path || l.socket != m.socket || l.lead != m.lead || l.parent != m.parent ||
         l.shown != m.shown || l.names != m.names || l.materials != m.materials || l.cloth != m.cloth ||
-        l.label != m.label || l.values != m.values || l.hidden != m.hidden || l.morphs != m.morphs)
+        l.label != m.label || l.values != m.values || l.hidden != m.hidden)
       return false;
     for (int k = 0; k < 10; ++k)
       if (l.place[k] != m.place[k])
@@ -335,7 +331,7 @@ int main() {
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
   // Material lines (5), effect slots (6), channel 2 (7), chat (8), deltas (9), scale (10), same-place enemies (11).
-  assert(kSbt == "SBT 16\n");
+  assert(kSbt == "SBT 17\n");
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
@@ -457,54 +453,31 @@ int main() {
   const Table flood = wire_table(with(kWire, hair_tail, hair_tail + junk));
   assert(flood.ignored == 3000 && format_table(flood) == kWire);
 
-  // Hide and morph lines: read in their place, any slot (overridden or not), never the layout.
-  const Look &body_look = wire->look[0];
-  assert(body_look.hidden == ((uint64_t(1) << 1) | (uint64_t(1) << 5) | (uint64_t(1) << 63)));
-  assert(body_look.morphs.size() == 2 && body_look.morphs[0].first == "Breast~Size" &&
-         body_look.morphs[0].second == .25f && body_look.morphs[1].second == -1);
+  // Hide lines: read in their place, any slot (overridden or not), never the layout.
+  assert(wire->look[0].hidden == ((uint64_t(1) << 1) | (uint64_t(1) << 5) | (uint64_t(1) << 63)));
   assert(same_layout(*wire, wire_table(with(kWire, "hide 0 1 5 63\n", ""))));
-  assert(same_layout(*wire, wire_table(with(kWire, "Waist -1", "Waist 2"))));
   // Ignored one at a time, the table still taken without it: a slot past the last, not rising, repeated, not a number,
-  // no slot, another part, a second hide line; a weight that is nan, inf, past the bound or not a number, a name too
-  // long or repeated, another part, too few or too many words.
-  const std::string hide_one = "hide 2 0\n", morph_one = "morph 2 Good 1\n";
-  const std::string with_shape = with(kWire, hair_tail, hair_tail + hide_one + morph_one);
+  // no slot, another part, a second hide line.
+  const std::string hide_one = "hide 2 0\n";
+  const std::string with_shape = with(kWire, hair_tail, hair_tail + hide_one);
   for (const auto &[after, bad] : std::vector<std::pair<std::string, std::string>>{
            {"", "hide 2 64\n"}, {"", "hide 2 3 1\n"}, {"", "hide 2 1 1\n"}, {"", "hide 2 x\n"}, {"", "hide 2\n"},
-           {"", "hide 1 0\n"}, {hide_one, "hide 2 4\n"}, {morph_one, "morph 2 X nan\n"}, {morph_one, "morph 2 X inf\n"},
-           {morph_one, "morph 2 X 10.5\n"}, {morph_one, "morph 2 X -11\n"}, {morph_one, "morph 2 X one\n"},
-           {morph_one, "morph 2 " + std::string(65, 'n') + " 1\n"}, {morph_one, "morph 2 Good 2\n"},
-           {morph_one, "morph 1 X 1\n"}, {morph_one, "morph 2 X\n"}, {morph_one, "morph 2 X 1 2\n"}}) {
+           {"", "hide 1 0\n"}, {hide_one, "hide 2 4\n"}}) {
     const std::string text =
         after.empty() ? with(with_shape, hide_one, bad + hide_one) : with(with_shape, after, after + bad);
     const Table got = wire_table(text);
-    assert(got.ignored == 1 && got.look[2].hidden == 1 && got.look[2].morphs.size() == 1 &&
-           format_table(got) == with_shape);
+    assert(got.ignored == 1 && got.look[2].hidden == 1 && format_table(got) == with_shape);
   }
-  // Out of their place they are unknown lines: after the cloth, or a morph before a hide.
+  // Out of its place a hide line is an unknown line, as is a shape key's line (no ghost part could draw one).
   assert(!parse_table(with(kWire, "cloth 3 " + kCloth + "\n", "cloth 3 " + kCloth + "\nhide 3 0\n"), false));
-  assert(!parse_table(with(with_shape, hide_one + morph_one, morph_one + hide_one), false));
-  // The caps: 32 a part, 128 a table; all 64 slots in one line.
-  std::string morph_33, all_slots = "hide 2";
-  for (int k = 0; k < 33; ++k)
-    morph_33 += "morph 2 M" + std::to_string(k) + " 1\n";
+  assert(!parse_table(with(with_shape, hide_one, hide_one + "morph 2 Good 1\n"), false));
+  // All 64 slots in one line.
+  std::string all_slots = "hide 2";
   for (int k = 0; k < 64; ++k)
     all_slots += " " + std::to_string(k);
-  const Table morphed = wire_table(with(kWire, hair_tail, hair_tail + all_slots + "\n" + morph_33));
-  assert(morphed.look[2].morphs.size() == 32 && morphed.ignored == 1 && morphed.look[2].hidden == ~uint64_t(0));
-  assert(wire_table(format_table(morphed)).look[2].hidden == ~uint64_t(0));
-  std::string many_morphs = kSbt + "generation 1\nmap /m\npart 0 - - - 1 1 Body " + kBody + "\nnames 0 Root\n";
-  for (int p = 1; p < 6; ++p) {
-    many_morphs += "part " + std::to_string(p) + " 0 0 - 1 0 F" + std::to_string(p) + " -\nplace " +
-                   std::to_string(p) + " 0 0 0 1 0 0 0 1 1 1\n";
-    for (int k = 0; k < 32; ++k)
-      many_morphs += "morph " + std::to_string(p) + " M" + std::to_string(k) + " 1\n";
-  }
-  const Table table_morphs = wire_table(many_morphs);
-  size_t morph_total = 0;
-  for (const Look &l : table_morphs.look)
-    morph_total += l.morphs.size();
-  assert(morph_total == kMaxMorphs && table_morphs.ignored == 5 * 32 - kMaxMorphs);
+  const Table every = wire_table(with(kWire, hair_tail, hair_tail + all_slots + "\n"));
+  assert(every.ignored == 0 && every.look[2].hidden == ~uint64_t(0));
+  assert(wire_table(format_table(every)).look[2].hidden == ~uint64_t(0));
   // Values grow as read back too (".1" again), past what the places alone would leave room for: refused here.
   std::string growing = kSbt + "generation 1\nmap /m\npart 0 - - - 1 900 Body " + kBody + "\n";
   for (int k = 0; k < 8; ++k)

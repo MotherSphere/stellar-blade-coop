@@ -19,10 +19,8 @@
 //                                                     has no kept material, is ignored and counted in Table::ignored
 //   hide <i> <slot>...                                optional, once: 1 to 64 slots 0 to 63 strictly rising, whose
 //                                                     material sections it hides at LOD 0 (CNS's toggles and hidden
-//                                                     slots, any slot, overridden or not)
-//   morph <i> <name> <weight>                         0 to 32 a part, 128 a table: a shape key's weight (within
-//                                                     kMaxMorph), each name once a part, a space as '~'. A hide or
-//                                                     morph line that breaks these rules is ignored and counted too
+//                                                     slots, any slot, overridden or not). A hide line that breaks
+//                                                     these rules is ignored and counted too
 //   cloth <i> <path>                                  optional: the PhysicsAsset its cloth collides with (her
 //                                                     ponytail's OverrideClothPhysicsAsset, a CNS outfit's PonyPhysics)
 //   mod <i> <label>                                   optional, a word: on a mod's mesh, the outfit it comes from (its
@@ -61,8 +59,8 @@
 namespace coop::pose {
 
 constexpr size_t kMaxTable = 65536, kMaxWord = 64, kMaxPath = 255, kMaxMap = 128, kMaxMaterials = 16, kMaxSlots = 64;
-constexpr size_t kMaxValues = 512, kMaxSlotValues = 32, kMaxMorphs = 128, kMaxPartMorphs = 32;
-constexpr float kMaxValue = 1e5f, kMaxMorph = 10.f;
+constexpr size_t kMaxValues = 512, kMaxSlotValues = 32;
+constexpr float kMaxValue = 1e5f;
 constexpr uint64_t kMaxGeneration = uint64_t(1) << 53; // Exact as a double too.
 
 // One value line: kind 'v' (x[0] to x[3]), 's' (x[0]) or 't' (path).
@@ -86,7 +84,6 @@ struct Look {
   std::vector<std::pair<uint8_t, std::string>> materials; // Overridden slots and their paths, slots rising.
   std::vector<Value> values;                               // Slots rising, each a kept material's.
   uint64_t hidden = 0;                                      // Bit k: slot k's sections hidden at LOD 0.
-  std::vector<std::pair<std::string, float>> morphs;        // Shape keys and their weights, as read.
   std::string cloth, label;                                // Empty without a cloth or mod line.
 };
 
@@ -95,7 +92,7 @@ struct Table {
   std::string map;
   std::vector<Part> eve; // The pose layout: bones and leader always; addresses only from read lines.
   std::vector<Look> look;
-  size_t ignored = 0; // Value, hide and morph lines left out as read; never formatted.
+  size_t ignored = 0; // Value and hide lines left out as read; never formatted.
   // The capture file's effect lines: cls 0 means no effect read. assets[k] is list entry k's object, 0 when not found.
   struct Fx {
     uint64_t cls = 0;
@@ -310,20 +307,6 @@ inline bool hide_line(const Words &w, size_t i, uint64_t &hidden) {
   return true;
 }
 
-// One morph line into morphs, or false to ignore it. total: the table's morphs so far.
-inline bool morph_line(const Words &w, size_t i, size_t &total, std::vector<std::pair<std::string, float>> &morphs) {
-  float weight = 0;
-  if (w.size() != 4 || !index_is(w, i) || w[2].size() > kMaxWord || total == kMaxMorphs ||
-      morphs.size() == kMaxPartMorphs || !real(w[3], weight) || std::fabs(weight) > kMaxMorph)
-    return false;
-  for (const auto &m : morphs)
-    if (m.first == w[2])
-      return false;
-  morphs.emplace_back(std::string(w[2]), weight);
-  ++total;
-  return true;
-}
-
 inline bool map_allowed(std::string_view map) {
   if (map.size() > kMaxMap || map[0] != '/')
     return false;
@@ -402,13 +385,6 @@ inline std::string format_table(const Table &t) {
           integer(k);
       s += '\n';
     }
-    for (const auto &[name, weight] : l.morphs) {
-      s += "morph";
-      integer(int64_t(i));
-      word(name);
-      real(weight);
-      s += '\n';
-    }
     for (const std::string *text : {&l.cloth, &l.label})
       if (!text->empty()) {
         s += text == &l.cloth ? "cloth" : "mod";
@@ -446,7 +422,7 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
   if (!(f = in.take("map", 2)) || !map_allowed((*f)[1]))
     return std::nullopt;
   t.map = (*f)[1];
-  size_t values = 0, morphs = 0;
+  size_t values = 0;
   while (!in.done()) {
     const size_t i = t.eve.size();
     if (local && (f = in.take("effects", 3))) { // After the last part: effect lines to the end.
@@ -519,8 +495,6 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
       t.ignored += !value_line(*f, i, kept, values, look.values);
     while ((f = in.take("hide")))
       t.ignored += !hide_line(*f, i, look.hidden);
-    while ((f = in.take("morph")))
-      t.ignored += !morph_line(*f, i, morphs, look.morphs);
     if ((f = in.take("cloth", 3))) {
       if (!index_is(*f, i) || (*f)[2].size() > kMaxPath)
         return std::nullopt;
@@ -549,15 +523,15 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
   }
   // The wire form must read back too. Only floats grow when formatted (".1" comes back as "0.100000001": at most 15
   // bytes for at least 1), and a capture file's SBT line is shorter than the read line it loses, so only a text this
-  // close to the cap can grow past it. A value line has at most 4 floats, a morph line 1.
-  constexpr size_t kGrowth = (kMaxParts * 10 + kMaxValues * 4 + kMaxMorphs) * 14;
+  // close to the cap can grow past it. A value line has at most 4 floats.
+  constexpr size_t kGrowth = (kMaxParts * 10 + kMaxValues * 4) * 14;
   if (t.eve.empty() || !pose_size(t) || (text.size() + kGrowth > kMaxTable && format_table(t).size() > kMaxTable))
     return std::nullopt;
   return t;
 }
 
 // Whether a ghost built for one table fits the other: the same parts, each with the same leader, bones and mesh path,
-// as partner/puppet.lua's layout() compares. Never the values, hidden slots or shape keys: Lua applies a change to the
+// as partner/puppet.lua's layout() compares. Never the values or hidden slots: Lua applies a change to the
 // ghost it has. Lua builds a new ghost for another layout even under the same generation,
 // and a display checked against one layout must never be paired with another (write_puppet indexes it by the remote
 // parts).

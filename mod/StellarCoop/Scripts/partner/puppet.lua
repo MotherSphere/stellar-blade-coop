@@ -11,7 +11,7 @@
 -- other bones is drawn on that mesh with the same remap (a head replacer this PC lacks still shows a head), and a part
 -- with no fallback is left out, with its followers. A part of a mod's outfit (its mod line) that is not drawn on its
 -- own mesh is named on screen once a generation. Parts hang as the table says (parent part, socket, placement) and
--- followers follow their leader (SetMasterPoseComponent). With look.cloth (on unless
+-- followers follow their leader (SetMasterPoseComponent). No morphs: a neutral face. With look.cloth (on unless
 -- coop-settings.txt says cloth=off, or coop look), a follower whose mesh has clothing assets (her ponytail) is a
 -- SkeletalMeshComponent whose cloth swings on its leader's bones, as hers does in solo: the bones only anchor the
 -- strands. Else it is a rigid Poseable like the rest, which draws her ponytail as one block. Its collision is the one
@@ -22,11 +22,9 @@
 -- MIN_TEXTURE seconds by the same rules as meshes. An instance or a setter that fails puts the plain material back for
 -- that ghost; a value gone from a later table puts it back too, and what is left goes on a new instance. By the same
 -- rule, such a part hides the material slots the table's hide line names (CNS's toggles and hidden slots: LOD 0, as
--- CNS) and takes its morph lines' shape keys, each set again only when it changes. Shape keys need a
--- SkeletalMeshComponent: a follower that has some is drawn as one on its leader's bones (as a cloth part is), and a
--- table that gives a follower drawn as a Poseable its first keys builds a new ghost; a leader stays a Poseable, which
--- has no morph call, so its keys are said and not drawn. A call that fails draws the part as before (every slot shown,
--- no key), said once. With look.effects, her attack and
+-- CNS), set again only when they change; a call that fails shows every slot, said once. No shape keys either: a leader
+-- is a Poseable, which has no morph call, and UE 4.26's UpdateSlaveComponent zeroes a follower's SetMorphTarget weights
+-- each tick when its master is not a SkeletalMeshComponent. With look.effects, her attack and
 -- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
 -- slot and stops it when the slot changes, at most 8 starts a second.
@@ -71,7 +69,6 @@ local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer'
 local MAX_VALUE_NAMES,MAX_TEXTURES,MIN_TEXTURE=1024,64,0.25
 local TEXTURE='/Script/Engine.Texture'
 local PHYSICS_ASSET='/Script/Engine.PhysicsAsset'
-local SKELETAL='/Script/Engine.SkeletalMeshComponent'
 -- The solid partner (collide=on, off by default): one capsule on the ghost that only your EVE's movement meets. cm and
 -- s, for Puppet.solid: inside her by more than SLACK, out again past LEAVE; feet STEP apart in height; contact within
 -- TOUCH, STUCK of it with no gap of GAP, then free until PART apart.
@@ -150,8 +147,8 @@ end
 -- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
 -- bones, name, place (its 10 numbers as written), materials ({slot=, path=, values=}, slots rising), hidden (the hide
--- line's slots, rising), morphs (its shape keys, {name=, x=}), cloth (its cloth's collision asset) and label (the
--- outfit a mod's mesh comes from), each nil without its line, and a leader's names.
+-- line's slots, rising), cloth (its cloth's collision asset) and label (the outfit a mod's mesh comes from), each nil
+-- without its line, and a leader's names.
 -- values: a material's value lines, each {kind=, name=, text= (the rest of its line), x= (its numbers)}.
 local function parse_remote(file)
     if type(file)~='string' then return nil end
@@ -190,17 +187,11 @@ local function parse_remote(file)
             if not line then break end
             if not value_line(part,line) then return nil end
         end
-        part.hidden,part.morphs={},{}
+        part.hidden={}
         local index,slots=take('^hide (%d+) (%d[%d ]*)$')
         if index then
             if tonumber(index)~=part.i then return nil end
             for slot in slots:gmatch('%d+') do part.hidden[#part.hidden+1]=tonumber(slot) end
-        end
-        while true do
-            local at,name,weight=take('^morph (%d+) (%S+) (%S+)$')
-            if not at then break end
-            if tonumber(at)~=part.i or not tonumber(weight) then return nil end
-            part.morphs[#part.morphs+1]={name=name:gsub('~',' '),x=tonumber(weight)}
         end
         index,part.cloth=take('^cloth (%d+) (%S+)$')
         if index and tonumber(index)~=part.i then return nil end
@@ -435,8 +426,8 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         end
         return said_value()
     end
-    -- A part's hidden slots and shape keys (see the top), set again only when they changed, on a part drawn on its own
-    -- mesh under the dyes rule (built.own). A failure draws it as before, said once.
+    -- A part's hidden slots (see the top), set again only when they changed, on a part drawn on its own mesh under the
+    -- dyes rule (built.own). A failure shows every slot, said once.
     local function shape(g,part)
         local built=g.parts[part.i]
         if not (built and built.own) then return end
@@ -454,28 +445,6 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 note_value('Hidden slots not set ('..tostring(why)..').')
                 pcall(function() built.target:ShowAllMaterialSections(0) end)
             end
-        end
-        local keys={}
-        for _,m in ipairs(part.morphs) do keys[#keys+1]=m.name..'='..m.x end
-        keys=table.concat(keys,',')
-        if built.keys==keys then return end
-        built.keys=keys
-        local ok,why=pcall(function()
-            if not built.target:IsA(find(SKELETAL)) then
-                if part.morphs[1] then
-                    note_value('Shape keys not drawn on '..part.name..': a Poseable has no morph call.')
-                end
-                return
-            end
-            built.target:ClearMorphTargets()
-            for _,m in ipairs(part.morphs) do
-                local name=value_name(m.name)
-                if name then built.target:SetMorphTarget(name,m.x,true) end
-            end
-        end)
-        if not ok then
-            note_value('Shape keys not set ('..tostring(why)..').')
-            pcall(function() built.target:ClearMorphTargets() end)
         end
     end
     -- Hangs a built part as the table says: its parent part (part 0 when that one was left out), socket and place;
@@ -520,8 +489,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             {Pitch=0,Yaw=0,Roll=0}))
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
-            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={},missed={},tints={},
-            textures={},skinned={}}
+            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={},missed={},tints={},textures={}}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
@@ -569,15 +537,12 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             end
             return target
         end
-        -- keys: the part takes shape keys (dress()), so a follower is drawn as a SkeletalMeshComponent too.
-        local function add(mesh,part,keys)
+        local function add(mesh,part)
             -- A follower with cloth is a SkeletalMeshComponent: NvCloth reads its master's component-space bones
             -- with no class check, so its cloth swings on the Poseable leader's (SetMasterPoseComponent, set before
             -- its mesh so the cloth is created on the leader's bones, as SB sets up its slots).
             -- Never BindClothToMasterPoseComponent: that binds to the leader's own cloth, and a Poseable has none.
-            local cloth=look.cloth and part.lead and clothed(mesh)
-            if cloth or keys and part.lead then
-                g.skinned[part.i]=true -- Tried once a ghost: a failure below stays a Poseable, no rebuild for it.
+            if look.cloth and part.lead and clothed(mesh) then
                 local target
                 local made,why=pcall(function()
                     target=valid(actor:AddComponentByClass(find('/Script/Engine.SkeletalMeshComponent'),false,identity,
@@ -589,18 +554,13 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                     -- when it is drawn again. SB sets the same on her own ponytail during its Show sequences.
                     target.VisibilityBasedAnimTickOption=3
                     target.bLocalSpaceSimulation=true -- As hers: the cloth's inertia comes from its frame's moves.
-                    if not cloth then target.bDisableClothSimulation=true -- Shape keys only: as rigid as a Poseable.
-                    elseif part.name:find('Ponytail',1,true) then collide(target,part) end
+                    if part.name:find('Ponytail',1,true) then collide(target,part) end
                     target:SetMasterPoseComponent(g.parts[part.lead].target,false)
                     target:SetSkeletalMesh(mesh,true)
                 end)
-                if made then
-                    if cloth then g.cloth[#g.cloth+1]=target end
-                    return light(target)
-                end
+                if made then g.cloth[#g.cloth+1]=target; return light(target) end
                 if target then pcall(function() target:K2_DestroyComponent(actor) end) end
-                notes[#notes+1]=string.format('%s: %s not used (%s), drawn as a plain part',part.name,
-                    cloth and 'cloth' or 'shape keys',tostring(why))
+                notes[#notes+1]=string.format('%s: cloth not used (%s), drawn as a plain part',part.name,tostring(why))
             end
             local target=valid(actor:AddComponentByClass(poseable,false,identity,false)) -- The first is the root.
             assert(target,'a ghost part could not be added')
@@ -636,7 +596,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 g.leaders=g.leaders+1
             end
             g.base=g.base+(based and 1 or 0)
-            g.parts[part.i]={target=target,mesh=mesh,remap=remap,hide='',keys=''} -- Nothing hidden, no key yet.
+            g.parts[part.i]={target=target,mesh=mesh,remap=remap,hide=''} -- Nothing hidden yet.
             g.count=g.count+1
         end
         -- A part of a mod's outfit not drawn on its own mesh: its outfit, for the notice (unless basesuit asked).
@@ -691,8 +651,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 if mesh then
                     -- A mod's mesh takes hers with dyes off too: CNS puts an outfit's materials on at run time.
                     local own=look.dyes or not Capture.base_path(part.path)
-                    -- The table now: one that came during the build may have given this follower its first keys.
-                    local target=add(mesh,part,own and remote.parts[part.i+1].morphs[1]~=nil)
+                    local target=add(mesh,part)
                     if part.lead or target:GetNumBones()==part.bones then
                         if own then
                             for k,m in ipairs(part.materials) do soon(function() dye(target,part,m) end,k) end
@@ -867,15 +826,6 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if ghost.parts[part.i] then tint_part(ghost,part); shape(ghost,part) end
         end
     end
-    -- Whether t gives shape keys to a follower the ghost draws as a Poseable on its own mesh, never tried as a
-    -- SkeletalMeshComponent: only a new ghost can draw them.
-    local function unshaped(t)
-        for _,part in ipairs(t.parts) do
-            local built=ghost and ghost.parts[part.i]
-            if part.lead and part.morphs[1] and built and built.own and not ghost.skinned[part.i] then return true end
-        end
-        return false
-    end
     -- From main.lua every 250 ms, after link.changes(): the remote table the native part holds (generation, count of
     -- tables it wrote, source), all nil when it has none.
     function self.remote(generation,count,from)
@@ -895,7 +845,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             return false,'The remote table could not be read.'
         end
         seen_count=count
-        if remote and t.generation==remote.generation and layout(t)==layout(remote) and not unshaped(t) then
+        if remote and t.generation==remote.generation and layout(t)==layout(remote) then
             local old=remote
             remote=t
             if not (ghost and ghost.built) then return end -- A build in progress hangs its parts from the new one.

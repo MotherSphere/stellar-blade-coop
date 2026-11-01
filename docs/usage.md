@@ -316,7 +316,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (16) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (17) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
@@ -972,7 +972,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 16). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 17). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -3144,7 +3144,7 @@ The three looks have not been tested in game yet. Back up your saves before you 
   part has its mesh's own colours, except a part on a mod's mesh, which takes its materials either way (see
   [Mods and CNS outfits](#mods-and-cns-outfits)). Both players need `dyes=on` for a colour on one of the game's own
   meshes, such as a CNS eye colour on the base face: the sender to send it, the viewer to show it. The same goes for
-  the material slots a part hides and its shape keys (CNS toggles and shape keys).
+  the material slots a part hides (CNS toggles).
 - `effects`: her attack and skill effects. The native part reads which of 19 known effects (Niagara systems) are
   playing on her, at most 4, into four effect slots of each pose (an index into a fixed list, never a path). The ghost
   starts each effect on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8
@@ -3189,10 +3189,8 @@ with them, and the ghost applies them on a dynamic instance of the material (not
 colour reaches the ghost within 21 s, without a new ghost. A texture option shows only if your packs declare the same
 texture or it is one of the game's own. A slot whose material your PC lacks keeps the mesh's own, with no values and no
 error. The slots an outfit hides (`HiddenMats`, and `MaterialToggles` turned off) are hidden on the ghost too, and the
-same change delay applies. Shape keys (`ShapeKeys`) show only on a part that follows another part's bones. They do not
-show on the body or on any other part with bones of its own: the ghost draws those as PoseableMeshComponents, which
-cannot take shape keys, and the log says so once. Neither has been tested in game yet. Her ponytail's collision asset
-goes too (the `cloth` look uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
+same change delay applies (not tested in game yet). Shape keys (`ShapeKeys`) do not reach the ghost. Her ponytail's
+collision asset goes too (the `cloth` look uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
 
 A mod's added assets are usually missing from the game's cooked asset registry, and UE4SS's `LoadAsset` finds an
 asset through that registry. When `LoadAsset` finds nothing for a path your packs name, the ghost tries
@@ -3205,10 +3203,9 @@ With `mod_names=off` in `coop-settings.txt`, your capture leaves out every path 
 friend's ghost of you shows those parts on the base suit or leaves them out, and no folder or outfit name of yours
 reaches them.
 
-Not carried: shape keys on the body and on other parts with bones of their own, accessories that are static meshes,
-actors attached to EVE, and parts past 16. A pose holds about 900 leader bones in all. When her parts have more, the
-capture leaves out the last leader parts and their followers until the pose fits, and its log line ends with `<n>
-leaders left out, over the pose size`.
+Not carried: shape keys and face morphs, accessories that are static meshes, actors attached to EVE, and parts past 16.
+A pose holds about 900 leader bones in all. When her parts have more, the capture leaves out the last leader parts and
+their followers until the pose fits, and its log line ends with `<n> leaders left out, over the pose size`.
 
 ## Solid partner (experimental)
 
@@ -3308,7 +3305,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=16 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=17 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code

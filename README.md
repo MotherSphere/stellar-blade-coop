@@ -14,8 +14,8 @@ the .pak mod list and CNS outfits over the link, `coop gift` and the pose rate t
 the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the first-launch guide
 opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen. 0.6.0-beta.1 to beta.3
 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses protocol 16 and does not
-link with 0.7.0-beta.1. On 2026-11-01 two PCs played 0.7.0-beta.1 with its ghost fix: joining with CNS packs no longer
-crashed.
+link with 0.7.0-beta.1. Builds after it use protocol 17 and do not link with 0.7.5. On 2026-11-01 two PCs played
+0.7.0-beta.1 with its ghost fix: joining with CNS packs no longer crashed.
 
 Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
 the Steam client that the game already runs, so the mod needs no other program and no server of its own.
@@ -189,7 +189,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same mod protocol (16 in this version) and the same game build.
+- To play together, both players need the same mod protocol (17 in this version) and the same game build.
 
 ## Disclaimer
 

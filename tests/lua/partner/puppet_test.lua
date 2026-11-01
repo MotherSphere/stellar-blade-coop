@@ -17,8 +17,8 @@
 -- Doro mode: its Doro on part 0 with its keepers (gone with it) and every part hidden until it goes off, and the race's
 -- emote on it. Mods: a path outside the game's own folders looked up or loaded only when our CNS packs declare it
 -- (GetAsset for one LoadAsset misses), its materials with dyes off, the cloth line's collision, the outfits not shown
--- said once a generation; a leader with other bones and no fallback drawn on its own mesh by name. Hidden slots and
--- shape keys on the parts drawn on their own mesh.
+-- said once a generation; a leader with other bones and no fallback drawn on its own mesh by name. Hidden slots on
+-- the parts drawn on their own mesh.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -113,7 +113,7 @@ local spawned={}
 local fail_mid=nil -- 'make': CreateDynamicMaterialInstance refuses; 'set', 'texture': that setter does.
 local dyeable=false -- Parts take materials only once dyes are tested: until then a SetMaterial fails the build.
 local fail_depth=false -- SetRenderCustomDepth refuses: the other render flags are still set.
-local fail_section,fail_morph=false,false -- ShowMaterialSection, SetMorphTarget refuse.
+local fail_section=false -- ShowMaterialSection refuses.
 local function poseable(actor)
     local p=object('Poseable',{calls={}},0xc2)
     function p:SetLightingChannels(a,b,c) self.channels={a,b,c} end
@@ -208,13 +208,6 @@ local function cloth_part(actor)
         self.resets=(self.resets or 0)+1
     end
     function s:BindClothToMasterPoseComponent() error('a Poseable leader has no cloth to bind to') end
-    -- Its shape keys as set, by name; each call counted in calls.morphs.
-    function s:ClearMorphTargets() self.morphs,self.calls.morphs={},(self.calls.morphs or 0)+1 end
-    function s:SetMorphTarget(n,v,remove)
-        assert(remove==true and n:type()=='FName')
-        if fail_morph then error('no morph call') end
-        self.morphs[n:ToString()],self.calls.morphs=v,self.calls.morphs+1
-    end
     -- A Doro (race/doro.lua) is one too: its scale, the single-node mode and its animation calls.
     function s:SetRelativeScale3D(v) self.scale=v end
     function s:SetAnimationMode(n) self.mode=n end
@@ -412,7 +405,6 @@ local function remote_text(generation,parts,map)
             for _,v in ipairs(m[3] or {}) do lines[#lines+1]=string.format('value %d %d %s',i-1,m[1],v) end
         end
         if p.hide then lines[#lines+1]=string.format('hide %d %s',i-1,table.concat(p.hide,' ')) end
-        for _,m in ipairs(p.morphs or {}) do lines[#lines+1]=string.format('morph %d %s',i-1,m) end
         if p.cloth then lines[#lines+1]=string.format('cloth %d %s',i-1,p.cloth) end
         if p.label then lines[#lines+1]=string.format('mod %d %s',i-1,p.label) end
         if p.names then lines[#lines+1]='names '..(i-1)..' '..table.concat(p.names,' ') end
@@ -2070,56 +2062,44 @@ do
     assert(#full_mid.set==65 and full_mid.set[65][2]=='T65')
 end
 
--- Hidden slots and shape keys (hide and morph lines), on parts drawn on their own mesh by the dyes rule: the slots the
--- hide line names hidden at LOD 0 (one past the mesh's slots left alone), a follower with keys drawn as a
--- SkeletalMeshComponent on its leader's bones with its cloth off, a name's '~' a space again; a leader's keys said,
--- not drawn. A change is set again on the same ghost, an unchanged table calls nothing.
+-- Hidden slots (hide lines), on parts drawn on their own mesh by the dyes rule: the slots the hide line names hidden at
+-- LOD 0 (one past the mesh's slots left alone). A change is set again on the same ghost, an unchanged table calls
+-- nothing, and every follower stays a Poseable (no cloth here).
 do
 look={cloth=false,dyes=true}
 dyeable=true
 local function shaped(o)
     local parts=her_parts()
-    parts[1].hide,parts[2].morphs,parts[3].morphs=o.hide,o.face,o.hair
-    parts[6].morphs=o.scabbard
+    parts[1].hide=o.hide
     return parts
 end
 ghost=new(nil,true,look)
 ghost.toggle()
 local adds_before=skeletal_adds
-send(930,shaped({hide={1,5},face={'Brow~Up 0.5','Jaw -1'},hair={'X 1'}}))
+send(930,shaped({hide={1,5}}))
 ghost.tick()
 clock=clock+2
 ok,message=build()
 actor=spawned[#spawned]
-local body_part,face_part=actor.parts[1],actor.parts[2]
-assert(ok and message:find('^Ghost 930 built: 6 parts ') and message:find('Shape keys not drawn on SBHair: a Poseable has '
-    ..'no morph call%.'),message)
+local body_part=actor.parts[1]
+assert(ok and message:find('^Ghost 930 built: 6 parts '),message)
 assert(body_part.hidden[1] and not body_part.hidden[5] and body_part.calls.sections==2,'Slot 5 is past the mesh\'s 2')
-assert(skeletal_adds==adds_before+1 and face_part:IsA({path='/Script/Engine.SkeletalMeshComponent'})
-    and face_part.calls.SetMasterPoseComponent==body_part and face_part.bDisableClothSimulation==true)
-assert(face_part.morphs['Brow Up']==0.5 and face_part.morphs.Jaw==-1 and face_part.calls.morphs==3)
+assert(skeletal_adds==adds_before)
 assert(not actor.parts[3].calls.sections and not actor.parts[4].calls.sections,'Nothing to hide: no call')
 ghosts=#spawned
-ok,message=send(930,shaped({hide={0},face={'Brow~Up 0.25'},hair={'X 1'}}))
+ok,message=send(930,shaped({hide={0}}))
 assert(ok==nil and #spawned==ghosts and body_part.hidden[0] and not body_part.hidden[1] and body_part.calls.sections==4)
-assert(face_part.morphs['Brow Up']==0.25 and face_part.morphs.Jaw==nil and face_part.calls.morphs==5,'Cleared first')
-send(930,shaped({hide={0},face={'Brow~Up 0.25'},hair={'X 1'}}))
-assert(body_part.calls.sections==4 and face_part.calls.morphs==5,'The same: nothing called')
-send(930,shaped({face={'Brow~Up 0.25'},hair={'X 1'}}))
+send(930,shaped({hide={0}}))
+assert(body_part.calls.sections==4,'The same: nothing called')
+send(930,shaped({}))
 assert(not body_part.hidden[0] and body_part.calls.sections==5,'No hide line: every slot shown again')
--- A follower drawn as a Poseable that gets its first keys: a new ghost, which draws them.
-ok,message=send(930,shaped({face={'Brow~Up 0.25'},scabbard={'Fold 1'}}))
-assert(ok and message:find('^Ghost 930 removed %(a new table%)'),tostring(message))
-ok,message=build()
-assert(ok and spawned[#spawned].parts[6].morphs.Fold==1,message)
--- Dyes off on the game's own mesh: read and nothing done, every follower a Poseable.
+-- Dyes off on the game's own mesh: read and nothing done.
 look.dyes=false
-adds_before=skeletal_adds
-send(931,shaped({hide={1},face={'Jaw 1'}}))
+send(931,shaped({hide={1}}))
 ok,message=build()
-assert(ok and skeletal_adds==adds_before and not spawned[#spawned].parts[1].calls.sections,message)
+assert(ok and not spawned[#spawned].parts[1].calls.sections,message)
 look.dyes=true
--- Calls that fail: the part drawn as before (every slot shown, no key), the ghost built, said once.
+-- A call that fails: every slot shown, the ghost built, said once.
 fail_section=true
 ghost=new(nil,true,look) -- A note is said once a Lua load.
 ghost.toggle()
@@ -2129,27 +2109,7 @@ clock=clock+2
 ok,message=build()
 assert(ok and message:find('Hidden slots not set %(.*no section call%)%.') and not next(spawned[#spawned].parts[1].hidden),
     message)
-fail_section,fail_morph=false,true
-ghost=new(nil,true,look)
-ghost.toggle()
-send(933,shaped({face={'Jaw 1'}}))
-ghost.tick()
-clock=clock+2
-ok,message=build()
-assert(ok and message:find('Shape keys not set %(.*no morph call%)%.') and not next(spawned[#spawned].parts[2].morphs),
-    message)
-fail_morph=false
--- Keys that come during the build: the follower is drawn to take them, in the same ghost.
-ghost=new(nil,true,look)
-ghost.toggle()
-send(934,shaped({}))
-ghost.tick()
-clock=clock+2
-ghost.tick()
-send(934,shaped({face={'Jaw 0.5'}}))
-ghosts=#spawned
-ok,message=build()
-assert(ok and #spawned==ghosts and spawned[#spawned].parts[2].morphs.Jaw==0.5,message)
+fail_section=false
 end
 cns={}
 dyeable=false
