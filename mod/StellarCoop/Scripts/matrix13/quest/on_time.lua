@@ -156,7 +156,7 @@ end
 -- (story/subtitles.lua's player).
 function Lily.new(o)
     local log,status,ask,talks=o.log,o.status,o.ask,o.talks
-    local T=require('matrix13.quest.text')
+    local TEXT,culture_of=require('matrix13.quest.text'),require('matrix13.culture')
     local e=Enemy.new({log=log,ask=ask,status=status},
         {word='signal',name="Lily's signal",command='coop lily signal',tag='[LY]',rows=Lily.ROWS,ids={}})
     local rows_ok=false -- The rows read back as written in this Lua load (the title's batch or the one asked in game).
@@ -178,7 +178,7 @@ function Lily.new(o)
     local culture,text_failed=nil,false -- The words' culture once written this Lua load; a write that stopped.
     local label=nil -- Her choice's label now in the row: 1 (L) or 2 (L2).
     local labels={} -- Her choice's labels in every language -> 1 or 2.
-    for _,t in pairs(T.TEXT) do labels[t.L],labels[t.L2]=1,2 end
+    for _,t in pairs(TEXT) do labels[t.L],labels[t.L2]=1,2 end
     local rows_asked=false -- The rows asked (or, already in, read back) in game this Lua load.
     local watching=false -- signal watch asked this Lua load.
     local armed,asked_at=false,-math.huge -- lily on asked (and no off since); the last on or off.
@@ -197,7 +197,7 @@ function Lily.new(o)
     -- line or nil.
     local function relabel(n)
         local c=Lily.CHOICE
-        local line=T.TEXT[culture][n==2 and 'L2' or 'L']
+        local line=TEXT[culture][n==2 and 'L2' or 'L']
         return R.edit(DATA..c[1]..'.'..c[1],c[2],{{'ID','n',R.one(c[3])},
             {'InteractionGraphExec','name',R.one(R.index_of(R.find_name(c[5])))}},
             {{'DisplayText','text',FText(line),line}},nil,"Lily's signal")
@@ -205,8 +205,8 @@ function Lily.new(o)
     -- The words in the game's language, row by row (checked, written, read back). Gives the STOP line or nil.
     local function write_texts()
         local read,raw=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
-        local c=T.culture(read and raw or nil)
-        local lines=T.TEXT[c]
+        local c=culture_of(read and raw or nil)
+        local lines=TEXT[c]
         for _,t in ipairs(Lily.TEXTS) do
             local known={{'ID','n',R.one(t[3])}}
             if t[5] then known[2]={'InteractionGraphExec','name',R.one(R.index_of(R.find_name(t[5])))} end
@@ -520,7 +520,7 @@ function Lily.new(o)
                 log('STOP: text: '..(ran and failed or why(failed))..': her choice stays off')
             else
                 label=want
-                log('label: her choice reads '..T.TEXT[culture][want==2 and 'L2' or 'L'])
+                log('label: her choice reads '..TEXT[culture][want==2 and 'L2' or 'L'])
             end
         end
         if stop~=said then

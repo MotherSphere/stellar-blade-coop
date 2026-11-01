@@ -52,7 +52,7 @@ package.loaded.UEHelpers={}
 local her=nil -- EVE (nil: none), set below.
 package.loaded['nightop.probe']={her=function() return her end}
 local Lily=require('matrix13.quest.on_time')
-local T=require('matrix13.quest.text')
+local TEXT,culture_of=require('matrix13.quest.text'),require('matrix13.culture')
 local Enemy=require('cut.enemy')
 
 -- The rows against rows.h's hand-written batch.
@@ -94,11 +94,11 @@ end
 -- The words: every line in English and French; French for any French culture, English for the rest.
 for _,c in ipairs({'en','fr'}) do
     for _,k in ipairs({'L','L2','PT','PD','PM','T','D','M1','M2','M3','M4','M5','M6','K1','K2','K3','K4','K5'}) do
-        assert(type(T.TEXT[c][k])=='string' and T.TEXT[c][k]~='',c..k)
+        assert(type(TEXT[c][k])=='string' and TEXT[c][k]~='',c..k)
     end
 end
-assert(T.TEXT.en.T=='On Time' and T.TEXT.fr.T=="À l'heure" and T.TEXT.en.L=='The other signal'
-    and T.TEXT.fr.L2=='À propos de la Matrice 13' and T.TEXT.en.PT=='A Second Signal')
+assert(TEXT.en.T=='On Time' and TEXT.fr.T=="À l'heure" and TEXT.en.L=='The other signal'
+    and TEXT.fr.L2=='À propos de la Matrice 13' and TEXT.en.PT=='A Second Signal')
 for _,t in ipairs(Lily.TEXTS) do -- Every words row is one of the signal rows, with its ID.
     local found=false
     for _,r in ipairs(Lily.ROWS) do found=found or r.table==t[1] and r.name==t[2] and (r.id or 86)==t[3] end
@@ -115,9 +115,9 @@ for _,v in ipairs({{-96,-130,-155},{-79,-130,-155},{-87.5,-151,-155},{-87.5,-109
     {-87.5,-130,-139}}) do
     assert(not Lily.drive_room(world_of(v[1],v[2],v[3])),table.concat(v,' '))
 end
-assert(T.culture('fr-FR')=='fr' and T.culture('fr')=='fr' and T.culture('de-DE')=='en' and T.culture(nil)=='en'
-    and T.culture('ja')=='en')
-assert(T.TEXT.en.D:find('"This lift stays in service so that those who left can come home."',1,true))
+assert(culture_of('fr-FR')=='fr' and culture_of('fr')=='fr' and culture_of('de-DE')=='en' and culture_of(nil)=='en'
+    and culture_of('ja')=='en')
+assert(TEXT.en.D:find('"This lift stays in service so that those who left can come home."',1,true))
 
 -- The tables, each row as the native part writes it: FNames, arrays of FNames, the containers, numbers.
 local function fresh(t)
@@ -290,12 +290,12 @@ assert(logged('title: the rows are in, before any save loads'),last())
 assert(logged('text: game language fr-FR -> fr;'),last())
 local quest=tables.QuestTable.rows[Lily.QUEST]
 local group,task=tables.QuestTaskGroupTable.rows,tables.QuestTaskTable.rows
-assert(quest.TitleName_:ToString()=="À l'heure" and quest.Description_:ToString()==T.TEXT.fr.D and polyglots==0)
+assert(quest.TitleName_:ToString()=="À l'heure" and quest.Description_:ToString()==TEXT.fr.D and polyglots==0)
 assert(tables.QuestTable.rows[Lily.PROLOGUE].TitleName_:ToString()=='Un second signal'
-    and tables.QuestTable.rows[Lily.PROLOGUE].Description_:ToString()==T.TEXT.fr.PD
-    and group.Quest_Sub_MX13_00_M01.Description:ToString()==T.TEXT.fr.PM)
-for i=1,6 do assert(group['Quest_Sub_MX13_01_M0'..i].Description:ToString()==T.TEXT.fr['M'..i],'M'..i) end
-for i=1,5 do assert(task['Quest_Sub_MX13_01_M0'..i..'_T01'].Description:ToString()==T.TEXT.fr['K'..i],'K'..i) end
+    and tables.QuestTable.rows[Lily.PROLOGUE].Description_:ToString()==TEXT.fr.PD
+    and group.Quest_Sub_MX13_00_M01.Description:ToString()==TEXT.fr.PM)
+for i=1,6 do assert(group['Quest_Sub_MX13_01_M0'..i].Description:ToString()==TEXT.fr['M'..i],'M'..i) end
+for i=1,5 do assert(task['Quest_Sub_MX13_01_M0'..i..'_T01'].Description:ToString()==TEXT.fr['K'..i],'K'..i) end
 assert(label('TS_GoToTest_2')=="L'autre signal")
 assert(task.Quest_Sub_MX13_01_M06_T01.Description==nil and task.Quest_Sub_MX13_00_M01_T01.Description==nil,
     'M06 and the prologue keep the shipped Talk to Lily')
@@ -638,19 +638,3 @@ clock=clock+0.5; ly.tick()
 clock=clock+1; ly.tick()
 assert(#asked==5,'Once a Lua load')
 print('matrix13/quest/on_time_test: ok')
-
--- The zone talks: every line has a speaker, an English and a French line; 168 lines in 36 scenes from 1A to 4N (3E was cut).
-do
-    local n,scenes,keys=0,0,{Seq_Actor_Lily=1,Seq_Actor_EVE=1,Seq_Actor_Announcement=1,Noa=1,Yohan=1,Mila=1}
-    for name,lines in pairs(T.ZONES) do
-        scenes=scenes+1
-        assert(name:match('^[1-4]%u$'),name)
-        for _,l in ipairs(lines) do
-            n=n+1
-            assert(keys[l[1]] and type(l[2])=='string' and #l[2]>0 and type(l[3])=='string' and #l[3]>0,name)
-        end
-    end
-    assert(n==168 and scenes==36,n..' lines, '..scenes..' scenes')
-    assert(T.ZONES['3B'][8].oblivion and not T.ZONES['3B'][7].oblivion,'Noa knows EVE only after Oblivion')
-end
-print('lily zone talks: ok')

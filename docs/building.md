@@ -77,7 +77,7 @@ build/host/pose_codec_test
 - Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `chainspin`, `devmenu`,
   `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `scene`, `tendril`, `wear`;
   `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
-  `matrix13/quest/`: `on_time`; `matrix13/world/`: `boss`, `drone`, `move`, `travel`;
+  `matrix13/quest/`: `on_time`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`, `move`, `travel`;
   `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
   `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`,
   `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`, `subtitles`; `ui/`: `guide`, `kit`, `model`,
@@ -413,7 +413,8 @@ mod/StellarCoop/            the UE4SS mod folder
     cut/                    the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
                             fight, wear, scene and lines
     matrix13/               the cut Matrix XIII dungeon, by place then quest: world/ (coop mxiii's travel, rows,
-                            ladders, bosses, drone light), quest/ ("On Time", its words and talks)
+                            ladders, bosses, drone light), quest/ ("On Time" and its words),
+                            talks/ (the talks' lines, one file per talk or zone), culture.lua
     story/                  the story dump and the talk player (subtitles.lua)
 native/                     the DLL (CMake)
   CMakeLists.txt
