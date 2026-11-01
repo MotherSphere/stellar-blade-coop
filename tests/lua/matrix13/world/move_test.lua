@@ -1,5 +1,5 @@
--- cut/mxmove.lua with fake UE4SS objects: outside world 2800 nothing; in it, once a world, every ladder, ledge and
--- rope of the MOVE list spawned by the deferred pair (BeginDeferredActorSpawnFromClass, then the ladder's Meshes,
+-- matrix13/world/move.lua with fake UE4SS objects: outside world 2800 nothing; in it, once a world, every ladder, ledge
+-- and rope of the MOVE list spawned by the deferred pair (BeginDeferredActorSpawnFromClass, then the ladder's Meshes,
 -- StartUnit and CollisionBottomZAdd, the ledge's mesh, the rope's drop and EnvActorName set before
 -- FinishSpawningActor, at its point with its yaw; never the ladder's TotalHeight, the construction script's running
 -- sum, nor the head values it writes), one [MXMOVE] line each, a ladder's with the TotalHeight it built, and a count;
@@ -108,8 +108,8 @@ StaticFindObject=function(path)
 end
 LoadAsset=function(path) assert(not in_deferred,'LoadAsset inside a deferred spawn: '..path); loaded[path]=true end
 FName=function(t) return {name=t} end
-local M=require('cut.mxmove')
-local Rows=require('cut.mxiii_rows')
+local M=require('matrix13.world.move')
+local Rows=require('matrix13.world.rows')
 local lines={}
 local MESH='/Game/Art/BG/Actor/Interaction/Climbing/006_B_SM.006_B_SM'
 local list={
@@ -241,4 +241,4 @@ do
     local a=spawned[#spawned]
     assert(a.how=='deferred' and a.finished and a.Meshes[1],'the ledge spawned by the deferred pair, its mesh set')
 end
-print('mxmove_test: ok')
+print('matrix13/world/move_test: ok')

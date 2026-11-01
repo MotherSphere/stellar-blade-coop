@@ -74,11 +74,11 @@
 // The camps this save has activated (game/camps.h): every 250 ms, once the client is in game and no warp, respawn or
 // logic task is in flight, the game thread asks SB's own camp list for each travel type at most every 2 s, and reads
 // the camp EVE respawns at, under its own SEH latch; camps_status() gives both as coop-status.txt's activated line for
-// session/travel.lua and cut/mxiii.lua. A load drops the list until the next read.
+// session/travel.lua and matrix13/world/travel.lua. A load drops the list until the next read.
 //
 // Matrix XIII's camp names (game/camp_text.h): every 250 ms, at the title and with coop off too, the game thread adds
 // its 12 entries to StringTable_UI once the table has loaded, and rewrites them on a language change, under its own SEH
-// latch; camp_text_status() gives coop-status.txt's camptext line, which cut/mxiii.lua waits for.
+// latch; camp_text_status() gives coop-status.txt's camptext line, which matrix13/world/travel.lua waits for.
 //
 // coop fly and coop slowmo (game/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
 // (on a co-op save; slow motion with no friend linked); every 250 ms the game thread sets each wanted gate's byte in
@@ -90,11 +90,11 @@
 //
 // The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's and
 // Lily's signal's (lion/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt,
-// coop mxiii, the shop and story/lily.lua): the worker hands over the tables' addresses from Lua's lion rows, gardener
-// rows, tendril rows, bolt rows, mxiii rows, shop rows or signal rows request (those that batch writes, 0 for the
-// others); the game thread adds that batch's rows through SB's own AddRow once the gate holds (net mode 0, no logic
-// task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and, once asked, reads the
-// spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril, bolt, mxiii, shop and
+// coop mxiii, the shop and matrix13/quest/on_time.lua): the worker hands over the tables' addresses from Lua's lion
+// rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop rows or signal rows request (those that batch writes,
+// 0 for the others); the game thread adds that batch's rows through SB's own AddRow once the gate holds (net mode 0, no
+// logic task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and, once asked, reads
+// the spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril, bolt, mxiii, shop and
 // signal lines, and the worker logs each answer. Right after the bolt rows batch's last row, in the same call, the
 // Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status() gives the shock line, and
 // the worker logs it once.

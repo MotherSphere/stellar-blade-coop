@@ -1,7 +1,7 @@
 -- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion (cut/lion.lua), coop gardener
 -- fight (cut/gardener.lua) and coop tendril fight (cut/tendril.lua) share, each giving its own spec (coop mxiii,
--- cut/mxiii.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and its screen,
--- through cut/lion.lua). The monster's rows
+-- matrix13/world/travel.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and
+-- its screen, through cut/lion.lua). The monster's rows
 -- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
 -- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 34) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
@@ -667,7 +667,7 @@ function Enemy.new(o,spec)
     -- rows-only steps (the tables, the rows already in or the ask, the wait, the read-back), then done(ok, message)
     -- with how they ended; what done returns is the end said. Returns done's ok, message when it ends at once, or ok,
     -- message, true while it waits: done then follows from tick() (not after coop off, which drops the wait). title:
-    -- start()'s (cut/mxiii.lua's batch at the title).
+    -- start()'s (matrix13/world/travel.lua's batch at the title).
     function self.rows(done,id,title)
         if job then return done(false,self.busy()) end
         local ok,message=self.start(id,false,true,title)
@@ -677,19 +677,20 @@ function Enemy.new(o,spec)
         end
         return done(ok,message)
     end
-    -- The rows alone at the title, from main.lua's 250 ms loop (cut/mxiii.lua's batch, story/lily.lua's): at_title
-    -- (the title screen shown, no save loaded) and coop (the game on the co-op save files, saves=coop; never your own
-    -- saves). ready() gives the words the ask's log line names the files with ('the co-op save files and test pak
-    -- v3'), or nil when there is nothing to add (then nothing is said); more names what adds them later.
-    -- Asks at most TRIES times a visit of the title, each RETRY s after the last answer, while the gate stays shut
-    -- (GATE: the refusals of a gate that stayed shut, lion/rows.h's busy, net, unread, which a later frame may open;
-    -- any other refusal would come back the same). Once a game run: this batch's line already reading rows (a Lua
-    -- reload, a command before a return to the title) ends it, and so do ready() giving nil, a fault, or an answer that
-    -- is no shut gate. The rows flow is the commands' (the tables, the native part's gate and latch, the read-back),
-    -- with no EVE and no map to keep, and nothing after. The end says whether the title still showed at the last call
-    -- (shown), at most 250 ms before it; a save loads for longer than that. Returns title(at_title, coop) and stop()
-    -- for coop off, which ends the wait without its end, so a batch asked is free to ask again at the next call.
-    -- after(ok), when given, hears how each asked batch ended (true once the rows are in and read back).
+    -- The rows alone at the title, from main.lua's 250 ms loop (matrix13/world/travel.lua's batch,
+    -- matrix13/quest/on_time.lua's): at_title (the title screen shown, no save loaded) and coop (the game on the co-op
+    -- save files, saves=coop; never your own saves). ready() gives the words the ask's log line names the files with
+    -- ('the co-op save files and test pak v3'), or nil when there is nothing to add (then nothing is said); more names
+    -- what adds them later. Asks at most TRIES times a visit of the title, each RETRY s after the last answer, while
+    -- the gate stays shut (GATE: the refusals of a gate that stayed shut, lion/rows.h's busy, net, unread, which a
+    -- later frame may open; any other refusal would come back the same). Once a game run: this batch's line already
+    -- reading rows (a Lua reload, a command before a return to the title) ends it, and so do ready() giving nil, a
+    -- fault, or an answer that is no shut gate. The rows flow is the commands' (the tables, the native part's gate and
+    -- latch, the read-back), with no EVE and no map to keep, and nothing after. The end says whether the title still
+    -- showed at the last call (shown), at most 250 ms before it; a save loads for longer than that. Returns
+    -- title(at_title, coop) and stop() for coop off, which ends the wait without its end, so a batch asked is free to
+    -- ask again at the next call. after(ok), when given, hears how each asked batch ended (true once the rows are in
+    -- and read back).
     local TRIES,RETRY=4,10
     local GATE={busy=true,net=true,unread=true}
     function self.title_batch(ready,more,after)

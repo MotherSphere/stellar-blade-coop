@@ -364,10 +364,12 @@ package.loaded['cut.tendril']={new=function(o)
         tick=function() td.ticks=td.ticks+1; if td.says then return table.unpack(td.says) end end,
         stop=function() td.stops=td.stops+1 end}
 end}
--- coop mxiii (cut/mxiii.lua; mxiii_test tests it): what new got (log, ask, status, travel, paks, read), the folder
--- paks_of was given, its commands, ticks and stops, what a tick says, and its title calls' arguments.
+-- coop mxiii (matrix13/world/travel.lua; matrix13/world/travel_test tests it): what new got (log, ask, status, travel,
+-- paks, read), the folder paks_of was given, its commands, ticks and stops, what a tick says, and its title calls'
+-- arguments.
 mx={}
-package.loaded['cut.mxiii']={paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end,
+package.loaded['matrix13.world.travel']={
+    paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end,
     new=function(o)
         mx.o=o
         return {command=function(...) mx.cmds[#mx.cmds+1]=table.pack(...); return true,'mx '..tostring((...)) end,
@@ -488,10 +490,10 @@ package.loaded['nightop.roxanne']={new=function(o)
         stop=function() rx.stops=rx.stops+1; if rx.raise then error(rx.raise,0) end end,
         cancel=function() local b=rx.booked; rx.booked=nil; return b end}
 end}
--- Lily's signal (story/lily.lua; lily_test tests it): what lily.new got (o), its ticks (the last one's stopped), title
--- calls, stops and commands.
+-- Lily's signal (matrix13/quest/on_time.lua; matrix13/quest/on_time_test tests it): what lily.new got (o), its ticks
+-- (the last one's stopped), title calls, stops and commands.
 ly={o=nil,ticks=0,stops=0,titles={},cmds={},talks={},holds={}}
-package.loaded['story.lily']={new=function(o)
+package.loaded['matrix13.quest.on_time']={new=function(o)
     ly.o=o
     return {tick=function(stopped) ly.ticks,ly.stopped=ly.ticks+1,stopped end,
         title=function(...) ly.titles[#ly.titles+1]=table.pack(...) end,

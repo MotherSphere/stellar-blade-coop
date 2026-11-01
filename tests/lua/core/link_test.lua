@@ -1304,7 +1304,7 @@ do
     local text,e,code=require('core.link').files.read('tests/no such file.txt')
     assert(text==nil and type(e)=='string' and code==2,tostring(code))
 end
--- The real read with a limit and an offset (cut/mxiii.lua reads a container's .ucas window by window).
+-- The real read with a limit and an offset (matrix13/world/travel.lua reads a container's .ucas window by window).
 do
     local path=os.tmpname()
     local f=assert(io.open(path,'wb'))

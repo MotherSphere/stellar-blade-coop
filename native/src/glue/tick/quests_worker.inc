@@ -35,9 +35,9 @@ std::string ask_quests(const coop::Request &request) {
   return quest_worker.ask(request, io);
 }
 
-// The mod's own quests (quest/own.h, story/lily.lua): signal watch, or one of the asks (acquire, complete, prologue,
-// talked, zone4, tell, next) at the game thread's next 250 ms pass; any of them starts the reads. Refused off the pinned
-// build, after coop off and after its latch's fault.
+// The mod's own quests (quest/own.h, matrix13/quest/on_time.lua): signal watch, or one of the asks (acquire, complete,
+// prologue, talked, zone4, tell, next) at the game thread's next 250 ms pass; any of them starts the reads. Refused off
+// the pinned build, after coop off and after its latch's fault.
 std::string ask_signal(const coop::Request &request) {
   const auto ask = quest::own::Ask(uint8_t(request.signal) % quest::own::kAsks);
   const std::string word = std::string("signal ") + quest::own::ask_word(ask);

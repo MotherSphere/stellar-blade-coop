@@ -38,7 +38,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `commands/nightop.lua` | `coop no`, `coop nightop`, `coop challenge` and `coop recruiter`, with their co-op save check |
 | `commands/race.lua` | `coop race`: the Doro look and probe, and the co-op save check before `race/run.lua`'s command |
 | `commands/fight.lua` | `coop fight` (its pilot and spawn probe included) and `coop quests`: their lines for the native part |
-| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name (`coop scene lily` handed to `story/lily.lua`'s talk); `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
+| `commands/cut.lua` | `coop leviathan` and the other viewer commands (`gardener`, `tendril`, `mann`, `nier`, `orcal`, `enya`), with the co-op save check before `show` and before `cam` turns the camera on; `coop lion`, with the co-op save check before the words that spawn; `coop gardener fight`, handed to `cut/gardener.lua` with the co-op save check and the viewer's display put away before the words that spawn; `coop tendril fight`, handed to `cut/tendril.lua` the same way; `coop wear`; `coop scene`, with the co-op save check before a scene's name (`coop scene lily` handed to `matrix13/quest/on_time.lua`'s talk); `coop lines`; `coop emote`; `coop fly`, `coop slowmo` and `coop glide`, with the co-op save check before `on`; `coop gift`, with the co-op save check before every word |
 | `commands/guide.lua` | `coop guide`, which opens the guide |
 | `core/link.lua` | The Lua side of the shared files, `coop-settings.txt`, the status key's summary |
 | `partner/capture.lua` | EVE's capture: what a ghost of her is made of (read only) |
@@ -73,10 +73,11 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
-| `cut/mxiii.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v4, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00` on v4 (`DLC02_10_Camp_01` on older paks), or with 30 to `DLC02_30_Camp_01` on v3 or later; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
-| `cut/mxiii_rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
-| `cut/mxmove.lua`, `cut/mxboss.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, and the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
-| `story/lily.lua`, `story/lily_text.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)) |
+| `matrix13/world/travel.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v4, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00` on v4 (`DLC02_10_Camp_01` on older paks), or with 30 to `DLC02_30_Camp_01` on v3 or later; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
+| `matrix13/world/rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
+| `matrix13/world/move.lua`, `matrix13/world/boss.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, and the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
+| `matrix13/quest/on_time.lua`, `matrix13/quest/text.lua`, `matrix13/culture.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)); `culture.lua` maps the game's culture to `fr` or `en` for the words and the talks |
+| `matrix13/talks/prologue.lua`, `arrival.lua`, `finale.lua`, `zone1.lua` to `zone4.lua` | The talks' lines, one module per talk and one per zone (1A to 1E, 2A to 2G, 3A to 3K, 4A to 4N), each line its speaker, English and French; the zone talks are not wired to the game yet |
 | `story/subtitles.lua` | Lily's talks: an unused subtitle sequence played through `cut/scene.lua`'s talk, a hook on the subtitle slot's `UpdateText` that writes the mod's lines, the reading holds, the fallbacks and the kit version ([Lily's signal](#lilys-signal-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
@@ -2237,9 +2238,9 @@ starting there could write Matrix 11 zone state into the save, so the third zone
 
 ### The command
 
-`cut/mxiii.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for `coop travel probe`'s
-guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under way and no travel
-accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
+`matrix13/world/travel.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for `coop travel
+probe`'s guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under way and no
+travel accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
 `SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain text
 in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
 IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the game started passes the
@@ -2352,14 +2353,14 @@ run.
 
 ### At the title
 
-`cut/mxiii.lua`'s `title()`, called from `main.lua`'s 250 ms loop, asks the batch when three things hold: the title
-screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of `session/saves.lua`, so
-never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a Lua load, and nothing
-is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to keep: the tables
-found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic task in flight), the
-shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`, nothing is asked again
-in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its 300
-frames (`busy`, `net` or `unread`), no answer, or an end before the request (a table not loaded) is asked again 10 s
+`matrix13/world/travel.lua`'s `title()`, called from `main.lua`'s 250 ms loop, asks the batch when three things hold:
+the title screen shows with no save loaded, the slot line reads `saves=coop` (the co-op save switch of
+`session/saves.lua`, so never on the player's own saves), and the pak check finds zMXIII_P. The pak is looked for once a
+Lua load, and nothing is logged without it. The request goes through `coop mxiii`'s rows flow with no EVE and no map to
+keep: the tables found by path, the `mxiii rows` request, the native gate (the game thread, net mode 0, no logic task in
+flight), the shared fault latch and the read-back, and no travel after. Once the `mxiii=` line reads `rows`, nothing is
+asked again in the game run, and `coop mxiii` then reads the rows back and only travels. A gate that stayed shut for its
+300 frames (`busy`, `net` or `unread`), no answer, or an end before the request (a table not loaded) is asked again 10 s
 later while the title shows, at most four times a visit of the title. Any other refusal leaves the rows to
 `coop mxiii`. `coop off` drops the wait without an end, and the next call at the title asks again. The end's line says
 `before any save loads` only when the last call, at most 250 ms earlier, still saw the title with no save loaded;
@@ -2400,7 +2401,7 @@ nothing in the main game leads to the dungeon or its camps.
 The cooked map (the full-build pak of all four zones) places a spawn point, trigger box, zone volume and waypoint
 chain for every row the dungeon needs, and the rows themselves come from the mod. `data/mxiii-world.json` holds them
 all, each as a copy of a shipped row (its donor) with the fields that differ; `tools/mxiii_rows.py` writes
-`native/src/lion/mxiii_rows.h` and `cut/mxiii_rows.lua` from it, so the native batches and the Lua read-back never
+`native/src/lion/mxiii_rows.h` and `matrix13/world/rows.lua` from it, so the native batches and the Lua read-back never
 disagree (`tests/tools/mxiii_rows_test.py` fails when either file is out of date). The generator knows each field's
 offset in its row struct from the SDK (stellar-sdk-647527f) and refuses an unknown field, two fields on the same
 bytes, a batch of 256 rows or more, a name given twice, a string list of one empty item (its `|`-joined text would read
@@ -2506,34 +2507,36 @@ rows`, `mxlily rows`, `mxnames rows`), so a refusal in one never stops another (
 
 The 72 warp switches of the first full build are gone (Matrix 11 has none): their rows went with the `mxwarp` batch,
 and their spawn points in the cooked map stay empty. `coop mxiii warp` lists the 72 arrival points they led to
-(`DLC02_<zone>_WarpPoint_<n>`, kept in the cooked map and in `cut/mxiii_rows.lua`'s WARP list), and `coop mxiii warp
-<n|name>` puts EVE on one with `K2_TeleportTo`, under the follow's guards (solo, a co-op save, no travel under way) and
-in world 2800 only, as a test fallback.
+(`DLC02_<zone>_WarpPoint_<n>`, kept in the cooked map and in `matrix13/world/rows.lua`'s WARP list), and `coop mxiii
+warp <n|name>` puts EVE on one with `K2_TeleportTo`, under the follow's guards (solo, a co-op save, no travel under way)
+and in world 2800 only, as a test fallback.
 
-At the title, once the `mxiii=` line has an answer, `cut/mxiii.lua` asks the others one at a time, each once the batch
-before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`, `mxupper`,
-`mxmiddle`, `mxlower`, then the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC` and `M_Gardener` the
-boss spawn rows name, and last `mxnames` ([below](#the-camp-names)). All go in before any save loads, since the zone
-manager lists a world's rows when the world starts. `coop mxiii` asks no travel until every one of these lines but
-`mxnames` reads `rows`, and names the first batch that does not: the travel would reach a dungeon without its Naytibas
-or its doors, and a peer's shared Naytibas would match no spawn row.
+At the title, once the `mxiii=` line has an answer, `matrix13/world/travel.lua` asks the others one at a time, each once
+the batch before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`,
+`mxupper`, `mxmiddle`, `mxlower`, then the `lion` and `gardener` batches, whose CharacterTable rows `M_LionC` and
+`M_Gardener` the boss spawn rows name, and last `mxnames` ([below](#the-camp-names)). All go in before any save loads,
+since the zone manager lists a world's rows when the world starts. `coop mxiii` asks no travel until every one of these
+lines but `mxnames` reads `rows`, and names the first batch that does not: the travel would reach a dungeon without its
+Naytibas or its doors, and a peer's shared Naytibas would match no spawn row.
 
-In world 2800, `cut/mxdrone.lua` gives the drone's spot light 20 % more range and cone at the same intensity: a post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes each tick, and the cone goes back to 30/40 degrees on leaving the world.
+In world 2800, `matrix13/world/drone.lua` gives the drone's spot light 20 % more range and cone at the same intensity: a
+post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes each tick, and the cone goes back to
+30/40 degrees on leaving the world.
 
-In world 2800, `cut/mxiii.lua`'s tick runs two more files. `cut/mxmove.lua` spawns, once a world, SB's `BP_EM_Ladder_C`
-at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder), `BP_EM_Ledge_C` at the
-three R16 ledges and the shimmy, and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A ladder's height comes from
-its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160.9, 200, 240, 600 or 40.9 cm pieces) plus the 79.885 cm head. Its
-construction script stacks the pieces up from the actor's origin, starting at the actor's `TotalHeight` and adding each
-piece to it, so the mod leaves `TotalHeight` at its class default 0: written before the finish, it lifted every ladder
-by its own height. `tools/mxiii_climb.py` takes each map ladder's stack, foot and rung line from the editor's proxy
-ladder (`data/mxiii-climb.json`), its -X toward the upper landing, and checks that the pieces, rebuilt as the script
-builds them, lie within 2 cm of the proxies; it checks the ledges and ropes against their editor ledges and markers the
-same way. At the top EVE steps off onto the floor a trace from 25 cm over the stack's top to 25 cm under it finds at
-x -60, else into the air. The editor's stacks miss that at 20 ladders: 17 tops stand 23 to 100 cm over their landing,
-R11_R08's and Z3P08's 78 and 60 cm under their deck, and Z4_L1's foot floats 24 cm over its floor. Those ladders
-get the stack and foot that put the landing within 20 cm of the top and the foot on its floor, with the rungs nearest
-the editor's, and match the proxies on the rail line only. A ledge gets the
+In world 2800, `matrix13/world/travel.lua`'s tick runs two more files. `matrix13/world/move.lua` spawns, once a world,
+SB's `BP_EM_Ladder_C` at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder),
+`BP_EM_Ledge_C` at the three R16 ledges and the shimmy, and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A
+ladder's height comes from its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160.9, 200, 240, 600 or 40.9 cm pieces) plus
+the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, starting at the actor's
+`TotalHeight` and adding each piece to it, so the mod leaves `TotalHeight` at its class default 0: written before the
+finish, it lifted every ladder by its own height. `tools/mxiii_climb.py` takes each map ladder's stack, foot and rung
+line from the editor's proxy ladder (`data/mxiii-climb.json`), its -X toward the upper landing, and checks that the
+pieces, rebuilt as the script builds them, lie within 2 cm of the proxies; it checks the ledges and ropes against their
+editor ledges and markers the same way. At the top EVE steps off onto the floor a trace from 25 cm over the stack's top
+to 25 cm under it finds at x -60, else into the air. The editor's stacks miss that at 20 ladders: 17 tops stand 23 to
+100 cm over their landing, R11_R08's and Z3P08's 78 and 60 cm under their deck, and Z4_L1's foot floats 24 cm over its
+floor. Those ladders get the stack and foot that put the landing within 20 cm of the top and the foot on its floor, with
+the rungs nearest the editor's, and match the proxies on the rail line only. A ledge gets the
 climbing mesh `006_B_SM`. A rope gets its drop (`RopeDistanceB`) and the `EnvActorName` of its row (R28's
 `DLC02_10_EnvS_642`, zone 4's `DLC02_40_EnvS_022`), which its winch turns On; gate 435's ladder gets
 `DLC02_10_EnvS_437`, the row the gate's lever turns On. Whether an SBZoneEnvActor spawned after its zone's rows were
@@ -2545,13 +2548,13 @@ value (its TArray fix, #436, came in 4.0): filled from its last piece, every mul
 short in game (R28's 3,3 as 3). The `Meshes` stack now gets its first piece, then a write one past its last piece
 that only sizes the array, then every piece inside it. It is read back; a stack that differs is emptied and written
 front to back, and one that still differs is destroyed before its finish and named in the log. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back
-before `FinishSpawningActor` and the `TotalHeight` its script built. `cut/mxboss.lua` looks, once a second while EVE is within
-80 m of a boss point, for a body of the Lion's or the Gardener's blueprint within 30 m of it, and fixes it once: the
-Lion through `cut/lion.lua`'s `adopt` (its anim instance, else the hidden Behemoth leader that `coop lion` uses), the
-Gardener's mesh turned -90 degrees. While one lives, the boss bar shows its name. EVE standing 20 s within 25 m of a
-boss point with no body there gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that arena's boss through
-`coop lion` or `coop gardener fight` (key 0, no saved death). It never runs by itself: a boss killed before stays dead
-through its row's SaveType, and an automatic spawn would bring it back at each visit.
+before `FinishSpawningActor` and the `TotalHeight` its script built. `matrix13/world/boss.lua` looks, once a second
+while EVE is within 80 m of a boss point, for a body of the Lion's or the Gardener's blueprint within 30 m of it, and
+fixes it once: the Lion through `cut/lion.lua`'s `adopt` (its anim instance, else the hidden Behemoth leader that `coop
+lion` uses), the Gardener's mesh turned -90 degrees. While one lives, the boss bar shows its name. EVE standing 20 s
+within 25 m of a boss point with no body there gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that
+arena's boss through `coop lion` or `coop gardener fight` (key 0, no saved death). It never runs by itself: a boss
+killed before stays dead through its row's SaveType, and an automatic spawn would bring it back at each visit.
 
 The export check (`save/twins.h`) refuses a co-op save holding any FString that starts with `DLC02_` outside the camp
 fields it already reads (names that start with `Zone_DLC02_` excepted, every save holds them). None of the user's 15
@@ -2584,9 +2587,9 @@ The rows hold keys of `StringTable_UI`, so the names go in two steps, in this or
    ms, at the title and with coop off too, the game thread reads the culture and, while a pass is due, looks for the
    table. It waits until the table's loaded byte is set: the table is registered in its constructor, and `Serialize`
    empties it later. `coop-status.txt` then goes from `camptext=wait` to `camptext=ready`.
-2. `cut/mxiii.lua` asks `mxnames` at the title once `gardener=` has an answer and the line reads `camptext=ready`. The
-   batch is 11 rows that name themselves as donor: the existing in-place form, with the same IDs, applied to rows the
-   `mxiii` batch added. It writes `CampName` (`+0x18`) and `RegionName` (`+0x34`) and no other field, on the Tetrapod row
+2. `matrix13/world/travel.lua` asks `mxnames` at the title once `gardener=` has an answer and the line reads
+   `camptext=ready`. The batch is 11 rows that name themselves as donor: the existing in-place form, with the same
+   IDs, applied to rows the `mxiii` batch added. It writes `CampName` (`+0x18`) and `RegionName` (`+0x34`) and no other field, on the Tetrapod row
    `DLC02_00_Camp_00` too, which keeps Region `Matrix11` for the reason [above](#its-rows-2).
 
 The order is there because of what this build does with a key it cannot find: `FUN_142879140` shows `<key>`. A row names
@@ -2779,10 +2782,10 @@ each talk or keeps one (both are read).
 
 ## Lily's signal (experimental)
 
-`story/lily.lua` starts a prologue quest of the mod's own in Phase 5, adds a choice to Lily's menu, starts a longer
-quest of the mod's own and plays three talks (player's side: [lily-signal.md](lily-signal.md)). Nothing of it has run
-in game yet. It joins pieces that exist for other features: a rows batch through SB's AddRow, the select cache swap of
-Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp travel.
+`matrix13/quest/on_time.lua` starts a prologue quest of the mod's own in Phase 5, adds a choice to Lily's menu, starts a
+longer quest of the mod's own and plays three talks (player's side: [lily-signal.md](lily-signal.md)). Nothing of it has
+run in game yet. It joins pieces that exist for other features: a rows batch through SB's AddRow, the select cache swap
+of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp travel.
 
 1. Rows: `lion/rows.h`'s seventh batch, `kSignalRecipe` (request `signal rows`, status `signal=`), adds 24 rows to 4
    tables no other batch writes, each a copy of a shipped row with its own patches. 8 LevelTargetFilter rows, one per
@@ -2806,14 +2809,14 @@ Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp 
    that table's IDs is not known). The native part knows 34 tables, the 5 quest ones after the first 20; the signal
    request names those 5 only.
 2. When: only with the test pak, since nothing else uses the rows and AddRow on these tables has not run in game. At the
-   title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, which `cut/mxiii.lua` uses too),
-   so a co-op save that holds a quest finds its rows when it loads; in game on a co-op save, once a Lua load, asked or,
-   when already in, read back, also after a title batch that a shut gate (`busy`, `net`, `unread`) refused at each
-   try. Rows added in game come after the save loaded, too late for a quest it holds. Nothing else runs until the rows
-   read back as written in that Lua load. The rows share the one SEH latch of every batch, so a fault here would stop
-   the Lion's, the shop's and `coop mxiii`'s batches for the run too; the pak gate keeps that risk to players who can
-   use the feature.
-3. Words: `story/lily_text.lua`'s English and French lines go into both quests' `TitleName_` and `Description_`, the
+   title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, which `matrix13/world/travel.lua`
+   uses too), so a co-op save that holds a quest finds its rows when it loads; in game on a co-op save, once a Lua load,
+   asked or, when already in, read back, also after a title batch that a shut gate (`busy`, `net`, `unread`) refused at
+   each try. Rows added in game come after the save loaded, too late for a quest it holds. Nothing else runs until the
+   rows read back as written in that Lua load. The rows share the one SEH latch of every batch, so a fault here would
+   stop the Lion's, the shop's and `coop mxiii`'s batches for the run too; the pak gate keeps that risk to players who
+   can use the feature.
+3. Words: `matrix13/quest/text.lua`'s English and French lines go into both quests' `TitleName_` and `Description_`, the
    7 groups' and tasks 1 to 5's `Description`, and the choice row's `DisplayText`, as FText in the game's language,
    through the recruiter's checked edit (each row's ID checked first, the choice row's exec too, then a fresh FindRow
    reads them back). The choice row's label is written again (checked the same way) when the wanted one changes. No
@@ -2860,20 +2863,20 @@ Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp 
    talk that does not play, a refused ask or a wait that runs out logs a `STOP:` line and the flow goes on.
 8. The talks: `story/subtitles.lua` plays a talk by name. A talk is its unused subtitle-only sequence
    (`Subtitle_POD_1stMeetAdam_01`, `_ArriveDED_01` or `_1stMeetAdam_02`, read offline: no binding, camera or audio
-   track) with its windows' lengths, and its lines in `story/lily_text.lua`, one per window. `cut/scene.lua`'s `talk`
-   points its two borrowed EventTheaterTable rows at Quinn's unused theater `Subtitle_NPC_Quinn_Common_Condition1`
-   and sets that theater's take's `TemplateSequence` to the talk's sequence in memory, as `coop scene emil` does with
-   the farewell's take, and puts it back on Quinn's own sequence when the talk ends. A UE4SS hook on
-   `WB_Theater_Subtitle3_Slot_C:UpdateText` (a Blueprint function; UE4SS runs such a hook after it) returns at once
-   unless a talk runs. During a talk, the k-th call is window k, checked against the slot's `Duration` (taken to be
-   the window's length, not checked): a match with the window shown is that window again, a match with a later one a
-   skip. The hook writes `author` (`+0x688`) from `KismetTextLibrary:TextFromStringTable` on `StringTable_Seq`
-   (`Seq_Actor_Lily`, `Seq_Actor_EVE`, `Seq_Actor_Announcement`, or empty), `Message` (`+0x6A0`) as FText, `Type`
-   (`+0x680`) 0 for a line longer than its window at 15 characters a second, and `AuthorColor` (`+0x76C`) when a
-   capture saw that speaker's colour, then calls `UpdateText` again under a re-entry guard. Windows past the lines get
-   an empty author and message, and the Stop row fires once the last line's window is over. A line that needs more
-   than its window (0.5 s plus 15 characters a second) pauses the theater observer's sequence player 0.15 s before the
-   window ends and plays it again after the difference; `cut/scene.lua` counts a paused player as still playing. The
+   track) with its windows' lengths, and its lines in `matrix13/talks/<name>.lua`, one per window. `cut/scene.lua`'s
+   `talk` points its two borrowed EventTheaterTable rows at Quinn's unused theater
+   `Subtitle_NPC_Quinn_Common_Condition1` and sets that theater's take's `TemplateSequence` to the talk's sequence in
+   memory, as `coop scene emil` does with the farewell's take, and puts it back on Quinn's own sequence when the talk
+   ends. A UE4SS hook on `WB_Theater_Subtitle3_Slot_C:UpdateText` (a Blueprint function; UE4SS runs such a hook after
+   it) returns at once unless a talk runs. During a talk, the k-th call is window k, checked against the slot's
+   `Duration` (taken to be the window's length, not checked): a match with the window shown is that window again, a
+   match with a later one a skip. The hook writes `author` (`+0x688`) from `KismetTextLibrary:TextFromStringTable` on
+   `StringTable_Seq` (`Seq_Actor_Lily`, `Seq_Actor_EVE`, `Seq_Actor_Announcement`, or empty), `Message` (`+0x6A0`) as
+   FText, `Type` (`+0x680`) 0 for a line longer than its window at 15 characters a second, and `AuthorColor` (`+0x76C`)
+   when a capture saw that speaker's colour, then calls `UpdateText` again under a re-entry guard. Windows past the
+   lines get an empty author and message, and the Stop row fires once the last line's window is over. A line that needs
+   more than its window (0.5 s plus 15 characters a second) pauses the theater observer's sequence player 0.15 s before
+   the window ends and plays it again after the difference; `cut/scene.lua` counts a paused player as still playing. The
    theater plays a copy of the sequence named with a GUID added (`Subtitle_POD_ArriveDED_01_566E...C6E5` in game), so
    `cut/scene.lua` matches an observer's sequence by that name or the plain one, finds the hold's sequence player the
    same way before its once-a-second look has seen the observer, and takes a rewritten window as proof the talk plays
@@ -2892,8 +2895,8 @@ Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp 
    M01 and its task in progress for 10 s (SB's EnterZone check did not fire after the camp travel), Lua asks
    `signal complete`, once a visit. Once she stands 2 s inside the Fusion Drive room's box with the quest at M05, Lua
    asks `signal zone4`, once a visit. The box is the planned dungeon's (zone 4's room Z4R18 in zone 1's plan frame,
-   turned into world centimetres in `story/lily.lua`); the test pak has no zone 4 room there, so `coop lily signal
-   next` stands in for it.
+   turned into world centimetres in `matrix13/quest/on_time.lua`); the test pak has no zone 4 room there, so `coop lily
+   signal next` stands in for it.
 10. Export: `save/twins.h`'s `mod_only` refuses a co-op save that names `Quest_Sub_MX13_00` or `Quest_Sub_MX13_01`
     anywhere (an FString in a released-game save, the tracked quest and `CompleteQuestList` included). The save keeps
     a finished quest's alias, so the refusal says the save cannot be exported, with no "export it again".

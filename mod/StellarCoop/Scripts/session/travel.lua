@@ -23,10 +23,10 @@
 -- Only the 120 camps of this table are ever sent or taken: no autosave volume, no camp of a developer test world, none
 -- that leads to several worlds. The travel moves her EVE only; nothing changes in the host's game.
 -- coop travel probe <camp> (a test tool): solo, on a co-op save only, a camp of the table that the read lists as
--- activated, without the host's answer. coop mxiii (cut/mxiii.lua) asks the same guards first (ready), then probes its
--- own camp, which is in no table, without the activation read: the camp achievements count only named ZoneEnvSpawn rows
--- turned On, and none names its row. coop mxiii leave takes camps() (the read's travel camps and the camp EVE respawns
--- at) and probes one of them as coop travel probe does. A Lua error turns the follow off for the run.
+-- activated, without the host's answer. coop mxiii (matrix13/world/travel.lua) asks the same guards first (ready), then
+-- probes its own camp, which is in no table, without the activation read: the camp achievements count only named
+-- ZoneEnvSpawn rows turned On, and none names its row. coop mxiii leave takes camps() (the read's travel camps and the
+-- camp EVE respawns at) and probes one of them as coop travel probe does. A Lua error turns the follow off for the run.
 local U=require('core.unreal')
 local Travel={}
 -- Each story world's map, as core/unreal.lua's map_of() names it, from WorldTable's UMapPath.
@@ -421,7 +421,8 @@ function Travel.new(o)
             return start()
         end)
     end
-    -- Why coop travel probe cannot call now, or nil. any: a camp outside the table (coop mxiii's, cut/mxiii.lua).
+    -- Why coop travel probe cannot call now, or nil. any: a camp outside the table (coop mxiii's,
+    -- matrix13/world/travel.lua).
     local function refusal(alias,any)
         local mode=link.mode()
         if mode==nil then return 'the Steam link is not ready yet: try again in a moment' end

@@ -24,10 +24,10 @@
 -- camps and last camp rows) loads with them, and coop mxiii then only reads them back and travels. At the title the
 -- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the loot, the mechanisms of zones 0 to
 -- 2, 3 and 4, then the Lion's and the Gardener's own rows that the boss spawn rows name); coop mxiii asks no travel
--- until they all read rows. In world 2800 the tick spawns the ladders, ledges and ropes (cut/mxmove.lua) and fixes the
--- Lion and Gardener the game spawns (cut/mxboss.lua); coop mxiii boss spawns the key-0 boss of the arena EVE stands
--- in. coop mxiii warp lists the arrival points of the old warp switches, and coop mxiii warp <n|name> puts EVE on one
--- (a test fallback: no switch stands in the map, as in Matrix 11). The way out is
+-- until they all read rows. In world 2800 the tick spawns the ladders, ledges and ropes (matrix13/world/move.lua) and
+-- fixes the Lion and Gardener the game spawns (matrix13/world/boss.lua); coop mxiii boss spawns the key-0 boss of the
+-- arena EVE stands in. coop mxiii warp lists the arrival points of the old warp switches, and coop mxiii warp <n|name>
+-- puts EVE on one (a test fallback: no switch stands in the map, as in Matrix 11). The way out is
 -- coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the
 -- read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the
 -- read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
@@ -96,10 +96,11 @@ local function hint(camp,command)
     return 'if [TR] says SB refused '..camp..': SB lists the camps when its world starts, maybe before these rows; '
         ..'load the save or travel to a camp, then run '..command..' again (the rows stay in)'
 end
--- The rows as cut/enemy.lua reads them back: cut/mxiii_rows.lua, which tools/mxiii_rows.py writes from
--- data/mxiii-world.json with lion/mxiii_rows.h (mxiii_test checks the two agree). The mxiii batch holds the camps and
--- what they need (their env rows, coins, zone 0's Tetrapod and Lily); the dev rows come first, in their order.
-local Rows=require('cut.mxiii_rows')
+-- The rows as cut/enemy.lua reads them back: matrix13/world/rows.lua, which tools/mxiii_rows.py writes from
+-- data/mxiii-world.json with lion/mxiii_rows.h (matrix13/world/travel_test checks the two agree). The mxiii batch holds
+-- the camps and what they need (their env rows, coins, zone 0's Tetrapod and Lily); the dev rows come first, in their
+-- order.
+local Rows=require('matrix13.world.rows')
 Mxiii.ROWS=Enemy.rows(Rows.MXIII)
 -- coop mxiii warp's points: the arrival points the cooked map keeps from the removed warp switches.
 Mxiii.WARP=Rows.WARP
@@ -284,10 +285,11 @@ function Mxiii.new(o)
         others[#others+1]={e=x,title=t,stop=stop,after=previous,ready=b.ready}
         if not b.optional then previous=b.word end
     end
-    -- The ladders, ledges and ropes (cut/mxmove.lua) and the bosses the game spawns (cut/mxboss.lua), in world 2800
-    -- only.
-    local move=require('cut.mxmove').new({log=function(m) log('[MXMOVE] '..m) end})
-    local boss=require('cut.mxboss').new({log=function(m) log('[MXBOSS] '..m) end,lion=o.lion,gardener=o.gardener})
+    -- The ladders, ledges and ropes (matrix13/world/move.lua) and the bosses the game spawns (matrix13/world/boss.lua),
+    -- in world 2800 only.
+    local move=require('matrix13.world.move').new({log=function(m) log('[MXMOVE] '..m) end})
+    local boss=require('matrix13.world.boss').new({log=function(m) log('[MXBOSS] '..m) end,lion=o.lion,
+        gardener=o.gardener})
     function self.title(at_title,coop)
         title(at_title,coop)
         local busy=false
@@ -303,18 +305,19 @@ function Mxiii.new(o)
     end
     -- coop mxiii boss: the key-0 boss of the arena EVE stands in, when the game spawned none there.
     self.boss=boss.command
-    -- EVE when she stands in world 2800 (cut/mxmove.lua's map check), else nil; o.here replaces it in the tests.
+    -- EVE when she stands in world 2800 (matrix13/world/move.lua's map check), else nil; o.here replaces it in the
+    -- tests.
     local here=o.here or function()
         local U,N=require('core.unreal'),require('nightop.probe')
         local ok,eve=pcall(function()
             local x=U.valid(N.her())
             local map=x and U.map_of(x)
-            local want=require('cut.mxmove').MAP
+            local want=require('matrix13.world.move').MAP
             return map and map:sub(-#want)==want and x or nil
         end)
         return ok and eve or nil
     end
-    local drone=require('cut.mxdrone').new({log=function(m) log('[MXDRONE] '..m) end,here=here})
+    local drone=require('matrix13.world.drone').new({log=function(m) log('[MXDRONE] '..m) end,here=here})
     -- coop mxiii warp [n|name]: the list, or EVE put on that arrival point, under the follow's guards (solo, a co-op
     -- save, no travel under way) and in world 2800 only.
     function self.warp(point)

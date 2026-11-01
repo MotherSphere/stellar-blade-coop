@@ -198,7 +198,7 @@ for (t, n), r in rows.items():
     if t == 'EventSpawnTable' and r['donor'] != n:
         assert dict((f, v) for f, v, _ in r['set'])['SpawnPointName'] == n, n
 # 4. The generated Lua names every batch and the move and boss lists.
-lua = (ROOT / 'mod/StellarCoop/Scripts/cut/mxiii_rows.lua').read_text()
+lua = (ROOT / 'mod/StellarCoop/Scripts/matrix13/world/rows.lua').read_text()
 for name in ('R.MXIII={', 'R.MXSPAWN={', 'R.MXENV={', 'R.MXUPPER={', 'R.MXMIDDLE={', 'R.MXLOWER={', 'R.MOVE={',
              'R.BOSS={', 'R.WARP={'):
     assert name in lua, name

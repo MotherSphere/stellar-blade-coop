@@ -1665,7 +1665,7 @@ int main() {
     a = Answer(), a.state = State::rows, a.added = 4;
     bs.word = pack(a, 1), bs.read = {0, 1, 0};
     assert(status_line(kBolt, bs) == "bolt=rows added=4/4 asks=1 spawns=? char=0/0 skills=1/1 stance=0/0");
-    // Matrix XIII's line (cut/mxiii.lua reads it): no row SB's lookups by ID count.
+    // Matrix XIII's line (matrix13/world/travel.lua reads it): no row SB's lookups by ID count.
     Status ms;
     assert(status_line(kMxiii, ms) == "mxiii=off");
     a = Answer(), a.state = State::rows, a.added = 75;

@@ -1,0 +1,60 @@
+-- The zone 1 talks of Matrix XIII (1A to 1E), scene by scene in play order, not wired to the game yet:
+-- the speaker (a StringTable_Seq key, or a plain name for the dungeon's own people), then the English and French line.
+-- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.
+local LILY,EVE='Seq_Actor_Lily','Seq_Actor_EVE'
+return {
+    ['1A']={
+        {LILY,"EVE, I can still hear you. The comm holds up at this depth.",
+            "EVE, je t'entends toujours. La comm passe bien à cette profondeur."},
+        {EVE,"There's hardly any sand on the floor.",
+            "Il n'y a presque pas de sable au sol."},
+        {LILY,"You mean someone still sweeps down here?",
+            "Tu veux dire que quelqu'un balaie encore ici\u{A0}?"},
+        {EVE,"Looks like it.",
+            "On dirait bien."},
+        {LILY,"Maybe that announcement wasn't so old after all...",
+            "Cette annonce n'était peut-être pas si vieille que ça..."},
+    },
+    ['1B']={
+        {EVE,"His chair faces the lift.",
+            "Sa chaise est tournée vers l'ascenseur."},
+        {LILY,"\"So that those who left can come home\"... So he's the one who added that line.",
+            "«\u{A0}Pour que ceux qui sont partis puissent rentrer\u{A0}»... C'est donc lui qui a ajouté cette phrase."},
+        {EVE,"He's not here.",
+            "Il n'est pas là."},
+        {LILY,"He must be further down, like the girl.",
+            "Il doit être plus bas, comme la petite."},
+    },
+    ['1C']={
+        {LILY,"Wait, EVE, right in front of you... Is that a body?",
+            "Attends, EVE, là, devant toi... C'est un corps\u{A0}?"},
+        {EVE,"Yes. He's been here a while.",
+            "Oui. Il est là depuis un moment."},
+        {LILY,"He had a chair and a lamp... Looks like he kept watch on his own.",
+            "Il avait une chaise et une lampe... On dirait qu'il montait la garde tout seul."},
+        {EVE,"Probably.",
+            "Probablement."},
+        {LILY,"And nobody came back for him.",
+            "Et personne n'est revenu le chercher."},
+        {EVE,"Whatever killed him can't be far. Stay with me, Lily.",
+            "Ce qui l'a tué n'est sûrement pas loin. Reste avec moi, Lily."},
+    },
+    ['1D']={
+        {LILY,"I found the line's timetable. A train comes in on this track at 07:10, every morning.",
+            "J'ai trouvé l'horaire de la ligne. Un train entre sur cette voie à 7\u{A0}h\u{A0}10, tous les matins."},
+        {EVE,"With this rubble, it couldn't get through.",
+            "Avec ces gravats, il n'a pas pu passer."},
+        {LILY,"Someone must have cleared the track before. You can see it on the rails.",
+            "Quelqu'un dégageait forcément la voie avant. Ça se voit sur les rails."},
+        {EVE,"Nobody did it this morning.",
+            "Personne ne l'a fait ce matin."},
+    },
+    ['1E']={
+        {LILY,"The station map stops here. Next is the distribution level.",
+            "Le plan de la station s'arrête ici. La suite, c'est le niveau de distribution."},
+        {EVE,"And the signal?",
+            "Et le signal\u{A0}?"},
+        {LILY,"Still below us, it hasn't moved. We'll have to go all the way down, EVE.",
+            "Toujours en dessous, il n'a pas bougé. Il va falloir tout descendre, EVE."},
+    },
+}

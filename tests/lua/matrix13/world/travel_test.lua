@@ -1,8 +1,8 @@
--- cut/mxiii.lua with fake UE4SS objects and a fake follow. Its rows match native/src/lion/mxiii_rows.h's recipes and
--- patches batch by batch (names, templates, IDs, each patched field's kind and value, no field more). The dev rows
--- first: the camp, then 7 env-spawn rows that all name it, the kit's 6 each at the spawn point of its own name, then
--- zone 30's camp and its one row in Zone_DLC02_30, then zone 40's two shipped trigger rows patched in place to start
--- enabled. The Paks folder comes from the mod folder; the test pak counts only when its .utoc
+-- matrix13/world/travel.lua with fake UE4SS objects and a fake follow. Its rows match native/src/lion/mxiii_rows.h's
+-- recipes and patches batch by batch (names, templates, IDs, each patched field's kind and value, no field more). The
+-- dev rows first: the camp, then 7 env-spawn rows that all name it, the kit's 6 each at the spawn point of its own
+-- name, then zone 30's camp and its one row in Zone_DLC02_30, then zone 40's two shipped trigger rows patched in place
+-- to start enabled. The Paks folder comes from the mod folder; the test pak counts only when its .utoc
 -- in ~mods or LogicMods names WorldMap_DLC_01, Level_P and MXIII_P.umap, with its .pak and .ucas beside it; it is v3
 -- when its .ucas names DLC02_30_Camp_01, v2 when it names DLC02_10_EnvS, else v1. coop mxiii: usage; busy; without the
 -- follow, with a follow guard failing or without the test pak it asks nothing (the pak looked for once a command, by
@@ -50,7 +50,7 @@ local function class(path)
 end
 local player,pc
 package.loaded.UEHelpers={GetPlayer=function() return player end,GetPlayerController=function() return pc end}
-local M=require('cut.mxiii')
+local M=require('matrix13.world.travel')
 local Enemy=require('cut.enemy')
 
 -- The rows against lion/mxiii_rows.h, batch by batch (both written by tools/mxiii_rows.py from one data file):
@@ -797,11 +797,11 @@ end
 
 -- The source: no StaticFindObject or LoadAsset of its own, and no row or save call.
 do
-    local f=assert(io.open('mod/StellarCoop/Scripts/cut/mxiii.lua'))
+    local f=assert(io.open('mod/StellarCoop/Scripts/matrix13/world/travel.lua'))
     local src=f:read('a'):gsub('%-%-[^\n]*','')
     f:close()
     for _,word in ipairs({'StaticFindObject','LoadAsset','AddRow','RemoveRow','Save','FindAllOf'}) do
         assert(not src:find(word,1,true),word)
     end
 end
-print('mxiii_test: ok')
+print('matrix13/world/travel_test: ok')

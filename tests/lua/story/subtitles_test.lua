@@ -49,13 +49,14 @@ local objects={
 }
 StaticFindObject=function(path) return objects[path] end
 local S=require('story.subtitles')
-local T=require('story.lily_text')
+local LINES={prologue=require('matrix13.talks.prologue'),arrival=require('matrix13.talks.arrival'),
+    finale=require('matrix13.talks.finale')}
 
 -- The talks as data: windows, lines, speakers.
 local COUNTS={prologue={21,17},arrival={9,9},finale={19,19}}
 for name,n in pairs(COUNTS) do
-    local t,lines=S.TALKS[name],T.TALKS[name]
-    assert(#t.windows==n[1] and #lines==n[2],name)
+    local t,lines=S.TALKS[name],LINES[name]
+    assert(#t.windows==n[1] and #lines==n[2] and t.lines==lines,name)
     assert(t.sequence:find('^/Game/GameDesign/Level/Subtitle/StarsDescent/Tetrapod/Subtitle_POD_'),name)
     for k,e in ipairs(lines) do
         assert(NAMES[e[1]] or e[1]=='',name..k)
@@ -77,7 +78,7 @@ assert(S.window(W,w3,'SB 3',5)==3 and S.window(W,w3,'Lily 3',9.99)==3,'Its text 
 assert(S.window(W,w3,'SB 3',10)==4,'Past its time: the next, even with its text')
 assert(S.window(W,{k=21,sb='a',ours='b',until_at=0},'c',1)==21,'Never past the last window')
 -- The reading holds of every window, in both languages: 0.5 s plus 15 characters a second, past the window.
-local HOLDS={ -- Talk, culture: window -> hold in s (2 decimals), as the lines of story/lily_text.lua give them.
+local HOLDS={ -- Talk, culture: window -> hold in s (2 decimals), as the lines of matrix13/talks/ give them.
     prologue={en={[2]=1.19,[3]=0.53,[7]=0.11,[9]=0.36,[11]=0.11,[12]=1.80,[14]=0.22,[15]=1.89,[17]=0.91},
         fr={[1]=0.07,[2]=1.59,[7]=0.77,[9]=1.23,[11]=0.37,[12]=1.60,[14]=0.35,[15]=3.49,[17]=0.65}},
     arrival={en={[1]=0.44,[3]=0.71,[4]=1.93,[5]=2.19,[6]=0.18,[7]=0.75,[8]=0.55,[9]=0.86},
@@ -88,7 +89,7 @@ local HOLDS={ -- Talk, culture: window -> hold in s (2 decimals), as the lines o
 for name,by in pairs(HOLDS) do
     for c,want in pairs(by) do
         for k,length in ipairs(S.TALKS[name].windows) do
-            local _,line=S.entry(T.TALKS[name],k,c)
+            local _,line=S.entry(LINES[name],k,c)
             local h=line and S.hold(line,length)
             local need=line and 0.5+utf8.len(line)/15
             assert((h~=nil)==(want[k]~=nil),name..' '..c..' window '..k..': '..tostring(h))
@@ -171,12 +172,12 @@ local t=100
 for k=1,17 do
     local length=W[k]
     window(length)
-    local _,line=S.entry(T.TALKS.prologue,k,'fr')
-    assert(slot.Message:ToString()==line and slot.author:ToString()==NAMES[T.TALKS.prologue[k][1]],k)
+    local _,line=S.entry(LINES.prologue,k,'fr')
+    assert(slot.Message:ToString()==line and slot.author:ToString()==NAMES[LINES.prologue[k][1]],k)
     assert(last()=='rewritten '..k..'/21',last())
     assert((slot.Type==0)==(utf8.len(line)/15>length),'Type 0 for a long line only: '..k)
     slot.Type=1
-    if T.TALKS.prologue[k][1]=='Seq_Actor_Lily' then assert(slot.AuthorColor.G==0.8,'Her colour') end
+    if LINES.prologue[k][1]=='Seq_Actor_Lily' then assert(slot.AuthorColor.G==0.8,'Her colour') end
     slot.AuthorColor={R=1,G=1,B=1,A=1}
     local h=prologue_fr[k] and S.hold(line,length) -- The table's two decimals, exact for the times.
     if h then
@@ -211,7 +212,7 @@ talks,done,player_seen={},nil,player
 at(200); assert(P.play('arrival',false,finished))
 assert(logged('talk arrival: Subtitle_POD_ArriveDED_01, 9 lines in 9 windows, en; holds off'))
 window(2.59)
-assert(slot.Message:ToString()==T.TALKS.arrival[1][2],'English')
+assert(slot.Message:ToString()==LINES.arrival[1][2],'English')
 at(210); P.tick(); assert(player.pauses==0,'Holds off: no pause')
 P.holds(true)
 window(2.27) -- Window 2 needs no hold; window 4 does.
@@ -256,16 +257,16 @@ assert(stops==1 and said and said:find(' UpdateText calls this Lua load, the las
 talks[1].o.done(true,'stopped',{seen=true})
 assert(shown.talk==true and last()=='talk finale: the kit version',last())
 P.tick()
-assert(view.speaker.text=='Lily' and view.speaker.col=='teal' and view.line.text==T.TALKS.finale[1][3],view.line.text)
+assert(view.speaker.text=='Lily' and view.speaker.col=='teal' and view.line.text==LINES.finale[1][3],view.line.text)
 local F=S.TALKS.finale.windows
-local function more(k) local _,line=S.entry(T.TALKS.finale,k,'fr'); return S.hold(line,F[k]) or 0 end
+local function more(k) local _,line=S.entry(LINES.finale,k,'fr'); return S.hold(line,F[k]) or 0 end
 at(402.54+F[1]-0.01); P.tick()
-assert(view.line.text==T.TALKS.finale[1][3],'Line 1 for its window (no hold in French)')
+assert(view.line.text==LINES.finale[1][3],'Line 1 for its window (no hold in French)')
 local tk=402.54+F[1]
-at(tk); P.tick(); assert(view.line.text==T.TALKS.finale[2][3] and view.speaker.text=='Lily')
+at(tk); P.tick(); assert(view.line.text==LINES.finale[2][3] and view.speaker.text=='Lily')
 tk=tk+F[2]+more(2)
-at(tk-0.01); P.tick(); assert(view.line.text==T.TALKS.finale[2][3],'Line 2 for its reading time')
-at(tk); P.tick(); assert(view.line.text==T.TALKS.finale[3][3])
+at(tk-0.01); P.tick(); assert(view.line.text==LINES.finale[2][3],'Line 2 for its reading time')
+at(tk); P.tick(); assert(view.line.text==LINES.finale[3][3])
 for k=3,19 do tk=tk+F[k]+more(k); at(tk); P.tick() end
 assert(done=='kit' and shown.talk==false and P.playing()==nil,tostring(done))
 -- The kit version by hand (coop lily talk ... kit): no theater asked.
@@ -378,7 +379,7 @@ talks[1].o.seen()
 local tt=2000
 for k=1,17 do
     at(tt); window(W[k]+0.035)
-    local _,line=S.entry(T.TALKS.prologue,k,'fr')
+    local _,line=S.entry(LINES.prologue,k,'fr')
     assert(last()=='rewritten '..k..'/21' and slot.Message:ToString()==line,last())
     local n=#logs
     at(tt+0.2); slot.updates=0; hook(slot) -- Our line still in the slot: the same window, written again.

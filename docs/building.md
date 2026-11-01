@@ -75,12 +75,13 @@ build/host/pose_codec_test
 ```
 
 - Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `chainspin`, `devmenu`,
-  `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `mxiii`, `scene`, `tendril`,
-  `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
+  `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `scene`, `tendril`, `wear`;
+  `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
+  `matrix13/quest/`: `on_time`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`, `move`, `travel`;
   `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
   `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`,
-  `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`, `lily`, `subtitles`; `ui/`: `guide`, `kit`, `model`,
-  `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any
+  `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`, `subtitles`; `ui/`: `guide`, `kit`, `model`,
+  `notice`, `region_tabs`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any
   write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for
   `main.lua`.
   `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn
@@ -410,7 +411,11 @@ mod/StellarCoop/            the UE4SS mod folder
     nightop/                Night Operation: the probe, the run, its waves, shop and challenges, the recruiter
     race/                   Doro races: the run, the track model, the Doro look, the driving
     cut/                    the cut model viewer (coop leviathan and six more); coop lion, gardener fight, tendril
-                            fight, mxiii, wear, scene and lines
+                            fight, wear, scene and lines
+    matrix13/               the cut Matrix XIII dungeon, by place then quest: world/ (coop mxiii's travel, rows,
+                            ladders, bosses, drone light), quest/ ("On Time" and its words),
+                            talks/ (the talks' lines, one file per talk or zone), culture.lua
+    story/                  the story dump and the talk player (subtitles.lua)
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side
@@ -423,7 +428,7 @@ data/
   mxiii-world.json          Matrix XIII's world rows, the one source of tools/mxiii_rows.py
 tools/
   install.py                checks, build, install, uninstall, release zip
-  mxiii_rows.py             writes native/src/lion/mxiii_rows.h and cut/mxiii_rows.lua from data/mxiii-world.json
+  mxiii_rows.py             writes native/src/lion/mxiii_rows.h and matrix13/world/rows.lua from data/mxiii-world.json
   save_guard.py             save backups and the manual co-op slot
   wine_smoke.py             loads the DLL under Wine
 docs/                       this documentation

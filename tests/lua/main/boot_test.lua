@@ -19,9 +19,9 @@
 -- reaches cut/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by coop off), coop
 -- gardener fight reaches cut/gardener.lua (the words that spawn on the co-op save slot only, after the viewer's off;
 -- ticked every frame, ended by coop off), coop tendril fight reaches cut/tendril.lua the same way, coop chainspin reaches cut/chainspin.lua on the co-op save slot only (its
--- rows through coop lion's), coop mxiii reaches cut/mxiii.lua on the co-op save slot only (with the follow, the Paks
--- folder from the mod folder; ticked every frame, ended by coop off), coop wear reaches cut/wear.lua with all its words
--- on any slot (restored and ticked every
+-- rows through coop lion's), coop mxiii reaches matrix13/world/travel.lua on the co-op save slot only (with the follow,
+-- the Paks folder from the mod folder; ticked every frame, ended by coop off), coop wear reaches cut/wear.lua with all
+-- its words on any slot (restored and ticked every
 -- frame, waiting while the game is paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
@@ -452,8 +452,8 @@ in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=60')
 at_title=true; loops[2].f(); assert(states[#states]=='world=title rate=60','The title screen goes along')
 at_title=false
 in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=60' and #asked==before,'No request written')
--- Matrix XIII's rows at the title (cut/mxiii.lua's title): every 250 ms with whether the title shows with no save
--- loaded and whether the game uses the co-op save files (saves=coop).
+-- Matrix XIII's rows at the title (matrix13/world/travel.lua's title): every 250 ms with whether the title shows with
+-- no save loaded and whether the game uses the co-op save files (saves=coop).
 local function titled() local t=mx.titles[#mx.titles]; return t.n==2 and t[1],t[2] end
 local a,b=titled(); assert(a==false and b==false,'A world, saves unread')
 in_world,at_title,saves_info=false,true,{saves='coop'}
@@ -462,7 +462,8 @@ saves_info={saves='main'}
 loops[2].f(); a,b=titled(); assert(a==true and b==false,'Your own saves')
 in_world,saves_info=true,{saves='coop'}
 loops[2].f(); a,b=titled(); assert(a==false and b==true,'A save loaded')
--- Lily's signal's rows at the title the same way (story/lily.lua's title), with each of Matrix XIII's calls.
+-- Lily's signal's rows at the title the same way (matrix13/quest/on_time.lua's title), with each of Matrix XIII's
+-- calls.
 assert(#ly.titles==#mx.titles and ly.titles[#ly.titles][1]==false and ly.titles[#ly.titles][2]==true,
     "Lily's signal's title batch with the same arguments")
 at_title,saves_info=false,{}
@@ -809,9 +810,10 @@ assert(#mx.cmds==3 and mx.cmds[1].n==2 and mx.cmds[1][1]==nil and mx.cmds[2][1]=
     and mx.cmds[3][1]=='warp' and mx.cmds[3][2]=='12' and last()=='[StellarCoop] OK: mx warp\n',
     'On a co-op save: its words reach it (coop mxiii warp <n> with its point), an extra one to be refused there')
 status_text=plain
--- coop lily signal (story/lily.lua): status on any save, the rest on a co-op save only; its lines [LY] lines, its
--- status and requests the link's, its travel coop mxiii's command (with that command's co-op save check), its Paks
--- folder and file reads coop mxiii's, its talk player story/subtitles.lua's, built with the same log and coop scene.
+-- coop lily signal (matrix13/quest/on_time.lua): status on any save, the rest on a co-op save only; its lines [LY]
+-- lines, its status and requests the link's, its travel coop mxiii's command (with that command's co-op save check),
+-- its Paks folder and file reads coop mxiii's, its talk player story/subtitles.lua's, built with the same log and coop
+-- scene.
 ly.o.log('picked'); assert(last()=='[StellarCoop][LY] picked\n',last())
 assert(ly.o.status()==status_text and ly.o.ask('lily on') and asked[#asked]=='lily on' and ly.o.mode()=='none'
     and ly.o.paks=='mod/StellarCoop|paks' and ly.o.read==require('core.link').files.read)

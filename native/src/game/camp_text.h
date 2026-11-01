@@ -6,12 +6,12 @@
 //
 // SB's rows hold a key, and FText::FromStringTable (FUN_142862780) looks the key up in the registered table each time
 // a display string is read. On a missing key this build shows "<key>" (FUN_142879140), so a row may name a key only
-// once the entry exists: cut/mxiii.lua asks the mxnames batch only when this file's line reads camptext=ready, and a
-// row left with its donor's key shows the donor's name. The build has no FStringTable::SetSourceString and
-// ImportStrings clears the table first, so the entry is made by the same out of line calls ImportStrings makes. The
-// table is registered in its ctor, before Serialize fills it: only its loaded byte, which PostLoad sets, says it holds
-// its rows. FTextLocalizationManager::GetDisplayString (FUN_14287d320) overrides an existing display string only under
-// the culture "ko", so a language change assigns the strings directly.
+// once the entry exists: matrix13/world/travel.lua asks the mxnames batch only when this file's line reads
+// camptext=ready, and a row left with its donor's key shows the donor's name. The build has no
+// FStringTable::SetSourceString and ImportStrings clears the table first, so the entry is made by the same out of line
+// calls ImportStrings makes. The table is registered in its ctor, before Serialize fills it: only its loaded byte,
+// which PostLoad sets, says it holds its rows. FTextLocalizationManager::GetDisplayString (FUN_14287d320) overrides an
+// existing display string only under the culture "ko", so a language change assigns the strings directly.
 #pragma once
 
 #include <cstddef>

@@ -15,8 +15,8 @@
 --   so a co-op save that holds a quest loads with it; on a co-op save in game they are asked, or read back when already
 --   in, once a Lua load (also after a title batch that a shut gate refused), too late for a save that holds a quest.
 --   They stay for the game run, and nothing goes on until they read back.
--- - The words (story/lily_text.lua), once the rows read back: both quests' titles and descriptions, the 7 group lines,
---   On Time's task lines 1 to 5 and her choice's first label, as FText in the game's language, each row checked first
+-- - The words (matrix13/quest/text.lua), once the rows read back: both quests' titles and descriptions, the 7 group
+--   lines, On Time's task lines 1 to 5 and her choice's first label, as FText in the game's language, each row checked first
 --   and read back (nightop/recruiter.lua's edit). The prologue's task and M06's keep the shipped "Talk to Lily" line.
 -- - The quest unit's reads (quest/own.h): none until signal watch, asked once a Lua load when the cheap gates hold (a
 --   co-op save, solo, the test pak, the rows read back), so no player without the pak calls SB's quest unit getter.
@@ -51,7 +51,7 @@ local N=require('nightop.probe')
 local R=require('nightop.recruiter')
 local Roxanne=require('nightop.roxanne')
 local Enemy=require('cut.enemy')
-local Mxiii=require('cut.mxiii')
+local Mxiii=require('matrix13.world.travel')
 local Subtitles=require('story.subtitles')
 local Lily={}
 local DATA='/Game/Local/Data/'
@@ -79,8 +79,9 @@ function Lily.drive_room(v)
     end
     return true
 end
--- The signal rows as cut/enemy.lua reads them back (rows.h's kSignalRecipe and kSignalPatches; lily_test checks them
--- against it): each patched field, changed when it differs from the template row's. The 8 filters (one per Tetrapod
+-- The signal rows as cut/enemy.lua reads them back (rows.h's kSignalRecipe and kSignalPatches;
+-- matrix13/quest/on_time_test checks them against it): each patched field, changed when it differs from the template
+-- row's. The 8 filters (one per Tetrapod
 -- Lily: Xion, Eidos 7, Eidos 9 at the Tetrapod and near the atelier, the Wasteland, the Great Desert, the Matrix 11
 -- entrance, Spire 4) are listed in both "Talk to Lily" tasks.
 local FILTER='Quest_Sub_MX13_01_LevelTargetFilter_'
@@ -115,9 +116,9 @@ rows[#rows+1]={'TheaterSelectDataTable','TS_GoToTest_2',nil,{{'Conditions','N','
     {'TextVisibleType','e',1,true},{'NextTaskTagName','n','None',false},{'SelectDataPriority','i',3,true},
     {'InteractionGraphExec','n','Success5',true}}}
 Lily.ROWS=Enemy.rows(rows)
--- The words' rows: table, row, its ID (checked before the write), the fields and their lines of story/lily_text.lua.
--- Her choice row is checked by its ID and its exec too, so its label only goes on once the rows' patch is there; it
--- stays last.
+-- The words' rows: table, row, its ID (checked before the write), the fields and their lines of
+-- matrix13/quest/text.lua. Her choice row is checked by its ID and its exec too, so its label only goes on once the
+-- rows' patch is there; it stays last.
 Lily.TEXTS={
     {'QuestTable',Lily.PROLOGUE,Lily.PROLOGUE_ID,{{'TitleName_','PT'},{'Description_','PD'}}},
     {'QuestTaskGroupTable','Quest_Sub_MX13_00_M01',341,{{'Description','PM'}}},
@@ -155,7 +156,7 @@ end
 -- (story/subtitles.lua's player).
 function Lily.new(o)
     local log,status,ask,talks=o.log,o.status,o.ask,o.talks
-    local T=require('story.lily_text')
+    local TEXT,culture_of=require('matrix13.quest.text'),require('matrix13.culture')
     local e=Enemy.new({log=log,ask=ask,status=status},
         {word='signal',name="Lily's signal",command='coop lily signal',tag='[LY]',rows=Lily.ROWS,ids={}})
     local rows_ok=false -- The rows read back as written in this Lua load (the title's batch or the one asked in game).
@@ -177,7 +178,7 @@ function Lily.new(o)
     local culture,text_failed=nil,false -- The words' culture once written this Lua load; a write that stopped.
     local label=nil -- Her choice's label now in the row: 1 (L) or 2 (L2).
     local labels={} -- Her choice's labels in every language -> 1 or 2.
-    for _,t in pairs(T.TEXT) do labels[t.L],labels[t.L2]=1,2 end
+    for _,t in pairs(TEXT) do labels[t.L],labels[t.L2]=1,2 end
     local rows_asked=false -- The rows asked (or, already in, read back) in game this Lua load.
     local watching=false -- signal watch asked this Lua load.
     local armed,asked_at=false,-math.huge -- lily on asked (and no off since); the last on or off.
@@ -196,7 +197,7 @@ function Lily.new(o)
     -- line or nil.
     local function relabel(n)
         local c=Lily.CHOICE
-        local line=T.TEXT[culture][n==2 and 'L2' or 'L']
+        local line=TEXT[culture][n==2 and 'L2' or 'L']
         return R.edit(DATA..c[1]..'.'..c[1],c[2],{{'ID','n',R.one(c[3])},
             {'InteractionGraphExec','name',R.one(R.index_of(R.find_name(c[5])))}},
             {{'DisplayText','text',FText(line),line}},nil,"Lily's signal")
@@ -204,8 +205,8 @@ function Lily.new(o)
     -- The words in the game's language, row by row (checked, written, read back). Gives the STOP line or nil.
     local function write_texts()
         local read,raw=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
-        local c=T.culture(read and raw or nil)
-        local lines=T.TEXT[c]
+        local c=culture_of(read and raw or nil)
+        local lines=TEXT[c]
         for _,t in ipairs(Lily.TEXTS) do
             local known={{'ID','n',R.one(t[3])}}
             if t[5] then known[2]={'InteractionGraphExec','name',R.one(R.index_of(R.find_name(t[5])))} end
@@ -519,7 +520,7 @@ function Lily.new(o)
                 log('STOP: text: '..(ran and failed or why(failed))..': her choice stays off')
             else
                 label=want
-                log('label: her choice reads '..T.TEXT[culture][want==2 and 'L2' or 'L'])
+                log('label: her choice reads '..TEXT[culture][want==2 and 'L2' or 'L'])
             end
         end
         if stop~=said then

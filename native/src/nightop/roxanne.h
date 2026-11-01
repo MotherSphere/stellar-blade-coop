@@ -1,5 +1,5 @@
-// Roxanne's Night Operation choices (nightop/roxanne.lua) and Lily's signal choice (story/lily.lua), free of Windows:
-// tests/native/nightop/roxanne_test.cpp checks it against fake memory. Roxanne's dialogue's choice list,
+// Roxanne's Night Operation choices (nightop/roxanne.lua) and Lily's signal choice (matrix13/quest/on_time.lua), free
+// of Windows: tests/native/nightop/roxanne_test.cpp checks it against fake memory. Roxanne's dialogue's choice list,
 // TS_Xion_Roxane_Choice, holds two TheaterSelectDataTable rows, Shop and End Conversation; Lily's, TS_Xion_Lily_Choice,
 // holds eight (the bike signal, four About Enya rows, Travel to Another Region, Repair Console, End Conversation). SB
 // does not read a list from the table when a dialogue starts: it reads a cache built before play, a TMap from a select
@@ -183,7 +183,8 @@ template <class Game> bool disarm(Game &g, uint64_t base, const List &l, Swap &s
   return true;
 }
 
-// coop-status.txt's roxanne and lily lines (nightop/roxanne.lua and story/lily.lua read them), <word> the list's:
+// coop-status.txt's roxanne and lily lines (nightop/roxanne.lua and matrix13/quest/on_time.lua read them), <word>
+// the list's:
 //   <word>=<unread|absent|on|off|other> asks=<a> want=<on|off> why=<word>
 //   <word>=fault asks=<a> where=<text, maybe with spaces>
 // The entry's shape as of the game thread's last look (every 250 ms after the first ask; off: the list's own rows,

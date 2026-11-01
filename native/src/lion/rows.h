@@ -42,23 +42,23 @@
 // shock stun (SkillResultTable 100200801). What makes the ammo selectable and the gun fire it is no row: lion/shock.h
 // grows two lists in place once these rows are in. A fifth, Matrix XIII's
 // (kMxiiiRecipe, written by hand below the generated part with its own patches), holds the 8 rows the cut dungeon's
-// first zone lacks for a camp of its own (coop mxiii, cut/mxiii.lua): ZoneCampTable DLC02_10_Camp_01 (280001, a copy of
-// ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp
-// names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420 to 426): DLC02_10_EnvS_900
-// leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points of those names, in the two
-// zone tables only it writes. Then 2 rows give zone 30 a camp with no kit (coop mxiii 30): ZoneCampTable
-// DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900, DLC02_10_EnvS_900's recipe in
-// Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows in place, the table only it reads,
-// so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A sixth, the Night
-// Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it (nightop/shop.lua asks for it
-// before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011, over Clyde's currency
-// FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and the Shock Bolt
-// (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop (1061) and
+// first zone lacks for a camp of its own (coop mxiii, matrix13/world/travel.lua): ZoneCampTable DLC02_10_Camp_01
+// (280001, a copy of ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in
+// Zone_DLC02_10 whose TargetCamp names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420
+// to 426): DLC02_10_EnvS_900 leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points
+// of those names, in the two zone tables only it writes. Then 2 rows give zone 30 a camp with no kit (coop mxiii 30):
+// ZoneCampTable DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900,
+// DLC02_10_EnvS_900's recipe in Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows in place, the
+// table only it reads, so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A
+// sixth, the Night Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it (nightop/shop.lua
+// asks for it before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011, over Clyde's
+// currency FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and the Shock
+// Bolt (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop (1061) and
 // _CoopBolt (1062, the same with the Shock Bolt), over the cut Shop_NightOperation with the Beta Seed as currency and
-// no tag. A seventh, Lily's signal (kSignalRecipe, written by hand like Matrix XIII's, story/lily.lua), holds the mod's
-// own quests, the prologue "A Second Signal" (Quest_Sub_MX13_00, 164) and "On Time" (Quest_Sub_MX13_01, 163): 8
-// LevelTargetFilter rows, 7 tasks, 7 groups and the two quest rows last of them, and patches Lily's borrowed choice row
-// TS_GoToTest_2 in place, last. A Batch names its rows, its patches and
+// no tag. A seventh, Lily's signal (kSignalRecipe, written by hand like Matrix XIII's, matrix13/quest/on_time.lua),
+// holds the mod's own quests, the prologue "A Second Signal" (Quest_Sub_MX13_00, 164) and "On Time" (Quest_Sub_MX13_01,
+// 163): 8 LevelTargetFilter rows, 7 tasks, 7 groups and the two quest rows last of them, and patches Lily's borrowed
+// choice row TS_GoToTest_2 in place, last. A Batch names its rows, its patches and
 // the word its status line, log lines and request start with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop",
 // "signal": coop-status.txt's shock line is lion/shock.h's); every batch shares the table checks, the block and the
 // rules below, and each keeps its own Builder.
@@ -6357,9 +6357,9 @@ constexpr Row kShopRecipe[] = {
 // Eight batches, each its own ask so a refusal in one never stops another: mxiii, mxspawn, mxenv, mxupper, mxmiddle,
 // mxlower, mxlily (Lily's menu in this world: three IsInWorld conditions and three groups of her Tetrapod graph,
 // shipped rows patched in place) and mxnames (the camps' display keys, patched last in place on the mxiii batch's own
-// rows, and only once game/camp_text.h's entries exist). They go in at the title on the co-op save files with the zMXIII_P pak there (cut/mxiii.lua), so a co-op save
-// that names one of their rows loads with it. Each row copies a shipped row of its table; a row whose donor is itself
-// is that shipped row patched in place.
+// rows, and only once game/camp_text.h's entries exist). They go in at the title on the co-op save files with the
+// zMXIII_P pak there (matrix13/world/travel.lua), so a co-op save that names one of their rows loads with it. Each row
+// copies a shipped row of its table; a row whose donor is itself is that shipped row patched in place.
 // mxiii: the camps and what they need. Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13) has no camp, so SB's camp
 // travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first env row DLC02_10_EnvS_900 (the
 // camp base; FUN_141cdd7b0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit
@@ -6374,9 +6374,9 @@ constexpr Row kShopRecipe[] = {
 // mxspawn: the Naytibas. The killable Stalker MX13_M_Sawshark (CharacterTable 50071, CHAL_UME_M_Sawshark_01 without
 // Passive_Immortal) first, then the 8 M_DummyC rows patched to shipped Naytibas, the zone 4 trio 035, 036 and 042 made
 // ZoneEvent spawns, 25 new enemy rows and the three bosses (Gardener M_Gardener and Lion M_LionC come from the gardener
-// and lion batches, which cut/mxiii.lua asks first), the 4 zone events that spawn the Gardener and the trio, and the
-// two trigger rows that run them. SB binds a spawn row to the placed SBSpawnPoint whose name equals the row's
-// SpawnPointName field (FUN_14228ce40); every name here is one the cooked map places.
+// and lion batches, which matrix13/world/travel.lua asks first), the 4 zone events that spawn the Gardener and the
+// trio, and the two trigger rows that run them. SB binds a spawn row to the placed SBSpawnPoint whose name equals the
+// row's SpawnPointName field (FUN_14228ce40); every name here is one the cooked map places.
 // mxenv: loot, kill volumes and the shipped device rows dev already patched: the one-way doors 050, 051 and 037 (an
 // empty arrow at their point, our own sequences moving the cooked leaf), the R29 gate and its card switch listing zone
 // 1 and 2, the 55 m lift waiting at the top with our sequences, the 74 m lift's call switches (the lift controller,
@@ -6397,35 +6397,35 @@ static_assert(kTables[kTableCount - 1].name, "the generated kTables describes ev
 constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
 #include "lion/mxiii_rows.h"
 
-// ---- Lily's signal batch (story/lily.lua), written by hand: the generator holds no quest table ----
+// ---- Lily's signal batch (matrix13/quest/on_time.lua), written by hand: the generator holds no quest table ----
 // The mod's own quests. The prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164, a Sub quest), which
-// story/lily.lua acquires through quest/own.h in the Phase 5 window: one group whose one task is the shipped "Talk to
-// Lily" (Quest_Epic_11_M04_T01's counter, its keyed text in every language), tracking Lily at every Tetrapod. Then "On
-// Time" (Quest_Sub_MX13_01, QuestTable 163, a Sub quest), acquired once the prologue's talk is done: six groups of one
-// task each. M01 to M04 enter Zone_DLC02_10 to Zone_DLC02_40, the four zones of the cut Matrix XIII (EnterZone, as
-// Quest_Epic_06_M01_T01 enters Zone_ME_01); M05 is a counter with no marker that story/lily.lua completes once EVE
-// stands in the zone 4 drive room; M06 is "Talk to Lily" again, tracking her at every Tetrapod, completed after the
-// end talk. Groups run in list order, so M06 starts only once M05 ends. The markers are 8 LevelTargetFilter rows of
-// ours, one per Tetrapod Lily (Eidos 9 has two spawns, only one live at a time), each a copy of the one
-// Quest_Epic_11_M04_T01 tracks with another EventSpawnAlias, all listed in both "Talk to Lily" tasks. New names and
-// IDs only, every one free in the build 24463856 dumps (shipped IDs end at 162, 334, 482): a save that names a quest and
-// loads without these rows drops it (FUN_141c5b4f0 logs "LoadQuest : QuestData Not Found" and returns 0), where a
-// borrowed shipped quest would stay half there. The save keys quests, groups and tasks by alias, so these aliases must
-// never change. Templates: each quest is Quest_Sub_WLB_001 (a shipped Sub with no reward, no event, no fail condition,
-// no next quest), each group Quest_Sub_002_M01 (one container, no event, no warp), each task the shipped task its type
-// comes from (neither has task events). Their FText (titles, descriptions, group lines, the lines of On Time's tasks 1
-// to 5) is the templates' until story/lily.lua writes ours in the game's language. Filters first, then tasks, groups
-// and the two quest rows last of them, so a quest exists only once the rows it names are all in.
-// Then Lily's borrowed choice row, TS_GoToTest_2 (TheaterSelectDataTable 86, in the test list TS_GoToTest that no
-// story graph shows), patched in place for the game run: Conditions [Xion_10_Condition_051] (QuestState Quest_Epic_11
-// M04 in progress: the game shows the row from "Talk to Lily to decide on the next destination" until "Leave for the
-// Nest"), shown or hidden rather than greyed, priority 3 (above her Travel, Repair and End rows: the cancel input picks
-// the last slot, End's), and her goodbye's exec, Success5 (Success runs her bike signal's point of no return on every
-// Lily node). nightop/roxanne.h's lily swap lists it in her choice list; story/lily.lua writes its label. It comes
-// last, but that only helps with a refusal at its own row step (no template, an FName not made): the 24 quest rows stay
-// in. The table checks (class, AddRow slot, row size) run for every table of the batch before any row, so a
-// TheaterSelectDataTable that fails them stops the whole batch with no row in. Struct sizes and offsets from the SDK
-// (stellar-sdk-647527f); none of the five structs has a Transient field.
+// matrix13/quest/on_time.lua acquires through quest/own.h in the Phase 5 window: one group whose one task is the
+// shipped "Talk to Lily" (Quest_Epic_11_M04_T01's counter, its keyed text in every language), tracking Lily at every
+// Tetrapod. Then "On Time" (Quest_Sub_MX13_01, QuestTable 163, a Sub quest), acquired once the prologue's talk is done:
+// six groups of one task each. M01 to M04 enter Zone_DLC02_10 to Zone_DLC02_40, the four zones of the cut Matrix XIII
+// (EnterZone, as Quest_Epic_06_M01_T01 enters Zone_ME_01); M05 is a counter with no marker that
+// matrix13/quest/on_time.lua completes once EVE stands in the zone 4 drive room; M06 is "Talk to Lily" again, tracking
+// her at every Tetrapod, completed after the end talk. Groups run in list order, so M06 starts only once M05 ends. The
+// markers are 8 LevelTargetFilter rows of ours, one per Tetrapod Lily (Eidos 9 has two spawns, only one live at a
+// time), each a copy of the one Quest_Epic_11_M04_T01 tracks with another EventSpawnAlias, all listed in both "Talk to
+// Lily" tasks. New names and IDs only, every one free in the build 24463856 dumps (shipped IDs end at 162, 334, 482): a
+// save that names a quest and loads without these rows drops it (FUN_141c5b4f0 logs "LoadQuest : QuestData Not Found"
+// and returns 0), where a borrowed shipped quest would stay half there. The save keys quests, groups and tasks by
+// alias, so these aliases must never change. Templates: each quest is Quest_Sub_WLB_001 (a shipped Sub with no reward,
+// no event, no fail condition, no next quest), each group Quest_Sub_002_M01 (one container, no event, no warp), each
+// task the shipped task its type comes from (neither has task events). Their FText (titles, descriptions, group lines,
+// the lines of On Time's tasks 1 to 5) is the templates' until matrix13/quest/on_time.lua writes ours in the game's
+// language. Filters first, then tasks, groups and the two quest rows last of them, so a quest exists only once the rows
+// it names are all in. Then Lily's borrowed choice row, TS_GoToTest_2 (TheaterSelectDataTable 86, in the test list
+// TS_GoToTest that no story graph shows), patched in place for the game run: Conditions [Xion_10_Condition_051]
+// (QuestState Quest_Epic_11 M04 in progress: the game shows the row from "Talk to Lily to decide on the next
+// destination" until "Leave for the Nest"), shown or hidden rather than greyed, priority 3 (above her Travel, Repair
+// and End rows: the cancel input picks the last slot, End's), and her goodbye's exec, Success5 (Success runs her bike
+// signal's point of no return on every Lily node). nightop/roxanne.h's lily swap lists it in her choice list;
+// matrix13/quest/on_time.lua writes its label. It comes last, but that only helps with a refusal at its own row step
+// (no template, an FName not made): the 24 quest rows stay in. The table checks (class, AddRow slot, row size) run for
+// every table of the batch before any row, so a TheaterSelectDataTable that fails them stops the whole batch with no
+// row in. Struct sizes and offsets from the SDK (stellar-sdk-647527f); none of the five structs has a Transient field.
 // Both "Talk to Lily" tasks' TrackingTargetFilter: the 8 filters below, one per Tetrapod Lily.
 constexpr const char kLilyFilters[] = "Quest_Sub_MX13_01_LevelTargetFilter_001|Quest_Sub_MX13_01_LevelTargetFilter_002|"
                                       "Quest_Sub_MX13_01_LevelTargetFilter_003|Quest_Sub_MX13_01_LevelTargetFilter_004|"
@@ -6905,9 +6905,9 @@ private:
 };
 
 // coop-status.txt's line for a batch (cut/lion.lua reads lion=, bolt= and shop=, cut/gardener.lua gardener=,
-// cut/tendril.lua tendril=, cut/mxiii.lua mxiii=, mxspawn=, mxenv=, mxupper=, mxmiddle= and mxlower=, story/lily.lua
-// signal=), from its answer word, its read-back, the frames its ask waited, the spawn manager's counter and, after the
-// latch, where the fault was:
+// cut/tendril.lua tendril=, matrix13/world/travel.lua mxiii=, mxspawn=, mxenv=, mxupper=, mxmiddle= and mxlower=,
+// matrix13/quest/on_time.lua signal=), from its answer word, its read-back, the frames its ask waited, the spawn
+// manager's counter and, after the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
 //   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>

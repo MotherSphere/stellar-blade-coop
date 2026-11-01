@@ -1,7 +1,7 @@
--- Lily's talks (experimental, untested in game): SB's own subtitle box showing the mod's lines (story/lily_text.lua's
--- TALKS) over an unused subtitle-only sequence that cut/scene.lua's talk() plays through Quinn's borrowed theater. A
--- talk is data: its name, the sequence it borrows and that sequence's subtitle windows (TALKS below); the lines, one
--- per window, come from lily_text.lua, and windows past the last line show nothing.
+-- Lily's talks (experimental, untested in game): SB's own subtitle box showing the mod's lines (matrix13/talks/)
+-- over an unused subtitle-only sequence that cut/scene.lua's talk() plays through Quinn's borrowed theater. A talk is
+-- data: its name, the sequence it borrows, that sequence's subtitle windows and its lines (TALKS below); the lines, one
+-- per window, come from the talk's own module in matrix13/talks/, and windows past the last line show nothing.
 -- - The rewrite: a UE4SS hook on the subtitle slot Blueprint's UpdateText (registered once a Lua load, at the first
 --   talk or arm(); UE4SS runs a hook on a Blueprint-only function after it), which returns at once unless a talk runs
 --   or a capture is armed. Window k is the k-th new window of the talk, never skipped (bSkipAllow is false on every POD
@@ -35,7 +35,7 @@
 --   own sequence still plays gets no fallback (failed): the kit would show its lines under SB's.
 -- Nothing here reaches the save: the take, the rows and the slot's fields live in memory.
 local U=require('core.unreal')
-local T=require('story.lily_text')
+local culture_of=require('matrix13.culture')
 local Subtitles={}
 local HOOK='/Game/Art/UI/Widget/Theater/WB_Theater_Subtitle3_Slot.WB_Theater_Subtitle3_Slot_C:UpdateText'
 local SEQ_TABLE='/Game/Local/Localize/StringTable_Seq.StringTable_Seq'
@@ -51,14 +51,15 @@ Subtitles.READ,Subtitles.SPARE,Subtitles.EARLY,Subtitles.FIRST,Subtitles.STUCK,S
 -- longest wait for it to end.
 Subtitles.POLL,Subtitles.WAIT=0.5,20
 -- The talks: the sequence each borrows, its window 1's start in s and its subtitle windows' lengths in s, in order
--- (read from the cooked sequences: 21, 9 and 19 windows).
+-- (read from the cooked sequences: 21, 9 and 19 windows), and its lines (matrix13/talks/<name>.lua).
 Subtitles.TALKS={
     prologue={sequence=sequence('Subtitle_POD_1stMeetAdam_01'),first=0,windows={2.10,5.31,5.50,2.56,4.09,2.61,1.26,
-        3.17,2.94,3.94,1.26,5.03,4.03,3.28,4.28,2.03,2.92,0.92,5.04,3.43,1.88}},
+        3.17,2.94,3.94,1.26,5.03,4.03,3.28,4.28,2.03,2.92,0.92,5.04,3.43,1.88},
+        lines=require('matrix13.talks.prologue')},
     arrival={sequence=sequence('Subtitle_POD_ArriveDED_01'),first=0.68,windows={2.59,2.27,2.06,2.24,1.64,4.32,3.15,
-        2.88,1.57}},
+        2.88,1.57},lines=require('matrix13.talks.arrival')},
     finale={sequence=sequence('Subtitle_POD_1stMeetAdam_02'),first=0.53,windows={1.58,2.39,3.72,2.82,4.58,2.54,2.94,
-        2.47,4.94,3.42,3.29,0.95,2.67,3.29,2.56,2.05,3.23,5.39,1.63}},
+        2.47,4.94,3.42,3.29,0.95,2.67,3.29,2.56,2.05,3.23,5.39,1.63},lines=require('matrix13.talks.finale')},
 }
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
 -- The window of a talk's call: windows (lengths), w the window shown last ({k=, sb=, ours=, until_at=}; k 0 before
@@ -83,7 +84,7 @@ end
 local function long(line,length) return utf8.len(line)/Subtitles.READ>length end
 local function culture()
     local ok,c=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
-    return T.culture(ok and c or nil)
+    return culture_of(ok and c or nil)
 end
 
 -- o: log (Lily's [LY] lines), scene (cut/scene.lua's: talk, stop_talk, player, busy).
@@ -296,7 +297,8 @@ function Subtitles.new(o)
     -- name's talk (TALKS); kit: the kit version only. done(how) once it ends, maybe before play returns. Ok, message.
     function self.play(name,kit_only,done)
         if cur then return false,'a talk plays ('..cur.name..')' end
-        local t,lines=Subtitles.TALKS[name],T.TALKS[name]
+        local t=Subtitles.TALKS[name]
+        local lines=t and t.lines
         if not t or not lines then return false,'no talk '..tostring(name) end
         local now=os.clock()
         cur={name=name,t=t,lines=lines,culture=culture(),k=0,w={k=0},rewritten=0,names={},done=done}

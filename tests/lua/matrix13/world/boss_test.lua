@@ -1,9 +1,9 @@
--- cut/mxboss.lua with fake UE4SS objects: outside world 2800 nothing; in it, a Lion body of the Large blueprint near
--- its spawn point is fixed once through coop lion's adopt, a Gardener body's mesh turned -90 degrees once, each with
--- one [MXBOSS] line; a body far from the point is not the row's; bodies are looked for only near a boss point; the
--- boss bar's <M_LionC> reads Lion while the fixed Lion lives; EVE in an arena with no body for 20 s gets one line
--- naming coop mxiii boss, and nothing is spawned by itself; coop mxiii boss spawns the nearest arena's boss by its own
--- command, and refuses outside Matrix XIII or away from any arena.
+-- matrix13/world/boss.lua with fake UE4SS objects: outside world 2800 nothing; in it, a Lion body of the Large
+-- blueprint near its spawn point is fixed once through coop lion's adopt, a Gardener body's mesh turned -90 degrees
+-- once, each with one [MXBOSS] line; a body far from the point is not the row's; bodies are looked for only near a boss
+-- point; the boss bar's <M_LionC> reads Lion while the fixed Lion lives; EVE in an arena with no body for 20 s gets one
+-- line naming coop mxiii boss, and nothing is spawned by itself; coop mxiii boss spawns the nearest arena's boss by its
+-- own command, and refuses outside Matrix XIII or away from any arena.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -38,7 +38,7 @@ FindAllOf=function(name)
     walks=walks+1
     return bodies
 end
-local Boss=require('cut.mxboss')
+local Boss=require('matrix13.world.boss')
 local lines,adopted,spawns={},{},{}
 local lion={adopt=function(c) adopted[#adopted+1]=c; return 'leader: the Lion AnimBP runs on a hidden CH_M_NA_46' end,
     command=function() spawns[#spawns+1]='lion'; return true,'Lion asked' end}
@@ -110,8 +110,8 @@ bodies={l1}
 clock=62; b.tick()
 assert(#adopted==2,'Fixed again after a map change')
 -- The generated points: the three bosses of the mxspawn batch.
-local Rows=require('cut.mxiii_rows')
+local Rows=require('matrix13.world.rows')
 for _,row in ipairs({'DLC02_20_E_CharS_904','DLC02_30_E_CharS_029','DLC02_40_E_CharS_051'}) do
     assert(Rows.BOSS[row] and #Rows.BOSS[row].at==3,row)
 end
-print('mxboss_test: ok')
+print('matrix13/world/boss_test: ok')

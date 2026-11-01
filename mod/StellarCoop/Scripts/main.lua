@@ -268,17 +268,18 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
             -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
             return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
         end} or nil})
--- coop mxiii [30] (cut/mxiii.lua), logging [MX] lines: Matrix XIII's camp rows asked of the native part, then the
--- follow's camp travel (read at each call: built below), once the zMXIII_P test pak is found under SB/Content/Paks;
--- coop mxiii leave, the follow's probe to the camp EVE respawned at before coop mxiii, or another camp this save has
--- activated. The same rows alone at the title, before any save loads, while the game uses the co-op save files (the
--- 250 ms loop below: mxiii.title), then its spawn, loot and mechanism rows and the Lion's and the Gardener's. In
--- world 2800 its tick spawns the ladders, ledges and ropes (cut/mxmove.lua) and fixes the bosses the game spawns
--- (cut/mxboss.lua, with coop lion's and coop gardener fight's instances); coop mxiii boss is their key-0 fallback, and
--- coop mxiii warp <n|name> puts EVE on one of the old warp switches' arrival points (a test fallback).
-local mxiii=require('cut.mxiii').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
+-- coop mxiii [30] (matrix13/world/travel.lua), logging [MX] lines: Matrix XIII's camp rows asked of the native part,
+-- then the follow's camp travel (read at each call: built below), once the zMXIII_P test pak is found under
+-- SB/Content/Paks; coop mxiii leave, the follow's probe to the camp EVE respawned at before coop mxiii, or another camp
+-- this save has activated. The same rows alone at the title, before any save loads, while the game uses the co-op save
+-- files (the 250 ms loop below: mxiii.title), then its spawn, loot and mechanism rows and the Lion's and the
+-- Gardener's. In world 2800 its tick spawns the ladders, ledges and ropes (matrix13/world/move.lua) and fixes the
+-- bosses the game spawns (matrix13/world/boss.lua, with coop lion's and coop gardener fight's instances); coop mxiii
+-- boss is their key-0 fallback, and coop mxiii warp <n|name> puts EVE on one of the old warp switches' arrival points
+-- (a test fallback).
+local mxiii=require('matrix13.world.travel').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
-    travel=function() return travel end,paks=require('cut.mxiii').paks_of(folder),
+    travel=function() return travel end,paks=require('matrix13.world.travel').paks_of(folder),
     read=require('core.link').files.read,lion=lion,gardener=gardener})
 -- The teleport screen's extra tabs (ui/region_tabs.lua), logging [RT] lines. Their records come from the native part.
 local region_tabs=require('ui.region_tabs').new({log=function(m) print('[StellarCoop][RT] '..tostring(m)..'\n') end,
@@ -564,18 +565,18 @@ o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][N
     paused=function() return kit~=nil and kit.paused(true) end,title=function() return at_title end,tell=tell,
     start=function(level) return commands.nightop('start',level) end,
     shop=function() return commands.nightop('shop') end,phase=function() return night.phase() end})
--- Lily's signal (story/lily.lua, experimental), logging [LY] lines: on a co-op save, solo, with the zMXIII_P test pak,
--- in Phase 5 the mod's prologue starts and her choice list offers "The other signal"; its pick plays the prologue talk,
--- starts the mod's quest "On Time" and runs coop mxiii's travel; coop lily signal|talk|hold by hand. Ticked in the
--- 250 ms loop below (with the Steam link only), after coop off too: coop off puts her list back. Its rows also go in at
--- the title on the co-op save files, with the test pak only (lily.title). Its talks (story/subtitles.lua) play through
--- coop scene's rows, ticked each frame below.
+-- Lily's signal (matrix13/quest/on_time.lua, experimental), logging [LY] lines: on a co-op save, solo, with the
+-- zMXIII_P test pak, in Phase 5 the mod's prologue starts and her choice list offers "The other signal"; its pick plays
+-- the prologue talk, starts the mod's quest "On Time" and runs coop mxiii's travel; coop lily signal|talk|hold by hand.
+-- Ticked in the 250 ms loop below (with the Steam link only), after coop off too: coop off puts her list back. Its rows
+-- also go in at the title on the co-op save files, with the test pak only (lily.title). Its talks (story/subtitles.lua)
+-- play through coop scene's rows, ticked each frame below.
 local function lily_log(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end
 local talks=require('story.subtitles').new({log=lily_log,scene=scene})
-o.lily=require('story.lily').new({log=lily_log,
+o.lily=require('matrix13.quest.on_time').new({log=lily_log,
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
     mode=function() return link and link.mode() end,paused=function() return kit~=nil and kit.paused(true) end,
-    travel=function() return commands.mxiii() end,paks=require('cut.mxiii').paks_of(folder),
+    travel=function() return commands.mxiii() end,paks=require('matrix13.world.travel').paks_of(folder),
     read=require('core.link').files.read,talks=talks})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
@@ -1148,7 +1149,7 @@ if link then
             guarded('hud',hud.slow)
             guarded('saves',saves_ui.slow,world==true,title==true)
             -- Matrix XIII's rows at the title with the co-op save files, so a co-op save that names its camp loads
-            -- with them (cut/mxiii.lua: once a game run, with the test pak only).
+            -- with them (matrix13/world/travel.lua: once a game run, with the test pak only).
             guarded('mxiii',mxiii.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
             -- Lily's signal's rows likewise (test pak only), so a co-op save that holds the quest keeps it.
             guarded('lily',o.lily.title,title==true and world~=true,(link.saves() or {}).saves=='coop')

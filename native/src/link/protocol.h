@@ -575,11 +575,11 @@ inline uint64_t code_lobby(std::string_view text) {
 // index above 0, both within 32 bits); and for coop lion (cut/lion.lua) "lion rows
 // <Table>=0x<address> ...", for coop gardener fight (cut/gardener.lua) "gardener rows <Table>=0x<address> ...", for
 // coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt (through
-// cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (cut/mxiii.lua) "mxiii rows <Table>=0x<address>
-// ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop rows
-// <Table>=0x<address> ..." and for Lily's signal (story/lily.lua) "signal rows <Table>=0x<address> ..." and for
-// Matrix XIII's other batches (cut/mxiii.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper rows ...", "mxmiddle
-// rows ...", "mxlower rows ...", "mxnames rows ..." and "mxlily rows ..."
+// cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (matrix13/world/travel.lua) "mxiii rows
+// <Table>=0x<address> ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop
+// rows <Table>=0x<address> ..." and for Lily's signal (matrix13/quest/on_time.lua) "signal rows <Table>=0x<address>
+// ..." and for Matrix XIII's other batches (matrix13/world/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper
+// rows ...", "mxmiddle rows ...", "mxlower rows ...", "mxnames rows ..." and "mxlily rows ..."
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each table the batch writes, 1 to
 // 34 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
 // stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
@@ -593,12 +593,12 @@ inline uint64_t code_lobby(std::string_view text) {
 // Night Operation shop in SB's own shop screen (nightop/shop.lua, nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
-// nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (story/lily.lua, the same header) "lily
-// on" and "lily off"; for the mod's own quests (story/lily.lua, quest/own.h) "signal watch" (the reads only, from then
-// on), "signal acquire" (acquire On Time), "signal complete" (its M01 task's Complete), "signal prologue" (acquire the
-// prologue), "signal talked" (the prologue's task's Complete), "signal zone4" and "signal tell" (On Time's M05 and M06
-// tasks' Complete) and "signal next" (a test word: the task of On Time's active group). No console argument reaches
-// any of them: the words are fixed, and so are each word's quest ID and group.
+// nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (matrix13/quest/on_time.lua, the same
+// header) "lily on" and "lily off"; for the mod's own quests (matrix13/quest/on_time.lua, quest/own.h) "signal watch"
+// (the reads only, from then on), "signal acquire" (acquire On Time), "signal complete" (its M01 task's Complete),
+// "signal prologue" (acquire the prologue), "signal talked" (the prologue's task's Complete), "signal zone4" and
+// "signal tell" (On Time's M05 and M06 tasks' Complete) and "signal next" (a test word: the task of On Time's active
+// group). No console argument reaches any of them: the words are fixed, and so are each word's quest ID and group.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
   remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
