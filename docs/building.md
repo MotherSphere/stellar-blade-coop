@@ -78,13 +78,13 @@ build/host/pose_codec_test
   `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `mxiii`, `scene`, `tendril`,
   `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
   `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
-  `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`,
-  `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `guide`, `kit`, `model`, `notice`, `text`) run
-  the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
-  fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for `main.lua`. `main/fight_test`
-  also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn probe`, the
-  `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`, `enemy_extra`,
-  `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row;
+  `partner/`: `capture`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`;
+  `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`; `ui/`: `guide`, `kit`, `model`,
+  `notice`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any
+  write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for
+  `main.lua`. `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight
+  spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`,
+  `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row;
   `main/fight_notices_test` the same place and same spawns notices in both languages; `main/quests_test` `coop quests`
   with the `shared_quests` and `quest_deny` settings and the shared quests' notices; `main/input_test` the controller's
   events from a fake `coop_pad` (routed to the menu, the co-op saves' question and the two boxes, never to the host's

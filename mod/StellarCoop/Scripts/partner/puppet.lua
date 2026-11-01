@@ -28,6 +28,10 @@
 -- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
 -- slot and stops it when the slot changes, at most 8 starts a second.
+-- The CNS part (a mod's meshes and materials, the value and hide lines) runs under its own guard: a Lua error there
+-- turns it off until coop cns reset or the next Lua load, and the ghost is built again without it (the base suit where
+-- a part has one), with one log line, instead of failing. Each engine call with an asset your CNS packs declare goes
+-- through the crash sentinel (partner/sentinel.lua), and an asset it set aside after a crash is drawn as missing.
 -- The build resolves one mesh a frame (a step a tick, never a coroutine), then names what it built for the native part
 -- (coop-display.txt), which writes the leaders' bones each frame and the main mesh's world transform into the mailbox,
 -- a scene component nothing moves; place() puts the root there after the native tick. A failed build is tried again
@@ -240,9 +244,10 @@ end
 -- Steam name, cns_assets() the assets our CNS packs declare (path to outfit). capture gives yaw_delta(), the loopback's
 -- offset. say(text,en) puts a line on screen (en: the same in English); name_tag: the tag. look: what else the ghost
 -- shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more). words: the words for the screen now
--- (ui/text.lua's T.en or T.fr; English when nil).
-function Puppet.new(link,capture,say,name_tag,look,words)
+-- (ui/text.lua's T.en or T.fr; English when nil). sentinel: partner/sentinel.lua's (none: nothing marked or set aside).
+function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     look=look or {}
+    sentinel=sentinel or require('partner.sentinel').new(nil)
     words=words or function() return T.en end
     local files=link or {remote_table=function() end,display=function() return false,'no native part' end,
         cns_assets=function() return {} end}
@@ -258,6 +263,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
     local value_names,value_name_count={},0 -- The FNames made for value lines, by name.
     local value_note -- Why a value was ignored, until said (then false): once per Lua load.
+    local cns_off -- Why the CNS part is off (a Lua error in it): until coop cns reset or the next Lua load.
     local doro_on,doro_log,doro_emote=false,nil,nil -- Doro mode, where its [DR] lines go, the race's emote.
     local doro_top=nil -- While a race drives: its top speed (cm/s), for her Doro's dash, play rate and tilt.
     -- Whose ghost: a friend's Steam name, else where her table comes from ('loopback', 'replay').
@@ -299,25 +305,27 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         if cache[key]==false then return nil end
         local asset=valid(cache[key] or nil)
         if asset and asset:IsA(find(class)) and asset:GetFullName():match('^%S+ (.+)$')==path then return asset end
-        local started,by=os.clock(),'in memory'
-        asset=valid(StaticFindObject(path))
-        if not asset then
-            by='by LoadAsset'
-            local ok,loaded=pcall(LoadAsset,path)
-            asset=ok and valid(loaded) or nil
-        end
-        if not asset and mod then
-            by='by GetAsset'
-            local ok,loaded=pcall(function()
-                return find('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
-            end)
-            asset=ok and valid(loaded) or nil
-        end
-        if asset and not asset:IsA(find(class)) then asset=nil end
-        -- A Poseable's SetSkeletalMesh reads the mesh's Skeleton unchecked: null is an access violation no pcall catches
-        -- (a CNS mesh did it on 2026-10-31, the same crash in two minidumps).
-        local no_skeleton=asset and class=='/Script/Engine.SkeletalMesh' and not valid(asset.Skeleton)
-        if no_skeleton then asset=nil end
+        local started,by,no_skeleton=os.clock(),'in memory',nil
+        sentinel.call(path,function() -- A declared mod asset: the lookup, the load and the checks under the marker.
+            asset=valid(StaticFindObject(path))
+            if not asset then
+                by='by LoadAsset'
+                local ok,loaded=pcall(LoadAsset,path)
+                asset=ok and valid(loaded) or nil
+            end
+            if not asset and mod then
+                by='by GetAsset'
+                local ok,loaded=pcall(function()
+                    return find('/Script/AssetRegistry.Default__AssetRegistryHelpers'):GetAsset({ObjectPath=FName(path)})
+                end)
+                asset=ok and valid(loaded) or nil
+            end
+            if asset and not asset:IsA(find(class)) then asset=nil end
+            -- A Poseable's SetSkeletalMesh reads the mesh's Skeleton unchecked: null is an access violation no pcall
+            -- catches (a CNS mesh did it on 2026-10-31, the same crash in two minidumps).
+            no_skeleton=asset and class=='/Script/Engine.SkeletalMesh' and not valid(asset.Skeleton)
+            if no_skeleton then asset=nil end
+        end)
         cache[key]=asset or false
         counts.loaded,counts.ms=counts.loaded+1,counts.ms+(os.clock()-started)*1000
         if mod then
@@ -325,10 +333,39 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         end
         return asset
     end
+    -- A mod's asset: outside the game's own folders, or one your CNS packs declare.
+    local function modded(path) return path~=nil and (not Capture.base_path(path) or files.cns_assets()[path]~=nil) end
+    -- What the sentinel's marker names for a call with two assets: the first when your CNS packs declare it.
+    local function sentinel_name(first,second) return files.cns_assets()[first] and first or second end
+    -- The CNS part's own guard. cns_run(f,...): f's results; a Lua error in it turns the CNS part off and raises CNS_TRIP
+    -- instead, which the build, a re-dress and the texture step answer with cns_tripped(): the ghost removed, to be
+    -- built again at the next tick without the CNS part, and one line for the log. Never a failed try (retry()). With
+    -- the CNS part off already, f runs as any step: an error then (a fallback's) fails the ghost as before, never a
+    -- rebuild at every tick.
+    local CNS_TRIP={}
+    local function cns_run(f,...)
+        if cns_off then return f(...) end
+        local r=table.pack(pcall(f,...))
+        if r[1] then return table.unpack(r,2,r.n) end
+        if r[2]~=CNS_TRIP then cns_off=tostring(r[2]) end
+        error(CNS_TRIP,0)
+    end
+    -- cns_run(f,...) when mod is true, else f(...): an error there fails the build as before.
+    local function cns_if(mod,f,...)
+        if mod then return cns_run(f,...) end
+        return f(...)
+    end
+    local function cns_tripped()
+        clear('CNS part off')
+        return false,'CNS part of the ghost off until coop cns reset or the next Lua load ('..tostring(cns_off)..'): '
+            ..'the ghost is built again without mod meshes, mod materials, material values or hidden slots.'
+    end
     -- An asset a peer named (a part's mesh, one of its materials, its cloth's collision, the one named from her body):
     -- the game's own resolved as any; a mod's only when one of your own CNS packs declares that exact path, else never
-    -- looked up or loaded (nil, and why).
+    -- looked up or loaded (nil, and why). Neither a set-aside asset nor, with the CNS part off, a mod's.
     local function fetch(path,counts,class)
+        if sentinel.aside(path) then return nil,'set aside after a crash (coop cns reset)' end
+        if cns_off and modded(path) then return nil,'not loaded with the CNS part off' end
         if Capture.base_path(path) then return resolve(path,counts,class) end
         if not files.cns_assets()[path] then return nil,'not declared by your CNS packs' end
         return resolve(path,counts,class,true)
@@ -353,12 +390,12 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         for k=#g.textures,1,-1 do
             if g.textures[k].s==s then table.remove(g.textures,k) end
         end
-        pcall(function() s.target:SetMaterial(s.slot,s.material) end)
+        pcall(sentinel.call,s.path,function() s.target:SetMaterial(s.slot,s.material) end)
     end
     -- The values not set yet on a dyed slot (s, from dye()): its dynamic instance made first, once. Colours at once, a
     -- texture later in g.textures. Any failure puts the plain material back: what is drawn without values.
     local function tint(g,s,values)
-        local made,why=pcall(function()
+        local made,why=pcall(sentinel.call,s.path,function() -- One marker for the instance and all its values.
             s.mid=s.mid or valid(s.target:CreateDynamicMaterialInstance(s.slot,s.material,FName('None')))
             assert(s.mid,'no dynamic instance')
             for _,v in ipairs(values) do
@@ -389,6 +426,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     -- A part's new values on the slots dyed so far, every slot's own material only. A value no longer in the table cannot
     -- be taken off an instance: the slot goes back to plain, and what is left goes on a new one.
     local function tint_part(g,part)
+        if cns_off then return end
         for _,m in ipairs(part.materials) do
             local s=g.tints[part.i..':'..m.slot]
             if s and not s.failed and s.path==m.path then
@@ -410,7 +448,11 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             local w=table.remove(g.textures,1)
             local ok,why=pcall(function()
                 local asset=fetch(w.path,{loaded=0,ms=0,mods={}},TEXTURE)
-                if asset and valid(w.s.mid) then w.s.mid:SetTextureParameterValue(w.name,asset) end
+                if asset and valid(w.s.mid) then -- The marker names the texture when it is a mod's, else the material.
+                    sentinel.call(sentinel_name(w.path,w.s.path),function()
+                        w.s.mid:SetTextureParameterValue(w.name,asset)
+                    end)
+                end
             end)
             if not ok then
                 note_value('Material texture not set ('..tostring(why)..').')
@@ -430,11 +472,11 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     -- dyes rule (built.own). A failure shows every slot, said once.
     local function shape(g,part)
         local built=g.parts[part.i]
-        if not (built and built.own) then return end
+        if cns_off or not (built and built.own) then return end
         local hide=table.concat(part.hidden,' ')
         if built.hide~=hide then
             built.hide=hide
-            local ok,why=pcall(function()
+            local ok,why=pcall(sentinel.call,part.path,function()
                 built.target:ShowAllMaterialSections(0)
                 local n=built.target:GetNumMaterials()
                 for _,slot in ipairs(part.hidden) do
@@ -443,7 +485,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             end)
             if not ok then
                 note_value('Hidden slots not set ('..tostring(why)..').')
-                pcall(function() built.target:ShowAllMaterialSections(0) end)
+                pcall(sentinel.call,part.path,function() built.target:ShowAllMaterialSections(0) end)
             end
         end
     end
@@ -537,7 +579,8 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             end
             return target
         end
-        local function add(mesh,part)
+        -- path: the mesh's, for the crash sentinel.
+        local function add(mesh,part,path)
             -- A follower with cloth is a SkeletalMeshComponent: NvCloth reads its master's component-space bones
             -- with no class check, so its cloth swings on the Poseable leader's (SetMasterPoseComponent, set before
             -- its mesh so the cloth is created on the leader's bones, as SB sets up its slots).
@@ -556,7 +599,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                     target.bLocalSpaceSimulation=true -- As hers: the cloth's inertia comes from its frame's moves.
                     if part.name:find('Ponytail',1,true) then collide(target,part) end
                     target:SetMasterPoseComponent(g.parts[part.lead].target,false)
-                    target:SetSkeletalMesh(mesh,true)
+                    sentinel.call(path,function() target:SetSkeletalMesh(mesh,true) end)
                 end)
                 if made then g.cloth[#g.cloth+1]=target; return light(target) end
                 if target then pcall(function() target:K2_DestroyComponent(actor) end) end
@@ -565,7 +608,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             local target=valid(actor:AddComponentByClass(poseable,false,identity,false)) -- The first is the root.
             assert(target,'a ghost part could not be added')
             target:SetCollisionEnabled(0)
-            target:SetSkeletalMesh(mesh,true) -- Its own materials, unless dyed below.
+            sentinel.call(path,function() target:SetSkeletalMesh(mesh,true) end) -- Its own materials, unless dyed below.
             return light(target)
         end
         -- One of the table's materials on a part drawn on its own mesh (a fallback's slots are another mesh's): a step
@@ -573,7 +616,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         local function dye(target,part,m)
             local material,why=fetch(m.path,counts,'/Script/Engine.MaterialInterface')
             if material and m.slot<target:GetNumMaterials() then
-                target:SetMaterial(m.slot,material)
+                sentinel.call(m.path,function() target:SetMaterial(m.slot,material) end)
                 g.dyed=g.dyed+1
                 g.tints[part.i..':'..m.slot]={target=target,slot=m.slot,material=material,path=m.path,done={}}
             else
@@ -619,7 +662,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if not mesh then return left_out(part) end
             local based=base~=part.path
             if based then missed(part) end
-            local target=add(mesh,part)
+            local target=add(mesh,part,base)
             if part.lead then
                 notes[#notes+1]=string.format('%s: %s %s, drawn as %s',part.name,part.path or '-',why,base)
                 return keep(part,target,mesh,based)
@@ -651,10 +694,12 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 if mesh then
                     -- A mod's mesh takes hers with dyes off too: CNS puts an outfit's materials on at run time.
                     local own=look.dyes or not Capture.base_path(part.path)
-                    local target=add(mesh,part)
+                    local target=add(mesh,part,part.path)
                     if part.lead or target:GetNumBones()==part.bones then
                         if own then
-                            for k,m in ipairs(part.materials) do soon(function() dye(target,part,m) end,k) end
+                            for k,m in ipairs(part.materials) do
+                                soon(function() cns_if(modded(m.path) or modded(part.path),dye,target,part,m) end,k)
+                            end
                         end
                         keep(part,target,mesh)
                         g.parts[part.i].own=own
@@ -676,7 +721,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if look.cloth and part.cloth then
                 g.steps[#g.steps+1]=function() fetch(part.cloth,counts,PHYSICS_ASSET) end
             end
-            g.steps[#g.steps+1]=function() dress(part) end
+            g.steps[#g.steps+1]=function() cns_if(modded(part.path),dress,part) end -- A mod's mesh: the CNS guard.
         end
         -- Doro mode: its mesh and each clip its keepers hold found or loaded in a step of its own, never with another
         -- one (while the look is on, its own Doro's keepers hold them already).
@@ -751,8 +796,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             for _,part in ipairs(remote.parts) do
                 if g.parts[part.i] then
                     hang(g,part)
-                    tint_part(g,part) -- The table now, as for the hanging.
-                    shape(g,part)
+                    cns_run(function() tint_part(g,part); shape(g,part) end) -- The table now, as for the hanging.
                 end
             end
             local lines={'display '..t.generation,'mailbox '..hex(g.mailbox)..' '..hex(g.mailbox:GetClass())}
@@ -809,6 +853,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if not ghost.steps[1] then ghost.steps=nil; return ghost.finish() end
         end)
         if ok then return line and true,line end
+        if line==CNS_TRIP then return cns_tripped() end
         clear('build failed')
         retry()
         return false,'Ghost not built: '..tostring(line)
@@ -823,7 +868,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 part.shown~=was.shown) then
                 hang(ghost,part)
             end
-            if ghost.parts[part.i] then tint_part(ghost,part); shape(ghost,part) end
+            if ghost.parts[part.i] then cns_run(function() tint_part(ghost,part); shape(ghost,part) end) end
         end
     end
     -- From main.lua every 250 ms, after link.changes(): the remote table the native part holds (generation, count of
@@ -850,6 +895,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             remote=t
             if not (ghost and ghost.built) then return end -- A build in progress hangs its parts from the new one.
             local ok,why=pcall(redress,old)
+            if why==CNS_TRIP then return cns_tripped() end
             if not ok then retry(); return false,clear('stopped: '..tostring(why)) end
             return said_value()
         end
@@ -920,6 +966,22 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         self.rebuild('basesuit')
         return true,basesuit and 'Base suit on: the body and hair are drawn on the base suit, driven by bone name.'
             or 'Base suit off: each part on its own mesh again.'
+    end
+    -- coop cns: the CNS part on or off (and why), and the assets the crash sentinel set aside. reset: the list emptied
+    -- and the CNS part on again, the ghost built again at once.
+    function self.cns(arg,extra)
+        if extra~=nil or arg~=nil and arg~='reset' then return false,'Use: coop cns [reset]' end
+        if arg=='reset' then
+            local n=sentinel.reset()
+            cns_off=nil
+            self.rebuild('coop cns reset')
+            return true,string.format('CNS reset: %d set-aside asset%s cleared, the CNS part is on; the ghost is built '
+                ..'again.',n,n==1 and '' or 's')
+        end
+        local names={}
+        for _,a in ipairs(sentinel.list()) do names[#names+1]=a.path..' ('..a.outfit..')' end
+        return true,'CNS part '..(cns_off and 'off ('..cns_off..')' or 'on')..'; set aside after a crash: '
+            ..(names[1] and table.concat(names,', ') or 'none')..' (coop cns reset clears both).'
     end
     -- Ghost parts in the world that are not this Lua load's ghost (one the game restored would show here).
     local function strays()
@@ -1314,7 +1376,12 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             back_since=nil
         end
         if ghost and ghost.steps then return step() end
-        if ghost then return texture_step(ghost) end
+        if ghost then
+            local ok,a,b=pcall(cns_run,texture_step,ghost) -- All of it CNS: values.
+            if ok then return a,b end
+            if a==CNS_TRIP then return cns_tripped() end
+            error(a,0)
+        end
         if not remote then return end
         if not eve then back_since=nil; return end
         back_since=back_since or os.clock()

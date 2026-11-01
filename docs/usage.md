@@ -831,6 +831,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
+| `coop cns` | Show whether the ghost's CNS part is on and which mod assets the crash sentinel set aside |
+| `coop cns reset` | Clear the set-aside list, turn the CNS part on again and build the ghost again |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
 | `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
@@ -907,6 +909,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 - `coop look` with no arguments prints the same `look:` line that each load logs, for example
   `look: cloth=on dyes=off effects=off`. `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod
   reloads (game start or Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](#looks).
+- `coop cns` prints one line: `CNS part on` (or `off (<error>)`), then the mod assets set aside after a crash, each with
+  its outfit, or `none`. `coop cns reset` clears both and builds the ghost again. See [When a mod asset
+  fails](#when-a-mod-asset-fails).
 
 ### `coop where`
 
@@ -3203,6 +3208,27 @@ With `mod_names=off` in `coop-settings.txt`, your capture leaves out every path 
 friend's ghost of you shows those parts on the base suit or leaves them out, and no folder or outfit name of yours
 reaches them.
 
+### When a mod asset fails
+
+A Lua error while the ghost sets up a mod's mesh, a mod's material, CNS colours or hidden slots turns its CNS part off.
+The ghost is built again at once without mod meshes, mod materials, colours or hidden slots: those parts show on the
+base suit or are left out, as for a mod you lack. Everything else goes on: the link, the chat, the shared enemies and
+the shared quests. The log says `CNS part of the ghost off until coop cns reset or the next Lua load (<error>)`. The CNS
+part comes back with `coop cns reset` or at the next game start or Ctrl+R.
+
+A crash inside the engine cannot be caught that way, so the mod keeps a marker instead. Just before the ghost hands the
+engine an asset your CNS packs declare, it writes the asset's path and outfit into `coop-cns-call.txt`, and it empties
+the file as soon as the call is done. If the game crashes during that call, the file is still full at the next start.
+The mod then puts that asset on a set-aside list (`coop-cns-aside.txt`), logs `Crash sentinel: the game crashed during a
+call with the mod asset <path> (outfit <outfit>)`, and shows one notice:
+
+`The game crashed last time while the ghost used the mod asset SK_Foo. It stays off the ghost until coop cns reset.`
+
+From then on the ghost draws that asset as missing: a mesh on the base suit or left out, a material as the mesh's own, a
+texture not set. The build line shows `<path> set aside after a crash (coop cns reset)`. The list is cleared by `coop
+cns reset` and when you install another version of the mod. A crash at any other moment leaves the file empty and sets
+nothing aside. Neither part has been tested in game yet.
+
 Not carried: shape keys and face morphs, accessories that are static meshes, actors attached to EVE, and parts past 16.
 A pose holds about 900 leader bones in all. When her parts have more, the capture leaves out the last leader parts and
 their followers until the pose fits, and its log line ends with `<n> leaders left out, over the pose size`.
@@ -3399,6 +3425,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from |
 | `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): the only paths from a mod's folder the ghost loads |
+| `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare, empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](#when-a-mod-asset-fails)) |
+| `coop-cns-aside.txt` | Lua | The mod assets set aside after a crash: `version <mod version>`, then one `<path> <outfit>` line each. Cleared by `coop cns reset` and by another mod version |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded or the title screen is shown, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |

@@ -133,6 +133,8 @@ file is written in full beside its final name and then renamed over it, so the r
 - `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
   go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](#cut-mailbox)).
+- Two files are Lua's alone, for the [crash sentinel](#cns-guard-and-crash-sentinel): `coop-cns-call.txt`, written in
+  place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the set-aside list.
 
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
@@ -736,6 +738,46 @@ ghost is drawn again. The ponytail's cloth part is set up as SB sets up hers: th
 hang on (`AdditiveMasterBoneArray`), the collision asset as `OverrideClothPhysicsAsset` (the table's `cloth` line, else
 the outfit's `<body mesh>_PonytailPhysicsAsset`), then its leader, then its mesh, which creates the cloth. Each asset is
 loaded in a build step of its own: the named one before its part's step, the outfit's after the body's.
+
+### CNS guard and crash sentinel
+
+The CNS part of the ghost is the work that touches a mod's assets or CNS data: the build step of a part whose mesh path
+is a mod's (outside the game's folders, or declared by your CNS packs), a material step with a mod's material, the
+material values and the hide lines. It runs under its own `pcall`, apart from the rest of the build. A Lua error there
+turns the CNS part off until `coop cns reset` or the next Lua load. The ghost is removed and built again at the next
+tick without it: mod meshes and mod materials are not loaded, so those parts fall back to the base suit or are left out
+(see [Fallback: the base suit](#6-fallback-the-base-suit)), and no values or hidden slots are set. The log gets one
+line, `CNS part of the ghost off until coop cns reset or the next Lua load (<error>): ...`. It does not count as one of
+the build's three tries. The link, the shared enemies and the shared quests run in modules of their own and go on.
+
+A `pcall` catches Lua errors only. An access violation inside the engine closes the game: a CNS mesh with no skeleton
+did it on 2026-10-31. The crash sentinel (`partner/sentinel.lua`) deals with that case at the next load. Before each
+engine call with an asset your CNS packs declare, Lua writes `coop-cns-call.txt` with the asset's path and outfit, and
+empties the file once the call returns or raises. The calls covered are:
+
+- the asset's lookup and load (`StaticFindObject`, `LoadAsset`, `AssetRegistryHelpers:GetAsset`), with the class and
+  skeleton checks;
+- `SetSkeletalMesh` with a mod's mesh;
+- `SetMaterial` with a mod's material, also when a slot goes back on its plain material;
+- `CreateDynamicMaterialInstance` from a mod's material, together with that slot's colour values;
+- each `SetTextureParameterValue` (the marker names the texture when it is a mod's, else the slot's material);
+- the hide calls on a part drawn on a mod's mesh.
+
+A call inside another call's span keeps the outer marker. Each span costs one small write before and one after. A cached
+asset writes nothing, and none of these calls runs each frame. A crash outside every span finds the file empty and sets
+nothing aside.
+
+When the next Lua load finds the file not empty, the game died during that call. The asset goes on the set-aside list,
+`coop-cns-aside.txt`, and the marker is emptied. The log says `Crash sentinel: the game crashed during a call with the
+mod asset <path> (outfit <outfit>). ...`, and one notice names the asset once the co-op UI is up or a save is loaded.
+From then on the ghost treats that asset as missing. A mesh falls back like any part your PC cannot load, with `<path>
+set aside after a crash (coop cns reset)` in the build line. A material leaves the slot on the mesh's own, and a texture
+is skipped. The list's first line is the mod version (`version v0.7.5`), and a load of another version drops the list.
+`coop cns reset` empties it and turns the CNS part on again.
+
+Not covered: the native part's bone writes each frame and the render thread's use of a mod's mesh. A crash there leaves
+no marker. A crash on another thread during a span would set that span's asset aside by mistake; `coop cns reset` brings
+it back. Not tested in game yet.
 
 ### Solid partner
 

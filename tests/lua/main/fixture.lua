@@ -221,6 +221,7 @@ package.loaded['partner.puppet']={new=function(link,capture,say,tag,looks)
         active=function() return active end,status=function() return 'ghost='..(active and 'on' or 'off') end,
         remote=function(g,n,source) remoted={g,n,source} end,place=function() end,
         basesuit=function() basesuits=basesuits+1; return true,'base suit' end,
+        cns=function(arg) cns_args=arg; return true,'cns '..tostring(arg) end,
         where=function() wheres=wheres+1; return true,'where map=/game/e04' end,
         world=function() return in_world,at_title end,
         photo=function(ghost_off,tag_off) photo_veils[#photo_veils+1]={ghost_off,tag_off} end,
@@ -613,7 +614,7 @@ package.loaded.version='v9-test'
 USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
     ..'status | report | mark [text] | where | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
-    ..'on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
+    ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
     ..'emote [list|<name>|off] | '
     ..'no [heal|rule|spawnpt|actor] | '
     ..'nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | '

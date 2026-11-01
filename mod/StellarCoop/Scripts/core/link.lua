@@ -496,6 +496,9 @@ function Link.new(folder,fs)
     -- written through a temporary file (true, or false and why).
     function self.read_file(name) return fs.read(path(name)) end
     function self.write_file(name,text) return put(name,text) end
+    -- A small file of ours written in place, with no temporary file: one write (partner/sentinel.lua's marker, paid at
+    -- each call it covers).
+    function self.write_now(name,text) return fs.write(path(name),text) end
     -- An object path kept across Lua loads, so a reload can sweep what an earlier one left: the ghost's in
     -- coop-puppet.txt unless named (the UI root's: coop-ui.txt).
     function self.store(name)

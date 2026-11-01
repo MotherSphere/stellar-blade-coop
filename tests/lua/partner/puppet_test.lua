@@ -100,10 +100,14 @@ meshes[PONY].MeshClothingAssets={object('ClothingAsset')}
 meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
 local lookups,loads=0,{} -- Mesh lookups (StaticFindObject on a /Game path) and LoadAsset's paths.
 local finds,gets,unregistered={},{},{} -- Their /Game paths, GetAsset's; assets LoadAsset misses (a mod's added ones).
+-- When set: called with each load, SetSkeletalMesh and SetMaterial and its asset's path (the crash sentinel's tests).
+local marker_spy=nil
+local fail_mesh,fail_material=nil,nil -- SetSkeletalMesh or SetMaterial raises a Lua error for this path.
 local frame=0 -- Each ghost.tick() reads the player once: the frame it runs in. A mesh keeps the frame it was resolved in.
 LoadAsset=function(path)
     ue4ss()
     loads[#loads+1]=path
+    if marker_spy then marker_spy('LoadAsset',path) end
     if unregistered[path] then return invalid end
     if meshes[path] then meshes[path].resolved_at=frame end
     return meshes[path] or invalid
@@ -123,7 +127,11 @@ local function poseable(actor)
     for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
         p[f]=function(self,a) self.calls[f]=a end
     end
-    function p:SetSkeletalMesh(m) self.mesh,self.added_at=m,frame end
+    function p:SetSkeletalMesh(m)
+        if marker_spy then marker_spy('SetSkeletalMesh',m.path) end
+        if fail_mesh==m.path then error('bad mod mesh') end
+        self.mesh,self.added_at=m,frame
+    end
     function p:GetNumBones() return #self.mesh.bones end
     function p:GetBoneName(j) return fname(self.mesh.bones[j+1]) end
     function p:SetVisibility(v) self.visible=v end
@@ -149,6 +157,8 @@ local function poseable(actor)
     if dyeable then
         function p:GetNumMaterials() return 2 end
         function p:SetMaterial(slot,m)
+            if marker_spy then marker_spy('SetMaterial',m.path) end
+            if fail_material==m.path then error('bad mod material') end
             self.dyes=self.dyes or {}
             self.dyes[#self.dyes+1]={slot=slot,material=m,at=frame}
         end
@@ -373,6 +383,7 @@ StaticFindObject=function(path)
         c.GetAsset=function(_,data) -- An asset data with its path only: loaded by that path, in the registry or not.
             local asked=data.ObjectPath:ToString()
             gets[#gets+1]=asked
+            if marker_spy then marker_spy('GetAsset',asked) end
             if meshes[asked] then meshes[asked].resolved_at=frame end
             return meshes[asked] or invalid
         end
@@ -423,11 +434,11 @@ local link={remote_table=function() return remote_file end,store=function() retu
 local capture={yaw_delta=function() return 90 end} -- Her actor faces yaw 90 more than her mesh.
 local Words=require('ui.text')
 local words=Words.en -- The words for the screen (main.lua's: the game's language).
-local function new(path_left,name_tag,look)
+local function new(path_left,name_tag,look,sentinel)
     stored=path_left
     package.loaded['partner.puppet']=nil
     return require('partner.puppet').new(link,capture,function(text,en) said[#said+1]=text; said_en[#said]=en end,
-        name_tag~=false,look,function() return words end)
+        name_tag~=false,look,function() return words end,sentinel)
 end
 local ghost=new(nil)
 local count=0
@@ -1866,6 +1877,91 @@ ok,message=build()
 assert(ok and message:find('; SBPonytail: outfit collision not used %('..plain(PA)
     ..' not declared by your CNS packs%)'),message)
 assert(not (seen(finds,PA) or seen(loads,PA) or seen(gets,PA)),'Never looked up or loaded: '..PA)
+
+do
+-- The crash sentinel (partner/sentinel.lua, with fake files): each load, SetSkeletalMesh and SetMaterial of an asset our
+-- CNS packs declare runs with the marker naming it and its outfit; a game asset's with none; the marker empty after.
+local Sentinel=require('partner.sentinel')
+local sdisk={}
+local sfiles={read_file=function(n) return sdisk[n] end,write_file=function(n,t) sdisk[n]=t; return true end,
+    write_now=function(n,t) sdisk[n]=t; return true end,cns_assets=function() return cns end}
+cns={[SUIT]='Foo_Suit',[SUIT_MAT]='Foo_Suit',[PA]='Foo_Suit'}
+local marked={}
+marker_spy=function(call,path) marked[call..' '..tostring(path)]=sdisk[Sentinel.MARKER] or '' end
+local function fresh(generation,sentinel)
+    ghost=new(nil,true,{cloth=true},sentinel)
+    ghost.toggle()
+    finds,loads,gets={},{},{}
+    send(generation,modded(),'peer')
+    ghost.tick()
+    clock=clock+2
+    return build()
+end
+ok,message=fresh(906,Sentinel.new(sfiles,'v1'))
+marker_spy=nil
+local SUIT_MARK,MAT_MARK=SUIT..' Foo_Suit\n',SUIT_MAT..' Foo_Suit\n'
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+for call,mark in pairs({['LoadAsset '..SUIT]=SUIT_MARK,['GetAsset '..SUIT]=SUIT_MARK,['SetSkeletalMesh '..SUIT]=SUIT_MARK,
+    ['LoadAsset '..SUIT_MAT]=MAT_MARK,['SetMaterial '..SUIT_MAT]=MAT_MARK,['LoadAsset '..FACE]='',
+    ['SetSkeletalMesh '..FACE]=''}) do
+    assert(marked[call]==mark,call..': '..tostring(marked[call]))
+end
+assert(sdisk[Sentinel.MARKER]=='','Empty once the calls returned')
+-- The game died inside SetSkeletalMesh with her suit: the next Lua load sets it aside. Never looked up again, her body
+-- on the base suit with the reason, said with the outfits not shown; coop cns names it; coop cns reset brings it back.
+sdisk[Sentinel.MARKER]=SUIT_MARK
+local sentinel,crashed=Sentinel.new(sfiles,'v1')
+assert(crashed and crashed.path==SUIT and sdisk[Sentinel.MARKER]=='')
+ok,message=fresh(907,sentinel)
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+assert(not (seen(finds,SUIT) or seen(loads,SUIT) or seen(gets,SUIT)),'A set-aside asset is never looked up')
+assert(message:find('; CharacterMesh0: '..plain(SUIT)..' set aside after a crash %(coop cns reset%), drawn as '
+    ..plain(BASE_BODY)),message)
+assert(said[#said]:find('Foo_Suit',1,true),said[#said])
+ok,message=ghost.cns()
+assert(ok and message=='CNS part on; set aside after a crash: '..SUIT..' (Foo_Suit) (coop cns reset clears both).',
+    message)
+assert(ghost.cns('now')==false and ghost.cns('reset','x')==false)
+ok,message=ghost.cns('reset')
+assert(ok and message=='CNS reset: 1 set-aside asset cleared, the CNS part is on; the ghost is built again.',message)
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+-- The CNS part's own guard. A Lua error while her suit is set on its part: the ghost is not failed (no try counted)
+-- but built again without the CNS part, her body on the base suit, no mod material; one line says it. Later tables
+-- too, until coop cns reset.
+fail_mesh=SUIT
+local tries_said=#said
+ok,message=fresh(908,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('^CNS part of the ghost off until coop cns reset or the next Lua load %(.*bad mod mesh%):')
+    ,message)
+assert(sdisk[Sentinel.MARKER]=='','The marker emptied on the error too')
+ok,message=build()
+local body=spawned[#spawned].parts[1]
+assert(ok and message:find('^Ghost 908 built: ') and body.mesh==meshes[BASE_BODY] and not body.dyes,message)
+assert(message:find(plain(SUIT)..' not loaded with the CNS part off, drawn as '),message)
+-- With the CNS part off, an error in a fallback fails the ghost as before (a try counted), never a rebuild each tick.
+fail_mesh=BASE_BODY
+send(9081,modded(),'peer')
+ok,message=build()
+assert(ok==false and message:find('^Ghost not built: .*bad mod mesh'),message)
+clock=clock+2.5
+fail_mesh=nil
+send(909,modded(),'peer')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+assert(select(2,ghost.cns()):find('^CNS part off %(.*bad mod mesh%); set aside after a crash: none'))
+ghost.cns('reset')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+for k=tries_said+1,#said do assert(said[k]~=GAVE_UP,'Never counted as a failed try') end
+-- The same for a mod material's step.
+fail_material=SUIT_MAT
+ok,message=fresh(9101,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('%(.*bad mod material%)'),message)
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+fail_material=nil
+end
 cns={}
 
 -- Values (a dynamic material's, the table's value lines). On a dyed slot of a part on its own mesh: a dynamic instance
