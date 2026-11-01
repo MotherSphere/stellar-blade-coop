@@ -119,7 +119,7 @@ you do not own, a mod you lack), when its path is outside the game's character f
 declares it, or when its bones differ. Any other part whose mesh has other bones is drawn on that mesh, its bones
 matched by name; one that cannot be loaded is left out, with the parts that follow it. The `Ghost ... built` line in
 `UE4SS.log` counts the parts on the base suit and those left out, and gives each one's reason, such as `missing` or
-`not declared by your CNS packs`. `coop basesuit` may also be on: run it again to go back.
+`not declared by your CNS packs or a mod you both have`. `coop basesuit` may also be on: run it again to go back.
 
 ### A look misbehaves
 

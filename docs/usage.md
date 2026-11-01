@@ -3150,10 +3150,15 @@ The three looks have not been tested in game yet. Back up your saves before you 
   [Mods and CNS outfits](#mods-and-cns-outfits)). Both players need `dyes=on` for a colour on one of the game's own
   meshes, such as a CNS eye colour on the base face: the sender to send it, the viewer to show it. The same goes for
   the material slots a part hides (CNS toggles).
-- `effects`: her attack and skill effects. The native part reads which of 19 known effects (Niagara systems) are
-  playing on her, at most 4, into four effect slots of each pose (an index into a fixed list, never a path). The ghost
-  starts each effect on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8
-  starts a second. A fault in the native effect read or write turns effects off until the game restarts
+- `effects`: her attack and skill effects. The native part reads which Niagara systems are playing on her parts, at
+  most 4 at a time, into four effect slots of each pose. A slot holds an index: one of 19 known effects of EVE's own,
+  or one of up to 45 more that her capture names by path. Her capture gives a system such a name when it plays on one
+  of her parts with bones (body, hair, weapon) and lies in the game's FX folders (`/Game/Art/FX/` or
+  `/Game/DLC_<n>/Art/FX/`), or belongs to a mod you both have in one version (see
+  [Mods you both have](#mods-you-both-have)). It looks once a second, so the first time a new effect plays it does not
+  reach the ghost. Your game loads each named system once, during the build or one every 0.25 s after it, and a system
+  it cannot load or may not load draws nothing, with one note in the log for that ghost. The ghost starts each effect
+  on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8 starts a second. A fault in the native effect read or write turns effects off until the game restarts
   (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
   `effects, last 60 s:` line counts those started, those over 4, unlisted reads and boxes written.
 - `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
@@ -3202,11 +3207,40 @@ asset through that registry. When `LoadAsset` finds nothing for a path your pack
 `AssetRegistryHelpers:GetAsset`, which loads by path (the way UE4SS's BPModLoaderMod loads mod actors). This step has
 not been tested in game yet. The `Ghost ... built` log line says how each mod asset came:
 `mod assets: <path> by GetAsset` (or `by LoadAsset`, `in memory`, `missing`), and which outfits were not shown:
-`mod parts not shown: <names>`. A path your packs do not name shows as `<path> not declared by your CNS packs`.
+`mod parts not shown: <names>`. A path your packs do not name shows as `<path> not declared by your CNS packs or a mod you both have`.
 
 With `mod_names=off` in `coop-settings.txt`, your capture leaves out every path outside the game's own folders: your
 friend's ghost of you shows those parts on the base suit or leaves them out, and no folder or outfit name of yours
 reaches them.
+
+### Mods you both have
+
+When you and your friend load the same mod container, the ghost may also load that mod's assets, with or without a
+CNS pack. The same container means the same `.pak`, `.ucas` and `.utoc` file names and sizes under
+`SB/Content/Paks`. At start the native part reads the directory index of each mod's `.utoc` and keeps the `.uasset`
+paths under `SB/Content`. Once your friend's mod list arrives, it writes `coop-shared-assets.txt` with the paths of the
+containers she has with the same name and hash as yours, and the ghost is built again. Those paths then follow the CNS
+rules: loaded as a mod's asset (with the `GetAsset` step above), under the crash sentinel and the CNS guard (see
+[When a mod asset fails](#when-a-mod-asset-fails)). The build line names such a path `<path> by GetAsset` and so on,
+and the set-aside list names the container where it would name an outfit.
+
+What it needs:
+
+- the same mod, in the same version, on both PCs;
+- `mod_names=on` on both PCs (the default). With either side off, the list stays empty;
+- a mod that ships a `.utoc`. A mod that is a `.pak` alone gives no paths.
+
+The hash covers file names and sizes, not their contents, and your friend's game states it. Two builds of a mod whose
+files have the same sizes count as one version. Your game still loads only paths of your own containers.
+
+GodEmpress (`queen-lite` on Nexus) is an example. Version 4.3.1 adds no Niagara system of its own: the Raven and
+Scarlet effects its skills play are the game's own systems under `/Game/Art/FX/Char/Monster/RavenHuman/`,
+`/Game/DLC_2/Art/FX/` and EVE's FX folders, so the `effects` look names them by path whether or not you have the mod.
+Its animations arrive as bones, mod or not. Its Raven and Scarlet blades are new meshes inside the game's character
+folders, so your game draws them only with the mod installed; with the same version on both PCs they also load under
+the crash sentinel. What does not reach the ghost from it, as from any skill: effects placed in the world instead of on
+her (about a quarter of its effect keys), its Cascade weapon trails, decals, projectiles, the screen effects (post
+process, camera shake, time scale) and the weapon fades of its mode switch. None of this has been tested in game yet.
 
 ### When a mod asset fails
 
@@ -3426,6 +3460,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-remote.txt` | native | The remote table the ghost is built from |
 | `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): the only paths from a mod's folder the ghost loads |
 | `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare, empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](#when-a-mod-asset-fails)) |
+| `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](#mods-you-both-have)) |
 | `coop-cns-aside.txt` | Lua | The mod assets set aside after a crash: `version <mod version>`, then one `<path> <outfit>` line each. Cleared by `coop cns reset` and by another mod version |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded or the title screen is shown, the send rate, your photo mode and the photo settings |

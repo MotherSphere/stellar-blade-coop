@@ -96,7 +96,7 @@ std::string with(std::string text, const std::string &from, const std::string &t
 
 bool same(const Table &a, const Table &b, bool addresses) {
   if (a.generation != b.generation || a.map != b.map || a.eve.size() != b.eve.size() || a.look.size() != b.eve.size() ||
-      b.look.size() != b.eve.size())
+      b.look.size() != b.eve.size() || a.fx_paths != b.fx_paths)
     return false;
   for (size_t i = 0; i < a.eve.size(); ++i) {
     const Part &p = a.eve[i], &q = b.eve[i];
@@ -288,7 +288,7 @@ int main() {
            with(kLocal, "0x2f8", "760"),                                            // not hex
            with(kLocal, "effects 0xC0FF 0x2f8", "effects 0xC0FF"),                  // no offset
            with(kLocal, "effect 1 ", "effect 0 "),                                  // k 0
-           with(kLocal, "effect 19 ", "effect 33 "),                                // k over 32
+           with(kLocal, "effect 19 ", "effect 65 "),                                // k over 64
            with(kLocal, "effect 1 0x5000\neffect 19 0x5100\n",
                 "effect 19 0x5100\neffect 1 0x5000\n"),                             // a falling k
            with(kLocal, "effect 19 ", "effect 1 "),                                 // a repeated k
@@ -301,11 +301,46 @@ int main() {
            with(kLocal, "part 4 ", "effects 0xC0FF 0x2f8\npart 4 "),                // effects before the last part
        })
     assert(!parse_table(bad, true));
+  // Effects named by path (fx lines): after the last part in both forms, before the capture's effect lines; kept as
+  // read, a path the rule refuses dropped, the wire form carrying them at its end.
+  const std::string fx_lines = "fx 20 /Game/Art/FX/Char/Monster/RavenHuman/NS_R.NS_R\nfx 21 /Game/a//b.b\n"
+                               "fx 64 /Game/Mods/Queen/NS_Q.NS_Q\n";
+  auto named = parse_table(with(kLocal, "effects 0xC0FF", fx_lines + "effects 0xC0FF"), true);
+  using Paths = std::vector<std::pair<uint8_t, std::string>>;
+  assert(named && named->fx_paths == (Paths{{20, "/Game/Art/FX/Char/Monster/RavenHuman/NS_R.NS_R"},
+                                            {64, "/Game/Mods/Queen/NS_Q.NS_Q"}}));
+  assert(named->fx.assets[19] == 0x5100 && format_table(*named) ==
+         kWire + "fx 20 /Game/Art/FX/Char/Monster/RavenHuman/NS_R.NS_R\nfx 64 /Game/Mods/Queen/NS_Q.NS_Q\n");
+  auto named_wire = parse_table(format_table(*named), false);
+  assert(named_wire && named_wire->fx_paths == named->fx_paths && format_table(*named_wire) == format_table(*named));
+  assert(parse_table(kWire + "fx 20 /Game/X/X.X\n", false)->fx_paths.size() == 1);
+  assert(parse_table(with(kLocal, "effects 0xC0FF 0x2f8\neffect 1 0x5000\neffect 19 0x5100\n", "fx 20 /Game/X/X.X\n"),
+                     true)->fx_paths.size() == 1); // fx lines and no effect lines.
+  const std::string p256 = "/Game/" + std::string(250, 'p');
+  for (const std::string &bad : {
+           kWire + "fx 19 /Game/X/X.X\n",                         // a fixed entry
+           kWire + "fx 65 /Game/X/X.X\n",                         // past kMaxEffectAssets
+           kWire + "fx 0 /Game/X/X.X\n",                          // none
+           kWire + "fx 21 /Game/X/X.X\nfx 20 /Game/Y/Y.Y\n",       // not rising
+           kWire + "fx 20 /Game/X/X.X\nfx 20 /Game/Y/Y.Y\n",       // twice
+           kWire + "fx 20 " + p256 + "\n",                         // a path over 255 bytes
+           kWire + "fx 20 /Game/X/X.X 1\n",                       // a word too many
+           kWire + "fx 20\n",                                     // no path
+           kWire + "fx x /Game/X/X.X\n",                          // not a number
+           kWire + "fx 20 /Game/X/X.X\npart 5 0 0 - 1 0 Extra -\nplace 5" + flat, // a part after them
+           with(kWire, "part 4 ", "fx 20 /Game/X/X.X\npart 4 "),  // before the last part
+           kWire + "effects 0xC0FF 0x2f8\n",                      // effect lines on the wire
+       })
+    assert(!parse_table(bad, false));
+  assert(!parse_table(kLocal + "fx 20 /Game/X/X.X\n", true)); // After the capture's effect lines.
+  assert(parse_table(kWire + "fx 20 /Game/" + std::string(244, 'p') + "." + "x\n", false)->fx_paths.empty());
   // Effects at their edges: offsets 0x100 and 0x1000, entry 32, none found, and no effect lines at all.
   const std::string no_effects = kLocal.substr(0, kLocal.find("effects "));
   assert(parse_table(with(kLocal, "0x2f8", "0x100"), true)->fx.asset == 0x100);
   assert(parse_table(with(kLocal, "0x2f8", "0x1000"), true)->fx.asset == 0x1000);
   assert(parse_table(with(kLocal, "effect 19 ", "effect 32 "), true)->fx.assets[32] == 0x5100);
+  assert(parse_table(with(kLocal, "effect 19 ", "effect 64 "), true)->fx.assets[64] == 0x5100);
+  assert(!parse_table(with(kLocal, "effect 19 ", "effect 65 "), true));
   auto none_found = parse_table(no_effects + "effects 0xC0FF 0x2f8\n", true);
   assert(none_found && none_found->fx.cls == 0xc0ff && none_found->fx.assets == decltype(none_found->fx.assets){});
   auto no_read = parse_table(no_effects, true);
@@ -612,6 +647,9 @@ int main() {
     auto again = parse_table(canonical, false);
     assert(again && !again->ignored && same(*again, *t, false) && format_table(*again) == canonical);
     assert(is_local || !t->fx.cls);
+    for (size_t k = 0; k < t->fx_paths.size(); ++k)
+      assert(t->fx_paths[k].first > kFixedEffects && t->fx_paths[k].first <= kMaxEffectAssets &&
+             (!k || t->fx_paths[k].first > t->fx_paths[k - 1].first) && path_allowed(t->fx_paths[k].second));
     assert(!t->fx.assets[0] && (t->fx.cls ? t->fx.asset >= 0x100 && t->fx.asset <= 0x1000 && t->fx.asset % 8 == 0
                                           : !t->fx.asset && t->fx.assets == decltype(t->fx.assets){}));
     for (const Look &l : t->look) {

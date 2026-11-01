@@ -329,7 +329,8 @@ build/host/pose_codec_test
     any case counted, the listing's order and a name's case changing nothing, a size or a name changing the hash), the
     containers by name, the names as they go to the friend, hers against ours, the status list, and the CNS packs
     under `~mods` with their outfits and the `/Game` assets they declare (comments, other keys and a text cut short
-    included);
+    included), a `.utoc` directory index read into object paths (maps, other roots, encrypted, unindexed, cut short
+    and looped indexes refused) and the shared list of containers both players have;
   - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
     rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
     reloads;
@@ -451,7 +452,7 @@ Platform-free headers, tested on the build machine:
 | `game/camps.h` | The camps the save has activated, as SB's own camp list builds them, and the camp EVE respawns at: the calls and offsets, the guard, when to read and the `activated=` status line |
 | `game/dev_panels.h` | `coop devinfo`: the guard, the plan that opens one of SB's two read-only developer panels (the quest debugger, the player info) and closes the other, and their logic types and names |
 | `game/anim.h` | `coop emote`'s native clips: which clip paths pass, the path as the game's string, the call's arguments, the custom animation slot as read, our EVE and the check that she is still the object played on, what each frame does, and the track of the last play (its answer, the watch, the stop) with its log lines |
-| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare |
+| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare; the assets a mod's `.utoc` indexes and those of the mods both players have |
 
 The Windows side:
 

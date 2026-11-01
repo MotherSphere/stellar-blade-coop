@@ -151,7 +151,7 @@ if link then
     link.session(string.format('%d-%d',os.time(),math.floor(os.clock()*1000000)))
 end
 -- With mod_names=off, no mod's path goes in the capture either.
-local capture=require('partner.capture').new(link and link.components or nil,look,link and link.cns_assets or nil,
+local capture=require('partner.capture').new(link and link.components or nil,look,link and link.mod_assets or nil,
     settings~=nil and not settings.mod_names)
 local notice=require('ui.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box and the
@@ -1021,6 +1021,7 @@ if link then
     end
     -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
     local cns_said=false
+    local shared_seen=0 -- link.shared_version() as last acted on.
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
@@ -1152,6 +1153,12 @@ if link then
         if message then report(ok,message) end
         ok,message=guarded('ghost',puppet.remote,link.remote())
         if message then report(ok,message) end
+        -- A new list of mods both players have: the ghost built again with what it may now load (or no longer may).
+        if link.shared_version()~=shared_seen then
+            shared_seen=link.shared_version()
+            message=puppet.rebuild('shared mods changed')
+            if message then report(true,message) end
+        end
     end)
 end
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once

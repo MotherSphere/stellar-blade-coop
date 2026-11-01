@@ -427,7 +427,7 @@ local friend_name='Kaanta' -- Her Steam name, as the link gives it.
 local store={save=function(p) stored=p end,load=function() return stored end,clear=function() stored=nil end}
 local cns={} -- The assets our CNS packs declare, path to outfit (core/link.lua's cns_assets()).
 local link={remote_table=function() return remote_file end,store=function() return store end,
-    cns_assets=function() return cns end,
+    mod_assets=function() return cns end,
     display=function(text) displays[#displays+1]=text or 'withdrawn'; return true end,
     friend=function() return friend_name,true,false end,
     request=function(line) requests[#requests+1]=line; return true end} -- The ghost never asks the link anything.
@@ -1397,6 +1397,69 @@ box.RelativeScale3D.Z=40
 assert(ghost.place()==nil and box_reads==0 and actor.hidden==false,'No box read again')
 spawn_fails=false
 
+-- Systems named by path (the table's fx lines): one of the game's FX folders and one mod_assets() names (a mod both
+-- players have) are loaded in the build, a step each; another mod's is never looked up. A slot naming one starts it as
+-- a listed one; one named since the build is loaded by a tick, never in place(), and its first instance is skipped;
+-- a miss is said once.
+do
+local function fx_system(path)
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,class) return class.path=='/Script/Niagara.NiagaraSystem' end
+    meshes[path].GetFullName=function() return 'NiagaraSystem '..path end
+end
+local RAVEN='/Game/Art/FX/Char/Monster/RavenHuman/NS_Raven_Aura.NS_Raven_Aura'
+local QUEEN,STRAY='/Game/Mods/Queen/NS_Q.NS_Q','/Game/Mods/Other/NS_S.NS_S'
+local LATE='/Game/DLC_2/Art/FX/Scarlet/NS_Scarlet_Cut.NS_Scarlet_Cut'
+for _,p in ipairs({RAVEN,QUEEN,STRAY,LATE}) do fx_system(p) end
+unregistered[QUEEN]=true -- A mod's added asset: LoadAsset misses it, GetAsset finds it.
+cns[QUEEN]='~mods/queen_p'
+local function send_fx(fx)
+    remote_file=remote_text(901,her_parts())..fx
+    count=count+1
+    return ghost.remote(901,count,'loopback')
+end
+local function asked(path)
+    for _,list in ipairs({finds,loads,gets}) do for _,p in ipairs(list) do if p==path then return true end end end
+end
+finds,loads,gets={},{},{}
+local three='fx 20 '..RAVEN..'\nfx 21 '..QUEEN..'\nfx 22 '..STRAY..'\n'
+send_fx(three)
+ok,message=build()
+assert(ok and message:find('; look: effects loaded 18 of 19, 2 of 3 named by path'),message)
+assert(asked(RAVEN) and asked(QUEEN) and gets[#gets]==QUEEN and not asked(STRAY),'Two loaded, another mod\'s never')
+actor=spawned[#spawned]
+box=actor.mailbox
+clock=clock+1
+local before_spawns=#spawns
+slot(1,20,2,1)
+slot(2,21,0,1)
+box.RelativeScale3D.X=20
+assert(ghost.place()==nil and #spawns==before_spawns+2,'Both started')
+assert(spawns[#spawns-1].args[1]==meshes[RAVEN] and spawns[#spawns-1].args[2]==actor.parts[3] and
+    spawns[#spawns].args[1]==meshes[QUEEN],'Each its system, on its part')
+slot(3,22,0,1)
+box.RelativeScale3D.X=21
+ok,message=ghost.place()
+assert(ok==false and message=='Effect not shown: spawn failed: asset 22 is missing' and #spawns==before_spawns+2,
+    tostring(message))
+-- Named since: the same table with one fx line more, applied in place; its first instance waits for the load.
+assert(send_fx(three..'fx 23 '..LATE..'\n')==nil and spawned[#spawned]==actor,'In place')
+local loads_before=#loads
+slot(4,23,0,1)
+box.RelativeScale3D.X=22
+assert(ghost.place()==nil and #spawns==before_spawns+2 and #loads==loads_before,'Not loaded in place(), nothing said')
+assert(ghost.tick()==nil and loads[#loads]==LATE,'Loaded by a tick')
+slot(4,23,0,2)
+box.RelativeScale3D.X=23
+assert(ghost.place()==nil and #spawns==before_spawns+3 and spawns[#spawns].args[1]==meshes[LATE],'Then started')
+-- One a mod you no longer share: not loaded by the tick, said once.
+assert(send_fx(three..'fx 23 '..LATE..'\nfx 24 /Game/Mods/Gone/NS_G.NS_G\n')==nil)
+ok,message=ghost.tick()
+assert(ok==false and message=='Effect named by path not loaded: /Game/Mods/Gone/NS_G.NS_G (not declared by your CNS '
+    ..'packs or a mod you both have)',tostring(message))
+cns[QUEEN]=nil
+end
+
 -- Doro mode (coop race look): every part hidden and one Doro hung on part 0, her feet, never named in the display
 -- file; animated from her feet between poses (while a race drives, by its top speed, leaned by her yaw); a new table keeps the parts hidden and a rebuild the mode; off removes the
 -- Doro and shows the parts as the table says; a Doro that cannot be made leaves the ghost drawn as her.
@@ -1814,10 +1877,10 @@ assert(root.mesh==meshes[SUIT] and hair.mesh==meshes[BASE_HAIR] and pony.cloth a
 assert(#root.dyes==1 and root.dyes[1].slot==0 and root.dyes[1].material==meshes[SUIT_MAT],'Dyes off: hers all the same')
 assert(pony.OverrideClothPhysicsAsset==meshes[PA],'Her cloth line\'s collision, not the one named from her body')
 local function plain(p) return p:gsub('%p','%%%0') end
-assert(message:find('; SBHair: '..plain(ATOOL)..' not declared by your CNS packs, drawn as '..plain(BASE_HAIR)),message)
-assert(message:find('; CharacterMesh0: slot 1 material '..plain(HACK)..' not declared by your CNS packs, default kept'),
+assert(message:find('; SBHair: '..plain(ATOOL)..' not declared by your CNS packs or a mod you both have, drawn as '..plain(BASE_HAIR)),message)
+assert(message:find('; CharacterMesh0: slot 1 material '..plain(HACK)..' not declared by your CNS packs or a mod you both have, default kept'),
     message)
-assert(message:find('; SBAccSlot1: '..plain(EARS)..' not declared by your CNS packs, left out'),message)
+assert(message:find('; SBAccSlot1: '..plain(EARS)..' not declared by your CNS packs or a mod you both have, left out'),message)
 assert(message:find('; mod assets: '..plain(SUIT)..' by GetAsset, '..plain(SUIT_MAT)..' by LoadAsset, '..plain(PA)
     ..' by GetAsset; mod parts not shown: Mods/HD%-ATOOL_P, Cat_Ears %('),message)
 local MODS='Kaanta wears parts from mods your game cannot load: HD-ATOOL_P, Cat_Ears. They show on the base suit or '
@@ -1875,7 +1938,7 @@ finds,loads,gets={},{},{}
 send(905,modded(),'peer')
 ok,message=build()
 assert(ok and message:find('; SBPonytail: outfit collision not used %('..plain(PA)
-    ..' not declared by your CNS packs%)'),message)
+    ..' not declared by your CNS packs or a mod you both have%)'),message)
 assert(not (seen(finds,PA) or seen(loads,PA) or seen(gets,PA)),'Never looked up or loaded: '..PA)
 
 do
@@ -1884,7 +1947,7 @@ do
 local Sentinel=require('partner.sentinel')
 local sdisk={}
 local sfiles={read_file=function(n) return sdisk[n] end,write_file=function(n,t) sdisk[n]=t; return true end,
-    write_now=function(n,t) sdisk[n]=t; return true end,cns_assets=function() return cns end}
+    write_now=function(n,t) sdisk[n]=t; return true end,mod_assets=function() return cns end}
 cns={[SUIT]='Foo_Suit',[SUIT_MAT]='Foo_Suit',[PA]='Foo_Suit'}
 local marked={}
 marker_spy=function(call,path) marked[call..' '..tostring(path)]=sdisk[Sentinel.MARKER] or '' end

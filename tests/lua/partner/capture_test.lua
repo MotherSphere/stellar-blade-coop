@@ -370,6 +370,56 @@ end
 assert(ok and message:find('^Capture 100004: .*; effects: 2 of 19 found$'),tostring(message))
 assert(#scanned==18 and not table.concat(scanned,' '):find(E[1],1,true),'The first, still itself, is kept')
 assert(published[#published]:find('\neffect 5 '..string.format('0x%x',systems[E[5]].GetAddress())..'\n$'),'The new one')
+-- Systems playing on her leaders that the list lacks: one of the game's FX folders, or a mod's asset both players have
+-- (assets()), gets the next index as an fx line by path, published at the next look; never renumbered, at most 45 for
+-- one EVE. The listed ones, other mods' systems, other folders and stopped ones get none; with mod_names=off, no mod's.
+local function plain(p) return (p:gsub('%p','%%%0')) end
+local RAVEN='/Game/Art/FX/Char/Monster/RavenHuman/NS_Raven_Aura.NS_Raven_Aura'
+local SCARLET='/Game/DLC_2/Art/FX/Scarlet/NS_Scarlet_Cut.NS_Scarlet_Cut'
+local QUEEN='/Game/Mods/Queen/NS_Q.NS_Q'
+local function playing(path,active)
+    return object('NiagaraComponent',{IsA=function(_,class) return class==niagara end,
+        IsActive=function() return active~=false end,Asset=system(path)})
+end
+raw[body].AttachChildren={playing(E[1]),playing(RAVEN),playing('/Game/Other/Mod/NS_X.NS_X'),playing(QUEEN),
+    playing('/Game/Art/FX/Char/NS_Off.NS_Off',false),playing('/Game/Art/Character/PC/X/NS_C.NS_C'),
+    object('Arrow',{IsA=function() return false end})}
+local shared={[QUEEN]='~mods/queen_p'}
+local function named_capture(private)
+    published={}
+    local c=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looks,
+        function() return shared end,private)
+    capture=c
+    player=eve_of('EVE'..tostring(private),{body,hair})
+    for _=1,40 do
+        local ok_of,message_of=step(0.25)
+        if message_of then return ok_of,message_of end
+    end
+end
+ok,message=named_capture(false)
+assert(ok and message:find('; effects: 2 of 19 found; 2 named by path$'),tostring(message))
+t=published[#published]
+assert(t:find('\nfx 20 '..plain(RAVEN)..'\nfx 21 '..plain(QUEEN)..'\neffects ') and
+    t:find('\neffect 20 0x%x+\neffect 21 0x%x+\n$') and not t:find('NS_X') and not t:find('NS_Off') and
+    not t:find('NS_C'),t)
+local count=#published
+assert(step(1)==nil and #published==count,'Nothing new: nothing published')
+table.insert(raw[body].AttachChildren,1,playing(SCARLET))
+ok,message=step(1)
+assert(ok and message:find(': 3 effects named by path, the last '..plain(SCARLET)..'$'),tostring(message))
+assert(published[#published]:find('\nfx 20 '..plain(RAVEN)..'\nfx 21 '..plain(QUEEN)..'\nfx 22 '..plain(SCARLET)..'\n'),
+    'Never renumbered')
+-- mod_names=off: the game's FX folders only.
+named_capture(true)
+t=published[#published]
+assert(t:find('\nfx 20 '..plain(SCARLET)..'\nfx 21 '..plain(RAVEN)..'\neffects ') and not t:find('Queen'),t)
+-- The cap: 45 named by path at most, 64 in all with the list.
+for n=1,60 do raw[body].AttachChildren[#raw[body].AttachChildren+1]=playing('/Game/Art/FX/M/N'..n..'.N'..n) end
+named_capture(false)
+t=published[#published]
+assert(t:find('\nfx 64 ') and not t:find('\nfx 65 '),t)
+raw[body].AttachChildren=nil
+looked_up()
 -- The layout not found, or out of the native part's bounds: said once, and the capture goes on without effects.
 super.ForEachProperty=function() end
 published={}
@@ -394,6 +444,12 @@ for _,bad in ipairs({'/Game/Art/Character/X.X','/Game/Art/Character/PC/X-1/X.X',
     '/Game/Art/CharacterX/PC/X.X','/game/art/character/pc/x/x.x','/Game/Art/Character/PC/'..('x'):rep(240)..'/X.X',
     '/Game/Art/Character/PC/X/X.X:Sub',42}) do
     assert(not B(bad),tostring(bad))
+end
+-- The game's FX folders, by the same rule.
+for _,good in ipairs({RAVEN,SCARLET,'/Game/Art/FX/A/B.B'}) do assert(Capture.fx_path(good),good) end
+for _,bad in ipairs({QUEEN,BODY,'/Game/Art/FX/B.B','/Game/Art/FX//A/B.B','/Game/Art/FX/A/B.C','/Game/Art/FX/A-1/B.B',
+    '/Game/DLC_123/Art/FX/A/B.B',42}) do
+    assert(not Capture.fx_path(bad),tostring(bad))
 end
 -- A mod's tag: the UniqueFitID our CNS packs give its path, else its first two folders (or its one); none for the
 -- game's own or a path outside /Game.
@@ -424,7 +480,6 @@ tick()
 ok,message=step(2)
 assert(ok and message:find('^Capture 100001: 3 parts, 5 bone names, .* ms$'),tostring(message))
 t=published[1]
-local function plain(p) return (p:gsub('%p','%%%0')) end
 assert(t:find(' Suit '..SUIT..'\nplace 1 [^\n]*\nmaterial 1 1 '..plain(MOD_MAT)..'\nmod 1 Foo_Suit\nnames 1 '),t)
 assert(t:find(' SBPonytail '..plain(ATOOL)..'\nplace 2 [^\n]*\ncloth 2 '..plain(PA)..'\nmod 2 Mods/HD%-ATOOL_P\n$'),t)
 assert(not t:find('\nmaterial 0 ') and not t:find('\nmod 0 '),'The game\'s own part: no materials, no tag')

@@ -15,7 +15,11 @@
 -- room. With
 -- effects on, it also names, for the native effect read, the NiagaraComponent class, its Asset field's offset and which
 -- systems of Capture.EFFECTS are in memory: looked up one a tick on each new EVE and as effects turn on, and published
--- only once all are looked up, so the list never changes under one generation. A part on a mod's mesh (outside the
+-- only once all are looked up, so the list never changes under one generation. At each look it also reads which
+-- NiagaraSystems play on her leaders (their direct attach children, as the native read sees them): one outside the list
+-- from the game's FX folders (Capture.fx_path) or among the assets of a mod both players have in one version (assets()
+-- names them) gets the next free index, as an fx line by path; at most MAX_FX of them for one EVE, never renumbered, a
+-- new one published at the next look (once a second). With mod_names=off, none of a mod's. A part on a mod's mesh (outside the
 -- game's own folders, Capture.base_path) is tagged with the outfit it comes from (Capture.label) and sends its
 -- overridden materials, values and hidden slots with dyes off too; any part sends its cloth's collision
 -- asset (her ponytail's OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part
@@ -35,9 +39,13 @@ local VALUE_WAIT=5
 -- Its kMaxPose, then what pose_size() counts in every pose (the header, 4 effect slots of 15 bytes, her world
 -- transform) and per bone of a leader: past MAX_POSE it refuses the whole table.
 local MAX_POSE,POSE_BASE,BONE_BYTES=16384,29+4*15+24,18
+-- Its kMaxEffectAssets less the fixed list: the systems named by path for one EVE, at most; and the attach children read
+-- per leader, as its effect read does.
+local MAX_EFFECT_ASSETS,MAX_CHILDREN=64,256
 -- Stellar Blade's Niagara systems a ghost can show: EVE's own seen in combat (the Cascade trails are left out, as they
 -- need her animation's BeginTrails). The wire carries an entry's index (pose/codec.h's effect slots), never its path,
--- so changing this list needs a protocol bump.
+-- so changing this list needs a protocol bump (native/src/pose/core.h's kFixedEffects). Indexes past it are the fx
+-- lines' systems, named by path.
 Capture.EFFECTS={}
 for _,p in ipairs({'Skill/Attack/NS_A_ParTrail_SwordDefaultAtk_01','Skill/Attack/NS_A_ParTrail_SwordThrustAtk_01',
     'Skill/HoldBurst/NS_A_HoldBurst_Signal','Skill/HoldBurst/NS_A_HoldBurst_SwordFX',
@@ -59,8 +67,16 @@ function Capture.base_path(path)
     local folders,asset,object=(rest or ''):match('^([%w_/]+)/([%w_]+)%.([%w_]+)$')
     return folders~=nil and asset==object and not ('/'..folders..'/'):find('//',1,true)
 end
+-- A Niagara system of the game's FX folders: /Game/[DLC_<1 or 2 digits>/]Art/FX/.../<asset>.<asset>, by the same rule.
+-- What an fx line may name without a shared mod, and the viewer loads as the game's own.
+function Capture.fx_path(path)
+    if type(path)~='string' or #path>255 then return false end
+    local rest=path:match('^/Game/Art/FX/(.*)$') or path:match('^/Game/DLC_%d%d?/Art/FX/(.*)$')
+    local folders,asset,object=(rest or ''):match('^([%w_/]+)/([%w_]+)%.([%w_]+)$')
+    return folders~=nil and asset==object and not ('/'..folders..'/'):find('//',1,true)
+end
 -- A part's mod line (table.h): for a mesh under /Game outside the game's own folders, the outfit it comes from, as a
--- word: the UniqueFitID your CNS packs give that path (assets: core/link.lua's cns_assets()), else the path's first
+-- word: the UniqueFitID your CNS packs give that path (assets: core/link.lua's mod_assets()), else the path's first
 -- two folders ('OutfitMods/FooSuit'). nil for any other path.
 function Capture.label(path,assets)
     if type(path)~='string' or Capture.base_path(path) or not path:find('^/Game/') then return nil end
@@ -197,7 +213,7 @@ local function effect_layout()
 end
 -- publish(text) hands the capture to the native part, publish(nil) withdraws it; both return ok, why. looks: what the
 -- ghost shows ({dyes=,effects=true|false}, read at each look; nil: nothing more). assets() gives our CNS packs' assets
--- (core/link.lua's cns_assets(); none when nil). private (mod_names=off): no path outside the game's own folders goes,
+-- and those of the mods both players have (core/link.lua's mod_assets(); none when nil). private (mod_names=off): no path outside the game's own folders goes,
 -- so no mod's folder or outfit name reaches the friend: such a mesh goes as '-' (her ghost of you draws its fallback)
 -- with no mod line, and such a material or cloth asset is left out.
 function Capture.new(publish,looks,assets,private)
@@ -214,6 +230,11 @@ function Capture.new(publish,looks,assets,private)
     local tints,turn={},0 -- A part's values as last read, by its address; the part this look reads.
     local fx -- The effect read's layout: nil until effects are first on, false when it could not be found (this load).
     local systems,scan,effects_were={},nil,false -- Capture.EFFECTS found, by index; the next index the scan looks up.
+    -- The systems named by path for this EVE ({path=, system=}, index #Capture.EFFECTS + n), and their paths; why the
+    -- read of her playing systems failed, until said (then false).
+    local named,named_at,named_unread={},{},nil
+    local fixed={}
+    for k,path in ipairs(Capture.EFFECTS) do fixed[path]=k end
     local function withdraw()
         if published then publish(nil); published=nil end
     end
@@ -230,6 +251,33 @@ function Capture.new(publish,looks,assets,private)
             if not (system and system:GetFullName():match('^%S+ (.+)$')==Capture.EFFECTS[k]) then
                 systems[k]=valid(StaticFindObject(Capture.EFFECTS[k]))
                 return
+            end
+        end
+    end
+    -- The NiagaraSystems playing on her leaders that the list lacks and an fx line may name: each new one gets the next
+    -- index, up to MAX_EFFECT_ASSETS. A system seen again is checked to be still itself.
+    local function name_playing(parts,declared)
+        local class=find('/Script/Niagara.NiagaraComponent')
+        for _,c in ipairs(parts) do
+            if not c.lead then
+                local n=0
+                each(c.handle.AttachChildren,function(_,child)
+                    n=n+1
+                    child=n<=MAX_CHILDREN and valid(child)
+                    if not (child and child:IsA(class) and child:IsActive()) then return end
+                    local system=valid(child.Asset)
+                    local path=system and system:GetFullName():match('^%S+ (.+)$')
+                    if not path or fixed[path] or not path:find('^/Game/[%w_/%-]+%.[%w_%-]+$') then return end
+                    local mod=declared[path]~=nil
+                    if not (Capture.fx_path(path) and not (private and mod) or mod and not private) then return end
+                    local k=named_at[path]
+                    if k then
+                        named[k].system=system
+                    elseif #Capture.EFFECTS+#named<MAX_EFFECT_ASSETS then
+                        named[#named+1]={path=path,system=system}
+                        named_at[path]=#named
+                    end
+                end)
             end
         end
     end
@@ -298,6 +346,17 @@ function Capture.new(publish,looks,assets,private)
             end
         end
         key,dress=table.concat(key,' ')..(effects and ' fx' or ''),table.concat(dress,' ')
+        local fx_key=''
+        if effects then
+            local read,why=pcall(name_playing,parts,declared)
+            if not read and named_unread==nil then named_unread=tostring(why) end
+            local of={}
+            for k,e in ipairs(named) do
+                e.found=valid(e.system) and e.system:GetFullName():match('^%S+ (.+)$')==e.path and e.system or nil
+                of[k]=e.found and address(e.found) or '-'
+            end
+            fx_key=table.concat(of,',')
+        end
         local renewed=not published or published.key~=key
         if renewed then tints={} end
         turn=turn%#parts+1
@@ -329,7 +388,7 @@ function Capture.new(publish,looks,assets,private)
             tint[i]=tints[at].key..'|'..tints[at].shapes.key
         end
         tint=table.concat(tint,' ')
-        if not renewed and published.dress==dress
+        if not renewed and published.dress==dress and published.fx==fx_key
             and (published.tint==tint or started<published.at+VALUE_WAIT) then return end -- Held: tint stays what was sent.
         local names,map=published and published.names,published and published.map
         if renewed then
@@ -386,9 +445,13 @@ function Capture.new(publish,looks,assets,private)
         end
         local found=0
         if effects then
+            for n,e in ipairs(named) do lines[#lines+1]=string.format('fx %d %s',#Capture.EFFECTS+n,e.path) end
             lines[#lines+1]=string.format('effects %s 0x%x',hex(effects.cls),effects.asset)
             for k=1,#Capture.EFFECTS do
                 if systems[k] then lines[#lines+1]=string.format('effect %d %s',k,hex(systems[k])); found=found+1 end
+            end
+            for n,e in ipairs(named) do
+                if e.found then lines[#lines+1]=string.format('effect %d %s',#Capture.EFFECTS+n,hex(e.found)) end
             end
         end
         local size,left_out=0,0
@@ -406,16 +469,23 @@ function Capture.new(publish,looks,assets,private)
         end
         local ok,why=publish(table.concat(final,'\n')..'\n')
         if not ok then return false,'Capture not published: '..tostring(why) end
-        published={generation=generation,key=key,dress=dress,tint=tint,names=names,map=map,at=started}
+        local named_new=published and effects and #named>(published.named or 0)
+        published={generation=generation,key=key,dress=dress,tint=tint,names=names,map=map,at=started,fx=fx_key,
+            named=#named}
         if renewed then
             local tail=(looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or '')
                 ..(value_count>0 and string.format('; values: %d',value_count) or '')
                 ..(hidden_count>0 and string.format('; hidden slots: %d',hidden_count) or '')
                 ..(left_out>0 and string.format('; %d values left out, over the table size',left_out) or '')
                 ..(effects and string.format('; effects: %d of %d found',found,#Capture.EFFECTS) or '')
+                ..(effects and #named>0 and string.format('; %d named by path',#named) or '')
                 ..(dropped and string.format('; %d leaders left out, over the pose size',dropped) or '')
             return true,string.format('Capture %d: %d parts, %d bone names, map %s, %.1f ms%s',generation,#parts,count,
                 map,(os.clock()-started)*1000,tail)
+        end
+        if named_new then
+            return true,string.format('Capture %d: %d effects named by path, the last %s',generation,#named,
+                named[#named].path)
         end
     end
     -- Every 250 ms from main.lua with on = the ghost is on; returns ok, message when there is something to say.
@@ -427,7 +497,10 @@ function Capture.new(publish,looks,assets,private)
             return
         end
         local at=address(eve)
-        if at~=seen then seen,since,scan=at,os.clock(),1; withdraw() end -- A new EVE: the old addresses mean nothing.
+        if at~=seen then -- A new EVE: the old addresses mean nothing.
+            seen,since,scan,named,named_at=at,os.clock(),1,{},{}
+            withdraw()
+        end
         if looks.effects and fx==nil then
             local ok,layout=pcall(effect_layout)
             fx=ok and layout
@@ -441,6 +514,9 @@ function Capture.new(publish,looks,assets,private)
         next_look=os.clock()+1
         local ok,message=look(eve,effects)
         if message==nil and unread then ok,message,unread=false,'Capture: materials not read: '..unread,false end
+        if message==nil and named_unread then
+            ok,message,named_unread=false,'Capture: playing effects not read: '..named_unread,false
+        end
         return ok,message
     end
     return self

@@ -28,11 +28,19 @@
 //                                                     viewer's notice when that mod is not installed there
 //   names <i> <bone>...                               leaders only: one per bone, in the mesh's order
 //   read <i> 0x<object> 0x<class> 0x<mesh>            leaders only, in the capture file only
-//   then, in the capture file only, after the last part:
+//   then after the last part, in both forms:
+//   fx <k> <path>                                     0 to kMaxEffectAssets - kFixedEffects, k kFixedEffects + 1 to
+//                                                     kMaxEffectAssets strictly rising: the NiagaraSystem effect slot
+//                                                     asset k names, by path (1 to 255 bytes; one path_allowed refuses
+//                                                     is dropped, and a slot naming k draws nothing). Lua only names
+//                                                     the game's FX folders and the assets of a mod both players have
+//                                                     in one version, and the viewer loads only those (partner/
+//                                                     puppet.lua); k is never given another path under one generation
+//   then, in the capture file only:
 //   effects 0x<class> 0x<offset>                      the NiagaraComponent class and its Asset field's offset
 //                                                     (0x100 to 0x1000, a multiple of 8): the native effect read
-//   effect <k> 0x<system>                             0 to 32 after effects, k 1 to 32 strictly rising: Lua's list
-//                                                     entry k is this NiagaraSystem object
+//   effect <k> 0x<system>                             0 to kMaxEffectAssets after effects, k 1 to kMaxEffectAssets
+//                                                     strictly rising: Lua's list entry k is this NiagaraSystem object
 // A leader has lead '-' and 1 to kMaxBones bones; part 0 is one, hung from nothing. A follower names a leader before
 // it and has no bones of its own (SetMasterPoseComponent); every part after 0 hangs from a part before it. A word is 1
 // to 64 bytes of '!' to '~'. The path alone may be longer: then it, like any path path_allowed refuses, reads as '-',
@@ -93,6 +101,7 @@ struct Table {
   std::vector<Part> eve; // The pose layout: bones and leader always; addresses only from read lines.
   std::vector<Look> look;
   size_t ignored = 0; // Value and hide lines left out as read; never formatted.
+  std::vector<std::pair<uint8_t, std::string>> fx_paths; // The fx lines kept, k rising.
   // The capture file's effect lines: cls 0 means no effect read. assets[k] is list entry k's object, 0 when not found.
   struct Fx {
     uint64_t cls = 0;
@@ -317,7 +326,7 @@ inline bool map_allowed(std::string_view map) {
 }
 } // namespace grammar
 
-// The wire form: no read or effect lines, floats as %.9g, so a table always reads back to the same bytes. The native
+// The wire form: no read or effect lines (fx lines go), floats as %.9g, so a table always reads back to the same bytes. The native
 // side sends and stores only this, never the text it received.
 inline std::string format_table(const Table &t) {
   std::string s;
@@ -400,6 +409,12 @@ inline std::string format_table(const Table &t) {
       s += '\n';
     }
   }
+  for (const auto &[k, path] : t.fx_paths) {
+    s += "fx";
+    integer(k);
+    word(path);
+    s += '\n';
+  }
   return s;
 }
 
@@ -425,16 +440,24 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
   size_t values = 0;
   while (!in.done()) {
     const size_t i = t.eve.size();
-    if (local && (f = in.take("effects", 3))) { // After the last part: effect lines to the end.
-      uint64_t offset = 0;
-      if (!hex((*f)[1], t.fx.cls) || !t.fx.cls || !hex((*f)[2], offset) || offset < 0x100 || offset > 0x1000 ||
-          offset % 8)
-        return std::nullopt;
-      t.fx.asset = static_cast<uint32_t>(offset);
-      for (uint64_t k = 0, last = 0; (f = in.take("effect", 3)); last = k)
-        if (!number((*f)[1], k) || k <= last || k > kMaxEffectAssets || !hex((*f)[2], t.fx.assets[k]) ||
-            !t.fx.assets[k])
+    if (in.lines[in.next][0] == "fx" || (local && in.lines[in.next][0] == "effects")) { // The tail, to the end.
+      for (uint64_t k = 0, last = kFixedEffects; (f = in.take("fx", 3)); last = k) {
+        if (!number((*f)[1], k) || k <= last || k > kMaxEffectAssets || (*f)[2].size() > kMaxPath)
           return std::nullopt;
+        if (path_allowed((*f)[2]))
+          t.fx_paths.emplace_back(uint8_t(k), (*f)[2]);
+      }
+      if (local && (f = in.take("effects", 3))) {
+        uint64_t offset = 0;
+        if (!hex((*f)[1], t.fx.cls) || !t.fx.cls || !hex((*f)[2], offset) || offset < 0x100 || offset > 0x1000 ||
+            offset % 8)
+          return std::nullopt;
+        t.fx.asset = static_cast<uint32_t>(offset);
+        for (uint64_t k = 0, last = 0; (f = in.take("effect", 3)); last = k)
+          if (!number((*f)[1], k) || k <= last || k > kMaxEffectAssets || !hex((*f)[2], t.fx.assets[k]) ||
+              !t.fx.assets[k])
+            return std::nullopt;
+      }
       if (!in.done())
         return std::nullopt;
       break;

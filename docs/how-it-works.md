@@ -119,7 +119,9 @@ file is written in full beside its final name and then renamed over it, so the r
   state and settings) and `coop-night.txt` (our side of a Night Operation run, which the native part takes at its next
   pass and sends to the friend; a newer line replaces one not taken yet).
 - The native part writes `coop-status.txt` (the state Lua and `coop status` read), `coop-remote.txt` (the remote
-  table), `coop-cns.txt` (the assets your CNS packs declare, once at start), `coop-link.log` and `coop-report.txt`.
+  table), `coop-cns.txt` (the assets your CNS packs declare, once at start), `coop-shared-assets.txt` (the assets of
+  the mods you and your friend both have in one version, when that list changes), `coop-link.log` and
+  `coop-report.txt`.
 - The chat has two files that exist for a moment only. Lua writes a typed line into `coop-say.txt` once the native
   part has taken the previous one, and the native part takes and deletes it at its next pass (every 5 to 50 ms). The
   native part writes your friend's lines into `coop-chat.txt` (`in <text>`, or `fail` for a line of yours that could
@@ -378,6 +380,18 @@ carry. Image and AnimBP paths are never listed. The list goes to `coop-cns.txt`,
 rewritten at every start. It never goes to your friend: only the tag of an outfit your EVE wears does, in the
 component table (see [The ghost pipeline](#the-ghost-pipeline)).
 
+The scan also reads each mod's `.utoc` (its first MiB): the directory index of an IoStore container that is not
+encrypted, TOC versions 2 and 3 (UE 4.26 and 4.27). Each `../../../SB/Content/<p>.uasset` entry becomes the object path
+`/Game/<p>.<name>`, kept when the native path rule takes it, 8192 paths in all. `.umap` files and files outside
+`SB/Content` are never kept, and a mod that is a `.pak` alone gives no paths. The header of `coop-link.log` then has
+`mod assets <n> indexed in <k> .utoc files`. Each time the containers your friend lists with the same name and hash as
+yours change, the native part writes `coop-shared-assets.txt`: the paths of those containers, one `<path> <container>`
+line each, sorted. It is empty with no friend, when your friend's list came without names (her `mod_names=off`) and
+with your own `mod_names=off`. The status's `shared=<version> <paths>` line counts the lists written; Lua reads the
+file again when the version changes and rebuilds the ghost. The hash is FNV-1a over file names and sizes and your
+friend's game states it, so it says that both of you run one build of the mod, without proving it. The list only ever
+holds paths of your own containers.
+
 The camps lines carry the [follow](#following-the-host), both reliable: the guest's `camps?` with a number from 0 to
 65535, and the host's answer to it, its world and up to 8 camps nearest its EVE with their distance in whole metres, or
 `none` and why. Only the guest asks and only the host answers. The host's link takes one `camps?` each 2 s, and the
@@ -496,7 +510,7 @@ instead of misread:
 | 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), night line masks for a level's extra monsters, each side's down time and revive progress on both night lines, and the gift line for `coop gift` |
 | 15 | Never released: development builds of Matrix XIII's world rows used it |
 | 16 | Never released: the table's value lines alone, before the hide lines joined them |
-| 17 | The table's value lines (the colours and textures set on a dynamic material) and hide lines (the material slots a part hides); 0.7.5 |
+| 17 | The table's value lines (the colours and textures set on a dynamic material), hide lines (the material slots a part hides) and fx lines (effect indexes 20 to 64 named by path); 0.7.5 |
 
 ### Link health in the log
 
@@ -584,7 +598,8 @@ counted with the value lines. Value and hide lines do not count for the layout, 
 ghost.
 
 The capture file also carries the memory addresses the native part reads from (`read`, `effects` and `effect` lines);
-those never go on the wire. A leader part has bones of its own. A follower follows a leader's bones (her ponytail, for
+those never go on the wire. The `fx <k> <path>` lines after the last part do: each names the effect index `k` (20 to
+64) by the path of a Niagara system (see [Looks](#looks)). A leader part has bones of its own. A follower follows a leader's bones (her ponytail, for
 example). Part 0 is her main mesh. A table is at most 64 KiB, and the native parser checks every line (the tests fuzz
 it).
 
@@ -598,8 +613,8 @@ game thread at the send rate, and the worker sends it. A pose message holds:
 - the main mesh's world transform: translation as three floats, rotation in 6 bytes, scale in three 16-bit integers;
 - each leader's bones in local space, 18 bytes a bone: rotation as the smallest three of its unit quaternion (6 bytes),
   translation in 1/32 cm and scale in 1/4096 (16-bit integers each);
-- four effect slots of 15 bytes each: an index into a fixed list of effects (never a path), the part it hangs on, a
-  serial for each new instance, and its rotation and translation relative to the part.
+- four effect slots of 15 bytes each: an index (1 to 19 for the fixed list of effects, 20 to 64 for the table's `fx`
+  lines), the part it hangs on, a serial for each new instance, and its rotation and translation relative to the part.
 
 A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world position beyond 1e7 cm, or not finite,
 is refused.
@@ -654,8 +669,10 @@ builds the ghost from it:
   `/Game/DLC_<n>/Art/Character/...`, names of letters, digits and `_`) and a mod's (`/Game/<folders>/<asset>.<asset>`,
   names of letters, digits, `_` and `-`, 255 bytes at most). A path is always a package's own asset, so never a
   Blueprint class or a sub-object. The rule checks the text only. Before any lookup or load, `partner/puppet.lua` lets
-  a mod's path through only when one of your own CNS packs declares that exact path (`coop-cns.txt`), so a friend's
-  table cannot make your game load anything your installed outfits do not name. After a load, the asset must be of the
+  a mod's path through only when one of your own CNS packs declares that exact path (`coop-cns.txt`) or a mod you
+  both have in one version holds it (`coop-shared-assets.txt`), so a friend's table cannot make your game load
+  anything your installed outfits and mods do not name. Such a path is loaded as a mod's asset even when it lies in the
+  game's folders, as replacer-style mods put new assets there. After a load, the asset must be of the
   expected class (a skeletal mesh, a material, a physics asset) or it is not used.
 - A mod's asset that `LoadAsset` does not find (it looks in the cooked asset registry, where added assets usually are
   not) is loaded through `AssetRegistryHelpers:GetAsset` with an asset data holding only its path, which loads it by
@@ -728,6 +745,20 @@ Effects fill the pose's four slots, and the native part writes the drawn slots i
 which Lua starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the
 run and the ghost stays. See [usage.md](usage.md#looks).
 
+Indexes 1 to 19 are `Capture.EFFECTS`, which both sides compile in. Once a second the capture also reads the
+NiagaraComponents attached directly to her leader parts (the ones the native read walks, 256 children a part at most)
+that are active, and each one's `Asset`. A system outside the list gets the next index from 20 when its path is in the
+game's FX folders (`/Game/Art/FX/...`, `/Game/DLC_<n>/Art/FX/...`, the character folders' name rule) or among your
+CNS and shared assets (`core/link.lua`'s `mod_assets()`). With `mod_names=off` only game FX paths go,
+and none your CNS packs or shared mods name. An index is never given another path while the same EVE is in the world,
+and 45 is the cap. A new name publishes the table again under the same generation, at most once a second. The worker
+hands the game thread the new `effect` addresses without a new Live, so her ghost's playback does not restart. The
+viewer's ghost loads each named system by the fetch rules above, as a NiagaraSystem: game FX paths as the game's, the
+others only from your own CNS and shared lists. The build loads those its table names, a step each; one named later is
+loaded by the tick, one each 0.25 s, never while the boxes are read. A slot naming a system not loaded yet is skipped
+silently, so the first instance of a new effect does not show on either side. One that fails or is refused draws
+nothing on its index, with one note a ghost. Not tested in game yet.
+
 Cloth, on by default, uses only the table's `cloth` line (sent whatever the setting): each PC runs NvCloth on the
 ghost's ponytail from the body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While
 the ghost is shown, its root moves without the engine's teleport flag: a teleport clears the cloth's inertia, and the
@@ -774,6 +805,9 @@ From then on the ghost treats that asset as missing. A mesh falls back like any 
 set aside after a crash (coop cns reset)` in the build line. A material leaves the slot on the mesh's own, and a texture
 is skipped. The list's first line is the mod version (`version v0.7.5`), and a load of another version drops the list.
 `coop cns reset` empties it and turns the CNS part on again.
+
+The assets of a mod both players have (`coop-shared-assets.txt`) go through the same span, the guard and the
+set-aside list, with the container's name in place of the outfit.
 
 Not covered: the native part's bone writes each frame and the render thread's use of a mod's mesh. A crash there leaves
 no marker. A crash on another thread during a span would set that span's asset aside by mistake; `coop cns reset` brings

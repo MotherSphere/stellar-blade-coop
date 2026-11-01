@@ -216,7 +216,7 @@ int main() {
     std::memcpy(bad.data() + 34, &far, 4);
     refused(bad, "translation");
     bad = good;
-    bad[slot0] = 33; // an asset past the list
+    bad[slot0] = kMaxEffectAssets + 1; // an asset past the list
     refused(bad, "effect");
     bad = good;
     bad[slot0 + 1] = 3; // a part past the table's 3
@@ -273,7 +273,7 @@ int main() {
         input[at] = good[at];
       if (round % 8 == 3) // Plausible slots too, so their rotations and translations get decoded.
         for (size_t at = slot0; at < n; at += kEffectBytes) {
-          input[at] %= 33;
+          input[at] %= kMaxEffectAssets + 1;
           input[at + 1] %= 3;
         }
     } else {
@@ -586,7 +586,7 @@ int main() {
     std::memcpy(bad.data() + kPoseHeader + 4, &nan_bits, 4); // a NaN world translation
     delta_refused(bad, "translation");
     bad = good_delta;
-    bad[bad.size() - kEffectBytes] = 33; // slot 1: an asset past the list
+    bad[bad.size() - kEffectBytes] = kMaxEffectAssets + 1; // slot 1: an asset past the list
     delta_refused(bad, "effect");
   }
 
@@ -626,7 +626,7 @@ int main() {
               for (size_t later = 27; later >= k; --later)
                 if (input[mask + later / 8] >> (later % 8) & 1)
                   at_slot -= kEffectBytes;
-              input[at_slot] %= 33;
+              input[at_slot] %= kMaxEffectAssets + 1;
               input[at_slot + 1] %= 3;
             }
         if (round % 11 == 5)

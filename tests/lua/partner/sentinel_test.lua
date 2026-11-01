@@ -10,7 +10,7 @@ local cns={[SUIT]='Foo_Suit',[MAT]='Foo_Suit'}
 local files={read_file=function(name) return disk[name] end,
     write_file=function(name,text) disk[name]=text; return true end,
     write_now=function(name,text) disk[name]=text; writes[#writes+1]=text; return true end,
-    cns_assets=function() return cns end}
+    mod_assets=function() return cns end}
 -- Nothing on disk: nothing set aside, nothing written.
 local s,crashed=Sentinel.new(files,'v1')
 assert(crashed==nil and next(disk)==nil and #writes==0)

@@ -4,7 +4,8 @@
 -- is written to a save, an inventory or an unlock. Each part loads the mesh the table names (LoadAsset only brings a
 -- cooked asset into memory: display only, nothing is worn) with its own default materials, so the ghost wears her
 -- outfit. A path outside the game's own folders (Capture.base_path) is a mod's: it is looked up or loaded only when
--- your own CNS packs declare that exact path (core/link.lua's cns_assets()), and one LoadAsset cannot find (an asset
+-- your own CNS packs declare that exact path or a mod you both have in one version holds it (core/link.lua's
+-- mod_assets(); such a path in the game's folders is a mod's too), and one LoadAsset cannot find (an asset
 -- outside the cooked registry) is loaded through AssetRegistryHelpers:GetAsset. A mesh this PC lacks (a DLC it does not
 -- own, a mod it lacks or does not declare), one the path rule refused ('-'), or one with other bones than hers falls
 -- back to the base suit (body and hair), whose bones the native part drives by name (a remap); another leader with
@@ -26,8 +27,9 @@
 -- is a Poseable, which has no morph call, and UE 4.26's UpdateSlaveComponent zeroes a follower's SetMorphTarget weights
 -- each tick when its master is not a SkeletalMeshComponent. With look.effects, her attack and
 -- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
--- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
--- slot and stops it when the slot changes, at most 8 starts a second.
+-- Niagara system each names (an index into Capture.EFFECTS, or past it one her table's fx lines name by path, loaded
+-- by fetch()'s rules in a build step or one a tick after it, never in place()) on the part it hangs on, moves it with
+-- the slot and stops it when the slot changes, at most 8 starts a second.
 -- The CNS part (a mod's meshes and materials, the value and hide lines) runs under its own guard: a Lua error there
 -- turns it off until coop cns reset or the next Lua load, and the ghost is built again without it (the base suit where
 -- a part has one), with one log line, instead of failing. Each engine call with an asset your CNS packs declare goes
@@ -66,6 +68,7 @@ local function fallback(part) return part.i==0 and BASE_BODY or part.name=='SBHa
 local Doro=require('race.doro')
 local Capture=require('partner.capture')
 local EFFECTS=Capture.EFFECTS -- What the wire's effect indexes name, for both players.
+local MAX_EFFECT_ASSETS=64 -- The native part's kMaxEffectAssets: past EFFECTS, the indexes the table's fx lines name.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
 -- What a peer's value lines may cost here. FNames are never freed, so a Lua load makes at most MAX_VALUE_NAMES; at most
@@ -148,7 +151,8 @@ local function value_line(part,line)
     material.values[#material.values+1]=value
     return true
 end
--- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. Parts are listed
+-- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. fx: its fx lines,
+-- index to path. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
 -- bones, name, place (its 10 numbers as written), materials ({slot=, path=, values=}, slots rising), hidden (the hide
 -- line's slots, rising), cloth (its cloth's collision asset) and label (the outfit a mod's mesh comes from), each nil
@@ -167,7 +171,7 @@ local function parse_remote(file)
     local generation=take('^generation (%d+)$') -- tonumber() of no value at all raises: take it first.
     local t={generation=tonumber(generation),map=take('^map (%S+)$'),parts={}}
     if not (t.generation and t.map) then return nil end
-    while lines[at] do
+    while lines[at] and not lines[at]:find('^fx ') do
         local i,lead,parent,socket,shown,bones,name,path=take('^part (%d+) (%S+) (%S+) (%S+) ([01]) (%d+) (%S+) (%S+)$')
         local part={i=#t.parts,lead=tonumber(lead),parent=tonumber(parent),socket=socket~='-' and socket or nil,
             shown=shown=='1',bones=tonumber(bones),name=name,path=path~='-' and path or nil}
@@ -210,6 +214,14 @@ local function parse_remote(file)
         end
         t.parts[#t.parts+1]=part
     end
+    t.fx={} -- The systems named by path: index to path.
+    local last=#EFFECTS
+    while lines[at] do
+        local k,path=take('^fx (%d+) (%S+)$')
+        k=tonumber(k)
+        if not k or k<=last or k>MAX_EFFECT_ASSETS then return nil end
+        t.fx[k],last=path,k
+    end
     return #t.parts>0 and t or nil
 end
 -- What must stay for a table to be applied to a ghost built from another under the same generation.
@@ -241,7 +253,8 @@ function Puppet.tag_text(...)
 end
 -- link (nil without the native part): remote_table() -> coop-remote.txt's text, display(text|nil) publishes or
 -- withdraws the display file, store() keeps the ghost's object path across Lua loads (save, load, clear), friend() her
--- Steam name, cns_assets() the assets our CNS packs declare (path to outfit). capture gives yaw_delta(), the loopback's
+-- Steam name, mod_assets() the assets our CNS packs declare and those of the mods both players have (path to
+-- outfit or container). capture gives yaw_delta(), the loopback's
 -- offset. say(text,en) puts a line on screen (en: the same in English); name_tag: the tag. look: what else the ghost
 -- shows ({cloth=,dyes=,effects=true|false}, read at each build; nil: nothing more). words: the words for the screen now
 -- (ui/text.lua's T.en or T.fr; English when nil). sentinel: partner/sentinel.lua's (none: nothing marked or set aside).
@@ -250,7 +263,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     sentinel=sentinel or require('partner.sentinel').new(nil)
     words=words or function() return T.en end
     local files=link or {remote_table=function() end,display=function() return false,'no native part' end,
-        cns_assets=function() return {} end}
+        mod_assets=function() return {} end}
     local store=link and link.store() or {save=function() end,load=function() end,clear=function() end}
     local self,wanted,basesuit={},false,false
     local remote,seen_count,source=nil,nil,nil -- The remote table, the status count it was read at, where it came from.
@@ -295,13 +308,14 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     -- An asset of a class (a SkeletalMesh unless said) by its object path: in memory already (StaticFindObject), else
     -- loaded (LoadAsset, synchronous on this thread); nil when neither gives one of that class. A cached one nothing
     -- referenced may have been collected since, and its address reused: it is used again only while it is still that.
-    -- mod: a mod's asset your CNS packs declare (fetch()). LoadAsset finds an asset through the cooked asset registry,
+    -- mod: a mod's asset mod_assets() names (fetch()). LoadAsset finds an asset through the cooked asset registry,
     -- which a mod's added assets are not in, so one it misses is loaded by AssetRegistryHelpers:GetAsset (an asset
     -- data with only its path: FAssetData::GetAsset loads it by that path), as UE4SS's BPModLoaderMod loads mod actors;
     -- how each was found or that it was not goes into counts.mods for the build line.
     local function resolve(path,counts,class,mod)
         class=class or '/Script/Engine.SkeletalMesh'
-        local key=class..' '..path -- A peer naming a mesh as a material spoils neither.
+        -- A peer naming a mesh as a material spoils neither; a path missed as the game's is looked up again as a mod's.
+        local key=class..' '..path..(mod and ' mod' or '')
         if cache[key]==false then return nil end
         local asset=valid(cache[key] or nil)
         if asset and asset:IsA(find(class)) and asset:GetFullName():match('^%S+ (.+)$')==path then return asset end
@@ -333,10 +347,13 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         end
         return asset
     end
-    -- A mod's asset: outside the game's own folders, or one your CNS packs declare.
-    local function modded(path) return path~=nil and (not Capture.base_path(path) or files.cns_assets()[path]~=nil) end
-    -- What the sentinel's marker names for a call with two assets: the first when your CNS packs declare it.
-    local function sentinel_name(first,second) return files.cns_assets()[first] and first or second end
+    -- A mod's asset: outside the game's own folders (its FX folders included), or one your CNS packs declare or a mod
+    -- you both have holds (core/link.lua's mod_assets()).
+    local function modded(path)
+        return path~=nil and (not (Capture.base_path(path) or Capture.fx_path(path)) or files.mod_assets()[path]~=nil)
+    end
+    -- What the sentinel's marker names for a call with two assets: the first when mod_assets() names it.
+    local function sentinel_name(first,second) return files.mod_assets()[first] and first or second end
     -- The CNS part's own guard. cns_run(f,...): f's results; a Lua error in it turns the CNS part off and raises CNS_TRIP
     -- instead, which the build, a re-dress and the texture step answer with cns_tripped(): the ghost removed, to be
     -- built again at the next tick without the CNS part, and one line for the log. Never a failed try (retry()). With
@@ -360,15 +377,19 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         return false,'CNS part of the ghost off until coop cns reset or the next Lua load ('..tostring(cns_off)..'): '
             ..'the ghost is built again without mod meshes, mod materials, material values or hidden slots.'
     end
-    -- An asset a peer named (a part's mesh, one of its materials, its cloth's collision, the one named from her body):
-    -- the game's own resolved as any; a mod's only when one of your own CNS packs declares that exact path, else never
-    -- looked up or loaded (nil, and why). Neither a set-aside asset nor, with the CNS part off, a mod's.
+    -- An asset a peer named (a part's mesh, one of its materials, its cloth's collision, the one named from her body,
+    -- a system an fx line names): a mod's when your own CNS packs declare that exact path or a mod you both have in one
+    -- version holds it (mod_assets(): loaded as a mod's, under the crash sentinel); else the game's own (its character
+    -- folders, and its FX folders for a NiagaraSystem) resolved as any; anything else never looked up or loaded (nil,
+    -- and why). Neither a set-aside asset nor, with the CNS part off, a mod's.
     local function fetch(path,counts,class)
         if sentinel.aside(path) then return nil,'set aside after a crash (coop cns reset)' end
         if cns_off and modded(path) then return nil,'not loaded with the CNS part off' end
-        if Capture.base_path(path) then return resolve(path,counts,class) end
-        if not files.cns_assets()[path] then return nil,'not declared by your CNS packs' end
-        return resolve(path,counts,class,true)
+        if files.mod_assets()[path] then return resolve(path,counts,class,true) end
+        if Capture.base_path(path) or class==NIAGARA_SYSTEM and Capture.fx_path(path) then
+            return resolve(path,counts,class)
+        end
+        return nil,'not declared by your CNS packs or a mod you both have'
     end
     local function note_value(why) if value_note==nil then value_note=why end end
     -- The note waiting to be said, as a tick's or table's false, message; nothing without one.
@@ -531,7 +552,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
             {Pitch=0,Yaw=0,Roll=0}))
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
-            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={},missed={},tints={},textures={}}
+            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={},missed={},tints={},textures={},
+            fx_tried={}}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
@@ -732,13 +754,24 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                 end
             end
         end
-        -- Her effects: the listed systems, a step each. One failing ends the build there, without effects.
-        local fx_loaded,fx_why=0,nil
+        -- Her effects: the listed systems, a step each. One failing ends the build there, without effects. Then those
+        -- her fx lines name, a step each by fetch()'s rules: one missing or refused only draws nothing on its index.
+        local fx_loaded,fx_why,fx_named=0,nil,0
         if look.effects then
             for _,path in ipairs(EFFECTS) do
                 g.steps[#g.steps+1]=function() -- Only effect steps are left: a failure drops them all.
                     local ok,system=pcall(resolve,path,counts,NIAGARA_SYSTEM)
                     if ok then fx_loaded=fx_loaded+(system and 1 or 0) else fx_why,g.steps=system,{} end
+                end
+            end
+            for k=#EFFECTS+1,MAX_EFFECT_ASSETS do
+                local path=t.fx[k]
+                if path then
+                    g.steps[#g.steps+1]=function()
+                        g.fx_tried[k]=true
+                        local ok,system=pcall(fetch,path,counts,NIAGARA_SYSTEM)
+                        fx_named=fx_named+(ok and system and 1 or 0)
+                    end
                 end
             end
         end
@@ -781,6 +814,11 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                         slots[n]={box=box}
                     end
                     g.slots,effects=slots,string.format('effects loaded %d of %d',fx_loaded,#EFFECTS)
+                    if next(t.fx) then
+                        local n=0
+                        for _ in pairs(t.fx) do n=n+1 end
+                        effects=effects..string.format(', %d of %d named by path',fx_named,n)
+                    end
                 end)
                 if not made then effects='effects off ('..tostring(why)..')' end
             end
@@ -1119,15 +1157,34 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         end
         return line
     end
-    -- A slot's effect started on its part, or why not (nil when started).
+    -- The first system her fx lines name that this ghost has not tried, looked up or loaded by fetch()'s rules (a step
+    -- of the build, or one a tick after it: never in start()). Returns why the first one missing or refused on this
+    -- ghost was, once; a miss draws nothing on that index.
+    local function load_named(g)
+        for k=#EFFECTS+1,MAX_EFFECT_ASSETS do
+            local path=remote and remote.fx[k]
+            if path and not g.fx_tried[k] then
+                g.fx_tried[k]=true
+                local system,why=fetch(path,{loaded=0,ms=0,mods={}},NIAGARA_SYSTEM)
+                if system or g.fx_load_said then return end
+                g.fx_load_said=true
+                return string.format('%s (%s)',path,why or 'missing')
+            end
+        end
+    end
+    -- A slot's effect started on its part, or why not (nil when started, or not yet loaded).
     local function start(g,slot,asset,part,at,rotation)
         local now=os.clock()
         while g.fx_starts[1] and now-g.fx_starts[1]>=1 do table.remove(g.fx_starts,1) end
         local built=g.parts[part]
-        if not EFFECTS[asset] then return string.format('asset %g is not in the list',asset) end
+        local path=EFFECTS[asset] or remote and remote.fx[asset]
+        if not path then return string.format('asset %g is not in the list',asset) end
         if not built then return string.format('part %g is not drawn',part) end
+        if not EFFECTS[asset] and not g.fx_tried[asset] then return end -- Named since: loaded by a tick, never here.
         if #g.fx_starts>=MAX_STARTS then return 'over '..MAX_STARTS..' a second' end
-        local system=resolve(EFFECTS[asset],{loaded=0,ms=0},NIAGARA_SYSTEM) -- Cached, checked to be still itself.
+        -- Cached, checked to be still itself.
+        local system=EFFECTS[asset] and resolve(path,{loaded=0,ms=0},NIAGARA_SYSTEM)
+            or fetch(path,{loaded=0,ms=0,mods={}},NIAGARA_SYSTEM)
         if not system then return string.format('spawn failed: asset %g is missing',asset) end
         g.fx_starts[#g.fx_starts+1]=now
         slot.fx=valid(g.fx_lib:SpawnSystemAttached(system,built.target,FName('None'),at,rotation,
@@ -1376,6 +1433,10 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
             back_since=nil
         end
         if ghost and ghost.steps then return step() end
+        if ghost and ghost.slots then -- A system an fx line named since the build: one a tick.
+            local named,why=pcall(load_named,ghost)
+            if not named or why then return false,'Effect named by path not loaded: '..tostring(why) end
+        end
         if ghost then
             local ok,a,b=pcall(cns_run,texture_step,ghost) -- All of it CNS: values.
             if ok then return a,b end

@@ -147,6 +147,7 @@ fake_link={
     paks=function() return paks_v end,
     mods=function() return mods_v end,
     cns=function() return cns_v end,
+    shared_version=function() return shared_v or 0 end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
     -- shows the real defaults, On for the three that pinned() reads as off).
     settings_text=function() return settings_text end,

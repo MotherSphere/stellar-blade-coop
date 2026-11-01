@@ -7,6 +7,7 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstdint>
 #include <map>
@@ -235,6 +236,132 @@ inline void cns_assets(std::string_view json, std::map<std::string, std::string>
       assets.emplace(text, fit);
     }
   }
+}
+
+
+// The assets an IoStore mod container holds, from its .utoc's directory index (UE 4.26 to 4.27 TOC versions 2 and 3):
+// each "../../../SB/Content/<p>.uasset" as the object path "/Game/<p>.<name>", appended to out up to max in all, in
+// the index's order. Nothing for a TOC that is cut short, encrypted, unindexed or of another version; the rest of a
+// broken index is dropped. Maps (.umap) and files outside SB/Content never: the paths still need pose/table.h's
+// path_allowed before any use. glue/steam.cpp reads the first kMaxUtocBytes of each mod's .utoc once at start.
+// shortcut: legacy .pak-only mods (no .utoc) give nothing; parse the .pak index if such a mod ever needs sharing.
+constexpr size_t kMaxUtocBytes = 1 << 20, kMaxModAssets = 8192;
+inline void utoc_assets(std::string_view toc, std::vector<std::string> &out, size_t max = kMaxModAssets) {
+  auto u32 = [&toc](size_t at) {
+    uint32_t v = 0;
+    for (int k = 3; k >= 0; --k)
+      v = v << 8 | static_cast<unsigned char>(toc[at + k]);
+    return v;
+  };
+  constexpr size_t kHeader = 144;
+  if (toc.size() < kHeader || toc.substr(0, 16) != "-==--==--==--==-" || (toc[16] != 2 && toc[16] != 3) ||
+      u32(20) != kHeader)
+    return;
+  const uint64_t entries = u32(24), blocks = u32(28), block_size = u32(32), methods = u32(36), method_size = u32(40),
+                 index_size = u32(48);
+  const unsigned flags = static_cast<unsigned char>(toc[80]);
+  if ((flags & 2) || !(flags & 8) || !index_size) // Encrypted, or no directory index.
+    return;
+  uint64_t at = kHeader + entries * 22 + blocks * block_size + methods * method_size;
+  if (flags & 4) { // Signed: the hash size, two signatures, then a 20-byte hash per block.
+    if (at + 4 > toc.size())
+      return;
+    at += 4 + 2 * uint64_t(u32(size_t(at))) + 20 * blocks;
+  }
+  if (at + index_size > toc.size())
+    return;
+  const std::string_view index = toc.substr(size_t(at), size_t(index_size));
+  size_t p = 0;
+  bool bad = false;
+  auto word = [&]() -> uint32_t {
+    if (bad || p + 4 > index.size())
+      return bad = true, 0;
+    uint32_t v = 0;
+    for (int k = 3; k >= 0; --k)
+      v = v << 8 | static_cast<unsigned char>(index[p + k]);
+    p += 4;
+    return v;
+  };
+  auto text = [&]() -> std::string { // An FString: its length with the null; a negative one (UTF-16) is refused.
+    const uint32_t n = word();
+    if (bad || n == 0 || n > 1024 || p + n > index.size() || index[p + n - 1] != 0)
+      return bad = true, std::string();
+    std::string s(index.substr(p, n - 1));
+    p += n;
+    return s;
+  };
+  auto count = [&](size_t each) -> uint32_t { // An array's count, refused past what the index can hold.
+    const uint32_t n = word();
+    return bad || uint64_t(n) * each > index.size() - p ? (bad = true, 0) : n;
+  };
+  const std::string mount = text();
+  std::vector<std::array<uint32_t, 4>> dirs(count(16)); // Name, first child, next sibling, first file.
+  for (auto &d : dirs)
+    for (uint32_t &v : d)
+      v = word();
+  std::vector<std::array<uint32_t, 3>> files(count(12)); // Name, next file, user data.
+  for (auto &f : files)
+    for (uint32_t &v : f)
+      v = word();
+  std::vector<std::string> names(count(5));
+  for (std::string &n : names)
+    n = text();
+  if (bad || dirs.empty())
+    return;
+  constexpr uint32_t kNone = 0xffffffffu;
+  const std::string root = "../../../SB/Content/", tail = ".uasset";
+  // Depth first from the root (entry 0, unnamed), each entry visited once: a loop in a broken index ends there.
+  std::vector<bool> seen(dirs.size()), file_seen(files.size());
+  std::vector<std::pair<uint32_t, std::string>> stack{{0, mount}};
+  while (!stack.empty() && out.size() < max) {
+    auto [d, prefix] = std::move(stack.back());
+    stack.pop_back();
+    for (; d != kNone && d < dirs.size() && !seen[d]; d = dirs[d][2]) {
+      seen[d] = true;
+      std::string path = prefix;
+      if (dirs[d][0] != kNone) {
+        if (dirs[d][0] >= names.size())
+          return;
+        path += names[dirs[d][0]] + "/";
+      }
+      for (uint32_t f = dirs[d][3]; f != kNone && f < files.size() && !file_seen[f] && out.size() < max;
+           f = files[f][1]) {
+        file_seen[f] = true;
+        if (files[f][0] >= names.size())
+          return;
+        const std::string full = path + names[files[f][0]];
+        if (full.size() > root.size() + tail.size() && full.compare(0, root.size(), root) == 0 &&
+            paks_detail::ends(full, tail)) {
+          const std::string package = full.substr(root.size(), full.size() - root.size() - tail.size());
+          out.push_back("/Game/" + package + "." + package.substr(package.rfind('/') + 1));
+        }
+      }
+      if (dirs[d][1] != kNone)
+        stack.emplace_back(dirs[d][1], path);
+    }
+  }
+}
+
+// The ghost's shared assets (coop-shared-assets.txt): each asset of one of our mod containers (assets: by container
+// name, utoc_assets' paths) whose name her pak lines list with the same hash as ours, as "<path> <container>" lines,
+// sorted, each path once (the first container's), at most kMaxModAssets. same: those names (Link::same_mods()).
+// The hash is FNV over file names and sizes, which the friend states herself: a hint that both run one build of the
+// mod, never a proof. The viewer still loads only paths of its own containers.
+inline std::string shared_assets(const std::map<std::string, std::vector<std::string>> &assets,
+                                 const std::vector<std::string> &same) {
+  std::map<std::string, std::string> lines;
+  for (const std::string &name : same) {
+    const auto at = assets.find(name);
+    if (at == assets.end())
+      continue;
+    for (const std::string &path : at->second)
+      if (lines.size() < kMaxModAssets)
+        lines.emplace(path, name);
+  }
+  std::string text;
+  for (const auto &[path, name] : lines)
+    text += path + " " + name + "\n";
+  return text;
 }
 
 } // namespace coop
