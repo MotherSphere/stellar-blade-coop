@@ -109,7 +109,7 @@ LoadAsset=function(path)
 end
 
 local spawned={}
-local fail_mid=nil -- 'make': CreateDynamicMaterialInstance refuses; 'set': a setter does.
+local fail_mid=nil -- 'make': CreateDynamicMaterialInstance refuses; 'set', 'texture': that setter does.
 local dyeable=false -- Parts take materials only once dyes are tested: until then a SetMaterial fails the build.
 local fail_depth=false -- SetRenderCustomDepth refuses: the other render flags are still set.
 local function poseable(actor)
@@ -150,7 +150,10 @@ local function poseable(actor)
                 self.set[#self.set+1]={'v',n:ToString(),c.R,c.G,c.B,c.A}
             end
             function mid:SetScalarParameterValue(n,x) self.set[#self.set+1]={'s',n:ToString(),x} end
-            function mid:SetTextureParameterValue(n,a) self.set[#self.set+1]={'t',n:ToString(),a,frame} end
+            function mid:SetTextureParameterValue(n,a)
+                if fail_mid=='texture' then error('no texture setter') end
+                self.set[#self.set+1]={'t',n:ToString(),a,frame}
+            end
             self.mids=self.mids or {}
             self.mids[slot]=mid
             return mid
@@ -1912,14 +1915,16 @@ ghost.tick()
 send(911,tinted({'s A 2'}))
 ok,message=build()
 assert(spawned[#spawned].parts[3].mids[0].set[#spawned[#spawned].parts[3].mids[0].set][3]==2,message)
--- A bad line in the file (the native part already drops these) costs that line, said once: nan, inf, past the bound,
--- a number short, a repeat, a name too long. The ghost stays.
+-- Values for another material under the same generation (the sender's key forbids it) are not set on this one.
+do
+    local set_now=#spawned[#spawned].parts[3].mids[0].set
+    send(911,tinted({'s A 3'},TYPE_C))
+    assert(#spawned[#spawned].parts[3].mids[0].set==set_now,'Not this slot\'s material')
+end
+-- A line format_table never writes refuses the file, as any other line does. The ghost stays.
 ghosts=#spawned
-ok,message=send(911,tinted({'s A 3','s B nan','s C inf','s D 1e6','v E 1 2 3','s A 4',('s '..('n'):rep(65)..' 1')}))
-assert(ok==false and message=='Material values ignored: 6 lines.' and #spawned==ghosts,tostring(message))
-assert(spawned[#spawned].parts[3].mids[0].set[#spawned[#spawned].parts[3].mids[0].set][3]==3)
-ok,message=send(911,tinted({'s A 5','s B nan'}))
-assert(ok==nil and message==nil,'One note a Lua load')
+ok,message=send(911,tinted({'s A 3','s B nan'}))
+assert(ok==false and message=='The remote table could not be read.' and #spawned==ghosts,tostring(message))
 -- No material here for that slot (a pack missing on this PC, a slot past the mesh's): no instance, no error, no value.
 ghost=new(nil,true,look)
 ghost.toggle()
@@ -1962,7 +1967,7 @@ fail_mid=nil
 -- A peer's new names cannot grow the name table without end: 1024 a Lua load, then one note.
 local names_made=0
 local real_FName=FName
-FName=function(text) names_made=names_made+1; return real_FName(text) end
+FName=function(text) names_made=names_made+(text=='None' and 0 or 1); return real_FName(text) end -- None exists already.
 ghost=new(nil,true,look)
 ghost.toggle()
 send(917,tinted({'s First 1'}))
@@ -1979,6 +1984,70 @@ end
 FName=real_FName
 assert(noted=='Material values ignored: over 1024 names.',tostring(noted))
 assert(names_made<=1024+8,'Past the budget no name is made: '..names_made)
+do
+    -- A value gone from a table of the same generation: the plain material back, what is left on a new instance, a texture
+    -- still waiting dropped, no new ghost.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    send(918,tinted({'s A 1','s B 2','t Base '..T_BASE}))
+    ghost.tick()
+    clock=clock+2
+    build()
+    actor=spawned[#spawned]
+    hair=actor.parts[3]
+    local first=hair.mids[0]
+    local dyed_before=#hair.dyes
+    send(918,tinted({'s B 2'}))
+    assert(spawned[#spawned]==actor and #hair.dyes==dyed_before+1 and hair.dyes[#hair.dyes].material==meshes[TYPE_B])
+    local second=hair.mids[0]
+    assert(second~=first and #second.set==1 and second.set[1][2]=='B' and second.set[1][3]==2)
+    clock=clock+0.3
+    ghost.tick()
+    assert(#first.set==2 and #second.set==1,'The waiting texture went with its values')
+    -- No value left: plain, no instance made for nothing. A value back: a new instance.
+    send(918,tinted())
+    assert(#hair.dyes==dyed_before+2 and hair.dyes[#hair.dyes].material==meshes[TYPE_B] and hair.mids[0]==second)
+    send(918,tinted())
+    assert(#hair.dyes==dyed_before+2,'Plain already: nothing to do')
+    send(918,tinted({'s A 9'}))
+    assert(hair.mids[0]~=second and hair.mids[0].set[1][3]==9)
+    -- A texture setter that fails: the plain material back for this ghost, said once at that tick, other textures dropped.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    send(919,tinted({'s A 1','t Base '..T_BASE,'t Iris '..T_MOD}))
+    ghost.tick()
+    clock=clock+2
+    build()
+    hair=spawned[#spawned].parts[3]
+    dyed_before=#hair.dyes
+    fail_mid='texture'
+    clock=clock+0.3
+    ok,message=ghost.tick()
+    assert(ok==false and message:find('^Material texture not set %(.*no texture setter%)%.$'),tostring(message))
+    assert(#hair.dyes==dyed_before+1 and hair.dyes[#hair.dyes].material==meshes[TYPE_B])
+    fail_mid=nil
+    local failed_mid=hair.mids[0]
+    for _=1,3 do clock=clock+0.3; assert(ghost.tick()==nil) end
+    send(919,tinted({'s A 2'}))
+    assert(#failed_mid.set==1 and hair.mids[0]==failed_mid,'Stays plain for this ghost')
+    -- Over the waiting textures: said once, and those left over come once none waits, with no new table.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    local many={}
+    for k=1,65 do many[k]='t T'..k..' '..T_BASE end
+    send(920,tinted(many))
+    ghost.tick()
+    clock=clock+2
+    ok,message=build()
+    assert(ok and message:find('Material textures waiting: over 64 at once%.'),message)
+    local full_mid=spawned[#spawned].parts[3].mids[0]
+    assert(#full_mid.set==0)
+    for _=1,64 do clock=clock+0.3; ghost.tick() end
+    assert(#full_mid.set==64)
+    clock=clock+0.3
+    ghost.tick()
+    assert(#full_mid.set==65 and full_mid.set[65][2]=='T65')
+end
 cns={}
 dyeable=false
 

@@ -695,10 +695,11 @@ for 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is fo
 The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material` and `value` lines to the table (parts
 on a mod's mesh have them either way). A slot's values go on a dynamic instance the ghost makes of that slot's material
 (`CreateDynamicMaterialInstance`, then `SetVectorParameterValue`, `SetScalarParameterValue` and
-`SetTextureParameterValue`), and a later table sets only what changed on that instance. A slot with no material here (a
+`SetTextureParameterValue`), and a later table sets only what changed on that instance. A value gone from a later table
+puts the slot back on the plain material, and what is left goes on a new instance. A slot with no material here (a
 missing pack) gets no values and no error. If the instance or a setter fails, the slot goes back on the plain material
-and stays there for this ghost, with one note in the log. Textures load after the build, one each 0.25 s, at most 64
-waiting, by the same rules as meshes. A Lua load makes at most 1024 FNames for values, since FNames are never freed. Effects fill the pose's four slots, and the native part writes the drawn slots into four
+and stays there for this ghost, with one note in the log. Textures load after the build, one each 0.25 s, by the same
+rules as meshes. At most 64 wait at once, with one note in the log, and those left over are tried again once none waits. A Lua load makes at most 1024 FNames for values, since FNames are never freed. Effects fill the pose's four slots, and the native part writes the drawn slots into four
 boxes beside the mailbox, from which Lua starts and moves the effects. Effects have their own fault latch, so a fault
 there turns effects off for the run and the ghost stays. See [usage.md](usage.md#looks).
 
