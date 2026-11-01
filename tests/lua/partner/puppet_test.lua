@@ -109,6 +109,7 @@ LoadAsset=function(path)
 end
 
 local spawned={}
+local fail_mid=nil -- 'make': CreateDynamicMaterialInstance refuses; 'set': a setter does.
 local dyeable=false -- Parts take materials only once dyes are tested: until then a SetMaterial fails the build.
 local fail_depth=false -- SetRenderCustomDepth refuses: the other render flags are still set.
 local function poseable(actor)
@@ -138,6 +139,21 @@ local function poseable(actor)
         function p:SetMaterial(slot,m)
             self.dyes=self.dyes or {}
             self.dyes[#self.dyes+1]={slot=slot,material=m,at=frame}
+        end
+        -- As the engine's: the source set on the slot, then a dynamic instance of it put there.
+        function p:CreateDynamicMaterialInstance(slot,m,name)
+            if fail_mid=='make' then error('no instance') end
+            assert(name:ToString()=='None')
+            local mid=object('MID',{set={},parent=m})
+            function mid:SetVectorParameterValue(n,c)
+                if fail_mid=='set' then error('no such setter') end
+                self.set[#self.set+1]={'v',n:ToString(),c.R,c.G,c.B,c.A}
+            end
+            function mid:SetScalarParameterValue(n,x) self.set[#self.set+1]={'s',n:ToString(),x} end
+            function mid:SetTextureParameterValue(n,a) self.set[#self.set+1]={'t',n:ToString(),a,frame} end
+            self.mids=self.mids or {}
+            self.mids[slot]=mid
+            return mid
         end
     end
     return p -- No SetMaterial unless dyeable: a call fails the build, so the test.
@@ -370,6 +386,9 @@ local function remote_text(generation,parts,map)
             p.shown==false and 0 or 1,p.names and #p.names or 0,p.name,p.path or '-')
         if i>1 then lines[#lines+1]='place '..(i-1)..' '..(p.place or '0 0 0 1 0 0 0 1 1 1') end
         for _,m in ipairs(p.materials or {}) do lines[#lines+1]=string.format('material %d %d %s',i-1,m[1],m[2]) end
+        for _,m in ipairs(p.materials or {}) do
+            for _,v in ipairs(m[3] or {}) do lines[#lines+1]=string.format('value %d %d %s',i-1,m[1],v) end
+        end
         if p.cloth then lines[#lines+1]=string.format('cloth %d %s',i-1,p.cloth) end
         if p.label then lines[#lines+1]=string.format('mod %d %s',i-1,p.label) end
         if p.names then lines[#lines+1]='names '..(i-1)..' '..table.concat(p.names,' ') end
@@ -1832,6 +1851,136 @@ assert(ok and message:find('; SBPonytail: outfit collision not used %('..plain(P
     ..' not declared by your CNS packs%)'),message)
 assert(not (seen(finds,PA) or seen(loads,PA) or seen(gets,PA)),'Never looked up or loaded: '..PA)
 cns={}
+
+-- Values (a dynamic material's, the table's value lines). On a dyed slot of a part on its own mesh: a dynamic instance
+-- of the slot's material, colours when the build ends, a name's '~' a space again; the build line as without them.
+local T_BASE,T_MOD,T_OUT,T_MESH='/Game/Art/Character/PC/T/T_A.T_A','/Game/Mods/DekCNS_P/Textures/T_Iris.T_Iris',
+    '/Game/Mods/Other/T_B.T_B',BLADE
+for _,path in ipairs({T_BASE,T_MOD,T_OUT}) do
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,c) return c.path=='/Script/Engine.Texture' end
+    meshes[path].GetFullName=function() return 'Texture2D '..path end
+end
+cns={[T_MOD]='-'}
+look={cloth=false,dyes=true}
+dyeable=true
+ghost=new(nil,true,look)
+ghost.toggle()
+local function tinted(values,slot_material)
+    return her_parts({hair_materials={{0,slot_material or TYPE_B,values}}})
+end
+loads,finds={},{}
+local colours={'v RootColor 1 0.25 0 1','s Iris~UV~Radius 0.5','t Iris '..T_MOD,'t Base '..T_BASE,'t Out '..T_OUT,
+    't Mesh '..T_MESH}
+send(910,tinted(colours))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 910 built: ') and not message:find('Material'),message)
+actor=spawned[#spawned]
+hair=actor.parts[3]
+local mid=hair.mids[0]
+assert(mid.parent==meshes[TYPE_B] and hair.dyes[1].material==meshes[TYPE_B])
+assert(mid.set[1][1]=='v' and mid.set[1][2]=='RootColor' and mid.set[1][4]==0.25 and mid.set[1][6]==1)
+assert(mid.set[2][1]=='s' and mid.set[2][2]=='Iris UV Radius' and mid.set[2][3]==0.5 and #mid.set==2,'Textures later')
+-- Textures: one each 0.25 s, after the build, resolved and set in one frame. One no CNS pack here declares is never
+-- looked up; one of another class is not set. Neither says a word: that pack is only missing here.
+for _=1,4 do clock=clock+0.3; assert(ghost.tick()==nil) end
+assert(#mid.set==4 and mid.set[3][2]=='Iris' and mid.set[3][3]==meshes[T_MOD] and mid.set[4][2]=='Base'
+    and mid.set[4][3]==meshes[T_BASE],'The two this PC may load')
+for _,list in ipairs({finds,loads,gets}) do
+    for _,path in ipairs(list) do assert(path~=T_OUT,'Never looked up: '..path) end
+end
+-- A colour changed under the same generation: only it is set again, on the same instance, with no new ghost.
+local ghosts=#spawned
+colours[1],colours[2]='v RootColor 0 0 1 1','s Iris~UV~Radius 0.5'
+local before_set=#mid.set
+ok,message=send(910,tinted(colours))
+assert(ok==nil and message==nil and #spawned==ghosts and hair.mids[0]==mid and #mid.set==before_set+1)
+assert(mid.set[#mid.set][1]=='v' and mid.set[#mid.set][3]==0 and mid.set[#mid.set][5]==1)
+-- A changed texture waits for its turn too, never in the table's own call.
+local loads_now=#loads
+colours[4]='t Base '..T_MOD
+send(910,tinted(colours))
+assert(#loads==loads_now and #mid.set==before_set+1,'Not loaded in the table\'s own call')
+clock=clock+0.3
+ghost.tick()
+assert(mid.set[#mid.set][2]=='Base' and mid.set[#mid.set][3]==meshes[T_MOD])
+-- A table changed during the build: its colours are on the ghost when it is done.
+send(911,tinted({'s A 1'}))
+ghost.tick()
+send(911,tinted({'s A 2'}))
+ok,message=build()
+assert(spawned[#spawned].parts[3].mids[0].set[#spawned[#spawned].parts[3].mids[0].set][3]==2,message)
+-- A bad line in the file (the native part already drops these) costs that line, said once: nan, inf, past the bound,
+-- a number short, a repeat, a name too long. The ghost stays.
+ghosts=#spawned
+ok,message=send(911,tinted({'s A 3','s B nan','s C inf','s D 1e6','v E 1 2 3','s A 4',('s '..('n'):rep(65)..' 1')}))
+assert(ok==false and message=='Material values ignored: 6 lines.' and #spawned==ghosts,tostring(message))
+assert(spawned[#spawned].parts[3].mids[0].set[#spawned[#spawned].parts[3].mids[0].set][3]==3)
+ok,message=send(911,tinted({'s A 5','s B nan'}))
+assert(ok==nil and message==nil,'One note a Lua load')
+-- No material here for that slot (a pack missing on this PC, a slot past the mesh's): no instance, no error, no value.
+ghost=new(nil,true,look)
+ghost.toggle()
+send(912,her_parts({hair_materials={{1,FACE,{'s A 1'}},{5,TYPE_C,{'s B 1'}}}}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 912 built: 6 parts ') and not spawned[#spawned].parts[3].mids,message)
+-- On a fallback mesh: never, its slots are another mesh's.
+send(913,her_parts({hair=NIER,hair_materials={{0,TYPE_B,{'s A 1'}}}}))
+ok,message=build()
+assert(ok and spawned[#spawned].parts[3].mesh==meshes[BASE_HAIR] and not spawned[#spawned].parts[3].mids,message)
+-- Dyes off on the game's own mesh: read and nothing done, as the materials.
+look.dyes=false
+send(914,tinted({'s A 1'}))
+ok,message=build()
+assert(ok and not spawned[#spawned].parts[3].mids and not spawned[#spawned].parts[3].dyes,message)
+look.dyes=true
+-- An instance refused, then a setter refusing: the slot back on its plain material, the ghost drawn, said once.
+fail_mid='make'
+send(915,tinted({'v A 1 1 1 1'}))
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 915 built: .* Material values not set %(.*no instance%)%.'),message)
+assert(actor.parts[3].dyes[#actor.parts[3].dyes].material==meshes[TYPE_B],'Back on the plain material')
+fail_mid='set'
+ghost=new(nil,true,look)
+ghost.toggle()
+send(916,tinted({'v A 1 1 1 1'}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('Material values not set %(.*no such setter%)%.'),message)
+assert(#actor.parts[3].dyes==2 and actor.parts[3].dyes[2].material==meshes[TYPE_B])
+-- Once failed, a later table does not try that slot again, and its ghost stays.
+ok,message=send(916,tinted({'v A 0 0 0 1'}))
+assert(ok==nil and #actor.parts[3].dyes==2 and spawned[#spawned]==actor)
+fail_mid=nil
+-- A peer's new names cannot grow the name table without end: 1024 a Lua load, then one note.
+local names_made=0
+local real_FName=FName
+FName=function(text) names_made=names_made+1; return real_FName(text) end
+ghost=new(nil,true,look)
+ghost.toggle()
+send(917,tinted({'s First 1'}))
+ghost.tick()
+clock=clock+2
+build()
+local noted
+for round=1,40 do
+    local batch={}
+    for k=1,32 do batch[k]=string.format('s N%d_%d 1',round,k) end
+    local _,said_now=send(917,tinted(batch))
+    noted=said_now or noted
+end
+FName=real_FName
+assert(noted=='Material values ignored: over 1024 names.',tostring(noted))
+assert(names_made<=1024+8,'Past the budget no name is made: '..names_made)
+cns={}
+dyeable=false
 
 -- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.
 local part=cloth_part(object('Owner'))

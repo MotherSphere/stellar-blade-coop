@@ -4,7 +4,7 @@
 -- wait, the menu pawn, the native part's caps and pose size (the last leaders left out); with dyes on, her overridden
 -- materials (a dynamic one as its parent); with effects on, the Niagara layout by reflection and the listed systems in
 -- memory, looked up one a tick; the game's own folders against a mod's, a mod's mesh tagged with its outfit and sending
--- its materials with dyes off, and her cloth's collision line.
+-- its materials with dyes off, her cloth's collision line, and a dynamic material's value lines.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -234,9 +234,12 @@ local function material(path) -- A material asset: its full name; read-only.
     return read_only(object(path,{GetFullName=function() return 'MaterialInstanceConstant '..path end,
         IsA=function() return false end}),path)
 end
-local function dynamic(parent) -- Made at run time from parent: never loadable by a peer.
-    return read_only(object('MID',{Parent=parent,IsA=function(_,class) return class.path==MID end,
-        GetFullName=function() return 'MaterialInstanceDynamic /Engine/Transient.MID' end}),'a MID')
+local function dynamic(parent,fields) -- Made at run time from parent: never loadable by a peer.
+    fields=fields or {}
+    fields.Parent=parent
+    fields.IsA=function(_,class) return class.path==MID end
+    fields.GetFullName=function() return 'MaterialInstanceDynamic /Engine/Transient.MID' end
+    return read_only(object('MID',fields),'a MID')
 end
 local function slots(n,entries) -- A TArray of n slots, nil where entries has none, as UE4SS hands it over.
     return {ForEach=function(_,f) for k=1,n do f(k,{get=function() return entries[k] end}) end end}
@@ -445,4 +448,106 @@ assert(ok and t:find(' CharacterMesh0 '..plain(BODY)..'\nmaterial 0 0 '..plain(S
 assert(t:find('\npart 1 %- 0 %- 1 2 Suit %-\nplace 1 [^\n]*\nnames 1 ') and t:find('\npart 2 1 1 %- 1 0 SBPonytail %-\n'),t)
 assert(not t:find('OutfitMods',1,true) and not t:find('ATOOL',1,true) and not t:find('\nmod ') and not t:find('\ncloth '),
     t)
+
+-- Values: a dynamic material's vectors, scalars and textures go after the part's materials, a space in a name as '~', a
+-- number that is not finite or is past the bound left out, a name that is no word left out, a texture only when the
+-- viewer's fetch rule can load it. The nearest instance wins, each name once.
+local function vector(name,r,g,b,a) return {ParameterInfo={Name=fname(name)},ParameterValue={R=r,G=g,B=b,A=a}} end
+local function scalar(name,x) return {ParameterInfo={Name=fname(name)},ParameterValue=x} end
+local function texture(name,path)
+    return {ParameterInfo={Name=fname(name)},ParameterValue=object(path,{GetFullName=function() return 'Texture2D '..path end})}
+end
+local T_MOD,T_BASE,T_OTHER='/Game/Mods/DekCNS_P/Textures/T_Iris.T_Iris','/Game/Art/Character/PC/T/T_A.T_A',
+    '/Game/Mods/Other/T_B.T_B'
+local inf,nan=math.huge,0/0
+local inner=dynamic(skin,{ScalarParameterValues={scalar('Scatter',9),scalar('Deep',0.25)}})
+local mid=dynamic(inner,{
+    VectorParameterValues={vector('RootColor',1,0.5,0,1),vector('Bad',nan,0,0,1),vector('Big',1e6,0,0,1)},
+    ScalarParameterValues={scalar('Iris UV Radius',0.5),scalar('Scatter',2),scalar('Inf',inf),scalar('caf\xc3\xa9',1),
+        scalar(('n'):rep(65),1),scalar('Tiny',1e-40)},
+    TextureParameterValues={texture('Iris',T_MOD),texture('Base',T_BASE),texture('Other',T_OTHER),
+        texture('Run','/Engine/Transient.RT')},
+})
+raw[body].OverrideMaterials=slots(1,{mid})
+published={}
+cns[T_MOD]='-'
+local looked={dyes=true}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looked,
+    function() return cns end)
+player=eve_of('EVE11',{body})
+tick()
+ok,message=step(2)
+assert(ok and message:find('; dyes: 1 slots %(1 dynamic%); values: 7$'),tostring(message))
+t=published[1]
+assert(t:find('\nmaterial 0 0 '..plain(SKIN)..'\nvalue 0 0 v RootColor 1 0%.5 0 1\nvalue 0 0 s Iris~UV~Radius 0%.5\n'
+    ..'value 0 0 s Scatter 2\nvalue 0 0 s Tiny 0\nvalue 0 0 t Iris '..plain(T_MOD)..'\nvalue 0 0 t Base '..plain(T_BASE)
+    ..'\nvalue 0 0 s Deep 0%.25\nnames 0 '),t)
+assert(not t:find('Inf',1,true) and not t:find('caf',1,true) and not t:find(' s nnnn',1,true) and not t:find(T_OTHER,1,true)
+    and not t:find('Transient',1,true) and not t:find(' Bad ',1,true) and not t:find(' Big ',1,true),t)
+-- A colour changed: published again under the same generation, a value in place; a flicker in the last digits is not.
+raw[mid].VectorParameterValues[1]=vector('RootColor',1,0.5,0,1.0000001)
+step(1)
+assert(#published==1,'A flicker is no change')
+raw[mid].VectorParameterValues[1]=vector('RootColor',0,0,1,1)
+ok,message=step(1)
+assert(message==nil and #published==2 and published[2]:find('^generation 100001\n')
+    and published[2]:find('value 0 0 v RootColor 0 0 1 1\n',1,true),published[2])
+step(1)
+assert(#published==2,'The same values: nothing more')
+-- One part's values a look: a change on the other part waits for its turn.
+raw[hair].OverrideMaterials=slots(1,{dynamic(type_b,{ScalarParameterValues={scalar('Hue',1)}})})
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looked,
+    function() return cns end)
+player=eve_of('EVE12',{body,hair})
+tick()
+step(2)
+assert(published[1]:find('\nvalue 1 0 s Hue 1\n',1,true),published[1])
+reads.ScalarParameterValues=0
+step(1)
+assert(reads.ScalarParameterValues<=2,'One part a look, at most two levels of it')
+-- A MID whose values cannot be read keeps its material line, said once, a look later.
+raw[mid].VectorParameterValues={ForEach=function() error('no vector array') end}
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looked,
+    function() return cns end)
+player=eve_of('EVE13',{body})
+tick()
+step(2)
+assert(published[1]:find('\nmaterial 0 0 ') and not published[1]:find('\nvalue '),published[1])
+ok,message=step(1)
+assert(ok==false and message:find('^Capture: materials not read: .*no vector array$'),tostring(message))
+raw[mid].VectorParameterValues={}
+-- mod_names=off: a mod's texture stays home though declared, the game's own goes.
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looked,
+    function() return cns end,true)
+player=eve_of('EVE14',{body})
+tick()
+step(2)
+assert(published[1]:find('value 0 0 t Base ',1,true) and not published[1]:find(T_MOD,1,true),published[1])
+-- Dyes off on the game's own mesh: nothing read, so no value lines, as the materials.
+reads.VectorParameterValues=nil
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,{dyes=false},
+    function() return cns end)
+player=eve_of('EVE15',{body})
+tick()
+step(2)
+assert(not reads.VectorParameterValues and not published[1]:find('\nvalue '),published[1])
+-- A table with no room: the geometry goes whole, the values stay home, said in the line.
+local long_bones={}
+for b=1,900 do long_bones[b]=('b'):rep(61)..b end
+local big=her('Big',BODY,{parent=capsule,bones=900,names=long_bones})
+raw[big].OverrideMaterials=slots(1,{mid})
+local big_eve=eve_of('EVE16',{big})
+raw[big_eve].Mesh=big
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looked,
+    function() return cns end)
+player=big_eve
+tick()
+ok,message=step(2)
+assert(ok and message:find('; %d+ values left out, over the table size$') and not published[1]:find('\nvalue ')
+    and published[1]:find('\nmaterial 0 0 ') and #published[1]>56000,tostring(message))
 print('capture_test ok')

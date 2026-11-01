@@ -7,7 +7,9 @@
 -- it looks again: a new mesh is a new generation; a part hung elsewhere (a blade drawn) or shown or hidden is published
 -- again under the same generation. Placement alone never is: a part placed relative to her main mesh moves with every
 -- animation. With dyes on (dyes=on in coop-settings.txt, or coop look), each part's overridden materials go too (her
--- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation. With
+-- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation, with the
+-- values set on it (value lines: the colours CNS sets). A look reads one part's values, a new generation all of them; a
+-- change is published again under the same generation, geometry first and values only while the table has room. With
 -- effects on, it also names, for the native effect read, the NiagaraComponent class, its Asset field's offset and which
 -- systems of Capture.EFFECTS are in memory: looked up one a tick on each new EVE and as effects turn on, and published
 -- only once all are looked up, so the list never changes under one generation. A part on a mod's mesh (outside the
@@ -21,6 +23,9 @@ local valid,value_of,each,text,find,address,hex,word=U.valid,U.value_of,U.each,U
 local Capture={}
 local MAX_PARTS,MAX_BONES=16,1024 -- The native part's kMaxParts and kMaxBones: past them it refuses the whole table.
 local MAX_MATERIALS,MAX_SLOTS=16,64 -- Its kMaxMaterials and kMaxSlots too.
+local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER=512,32,1e5 -- Its kMaxValues, kMaxSlotValues and kMaxValue.
+-- Value lines stop here: past the native part's 64 KiB it would refuse the whole table, and the ghost with it.
+local VALUES_ROOM=56000
 -- Its kMaxPose, then what pose_size() counts in every pose (the header, 4 effect slots of 15 bytes, her world
 -- transform) and per bone of a leader: past MAX_POSE it refuses the whole table.
 local MAX_POSE,POSE_BASE,BONE_BYTES=16384,29+4*15+24,18
@@ -87,8 +92,9 @@ local function place_of(transform)
     return table.concat({real(q.X),real(q.Y),real(q.Z),real(q.W),real(t.X),real(t.Y),real(t.Z),real(s.X),real(s.Y),
         real(s.Z)},' ')
 end
--- A part's overridden materials, slots rising: {slot=, object=}, and how many were dynamic instances. A dynamic one
--- (made at run time, so no peer can load it) goes as its parent, up to 4 levels.
+-- A part's overridden materials, slots rising: {slot=, object=, dynamic=}, and how many were dynamic instances. A
+-- dynamic one (made at run time, so no peer can load it) goes as its parent, up to 4 levels; dynamic lists those
+-- levels, nearest first, for values_of.
 local function materials_of(component)
     local list,dynamic={},0
     local mid=find('/Script/Engine.MaterialInstanceDynamic')
@@ -96,16 +102,63 @@ local function materials_of(component)
         material=valid(material)
         if not material or #list==MAX_MATERIALS or index>MAX_SLOTS then return end
         local made=material:IsA(mid)
+        local levels={}
         for _=1,4 do
             if not (material and material:IsA(mid)) then break end
+            levels[#levels+1]=material
             material=valid(material.Parent)
         end
         if material then
-            list[#list+1]={slot=index-1,object=material}
+            list[#list+1]={slot=index-1,object=material,dynamic=levels}
             dynamic=dynamic+(made and 1 or 0)
         end
     end)
     return list,dynamic
+end
+-- A number a value line may carry: finite, within the native part's bound, and one from_chars reads back. nil else.
+local function value_number(v)
+    v=tonumber(value_of(v))
+    if not v or v~=v or math.abs(v)>MAX_NUMBER then return nil end
+    return math.abs(v)<1e-30 and 0 or v
+end
+-- The values set on dynamic instances, nearest instance first and each name once, as value lines' last words ('v name r
+-- g b a', 's name x', 't name path') up to the slot's cap, and a key of them rounded, so a flicker in the last digits is
+-- not a change. A name that is not a word once its spaces are '~' is left out, as is a texture the viewer's fetch rule
+-- could not load: the game's own folders or a path our CNS packs declare (they name a mod's for both players, or it
+-- stays out), and no mod's path at all when private.
+local function values_of(levels,declared,private)
+    local list,key,seen={},{},{}
+    local function add(kind,name,line,rounded)
+        name=text(name)
+        if #list==MAX_SLOT_VALUES or #name>64 or not name:find('^[ -}]+$') then return end
+        name=name:gsub(' ','~')
+        if seen[kind..name] then return end
+        seen[kind..name]=true
+        list[#list+1]=kind..' '..name..' '..line
+        key[#key+1]=kind..name..rounded
+    end
+    for _,mid in ipairs(levels) do
+        each(mid.VectorParameterValues,function(_,v)
+            local c=value_of(v.ParameterValue)
+            local r,g,b,a=value_number(c.R),value_number(c.G),value_number(c.B),value_number(c.A)
+            if r and g and b and a then
+                add('v',value_of(v.ParameterInfo).Name,table.concat({real(r),real(g),real(b),real(a)},' '),
+                    string.format('%.3g %.3g %.3g %.3g',r,g,b,a))
+            end
+        end)
+        each(mid.ScalarParameterValues,function(_,v)
+            local x=value_number(v.ParameterValue)
+            if x then add('s',value_of(v.ParameterInfo).Name,real(x),string.format('%.3g',x)) end
+        end)
+        each(mid.TextureParameterValues,function(_,v)
+            local texture=valid(v.ParameterValue)
+            local path=texture and texture:GetFullName():match('^%S+ (.+)$')
+            if path and (Capture.base_path(path) or not private and declared[path]) then
+                add('t',value_of(v.ParameterInfo).Name,path,path)
+            end
+        end)
+    end
+    return list,table.concat(key,',')
 end
 -- The native effect read's layout: the NiagaraComponent class and its Asset field's offset, found up the class's supers
 -- (no SDK file covers Niagara). Raises when there is none within the native part's bounds, which would refuse the
@@ -142,6 +195,7 @@ function Capture.new(publish,looks,assets,private)
     local seen,since,next_look=nil,nil,0
     local yaw_delta=0
     local unread -- Why materials could not be read, until said (then false): once per Lua load.
+    local tints,turn={},0 -- A part's values as last read, by its address; the part this look reads.
     local fx -- The effect read's layout: nil until effects are first on, false when it could not be found (this load).
     local systems,scan,effects_were={},nil,false -- Capture.EFFECTS found, by index; the next index the scan looks up.
     local function withdraw()
@@ -229,7 +283,31 @@ function Capture.new(publish,looks,assets,private)
         end
         key,dress=table.concat(key,' ')..(effects and ' fx' or ''),table.concat(dress,' ')
         local renewed=not published or published.key~=key
-        if not renewed and published.dress==dress then return end
+        if renewed then tints={} end
+        turn=turn%#parts+1
+        local tint,value_count={},0
+        for i,c in ipairs(parts) do
+            local at=address(c.handle)
+            if i==turn or not tints[at] then
+                local read,got=pcall(function()
+                    local read_slots,keys={},{}
+                    for _,m in ipairs(c.materials) do
+                        if m.dynamic[1] then
+                            local values,value_key=values_of(m.dynamic,declared,private)
+                            read_slots[m.slot]=values
+                            keys[#keys+1]=m.slot..':'..value_key
+                        end
+                    end
+                    return {slots=read_slots,key=table.concat(keys,';')}
+                end)
+                if not read and unread==nil then unread=tostring(got) end
+                tints[at]=read and got or {slots={},key=''}
+            end
+            c.values=tints[at].slots
+            tint[i]=tints[at].key
+        end
+        tint=table.concat(tint,' ')
+        if not renewed and published.dress==dress and published.tint==tint then return end
         local names,map=published and published.names,published and published.map
         if renewed then
             generation=generation+1
@@ -261,6 +339,12 @@ function Capture.new(publish,looks,assets,private)
                 -- A longer one would refuse the whole table: never one of the game's.
                 if material and #material<=255 then
                     lines[#lines+1]=string.format('material %d %d %s',c.index,m.slot,material)
+                    m.sent=true
+                end
+            end
+            for _,m in ipairs(c.materials) do -- Each in a table of its own: geometry first, below.
+                for _,value in ipairs(m.sent and c.values[m.slot] or {}) do
+                    lines[#lines+1]={string.format('value %d %d %s',c.index,m.slot,value)}
                 end
             end
             local cloth=c.cloth and sent(c.cloth:GetFullName():match('^%S+ (.+)$'))
@@ -280,11 +364,26 @@ function Capture.new(publish,looks,assets,private)
                 if systems[k] then lines[#lines+1]=string.format('effect %d %s',k,hex(systems[k])); found=found+1 end
             end
         end
-        local ok,why=publish(table.concat(lines,'\n')..'\n')
+        local size,left_out=0,0
+        for _,line in ipairs(lines) do size=size+(type(line)=='string' and #line+1 or 0) end
+        local final={}
+        for _,line in ipairs(lines) do
+            if type(line)=='string' then
+                final[#final+1]=line
+            elseif value_count<MAX_VALUES and size+#line[1]+1<=VALUES_ROOM then
+                final[#final+1]=line[1]
+                size,value_count=size+#line[1]+1,value_count+1
+            else
+                left_out=left_out+1
+            end
+        end
+        local ok,why=publish(table.concat(final,'\n')..'\n')
         if not ok then return false,'Capture not published: '..tostring(why) end
-        published={generation=generation,key=key,dress=dress,names=names,map=map}
+        published={generation=generation,key=key,dress=dress,tint=tint,names=names,map=map}
         if renewed then
             local tail=(looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or '')
+                ..(value_count>0 and string.format('; values: %d',value_count) or '')
+                ..(left_out>0 and string.format('; %d values left out, over the table size',left_out) or '')
                 ..(effects and string.format('; effects: %d of %d found',found,#Capture.EFFECTS) or '')
                 ..(dropped and string.format('; %d leaders left out, over the pose size',dropped) or '')
             return true,string.format('Capture %d: %d parts, %d bone names, map %s, %.1f ms%s',generation,#parts,count,

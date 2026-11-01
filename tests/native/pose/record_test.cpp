@@ -251,9 +251,9 @@ int main() {
   }
   std::string bad_protocol = good, bad_byte_3 = p1, protocol_5 = good, protocol_6 = good, protocol_7 = good,
               protocol_8 = good, protocol_9 = good, protocol_10 = good, protocol_12 = good,
-              protocol_13 = good, d_age_0 = d1;
+              protocol_13 = good, protocol_14 = good, d_age_0 = d1;
   bad_protocol[3] = char(coop::kProtocol + 1);
-  assert(kHead == "SBR\x0e");
+  assert(kHead == "SBR\x0f");
   protocol_5[3] = 5; // Before the effect slots: its poses are 60 bytes short.
   protocol_6[3] = 6; // v0.1.1's: the same bytes, made before channel 2.
   protocol_7[3] = 7; // v0.2.0's: the same bytes, made before chat.
@@ -262,6 +262,7 @@ int main() {
   protocol_10[3] = 10; // Stage 2's: the same bytes, made before SBE and the show lines.
   protocol_12[3] = 12; // v0.5.0-beta.1's: the same bytes, made before the pak lines.
   protocol_13[3] = 13; // v0.6.0-beta.3's: the same bytes, made before the night line's level and the gift line.
+  protocol_14[3] = 14; // v0.7.0-beta.1's: the same bytes, made before the value lines.
   std::memset(&d_age_0[kPoseHeader], 0, 4);
   const std::string bd_k1 = delta(b, pose(b, 30, 2'000'000), pose(b, 31, 2'016'667)); // Its age leads to k1's time.
   bad_byte_3[3] = char(coop::kProtocol + 1);
@@ -282,6 +283,7 @@ int main() {
       {protocol_10, "protocol"},
       {protocol_12, "protocol"},
       {protocol_13, "protocol"},
+      {protocol_14, "protocol"},
       {good + entry('X', p1), "kind"},
       {good + entry('p', p1), "kind"},
       {kHead + entry('X', t1) + entry('P', p1), "kind"},

@@ -17,7 +17,10 @@
 -- strands. Else it is a rigid Poseable like the rest, which draws her ponytail as one block. Its collision is the one
 -- the table's cloth line names, else the one named from her body. With look.dyes, and always on a mod's mesh, a part
 -- drawn on its own mesh takes the materials the table overrides (her hair colour), each one this PC has (the same rules
--- as meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. With look.effects, her attack and
+-- as meshes, and a MaterialInterface); else, and on a fallback mesh, its mesh's own. The table's values for such a slot
+-- go on a dynamic instance made there at the build's end: colours then and again when they change, a texture one per
+-- MIN_TEXTURE seconds by the same rules as meshes. An instance or a setter that fails puts the plain material back. With
+-- look.effects, her attack and
 -- skill effects: the native part writes her four effect slots into boxes beside the mailbox, and place() starts the
 -- Niagara system each names (an index into Capture.EFFECTS, never a path) on the part it hangs on, moves it with the
 -- slot and stops it when the slot changes, at most 8 starts a second.
@@ -57,6 +60,10 @@ local Capture=require('partner.capture')
 local EFFECTS=Capture.EFFECTS -- What the wire's effect indexes name, for both players.
 local NIAGARA_SYSTEM='/Script/Niagara.NiagaraSystem'
 local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer's slots cannot flood the game.
+-- A peer's value lines: the native part's caps again, then what they may cost here. FNames are never freed, so a Lua
+-- load makes at most MAX_VALUE_NAMES; at most MAX_TEXTURES wait, one loaded each MIN_TEXTURE seconds.
+local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER,MAX_VALUE_NAMES,MAX_TEXTURES,MIN_TEXTURE=512,32,1e5,1024,64,0.25
+local TEXTURE='/Script/Engine.Texture'
 local PHYSICS_ASSET='/Script/Engine.PhysicsAsset'
 -- The solid partner (collide=on, off by default): one capsule on the ghost that only your EVE's movement meets. cm and
 -- s, for Puppet.solid: inside her by more than SLACK, out again past LEAVE; feet STEP apart in height; contact within
@@ -110,10 +117,41 @@ function Puppet.collision_path(path)
     local dir,name=tostring(path):match('^(/.+)/([^/.]+)%.[^/.]+$')
     return dir and string.format('%s/%s_PonytailPhysicsAsset.%s_PonytailPhysicsAsset',dir,name,name) or nil
 end
+-- One value line, after its 'value ', onto its part's material (table.h's rules again): the value, or nil to ignore it.
+local function value_line(part,line,t)
+    local index,slot,kind,name,rest=line:match('^(%d+) (%d+) ([vst]) (%S+) (%S.*)$')
+    if tonumber(index)~=part.i or #(name or '')>64 or t.values==MAX_VALUES then return nil end
+    local material
+    for _,m in ipairs(part.materials) do
+        if m.slot==tonumber(slot) then material=m end
+    end
+    if not material then return nil end
+    local value={kind=kind,name=name:gsub('~',' '),text=rest,x={}}
+    if kind=='t' then
+        if rest:find(' ',1,true) or #rest>255 then return nil end
+    else
+        for word_of in rest:gmatch('%S+') do
+            local x=tonumber(word_of)
+            if not x or x~=x or math.abs(x)>MAX_NUMBER then return nil end
+            value.x[#value.x+1]=x
+        end
+        if #value.x~=(kind=='v' and 4 or 1) then return nil end
+    end
+    material.values=material.values or {}
+    if #material.values==MAX_SLOT_VALUES then return nil end
+    for _,other in ipairs(material.values) do
+        if other.kind==kind and other.name==value.name then return nil end
+    end
+    material.values[#material.values+1]=value
+    t.values=t.values+1
+    return value
+end
 -- coop-remote.txt as the native part writes it (format_table), read strictly: nil on anything else. Parts are listed
 -- in order, each with i (its index), lead and parent (indexes, nil for '-'), socket and path (nil for '-'), shown,
--- bones, name, place (its 10 numbers as written), materials ({slot=, path=}, slots rising), cloth (its cloth's
+-- bones, name, place (its 10 numbers as written), materials ({slot=, path=, values=}, slots rising), cloth (its cloth's
 -- collision asset) and label (the outfit a mod's mesh comes from), each nil without its line, and a leader's names.
+-- values: a material's value lines, each {kind=, name=, text= (the rest of its line), x= (its numbers)}; a line that
+-- breaks their rules (the native part's already left it out) is only counted in t.ignored.
 local function parse_remote(file)
     if type(file)~='string' then return nil end
     local lines,at={},1
@@ -125,7 +163,7 @@ local function parse_remote(file)
     end
     if not take('^SBT %d+$') then return nil end
     local generation=take('^generation (%d+)$') -- tonumber() of no value at all raises: take it first.
-    local t={generation=tonumber(generation),map=take('^map (%S+)$'),parts={}}
+    local t={generation=tonumber(generation),map=take('^map (%S+)$'),parts={},ignored=0,values=0}
     if not (t.generation and t.map) then return nil end
     while lines[at] do
         local i,lead,parent,socket,shown,bones,name,path=take('^part (%d+) (%S+) (%S+) (%S+) ([01]) (%d+) (%S+) (%S+)$')
@@ -145,6 +183,12 @@ local function parse_remote(file)
             slot=tonumber(slot)
             if tonumber(index)~=part.i or slot>63 or last and slot<=last.slot or #part.materials==16 then return nil end
             part.materials[#part.materials+1]={slot=slot,path=path}
+        end
+        while true do
+            local line=take('^value (.*)$')
+            if not line then break end
+            local value=value_line(part,line,t)
+            t.ignored=t.ignored+(value and 0 or 1)
         end
         local index
         index,part.cloth=take('^cloth (%d+) (%S+)$')
@@ -210,6 +254,8 @@ function Puppet.new(link,capture,say,name_tag,look,words)
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
     local mods_said -- The generation whose parts from mods not shown were said on screen.
     local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
+    local value_names,value_name_count={},0 -- The FNames made for value lines, by name.
+    local value_note -- Why a value was ignored, until said (then false): once per Lua load.
     local doro_on,doro_log,doro_emote=false,nil,nil -- Doro mode, where its [DR] lines go, the race's emote.
     local doro_top=nil -- While a race drives: its top speed (cm/s), for her Doro's dash, play rate and tilt.
     -- Whose ghost: a friend's Steam name, else where her table comes from ('loopback', 'replay').
@@ -285,6 +331,62 @@ function Puppet.new(link,capture,say,name_tag,look,words)
         if not files.cns_assets()[path] then return nil,'not declared by your CNS packs' end
         return resolve(path,counts,class,true)
     end
+    local function note_value(why) if value_note==nil then value_note=why end end
+    -- A value's FName, made at most MAX_VALUE_NAMES times a Lua load; nil past that.
+    local function value_name(name)
+        if not value_names[name] and value_name_count<MAX_VALUE_NAMES then
+            value_names[name],value_name_count=FName(name),value_name_count+1
+        end
+        if not value_names[name] then note_value('Material values ignored: over '..MAX_VALUE_NAMES..' names.') end
+        return value_names[name]
+    end
+    -- The values not set yet on a dyed slot (s, from dye()): its dynamic instance made first, once. Colours at once, a
+    -- texture later in g.textures. Any failure puts the plain material back: what is drawn without values.
+    local function tint(g,s,values)
+        local made,why=pcall(function()
+            s.mid=s.mid or valid(s.target:CreateDynamicMaterialInstance(s.slot,s.material,FName('None')))
+            assert(s.mid,'no dynamic instance')
+            for _,v in ipairs(values) do
+                local at=v.kind..' '..v.name
+                local name=s.done[at]~=v.text and value_name(v.name)
+                if name then
+                    s.done[at]=v.text
+                    if v.kind=='v' then
+                        s.mid:SetVectorParameterValue(name,{R=v.x[1],G=v.x[2],B=v.x[3],A=v.x[4]})
+                    elseif v.kind=='s' then
+                        s.mid:SetScalarParameterValue(name,v.x[1])
+                    elseif #g.textures<MAX_TEXTURES then
+                        g.textures[#g.textures+1]={s=s,name=name,path=v.text}
+                    else
+                        note_value('Material textures ignored: over '..MAX_TEXTURES..' waiting.')
+                    end
+                end
+            end
+        end)
+        if made then return end
+        note_value('Material values not set ('..tostring(why)..').')
+        s.mid,s.failed=nil,true
+        pcall(function() s.target:SetMaterial(s.slot,s.material) end)
+    end
+    -- A part's new values on the slots dyed so far, every slot's own material only.
+    local function tint_part(g,part)
+        for _,m in ipairs(part.materials) do
+            local s=g.tints[part.i..':'..m.slot]
+            if s and not s.failed and m.values and s.path==m.path then tint(g,s,m.values) end
+        end
+    end
+    -- One waiting texture, loaded and set in the same frame. A missing one is no error: the slot keeps the parent's.
+    local function texture_step(g)
+        local now=os.clock()
+        if not g.textures[1] or now<(g.texture_at or 0) then return end
+        g.texture_at=now+MIN_TEXTURE
+        local w=table.remove(g.textures,1)
+        local ok,why=pcall(function()
+            local asset=fetch(w.path,{loaded=0,ms=0,mods={}},TEXTURE)
+            if asset and valid(w.s.mid) then w.s.mid:SetTextureParameterValue(w.name,asset) end
+        end)
+        if not ok then note_value('Material texture not set ('..tostring(why)..').') end
+    end
     -- Hangs a built part as the table says: its parent part (part 0 when that one was left out), socket and place;
     -- then shown or hidden (hidden in Doro mode).
     local function hang(g,part)
@@ -327,7 +429,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             {Pitch=0,Yaw=0,Roll=0}))
         assert(actor,'the ghost actor could not be spawned')
         local g={actor=actor,generation=t.generation,eve=address(eve),parts={},count=0,leaders=0,base=0,left_out=0,
-            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={},missed={}}
+            hidden=true,stamp=1,stamp_at=0,cloth={},dyed=0,fx_stamp=1,fx_starts={},steps={},missed={},tints={},textures={}}
         ghost=g
         actor:SetActorHiddenInGame(true) -- Until the first pose: never her reference pose at the spawn spot.
         actor:SetActorEnableCollision(false,false)
@@ -413,6 +515,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if material and m.slot<target:GetNumMaterials() then
                 target:SetMaterial(m.slot,material)
                 g.dyed=g.dyed+1
+                g.tints[part.i..':'..m.slot]={target=target,slot=m.slot,material=material,path=m.path,done={}}
             else
                 notes[#notes+1]=string.format('%s: slot %d material %s %s, default kept',part.name,m.slot,m.path,
                     why or 'missing')
@@ -583,7 +686,10 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             end
             -- The table now, at the last step: a part hung elsewhere meanwhile comes in the same one.
             for _,part in ipairs(remote.parts) do
-                if g.parts[part.i] then hang(g,part) end
+                if g.parts[part.i] then
+                    hang(g,part)
+                    tint_part(g,part) -- The table now, as for the hanging.
+                end
             end
             local lines={'display '..t.generation,'mailbox '..hex(g.mailbox)..' '..hex(g.mailbox:GetClass())}
             if g.slots then
@@ -620,6 +726,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if look.effects then looks[#looks+1]=effects end
             if #looks>0 then line=line..'; look: '..table.concat(looks,', ') end
             if #notes>0 then line=line..'; '..table.concat(notes,'; ') end
+            if value_note then line,value_note=line..' '..value_note,false end
             return line..string.format(' (%.0f ms in all).',(os.clock()-started)*1000)
         end
     end
@@ -652,6 +759,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
                 part.shown~=was.shown) then
                 hang(ghost,part)
             end
+            if ghost.parts[part.i] then tint_part(ghost,part) end
         end
     end
     -- From main.lua every 250 ms, after link.changes(): the remote table the native part holds (generation, count of
@@ -679,8 +787,15 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             if not (ghost and ghost.built) then return end -- A build in progress hangs its parts from the new one.
             local ok,why=pcall(redress,old)
             if not ok then retry(); return false,clear('stopped: '..tostring(why)) end
+            if t.ignored>0 then note_value('Material values ignored: '..t.ignored..' lines.') end
+            if value_note then
+                local note=value_note
+                value_note=false
+                return false,note
+            end
             return
         end
+        if t.ignored>0 then note_value('Material values ignored: '..t.ignored..' lines.') end
         remote,failed,tries,hidden_pair=t,nil,0,nil
         local message=clear('a new table')
         return message and true,message
@@ -1142,6 +1257,7 @@ function Puppet.new(link,capture,say,name_tag,look,words)
             back_since=nil
         end
         if ghost and ghost.steps then return step() end
+        if ghost then texture_step(ghost) end
         if ghost or not remote then return end
         if not eve then back_since=nil; return end
         back_since=back_since or os.clock()
