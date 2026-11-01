@@ -43,7 +43,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 15; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 16; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -61,8 +61,9 @@ constexpr int kProtocol = 15; // Bump on any wire change. 1 was the first link (
                               // night line, which a protocol-13 guest would refuse, as she would the masks of a
                               // level's extra monsters, each side's down time left and revive progress at the end of
                               // both night lines (the co-op revive), which a protocol-13 game would refuse too, and the
-                              // gift line (coop gift), which a protocol-13 peer would count invalid; 15 adds the
-                              // table's value lines (a dynamic material's colours), which a protocol-14 peer would
+                              // gift line (coop gift), which a protocol-13 peer would count invalid; 15 was never
+                              // released (development builds of Matrix XIII's rows used it); 16 adds the table's
+                              // value lines (a dynamic material's colours), which a protocol-14 peer would
                               // refuse with the whole table, so her ghost of you would stop changing. An older peer (6:
                               // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
                               // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1) is told why: the lobby tag,
@@ -306,7 +307,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF15" for the shared fight, "SBQ15" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF16" for the shared fight, "SBQ16" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 
