@@ -112,7 +112,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC15 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC19 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -127,7 +127,7 @@ int main() {
                                  race + "end\r", race + "\xff", p + " race", race})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
-  for (const char *other : {"SBC14 race cp 7 1 2 3", "SBC16 race cp 7 1 2 3", "SBC race end 7"})
+  for (const char *other : {"SBC18 race cp 7 1 2 3", "SBC20 race cp 7 1 2 3", "SBC race end 7"})
     assert(parse_text(other).kind == Kind::invalid);
   for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
     m = parse_text(race + "x" + static_cast<char>(c) + "x");
@@ -157,7 +157,7 @@ int main() {
     assert(!gift_ok(bad) && gift_line(bad).empty());
     assert(parse_text(p + " gift " + bad).kind == Kind::invalid);
   }
-  for (const char *other : {"SBC14 gift a 1", "SBC16 gift a 1", "SBC gift a 1"})
+  for (const char *other : {"SBC18 gift a 1", "SBC20 gift a 1", "SBC gift a 1"})
     assert(parse_text(other).kind == Kind::invalid);
 
   // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
@@ -255,7 +255,7 @@ int main() {
   assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
   for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
                                  p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
-                                 std::string("SBC14 mark 3 x"), std::string("SBC mark 3"), std::string("SBC16 mark 3")})
+                                 std::string("SBC18 mark 3 x"), std::string("SBC mark 3"), std::string("SBC20 mark 3")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
@@ -278,18 +278,29 @@ int main() {
   // A v0.6.0-beta.3 peer runs protocol 13: it would refuse the host's night line with its level, so a co-op Night
   // Operation run would end as lost, and it would count the gift lines as invalid, so a gift would wait for an answer
   // that never comes. Protocol 14 refuses the link.
-  // A protocol-14 peer has none of Matrix XIII's world rows: the host's new enemies, keyed by their spawn row's ID,
-  // would have no row on her side. Protocol 15 refuses the link.
-  static_assert(kProtocol == 15, "15 adds Matrix XIII's world rows; 14 the night lines' level and down words and the "
-                                 "gift line; 13 the pak lines; "
+  // A v0.7.0-beta.1 peer runs protocol 14: it would refuse every table with a value line, so her ghost of you would
+  // stop changing. Protocol 16 refuses the link.
+  // Protocol 16 (value lines alone) was never released.
+  // The first v0.7.5 test build runs protocol 17: it would refuse every table with an fx line, and every pose with an effect slot past
+  // index 32, so her ghost of you would stop changing or freeze. Protocol 18 refuses the link.
+  // A v0.7.5 peer runs protocol 18 and has none of Matrix XIII's world rows: the host's new enemies, keyed by their spawn
+  // row's ID, would have no row on her side. Protocol 19 refuses the link.
+  static_assert(kProtocol == 19, "19 adds Matrix XIII's world rows; 18 the table's fx lines and effect slots to 64; 17 "
+                                 "the hide lines; 16 the value lines; 15 was never released; 14 the night lines' level "
+                                 "and down words and the gift line; 13 the pak lines; "
                                  "12 the shared quests' lines and the race lines; 11 SBE and the show lines; 10 the "
                                  "fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
          lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
          lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856" &&
-         lobby_tag(24463856) != "13:24463856" && lobby_tag(24463856) != "14:24463856");
+         lobby_tag(24463856) != "13:24463856" && lobby_tag(24463856) != "14:24463856" &&
+         lobby_tag(24463856) != "15:24463856" && lobby_tag(24463856) != "16:24463856" &&
+         lobby_tag(24463856) != "17:24463856" && lobby_tag(24463856) != "18:24463856");
+  assert(parse_text("SBC18 ping 1 2").kind == Kind::invalid && parse_text("SBC18 gift x").kind == Kind::invalid);
+  m = parse_text("SBC hello 18 v0.7.5 24463856"); // Answered too, and rejected by its number.
+  assert(m.kind == Kind::hello && m.a == 18 && m.text == "v0.7.5");
   assert(parse_text("SBC14 ping 1 2").kind == Kind::invalid && parse_text("SBC14 gift x").kind == Kind::invalid);
-  m = parse_text("SBC hello 14 v0.7.0-beta.1 24463856"); // Answered too, and rejected by its number.
+  m = parse_text("SBC hello 14 v0.7.0-beta.1 24463856");
   assert(m.kind == Kind::hello && m.a == 14 && m.text == "v0.7.0-beta.1");
   assert(parse_text("SBC13 ping 1 2").kind == Kind::invalid && parse_text("SBC13 race go 7").kind == Kind::invalid &&
          parse_text("SBC13 night " + host_line).kind == Kind::invalid);

@@ -2423,6 +2423,9 @@ int main() {
       });
     };
     assert(lacks() == 1 && saw("B: Me has mods we lack (1 logicmods/menu_p)"));
+    // The ghost's shared containers: one name with one hash on both sides, and only that.
+    using Names = std::vector<std::string>;
+    assert(t.a.same_mods() == Names{"~mods/a_p"} && t.b.same_mods() == Names{"~mods/a_p"});
     const std::string pak = "SBC" + std::to_string(kProtocol) + " pak ";
     assert(sent_to(kMe, pak) == 4 && sent_to(kMe, paks_line(3, 78)) == 1);
     // B's mod_names=off: her paks line alone, again; A keeps her count and hash, no names. Unchanged: nothing sent.
@@ -2433,11 +2436,16 @@ int main() {
     assert(sent_to(kMe, pak) == 4 && sent_to(kMe, paks_line(3, 78)) == 2);
     std::string status = t.a.status(Counters{});
     assert(status.find("\npaks=differ 2 3\n") != std::string::npos && status.find("\nmods_") == std::string::npos);
+    assert(t.a.same_mods().empty()); // Hers off: nothing shared. Ours off: nothing either, below.
     // On again: her names come back, and the log says hers we lack again.
     t.b.mod_names(true);
     passes();
     assert(sent_to(kMe, pak) == 8 && sent_to(kMe, paks_line(3, 78)) == 3 && lacks() == 2);
     assert(t.a.status(Counters{}).find("\nmods_missing=2 ~mods/c_p,~mods/d_p\n") != std::string::npos);
+    assert(t.a.same_mods() == Names{"~mods/a_p"});
+    t.a.mod_names(false);
+    assert(t.a.same_mods().empty());
+    t.a.mod_names(true);
     // The same list again after her next hello: no new log line.
     inbox(0, kChannel).push_back({kFriend, hello(kProtocol, "v1.2-dev", kBuild)});
     passes();

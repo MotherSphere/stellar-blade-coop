@@ -17,7 +17,8 @@
 -- Doro mode: its Doro on part 0 with its keepers (gone with it) and every part hidden until it goes off, and the race's
 -- emote on it. Mods: a path outside the game's own folders looked up or loaded only when our CNS packs declare it
 -- (GetAsset for one LoadAsset misses), its materials with dyes off, the cloth line's collision, the outfits not shown
--- said once a generation; a leader with other bones and no fallback drawn on its own mesh by name.
+-- said once a generation; a leader with other bones and no fallback drawn on its own mesh by name. Hidden slots on
+-- the parts drawn on their own mesh.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -99,18 +100,24 @@ meshes[PONY].MeshClothingAssets={object('ClothingAsset')}
 meshes[HAIR].MeshClothingAssets={object('ClothingAsset')}
 local lookups,loads=0,{} -- Mesh lookups (StaticFindObject on a /Game path) and LoadAsset's paths.
 local finds,gets,unregistered={},{},{} -- Their /Game paths, GetAsset's; assets LoadAsset misses (a mod's added ones).
+-- When set: called with each load, SetSkeletalMesh and SetMaterial and its asset's path (the crash sentinel's tests).
+local marker_spy=nil
+local fail_mesh,fail_material=nil,nil -- SetSkeletalMesh or SetMaterial raises a Lua error for this path.
 local frame=0 -- Each ghost.tick() reads the player once: the frame it runs in. A mesh keeps the frame it was resolved in.
 LoadAsset=function(path)
     ue4ss()
     loads[#loads+1]=path
+    if marker_spy then marker_spy('LoadAsset',path) end
     if unregistered[path] then return invalid end
     if meshes[path] then meshes[path].resolved_at=frame end
     return meshes[path] or invalid
 end
 
 local spawned={}
+local fail_mid=nil -- 'make': CreateDynamicMaterialInstance refuses; 'set', 'texture': that setter does.
 local dyeable=false -- Parts take materials only once dyes are tested: until then a SetMaterial fails the build.
 local fail_depth=false -- SetRenderCustomDepth refuses: the other render flags are still set.
+local fail_section=false -- ShowMaterialSection refuses.
 local function poseable(actor)
     local p=object('Poseable',{calls={}},0xc2)
     function p:SetLightingChannels(a,b,c) self.channels={a,b,c} end
@@ -120,7 +127,11 @@ local function poseable(actor)
     for _,f in ipairs({'SetCollisionEnabled','SetMasterPoseComponent','SetForcedLOD'}) do
         p[f]=function(self,a) self.calls[f]=a end
     end
-    function p:SetSkeletalMesh(m) self.mesh,self.added_at=m,frame end
+    function p:SetSkeletalMesh(m)
+        if marker_spy then marker_spy('SetSkeletalMesh',m.path) end
+        if fail_mesh==m.path then error('bad mod mesh') end
+        self.mesh,self.added_at=m,frame
+    end
     function p:GetNumBones() return #self.mesh.bones end
     function p:GetBoneName(j) return fname(self.mesh.bones[j+1]) end
     function p:SetVisibility(v) self.visible=v end
@@ -133,11 +144,41 @@ local function poseable(actor)
     function p:K2_DestroyComponent(owner) assert(owner==actor,'DestroyComponent takes the owner'); self.destroyed=true end
     function p:IsA(class) return class.path=='/Script/Engine.PoseableMeshComponent' end
     function p:GetOwner() return actor end
+    -- Its slots hidden at LOD 0, as set; each call counted in calls.sections.
+    function p:ShowAllMaterialSections(lod)
+        assert(lod==0)
+        self.hidden,self.calls.sections={},(self.calls.sections or 0)+1
+    end
+    function p:ShowMaterialSection(slot,section,show,lod)
+        assert(section==0 and show==false and lod==0)
+        if fail_section then error('no section call') end
+        self.hidden[slot],self.calls.sections=true,self.calls.sections+1
+    end
     if dyeable then
         function p:GetNumMaterials() return 2 end
         function p:SetMaterial(slot,m)
+            if marker_spy then marker_spy('SetMaterial',m.path) end
+            if fail_material==m.path then error('bad mod material') end
             self.dyes=self.dyes or {}
             self.dyes[#self.dyes+1]={slot=slot,material=m,at=frame}
+        end
+        -- As the engine's: the source set on the slot, then a dynamic instance of it put there.
+        function p:CreateDynamicMaterialInstance(slot,m,name)
+            if fail_mid=='make' then error('no instance') end
+            assert(name:ToString()=='None')
+            local mid=object('MID',{set={},parent=m})
+            function mid:SetVectorParameterValue(n,c)
+                if fail_mid=='set' then error('no such setter') end
+                self.set[#self.set+1]={'v',n:ToString(),c.R,c.G,c.B,c.A}
+            end
+            function mid:SetScalarParameterValue(n,x) self.set[#self.set+1]={'s',n:ToString(),x} end
+            function mid:SetTextureParameterValue(n,a)
+                if fail_mid=='texture' then error('no texture setter') end
+                self.set[#self.set+1]={'t',n:ToString(),a,frame}
+            end
+            self.mids=self.mids or {}
+            self.mids[slot]=mid
+            return mid
         end
     end
     return p -- No SetMaterial unless dyeable: a call fails the build, so the test.
@@ -342,6 +383,7 @@ StaticFindObject=function(path)
         c.GetAsset=function(_,data) -- An asset data with its path only: loaded by that path, in the registry or not.
             local asked=data.ObjectPath:ToString()
             gets[#gets+1]=asked
+            if marker_spy then marker_spy('GetAsset',asked) end
             if meshes[asked] then meshes[asked].resolved_at=frame end
             return meshes[asked] or invalid
         end
@@ -370,6 +412,10 @@ local function remote_text(generation,parts,map)
             p.shown==false and 0 or 1,p.names and #p.names or 0,p.name,p.path or '-')
         if i>1 then lines[#lines+1]='place '..(i-1)..' '..(p.place or '0 0 0 1 0 0 0 1 1 1') end
         for _,m in ipairs(p.materials or {}) do lines[#lines+1]=string.format('material %d %d %s',i-1,m[1],m[2]) end
+        for _,m in ipairs(p.materials or {}) do
+            for _,v in ipairs(m[3] or {}) do lines[#lines+1]=string.format('value %d %d %s',i-1,m[1],v) end
+        end
+        if p.hide then lines[#lines+1]=string.format('hide %d %s',i-1,table.concat(p.hide,' ')) end
         if p.cloth then lines[#lines+1]=string.format('cloth %d %s',i-1,p.cloth) end
         if p.label then lines[#lines+1]=string.format('mod %d %s',i-1,p.label) end
         if p.names then lines[#lines+1]='names '..(i-1)..' '..table.concat(p.names,' ') end
@@ -381,18 +427,18 @@ local friend_name='Kaanta' -- Her Steam name, as the link gives it.
 local store={save=function(p) stored=p end,load=function() return stored end,clear=function() stored=nil end}
 local cns={} -- The assets our CNS packs declare, path to outfit (core/link.lua's cns_assets()).
 local link={remote_table=function() return remote_file end,store=function() return store end,
-    cns_assets=function() return cns end,
+    mod_assets=function() return cns end,
     display=function(text) displays[#displays+1]=text or 'withdrawn'; return true end,
     friend=function() return friend_name,true,false end,
     request=function(line) requests[#requests+1]=line; return true end} -- The ghost never asks the link anything.
 local capture={yaw_delta=function() return 90 end} -- Her actor faces yaw 90 more than her mesh.
 local Words=require('ui.text')
 local words=Words.en -- The words for the screen (main.lua's: the game's language).
-local function new(path_left,name_tag,look)
+local function new(path_left,name_tag,look,sentinel)
     stored=path_left
     package.loaded['partner.puppet']=nil
     return require('partner.puppet').new(link,capture,function(text,en) said[#said+1]=text; said_en[#said]=en end,
-        name_tag~=false,look,function() return words end)
+        name_tag~=false,look,function() return words end,sentinel)
 end
 local ghost=new(nil)
 local count=0
@@ -1351,6 +1397,80 @@ box.RelativeScale3D.Z=40
 assert(ghost.place()==nil and box_reads==0 and actor.hidden==false,'No box read again')
 spawn_fails=false
 
+-- Systems named by path (the table's fx lines): one of the game's FX folders and one mod_assets() names (a mod both
+-- players have) are loaded in the build, a step each; another mod's is never looked up. A slot naming one starts it as
+-- a listed one; one named since the build is loaded by a tick, never in place(), and its first instance is skipped;
+-- a miss is said once.
+do
+local function fx_system(path)
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,class) return class.path=='/Script/Niagara.NiagaraSystem' end
+    meshes[path].GetFullName=function() return 'NiagaraSystem '..path end
+end
+local RAVEN='/Game/Art/FX/Char/Monster/RavenHuman/NS_Raven_Aura.NS_Raven_Aura'
+local QUEEN,STRAY='/Game/Mods/Queen/NS_Q.NS_Q','/Game/Mods/Other/NS_S.NS_S'
+local LATE='/Game/DLC_2/Art/FX/Scarlet/NS_Scarlet_Cut.NS_Scarlet_Cut'
+for _,p in ipairs({RAVEN,QUEEN,STRAY,LATE}) do fx_system(p) end
+unregistered[QUEEN]=true -- A mod's added asset: LoadAsset misses it, GetAsset finds it.
+cns[QUEEN]='~mods/queen_p'
+local function send_fx(fx)
+    remote_file=remote_text(901,her_parts())..fx
+    count=count+1
+    return ghost.remote(901,count,'loopback')
+end
+local function asked(path)
+    for _,list in ipairs({finds,loads,gets}) do for _,p in ipairs(list) do if p==path then return true end end end
+end
+finds,loads,gets={},{},{}
+local three='fx 20 '..RAVEN..'\nfx 21 '..QUEEN..'\nfx 22 '..STRAY..'\n'
+send_fx(three)
+ok,message=build()
+assert(ok and message:find('; look: effects loaded 18 of 19, 2 of 3 named by path'),message)
+assert(asked(RAVEN) and asked(QUEEN) and gets[#gets]==QUEEN and not asked(STRAY),'Two loaded, another mod\'s never')
+actor=spawned[#spawned]
+box=actor.mailbox
+clock=clock+1
+local before_spawns=#spawns
+slot(1,20,2,1)
+slot(2,21,0,1)
+box.RelativeScale3D.X=20
+assert(ghost.place()==nil and #spawns==before_spawns+2,'Both started')
+assert(spawns[#spawns-1].args[1]==meshes[RAVEN] and spawns[#spawns-1].args[2]==actor.parts[3] and
+    spawns[#spawns].args[1]==meshes[QUEEN],'Each its system, on its part')
+slot(3,22,0,1)
+box.RelativeScale3D.X=21
+ok,message=ghost.place()
+assert(ok==false and message=='Effect not shown: spawn failed: asset 22 is missing' and #spawns==before_spawns+2,
+    tostring(message))
+-- Named since: the same table with one fx line more, applied in place; its first instance waits for the load.
+assert(send_fx(three..'fx 23 '..LATE..'\n')==nil and spawned[#spawned]==actor,'In place')
+local loads_before=#loads
+slot(4,23,0,1)
+box.RelativeScale3D.X=22
+assert(ghost.place()==nil and #spawns==before_spawns+2 and #loads==loads_before,'Not loaded in place(), nothing said')
+assert(ghost.tick()==nil and loads[#loads]==LATE,'Loaded by a tick')
+slot(4,23,0,2)
+box.RelativeScale3D.X=23
+assert(ghost.place()==nil and #spawns==before_spawns+3 and spawns[#spawns].args[1]==meshes[LATE],'Then started')
+-- Collected since its load (nothing of this game held it): never loaded again in place(); a tick does, then it starts.
+meshes[RAVEN].destroyed=true
+fx_system(RAVEN)
+finds,loads,gets={},{},{}
+slot(1,20,2,2)
+box.RelativeScale3D.X=24
+assert(ghost.place()==nil and #spawns==before_spawns+3 and not asked(RAVEN),'Not loaded in place()')
+assert(ghost.tick()==nil and asked(RAVEN),'Loaded again by a tick')
+slot(1,20,2,3)
+box.RelativeScale3D.X=25
+assert(ghost.place()==nil and #spawns==before_spawns+4 and spawns[#spawns].args[1]==meshes[RAVEN],'Then started')
+-- One a mod you no longer share: not loaded by the tick, said once.
+assert(send_fx(three..'fx 23 '..LATE..'\nfx 24 /Game/Mods/Gone/NS_G.NS_G\n')==nil)
+ok,message=ghost.tick()
+assert(ok==false and message=='Effect named by path not loaded: /Game/Mods/Gone/NS_G.NS_G (not declared by your CNS '
+    ..'packs or a mod you both have)',tostring(message))
+cns[QUEEN]=nil
+end
+
 -- Doro mode (coop race look): every part hidden and one Doro hung on part 0, her feet, never named in the display
 -- file; animated from her feet between poses (while a race drives, by its top speed, leaned by her yaw); a new table keeps the parts hidden and a rebuild the mode; off removes the
 -- Doro and shows the parts as the table says; a Doro that cannot be made leaves the ghost drawn as her.
@@ -1768,10 +1888,10 @@ assert(root.mesh==meshes[SUIT] and hair.mesh==meshes[BASE_HAIR] and pony.cloth a
 assert(#root.dyes==1 and root.dyes[1].slot==0 and root.dyes[1].material==meshes[SUIT_MAT],'Dyes off: hers all the same')
 assert(pony.OverrideClothPhysicsAsset==meshes[PA],'Her cloth line\'s collision, not the one named from her body')
 local function plain(p) return p:gsub('%p','%%%0') end
-assert(message:find('; SBHair: '..plain(ATOOL)..' not declared by your CNS packs, drawn as '..plain(BASE_HAIR)),message)
-assert(message:find('; CharacterMesh0: slot 1 material '..plain(HACK)..' not declared by your CNS packs, default kept'),
+assert(message:find('; SBHair: '..plain(ATOOL)..' not declared by your CNS packs or a mod you both have, drawn as '..plain(BASE_HAIR)),message)
+assert(message:find('; CharacterMesh0: slot 1 material '..plain(HACK)..' not declared by your CNS packs or a mod you both have, default kept'),
     message)
-assert(message:find('; SBAccSlot1: '..plain(EARS)..' not declared by your CNS packs, left out'),message)
+assert(message:find('; SBAccSlot1: '..plain(EARS)..' not declared by your CNS packs or a mod you both have, left out'),message)
 assert(message:find('; mod assets: '..plain(SUIT)..' by GetAsset, '..plain(SUIT_MAT)..' by LoadAsset, '..plain(PA)
     ..' by GetAsset; mod parts not shown: Mods/HD%-ATOOL_P, Cat_Ears %('),message)
 local MODS='Kaanta wears parts from mods your game cannot load: HD-ATOOL_P, Cat_Ears. They show on the base suit or '
@@ -1829,9 +1949,348 @@ finds,loads,gets={},{},{}
 send(905,modded(),'peer')
 ok,message=build()
 assert(ok and message:find('; SBPonytail: outfit collision not used %('..plain(PA)
-    ..' not declared by your CNS packs%)'),message)
+    ..' not declared by your CNS packs or a mod you both have%)'),message)
 assert(not (seen(finds,PA) or seen(loads,PA) or seen(gets,PA)),'Never looked up or loaded: '..PA)
+
+do
+-- The crash sentinel (partner/sentinel.lua, with fake files): each load, SetSkeletalMesh and SetMaterial of an asset our
+-- CNS packs declare runs with the marker naming it and its outfit; a game asset's with none; the marker empty after.
+local Sentinel=require('partner.sentinel')
+local sdisk={}
+local sfiles={read_file=function(n) return sdisk[n] end,write_file=function(n,t) sdisk[n]=t; return true end,
+    write_now=function(n,t) sdisk[n]=t; return true end,mod_assets=function() return cns end}
+cns={[SUIT]='Foo_Suit',[SUIT_MAT]='Foo_Suit',[PA]='Foo_Suit'}
+local marked={}
+marker_spy=function(call,path) marked[call..' '..tostring(path)]=sdisk[Sentinel.MARKER] or '' end
+local function fresh(generation,sentinel)
+    ghost=new(nil,true,{cloth=true},sentinel)
+    ghost.toggle()
+    finds,loads,gets={},{},{}
+    send(generation,modded(),'peer')
+    ghost.tick()
+    clock=clock+2
+    return build()
+end
+ok,message=fresh(906,Sentinel.new(sfiles,'v1'))
+marker_spy=nil
+local SUIT_MARK,MAT_MARK=SUIT..' Foo_Suit\n',SUIT_MAT..' Foo_Suit\n'
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+for call,mark in pairs({['LoadAsset '..SUIT]=SUIT_MARK,['GetAsset '..SUIT]=SUIT_MARK,['SetSkeletalMesh '..SUIT]=SUIT_MARK,
+    ['LoadAsset '..SUIT_MAT]=MAT_MARK,['SetMaterial '..SUIT_MAT]=MAT_MARK,['LoadAsset '..FACE]='',
+    ['SetSkeletalMesh '..FACE]=''}) do
+    assert(marked[call]==mark,call..': '..tostring(marked[call]))
+end
+assert(sdisk[Sentinel.MARKER]=='','Empty once the calls returned')
+-- The game died inside SetSkeletalMesh with her suit: the next Lua load sets it aside. Never looked up again, her body
+-- on the base suit with the reason, said with the outfits not shown; coop cns names it; coop cns reset brings it back.
+sdisk[Sentinel.MARKER]=SUIT_MARK
+local sentinel,crashed=Sentinel.new(sfiles,'v1')
+assert(crashed and crashed.path==SUIT and sdisk[Sentinel.MARKER]=='')
+ok,message=fresh(907,sentinel)
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+assert(not (seen(finds,SUIT) or seen(loads,SUIT) or seen(gets,SUIT)),'A set-aside asset is never looked up')
+assert(message:find('; CharacterMesh0: '..plain(SUIT)..' set aside after a crash %(coop cns reset%), drawn as '
+    ..plain(BASE_BODY)),message)
+assert(said[#said]:find('Foo_Suit',1,true),said[#said])
+ok,message=ghost.cns()
+assert(ok and message=='CNS part on; set aside after a crash: '..SUIT..' (Foo_Suit) (coop cns reset clears both).',
+    message)
+assert(ghost.cns('now')==false and ghost.cns('reset','x')==false)
+ok,message=ghost.cns('reset')
+assert(ok and message=='CNS reset: 1 set-aside asset cleared, the CNS part is on; the ghost is built again.',message)
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+-- A mod you both have can hold a game path: her base suit, set aside as well, is never loaded as a fallback either.
+-- Her body cannot be drawn: the build fails.
+cns[BASE_BODY]='queen-lite_p'
+sdisk[Sentinel.LIST]='version v1\n'..SUIT..' Foo_Suit\n'..BASE_BODY..' queen-lite_p\n'
+ok,message=fresh(9071,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('her body could not be drawn',1,true),message)
+assert(not (seen(finds,BASE_BODY) or seen(loads,BASE_BODY) or seen(gets,BASE_BODY)),'A set-aside fallback: not loaded')
+cns[BASE_BODY],sdisk[Sentinel.LIST]=nil,'version v1\n'
+-- The CNS part's own guard. A Lua error while her suit is set on its part: the ghost is not failed (no try counted)
+-- but built again without the CNS part, her body on the base suit, no mod material; one line says it. Later tables
+-- too, until coop cns reset.
+fail_mesh=SUIT
+local tries_said=#said
+ok,message=fresh(908,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('^CNS part of the ghost off until coop cns reset or the next Lua load %(.*bad mod mesh%):')
+    ,message)
+assert(sdisk[Sentinel.MARKER]=='','The marker emptied on the error too')
+ok,message=build()
+local body=spawned[#spawned].parts[1]
+assert(ok and message:find('^Ghost 908 built: ') and body.mesh==meshes[BASE_BODY] and not body.dyes,message)
+assert(message:find(plain(SUIT)..' not loaded with the CNS part off, drawn as '),message)
+-- With the CNS part off, an error in a fallback fails the ghost as before (a try counted), never a rebuild each tick.
+fail_mesh=BASE_BODY
+send(9081,modded(),'peer')
+ok,message=build()
+assert(ok==false and message:find('^Ghost not built: .*bad mod mesh'),message)
+clock=clock+2.5
+fail_mesh=nil
+send(909,modded(),'peer')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+assert(select(2,ghost.cns()):find('^CNS part off %(.*bad mod mesh%); set aside after a crash: none'))
+ghost.cns('reset')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+for k=tries_said+1,#said do assert(said[k]~=GAVE_UP,'Never counted as a failed try') end
+-- The same for a mod material's step.
+fail_material=SUIT_MAT
+ok,message=fresh(9101,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('%(.*bad mod material%)'),message)
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+fail_material=nil
+end
 cns={}
+
+-- Values (a dynamic material's, the table's value lines). On a dyed slot of a part on its own mesh: a dynamic instance
+-- of the slot's material, colours when the build ends, a name's '~' a space again; the build line as without them.
+local T_BASE,T_MOD,T_OUT,T_MESH='/Game/Art/Character/PC/T/T_A.T_A','/Game/Mods/DekCNS_P/Textures/T_Iris.T_Iris',
+    '/Game/Mods/Other/T_B.T_B',BLADE
+for _,path in ipairs({T_BASE,T_MOD,T_OUT}) do
+    meshes[path]=object(path,{path=path})
+    meshes[path].IsA=function(_,c) return c.path=='/Script/Engine.Texture' end
+    meshes[path].GetFullName=function() return 'Texture2D '..path end
+end
+cns={[T_MOD]='-'}
+look={cloth=false,dyes=true}
+dyeable=true
+ghost=new(nil,true,look)
+ghost.toggle()
+local function tinted(values,slot_material)
+    return her_parts({hair_materials={{0,slot_material or TYPE_B,values}}})
+end
+loads,finds={},{}
+local colours={'v RootColor 1 0.25 0 1','s Iris~UV~Radius 0.5','t Iris '..T_MOD,'t Base '..T_BASE,'t Out '..T_OUT,
+    't Mesh '..T_MESH}
+send(910,tinted(colours))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 910 built: ') and not message:find('Material'),message)
+actor=spawned[#spawned]
+hair=actor.parts[3]
+local mid=hair.mids[0]
+assert(mid.parent==meshes[TYPE_B] and hair.dyes[1].material==meshes[TYPE_B])
+assert(mid.set[1][1]=='v' and mid.set[1][2]=='RootColor' and mid.set[1][4]==0.25 and mid.set[1][6]==1)
+assert(mid.set[2][1]=='s' and mid.set[2][2]=='Iris UV Radius' and mid.set[2][3]==0.5 and #mid.set==2,'Textures later')
+-- Textures: one each 0.25 s, after the build, resolved and set in one frame. One no CNS pack here declares is never
+-- looked up; one of another class is not set. Neither says a word: that pack is only missing here.
+for _=1,4 do clock=clock+0.3; assert(ghost.tick()==nil) end
+assert(#mid.set==4 and mid.set[3][2]=='Iris' and mid.set[3][3]==meshes[T_MOD] and mid.set[4][2]=='Base'
+    and mid.set[4][3]==meshes[T_BASE],'The two this PC may load')
+for _,list in ipairs({finds,loads,gets}) do
+    for _,path in ipairs(list) do assert(path~=T_OUT,'Never looked up: '..path) end
+end
+-- A colour changed under the same generation: only it is set again, on the same instance, with no new ghost.
+local ghosts=#spawned
+colours[1],colours[2]='v RootColor 0 0 1 1','s Iris~UV~Radius 0.5'
+local before_set=#mid.set
+ok,message=send(910,tinted(colours))
+assert(ok==nil and message==nil and #spawned==ghosts and hair.mids[0]==mid and #mid.set==before_set+1)
+assert(mid.set[#mid.set][1]=='v' and mid.set[#mid.set][3]==0 and mid.set[#mid.set][5]==1)
+-- A changed texture waits for its turn too, never in the table's own call.
+local loads_now=#loads
+colours[4]='t Base '..T_MOD
+send(910,tinted(colours))
+assert(#loads==loads_now and #mid.set==before_set+1,'Not loaded in the table\'s own call')
+clock=clock+0.3
+ghost.tick()
+assert(mid.set[#mid.set][2]=='Base' and mid.set[#mid.set][3]==meshes[T_MOD])
+-- A table changed during the build: its colours are on the ghost when it is done.
+send(911,tinted({'s A 1'}))
+ghost.tick()
+send(911,tinted({'s A 2'}))
+ok,message=build()
+assert(spawned[#spawned].parts[3].mids[0].set[#spawned[#spawned].parts[3].mids[0].set][3]==2,message)
+-- Values for another material under the same generation (the sender's key forbids it) are not set on this one.
+do
+    local set_now=#spawned[#spawned].parts[3].mids[0].set
+    send(911,tinted({'s A 3'},TYPE_C))
+    assert(#spawned[#spawned].parts[3].mids[0].set==set_now,'Not this slot\'s material')
+end
+-- A line format_table never writes refuses the file, as any other line does. The ghost stays.
+ghosts=#spawned
+ok,message=send(911,tinted({'s A 3','s B nan'}))
+assert(ok==false and message=='The remote table could not be read.' and #spawned==ghosts,tostring(message))
+-- No material here for that slot (a pack missing on this PC, a slot past the mesh's): no instance, no error, no value.
+ghost=new(nil,true,look)
+ghost.toggle()
+send(912,her_parts({hair_materials={{1,FACE,{'s A 1'}},{5,TYPE_C,{'s B 1'}}}}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('^Ghost 912 built: 6 parts ') and not spawned[#spawned].parts[3].mids,message)
+-- On a fallback mesh: never, its slots are another mesh's.
+send(913,her_parts({hair=NIER,hair_materials={{0,TYPE_B,{'s A 1'}}}}))
+ok,message=build()
+assert(ok and spawned[#spawned].parts[3].mesh==meshes[BASE_HAIR] and not spawned[#spawned].parts[3].mids,message)
+-- Dyes off on the game's own mesh: read and nothing done, as the materials.
+look.dyes=false
+send(914,tinted({'s A 1'}))
+ok,message=build()
+assert(ok and not spawned[#spawned].parts[3].mids and not spawned[#spawned].parts[3].dyes,message)
+look.dyes=true
+-- An instance refused, then a setter refusing: the slot back on its plain material, the ghost drawn, said once.
+fail_mid='make'
+send(915,tinted({'v A 1 1 1 1'}))
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('^Ghost 915 built: .* Material values not set %(.*no instance%)%.'),message)
+assert(actor.parts[3].dyes[#actor.parts[3].dyes].material==meshes[TYPE_B],'Back on the plain material')
+fail_mid='set'
+ghost=new(nil,true,look)
+ghost.toggle()
+send(916,tinted({'v A 1 1 1 1'}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+actor=spawned[#spawned]
+assert(ok and message:find('Material values not set %(.*no such setter%)%.'),message)
+assert(#actor.parts[3].dyes==2 and actor.parts[3].dyes[2].material==meshes[TYPE_B])
+-- Once failed, a later table does not try that slot again, and its ghost stays.
+ok,message=send(916,tinted({'v A 0 0 0 1'}))
+assert(ok==nil and #actor.parts[3].dyes==2 and spawned[#spawned]==actor)
+fail_mid=nil
+-- A peer's new names cannot grow the name table without end: 1024 a Lua load, then one note.
+local names_made=0
+local real_FName=FName
+FName=function(text) names_made=names_made+(text=='None' and 0 or 1); return real_FName(text) end -- None exists already.
+ghost=new(nil,true,look)
+ghost.toggle()
+send(917,tinted({'s First 1'}))
+ghost.tick()
+clock=clock+2
+build()
+local noted
+for round=1,40 do
+    local batch={}
+    for k=1,32 do batch[k]=string.format('s N%d_%d 1',round,k) end
+    local _,said_now=send(917,tinted(batch))
+    noted=said_now or noted
+end
+FName=real_FName
+assert(noted=='Material values ignored: over 1024 names.',tostring(noted))
+assert(names_made<=1024+8,'Past the budget no name is made: '..names_made)
+do
+    -- A value gone from a table of the same generation: the plain material back, what is left on a new instance, a texture
+    -- still waiting dropped, no new ghost.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    send(918,tinted({'s A 1','s B 2','t Base '..T_BASE}))
+    ghost.tick()
+    clock=clock+2
+    build()
+    actor=spawned[#spawned]
+    hair=actor.parts[3]
+    local first=hair.mids[0]
+    local dyed_before=#hair.dyes
+    send(918,tinted({'s B 2'}))
+    assert(spawned[#spawned]==actor and #hair.dyes==dyed_before+1 and hair.dyes[#hair.dyes].material==meshes[TYPE_B])
+    local second=hair.mids[0]
+    assert(second~=first and #second.set==1 and second.set[1][2]=='B' and second.set[1][3]==2)
+    clock=clock+0.3
+    ghost.tick()
+    assert(#first.set==2 and #second.set==1,'The waiting texture went with its values')
+    -- No value left: plain, no instance made for nothing. A value back: a new instance.
+    send(918,tinted())
+    assert(#hair.dyes==dyed_before+2 and hair.dyes[#hair.dyes].material==meshes[TYPE_B] and hair.mids[0]==second)
+    send(918,tinted())
+    assert(#hair.dyes==dyed_before+2,'Plain already: nothing to do')
+    send(918,tinted({'s A 9'}))
+    assert(hair.mids[0]~=second and hair.mids[0].set[1][3]==9)
+    -- A texture setter that fails: the plain material back for this ghost, said once at that tick, other textures dropped.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    send(919,tinted({'s A 1','t Base '..T_BASE,'t Iris '..T_MOD}))
+    ghost.tick()
+    clock=clock+2
+    build()
+    hair=spawned[#spawned].parts[3]
+    dyed_before=#hair.dyes
+    fail_mid='texture'
+    clock=clock+0.3
+    ok,message=ghost.tick()
+    assert(ok==false and message:find('^Material texture not set %(.*no texture setter%)%.$'),tostring(message))
+    assert(#hair.dyes==dyed_before+1 and hair.dyes[#hair.dyes].material==meshes[TYPE_B])
+    fail_mid=nil
+    local failed_mid=hair.mids[0]
+    for _=1,3 do clock=clock+0.3; assert(ghost.tick()==nil) end
+    send(919,tinted({'s A 2'}))
+    assert(#failed_mid.set==1 and hair.mids[0]==failed_mid,'Stays plain for this ghost')
+    -- Over the waiting textures: said once, and those left over come once none waits, with no new table.
+    ghost=new(nil,true,look)
+    ghost.toggle()
+    local many={}
+    for k=1,65 do many[k]='t T'..k..' '..T_BASE end
+    send(920,tinted(many))
+    ghost.tick()
+    clock=clock+2
+    ok,message=build()
+    assert(ok and message:find('Material textures waiting: over 64 at once%.'),message)
+    local full_mid=spawned[#spawned].parts[3].mids[0]
+    assert(#full_mid.set==0)
+    for _=1,64 do clock=clock+0.3; ghost.tick() end
+    assert(#full_mid.set==64)
+    clock=clock+0.3
+    ghost.tick()
+    assert(#full_mid.set==65 and full_mid.set[65][2]=='T65')
+end
+
+-- Hidden slots (hide lines), on parts drawn on their own mesh by the dyes rule: the slots the hide line names hidden at
+-- LOD 0 (one past the mesh's slots left alone). A change is set again on the same ghost, an unchanged table calls
+-- nothing, and every follower stays a Poseable (no cloth here).
+do
+look={cloth=false,dyes=true}
+dyeable=true
+local function shaped(o)
+    local parts=her_parts()
+    parts[1].hide=o.hide
+    return parts
+end
+ghost=new(nil,true,look)
+ghost.toggle()
+local adds_before=skeletal_adds
+send(930,shaped({hide={1,5}}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+actor=spawned[#spawned]
+local body_part=actor.parts[1]
+assert(ok and message:find('^Ghost 930 built: 6 parts '),message)
+assert(body_part.hidden[1] and not body_part.hidden[5] and body_part.calls.sections==2,'Slot 5 is past the mesh\'s 2')
+assert(skeletal_adds==adds_before)
+assert(not actor.parts[3].calls.sections and not actor.parts[4].calls.sections,'Nothing to hide: no call')
+ghosts=#spawned
+ok,message=send(930,shaped({hide={0}}))
+assert(ok==nil and #spawned==ghosts and body_part.hidden[0] and not body_part.hidden[1] and body_part.calls.sections==4)
+send(930,shaped({hide={0}}))
+assert(body_part.calls.sections==4,'The same: nothing called')
+send(930,shaped({}))
+assert(not body_part.hidden[0] and body_part.calls.sections==5,'No hide line: every slot shown again')
+-- Dyes off on the game's own mesh: read and nothing done.
+look.dyes=false
+send(931,shaped({hide={1}}))
+ok,message=build()
+assert(ok and not spawned[#spawned].parts[1].calls.sections,message)
+look.dyes=true
+-- A call that fails: every slot shown, the ghost built, said once.
+fail_section=true
+ghost=new(nil,true,look) -- A note is said once a Lua load.
+ghost.toggle()
+send(932,shaped({hide={1}}))
+ghost.tick()
+clock=clock+2
+ok,message=build()
+assert(ok and message:find('Hidden slots not set %(.*no section call%)%.') and not next(spawned[#spawned].parts[1].hidden),
+    message)
+fail_section=false
+end
+cns={}
+dyeable=false
 
 -- Each fake method refuses a coroutine: an object's own, one added, one replaced, one given in fields, the controller.
 local part=cloth_part(object('Owner'))

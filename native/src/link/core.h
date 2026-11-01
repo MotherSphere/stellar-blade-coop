@@ -540,6 +540,24 @@ public:
       if (pak_lines_.size() < kMaxMods && mod_name_ok(m.name))
         pak_lines_.push_back(pak_line(m));
   }
+  // Her mod containers of the same name and hash as ours, sorted: what the ghost may load from (game/pak_list.h's
+  // shared_assets()). None unless a friend is linked, her last paks line ended a named list (her mod_names=on) and
+  // our mod_names is on.
+  std::vector<std::string> same_mods() const {
+    std::vector<std::string> out;
+    for (auto &p : peers_) {
+      if (!(p.compatible && p.accepted))
+        continue;
+      if (p.pak_named && paks_on_ && names_)
+        for (const auto &[name, hash] : p.pak_list) {
+          const auto at = mods_.find(name);
+          if (at != mods_.end() && at->second == hash)
+            out.push_back(name);
+        }
+      break;
+    }
+    return out;
+  }
   // mod_names from Lua's coop-state.txt, before each tick(): off sends the paks line alone, without the pak lines. A
   // change sends ours again to each friend, so hers forgets our names when it goes off.
   void mod_names(bool on) {

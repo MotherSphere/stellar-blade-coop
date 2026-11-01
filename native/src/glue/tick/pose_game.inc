@@ -76,6 +76,11 @@ constexpr size_t kInbox = 24; // 400 ms of poses at 60 a second.
 std::mutex m;
 std::unique_ptr<Live> incoming;
 bool incoming_set = false;
+// The capture's effect lines changed under one generation (Lua named a new system by an fx line): the game thread puts
+// them in its Live of that generation, with no new Live (which would restart her ghost's playback). A plain copy.
+Table::Fx fx_incoming;
+uint64_t fx_incoming_generation = 0;
+bool fx_incoming_set = false;
 std::vector<std::string> outbox;
 Message out_mid;
 bool out_fresh = false;
@@ -406,6 +411,11 @@ void game_tick() {
     if (incoming_set) {
       session.swap(incoming);
       incoming_set = false;
+    }
+    if (fx_incoming_set) {
+      if (session && session->capture.generation == fx_incoming_generation)
+        session->capture.fx = fx_incoming;
+      fx_incoming_set = false;
     }
     if (outbox.empty())
       outbox.swap(pending);

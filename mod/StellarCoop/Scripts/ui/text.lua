@@ -92,7 +92,9 @@ T.en={
         paused='The co-op menu does not open while the game is paused or shows a menu.'},
     -- The ghost's notices (partner/puppet.lua): her name, her map, yours.
     ghost={failed='Ghost failed 3 times: the reason is in UE4SS.log.',away='%s is in %s, you are in %s.',
-        mods='%s wears parts from mods your game cannot load: %s. They show on the base suit or are left out.'},
+        mods='%s wears parts from mods your game cannot load: %s. They show on the base suit or are left out.',
+        aside='The game crashed last time while the ghost used the mod asset %s. It stays off the ghost until coop cns '
+            ..'reset.'},
     -- UE4SS-settings.ini's notices (main.lua, core/ue4ss_settings.lua): HookBeginPlay or bUseUObjectArrayCache on.
     ue4ss={hook='In UE4SS-settings.ini, HookBeginPlay is on: Stellar Blade can crash when EVE lets go of a movable '
             ..'crate. Set it to 0 (the Stellar Blade UE4SS 1.3 value).',
@@ -309,7 +311,9 @@ T.fr={
     ghost={failed='Le fantôme a échoué 3 fois : la raison est dans UE4SS.log.',
         away='%s est dans %s, vous êtes dans %s.',
         mods='%s porte des pièces de mods que votre jeu ne peut pas charger : %s. Elles sont remplacées par la tenue '
-            ..'de base ou omises.'},
+            ..'de base ou omises.',
+        aside="Le jeu a planté la dernière fois pendant que le fantôme utilisait l'asset de mod %s. Il reste retiré du "
+            .."fantôme jusqu'à coop cns reset."},
     ue4ss={hook='Dans UE4SS-settings.ini, HookBeginPlay est activé : Stellar Blade peut planter quand EVE lâche une '
             ..'caisse mobile. Réglez-le sur 0 (valeur de Stellar Blade UE4SS 1.3).',
         cache='Dans UE4SS-settings.ini, bUseUObjectArrayCache est activé : saccades et plantages possibles au '
@@ -498,7 +502,8 @@ T.ar={
         world='لا تُفتح قائمة اللعب التعاوني إلا في عالم اللعبة.',
         paused='لا تُفتح قائمة اللعب التعاوني أثناء إيقاف اللعبة مؤقتًا أو عند عرض قائمة.'},
     ghost={failed='فشل الشبح 3 مرات: يذكر UE4SS.log السبب.',away='يوجد %s في %s، وأنت في %s.',
-        mods='يرتدي %s أجزاء من تعديلات لا تحمّلها لعبتك: %s. تظهر بالزي الأساسي أو تُحذف.'},
+        mods='يرتدي %s أجزاء من تعديلات لا تحمّلها لعبتك: %s. تظهر بالزي الأساسي أو تُحذف.',
+        aside='تعطلت اللعبة سابقًا أثناء استخدام الشبح لملف التعديل %s. سيبقى خارج الشبح حتى coop cns reset.'},
     ue4ss={hook='HookBeginPlay مفعّل في UE4SS-settings.ini: قد تتعطل اللعبة عندما تترك EVE صندوقًا متحركًا. اضبطه على '
             ..'0 (قيمة Stellar Blade UE4SS 1.3).',
         cache='bUseUObjectArrayCache مفعّل في UE4SS-settings.ini: قد يسبب تقطعًا وأعطالًا عند البدء. اضبطه على false '
@@ -678,7 +683,9 @@ T.da={
         world='Co-op-menuen kan kun åbnes i spilverdenen.',
         paused='Co-op-menuen kan ikke åbnes, mens spillet er sat på pause eller viser en menu.'},
     ghost={failed='Spøgelset fejlede 3 gange: årsagen står i UE4SS.log.',away='%s er i %s, du er i %s.',
-        mods='%s bærer dele fra mods, som dit spil ikke kan indlæse: %s. De vises som basisdragten eller udelades.'},
+        mods='%s bærer dele fra mods, som dit spil ikke kan indlæse: %s. De vises som basisdragten eller udelades.',
+        aside='Spillet gik ned sidst, mens spøgelset brugte mod-filen %s. Den holdes ude af spøgelset indtil coop cns '
+            ..'reset.'},
     ue4ss={hook='I UE4SS-settings.ini er HookBeginPlay slået til: Stellar Blade kan gå ned, når EVE slipper en flytbar '
             ..'kasse. Sæt den til 0 (værdien i Stellar Blade UE4SS 1.3).',
         cache='I UE4SS-settings.ini er bUseUObjectArrayCache slået til: det kan give hak og nedbrud ved start. Sæt den '
@@ -867,7 +874,9 @@ T.de={
     ghost={failed='Geist: 3 Fehlversuche. Der Grund steht in UE4SS.log.',
         away='%s ist in %s, du bist in %s.',
         mods='%s trägt Teile aus Mods, die dein Spiel nicht laden kann: %s. Sie erscheinen als Basisanzug oder '
-            ..'fehlen.'},
+            ..'fehlen.',
+        aside='Das Spiel ist zuletzt abgestürzt, während der Geist das Mod-Asset %s nutzte. Der Geist lässt es bis '
+            ..'coop cns reset weg.'},
     ue4ss={hook='In UE4SS-settings.ini ist HookBeginPlay an: Stellar Blade kann abstürzen, wenn EVE eine bewegliche '
             ..'Kiste loslässt. Setz es auf 0 (der Wert von Stellar Blade UE4SS 1.3).',
         cache='In UE4SS-settings.ini ist bUseUObjectArrayCache an: Das kann Ruckler und Abstürze beim Start '
@@ -1061,7 +1070,9 @@ T.es={
         paused='El menú co-op no se abre con el juego en pausa o con un menú abierto.'},
     ghost={failed='No se pudo crear el fantasma tras 3 intentos: el motivo está en UE4SS.log.',
         away='%s está en %s; tú estás en %s.',
-        mods='%s lleva piezas de mods que tu juego no puede cargar: %s. Se muestran con el traje base o se omiten.'},
+        mods='%s lleva piezas de mods que tu juego no puede cargar: %s. Se muestran con el traje base o se omiten.',
+        aside='El juego falló la última vez mientras el fantasma usaba el recurso de mod %s. Queda fuera del fantasma '
+            ..'hasta coop cns reset.'},
     ue4ss={hook='En UE4SS-settings.ini, HookBeginPlay está activado: Stellar Blade puede cerrarse cuando EVE suelta '
             ..'una caja móvil. Ponlo en 0 (el valor de Stellar Blade UE4SS 1.3).',
         cache='En UE4SS-settings.ini, bUseUObjectArrayCache está activado: puede causar tirones y cierres al iniciar. '
@@ -1253,7 +1264,9 @@ T['es-MX']={
         paused='El menú co-op no se abre si el juego está en pausa o muestra un menú.'},
     ghost={failed='No se pudo crear el fantasma tras 3 intentos: la razón está en UE4SS.log.',
         away='%s está en %s; tú estás en %s.',
-        mods='%s lleva piezas de mods que tu juego no puede cargar: %s. Se muestran con el atuendo base o se omiten.'},
+        mods='%s lleva piezas de mods que tu juego no puede cargar: %s. Se muestran con el atuendo base o se omiten.',
+        aside='El juego falló la última vez mientras el fantasma usaba el recurso de mod %s. Queda fuera del fantasma '
+            ..'hasta coop cns reset.'},
     ue4ss={hook='En UE4SS-settings.ini, HookBeginPlay está activado: Stellar Blade puede cerrarse cuando EVE suelta '
             ..'una caja móvil. Cámbialo a 0 (el valor de Stellar Blade UE4SS 1.3).',
         cache='En UE4SS-settings.ini, bUseUObjectArrayCache está activado: puede causar tirones y cierres al iniciar. '
@@ -1444,7 +1457,9 @@ T.fi={
         paused='Co-op-valikko ei avaudu, kun peli on tauolla tai näyttää valikkoa.'},
     ghost={failed='Haamu epäonnistui 3 kertaa: syy on UE4SS.log-tiedostossa.',
         away='%s on alueella %s, sinä alueella %s.',
-        mods='%s käyttää osia modeista, joita pelisi ei voi ladata: %s. Ne näkyvät perusasuna tai jäävät pois.'},
+        mods='%s käyttää osia modeista, joita pelisi ei voi ladata: %s. Ne näkyvät perusasuna tai jäävät pois.',
+        aside='Peli kaatui viimeksi, kun haamu käytti modin tiedostoa %s. Se jää pois haamusta, kunnes annat komennon '
+            ..'coop cns reset.'},
     ue4ss={hook='UE4SS-settings.ini: HookBeginPlay on päällä. Stellar Blade voi kaatua, kun EVE päästää irti '
             ..'siirrettävästä laatikosta. Aseta arvoksi 0 (Stellar Blade UE4SS 1.3:n arvo).',
         cache='UE4SS-settings.ini: bUseUObjectArrayCache on päällä. Se voi aiheuttaa nykimistä ja kaatumisia '
@@ -1638,7 +1653,9 @@ T.it={
     ghost={failed='Creazione del fantasma fallita 3 volte: il motivo è in UE4SS.log.',
         away='%s è in %s, tu sei in %s.',
         mods='%s indossa parti di mod che il tuo gioco non può caricare: %s. Appaiono con la tuta base o vengono '
-            ..'omesse.'},
+            ..'omesse.',
+        aside="L'ultima volta il gioco è andato in crash mentre il fantasma usava l'asset della mod %s. Resta escluso "
+            .."fino a coop cns reset."},
     ue4ss={hook='In UE4SS-settings.ini, HookBeginPlay è attivo: Stellar Blade può andare in crash quando EVE lascia '
             ..'una cassa mobile. Impostalo su 0 (il valore di Stellar Blade UE4SS 1.3).',
         cache="In UE4SS-settings.ini, bUseUObjectArrayCache è attivo: può causare scatti e crash all'avvio. Impostalo "
@@ -1823,7 +1840,8 @@ T.ja={
         world='協力プレイメニューはゲームプレイ中にのみ開けます。',
         paused='一時停止中やメニュー表示中は協力プレイメニューを開けません。'},
     ghost={failed='ゴーストの生成に3回失敗しました。理由はUE4SS.logにあります。',away='%sは%sにいます（自分は%s）。',
-        mods='%sの衣装に、読み込めないMODのパーツがあります：%s。基本スーツで表示するか、省きます。'},
+        mods='%sの衣装に、読み込めないMODのパーツがあります：%s。基本スーツで表示するか、省きます。',
+        aside='前回、ゴーストがMODアセット%sを使用中にゲームがクラッシュしました。coop cns resetまでゴーストから外します。'},
     ue4ss={hook='UE4SS-settings.iniのHookBeginPlayがオンです。EVEが動かせる箱を放すとクラッシュすることがあります。0にしてください（Stellar Blade UE4SS '
             ..'1.3の値）。',
         cache='UE4SS-settings.iniのbUseUObjectArrayCacheがオンです。カクつきや起動時のクラッシュの原因になります。falseにしてください（Stellar Blade UE4SS '
@@ -1986,7 +2004,8 @@ T.ko={
         world='코옵 메뉴는 게임 월드 안에서만 열립니다.',
         paused='게임이 일시 정지 중이거나 메뉴가 열려 있으면 코옵 메뉴가 열리지 않습니다.'},
     ghost={failed='고스트 생성에 3번 실패했습니다. 이유는 UE4SS.log에 있습니다.',away='%s 위치: %s, 내 위치: %s.',
-        mods='%s 의상에 불러올 수 없는 모드 부품이 있습니다: %s. 기본 슈트로 보이거나 빠집니다.'},
+        mods='%s 의상에 불러올 수 없는 모드 부품이 있습니다: %s. 기본 슈트로 보이거나 빠집니다.',
+        aside='지난번에 고스트가 모드 에셋 %s을(를) 사용하는 중 게임이 충돌했습니다. coop cns reset 전까지 고스트에서 뺍니다.'},
     ue4ss={hook='UE4SS-settings.ini의 HookBeginPlay가 켜져 있습니다. EVE가 움직이는 상자를 놓으면 게임이 튕길 수 있습니다. 0으로 바꾸세요(Stellar Blade '
             ..'UE4SS 1.3 값).',
         cache='UE4SS-settings.ini의 bUseUObjectArrayCache가 켜져 있습니다. 끊김이나 시작 시 튕김이 생길 수 있습니다. false로 바꾸세요(Stellar Blade '
@@ -2158,7 +2177,9 @@ T.nl={
         paused='Het co-opmenu opent niet als de game gepauzeerd is of een menu toont.'},
     ghost={failed='Geest 3 keer mislukt: de reden staat in UE4SS.log.',away='%s is in %s, jij bent in %s.',
         mods='%s draagt delen uit mods die jouw game niet kan laden: %s. Ze verschijnen als het basispak of '
-            ..'ontbreken.'},
+            ..'ontbreken.',
+        aside='De game crashte de vorige keer terwijl de geest het mod-asset %s gebruikte. Het blijft weg tot coop cns '
+            ..'reset.'},
     ue4ss={hook='In UE4SS-settings.ini staat HookBeginPlay aan: Stellar Blade kan crashen als EVE een verplaatsbare '
             ..'krat loslaat. Zet het op 0 (de waarde van Stellar Blade UE4SS 1.3).',
         cache='In UE4SS-settings.ini staat bUseUObjectArrayCache aan: dat kan haperingen en crashes bij het starten '
@@ -2347,7 +2368,9 @@ T.no={
         paused='Co-op-menyen åpnes ikke mens spillet er satt på pause eller viser en meny.'},
     ghost={failed='Spøkelset mislyktes 3 ganger: årsaken står i UE4SS.log.',away='%s er i %s, du er i %s.',
         mods='%s har på seg deler fra modder spillet ditt ikke kan laste inn: %s. De vises som basisdrakten eller '
-            ..'utelates.'},
+            ..'utelates.',
+        aside='Spillet krasjet sist mens spøkelset brukte mod-filen %s. Den holdes utenfor spøkelset til coop cns '
+            ..'reset.'},
     ue4ss={hook='I UE4SS-settings.ini er HookBeginPlay slått på: Stellar Blade kan krasje når EVE slipper en flyttbar '
             ..'kasse. Sett den til 0 (verdien i Stellar Blade UE4SS 1.3).',
         cache='I UE4SS-settings.ini er bUseUObjectArrayCache slått på: det kan gi hakking og krasj ved oppstart. Sett '
@@ -2532,7 +2555,8 @@ T.pl={
         world='Menu co-op otwiera się tylko w świecie gry.',
         paused='Menu co-op nie otwiera się, gdy gra jest wstrzymana lub wyświetla menu.'},
     ghost={failed='Duch: 3 nieudane próby, powód jest w UE4SS.log.',away='%s jest na mapie %s, ty na mapie %s.',
-        mods='%s nosi części z modów, których twoja gra nie może wczytać: %s. Widać je jako strój bazowy albo wcale.'},
+        mods='%s nosi części z modów, których twoja gra nie może wczytać: %s. Widać je jako strój bazowy albo wcale.',
+        aside='Ostatnio gra uległa awarii, gdy duch używał zasobu moda %s. Duch pomija go do coop cns reset.'},
     ue4ss={hook='W UE4SS-settings.ini HookBeginPlay jest włączone: Stellar Blade może ulec awarii, gdy EVE puści '
             ..'ruchomą skrzynię. Ustaw 0 (wartość z Stellar Blade UE4SS 1.3).',
         cache='W UE4SS-settings.ini bUseUObjectArrayCache jest włączone: może powodować przycięcia i awarie przy '
@@ -2719,7 +2743,9 @@ T.pt={
     ghost={failed='Não foi possível criar o fantasma após 3 tentativas: a razão está no UE4SS.log.',
         away='%s está na zona %s, tu estás na zona %s.',
         mods='%s usa peças de mods que o teu jogo não consegue carregar: %s. Aparecem com o fato base ou ficam de '
-            ..'fora.'},
+            ..'fora.',
+        aside='Da última vez o jogo falhou enquanto o fantasma usava o recurso de mod %s. Fica fora do fantasma até '
+            ..'coop cns reset.'},
     ue4ss={hook='No UE4SS-settings.ini, HookBeginPlay está ativo: o Stellar Blade pode bloquear quando a EVE larga uma '
             ..'caixa móvel. Define-o como 0 (o valor do Stellar Blade UE4SS 1.3).',
         cache='No UE4SS-settings.ini, bUseUObjectArrayCache está ativo: pode causar engasgos e bloqueios no arranque. '
@@ -2907,7 +2933,9 @@ T['pt-BR']={
         paused='O menu co-op não abre com o jogo pausado ou com um menu aberto.'},
     ghost={failed='O fantasma falhou 3 vezes: o motivo está no UE4SS.log.',away='%s está em %s, você está em %s.',
         mods='%s usa peças de mods que o seu jogo não consegue carregar: %s. Elas aparecem com o traje base ou ficam '
-            ..'de fora.'},
+            ..'de fora.',
+        aside='Da última vez o jogo travou enquanto o fantasma usava o recurso de mod %s. Ele fica fora do fantasma '
+            ..'até coop cns reset.'},
     ue4ss={hook='No UE4SS-settings.ini, HookBeginPlay está ativado: o Stellar Blade pode fechar com erro quando a EVE '
             ..'solta uma caixa móvel. Mude para 0 (o valor do Stellar Blade UE4SS 1.3).',
         cache='No UE4SS-settings.ini, bUseUObjectArrayCache está ativado: pode causar travadas e erros ao iniciar. '
@@ -3097,7 +3125,8 @@ T.ru={
         paused='Меню кооператива не открывается, пока игра на паузе или открыто меню.'},
     ghost={failed='Призрак не удалось создать 3 раза подряд: причина в UE4SS.log.',
         away='%s в локации %s, вы в локации %s.',
-        mods='Моды партнера (%s) не загружаются: %s. Эти части в базовом костюме или скрыты.'},
+        mods='Моды партнера (%s) не загружаются: %s. Эти части в базовом костюме или скрыты.',
+        aside='В прошлый раз игра упала, пока призрак использовал ресурс мода %s. Он скрыт до coop cns reset.'},
     ue4ss={hook='В UE4SS-settings.ini включен HookBeginPlay: игра может вылететь, когда EVE отпускает ящик. Поставьте '
             ..'0, как в Stellar Blade UE4SS 1.3.',
         cache='В UE4SS-settings.ini включен bUseUObjectArrayCache: возможны фризы и вылеты при запуске. Поставьте '
@@ -3279,7 +3308,9 @@ T.sv={
         world='Co-op-menyn öppnas bara i spelvärlden.',
         paused='Co-op-menyn öppnas inte när spelet är pausat eller visar en meny.'},
     ghost={failed='Spöket misslyckades 3 gånger: orsaken står i UE4SS.log.',away='%s är i %s, du är i %s.',
-        mods='%s bär delar från moddar som ditt spel inte kan läsa in: %s. De visas som basdräkten eller utelämnas.'},
+        mods='%s bär delar från moddar som ditt spel inte kan läsa in: %s. De visas som basdräkten eller utelämnas.',
+        aside='Spelet kraschade senast medan spöket använde mod-filen %s. Den hålls borta från spöket tills coop cns '
+            ..'reset.'},
     ue4ss={hook='I UE4SS-settings.ini är HookBeginPlay på: Stellar Blade kan krascha när EVE släpper en flyttbar låda. '
             ..'Sätt den till 0 (värdet i Stellar Blade UE4SS 1.3).',
         cache='I UE4SS-settings.ini är bUseUObjectArrayCache på: det kan ge hack och krascher vid start. Sätt den till '
@@ -3459,7 +3490,8 @@ T.th={
         world='เมนู co-op เปิดได้เฉพาะในโลกของเกม',
         paused='เมนู co-op เปิดไม่ได้ขณะเกมหยุดชั่วคราวหรือกำลังแสดงเมนู'},
     ghost={failed='สร้างร่างจำลองไม่สำเร็จ 3 ครั้ง ดูสาเหตุใน UE4SS.log',away='%s อยู่ที่ %s ส่วนคุณอยู่ที่ %s',
-        mods='%s ใช้ม็อดที่โหลดไม่ได้: %s ชุดบางส่วนจะดูต่างไป'},
+        mods='%s ใช้ม็อดที่โหลดไม่ได้: %s ชุดบางส่วนจะดูต่างไป',
+        aside='เกมแครชขณะใช้ไฟล์ม็อด %s จะไม่ใช้ไฟล์นี้จนกว่าจะสั่ง coop cns reset'},
     ue4ss={hook='HookBeginPlay ใน UE4SS-settings.ini เปิดอยู่ เกมอาจแครชเมื่อ EVE ปล่อยกล่อง ตั้งเป็น 0 ตาม UE4SS 1.3',
         cache='bUseUObjectArrayCache ใน UE4SS-settings.ini เปิดอยู่ เกมอาจกระตุกหรือแครช ตั้งเป็น false ตาม UE4SS 1.3'},
     fight={on='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู %d ตัว',one='ศัตรูร่วมเปิดแล้ว: เชื่อมศัตรู 1 ตัว',
@@ -3630,7 +3662,9 @@ T.tr={
     ghost={failed='Hayalet 3 kez oluşturulamadı: nedeni UE4SS.log dosyasında.',
         away='%s şu an %s haritasında, sen %s haritasındasın.',
         mods='%s, oyununun yükleyemediği modlardan parçalar giyiyor: %s. Bunlar temel kıyafetle görünür ya da hiç '
-            ..'görünmez.'},
+            ..'görünmez.',
+        aside='Oyun geçen sefer hayalet %s mod dosyasını kullanırken çöktü. coop cns reset yapılana kadar hayalette '
+            ..'kullanılmaz.'},
     ue4ss={hook='UE4SS-settings.ini içinde HookBeginPlay açık: EVE hareketli bir sandığı bıraktığında Stellar Blade '
             ..'çökebilir. 0 yapın (Stellar Blade UE4SS 1.3 değeri).',
         cache='UE4SS-settings.ini içinde bUseUObjectArrayCache açık: takılmalara ve açılışta çökmelere yol açabilir. '
@@ -3808,7 +3842,8 @@ T['zh-Hans']={
         world='合作菜单只能在游戏世界中打开。',
         paused='游戏暂停或显示菜单时，无法打开合作菜单。'},
     ghost={failed='幽灵生成失败3次：原因见UE4SS.log。',away='%s在%s，你在%s。',
-        mods='%s穿着来自你的游戏无法加载的模组的部件：%s。这些部件以基础服装显示或不显示。'},
+        mods='%s穿着来自你的游戏无法加载的模组的部件：%s。这些部件以基础服装显示或不显示。',
+        aside='上次幽灵使用模组资源%s时游戏崩溃了。在coop cns reset之前，幽灵不再使用它。'},
     ue4ss={hook='UE4SS-settings.ini中的HookBeginPlay已开启：EVE放开可移动的箱子时游戏可能崩溃。请改为0（Stellar Blade UE4SS 1.3的值）。',
         cache='UE4SS-settings.ini中的bUseUObjectArrayCache已开启：可能导致卡顿和启动时崩溃。请改为false（Stellar Blade UE4SS 1.3的值）。'},
     fight={on='共享敌人已启用：已关联%d个敌人。',one='共享敌人已启用：已关联1个敌人。',
@@ -3954,7 +3989,8 @@ T['zh-Hant']={
         world='合作選單只能在遊戲世界中開啟。',
         paused='遊戲暫停或顯示選單時，無法開啟合作選單。'},
     ghost={failed='幻影生成失敗3次：原因記錄在UE4SS.log。',away='%s在%s，你在%s。',
-        mods='%s穿著來自你的遊戲無法載入的模組的部件：%s。這些部件以基礎服裝顯示或不顯示。'},
+        mods='%s穿著來自你的遊戲無法載入的模組的部件：%s。這些部件以基礎服裝顯示或不顯示。',
+        aside='上次幻影使用模組資源%s時遊戲當機了。在coop cns reset之前，幻影不再使用它。'},
     ue4ss={hook='UE4SS-settings.ini中的HookBeginPlay已開啟：EVE放開可移動的箱子時遊戲可能閃退。請改為0（Stellar Blade UE4SS 1.3的值）。',
         cache='UE4SS-settings.ini中的bUseUObjectArrayCache已開啟：可能造成卡頓及啟動時閃退。請改為false（Stellar Blade UE4SS 1.3的值）。'},
     fight={on='共享敵人已開啟：已連結%d個敵人。',one='共享敵人已開啟：已連結1個敵人。',

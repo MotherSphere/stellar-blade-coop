@@ -382,6 +382,7 @@ end
 assert(#asked==before,'Nothing asked on bad input')
 coop('basesuit'); assert(basesuits==1 and last():find('OK: base suit',1,true),last())
 coop('where'); assert(wheres==1 and last():find('OK: where map=/game/e04',1,true),last())
+coop('cns','reset'); assert(cns_args=='reset' and last():find('OK: cns reset',1,true),last())
 -- coop look: what the ghost shows, changed in the table the ghost holds until the mod reloads, and the ghost built again.
 local LOOK_USE='[StellarCoop] STOP: Use: coop look [cloth|dyes|effects on|off]\n'
 coop('look')
@@ -1236,4 +1237,13 @@ assert(rt.ticks==1 and rt.o.ready()==false,'The teleport tabs tick and stay off 
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())
+-- The crash sentinel (partner/sentinel.lua): a marker the last Lua load left full is logged at the next load, emptied,
+-- and its asset set aside under this version.
+local MARKED='/Game/OutfitMods/Foo/SK_Foo.SK_Foo'
+fake_link.write_now=function(name,text) link_files[name]=text; return true end
+link_files['coop-cns-call.txt']=MARKED..' Foo_Suit\n'
+load_main(true)
+assert(logged('Crash sentinel: the game crashed during a call with the mod asset '..MARKED..' (outfit Foo_Suit). It is '
+    ..'set aside: the ghost draws it as missing until coop cns reset or another mod version.'),table.concat(printed,'|'))
+assert(link_files['coop-cns-call.txt']=='' and link_files['coop-cns-aside.txt']=='version v9-test\n'..MARKED..' Foo_Suit\n')
 io.stdout:write('boot_test ok\n')

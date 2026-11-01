@@ -15,6 +15,7 @@
 // puts our join code on the clipboard on the copy request (glue/clipboard.h). The follow's camps lines go through the
 // link (link/core.h), its travel request to the game thread (glue/tick.cpp).
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX // std::min in pose/table.h.
 #include <windows.h>
 
 #include <algorithm>
@@ -29,6 +30,7 @@
 #include "glue/clipboard.h"
 #include "glue/tick.h"
 #include "link/core.h"
+#include "pose/table.h" // path_allowed
 #include "save/shortcut_load.h" // kSlot
 #include "save/slot.h"
 #include "save/twins.h"
@@ -273,8 +275,12 @@ void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<
 // outfits for the log and the status's cns= line, and the assets they declare (cns_assets) go to coop-cns.txt, a
 // "<path> <outfit>" line each, sorted, written at every start (empty without CNS packs): the only paths of a mod
 // partner/puppet.lua loads when a friend's table names one, and the outfits partner/capture.lua tags her parts with.
+// The .uasset paths each mod container's .utoc indexes (utoc_assets, kMaxUtocBytes read of each), by container name,
+// kMaxModAssets in all, each path one pose/table.h's path_allowed takes: what coop-shared-assets.txt lists of the
+// containers a friend has in the same version.
 coop::Paks game_paks;
 std::vector<coop::PakMod> game_mods;
+std::map<std::string, std::vector<std::string>> game_mod_assets;
 std::string cns_line; // "cns=<packs> <outfits>\n", or empty without CNS packs.
 void log_paks() {
   wchar_t exe[MAX_PATH];
@@ -300,6 +306,21 @@ void log_paks() {
       coop::cns_assets(json, assets);
     }
   }
+  size_t mod_assets = 0;
+  for (auto &f : files) {
+    const std::string path = coop::paks_detail::lower(f.name);
+    if (!coop::paks_detail::ends(path, ".utoc") || coop::base_pak(path) || mod_assets >= coop::kMaxModAssets)
+      continue;
+    bool exists = false;
+    const std::string toc =
+        coop::pose::read_file(dir + L"\\Content\\Paks\\" + wide(f.name), exists, coop::kMaxUtocBytes);
+    std::vector<std::string> found;
+    coop::utoc_assets(toc, found, coop::kMaxModAssets - mod_assets);
+    auto &kept = game_mod_assets[coop::mod_name(path.substr(0, path.rfind('.')))];
+    for (std::string &asset : found)
+      if (coop::pose::path_allowed(asset))
+        kept.push_back(std::move(asset)), ++mod_assets;
+  }
   std::string declared;
   for (const auto &[path, fit] : assets)
     declared += path + " " + fit + "\n";
@@ -310,6 +331,11 @@ void log_paks() {
   header_lines.push_back("paks " + std::to_string(game_paks.count) + " beyond the base game, hash " +
                          std::to_string(game_paks.hash) + (names.empty() ? "" : ": " + names));
   append(utc_stamp() + " " + header_lines.back());
+  if (mod_assets) {
+    header_lines.push_back("mod assets " + std::to_string(mod_assets) + " indexed in " +
+                           std::to_string(game_mod_assets.size()) + " .utoc files");
+    append(utc_stamp() + " " + header_lines.back());
+  }
   if (packs) {
     cns_line = "cns=" + std::to_string(packs) + " " + std::to_string(outfits) + "\n";
     header_lines.push_back("cns " + std::to_string(packs) + " packs, " + std::to_string(outfits) + " outfits, " +
@@ -480,13 +506,31 @@ struct GameView {
   }
 };
 
+// coop-shared-assets.txt (game/pak_list.h's shared_assets): rewritten when her containers of our version change, its
+// version bumped, which the status's shared= line gives Lua: "shared=<version> <paths>".
+std::vector<std::string> shared_mods;
+uint64_t shared_version = 0;
+size_t shared_count = 0;
+void write_shared() {
+  std::vector<std::string> same = link && loaded ? link->same_mods() : std::vector<std::string>();
+  if (same == shared_mods && shared_version)
+    return;
+  const std::string text = coop::shared_assets(game_mod_assets, same);
+  if (!write_text(folder + L"coop-shared-assets.txt", text))
+    return; // Tried again next pass: shared_mods is kept until the file holds the new list.
+  shared_mods = std::move(same);
+  shared_count = size_t(std::count(text.begin(), text.end(), '\n'));
+  ++shared_version;
+}
+
 std::string status_text() {
   std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb1251.load()})
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   const std::string camps = coop::pose::camps_status();
   const std::string camp_text = coop::pose::camp_text_status();
-  return head + cns_line + coop::pose::status() + "\n" + (camps.empty() ? camps : camps + "\n") +
+  return head + cns_line + "shared=" + std::to_string(shared_version) + " " + std::to_string(shared_count) + "\n" +
+         coop::pose::status() + "\n" + (camps.empty() ? camps : camps + "\n") +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
          coop::pose::rows_status() + "\n" + (camp_text.empty() ? camp_text : camp_text + "\n") +
@@ -799,6 +843,7 @@ bool step() {
             link->send_binary(d, n, reliable);
         },
         linked ? link->pose_cap() : coop::kPoseCaps[0]);
+    write_shared();
     std::string text = status_text();
     if (text != written && write_text(folder + L"coop-status.txt", text))
       written = text;
@@ -832,7 +877,7 @@ DWORD WINAPI worker(void *) {
   DeleteFileW((folder + L"coop-report.txt").c_str());
   // And a previous run's world state, whose world=1 would release a held invite on the title screen.
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
-                               L"coop-night.txt", L"coop-cns.txt"})
+                               L"coop-night.txt", L"coop-cns.txt", L"coop-shared-assets.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
   write_header();
   log_paks();

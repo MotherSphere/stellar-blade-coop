@@ -316,7 +316,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (14) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (19) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
@@ -852,6 +852,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
 | `coop look` | Show which looks are on |
 | `coop look <cloth\|dyes\|effects> <on\|off>` | Turn one look on or off until the mod reloads |
+| `coop cns` | Show whether the ghost's CNS part is on and which mod assets the crash sentinel set aside |
+| `coop cns reset` | Clear the set-aside list, turn the CNS part on again and build the ghost again |
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
 | `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
@@ -932,6 +934,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 - `coop look` with no arguments prints the same `look:` line that each load logs, for example
   `look: cloth=on dyes=off effects=off`. `coop look <cloth|dyes|effects> <on|off>` changes one look until the mod
   reloads (game start or Ctrl+R) and rebuilds the ghost. It does not change `coop-settings.txt`. See [Looks](#looks).
+- `coop cns` prints one line: `CNS part on` (or `off (<error>)`), then the mod assets set aside after a crash, each with
+  its outfit, or `none`. `coop cns reset` clears both and builds the ghost again. See [When a mod asset
+  fails](#when-a-mod-asset-fails).
 
 ### `coop where`
 
@@ -997,7 +1002,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 14). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 19). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -3290,13 +3295,21 @@ The three looks have not been tested in game yet. Back up your saves before you 
   strands follow the same rules as on her screen without being the same strands. If the cloth part fails, the ponytail
   is a plain part, with a note in the log.
 - `dyes`: her hair colour and other material variants. Her capture also names each part's overridden materials (a
-  material made at run time is sent as the asset it was made from), and the ghost puts on each one your PC has, by the
-  same rules as the meshes. Dyes do not apply to a fallback mesh. Off, each part has its mesh's own colours, except a
-  part on a mod's mesh, which takes its materials either way (see [Mods and CNS outfits](#mods-and-cns-outfits)).
-- `effects`: her attack and skill effects. The native part reads which of 19 known effects (Niagara systems) are
-  playing on her, at most 4, into four effect slots of each pose (an index into a fixed list, never a path). The ghost
-  starts each effect on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8
-  starts a second. A fault in the native effect read or write turns effects off until the game restarts
+  material made at run time is sent as the asset it was made from, with the colours and textures set on it), and the
+  ghost puts on each one your PC has, by the same rules as the meshes. Dyes do not apply to a fallback mesh. Off, each
+  part has its mesh's own colours, except a part on a mod's mesh, which takes its materials either way (see
+  [Mods and CNS outfits](#mods-and-cns-outfits)). Both players need `dyes=on` for a colour on one of the game's own
+  meshes, such as a CNS eye colour on the base face: the sender to send it, the viewer to show it. The same goes for
+  the material slots a part hides (CNS toggles).
+- `effects`: her attack and skill effects. The native part reads which Niagara systems are playing on her parts, at
+  most 4 at a time, into four effect slots of each pose. A slot holds an index: one of 19 known effects of EVE's own,
+  or one of up to 45 more that her capture names by path. Her capture gives a system such a name when it plays on one
+  of her parts with bones (body, hair, weapon) and lies in the game's FX folders (`/Game/Art/FX/` or
+  `/Game/DLC_<n>/Art/FX/`), or belongs to a mod you both have in one version (see
+  [Mods you both have](#mods-you-both-have)). It looks once a second, so the first time a new effect plays it does not
+  reach the ghost. Your game loads each named system once, during the build or one every 0.25 s after it, and a system
+  it cannot load or may not load draws nothing, with one note in the log for that ghost. The ghost starts each effect
+  on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8 starts a second. A fault in the native effect read or write turns effects off until the game restarts
   (`effects off: fault ...`), and the ghost stays without them. Every 60 s with any effect activity, an
   `effects, last 60 s:` line counts those started, those over 4, unlisted reads and boxes written.
 - `dyes=off` and `effects=off` also stop sending yours, so your friend's ghost of you lacks them too.
@@ -3331,25 +3344,80 @@ The name is the outfit's `UniqueFitID` in your friend's CNS pack, else the last 
 (`HD-ATOOL_P` for `/Game/Mods/HD-ATOOL_P/...`). Up to two names fit, then `(+n)` for the others. `coop basesuit`
 gives no notice.
 
-A part on a mod's mesh sends its overridden materials even with `dyes=off`: CNS sets an outfit's materials when it
-puts the outfit on, so the mesh's own are not the outfit's. Her ponytail's collision asset goes too (the `cloth` look
-uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
+A part on a mod's mesh sends its overridden materials even with `dyes=off`: CNS sets an outfit's materials when it puts
+the outfit on, so the mesh's own are not the outfit's. The CNS colours and option textures set on those materials go
+with them, and the ghost applies them on a dynamic instance of the material (not tested in game yet). A change to a
+colour reaches the ghost within 21 s, without a new ghost. A texture option shows only if your packs declare the same
+texture or it is one of the game's own. A slot whose material your PC lacks keeps the mesh's own, with no values and no
+error. The slots an outfit hides (`HiddenMats`, and `MaterialToggles` turned off) are hidden on the ghost too, and the
+same change delay applies (not tested in game yet). Shape keys (`ShapeKeys`) do not reach the ghost. Her ponytail's
+collision asset goes too (the `cloth` look uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
 
 A mod's added assets are usually missing from the game's cooked asset registry, and UE4SS's `LoadAsset` finds an
 asset through that registry. When `LoadAsset` finds nothing for a path your packs name, the ghost tries
 `AssetRegistryHelpers:GetAsset`, which loads by path (the way UE4SS's BPModLoaderMod loads mod actors). This step has
 not been tested in game yet. The `Ghost ... built` log line says how each mod asset came:
 `mod assets: <path> by GetAsset` (or `by LoadAsset`, `in memory`, `missing`), and which outfits were not shown:
-`mod parts not shown: <names>`. A path your packs do not name shows as `<path> not declared by your CNS packs`.
+`mod parts not shown: <names>`. A path your packs do not name shows as `<path> not declared by your CNS packs or a mod you both have`.
 
 With `mod_names=off` in `coop-settings.txt`, your capture leaves out every path outside the game's own folders: your
 friend's ghost of you shows those parts on the base suit or leaves them out, and no folder or outfit name of yours
 reaches them.
 
-Not carried: CNS material settings (colours, sliders, texture options, toggles), shape keys and face morphs,
-accessories that are static meshes, actors attached to EVE, and parts past 16. A pose holds about 900 leader bones in
-all. When her parts have more, the capture leaves out the last leader parts and their followers until the pose fits,
-and its log line ends with `<n> leaders left out, over the pose size`.
+### Mods you both have
+
+When you and your friend load the same mod container, the ghost may also load that mod's assets, with or without a
+CNS pack. The same container means the same `.pak`, `.ucas` and `.utoc` file names and sizes under
+`SB/Content/Paks`. At start the native part reads the directory index of each mod's `.utoc` and keeps the `.uasset`
+paths under `SB/Content`. Once your friend's mod list arrives, it writes `coop-shared-assets.txt` with the paths of the
+containers she has with the same name and hash as yours, and the ghost is built again. Those paths then follow the CNS
+rules: loaded as a mod's asset (with the `GetAsset` step above), under the crash sentinel and the CNS guard (see
+[When a mod asset fails](#when-a-mod-asset-fails)). The build line names such a path `<path> by GetAsset` and so on,
+and the set-aside list names the container where it would name an outfit.
+
+What it needs:
+
+- the same mod, in the same version, on both PCs;
+- `mod_names=on` on both PCs (the default). With either side off, the list stays empty;
+- a mod that ships a `.utoc`. A mod that is a `.pak` alone gives no paths.
+
+The hash covers file names and sizes, not their contents, and your friend's game states it. Two builds of a mod whose
+files have the same sizes count as one version. Your game still loads only paths of your own containers.
+
+GodEmpress (`queen-lite` on Nexus) is an example. Version 4.3.1 adds no Niagara system of its own: the Raven and
+Scarlet effects its skills play are the game's own systems under `/Game/Art/FX/Char/Monster/RavenHuman/`,
+`/Game/DLC_2/Art/FX/` and EVE's FX folders, so the `effects` look names them by path whether or not you have the mod.
+Its animations arrive as bones, mod or not. Its Raven and Scarlet blades are new meshes inside the game's character
+folders, so your game draws them only with the mod installed; with the same version on both PCs they also load under
+the crash sentinel. What does not reach the ghost from it, as from any skill: effects placed in the world instead of on
+her (about a quarter of its effect keys), its Cascade weapon trails, decals, projectiles, the screen effects (post
+process, camera shake, time scale) and the weapon fades of its mode switch. None of this has been tested in game yet.
+
+### When a mod asset fails
+
+A Lua error while the ghost sets up a mod's mesh, a mod's material, CNS colours or hidden slots turns its CNS part off.
+The ghost is built again at once without mod meshes, mod materials, colours or hidden slots: those parts show on the
+base suit or are left out, as for a mod you lack. Everything else goes on: the link, the chat, the shared enemies and
+the shared quests. The log says `CNS part of the ghost off until coop cns reset or the next Lua load (<error>)`. The CNS
+part comes back with `coop cns reset` or at the next game start or Ctrl+R.
+
+A crash inside the engine cannot be caught that way, so the mod keeps a marker instead. Just before the ghost hands the
+engine an asset your CNS packs declare or a mod you both have holds (`coop-shared-assets.txt`), it writes the asset's
+path and outfit into `coop-cns-call.txt`, and it empties the file as soon as the call is done. For a mod you both have,
+the outfit field holds the mod's container name. If the game crashes during that call, the file is still full at the next start.
+The mod then puts that asset on a set-aside list (`coop-cns-aside.txt`), logs `Crash sentinel: the game crashed during a
+call with the mod asset <path> (outfit <outfit>)`, and shows one notice:
+
+`The game crashed last time while the ghost used the mod asset SK_Foo. It stays off the ghost until coop cns reset.`
+
+From then on the ghost draws that asset as missing: a mesh on the base suit or left out, a material as the mesh's own, a
+texture not set. The build line shows `<path> set aside after a crash (coop cns reset)`. The list is cleared by `coop
+cns reset` and when you install another version of the mod. A crash at any other moment leaves the file empty and sets
+nothing aside. Neither part has been tested in game yet.
+
+Not carried: shape keys and face morphs, accessories that are static meshes, actors attached to EVE, and parts past 16.
+A pose holds about 900 leader bones in all. When her parts have more, the capture leaves out the last leader parts and
+their followers until the pose fits, and its log line ends with `<n> leaders left out, over the pose size`.
 
 ## Solid partner (experimental)
 
@@ -3449,7 +3517,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=14 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=19 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
@@ -3542,7 +3610,10 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from |
-| `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): the only paths from a mod's folder the ghost loads |
+| `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): with `coop-shared-assets.txt`, the only paths from a mod's folder the ghost loads |
+| `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](#when-a-mod-asset-fails)) |
+| `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](#mods-you-both-have)) |
+| `coop-cns-aside.txt` | Lua | The mod assets set aside after a crash: `version <mod version>`, then one `<path> <outfit>` line each. Cleared by `coop cns reset` and by another mod version |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
 | `coop-state.txt` | Lua | Whether a save is loaded or the title screen is shown, the send rate, your photo mode and the photo settings |
 | `coop-puppet.txt` | Lua | The ghost's object path, so the next Lua load can remove a ghost left standing |

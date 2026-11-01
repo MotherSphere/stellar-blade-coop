@@ -124,7 +124,9 @@ file is written in full beside its final name and then renamed over it, so the r
   state and settings) and `coop-night.txt` (our side of a Night Operation run, which the native part takes at its next
   pass and sends to the friend; a newer line replaces one not taken yet).
 - The native part writes `coop-status.txt` (the state Lua and `coop status` read), `coop-remote.txt` (the remote
-  table), `coop-cns.txt` (the assets your CNS packs declare, once at start), `coop-link.log` and `coop-report.txt`.
+  table), `coop-cns.txt` (the assets your CNS packs declare, once at start), `coop-shared-assets.txt` (the assets of
+  the mods you and your friend both have in one version, when that list changes), `coop-link.log` and
+  `coop-report.txt`.
 - The chat has two files that exist for a moment only. Lua writes a typed line into `coop-say.txt` once the native
   part has taken the previous one, and the native part takes and deletes it at its next pass (every 5 to 50 ms). The
   native part writes your friend's lines into `coop-chat.txt` (`in <text>`, or `fail` for a line of yours that could
@@ -138,6 +140,8 @@ file is written in full beside its final name and then renamed over it, so the r
 - `coop gift` sends its lines as requests (`gift <payload>` in `coop-request.txt`), and asks the inventory read the
   same way (`items ...`, answered in `coop-status.txt`). Your friend's gift lines, and a gift of yours that could not
   go, come in `coop-chat.txt` as `gift <payload>` ([Cut mailbox](#cut-mailbox)).
+- Two files are Lua's alone, for the [crash sentinel](#cns-guard-and-crash-sentinel): `coop-cns-call.txt`, written in
+  place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the set-aside list.
 
 The full list is in [usage.md](usage.md#files-in-the-mod-folder).
 
@@ -228,7 +232,7 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 - `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`14:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
+  (`19:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
 - The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
   to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
@@ -304,23 +308,23 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC14 ping <seq> <ms>
-SBC14 pong <seq> <ms>
-SBC14 photo <0|1|s|c> <both|notice>
-SBC14 say <text>
-SBC14 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC14 pak <hash> <name>
-SBC14 paks <count> <hash>
-SBC14 camps? <id>
-SBC14 camps <id> <world> <camp>:<m> ...
-SBC14 camps <id> none <title|loading|nocamp|busy>
-SBC14 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
-SBC14 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
-SBC14 mark <n> [<text>]
-SBC14 race <text>
-SBC14 gift s <id> <item> <count>
-SBC14 gift a <id>
-SBC14 gift n <id> <why>
+SBC19 ping <seq> <ms>
+SBC19 pong <seq> <ms>
+SBC19 photo <0|1|s|c> <both|notice>
+SBC19 say <text>
+SBC19 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC19 pak <hash> <name>
+SBC19 paks <count> <hash>
+SBC19 camps? <id>
+SBC19 camps <id> <world> <camp>:<m> ...
+SBC19 camps <id> none <title|loading|nocamp|busy>
+SBC19 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC19 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC19 mark <n> [<text>]
+SBC19 race <text>
+SBC19 gift s <id> <item> <count>
+SBC19 gift a <id>
+SBC19 gift n <id> <why>
 ```
 
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
@@ -380,6 +384,18 @@ parser: it tells strings (with their escapes) and keys apart and skips `//` and 
 carry. Image and AnimBP paths are never listed. The list goes to `coop-cns.txt`, one `<path> <outfit>` line each,
 rewritten at every start. It never goes to your friend: only the tag of an outfit your EVE wears does, in the
 component table (see [The ghost pipeline](#the-ghost-pipeline)).
+
+The scan also reads each mod's `.utoc` (its first MiB): the directory index of an IoStore container that is not
+encrypted, TOC versions 2 and 3 (UE 4.26 and 4.27). Each `../../../SB/Content/<p>.uasset` entry becomes the object path
+`/Game/<p>.<name>`, kept when the native path rule takes it, 8192 paths in all. `.umap` files and files outside
+`SB/Content` are never kept, and a mod that is a `.pak` alone gives no paths. The header of `coop-link.log` then has
+`mod assets <n> indexed in <k> .utoc files`. Each time the containers your friend lists with the same name and hash as
+yours change, the native part writes `coop-shared-assets.txt`: the paths of those containers, one `<path> <container>`
+line each, sorted. It is empty with no friend, when your friend's list came without names (her `mod_names=off`) and
+with your own `mod_names=off`. The status's `shared=<version> <paths>` line counts the lists written; Lua reads the
+file again when the version changes and rebuilds the ghost. The hash is FNV-1a over file names and sizes and your
+friend's game states it, so it says that both of you run one build of the mod, without proving it. The list only ever
+holds paths of your own containers.
 
 The camps lines carry the [follow](#following-the-host), both reliable: the guest's `camps?` with a number from 0 to
 65535, and the host's answer to it, its world and up to 8 camps nearest its EVE with their distance in whole metres, or
@@ -449,7 +465,7 @@ other request is ignored.
 
 ### Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 14` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 19` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -496,7 +512,12 @@ instead of misread:
 | 11 | Same-place enemies: `SBE` on Steam channel 1; the show lines, the host's place, aggro and own lines and the guest's own-no lines on channel 2; same spawns' epoch, have, spawn and drop lines; the host's bosses, bstart and phase lines and its summons' spawn lines |
 | 12 | Shared quests: the `SBQ` lines on channel 2; the `camps?` and `camps` lines, the photo line's `c`, Night Operation's night line, the mark line and the Doro races' race line on channel 0 |
 | 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders |
-| 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), night line masks for a level's extra monsters, each side's down time and revive progress on both night lines, and the gift line for `coop gift` (this version) |
+| 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), night line masks for a level's extra monsters, each side's down time and revive progress on both night lines, and the gift line for `coop gift` |
+| 15 | Never released: development builds of Matrix XIII's world rows used it |
+| 16 | Never released: the table's value lines alone, before the hide lines joined them |
+| 17 | The table's value lines (the colours and textures set on a dynamic material) and hide lines (the material slots a part hides); a 0.7.5 test build |
+| 18 | The table's fx lines (effect indexes 20 to 64 named by path) and pose effect slots up to index 64; 0.7.5 |
+| 19 | Matrix XIII's world rows (spawn rows, camps, warps): shared Naytibas key an enemy by its spawn row's ID, so a peer without those rows would never match the host's new enemies; no line changes shape, the number keeps 0.7.5 out (this version) |
 
 ### Link health in the log
 
@@ -525,16 +546,26 @@ The ghost goes through the same pipeline whatever its source: a linked friend, t
 
 When the ghost is on, `partner/capture.lua` describes your EVE once she has been in the world for 2 s (never on a menu
 pawn). It only reads. For each skeletal mesh part (up to 16, with up to 1024 bones each) it notes the mesh path, the
-part it follows, the part and socket it hangs from, its placement there, whether it is shown, a leader's bone names,
-and the map she is on (the package path of her world, lowercased). With the dyes look on, it adds each part's
-overridden materials. With the effects look on, it adds what the native part needs to read her effects. A part whose
-ponytail cloth has a collision asset of its own (`OverrideClothPhysicsAsset`) names it.
+part it follows, the part and socket it hangs from, its placement there, whether it is shown, a leader's bone names, and
+the map she is on (the package path of her world, lowercased). With the dyes look on, it adds each part's overridden
+materials, and for a dynamic material (one CNS made at run time) the vector, scalar and texture values set on it, read
+from `VectorParameterValues`, `ScalarParameterValues` and `TextureParameterValues`. A look reads one part's values and a
+new generation reads all of them, so 16 parts take 16 s at worst to read a change. A change goes out again under the
+same generation, compared at 3 significant digits, at most one such table each 5 s (21 s at worst in all). A part hung
+elsewhere, shown or hidden goes at once and carries the values read so far. The table's geometry comes first: value
+lines stop at 56 KB and the `Capture ...` line says how many were left out. A texture goes only if the viewer's rule
+could load it: under the game's own folders, or a path your own CNS packs declare. Under the same rule as the materials,
+it also reads which material slots each part hides at LOD 0 (`IsMaterialSectionShown`). CNS hides slots for an
+outfit's `HiddenMats` and `MaterialToggles`, so the capture reads the result on the component and never reads CNS
+itself. A change waits like a value change. Shape keys are not read, since the ghost cannot draw them (see
+[Looks](#looks)). With the effects look on, it adds what the native part needs to read her effects. A part whose ponytail cloth has a collision
+asset of its own (`OverrideClothPhysicsAsset`) names it.
 
 A mesh outside the game's own folders (`/Game/[DLC_<n>/]Art/Character/`) comes from a mod. Such a part gets a tag: the
 `UniqueFitID` that your CNS packs give its path (from `coop-cns.txt`), else the first two folders of the path
-(`OutfitMods/FooSuit`). It also names its overridden materials with the dyes look off, since CNS sets an outfit's
-materials when it puts the outfit on. With `mod_names=off`, no path outside the game's folders goes: such a mesh goes
-as `-`, with no tag, and such a material or collision asset is left out.
+(`OutfitMods/FooSuit`). It also names its overridden materials and hidden slots with the dyes look off,
+since CNS sets them when it puts the outfit on. With `mod_names=off`, no path outside the game's folders goes: such a
+mesh goes as `-`, with no tag, and such a material or collision asset is left out.
 
 The native part refuses a table whose pose would pass 16 KiB (about 900 leader bones in all). Before it publishes, the
 capture counts the pose as the native part does and leaves out the last leader parts, with their followers, until it
@@ -556,13 +587,26 @@ map /<package path, lowercased>
 part <i> <lead|-> <parent|-> <socket|-> <shown 0|1> <bones> <name> <path|->
 place <i> qx qy qz qw tx ty tz sx sy sz           parts after 0: placement relative to the parent
 material <i> <slot> <path>                        up to 16, slots 0 to 63 rising: an overridden material
+value <i> <slot> v <name> r g b a                 up to 32 a slot and 512 a table, slots rising: a vector value of
+value <i> <slot> s <name> x                       that slot's dynamic material, a scalar, or a texture (a space in a
+value <i> <slot> t <name> <path>                  name goes as ~)
+hide <i> <slot>...                                optional: 1 to 64 slots 0 to 63 rising, hidden at LOD 0
 cloth <i> <path>                                  optional: the collision asset of the part's cloth
 mod <i> <tag>                                     optional: on a mod's mesh, the outfit it comes from
 names <i> <bone>...                               leaders only: one per bone
 ```
 
+A value line that breaks its rules is left out and counted, and the table is still taken: a number that is not finite or
+is past 100000, a name over 64 bytes, a texture path the path rule refuses, a slot with no kept material, a repeated
+name, a slot lower than the one before, or a line past a cap. The log has one note a run (`<n> value lines ignored in a
+component table (said once a run)`). A value line outside its place is an unknown line, which refuses the table as any
+other does. Hide lines follow the same rule: a slot past 63, slots not rising or a second hide line is left out and
+counted with the value lines. Value and hide lines do not count for the layout, so a change in them never builds a new
+ghost.
+
 The capture file also carries the memory addresses the native part reads from (`read`, `effects` and `effect` lines);
-those never go on the wire. A leader part has bones of its own. A follower follows a leader's bones (her ponytail, for
+those never go on the wire. The `fx <k> <path>` lines after the last part do: each names the effect index `k` (20 to
+64) by the path of a Niagara system (see [Looks](#looks)). A leader part has bones of its own. A follower follows a leader's bones (her ponytail, for
 example). Part 0 is her main mesh. A table is at most 64 KiB, and the native parser checks every line (the tests fuzz
 it).
 
@@ -576,8 +620,8 @@ game thread at the send rate, and the worker sends it. A pose message holds:
 - the main mesh's world transform: translation as three floats, rotation in 6 bytes, scale in three 16-bit integers;
 - each leader's bones in local space, 18 bytes a bone: rotation as the smallest three of its unit quaternion (6 bytes),
   translation in 1/32 cm and scale in 1/4096 (16-bit integers each);
-- four effect slots of 15 bytes each: an index into a fixed list of effects (never a path), the part it hangs on, a
-  serial for each new instance, and its rotation and translation relative to the part.
+- four effect slots of 15 bytes each: an index (1 to 19 for the fixed list of effects, 20 to 64 for the table's `fx`
+  lines), the part it hangs on, a serial for each new instance, and its rotation and translation relative to the part.
 
 A pose is at most 16 KiB; in the outfits measured it is 4.7 to 5 KB. A world position beyond 1e7 cm, or not finite,
 is refused.
@@ -595,9 +639,8 @@ keyframe, in the codec's own steps: 2 steps on each rotation component (0.035° 
 at most. This drops the fields that only flip their last step from float noise, and needs no change on the receiving
 side. The test build `build/host/pose_delta_gain_test` reads a `coop-record.bin` and prints the stream's keyframes,
 deltas and KiB/s with and without the tolerance: `build/host/pose_delta_gain_test coop-record.bin`. A recording holds
-the stream you sent, and the tool reads only a recording of its own protocol (14): a v0.6.0-beta.3 recording, made
-without the tolerance, is protocol 13 and fails its check (`protocol`). Every protocol 14 build has the tolerance, so
-its recording already holds the keyframe's values for those fields and both lines show the same KiB/s, the stream's
+the stream you sent, and the tool reads only a recording of its own protocol (19): a recording from an older protocol fails its check (`protocol`). Every build since protocol 14
+has the tolerance, so its recording already holds the keyframe's values for those fields and both lines show the same KiB/s, the stream's
 rate with the tolerance. With no file the tool measures two synthetic recordings; they show how the tool works, not
 what a real outfit saves.
 
@@ -633,8 +676,10 @@ builds the ghost from it:
   `/Game/DLC_<n>/Art/Character/...`, names of letters, digits and `_`) and a mod's (`/Game/<folders>/<asset>.<asset>`,
   names of letters, digits, `_` and `-`, 255 bytes at most). A path is always a package's own asset, so never a
   Blueprint class or a sub-object. The rule checks the text only. Before any lookup or load, `partner/puppet.lua` lets
-  a mod's path through only when one of your own CNS packs declares that exact path (`coop-cns.txt`), so a friend's
-  table cannot make your game load anything your installed outfits do not name. After a load, the asset must be of the
+  a mod's path through only when one of your own CNS packs declares that exact path (`coop-cns.txt`) or a mod you
+  both have in one version holds it (`coop-shared-assets.txt`), so a friend's table cannot make your game load
+  anything your installed outfits and mods do not name. Such a path is loaded as a mod's asset even when it lies in the
+  game's folders, as replacer-style mods put new assets there. After a load, the asset must be of the
   expected class (a skeletal mesh, a material, a physics asset) or it is not used.
 - A mod's asset that `LoadAsset` does not find (it looks in the cooked asset registry, where added assets usually are
   not) is loaded through `AssetRegistryHelpers:GetAsset` with an asset data holding only its path, which loads it by
@@ -642,9 +687,9 @@ builds the ghost from it:
   `by LoadAsset`, `by GetAsset` or `missing`).
 - Each part gets the render flags of every EVE part in the game's Blueprint: lighting channels 0 and 1, and custom
   depth with stencil 10, the game's value for the player.
-- Parts hang as the table says (parent part, socket, placement), and followers follow their leader. There are no
-  morphs (a neutral face) and, without the cloth look, the ponytail is rigid. The ghost always draws its highest
-  detail level, so it never pops as it walks away.
+- Parts hang as the table says (parent part, socket, placement), and followers follow their leader. Without the
+  cloth look, the ponytail is rigid. The ghost always draws its highest detail level, so it never pops as it walks
+  away.
 - The ghost stays hidden until the first pose and after a second without one, so it never stands frozen. Your friend's
   Steam name (or `loopback`, `replay`) stands above it, turned to the camera at each pose. The tag's font has only the
   Latin-1 characters: any other shows as `?`, and a name that would lose more than half its characters shows the
@@ -682,10 +727,44 @@ for 2 s and the maps match. A ghost left standing by a Lua reload (Ctrl+R) is fo
 
 ### Looks
 
-The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material` lines to the table (parts on a mod's
-mesh have them either way). Effects fill the pose's four slots, and the native part writes the drawn slots into four
-boxes beside the mailbox, from which Lua starts and moves the effects. Effects have their own fault latch, so a fault
-there turns effects off for the run and the ghost stays. See [usage.md](usage.md#looks).
+The three looks (cloth, dyes, effects) use the same pipeline. Dyes add `material` and `value` lines to the table (parts
+on a mod's mesh have them either way). A slot's values go on a dynamic instance the ghost makes of that slot's material
+(`CreateDynamicMaterialInstance`, then `SetVectorParameterValue`, `SetScalarParameterValue` and
+`SetTextureParameterValue`), and a later table sets only what changed on that instance. A value gone from a later table
+puts the slot back on the plain material, and what is left goes on a new instance. A slot with no material here (a
+missing pack) gets no values and no error. If the instance or a setter fails, the slot goes back on the plain material
+and stays there for this ghost, with one note in the log. Textures load after the build, one each 0.25 s, by the same
+rules as meshes. At most 64 wait at once, with one note in the log, and those left over are tried again once none
+waits. A Lua load makes at most 1024 FNames for values, since FNames are never freed.
+
+Hide lines go on a part drawn on its own mesh, under the dyes rule. The ghost calls `ShowAllMaterialSections(0)`, then
+`ShowMaterialSection(slot, 0, false, 0)` for each slot the mesh has: section 0 and LOD 0, as CNS calls it. They are set
+again only when they change. If a call fails, the part shows every slot, with one note in the log. Not tested in game
+yet.
+
+Shape keys are not carried. A leader is a PoseableMeshComponent, which has no morph call. A follower follows its
+leader through `SetMasterPoseComponent`, and in UE 4.26 `USkeletalMeshComponent::UpdateSlaveComponent` zeroes the
+follower's morph weights on every tick, then adds `SetMorphTarget`'s values back only when the leader is a
+SkeletalMeshComponent. With a Poseable leader, a follower's shape keys would be cleared before each frame is drawn.
+Drawing them would need a SkeletalMeshComponent leader.
+
+Effects fill the pose's four slots, and the native part writes the drawn slots into four boxes beside the mailbox, from
+which Lua starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the
+run and the ghost stays. See [usage.md](usage.md#looks).
+
+Indexes 1 to 19 are `Capture.EFFECTS`, which both sides compile in. Once a second the capture also reads the
+NiagaraComponents attached directly to her leader parts (the ones the native read walks, 256 children a part at most)
+that are active, and each one's `Asset`. A system outside the list gets the next index from 20 when its path is in the
+game's FX folders (`/Game/Art/FX/...`, `/Game/DLC_<n>/Art/FX/...`, the character folders' name rule) or among your
+CNS and shared assets (`core/link.lua`'s `mod_assets()`). With `mod_names=off` only game FX paths go,
+and none your CNS packs or shared mods name. An index is never given another path while the same EVE is in the world,
+and 45 is the cap. A new name publishes the table again under the same generation, at most once a second. The worker
+hands the game thread the new `effect` addresses without a new Live, so her ghost's playback does not restart. The
+viewer's ghost loads each named system by the fetch rules above, as a NiagaraSystem: game FX paths as the game's, the
+others only from your own CNS and shared lists. The build loads those its table names, a step each; one named later is
+loaded by the tick, one each 0.25 s, never while the boxes are read. A slot naming a system not loaded yet is skipped
+silently, so the first instance of a new effect does not show on either side. One that fails or is refused draws
+nothing on its index, with one note a ghost. Not tested in game yet.
 
 Cloth, on by default, uses only the table's `cloth` line (sent whatever the setting): each PC runs NvCloth on the
 ghost's ponytail from the body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While
@@ -697,6 +776,49 @@ ghost is drawn again. The ponytail's cloth part is set up as SB sets up hers: th
 hang on (`AdditiveMasterBoneArray`), the collision asset as `OverrideClothPhysicsAsset` (the table's `cloth` line, else
 the outfit's `<body mesh>_PonytailPhysicsAsset`), then its leader, then its mesh, which creates the cloth. Each asset is
 loaded in a build step of its own: the named one before its part's step, the outfit's after the body's.
+
+### CNS guard and crash sentinel
+
+The CNS part of the ghost is the work that touches a mod's assets or CNS data: the build step of a part whose mesh path
+is a mod's (outside the game's folders, or declared by your CNS packs), a material step with a mod's material, the
+material values and the hide lines. It runs under its own `pcall`, apart from the rest of the build. A Lua error there
+turns the CNS part off until `coop cns reset` or the next Lua load. The ghost is removed and built again at the next
+tick without it: mod meshes and mod materials are not loaded, so those parts fall back to the base suit or are left out
+(see [Fallback: the base suit](#6-fallback-the-base-suit)), and no values or hidden slots are set. The log gets one
+line, `CNS part of the ghost off until coop cns reset or the next Lua load (<error>): ...`. It does not count as one of
+the build's three tries. The link, the shared enemies and the shared quests run in modules of their own and go on.
+
+A `pcall` catches Lua errors only. An access violation inside the engine closes the game: a CNS mesh with no skeleton
+did it on 2026-10-31. The crash sentinel (`partner/sentinel.lua`) deals with that case at the next load. Before each
+engine call with an asset your CNS packs declare, Lua writes `coop-cns-call.txt` with the asset's path and outfit, and
+empties the file once the call returns or raises. The calls covered are:
+
+- the asset's lookup and load (`StaticFindObject`, `LoadAsset`, `AssetRegistryHelpers:GetAsset`), with the class and
+  skeleton checks;
+- `SetSkeletalMesh` with a mod's mesh;
+- `SetMaterial` with a mod's material, also when a slot goes back on its plain material;
+- `CreateDynamicMaterialInstance` from a mod's material, together with that slot's colour values;
+- each `SetTextureParameterValue` (the marker names the texture when it is a mod's, else the slot's material);
+- the hide calls on a part drawn on a mod's mesh.
+
+A call inside another call's span keeps the outer marker. Each span costs one small write before and one after. A cached
+asset writes nothing, and none of these calls runs each frame. A crash outside every span finds the file empty and sets
+nothing aside.
+
+When the next Lua load finds the file not empty, the game died during that call. The asset goes on the set-aside list,
+`coop-cns-aside.txt`, and the marker is emptied. The log says `Crash sentinel: the game crashed during a call with the
+mod asset <path> (outfit <outfit>). ...`, and one notice names the asset once the co-op UI is up or a save is loaded.
+From then on the ghost treats that asset as missing. A mesh falls back like any part your PC cannot load, with `<path>
+set aside after a crash (coop cns reset)` in the build line. A material leaves the slot on the mesh's own, and a texture
+is skipped. The list's first line is the mod version (`version v0.7.5`), and a load of another version drops the list.
+`coop cns reset` empties it and turns the CNS part on again.
+
+The assets of a mod both players have (`coop-shared-assets.txt`) go through the same span, the guard and the
+set-aside list, with the container's name in place of the outfit.
+
+Not covered: the native part's bone writes each frame and the render thread's use of a mod's mesh. A crash there leaves
+no marker. A crash on another thread during a span would set that span's asset aside by mistake; `coop cns reset` brings
+it back. Not tested in game yet.
 
 ### Solid partner
 
@@ -740,7 +862,7 @@ enemies: the same pairs, the same host and the same Steam channel 2. Each pair h
 the enemy's AI and moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner.
 HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
-- The host's `same_place` decides for both games. The host sends it as `SBF14 place <gen> <0|1>` after its world line
+- The host's `same_place` decides for both games. The host sends it as `SBF19 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
@@ -753,12 +875,12 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   an AI task runs on the owner's copy, during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the
   host draws a copy that the game froze before the mod did (below: its AI would not run once the host owns it); the
   start of a takedown is the exception (below). Each change moves the owner epoch one up and goes to her as
-  `SBF14 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
-  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF14 aggro <gen> <game|host>`.
+  `SBF19 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
+  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF19 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
   except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
-  `SBF14 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `SBF19 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
   `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
   other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
   pauses.
@@ -799,7 +921,7 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF14 exec <gen> <hguid> 1`, and `SBF14 exec <gen> <hguid> 0` once her copy has held
+  with `aggro=game`, she sends `SBF19 exec <gen> <hguid> 1`, and `SBF19 exec <gen> <hguid> 0` once her copy has held
   none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
   one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
   holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
@@ -845,16 +967,16 @@ pairs through its spawn key like any other.
 - Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
 - Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
   manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
-  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF14
+  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF19
   epoch <gen> <zone> <n>` at each change and every 5 s, so a line lost on the way stalls nothing for long, and each
   side drops a line of another epoch.
 - The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
   spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
-  `SBF14 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
-  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF14 spawn <gen> <n> <spawnId> <idx>
+  `SBF19 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF19 spawn <gen> <n> <spawnId> <idx>
   <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
   the host's world; never a dying one), where it stands in whole
-  centimetres, and `SBF14 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+  centimetres, and `SBF19 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
   her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
   function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's despawn
@@ -998,13 +1120,13 @@ The log lines are in [usage.md](usage.md#extra-enemies-experimental).
 Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
 any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
-game. The host sends `SBF14 bosses <gen> <percent>` with its list.
+game. The host sends `SBF19 bosses <gen> <percent>` with its list.
 
 With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
 battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
 applies them to her copy:
 
-- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF14 bstart <gen> <hguid>` when it turns on,
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF19 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
   once while the copy stays in battle mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on,
   then `0, 0, 0, 1`. The fifth argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs
@@ -1019,7 +1141,7 @@ applies them to her copy:
   copy gets no call. The host's next bstart for that copy calls it again.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
-  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF14 phase <gen> <hguid> <oe>
+  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF19 phase <gen> <hguid> <oe>
   <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
   does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
   game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
@@ -1036,7 +1158,7 @@ applies them to her copy:
   effect's GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward
   dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
   EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
-  shared list under it. After its up the host sends `SBF14 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
+  shared list under it. After its up the host sends `SBF19 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
   hguid> <row>`, with epoch 1 when same spawns do not run, and sends it again every second while it follows the
   summon: her game takes a repeat as one it has, and a line it refused for a passing reason (its boss not paired yet)
   can go through later. The guest makes it through `NewActor`, as for extra enemies,
@@ -1075,11 +1197,11 @@ player's quest unit (the quest manager at `0x147032588`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470634f0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ14 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ19 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
 - The host only reads. Each quest whose state changed goes to the guest as one reliable line on channel 2 with the
-  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ14 q <gen> <seq> <id> <state>
+  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ19 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables.
 - Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
@@ -1474,7 +1596,7 @@ race are the ones to put back; the 250 ms check catches a write the search misse
 
 The host owns a race. Its game sends the track and the start, each game times its own racer from its own GO, and the
 host's game sends the ranking. The guest's game checks each line against fixed bounds before using it, and sends only
-its own racer's lines. Each line travels as `SBC14 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
+its own racer's lines. Each line travels as `SBC19 race <text>` on channel 0 (see [Channel 0: text](#channel-0-text)),
 with whole numbers only, in centimetres and milliseconds. `<id>` is the host's race number:
 
 | Line | From | Meaning |

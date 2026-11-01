@@ -2,8 +2,8 @@
 // delta of a coop-record.bin is read back to the full poses that were sent (a delta rebuilt on its keyframe), and the
 // poses go again through KeyedEncoder with no tolerance and with kTolerance: keyframes, deltas, their mean sizes and
 // the stream's KiB/s over the recording's span, for each. coop-record.bin holds the stream we sent, and only a
-// recording of kProtocol (14) passes parse_recording: a v0.6.0-beta.3 one, sent with no tolerance, is protocol 13 and
-// refused. Every protocol 14 build has the tolerance, so its recording already holds the keyframe's values within it,
+// recording of kProtocol (19) passes parse_recording: a v0.6.0-beta.3 one, sent with no tolerance, is protocol 13 and
+// refused. Every build since protocol 14 has the tolerance, so its recording already holds the keyframe's values within it,
 // and both lines come out the same.
 //
 //   build/host/pose_delta_gain_test path/to/coop-record.bin
