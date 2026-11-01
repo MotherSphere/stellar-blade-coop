@@ -32,6 +32,14 @@ settings_text='collide=on\n'
 load_main(true)
 loops[2].f()
 assert(package.loaded['partner.puppet'].collide==true,'collide=on')
+-- A new list of mods both players have (the status's shared= version): the ghost built again, once a version.
+local rebuilt=#rebuilds
+shared_v=3
+loops[2].f()
+assert(#rebuilds==rebuilt+1 and rebuilds[#rebuilds]=='shared mods changed','Built again')
+loops[2].f()
+assert(#rebuilds==rebuilt+1,'Once a version')
+shared_v=nil
 settings_text='photo_sync=yes\nphoto_freeze_max=29\n'
 load_main(true)
 assert(logged("settings: line 1: 'yes' is not allowed for photo_sync (use both, notice or off); photo_sync stays both"))

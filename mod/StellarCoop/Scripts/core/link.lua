@@ -422,6 +422,7 @@ function Link.new(folder,fs)
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,life,ping,loopback,rejoined,saves,paks,mods,cns=nil,nil,nil,false,false,{},nil,nil,nil
     local quests,noted,noted_shown=nil,nil,nil
+    local shared_version=0 -- The status's shared= line's version (shared_assets()); kept across changes().
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
@@ -496,6 +497,9 @@ function Link.new(folder,fs)
     -- written through a temporary file (true, or false and why).
     function self.read_file(name) return fs.read(path(name)) end
     function self.write_file(name,text) return put(name,text) end
+    -- A small file of ours written in place, with no temporary file: one write (partner/sentinel.lua's marker, paid at
+    -- each call it covers).
+    function self.write_now(name,text) return fs.write(path(name),text) end
     -- An object path kept across Lua loads, so a reload can sweep what an earlier one left: the ghost's in
     -- coop-puppet.txt unless named (the UI root's: coop-ui.txt).
     function self.store(name)
@@ -630,6 +634,8 @@ function Link.new(folder,fs)
                 for name in list:gmatch('[^,]+') do names[#names+1]=name end
                 mods[kind]={n=tonumber(count),names=names}
             end
+            local version_of=line:match('^shared=(%d+) %d+$')
+            if version_of then shared_version=tonumber(version_of) end
             local packs,outfits=line:match('^cns=(%d+) (%d+)$')
             if packs then cns=string.format('CNS detected (%s packs, %s outfits)',packs,outfits) end
             local mine,peer,frozen=line:match('^photo=(%S) peer_photo=(%S) frozen=([01]) ')
@@ -697,17 +703,44 @@ function Link.new(folder,fs)
     -- '<path> <outfit>' line each): path to outfit ('-' for none), read once found, {} until then. partner/puppet.lua
     -- loads a mod's asset a friend's table names only when it is here; partner/capture.lua tags her parts with these
     -- outfits.
-    local declared=nil
+    local declared,none=nil,{}
     function self.cns_assets()
         if declared then return declared end
         local text=fs.read(path('coop-cns.txt'))
-        if not text then return {} end
+        if not text then return none end -- One table, so mod_assets() keeps its merge.
         declared={}
         for line in text:gmatch('[^\n]+') do
             local asset,fit=line:match('^(%S+) (%S+)$')
             if asset then declared[asset]=fit end
         end
         return declared
+    end
+    -- The assets of the mods both players have in one version (her pak lines name the container with the hash ours
+    -- has): coop-shared-assets.txt, a '<path> <container>' line each, path to container; read again when the status's
+    -- shared= version changes, {} at version 0. And that version, which a new list bumps (main.lua rebuilds the ghost).
+    local shared,shared_read={},0
+    function self.shared_assets()
+        if shared_read==shared_version then return shared end
+        local text=fs.read(path('coop-shared-assets.txt'))
+        if not text then return shared end -- Not there yet: read again next time.
+        shared,shared_read={},shared_version
+        for line in text:gmatch('[^\n]+') do
+            local asset,container=line:match('^(%S+) (%S+)$')
+            if asset then shared[asset]=container end
+        end
+        return shared
+    end
+    function self.shared_version() return shared_version end
+    -- What a ghost may load of a mod (partner/puppet.lua, partner/sentinel.lua) and the capture may name: the assets
+    -- our CNS packs declare (their outfit), then those of a mod both players have (its container).
+    local merged,merged_of,merged_cns=nil,nil,nil
+    function self.mod_assets()
+        local cns_now,shared_now=self.cns_assets(),self.shared_assets()
+        if merged and merged_of==shared_now and merged_cns==cns_now then return merged end
+        merged,merged_of,merged_cns={},shared_now,cns_now
+        for k,v in pairs(shared_now) do merged[k]=v end
+        for k,v in pairs(cns_now) do merged[k]=v end
+        return merged
     end
     -- The shared quests' line ("quests=on mode=on role=guest partner=on", "quests=waiting mode=on why=save",
     -- "quests=off", "quests=stopped"; native quest/engine.h's Worker::status()), from the start of its own line; nil

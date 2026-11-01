@@ -4,7 +4,7 @@ Stellar Blade Online is an online co-op mod for Stellar Blade on PC. Two players
 one sees the other's EVE in their own world. It was called StellarCoop until October 2026: the mod's folder, its DLL,
 its `coop` console commands and this repository keep that name.
 
-Status: v0.7.0-beta.1, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
+Status: v0.7.5, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
 first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil at about 240 ms
 ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and same place (each
 enemy in the same spot on both screens). No later version has been played on two PCs, so nothing added since 0.4 has
@@ -13,7 +13,9 @@ who took part, Night Operation's run, levels, revive and challenges, Doro races,
 the .pak mod list and CNS outfits over the link, `coop gift` and the pose rate that adapts to Steam's queue. On one PC,
 the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the first-launch guide
 opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen. 0.6.0-beta.1 to beta.3
-use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them.
+use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses protocol 18 and does not
+link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). On 2026-11-01 two PCs played 0.7.0-beta.1
+with its ghost fix: joining with CNS packs no longer crashed.
 
 Stellar Blade Online is a UE4SS mod made of Lua scripts and a native DLL. The link between the two games goes through
 the Steam client that the game already runs, so the mod needs no other program and no server of its own.
@@ -187,7 +189,7 @@ Close the game before you copy, change or delete any mod file. [INSTALL.md](INST
 - UE4SS v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3".
 - Windows, or Linux with Proton.
 - Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it.
-- To play together, both players need the same mod protocol (14 in this version) and the same game build.
+- To play together, both players need the same mod protocol (18 in this version) and the same game build.
 
 ## Disclaimer
 

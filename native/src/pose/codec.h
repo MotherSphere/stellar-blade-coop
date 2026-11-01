@@ -12,7 +12,7 @@
 //   leaders only), the world transform when kWorld (3 f32 translation, 6 B rotation, 3 i16 scale) and 18 bytes per
 //   bone when kBones (6 B rotation, 3 i16 translation, 3 i16 scale)
 //   then kEffectSlots effect slots (protocol 6) of 15 bytes: asset (u8, 0 none, else 1 to kMaxEffectAssets: an entry of
-//   Lua's list of systems, never a path), part (u8, the table part it hangs on), serial (u8, a new instance in the
+//   Lua's list of systems: the fixed ones, then those the table's fx lines name), part (u8, the table part it hangs on), serial (u8, a new instance in the
 //   slot), its rotation (6 B) and translation (3 i16) relative to the part; an empty slot is 15 zero bytes
 // A bone travels in local space (N3), as the engine holds it: FTransform's 48 bytes, rotation xyzw, translation xyz and
 // a pad, scale xyz and a pad.

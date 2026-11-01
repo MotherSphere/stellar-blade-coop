@@ -1,7 +1,7 @@
 // The component table and the display file on the build machine: round trips, every refusal one defect at a time,
-// the mesh path rule (material and cloth paths too, the game's folders and a mod's), the cloth and mod lines, the
-// capture's effect lines and the display's effect boxes, and mutated tables, which must re-format to the same bytes
-// whenever they are accepted.
+// the mesh path rule (material and cloth paths too, the game's folders and a mod's), the cloth, mod, value and hide
+// lines, the capture's effect lines and the display's effect boxes, and mutated tables, which must re-format to
+// the same bytes whenever they are accepted.
 #include "pose/table.h"
 
 #include <algorithm>
@@ -23,7 +23,8 @@ const std::string kBody = "/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB.
                   kTypeB = "/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_TypeB.MI_EVE_HR_01_TypeB",
                   kTail = "/Game/Art/Character/PC/00_HR/EVE_HR_01/MI_EVE_HR_01_Tail_TypeB.MI_EVE_HR_01_Tail_TypeB",
                   kCloth = "/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB_PonytailPhysicsAsset."
-                           "CH_P_EVE_52_TypeB_PonytailPhysicsAsset";
+                           "CH_P_EVE_52_TypeB_PonytailPhysicsAsset",
+                  kIris = "/Game/Mods/DekCNS_P/Textures/T_Iris.T_Iris";
 const std::string kSbt = "SBT " + std::to_string(coop::kProtocol) + "\n";
 
 // EVE as Lua captures her, cut down: the body, the face following it, the hair (a leader on the head socket) with the
@@ -34,6 +35,10 @@ const std::string kLocal = "generation 100001\n"
                            "map /game/art/bg/worldmap/level_p/e04\n"
                            "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n"
                            "material 0 2 " + kSkin + "\n"
+                           "value 0 2 v RootColor 1 .1 0 1\n"
+                           "value 0 2 s Iris~UV~Radius 0.5\n"
+                           "value 0 2 t IrisColor " + kIris + "\n"
+                           "hide 0 1 5 63\n"
                            "names 0 Root Bip001 Bip001-Pelvis\n"
                            "read 0 0x1000 0xC1A55 0xAE5\n"
                            "part 1 0 0 - 1 0 Mesh_Face " + kFace + "\n"
@@ -62,6 +67,10 @@ const std::string kWire = kSbt +
                           "map /game/art/bg/worldmap/level_p/e04\n"
                           "part 0 - - - 1 3 CharacterMesh0 " + kBody + "\n"
                           "material 0 2 " + kSkin + "\n"
+                          "value 0 2 v RootColor 1 0.100000001 0 1\n"
+                          "value 0 2 s Iris~UV~Radius 0.5\n"
+                          "value 0 2 t IrisColor " + kIris + "\n"
+                          "hide 0 1 5 63\n"
                           "names 0 Root Bip001 Bip001-Pelvis\n"
                           "part 1 0 0 - 1 0 Mesh_Face " + kFace + "\n"
                           "place 1 0 0 0 1 0 0 0 1 1 1\n"
@@ -87,7 +96,7 @@ std::string with(std::string text, const std::string &from, const std::string &t
 
 bool same(const Table &a, const Table &b, bool addresses) {
   if (a.generation != b.generation || a.map != b.map || a.eve.size() != b.eve.size() || a.look.size() != b.eve.size() ||
-      b.look.size() != b.eve.size())
+      b.look.size() != b.eve.size() || a.fx_paths != b.fx_paths)
     return false;
   for (size_t i = 0; i < a.eve.size(); ++i) {
     const Part &p = a.eve[i], &q = b.eve[i];
@@ -97,7 +106,7 @@ bool same(const Table &a, const Table &b, bool addresses) {
       return false;
     if (l.name != m.name || l.path != m.path || l.socket != m.socket || l.lead != m.lead || l.parent != m.parent ||
         l.shown != m.shown || l.names != m.names || l.materials != m.materials || l.cloth != m.cloth ||
-        l.label != m.label)
+        l.label != m.label || l.values != m.values || l.hidden != m.hidden)
       return false;
     for (int k = 0; k < 10; ++k)
       if (l.place[k] != m.place[k])
@@ -279,7 +288,7 @@ int main() {
            with(kLocal, "0x2f8", "760"),                                            // not hex
            with(kLocal, "effects 0xC0FF 0x2f8", "effects 0xC0FF"),                  // no offset
            with(kLocal, "effect 1 ", "effect 0 "),                                  // k 0
-           with(kLocal, "effect 19 ", "effect 33 "),                                // k over 32
+           with(kLocal, "effect 19 ", "effect 65 "),                                // k over 64
            with(kLocal, "effect 1 0x5000\neffect 19 0x5100\n",
                 "effect 19 0x5100\neffect 1 0x5000\n"),                             // a falling k
            with(kLocal, "effect 19 ", "effect 1 "),                                 // a repeated k
@@ -292,11 +301,51 @@ int main() {
            with(kLocal, "part 4 ", "effects 0xC0FF 0x2f8\npart 4 "),                // effects before the last part
        })
     assert(!parse_table(bad, true));
+  // Effects named by path (fx lines): after the last part in both forms, before the capture's effect lines; kept as
+  // read, a path the rule refuses dropped, the wire form carrying them at its end.
+  const std::string fx_lines = "fx 20 /Game/Art/FX/Char/Monster/RavenHuman/NS_R.NS_R\nfx 21 /Game/a//b.b\n"
+                               "fx 64 /Game/Mods/Queen/NS_Q.NS_Q\n";
+  auto named = parse_table(with(kLocal, "effects 0xC0FF", fx_lines + "effects 0xC0FF"), true);
+  using Paths = std::vector<std::pair<uint8_t, std::string>>;
+  assert(named && named->fx_paths == (Paths{{20, "/Game/Art/FX/Char/Monster/RavenHuman/NS_R.NS_R"},
+                                            {64, "/Game/Mods/Queen/NS_Q.NS_Q"}}));
+  assert(named->fx.assets[19] == 0x5100 && format_table(*named) ==
+         kWire + "fx 20 /Game/Art/FX/Char/Monster/RavenHuman/NS_R.NS_R\nfx 64 /Game/Mods/Queen/NS_Q.NS_Q\n");
+  auto named_wire = parse_table(format_table(*named), false);
+  assert(named_wire && named_wire->fx_paths == named->fx_paths && format_table(*named_wire) == format_table(*named));
+  assert(parse_table(kWire + "fx 20 /Game/X/X.X\n", false)->fx_paths.size() == 1);
+  assert(parse_table(with(kLocal, "effects 0xC0FF 0x2f8\neffect 1 0x5000\neffect 19 0x5100\n", "fx 20 /Game/X/X.X\n"),
+                     true)->fx_paths.size() == 1); // fx lines and no effect lines.
+  const std::string p256 = "/Game/" + std::string(250, 'p');
+  for (const std::string &bad : {
+           kWire + "fx 19 /Game/X/X.X\n",                         // a fixed entry
+           kWire + "fx 65 /Game/X/X.X\n",                         // past kMaxEffectAssets
+           kWire + "fx 0 /Game/X/X.X\n",                          // none
+           kWire + "fx 21 /Game/X/X.X\nfx 20 /Game/Y/Y.Y\n",       // not rising
+           kWire + "fx 20 /Game/X/X.X\nfx 20 /Game/Y/Y.Y\n",       // twice
+           kWire + "fx 20 " + p256 + "\n",                         // a path over 255 bytes
+           kWire + "fx 20 /Game/X/X.X 1\n",                       // a word too many
+           kWire + "fx 20\n",                                     // no path
+           kWire + "fx x /Game/X/X.X\n",                          // not a number
+           kWire + "fx 20 /Game/X/X.X\npart 5 0 0 - 1 0 Extra -\nplace 5" + flat, // a part after them
+           with(kWire, "part 4 ", "fx 20 /Game/X/X.X\npart 4 "),  // before the last part
+           kWire + "effects 0xC0FF 0x2f8\n",                      // effect lines on the wire
+       })
+    assert(!parse_table(bad, false));
+  assert(!parse_table(kLocal + "fx 20 /Game/X/X.X\n", true)); // After the capture's effect lines.
+  assert(parse_table(kWire + "fx 20 /Game/" + std::string(244, 'p') + "." + "x\n", false)->fx_paths.empty());
   // Effects at their edges: offsets 0x100 and 0x1000, entry 32, none found, and no effect lines at all.
   const std::string no_effects = kLocal.substr(0, kLocal.find("effects "));
   assert(parse_table(with(kLocal, "0x2f8", "0x100"), true)->fx.asset == 0x100);
   assert(parse_table(with(kLocal, "0x2f8", "0x1000"), true)->fx.asset == 0x1000);
   assert(parse_table(with(kLocal, "effect 19 ", "effect 32 "), true)->fx.assets[32] == 0x5100);
+  assert(parse_table(with(kLocal, "effect 19 ", "effect 64 "), true)->fx.assets[64] == 0x5100);
+  assert(!parse_table(with(kLocal, "effect 19 ", "effect 65 "), true));
+  // A system named under the same generation reaches the session's effect read in place; a new generation does not.
+  auto fx_was = parse_table(kLocal, true), fx_now = parse_table(with(kLocal, "effect 19 ", "effect 20 "), true);
+  assert(fx_was && fx_now && !fx_handover(*fx_was, *fx_was) && fx_handover(*fx_was, *fx_now));
+  fx_now->generation += 1;
+  assert(!fx_handover(*fx_was, *fx_now));
   auto none_found = parse_table(no_effects + "effects 0xC0FF 0x2f8\n", true);
   assert(none_found && none_found->fx.cls == 0xc0ff && none_found->fx.assets == decltype(none_found->fx.assets){});
   auto no_read = parse_table(no_effects, true);
@@ -322,7 +371,7 @@ int main() {
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
   // Material lines (5), effect slots (6), channel 2 (7), chat (8), deltas (9), scale (10), same-place enemies (11).
-  assert(kSbt == "SBT 14\n");
+  assert(kSbt == "SBT 18\n");
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
@@ -394,6 +443,93 @@ int main() {
   auto on_hair = wire_table(both);
   assert(on_hair.look[2].cloth == kCloth && on_hair.look[2].label == "Hair" && format_table(on_hair) == both);
   assert(same_layout(*wire, on_hair) && same_layout(*wire, no_cloth)); // Never the layout.
+
+  // Value lines: each kind read, in its place; a changed value keeps the layout.
+  const std::vector<Value> &colour = wire->look[0].values;
+  assert(colour.size() == 3 && !wire->ignored && !local->ignored);
+  assert(colour[0].kind == 'v' && colour[0].slot == 2 && colour[0].name == "RootColor" && colour[0].x[0] == 1 &&
+         colour[0].x[1] == .1f && colour[0].x[3] == 1);
+  assert(colour[1].kind == 's' && colour[1].name == "Iris~UV~Radius" && colour[1].x[0] == .5f);
+  assert(colour[2].kind == 't' && colour[2].path == kIris);
+  assert(same_layout(*wire, wire_table(with(kWire, "Radius 0.5", "Radius 2"))));
+  // Ignored one at a time, the table still taken without it: nan, inf, past the bound, past a float, not a number, too
+  // many or too few numbers, another kind, another part, a slot past the last, not a number or with no kept material
+  // (2 none, 1 dropped by the path rule), a name too long, a path the rule refuses, a repeat, too short a line.
+  const std::string hair_tail = "material 2 3 " + kTail + "\n", good_one = "value 2 0 s Good 1\n";
+  const std::string with_good = with(kWire, hair_tail, hair_tail + good_one);
+  const std::string on_dropped = with(with_good, "material 2 0 " + kTypeB + "\n",
+                                      "material 2 0 " + kTypeB + "\nmaterial 2 1 /Game/X.X\n");
+  for (const std::string &bad : std::vector<std::string>{
+           "value 2 0 s X nan\n", "value 2 0 s X inf\n", "value 2 0 s X 1e6\n", "value 2 0 s X -100001\n",
+           "value 2 0 s X 1e-300\n", "value 2 0 s X 1e300\n", "value 2 0 s X one\n", "value 2 0 s X 1 2\n",
+           "value 2 0 v X 1 2 3\n", "value 2 0 v X 1 2 3 nan\n", "value 2 0 q X 1\n", "value 2 0 ss X 1\n",
+           "value 1 0 s X 1\n", "value 2 64 s X 1\n", "value 2 x s X 1\n", "value 2 2 s X 1\n", "value 2 1 s X 1\n",
+           "value 2 0 s " + std::string(65, 'n') + " 1\n", "value 2 0 t X /Engine/Transient.T\n",
+           "value 2 0 t X /Game/A/B.C\n", "value 2 0 s Good 2\n", "value\n", "value 2 0 s\n"}) {
+    const Table got = wire_table(with(on_dropped, good_one, good_one + bad));
+    assert(got.ignored == 1 && got.look[2].values.size() == 1 && got.look[2].values[0].name == "Good" &&
+           format_table(got) == with_good);
+  }
+  const Table falling = wire_table(with(kWire, hair_tail, hair_tail + "value 2 3 s A 1\nvalue 2 0 s B 1\n"));
+  assert(falling.ignored == 1 && falling.look[2].values.size() == 1 && falling.look[2].values[0].slot == 3);
+  // Out of its place it is an unknown line, as any.
+  assert(!parse_table(with(kWire, "names 0 ", "cloth 0 " + kCloth + "\nvalue 0 2 s A 1\nnames 0 "), false));
+  assert(!parse_table(kWire + "value 4 0 s A 1\n", false));
+  // The caps: 32 a slot, 512 a table; and thousands of bad lines are only a count.
+  std::string slot_33, table_528 = kSbt + "generation 1\nmap /m\npart 0 - - - 1 1 Body " + kBody + "\n", junk;
+  for (int k = 0; k < 33; ++k)
+    slot_33 += "value 2 0 s N" + std::to_string(k) + " 1\n";
+  const Table capped = wire_table(with(kWire, hair_tail, hair_tail + slot_33));
+  assert(capped.look[2].values.size() == 32 && capped.ignored == 1);
+  for (int k = 0; k < 16; ++k)
+    table_528 += "material 0 " + std::to_string(k) + " " + kSkin + "\n";
+  for (int k = 0; k < 16; ++k)
+    for (int n = 0; n < 33; ++n)
+      table_528 += "value 0 " + std::to_string(k) + " s N" + std::to_string(n) + " 1\n";
+  const Table many = wire_table(table_528 + "names 0 Root\n");
+  assert(many.look[0].values.size() == kMaxValues && many.ignored == 16 * 33 - kMaxValues);
+  for (int k = 0; k < 3000; ++k)
+    junk += "value 2 0 s X nan\n";
+  const Table flood = wire_table(with(kWire, hair_tail, hair_tail + junk));
+  assert(flood.ignored == 3000 && format_table(flood) == kWire);
+
+  // Hide lines: read in their place, any slot (overridden or not), never the layout.
+  assert(wire->look[0].hidden == ((uint64_t(1) << 1) | (uint64_t(1) << 5) | (uint64_t(1) << 63)));
+  assert(same_layout(*wire, wire_table(with(kWire, "hide 0 1 5 63\n", ""))));
+  // Ignored one at a time, the table still taken without it: a slot past the last, not rising, repeated, not a number,
+  // no slot, another part, a second hide line.
+  const std::string hide_one = "hide 2 0\n";
+  const std::string with_shape = with(kWire, hair_tail, hair_tail + hide_one);
+  for (const auto &[after, bad] : std::vector<std::pair<std::string, std::string>>{
+           {"", "hide 2 64\n"}, {"", "hide 2 3 1\n"}, {"", "hide 2 1 1\n"}, {"", "hide 2 x\n"}, {"", "hide 2\n"},
+           {"", "hide 1 0\n"}, {hide_one, "hide 2 4\n"}}) {
+    const std::string text =
+        after.empty() ? with(with_shape, hide_one, bad + hide_one) : with(with_shape, after, after + bad);
+    const Table got = wire_table(text);
+    assert(got.ignored == 1 && got.look[2].hidden == 1 && format_table(got) == with_shape);
+  }
+  // Out of its place a hide line is an unknown line, as is a shape key's line (no ghost part could draw one).
+  assert(!parse_table(with(kWire, "cloth 3 " + kCloth + "\n", "cloth 3 " + kCloth + "\nhide 3 0\n"), false));
+  assert(!parse_table(with(with_shape, hide_one, hide_one + "morph 2 Good 1\n"), false));
+  // All 64 slots in one line.
+  std::string all_slots = "hide 2";
+  for (int k = 0; k < 64; ++k)
+    all_slots += " " + std::to_string(k);
+  const Table every = wire_table(with(kWire, hair_tail, hair_tail + all_slots + "\n"));
+  assert(every.ignored == 0 && every.look[2].hidden == ~uint64_t(0));
+  assert(wire_table(format_table(every)).look[2].hidden == ~uint64_t(0));
+  // Values grow as read back too (".1" again), past what the places alone would leave room for: refused here.
+  std::string growing = kSbt + "generation 1\nmap /m\npart 0 - - - 1 900 Body " + kBody + "\n";
+  for (int k = 0; k < 8; ++k)
+    growing += "material 0 " + std::to_string(k) + " " + kSkin + "\n";
+  for (int k = 0; k < 8; ++k)
+    for (int n = 0; n < 16; ++n)
+      growing += "value 0 " + std::to_string(k) + " v N" + std::to_string(n) + " .1 .1 .1 .1\n";
+  growing += "names 0";
+  for (int b = 0; b < 900; ++b)
+    growing += " " + std::string(63, 'b');
+  growing += "\n";
+  assert(growing.size() + kMaxParts * 10 * 14 <= kMaxTable && !parse_table(growing, false));
 
   // Under 64 KiB as read but over it as the wire form (".1" comes back as "0.100000001"): refused, as a peer could
   // not read it back. The same table with floats that do not grow passes.
@@ -514,8 +650,11 @@ int main() {
     ++accepted;
     const std::string canonical = format_table(*t);
     auto again = parse_table(canonical, false);
-    assert(again && same(*again, *t, false) && format_table(*again) == canonical);
+    assert(again && !again->ignored && same(*again, *t, false) && format_table(*again) == canonical);
     assert(is_local || !t->fx.cls);
+    for (size_t k = 0; k < t->fx_paths.size(); ++k)
+      assert(t->fx_paths[k].first > kFixedEffects && t->fx_paths[k].first <= kMaxEffectAssets &&
+             (!k || t->fx_paths[k].first > t->fx_paths[k - 1].first) && path_allowed(t->fx_paths[k].second));
     assert(!t->fx.assets[0] && (t->fx.cls ? t->fx.asset >= 0x100 && t->fx.asset <= 0x1000 && t->fx.asset % 8 == 0
                                           : !t->fx.asset && t->fx.assets == decltype(t->fx.assets){}));
     for (const Look &l : t->look) {
