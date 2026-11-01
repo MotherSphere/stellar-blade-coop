@@ -3185,7 +3185,7 @@ gives no notice.
 A part on a mod's mesh sends its overridden materials even with `dyes=off`: CNS sets an outfit's materials when it puts
 the outfit on, so the mesh's own are not the outfit's. The CNS colours and option textures set on those materials go
 with them, and the ghost applies them on a dynamic instance of the material (not tested in game yet). A change to a
-colour reaches the ghost within 16 s, without a new ghost. A texture option shows only if your packs declare the same
+colour reaches the ghost within 21 s, without a new ghost. A texture option shows only if your packs declare the same
 texture or it is one of the game's own. A slot whose material your PC lacks keeps the mesh's own, with no values and no
 error. Mesh sections hidden by an outfit (`HiddenMats`, `MaterialToggles`) and morphs (`ShapeKeys`) do not reach the
 ghost. Her ponytail's collision asset goes too (the `cloth` look uses it), so a CNS outfit's `PonyPhysics` reaches the

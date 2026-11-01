@@ -525,8 +525,9 @@ part it follows, the part and socket it hangs from, its placement there, whether
 the map she is on (the package path of her world, lowercased). With the dyes look on, it adds each part's overridden
 materials, and for a dynamic material (one CNS made at run time) the vector, scalar and texture values set on it, read
 from `VectorParameterValues`, `ScalarParameterValues` and `TextureParameterValues`. A look reads one part's values and a
-new generation reads all of them, so 16 parts take 16 s at worst to show a change. A change goes out again under the
-same generation, compared at 3 significant digits. The table's geometry comes first: value lines stop at 56 KB and the
+new generation reads all of them, so 16 parts take 16 s at worst to read a change. A change goes out again under the
+same generation, compared at 3 significant digits, at most one such table each 5 s (21 s at worst in all). A part hung
+elsewhere, shown or hidden goes at once and carries the values read so far. The table's geometry comes first: value lines stop at 56 KB and the
 `Capture ...` line says how many were left out. A texture goes only if the viewer's rule could load it: under the game's
 own folders, or a path your own CNS packs declare. With the effects look on, it adds what the native part needs to read
 her effects. A part whose ponytail cloth has a collision asset of its own (`OverrideClothPhysicsAsset`) names it.

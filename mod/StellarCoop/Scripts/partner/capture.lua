@@ -9,7 +9,8 @@
 -- animation. With dyes on (dyes=on in coop-settings.txt, or coop look), each part's overridden materials go too (her
 -- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation, with the
 -- values set on it (value lines: the colours CNS sets). A look reads one part's values, a new generation all of them; a
--- change is published again under the same generation, geometry first and values only while the table has room. With
+-- change is published again under the same generation, one such table per VALUE_WAIT seconds, geometry first and values
+-- only while the table has room. With
 -- effects on, it also names, for the native effect read, the NiagaraComponent class, its Asset field's offset and which
 -- systems of Capture.EFFECTS are in memory: looked up one a tick on each new EVE and as effects turn on, and published
 -- only once all are looked up, so the list never changes under one generation. A part on a mod's mesh (outside the
@@ -26,6 +27,8 @@ local MAX_MATERIALS,MAX_SLOTS=16,64 -- Its kMaxMaterials and kMaxSlots too.
 local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER=512,32,1e5 -- Its kMaxValues, kMaxSlotValues and kMaxValue.
 -- Value lines stop here: past the native part's 64 KiB it would refuse the whole table, and the ghost with it.
 local VALUES_ROOM=56000
+-- s between tables only a value changed: a value the game animates must not send the whole table at every look.
+local VALUE_WAIT=5
 -- Its kMaxPose, then what pose_size() counts in every pose (the header, 4 effect slots of 15 bytes, her world
 -- transform) and per bone of a leader: past MAX_POSE it refuses the whole table.
 local MAX_POSE,POSE_BASE,BONE_BYTES=16384,29+4*15+24,18
@@ -307,7 +310,8 @@ function Capture.new(publish,looks,assets,private)
             tint[i]=tints[at].key
         end
         tint=table.concat(tint,' ')
-        if not renewed and published.dress==dress and published.tint==tint then return end
+        if not renewed and published.dress==dress
+            and (published.tint==tint or started<published.at+VALUE_WAIT) then return end -- Held: tint stays what was sent.
         local names,map=published and published.names,published and published.map
         if renewed then
             generation=generation+1
@@ -379,7 +383,7 @@ function Capture.new(publish,looks,assets,private)
         end
         local ok,why=publish(table.concat(final,'\n')..'\n')
         if not ok then return false,'Capture not published: '..tostring(why) end
-        published={generation=generation,key=key,dress=dress,tint=tint,names=names,map=map}
+        published={generation=generation,key=key,dress=dress,tint=tint,names=names,map=map,at=started}
         if renewed then
             local tail=(looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or '')
                 ..(value_count>0 and string.format('; values: %d',value_count) or '')

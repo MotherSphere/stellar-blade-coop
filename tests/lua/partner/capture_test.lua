@@ -489,13 +489,32 @@ raw[mid].VectorParameterValues[1]=vector('RootColor',1,0.5,0,1.0000001)
 step(1)
 assert(#published==1,'A flicker is no change')
 raw[mid].VectorParameterValues[1]=vector('RootColor',0,0,1,1)
-ok,message=step(1)
+step(1)
+assert(#published==1,'Values alone wait 5 s since the last table')
+ok,message=step(3)
 assert(message==nil and #published==2 and published[2]:find('^generation 100001\n')
     and published[2]:find('value 0 0 v RootColor 0 0 1 1\n',1,true),published[2])
-step(1)
+step(6)
 assert(#published==2,'The same values: nothing more')
+-- A value moving at every look: one table each 5 s, the last value sent once it stops.
+for k=1,10 do
+    raw[mid].VectorParameterValues[1]=vector('RootColor',0,0,k/10,1)
+    step(1)
+end
+assert(#published==4 and published[4]:find('value 0 0 v RootColor 0 0 0.6',1,true),published[4])
+step(1)
+assert(#published==5 and published[5]:find('value 0 0 v RootColor 0 0 1 1\n',1,true),published[5])
+-- A part shown or hidden goes at once, with the value held so far.
+raw[mid].VectorParameterValues[1]=vector('RootColor',0,1,0,1)
+raw[body].bHiddenInGame=true
+step(1)
+assert(#published==6 and published[6]:find('value 0 0 v RootColor 0 1 0 1\n',1,true),published[6])
+raw[body].bHiddenInGame=false
+step(1)
+assert(#published==7)
 -- One part's values a look: a change on the other part waits for its turn.
-raw[hair].OverrideMaterials=slots(1,{dynamic(type_b,{ScalarParameterValues={scalar('Hue',1)}})})
+local hair_mid=dynamic(type_b,{ScalarParameterValues={scalar('Hue',1)}})
+raw[hair].OverrideMaterials=slots(1,{hair_mid})
 published={}
 capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looked,
     function() return cns end)
@@ -506,6 +525,19 @@ assert(published[1]:find('\nvalue 1 0 s Hue 1\n',1,true),published[1])
 reads.ScalarParameterValues=0
 step(1)
 assert(reads.ScalarParameterValues<=2,'One part a look, at most two levels of it')
+raw[hair_mid].ScalarParameterValues={scalar('Hue',7)}
+step(5)
+assert(#published==1,'The body\'s turn: the hair\'s change not read yet')
+step(1)
+assert(#published==2 and published[2]:find('\nvalue 1 0 s Hue 7\n',1,true),published[2])
+-- A new generation reads every part again and goes at once: no stale value from the turn before.
+local hair_mesh=raw[hair].SkeletalMesh
+raw[hair].SkeletalMesh=mesh('/Game/Art/Character/PC/00_HR/EVE_HR_02/EVE_HR_02.EVE_HR_02')
+raw[hair_mid].ScalarParameterValues={scalar('Hue',8)}
+step(1)
+assert(#published==3 and published[3]:match('^generation (%d+)')~=published[2]:match('^generation (%d+)')
+    and published[3]:find('\nvalue 1 0 s Hue 8\n',1,true),published[3])
+raw[hair].SkeletalMesh=hair_mesh
 -- A MID whose values cannot be read keeps its material line, said once, a look later.
 raw[mid].VectorParameterValues={ForEach=function() error('no vector array') end}
 published={}
