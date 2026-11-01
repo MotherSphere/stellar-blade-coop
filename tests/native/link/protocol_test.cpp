@@ -279,8 +279,7 @@ int main() {
   // that never comes. Protocol 14 refuses the link.
   // A v0.7.0-beta.1 peer runs protocol 14: it would refuse every table with a value line, so her ghost of you would
   // stop changing. Protocol 16 refuses the link.
-  // A v0.7.5 peer runs protocol 16: it would refuse every table with a hide line the same way. Protocol 17 refuses the
-  // link.
+  // Protocol 16 (value lines alone) was never released.
   static_assert(kProtocol == 17, "17 adds the table's hide lines; 16 the value lines; 15 was never released; 14 the night lines' level and down words and the gift line; 13 the pak lines; "
                                  "12 the shared quests' lines and the race lines; 11 SBE and the show lines; 10 the "
                                  "fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");

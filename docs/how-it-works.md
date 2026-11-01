@@ -493,8 +493,8 @@ instead of misread:
 | 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders |
 | 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), night line masks for a level's extra monsters, each side's down time and revive progress on both night lines, and the gift line for `coop gift` |
 | 15 | Never released: development builds of Matrix XIII's world rows used it |
-| 16 | The table's value lines: the colours and textures set on a dynamic material (0.7.5) |
-| 17 | The table's hide lines: the material slots a part hides (this version) |
+| 16 | Never released: the table's value lines alone, before the hide lines joined them |
+| 17 | The table's value lines (the colours and textures set on a dynamic material) and hide lines (the material slots a part hides); 0.7.5 |
 
 ### Link health in the log
 
