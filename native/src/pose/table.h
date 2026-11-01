@@ -567,6 +567,13 @@ inline bool same_layout(const Table &a, const Table &b) {
   return true;
 }
 
+// Whether a new capture's effect read goes to the game thread's session in place (worker.inc's fx_incoming): the
+// same generation with other effect lines (a system named since). A new generation renews the whole session instead.
+inline bool fx_handover(const Table &was, const Table &now) {
+  return now.generation == was.generation &&
+         (now.fx.cls != was.fx.cls || now.fx.asset != was.fx.asset || now.fx.assets != was.fx.assets);
+}
+
 // Lua's display file for a remote table (coop-display.txt), every line ending in '\n':
 //   display <the remote generation>
 //   mailbox 0x<object> 0x<class>

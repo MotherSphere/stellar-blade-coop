@@ -363,7 +363,7 @@ void take_capture(uint64_t now_ms) {
       say("component table refused: malformed");
   }
   bool renewed = t.generation != capture.generation;
-  if (!renewed && (t.fx.cls != capture.fx.cls || t.fx.asset != capture.fx.asset || t.fx.assets != capture.fx.assets)) {
+  if (fx_handover(capture, t)) {
     std::lock_guard<std::mutex> lock(m);
     fx_incoming = t.fx, fx_incoming_generation = t.generation, fx_incoming_set = true;
   }

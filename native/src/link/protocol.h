@@ -43,7 +43,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 17; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 18; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -65,10 +65,13 @@ constexpr int kProtocol = 17; // Bump on any wire change. 1 was the first link (
                               // released (development builds of Matrix XIII's rows used it); 16 adds the table's
                               // value lines (a dynamic material's colours), which a protocol-14 peer would refuse
                               // with the whole table, so her ghost of you would stop changing; 17 adds the table's
-                              // hide lines (hidden material sections) and fx lines (effects named by path, indexes
-                              // past the fixed list), which a protocol-16 peer would refuse the same way. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11:
-                              // v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1; 16 was
-                              // never released) is told why: the lobby tag, then the hello's reject, name both.
+                              // hide lines (hidden material sections), which a protocol-16 peer would refuse the same
+                              // way; 18 adds the table's fx lines (effects named by path, indexes past the fixed list)
+                              // and effect slots up to index 64, which a protocol-17 peer would refuse with the whole
+                              // table and the pose. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's
+                              // builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
+                              // v0.7.0-beta.1, 17: v0.7.5; 16 was never released) is told why: the lobby tag, then the
+                              // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -308,7 +311,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF17" for the shared fight, "SBQ17" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF18" for the shared fight, "SBQ18" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 

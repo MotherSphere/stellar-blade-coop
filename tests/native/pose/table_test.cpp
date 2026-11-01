@@ -341,6 +341,11 @@ int main() {
   assert(parse_table(with(kLocal, "effect 19 ", "effect 32 "), true)->fx.assets[32] == 0x5100);
   assert(parse_table(with(kLocal, "effect 19 ", "effect 64 "), true)->fx.assets[64] == 0x5100);
   assert(!parse_table(with(kLocal, "effect 19 ", "effect 65 "), true));
+  // A system named under the same generation reaches the session's effect read in place; a new generation does not.
+  auto fx_was = parse_table(kLocal, true), fx_now = parse_table(with(kLocal, "effect 19 ", "effect 20 "), true);
+  assert(fx_was && fx_now && !fx_handover(*fx_was, *fx_was) && fx_handover(*fx_was, *fx_now));
+  fx_now->generation += 1;
+  assert(!fx_handover(*fx_was, *fx_now));
   auto none_found = parse_table(no_effects + "effects 0xC0FF 0x2f8\n", true);
   assert(none_found && none_found->fx.cls == 0xc0ff && none_found->fx.assets == decltype(none_found->fx.assets){});
   auto no_read = parse_table(no_effects, true);
@@ -366,7 +371,7 @@ int main() {
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
   // Material lines (5), effect slots (6), channel 2 (7), chat (8), deltas (9), scale (10), same-place enemies (11).
-  assert(kSbt == "SBT 17\n");
+  assert(kSbt == "SBT 18\n");
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);
