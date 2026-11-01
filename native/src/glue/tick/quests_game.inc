@@ -77,11 +77,12 @@ void quest_tick() {
 }
 
 // ---- The mod's own quests (quest/own.h): Lily's signal's prologue and "On Time" ----
-// Every 250 ms on the pinned build until coop off, once Lua's first signal request came (story/lily.lua's signal watch,
-// asked once its cheap gates hold: a co-op save, solo, the test pak, the rows read back), with the same save-slot line:
-// an ask the worker handed over (with its number, taken with try_lock only) runs first, its one acquire or first task's
-// Complete (quest/own.h's run), then the look, published for the worker as one word. Before that request nothing calls
-// SB's quest unit getter. Under its own SEH latch: the first fault ends the quests' calls and reads for the run.
+// Every 250 ms on the pinned build until coop off, once Lua's first signal request came (matrix13/quest/on_time.lua's
+// signal watch, asked once its cheap gates hold: a co-op save, solo, the test pak, the rows read back), with the same
+// save-slot line: an ask the worker handed over (with its number, taken with try_lock only) runs first, its one acquire
+// or first task's Complete (quest/own.h's run), then the look, published for the worker as one word. Before that
+// request nothing calls SB's quest unit getter. Under its own SEH latch: the first fault ends the quests' calls and
+// reads for the run.
 std::atomic<bool> own_faulted{false}, own_watching{false};
 std::atomic<uint64_t> own_fault_code{0}, own_fault_rva{0}, own_fault_address{0};
 std::mutex own_m; // The worker's ask: its number and word.

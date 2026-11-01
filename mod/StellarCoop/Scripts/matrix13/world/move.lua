@@ -1,12 +1,12 @@
--- Matrix XIII's ladders, ledges and ropes (cut/mxiii.lua ticks it): in world 2800 only, once a world, the mod spawns
--- SB's own BP_EM_Ladder_C, BP_EM_Ledge_C and Env_EM_VerticalRope_C at the points of cut/mxiii_rows.lua's MOVE list. A
--- cooked map never reruns construction scripts when a level streams in, so a ladder placed in the cooked map keeps the
--- components it was cooked with; one spawned at run time runs its construction script with ours. The spawn is deferred
--- (UGameplayStatics::BeginDeferredActorSpawnFromClass, the fields set, then FinishSpawningActor) so the construction
--- script sees them; if that call fails once, every later spawn of the Lua load uses World:SpawnActor, sets the fields
--- and calls the class's UserConstructionScript again. Each spawn logs one [MXMOVE] line with the way it took and, for
--- a ladder, its Meshes stack as read back before the finish; a ladder whose stack does not read back as written is
--- destroyed before its finish and its line says so.
+-- Matrix XIII's ladders, ledges and ropes (matrix13/world/travel.lua ticks it): in world 2800 only, once a world, the
+-- mod spawns SB's own BP_EM_Ladder_C, BP_EM_Ledge_C and Env_EM_VerticalRope_C at the points of
+-- matrix13/world/rows.lua's MOVE list. A cooked map never reruns construction scripts when a level streams in, so a
+-- ladder placed in the cooked map keeps the components it was cooked with; one spawned at run time runs its
+-- construction script with ours. The spawn is deferred (UGameplayStatics::BeginDeferredActorSpawnFromClass, the fields
+-- set, then FinishSpawningActor) so the construction script sees them; if that call fails once, every later spawn of
+-- the Lua load uses World:SpawnActor, sets the fields and calls the class's UserConstructionScript again. Each spawn
+-- logs one [MXMOVE] line with the way it took and, for a ladder, its Meshes stack as read back before the finish; a
+-- ladder whose stack does not read back as written is destroyed before its finish and its line says so.
 -- A ladder's height comes from its Meshes stack (the list names Enum_EM_LadderMeshes' NewEnumeratorN: 0 160.9 cm, 1 200,
 -- 2 240, 3 600, 11 40.9) plus the 79.885 cm head. A stack holds an enumerator's value, its place in the enum, not N:
 -- BYTE below, read from the cooked enum (N written raw built ladders short with their head mid-way, 2026-10-31). Its construction script stacks the pieces up from the actor's origin, the foot, starting at
@@ -21,7 +21,7 @@
 -- [inference] Whether an SBZoneEnvActor spawned after its zone's rows were made registers with its row is untested.
 local U=require('core.unreal')
 local N=require('nightop.probe')
-local Rows=require('cut.mxiii_rows')
+local Rows=require('matrix13.world.rows')
 local Move={}
 Move.MAP='/mxiii_p' -- The end of core/unreal.lua's map_of in world 2800.
 local DIR='/Game/GameDesign/Level/BluePrintActor/SBEventMove/'
@@ -31,7 +31,7 @@ Move.ASSETS={ladder=DIR..'BP_EM_Ladder.BP_EM_Ladder',ledge=DIR..'BP_EM_Ledge.BP_
 local EVERY=1 -- s between looks at the world.
 local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
 
--- o: log (the [MXMOVE] lines), list (the MOVE list; cut/mxiii_rows.lua's by default).
+-- o: log (the [MXMOVE] lines), list (the MOVE list; matrix13/world/rows.lua's by default).
 function Move.new(o)
     local log,list=o.log,o.list or Rows.MOVE
     local self={}

@@ -72,8 +72,8 @@ std::string camps_status() {
   return camps_text;
 }
 
-// coop-status.txt's camptext line (game/camp_text.h), which cut/mxiii.lua waits for before it asks the mxnames rows;
-// from atomics, with no engine access.
+// coop-status.txt's camptext line (game/camp_text.h), which matrix13/world/travel.lua waits for before it asks the
+// mxnames rows; from atomics, with no engine access.
 std::string camp_text_status() {
   if (!game_pinned)
     return std::string();

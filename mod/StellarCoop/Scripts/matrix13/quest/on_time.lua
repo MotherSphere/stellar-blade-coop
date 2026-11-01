@@ -15,8 +15,8 @@
 --   so a co-op save that holds a quest loads with it; on a co-op save in game they are asked, or read back when already
 --   in, once a Lua load (also after a title batch that a shut gate refused), too late for a save that holds a quest.
 --   They stay for the game run, and nothing goes on until they read back.
--- - The words (story/lily_text.lua), once the rows read back: both quests' titles and descriptions, the 7 group lines,
---   On Time's task lines 1 to 5 and her choice's first label, as FText in the game's language, each row checked first
+-- - The words (matrix13/quest/text.lua), once the rows read back: both quests' titles and descriptions, the 7 group
+--   lines, On Time's task lines 1 to 5 and her choice's first label, as FText in the game's language, each row checked first
 --   and read back (nightop/recruiter.lua's edit). The prologue's task and M06's keep the shipped "Talk to Lily" line.
 -- - The quest unit's reads (quest/own.h): none until signal watch, asked once a Lua load when the cheap gates hold (a
 --   co-op save, solo, the test pak, the rows read back), so no player without the pak calls SB's quest unit getter.
@@ -51,7 +51,7 @@ local N=require('nightop.probe')
 local R=require('nightop.recruiter')
 local Roxanne=require('nightop.roxanne')
 local Enemy=require('cut.enemy')
-local Mxiii=require('cut.mxiii')
+local Mxiii=require('matrix13.world.travel')
 local Subtitles=require('story.subtitles')
 local Lily={}
 local DATA='/Game/Local/Data/'
@@ -79,8 +79,9 @@ function Lily.drive_room(v)
     end
     return true
 end
--- The signal rows as cut/enemy.lua reads them back (rows.h's kSignalRecipe and kSignalPatches; lily_test checks them
--- against it): each patched field, changed when it differs from the template row's. The 8 filters (one per Tetrapod
+-- The signal rows as cut/enemy.lua reads them back (rows.h's kSignalRecipe and kSignalPatches;
+-- matrix13/quest/on_time_test checks them against it): each patched field, changed when it differs from the template
+-- row's. The 8 filters (one per Tetrapod
 -- Lily: Xion, Eidos 7, Eidos 9 at the Tetrapod and near the atelier, the Wasteland, the Great Desert, the Matrix 11
 -- entrance, Spire 4) are listed in both "Talk to Lily" tasks.
 local FILTER='Quest_Sub_MX13_01_LevelTargetFilter_'
@@ -115,9 +116,9 @@ rows[#rows+1]={'TheaterSelectDataTable','TS_GoToTest_2',nil,{{'Conditions','N','
     {'TextVisibleType','e',1,true},{'NextTaskTagName','n','None',false},{'SelectDataPriority','i',3,true},
     {'InteractionGraphExec','n','Success5',true}}}
 Lily.ROWS=Enemy.rows(rows)
--- The words' rows: table, row, its ID (checked before the write), the fields and their lines of story/lily_text.lua.
--- Her choice row is checked by its ID and its exec too, so its label only goes on once the rows' patch is there; it
--- stays last.
+-- The words' rows: table, row, its ID (checked before the write), the fields and their lines of
+-- matrix13/quest/text.lua. Her choice row is checked by its ID and its exec too, so its label only goes on once the
+-- rows' patch is there; it stays last.
 Lily.TEXTS={
     {'QuestTable',Lily.PROLOGUE,Lily.PROLOGUE_ID,{{'TitleName_','PT'},{'Description_','PD'}}},
     {'QuestTaskGroupTable','Quest_Sub_MX13_00_M01',341,{{'Description','PM'}}},
@@ -155,7 +156,7 @@ end
 -- (story/subtitles.lua's player).
 function Lily.new(o)
     local log,status,ask,talks=o.log,o.status,o.ask,o.talks
-    local T=require('story.lily_text')
+    local T=require('matrix13.quest.text')
     local e=Enemy.new({log=log,ask=ask,status=status},
         {word='signal',name="Lily's signal",command='coop lily signal',tag='[LY]',rows=Lily.ROWS,ids={}})
     local rows_ok=false -- The rows read back as written in this Lua load (the title's batch or the one asked in game).

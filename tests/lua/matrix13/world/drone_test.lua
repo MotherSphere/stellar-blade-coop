@@ -1,6 +1,6 @@
--- cut/mxdrone.lua with fake UE4SS objects: nothing outside world 2800; in it, the hook once, each radius the blueprint
--- writes scaled once and never compounded on a tick that wrote nothing, the cone set once per light and put back on
--- leaving or stopping; a raise stops it for good.
+-- matrix13/world/drone.lua with fake UE4SS objects: nothing outside world 2800; in it, the hook once, each radius the
+-- blueprint writes scaled once and never compounded on a tick that wrote nothing, the cone set once per light and put
+-- back on leaving or stopping; a raise stops it for good.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -23,7 +23,7 @@ light.SetOuterConeAngle=function(x,a) x.outer=a end
 local drone=object({SpotLight=light})
 local function ctx() return {type=function() return 'RemoteUnrealParam' end,get=function() return drone end} end
 local inside,lines=false,{}
-local M=require('cut.mxdrone')
+local M=require('matrix13.world.drone')
 local mv=M.new({log=function(s) lines[#lines+1]=s end,here=function() return inside and {} or nil end})
 local function near(a,b) return math.abs(a-b)<0.001 end
 
@@ -78,4 +78,4 @@ hooks[1].f(ctx())
 clock=12; mv.tick()
 hooks[1].f(ctx())
 assert(light.AttenuationRadius==1500,'A raise stops it for good')
-print('mxdrone_test: ok')
+print('matrix13/world/drone_test: ok')

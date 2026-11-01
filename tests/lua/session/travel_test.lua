@@ -550,9 +550,9 @@ for _,alias in ipairs({'SysTest_Camp_01','ATL_Camp_01_05_SV','SE02_Camp_02','x'}
     ok,why=t.probe(alias)
     assert(not ok and why:find('120 travel camps',1,true) and #W.requests==0,alias)
 end
--- coop mxiii's use (cut/mxiii.lua): ready says whether a probe would pass its guards now, asking nothing; probe with
--- any takes a camp in no table (the name must still be one this game knows), under the same guards but the activation
--- read: no AchievementTable row names its env-spawn row.
+-- coop mxiii's use (matrix13/world/travel.lua): ready says whether a probe would pass its guards now, asking nothing;
+-- probe with any takes a camp in no table (the name must still be one this game knows), under the same guards but the
+-- activation read: no AchievementTable row names its env-spawn row.
 t=world(function(w) w.mode='none'; w.linked=false; w.names={DLC02_10_Camp_01=77}; w.camps=nil end)
 ok,why=t.ready()
 assert(ok==true and why==nil and #W.requests==0 and #W.fnames==0,tostring(why))

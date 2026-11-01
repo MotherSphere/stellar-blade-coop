@@ -57,12 +57,12 @@ local function labels()
 end
 -- The row a picked line's text names, or nil (her own Shop and End, any other dialogue).
 function Roxanne.row_of(text,by) return (by or labels())[text] end
--- The select widgets' picks (nightop/roxanne.lua's and story/lily.lua's): o.log(text) logs, o.paused() whether the
--- game is paused or shows one of its screens. watch(eve, now, pick) looks for the widgets of EVE's world again at each
--- call (every FIND_EVERY through FindAllOf), so a box the game builds for a later dialogue is watched while an older
--- one is still valid; a widget seen before keeps its last SelectIndex. A pick: a SelectIndex turning from -1 to a line
--- (a widget first seen on a line holds an old pick), pick(text) called with that line's text. reset() forgets the
--- widgets.
+-- The select widgets' picks (nightop/roxanne.lua's and matrix13/quest/on_time.lua's): o.log(text) logs, o.paused()
+-- whether the game is paused or shows one of its screens. watch(eve, now, pick) looks for the widgets of EVE's world
+-- again at each call (every FIND_EVERY through FindAllOf), so a box the game builds for a later dialogue is watched
+-- while an older one is still valid; a widget seen before keeps its last SelectIndex. A pick: a SelectIndex turning
+-- from -1 to a line (a widget first seen on a line holds an old pick), pick(text) called with that line's text. reset()
+-- forgets the widgets.
 function Roxanne.watcher(o)
     local log,paused=o.log,o.paused
     local held,look_at,walk=nil,-math.huge,false -- The select widgets {obj, last}; the next look; FindAllOf's route.

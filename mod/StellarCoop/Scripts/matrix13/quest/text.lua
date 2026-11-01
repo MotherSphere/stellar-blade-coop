@@ -1,12 +1,12 @@
--- Lily's signal (story/lily.lua): the mod's words, written as FText into rows of the game in the game's language when
--- the signal rows are in. English and French; every other language takes the English. No text key is registered
--- (this UE4SS build cannot pass the languages as a map inside PolyglotDataToText's struct parameter), so a language
--- change shows once the next Lua load writes them again. Lines: L and L2 her choice's two labels (prologue, then the
--- end of "On Time"); PT, PD, PM the prologue quest's title, description and group line; T, D "On Time"'s title and
--- description; M1 to M6 its six group lines; K1 to K5 the lines of tasks 1 to 5. The prologue's task and task 6 keep
--- the shipped "Talk to Lily" text of the task they copy, in every language. EN task lines end with no full stop, FR
--- ones with one, as the shipped tables do; the descriptions' tenses follow the shipped story quests (EN past, FR passé
--- simple). The line in quotes is the MX13-Z1-01 plate's, word for word.
+-- Lily's signal (matrix13/quest/on_time.lua): the mod's words, written as FText into rows of the game in the game's
+-- language when the signal rows are in. English and French; every other language takes the English. No text key is
+-- registered (this UE4SS build cannot pass the languages as a map inside PolyglotDataToText's struct parameter), so a
+-- language change shows once the next Lua load writes them again. Lines: L and L2 her choice's two labels (prologue,
+-- then the end of "On Time"); PT, PD, PM the prologue quest's title, description and group line; T, D "On Time"'s title
+-- and description; M1 to M6 its six group lines; K1 to K5 the lines of tasks 1 to 5. The prologue's task and task 6
+-- keep the shipped "Talk to Lily" text of the task they copy, in every language. EN task lines end with no full stop,
+-- FR ones with one, as the shipped tables do; the descriptions' tenses follow the shipped story quests (EN past, FR
+-- passé simple). The line in quotes is the MX13-Z1-01 plate's, word for word.
 local NBSP='\u{A0}' -- Inside the French quotes and before French ? and !.
 local TEXT={
     en={

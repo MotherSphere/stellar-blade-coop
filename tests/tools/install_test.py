@@ -171,9 +171,11 @@ with tempfile.TemporaryDirectory() as tmp:
                               'commands/session', 'commands/story', 'core/keybind', 'core/link', 'core/settings_file', 'core/unreal',
                               'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
                               'cut/glide', 'cut/gardener', 'cut/leviathan',
-                              'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox', 'cut/mxboss', 'cut/mxdrone', 'cut/mxiii',
-                              'cut/mxiii_rows', 'cut/mxmove',
+                              'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox',
                               'cut/scene', 'cut/tendril', 'cut/wear', 'main',
+                              'matrix13/quest/on_time', 'matrix13/quest/text', 'matrix13/world/boss',
+                              'matrix13/world/drone', 'matrix13/world/move', 'matrix13/world/rows',
+                              'matrix13/world/travel',
                               'nightop/board', 'nightop/challenges',
                               'nightop/probe',
                               'nightop/recruiter', 'nightop/recruiter_text', 'nightop/roxanne', 'nightop/roxanne_text',
@@ -181,8 +183,8 @@ with tempfile.TemporaryDirectory() as tmp:
                               'nightop/waves',
                               'partner/capture', 'partner/hud', 'partner/puppet', 'race/doro', 'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
-                              'session/group', 'session/join', 'session/saves', 'session/travel', 'story/dump', 'story/lily',
-                              'story/lily_text', 'story/subtitles', 'ui/kit', 'ui/menu',
+                              'session/group', 'session/join', 'session/saves', 'session/travel', 'story/dump',
+                              'story/subtitles', 'ui/kit', 'ui/menu',
                               'ui/model', 'ui/notice', 'ui/region_tabs', 'ui/text', 'version'))}
     assert set(files) == shipped - {'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
     assert not [rel for rel in files

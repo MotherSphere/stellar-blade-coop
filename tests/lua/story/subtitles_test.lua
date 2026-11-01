@@ -49,7 +49,7 @@ local objects={
 }
 StaticFindObject=function(path) return objects[path] end
 local S=require('story.subtitles')
-local T=require('story.lily_text')
+local T=require('matrix13.quest.text')
 
 -- The talks as data: windows, lines, speakers.
 local COUNTS={prologue={21,17},arrival={9,9},finale={19,19}}
@@ -77,7 +77,7 @@ assert(S.window(W,w3,'SB 3',5)==3 and S.window(W,w3,'Lily 3',9.99)==3,'Its text 
 assert(S.window(W,w3,'SB 3',10)==4,'Past its time: the next, even with its text')
 assert(S.window(W,{k=21,sb='a',ours='b',until_at=0},'c',1)==21,'Never past the last window')
 -- The reading holds of every window, in both languages: 0.5 s plus 15 characters a second, past the window.
-local HOLDS={ -- Talk, culture: window -> hold in s (2 decimals), as the lines of story/lily_text.lua give them.
+local HOLDS={ -- Talk, culture: window -> hold in s (2 decimals), as the lines of matrix13/quest/text.lua give them.
     prologue={en={[2]=1.19,[3]=0.53,[7]=0.11,[9]=0.36,[11]=0.11,[12]=1.80,[14]=0.22,[15]=1.89,[17]=0.91},
         fr={[1]=0.07,[2]=1.59,[7]=0.77,[9]=1.23,[11]=0.37,[12]=1.60,[14]=0.35,[15]=3.49,[17]=0.65}},
     arrival={en={[1]=0.44,[3]=0.71,[4]=1.93,[5]=2.19,[6]=0.18,[7]=0.75,[8]=0.55,[9]=0.86},

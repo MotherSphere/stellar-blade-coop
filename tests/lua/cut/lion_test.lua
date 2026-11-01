@@ -1228,8 +1228,8 @@ do
     assert(seen.ServerRequest_CreateActor==1 and seen.SpawnDefaultController==1 and seen.K2_DestroyComponent==1,
         'One spawn call, one controller, one destroy of its own component')
 end
--- adopt, for a Lion the game spawned from a row (cut/mxboss.lua): nothing to do on a mesh that has an anim instance;
--- on one without, its own class built again, which gives it one here.
+-- adopt, for a Lion the game spawned from a row (matrix13/world/boss.lua): nothing to do on a mesh that has an anim
+-- instance; on one without, its own class built again, which gives it one here.
 do
     local m=object({has=true})
     m.GetAnimInstance=function(self) return self.has and object({}) or nil end

@@ -1,7 +1,8 @@
--- Lily's talks (experimental, untested in game): SB's own subtitle box showing the mod's lines (story/lily_text.lua's
--- TALKS) over an unused subtitle-only sequence that cut/scene.lua's talk() plays through Quinn's borrowed theater. A
--- talk is data: its name, the sequence it borrows and that sequence's subtitle windows (TALKS below); the lines, one
--- per window, come from lily_text.lua, and windows past the last line show nothing.
+-- Lily's talks (experimental, untested in game): SB's own subtitle box showing the mod's lines
+-- (matrix13/quest/text.lua's TALKS) over an unused subtitle-only sequence that cut/scene.lua's talk() plays through
+-- Quinn's borrowed theater. A talk is data: its name, the sequence it borrows and that sequence's subtitle windows
+-- (TALKS below); the lines, one per window, come from matrix13/quest/text.lua, and windows past the last line show
+-- nothing.
 -- - The rewrite: a UE4SS hook on the subtitle slot Blueprint's UpdateText (registered once a Lua load, at the first
 --   talk or arm(); UE4SS runs a hook on a Blueprint-only function after it), which returns at once unless a talk runs
 --   or a capture is armed. Window k is the k-th new window of the talk, never skipped (bSkipAllow is false on every POD
@@ -35,7 +36,7 @@
 --   own sequence still plays gets no fallback (failed): the kit would show its lines under SB's.
 -- Nothing here reaches the save: the take, the rows and the slot's fields live in memory.
 local U=require('core.unreal')
-local T=require('story.lily_text')
+local T=require('matrix13.quest.text')
 local Subtitles={}
 local HOOK='/Game/Art/UI/Widget/Theater/WB_Theater_Subtitle3_Slot.WB_Theater_Subtitle3_Slot_C:UpdateText'
 local SEQ_TABLE='/Game/Local/Localize/StringTable_Seq.StringTable_Seq'

@@ -1,18 +1,18 @@
 // The mod's own quests, the prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164) and "On Time"
-// (Quest_Sub_MX13_01, QuestTable 163) (lion/rows.h's signal batch, story/lily.lua), in the local player's quest unit,
-// free of Windows: tests/native/quest/own_test.cpp checks it against fake memory laid out like the pinned build. Every
-// 250 ms on a co-op save, once Lua's signal watch came, the game thread reads whether the unit's ID map holds each of
-// them, Quest_Epic_11 (ID 24, Phase 5: its state and active group; group M04, index 3, is "Talk to Lily to decide on
-// the next destination") and Quest_Epic_12 (ID 25, which Lily's "Follow the bike signal and leave" starts: past the
-// point of no return), Quest_Sub_005's state (ID 44, quest/sync.h: while it runs, Lily shows six rows of her own, every
-// slot of the choice box, so ours stays off), and for each of our two quests its state, active group and that group's
-// first task's state. On Lua's ask it acquires one of them through the acquire by ID a quest zone event makes
-// (FUN_141c5cf20: the ID's row name through the QuestTable ID map that AddRow filled, then AcquireQuest and PushQuest,
-// which refuses an ID already held), or completes the first task of one fixed group through the task vtable's +0x60,
-// the Complete the shared quests' guest calls (quest/engine.h's kComplete or kCompleteParent; the glue's
-// QuestGame::call refuses any other). Each ask is a fixed word mapped to one fixed quest and group (kAskWords, run());
-// no console argument reaches a call. The offsets and functions are quest/engine.h's, for Stellar Blade's Steam build
-// 24463856. The Game is the engine's: read, thread, unit, acquire, call.
+// (Quest_Sub_MX13_01, QuestTable 163) (lion/rows.h's signal batch, matrix13/quest/on_time.lua), in the local player's
+// quest unit, free of Windows: tests/native/quest/own_test.cpp checks it against fake memory laid out like the pinned
+// build. Every 250 ms on a co-op save, once Lua's signal watch came, the game thread reads whether the unit's ID map
+// holds each of them, Quest_Epic_11 (ID 24, Phase 5: its state and active group; group M04, index 3, is "Talk to Lily
+// to decide on the next destination") and Quest_Epic_12 (ID 25, which Lily's "Follow the bike signal and leave" starts:
+// past the point of no return), Quest_Sub_005's state (ID 44, quest/sync.h: while it runs, Lily shows six rows of her
+// own, every slot of the choice box, so ours stays off), and for each of our two quests its state, active group and
+// that group's first task's state. On Lua's ask it acquires one of them through the acquire by ID a quest zone event
+// makes (FUN_141c5cf20: the ID's row name through the QuestTable ID map that AddRow filled, then AcquireQuest and
+// PushQuest, which refuses an ID already held), or completes the first task of one fixed group through the task
+// vtable's +0x60, the Complete the shared quests' guest calls (quest/engine.h's kComplete or kCompleteParent; the
+// glue's QuestGame::call refuses any other). Each ask is a fixed word mapped to one fixed quest and group (kAskWords,
+// run()); no console argument reaches a call. The offsets and functions are quest/engine.h's, for Stellar Blade's Steam
+// build 24463856. The Game is the engine's: read, thread, unit, acquire, call.
 #pragma once
 
 #include <cstddef>
@@ -234,7 +234,7 @@ inline Answer unpack(uint64_t w) {
   l.state = from_nibble(w, 8), l.group = from_nibble(w, 4), l.task = from_nibble(w, 0);
   return a;
 }
-// coop-status.txt's signalquest line (story/lily.lua reads it):
+// coop-status.txt's signalquest line (matrix13/quest/on_time.lua reads it):
 //   signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> pro=<unread|none|held>
 //     prostate=<s> progroup=<g> protask=<t> epic11=<g> epic11state=<s> asks=<a> want=<ask> why=<w>
 //   signalquest=fault asks=<a> where=<text, maybe with spaces>

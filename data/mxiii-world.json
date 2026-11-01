@@ -1,5 +1,5 @@
 {
- "about": "Matrix XIII world rows (tools/mxiii_rows.py writes lion/mxiii_rows.h and cut/mxiii_rows.lua from this file). Each row copies its donor row; set holds [field, value, changed], changed meaning the value differs from the donor's in the build 24463856 dumps.",
+ "about": "Matrix XIII world rows (tools/mxiii_rows.py writes lion/mxiii_rows.h and matrix13/world/rows.lua from this file). Each row copies its donor row; set holds [field, value, changed], changed meaning the value differs from the donor's in the build 24463856 dumps.",
  "batches": [
   {
    "word": "mxiii",

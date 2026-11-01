@@ -22,9 +22,9 @@ std::string ask_nightshop(const coop::Request &request) {
   return word + " asked: at the game thread's next frame";
 }
 
-// Roxanne's choices (nightop/roxanne.lua) or Lily's signal choice (story/lily.lua, request.lily): on or off at the
-// first frame the rows' gate holds. Refused off the pinned build and after that list's latch's fault; after coop off,
-// only off is taken.
+// Roxanne's choices (nightop/roxanne.lua) or Lily's signal choice (matrix13/quest/on_time.lua, request.lily): on or off
+// at the first frame the rows' gate holds. Refused off the pinned build and after that list's latch's fault; after coop
+// off, only off is taken.
 std::string ask_roxanne(const coop::Request &request) {
   SwapSide &side = request.lily ? lily_side : roxanne_side;
   const std::string word = std::string(side.list.word) + (request.on ? " on" : " off");

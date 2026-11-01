@@ -19,10 +19,10 @@
 -- a row on a co-op save only. coop devinfo, two read-only panels of the game's developer UI (left out too), on any
 -- save. coop gift, the cut mailbox as a co-op gift box (cut/mailbox.lua, o.mailbox, built with the Steam link only),
 -- runs on a co-op save only: every word of it.
--- coop mxiii, the camp travel into the cut Matrix XIII dungeon (cut/mxiii.lua, o.mxiii; a test tool left out of the
--- usage line, needing the zMXIII_P test pak), coop mxiii 30, the same to its third zone's camp, and coop mxiii leave,
--- its way out, and coop mxiii boss, the key-0 Lion or Gardener of the arena EVE stands in (cut/mxboss.lua), run on a
--- co-op save only.
+-- coop mxiii, the camp travel into the cut Matrix XIII dungeon (matrix13/world/travel.lua, o.mxiii; a test tool left
+-- out of the usage line, needing the zMXIII_P test pak), coop mxiii 30, the same to its third zone's camp, and coop
+-- mxiii leave, its way out, and coop mxiii boss, the key-0 Lion or Gardener of the arena EVE stands in
+-- (matrix13/world/boss.lua), run on a co-op save only.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -154,14 +154,15 @@ function Cut.new(o)
         end
         return o.ask('devinfo '..which)()
     end
-    -- coop mxiii (cut/mxiii.lua, o.mxiii): a camp travel into a world the save has never been in, which the game may
-    -- write into the save, so on a co-op save only; coop mxiii leave too, as coop travel probe.
+    -- coop mxiii (matrix13/world/travel.lua, o.mxiii): a camp travel into a world the save has never been in, which the
+    -- game may write into the save, so on a co-op save only; coop mxiii leave too, as coop travel probe.
     function self.mxiii(extra,point)
         local ok,why=coop_slot('coop mxiii')
         if not ok then return false,why end
         return o.mxiii.command(extra,point)
     end
-    -- coop scene lily: Lily's prologue talk by hand, coop lily talk prologue's (story/lily.lua: solo, the test pak).
+    -- coop scene lily: Lily's prologue talk by hand, coop lily talk prologue's (matrix13/quest/on_time.lua: solo, the
+    -- test pak).
     function self.scene(sub,extra)
         if o.scene.SCENES[sub] then
             local ok,why=coop_slot('coop scene '..sub)

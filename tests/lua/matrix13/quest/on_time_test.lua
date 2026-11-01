@@ -1,19 +1,19 @@
--- Lily's signal (story/lily.lua, story/lily_text.lua) over fakes: the status text (slot, signal=, lily=, signalquest=
--- lines as the native part writes them), the 25 tables with the signal rows as the native part writes them (FName
--- fields by comparison index, the groups' TaskContainerArray as an array of structs each holding a TaskAliasArray of
--- FNames, FText fields), the language library, a text library whose PolyglotDataToText raises as UE4SS does on a
--- Lua-table map, EVE's world and place, the select widget through the widget library's lookup (SelectIndex -1 until a
--- pick, its DataArray lines' DisplayText), the test pak's files, coop mxiii's travel and the talk player
--- (story/subtitles.lua: play, arm, playing, cutscene, holds, stop). Covered: its 25 rows against rows.h's kSignalRecipe
--- and kSignalPatches (names, templates, IDs, each patched field's kind and value, no field more, the quest rows last
--- of their rows and the choice row patched in place last); the words in English and French (every line, French for
--- any French culture, English for the others); nothing off a co-op save; no test pak: no rows at the title or in game,
--- no quest unit read; with it, the title's batch with only the 5 tables its rows use; the words written once the rows
--- read back (no PolyglotDataToText call), a row that is not the one known stopping them and her choice for the Lua
--- load; the rows asked once in game when they are not in, also after a title batch refused by a shut gate at all 4
--- tries; signal watch once the cheap gates hold (co-op save, solo, the test pak, the rows read back) and never before;
--- the prologue's gate (Quest_Epic_11 at M04 in progress, neither quest held, 20 s with no screen, no theater of the
--- game playing) and its acquire once a Lua load, never on a save that holds On Time; lily on only while every gate
+-- Lily's signal (matrix13/quest/on_time.lua, matrix13/quest/text.lua) over fakes: the status text (slot, signal=,
+-- lily=, signalquest= lines as the native part writes them), the 25 tables with the signal rows as the native part
+-- writes them (FName fields by comparison index, the groups' TaskContainerArray as an array of structs each holding a
+-- TaskAliasArray of FNames, FText fields), the language library, a text library whose PolyglotDataToText raises as
+-- UE4SS does on a Lua-table map, EVE's world and place, the select widget through the widget library's lookup
+-- (SelectIndex -1 until a pick, its DataArray lines' DisplayText), the test pak's files, coop mxiii's travel and the
+-- talk player (story/subtitles.lua: play, arm, playing, cutscene, holds, stop). Covered: its 25 rows against rows.h's
+-- kSignalRecipe and kSignalPatches (names, templates, IDs, each patched field's kind and value, no field more, the
+-- quest rows last of their rows and the choice row patched in place last); the words in English and French (every line,
+-- French for any French culture, English for the others); nothing off a co-op save; no test pak: no rows at the title
+-- or in game, no quest unit read; with it, the title's batch with only the 5 tables its rows use; the words written
+-- once the rows read back (no PolyglotDataToText call), a row that is not the one known stopping them and her choice
+-- for the Lua load; the rows asked once in game when they are not in, also after a title batch refused by a shut gate
+-- at all 4 tries; signal watch once the cheap gates hold (co-op save, solo, the test pak, the rows read back) and never
+-- before; the prologue's gate (Quest_Epic_11 at M04 in progress, neither quest held, 20 s with no screen, no theater of
+-- the game playing) and its acquire once a Lua load, never on a save that holds On Time; lily on only while every gate
 -- holds and the prologue is at its task (label 1) or On Time at M06's (label 2, written into the row), off when one
 -- fails, asked again while the native part reads otherwise, a load changing nothing; a pick only of the row's label on
 -- a SelectIndex turning from -1 (her End Conversation, or a widget first seen on a line, do nothing), then after her
@@ -51,8 +51,8 @@ end
 package.loaded.UEHelpers={}
 local her=nil -- EVE (nil: none), set below.
 package.loaded['nightop.probe']={her=function() return her end}
-local Lily=require('story.lily')
-local T=require('story.lily_text')
+local Lily=require('matrix13.quest.on_time')
+local T=require('matrix13.quest.text')
 local Enemy=require('cut.enemy')
 
 -- The rows against rows.h's hand-written batch.
@@ -193,7 +193,7 @@ local world=XION
 local eve=object({at={X=0,Y=0,Z=0},GetWorld=function() return {GetFullName=function() return world end} end})
 eve.K2_GetActorLocation=function(self) return {X=self.at.X,Y=self.at.Y,Z=self.at.Z} end
 her=eve
--- The test pak's files, as cut/mxiii.lua reads them.
+-- The test pak's files, as matrix13/world/travel.lua reads them.
 local PAKS='C:\\G\\SB\\Content\\Paks'
 local LOGIC=PAKS..'\\LogicMods\\zMXIII_P.utoc'
 local files={}
@@ -637,7 +637,7 @@ lines.signal='signal=refused added=0/25 asks=5 spawns=? why=busy table=- row=-'
 clock=clock+0.5; ly.tick()
 clock=clock+1; ly.tick()
 assert(#asked==5,'Once a Lua load')
-print('lily_test: ok')
+print('matrix13/quest/on_time_test: ok')
 
 -- The zone talks: every line has a speaker, an English and a French line; 168 lines in 36 scenes from 1A to 4N (3E was cut).
 do

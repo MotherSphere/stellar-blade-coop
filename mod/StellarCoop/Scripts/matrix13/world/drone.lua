@@ -1,7 +1,7 @@
--- Matrix XIII's drone light (cut/mxiii.lua ticks it): 20 % more range and cone than the shipped light, at the same
--- intensity, in world 2800 only. CH_Drone_BP writes its spot light's attenuation radius each tick, capped at 1500, so a
--- post hook on its ReceiveTick scales what it just wrote. The cone, which the blueprint never writes, is set once per
--- light and put back when EVE leaves the world.
+-- Matrix XIII's drone light (matrix13/world/travel.lua ticks it): 20 % more range and cone than the shipped light, at
+-- the same intensity, in world 2800 only. CH_Drone_BP writes its spot light's attenuation radius each tick, capped at
+-- 1500, so a post hook on its ReceiveTick scales what it just wrote. The cone, which the blueprint never writes, is set
+-- once per light and put back when EVE leaves the world.
 local U=require('core.unreal')
 local Drone={
     HOOK='/Game/Art/Character/NPC/CH_NPC_Drone/Blueprints/CH_Drone_BP.CH_Drone_BP_C:ReceiveTick',

@@ -1,7 +1,8 @@
 // The camps the current save has activated, the native half, free of Windows: SB's own list, as its camp list screen
-// (the TeleportCamp list, FUN_141f65980) builds it, read on the game thread for session/travel.lua and cut/mxiii.lua.
-// This file names the calls and offsets, checks the guard over the game thread's reads, says when to read and writes
-// the status line (activated=). tests/native/game/camps_test.cpp checks it on the build machine.
+// (the TeleportCamp list, FUN_141f65980) builds it, read on the game thread for session/travel.lua and
+// matrix13/world/travel.lua. This file names the calls and offsets, checks the guard over the game thread's reads, says
+// when to read and writes the status line (activated=). tests/native/game/camps_test.cpp checks it on the build
+// machine.
 //
 // How SB decides, on build 24463856: FUN_141d1d650(zones, region, type, out, all) fills out, a TArray<FName>, with the
 // ZoneCampTable rows of that region (NAME_None: every region) and that CampType which hold an active row. A camp's rows
