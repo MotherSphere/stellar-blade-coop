@@ -1,5 +1,5 @@
 -- The crash sentinel for mod assets. Before the ghost (partner/puppet.lua) hands the engine an asset your CNS packs
--- declare or a mod both players have holds (core/link.lua's mod_assets(): its load, SetSkeletalMesh, SetMaterial, a dynamic instance and its values, the hidden slots), call() writes
+-- declare or a mod both players have holds (core/link.lua's mod_assets(): its load, SetSkeletalMesh, a cloth built on it, SetMaterial, a dynamic instance and its values, the hidden slots, an effect's spawn), call() writes
 -- coop-cns-call.txt with that asset's path and outfit (or container), and empties it once the call returns or raises. Only that span
 -- is marked: a crash anywhere else finds the file empty. A file still full at the next Lua load means the game died
 -- inside such a call, so new() puts that asset on the set-aside list (coop-cns-aside.txt, under the mod's version),
@@ -49,7 +49,9 @@ function Sentinel.new(files,version)
         depth=1
         files.write_now(Sentinel.MARKER,path..' '..outfit_of..'\n')
         local r=table.pack(pcall(f,...))
-        files.write_now(Sentinel.MARKER,'')
+        -- A marker left full would set aside an asset that did not crash: a refused write (a scanner holding the
+        -- file) is tried once more. shortcut: a second refusal still leaves it; the next call's writes overwrite it.
+        if not files.write_now(Sentinel.MARKER,'') then files.write_now(Sentinel.MARKER,'') end
         depth=0
         if not r[1] then error(r[2],0) end
         return table.unpack(r,2,r.n)

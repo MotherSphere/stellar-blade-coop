@@ -56,6 +56,16 @@ s=Sentinel.new(files,'v2')
 assert(s.reset()==1 and not s.aside(SUIT) and disk[Sentinel.LIST]=='version v2\n')
 s=Sentinel.new(files,'v2')
 assert(#s.list()==0,'Reset stays reset')
+-- The emptying write refused once (a scanner holding the file): tried again, so no stale marker is left behind.
+local write_now,refuse=files.write_now,0
+files.write_now=function(name,text)
+    if text=='' and refuse>0 then refuse=refuse-1; return false end
+    return write_now(name,text)
+end
+refuse=1
+s.call(SUIT,function() end)
+assert(disk[Sentinel.MARKER]=='' and refuse==0)
+files.write_now=write_now
 -- No files (no native part): calls run plain, nothing set aside.
 s,crashed=Sentinel.new(nil,'v1')
 assert(crashed==nil and s.call(SUIT,function() return 7 end)==7 and not s.aside(SUIT) and s.reset()==0)

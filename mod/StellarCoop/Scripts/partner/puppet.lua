@@ -311,14 +311,18 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     -- mod: a mod's asset mod_assets() names (fetch()). LoadAsset finds an asset through the cooked asset registry,
     -- which a mod's added assets are not in, so one it misses is loaded by AssetRegistryHelpers:GetAsset (an asset
     -- data with only its path: FAssetData::GetAsset loads it by that path), as UE4SS's BPModLoaderMod loads mod actors;
-    -- how each was found or that it was not goes into counts.mods for the build line.
-    local function resolve(path,counts,class,mod)
+    -- how each was found or that it was not goes into counts.mods for the build line. Never one the sentinel set aside
+    -- (a shared mod can hold a game path: the base suit, a listed effect). peek: only a cached one still itself, else
+    -- nil and 'not loaded' (start(), never a load in place()).
+    local function resolve(path,counts,class,mod,peek)
+        if sentinel.aside(path) then return nil end
         class=class or '/Script/Engine.SkeletalMesh'
         -- A peer naming a mesh as a material spoils neither; a path missed as the game's is looked up again as a mod's.
         local key=class..' '..path..(mod and ' mod' or '')
         if cache[key]==false then return nil end
         local asset=valid(cache[key] or nil)
         if asset and asset:IsA(find(class)) and asset:GetFullName():match('^%S+ (.+)$')==path then return asset end
+        if peek then return nil,'not loaded' end
         local started,by,no_skeleton=os.clock(),'in memory',nil
         sentinel.call(path,function() -- A declared mod asset: the lookup, the load and the checks under the marker.
             asset=valid(StaticFindObject(path))
@@ -382,12 +386,12 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     -- version holds it (mod_assets(): loaded as a mod's, under the crash sentinel); else the game's own (its character
     -- folders, and its FX folders for a NiagaraSystem) resolved as any; anything else never looked up or loaded (nil,
     -- and why). Neither a set-aside asset nor, with the CNS part off, a mod's.
-    local function fetch(path,counts,class)
+    local function fetch(path,counts,class,peek)
         if sentinel.aside(path) then return nil,'set aside after a crash (coop cns reset)' end
         if cns_off and modded(path) then return nil,'not loaded with the CNS part off' end
-        if files.mod_assets()[path] then return resolve(path,counts,class,true) end
+        if files.mod_assets()[path] then return resolve(path,counts,class,true,peek) end
         if Capture.base_path(path) or class==NIAGARA_SYSTEM and Capture.fx_path(path) then
-            return resolve(path,counts,class)
+            return resolve(path,counts,class,nil,peek)
         end
         return nil,'not declared by your CNS packs or a mod you both have'
     end
@@ -411,12 +415,12 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         for k=#g.textures,1,-1 do
             if g.textures[k].s==s then table.remove(g.textures,k) end
         end
-        pcall(sentinel.call,s.path,function() s.target:SetMaterial(s.slot,s.material) end)
+        pcall(sentinel.call,sentinel_name(s.path,s.mesh),function() s.target:SetMaterial(s.slot,s.material) end)
     end
     -- The values not set yet on a dyed slot (s, from dye()): its dynamic instance made first, once. Colours at once, a
     -- texture later in g.textures. Any failure puts the plain material back: what is drawn without values.
     local function tint(g,s,values)
-        local made,why=pcall(sentinel.call,s.path,function() -- One marker for the instance and all its values.
+        local made,why=pcall(sentinel.call,sentinel_name(s.path,s.mesh),function() -- One marker for all of them.
             s.mid=s.mid or valid(s.target:CreateDynamicMaterialInstance(s.slot,s.material,FName('None')))
             assert(s.mid,'no dynamic instance')
             for _,v in ipairs(values) do
@@ -573,18 +577,20 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         local function collide(target,part)
             local ok,why=pcall(function()
                 for k,name in ipairs(COLLISION_BONES) do target.AdditiveMasterBoneArray[k]=FName(name) end
-                local asset,refused -- Each cached by its own step.
-                if part.cloth then asset,refused=fetch(part.cloth,counts,PHYSICS_ASSET) end
-                if not asset and g.collision then asset=fetch(g.collision,counts,PHYSICS_ASSET) end
+                local asset,refused,used -- Each cached by its own step.
+                if part.cloth then asset,refused=fetch(part.cloth,counts,PHYSICS_ASSET); used=part.cloth end
+                if not asset and g.collision then asset=fetch(g.collision,counts,PHYSICS_ASSET); used=g.collision end
                 if not asset then
                     error(tostring(part.cloth or g.collision or 'her body mesh\'s collision name')..' '
                         ..(refused or 'missing'),0)
                 end
                 target.OverrideClothPhysicsAsset=asset
+                return used
             end)
             if not ok then
                 notes[#notes+1]=string.format('%s: outfit collision not used (%s)',part.name,tostring(why))
             end
+            return ok and why or nil -- The path of the asset set, for the crash sentinel.
         end
         -- Your EVE's render flags, as on every EVE part in her Blueprint: lighting channels 0 and 1 (SB's character
         -- lights use 1) and custom depth with stencil 10 (ESBCustomDepthStencilValue::PC). Each its own pcall: one
@@ -619,9 +625,12 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
                     -- when it is drawn again. SB sets the same on her own ponytail during its Show sequences.
                     target.VisibilityBasedAnimTickOption=3
                     target.bLocalSpaceSimulation=true -- As hers: the cloth's inertia comes from its frame's moves.
-                    if part.name:find('Ponytail',1,true) then collide(target,part) end
+                    local physics=part.name:find('Ponytail',1,true) and collide(target,part)
                     target:SetMasterPoseComponent(g.parts[part.lead].target,false)
-                    sentinel.call(path,function() target:SetSkeletalMesh(mesh,true) end)
+                    -- The cloth is built from the collision set: marked with it when the mesh is not a mod's.
+                    sentinel.call(physics and sentinel_name(path,physics) or path,function()
+                        target:SetSkeletalMesh(mesh,true)
+                    end)
                 end)
                 if made then g.cloth[#g.cloth+1]=target; return light(target) end
                 if target then pcall(function() target:K2_DestroyComponent(actor) end) end
@@ -638,9 +647,10 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         local function dye(target,part,m)
             local material,why=fetch(m.path,counts,'/Script/Engine.MaterialInterface')
             if material and m.slot<target:GetNumMaterials() then
-                sentinel.call(m.path,function() target:SetMaterial(m.slot,material) end)
+                sentinel.call(sentinel_name(m.path,part.path),function() target:SetMaterial(m.slot,material) end)
                 g.dyed=g.dyed+1
-                g.tints[part.i..':'..m.slot]={target=target,slot=m.slot,material=material,path=m.path,done={}}
+                g.tints[part.i..':'..m.slot]={target=target,slot=m.slot,material=material,path=m.path,mesh=part.path,
+                    done={}}
             else
                 notes[#notes+1]=string.format('%s: slot %d material %s %s, default kept',part.name,m.slot,m.path,
                     why or 'missing')
@@ -1182,13 +1192,21 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         if not built then return string.format('part %g is not drawn',part) end
         if not EFFECTS[asset] and not g.fx_tried[asset] then return end -- Named since: loaded by a tick, never here.
         if #g.fx_starts>=MAX_STARTS then return 'over '..MAX_STARTS..' a second' end
-        -- Cached, checked to be still itself.
-        local system=EFFECTS[asset] and resolve(path,{loaded=0,ms=0},NIAGARA_SYSTEM)
-            or fetch(path,{loaded=0,ms=0,mods={}},NIAGARA_SYSTEM)
+        -- Cached, checked to be still itself. A named one collected since its load (nothing of this game holds it) is
+        -- loaded again by load_named at the next tick, never here.
+        local system,why
+        if EFFECTS[asset] then
+            system=resolve(path,{loaded=0,ms=0},NIAGARA_SYSTEM)
+        else
+            system,why=fetch(path,{loaded=0,ms=0,mods={}},NIAGARA_SYSTEM,true)
+            if why=='not loaded' then g.fx_tried[asset]=nil; return end
+        end
         if not system then return string.format('spawn failed: asset %g is missing',asset) end
         g.fx_starts[#g.fx_starts+1]=now
-        slot.fx=valid(g.fx_lib:SpawnSystemAttached(system,built.target,FName('None'),at,rotation,
-            0 --[[KeepRelativeOffset]],true,true,0 --[[no pooling]],true))
+        slot.fx=valid(sentinel.call(path,function() -- A mod's system: its spawn under the marker too.
+            return g.fx_lib:SpawnSystemAttached(system,built.target,FName('None'),at,rotation,
+                0 --[[KeepRelativeOffset]],true,true,0 --[[no pooling]],true)
+        end))
         if not slot.fx then return 'spawn failed: nothing spawned' end
         if g.capsule then slot.fx:SetCollisionEnabled(0) end -- The capsule stays the ghost's only collision.
     end

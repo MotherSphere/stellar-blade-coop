@@ -1452,6 +1452,17 @@ assert(ghost.tick()==nil and loads[#loads]==LATE,'Loaded by a tick')
 slot(4,23,0,2)
 box.RelativeScale3D.X=23
 assert(ghost.place()==nil and #spawns==before_spawns+3 and spawns[#spawns].args[1]==meshes[LATE],'Then started')
+-- Collected since its load (nothing of this game held it): never loaded again in place(); a tick does, then it starts.
+meshes[RAVEN].destroyed=true
+fx_system(RAVEN)
+finds,loads,gets={},{},{}
+slot(1,20,2,2)
+box.RelativeScale3D.X=24
+assert(ghost.place()==nil and #spawns==before_spawns+3 and not asked(RAVEN),'Not loaded in place()')
+assert(ghost.tick()==nil and asked(RAVEN),'Loaded again by a tick')
+slot(1,20,2,3)
+box.RelativeScale3D.X=25
+assert(ghost.place()==nil and #spawns==before_spawns+4 and spawns[#spawns].args[1]==meshes[RAVEN],'Then started')
 -- One a mod you no longer share: not loaded by the tick, said once.
 assert(send_fx(three..'fx 23 '..LATE..'\nfx 24 /Game/Mods/Gone/NS_G.NS_G\n')==nil)
 ok,message=ghost.tick()
@@ -1989,6 +2000,14 @@ ok,message=ghost.cns('reset')
 assert(ok and message=='CNS reset: 1 set-aside asset cleared, the CNS part is on; the ghost is built again.',message)
 ok,message=build()
 assert(ok and spawned[#spawned].parts[1].mesh==meshes[SUIT],message)
+-- A mod you both have can hold a game path: her base suit, set aside as well, is never loaded as a fallback either.
+-- Her body cannot be drawn: the build fails.
+cns[BASE_BODY]='queen-lite_p'
+sdisk[Sentinel.LIST]='version v1\n'..SUIT..' Foo_Suit\n'..BASE_BODY..' queen-lite_p\n'
+ok,message=fresh(9071,Sentinel.new(sfiles,'v1'))
+assert(ok==false and message:find('her body could not be drawn',1,true),message)
+assert(not (seen(finds,BASE_BODY) or seen(loads,BASE_BODY) or seen(gets,BASE_BODY)),'A set-aside fallback: not loaded')
+cns[BASE_BODY],sdisk[Sentinel.LIST]=nil,'version v1\n'
 -- The CNS part's own guard. A Lua error while her suit is set on its part: the ghost is not failed (no try counted)
 -- but built again without the CNS part, her body on the base suit, no mod material; one line says it. Later tables
 -- too, until coop cns reset.

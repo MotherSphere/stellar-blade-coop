@@ -3251,8 +3251,9 @@ the shared quests. The log says `CNS part of the ghost off until coop cns reset 
 part comes back with `coop cns reset` or at the next game start or Ctrl+R.
 
 A crash inside the engine cannot be caught that way, so the mod keeps a marker instead. Just before the ghost hands the
-engine an asset your CNS packs declare, it writes the asset's path and outfit into `coop-cns-call.txt`, and it empties
-the file as soon as the call is done. If the game crashes during that call, the file is still full at the next start.
+engine an asset your CNS packs declare or a mod you both have holds (`coop-shared-assets.txt`), it writes the asset's
+path and outfit into `coop-cns-call.txt`, and it empties the file as soon as the call is done. For a mod you both have,
+the outfit field holds the mod's container name. If the game crashes during that call, the file is still full at the next start.
 The mod then puts that asset on a set-aside list (`coop-cns-aside.txt`), logs `Crash sentinel: the game crashed during a
 call with the mod asset <path> (outfit <outfit>)`, and shows one notice:
 
@@ -3458,8 +3459,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
 | `coop-remote.txt` | native | The remote table the ghost is built from |
-| `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): the only paths from a mod's folder the ghost loads |
-| `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare, empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](#when-a-mod-asset-fails)) |
+| `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): with `coop-shared-assets.txt`, the only paths from a mod's folder the ghost loads |
+| `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](#when-a-mod-asset-fails)) |
 | `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](#mods-you-both-have)) |
 | `coop-cns-aside.txt` | Lua | The mod assets set aside after a crash: `version <mod version>`, then one `<path> <outfit>` line each. Cleared by `coop cns reset` and by another mod version |
 | `coop-display.txt` | Lua | The ghost Lua built for that table |
