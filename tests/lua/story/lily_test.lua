@@ -638,3 +638,19 @@ clock=clock+0.5; ly.tick()
 clock=clock+1; ly.tick()
 assert(#asked==5,'Once a Lua load')
 print('lily_test: ok')
+
+-- The zone talks: every line has a speaker, an English and a French line; 168 lines in 36 scenes from 1A to 4N (3E was cut).
+do
+    local n,scenes,keys=0,0,{Seq_Actor_Lily=1,Seq_Actor_EVE=1,Seq_Actor_Announcement=1,Noa=1,Yohan=1,Mila=1}
+    for name,lines in pairs(T.ZONES) do
+        scenes=scenes+1
+        assert(name:match('^[1-4]%u$'),name)
+        for _,l in ipairs(lines) do
+            n=n+1
+            assert(keys[l[1]] and type(l[2])=='string' and #l[2]>0 and type(l[3])=='string' and #l[3]>0,name)
+        end
+    end
+    assert(n==168 and scenes==36,n..' lines, '..scenes..' scenes')
+    assert(T.ZONES['3B'][8].oblivion and not T.ZONES['3B'][7].oblivion,'Noa knows EVE only after Oblivion')
+end
+print('lily zone talks: ok')
