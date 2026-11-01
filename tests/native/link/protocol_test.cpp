@@ -280,7 +280,7 @@ int main() {
   // A v0.7.0-beta.1 peer runs protocol 14: it would refuse every table with a value line, so her ghost of you would
   // stop changing. Protocol 16 refuses the link.
   // Protocol 16 (value lines alone) was never released.
-  // A v0.7.5 peer runs protocol 17: it would refuse every table with an fx line, and every pose with an effect slot past
+  // The first v0.7.5 test build runs protocol 17: it would refuse every table with an fx line, and every pose with an effect slot past
   // index 32, so her ghost of you would stop changing or freeze. Protocol 18 refuses the link.
   static_assert(kProtocol == 18, "18 adds the table's fx lines and effect slots to 64; 17 the hide lines; 16 the value lines; 15 was never released; 14 the night lines' level and down words and the gift line; 13 the pak lines; "
                                  "12 the shared quests' lines and the race lines; 11 SBE and the show lines; 10 the "

@@ -70,7 +70,7 @@ constexpr int kProtocol = 18; // Bump on any wire change. 1 was the first link (
                               // and effect slots up to index 64, which a protocol-17 peer would refuse with the whole
                               // table and the pose. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's
                               // builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
-                              // v0.7.0-beta.1, 17: v0.7.5; 16 was never released) is told why: the lobby tag, then the
+                              // v0.7.0-beta.1, 17: a v0.7.5 test build; 16 was never released) is told why: the lobby tag, then the
                               // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
