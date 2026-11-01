@@ -65,7 +65,7 @@ local TWO_BLADE='/Game/Art/Character/Weapon/Sword/CH_W_Sword_02/CH_W_Sword_02.CH
 -- Meshes by path, with their bones; the body is in memory already, the rest only through LoadAsset.
 local meshes,in_memory={},{[BODY]=true}
 local function mesh(path,bones,skeletal)
-    meshes[path]=object(path,{path=path,bones=bones or {}})
+    meshes[path]=object(path,{path=path,bones=bones or {},Skeleton=object('Skeleton')})
     meshes[path].IsA=function(_,class) return class.path=='/Script/Engine.SkeletalMesh' and skeletal~=false end
     meshes[path].GetFullName=function() return (skeletal~=false and 'SkeletalMesh ' or 'StaticMesh ')..path end
 end
@@ -1793,6 +1793,17 @@ send(902,{modded()[1],modded()[2]},'peer')
 build()
 assert(#said==said_before+2,'basesuit: not said')
 ghost.basesuit()
+-- A mesh of her pack with no Skeleton would crash the game on a Poseable: it counts as missing, on the base body.
+local NO_SKELETON='/Game/Mods/Foo/No_Skeleton.No_Skeleton'
+mesh(NO_SKELETON,{'Root','Bip001','Bip001-Pelvis'})
+meshes[NO_SKELETON].Skeleton=nil
+cns[NO_SKELETON]='Foo_Suit'
+send(9021,{{name='CharacterMesh0',path=NO_SKELETON,names={'Root','Bip001','Bip001-Pelvis'},materials={},label='Foo_Suit'}},
+    'peer')
+ok,message=build()
+assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+assert(message:find(NO_SKELETON:gsub('%p','%%%0')..' has no skeleton'),message)
+said_before=#said
 -- No CNS pack declares her suit: on the base body, said; never looked up.
 cns={}
 finds,loads,gets={},{},{}
