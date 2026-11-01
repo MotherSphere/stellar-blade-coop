@@ -1,4 +1,4 @@
--- The zone 4 talks of Matrix XIII (4A to 4N), scene by scene in play order, not wired to the game yet:
+-- The zone 4 talks of Matrix XIII (4A to 4N), scene by scene in play order (matrix13/quest/zone_talks.lua plays them):
 -- the speaker (a StringTable_Seq key, or a plain name for the dungeon's own people), then the English and French line.
 -- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.
 local EVE,PA='Seq_Actor_EVE','Seq_Actor_Announcement'

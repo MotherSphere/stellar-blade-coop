@@ -432,6 +432,38 @@ kit_up=false
 ok,why=Q.play('arrival',true,finished)
 assert(ok and done=='none' and logged('STOP: talk arrival: the kit is not up: no talk; the quest goes on'))
 assert(Q.play('nothing',false,finished)==false)
+-- The kit-only lines: no theater, a plain name as written and a Seq_Actor key through the table, 3 s or the reading
+-- time, a shut gate holding the next line and hiding the group; no log but a STOP; the kit down: none.
+kit_up=true
+do
+    local L=S.new({log=function(m) logs[#logs+1]=m end,scene=scene})
+    L.hud({kit=kit,theme=THEME})
+    local open,said=true,#logs
+    talks,done={},nil
+    local list={{'Noa','Mom?','Maman ?'},{'Seq_Actor_EVE','My name is EVE.','Je suis EVE.'}}
+    language='en-US'
+    at(5000); assert(L.lines('zone 3B',list,function() return open end,finished))
+    assert(#talks==0 and L.playing()=='zone 3B' and shown.talk==true)
+    assert(L.play('arrival',true,finished)==false,'One talk at a time')
+    L.tick()
+    assert(view.speaker.text=='Noa' and view.line.text=='Mom?',tostring(view.speaker.text))
+    open=false
+    at(5002.9); L.tick(); assert(shown.talk==true,'A line keeps its time')
+    at(5003.1); L.tick(); assert(shown.talk==false and view.line.text=='Mom?','The gate holds the next line')
+    at(5010); L.tick(); assert(done==nil)
+    open=true
+    L.tick()
+    assert(shown.talk==true and view.speaker.text=='EVE' and view.line.text=='My name is EVE.',tostring(view.speaker.text))
+    at(5013.1); L.tick()
+    assert(done=='kit' and shown.talk==false and L.playing()==nil and #logs==said,last())
+    assert(L.lines('zone 1A',list,function() return true end,finished))
+    L.stop('out of Matrix XIII')
+    assert(last()=='out of Matrix XIII: talk zone 1A dropped' and L.playing()==nil,last())
+    kit_up,done=false,nil
+    L.lines('zone 1A',list,function() return true end,finished)
+    assert(done=='none' and logged('STOP: talk zone 1A: the kit is not up'))
+    language='fr-FR'
+end
 busy='DED_Area01'
 assert(Q.cutscene()=='DED_Area01')
 print('subtitles_test: ok')

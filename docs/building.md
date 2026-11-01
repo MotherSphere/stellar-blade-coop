@@ -77,7 +77,7 @@ build/host/pose_codec_test
 - Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `chainspin`, `devmenu`,
   `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `scene`, `tendril`, `wear`;
   `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
-  `matrix13/quest/`: `on_time`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`, `move`, `travel`;
+  `matrix13/quest/`: `on_time`, `zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`, `move`, `travel`;
   `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
   `partner/`: `capture`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`;
   `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`, `subtitles`; `ui/`: `guide`, `kit`,

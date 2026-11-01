@@ -77,7 +77,8 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `matrix13/world/rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `matrix13/world/move.lua`, `matrix13/world/boss.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, and the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `matrix13/quest/on_time.lua`, `matrix13/quest/text.lua`, `matrix13/culture.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)); `culture.lua` maps the game's culture to `fr` or `en` for the words and the talks |
-| `matrix13/talks/prologue.lua`, `arrival.lua`, `finale.lua`, `zone1.lua` to `zone4.lua` | The talks' lines, one module per talk and one per zone (1A to 1E, 2A to 2G, 3A to 3K, 4A to 4N), each line its speaker, English and French; the zone talks are not wired to the game yet |
+| `matrix13/talks/prologue.lua`, `arrival.lua`, `finale.lua`, `zone1.lua` to `zone4.lua` | The talks' lines, one module per talk and one per zone (1A to 1E, 2A to 2G, 3A to 3K, 4A to 4N), each line its speaker, English and French |
+| `matrix13/quest/zone_talks.lua` | The zone talks in game: a trigger for each of the 36 scenes, the order rules, the fight gate, one file per co-op slot for the played scenes ([Lily's signal](#lilys-signal-experimental)) |
 | `story/subtitles.lua` | Lily's talks: an unused subtitle sequence played through `cut/scene.lua`'s talk, a hook on the subtitle slot's `UpdateText` that writes the mod's lines, the reading holds, the fallbacks and the kit version ([Lily's signal](#lilys-signal-experimental)) |
 | `cut/lion_rows.lua` | The rows as `lion/rows.h` writes them, for the read-back: the lion rows batch (`R.ROWS`), the Gardener's (`R.GARDENER`), the Tendril's (`R.TENDRIL`, with the Shows to build in `R.TENDRIL_SHOWS`) and the Shock Bolt's (`R.BOLT`); written by the rows' generator |
 | `cut/lines.lua` | `coop lines`: the timing of four cut scenes' subtitles (each line's start in its level sequence with its `StringTable_Seq` key or its section's number, read offline), their text read from the game when one starts (`TextFromStringTable`, or the sections of Sky Hall's loaded test sequences) and said into the chat's feed at those times; and Quest_Sub_008's unused voice takes, loaded when `enya` starts, played one after another through `SpawnSound2D` (each 1 s after the one before ends, from its SoundWave's `Duration`) with the subtitles the table has for them |
@@ -2983,7 +2984,21 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    prologue to complete, then asks `signal acquire` and, once the line reads `held`, calls `coop mxiii` (its co-op save
    check, the follow's guards, the test pak, the mxiii rows, the travel). After the end talk Lua asks `signal tell`. A
    talk that does not play, a refused ask or a wait that runs out logs a `STOP:` line and the flow goes on.
-8. The talks: `story/subtitles.lua` plays a talk by name. A talk is its unused subtitle-only sequence
+8. The zone talks: `matrix13/quest/zone_talks.lua` is ticked by `on_time.lua` in world 2800 with "On Time" in progress
+   and looks once a second. Each scene has one trigger: a box in the plan frame around its room (rooms, routes and
+   markers of the design plans), a boss's death (`boss.lua` follows a body it saw near its point and sets `Boss.dead`
+   when it reads not standing with no controller), `GetStateTagname` of env row `DLC02_40_EnvS_001` (the water, which
+   pipe panels 006 and 007 set: A plays 4H, B plays 4J) or `DLC02_40_EnvS_023` (On plays 4G), or leaving Z3R28 (3J). A
+   trigger latches. A latched scene starts after 3 s with no standing, shown enemy within 50 m in `IsBattle` (read through
+   `GetAllActorsOfClass`, only while a scene waits or plays), no game screen, no talk, no quest step, and no theater of
+   the game (one object walk at the start, then every 5 s while one plays). 2B, 3H and 4K also need a fight seen, or 25 s
+   in their box. 3B comes before 3C, 3I before 3J, 4E before 4F before 4G, 4K before 4L, 4M before 4N. Once 3K has played,
+   a scene with a Lily line never plays. The lines go through `story/subtitles.lua`'s `lines()`, on the kit alone, so no
+   theater holds EVE's input; a fight or a screen hides the group and holds the next line. `oblivion=true` lines need
+   `oblivion=1` on the `signalquest=` line, which `quest/own.h` reads from Quest_Sub_030 (ID 69) the way it reads
+   Quest_Sub_005. The played scenes go in `coop-mxiii-talks-<co-op slot index>.txt` beside `coop-settings.txt`, cleared
+   when "On Time" is acquired again.
+9. The talks: `story/subtitles.lua` plays a talk by name. A talk is its unused subtitle-only sequence
    (`Subtitle_POD_1stMeetAdam_01`, `_ArriveDED_01` or `_1stMeetAdam_02`, read offline: no binding, camera or audio
    track) with its windows' lengths, and its lines in `matrix13/talks/<name>.lua`, one per window. `cut/scene.lua`'s
    `talk` points its two borrowed EventTheaterTable rows at Quinn's unused theater

@@ -166,6 +166,20 @@ int main() {
     assert(l.held == Held::none && !l.epic12 && l.state == -1 && l.group == -1 && l.task == -1 && l.sub005 == -1 &&
            g.units == 1);
   }
+  // Quest_Sub_030 (ID 69): complete or reward taken only; never when absent or when its object is no quest.
+  {
+    Game g = game({{3, 0x40000}});
+    assert(!look(g, kBase, kCoopSlot).oblivion);
+    Game h = game({{int32_t(own::kSub030), kSub005}}); // The fake's second quest object, at state 3.
+    assert(look(h, kBase, kCoopSlot).oblivion);
+    h.put<int32_t>(kSub005 + kQuestState, 4);
+    assert(look(h, kBase, kCoopSlot).oblivion);
+    h.put<int32_t>(kSub005 + kQuestState, 1);
+    assert(!look(h, kBase, kCoopSlot).oblivion);
+    h.put<int32_t>(kSub005 + kQuestState, 3);
+    h.put(kSub005, uint64_t(0x30000));
+    assert(!look(h, kBase, kCoopSlot).oblivion);
+  }
   // Quest_Sub_005 (ID 44): its state with or without our quest; -1 when absent or when its object is no quest.
   {
     Game g = game({{3, 0x40000}, {int32_t(own::kSub005), kSub005}});
@@ -272,7 +286,7 @@ int main() {
            l.epic11.group == 3 && l.sub005 == 3);
     Answer a;
     a.look = l;
-    assert(status_line(a) == "signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 pro=held prostate=1 "
+    assert(status_line(a) == "signalquest=none state=-1 group=-1 task=-1 epic12=0 sub005=3 oblivion=0 pro=held prostate=1 "
                              "progroup=0 protask=1 epic11=3 epic11state=1 asks=0 want=acquire why=none");
     Game h = game({{int32_t(kId), kQuest}});
     const Look m = look(h, kBase, kCoopSlot);
@@ -313,19 +327,19 @@ int main() {
   // The answer word and the status line.
   {
     Answer a;
-    assert(status_line(a) == "signalquest=unread state=-1 group=-1 task=-1 epic12=0 sub005=-1 pro=unread prostate=-1 "
+    assert(status_line(a) == "signalquest=unread state=-1 group=-1 task=-1 epic12=0 sub005=-1 oblivion=0 pro=unread prostate=-1 "
                              "progroup=-1 protask=-1 epic11=-1 epic11state=-1 asks=0 want=acquire why=none");
     assert(status_line(unpack(pack(a))) == status_line(a)); // The glue's word before the first look.
     a.look.held = Held::held, a.look.state = 1, a.look.group = 5, a.look.task = 1, a.look.epic12 = true;
-    a.look.sub005 = 4, a.asks = 3, a.want = own::Ask::tell, a.why = own::Why::task;
+    a.look.sub005 = 4, a.look.oblivion = true, a.asks = 3, a.want = own::Ask::tell, a.why = own::Why::task;
     a.look.pro.held = Held::held, a.look.pro.state = 3, a.look.pro.group = 0, a.look.pro.task = 2;
     a.look.epic11.state = 1, a.look.epic11.group = 3;
     const Answer b = unpack(pack(a));
     assert(b.look.held == Held::held && b.look.state == 1 && b.look.group == 5 && b.look.task == 1 && b.look.epic12 &&
-           b.look.sub005 == 4 && b.asks == 3 && b.want == own::Ask::tell && b.why == own::Why::task &&
+           b.look.sub005 == 4 && b.look.oblivion && b.asks == 3 && b.want == own::Ask::tell && b.why == own::Why::task &&
            b.look.pro.held == Held::held && b.look.pro.state == 3 && b.look.pro.group == 0 && b.look.pro.task == 2 &&
            b.look.epic11.state == 1 && b.look.epic11.group == 3);
-    assert(status_line(b) == "signalquest=held state=1 group=5 task=1 epic12=1 sub005=4 pro=held prostate=3 "
+    assert(status_line(b) == "signalquest=held state=1 group=5 task=1 epic12=1 sub005=4 oblivion=1 pro=held prostate=3 "
                              "progroup=0 protask=2 epic11=3 epic11state=1 asks=3 want=tell why=task");
     for (size_t w = 0; w < own::kAsks; ++w) { // Every ask and why through the word.
       a.want = own::Ask(w), a.why = own::Why(w);

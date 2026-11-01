@@ -1857,7 +1857,7 @@ in game yet. The native part reports it in `coop-status.txt`:
   her eight rows with the borrowed one in front, `off` her own eight in any order.
 - `signalquest=`, the quests in your quest list, read every 250 ms on a co-op save once the mod asked `signal watch`
   (solo, the test pak found, the signal rows read back; before that the line reads `unread`):
-  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> pro=<unread|none|held>
+  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> oblivion=<0|1> pro=<unread|none|held>
   prostate=<s> progroup=<g> protask=<t> epic11=<g> epic11state=<s> asks=<a> want=<ask> why=<w>`. The first fields are
   "On Time"'s: `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4 complete, 5 failed),
   its active group (`0` is M01, the station, to `5`, M06, "Talk to Lily") and that group's first task's state (1 in
@@ -1865,7 +1865,7 @@ in game yet. The native part reports it in `coop-status.txt`:
   `epic11` and `epic11state` are Quest_Epic_11's active group and state (`3` and `1`: "Talk to Lily to decide on the
   next destination" in progress), `-1` when it is not in the list. `epic12=1` means Quest_Epic_12, the bike signal's
   quest, is in the list. `sub005` is Quest_Sub_005's state in the same numbers, `-1` when it is not in the list; her
-  choice needs 3 or more. `asks` counts the requests handled, `want` and `why` are the last one's (`want` is the word
+  choice needs 3 or more. `oblivion=1` means Quest_Sub_030 is complete; the zone talks' Oblivion lines need it. `asks` counts the requests handled, `want` and `why` are the last one's (`want` is the word
   after `signal `: `acquire`, `complete`, `prologue`, `talked`, `zone4`, `tell` or `next`): `none` when it ran, `slot`
   (not a co-op save), `unread` (no quest data yet), `held` (already in the list), `refused` (the game's acquire said
   no), `absent` (no quest to complete), `group` (not in progress at that word's group) or `task` (its task not in

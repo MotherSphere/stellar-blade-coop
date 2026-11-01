@@ -8,7 +8,10 @@
 -- one line says so and that coop mxiii boss spawns one; that command is the key-0 fallback: coop lion's or coop
 -- gardener fight's own spawn, with no spawn row (no saved death, no zone storage). It is never automatic: a boss killed
 -- in an earlier session stays dead through its row's SaveType, and an automatic spawn would bring it back at every
--- visit. The Stalker is a plain row-backed character and needs neither.
+-- visit. The Stalker is a plain row-backed character and needs neither: it is listed for its death alone. A body of the
+-- three seen near its point is followed wherever it goes, and its death (not standing, no controller; a dying body
+-- loses its controller at once) sets Boss.dead[row] and logs one line; matrix13/quest/zone_talks.lua reads that. A body
+-- that disappears without that read (a camp rest resets the zone) counts as no death.
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local Rows=require('matrix13.world.rows')
@@ -18,7 +21,10 @@ Boss.LIST={
     {row='DLC02_40_E_CharS_051',name='Lion',class='CH_M_NA_02_BluePrint_Large_C',shown='^<M_LionC[%w_]*>$',fix='lion'},
     {row='DLC02_20_E_CharS_904',name='Gardener',class='CH_M_NA_01_BluePrint_C',shown='^<M_Gardener[%w_]*>$',
         fix='gardener',mesh_yaw=-90},
+    -- [inference] The class of CharacterAppearanceTable's M_Sawshark row, which its donor row's look is taken to use.
+    {row='DLC02_30_E_CharS_029',name='Stalker',class='CH_M_NA_13_Blueprint_C'},
 }
+Boss.dead={} -- By row: the bosses seen dying this Lua load.
 -- cm: a body this near its point is the row's; EVE this near a point is in its arena; a point this near EVE is looked
 -- at (a body search may walk every object, 25 to 80 ms, so only near a boss); s EVE waits in an arena before the note.
 Boss.NEAR,Boss.ARENA,Boss.LOOK,Boss.WAIT=3000,2500,8000,20
@@ -46,6 +52,7 @@ function Boss.new(o)
         return ok and map and map:sub(-#Boss.MAP)==Boss.MAP and eve or nil
     end
     local function fix(b,c)
+        if not b.fix then return 'no fix needed' end
         if b.fix=='lion' then
             if not o.lion or not o.lion.adopt then return 'no coop lion to fix it' end
             return o.lion.adopt(c)
@@ -71,7 +78,7 @@ function Boss.new(o)
         for _,t in ipairs(blocks) do
             local shown=U.valid(t) and U.text(t:GetText())
             for _,b in ipairs(Boss.LIST) do
-                if shown and living[b.row] and shown:find(b.shown) then
+                if shown and living[b.row] and b.shown and shown:find(b.shown) then
                     t:SetText(FText(b.name))
                     log(string.format('boss name: %s -> %s',shown,b.name))
                 end
@@ -84,6 +91,14 @@ function Boss.new(o)
         for _,b in ipairs(Boss.LIST) do
             local s,p=state[b.row],points[b.row]
             local spot=p and xyz(p.at)
+            local seen=s.body and U.valid(s.body)
+            if seen then
+                local st=seen.InteractionState
+                if type(st)=='number' and st~=0 and st~=1 and not U.valid(seen.Controller) then
+                    s.body,Boss.dead[b.row]=nil,true
+                    log(string.format('%s %s dead',b.name,b.row))
+                end
+            end
             if spot and far(here,spot)<=Boss.LOOK then
                 local found=U.actors_of(U.find('/Script/SB.SBCharacter'),b.class,eve)
                 local body=nil
@@ -93,6 +108,7 @@ function Boss.new(o)
                 end
                 if body then
                     living[b.row]=true
+                    if not Boss.dead[b.row] then s.body=body end
                     local a=U.address(body)
                     if s.fixed~=a then
                         s.fixed=a
@@ -103,7 +119,7 @@ function Boss.new(o)
                     s.waited=nil
                 elseif far(here,spot)<=Boss.ARENA then
                     s.waited=s.waited or now
-                    if now-s.waited>=Boss.WAIT and not s.said then
+                    if b.fix and now-s.waited>=Boss.WAIT and not s.said then
                         s.said=true
                         log(string.format('no %s body within %d m of %s after %d s: coop mxiii boss spawns one (key 0, '
                             ..'no saved death)',b.name,Boss.NEAR//100,b.row,Boss.WAIT))
@@ -131,7 +147,7 @@ function Boss.new(o)
         local here=U.value_of(eve:K2_GetActorLocation())
         local best,d
         for _,b in ipairs(Boss.LIST) do
-            local p=points[b.row]
+            local p=b.fix and points[b.row]
             local x=p and far(here,xyz(p.at))
             if x and x<=Boss.ARENA and (not d or x<d) then best,d=b,x end
         end

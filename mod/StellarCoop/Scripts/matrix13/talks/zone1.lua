@@ -1,4 +1,4 @@
--- The zone 1 talks of Matrix XIII (1A to 1E), scene by scene in play order, not wired to the game yet:
+-- The zone 1 talks of Matrix XIII (1A to 1E), scene by scene in play order (matrix13/quest/zone_talks.lua plays them):
 -- the speaker (a StringTable_Seq key, or a plain name for the dungeon's own people), then the English and French line.
 -- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.
 local LILY,EVE='Seq_Actor_Lily','Seq_Actor_EVE'

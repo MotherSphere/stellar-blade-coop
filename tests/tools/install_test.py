@@ -173,7 +173,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'cut/glide', 'cut/gardener', 'cut/leviathan',
                               'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox',
                               'cut/scene', 'cut/tendril', 'cut/wear', 'main',
-                              'matrix13/culture', 'matrix13/quest/on_time', 'matrix13/quest/text',
+                              'matrix13/culture', 'matrix13/quest/on_time', 'matrix13/quest/text', 'matrix13/quest/zone_talks',
                               *(f'matrix13/talks/{talk}' for talk in ('prologue', 'arrival', 'finale', 'zone1',
                                                                        'zone2', 'zone3', 'zone4')),
                               'matrix13/world/boss',
