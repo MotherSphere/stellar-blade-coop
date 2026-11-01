@@ -493,7 +493,7 @@ instead of misread:
 | 13 | The pak lines: each mod container's name and hash, before the paks line; the table's cloth and mod lines, and mod paths outside the game's folders |
 | 14 | Night Operation's level on the host's night line (or `range` for a co-op Shooting Range), night line masks for a level's extra monsters, each side's down time and revive progress on both night lines, and the gift line for `coop gift` |
 | 15 | Never released: development builds of Matrix XIII's world rows used it |
-| 16 | The table's value lines: the colours and textures set on a dynamic material (this version) |
+| 16 | The table's value, hide and morph lines: the colours and textures set on a dynamic material, the material slots a part hides and its shape keys (this version) |
 
 ### Link health in the log
 
@@ -528,16 +528,21 @@ materials, and for a dynamic material (one CNS made at run time) the vector, sca
 from `VectorParameterValues`, `ScalarParameterValues` and `TextureParameterValues`. A look reads one part's values and a
 new generation reads all of them, so 16 parts take 16 s at worst to read a change. A change goes out again under the
 same generation, compared at 3 significant digits, at most one such table each 5 s (21 s at worst in all). A part hung
-elsewhere, shown or hidden goes at once and carries the values read so far. The table's geometry comes first: value lines stop at 56 KB and the
-`Capture ...` line says how many were left out. A texture goes only if the viewer's rule could load it: under the game's
-own folders, or a path your own CNS packs declare. With the effects look on, it adds what the native part needs to read
-her effects. A part whose ponytail cloth has a collision asset of its own (`OverrideClothPhysicsAsset`) names it.
+elsewhere, shown or hidden goes at once and carries the values read so far. The table's geometry comes first: value
+lines stop at 56 KB and the `Capture ...` line says how many were left out. A texture goes only if the viewer's rule
+could load it: under the game's own folders, or a path your own CNS packs declare. Under the same rule as the materials,
+it also reads which material slots each part hides at LOD 0 (`IsMaterialSectionShown`) and the shape keys set on it
+(`GetMorphTarget` for each of the mesh's `MorphTargets`, 256 at most). CNS hides slots for an outfit's `HiddenMats` and
+`MaterialToggles` and sets its `ShapeKeys` with `SetMorphTarget`, so the capture reads the result on the component and
+never reads CNS itself. Shape keys at 0 or past 10 are left out, and those changes wait like a value change. With the
+effects look on, it adds what the native part needs to read her effects. A part whose ponytail cloth has a collision
+asset of its own (`OverrideClothPhysicsAsset`) names it.
 
 A mesh outside the game's own folders (`/Game/[DLC_<n>/]Art/Character/`) comes from a mod. Such a part gets a tag: the
 `UniqueFitID` that your CNS packs give its path (from `coop-cns.txt`), else the first two folders of the path
-(`OutfitMods/FooSuit`). It also names its overridden materials with the dyes look off, since CNS sets an outfit's
-materials when it puts the outfit on. With `mod_names=off`, no path outside the game's folders goes: such a mesh goes
-as `-`, with no tag, and such a material or collision asset is left out.
+(`OutfitMods/FooSuit`). It also names its overridden materials, hidden slots and shape keys with the dyes look off,
+since CNS sets them when it puts the outfit on. With `mod_names=off`, no path outside the game's folders goes: such a
+mesh goes as `-`, with no tag, and such a material or collision asset is left out.
 
 The native part refuses a table whose pose would pass 16 KiB (about 900 leader bones in all). Before it publishes, the
 capture counts the pose as the native part does and leaves out the last leader parts, with their followers, until it
@@ -562,6 +567,8 @@ material <i> <slot> <path>                        up to 16, slots 0 to 63 rising
 value <i> <slot> v <name> r g b a                 up to 32 a slot and 512 a table, slots rising: a vector value of
 value <i> <slot> s <name> x                       that slot's dynamic material, a scalar, or a texture (a space in a
 value <i> <slot> t <name> <path>                  name goes as ~)
+hide <i> <slot>...                                optional: 1 to 64 slots 0 to 63 rising, hidden at LOD 0
+morph <i> <name> <weight>                         up to 32 a part and 128 a table: a shape key, weight within 10
 cloth <i> <path>                                  optional: the collision asset of the part's cloth
 mod <i> <tag>                                     optional: on a mod's mesh, the outfit it comes from
 names <i> <bone>...                               leaders only: one per bone
@@ -571,7 +578,10 @@ A value line that breaks its rules is left out and counted, and the table is sti
 is past 100000, a name over 64 bytes, a texture path the path rule refuses, a slot with no kept material, a repeated
 name, a slot lower than the one before, or a line past a cap. The log has one note a run (`<n> value lines ignored in a
 component table (said once a run)`). A value line outside its place is an unknown line, which refuses the table as any
-other does. Value lines do not count for the layout, so a changed value never builds a new ghost.
+other does. Hide and morph lines follow the same rule: a slot past 63, slots not rising, a second hide line, a weight
+that is not finite or is past 10, a name over 64 bytes or repeated on its part, or a line past a cap is left out and
+counted with the value lines. Value, hide and morph lines do not count for the layout, so a change in them never builds
+a new ghost, except in the one case under [Looks](#looks).
 
 The capture file also carries the memory addresses the native part reads from (`read`, `effects` and `effect` lines);
 those never go on the wire. A leader part has bones of its own. A follower follows a leader's bones (her ponytail, for
@@ -653,9 +663,9 @@ builds the ghost from it:
   `by LoadAsset`, `by GetAsset` or `missing`).
 - Each part gets the render flags of every EVE part in the game's Blueprint: lighting channels 0 and 1, and custom
   depth with stencil 10, the game's value for the player.
-- Parts hang as the table says (parent part, socket, placement), and followers follow their leader. There are no
-  morphs (a neutral face) and, without the cloth look, the ponytail is rigid. The ghost always draws its highest
-  detail level, so it never pops as it walks away.
+- Parts hang as the table says (parent part, socket, placement), and followers follow their leader. Without the
+  cloth look, the ponytail is rigid. The ghost always draws its highest detail level, so it never pops as it walks
+  away.
 - The ghost stays hidden until the first pose and after a second without one, so it never stands frozen. Your friend's
   Steam name (or `loopback`, `replay`) stands above it, turned to the camera at each pose. The tag's font has only the
   Latin-1 characters: any other shows as `?`, and a name that would lose more than half its characters shows the
@@ -700,9 +710,23 @@ on a mod's mesh have them either way). A slot's values go on a dynamic instance 
 puts the slot back on the plain material, and what is left goes on a new instance. A slot with no material here (a
 missing pack) gets no values and no error. If the instance or a setter fails, the slot goes back on the plain material
 and stays there for this ghost, with one note in the log. Textures load after the build, one each 0.25 s, by the same
-rules as meshes. At most 64 wait at once, with one note in the log, and those left over are tried again once none waits. A Lua load makes at most 1024 FNames for values, since FNames are never freed. Effects fill the pose's four slots, and the native part writes the drawn slots into four
-boxes beside the mailbox, from which Lua starts and moves the effects. Effects have their own fault latch, so a fault
-there turns effects off for the run and the ghost stays. See [usage.md](usage.md#looks).
+rules as meshes. At most 64 wait at once, with one note in the log, and those left over are tried again once none
+waits. A Lua load makes at most 1024 FNames for values and shape keys together, since FNames are never freed.
+
+Hide and morph lines go on a part drawn on its own mesh, under the dyes rule. For a hide line, the ghost calls
+`ShowAllMaterialSections(0)`, then `ShowMaterialSection(slot, 0, false, 0)` for each slot the mesh has: section 0 and
+LOD 0, as CNS calls it. Shape keys need `SetMorphTarget`, which only a SkeletalMeshComponent has. A follower with shape
+keys is drawn as one, following its leader's bones as a cloth part does, with its cloth off when it is not a cloth part.
+The ghost calls `ClearMorphTargets`, then `SetMorphTarget(name, weight, true)` for each key. A follower that gets its
+first keys after it was built as a PoseableMeshComponent builds a new ghost, once. A leader stays a
+PoseableMeshComponent, which has no morph call: its keys are said once in the log (`Shape keys not drawn on <part>: a
+Poseable has no morph call.`) and not drawn. Both are set again only when they change. If a call fails, the part shows
+every slot and no key, with one note in the log. Whether a SkeletalMeshComponent following a Poseable leader draws its
+shape keys has not been tested in game yet.
+
+Effects fill the pose's four slots, and the native part writes the drawn slots into four boxes beside the mailbox, from
+which Lua starts and moves the effects. Effects have their own fault latch, so a fault there turns effects off for the
+run and the ghost stays. See [usage.md](usage.md#looks).
 
 Cloth, on by default, uses only the table's `cloth` line (sent whatever the setting): each PC runs NvCloth on the
 ghost's ponytail from the body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While

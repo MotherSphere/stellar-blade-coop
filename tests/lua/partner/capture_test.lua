@@ -4,7 +4,8 @@
 -- wait, the menu pawn, the native part's caps and pose size (the last leaders left out); with dyes on, her overridden
 -- materials (a dynamic one as its parent); with effects on, the Niagara layout by reflection and the listed systems in
 -- memory, looked up one a tick; the game's own folders against a mod's, a mod's mesh tagged with its outfit and sending
--- its materials with dyes off, her cloth's collision line, and a dynamic material's value lines.
+-- its materials with dyes off, her cloth's collision line, a dynamic material's value lines, and the hide and morph
+-- lines (hidden material slots, shape keys).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -50,6 +51,10 @@ local function part(name,path,o)
     function c:GetRelativeTransform() return transform(self.state.x) end
     function c:K2_GetComponentToWorld() return 'world of '..name end
     function c:K2_GetComponentRotation() return {Pitch=0,Yaw=10,Roll=0} end
+    -- Its material slots (state.slots, none unless given), those hidden at LOD 0 and its shape keys set, by name.
+    function c:GetNumMaterials() return self.state.slots or 0 end
+    function c:IsMaterialSectionShown(slot,lod) assert(lod==0); return not (self.state.hidden or {})[slot] end
+    function c:GetMorphTarget(name) return (self.state.morphs or {})[name:ToString()] or 0 end
     return c
 end
 local BODY,FACE='/Game/Art/Character/PC/CH_P_EVE_52/CH_P_EVE_52_TypeB.CH_P_EVE_52_TypeB','/Game/Art/Character/PC/Face/Face.Face'
@@ -582,4 +587,70 @@ tick()
 ok,message=step(2)
 assert(ok and message:find('; %d+ values left out, over the table size$') and not published[1]:find('\nvalue ')
     and published[1]:find('\nmaterial 0 0 ') and #published[1]>56000,tostring(message))
+-- Hidden slots and shape keys (CNS's toggles, hidden slots and shape keys, read from the component): a hide line with
+-- the slots hidden at LOD 0, any slot, and a morph line per non-zero shape key within the bound, a space as '~', after
+-- the values. A change waits as a value does; with dyes off on the game's own mesh nothing is read.
+local body_mesh=raw[body].SkeletalMesh
+body_mesh.MorphTargets={object('Breast Size'),object('Waist'),object('Zero'),object('Big'),object('caf\xc3\xa9')}
+raw[body].state.slots,raw[body].state.hidden=4,{[1]=true,[3]=true}
+raw[body].state.morphs={['Breast Size']=0.5,Waist=-1,Zero=0,Big=20,['caf\xc3\xa9']=1}
+raw[body].OverrideMaterials=slots(1,{skin})
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looked,
+    function() return cns end)
+player=eve_of('EVE17',{body})
+tick()
+ok,message=step(2)
+assert(ok and message:find('; hidden slots: 2; shape keys: 2$'),tostring(message))
+assert(published[1]:find('\nmaterial 0 0 '..plain(SKIN)..'\nhide 0 1 3\nmorph 0 Breast~Size 0%.5\nmorph 0 Waist %-1\n'
+    ..'names 0 '),published[1])
+assert(not published[1]:find(' Big ',1,true) and not published[1]:find(' Zero ',1,true)
+    and not published[1]:find('caf',1,true),published[1])
+raw[body].state.morphs.Waist=-0.5
+raw[body].state.hidden[3]=nil
+step(1)
+assert(#published==1,'A shape change waits 5 s as a value does')
+step(4)
+assert(#published==2 and published[2]:find('^generation 100001\n')
+    and published[2]:find('\nhide 0 1\nmorph 0 Breast~Size 0.5\nmorph 0 Waist -0.5\n',1,true),published[2])
+step(6)
+assert(#published==2,'The same shapes: nothing more')
+-- Every slot shown and every key at 0: neither line.
+raw[body].state.hidden,raw[body].state.morphs={},{}
+step(6)
+assert(#published==3 and not published[3]:find('\nhide ') and not published[3]:find('\nmorph '),published[3])
+-- Dyes off on the game's own mesh: not read, as the materials.
+raw[body].state.hidden={[0]=true}
+reads.IsMaterialSectionShown,reads.GetMorphTarget=nil,nil
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,{dyes=false},
+    function() return cns end)
+player=eve_of('EVE18',{body})
+tick()
+step(2)
+assert(not reads.IsMaterialSectionShown and not reads.GetMorphTarget and not published[1]:find('\nhide '),published[1])
+-- A mod's part sends them with dyes off too.
+raw[suit].state.slots,raw[suit].state.hidden=2,{[0]=true}
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,{dyes=false},
+    function() return cns end)
+player=eve_of('EVE19',{body,suit})
+tick()
+step(2)
+assert(published[1]:find('\nhide 1 0\nmod 1 Foo_Suit\n',1,true) and not published[1]:find('\nhide 0 '),published[1])
+-- A component that cannot say: the table goes without them, said once, a look later.
+local shown_of=raw[body].IsMaterialSectionShown
+raw[body].IsMaterialSectionShown=function() error('no section call') end
+published={}
+capture=Capture.new(function(text) published[#published+1]=text or 'withdrawn'; return true end,looked,
+    function() return cns end)
+player=eve_of('EVE20',{body})
+tick()
+step(2)
+assert(#published==1 and published[1]:find('\nmaterial 0 0 ') and not published[1]:find('\nhide '),published[1])
+ok,message=step(1)
+assert(ok==false and message:find('^Capture: materials not read: hidden slots or shape keys: .*no section call$'),
+    tostring(message))
+raw[body].IsMaterialSectionShown=shown_of
+raw[body].state.slots,raw[body].state.hidden,body_mesh.MorphTargets=nil,nil,nil
 print('capture_test ok')

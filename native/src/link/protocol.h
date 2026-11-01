@@ -63,8 +63,8 @@ constexpr int kProtocol = 16; // Bump on any wire change. 1 was the first link (
                               // both night lines (the co-op revive), which a protocol-13 game would refuse too, and the
                               // gift line (coop gift), which a protocol-13 peer would count invalid; 15 was never
                               // released (development builds of Matrix XIII's rows used it); 16 adds the table's
-                              // value lines (a dynamic material's colours), which a protocol-14 peer would
-                              // refuse with the whole table, so her ghost of you would stop changing. An older peer (6:
+                              // value, hide and morph lines (a dynamic material's colours, hidden material sections
+                              // and shape keys), which a protocol-14 peer would refuse with the whole table, so her ghost of you would stop changing. An older peer (6:
                               // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
                               // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1) is told why: the lobby tag,
                               // then the hello's reject, name both.

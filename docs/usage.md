@@ -3143,7 +3143,8 @@ The three looks have not been tested in game yet. Back up your saves before you 
   ghost puts on each one your PC has, by the same rules as the meshes. Dyes do not apply to a fallback mesh. Off, each
   part has its mesh's own colours, except a part on a mod's mesh, which takes its materials either way (see
   [Mods and CNS outfits](#mods-and-cns-outfits)). Both players need `dyes=on` for a colour on one of the game's own
-  meshes, such as a CNS eye colour on the base face: the sender to send it, the viewer to show it.
+  meshes, such as a CNS eye colour on the base face: the sender to send it, the viewer to show it. The same goes for
+  the material slots a part hides and its shape keys (CNS toggles and shape keys).
 - `effects`: her attack and skill effects. The native part reads which of 19 known effects (Niagara systems) are
   playing on her, at most 4, into four effect slots of each pose (an index into a fixed list, never a path). The ghost
   starts each effect on the part it hangs on, moves it with the slot and stops it when the slot changes, at most 8
@@ -3187,9 +3188,11 @@ the outfit on, so the mesh's own are not the outfit's. The CNS colours and optio
 with them, and the ghost applies them on a dynamic instance of the material (not tested in game yet). A change to a
 colour reaches the ghost within 21 s, without a new ghost. A texture option shows only if your packs declare the same
 texture or it is one of the game's own. A slot whose material your PC lacks keeps the mesh's own, with no values and no
-error. Mesh sections hidden by an outfit (`HiddenMats`, `MaterialToggles`) and morphs (`ShapeKeys`) do not reach the
-ghost. Her ponytail's collision asset goes too (the `cloth` look uses it), so a CNS outfit's `PonyPhysics` reaches the
-ghost.
+error. The slots an outfit hides (`HiddenMats`, and `MaterialToggles` turned off) are hidden on the ghost too, and the
+same change delay applies. Shape keys (`ShapeKeys`) show only on a part that follows another part's bones. They do not
+show on the body or on any other part with bones of its own: the ghost draws those as PoseableMeshComponents, which
+cannot take shape keys, and the log says so once. Neither has been tested in game yet. Her ponytail's collision asset
+goes too (the `cloth` look uses it), so a CNS outfit's `PonyPhysics` reaches the ghost.
 
 A mod's added assets are usually missing from the game's cooked asset registry, and UE4SS's `LoadAsset` finds an
 asset through that registry. When `LoadAsset` finds nothing for a path your packs name, the ghost tries
@@ -3202,10 +3205,10 @@ With `mod_names=off` in `coop-settings.txt`, your capture leaves out every path 
 friend's ghost of you shows those parts on the base suit or leaves them out, and no folder or outfit name of yours
 reaches them.
 
-Not carried: CNS material settings (colours, sliders, texture options, toggles), shape keys and face morphs,
-accessories that are static meshes, actors attached to EVE, and parts past 16. A pose holds about 900 leader bones in
-all. When her parts have more, the capture leaves out the last leader parts and their followers until the pose fits,
-and its log line ends with `<n> leaders left out, over the pose size`.
+Not carried: shape keys on the body and on other parts with bones of their own, accessories that are static meshes,
+actors attached to EVE, and parts past 16. A pose holds about 900 leader bones in all. When her parts have more, the
+capture leaves out the last leader parts and their followers until the pose fits, and its log line ends with `<n>
+leaders left out, over the pose size`.
 
 ## Solid partner (experimental)
 

@@ -8,15 +8,17 @@
 -- again under the same generation. Placement alone never is: a part placed relative to her main mesh moves with every
 -- animation. With dyes on (dyes=on in coop-settings.txt, or coop look), each part's overridden materials go too (her
 -- hair colour): a dynamic instance as the asset it was made from, so only a dye change is a new generation, with the
--- values set on it (value lines: the colours CNS sets). A look reads one part's values, a new generation all of them; a
--- change is published again under the same generation, one such table per VALUE_WAIT seconds, geometry first and values
--- only while the table has room. With
+-- values set on it (value lines: the colours CNS sets); and each part's material slots hidden at LOD 0 and its shape
+-- keys (hide and morph lines: CNS's toggles, hidden slots and shape keys, read from the component, never from CNS). A
+-- look reads one part's values, a new generation all of them; a change is published again under the same generation,
+-- one such table per VALUE_WAIT seconds, geometry first and values and shape keys only while the table has room. With
 -- effects on, it also names, for the native effect read, the NiagaraComponent class, its Asset field's offset and which
 -- systems of Capture.EFFECTS are in memory: looked up one a tick on each new EVE and as effects turn on, and published
 -- only once all are looked up, so the list never changes under one generation. A part on a mod's mesh (outside the
 -- game's own folders, Capture.base_path) is tagged with the outfit it comes from (Capture.label) and sends its
--- overridden materials with dyes off too; any part sends its cloth's collision asset (her ponytail's
--- OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part go, the last first.
+-- overridden materials, values, hidden slots and shape keys with dyes off too; any part sends its cloth's collision
+-- asset (her ponytail's OverrideClothPhysicsAsset). Leaders whose bones would make a pose too big for the native part
+-- go, the last first.
 -- Read-only: nothing here changes EVE or any of her components.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
@@ -25,6 +27,8 @@ local Capture={}
 local MAX_PARTS,MAX_BONES=16,1024 -- The native part's kMaxParts and kMaxBones: past them it refuses the whole table.
 local MAX_MATERIALS,MAX_SLOTS=16,64 -- Its kMaxMaterials and kMaxSlots too.
 local MAX_VALUES,MAX_SLOT_VALUES,MAX_NUMBER=512,32,1e5 -- Its kMaxValues, kMaxSlotValues and kMaxValue.
+local MAX_MORPHS,MAX_PART_MORPHS,MAX_MORPH=128,32,10 -- Its kMaxMorphs, kMaxPartMorphs and kMaxMorph.
+local MAX_MORPH_NAMES=256 -- A mesh's shape keys read at most: one GetMorphTarget call each, at each read of its part.
 -- Value lines stop here: past the native part's 64 KiB it would refuse the whole table, and the ghost with it.
 local VALUES_ROOM=56000
 -- s between tables only a value changed: a value the game animates must not send the whole table at every look.
@@ -163,6 +167,37 @@ local function values_of(levels,declared,private)
     end
     return list,table.concat(key,',')
 end
+-- A mesh's shape keys whose names are words once their spaces are '~', up to MAX_MORPH_NAMES: {fname=, word=}.
+local function morph_names(mesh)
+    local list={}
+    each(mesh.MorphTargets,function(_,morph)
+        morph=valid(morph)
+        local name=morph and text(morph:GetFName())
+        if name and #list<MAX_MORPH_NAMES and #name<=64 and name:find('^[ -}]+$') then
+            list[#list+1]={fname=morph:GetFName(),word=(name:gsub(' ','~'))}
+        end
+    end)
+    return list
+end
+-- A part's material slots hidden at LOD 0 (ShowMaterialSection, which CNS's toggles and hidden slots call) and its
+-- shape keys set by SetMorphTarget, non-zero and within MAX_MORPH, up to the part's cap: {hidden= (slots rising),
+-- morphs= ('name weight', morph lines' last words), key= (both, weights rounded)}.
+local function shapes_of(component,names)
+    local hidden,morphs,key={},{},{}
+    for slot=0,math.min(component:GetNumMaterials(),MAX_SLOTS)-1 do
+        if component:IsMaterialSectionShown(slot,0)==false then hidden[#hidden+1]=slot end
+    end
+    for _,n in ipairs(names) do
+        if #morphs==MAX_PART_MORPHS then break end
+        local x=value_number(component:GetMorphTarget(n.fname))
+        if x and x~=0 and math.abs(x)<=MAX_MORPH then
+            morphs[#morphs+1]=n.word..' '..real(x)
+            key[#key+1]=n.word..string.format(' %.3g',x)
+        end
+    end
+    return {hidden=hidden,morphs=morphs,key=table.concat(hidden,',')..'/'..table.concat(key,',')}
+end
+local NO_SHAPES={hidden={},morphs={},key=''}
 -- The native effect read's layout: the NiagaraComponent class and its Asset field's offset, found up the class's supers
 -- (no SDK file covers Niagara). Raises when there is none within the native part's bounds, which would refuse the
 -- whole table.
@@ -199,6 +234,7 @@ function Capture.new(publish,looks,assets,private)
     local yaw_delta=0
     local unread -- Why materials could not be read, until said (then false): once per Lua load.
     local tints,turn={},0 -- A part's values as last read, by its address; the part this look reads.
+    local shape_names={} -- A mesh's shape keys (morph_names), by its address, for this generation.
     local fx -- The effect read's layout: nil until effects are first on, false when it could not be found (this load).
     local systems,scan,effects_were={},nil,false -- Capture.EFFECTS found, by index; the next index the scan looks up.
     local function withdraw()
@@ -286,9 +322,9 @@ function Capture.new(publish,looks,assets,private)
         end
         key,dress=table.concat(key,' ')..(effects and ' fx' or ''),table.concat(dress,' ')
         local renewed=not published or published.key~=key
-        if renewed then tints={} end
+        if renewed then tints,shape_names={},{} end
         turn=turn%#parts+1
-        local tint,value_count={},0
+        local tint,value_count,morph_count,hidden_count={},0,0,0
         for i,c in ipairs(parts) do
             local at=address(c.handle)
             if i==turn or not tints[at] then
@@ -305,9 +341,19 @@ function Capture.new(publish,looks,assets,private)
                 end)
                 if not read and unread==nil then unread=tostring(got) end
                 tints[at]=read and got or {slots={},key=''}
+                tints[at].shapes=NO_SHAPES
+                if looks.dyes or c.label then -- The materials' rule.
+                    local read_shapes,shapes=pcall(function()
+                        local of=address(c.mesh)
+                        shape_names[of]=shape_names[of] or morph_names(c.mesh)
+                        return shapes_of(c.handle,shape_names[of])
+                    end)
+                    if read_shapes then tints[at].shapes=shapes
+                    elseif unread==nil then unread='hidden slots or shape keys: '..tostring(shapes) end
+                end
             end
-            c.values=tints[at].slots
-            tint[i]=tints[at].key
+            c.values,c.shapes=tints[at].slots,tints[at].shapes
+            tint[i]=tints[at].key..'|'..tints[at].shapes.key
         end
         tint=table.concat(tint,' ')
         if not renewed and published.dress==dress
@@ -351,6 +397,13 @@ function Capture.new(publish,looks,assets,private)
                     lines[#lines+1]={string.format('value %d %d %s',c.index,m.slot,value)}
                 end
             end
+            if c.shapes.hidden[1] then
+                lines[#lines+1]=string.format('hide %d %s',c.index,table.concat(c.shapes.hidden,' '))
+                hidden_count=hidden_count+#c.shapes.hidden
+            end
+            for _,morph in ipairs(c.shapes.morphs) do
+                lines[#lines+1]={string.format('morph %d %s',c.index,morph),morph=true}
+            end
             local cloth=c.cloth and sent(c.cloth:GetFullName():match('^%S+ (.+)$'))
             cloth=cloth and cloth:gsub('[^!-~]','_')
             if cloth and #cloth<=255 then lines[#lines+1]=string.format('cloth %d %s',c.index,cloth) end
@@ -374,9 +427,11 @@ function Capture.new(publish,looks,assets,private)
         for _,line in ipairs(lines) do
             if type(line)=='string' then
                 final[#final+1]=line
-            elseif value_count<MAX_VALUES and size+#line[1]+1<=VALUES_ROOM then
+            elseif (line.morph and morph_count<MAX_MORPHS or not line.morph and value_count<MAX_VALUES)
+                and size+#line[1]+1<=VALUES_ROOM then
                 final[#final+1]=line[1]
-                size,value_count=size+#line[1]+1,value_count+1
+                size=size+#line[1]+1
+                if line.morph then morph_count=morph_count+1 else value_count=value_count+1 end
             else
                 left_out=left_out+1
             end
@@ -387,6 +442,8 @@ function Capture.new(publish,looks,assets,private)
         if renewed then
             local tail=(looks.dyes and string.format('; dyes: %d slots (%d dynamic)',slots,dynamic) or '')
                 ..(value_count>0 and string.format('; values: %d',value_count) or '')
+                ..(hidden_count>0 and string.format('; hidden slots: %d',hidden_count) or '')
+                ..(morph_count>0 and string.format('; shape keys: %d',morph_count) or '')
                 ..(left_out>0 and string.format('; %d values left out, over the table size',left_out) or '')
                 ..(effects and string.format('; effects: %d of %d found',found,#Capture.EFFECTS) or '')
                 ..(dropped and string.format('; %d leaders left out, over the pose size',dropped) or '')
