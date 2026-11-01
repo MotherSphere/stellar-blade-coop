@@ -515,10 +515,10 @@ void write_shared() {
   std::vector<std::string> same = link && loaded ? link->same_mods() : std::vector<std::string>();
   if (same == shared_mods && shared_version)
     return;
-  shared_mods = std::move(same);
-  const std::string text = coop::shared_assets(game_mod_assets, shared_mods);
+  const std::string text = coop::shared_assets(game_mod_assets, same);
   if (!write_text(folder + L"coop-shared-assets.txt", text))
-    return; // Tried again next pass.
+    return; // Tried again next pass: shared_mods is kept until the file holds the new list.
+  shared_mods = std::move(same);
   shared_count = size_t(std::count(text.begin(), text.end(), '\n'));
   ++shared_version;
 }
