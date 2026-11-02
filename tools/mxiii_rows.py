@@ -36,7 +36,8 @@ FIELDS = {
         'TargetCamp': (0x270, 'name', 'n'), 'SequenceTagNameList': (0x350, 'names', 'N'),
         # The per-state lists, one item a state of SequenceTagNameList, in its order.
         'OutTransitSequenceList': (0x370, 'strings', 'S'), 'OutTransitTemplatePath': (0x380, 'strings', 'S'),
-        'ActiveSequenceList': (0x3b0, 'strings', 'S'), 'ShopDataList': (0x460, 'names', 'N')}),
+        'ActiveSequenceList': (0x3b0, 'strings', 'S'), 'ShopDataList': (0x460, 'names', 'N'),
+        'PuzzleInputText1': (0x31c, 'name', 'n')}),
     'ZoneTriggerTable': ('trigger', {'Zone': (0x14, 'name', 'n'), 'InitActivate': (0x1c, 'u8', 'e'),
                                      'TouchEvents': (0x20, 'names', 'N'), 'InitialDoingCount': (0x5c, 'i32', 'i'),
                                      'SaveType': (0x68, 'u8', 'e')}),
@@ -64,12 +65,22 @@ FIELDS = {
     'EffectVolumeTable': ('effvol', {'ActiveZoneAlias': (0x18, 'name', 'n'), 'EnterEffectAlias': (0x20, 'name', 'n')}),
     'ConditionTable': ('condition', {'CustomStr01': (0x18, 'string', 's')}),
     'ConditionGroupTable': ('cgroup', {'ConditionEq': (0x28, 'u8', 'e')}),
+    'AlbumTable': ('album', {'PopupWhenUnlock': (0x1d, 'u8', 'b'), 'PauseWhenPopup': (0x1e, 'u8', 'b'),
+                             'GroupName': (0x20, 'string', 's'), 'Name': (0x30, 'string', 's'),
+                             'Desc': (0x40, 'string', 's'), 'AchievementUnlocked': (0x70, 'name', 'n'),
+                             'AchievementPopup': (0x80, 'name', 'n')}),
+    'AchievementTable': ('achievement', {'ParamValue1': (0x18, 'string', 's'),
+                                         'ProgressAchievementOnCompleted': (0xb4, 'name', 'n'),
+                                         'ProgressAchievementValueOnCompleted': (0xbc, 'i32', 'i'),
+                                         'ProgressAchievementOnCompleted2': (0xc0, 'name', 'n'),
+                                         'ProgressAchievementArrayOnCompleted': (0xd0, 'names', 'N')}),
+    'PuzzleStringArrayTable': ('puzzle', {'StringArray': (0x18, 'strings', 'S')}),
 }
 SIZE = {'u8': 1, 'f32': 4, 'i32': 4, 'name': 8, 'string': 16, 'names': 16, 'strings': 16}
 STRUCT = {'CharacterTable': 0x548, 'ZoneCampTable': 0xa8, 'ZoneEnvSpawnTable': 0x508, 'ZoneTriggerTable': 0xa8,
           'EventSpawnTable': 0x290, 'EventItemTable': 0x80, 'ZoneEventTable': 0x70, 'WorldTransitionTable': 0x88,
           'EventEnvControlTable': 0x70, 'EventZoneWarpTable': 0x70, 'EffectVolumeTable': 0xc0, 'ConditionTable': 0x78,
-          'ConditionGroupTable': 0x50}
+          'ConditionGroupTable': 0x50, 'AlbumTable': 0x90, 'AchievementTable': 0xf0, 'PuzzleStringArrayTable': 0x30}
 POOL = 0x1000  # lion/rows.h's kPoolBytes: a row's strings and lists must fit it.
 
 

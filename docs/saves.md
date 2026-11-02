@@ -193,6 +193,8 @@ copies, and switches neither. As with a refresh, the first time it only says wha
   (`Quest_Sub_MX13_00`) or On Time (`Quest_Sub_MX13_01`, both from Lily's signal, see [lily-signal.md](lily-signal.md)),
   anywhere. The save keeps a quest's alias even once it is complete, so there is no way to clear it by playing, and the
   refusal says so;
+- refuses it, before it writes anything, when the save names one of the Matrix XIII records (`Ach_Album_Unlock_MX13_...`
+  or `Records_MX13_...`): nothing takes a record out of a save;
 - copies `StellarBladeSave0M.sav`, when there is one, into a new folder of `StellarCoopBackups` and reads it back;
 - reads the co-op copy again, refuses it if it changed since the check, scans those bytes again as above, refuses to
   go on if `StellarBladeSave0M.sav` changed since its backup (or appeared, when there was none), writes the copy's

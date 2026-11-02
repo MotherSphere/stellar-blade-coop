@@ -3,7 +3,7 @@
 -- matrix13/world/travel.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and
 -- its screen, through cut/lion.lua). The monster's rows
 -- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
--- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 34) by their fixed
+-- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 37) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
 -- no row of the batch uses never stops it; it waits for the answer in coop-status.txt's <word> line,
 -- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
@@ -47,7 +47,7 @@ local N=require('nightop.probe')
 local Doro=require('race.doro')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Enemy={}
--- The native part's 34 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a
+-- The native part's 37 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a
 -- request names only those its batch's rows go into.
 Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
     'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
@@ -55,7 +55,8 @@ Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','
     'ZoneCampTable','ZoneEnvSpawnTable','ShopTable','ShopItemTable','ZoneTriggerTable','QuestTable',
     'QuestTaskGroupTable','QuestTaskTable','LevelTargetFilter','TheaterSelectDataTable','EventSpawnTable',
     'EventItemTable','ZoneEventTable','EventEnvControlTable','WorldTransitionTable','EventZoneWarpTable',
-    'EffectVolumeTable','ConditionTable','ConditionGroupTable'}
+    'EffectVolumeTable','ConditionTable','ConditionGroupTable','AlbumTable','AchievementTable',
+    'PuzzleStringArrayTable'}
 local DATA='/Game/Local/Data/'
 local ROOT_FAR=2000 -- cm: the copy's root ending farther from the spot than this spawns at the spot.
 local POLL,WAIT=0.25,30 -- s: the status line read while the rows are asked, and how long before giving up.

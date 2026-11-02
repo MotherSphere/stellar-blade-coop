@@ -1775,15 +1775,16 @@ TargetFilterTable=0x<address> SkillResultTable=0x<address> EffectTable=0x<addres
 ItemConsumableTable=0x<address>
 ```
 
-It is one line in `coop-request.txt`. The native part knows 34 tables (`kLionTables`, the 14 above, then
+It is one line in `coop-request.txt`. The native part knows 37 tables (`kLionTables`, the 14 above, then
 ProjectileTable, ZoneCampTable, ZoneEnvSpawnTable, ShopTable, ShopItemTable, ZoneTriggerTable, QuestTable,
 QuestTaskGroupTable, QuestTaskTable, LevelTargetFilter, TheaterSelectDataTable, then Matrix XIII's EventSpawnTable,
 EventItemTable, ZoneEventTable, EventEnvControlTable, WorldTransitionTable, EventZoneWarpTable and EffectVolumeTable,
-then ConditionTable and ConditionGroupTable for Lily's menu in Matrix XIII);
-a request names 1 to 34 of them, each once, in any order, and the others stay 0, which a batch that writes that table
+then ConditionTable and ConditionGroupTable for Lily's menu in Matrix XIII, then AlbumTable, AchievementTable and
+PuzzleStringArrayTable for its records);
+a request names 1 to 37 of them, each once, in any order, and the others stay 0, which a batch that writes that table
 refuses as no UDataTable. So a table no row of the batch uses, not loaded at that moment, stops nothing. A request
-naming all 34 would take 1108 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible address and
-its line end (1244 with 16 digits); the native part reads up to 2048 bytes of that file.
+naming all 37 would take 1204 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible address and
+its line end (1352 with 16 digits); the native part reads up to 2048 bytes of that file.
 Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console
 word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
 slot and its row size.
@@ -2010,6 +2011,41 @@ runs. The copy is in no file, so a Lua reload during its 13 s leaves it until th
 - Co-op: shared enemies pair by spawn key, and a key-0 actor has none, so the Lion stays in the game of the player who
   typed the command. Sharing one would need a key range of its own, a host spawn through `NewActor` in the shared
   fight's job, a guest rule in same spawns, a `kBosses` row and a protocol bump.
+
+### The records
+
+The dungeon's 25 records (7 memorysticks, 18 documents) use the path of the game's own: an env row that reaches state
+`CallPuzzle` when EVE reads it completes an unlock achievement, and the Data Bank row on that achievement opens. The
+cooked map already holds a spawn point named after each env row (`DLC02_00_EnvS_950`, `DLC02_10_EnvS_950` to `957`, and
+so on) and the prop EVE looks at, so the map does not change.
+
+`mxrecords` is 100 rows, 25 in each of four tables, in this order so that no row names a later one:
+
+| Table | Rows | Copies | What it sets |
+| --- | --- | --- | --- |
+| PuzzleStringArrayTable | `Records_MX13_<id>` | `DED10_EnvS_Corpse05` | The reader's title and text keys |
+| AchievementTable | `Ach_Album_Unlock_MX13_<id>`, 280900 to 280924 | `Ach_Album_Unlock_Item_Records_ME01_Memory_01` | The env row in `ParamValue1`. Its three trophy links are None, so no record reaches `Trophy_Acquire_AllRecords` |
+| AlbumTable | `Records_MX13_<id>`, 10700 to 10724 | one shipped record of each group | Name, text and unlock. No popup: reading already shows the text |
+| ZoneEnvSpawnTable | the env rows | `DED10_EnvS_168` for memorysticks, `SE_06_EnvS_076` for documents | `BP_Env_Empty_Arrow` at the spawn point, and the puzzle row |
+
+The memorysticks form a new group named by `MX13_Region`, the camp names' "Matrix 13" / "Matrice 13" entry. The documents
+join the shipped Messages (5), Announcements (5) and Log Data (8) groups.
+
+The words go the way of the camp names: the same pass adds 50 entries from `game/record_text.h` to
+`StringTable_Records`, and `coop-status.txt` goes from `recordtext=wait` to `recordtext=ready`. The batch waits for that
+line and for `camptext=ready`, and `travel.lua` loads the string table once if nothing else has. Like the other batches
+it goes in at the title only while the game uses the co-op save files and the test pak is there, and `coop mxiii` does
+not wait for it. The entries reach every player's live table but no row outside the batch names them.
+
+The save keeps the unlocks and red dots by alias, so `coop saves export` refuses a save that holds one
+([saves.md](saves.md#co-op-saves)), and these aliases must never change. Rows the title batch added stay until the game
+exits: after `coop saves main` at the title, your own save's Data Bank would list them locked until a restart, as with
+every row of this batch family.
+
+Not run in game. The first run has to show `mxrecords=rows added=100/100`, the prompt at each of the 25 spots, the
+reader's text with its line breaks, the tile opening with the group counter, no Steam popup, and the tile still open
+after a reload. Whether the achievement system fires for rows added at the title and whether `BP_Env_Empty_Arrow` shows a
+reading prompt are [inference].
 
 ### Open questions
 
@@ -2308,7 +2344,7 @@ site: their rows belong to `Zone_ME_03`, which never starts in this world, and t
 other Matrix 11 camps in its levels: two more in Area03, two in Area04 and one in Area01
 ([Achievements](#achievements)).
 
-The two zone tables are the sixteenth and seventeenth of the 34 tables every rows request names (`kLionTables`), and
+The two zone tables are the sixteenth and seventeenth of the 37 tables every rows request names (`kLionTables`), and
 only Matrix XIII's batches write them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
 line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
@@ -2531,8 +2567,8 @@ bytes, a batch of 256 rows or more, a name given twice, a string list of one emp
 as no item) and a row whose strings and lists overflow the native part's 4 KB pool. The data file is built outside the
 repository from the cook's manifest, the mechanism design and the build 24463856 table dumps.
 
-Eight batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxupper rows`, `mxmiddle rows`, `mxlower
-rows`, `mxlily rows`, `mxnames rows`), so a refusal in one never stops another (`mxlily`: [Lily's menu](#lilys-menu)):
+Nine batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxupper rows`, `mxmiddle rows`, `mxlower
+rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one never stops another (`mxlily`: [Lily's menu](#lilys-menu)):
 
 - `mxiii`, 75 rows: the 15 rows of the camp work above, less the three zone 2 trigger patches (the waves moved to
   triggers of their own, below) (the zone 3 rest stop `DLC02_30_Camp_01` is now a simple camp
@@ -2932,7 +2968,7 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    template, an FName not made) leaves the 24 quest rows in: the table checks (class, AddRow slot, row size) run for
    every table of the batch before any row, so a TheaterSelectDataTable that fails them stops the batch with no row
    in. The batch neither writes nor checks a TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds
-   that table's IDs is not known). The native part knows 34 tables, the 5 quest ones after the first 20; the signal
+   that table's IDs is not known). The native part knows 37 tables, the 5 quest ones after the first 20; the signal
    request names those 5 only.
 2. When: only with the test pak, since nothing else uses the rows and AddRow on these tables has not run in game. At the
    title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, which `matrix13/world/travel.lua`

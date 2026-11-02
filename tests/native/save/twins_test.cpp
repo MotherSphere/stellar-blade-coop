@@ -326,6 +326,14 @@ int main() {
          "the mod's items Shock Bolt (Bullet_Shock): use them up or sell them, and take them off the quick slots (Beta "
          "Seeds go back to the wallet when coop nightop shop closes); " +
              on_time);
+  // The records' names, by alias wherever the save writes them; a shipped record's does not count.
+  assert(mod_only(clean_body() + fstring("Ach_Album_Unlock_MX13_Z1_04"))
+             .find("the mod's Matrix XIII records (Ach_Album_Unlock_MX13_Z1_04 among them)") != std::string::npos);
+  assert(mod_only(clean_body() + fstring("Records_MX13_00"))
+             .find("the mod's Matrix XIII records (Records_MX13_00 among them)") != std::string::npos);
+  assert(mod_only(clean_body() + fstring("Ach_Album_Unlock_Item_Records_ME01_Memory_01") +
+                  fstring("Records_ME01_Memory_01"))
+             .empty());
   assert(mod_only(clean_body() + name_field("ItemAlias", "Buff_HP2MP") + name_field("ItemAlias", "Bullet_Shock"))
              .find("Beta Stimpack (Buff_HP2MP), Shock Bolt (Bullet_Shock):") != std::string::npos);
   // A quick slot array is read within its size and the file: a size past the file's end stops at it, a negative one

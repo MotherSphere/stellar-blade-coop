@@ -217,6 +217,8 @@ inline std::pair<size_t, size_t> snapshot(const std::string &b) {
 // The mod's quests, the prologue A Second Signal (Quest_Sub_MX13_00) and On Time (Quest_Sub_MX13_01, lion/rows.h's
 // signal batch), count wherever their alias is: the save keys quests by alias, the tracked one included, and keeps a
 // finished one's in CompleteQuestList (docs/story.md), so no play takes them out.
+// Matrix XIII's records (the mxrecords batch) count as well: the save keeps their unlock achievements and red dots by
+// alias, and nothing takes a record out.
 inline std::string mod_only(const std::string &b) {
   const std::pair<size_t, size_t> kept = snapshot(b);
   // Where bytes at an offset are: 1 the save as played, 2 its New Game+ snapshot; where(bytes) ors them, 0 nowhere.
@@ -343,6 +345,14 @@ inline std::string mod_only(const std::string &b) {
         std::string("the mod's quest") + (held > 1 ? "s " : " ") + quests +
             ": the save keeps a quest's name even once it is done, so this save cannot be exported",
         "; ");
+  for (const char *name : {"Ach_Album_Unlock_MX13_", "Records_MX13_"})
+    if (const size_t at = b.find(name); at != std::string::npos) {
+      add(why,
+          "the mod's Matrix XIII records (" + b.substr(at, std::min(b.find('\0', at), b.size()) - at) +
+              " among them): nothing takes a record out of a save, so this save cannot be exported",
+          "; ");
+      break;
+    }
   return why;
 }
 

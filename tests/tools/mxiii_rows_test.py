@@ -26,8 +26,8 @@ assert done.returncode == 0, done.stderr
 data = json.loads((ROOT / 'data/mxiii-world.json').read_text())
 gen.check(data)
 words = [b['word'] for b in data['batches']]
-assert words == ['mxiii', 'mxspawn', 'mxenv', 'mxupper', 'mxmiddle', 'mxlower', 'mxlily', 'mxnames'], words
-rows = {(r['table'], r['name']): r for b in data['batches'][:-1] for r in b['rows']}
+assert words == ['mxiii', 'mxspawn', 'mxenv', 'mxupper', 'mxmiddle', 'mxlower', 'mxlily', 'mxnames', 'mxrecords'], words
+rows = {(r['table'], r['name']): r for b in data['batches'] if b['word'] != 'mxnames' for r in b['rows']}
 
 
 def refused(change):
@@ -57,7 +57,7 @@ assert refused(lambda d: d['batches'][3]['rows'][0]['set'][7].__setitem__(1, 'x'
 
 # 2b. The camp names: the last batch, the 11 camps patched in place on their own IDs, with no other field; each key has
 # its entry in game/camp_text.h, and no other batch writes the two fields.
-names = data['batches'][-1]['rows']
+names = next(b['rows'] for b in data['batches'] if b['word'] == 'mxnames')
 camps = sorted(n for t, n in rows if t == 'ZoneCampTable')
 assert [r['name'] for r in names] == camps and len(camps) == 11
 text = (ROOT / 'native/src/game/camp_text.h').read_text()
@@ -203,3 +203,36 @@ for name in ('R.MXIII={', 'R.MXSPAWN={', 'R.MXENV={', 'R.MXUPPER={', 'R.MXMIDDLE
              'R.BOSS={', 'R.WARP={'):
     assert name in lua, name
 print('mxiii_rows_test: ok')
+
+# The records: 25 of each kind chained: an env row at the map's spawn point of its name, its text in the puzzle row it
+# names, the unlock that fires on its CallPuzzle state and progresses no trophy, the Data Bank row on that unlock with no
+# popup (reading it shows the text), and the words game/camp_text.h adds.
+records = next(b['rows'] for b in data['batches'] if b['word'] == 'mxrecords')
+by = {}
+for r in records:
+    by.setdefault(r['table'], {})[r['name']] = r
+assert all(len(by[t]) == 25 for t in ('AlbumTable', 'AchievementTable', 'PuzzleStringArrayTable', 'ZoneEnvSpawnTable'))
+assert [r['table'] for r in records[:50:25]] == ['PuzzleStringArrayTable', 'AchievementTable'], 'no row names a later one'
+text = (ROOT / 'native/src/game/record_text.h').read_text()
+field = lambda r: {f: v for f, v, _ in r['set']}
+ids = [r['id'] for r in by['ZoneEnvSpawnTable'].values()]
+assert len(set(ids)) == 25
+groups = {}
+for name, album in by['AlbumTable'].items():
+    a = field(album)
+    assert name.startswith('Records_MX13_') and a['Name'] == name + '_Title' and a['Desc'] == name + '_Desc'
+    assert a['PopupWhenUnlock'] == 0 and a['PauseWhenPopup'] == 0 and a['AchievementPopup'] == 'None'
+    groups[a['GroupName']] = groups.get(a['GroupName'], 0) + 1
+    assert 10700 <= album['id'] <= 10724
+    unlock = field(by['AchievementTable'][a['AchievementUnlocked']])
+    assert 280900 <= by['AchievementTable'][a['AchievementUnlocked']]['id'] <= 280924
+    assert unlock['ProgressAchievementOnCompleted'] == 'None' and unlock['ProgressAchievementValueOnCompleted'] == 0
+    assert unlock['ProgressAchievementOnCompleted2'] == 'None' and unlock['ProgressAchievementArrayOnCompleted'] == []
+    assert by['AchievementTable'][a['AchievementUnlocked']]['donor'] == 'Ach_Album_Unlock_Item_Records_ME01_Memory_01'
+    env = by['ZoneEnvSpawnTable'][unlock['ParamValue1']]
+    e = field(env)
+    assert e['PuzzleInputText1'] == name and e['SpawnPointName'] == env['name'] and e['EnvActorName'] == env['name']
+    assert field(by['PuzzleStringArrayTable'][name])['StringArray'] == [name + '_Title', name + '_Desc']
+    assert f'u"{name}_Title"' in text and f'u"{name}_Desc"' in text
+assert groups == {'MX13_Region': 7, 'UI_Album_Document_Category_Message': 5, 'UI_Album_Document_Category_Guide': 5,
+                  'UI_Album_Document_Category_Log': 8}, groups

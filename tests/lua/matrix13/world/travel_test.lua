@@ -17,7 +17,8 @@
 -- probe for DLC02_30_Camp_01; leave from there still takes the camp of before coop mxiii. The title's batch: the same
 -- rows with no EVE, only at the title on the co-op save files with the test pak, once a game run, asked again after a
 -- shut gate (at most 4 times a visit of the title) or a coop off during the wait, never after another refusal; its end
--- says whether the title closed during the wait. The optional mxnames batch: asked last, only with camptext=ready, and
+-- says whether the title closed during the wait. The optional mxrecords batch: only with recordtext=ready. The optional
+-- mxnames batch: asked last, only with camptext=ready, and
 -- no travel waits for it; the optional mxlily batch: asked once the gardener's line has its answer, holding no batch
 -- back, with no travel waiting for it. On a v4 pak coop mxiii asks the probe for the Tetrapod camp DLC02_00_Camp_00.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
@@ -58,7 +59,7 @@ local Enemy=require('cut.enemy')
 local TABLES={character='CharacterTable',camp='ZoneCampTable',env='ZoneEnvSpawnTable',trigger='ZoneTriggerTable',
     spawn='EventSpawnTable',eitem='EventItemTable',zevent='ZoneEventTable',transition='WorldTransitionTable',
     envc='EventEnvControlTable',warp='EventZoneWarpTable',effvol='EffectVolumeTable',condition='ConditionTable',
-    cgroup='ConditionGroupTable'}
+    cgroup='ConditionGroupTable',album='AlbumTable',achievement='AchievementTable',puzzle='PuzzleStringArrayTable'}
 local KINDS={name='n',string='s',names='N',strings='S'}
 local function check_batch(src,cname,rows)
     local patches={}
@@ -96,7 +97,7 @@ do
         words[#words+1]=b.word
         if b.word:find('^mx') then check_batch(src,'kM'..b.word:sub(2),b.rows) end
     end
-    assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxlily mxnames',
+    assert(table.concat(words,' ')=='mxspawn mxenv mxupper mxmiddle mxlower lion gardener mxlily mxnames mxrecords',
         'The title order after mxiii')
     -- The dev rows: the camp, 7 env rows that name it (base 900 and kit 901 to 906, each at the point of its own
     -- name), zone 30's rest stop and its row, zone 40's two triggers.
@@ -742,6 +743,28 @@ end
 names_status('camptext=ready\n')
 mx.title(true,true)
 assert(#asked==n1+1 and asked[#asked]:find('^mxnames rows ZoneCampTable=0x%x+$'),asked[#asked])
+-- The records: only with recordtext=ready; waiting loads their string table once, and no line asks nothing.
+do
+    mx=new(PAKS)
+    local n2,loads=#asked,0
+    local Doro=require('race.doro')
+    local real=Doro.resolve
+    Doro.resolve=function(path)
+        assert(path=='/Game/Local/Localize/StringTable_Records.StringTable_Records',path)
+        loads=loads+1
+    end
+    M.records_loaded=nil
+    for _,line in ipairs({'mxrecords=off\n','mxrecords=off\nrecordtext=wait\n','mxrecords=off\nrecordtext=wait\n','mxrecords=off\nrecordtext=fault\n','mxrecords=off\nrecordtext=ready\ncamptext=wait\n'}) do
+        status_text='mod=v\nslot=coop index=4 marker=4\nmxiii='..ROWS_IN:format(1)..'\n'..OTHERS..line
+        mx.title(true,true)
+    end
+    Doro.resolve=real
+    for i=n2+1,#asked do assert(not asked[i]:find('^mxrecords'),asked[i]) end
+    assert(loads==1,'One load of the table')
+    status_text='mod=v\nslot=coop index=4 marker=4\nmxiii='..ROWS_IN:format(1)..'\n'..OTHERS..'mxrecords=off\nrecordtext=ready\ncamptext=ready\n'
+    mx.title(true,true)
+    assert(asked[#asked]:find('^mxrecords rows ZoneEnvSpawnTable=0x%x+ AlbumTable=0x%x+ AchievementTable=0x%x+ PuzzleStringArrayTable=0x%x+$'),asked[#asked])
+end
 -- Lily's menu: asked on the gardener's answer, with no camptext; while its ask runs the names wait, and a refusal
 -- leaves them free.
 mx=new(PAKS)
