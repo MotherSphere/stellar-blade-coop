@@ -301,21 +301,21 @@ constexpr Entry kRecordEntries[] = {
      u"The crane cab door sticks. Noa climbed up there again. She says she can see the whole line from the cab.\n"
      u"The relic drone is back in the wheel shop. Noa feeds it bolts. Leave it alone, it keeps the floor clean.\n"
      u"Water at the second mark. Ines needs hands at the pumps. I'm going down, and Noa comes with me."},
-    {u"Records_MX13_Z1_08_Title", u"Service de 18 h 40, un voyageur", u"Service 18:40, One Passenger"},
+    {u"Records_MX13_Z1_08_Title", u"Service de 18 h 40, deux voyageurs", u"Service 18:40, Two Passengers"},
     {u"Records_MX13_Z1_08_Desc",
      u"Jour 2488.\n"
-     u"Ascenseur de 18 h 20\u00a0: un voyageur. N\u00b0 301, Yohan. Il est revenu seul.\n"
-     u"Il dit qu'il n'y a pas de ville. Les vingt-trois autres campent dans les Terres d\u00e9sol\u00e9es. Il est venu chercher des cellules et de l'eau pour eux, et voir Noa.\n"
+     u"Ascenseur de 18 h 20\u00a0: deux voyageurs. N\u00b0 301, Yohan, et la petite Noa.\n"
+     u"Il dit qu'il n'y a pas de ville. Les vingt-trois autres campent dans les Terres d\u00e9sol\u00e9es. Il est venu chercher des cellules et de l'eau pour eux, et ramener Noa.\n"
      u"Il doit \u00eatre remont\u00e9 \u00e0 la surface avant le lever du soleil. Quelqu'un l'attend l\u00e0-haut.\n"
      u"Il voulait le prochain train vers les pompes. Il n'y a pas de train \u00e0 cette heure-l\u00e0. J'en ai fait partir un.\n"
-     u"Service sp\u00e9cial de 18 h 40, ligne descendante. Un voyageur. Parti \u00e0 l'heure.\n"
+     u"Service sp\u00e9cial de 18 h 40, ligne descendante. Deux voyageurs. Parti \u00e0 l'heure.\n"
      u"Ruben",
      u"Day 2,488.\n"
-     u"18:20 lift: one passenger. No. 301, Yohan. He came back alone.\n"
-     u"He says there is no city. The other twenty-three are camped in the Wasteland. He came for cells and water for them, and to see Noa.\n"
+     u"18:20 lift: two passengers. No. 301, Yohan, and little Noa.\n"
+     u"He says there is no city. The other twenty-three are camped in the Wasteland. He came for cells and water for them, and to bring Noa home.\n"
      u"He has to be back on the surface before sunrise. Someone is waiting for him up there.\n"
      u"He asked for the next train down to the pumps. There is no train at this hour. I ran one.\n"
-     u"18:40 special service, line down. One passenger. Left on time.\n"
+     u"18:40 special service, line down. Two passengers. Left on time.\n"
      u"Ruben"},
     {u"Records_MX13_Z2_02_Title", u"R\u00e9union, voiture 9", u"Meeting, Car 9"},
     {u"Records_MX13_Z2_02_Desc",
