@@ -4843,6 +4843,95 @@
     },
     {
      "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_015",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020015,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_015",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       8,
+       true
+      ]
+     ],
+     "note": "pickup: R23 store, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_016",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020016,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_016",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       6,
+       true
+      ]
+     ],
+     "note": "pickup: drain sewer, final pass 2 November"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_448",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800032448,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       false
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_448",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_448",
+       true
+      ]
+     ],
+     "note": "supply box: drain sewer, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
      "name": "DLC02_20_E_ItemS_021",
      "donor": "DLC02_10_E_ItemS_001",
      "id": 2805020021,
@@ -7077,6 +7166,93 @@
      "note": "pickup"
     },
     {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_029",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020029,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_029",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "HighDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup: Z4R21 outfall sewer, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_030",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020030,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_030",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ECelluloseRayon",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       2,
+       true
+      ]
+     ],
+     "note": "pickup: filter bed edge in Z4R09, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_031",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020031,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_031",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "2DQuantumWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       true
+      ]
+     ],
+     "note": "pickup: fan room shelf 1, west end, final pass 2 November"
+    },
+    {
      "table": "ZoneEnvSpawnTable",
      "name": "DLC02_10_EnvS_428",
      "donor": "DLC02_10_EnvS_428",
@@ -8406,6 +8582,93 @@
       ]
      ],
      "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_030",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020030,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_030",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "2DQuantumWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       true
+      ]
+     ],
+     "note": "pickup: Z3R33, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_031",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020031,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_031",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "HighDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup: Z3R11, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_032",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020032,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_032",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "PolymerOrganicFilm",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup: Z3R27, final pass 2 November"
     }
    ]
   },

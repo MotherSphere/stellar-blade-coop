@@ -939,6 +939,21 @@ constexpr Patch kMxenvPatches[] = {
     {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_002"}, // SpawnPointName
     {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
     {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_015 (EventItemTable, pickup: R23 store, final pass 2 November)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_015"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 8, nullptr}, // SpawnItemCount
+    // DLC02_10_E_ItemS_016 (EventItemTable, pickup: drain sewer, final pass 2 November)
+    {0x20, Kind::name, 0, "Zone_DLC02_10"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_10_E_ItemS_016"}, // SpawnPointName
+    {0x34, Kind::name, 0, "LowDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 6, nullptr}, // SpawnItemCount
+    // DLC02_10_EnvS_448 (ZoneEnvSpawnTable, supply box: drain sewer, final pass 2 November)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_448"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_448"}, // SpawnPointName
     // DLC02_20_E_ItemS_021 (EventItemTable, pickup, label names no item)
     {0x20, Kind::name, 0, "Zone_DLC02_20"}, // Zone
     {0x2c, Kind::name, 0, "DLC02_20_E_ItemS_021"}, // SpawnPointName
@@ -1314,6 +1329,21 @@ constexpr Patch kMxenvPatches[] = {
     {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_028"}, // SpawnPointName
     {0x34, Kind::name, 0, "ElastomerFiber"}, // SpawnItemAlias
     {0x3c, Kind::u8, 9, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_029 (EventItemTable, pickup: Z4R21 outfall sewer, final pass 2 November)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_029"}, // SpawnPointName
+    {0x34, Kind::name, 0, "HighDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 4, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_030 (EventItemTable, pickup: filter bed edge in Z4R09, final pass 2 November)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_030"}, // SpawnPointName
+    {0x34, Kind::name, 0, "ECelluloseRayon"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 2, nullptr}, // SpawnItemCount
+    // DLC02_40_E_ItemS_031 (EventItemTable, pickup: fan room shelf 1, west end, final pass 2 November)
+    {0x20, Kind::name, 0, "Zone_DLC02_40"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_40_E_ItemS_031"}, // SpawnPointName
+    {0x34, Kind::name, 0, "2DQuantumWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
     // DLC02_10_EnvS_428 (ZoneEnvSpawnTable, supply box, shipped row with no class or point)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_428"}, // SpawnPointName
@@ -1537,6 +1567,21 @@ constexpr Patch kMxenvPatches[] = {
     {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_028"}, // SpawnPointName
     {0x34, Kind::name, 0, "BetaCrystal"}, // SpawnItemAlias
     {0x3c, Kind::u8, 12, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_030 (EventItemTable, pickup: Z3R33, final pass 2 November)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_030"}, // SpawnPointName
+    {0x34, Kind::name, 0, "2DQuantumWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 1, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_031 (EventItemTable, pickup: Z3R11, final pass 2 November)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_031"}, // SpawnPointName
+    {0x34, Kind::name, 0, "HighDensityWafer"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 4, nullptr}, // SpawnItemCount
+    // DLC02_30_E_ItemS_032 (EventItemTable, pickup: Z3R27, final pass 2 November)
+    {0x20, Kind::name, 0, "Zone_DLC02_30"}, // Zone
+    {0x2c, Kind::name, 0, "DLC02_30_E_ItemS_032"}, // SpawnPointName
+    {0x34, Kind::name, 0, "PolymerOrganicFilm"}, // SpawnItemAlias
+    {0x3c, Kind::u8, 4, nullptr}, // SpawnItemCount
 };
 constexpr Row kMxenvRecipe[] = {
     {Table::env, "DLC02_20_EnvS_050", "DLC02_20_EnvS_050", 2805032050u, 0, 5},
@@ -1581,126 +1626,135 @@ constexpr Row kMxenvRecipe[] = {
     {Table::eitem, "DLC02_10_E_ItemS_006", "DLC02_10_E_ItemS_001", 2800020006u, 134, 4},
     {Table::eitem, "DLC02_10_E_ItemS_012", "DLC02_10_E_ItemS_001", 2800020012u, 138, 4},
     {Table::eitem, "DLC02_10_E_ItemS_002", "DLC02_10_E_ItemS_001", 2800020002u, 142, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_021", "DLC02_10_E_ItemS_001", 2805020021u, 146, 4},
-    {Table::env, "DLC02_20_EnvS_094", "DLC02_10_EnvS_440", 2805032094u, 150, 4},
-    {Table::env, "DLC02_20_EnvS_095", "DLC02_10_EnvS_440", 2805032095u, 154, 4},
-    {Table::env, "DLC02_20_EnvS_096", "DLC02_10_EnvS_440", 2805032096u, 158, 4},
-    {Table::env, "DLC02_20_EnvS_097", "DLC02_10_EnvS_440", 2805032097u, 162, 4},
-    {Table::env, "DLC02_20_EnvS_098", "DLC02_10_EnvS_440", 2805032098u, 166, 4},
-    {Table::env, "DLC02_20_EnvS_099", "DLC02_10_EnvS_440", 2805032099u, 170, 4},
-    {Table::env, "DLC02_20_EnvS_100", "DLC02_10_EnvS_440", 2805032100u, 174, 4},
-    {Table::env, "DLC02_20_EnvS_101", "DLC02_10_EnvS_440", 2805032101u, 178, 4},
-    {Table::env, "DLC02_20_EnvS_102", "DLC02_10_EnvS_440", 2805032102u, 182, 4},
-    {Table::env, "DLC02_20_EnvS_103", "DLC02_10_EnvS_440", 2805032103u, 186, 4},
-    {Table::env, "DLC02_20_EnvS_104", "DLC02_10_EnvS_440", 2805032104u, 190, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_004", "DLC02_10_E_ItemS_001", 2805020004u, 194, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_005", "DLC02_10_E_ItemS_001", 2805020005u, 198, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_006", "DLC02_10_E_ItemS_001", 2805020006u, 202, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_007", "DLC02_10_E_ItemS_001", 2805020007u, 206, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_008", "DLC02_10_E_ItemS_001", 2805020008u, 210, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_009", "DLC02_10_E_ItemS_001", 2805020009u, 214, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_010", "DLC02_10_E_ItemS_001", 2805020010u, 218, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_011", "DLC02_10_E_ItemS_001", 2805020011u, 222, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_012", "DLC02_10_E_ItemS_001", 2805020012u, 226, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_013", "DLC02_10_E_ItemS_001", 2805020013u, 230, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_014", "DLC02_10_E_ItemS_001", 2805020014u, 234, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_015", "DLC02_10_E_ItemS_001", 2805020015u, 238, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_016", "DLC02_10_E_ItemS_001", 2805020016u, 242, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_017", "DLC02_10_E_ItemS_001", 2805020017u, 246, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_018", "DLC02_10_E_ItemS_001", 2805020018u, 250, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_019", "DLC02_10_E_ItemS_001", 2805020019u, 254, 4},
-    {Table::eitem, "DLC02_20_E_ItemS_020", "DLC02_10_E_ItemS_001", 2805020020u, 258, 4},
-    {Table::env, "DLC02_40_EnvS_026", "DLC02_10_EnvS_440", 2815032026u, 262, 4},
-    {Table::env, "DLC02_40_EnvS_027", "DLC02_10_EnvS_440", 2815032027u, 266, 4},
-    {Table::env, "DLC02_40_EnvS_028", "DLC02_10_EnvS_440", 2815032028u, 270, 4},
-    {Table::env, "DLC02_40_EnvS_029", "DLC02_10_EnvS_440", 2815032029u, 274, 4},
-    {Table::env, "DLC02_40_EnvS_030", "DLC02_10_EnvS_440", 2815032030u, 278, 4},
-    {Table::env, "DLC02_40_EnvS_031", "DLC02_10_EnvS_440", 2815032031u, 282, 4},
-    {Table::env, "DLC02_40_EnvS_032", "DLC02_10_EnvS_440", 2815032032u, 286, 4},
-    {Table::env, "DLC02_40_EnvS_033", "DLC02_10_EnvS_440", 2815032033u, 290, 4},
-    {Table::env, "DLC02_40_EnvS_034", "DLC02_10_EnvS_440", 2815032034u, 294, 4},
-    {Table::env, "DLC02_40_EnvS_035", "DLC02_10_EnvS_440", 2815032035u, 298, 4},
-    {Table::env, "DLC02_40_EnvS_036", "DLC02_10_EnvS_440", 2815032036u, 302, 4},
-    {Table::env, "DLC02_40_EnvS_037", "DLC02_10_EnvS_440", 2815032037u, 306, 4},
-    {Table::env, "DLC02_40_EnvS_038", "DLC02_10_EnvS_440", 2815032038u, 310, 4},
-    {Table::env, "DLC02_40_EnvS_039", "DLC02_10_EnvS_440", 2815032039u, 314, 4},
-    {Table::env, "DLC02_40_EnvS_040", "DLC02_10_EnvS_440", 2815032040u, 318, 4},
-    {Table::env, "DLC02_40_EnvS_041", "DLC02_10_EnvS_440", 2815032041u, 322, 4},
-    {Table::env, "DLC02_40_EnvS_042", "DLC02_10_EnvS_440", 2815032042u, 326, 4},
-    {Table::env, "DLC02_40_EnvS_043", "DLC02_10_EnvS_440", 2815032043u, 330, 4},
-    {Table::env, "DLC02_40_EnvS_044", "DLC02_10_EnvS_440", 2815032044u, 334, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_002", "DLC02_10_E_ItemS_001", 2815020002u, 338, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_003", "DLC02_10_E_ItemS_001", 2815020003u, 342, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_004", "DLC02_10_E_ItemS_001", 2815020004u, 346, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_005", "DLC02_10_E_ItemS_001", 2815020005u, 350, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_006", "DLC02_10_E_ItemS_001", 2815020006u, 354, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_007", "DLC02_10_E_ItemS_001", 2815020007u, 358, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_008", "DLC02_10_E_ItemS_001", 2815020008u, 362, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_009", "DLC02_10_E_ItemS_001", 2815020009u, 366, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_010", "DLC02_10_E_ItemS_001", 2815020010u, 370, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_011", "DLC02_10_E_ItemS_001", 2815020011u, 374, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_012", "DLC02_10_E_ItemS_001", 2815020012u, 378, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_013", "DLC02_10_E_ItemS_001", 2815020013u, 382, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_014", "DLC02_10_E_ItemS_001", 2815020014u, 386, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_015", "DLC02_10_E_ItemS_001", 2815020015u, 390, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_016", "DLC02_10_E_ItemS_001", 2815020016u, 394, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_017", "DLC02_10_E_ItemS_001", 2815020017u, 398, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_018", "DLC02_10_E_ItemS_001", 2815020018u, 402, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_019", "DLC02_10_E_ItemS_001", 2815020019u, 406, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_020", "DLC02_10_E_ItemS_001", 2815020020u, 410, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_021", "DLC02_10_E_ItemS_001", 2815020021u, 414, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_022", "DLC02_10_E_ItemS_001", 2815020022u, 418, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_023", "DLC02_10_E_ItemS_001", 2815020023u, 422, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_024", "DLC02_10_E_ItemS_001", 2815020024u, 426, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_025", "DLC02_10_E_ItemS_001", 2815020025u, 430, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_026", "DLC02_10_E_ItemS_001", 2815020026u, 434, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_027", "DLC02_10_E_ItemS_001", 2815020027u, 438, 4},
-    {Table::eitem, "DLC02_40_E_ItemS_028", "DLC02_10_E_ItemS_001", 2815020028u, 442, 4},
-    {Table::env, "DLC02_10_EnvS_428", "DLC02_10_EnvS_428", 2800032428u, 446, 2},
-    {Table::env, "DLC02_30_EnvS_012", "DLC02_10_EnvS_440", 2810032012u, 448, 4},
-    {Table::env, "DLC02_30_EnvS_013", "DLC02_10_EnvS_440", 2810032013u, 452, 4},
-    {Table::env, "DLC02_30_EnvS_014", "DLC02_10_EnvS_440", 2810032014u, 456, 4},
-    {Table::env, "DLC02_30_EnvS_015", "DLC02_10_EnvS_440", 2810032015u, 460, 4},
-    {Table::env, "DLC02_30_EnvS_016", "DLC02_10_EnvS_440", 2810032016u, 464, 4},
-    {Table::env, "DLC02_30_EnvS_017", "DLC02_10_EnvS_440", 2810032017u, 468, 4},
-    {Table::env, "DLC02_30_EnvS_018", "DLC02_10_EnvS_440", 2810032018u, 472, 4},
-    {Table::env, "DLC02_30_EnvS_019", "DLC02_10_EnvS_440", 2810032019u, 476, 4},
-    {Table::env, "DLC02_30_EnvS_020", "DLC02_10_EnvS_440", 2810032020u, 480, 4},
-    {Table::env, "DLC02_30_EnvS_021", "DLC02_10_EnvS_440", 2810032021u, 484, 4},
-    {Table::env, "DLC02_30_EnvS_022", "DLC02_10_EnvS_440", 2810032022u, 488, 4},
-    {Table::env, "DLC02_30_EnvS_023", "DLC02_10_EnvS_440", 2810032023u, 492, 4},
-    {Table::env, "DLC02_30_EnvS_024", "DLC02_10_EnvS_440", 2810032024u, 496, 4},
-    {Table::env, "DLC02_30_EnvS_025", "DLC02_10_EnvS_440", 2810032025u, 500, 4},
-    {Table::env, "DLC02_30_EnvS_026", "DLC02_10_EnvS_440", 2810032026u, 504, 4},
-    {Table::env, "DLC02_30_EnvS_027", "DLC02_10_EnvS_440", 2810032027u, 508, 4},
-    {Table::env, "DLC02_30_EnvS_028", "DLC02_10_EnvS_440", 2810032028u, 512, 4},
-    {Table::env, "DLC02_30_EnvS_029", "DLC02_10_EnvS_440", 2810032029u, 516, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_003", "DLC02_10_E_ItemS_001", 2810020003u, 520, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_004", "DLC02_10_E_ItemS_001", 2810020004u, 524, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_005", "DLC02_10_E_ItemS_001", 2810020005u, 528, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_006", "DLC02_10_E_ItemS_001", 2810020006u, 532, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_007", "DLC02_10_E_ItemS_001", 2810020007u, 536, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_008", "DLC02_10_E_ItemS_001", 2810020008u, 540, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_009", "DLC02_10_E_ItemS_001", 2810020009u, 544, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_010", "DLC02_10_E_ItemS_001", 2810020010u, 548, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_011", "DLC02_10_E_ItemS_001", 2810020011u, 552, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_012", "DLC02_10_E_ItemS_001", 2810020012u, 556, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_013", "DLC02_10_E_ItemS_001", 2810020013u, 560, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_014", "DLC02_10_E_ItemS_001", 2810020014u, 564, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_015", "DLC02_10_E_ItemS_001", 2810020015u, 568, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_016", "DLC02_10_E_ItemS_001", 2810020016u, 572, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_017", "DLC02_10_E_ItemS_001", 2810020017u, 576, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_018", "DLC02_10_E_ItemS_001", 2810020018u, 580, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_019", "DLC02_10_E_ItemS_001", 2810020019u, 584, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_020", "DLC02_10_E_ItemS_001", 2810020020u, 588, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_021", "DLC02_10_E_ItemS_001", 2810020021u, 592, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_022", "DLC02_10_E_ItemS_001", 2810020022u, 596, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_023", "DLC02_10_E_ItemS_001", 2810020023u, 600, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_024", "DLC02_10_E_ItemS_001", 2810020024u, 604, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_025", "DLC02_10_E_ItemS_001", 2810020025u, 608, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_026", "DLC02_10_E_ItemS_001", 2810020026u, 612, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_027", "DLC02_10_E_ItemS_001", 2810020027u, 616, 4},
-    {Table::eitem, "DLC02_30_E_ItemS_028", "DLC02_10_E_ItemS_001", 2810020028u, 620, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_015", "DLC02_10_E_ItemS_001", 2800020015u, 146, 4},
+    {Table::eitem, "DLC02_10_E_ItemS_016", "DLC02_10_E_ItemS_001", 2800020016u, 150, 4},
+    {Table::env, "DLC02_10_EnvS_448", "DLC02_10_EnvS_440", 2800032448u, 154, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_021", "DLC02_10_E_ItemS_001", 2805020021u, 158, 4},
+    {Table::env, "DLC02_20_EnvS_094", "DLC02_10_EnvS_440", 2805032094u, 162, 4},
+    {Table::env, "DLC02_20_EnvS_095", "DLC02_10_EnvS_440", 2805032095u, 166, 4},
+    {Table::env, "DLC02_20_EnvS_096", "DLC02_10_EnvS_440", 2805032096u, 170, 4},
+    {Table::env, "DLC02_20_EnvS_097", "DLC02_10_EnvS_440", 2805032097u, 174, 4},
+    {Table::env, "DLC02_20_EnvS_098", "DLC02_10_EnvS_440", 2805032098u, 178, 4},
+    {Table::env, "DLC02_20_EnvS_099", "DLC02_10_EnvS_440", 2805032099u, 182, 4},
+    {Table::env, "DLC02_20_EnvS_100", "DLC02_10_EnvS_440", 2805032100u, 186, 4},
+    {Table::env, "DLC02_20_EnvS_101", "DLC02_10_EnvS_440", 2805032101u, 190, 4},
+    {Table::env, "DLC02_20_EnvS_102", "DLC02_10_EnvS_440", 2805032102u, 194, 4},
+    {Table::env, "DLC02_20_EnvS_103", "DLC02_10_EnvS_440", 2805032103u, 198, 4},
+    {Table::env, "DLC02_20_EnvS_104", "DLC02_10_EnvS_440", 2805032104u, 202, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_004", "DLC02_10_E_ItemS_001", 2805020004u, 206, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_005", "DLC02_10_E_ItemS_001", 2805020005u, 210, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_006", "DLC02_10_E_ItemS_001", 2805020006u, 214, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_007", "DLC02_10_E_ItemS_001", 2805020007u, 218, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_008", "DLC02_10_E_ItemS_001", 2805020008u, 222, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_009", "DLC02_10_E_ItemS_001", 2805020009u, 226, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_010", "DLC02_10_E_ItemS_001", 2805020010u, 230, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_011", "DLC02_10_E_ItemS_001", 2805020011u, 234, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_012", "DLC02_10_E_ItemS_001", 2805020012u, 238, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_013", "DLC02_10_E_ItemS_001", 2805020013u, 242, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_014", "DLC02_10_E_ItemS_001", 2805020014u, 246, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_015", "DLC02_10_E_ItemS_001", 2805020015u, 250, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_016", "DLC02_10_E_ItemS_001", 2805020016u, 254, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_017", "DLC02_10_E_ItemS_001", 2805020017u, 258, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_018", "DLC02_10_E_ItemS_001", 2805020018u, 262, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_019", "DLC02_10_E_ItemS_001", 2805020019u, 266, 4},
+    {Table::eitem, "DLC02_20_E_ItemS_020", "DLC02_10_E_ItemS_001", 2805020020u, 270, 4},
+    {Table::env, "DLC02_40_EnvS_026", "DLC02_10_EnvS_440", 2815032026u, 274, 4},
+    {Table::env, "DLC02_40_EnvS_027", "DLC02_10_EnvS_440", 2815032027u, 278, 4},
+    {Table::env, "DLC02_40_EnvS_028", "DLC02_10_EnvS_440", 2815032028u, 282, 4},
+    {Table::env, "DLC02_40_EnvS_029", "DLC02_10_EnvS_440", 2815032029u, 286, 4},
+    {Table::env, "DLC02_40_EnvS_030", "DLC02_10_EnvS_440", 2815032030u, 290, 4},
+    {Table::env, "DLC02_40_EnvS_031", "DLC02_10_EnvS_440", 2815032031u, 294, 4},
+    {Table::env, "DLC02_40_EnvS_032", "DLC02_10_EnvS_440", 2815032032u, 298, 4},
+    {Table::env, "DLC02_40_EnvS_033", "DLC02_10_EnvS_440", 2815032033u, 302, 4},
+    {Table::env, "DLC02_40_EnvS_034", "DLC02_10_EnvS_440", 2815032034u, 306, 4},
+    {Table::env, "DLC02_40_EnvS_035", "DLC02_10_EnvS_440", 2815032035u, 310, 4},
+    {Table::env, "DLC02_40_EnvS_036", "DLC02_10_EnvS_440", 2815032036u, 314, 4},
+    {Table::env, "DLC02_40_EnvS_037", "DLC02_10_EnvS_440", 2815032037u, 318, 4},
+    {Table::env, "DLC02_40_EnvS_038", "DLC02_10_EnvS_440", 2815032038u, 322, 4},
+    {Table::env, "DLC02_40_EnvS_039", "DLC02_10_EnvS_440", 2815032039u, 326, 4},
+    {Table::env, "DLC02_40_EnvS_040", "DLC02_10_EnvS_440", 2815032040u, 330, 4},
+    {Table::env, "DLC02_40_EnvS_041", "DLC02_10_EnvS_440", 2815032041u, 334, 4},
+    {Table::env, "DLC02_40_EnvS_042", "DLC02_10_EnvS_440", 2815032042u, 338, 4},
+    {Table::env, "DLC02_40_EnvS_043", "DLC02_10_EnvS_440", 2815032043u, 342, 4},
+    {Table::env, "DLC02_40_EnvS_044", "DLC02_10_EnvS_440", 2815032044u, 346, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_002", "DLC02_10_E_ItemS_001", 2815020002u, 350, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_003", "DLC02_10_E_ItemS_001", 2815020003u, 354, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_004", "DLC02_10_E_ItemS_001", 2815020004u, 358, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_005", "DLC02_10_E_ItemS_001", 2815020005u, 362, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_006", "DLC02_10_E_ItemS_001", 2815020006u, 366, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_007", "DLC02_10_E_ItemS_001", 2815020007u, 370, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_008", "DLC02_10_E_ItemS_001", 2815020008u, 374, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_009", "DLC02_10_E_ItemS_001", 2815020009u, 378, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_010", "DLC02_10_E_ItemS_001", 2815020010u, 382, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_011", "DLC02_10_E_ItemS_001", 2815020011u, 386, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_012", "DLC02_10_E_ItemS_001", 2815020012u, 390, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_013", "DLC02_10_E_ItemS_001", 2815020013u, 394, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_014", "DLC02_10_E_ItemS_001", 2815020014u, 398, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_015", "DLC02_10_E_ItemS_001", 2815020015u, 402, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_016", "DLC02_10_E_ItemS_001", 2815020016u, 406, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_017", "DLC02_10_E_ItemS_001", 2815020017u, 410, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_018", "DLC02_10_E_ItemS_001", 2815020018u, 414, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_019", "DLC02_10_E_ItemS_001", 2815020019u, 418, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_020", "DLC02_10_E_ItemS_001", 2815020020u, 422, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_021", "DLC02_10_E_ItemS_001", 2815020021u, 426, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_022", "DLC02_10_E_ItemS_001", 2815020022u, 430, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_023", "DLC02_10_E_ItemS_001", 2815020023u, 434, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_024", "DLC02_10_E_ItemS_001", 2815020024u, 438, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_025", "DLC02_10_E_ItemS_001", 2815020025u, 442, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_026", "DLC02_10_E_ItemS_001", 2815020026u, 446, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_027", "DLC02_10_E_ItemS_001", 2815020027u, 450, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_028", "DLC02_10_E_ItemS_001", 2815020028u, 454, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_029", "DLC02_10_E_ItemS_001", 2815020029u, 458, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_030", "DLC02_10_E_ItemS_001", 2815020030u, 462, 4},
+    {Table::eitem, "DLC02_40_E_ItemS_031", "DLC02_10_E_ItemS_001", 2815020031u, 466, 4},
+    {Table::env, "DLC02_10_EnvS_428", "DLC02_10_EnvS_428", 2800032428u, 470, 2},
+    {Table::env, "DLC02_30_EnvS_012", "DLC02_10_EnvS_440", 2810032012u, 472, 4},
+    {Table::env, "DLC02_30_EnvS_013", "DLC02_10_EnvS_440", 2810032013u, 476, 4},
+    {Table::env, "DLC02_30_EnvS_014", "DLC02_10_EnvS_440", 2810032014u, 480, 4},
+    {Table::env, "DLC02_30_EnvS_015", "DLC02_10_EnvS_440", 2810032015u, 484, 4},
+    {Table::env, "DLC02_30_EnvS_016", "DLC02_10_EnvS_440", 2810032016u, 488, 4},
+    {Table::env, "DLC02_30_EnvS_017", "DLC02_10_EnvS_440", 2810032017u, 492, 4},
+    {Table::env, "DLC02_30_EnvS_018", "DLC02_10_EnvS_440", 2810032018u, 496, 4},
+    {Table::env, "DLC02_30_EnvS_019", "DLC02_10_EnvS_440", 2810032019u, 500, 4},
+    {Table::env, "DLC02_30_EnvS_020", "DLC02_10_EnvS_440", 2810032020u, 504, 4},
+    {Table::env, "DLC02_30_EnvS_021", "DLC02_10_EnvS_440", 2810032021u, 508, 4},
+    {Table::env, "DLC02_30_EnvS_022", "DLC02_10_EnvS_440", 2810032022u, 512, 4},
+    {Table::env, "DLC02_30_EnvS_023", "DLC02_10_EnvS_440", 2810032023u, 516, 4},
+    {Table::env, "DLC02_30_EnvS_024", "DLC02_10_EnvS_440", 2810032024u, 520, 4},
+    {Table::env, "DLC02_30_EnvS_025", "DLC02_10_EnvS_440", 2810032025u, 524, 4},
+    {Table::env, "DLC02_30_EnvS_026", "DLC02_10_EnvS_440", 2810032026u, 528, 4},
+    {Table::env, "DLC02_30_EnvS_027", "DLC02_10_EnvS_440", 2810032027u, 532, 4},
+    {Table::env, "DLC02_30_EnvS_028", "DLC02_10_EnvS_440", 2810032028u, 536, 4},
+    {Table::env, "DLC02_30_EnvS_029", "DLC02_10_EnvS_440", 2810032029u, 540, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_003", "DLC02_10_E_ItemS_001", 2810020003u, 544, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_004", "DLC02_10_E_ItemS_001", 2810020004u, 548, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_005", "DLC02_10_E_ItemS_001", 2810020005u, 552, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_006", "DLC02_10_E_ItemS_001", 2810020006u, 556, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_007", "DLC02_10_E_ItemS_001", 2810020007u, 560, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_008", "DLC02_10_E_ItemS_001", 2810020008u, 564, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_009", "DLC02_10_E_ItemS_001", 2810020009u, 568, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_010", "DLC02_10_E_ItemS_001", 2810020010u, 572, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_011", "DLC02_10_E_ItemS_001", 2810020011u, 576, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_012", "DLC02_10_E_ItemS_001", 2810020012u, 580, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_013", "DLC02_10_E_ItemS_001", 2810020013u, 584, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_014", "DLC02_10_E_ItemS_001", 2810020014u, 588, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_015", "DLC02_10_E_ItemS_001", 2810020015u, 592, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_016", "DLC02_10_E_ItemS_001", 2810020016u, 596, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_017", "DLC02_10_E_ItemS_001", 2810020017u, 600, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_018", "DLC02_10_E_ItemS_001", 2810020018u, 604, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_019", "DLC02_10_E_ItemS_001", 2810020019u, 608, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_020", "DLC02_10_E_ItemS_001", 2810020020u, 612, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_021", "DLC02_10_E_ItemS_001", 2810020021u, 616, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_022", "DLC02_10_E_ItemS_001", 2810020022u, 620, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_023", "DLC02_10_E_ItemS_001", 2810020023u, 624, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_024", "DLC02_10_E_ItemS_001", 2810020024u, 628, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_025", "DLC02_10_E_ItemS_001", 2810020025u, 632, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_026", "DLC02_10_E_ItemS_001", 2810020026u, 636, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_027", "DLC02_10_E_ItemS_001", 2810020027u, 640, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_028", "DLC02_10_E_ItemS_001", 2810020028u, 644, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_030", "DLC02_10_E_ItemS_001", 2810020030u, 648, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_031", "DLC02_10_E_ItemS_001", 2810020031u, 652, 4},
+    {Table::eitem, "DLC02_30_E_ItemS_032", "DLC02_10_E_ItemS_001", 2810020032u, 656, 4},
 };
 
 constexpr Patch kMxupperPatches[] = {
