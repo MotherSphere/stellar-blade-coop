@@ -57,7 +57,7 @@ function Breakables.new(o)
         return map
     end
     local function show(p,on)
-        p:SetActorEnableCollision(on)
+        p:SetActorEnableCollision(on,false) -- SB's Actor takes (bNewActorEnableCollision, inFastUpdate)
         p:SetActorHiddenInGame(not on)
     end
     local function spawn(eve,m,c)
