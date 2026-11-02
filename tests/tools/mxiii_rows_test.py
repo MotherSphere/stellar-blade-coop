@@ -232,6 +232,8 @@ for name, album in by['AlbumTable'].items():
     env = by['ZoneEnvSpawnTable'][unlock['ParamValue1']]
     e = field(env)
     assert e['PuzzleInputText1'] == name and e['SpawnPointName'] == env['name'] and e['EnvActorName'] == env['name']
+    if env['donor'] == 'DED10_EnvS_168':  # The donor's Legion_Drown reward on its On state stays behind.
+        assert e['RewardTagName1'] == 'None' and e['State_RewardGroup1'] == 'None', env['name']
     assert field(by['PuzzleStringArrayTable'][name])['StringArray'] == [name + '_Title', name + '_Desc']
     assert f'u"{name}_Title"' in text and f'u"{name}_Desc"' in text
 assert groups == {'MX13_Region': 7, 'UI_Album_Document_Category_Message': 5, 'UI_Album_Document_Category_Guide': 5,

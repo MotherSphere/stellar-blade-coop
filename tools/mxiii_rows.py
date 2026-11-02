@@ -37,7 +37,8 @@ FIELDS = {
         # The per-state lists, one item a state of SequenceTagNameList, in its order.
         'OutTransitSequenceList': (0x370, 'strings', 'S'), 'OutTransitTemplatePath': (0x380, 'strings', 'S'),
         'ActiveSequenceList': (0x3b0, 'strings', 'S'), 'ShopDataList': (0x460, 'names', 'N'),
-        'PuzzleInputText1': (0x31c, 'name', 'n')}),
+        'PuzzleInputText1': (0x31c, 'name', 'n'),
+        'RewardTagName1': (0x160, 'name', 'n'), 'State_RewardGroup1': (0x168, 'name', 'n')}),
     'ZoneTriggerTable': ('trigger', {'Zone': (0x14, 'name', 'n'), 'InitActivate': (0x1c, 'u8', 'e'),
                                      'TouchEvents': (0x20, 'names', 'N'), 'InitialDoingCount': (0x5c, 'i32', 'i'),
                                      'SaveType': (0x68, 'u8', 'e')}),

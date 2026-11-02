@@ -171,8 +171,8 @@ constexpr Entry kRecordEntries[] = {
     {u"Records_MX13_Z3_04_Desc",
      u"2455. Bram n'est pas revenu du service de nuit. Pia\n"
      u"2466. L'eau atteint la deuxi\u00e8me marque. Mila est l\u00e0 avec Noa. Trop jeune pour le puits, je l'ai dit. Ines\n"
-     u"2478. Toujours pas de caisses de cellules d'en haut. Oren\n"
      u"2472. Yohan est pass\u00e9 chercher Noa. Mila a dit oui, pour deux semaines. Pia\n"
+     u"2478. Toujours pas de caisses de cellules d'en haut. Oren\n"
      u"2488. Yohan est pass\u00e9 \u00e0 21 h 10, il descendait, avec Noa. Pia\n"
      u"2491. Cinq adeptes sont pass\u00e9s. Ils cherchaient le bout de la ligne. Oren\n"
      u"2493. Les adeptes sont entr\u00e9s dans la salle des pompes ce matin. Ils n'ont pas attendu Ines. Pia\n"
@@ -180,8 +180,8 @@ constexpr Entry kRecordEntries[] = {
      u"2494. Chef de gare, 21 h 40, je descends. Ruben",
      u"2,455. Bram did not come back from the night shift. Pia\n"
      u"2,466. Water at the second mark. Mila is here with Noa. Too young for the shaft, I said. Ines\n"
-     u"2,478. Still no crates of cells from upstairs. Oren\n"
      u"2,472. Yohan came by for Noa. Mila said yes, for two weeks. Pia\n"
+     u"2,478. Still no crates of cells from upstairs. Oren\n"
      u"2,488. Yohan went by at 21:10, going down, with Noa. Pia\n"
      u"2,491. Five believers went by. They asked for the end of the line. Oren\n"
      u"2,493. The believers went into the pump hall this morning. They did not wait for Ines. Pia\n"

@@ -65,10 +65,14 @@ constexpr Entry kEntries[] = {
 // NUL (0 and a null name when empty).
 inline bool french(const char16_t *name, int32_t num) { return name && num >= 3 && name[0] == u'f' && name[1] == u'r'; }
 
-// When a pass over the table is due: until one has ended, and when the language changed since.
+// When a pass over the table is due: until one has ended, when the language changed since, and when the table no longer
+// holds its first entry (holds_first false): the engine collected a table only a Lua LoadAsset held and loaded it again
+// without ours [inference: not seen in game].
 struct Pass {
   bool filled = false, in_french = false;
-  bool due(bool now_french) const { return !filled || now_french != in_french; }
+  bool due(bool now_french, bool holds_first = true) const {
+    return !filled || now_french != in_french || !holds_first;
+  }
   void done(bool now_french) { filled = true, in_french = now_french; }
 };
 

@@ -5,8 +5,8 @@ namespace {
 // ---- Matrix XIII's camp names and records, the game thread's add to StringTable_UI and StringTable_Records
 // (game/camp_text.h) ----
 // Every 250 ms, at the title too, with coop off too (the entries stay for the run and a language change still needs
-// them rewritten): the culture, read here with no Lua round trip, then a pass over each table when its own
-// game/camp_text.h Pass says so. A pass waits while the table is missing or not loaded. It adds each absent entry the way ImportStrings does
+// them rewritten): the culture, read here with no Lua round trip, each loaded table's first key, then a pass over each
+// table when its own game/camp_text.h Pass says so. A pass waits while the table is missing or not loaded. It adds each absent entry the way ImportStrings does
 // (14285a4f2-14285a643) and assigns each present one, which is what a language change finds. Out of line under its own
 // SEH latch: the first fault ends the passes for the run, the handler lets go of the locks this code took, and the
 // line says camptext=fault. A fault inside GetDisplayString can leave the manager's own lock held, as with every other
@@ -98,26 +98,28 @@ __declspec(noinline) void camp_text_body() {
     return;
   const bool french = camp_text::french(at<const char16_t *>(culture + camp_text::kCultureName),
                                         at<int32_t>(culture + camp_text::kCultureNameNum));
-  bool due = false;
-  for (const camp_text::Pass &pass : camp_text_passes)
-    due = due || pass.due(french);
-  if (!due)
-    return;
   const uintptr_t holder = game_function<SingletonGet>(camp_text::kManagerHolder)();
   const uintptr_t manager = game::plausible(holder) ? at<uintptr_t>(holder + camp_text::kManager) : 0;
   const uintptr_t registry = game_function<SingletonGet>(camp_text::kRegistry)();
   if (!game::plausible(manager) || !game::plausible(registry))
     return;
   for (size_t w = 0; w < camp_text::kWriteCount; ++w) {
-    if (!camp_text_passes[w].due(french))
-      continue;
     const camp_text::TableEntries &write = camp_text::kWrites[w];
     const NameView id_view{write.id, uint32_t(wcslen(write.id)), false};
     uint64_t id = 0;
     game_function<MakeName>(kMakeName)(&id, &id_view, 1, 0); // 1: FNAME_Add. A table's name has no number suffix.
     SharedRef table;
     game_function<FindTable>(camp_text::kFindTable)(reinterpret_cast<void *>(registry), &table, id);
-    if (game::plausible(table.object) && at<uint8_t>(table.object + camp_text::kLoaded)) {
+    bool holds_first = false;
+    const bool loaded = game::plausible(table.object) && at<uint8_t>(table.object + camp_text::kLoaded);
+    if (loaded) {
+      const FStringArg first = camp_text_view(write.entries[0].key);
+      SharedRef found;
+      game_function<FindEntry>(camp_text::kFindEntry)(reinterpret_cast<void *>(table.object), &found, &first);
+      holds_first = found.object != 0;
+      camp_text_release(found.controller);
+    }
+    if (loaded && camp_text_passes[w].due(french, holds_first)) {
       camp_text_table_lock = reinterpret_cast<void *>(table.object + camp_text::kTableLock);
       EnterCriticalSection(static_cast<LPCRITICAL_SECTION>(camp_text_table_lock));
       for (size_t i = 0; i < write.count; ++i) {

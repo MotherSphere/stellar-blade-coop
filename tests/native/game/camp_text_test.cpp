@@ -34,6 +34,8 @@ int main() {
   assert(!pass.due(false) && pass.due(true));
   pass.done(true);
   assert(!pass.due(true) && pass.due(false));
+  // The table loaded again without its entries: due again, in the same language.
+  assert(!pass.due(true, true) && pass.due(true, false));
 
   assert(line(State::wait) == "camptext=wait" && line(State::ready) == "camptext=ready" &&
          line(State::fault) == "camptext=fault" && line(State::ready, "recordtext") == "recordtext=ready");
@@ -61,8 +63,10 @@ int main() {
     const size_t at = all.find(first);
     return at != std::u16string::npos && all.find(u'\n', at) + 1 == all.find(next);
   };
-  assert(line_after(board, u"2,478.", u"2,472. Yohan came by for Noa. Mila said yes, for two weeks. Pia\n"));
-  assert(line_after(tableau, u"2478.", u"2472. Yohan est pass\u00e9 chercher Noa. Mila a dit oui, pour deux semaines. Pia\n"));
+  assert(line_after(board, u"2,466.", u"2,472. Yohan came by for Noa. Mila said yes, for two weeks. Pia\n"));
+  assert(line_after(board, u"2,472.", u"2,478."));
+  assert(line_after(tableau, u"2466.", u"2472. Yohan est pass\u00e9 chercher Noa. Mila a dit oui, pour deux semaines. Pia\n"));
+  assert(line_after(tableau, u"2472.", u"2478."));
   assert(board.find(u"2,488. Yohan went by at 21:10, going down, with Noa. Pia\n") != std::u16string::npos &&
          board.find(u"He asked where Noa was") == std::u16string::npos);
   assert(tableau.find(u"2488. Yohan est pass\u00e9 \u00e0 21 h 10, il descendait, avec Noa. Pia\n") != std::u16string::npos);

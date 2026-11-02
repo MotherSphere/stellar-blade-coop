@@ -64,7 +64,7 @@ local KINDS={name='n',string='s',names='N',strings='S'}
 local function check_batch(src,cname,rows)
     local patches={}
     for at,kind,value,text,field in assert(src:match('constexpr Patch '..cname..'Patches%[%] = {\n(.-)\n};'))
-        :gmatch('{(0x%x+), Kind::(%w+), ([%d%.%-]+)f?,%s*([^}]-)},%s*// (%w+)') do
+        :gmatch('{(0x%x+), Kind::(%w+), ([%d%.%-]+)f?,%s*([^}]-)},%s*// ([%w_]+)') do
         patches[#patches+1]={at=tonumber(at),kind=kind,f=tonumber(value),text=text:match('^"(.*)"$'),field=field}
     end
     local n=0

@@ -25547,6 +25547,16 @@
        "PuzzleInputText1",
        "Records_MX13_Z1_04",
        true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
       ]
      ],
      "note": "MX13-Z1-04"
@@ -25582,6 +25592,16 @@
       [
        "PuzzleInputText1",
        "Records_MX13_Z2_03",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
        true
       ]
      ],
@@ -25619,6 +25639,16 @@
        "PuzzleInputText1",
        "Records_MX13_Z3_03",
        true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
       ]
      ],
      "note": "MX13-Z3-03"
@@ -25654,6 +25684,16 @@
       [
        "PuzzleInputText1",
        "Records_MX13_Z3_05",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
        true
       ]
      ],
@@ -25691,6 +25731,16 @@
        "PuzzleInputText1",
        "Records_MX13_Z4_06",
        true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
       ]
      ],
      "note": "MX13-Z4-06"
@@ -25727,6 +25777,16 @@
        "PuzzleInputText1",
        "Records_MX13_Z4_04",
        true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
       ]
      ],
      "note": "MX13-Z4-04"
@@ -25762,6 +25822,16 @@
       [
        "PuzzleInputText1",
        "Records_MX13_Z4_05",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
        true
       ]
      ],

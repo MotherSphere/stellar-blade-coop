@@ -5024,42 +5024,56 @@ constexpr Patch kMxrecordsPatches[] = {
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_10_EnvS_953"}, // SpawnPointName
     {0x31c, Kind::name, 0, "Records_MX13_Z1_04"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
     // DLC02_20_EnvS_952 (ZoneEnvSpawnTable, MX13-Z2-03)
     {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_20_EnvS_952"}, // EnvActorName
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_20_EnvS_952"}, // SpawnPointName
     {0x31c, Kind::name, 0, "Records_MX13_Z2_03"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
     // DLC02_30_EnvS_952 (ZoneEnvSpawnTable, MX13-Z3-03)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_952"}, // EnvActorName
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_952"}, // SpawnPointName
     {0x31c, Kind::name, 0, "Records_MX13_Z3_03"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
     // DLC02_30_EnvS_954 (ZoneEnvSpawnTable, MX13-Z3-05)
     {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_30_EnvS_954"}, // EnvActorName
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_30_EnvS_954"}, // SpawnPointName
     {0x31c, Kind::name, 0, "Records_MX13_Z3_05"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
     // DLC02_40_EnvS_955 (ZoneEnvSpawnTable, MX13-Z4-06)
     {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_40_EnvS_955"}, // EnvActorName
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_955"}, // SpawnPointName
     {0x31c, Kind::name, 0, "Records_MX13_Z4_06"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
     // DLC02_40_EnvS_953 (ZoneEnvSpawnTable, MX13-Z4-04)
     {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_40_EnvS_953"}, // EnvActorName
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_953"}, // SpawnPointName
     {0x31c, Kind::name, 0, "Records_MX13_Z4_04"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
     // DLC02_40_EnvS_954 (ZoneEnvSpawnTable, MX13-Z4-05)
     {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_40_EnvS_954"}, // EnvActorName
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_954"}, // SpawnPointName
     {0x31c, Kind::name, 0, "Records_MX13_Z4_05"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
     // DLC02_00_EnvS_950 (ZoneEnvSpawnTable, MX13-00)
     {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
     {0x30, Kind::name, 0, "DLC02_00_EnvS_950"}, // EnvActorName
@@ -5245,30 +5259,30 @@ constexpr Row kMxrecordsRecipe[] = {
     {Table::album, "Records_MX13_Z3_02", "Records_ME04_Memory_15", 10722u, 304, 7},
     {Table::album, "Records_MX13_Z4_01", "Records_ME04_Memory_15", 10723u, 311, 7},
     {Table::album, "Records_MX13_Z4_03", "Records_ME04_Memory_15", 10724u, 318, 7},
-    {Table::env, "DLC02_10_EnvS_953", "DED10_EnvS_168", 2800032953u, 325, 5},
-    {Table::env, "DLC02_20_EnvS_952", "DED10_EnvS_168", 2805032952u, 330, 5},
-    {Table::env, "DLC02_30_EnvS_952", "DED10_EnvS_168", 2810032952u, 335, 5},
-    {Table::env, "DLC02_30_EnvS_954", "DED10_EnvS_168", 2810032954u, 340, 5},
-    {Table::env, "DLC02_40_EnvS_955", "DED10_EnvS_168", 2815032955u, 345, 5},
-    {Table::env, "DLC02_40_EnvS_953", "DED10_EnvS_168", 2815032953u, 350, 5},
-    {Table::env, "DLC02_40_EnvS_954", "DED10_EnvS_168", 2815032954u, 355, 5},
-    {Table::env, "DLC02_00_EnvS_950", "SE_06_EnvS_076", 2800032959u, 360, 5},
-    {Table::env, "DLC02_10_EnvS_954", "SE_06_EnvS_076", 2800032954u, 365, 5},
-    {Table::env, "DLC02_10_EnvS_956", "SE_06_EnvS_076", 2800032956u, 370, 5},
-    {Table::env, "DLC02_20_EnvS_954", "SE_06_EnvS_076", 2805032954u, 375, 5},
-    {Table::env, "DLC02_30_EnvS_953", "SE_06_EnvS_076", 2810032953u, 380, 5},
-    {Table::env, "DLC02_10_EnvS_950", "SE_06_EnvS_076", 2800032950u, 385, 5},
-    {Table::env, "DLC02_10_EnvS_951", "SE_06_EnvS_076", 2800032951u, 390, 5},
-    {Table::env, "DLC02_20_EnvS_950", "SE_06_EnvS_076", 2805032950u, 395, 5},
-    {Table::env, "DLC02_30_EnvS_950", "SE_06_EnvS_076", 2810032950u, 400, 5},
-    {Table::env, "DLC02_40_EnvS_951", "SE_06_EnvS_076", 2815032951u, 405, 5},
-    {Table::env, "DLC02_10_EnvS_952", "SE_06_EnvS_076", 2800032952u, 410, 5},
-    {Table::env, "DLC02_10_EnvS_955", "SE_06_EnvS_076", 2800032955u, 415, 5},
-    {Table::env, "DLC02_10_EnvS_957", "SE_06_EnvS_076", 2800032957u, 420, 5},
-    {Table::env, "DLC02_20_EnvS_951", "SE_06_EnvS_076", 2805032951u, 425, 5},
-    {Table::env, "DLC02_20_EnvS_953", "SE_06_EnvS_076", 2805032953u, 430, 5},
-    {Table::env, "DLC02_30_EnvS_951", "SE_06_EnvS_076", 2810032951u, 435, 5},
-    {Table::env, "DLC02_40_EnvS_950", "SE_06_EnvS_076", 2815032950u, 440, 5},
-    {Table::env, "DLC02_40_EnvS_952", "SE_06_EnvS_076", 2815032952u, 445, 5},
+    {Table::env, "DLC02_10_EnvS_953", "DED10_EnvS_168", 2800032953u, 325, 7},
+    {Table::env, "DLC02_20_EnvS_952", "DED10_EnvS_168", 2805032952u, 332, 7},
+    {Table::env, "DLC02_30_EnvS_952", "DED10_EnvS_168", 2810032952u, 339, 7},
+    {Table::env, "DLC02_30_EnvS_954", "DED10_EnvS_168", 2810032954u, 346, 7},
+    {Table::env, "DLC02_40_EnvS_955", "DED10_EnvS_168", 2815032955u, 353, 7},
+    {Table::env, "DLC02_40_EnvS_953", "DED10_EnvS_168", 2815032953u, 360, 7},
+    {Table::env, "DLC02_40_EnvS_954", "DED10_EnvS_168", 2815032954u, 367, 7},
+    {Table::env, "DLC02_00_EnvS_950", "SE_06_EnvS_076", 2800032959u, 374, 5},
+    {Table::env, "DLC02_10_EnvS_954", "SE_06_EnvS_076", 2800032954u, 379, 5},
+    {Table::env, "DLC02_10_EnvS_956", "SE_06_EnvS_076", 2800032956u, 384, 5},
+    {Table::env, "DLC02_20_EnvS_954", "SE_06_EnvS_076", 2805032954u, 389, 5},
+    {Table::env, "DLC02_30_EnvS_953", "SE_06_EnvS_076", 2810032953u, 394, 5},
+    {Table::env, "DLC02_10_EnvS_950", "SE_06_EnvS_076", 2800032950u, 399, 5},
+    {Table::env, "DLC02_10_EnvS_951", "SE_06_EnvS_076", 2800032951u, 404, 5},
+    {Table::env, "DLC02_20_EnvS_950", "SE_06_EnvS_076", 2805032950u, 409, 5},
+    {Table::env, "DLC02_30_EnvS_950", "SE_06_EnvS_076", 2810032950u, 414, 5},
+    {Table::env, "DLC02_40_EnvS_951", "SE_06_EnvS_076", 2815032951u, 419, 5},
+    {Table::env, "DLC02_10_EnvS_952", "SE_06_EnvS_076", 2800032952u, 424, 5},
+    {Table::env, "DLC02_10_EnvS_955", "SE_06_EnvS_076", 2800032955u, 429, 5},
+    {Table::env, "DLC02_10_EnvS_957", "SE_06_EnvS_076", 2800032957u, 434, 5},
+    {Table::env, "DLC02_20_EnvS_951", "SE_06_EnvS_076", 2805032951u, 439, 5},
+    {Table::env, "DLC02_20_EnvS_953", "SE_06_EnvS_076", 2805032953u, 444, 5},
+    {Table::env, "DLC02_30_EnvS_951", "SE_06_EnvS_076", 2810032951u, 449, 5},
+    {Table::env, "DLC02_40_EnvS_950", "SE_06_EnvS_076", 2815032950u, 454, 5},
+    {Table::env, "DLC02_40_EnvS_952", "SE_06_EnvS_076", 2815032952u, 459, 5},
 };
 
