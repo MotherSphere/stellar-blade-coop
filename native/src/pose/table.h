@@ -12,6 +12,15 @@
 //   part <i> <lead|-> <parent|-> <socket|-> <shown 0|1> <bones> <name> <path|->
 //   place <i> qx qy qz qw tx ty tz sx sy sz           i >= 1 only: its transform relative to its parent
 //   material <i> <slot> <path>                        0 to 16, slots 0 to 63 strictly rising: a material it overrides
+//   value <i> <slot> v <name> r g b a                 0 to 32 a slot, 512 a table, slots rising: a value of the dynamic
+//   value <i> <slot> s <name> x                       material on that slot: a vector, a scalar (each number within
+//   value <i> <slot> t <name> <path>                  kMaxValue) or a texture (a path as a material's); a space in the
+//                                                     name goes as '~'. A line that breaks these rules, or whose slot
+//                                                     has no kept material, is ignored and counted in Table::ignored
+//   hide <i> <slot>...                                optional, once: 1 to 64 slots 0 to 63 strictly rising, whose
+//                                                     material sections it hides at LOD 0 (CNS's toggles and hidden
+//                                                     slots, any slot, overridden or not). A hide line that breaks
+//                                                     these rules is ignored and counted too
 //   cloth <i> <path>                                  optional: the PhysicsAsset its cloth collides with (her
 //                                                     ponytail's OverrideClothPhysicsAsset, a CNS outfit's PonyPhysics)
 //   mod <i> <label>                                   optional, a word: on a mod's mesh, the outfit it comes from (its
@@ -19,11 +28,19 @@
 //                                                     viewer's notice when that mod is not installed there
 //   names <i> <bone>...                               leaders only: one per bone, in the mesh's order
 //   read <i> 0x<object> 0x<class> 0x<mesh>            leaders only, in the capture file only
-//   then, in the capture file only, after the last part:
+//   then after the last part, in both forms:
+//   fx <k> <path>                                     0 to kMaxEffectAssets - kFixedEffects, k kFixedEffects + 1 to
+//                                                     kMaxEffectAssets strictly rising: the NiagaraSystem effect slot
+//                                                     asset k names, by path (1 to 255 bytes; one path_allowed refuses
+//                                                     is dropped, and a slot naming k draws nothing). Lua only names
+//                                                     the game's FX folders and the assets of a mod both players have
+//                                                     in one version, and the viewer loads only those (partner/
+//                                                     puppet.lua); k is never given another path under one generation
+//   then, in the capture file only:
 //   effects 0x<class> 0x<offset>                      the NiagaraComponent class and its Asset field's offset
 //                                                     (0x100 to 0x1000, a multiple of 8): the native effect read
-//   effect <k> 0x<system>                             0 to 32 after effects, k 1 to 32 strictly rising: Lua's list
-//                                                     entry k is this NiagaraSystem object
+//   effect <k> 0x<system>                             0 to kMaxEffectAssets after effects, k 1 to kMaxEffectAssets
+//                                                     strictly rising: Lua's list entry k is this NiagaraSystem object
 // A leader has lead '-' and 1 to kMaxBones bones; part 0 is one, hung from nothing. A follower names a leader before
 // it and has no bones of its own (SetMasterPoseComponent); every part after 0 hangs from a part before it. A word is 1
 // to 64 bytes of '!' to '~'. The path alone may be longer: then it, like any path path_allowed refuses, reads as '-',
@@ -50,7 +67,20 @@
 namespace coop::pose {
 
 constexpr size_t kMaxTable = 65536, kMaxWord = 64, kMaxPath = 255, kMaxMap = 128, kMaxMaterials = 16, kMaxSlots = 64;
+constexpr size_t kMaxValues = 512, kMaxSlotValues = 32;
+constexpr float kMaxValue = 1e5f;
 constexpr uint64_t kMaxGeneration = uint64_t(1) << 53; // Exact as a double too.
+
+// One value line: kind 'v' (x[0] to x[3]), 's' (x[0]) or 't' (path).
+struct Value {
+  uint8_t slot = 0;
+  char kind = 0;
+  std::string name, path;
+  float x[4]{};
+  bool operator==(const Value &o) const {
+    return slot == o.slot && kind == o.kind && name == o.name && path == o.path && std::equal(x, x + 4, o.x);
+  }
+};
 
 // What the ghost shows of one part, beside its Part in Table::eve.
 struct Look {
@@ -60,6 +90,8 @@ struct Look {
   float place[10]{};              // Relative to the parent: rotation xyzw, translation xyz, scale xyz. Not part 0's.
   std::vector<std::string> names; // A leader's bones.
   std::vector<std::pair<uint8_t, std::string>> materials; // Overridden slots and their paths, slots rising.
+  std::vector<Value> values;                               // Slots rising, each a kept material's.
+  uint64_t hidden = 0;                                      // Bit k: slot k's sections hidden at LOD 0.
   std::string cloth, label;                                // Empty without a cloth or mod line.
 };
 
@@ -68,6 +100,8 @@ struct Table {
   std::string map;
   std::vector<Part> eve; // The pose layout: bones and leader always; addresses only from read lines.
   std::vector<Look> look;
+  size_t ignored = 0; // Value and hide lines left out as read; never formatted.
+  std::vector<std::pair<uint8_t, std::string>> fx_paths; // The fx lines kept, k rising.
   // The capture file's effect lines: cls 0 means no effect read. assets[k] is list entry k's object, 0 when not found.
   struct Fx {
     uint64_t cls = 0;
@@ -231,6 +265,57 @@ inline bool real(std::string_view word, float &out) {
   return r.ec == std::errc() && r.ptr == end && std::isfinite(out);
 }
 
+// One value line into values, or false to ignore it. kept: the part's slots whose material stayed; total: the table's
+// values so far. Rising slots keep the repeat and cap checks to one slot's values, however long a peer's text is.
+inline bool value_line(const Words &w, size_t i, uint64_t kept, size_t &total, std::vector<Value> &values) {
+  uint64_t slot = 0;
+  if (w.size() < 6 || !index_is(w, i) || !number(w[2], slot) || slot >= kMaxSlots || !((kept >> slot) & 1) ||
+      w[3].size() != 1 || w[4].size() > kMaxWord || total == kMaxValues ||
+      (!values.empty() && values.back().slot > slot))
+    return false;
+  Value v;
+  v.slot = uint8_t(slot);
+  v.kind = w[3][0];
+  v.name = w[4];
+  if (v.kind == 't') {
+    if (w.size() != 6 || !path_allowed(w[5]))
+      return false;
+    v.path = w[5];
+  } else if (v.kind == 'v' || v.kind == 's') {
+    const size_t numbers = v.kind == 'v' ? 4 : 1;
+    if (w.size() != 5 + numbers)
+      return false;
+    for (size_t k = 0; k < numbers; ++k)
+      if (!real(w[5 + k], v.x[k]) || std::fabs(v.x[k]) > kMaxValue)
+        return false;
+  } else {
+    return false;
+  }
+  size_t same_slot = 0;
+  for (auto at = values.rbegin(); at != values.rend() && at->slot == slot; ++at)
+    if (++same_slot == kMaxSlotValues || (at->kind == v.kind && at->name == v.name))
+      return false;
+  values.push_back(std::move(v));
+  ++total;
+  return true;
+}
+
+// A hide line into hidden (still 0: a second line is ignored), or false to ignore it.
+inline bool hide_line(const Words &w, size_t i, uint64_t &hidden) {
+  if (w.size() < 3 || w.size() > 2 + kMaxSlots || !index_is(w, i) || hidden)
+    return false;
+  uint64_t mask = 0;
+  for (size_t k = 2, last = 0; k < w.size(); ++k) {
+    uint64_t slot = 0;
+    if (!number(w[k], slot) || slot >= kMaxSlots || (k > 2 && slot <= last))
+      return false;
+    mask |= uint64_t(1) << slot;
+    last = slot;
+  }
+  hidden = mask;
+  return true;
+}
+
 inline bool map_allowed(std::string_view map) {
   if (map.size() > kMaxMap || map[0] != '/')
     return false;
@@ -241,7 +326,7 @@ inline bool map_allowed(std::string_view map) {
 }
 } // namespace grammar
 
-// The wire form: no read or effect lines, floats as %.9g, so a table always reads back to the same bytes. The native
+// The wire form: no read or effect lines (fx lines go), floats as %.9g, so a table always reads back to the same bytes. The native
 // side sends and stores only this, never the text it received.
 inline std::string format_table(const Table &t) {
   std::string s;
@@ -288,6 +373,27 @@ inline std::string format_table(const Table &t) {
       word(path);
       s += '\n';
     }
+    for (const Value &v : l.values) {
+      s += "value";
+      integer(int64_t(i));
+      integer(v.slot);
+      word({&v.kind, 1});
+      word(v.name);
+      if (v.kind == 't')
+        word(v.path);
+      else
+        for (int k = 0; k < (v.kind == 'v' ? 4 : 1); ++k)
+          real(v.x[k]);
+      s += '\n';
+    }
+    if (l.hidden) {
+      s += "hide";
+      integer(int64_t(i));
+      for (int64_t k = 0; k < int64_t(kMaxSlots); ++k)
+        if ((l.hidden >> k) & 1)
+          integer(k);
+      s += '\n';
+    }
     for (const std::string *text : {&l.cloth, &l.label})
       if (!text->empty()) {
         s += text == &l.cloth ? "cloth" : "mod";
@@ -302,6 +408,12 @@ inline std::string format_table(const Table &t) {
         word(name);
       s += '\n';
     }
+  }
+  for (const auto &[k, path] : t.fx_paths) {
+    s += "fx";
+    integer(k);
+    word(path);
+    s += '\n';
   }
   return s;
 }
@@ -325,18 +437,27 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
   if (!(f = in.take("map", 2)) || !map_allowed((*f)[1]))
     return std::nullopt;
   t.map = (*f)[1];
+  size_t values = 0;
   while (!in.done()) {
     const size_t i = t.eve.size();
-    if (local && (f = in.take("effects", 3))) { // After the last part: effect lines to the end.
-      uint64_t offset = 0;
-      if (!hex((*f)[1], t.fx.cls) || !t.fx.cls || !hex((*f)[2], offset) || offset < 0x100 || offset > 0x1000 ||
-          offset % 8)
-        return std::nullopt;
-      t.fx.asset = static_cast<uint32_t>(offset);
-      for (uint64_t k = 0, last = 0; (f = in.take("effect", 3)); last = k)
-        if (!number((*f)[1], k) || k <= last || k > kMaxEffectAssets || !hex((*f)[2], t.fx.assets[k]) ||
-            !t.fx.assets[k])
+    if (in.lines[in.next][0] == "fx" || (local && in.lines[in.next][0] == "effects")) { // The tail, to the end.
+      for (uint64_t k = 0, last = kFixedEffects; (f = in.take("fx", 3)); last = k) {
+        if (!number((*f)[1], k) || k <= last || k > kMaxEffectAssets || (*f)[2].size() > kMaxPath)
           return std::nullopt;
+        if (path_allowed((*f)[2]))
+          t.fx_paths.emplace_back(uint8_t(k), (*f)[2]);
+      }
+      if (local && (f = in.take("effects", 3))) {
+        uint64_t offset = 0;
+        if (!hex((*f)[1], t.fx.cls) || !t.fx.cls || !hex((*f)[2], offset) || offset < 0x100 || offset > 0x1000 ||
+            offset % 8)
+          return std::nullopt;
+        t.fx.asset = static_cast<uint32_t>(offset);
+        for (uint64_t k = 0, last = 0; (f = in.take("effect", 3)); last = k)
+          if (!number((*f)[1], k) || k <= last || k > kMaxEffectAssets || !hex((*f)[2], t.fx.assets[k]) ||
+              !t.fx.assets[k])
+            return std::nullopt;
+      }
       if (!in.done())
         return std::nullopt;
       break;
@@ -381,15 +502,22 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
     }
     // Every material line counts for the cap and the order, a dropped one too.
     int64_t last = -1;
+    uint64_t kept = 0;
     for (size_t n = 0; (f = in.take("material", 4)); ++n) {
       uint64_t slot = 0;
       if (n == kMaxMaterials || !index_is(*f, i) || !number((*f)[2], slot) || slot >= kMaxSlots ||
           int64_t(slot) <= last || (*f)[3].size() > kMaxPath)
         return std::nullopt;
       last = int64_t(slot);
-      if (path_allowed((*f)[3]))
+      if (path_allowed((*f)[3])) {
         look.materials.emplace_back(uint8_t(slot), (*f)[3]);
+        kept |= uint64_t(1) << slot;
+      }
     }
+    while ((f = in.take("value")))
+      t.ignored += !value_line(*f, i, kept, values, look.values);
+    while ((f = in.take("hide")))
+      t.ignored += !hide_line(*f, i, look.hidden);
     if ((f = in.take("cloth", 3))) {
       if (!index_is(*f, i) || (*f)[2].size() > kMaxPath)
         return std::nullopt;
@@ -418,15 +546,16 @@ inline std::optional<Table> parse_table(const std::string &text, bool local) {
   }
   // The wire form must read back too. Only floats grow when formatted (".1" comes back as "0.100000001": at most 15
   // bytes for at least 1), and a capture file's SBT line is shorter than the read line it loses, so only a text this
-  // close to the cap can grow past it.
-  constexpr size_t kGrowth = kMaxParts * 10 * 14;
+  // close to the cap can grow past it. A value line has at most 4 floats.
+  constexpr size_t kGrowth = (kMaxParts * 10 + kMaxValues * 4) * 14;
   if (t.eve.empty() || !pose_size(t) || (text.size() + kGrowth > kMaxTable && format_table(t).size() > kMaxTable))
     return std::nullopt;
   return t;
 }
 
 // Whether a ghost built for one table fits the other: the same parts, each with the same leader, bones and mesh path,
-// as partner/puppet.lua's layout() compares. Lua builds a new ghost for another layout even under the same generation,
+// as partner/puppet.lua's layout() compares. Never the values or hidden slots: Lua applies a change to the
+// ghost it has. Lua builds a new ghost for another layout even under the same generation,
 // and a display checked against one layout must never be paired with another (write_puppet indexes it by the remote
 // parts).
 inline bool same_layout(const Table &a, const Table &b) {
@@ -436,6 +565,13 @@ inline bool same_layout(const Table &a, const Table &b) {
     if (a.eve[i].bones != b.eve[i].bones || a.look[i].lead != b.look[i].lead || a.look[i].path != b.look[i].path)
       return false;
   return true;
+}
+
+// Whether a new capture's effect read goes to the game thread's session in place (worker.inc's fx_incoming): the
+// same generation with other effect lines (a system named since). A new generation renews the whole session instead.
+inline bool fx_handover(const Table &was, const Table &now) {
+  return now.generation == was.generation &&
+         (now.fx.cls != was.fx.cls || now.fx.asset != was.fx.asset || now.fx.assets != was.fx.assets);
 }
 
 // Lua's display file for a remote table (coop-display.txt), every line ending in '\n':

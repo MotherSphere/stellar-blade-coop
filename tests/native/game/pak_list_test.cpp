@@ -8,6 +8,80 @@
 
 using namespace coop;
 
+namespace {
+// A .utoc as UE 4.26 to 4.27 write one (version 3, indexed, unsigned): a header, entries and blocks of no meaning
+// here, then the directory index, built from (directory, file) pairs under one mount point.
+void put(std::string &s, uint32_t v) {
+  for (int k = 0; k < 4; ++k)
+    s += char(v >> (8 * k) & 0xff);
+}
+void put(std::string &s, const std::string &text) {
+  put(s, uint32_t(text.size() + 1));
+  s += text;
+  s += '\0';
+}
+std::string toc(const std::string &mount, const std::vector<std::pair<std::string, std::string>> &entries,
+                uint8_t flags = 8, uint8_t version = 3) {
+  std::vector<std::string> names;
+  auto name = [&names](const std::string &n) {
+    for (uint32_t k = 0; k < names.size(); ++k)
+      if (names[k] == n)
+        return k;
+    names.push_back(n);
+    return uint32_t(names.size() - 1);
+  };
+  // Directories: a chain of single folders per entry under the root (entry 0), each file in its own folder chain.
+  struct Dir { uint32_t name, child, sibling, file; };
+  struct File { uint32_t name, next; };
+  std::vector<Dir> dirs{{0xffffffffu, 0xffffffffu, 0xffffffffu, 0xffffffffu}};
+  std::vector<File> files;
+  for (const auto &[dir, file] : entries) {
+    uint32_t at = 0;
+    size_t from = 0;
+    while (from < dir.size()) {
+      const size_t slash = dir.find('/', from);
+      const std::string part = dir.substr(from, slash - from);
+      from = slash == std::string::npos ? dir.size() : slash + 1;
+      uint32_t c = dirs[at].child, found = 0xffffffffu;
+      for (; c != 0xffffffffu; c = dirs[c].sibling)
+        if (names[dirs[c].name] == part)
+          found = c;
+      if (found == 0xffffffffu) {
+        dirs.push_back({name(part), 0xffffffffu, dirs[at].child, 0xffffffffu});
+        found = uint32_t(dirs.size() - 1);
+        dirs[at].child = found;
+      }
+      at = found;
+    }
+    files.push_back({name(file), dirs[at].file});
+    dirs[at].file = uint32_t(files.size() - 1);
+  }
+  std::string index;
+  put(index, mount);
+  put(index, uint32_t(dirs.size()));
+  for (const Dir &d : dirs)
+    for (uint32_t v : {d.name, d.child, d.sibling, d.file})
+      put(index, v);
+  put(index, uint32_t(files.size()));
+  for (const File &f : files)
+    for (uint32_t v : {f.name, f.next, 0u})
+      put(index, v);
+  put(index, uint32_t(names.size()));
+  for (const std::string &n : names)
+    put(index, n);
+  std::string s = "-==--==--==--==-";
+  s += char(version);
+  s += std::string(3, '\0');
+  for (uint32_t v : {144u, 2u, 1u, 12u, 0u, 32u, 65536u, uint32_t(index.size()), 1u})
+    put(s, v);
+  s.resize(80, '\0');
+  s += char(flags);
+  s.resize(144, '\0');
+  s += std::string(2 * 22 + 12, 'x'); // Two entries' ids and offsets, one compression block.
+  return s + index;
+}
+} // namespace
+
 int main() {
   // The base game's files, as a Steam install has them (and a stray file of no pak kind): nothing beyond them.
   const std::vector<PakFile> base = {{"global.ucas", 1500000},
@@ -173,5 +247,50 @@ int main() {
   std::map<std::string, std::string> full;
   cns_assets(many_paths + "]}", full);
   assert(full.size() == kMaxCnsAssets);
+  // A mod's .utoc: its .uasset files under SB/Content as object paths; maps, other roots and a broken TOC give none.
+  const std::vector<std::pair<std::string, std::string>> queen = {
+      {"SB/Content/Art/Character/Monster/CH_M_NA_53", "jpabscale_CH_M_NA_53_Weapon_Tachy.uasset"},
+      {"SB/Content/Art/FX/Mod", "NS_Mod_Trail.uasset"},
+      {"SB/Content/Art/FX/Mod", "NS_Mod_Trail.ubulk"},
+      {"SB/Content/Maps", "Mod_Map.umap"},
+      {"SB/Plugins/X/Content", "Y.uasset"},
+      {"SB/Content", "Top.uasset"}};
+  std::vector<std::string> got;
+  utoc_assets(toc("../../../", queen), got);
+  std::sort(got.begin(), got.end());
+  assert((got == std::vector<std::string>{
+                     "/Game/Art/Character/Monster/CH_M_NA_53/jpabscale_CH_M_NA_53_Weapon_Tachy."
+                     "jpabscale_CH_M_NA_53_Weapon_Tachy",
+                     "/Game/Art/FX/Mod/NS_Mod_Trail.NS_Mod_Trail", "/Game/Top.Top"}));
+  got.clear();
+  utoc_assets(toc("../../../SB/Content/", {{"Mods/Foo", "SK_Foo.uasset"}}, 8, 2), got); // Version 2, a deep mount.
+  assert(got == std::vector<std::string>{"/Game/Mods/Foo/SK_Foo.SK_Foo"});
+  got.clear();
+  utoc_assets(toc("../../../", queen), got, 2); // The cap.
+  assert(got.size() == 2);
+  const std::string good = toc("../../../", queen);
+  for (const std::string &bad : {toc("../../../", queen, 8 | 2), toc("../../../", queen, 0), toc("../../../", queen, 8, 4),
+                                 good.substr(0, good.size() - 1), good.substr(0, 100), std::string("x"),
+                                 std::string()}) {
+    got.clear();
+    utoc_assets(bad, got); // Encrypted, unindexed, another version, cut short anywhere.
+    assert(got.empty());
+  }
+  // A loop in a broken index ends: a folder that is its own sibling.
+  std::string looped = toc("../../../", {{"SB/Content/A", "B.uasset"}});
+  looped.replace(144 + 56 + 14 + 4 + 8, 4, std::string(4, '\0')); // The root's next sibling: the root itself.
+  got.clear();
+  utoc_assets(looped, got);
+  assert(got.size() == 1);
+  // The shared list: only containers both sides have in one version, each path once, sorted.
+  const std::map<std::string, std::vector<std::string>> mine = {
+      {"~mods/queen-lite/queen-lite_p", {"/Game/Art/FX/Mod/NS_A.NS_A", "/Game/B/B.B"}},
+      {"~mods/other_p", {"/Game/B/B.B", "/Game/C/C.C"}}};
+  assert(shared_assets(mine, {"~mods/queen-lite/queen-lite_p", "~mods/missing_p"}) ==
+         "/Game/Art/FX/Mod/NS_A.NS_A ~mods/queen-lite/queen-lite_p\n/Game/B/B.B ~mods/queen-lite/queen-lite_p\n");
+  assert(shared_assets(mine, {}).empty());
+  assert(shared_assets(mine, {"~mods/other_p", "~mods/queen-lite/queen-lite_p"}) ==
+         "/Game/Art/FX/Mod/NS_A.NS_A ~mods/queen-lite/queen-lite_p\n/Game/B/B.B ~mods/other_p\n"
+         "/Game/C/C.C ~mods/other_p\n");
   std::printf("pak_list_test: ok\n");
 }

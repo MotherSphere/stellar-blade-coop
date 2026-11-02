@@ -128,6 +128,31 @@ If the theater cannot play the talk, the mod tries these in order, and the log s
 
 Nothing of a talk goes into the save.
 
+## The zone talks
+
+Inside Matrix XIII, while "On Time" is in progress, 36 short scenes (1A to 4N) play as EVE moves through the zones.
+They show at the bottom of the screen on the mod's own text, not in the game's subtitle box: nothing stops the game, and
+EVE keeps walking and fighting. The game's subtitle options do not apply to them. Each line stays 3 s, or longer when
+it needs the reading time.
+
+A scene starts when EVE enters its room, when a boss dies (Gardener, Stalker, Lion), when pipe panels 006 and 007 lower
+the water, or when the first fan starts. No scene starts during a fight, over a game screen or over a cutscene: it
+waits, then plays whole. A fight that starts during a scene hides it, and the next line comes after the fight. Scenes
+that belong after a fight (2B, 3H, 4K) wait for that fight, or for 25 s in the room when there is none.
+
+3C needs 3B, and 3J needs 3I. After 3K Lily is out of radio range, so a scene of hers that has not played by then never
+plays. The lines about Oblivion show only when Quest_Sub_030 is complete.
+
+Each scene plays once for a co-op slot. The played scenes are in `coop-mxiii-talks-<slot>.txt` beside `coop-settings.txt`,
+not in the save: loading an older save does not bring them back, and starting "On Time" again clears the file. Each
+scene logs one `[StellarCoop][LY] zone talk` line. A scene left half played when EVE leaves the world plays again from its
+start.
+
+Mila has a body once she speaks. From scene 4E she sits in the shelf 1 recess, and from scene 4N on the drive room floor.
+It is the game's model of Kara, Kaya's sister (`CH_NPC_Kara`), in the sitting pose shipped for that skeleton, as a plain
+actor with no collision, no AI and no save data. If the model or the pose cannot be had, a `[StellarCoop][LY] STOP: Mila
+has no body` line says so and she stays a voice.
+
 ## Trying it
 
 1. With the game closed, copy the co-op save file you test on somewhere safe, and put the zMXIII_P test pak in place.

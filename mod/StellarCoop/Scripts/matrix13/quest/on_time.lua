@@ -41,7 +41,7 @@
 --   to Matrix XIII's with On Time held and no screen shown, never during another talk; the M01 fallback (EVE there
 --   with the quest at M01 for FALLBACK s: SB's EnterZone check on Zone_DLC02_10 did not fire after the camp travel):
 --   signal complete, once a visit; the drive room (EVE inside its box with the quest at M05 for ROOM s): signal zone4,
---   once a visit.
+--   once a visit; the zone talks' look (matrix13/quest/zone_talks.lua), when main.lua gives them.
 -- Each step logs an [LY] line. coop lily signal [status|quest|travel|next], coop lily talk and coop lily hold run steps
 -- by hand. Nothing here runs on your own saves; a save loaded without the mod or without the test pak drops the quests
 -- (their rows are missing: "LoadQuest : QuestData Not Found"), and the aliases must never change, since the save keys
@@ -70,10 +70,13 @@ Lily.AFTER,Lily.WAIT,Lily.FALLBACK,Lily.ASK_EVERY,Lily.QUIET,Lily.ARRIVAL,Lily.R
 -- plan +y along world yaw 175, plan +x along world yaw 265), x -95 to -80, y -150 to -110, floor -156.29 m, 16.29 m
 -- high. Whether a world position (cm) is inside it.
 Lily.ROOM_BOX={x={-95,-80},y={-150,-110},z={-156.29,-140}}
-function Lily.drive_room(v)
+function Lily.plan(v)
     local dx,dy=v.X-40585,v.Y-35615
     local f,r=math.rad(175),math.rad(265)
-    local p={x=(dx*math.cos(r)+dy*math.sin(r))/100,y=(dx*math.cos(f)+dy*math.sin(f))/100,z=(v.Z+939)/100}
+    return {x=(dx*math.cos(r)+dy*math.sin(r))/100,y=(dx*math.cos(f)+dy*math.sin(f))/100,z=(v.Z+939)/100}
+end
+function Lily.drive_room(v)
+    local p=Lily.plan(v)
     for axis,range in pairs(Lily.ROOM_BOX) do
         if p[axis]<range[1] or p[axis]>range[2] then return false end
     end
@@ -153,7 +156,7 @@ end
 -- o: log (the [LY] lines), status() the native status text, ask(line) its request, mode() the link's mode ('none'
 -- when solo, nil before the link is ready), paused() whether the game is paused or shows one of its screens, travel()
 -- coop mxiii (commands/cut.lua's: ok, message), paks (SB/Content/Paks, nil when unknown), read (files.read), talks
--- (story/subtitles.lua's player).
+-- (story/subtitles.lua's player), zones (matrix13/quest/zone_talks.lua's, or nil).
 function Lily.new(o)
     local log,status,ask,talks=o.log,o.status,o.ask,o.talks
     local TEXT,culture_of=require('matrix13.quest.text'),require('matrix13.culture')
@@ -389,6 +392,7 @@ function Lily.new(o)
         end
         if q and q.held=='held' then
             log('the quest is held: '..q.line)
+            if o.zones then o.zones.restart() end -- A new run of On Time on this slot: its talks play again.
             local go=flow.travel
             flow=nil
             if go then travel() end
@@ -401,7 +405,7 @@ function Lily.new(o)
         end
     end
     -- In Matrix XIII: the arrival talk, the M01 fallback and the drive room.
-    local function matrix(eve,q,now,quiet)
+    local function matrix(eve,q,now,quiet,raw)
         local map=eve and U.map_of(eve)
         if map then
             if last_map and map~=last_map and map==Lily.MAP then arrival=now end
@@ -439,6 +443,9 @@ function Lily.new(o)
             in_room=nil
             if not there then room_asked=false end
         end
+        if o.zones then
+            o.zones.tick({eve=eve,q=q,now=now,quiet=quiet,there=there,held=held,busy=flow~=nil,raw=raw})
+        end
     end
     local self={}
     self.title=title
@@ -475,7 +482,10 @@ function Lily.new(o)
             flow=nil
             return
         end
-        if slot=='none' or slot=='unknown' then return end -- A load: no save to judge yet.
+        if slot=='none' or slot=='unknown' then -- A load: no save to judge yet.
+            if o.zones then o.zones.leave('a load') end
+            return
+        end
         if not watching and not cheap(raw,rows) then -- The quest unit's reads start, once a Lua load.
             watching=true
             local ran,ok,said_watch=pcall(ask,'signal watch')
@@ -546,6 +556,7 @@ function Lily.new(o)
                 local n=labels[text]
                 if n and n==label and not flow then
                     flow={step='wait',at=now+Lily.AFTER,label=n}
+                    if o.zones then o.zones.drop('a quest step') end -- Its talk finds the player free.
                     talks.arm()
                     log((n==1 and 'the other signal picked: the prologue talk, then the quest and the travel'
                         or 'about Matrix 13 picked: the end talk, then On Time complete')..', after her goodbye '
@@ -554,7 +565,8 @@ function Lily.new(o)
             end)
         end
         if flow then advance(q,now) end
-        if not cheap(raw,rows) then matrix(eve,q,now,quiet) end
+        if not cheap(raw,rows) then matrix(eve,q,now,quiet,raw)
+        elseif o.zones then o.zones.leave('not solo on a co-op save') end
     end
     -- coop lily signal [status|quest|travel|next]: status only reads; no word runs the pick's last steps (the quest,
     -- then the travel), quest the acquire alone, travel coop mxiii alone, next a test word (the task of On Time's
@@ -617,6 +629,7 @@ function Lily.new(o)
     -- coop off: lily off asked (may raise; main.lua logs it and goes on), the waits and the talk ended.
     function self.stop()
         flow=nil
+        if o.zones then o.zones.leave('coop off') end
         talks.stop()
         title_stop()
         e.stop()

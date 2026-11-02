@@ -1,6 +1,8 @@
-// Matrix XIII's camp names, the native half, free of Windows: 12 entries added to SB's live StringTable_UI, so the
-// keys the mxnames rows name (lion/mxiii_rows.h) read as our names on every camp surface. This file names the calls
-// and offsets, holds the names, picks the language, says when a pass is due and writes the status line (camptext=).
+// Matrix XIII's camp names and records, the native half, free of Windows: 12 entries added to SB's live StringTable_UI,
+// so the keys the mxnames rows name (lion/mxiii_rows.h) read as our names on every camp surface, and 50 to
+// StringTable_Records (game/record_text.h), the titles and texts the mxrecords rows name. This file names the calls and
+// offsets, holds the names, picks the language, says when a pass is due and writes the status lines (camptext=,
+// recordtext=). The records' entries are text only and no row of a save without the mxrecords batch names them.
 // tests/native/game/camp_text_test.cpp checks it on the build machine. All read from build 24463856's code; it has not
 // run in game.
 //
@@ -37,6 +39,7 @@ constexpr size_t kManager = 0x198, kManagerLock = 8, kCulture = 0x28, kCultureNa
 constexpr size_t kStrong = 8, kWeak = 0xc;
 constexpr uint64_t kCheckMs = 250;
 constexpr const wchar_t *kTableId = L"/Game/Local/Localize/StringTable_UI.StringTable_UI";
+constexpr const wchar_t *kRecordsTableId = L"/Game/Local/Localize/StringTable_Records.StringTable_Records";
 
 // The region's key is an FName (RegionName): FName would split digits off its end, so it must end in a letter. The camp
 // keys are FStrings (CampName), "MX13_Camp_" and the row's name. French, English; \u for what is not ASCII.
@@ -62,17 +65,35 @@ constexpr Entry kEntries[] = {
 // NUL (0 and a null name when empty).
 inline bool french(const char16_t *name, int32_t num) { return name && num >= 3 && name[0] == u'f' && name[1] == u'r'; }
 
-// When a pass over the table is due: until one has ended, and when the language changed since.
+// When a pass over the table is due: until one has ended, when the language changed since, and when the table no longer
+// holds its first entry (holds_first false): the engine collected a table only a Lua LoadAsset held and loaded it again
+// without ours [inference: not seen in game].
 struct Pass {
   bool filled = false, in_french = false;
-  bool due(bool now_french) const { return !filled || now_french != in_french; }
+  bool due(bool now_french, bool holds_first = true) const {
+    return !filled || now_french != in_french || !holds_first;
+  }
   void done(bool now_french) { filled = true, in_french = now_french; }
 };
 
 // The status line. wait: no pass has ended (the table not loaded yet); ready: every entry exists; fault: the first
 // fault ended the passes for the run. No line off the pinned build, so Lua waits there too.
 enum class State : uint8_t { wait, ready, fault };
-inline std::string line(State s) {
-  return std::string("camptext=") + (s == State::ready ? "ready" : s == State::fault ? "fault" : "wait");
+inline std::string line(State s, const char *word = "camptext") {
+  return std::string(word) + "=" + (s == State::ready ? "ready" : s == State::fault ? "fault" : "wait");
 }
+} // namespace coop::camp_text
+
+#include "game/record_text.h"
+
+namespace coop::camp_text {
+// The tables a pass writes, each with its own pass, so a table loaded later holds the other back from nothing.
+struct TableEntries {
+  const wchar_t *id;
+  const Entry *entries;
+  size_t count;
+};
+constexpr TableEntries kWrites[] = {{kTableId, kEntries, sizeof kEntries / sizeof *kEntries},
+                                    {kRecordsTableId, kRecordEntries, sizeof kRecordEntries / sizeof *kRecordEntries}};
+constexpr size_t kWriteCount = sizeof kWrites / sizeof *kWrites;
 } // namespace coop::camp_text

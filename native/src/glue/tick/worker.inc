@@ -233,6 +233,15 @@ void write_remote() {
   }
 }
 
+// One note a run: value lines (pose/table.h) left out of a table. They cost a colour, never the table.
+void note_ignored(const Table &t) {
+  static bool said = false;
+  if (t.ignored && !said) {
+    said = true;
+    say(std::to_string(t.ignored) + " value lines ignored in a component table (said once a run)");
+  }
+}
+
 // A table from the wire: refused whole, or the same as the remote one (sent again), or the new remote table, in its
 // canonical form for Lua. A new generation, or another layout under the same one, waits for Lua's new ghost; else it
 // is a part hung elsewhere or shown or hidden, which Lua applies to the ghost it has.
@@ -244,6 +253,7 @@ void take_table(const uint8_t *data, size_t size) {
     say("remote table refused: malformed");
     return;
   }
+  note_ignored(*t);
   std::string text = format_table(*t);
   if (text == remote_text)
     return;
@@ -347,12 +357,17 @@ void take_capture(uint64_t now_ms) {
   capture_text = text;
   Table t;
   if (!text.empty()) {
-    if (auto got = parse_table(text, true))
+    if (auto got = parse_table(text, true)) {
+      note_ignored(*got);
       t = std::move(*got);
-    else
+    } else
       say("component table refused: malformed");
   }
   bool renewed = t.generation != capture.generation;
+  if (fx_handover(capture, t)) {
+    std::lock_guard<std::mutex> lock(m);
+    fx_incoming = t.fx, fx_incoming_generation = t.generation, fx_incoming_set = true;
+  }
   capture = std::move(t);
   std::string wire = capture.generation ? format_table(capture) : std::string();
   if (wire != sent_table) {

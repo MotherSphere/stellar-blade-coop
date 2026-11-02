@@ -5,8 +5,9 @@
 // holds each of them, Quest_Epic_11 (ID 24, Phase 5: its state and active group; group M04, index 3, is "Talk to Lily
 // to decide on the next destination") and Quest_Epic_12 (ID 25, which Lily's "Follow the bike signal and leave" starts:
 // past the point of no return), Quest_Sub_005's state (ID 44, quest/sync.h: while it runs, Lily shows six rows of her
-// own, every slot of the choice box, so ours stays off), and for each of our two quests its state, active group and
-// that group's first task's state. On Lua's ask it acquires one of them through the acquire by ID a quest zone event
+// own, every slot of the choice box, so ours stays off), whether Quest_Sub_030 (ID 69, Oblivion) is complete (the
+// zone talks' oblivion lines), and for each of our two quests its state, active group and that group's first task's
+// state. On Lua's ask it acquires one of them through the acquire by ID a quest zone event
 // makes (FUN_141c5cf20: the ID's row name through the QuestTable ID map that AddRow filled, then AcquireQuest and
 // PushQuest, which refuses an ID already held), or completes the first task of one fixed group through the task
 // vtable's +0x60, the Complete the shared quests' guest calls (quest/engine.h's kComplete or kCompleteParent; the
@@ -26,7 +27,7 @@
 
 namespace coop::quest::own {
 
-constexpr uint32_t kId = 163, kPrologue = 164, kEpic11 = 24, kEpic12 = 25, kSub005 = 44;
+constexpr uint32_t kId = 163, kPrologue = 164, kEpic11 = 24, kEpic12 = 25, kSub005 = 44, kSub030 = 69;
 // On Time's groups as they count from 0: M01 (its task enters Zone_DLC02_10), M05 (the drive room, signal zone4), M06
 // (tell Lily, signal tell); kActive: whichever group is active (signal next, a test word).
 constexpr int32_t kFirstGroup = 0, kZone4Group = 4, kTellGroup = 5, kActive = -1;
@@ -42,11 +43,12 @@ struct Progress {
   uint64_t quest = 0, task_object = 0, group_object = 0; // For the calls.
 };
 // What the unit holds: On Time as the Progress itself, the prologue (pro) and Quest_Epic_11 (epic11) beside it; whether
-// Quest_Epic_12 is in the map; Quest_Sub_005's state (the same values), -1 when not in the map.
+// Quest_Epic_12 is in the map; Quest_Sub_005's state (the same values), -1 when not in the map; whether Quest_Sub_030
+// reads complete or reward taken.
 struct Look : Progress {
   Progress pro, epic11;
   int32_t sub005 = -1;
-  bool epic12 = false;
+  bool epic12 = false, oblivion = false;
   uint64_t mgr = 0;
   uint32_t owner = 0;
 };
@@ -121,7 +123,7 @@ template <class Game> Look look(Game &g, uint64_t base, std::string_view slot) {
     std::memcpy(words, u + kMapBits, 16);
   else if (nwords && !g.read(heap, words, 4 * nwords))
     return l;
-  uint64_t quest = 0, pro = 0, epic11 = 0, sub005 = 0;
+  uint64_t quest = 0, pro = 0, epic11 = 0, sub005 = 0, sub030 = 0;
   bool epic12 = false;
   for (int32_t s = 0; s < slots; ++s) {
     if (!(words[s / 32] >> (s % 32) & 1))
@@ -135,6 +137,7 @@ template <class Game> Look look(Game &g, uint64_t base, std::string_view slot) {
       pro = key == int32_t(kPrologue) ? value : pro;
       epic11 = key == int32_t(kEpic11) ? value : epic11;
       sub005 = key == int32_t(kSub005) ? value : sub005;
+      sub030 = key == int32_t(kSub030) ? value : sub030;
     }
     epic12 |= key == int32_t(kEpic12);
   }
@@ -143,6 +146,8 @@ template <class Game> Look look(Game &g, uint64_t base, std::string_view slot) {
   int32_t state = 0;
   if (sub005 && get(g, sub005, vtable) && vtable == rebased(base, kQuestVtable) && get(g, sub005 + kQuestState, state))
     l.sub005 = state;
+  if (sub030 && get(g, sub030, vtable) && vtable == rebased(base, kQuestVtable) && get(g, sub030 + kQuestState, state))
+    l.oblivion = state == 3 || state == 4;
   progress(g, base, quest, l);
   progress(g, base, pro, l.pro);
   progress(g, base, epic11, l.epic11);
@@ -207,7 +212,7 @@ template <class Game> Why run(Game &g, uint64_t base, std::string_view slot, Ask
 // One word for the worker, so it never reads half of it. Each small number in 4 bits as itself plus 1 (-1 to 14; any
 // other reads -1): On Time's task 0-3, group 4-7, state 8-11, sub005 12-15, the prologue's task 16-19, group 20-23,
 // state 24-27, Quest_Epic_11's group 28-31 and state 32-35; held 36-37, the prologue's held 38-39, epic12 40, why 41-43,
-// want 44-46 (an Ask), asks 48-63.
+// want 44-46 (an Ask), oblivion 47, asks 48-63.
 struct Answer {
   Look look;
   Why why = Why::none;
@@ -218,7 +223,7 @@ constexpr uint64_t nibble(int32_t v) { return v >= -1 && v <= 14 ? uint64_t(v + 
 constexpr int32_t from_nibble(uint64_t w, int at) { return int32_t((w >> at) & 15) - 1; }
 constexpr uint64_t pack(const Answer &a) {
   const Look &l = a.look;
-  return uint64_t(a.asks & 0xffff) << 48 | uint64_t(uint8_t(a.want) & 7) << 44 | uint64_t(uint8_t(a.why) & 7) << 41 |
+  return uint64_t(a.asks & 0xffff) << 48 | uint64_t(l.oblivion) << 47 | uint64_t(uint8_t(a.want) & 7) << 44 | uint64_t(uint8_t(a.why) & 7) << 41 |
          uint64_t(l.epic12) << 40 | uint64_t(uint8_t(l.pro.held) & 3) << 38 | uint64_t(uint8_t(l.held) & 3) << 36 |
          nibble(l.epic11.state) << 32 | nibble(l.epic11.group) << 28 | nibble(l.pro.state) << 24 |
          nibble(l.pro.group) << 20 | nibble(l.pro.task) << 16 | nibble(l.sub005) << 12 | nibble(l.state) << 8 |
@@ -227,7 +232,7 @@ constexpr uint64_t pack(const Answer &a) {
 inline Answer unpack(uint64_t w) {
   Answer a;
   Look &l = a.look;
-  a.asks = uint32_t(w >> 48), a.want = Ask((w >> 44) & 7), a.why = Why((w >> 41) & 7);
+  a.asks = uint32_t(w >> 48), l.oblivion = (w >> 47) & 1, a.want = Ask((w >> 44) & 7), a.why = Why((w >> 41) & 7);
   l.epic12 = (w >> 40) & 1, l.pro.held = Held((w >> 38) & 3), l.held = Held((w >> 36) & 3);
   l.epic11.state = from_nibble(w, 32), l.epic11.group = from_nibble(w, 28), l.pro.state = from_nibble(w, 24);
   l.pro.group = from_nibble(w, 20), l.pro.task = from_nibble(w, 16), l.sub005 = from_nibble(w, 12);
@@ -235,7 +240,8 @@ inline Answer unpack(uint64_t w) {
   return a;
 }
 // coop-status.txt's signalquest line (matrix13/quest/on_time.lua reads it):
-//   signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> pro=<unread|none|held>
+//   signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> oblivion=<0|1>
+//     pro=<unread|none|held>
 //     prostate=<s> progroup=<g> protask=<t> epic11=<g> epic11state=<s> asks=<a> want=<ask> why=<w>
 //   signalquest=fault asks=<a> where=<text, maybe with spaces>
 // The first fields are On Time's, pro... the prologue's, epic11 Quest_Epic_11's active group and epic11state its state.
@@ -249,7 +255,7 @@ inline std::string status_line(const Answer &a, bool faulted = false, const std:
   const Look &l = a.look;
   return std::string("signalquest=") + kHeld[size_t(l.held) % 3] + " state=" + std::to_string(l.state) +
          " group=" + std::to_string(l.group) + " task=" + std::to_string(l.task) + " epic12=" + (l.epic12 ? "1" : "0") +
-         " sub005=" + std::to_string(l.sub005) + " pro=" + kHeld[size_t(l.pro.held) % 3] +
+         " sub005=" + std::to_string(l.sub005) + " oblivion=" + (l.oblivion ? "1" : "0") + " pro=" + kHeld[size_t(l.pro.held) % 3] +
          " prostate=" + std::to_string(l.pro.state) + " progroup=" + std::to_string(l.pro.group) +
          " protask=" + std::to_string(l.pro.task) + " epic11=" + std::to_string(l.epic11.group) +
          " epic11state=" + std::to_string(l.epic11.state) + " asks=" + std::to_string(a.asks) +

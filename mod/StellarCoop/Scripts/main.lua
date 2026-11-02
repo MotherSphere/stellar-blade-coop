@@ -151,7 +151,7 @@ if link then
     link.session(string.format('%d-%d',os.time(),math.floor(os.clock()*1000000)))
 end
 -- With mod_names=off, no mod's path goes in the capture either.
-local capture=require('partner.capture').new(link and link.components or nil,look,link and link.cns_assets or nil,
+local capture=require('partner.capture').new(link and link.components or nil,look,link and link.mod_assets or nil,
     settings~=nil and not settings.mod_names)
 local notice=require('ui.notice').new()
 -- The UI kit, the co-op menu, the chat's box and feed, the partner HUD, the co-op saves' question, the code box and the
@@ -193,7 +193,16 @@ do
         end
     end
 end
-local puppet=require('partner.puppet').new(link,capture,say,settings and settings.name_tag,look,words)
+-- The crash sentinel (partner/sentinel.lua): a mod asset the game crashed on during a call of the last Lua load is set
+-- aside now, logged, and said once a notice can show, with UE4SS-settings.ini's below.
+local sentinel,crashed=require('partner.sentinel').new(link,VERSION)
+local aside_note=nil -- The set-aside asset's name for the notice, until said.
+if crashed then
+    log('Crash sentinel: the game crashed during a call with the mod asset '..crashed.path..' (outfit '..crashed.outfit
+        ..'). It is set aside: the ghost draws it as missing until coop cns reset or another mod version.')
+    aside_note=(crashed.path:match('([^./]+)$') or crashed.path):sub(1,32)
+end
+local puppet=require('partner.puppet').new(link,capture,say,settings and settings.name_tag,look,words,sentinel)
 -- coop off lasts until the game restarts, even across a Lua reload (Ctrl+R): the native part remembers it.
 -- Read from the pose path's line only, as a peer's Steam name could say the same.
 local function native_off()
@@ -202,7 +211,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -577,7 +586,13 @@ o.lily=require('matrix13.quest.on_time').new({log=lily_log,
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
     mode=function() return link and link.mode() end,paused=function() return kit~=nil and kit.paused(true) end,
     travel=function() return commands.mxiii() end,paks=require('matrix13.world.travel').paks_of(folder),
-    read=require('core.link').files.read,talks=talks})
+    read=require('core.link').files.read,talks=talks,
+    zones=require('matrix13.quest.zone_talks').new({log=lily_log,talks=talks,plan=require('matrix13.quest.on_time').plan,
+        read=function(name) return link and link.read_file(name) end,
+        write=function(name,text) if link then return link.write_file(name,text) end end,
+        mila=require('matrix13.world.mila').new({log=lily_log,
+            read=function(name) return link and link.read_file(name) end,
+            write=function(name,text) if link then return link.write_file(name,text) end end})})})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
@@ -1040,6 +1055,7 @@ if link then
     end
     -- Our CNS packs, once a Lua load, in the log (coop status shows them too).
     local cns_said=false
+    local shared_seen=0 -- link.shared_version() as last acted on.
     LoopInGameThreadWithDelay(250,function()
         if off and not blocked then blocked=native_off() end
         for _,line in ipairs(link.changes()) do log('link: '..line) end
@@ -1128,10 +1144,15 @@ if link then
             -- The root on the title screen too: the co-op saves' question, and the feed for its notices.
             local ok,message=guarded('kit',kit.slow,shown or title==true,title==true)
             if message then report(ok,message) end
-            -- UE4SS-settings.ini's notices, once: in the feed once the UI is up, or above EVE once a save is loaded.
-            if ue4ss_notes[1] and (kit.ready() or world==true) then
+            -- UE4SS-settings.ini's notices and the crash sentinel's, once: in the feed once the UI is up, or above EVE once
+            -- a save is loaded.
+            if (ue4ss_notes[1] or aside_note) and (kit.ready() or world==true) then
                 for _,word in ipairs(ue4ss_notes) do tell(function(w) return w.ue4ss[word] end) end
-                ue4ss_notes={}
+                if aside_note then
+                    local name=aside_note
+                    tell(function(w) return w.ghost.aside:format(name) end)
+                end
+                ue4ss_notes,aside_note={},nil
             end
             -- The focus watchdog fired: as coop ui reset, nothing said on screen.
             local dropped,who=guarded('kit',kit.lost)
@@ -1169,6 +1190,12 @@ if link then
         if message then report(ok,message) end
         ok,message=guarded('ghost',puppet.remote,link.remote())
         if message then report(ok,message) end
+        -- A new list of mods both players have: the ghost built again with what it may now load (or no longer may).
+        if link.shared_version()~=shared_seen then
+            shared_seen=link.shared_version()
+            message=puppet.rebuild('shared mods changed')
+            if message then report(true,message) end
+        end
     end)
 end
 -- The keys (N5, D-UI2), only with the Steam link. Every F-key but F10, alone or with Shift, Ctrl or Alt, is bound once

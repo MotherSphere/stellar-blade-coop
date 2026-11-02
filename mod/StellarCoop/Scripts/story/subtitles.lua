@@ -33,6 +33,10 @@
 --   and POLL s after one it waited for ended; past WAIT s it is asked anyway and the fallbacks follow as above.
 -- - Our own sequence: a rewritten window tells scene.lua the talk plays (alive), and a talk refused because a talk's
 --   own sequence still plays gets no fallback (failed): the kit would show its lines under SB's.
+-- - The kit-only lines (lines()): the zone talks of matrix13/quest/zone_talks.lua, on the kit with no theater and no
+--   sequence, so nothing blocks EVE's input. Each line lasts 3 s or its reading time; a line that ends while the
+--   caller's gate is shut hides the kit's group and the next waits for the gate. A speaker that is no StringTable_Seq
+--   key (Noa, Yohan, Mila) shows as written.
 -- Nothing here reaches the save: the take, the rows and the slot's fields live in memory.
 local U=require('core.unreal')
 local culture_of=require('matrix13.culture')
@@ -103,6 +107,7 @@ function Subtitles.new(o)
     -- empty one, said once a talk.
     local function speaker(c,key)
         if key=='' then return FText('') end
+        if not key:find('^Seq_Actor_') then return FText(key) end
         if c.names[key]==nil then
             local ok,text=pcall(function() return U.find(TEXT_LIB):TextFromStringTable(FName(SEQ_TABLE),key) end)
             c.names[key]=ok and text or false
@@ -114,7 +119,7 @@ function Subtitles.new(o)
         local c=cur
         cur=nil
         if c.kit_on and kit then pcall(kit.show,'talk',false) end
-        log(string.format('talk %s: %s (%d windows rewritten)',c.name,how,c.rewritten))
+        if not c.quiet then log(string.format('talk %s: %s (%d windows rewritten)',c.name,how,c.rewritten)) end
         c.done(how)
     end
     -- The kit version from its first line: shown and timed by tick; with no kit, no talk.
@@ -127,7 +132,7 @@ function Subtitles.new(o)
         end
         kit.show('talk',true)
         cur.kit_on,cur.view=true,v
-        log('talk '..cur.name..': the kit version')
+        if not cur.quiet then log('talk '..cur.name..': the kit version') end
     end
     local start_sequence
     -- Scene's end of the talk's theater or sequence: done, or the next fallback.
@@ -323,6 +328,16 @@ function Subtitles.new(o)
         wait(c,now)
         return true,'talk '..name..' asked: [LY] lines follow'
     end
+    -- lines (a list as matrix13/talks/ holds them) on the kit alone, under name; gate() false hides the kit's group at
+    -- once and holds the line it cut short, which shows again in full. done(how) as play's: 'kit', or 'none' when the kit is not up, maybe before this returns.
+    -- Ok, message.
+    function self.lines(name,lines,gate,done)
+        if cur then return false,'a talk plays ('..cur.name..')' end
+        cur={name=name,t={windows={}},lines=lines,culture=culture(),k=0,w={k=0},rewritten=0,names={},done=done,
+            gate=gate,quiet=true}
+        start_kit(os.clock())
+        return true,'talk '..name..': the kit version'
+    end
     -- Each frame on the game thread (main.lua's loop): window 1's guard, the holds, the Stop after the last line, the
     -- kit's lines.
     function self.tick()
@@ -330,7 +345,13 @@ function Subtitles.new(o)
         if not c then return end
         local now=os.clock()
         if c.step=='kit' then
+            if c.gate and not c.gate() then
+                if c.kit_on then c.kit_on=false; kit.show('talk',false) end
+                if now<c.next_at then c.line,c.next_at=c.line-1,now end -- Cut short: it shows again in full.
+                return
+            end
             if now<c.next_at then return end
+            if not c.kit_on then c.kit_on=true; kit.show('talk',true) end
             c.line=c.line+1
             local key,line=Subtitles.entry(c.lines,c.line,c.culture)
             if not line then return finish('kit') end
@@ -393,14 +414,14 @@ function Subtitles.new(o)
                 line=b.text(1600,64,'','body',theme.text,{X=0.5,Y=0})}
         end)
     end
-    -- coop off: the talk dropped with no done (cut/scene.lua's stop fires the Stop row), the kit's lines hidden.
-    function self.stop()
+    -- coop off, or why: the talk dropped with no done (cut/scene.lua's stop fires the Stop row), the kit's lines hidden.
+    function self.stop(reason)
         local c=cur
         if not c then return end
         cur=nil
         if c.hold and c.hold.paused then pcall(play_player,c,'Play') end
         if c.kit_on and kit then pcall(kit.show,'talk',false) end
-        log('coop off: talk '..c.name..' dropped')
+        log((reason or 'coop off')..': talk '..c.name..' dropped')
     end
     return self
 end

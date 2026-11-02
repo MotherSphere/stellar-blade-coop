@@ -43,7 +43,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 15; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 19; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -61,13 +61,19 @@ constexpr int kProtocol = 15; // Bump on any wire change. 1 was the first link (
                               // night line, which a protocol-13 guest would refuse, as she would the masks of a
                               // level's extra monsters, each side's down time left and revive progress at the end of
                               // both night lines (the co-op revive), which a protocol-13 game would refuse too, and the
-                              // gift line (coop gift), which a protocol-13 peer would count invalid; 15 adds Matrix
-                              // XIII's world rows (lion/mxiii_rows.h: spawn rows, camps, warps), and shared Naytibas
-                              // key an enemy by its spawn row's ID, so a protocol-14 peer, without those rows, would
-                              // never match the host's new enemies. An older peer (6:
+                              // gift line (coop gift), which a protocol-13 peer would count invalid; 15 was never
+                              // released (development builds of Matrix XIII's rows used it); 16 adds the table's
+                              // value lines (a dynamic material's colours), which a protocol-14 peer would refuse
+                              // with the whole table, so her ghost of you would stop changing; 17 adds the table's
+                              // hide lines (hidden material sections), which a protocol-16 peer would refuse the same
+                              // way; 18 adds the table's fx lines (effects named by path, indexes past the fixed list)
+                              // and effect slots up to index 64, which a protocol-17 peer would refuse with the whole
+                              // table and the pose; 19 adds Matrix XIII's world rows (lion/mxiii_rows.h: spawn rows,
+                              // camps, warps), and shared Naytibas key an enemy by its spawn row's ID, so a protocol-18
+                              // peer, without those rows, would never match the host's new enemies. An older peer (6:
                               // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
-                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1 and the builds before
-                              // Matrix XIII's world rows) is told why: the lobby tag, then the
+                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
+                              // build, 18: v0.7.5; 15 and 16 were never released) is told why: the lobby tag, then the
                               // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
@@ -308,7 +314,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF15" for the shared fight, "SBQ15" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF19" for the shared fight, "SBQ19" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 
@@ -579,9 +585,9 @@ inline uint64_t code_lobby(std::string_view text) {
 // <Table>=0x<address> ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop
 // rows <Table>=0x<address> ..." and for Lily's signal (matrix13/quest/on_time.lua) "signal rows <Table>=0x<address>
 // ..." and for Matrix XIII's other batches (matrix13/world/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper
-// rows ...", "mxmiddle rows ...", "mxlower rows ...", "mxnames rows ..." and "mxlily rows ..."
+// rows ...", "mxmiddle rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..."
 // (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each table the batch writes, 1 to
-// 34 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
+// 37 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
 // stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
@@ -607,13 +613,13 @@ enum class Command {
 // shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
 // The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
-// kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily), in Request::batch's order.
-constexpr size_t kRowWordCount = 14;
+// kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily, kMxrecords), in Request::batch's order.
+constexpr size_t kRowWordCount = 15;
 constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",    "mxiii",    "shop",
                                                   "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower",
-                                                  "mxnames", "mxlily"};
+                                                  "mxnames", "mxlily", "mxrecords"};
 // The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
-constexpr size_t kLionTableCount = 34;
+constexpr size_t kLionTableCount = 37;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
     "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable",
@@ -623,9 +629,10 @@ constexpr const char *kLionTables[kLionTableCount] = {
     "QuestTable",            "QuestTaskGroupTable",      "QuestTaskTable",     "LevelTargetFilter",
     "TheaterSelectDataTable", "EventSpawnTable",         "EventItemTable",     "ZoneEventTable",
     "EventEnvControlTable",  "WorldTransitionTable",     "EventZoneWarpTable", "EffectVolumeTable",
-    "ConditionTable",        "ConditionGroupTable"};
+    "ConditionTable",        "ConditionGroupTable",      "AlbumTable",         "AchievementTable",
+    "PuzzleStringArrayTable"};
 // coop-request.txt's bytes the native part reads (glue/steam.cpp): the longest rows request, 16 digits to each of its
-// 34 addresses, and its line end fit (protocol_test: 1244 bytes).
+// 37 addresses, and its line end fit (protocol_test: 1352 bytes).
 constexpr size_t kMaxRequestFile = 2048;
 // nightshop: what nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
 // Shop_NightOperation_CoopBolt, closed, or no call but the reads.

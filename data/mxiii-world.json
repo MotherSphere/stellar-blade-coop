@@ -3393,7 +3393,10 @@
        [
         "DLC02_40_E_EnvC_615",
         "DLC02_40_E_EnvC_619",
-        "DLC02_40_E_EnvC_613"
+        "DLC02_40_E_EnvC_613",
+        "DLC02_40_E_EnvC_631",
+        "DLC02_40_E_EnvC_632",
+        "DLC02_40_E_EnvC_633"
        ],
        true
       ]
@@ -22577,6 +22580,11 @@
        "TagEventList2",
        [],
        true
+      ],
+      [
+       "InitActivate",
+       2,
+       true
       ]
      ]
     },
@@ -22604,6 +22612,11 @@
       [
        "TagEventList2",
        [],
+       true
+      ],
+      [
+       "InitActivate",
+       2,
        true
       ]
      ]
@@ -22633,6 +22646,11 @@
        "TagEventList2",
        [],
        true
+      ],
+      [
+       "InitActivate",
+       2,
+       true
       ]
      ]
     },
@@ -22650,6 +22668,177 @@
       [
        "SpawnPointName",
        "DLC02_40_EnvS_021",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_40_E_EnvC_631",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3061,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_40_EnvS_023",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "None",
+       true
+      ]
+     ],
+     "note": "the Lion dead: lever 023 can be used"
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_40_E_EnvC_631",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8755,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_40_E_EnvC_631",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       0.0,
+       true
+      ]
+     ]
+    },
+    {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_40_E_EnvC_632",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3062,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_40_EnvS_024",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "None",
+       true
+      ]
+     ],
+     "note": "the Lion dead: lever 024 can be used"
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_40_E_EnvC_632",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8756,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_40_E_EnvC_632",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       0.0,
+       true
+      ]
+     ]
+    },
+    {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_40_E_EnvC_633",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3063,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_40_EnvS_025",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "None",
+       true
+      ]
+     ],
+     "note": "the Lion dead: lever 025 can be used"
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_40_E_EnvC_633",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8757,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_40_E_EnvC_633",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       0.0,
        true
       ]
      ]
@@ -22945,6 +23134,3356 @@
        true
       ]
      ]
+    }
+   ]
+  },
+  {
+   "word": "mxrecords",
+   "rows": [
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z1_04",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1368,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z1_04_Title",
+        "Records_MX13_Z1_04_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z1-04 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z2_03",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1369,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z2_03_Title",
+        "Records_MX13_Z2_03_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z2-03 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z3_03",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1370,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z3_03_Title",
+        "Records_MX13_Z3_03_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z3-03 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z3_05",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1371,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z3_05_Title",
+        "Records_MX13_Z3_05_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z3-05 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z4_06",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1372,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z4_06_Title",
+        "Records_MX13_Z4_06_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z4-06 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z4_04",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1373,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z4_04_Title",
+        "Records_MX13_Z4_04_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z4-04 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z4_05",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1374,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z4_05_Title",
+        "Records_MX13_Z4_05_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z4-05 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_00",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1375,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_00_Title",
+        "Records_MX13_00_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-00 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z1_05",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1376,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z1_05_Title",
+        "Records_MX13_Z1_05_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z1-05 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z1_07",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1377,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z1_07_Title",
+        "Records_MX13_Z1_07_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z1-07 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z2_05",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1378,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z2_05_Title",
+        "Records_MX13_Z2_05_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z2-05 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z3_04",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1379,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z3_04_Title",
+        "Records_MX13_Z3_04_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z3-04 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z1_01",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1380,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z1_01_Title",
+        "Records_MX13_Z1_01_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z1-01 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z1_02",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1381,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z1_02_Title",
+        "Records_MX13_Z1_02_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z1-02 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z2_01",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1382,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z2_01_Title",
+        "Records_MX13_Z2_01_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z2-01 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z3_01",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1383,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z3_01_Title",
+        "Records_MX13_Z3_01_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z3-01 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z4_02",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1384,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z4_02_Title",
+        "Records_MX13_Z4_02_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z4-02 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z1_03",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1385,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z1_03_Title",
+        "Records_MX13_Z1_03_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z1-03 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z1_06",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1386,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z1_06_Title",
+        "Records_MX13_Z1_06_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z1-06 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z1_08",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1387,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z1_08_Title",
+        "Records_MX13_Z1_08_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z1-08 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z2_02",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1388,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z2_02_Title",
+        "Records_MX13_Z2_02_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z2-02 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z2_04",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1389,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z2_04_Title",
+        "Records_MX13_Z2_04_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z2-04 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z3_02",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1390,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z3_02_Title",
+        "Records_MX13_Z3_02_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z3-02 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z4_01",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1391,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z4_01_Title",
+        "Records_MX13_Z4_01_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z4-01 text"
+    },
+    {
+     "table": "PuzzleStringArrayTable",
+     "name": "Records_MX13_Z4_03",
+     "donor": "DED10_EnvS_Corpse05",
+     "id": 1392,
+     "set": [
+      [
+       "StringArray",
+       [
+        "Records_MX13_Z4_03_Title",
+        "Records_MX13_Z4_03_Desc"
+       ],
+       true
+      ]
+     ],
+     "note": "MX13-Z4-03 text"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z1_04",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280900,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_10_EnvS_953",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z1-04: DLC02_10_EnvS_953 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z2_03",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280901,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_20_EnvS_952",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z2-03: DLC02_20_EnvS_952 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z3_03",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280902,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_30_EnvS_952",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z3-03: DLC02_30_EnvS_952 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z3_05",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280903,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_30_EnvS_954",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z3-05: DLC02_30_EnvS_954 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z4_06",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280904,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_40_EnvS_955",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z4-06: DLC02_40_EnvS_955 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z4_04",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280905,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_40_EnvS_953",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z4-04: DLC02_40_EnvS_953 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z4_05",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280906,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_40_EnvS_954",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z4-05: DLC02_40_EnvS_954 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_00",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280907,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_00_EnvS_950",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-00: DLC02_00_EnvS_950 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z1_05",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280908,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_10_EnvS_954",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z1-05: DLC02_10_EnvS_954 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z1_07",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280909,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_10_EnvS_956",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z1-07: DLC02_10_EnvS_956 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z2_05",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280910,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_20_EnvS_954",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z2-05: DLC02_20_EnvS_954 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z3_04",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280911,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_30_EnvS_953",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z3-04: DLC02_30_EnvS_953 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z1_01",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280912,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_10_EnvS_950",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z1-01: DLC02_10_EnvS_950 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z1_02",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280913,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_10_EnvS_951",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z1-02: DLC02_10_EnvS_951 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z2_01",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280914,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_20_EnvS_950",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z2-01: DLC02_20_EnvS_950 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z3_01",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280915,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_30_EnvS_950",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z3-01: DLC02_30_EnvS_950 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z4_02",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280916,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_40_EnvS_951",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z4-02: DLC02_40_EnvS_951 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z1_03",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280917,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_10_EnvS_952",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z1-03: DLC02_10_EnvS_952 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z1_06",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280918,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_10_EnvS_955",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z1-06: DLC02_10_EnvS_955 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z1_08",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280919,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_10_EnvS_957",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z1-08: DLC02_10_EnvS_957 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z2_02",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280920,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_20_EnvS_951",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z2-02: DLC02_20_EnvS_951 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z2_04",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280921,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_20_EnvS_953",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z2-04: DLC02_20_EnvS_953 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z3_02",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280922,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_30_EnvS_951",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z3-02: DLC02_30_EnvS_951 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z4_01",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280923,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_40_EnvS_950",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z4-01: DLC02_40_EnvS_950 at CallPuzzle"
+    },
+    {
+     "table": "AchievementTable",
+     "name": "Ach_Album_Unlock_MX13_Z4_03",
+     "donor": "Ach_Album_Unlock_Item_Records_ME01_Memory_01",
+     "id": 280924,
+     "set": [
+      [
+       "ParamValue1",
+       "DLC02_40_EnvS_952",
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted",
+       "None",
+       true
+      ],
+      [
+       "ProgressAchievementValueOnCompleted",
+       0,
+       true
+      ],
+      [
+       "ProgressAchievementOnCompleted2",
+       "None",
+       false
+      ],
+      [
+       "ProgressAchievementArrayOnCompleted",
+       [],
+       false
+      ]
+     ],
+     "note": "MX13-Z4-03: DLC02_40_EnvS_952 at CallPuzzle"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z1_04",
+     "donor": "Records_ME01_Memory_01",
+     "id": 10700,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "MX13_Region",
+       true
+      ],
+      [
+       "Name",
+       "Records_MX13_Z1_04_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z1_04_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z1_04",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       false
+      ]
+     ],
+     "note": "MX13-Z1-04 Citizen 157's Memory"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z2_03",
+     "donor": "Records_ME01_Memory_01",
+     "id": 10701,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "MX13_Region",
+       true
+      ],
+      [
+       "Name",
+       "Records_MX13_Z2_03_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z2_03_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z2_03",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       false
+      ]
+     ],
+     "note": "MX13-Z2-03 Citizen 76's Memory"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z3_03",
+     "donor": "Records_ME01_Memory_01",
+     "id": 10702,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "MX13_Region",
+       true
+      ],
+      [
+       "Name",
+       "Records_MX13_Z3_03_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z3_03_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z3_03",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       false
+      ]
+     ],
+     "note": "MX13-Z3-03 Bram's Memory"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z3_05",
+     "donor": "Records_ME01_Memory_01",
+     "id": 10703,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "MX13_Region",
+       true
+      ],
+      [
+       "Name",
+       "Records_MX13_Z3_05_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z3_05_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z3_05",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       false
+      ]
+     ],
+     "note": "MX13-Z3-05 Silas's Doubt"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z4_06",
+     "donor": "Records_ME01_Memory_01",
+     "id": 10704,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "MX13_Region",
+       true
+      ],
+      [
+       "Name",
+       "Records_MX13_Z4_06_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z4_06_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z4_06",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       false
+      ]
+     ],
+     "note": "MX13-Z4-06 Mila's Memory"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z4_04",
+     "donor": "Records_ME01_Memory_01",
+     "id": 10705,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "MX13_Region",
+       true
+      ],
+      [
+       "Name",
+       "Records_MX13_Z4_04_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z4_04_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z4_04",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       false
+      ]
+     ],
+     "note": "MX13-Z4-04 Yohan's Memory"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z4_05",
+     "donor": "Records_ME01_Memory_01",
+     "id": 10706,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "MX13_Region",
+       true
+      ],
+      [
+       "Name",
+       "Records_MX13_Z4_05_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z4_05_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z4_05",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       false
+      ]
+     ],
+     "note": "MX13-Z4-05 Station Master Ruben's Memory"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_00",
+     "donor": "Records_Christmas_01",
+     "id": 10707,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Message",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_00_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_00_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_00",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-00 Trains Under the Sand"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z1_05",
+     "donor": "Records_Christmas_01",
+     "id": 10708,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Message",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z1_05_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z1_05_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z1_05",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-05 End of the Line"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z1_07",
+     "donor": "Records_Christmas_01",
+     "id": 10709,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Message",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z1_07_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z1_07_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z1_07",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-07 For Yohan"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z2_05",
+     "donor": "Records_Christmas_01",
+     "id": 10710,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Message",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z2_05_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z2_05_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z2_05",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-05 Keep This Door Shut"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z3_04",
+     "donor": "Records_Christmas_01",
+     "id": 10711,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       false
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Message",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z3_04_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z3_04_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z3_04",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z3-04 Rest Stop Board"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z1_01",
+     "donor": "Records_ME01_Memory_07",
+     "id": 10712,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Guide",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z1_01_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z1_01_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z1_01",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-01 Surface Lift Times"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z1_02",
+     "donor": "Records_ME01_Memory_07",
+     "id": 10713,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Guide",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z1_02_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z1_02_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z1_02",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-02 Station Master's Orders"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z2_01",
+     "donor": "Records_ME01_Memory_07",
+     "id": 10714,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Guide",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z2_01_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z2_01_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z2_01",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-01 Load Shedding"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z3_01",
+     "donor": "Records_ME01_Memory_07",
+     "id": 10715,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Guide",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z3_01_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z3_01_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z3_01",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z3-01 Pump Team Rota"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z4_02",
+     "donor": "Records_ME01_Memory_07",
+     "id": 10716,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       false
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Guide",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z4_02_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z4_02_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z4_02",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-02 Drain Procedure"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z1_03",
+     "donor": "Records_ME04_Memory_15",
+     "id": 10717,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       true
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Log",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z1_03_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z1_03_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z1_03",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-03 Shelter Register: Departures"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z1_06",
+     "donor": "Records_ME04_Memory_15",
+     "id": 10718,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       true
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Log",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z1_06_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z1_06_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z1_06",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-06 Crane Operator's Log"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z1_08",
+     "donor": "Records_ME04_Memory_15",
+     "id": 10719,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       true
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Log",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z1_08_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z1_08_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z1_08",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-08 Service 18:40, Two Passengers"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z2_02",
+     "donor": "Records_ME04_Memory_15",
+     "id": 10720,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       true
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Log",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z2_02_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z2_02_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z2_02",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-02 Meeting, Car 9"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z2_04",
+     "donor": "Records_ME04_Memory_15",
+     "id": 10721,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       true
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Log",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z2_04_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z2_04_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z2_04",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-04 Waste Drone Cycle"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z3_02",
+     "donor": "Records_ME04_Memory_15",
+     "id": 10722,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       true
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Log",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z3_02_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z3_02_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z3_02",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z3-02 Cricket Report"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z4_01",
+     "donor": "Records_ME04_Memory_15",
+     "id": 10723,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       true
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Log",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z4_01_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z4_01_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z4_01",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-01 Water Levels"
+    },
+    {
+     "table": "AlbumTable",
+     "name": "Records_MX13_Z4_03",
+     "donor": "Records_ME04_Memory_15",
+     "id": 10724,
+     "set": [
+      [
+       "PopupWhenUnlock",
+       0,
+       true
+      ],
+      [
+       "PauseWhenPopup",
+       0,
+       true
+      ],
+      [
+       "GroupName",
+       "UI_Album_Document_Category_Log",
+       false
+      ],
+      [
+       "Name",
+       "Records_MX13_Z4_03_Title",
+       true
+      ],
+      [
+       "Desc",
+       "Records_MX13_Z4_03_Desc",
+       true
+      ],
+      [
+       "AchievementUnlocked",
+       "Ach_Album_Unlock_MX13_Z4_03",
+       true
+      ],
+      [
+       "AchievementPopup",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-03 The Last Shelter"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_953",
+     "donor": "DED10_EnvS_168",
+     "id": 2800032953,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_953",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_953",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z1_04",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-04"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_952",
+     "donor": "DED10_EnvS_168",
+     "id": 2805032952,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_952",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_952",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z2_03",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-03"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_952",
+     "donor": "DED10_EnvS_168",
+     "id": 2810032952,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_952",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_952",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z3_03",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z3-03"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_954",
+     "donor": "DED10_EnvS_168",
+     "id": 2810032954,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_954",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_954",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z3_05",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z3-05"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_955",
+     "donor": "DED10_EnvS_168",
+     "id": 2815032955,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_955",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_955",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z4_06",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-06"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_953",
+     "donor": "DED10_EnvS_168",
+     "id": 2815032953,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_953",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_953",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z4_04",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-04"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_954",
+     "donor": "DED10_EnvS_168",
+     "id": 2815032954,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_954",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_954",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z4_05",
+       true
+      ],
+      [
+       "RewardTagName1",
+       "None",
+       true
+      ],
+      [
+       "State_RewardGroup1",
+       "None",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-05"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_00_EnvS_950",
+     "donor": "SE_06_EnvS_076",
+     "id": 2800032959,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_00_EnvS_950",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_EnvS_950",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_00",
+       true
+      ]
+     ],
+     "note": "MX13-00"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_954",
+     "donor": "SE_06_EnvS_076",
+     "id": 2800032954,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_954",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_954",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z1_05",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-05"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_956",
+     "donor": "SE_06_EnvS_076",
+     "id": 2800032956,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_956",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_956",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z1_07",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-07"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_954",
+     "donor": "SE_06_EnvS_076",
+     "id": 2805032954,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_954",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_954",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z2_05",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-05"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_953",
+     "donor": "SE_06_EnvS_076",
+     "id": 2810032953,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_953",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_953",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z3_04",
+       true
+      ]
+     ],
+     "note": "MX13-Z3-04"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_950",
+     "donor": "SE_06_EnvS_076",
+     "id": 2800032950,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_950",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_950",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z1_01",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-01"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_951",
+     "donor": "SE_06_EnvS_076",
+     "id": 2800032951,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_951",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_951",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z1_02",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-02"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_950",
+     "donor": "SE_06_EnvS_076",
+     "id": 2805032950,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_950",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_950",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z2_01",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-01"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_950",
+     "donor": "SE_06_EnvS_076",
+     "id": 2810032950,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_950",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_950",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z3_01",
+       true
+      ]
+     ],
+     "note": "MX13-Z3-01"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_951",
+     "donor": "SE_06_EnvS_076",
+     "id": 2815032951,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_951",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_951",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z4_02",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-02"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_952",
+     "donor": "SE_06_EnvS_076",
+     "id": 2800032952,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_952",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_952",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z1_03",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-03"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_955",
+     "donor": "SE_06_EnvS_076",
+     "id": 2800032955,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_955",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_955",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z1_06",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-06"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_957",
+     "donor": "SE_06_EnvS_076",
+     "id": 2800032957,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_957",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_957",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z1_08",
+       true
+      ]
+     ],
+     "note": "MX13-Z1-08"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_951",
+     "donor": "SE_06_EnvS_076",
+     "id": 2805032951,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_951",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_951",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z2_02",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-02"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_953",
+     "donor": "SE_06_EnvS_076",
+     "id": 2805032953,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_953",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_953",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z2_04",
+       true
+      ]
+     ],
+     "note": "MX13-Z2-04"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_30_EnvS_951",
+     "donor": "SE_06_EnvS_076",
+     "id": 2810032951,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_30"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_30_EnvS_951",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_EnvS_951",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z3_02",
+       true
+      ]
+     ],
+     "note": "MX13-Z3-02"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_950",
+     "donor": "SE_06_EnvS_076",
+     "id": 2815032950,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_950",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_950",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z4_01",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-01"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_40_EnvS_952",
+     "donor": "SE_06_EnvS_076",
+     "id": 2815032952,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_40"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_40_EnvS_952",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_EnvS_952",
+       true
+      ],
+      [
+       "PuzzleInputText1",
+       "Records_MX13_Z4_03",
+       true
+      ]
+     ],
+     "note": "MX13-Z4-03"
     }
    ]
   }

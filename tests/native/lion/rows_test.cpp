@@ -157,6 +157,7 @@ struct Game {
     donor_rows(kMxmiddle);
     donor_rows(kMxlower);
     donor_rows(kMxlily);
+    donor_rows(kMxrecords);
   }
   uint64_t vtable_at = 0;
 
@@ -462,7 +463,10 @@ int main() {
       assert(size_t(world[k].t) == 25 + k && !std::strcmp(info.name, world[k].name) && info.size == world[k].size &&
              info.id && !info.transient[0]);
     }
-    static_assert(kTableCount == 34, "25 tables, Matrix XIII's seven and Lily's two");
+    static_assert(kTableCount == 37, "25 tables, Matrix XIII's seven, Lily's two and the records' three");
+    assert(size_t(Table::puzzle) == 36 && !std::strcmp(table_info(Table::album).name, "AlbumTable") &&
+           table_info(Table::album).size == 0x90 && table_info(Table::achievement).size == 0xf0 &&
+           table_info(Table::puzzle).size == 0x30 && !table_info(Table::album).transient[0]);
     assert(size_t(Table::condition) == 32 && !std::strcmp(table_info(Table::condition).name, "ConditionTable") &&
            table_info(Table::condition).size == 0x78 && table_info(Table::condition).id &&
            !table_info(Table::condition).transient[0] && size_t(Table::cgroup) == 33 &&
@@ -573,13 +577,14 @@ int main() {
   // by 050's link, the Lion's spawn row shutting its doors on battle and opening them on its death.
   {
     static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 164 &&
-                      kMxmiddleRows == 106 && kMxlowerRows == 99 && kMxnamesRows == 11 && kMxlilyRows == 6,
+                      kMxmiddleRows == 106 && kMxlowerRows == 105 && kMxnamesRows == 11 && kMxlilyRows == 6 &&
+                      kMxrecordsRows == 100,
                   "the data file's batches");
-    const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower, &kMxnames, &kMxlily};
+    const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower, &kMxnames, &kMxlily, &kMxrecords};
     assert(kMxiii.patches == kMxiiiPatches && kMxspawn.patches == kMxspawnPatches &&
            kMxenv.patches == kMxenvPatches && kMxupper.patches == kMxupperPatches &&
            kMxmiddle.patches == kMxmiddlePatches && kMxlower.patches == kMxlowerPatches &&
-           kMxnames.patches == kMxnamesPatches && kMxlily.patches == kMxlilyPatches && kLion.patches == kPatches && kBolt.patches == kPatches && kShop.patches == kPatches);
+           kMxnames.patches == kMxnamesPatches && kMxlily.patches == kMxlilyPatches && kMxrecords.patches == kMxrecordsPatches && kLion.patches == kPatches && kBolt.patches == kPatches && kShop.patches == kPatches);
     std::set<std::pair<size_t, std::string>> names;
     std::set<std::pair<size_t, uint32_t>> ids;
     const size_t sizes[] = {sizeof kMxiiiPatches / sizeof kMxiiiPatches[0],
@@ -589,8 +594,9 @@ int main() {
                             sizeof kMxmiddlePatches / sizeof kMxmiddlePatches[0],
                             sizeof kMxlowerPatches / sizeof kMxlowerPatches[0],
                             sizeof kMxnamesPatches / sizeof kMxnamesPatches[0],
-                            sizeof kMxlilyPatches / sizeof kMxlilyPatches[0]};
-    for (size_t k = 0; k < 8; ++k) {
+                            sizeof kMxlilyPatches / sizeof kMxlilyPatches[0],
+                            sizeof kMxrecordsPatches / sizeof kMxrecordsPatches[0]};
+    for (size_t k = 0; k < 9; ++k) {
       const Batch &b = *mx[k];
       size_t n = 0;
       for (size_t i = 0; i < b.count; ++i) {

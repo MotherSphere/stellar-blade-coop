@@ -77,16 +77,16 @@ build/host/pose_codec_test
 - Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `chainspin`, `devmenu`,
   `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `scene`, `tendril`, `wear`;
   `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
-  `matrix13/quest/`: `on_time`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`, `move`, `travel`;
+  `matrix13/quest/`: `on_time`, `zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`, `fans`, `mila`, `move`, `travel`;
   `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`, `waves`;
-  `partner/`: `capture`, `hud`, `puppet`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`; `session/`: `booth`,
-  `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`, `subtitles`; `ui/`: `guide`, `kit`, `model`,
-  `notice`, `region_tabs`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any
-  write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with UE4SS stubbed for
-  `main.lua`.
-  `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included), `coop fight spawn
-  probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`, `same_spawns`,
-  `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the `shared_quests` row;
+  `partner/`: `capture`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`, `run`;
+  `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`, `subtitles`; `ui/`: `guide`, `kit`,
+  `model`, `notice`, `region_tabs`, `text`) run the scripts, with fake UE4SS objects for those that call the engine. In
+  the capture test, any write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua` first, with
+  UE4SS stubbed for `main.lua`. `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests
+  included), `coop fight spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`,
+  `aggro`, `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with
+  the `shared_quests` row;
   `main/fight_notices_test` the same place and same spawns notices in both languages; `main/quests_test` `coop quests`
   with the `shared_quests` and `quest_deny` settings and the shared quests' notices; `main/input_test` the controller's
   events from a fake `coop_pad` (routed to the menu, the co-op saves' question and the two boxes, never to the host's
@@ -330,8 +330,8 @@ build/host/pose_codec_test
     a refused one) and the watch over the warp block (pending, warping, arrived, a block cleared before it ran, and one
     that never ran: stuck);
   - `region_tabs_test`: the teleport screen's record list: the sanity check, the name lookup, the append.
-  - `camp_text_test`: Matrix XIII's camp names, the keys (unique, the region's ending in a letter), the language pick,
-    when a pass is due and the `camptext=` line;
+  - `camp_text_test`: Matrix XIII's camp names and the 25 records' words, the keys (unique, the region's ending in a
+    letter), the language pick, when a pass is due and the `camptext=` and `recordtext=` lines;
   - `camps_test`: the activated camps' read, each guard refusing with its own reason (a warp, a respawn or a logic
     task as busy), when the list is read (at once with none held, in a new world or after a drop, then every 2 s) and
     the `activated=` line (the list, the camp EVE respawns at, a refusal, names that would not split left out);
@@ -339,7 +339,8 @@ build/host/pose_codec_test
     any case counted, the listing's order and a name's case changing nothing, a size or a name changing the hash), the
     containers by name, the names as they go to the friend, hers against ours, the status list, and the CNS packs
     under `~mods` with their outfits and the `/Game` assets they declare (comments, other keys and a text cut short
-    included);
+    included), a `.utoc` directory index read into object paths (maps, other roots, encrypted, unindexed, cut short
+    and looped indexes refused) and the shared list of containers both players have;
   - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
     rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
     reloads;
@@ -453,8 +454,8 @@ Platform-free headers, tested on the build machine:
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
 | `nightop/roxanne.h` | Roxanne's Night Operation choices and Lily's signal choice: a choice list's entry in SB's select cache pointed at rows of ours followed by the list's own, and put back; the checks and the `roxanne=` and `lily=` lines |
 | `nightop/shop_ui.h` | The Night Operation shop in SB's own shop screen: the guard, the answer word, the `nightshop=` line and the log lines |
-| `lion/rows.h` | Fourteen batches of rows (the first four and the shop's with their data part written by a generator outside the repository, which also describes the first 25 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, the Night Operation shop screen's 6, Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand, and Matrix XIII's eight from `lion/mxiii_rows.h`; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=`, `signal=`, `mxspawn=`, `mxenv=`, `mxupper=`, `mxmiddle=`, `mxlower=`, `mxnames=` and `mxlily=` lines and the log lines |
-| `lion/mxiii_rows.h` | Matrix XIII's eight batches (`mxiii` 75 rows, `mxspawn` 46, `mxenv` 160, `mxupper` 164, `mxmiddle` 106, `mxlower` 99, `mxlily` 6, `mxnames` 11), written by `tools/mxiii_rows.py` from `data/mxiii-world.json`: do not edit it by hand |
+| `lion/rows.h` | Fifteen batches of rows (the first four and the shop's with their data part written by a generator outside the repository, which also describes the first 25 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, the Night Operation shop screen's 6, Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand, and Matrix XIII's nine from `lion/mxiii_rows.h`; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=`, `signal=`, `mxspawn=`, `mxenv=`, `mxupper=`, `mxmiddle=`, `mxlower=`, `mxnames=`, `mxlily=` and `mxrecords=` lines and the log lines |
+| `lion/mxiii_rows.h` | Matrix XIII's nine batches (`mxiii` 75 rows, `mxspawn` 46, `mxenv` 160, `mxupper` 164, `mxmiddle` 106, `mxlower` 105, `mxlily` 6, `mxnames` 11, `mxrecords` 100), written by `tools/mxiii_rows.py` from `data/mxiii-world.json`: do not edit it by hand |
 | `lion/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
@@ -477,11 +478,12 @@ Platform-free headers, tested on the build machine:
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
 | `game/region_tabs.h` | The teleport screen's extra tabs: the slot, the calls and offsets, the record list's layout and append |
-| `game/camp_text.h` | Matrix XIII's camp names: the 12 entries added to the live `StringTable_UI`, the calls and offsets, the language pick and the `camptext=` status line |
+| `game/camp_text.h` | Matrix XIII's camp names: the 12 entries added to the live `StringTable_UI`, the calls and offsets, the language pick, when a pass is due and the `camptext=` and `recordtext=` status lines |
+| `game/record_text.h` | The 25 records' words for the `mxrecords` batch: the 50 entries added to the live `StringTable_Records` |
 | `game/camps.h` | The camps the save has activated, as SB's own camp list builds them, and the camp EVE respawns at: the calls and offsets, the guard, when to read and the `activated=` status line |
 | `game/dev_panels.h` | `coop devinfo`: the guard, the plan that opens one of SB's two read-only developer panels (the quest debugger, the player info) and closes the other, and their logic types and names |
 | `game/anim.h` | `coop emote`'s native clips: which clip paths pass, the path as the game's string, the call's arguments, the custom animation slot as read, our EVE and the check that she is still the object played on, what each frame does, and the track of the last play (its answer, the watch, the stop) with its log lines |
-| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare |
+| `game/pak_list.h` | The `.pak` mods a game loads beyond the base game, as a count and a hash and as mod containers by name; the CNS packs, their outfits and the assets they declare; the assets a mod's `.utoc` indexes and those of the mods both players have |
 
 The Windows side:
 

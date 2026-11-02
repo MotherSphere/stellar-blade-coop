@@ -133,6 +133,21 @@ Mxiii.BATCHES={
         local s=Enemy.parse(status,'camptext')
         return s~=nil and s.state=='ready'
     end},
+    -- The 25 records (data/mxiii-world.json): their puzzle text rows, unlocks, Data Bank rows and env rows at the map's
+    -- spawn points. Waits for game/camp_text.h's words, and loads StringTable_Records once for them: nothing else may
+    -- have loaded it at the title. At the title on the co-op save files only, with the test pak only, like every batch
+    -- here. Reading a record is the game's own path: env state CallPuzzle completes the unlock [inference: no row added
+    -- at run time has fired an achievement yet]. Its unlocks progress no trophy.
+    {word='mxrecords',name='Matrix XIII records',rows=Enemy.rows(Rows.MXRECORDS),optional=true,ready=function(status)
+        local s=Enemy.parse(status,'recordtext')
+        if s and s.state=='wait' and not Mxiii.records_loaded then
+            Mxiii.records_loaded=true
+            pcall(require('race.doro').resolve,'/Game/Local/Localize/StringTable_Records.StringTable_Records',
+                '/Script/CoreUObject.Object')
+        end
+        local names=Enemy.parse(status,'camptext') -- The memorystick group's header is the camp names' MX13_Region.
+        return s~=nil and s.state=='ready' and names~=nil and names.state=='ready'
+    end},
 }
 -- SB/Content/Paks from the mod's folder (...\SB\Binaries\Win64\[ue4ss\]Mods\StellarCoop), or nil.
 function Mxiii.paks_of(folder)
@@ -318,6 +333,7 @@ function Mxiii.new(o)
         return ok and eve or nil
     end
     local drone=require('matrix13.world.drone').new({log=function(m) log('[MXDRONE] '..m) end,here=here})
+    local fans=require('matrix13.world.fans').new({log=function(m) log('[MXFAN] '..m) end,here=here})
     -- coop mxiii warp [n|name]: the list, or EVE put on that arrival point, under the follow's guards (solo, a co-op
     -- save, no travel under way) and in world 2800 only.
     function self.warp(point)
@@ -347,6 +363,7 @@ function Mxiii.new(o)
         move.tick()
         boss.tick()
         drone.tick()
+        fans.tick()
         return ok,message
     end
     -- coop off ends the waits without their end, so a title batch asked is free to ask again at the next call.

@@ -224,6 +224,26 @@ assert(declared.bad==nil and declared['line']==nil,'A line of three words is non
 files[CNS]='/Game/X/X.X X\n'
 assert(link.cns_assets()==declared and link.cns_assets()['/Game/X/X.X']==nil,'Read once a Lua load')
 files[CNS]=nil
+-- The assets of mods both players have (coop-shared-assets.txt): {} at version 0, read again at each new shared=
+-- version, a line of another shape none; mod_assets() merges them under the CNS ones.
+local SHARED='C:\\Mod\\coop-shared-assets.txt'
+files[SHARED]='/Game/Mods/Queen/NS_Q.NS_Q ~mods/queen_p\n'
+assert(next(link.shared_assets())==nil and link.shared_version()==0,'Version 0: none, the file not read')
+files[STATUS]='mod=v\nshared=1 2\n'
+link.changes()
+files[SHARED]='/Game/Mods/Queen/NS_Q.NS_Q ~mods/queen_p\n/Game/OutfitMods/Foo/SK_Foo.SK_Foo ~mods/foo_p\nbad line here\n'
+local got=link.shared_assets()
+assert(link.shared_version()==1 and got['/Game/Mods/Queen/NS_Q.NS_Q']=='~mods/queen_p' and got.bad==nil)
+files[SHARED]=''
+assert(link.shared_assets()==got,'Read once a version')
+local all=link.mod_assets()
+assert(all['/Game/OutfitMods/Foo/SK_Foo.SK_Foo']=='Foo_Suit' and all['/Game/Mods/Queen/NS_Q.NS_Q']=='~mods/queen_p' and
+    all['/Game/Mods/DekCNS_P/T/T_A.T_A']=='-' and link.mod_assets()==all,'CNS first, kept while neither changes')
+files[STATUS]='mod=v\npeer=1 shared=9 9\nshared=2 0\n'
+link.changes()
+assert(link.shared_version()==2 and next(link.shared_assets())==nil and link.mod_assets()['/Game/Mods/Queen/NS_Q.NS_Q']
+    ==nil,'A new version: read again')
+files[SHARED]=nil
 -- The shared quests' line (Phase 12) and their notes, from the start of their own lines only. The first notes call
 -- only primes the count (a reload never shows old ones); then each new note once, in order, its zone for kind zone
 -- only. A note of another shape, or in a peer's name, is none.

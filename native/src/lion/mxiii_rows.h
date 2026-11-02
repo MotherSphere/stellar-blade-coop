@@ -652,7 +652,7 @@ constexpr Patch kMxspawnPatches[] = {
     {0xb8, Kind::string, 0, ""}, // PathWay
     {0xc8, Kind::name, 0, "m_beach_elite1"}, // RewardGroup
     {0x80, Kind::names, 0, "DLC02_40_E_EnvC_614|DLC02_40_E_EnvC_618|DLC02_40_E_EnvC_620|DLC02_40_E_EnvC_630"}, // EventOnBattle
-    {0x70, Kind::names, 0, "DLC02_40_E_EnvC_615|DLC02_40_E_EnvC_619|DLC02_40_E_EnvC_613"}, // EventOnDead
+    {0x70, Kind::names, 0, "DLC02_40_E_EnvC_615|DLC02_40_E_EnvC_619|DLC02_40_E_EnvC_613|DLC02_40_E_EnvC_631|DLC02_40_E_EnvC_632|DLC02_40_E_EnvC_633"}, // EventOnDead
     // DLC02_20_ZoneE_033 (ZoneEventTable)
     {0x18, Kind::name, 0, "DLC02_20_E_CharS_904"}, // EventAlias
     // DLC02_40_ZoneE_015 (ZoneEventTable)
@@ -4390,19 +4390,52 @@ constexpr Patch kMxlowerPatches[] = {
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_023"}, // SpawnPointName
     {0x90, Kind::names, 0, ""}, // TagEventList2
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_40_EnvS_024 (ZoneEnvSpawnTable)
     {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/DLC_MXIII/Zone_MXIII_40/MT40_ShortCutRope_01_On.MT40_ShortCutRope_01_On"}, // Interaction
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_024"}, // SpawnPointName
     {0x90, Kind::names, 0, ""}, // TagEventList2
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_40_EnvS_025 (ZoneEnvSpawnTable)
     {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/DLC_MXIII/Zone_MXIII_40/MT40_ShortCutRope_01_On.MT40_ShortCutRope_01_On"}, // Interaction
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_025"}, // SpawnPointName
     {0x90, Kind::names, 0, ""}, // TagEventList2
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_40_EnvS_021 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_021"}, // SpawnPointName
+    // DLC02_40_E_EnvC_631 (EventEnvControlTable, the Lion dead: lever 023 can be used)
+    {0x14, Kind::name, 0, "DLC02_40_EnvS_023"}, // EnvSpawnAlias
+    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
+    {0x30, Kind::u8, 1, nullptr}, // Activate
+    {0x28, Kind::name, 0, "None"}, // TagName
+    // DLC02_40_E_EnvC_631 (ZoneEventTable)
+    {0x14, Kind::u8, 10, nullptr}, // Type
+    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_631"}, // EventAlias
+    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
+    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
+    // DLC02_40_E_EnvC_632 (EventEnvControlTable, the Lion dead: lever 024 can be used)
+    {0x14, Kind::name, 0, "DLC02_40_EnvS_024"}, // EnvSpawnAlias
+    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
+    {0x30, Kind::u8, 1, nullptr}, // Activate
+    {0x28, Kind::name, 0, "None"}, // TagName
+    // DLC02_40_E_EnvC_632 (ZoneEventTable)
+    {0x14, Kind::u8, 10, nullptr}, // Type
+    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_632"}, // EventAlias
+    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
+    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
+    // DLC02_40_E_EnvC_633 (EventEnvControlTable, the Lion dead: lever 025 can be used)
+    {0x14, Kind::name, 0, "DLC02_40_EnvS_025"}, // EnvSpawnAlias
+    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
+    {0x30, Kind::u8, 1, nullptr}, // Activate
+    {0x28, Kind::name, 0, "None"}, // TagName
+    // DLC02_40_E_EnvC_633 (ZoneEventTable)
+    {0x14, Kind::u8, 10, nullptr}, // Type
+    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_633"}, // EventAlias
+    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
+    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
 };
 constexpr Row kMxlowerRecipe[] = {
     {Table::env, "DLC02_40_EnvS_016", "DLC02_40_EnvS_016", 2815032016u, 0, 3},
@@ -4500,10 +4533,16 @@ constexpr Row kMxlowerRecipe[] = {
     {Table::zevent, "DLC02_40_E_EnvC_629", "DLC02_20_E_EnvC_001", 8750u, 641, 4},
     {Table::envc, "DLC02_40_E_EnvC_630", "DLC02_20_E_EnvC_001", 3057u, 645, 4},
     {Table::zevent, "DLC02_40_E_EnvC_630", "DLC02_20_E_EnvC_001", 8751u, 649, 4},
-    {Table::env, "DLC02_40_EnvS_023", "DLC02_40_EnvS_023", 2815032023u, 653, 4},
-    {Table::env, "DLC02_40_EnvS_024", "DLC02_40_EnvS_024", 2815032024u, 657, 4},
-    {Table::env, "DLC02_40_EnvS_025", "DLC02_40_EnvS_025", 2815032025u, 661, 4},
-    {Table::env, "DLC02_40_EnvS_021", "DLC02_40_EnvS_021", 2815032021u, 665, 2},
+    {Table::env, "DLC02_40_EnvS_023", "DLC02_40_EnvS_023", 2815032023u, 653, 5},
+    {Table::env, "DLC02_40_EnvS_024", "DLC02_40_EnvS_024", 2815032024u, 658, 5},
+    {Table::env, "DLC02_40_EnvS_025", "DLC02_40_EnvS_025", 2815032025u, 663, 5},
+    {Table::env, "DLC02_40_EnvS_021", "DLC02_40_EnvS_021", 2815032021u, 668, 2},
+    {Table::envc, "DLC02_40_E_EnvC_631", "DLC02_20_E_EnvC_001", 3061u, 670, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_631", "DLC02_20_E_EnvC_001", 8755u, 674, 4},
+    {Table::envc, "DLC02_40_E_EnvC_632", "DLC02_20_E_EnvC_001", 3062u, 678, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_632", "DLC02_20_E_EnvC_001", 8756u, 682, 4},
+    {Table::envc, "DLC02_40_E_EnvC_633", "DLC02_20_E_EnvC_001", 3063u, 686, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_633", "DLC02_20_E_EnvC_001", 8757u, 690, 4},
 };
 
 constexpr Patch kMxlilyPatches[] = {
@@ -4576,5 +4615,674 @@ constexpr Row kMxnamesRecipe[] = {
     {Table::camp, "DLC02_30_Camp_02", "DLC02_30_Camp_02", 281002u, 16, 2},
     {Table::camp, "DLC02_30_Camp_03", "DLC02_30_Camp_03", 281003u, 18, 2},
     {Table::camp, "DLC02_40_Camp_01", "DLC02_40_Camp_01", 281501u, 20, 2},
+};
+
+constexpr Patch kMxrecordsPatches[] = {
+    // Records_MX13_Z1_04 (PuzzleStringArrayTable, MX13-Z1-04 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z1_04_Title|Records_MX13_Z1_04_Desc"}, // StringArray
+    // Records_MX13_Z2_03 (PuzzleStringArrayTable, MX13-Z2-03 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z2_03_Title|Records_MX13_Z2_03_Desc"}, // StringArray
+    // Records_MX13_Z3_03 (PuzzleStringArrayTable, MX13-Z3-03 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z3_03_Title|Records_MX13_Z3_03_Desc"}, // StringArray
+    // Records_MX13_Z3_05 (PuzzleStringArrayTable, MX13-Z3-05 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z3_05_Title|Records_MX13_Z3_05_Desc"}, // StringArray
+    // Records_MX13_Z4_06 (PuzzleStringArrayTable, MX13-Z4-06 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z4_06_Title|Records_MX13_Z4_06_Desc"}, // StringArray
+    // Records_MX13_Z4_04 (PuzzleStringArrayTable, MX13-Z4-04 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z4_04_Title|Records_MX13_Z4_04_Desc"}, // StringArray
+    // Records_MX13_Z4_05 (PuzzleStringArrayTable, MX13-Z4-05 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z4_05_Title|Records_MX13_Z4_05_Desc"}, // StringArray
+    // Records_MX13_00 (PuzzleStringArrayTable, MX13-00 text)
+    {0x18, Kind::strings, 0, "Records_MX13_00_Title|Records_MX13_00_Desc"}, // StringArray
+    // Records_MX13_Z1_05 (PuzzleStringArrayTable, MX13-Z1-05 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z1_05_Title|Records_MX13_Z1_05_Desc"}, // StringArray
+    // Records_MX13_Z1_07 (PuzzleStringArrayTable, MX13-Z1-07 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z1_07_Title|Records_MX13_Z1_07_Desc"}, // StringArray
+    // Records_MX13_Z2_05 (PuzzleStringArrayTable, MX13-Z2-05 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z2_05_Title|Records_MX13_Z2_05_Desc"}, // StringArray
+    // Records_MX13_Z3_04 (PuzzleStringArrayTable, MX13-Z3-04 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z3_04_Title|Records_MX13_Z3_04_Desc"}, // StringArray
+    // Records_MX13_Z1_01 (PuzzleStringArrayTable, MX13-Z1-01 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z1_01_Title|Records_MX13_Z1_01_Desc"}, // StringArray
+    // Records_MX13_Z1_02 (PuzzleStringArrayTable, MX13-Z1-02 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z1_02_Title|Records_MX13_Z1_02_Desc"}, // StringArray
+    // Records_MX13_Z2_01 (PuzzleStringArrayTable, MX13-Z2-01 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z2_01_Title|Records_MX13_Z2_01_Desc"}, // StringArray
+    // Records_MX13_Z3_01 (PuzzleStringArrayTable, MX13-Z3-01 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z3_01_Title|Records_MX13_Z3_01_Desc"}, // StringArray
+    // Records_MX13_Z4_02 (PuzzleStringArrayTable, MX13-Z4-02 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z4_02_Title|Records_MX13_Z4_02_Desc"}, // StringArray
+    // Records_MX13_Z1_03 (PuzzleStringArrayTable, MX13-Z1-03 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z1_03_Title|Records_MX13_Z1_03_Desc"}, // StringArray
+    // Records_MX13_Z1_06 (PuzzleStringArrayTable, MX13-Z1-06 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z1_06_Title|Records_MX13_Z1_06_Desc"}, // StringArray
+    // Records_MX13_Z1_08 (PuzzleStringArrayTable, MX13-Z1-08 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z1_08_Title|Records_MX13_Z1_08_Desc"}, // StringArray
+    // Records_MX13_Z2_02 (PuzzleStringArrayTable, MX13-Z2-02 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z2_02_Title|Records_MX13_Z2_02_Desc"}, // StringArray
+    // Records_MX13_Z2_04 (PuzzleStringArrayTable, MX13-Z2-04 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z2_04_Title|Records_MX13_Z2_04_Desc"}, // StringArray
+    // Records_MX13_Z3_02 (PuzzleStringArrayTable, MX13-Z3-02 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z3_02_Title|Records_MX13_Z3_02_Desc"}, // StringArray
+    // Records_MX13_Z4_01 (PuzzleStringArrayTable, MX13-Z4-01 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z4_01_Title|Records_MX13_Z4_01_Desc"}, // StringArray
+    // Records_MX13_Z4_03 (PuzzleStringArrayTable, MX13-Z4-03 text)
+    {0x18, Kind::strings, 0, "Records_MX13_Z4_03_Title|Records_MX13_Z4_03_Desc"}, // StringArray
+    // Ach_Album_Unlock_MX13_Z1_04 (AchievementTable, MX13-Z1-04: DLC02_10_EnvS_953 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_10_EnvS_953"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z2_03 (AchievementTable, MX13-Z2-03: DLC02_20_EnvS_952 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_20_EnvS_952"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z3_03 (AchievementTable, MX13-Z3-03: DLC02_30_EnvS_952 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_30_EnvS_952"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z3_05 (AchievementTable, MX13-Z3-05: DLC02_30_EnvS_954 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_30_EnvS_954"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z4_06 (AchievementTable, MX13-Z4-06: DLC02_40_EnvS_955 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_40_EnvS_955"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z4_04 (AchievementTable, MX13-Z4-04: DLC02_40_EnvS_953 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_40_EnvS_953"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z4_05 (AchievementTable, MX13-Z4-05: DLC02_40_EnvS_954 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_40_EnvS_954"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_00 (AchievementTable, MX13-00: DLC02_00_EnvS_950 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_00_EnvS_950"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z1_05 (AchievementTable, MX13-Z1-05: DLC02_10_EnvS_954 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_10_EnvS_954"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z1_07 (AchievementTable, MX13-Z1-07: DLC02_10_EnvS_956 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_10_EnvS_956"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z2_05 (AchievementTable, MX13-Z2-05: DLC02_20_EnvS_954 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_20_EnvS_954"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z3_04 (AchievementTable, MX13-Z3-04: DLC02_30_EnvS_953 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_30_EnvS_953"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z1_01 (AchievementTable, MX13-Z1-01: DLC02_10_EnvS_950 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_10_EnvS_950"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z1_02 (AchievementTable, MX13-Z1-02: DLC02_10_EnvS_951 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_10_EnvS_951"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z2_01 (AchievementTable, MX13-Z2-01: DLC02_20_EnvS_950 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_20_EnvS_950"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z3_01 (AchievementTable, MX13-Z3-01: DLC02_30_EnvS_950 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_30_EnvS_950"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z4_02 (AchievementTable, MX13-Z4-02: DLC02_40_EnvS_951 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_40_EnvS_951"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z1_03 (AchievementTable, MX13-Z1-03: DLC02_10_EnvS_952 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_10_EnvS_952"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z1_06 (AchievementTable, MX13-Z1-06: DLC02_10_EnvS_955 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_10_EnvS_955"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z1_08 (AchievementTable, MX13-Z1-08: DLC02_10_EnvS_957 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_10_EnvS_957"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z2_02 (AchievementTable, MX13-Z2-02: DLC02_20_EnvS_951 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_20_EnvS_951"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z2_04 (AchievementTable, MX13-Z2-04: DLC02_20_EnvS_953 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_20_EnvS_953"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z3_02 (AchievementTable, MX13-Z3-02: DLC02_30_EnvS_951 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_30_EnvS_951"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z4_01 (AchievementTable, MX13-Z4-01: DLC02_40_EnvS_950 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_40_EnvS_950"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Ach_Album_Unlock_MX13_Z4_03 (AchievementTable, MX13-Z4-03: DLC02_40_EnvS_952 at CallPuzzle)
+    {0x18, Kind::string, 0, "DLC02_40_EnvS_952"}, // ParamValue1
+    {0xb4, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted
+    {0xbc, Kind::i32, 0, nullptr}, // ProgressAchievementValueOnCompleted
+    {0xc0, Kind::name, 0, "None"}, // ProgressAchievementOnCompleted2
+    {0xd0, Kind::names, 0, ""}, // ProgressAchievementArrayOnCompleted
+    // Records_MX13_Z1_04 (AlbumTable, MX13-Z1-04 Citizen 157's Memory)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "MX13_Region"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z1_04_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z1_04_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_04"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z2_03 (AlbumTable, MX13-Z2-03 Citizen 76's Memory)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "MX13_Region"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z2_03_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z2_03_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z2_03"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z3_03 (AlbumTable, MX13-Z3-03 Bram's Memory)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "MX13_Region"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z3_03_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z3_03_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z3_03"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z3_05 (AlbumTable, MX13-Z3-05 Silas's Doubt)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "MX13_Region"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z3_05_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z3_05_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z3_05"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z4_06 (AlbumTable, MX13-Z4-06 Mila's Memory)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "MX13_Region"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z4_06_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z4_06_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z4_06"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z4_04 (AlbumTable, MX13-Z4-04 Yohan's Memory)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "MX13_Region"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z4_04_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z4_04_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z4_04"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z4_05 (AlbumTable, MX13-Z4-05 Station Master Ruben's Memory)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "MX13_Region"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z4_05_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z4_05_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z4_05"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_00 (AlbumTable, MX13-00 Trains Under the Sand)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Message"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_00_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_00_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_00"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z1_05 (AlbumTable, MX13-Z1-05 End of the Line)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Message"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z1_05_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z1_05_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_05"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z1_07 (AlbumTable, MX13-Z1-07 For Yohan)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Message"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z1_07_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z1_07_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_07"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z2_05 (AlbumTable, MX13-Z2-05 Keep This Door Shut)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Message"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z2_05_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z2_05_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z2_05"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z3_04 (AlbumTable, MX13-Z3-04 Rest Stop Board)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Message"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z3_04_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z3_04_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z3_04"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z1_01 (AlbumTable, MX13-Z1-01 Surface Lift Times)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Guide"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z1_01_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z1_01_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_01"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z1_02 (AlbumTable, MX13-Z1-02 Station Master's Orders)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Guide"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z1_02_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z1_02_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_02"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z2_01 (AlbumTable, MX13-Z2-01 Load Shedding)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Guide"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z2_01_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z2_01_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z2_01"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z3_01 (AlbumTable, MX13-Z3-01 Pump Team Rota)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Guide"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z3_01_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z3_01_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z3_01"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z4_02 (AlbumTable, MX13-Z4-02 Drain Procedure)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Guide"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z4_02_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z4_02_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z4_02"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z1_03 (AlbumTable, MX13-Z1-03 Shelter Register: Departures)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z1_03_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z1_03_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_03"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z1_06 (AlbumTable, MX13-Z1-06 Crane Operator's Log)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z1_06_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z1_06_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_06"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z1_08 (AlbumTable, MX13-Z1-08 Service 18:40, Two Passengers)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z1_08_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z1_08_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_08"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z2_02 (AlbumTable, MX13-Z2-02 Meeting, Car 9)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z2_02_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z2_02_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z2_02"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z2_04 (AlbumTable, MX13-Z2-04 Waste Drone Cycle)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z2_04_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z2_04_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z2_04"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z3_02 (AlbumTable, MX13-Z3-02 Cricket Report)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z3_02_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z3_02_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z3_02"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z4_01 (AlbumTable, MX13-Z4-01 Water Levels)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z4_01_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z4_01_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z4_01"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // Records_MX13_Z4_03 (AlbumTable, MX13-Z4-03 The Last Shelter)
+    {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
+    {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
+    {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
+    {0x30, Kind::string, 0, "Records_MX13_Z4_03_Title"}, // Name
+    {0x40, Kind::string, 0, "Records_MX13_Z4_03_Desc"}, // Desc
+    {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z4_03"}, // AchievementUnlocked
+    {0x80, Kind::name, 0, "None"}, // AchievementPopup
+    // DLC02_10_EnvS_953 (ZoneEnvSpawnTable, MX13-Z1-04)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_953"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_953"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z1_04"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
+    // DLC02_20_EnvS_952 (ZoneEnvSpawnTable, MX13-Z2-03)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_952"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_952"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z2_03"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
+    // DLC02_30_EnvS_952 (ZoneEnvSpawnTable, MX13-Z3-03)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_952"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_952"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z3_03"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
+    // DLC02_30_EnvS_954 (ZoneEnvSpawnTable, MX13-Z3-05)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_954"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_954"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z3_05"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
+    // DLC02_40_EnvS_955 (ZoneEnvSpawnTable, MX13-Z4-06)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_955"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_955"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z4_06"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
+    // DLC02_40_EnvS_953 (ZoneEnvSpawnTable, MX13-Z4-04)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_953"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_953"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z4_04"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
+    // DLC02_40_EnvS_954 (ZoneEnvSpawnTable, MX13-Z4-05)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_954"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_954"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z4_05"}, // PuzzleInputText1
+    {0x160, Kind::name, 0, "None"}, // RewardTagName1
+    {0x168, Kind::name, 0, "None"}, // State_RewardGroup1
+    // DLC02_00_EnvS_950 (ZoneEnvSpawnTable, MX13-00)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_00_EnvS_950"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_00_EnvS_950"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_00"}, // PuzzleInputText1
+    // DLC02_10_EnvS_954 (ZoneEnvSpawnTable, MX13-Z1-05)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_954"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_954"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z1_05"}, // PuzzleInputText1
+    // DLC02_10_EnvS_956 (ZoneEnvSpawnTable, MX13-Z1-07)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_956"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_956"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z1_07"}, // PuzzleInputText1
+    // DLC02_20_EnvS_954 (ZoneEnvSpawnTable, MX13-Z2-05)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_954"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_954"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z2_05"}, // PuzzleInputText1
+    // DLC02_30_EnvS_953 (ZoneEnvSpawnTable, MX13-Z3-04)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_953"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_953"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z3_04"}, // PuzzleInputText1
+    // DLC02_10_EnvS_950 (ZoneEnvSpawnTable, MX13-Z1-01)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_950"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_950"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z1_01"}, // PuzzleInputText1
+    // DLC02_10_EnvS_951 (ZoneEnvSpawnTable, MX13-Z1-02)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_951"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_951"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z1_02"}, // PuzzleInputText1
+    // DLC02_20_EnvS_950 (ZoneEnvSpawnTable, MX13-Z2-01)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_950"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_950"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z2_01"}, // PuzzleInputText1
+    // DLC02_30_EnvS_950 (ZoneEnvSpawnTable, MX13-Z3-01)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_950"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_950"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z3_01"}, // PuzzleInputText1
+    // DLC02_40_EnvS_951 (ZoneEnvSpawnTable, MX13-Z4-02)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_951"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_951"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z4_02"}, // PuzzleInputText1
+    // DLC02_10_EnvS_952 (ZoneEnvSpawnTable, MX13-Z1-03)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_952"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_952"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z1_03"}, // PuzzleInputText1
+    // DLC02_10_EnvS_955 (ZoneEnvSpawnTable, MX13-Z1-06)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_955"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_955"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z1_06"}, // PuzzleInputText1
+    // DLC02_10_EnvS_957 (ZoneEnvSpawnTable, MX13-Z1-08)
+    {0x20, Kind::names, 0, "Zone_DLC02_10"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_10_EnvS_957"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_10_EnvS_957"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z1_08"}, // PuzzleInputText1
+    // DLC02_20_EnvS_951 (ZoneEnvSpawnTable, MX13-Z2-02)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_951"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_951"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z2_02"}, // PuzzleInputText1
+    // DLC02_20_EnvS_953 (ZoneEnvSpawnTable, MX13-Z2-04)
+    {0x20, Kind::names, 0, "Zone_DLC02_20"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_20_EnvS_953"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_20_EnvS_953"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z2_04"}, // PuzzleInputText1
+    // DLC02_30_EnvS_951 (ZoneEnvSpawnTable, MX13-Z3-02)
+    {0x20, Kind::names, 0, "Zone_DLC02_30"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_30_EnvS_951"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_30_EnvS_951"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z3_02"}, // PuzzleInputText1
+    // DLC02_40_EnvS_950 (ZoneEnvSpawnTable, MX13-Z4-01)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_950"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_950"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z4_01"}, // PuzzleInputText1
+    // DLC02_40_EnvS_952 (ZoneEnvSpawnTable, MX13-Z4-03)
+    {0x20, Kind::names, 0, "Zone_DLC02_40"}, // ZoneList
+    {0x30, Kind::name, 0, "DLC02_40_EnvS_952"}, // EnvActorName
+    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C"}, // EnvBPPath
+    {0x48, Kind::name, 0, "DLC02_40_EnvS_952"}, // SpawnPointName
+    {0x31c, Kind::name, 0, "Records_MX13_Z4_03"}, // PuzzleInputText1
+};
+constexpr Row kMxrecordsRecipe[] = {
+    {Table::puzzle, "Records_MX13_Z1_04", "DED10_EnvS_Corpse05", 1368u, 0, 1},
+    {Table::puzzle, "Records_MX13_Z2_03", "DED10_EnvS_Corpse05", 1369u, 1, 1},
+    {Table::puzzle, "Records_MX13_Z3_03", "DED10_EnvS_Corpse05", 1370u, 2, 1},
+    {Table::puzzle, "Records_MX13_Z3_05", "DED10_EnvS_Corpse05", 1371u, 3, 1},
+    {Table::puzzle, "Records_MX13_Z4_06", "DED10_EnvS_Corpse05", 1372u, 4, 1},
+    {Table::puzzle, "Records_MX13_Z4_04", "DED10_EnvS_Corpse05", 1373u, 5, 1},
+    {Table::puzzle, "Records_MX13_Z4_05", "DED10_EnvS_Corpse05", 1374u, 6, 1},
+    {Table::puzzle, "Records_MX13_00", "DED10_EnvS_Corpse05", 1375u, 7, 1},
+    {Table::puzzle, "Records_MX13_Z1_05", "DED10_EnvS_Corpse05", 1376u, 8, 1},
+    {Table::puzzle, "Records_MX13_Z1_07", "DED10_EnvS_Corpse05", 1377u, 9, 1},
+    {Table::puzzle, "Records_MX13_Z2_05", "DED10_EnvS_Corpse05", 1378u, 10, 1},
+    {Table::puzzle, "Records_MX13_Z3_04", "DED10_EnvS_Corpse05", 1379u, 11, 1},
+    {Table::puzzle, "Records_MX13_Z1_01", "DED10_EnvS_Corpse05", 1380u, 12, 1},
+    {Table::puzzle, "Records_MX13_Z1_02", "DED10_EnvS_Corpse05", 1381u, 13, 1},
+    {Table::puzzle, "Records_MX13_Z2_01", "DED10_EnvS_Corpse05", 1382u, 14, 1},
+    {Table::puzzle, "Records_MX13_Z3_01", "DED10_EnvS_Corpse05", 1383u, 15, 1},
+    {Table::puzzle, "Records_MX13_Z4_02", "DED10_EnvS_Corpse05", 1384u, 16, 1},
+    {Table::puzzle, "Records_MX13_Z1_03", "DED10_EnvS_Corpse05", 1385u, 17, 1},
+    {Table::puzzle, "Records_MX13_Z1_06", "DED10_EnvS_Corpse05", 1386u, 18, 1},
+    {Table::puzzle, "Records_MX13_Z1_08", "DED10_EnvS_Corpse05", 1387u, 19, 1},
+    {Table::puzzle, "Records_MX13_Z2_02", "DED10_EnvS_Corpse05", 1388u, 20, 1},
+    {Table::puzzle, "Records_MX13_Z2_04", "DED10_EnvS_Corpse05", 1389u, 21, 1},
+    {Table::puzzle, "Records_MX13_Z3_02", "DED10_EnvS_Corpse05", 1390u, 22, 1},
+    {Table::puzzle, "Records_MX13_Z4_01", "DED10_EnvS_Corpse05", 1391u, 23, 1},
+    {Table::puzzle, "Records_MX13_Z4_03", "DED10_EnvS_Corpse05", 1392u, 24, 1},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z1_04", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280900u, 25, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z2_03", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280901u, 30, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z3_03", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280902u, 35, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z3_05", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280903u, 40, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z4_06", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280904u, 45, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z4_04", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280905u, 50, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z4_05", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280906u, 55, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_00", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280907u, 60, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z1_05", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280908u, 65, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z1_07", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280909u, 70, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z2_05", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280910u, 75, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z3_04", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280911u, 80, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z1_01", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280912u, 85, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z1_02", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280913u, 90, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z2_01", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280914u, 95, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z3_01", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280915u, 100, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z4_02", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280916u, 105, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z1_03", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280917u, 110, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z1_06", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280918u, 115, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z1_08", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280919u, 120, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z2_02", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280920u, 125, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z2_04", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280921u, 130, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z3_02", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280922u, 135, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z4_01", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280923u, 140, 5},
+    {Table::achievement, "Ach_Album_Unlock_MX13_Z4_03", "Ach_Album_Unlock_Item_Records_ME01_Memory_01", 280924u, 145, 5},
+    {Table::album, "Records_MX13_Z1_04", "Records_ME01_Memory_01", 10700u, 150, 7},
+    {Table::album, "Records_MX13_Z2_03", "Records_ME01_Memory_01", 10701u, 157, 7},
+    {Table::album, "Records_MX13_Z3_03", "Records_ME01_Memory_01", 10702u, 164, 7},
+    {Table::album, "Records_MX13_Z3_05", "Records_ME01_Memory_01", 10703u, 171, 7},
+    {Table::album, "Records_MX13_Z4_06", "Records_ME01_Memory_01", 10704u, 178, 7},
+    {Table::album, "Records_MX13_Z4_04", "Records_ME01_Memory_01", 10705u, 185, 7},
+    {Table::album, "Records_MX13_Z4_05", "Records_ME01_Memory_01", 10706u, 192, 7},
+    {Table::album, "Records_MX13_00", "Records_Christmas_01", 10707u, 199, 7},
+    {Table::album, "Records_MX13_Z1_05", "Records_Christmas_01", 10708u, 206, 7},
+    {Table::album, "Records_MX13_Z1_07", "Records_Christmas_01", 10709u, 213, 7},
+    {Table::album, "Records_MX13_Z2_05", "Records_Christmas_01", 10710u, 220, 7},
+    {Table::album, "Records_MX13_Z3_04", "Records_Christmas_01", 10711u, 227, 7},
+    {Table::album, "Records_MX13_Z1_01", "Records_ME01_Memory_07", 10712u, 234, 7},
+    {Table::album, "Records_MX13_Z1_02", "Records_ME01_Memory_07", 10713u, 241, 7},
+    {Table::album, "Records_MX13_Z2_01", "Records_ME01_Memory_07", 10714u, 248, 7},
+    {Table::album, "Records_MX13_Z3_01", "Records_ME01_Memory_07", 10715u, 255, 7},
+    {Table::album, "Records_MX13_Z4_02", "Records_ME01_Memory_07", 10716u, 262, 7},
+    {Table::album, "Records_MX13_Z1_03", "Records_ME04_Memory_15", 10717u, 269, 7},
+    {Table::album, "Records_MX13_Z1_06", "Records_ME04_Memory_15", 10718u, 276, 7},
+    {Table::album, "Records_MX13_Z1_08", "Records_ME04_Memory_15", 10719u, 283, 7},
+    {Table::album, "Records_MX13_Z2_02", "Records_ME04_Memory_15", 10720u, 290, 7},
+    {Table::album, "Records_MX13_Z2_04", "Records_ME04_Memory_15", 10721u, 297, 7},
+    {Table::album, "Records_MX13_Z3_02", "Records_ME04_Memory_15", 10722u, 304, 7},
+    {Table::album, "Records_MX13_Z4_01", "Records_ME04_Memory_15", 10723u, 311, 7},
+    {Table::album, "Records_MX13_Z4_03", "Records_ME04_Memory_15", 10724u, 318, 7},
+    {Table::env, "DLC02_10_EnvS_953", "DED10_EnvS_168", 2800032953u, 325, 7},
+    {Table::env, "DLC02_20_EnvS_952", "DED10_EnvS_168", 2805032952u, 332, 7},
+    {Table::env, "DLC02_30_EnvS_952", "DED10_EnvS_168", 2810032952u, 339, 7},
+    {Table::env, "DLC02_30_EnvS_954", "DED10_EnvS_168", 2810032954u, 346, 7},
+    {Table::env, "DLC02_40_EnvS_955", "DED10_EnvS_168", 2815032955u, 353, 7},
+    {Table::env, "DLC02_40_EnvS_953", "DED10_EnvS_168", 2815032953u, 360, 7},
+    {Table::env, "DLC02_40_EnvS_954", "DED10_EnvS_168", 2815032954u, 367, 7},
+    {Table::env, "DLC02_00_EnvS_950", "SE_06_EnvS_076", 2800032959u, 374, 5},
+    {Table::env, "DLC02_10_EnvS_954", "SE_06_EnvS_076", 2800032954u, 379, 5},
+    {Table::env, "DLC02_10_EnvS_956", "SE_06_EnvS_076", 2800032956u, 384, 5},
+    {Table::env, "DLC02_20_EnvS_954", "SE_06_EnvS_076", 2805032954u, 389, 5},
+    {Table::env, "DLC02_30_EnvS_953", "SE_06_EnvS_076", 2810032953u, 394, 5},
+    {Table::env, "DLC02_10_EnvS_950", "SE_06_EnvS_076", 2800032950u, 399, 5},
+    {Table::env, "DLC02_10_EnvS_951", "SE_06_EnvS_076", 2800032951u, 404, 5},
+    {Table::env, "DLC02_20_EnvS_950", "SE_06_EnvS_076", 2805032950u, 409, 5},
+    {Table::env, "DLC02_30_EnvS_950", "SE_06_EnvS_076", 2810032950u, 414, 5},
+    {Table::env, "DLC02_40_EnvS_951", "SE_06_EnvS_076", 2815032951u, 419, 5},
+    {Table::env, "DLC02_10_EnvS_952", "SE_06_EnvS_076", 2800032952u, 424, 5},
+    {Table::env, "DLC02_10_EnvS_955", "SE_06_EnvS_076", 2800032955u, 429, 5},
+    {Table::env, "DLC02_10_EnvS_957", "SE_06_EnvS_076", 2800032957u, 434, 5},
+    {Table::env, "DLC02_20_EnvS_951", "SE_06_EnvS_076", 2805032951u, 439, 5},
+    {Table::env, "DLC02_20_EnvS_953", "SE_06_EnvS_076", 2805032953u, 444, 5},
+    {Table::env, "DLC02_30_EnvS_951", "SE_06_EnvS_076", 2810032951u, 449, 5},
+    {Table::env, "DLC02_40_EnvS_950", "SE_06_EnvS_076", 2815032950u, 454, 5},
+    {Table::env, "DLC02_40_EnvS_952", "SE_06_EnvS_076", 2815032952u, 459, 5},
 };
 
