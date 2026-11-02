@@ -224,7 +224,7 @@ for _,m in ipairs(Rows.MOVE) do
         assert(m.cls=='rope' and m.drop>0 and m.env,m.key)
     end
 end
-assert(#ladders==41 and ledges==4 and critical>20,#ladders..' '..ledges..' '..critical)
+assert(#ladders==41 and ledges==5 and critical>20,#ladders..' '..ledges..' '..critical)
 assert(envs.Rope_R28=='DLC02_10_EnvS_642' and envs.Rope_Z4=='DLC02_40_EnvS_022'
     and envs.R20_LadderGate435=='DLC02_10_EnvS_437','The rows the ropes and the gate ladder bind')
 -- A ledge whose mesh is not in memory yet: it loads before the deferred pair, never between Begin and Finish (an asset

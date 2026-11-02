@@ -74,8 +74,9 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
 | `matrix13/world/travel.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v4, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00` on v4 (`DLC02_10_Camp_01` on older paks), or with 30 to `DLC02_30_Camp_01` on v3 or later; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
-| `matrix13/world/rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
+| `matrix13/world/rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boxes and barrels, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `matrix13/world/mila.lua` | Mila's body, a display only (`race/doro.lua`): Kara's mesh in the sitting clip at the cooked markers, placed by `zone_talks.lua` after scenes 4E and 4N ([Lily's signal](#lilys-signal)) |
+| `matrix13/world/breakables.lua` | In world 2800: the 317 boxes and barrels spawned at run time in place of the cooked proxies, which it hides ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `matrix13/world/move.lua`, `matrix13/world/boss.lua`, `matrix13/world/fans.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback, and the fan rotors held still until their levers read On ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `matrix13/quest/on_time.lua`, `matrix13/quest/text.lua`, `matrix13/culture.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)); `culture.lua` maps the game's culture to `fr` or `en` for the words and the talks |
 | `matrix13/talks/prologue.lua`, `arrival.lua`, `finale.lua`, `zone1.lua` to `zone4.lua` | The talks' lines, one module per talk and one per zone (1A to 1E, 2A to 2G, 3A to 3K, 4A to 4N), each line its speaker, English and French |
@@ -2606,7 +2607,7 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   `DLC02_20_ZTrigger_002`; `DLC02_30_E_CharS_029` the Stalker; `DLC02_40_E_CharS_051` the Lion; all SaveType Save, no
   patrol, RewardGroup `m_beach_elite1`), the four zone events that spawn the Gardener and the zone 4 trio, and the two
   trigger rows that run them.
-- `mxenv`, 171 rows: the shipped device rows dev patched first, now on the mechanism design: the one-way doors 050, 051
+- `mxenv`, 172 rows: the shipped device rows dev patched first, now on the mechanism design: the one-way doors 050, 051
   and 037 spawn an empty arrow at their point and move the cooked leaf with our sequences (051 has no prompt: 050's
   link opens it); the R29 gate switch spawns the wall switch `Env_CardControl_Switch_Wireless_C` (below) and, with the
   gate, lists zones 10 and 20; the 55 m lift waits at the top with our
@@ -2614,16 +2615,16 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   wired them; two kill volumes go under the lift shafts. Then the loot: the 10 shipped supply box rows, which ship with
   no blueprint and no spawn point, are patched in place with `BP_Env_SupplyBox01_C` (the class of
   `Env_SupplyBox_Normal01` boxes in the shipped levels) and the point of their own name; 55 new boxes copy
-  `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 96 new pickups copy
+  `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 97 new pickups copy
   `DLC02_10_E_ItemS_001` with the item and count of their map marker (`BetaCrystal` x12 where the marker names none).
   The 25 records wait for the records batch.
-- `mxupper` (zones 0 to 2, 164 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the
+- `mxupper` (zones 0 to 2, 168 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the
   way Matrix 11 builds its own. A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an
   empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name; its four LevelSequences
   in `/Game/MXIII_Editor/Seq` (ToOpen as the Close state's OutTransit, ToClose as the Open state's, Closed and Opened as
   the two Active ones, KeepState) move the cooked leaf and the hidden doorway blockers, as Matrix 11's `ME_04_EnvS_030`
   moves its door. 34 doors start in the Open state and have no opener row, so EVE walks through them and presses
-  nothing (14 of them are arena doors, below). Eleven start closed. Nine are shortcut doors opened from one side: zone
+  nothing (14 of them are arena doors, below). Twelve start closed: eleven doors and the Z2P07 grille. Nine are shortcut doors opened from one side: zone
   1's R12 door and zone 4's D2, D3, D5, D7, drive room door, Z4P07 lift door, I3 walkway door and outfall grate door.
   The zone 4 control room door opens once E10 is dead, and the car 9 airlock's inner door opens from its panels. The
   airlock's outer door and the zone 3 pressure door start open and close by mechanism (below). A
@@ -2633,13 +2634,16 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   and 037 keep their shipped rows (graph `MT20_ShortCutDoor01`); new rows `DLC02_20_EnvS_934` and `_935` show the
   notice on the locked side of 051 and 037, and 050 and 037 disable them from their On state. In the cook copy each of
   these twelve leaves carries Matrix 11's lock box (`Interaction/Door/004_C_SM` at scale 0.7, 112 cm over the floor;
-  on the drive room door it sits on the bar that rises before the leaf turns), and the opener's spawn point is where
+  on the drive room door and on D2, D3, D5 and D7 it sits on the bar that rises 150 cm during the first second of the swing), and the opener's spawn point is where
   Matrix 11's `ME_Area01_ShotCutDoor_C` puts EVE relative to its box, so her hand lands on it. Zone 2's lattice gates
   077, 078, 079, 081, 082 and 083 lead only to scenery: no prompt, disabled at the start, shut for good. The switches
-  of zone 1's doors 438 and 439, the shutter switches 432, 446 and 447, the R29 gate's switches 001 and 601 and the
-  sockets 027 and 038 spawn `Env_CardControl_Switch_Wireless_C`: the Off/On code of `Env_CardControl_Switch2_C` on
+  of zone 1's doors 438 and 439, the shutter switches 432, 446 and 447, the ladder gate switch 434, the R29 gate's switches 001 and 601, the
+  Z2P07 grille switch 937 and the sockets 027 and 038 spawn `Env_CardControl_Switch_Wireless_C`: the Off/On code of `Env_CardControl_Switch2_C` on
   the `003_E_SM` box of the zone 2 switches (Switch2's `003_D_SM` has a second piece 4 m up). Their spawn points sit
   on a wall beside the door, root 115 cm over the floor, with EVE 60 cm in front of the box.
+  The Z2P07 grille (`DLC02_20_EnvS_936`, a copy of `DLC02_20_EnvS_076`) is such a gate: switch 937 in the manhole room
+  fires `DLC02_20_E_EnvC_936` 1.5 s after the press, the grille rises 255 cm in 4 s and pickup `DLC02_20_E_ItemS_023`
+  (2DQuantumWafer x1) lies in the pipe behind it.
   Switch gates and approach gates keep their shipped rows and switch chains with our sequences. Lifts are their shipped
   `Env_Lift` rows with our sequences per Wait state. A cab panel's graph holds EVE for a fixed time after her press
   (`WLA30_Lift` and `MT40_Lift`: the ride starts 1.5 s after the press animation, she moves again 11 s into the ride and
@@ -2694,7 +2698,8 @@ post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes 
 
 In world 2800, `matrix13/world/travel.lua`'s tick runs two more files. `matrix13/world/move.lua` spawns, once a world,
 SB's `BP_EM_Ladder_C` at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder),
-`BP_EM_Ledge_C` at the three R16 ledges and the shimmy, and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A
+`BP_EM_Ledge_C` at the three R16 ledges, the shimmy and an exit ledge on the counterweight's east face (its south end
+hangs over catwalk S1, so a drop from there lands on the catwalk), and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A
 ladder's height comes from its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160.9, 200, 240, 600 or 40.9 cm pieces) plus
 the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, starting at the actor's
 `TotalHeight` and adding each piece to it, so the mod leaves `TotalHeight` at its class default 0: written before the
@@ -2724,6 +2729,23 @@ lion` uses), the Gardener's mesh turned -90 degrees. While one lives, the boss b
 within 25 m of a boss point with no body there gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that
 arena's boss through `coop lion` or `coop gardener fight` (key 0, no saved death). It never runs by itself: a boss
 killed before stays dead through its row's SaveType, and an automatic spawn would bring it back at each visit.
+
+The same tick runs `matrix13/world/breakables.lua`. The cooked map has 316 StaticMeshActors tagged `MXIII_BREAK` in
+`MXIII_Z0_Surface` and `MXIII_Z1_Life` to `MXIII_Z4_Life`. They are proxies and cannot be broken. The shipped levels
+place `BP_Destruction_Box_01`, `BP_Destruction_Box_02` and `BP_Barrel_01_Child` actors, and no table row spawns them.
+Once a world, the mod spawns one of these actors at each of the 317 points of the `break` list in
+`data/mxiii-world.json` (`R.BREAK` in `matrix13/world/rows.lua`). The deferred spawn is the same as the ladders'. The
+row alias follows Matrix 11: `ME_01_ZEA_003` on a Box_01, `ME_01_ZEA_007` on a Plus Box_01 and on every Box_02, and
+`ME_01_ZEA_001` on a barrel, which explodes 2.0 to 2.5 s after it is hit and drops nothing. No save type is written,
+because a spawned actor's name changes from load to load. The boxes come back at each world load. One
+`FindAllOf('StaticMeshActor')` pass per world finds the proxies by name. Each proxy loses its collision and is hidden
+before its actor spawns, and gets both back if the spawn fails. A proxy that is not found means no spawn at that
+point. The R23 box in front of `DLC02_10_E_ItemS_015` has no cooked proxy and spawns alone. It stands in the way of
+that pickup until it is broken. The list spawns 40 entries per tick, and the Z4R21 Box_02 spawns before the Box_01
+that rests on it. Only the world's address decides a new spawn, since a broken box destroys itself. Each entry writes
+one `[MX] [MXBREAK]` line, and a total line follows the last one. Each PC spawns its own boxes, so a box broken on one
+PC stays whole on the other. Whether a ZoneEventActor spawned after its level loaded registers with its row and breaks
+is untested.
 
 The export check (`save/twins.h`) refuses a co-op save holding any FString that starts with `DLC02_` outside the camp
 fields it already reads (names that start with `Zone_DLC02_` excepted, every save holds them). None of the user's 15
