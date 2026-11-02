@@ -20,6 +20,7 @@ package.loaded['race.doro']={
         return d
     end,
     remove=function(d) removed=removed+1; d.actor.gone=true end,
+    same=function(a,path) return a:IsValid() and (a.moved or path)==path and a or nil end,
     sweep=function(path,mesh) swept[#swept+1]={path,mesh}; return true end,
 }
 local Mila=require('matrix13.world.mila')
@@ -70,6 +71,15 @@ swept={}
 local again=new()
 again.set(nil,eve); again.set(nil,eve)
 assert(#swept==1 and swept[1][1]=='/x/Old' and swept[1][2]==Mila.MESH)
+-- Another object at her actor's address: valid, not her. She comes back and that object is left alone.
+do
+    local at=new()
+    at.set('shelf',eve)
+    local n,d=#spawns,spawns[#spawns].d
+    d.actor.moved='/x/SomethingElse'
+    at.set('shelf',eve)
+    assert(#spawns==n+1,'A reused address is no body')
+end
 -- The markers are the cooked map's, on their floors (plan z to world: z*100-939).
 assert(math.abs(Mila.PLACES.shelf.at.Z-(-144.94*100-939))<1 and math.abs(Mila.PLACES.floor.at.Z-(-156.29*100-939))<1)
 print('mila_test passed')

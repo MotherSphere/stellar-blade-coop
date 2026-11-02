@@ -7,7 +7,6 @@
 -- yaw is where she faces, and a skeletal mesh faces its +Y [inference], so the mesh turns MESH_YAW more. One [LY] line a
 -- change. A failure says so once a Lua load and leaves her a voice. Her actor's path is kept in FILE, so the next Lua
 -- load (Ctrl+R) removes the one this load left.
-local U=require('core.unreal')
 local Doro=require('race.doro')
 local Mila={}
 local DIR='/Game/Art/Character/NPC/'
@@ -57,7 +56,7 @@ function Mila.new(o)
             local path=o.read(FILE)
             if path and path~='' then pcall(Doro.sweep,path,Mila.MESH) end
         end
-        if shown and (place~=where or not U.valid(shown.actor)) then remove() end
+        if shown and (place~=where or not Doro.same(shown.actor,shown.path)) then remove() end
         if not where or shown or failed then return end
         local ok,why=pcall(spawn,where,eve)
         if not ok then say_stop(why) end

@@ -24,6 +24,22 @@ function Fans.new(o)
     local function say(m)
         if m~=said then said=m; log(m) end
     end
+    -- A held object while it still is what it was found as: after a reload another object can sit at its address, and
+    -- U.valid alone passes it. A call it lacks raises, and that too means no.
+    local function rotor_of(f)
+        local ok,c=pcall(function()
+            local c=U.valid(rotors[f.rotor])
+            return c and U.text(c:GetOwner():GetFName())==f.rotor and c or nil
+        end)
+        return ok and c or nil
+    end
+    local function lever_of(f)
+        local ok,x=pcall(function()
+            local x=U.valid(levers[f.env])
+            return x and U.text(x.EnvActorName)==f.env and x or nil
+        end)
+        return ok and x or nil
+    end
     local function near(eve)
         local v,c=U.value_of(eve:K2_GetActorLocation()),Fans.CENTER
         return (v.X-c.X)^2+(v.Y-c.Y)^2+(v.Z-c.Z)^2<=Fans.NEAR^2
@@ -49,12 +65,12 @@ function Fans.new(o)
         if not near(eve) then return end
         local missing=false
         for _,f in ipairs(Fans.LEVERS) do
-            missing=missing or not U.valid(rotors[f.rotor]) or not U.valid(levers[f.env])
+            missing=missing or not rotor_of(f) or not lever_of(f)
         end
         if missing and now>=next_find then look(eve,now) end
         local found=0
         for _,f in ipairs(Fans.LEVERS) do
-            local rotor,lever=U.valid(rotors[f.rotor]),U.valid(levers[f.env])
+            local rotor,lever=rotor_of(f),lever_of(f)
             if rotor then
                 found=found+1
                 -- No lever read yet: still. A fan must never run ahead of its lever.

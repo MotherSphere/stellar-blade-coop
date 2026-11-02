@@ -78,6 +78,16 @@ clock=clock+Fans.FIND
 step()
 assert(walks==2 and not F[2].active,'the new object is held still')
 assert(clock>at)
+-- Another object at a held rotor's address (a reload), still valid: not used, and looked for again.
+local old=F[1]
+old.active=true
+old.GetOwner=function() return object({GetFName=function() return 'SomethingElse' end}) end
+local old_sets=old.sets
+F[1]=rotor('Z4_Z4R10_S_Fan1_Rotor')
+clock=clock+Fans.FIND
+step()
+assert(old.sets==old_sets,'Nothing is called on the other object')
+assert(F[1].active==true and walks==3,'The real rotor found again; its lever reads On')
 -- A walk that raises: one STOP line, the tick survives.
 F[3].destroyed=true
 raise='boom'
