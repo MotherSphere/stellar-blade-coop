@@ -31,7 +31,9 @@ local function proxy(name,tag)
     return object({name=name,collision=true,hidden=false,
         GetFName=function() return name end,
         ActorHasTag=function(_,t) return tag and t.name=='MXIII_BREAK' end,
-        SetActorEnableCollision=function(self,on) self.collision=on; events[#events+1]=(on and 'solid ' or 'clear ')..name end,
+        SetActorEnableCollision=function(self,on,fast)
+            assert(fast==false,'SB wants inFastUpdate too: UE4SS refuses the call with one argument')
+            self.collision=on; events[#events+1]=(on and 'solid ' or 'clear ')..name end,
         SetActorHiddenInGame=function(self,h) self.hidden=h; events[#events+1]=(h and 'hide ' or 'show ')..name end})
 end
 local actors={} -- What FindAllOf('StaticMeshActor') gives.
