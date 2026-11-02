@@ -176,7 +176,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'matrix13/culture', 'matrix13/quest/on_time', 'matrix13/quest/text', 'matrix13/quest/zone_talks',
                               *(f'matrix13/talks/{talk}' for talk in ('prologue', 'arrival', 'finale', 'zone1',
                                                                        'zone2', 'zone3', 'zone4')),
-                              'matrix13/world/boss',
+                              'matrix13/world/boss', 'matrix13/world/breakables',
                               'matrix13/world/drone', 'matrix13/world/fans', 'matrix13/world/mila', 'matrix13/world/move', 'matrix13/world/rows',
                               'matrix13/world/travel',
                               'nightop/board', 'nightop/challenges',

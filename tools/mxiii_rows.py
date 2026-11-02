@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Writes Matrix XIII's rows from data/mxiii-world.json: native/src/lion/mxiii_rows.h (the batches' recipes and
 patches for lion/rows.h) and mod/StellarCoop/Scripts/matrix13/world/rows.lua (the same rows for
-matrix13/world/travel.lua's read-back, the ladders and ledges matrix13/world/move.lua spawns, the boss points
-matrix13/world/boss.lua watches).
+matrix13/world/travel.lua's read-back, the ladders and ledges matrix13/world/move.lua spawns, the boxes and barrels
+matrix13/world/breakables.lua spawns, the boss points matrix13/world/boss.lua watches).
 
   python3 tools/mxiii_rows.py          write both files
   python3 tools/mxiii_rows.py --check  exit 1 when either file differs from what the data gives
@@ -133,6 +133,13 @@ def check(data):
                     pool += -(-2 * (len(value) + 1) // 8) * 8 if value else 0
                 assert isinstance(changed, bool)
             assert pool <= POOL, (r['name'], pool, 'its strings overflow the pool')
+    # The breakables: Matrix 11's pairings (Box_02 always the _Plus row, a barrel the explosive row with its fuse).
+    keys = [m['key'] for m in data['break']]
+    assert len(set(keys)) == len(keys), 'a breakable key given twice'
+    for m in data['break']:
+        want = {'box1': ('ME_01_ZEA_003', 'ME_01_ZEA_007'), 'box2': ('ME_01_ZEA_007',),
+                'barrel': ('ME_01_ZEA_001',)}[m['cls']]
+        assert m['alias'] in want and ('delay' in m) == (m['cls'] == 'barrel'), m['key']
 
 
 def header(data):
@@ -187,7 +194,9 @@ def lua(data):
            '-- (at: the actor origin, world cm; yaw in degrees; a ladder\'s Meshes stack, StartUnit and',
            '-- CollisionBottomZAdd and the TotalHeight they give; a ledge\'s mesh; a rope\'s drop, its RopeDistanceB;',
            '-- env: the EnvActorName binding it to its row). BOSS: the boss spawn points matrix13/world/boss.lua',
-           '-- watches. WARP: coop mxiii warp\'s arrival points (at, yaw).',
+           '-- watches. WARP: coop mxiii warp\'s arrival points (at, yaw). BREAK: the boxes and barrels',
+           '-- matrix13/world/breakables.lua spawns in this order (key: the cooked proxy it replaces; alias: its',
+           '-- ZoneEventActorTable row; delay: a barrel\'s fuse, min and max s; proxy_in_cook=false: no proxy to hide).',
            'local R={}']
     for b in data['batches']:
         out.append(f'R.{b["word"].upper()}={{')
@@ -207,6 +216,14 @@ def lua(data):
         extra += ''.join(f",{k}='{m[k]}'" for k in ('mesh', 'env') if k in m)
         out.append(f"    {{key='{m['key']}',cls='{m['cls']}',at={{{m['at'][0]},{m['at'][1]},{m['at'][2]}}},"
                    f"yaw={m['yaw']}{extra},role='{m['role']}'}},")
+    out.append('}')
+    out.append('R.BREAK={')
+    for m in data['break']:
+        extra = ',delay={' + ','.join(str(x) for x in m['delay']) + '}' if 'delay' in m else ''
+        if m.get('proxy_in_cook') is False:
+            extra += f",proxy_in_cook=false,gates='{m['gates']}'"
+        out.append(f"    {{key='{m['key']}',level='{m['level']}',cls='{m['cls']}',at={{{m['at'][0]},{m['at'][1]},"
+                   f"{m['at'][2]}}},yaw={m['yaw']},alias='{m['alias']}'{extra}}},")
     out.append('}')
     out.append('R.WARP={')
     for w in data['warp']:

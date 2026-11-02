@@ -25,9 +25,9 @@
 -- other batches follow it, one after the other (Mxiii.BATCHES: the spawn rows, the loot, the mechanisms of zones 0 to
 -- 2, 3 and 4, then the Lion's and the Gardener's own rows that the boss spawn rows name); coop mxiii asks no travel
 -- until they all read rows. In world 2800 the tick spawns the ladders, ledges and ropes (matrix13/world/move.lua) and
--- fixes the Lion and Gardener the game spawns (matrix13/world/boss.lua); coop mxiii boss spawns the key-0 boss of the
--- arena EVE stands in. coop mxiii warp lists the arrival points of the old warp switches, and coop mxiii warp <n|name>
--- puts EVE on one (a test fallback: no switch stands in the map, as in Matrix 11). The way out is
+-- the boxes and barrels (matrix13/world/breakables.lua), and fixes the Lion and Gardener the game spawns
+-- (matrix13/world/boss.lua); coop mxiii boss spawns the key-0 boss of the arena EVE stands in. coop mxiii warp lists
+-- the arrival points of the old warp switches, and coop mxiii warp <n|name> puts EVE on one (a test fallback: no switch stands in the map, as in Matrix 11). The way out is
 -- coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the
 -- read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the
 -- read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
@@ -300,9 +300,10 @@ function Mxiii.new(o)
         others[#others+1]={e=x,title=t,stop=stop,after=previous,ready=b.ready}
         if not b.optional then previous=b.word end
     end
-    -- The ladders, ledges and ropes (matrix13/world/move.lua) and the bosses the game spawns (matrix13/world/boss.lua),
-    -- in world 2800 only.
+    -- The ladders, ledges and ropes (matrix13/world/move.lua), the boxes and barrels (matrix13/world/breakables.lua)
+    -- and the bosses the game spawns (matrix13/world/boss.lua), in world 2800 only.
     local move=require('matrix13.world.move').new({log=function(m) log('[MXMOVE] '..m) end})
+    local breakables=require('matrix13.world.breakables').new({log=function(m) log('[MXBREAK] '..m) end})
     local boss=require('matrix13.world.boss').new({log=function(m) log('[MXBOSS] '..m) end,lion=o.lion,
         gardener=o.gardener})
     function self.title(at_title,coop)
@@ -361,6 +362,7 @@ function Mxiii.new(o)
         local ok,message=e.tick()
         for _,x in ipairs(others) do x.e.tick() end
         move.tick()
+        breakables.tick()
         boss.tick()
         drone.tick()
         fans.tick()
