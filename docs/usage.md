@@ -1764,7 +1764,8 @@ switches led to, and `coop mxiii warp <n|name>` puts EVE on one (solo, on a co-o
 the dungeon, the mod spawns the ladders, ledges and the two ropes itself (`[MXMOVE]` lines) and fixes the Lion and the
 Gardener when the game spawns them (`[MXBOSS]` lines). `coop mxiii boss`, typed within 25 m of the Lion's or the
 Gardener's spawn point, spawns that boss as `coop lion` or `coop gardener fight` would (no saved death), for when the
-game spawned none there. A boss that never spawns locks nothing: its doors lock on its first fight. The link protocol is
+game spawned none there. The fan levers wait for the Lion's death: a save whose Lion died on a build older than these
+levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight. The link protocol is
 15: both players need a build with the same rows. A co-op save that played in the dungeon can no longer be exported to
 your own saves ([saves.md](saves.md)).
 

@@ -2027,13 +2027,14 @@ so on) and the prop EVE looks at, so the map does not change.
 | PuzzleStringArrayTable | `Records_MX13_<id>` | `DED10_EnvS_Corpse05` | The reader's title and text keys |
 | AchievementTable | `Ach_Album_Unlock_MX13_<id>`, 280900 to 280924 | `Ach_Album_Unlock_Item_Records_ME01_Memory_01` | The env row in `ParamValue1`. Its three trophy links are None, so no record reaches `Trophy_Acquire_AllRecords` |
 | AlbumTable | `Records_MX13_<id>`, 10700 to 10724 | one shipped record of each group | Name, text and unlock. No popup: reading already shows the text |
-| ZoneEnvSpawnTable | the env rows | `DED10_EnvS_168` for memorysticks, `SE_06_EnvS_076` for documents | `BP_Env_Empty_Arrow` at the spawn point, and the puzzle row |
+| ZoneEnvSpawnTable | the env rows | `DED10_EnvS_168` for memorysticks, `SE_06_EnvS_076` for documents | `BP_Env_Empty_Arrow` at the spawn point, and the puzzle row. The memorysticks also clear their donor's reward (`Legion_Drown` on state On), so reading a record gives nothing |
 
 The memorysticks form a new group named by `MX13_Region`, the camp names' "Matrix 13" / "Matrice 13" entry. The documents
 join the shipped Messages (5), Announcements (5) and Log Data (8) groups.
 
 The words go the way of the camp names: the same pass adds 50 entries from `game/record_text.h` to
-`StringTable_Records`, and `coop-status.txt` goes from `recordtext=wait` to `recordtext=ready`. The batch waits for that
+`StringTable_Records`, again whenever a table no longer holds its first entry (a table only a Lua LoadAsset held may be
+collected and loaded again without ours [inference]), and `coop-status.txt` goes from `recordtext=wait` to `recordtext=ready`. The batch waits for that
 line and for `camptext=ready`, and `travel.lua` loads the string table once if nothing else has. Like the other batches
 it goes in at the title only while the game uses the co-op save files and the test pak is there, and `coop mxiii` does
 not wait for it. The entries reach every player's live table but no row outside the batch names them.
@@ -2649,7 +2650,10 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and the Lion's own deaths open
   theirs. The Lion shuts its fan door and gate D7 on battle (D7 through `DLC02_40_E_EnvC_630` and the
   `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. Its death also enables the fan levers 023 to
-  025 (`DLC02_40_E_EnvC_631` to `633`), which start disabled. `matrix13/world/fans.lua` holds each cooked rotor's
+  025 (`DLC02_40_E_EnvC_631` to `633`), which start disabled. The fallback Lion of `coop mxiii boss` has no spawn row and
+  so no EventOnDead: `boss.lua` fires the same three events with `CreateSBZoneEvent` kind 10 when it reads that Lion dead
+  [inference: never run in game]. A save whose Lion died on a build without these rows keeps its levers disabled and
+  needs a new run. `matrix13/world/fans.lua` holds each cooked rotor's
   RotatingMovementComponent off until that fan's lever reads On, so the fans stand still from arrival without a cook
   change. Lever 023's On also fires scene 4G. The counters, the zone 2 wave triggers, the
   14 zone 3 and fan room arena doors and every opener a lock disables (D7's) are `ResetZone` (2), as SE_08's counter
@@ -3027,14 +3031,18 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
 8. The zone talks: `matrix13/quest/zone_talks.lua` is ticked by `on_time.lua` in world 2800 with "On Time" in progress
    and looks once a second. Each scene has one trigger: a box in the plan frame around its room (rooms, routes and
    markers of the design plans), a boss's death (`boss.lua` follows a body it saw near its point and sets `Boss.dead`
-   when it reads not standing with no controller), `GetStateTagname` of env row `DLC02_40_EnvS_001` (the water, which
+   when it reads not standing with no controller; the talks' file keeps a death read and not played yet, since the
+   game's save keeps the death and no body is left to read), `GetStateTagname` of env row `DLC02_40_EnvS_001` (the water, which
    pipe panels 006 and 007 set: A plays 4H, B plays 4J) or `DLC02_40_EnvS_023` (On plays 4G), or leaving Z3R28 (3J). A
    trigger latches. A latched scene starts after 3 s with no standing, shown enemy within 50 m in `IsBattle` (read through
    `GetAllActorsOfClass`, only while a scene waits or plays), no game screen, no talk, no quest step, and no theater of
-   the game (one object walk at the start, then every 5 s while one plays). 2B, 3H and 4K also need a fight seen, or 25 s
-   in their box. 3B comes before 3C, 3I before 3J, 4E before 4F before 4G, 4K before 4L, 4M before 4N. Once 3K has played,
-   a scene with a Lily line never plays. The lines go through `story/subtitles.lua`'s `lines()`, on the kit alone, so no
-   theater holds EVE's input; a fight or a screen hides the group and holds the next line. `oblivion=true` lines need
+   the game (one object walk at the start, then every 5 s while one plays). 2B, 3H and 4K also need a fight seen in their
+   box, or 25 s in it, and let go of the latch when EVE leaves with neither. 3B comes before 3C, 3I before 3J, 4E before 4F
+   before 4G, 4K before 4L, 4M before 4N. 4E's lamp counts only once 4D has played, and 4M closes 4K and 4L. Once 3K has
+   played, a scene with a Lily line never plays. The lines go through `story/subtitles.lua`'s `lines()`, on the kit alone,
+   so no theater holds EVE's input; a fight or a screen hides the group within a second, and the line it cut short shows
+   again in full after. A load, a session, a main save, `coop off` or a pick at Lily drop the scene under way, unmarked,
+   and all but the pick also take Mila's body away. `oblivion=true` lines need
    `oblivion=1` on the `signalquest=` line, which `quest/own.h` reads from Quest_Sub_030 (ID 69) the way it reads
    Quest_Sub_005. The played scenes go in `coop-mxiii-talks-<co-op slot index>.txt` beside `coop-settings.txt`, cleared
    when "On Time" is acquired again.
