@@ -589,7 +589,10 @@ o.lily=require('matrix13.quest.on_time').new({log=lily_log,
     read=require('core.link').files.read,talks=talks,
     zones=require('matrix13.quest.zone_talks').new({log=lily_log,talks=talks,plan=require('matrix13.quest.on_time').plan,
         read=function(name) return link and link.read_file(name) end,
-        write=function(name,text) if link then return link.write_file(name,text) end end})})
+        write=function(name,text) if link then return link.write_file(name,text) end end,
+        mila=require('matrix13.world.mila').new({log=lily_log,
+            read=function(name) return link and link.read_file(name) end,
+            write=function(name,text) if link then return link.write_file(name,text) end end})})})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.

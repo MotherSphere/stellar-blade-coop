@@ -20,6 +20,8 @@
 -- Once per save: the played scenes are kept in coop-mxiii-talks-<co-op slot index>.txt beside coop-settings.txt, as the
 -- shared quests keep one record per co-op slot. Nothing of it reaches the game's save, so loading an older save of
 -- that slot does not bring a scene back; a new "On Time" on that slot (restart) clears the file. One [LY] line a scene.
+-- Mila's body follows the scenes (o.mila, matrix13/world/mila.lua), with EVE in zone 4 only: the shelf recess from 4E, so
+-- never during the Lion's fight, until 4M played, then the drive room floor from 4N.
 local U=require('core.unreal')
 local Boss=require('matrix13.world.boss')
 local Zones={}
@@ -86,6 +88,12 @@ function Zones.lines_of(id,oblivion)
         if oblivion or not l.oblivion then out[#out+1]=l end
     end
     return out
+end
+-- Where Mila's body is: played (scene id -> true), playing (the scene the kit plays), zone4 (EVE is in the zone).
+function Zones.mila_place(played,playing,zone4)
+    if not zone4 then return nil end
+    if playing=='4N' or played['4N'] then return 'floor' end
+    if (playing=='4E' or played['4E']) and not played['4M'] then return 'shelf' end
 end
 local function has_lily(id)
     for _,l in ipairs(LINES[id]) do
@@ -179,6 +187,11 @@ function Zones.new(o)
             end
         end)
     end
+    local function mila(where,eve)
+        if not o.mila then return end
+        local ok,why=pcall(o.mila.set,where,eve)
+        if not ok then log('STOP: Mila: '..tostring(why)) end
+    end
     local function step(t)
         if t.now<next_at then return end
         next_at=t.now+Zones.EVERY
@@ -187,9 +200,11 @@ function Zones.new(o)
         if not (t.there and t.held and t.eve and slot) then
             if playing then talks.stop('out of Matrix XIII') playing=nil end
             calm_since=nil
+            mila(nil)
             return
         end
         local p=o.plan(U.value_of(t.eve:K2_GetActorLocation()))
+        mila(Zones.mila_place(played,playing,inside(p,Zones.ZONE4)),t.eve)
         local waiting=false
         for _,s in ipairs(Zones.SCENES) do
             if not played[s.id] and s.id~=playing then

@@ -61,6 +61,18 @@ do
     assert(#Z.lines_of('3J',false)==#Z.LINES['3J']-5)
 end
 
+-- Mila's body: nothing before 4E (so not during the Lion's fight), the shelf from 4E playing until 4M played, nothing
+-- between 4M and 4N, the floor from 4N playing, only with EVE in zone 4.
+do
+    local place=Z.mila_place
+    assert(place({},nil,true)==nil and place({['4D']=true},nil,true)==nil)
+    assert(place({},'4E',true)=='shelf' and place({['4E']=true},nil,true)=='shelf')
+    assert(place({['4E']=true},'4F',true)=='shelf' and place({['4E']=true,['4M']=false},nil,true)=='shelf')
+    assert(place({['4E']=true,['4M']=true},nil,true)==nil)
+    assert(place({['4E']=true,['4M']=true},'4N',true)=='floor' and place({['4N']=true},nil,true)=='floor')
+    assert(place({['4N']=true},nil,false)==nil and place({},'4E',false)==nil)
+end
+
 local function new_world(files)
     local lines,played={},{}
     local talks={now=nil,cut=nil,walks=0}

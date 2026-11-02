@@ -148,6 +148,11 @@ not in the save: loading an older save does not bring them back, and starting "O
 scene logs one `[StellarCoop][LY] zone talk` line. A scene left half played when EVE leaves the world plays again from its
 start.
 
+Mila has a body once she speaks. From scene 4E she sits in the shelf 1 recess, and from scene 4N on the drive room floor.
+It is the game's model of Kara, Kaya's sister (`CH_NPC_Kara`), in the sitting pose shipped for that skeleton, as a plain
+actor with no collision, no AI and no save data. If the model or the pose cannot be had, a `[StellarCoop][LY] STOP: Mila
+has no body` line says so and she stays a voice.
+
 ## Trying it
 
 1. With the game closed, copy the co-op save file you test on somewhere safe, and put the zMXIII_P test pak in place.
