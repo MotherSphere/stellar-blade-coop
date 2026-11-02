@@ -1,7 +1,7 @@
--- The ghost's console commands: coop puppet, basesuit, where, look, cns, loopback, record and replay, and coop freeze,
--- the photo pause alone. main.lua builds them with new(o) at each Lua load and merges them into its command table. o:
--- main.lua's puppet, native_tick (nil without the native part), ask (a line for the native part), look (the table the
--- ghost holds) and looks.
+-- The ghost's console commands: coop puppet, basesuit, where, near, look, cns, loopback, record and replay, and coop
+-- freeze, the photo pause alone. main.lua builds them with new(o) at each Lua load and merges them into its command
+-- table. o: main.lua's puppet, native_tick (nil without the native part), ask (a line for the native part), look (the
+-- table the ghost holds) and looks.
 local Partner={}
 local function whole(text,max) -- A whole number from 0 to max, or nil.
     local n=type(text)=='string' and text:match('^%d+$') and tonumber(text)
@@ -21,7 +21,7 @@ function Partner.new(o)
         if not puppet.active() then return false,'turn the ghost on first: coop puppet' end
         return ask(string.format('loopback %d %d %d',delay,jitter,loss))()
     end
-    self.basesuit,self.where=puppet.basesuit,puppet.where
+    self.basesuit,self.where,self.near=puppet.basesuit,puppet.where,puppet.near
     -- coop cns [reset]: the CNS part's guard and the crash sentinel's set-aside assets (partner/puppet.lua).
     function self.cns(...) return puppet.cns(...) end
     function self.look(feature,state)

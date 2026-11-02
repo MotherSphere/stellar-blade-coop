@@ -1436,6 +1436,49 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         return true,string.format('where map=%s eve=%s yaw=%.1f mesh=%s camp=%s spawn=%s origin=%s %s ghost=%s',map,
             xyz(at),value_of(body:K2_GetComponentRotation()).Yaw,xyz(mesh),camp,spawn,origin,flags,other)
     end
+    -- coop near [metres]: the zone objects the game holds within that range of EVE (8 m by default), nearest first,
+    -- at most 30, each '<row>:<class>@x,y,z m=<metres> state=<tag> hidden=<bool> collide=<bool>' (<row> the
+    -- ZoneEnvSpawnTable row, or for a breakable its ZoneEventActorTableAlias). A test tool for the Matrix XIII map
+    -- checks: what spawned and where, against what the cooked map holds. FindAllOf walks every object: on demand only.
+    local NEAR={'Env_MatrixXIII_DoorSwitch_01_C','Env_CardControl_Switch_Wireless_C','Env_CardControl_Switch2_C',
+        'BP_Env_LiftController_C','BP_Env_SupplyBox01_C','BP_Env_Empty_Arrow_C','SBZoneEnvActor','Env_Camp_Base_C',
+        'Env_Camp_Chair_C','Env_Camp_SkillMachine_C','Env_Camp_Storage_C','Env_Camp_Turntable_C',
+        'BP_Destruction_Box_01_C','BP_Destruction_Box_02_C','BP_Barrel_01_Child_C'}
+    function self.near(range,extra)
+        local m=range==nil and 8 or tonumber(range)
+        if extra~=nil or not m or m<=0 or m>100 then return false,'Use: coop near [1-100 metres]' end
+        local eve=her(valid(UE.GetPlayer()))
+        if not eve then return false,'no EVE in the world' end
+        local at=value_of(eve:K2_GetActorLocation())
+        local seen,found={},{}
+        for _,list in ipairs({NEAR,CAMPS}) do
+            for _,class in ipairs(list) do
+                each(FindAllOf(class) or {},function(_,a)
+                    a=valid(a)
+                    local key=a and address(a)
+                    if not a or seen[key] then return end -- SBZoneEnvActor may also return the classes above.
+                    seen[key]=true
+                    local p=value_of(a:K2_GetActorLocation())
+                    local d=metres(p,at)
+                    if d>m then return end
+                    local row=try(function()
+                        local r=text(a.EnvSpawnAlias)
+                        return r~='None' and r~='' and r or text(a.ZoneEventActorTableAlias)
+                    end)
+                    local state=try(function() return text(a.StateTagName) end)
+                    local hidden=try(function() return tostring(a.bHidden) end)
+                    local collide=try(function() return tostring(a:GetActorEnableCollision()) end)
+                    found[#found+1]={d=d,line=string.format('%s:%s@%s m=%.1f state=%s hidden=%s collide=%s',row,class,
+                        xyz(p),d,state,hidden,collide)}
+                end)
+            end
+        end
+        table.sort(found,function(x,y) return x.d<y.d end)
+        local lines={}
+        for i=1,math.min(#found,30) do lines[i]=found[i].line end
+        return true,string.format('near %g m of %s: %d (%s)',m,xyz(at),#found,
+            #lines>0 and table.concat(lines,' | ') or 'none')
+    end
     -- Once per game-thread tick: nothing while the ghost is off. A level change removes the ghost; it is built again
     -- (or for a new table) once EVE has been in the world 2 s and she is on the table's map.
     function self.tick()
