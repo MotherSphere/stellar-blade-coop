@@ -331,7 +331,7 @@ assert(#asked==0 and #looked==0 and #probes==0,'Nothing asked, nothing looked up
 -- Another batch not in (the title's chain cut short by a save loaded early, or no line from an older native part):
 -- the batch named, nothing asked and no travel.
 put(LOGIC,nil,UCAS2)
-others=(OTHERS:gsub('mxspawn=rows[^\n]*','mxspawn=waiting added=0/46 asks=1 spawns=? why=busy ticks=3'))
+others=(OTHERS:gsub('mxspawn=rows[^\n]*','mxspawn=waiting added=0/51 asks=1 spawns=? why=busy ticks=3'))
 mxiii_status('off')
 ok,why=mx.command()
 assert(ok==false and why=='coop mxiii: the Matrix XIII Naytiba rows are not in (waiting): return to the title with the '
@@ -712,7 +712,7 @@ assert(#asked==n0+1 and asked[#asked]:find('^mxspawn rows CharacterTable=0x%x+ Z
     ..'EventSpawnTable=0x%x+ ZoneEventTable=0x%x+$'),asked[#asked])
 mx.title(true,true)
 assert(#asked==n0+1,'mxenv waits for an answer on mxspawn')
-lines_of('mxspawn=refused added=3/46 asks=1 spawns=? why=id table=EventSpawnTable row=DLC02_10_E_CharS_901\n'
+lines_of('mxspawn=refused added=3/51 asks=1 spawns=? why=id table=EventSpawnTable row=DLC02_10_E_CharS_901\n'
     ..'mxenv=off\n')
 clock=clock+0.25
 assert(mx.tick()==nil)
@@ -721,7 +721,7 @@ mx.title(true,true)
 assert(#asked==n0+2 and asked[#asked]:find('^mxenv rows ZoneEnvSpawnTable=0x%x+ EventItemTable=0x%x+ '
     ..'EffectVolumeTable=0x%x+$'),
     asked[#asked])
-lines_of('mxspawn=refused added=3/46 asks=1 spawns=? why=id table=EventSpawnTable row=DLC02_10_E_CharS_901\n'
+lines_of('mxspawn=refused added=3/51 asks=1 spawns=? why=id table=EventSpawnTable row=DLC02_10_E_CharS_901\n'
     ..'mxenv=rows added=160/160 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n')
 clock=clock+0.25
 assert(mx.tick()==nil and logged('mxenv rows read back through FindRow: 160/160 authored rows'))

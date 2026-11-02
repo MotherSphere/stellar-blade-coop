@@ -530,6 +530,36 @@ constexpr Patch kMxspawnPatches[] = {
     {0xb8, Kind::string, 0, "DLC02_20_E_CharS_903"}, // PathWay
     {0xe0, Kind::name, 0, "Group_ME_WasteDisposalSiteMite"}, // AIGroupAlias
     {0xe8, Kind::name, 0, "DLC02_Part02_MiteGroup01"}, // AIGroupName
+    // DLC02_20_E_CharS_905 (EventSpawnTable, zone 2 A1 Z2R16, Hive at the stores nest)
+    {0x14, Kind::name, 0, "DLC02_20_E_CharS_905"}, // SpawnPointName
+    {0x20, Kind::names, 0, "UME_M_RoadBlockA_01"}, // CharacterAlias
+    {0x34, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0xb1, Kind::u8, 0, nullptr}, // GoPathAfterSpawn
+    {0xb8, Kind::string, 0, ""}, // PathWay
+    // DLC02_20_E_CharS_906 (EventSpawnTable, zone 2 A1 Z2R16, Cricket Butcher (Fear))
+    {0x14, Kind::name, 0, "DLC02_20_E_CharS_906"}, // SpawnPointName
+    {0x20, Kind::names, 0, "UME_M_ClriketCFear_01"}, // CharacterAlias
+    {0x34, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0xb1, Kind::u8, 0, nullptr}, // GoPathAfterSpawn
+    {0xb8, Kind::string, 0, ""}, // PathWay
+    // DLC02_20_E_CharS_907 (EventSpawnTable, zone 2 A2 Z2R19, Chain Cricket Slasher)
+    {0x14, Kind::name, 0, "DLC02_20_E_CharS_907"}, // SpawnPointName
+    {0x20, Kind::names, 0, "UME_M_ClriketBChain_01"}, // CharacterAlias
+    {0x34, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0xb1, Kind::u8, 0, nullptr}, // GoPathAfterSpawn
+    {0xb8, Kind::string, 0, ""}, // PathWay
+    // DLC02_20_E_CharS_908 (EventSpawnTable, zone 2 A3 Z2R29, Cricket Butcher (Grab))
+    {0x14, Kind::name, 0, "DLC02_20_E_CharS_908"}, // SpawnPointName
+    {0x20, Kind::names, 0, "UME_M_ClriketCGrab_01"}, // CharacterAlias
+    {0x34, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0xb1, Kind::u8, 0, nullptr}, // GoPathAfterSpawn
+    {0xb8, Kind::string, 0, ""}, // PathWay
+    // DLC02_20_E_CharS_909 (EventSpawnTable, zone 2 Z2P05 landfill ledge, Barnacle)
+    {0x14, Kind::name, 0, "DLC02_20_E_CharS_909"}, // SpawnPointName
+    {0x20, Kind::names, 0, "UME_M_BarnacleA_01"}, // CharacterAlias
+    {0x34, Kind::name, 0, "Zone_DLC02_20"}, // Zone
+    {0xb1, Kind::u8, 0, nullptr}, // GoPathAfterSpawn
+    {0xb8, Kind::string, 0, ""}, // PathWay
     // DLC02_30_E_CharS_024 (EventSpawnTable)
     {0x14, Kind::name, 0, "DLC02_30_E_CharS_024"}, // SpawnPointName
     {0x20, Kind::names, 0, "UME_M_RoadBlockA_01"}, // CharacterAlias
@@ -689,30 +719,35 @@ constexpr Row kMxspawnRecipe[] = {
     {Table::spawn, "DLC02_20_E_CharS_901", "DLC02_10_E_CharS_001", 2805024013u, 48, 7},
     {Table::spawn, "DLC02_20_E_CharS_902", "DLC02_10_E_CharS_001", 2805024014u, 55, 7},
     {Table::spawn, "DLC02_20_E_CharS_903", "DLC02_10_E_CharS_001", 2805024015u, 62, 7},
-    {Table::spawn, "DLC02_30_E_CharS_024", "DLC02_10_E_CharS_001", 2810024024u, 69, 5},
-    {Table::spawn, "DLC02_30_E_CharS_025", "DLC02_10_E_CharS_001", 2810024025u, 74, 6},
-    {Table::spawn, "DLC02_30_E_CharS_026", "DLC02_10_E_CharS_001", 2810024026u, 80, 6},
-    {Table::spawn, "DLC02_30_E_CharS_027", "DLC02_10_E_CharS_001", 2810024027u, 86, 6},
-    {Table::spawn, "DLC02_30_E_CharS_028", "DLC02_10_E_CharS_001", 2810024028u, 92, 6},
-    {Table::spawn, "DLC02_30_E_CharS_030", "DLC02_10_E_CharS_001", 2810024030u, 98, 5},
-    {Table::spawn, "DLC02_30_E_CharS_031", "DLC02_10_E_CharS_001", 2810024031u, 103, 5},
-    {Table::spawn, "DLC02_40_E_CharS_901", "DLC02_10_E_CharS_001", 2815024043u, 108, 5},
-    {Table::spawn, "DLC02_40_E_CharS_902", "DLC02_10_E_CharS_001", 2815024044u, 113, 5},
-    {Table::spawn, "DLC02_40_E_CharS_903", "DLC02_10_E_CharS_001", 2815024045u, 118, 5},
-    {Table::spawn, "DLC02_40_E_CharS_904", "DLC02_10_E_CharS_001", 2815024046u, 123, 5},
-    {Table::spawn, "DLC02_40_E_CharS_905", "DLC02_10_E_CharS_001", 2815024047u, 128, 5},
-    {Table::spawn, "DLC02_40_E_CharS_906", "DLC02_10_E_CharS_001", 2815024048u, 133, 5},
-    {Table::spawn, "DLC02_40_E_CharS_907", "DLC02_10_E_CharS_001", 2815024049u, 138, 5},
-    {Table::spawn, "DLC02_40_E_CharS_908", "DLC02_10_E_CharS_001", 2815024050u, 143, 5},
-    {Table::spawn, "DLC02_20_E_CharS_904", "DLC02_10_E_CharS_001", 2805024016u, 148, 8},
-    {Table::spawn, "DLC02_30_E_CharS_029", "DLC02_10_E_CharS_001", 2810024029u, 156, 9},
-    {Table::spawn, "DLC02_40_E_CharS_051", "DLC02_10_E_CharS_001", 2815024051u, 165, 9},
-    {Table::zevent, "DLC02_20_ZoneE_033", "DLC02_40_ZoneE_014", 8480u, 174, 1},
-    {Table::zevent, "DLC02_40_ZoneE_015", "DLC02_40_ZoneE_014", 8481u, 175, 1},
-    {Table::zevent, "DLC02_40_ZoneE_016", "DLC02_40_ZoneE_014", 8482u, 176, 1},
-    {Table::zevent, "DLC02_40_ZoneE_017", "DLC02_40_ZoneE_014", 8483u, 177, 1},
-    {Table::trigger, "DLC02_20_ZTrigger_002", "DLC02_20_ZTrigger_002", 280501002u, 178, 1},
-    {Table::trigger, "DLC02_40_ZTrigger_004", "DLC02_40_ZTrigger_004", 281501004u, 179, 1},
+    {Table::spawn, "DLC02_20_E_CharS_905", "DLC02_10_E_CharS_001", 2805024017u, 69, 5},
+    {Table::spawn, "DLC02_20_E_CharS_906", "DLC02_10_E_CharS_001", 2805024018u, 74, 5},
+    {Table::spawn, "DLC02_20_E_CharS_907", "DLC02_10_E_CharS_001", 2805024019u, 79, 5},
+    {Table::spawn, "DLC02_20_E_CharS_908", "DLC02_10_E_CharS_001", 2805024020u, 84, 5},
+    {Table::spawn, "DLC02_20_E_CharS_909", "DLC02_10_E_CharS_001", 2805024021u, 89, 5},
+    {Table::spawn, "DLC02_30_E_CharS_024", "DLC02_10_E_CharS_001", 2810024024u, 94, 5},
+    {Table::spawn, "DLC02_30_E_CharS_025", "DLC02_10_E_CharS_001", 2810024025u, 99, 6},
+    {Table::spawn, "DLC02_30_E_CharS_026", "DLC02_10_E_CharS_001", 2810024026u, 105, 6},
+    {Table::spawn, "DLC02_30_E_CharS_027", "DLC02_10_E_CharS_001", 2810024027u, 111, 6},
+    {Table::spawn, "DLC02_30_E_CharS_028", "DLC02_10_E_CharS_001", 2810024028u, 117, 6},
+    {Table::spawn, "DLC02_30_E_CharS_030", "DLC02_10_E_CharS_001", 2810024030u, 123, 5},
+    {Table::spawn, "DLC02_30_E_CharS_031", "DLC02_10_E_CharS_001", 2810024031u, 128, 5},
+    {Table::spawn, "DLC02_40_E_CharS_901", "DLC02_10_E_CharS_001", 2815024043u, 133, 5},
+    {Table::spawn, "DLC02_40_E_CharS_902", "DLC02_10_E_CharS_001", 2815024044u, 138, 5},
+    {Table::spawn, "DLC02_40_E_CharS_903", "DLC02_10_E_CharS_001", 2815024045u, 143, 5},
+    {Table::spawn, "DLC02_40_E_CharS_904", "DLC02_10_E_CharS_001", 2815024046u, 148, 5},
+    {Table::spawn, "DLC02_40_E_CharS_905", "DLC02_10_E_CharS_001", 2815024047u, 153, 5},
+    {Table::spawn, "DLC02_40_E_CharS_906", "DLC02_10_E_CharS_001", 2815024048u, 158, 5},
+    {Table::spawn, "DLC02_40_E_CharS_907", "DLC02_10_E_CharS_001", 2815024049u, 163, 5},
+    {Table::spawn, "DLC02_40_E_CharS_908", "DLC02_10_E_CharS_001", 2815024050u, 168, 5},
+    {Table::spawn, "DLC02_20_E_CharS_904", "DLC02_10_E_CharS_001", 2805024016u, 173, 8},
+    {Table::spawn, "DLC02_30_E_CharS_029", "DLC02_10_E_CharS_001", 2810024029u, 181, 9},
+    {Table::spawn, "DLC02_40_E_CharS_051", "DLC02_10_E_CharS_001", 2815024051u, 190, 9},
+    {Table::zevent, "DLC02_20_ZoneE_033", "DLC02_40_ZoneE_014", 8480u, 199, 1},
+    {Table::zevent, "DLC02_40_ZoneE_015", "DLC02_40_ZoneE_014", 8481u, 200, 1},
+    {Table::zevent, "DLC02_40_ZoneE_016", "DLC02_40_ZoneE_014", 8482u, 201, 1},
+    {Table::zevent, "DLC02_40_ZoneE_017", "DLC02_40_ZoneE_014", 8483u, 202, 1},
+    {Table::trigger, "DLC02_20_ZTrigger_002", "DLC02_20_ZTrigger_002", 280501002u, 203, 1},
+    {Table::trigger, "DLC02_40_ZTrigger_004", "DLC02_40_ZTrigger_004", 281501004u, 204, 1},
 };
 
 constexpr Patch kMxenvPatches[] = {
