@@ -4960,6 +4960,35 @@
      "note": "pickup, label names no item"
     },
     {
+     "table": "EventItemTable",
+     "name": "DLC02_20_E_ItemS_023",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2805020023,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_E_ItemS_023",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "2DQuantumWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       true
+      ]
+     ],
+     "note": "pickup behind the Z2P07 grille, final pass 2 November"
+    },
+    {
      "table": "ZoneEnvSpawnTable",
      "name": "DLC02_20_EnvS_094",
      "donor": "DLC02_10_EnvS_440",
@@ -9951,7 +9980,7 @@
      "set": [
       [
        "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C",
+       "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C",
        true
       ],
       [
@@ -9959,7 +9988,8 @@
        "DLC02_10_EnvS_434",
        true
       ]
-     ]
+     ],
+     "note": "ladder gate 435 switch, wall switch on R17_S_Column_2162 beside the ladder (final pass 2 November)"
     },
     {
      "table": "ZoneEnvSpawnTable",
@@ -14837,6 +14867,140 @@
        true
       ]
      ]
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_936",
+     "donor": "DLC02_20_EnvS_076",
+     "id": 2805032936,
+     "set": [
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_936",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_Empty_Arrow.BP_Env_Empty_Arrow_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_936",
+       true
+      ],
+      [
+       "OutTransitSequenceList",
+       [
+        "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_936_ToOpen.MX13_DLC02_20_EnvS_936_ToOpen",
+        ""
+       ],
+       true
+      ],
+      [
+       "ActiveSequenceList",
+       [
+        "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_936_Closed.MX13_DLC02_20_EnvS_936_Closed",
+        "/Game/MXIII_Editor/Seq/MX13_DLC02_20_EnvS_936_Opened.MX13_DLC02_20_EnvS_936_Opened"
+       ],
+       true
+      ]
+     ],
+     "note": "Z2P07 grille (Z2_SEW_P07_LockedGrille), lifted by switch 937"
+    },
+    {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_20_E_EnvC_936",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3064,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_20_EnvS_936",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "Open",
+       false
+      ]
+     ]
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_20_E_EnvC_936",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8758,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_20_E_EnvC_936",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       1.5,
+       true
+      ]
+     ]
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_20_EnvS_937",
+     "donor": "DLC02_10_EnvS_432",
+     "id": 2805032937,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_20"
+       ],
+       true
+      ],
+      [
+       "EnvActorName",
+       "DLC02_20_EnvS_937",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch_Wireless.Env_CardControl_Switch_Wireless_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_20_EnvS_937",
+       true
+      ],
+      [
+       "TagEventList2",
+       [
+        "DLC02_20_E_EnvC_936"
+       ],
+       true
+      ]
+     ],
+     "note": "Z2P07 grille switch, on the pipe face in the manhole room"
     }
    ]
   },
@@ -27702,6 +27866,18 @@
     36391.0,
     34031.5,
     -1499.0
+   ],
+   "yaw": -95.0,
+   "mesh": "/Game/Art/BG/Actor/Interaction/Climbing/006_B_SM.006_B_SM",
+   "role": "climb_R16"
+  },
+  {
+   "key": "R16_ClimbExit_E",
+   "cls": "ledge",
+   "at": [
+    36466.29,
+    33744.35,
+    -1299.0
    ],
    "yaw": -95.0,
    "mesh": "/Game/Art/BG/Actor/Interaction/Climbing/006_B_SM.006_B_SM",

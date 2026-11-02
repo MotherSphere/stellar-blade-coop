@@ -2606,7 +2606,7 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   `DLC02_20_ZTrigger_002`; `DLC02_30_E_CharS_029` the Stalker; `DLC02_40_E_CharS_051` the Lion; all SaveType Save, no
   patrol, RewardGroup `m_beach_elite1`), the four zone events that spawn the Gardener and the zone 4 trio, and the two
   trigger rows that run them.
-- `mxenv`, 171 rows: the shipped device rows dev patched first, now on the mechanism design: the one-way doors 050, 051
+- `mxenv`, 172 rows: the shipped device rows dev patched first, now on the mechanism design: the one-way doors 050, 051
   and 037 spawn an empty arrow at their point and move the cooked leaf with our sequences (051 has no prompt: 050's
   link opens it); the R29 gate switch spawns the wall switch `Env_CardControl_Switch_Wireless_C` (below) and, with the
   gate, lists zones 10 and 20; the 55 m lift waits at the top with our
@@ -2614,16 +2614,16 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   wired them; two kill volumes go under the lift shafts. Then the loot: the 10 shipped supply box rows, which ship with
   no blueprint and no spawn point, are patched in place with `BP_Env_SupplyBox01_C` (the class of
   `Env_SupplyBox_Normal01` boxes in the shipped levels) and the point of their own name; 55 new boxes copy
-  `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 96 new pickups copy
+  `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 97 new pickups copy
   `DLC02_10_E_ItemS_001` with the item and count of their map marker (`BetaCrystal` x12 where the marker names none).
   The 25 records wait for the records batch.
-- `mxupper` (zones 0 to 2, 164 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the
+- `mxupper` (zones 0 to 2, 168 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the
   way Matrix 11 builds its own. A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an
   empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name; its four LevelSequences
   in `/Game/MXIII_Editor/Seq` (ToOpen as the Close state's OutTransit, ToClose as the Open state's, Closed and Opened as
   the two Active ones, KeepState) move the cooked leaf and the hidden doorway blockers, as Matrix 11's `ME_04_EnvS_030`
   moves its door. 34 doors start in the Open state and have no opener row, so EVE walks through them and presses
-  nothing (14 of them are arena doors, below). Eleven start closed. Nine are shortcut doors opened from one side: zone
+  nothing (14 of them are arena doors, below). Twelve start closed: eleven doors and the Z2P07 grille. Nine are shortcut doors opened from one side: zone
   1's R12 door and zone 4's D2, D3, D5, D7, drive room door, Z4P07 lift door, I3 walkway door and outfall grate door.
   The zone 4 control room door opens once E10 is dead, and the car 9 airlock's inner door opens from its panels. The
   airlock's outer door and the zone 3 pressure door start open and close by mechanism (below). A
@@ -2633,13 +2633,16 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   and 037 keep their shipped rows (graph `MT20_ShortCutDoor01`); new rows `DLC02_20_EnvS_934` and `_935` show the
   notice on the locked side of 051 and 037, and 050 and 037 disable them from their On state. In the cook copy each of
   these twelve leaves carries Matrix 11's lock box (`Interaction/Door/004_C_SM` at scale 0.7, 112 cm over the floor;
-  on the drive room door it sits on the bar that rises before the leaf turns), and the opener's spawn point is where
+  on the drive room door and on D2, D3, D5 and D7 it sits on the bar that rises 150 cm during the first second of the swing), and the opener's spawn point is where
   Matrix 11's `ME_Area01_ShotCutDoor_C` puts EVE relative to its box, so her hand lands on it. Zone 2's lattice gates
   077, 078, 079, 081, 082 and 083 lead only to scenery: no prompt, disabled at the start, shut for good. The switches
-  of zone 1's doors 438 and 439, the shutter switches 432, 446 and 447, the R29 gate's switches 001 and 601 and the
-  sockets 027 and 038 spawn `Env_CardControl_Switch_Wireless_C`: the Off/On code of `Env_CardControl_Switch2_C` on
+  of zone 1's doors 438 and 439, the shutter switches 432, 446 and 447, the ladder gate switch 434, the R29 gate's switches 001 and 601, the
+  Z2P07 grille switch 937 and the sockets 027 and 038 spawn `Env_CardControl_Switch_Wireless_C`: the Off/On code of `Env_CardControl_Switch2_C` on
   the `003_E_SM` box of the zone 2 switches (Switch2's `003_D_SM` has a second piece 4 m up). Their spawn points sit
   on a wall beside the door, root 115 cm over the floor, with EVE 60 cm in front of the box.
+  The Z2P07 grille (`DLC02_20_EnvS_936`, a copy of `DLC02_20_EnvS_076`) is such a gate: switch 937 in the manhole room
+  fires `DLC02_20_E_EnvC_936` 1.5 s after the press, the grille rises 255 cm in 4 s and pickup `DLC02_20_E_ItemS_023`
+  (2DQuantumWafer x1) lies in the pipe behind it.
   Switch gates and approach gates keep their shipped rows and switch chains with our sequences. Lifts are their shipped
   `Env_Lift` rows with our sequences per Wait state. A cab panel's graph holds EVE for a fixed time after her press
   (`WLA30_Lift` and `MT40_Lift`: the ride starts 1.5 s after the press animation, she moves again 11 s into the ride and
@@ -2694,7 +2697,8 @@ post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes 
 
 In world 2800, `matrix13/world/travel.lua`'s tick runs two more files. `matrix13/world/move.lua` spawns, once a world,
 SB's `BP_EM_Ladder_C` at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder),
-`BP_EM_Ledge_C` at the three R16 ledges and the shimmy, and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A
+`BP_EM_Ledge_C` at the three R16 ledges, the shimmy and an exit ledge on the counterweight's east face (its south end
+hangs over catwalk S1, so a drop from there lands on the catwalk), and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A
 ladder's height comes from its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160.9, 200, 240, 600 or 40.9 cm pieces) plus
 the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, starting at the actor's
 `TotalHeight` and adding each piece to it, so the mod leaves `TotalHeight` at its class default 0: written before the
