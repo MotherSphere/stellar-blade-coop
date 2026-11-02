@@ -2669,6 +2669,186 @@
     },
     {
      "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_905",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024017,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_905",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_RoadBlockA_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 A1 Z2R16, Hive at the stores nest"
+    },
+    {
+     "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_906",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024018,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_906",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_ClriketCFear_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 A1 Z2R16, Cricket Butcher (Fear)"
+    },
+    {
+     "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_907",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024019,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_907",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_ClriketBChain_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 A2 Z2R19, Chain Cricket Slasher"
+    },
+    {
+     "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_908",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024020,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_908",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_ClriketCGrab_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 A3 Z2R29, Cricket Butcher (Grab)"
+    },
+    {
+     "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_909",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024021,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_909",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_BarnacleA_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 Z2P05 landfill ledge, Barnacle"
+    },
+    {
+     "table": "EventSpawnTable",
      "name": "DLC02_30_E_CharS_024",
      "donor": "DLC02_10_E_CharS_001",
      "id": 2810024024,

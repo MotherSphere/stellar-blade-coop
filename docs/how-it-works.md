@@ -2596,11 +2596,13 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   `ShopDataList` `SE_02_EnvS_010`, a row one of the 89 `ChangeState_ZoneEnv_*_Camp` trophy rows counts, so each of the
   ten vending machines names itself there instead, as 77 shipped machines do. The rows name no trophy row, in their own
   fields or in those their donors give them.
-- `mxspawn`, 46 rows: `MX13_M_Sawshark` (CharacterTable 50071, the Stalker `CHAL_UME_M_Sawshark_01` without
+- `mxspawn`, 51 rows: `MX13_M_Sawshark` (CharacterTable 50071, the Stalker `CHAL_UME_M_Sawshark_01` without
   `Passive_Immortal`, so it dies at 0 HP without Matrix 11's finisher), the 8 `M_DummyC` rows patched to shipped
   Naytibas (zone 3's to `DED_M_ClriketAGround_01`, zone 4's to `WLB_M_AntlionE_01`), the zone 4 rows 035, 036 and 042
   made ZoneEvent spawns, 25 new enemy rows from the 29 October roster (each bound to the spawn point of its own name,
-  walking its waypoint chain), the three bosses (`DLC02_20_E_CharS_904` the Gardener, a ZoneEvent spawn from
+  walking its waypoint chain), five zone 2 rows added on 2 November (`DLC02_20_E_CharS_905` to `_909`: a Hive and a
+  Cricket Butcher in the A1 stores, a Chain Cricket Slasher in the A2 workshop, a Cricket Butcher in the A3 vault and a
+  Barnacle on the landfill ledge, EnterZone spawns standing at their point with no patrol), the three bosses (`DLC02_20_E_CharS_904` the Gardener, a ZoneEvent spawn from
   `DLC02_20_ZTrigger_002`; `DLC02_30_E_CharS_029` the Stalker; `DLC02_40_E_CharS_051` the Lion; all SaveType Save, no
   patrol, RewardGroup `m_beach_elite1`), the four zone events that spawn the Gardener and the zone 4 trio, and the two
   trigger rows that run them.
