@@ -236,8 +236,14 @@ function talks.play(name,kit,done)
     talks.done=function(how) talks.now=nil; done(how) end
     return true,'talk '..name..' asked: [LY] lines follow'
 end
+-- The zone talks, as far as this file calls them: each call kept as its reason.
+local zone_calls={}
+local zones={tick=function() end,restart=function() end,
+    drop=function(why) zone_calls[#zone_calls+1]='drop '..why end,
+    leave=function(why) zone_calls[#zone_calls+1]='leave '..why end}
+local function zone_called(what) for _,c in ipairs(zone_calls) do if c==what then return true end end end
 local function new()
-    return Lily.new({log=function(m) logs[#logs+1]=m end,status=status_text,
+    return Lily.new({zones=zones,log=function(m) logs[#logs+1]=m end,status=status_text,
         ask=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
         mode=function() return mode end,paused=function() return paused end,
         travel=function() travels=travels+1; return table.unpack(travel_answer) end,paks=PAKS,read=read,talks=talks})
@@ -463,7 +469,9 @@ widget.SelectIndex=0; clock=clock+0.25; ly.tick()
 assert(not logged('about Matrix 13 picked'),'The old label is no pick')
 lines_of('À propos de la Matrice 13','Fin de la conversation')
 widget.SelectIndex=-1; clock=clock+0.25; ly.tick()
+zone_calls={}
 widget.SelectIndex=0; clock=clock+0.25; ly.tick()
+assert(zone_called('drop a quest step'),'The pick frees the talk player for her talk')
 assert(arms==2 and logged('about Matrix 13 picked: the end talk, then On Time complete, after her goodbye (in 5 s '
     ..'if none shows)'),last())
 busy='Subtitle_NPC_Start_WLBXionP5_8DF9E0F244F00B5FB379A5938C796E0C' -- Her goodbye's theater: the talk asked at once.
@@ -569,12 +577,24 @@ assert(last():find('her choice stays off: Quest_Epic_12 is held',1,true),last())
 lines.quest=quest_line({held='held',state=1,group=2,task=1,asks=10})
 for _=1,120 do clock=clock+0.25; ly.tick() end
 assert(count('signal prologue')==1,'On Time held: no prologue')
+-- Off a solo co-op save, in a load, and at coop off the zone talks leave.
+zone_calls={}
+lines.slot='slot=none index=4'
+clock=clock+0.25; ly.tick()
+assert(zone_called('leave a load'),'A load')
+lines.slot='slot=coop index=4'
+mode='host'
+clock=clock+0.25; ly.tick()
+assert(zone_called('leave not solo on a co-op save'),'A session')
+mode='none'
+clock=clock+0.25; ly.tick()
 -- coop off: lily off while her list reads on, asked again after 10 s; the talk dropped; nothing else.
 lines.quest=quest_line({pro='held',prostate=1,progroup=0,protask=1,asks=10})
 clock=clock+0.25; ly.tick() -- On again.
 n=count('lily off')
 local stops=talk_stops
 ly.stop()
+assert(zone_called('leave coop off'),'coop off')
 assert(count('lily off')==n+1 and talk_stops==stops+1,'coop off: lily off, the talk dropped')
 lines.lily='lily=on asks=5 want=on why=none'
 clock=clock+1; ly.tick(true); assert(count('lily off')==n+1)

@@ -5,14 +5,17 @@
 -- pipe panels 006 and 007 set, the fan 1 switch 023), or leaving a box once an earlier scene played. A trigger latches,
 -- so a box crossed during a fight still plays. A latched scene starts when no talk or quest step runs, no screen of
 -- the game shows, no enemy has been engaged for CALM s and no theater of the game plays. Scenes marked fight also need
--- a fight seen since they latched, or SETTLE s in their box: they are "after the fight" scenes.
--- Order: after names the scene that must have played first (3B before 3C, 3I before 3J; 4L after 4K, 4N after 4M). 3K
+-- a fight seen in their box since they latched, or SETTLE s in it: they are "after the fight" scenes, and one left with
+-- no fight lets go of its latch, so it says nothing about a place EVE left behind.
+-- Order: after names the scene that must have played first (3B before 3C, 3I before 3J; 4L after 4K, 4N after 4M).
+-- needs names one that must have played before the trigger counts at all (4E's lamp, beside the door the Lion's room is
+-- entered by, needs 4D). before names one that closes the scene (4K and 4L say nothing once 4M has shown the room). 3K
 -- ends Lily: a scene with a Lily line that has not played before it never plays. Lines with oblivion=true play only
 -- when the signalquest line reads oblivion=1 (native quest/own.h, the read of Quest_Sub_005 on Quest_Sub_030).
 -- The lines go on the kit (story/subtitles.lua's lines()): no theater, no sequence, no input change, so EVE keeps
 -- control. The game's subtitle box is not used: its talks borrow a sequence with a fixed window count, through a theater
--- whose template allows walking only. A fight or a game screen holds the next line and hides the kit's group, so no
--- line is skipped and none shows during a fight.
+-- whose template allows walking only. A fight or a game screen hides the kit's group at the next look, and the line it
+-- cut short shows again in full after, so no line is skipped and none stays during a fight.
 -- Looks: at most one a second, and only what is needed. EVE's position always; the engaged look (GetAllActorsOfClass,
 -- no object walk once U.actors_of proved its class hash) only while a scene is latched or playing; env actors only in
 -- zone 4 with their scene waiting, searched once and then held; the theater look (a walk of every object, 25 to 80 ms)
@@ -20,6 +23,8 @@
 -- Once per save: the played scenes are kept in coop-mxiii-talks-<co-op slot index>.txt beside coop-settings.txt, as the
 -- shared quests keep one record per co-op slot. Nothing of it reaches the game's save, so loading an older save of
 -- that slot does not bring a scene back; a new "On Time" on that slot (restart) clears the file. One [LY] line a scene.
+-- A boss's death read and its scene not played yet is a "dead <scene>" line of that file: the death itself is in the
+-- game's save, with no body left to read, and Boss.dead lasts one Lua load. A death read on another slot is forgotten.
 -- Mila's body follows the scenes (o.mila, matrix13/world/mila.lua), with EVE in zone 4 only: the shelf recess from 4E, so
 -- never during the Lion's fight, until 4M played, then the drive room floor from 4N.
 local U=require('core.unreal')
@@ -28,6 +33,7 @@ local Zones={}
 -- s between two looks; calm before a scene starts; in the box before a fight scene with no fight; between two theater
 -- looks; between two env searches. cm: an engaged enemy farther than this is no fight [inference].
 Zones.EVERY,Zones.CALM,Zones.SETTLE,Zones.AGAIN,Zones.FIND,Zones.NEAR=1,3,25,5,30,5000
+Zones.RETRY=30 -- s between two starts while the kit is not up.
 local LILY='Seq_Actor_Lily'
 -- x, y of its south-west corner, its widths, its floor and height above it, in plan metres.
 local function box(x,y,w,d,z,h) return {x,x+w,y,y+d,z-1,z+h} end
@@ -60,14 +66,16 @@ Zones.SCENES={
     {id='4B',place='Z4R03',box=box(-170,-110,13,36.76,-151.94,5.94)},
     {id='4C',place='Z4P04',box=box(-173,-41,8,33,-151.94,5)},
     {id='4D',place='the Lion dead',boss='DLC02_40_E_CharS_051'},
-    {id='4E',place='the yellow lamp',box=box(-168,-10,12,12,-151.94,5)}, -- Around Mila's lamp at (-162.05, -4.35).
+    {id='4E',place='the yellow lamp',box=box(-168,-10,12,12,-151.94,5),needs='4D'}, -- Around Mila's lamp at (-162.05, -4.35).
     {id='4F',place='shelf 1',box=box(-170,-10,14,8,-144.94,4),after='4E'}, -- Climbing wall 1's top, x -164.
     {id='4G',place='fan 1 on',env=FAN,states={On=true},after='4F'},
     {id='4H',place='the water at P2',env=WATER,states={A=true,B=true}},
     {id='4I',place='Z4R16',box=box(-168,-140,23,20,-149.94,6)},
     {id='4J',place='the water at P3',env=WATER,states={B=true}},
-    {id='4K',place='the apron, after the last fight',box=box(-122,-118,30,33,-159.79,6),fight=true},
-    {id='4L',place='the control room door',box=box(-113,-121,9,7,-159.79,5),after='4K'},
+    {id='4K',place='the apron, after the last fight',box=box(-122,-118,30,33,-159.79,6),fight=true,
+        before='4M'},
+    {id='4L',place='the control room door',box=box(-113,-121,9,7,-159.79,5),after='4K',
+        before='4M'},
     {id='4M',place='Z4R18',box=box(-95,-150,15,40,-156.29,16.29)},
     {id='4N',place='Mila arrives',box=box(-95,-150,15,40,-156.29,16.29),after='4M'},
 }
@@ -131,21 +139,38 @@ function Zones.new(o)
     local calm_since,theater_at=nil,-math.huge
     local envs,find_at,env_said={},-math.huge,false -- Env actors by name, held; the next search.
     local failed=nil -- The last error said.
+    local dead={} -- Scene id -> true: its boss's death read, in the file until the scene has played.
+    local no_kit_until,kit_said=-math.huge,{} -- No start before this; the scenes the kit's absence was said for.
+    local placed=false -- Mila was last asked to stand somewhere.
     local function file() return 'coop-mxiii-talks-'..slot..'.txt' end
     local function save()
         local ids={}
         for id in pairs(played) do ids[#ids+1]=id end
+        for id in pairs(dead) do
+            if not played[id] then ids[#ids+1]='dead '..id end
+        end
         table.sort(ids)
         if slot and not o.write(file(),table.concat(ids,'\n')..'\n') then
             log('STOP: zone talks: '..file()..' not written: once a Lua load only until it can be')
         end
     end
+    local function forget_deaths()
+        for row in pairs(Boss.dead) do Boss.dead[row]=nil end
+    end
     local function load_slot(raw)
         local n=tonumber((raw or ''):match('\nslot=coop index=(%d+)'))
         if n==slot then return end
-        slot,played,state=n,{},{}
+        if n and slot then forget_deaths() end -- They were this other save's.
+        slot,played,state,dead=n,{},{},{}
         if n then
-            for id in tostring(o.read(file()) or ''):gmatch('[1-4]%u') do played[id]=true end
+            for line in tostring(o.read(file()) or ''):gmatch('[^\r\n]+') do
+                local id=line:match('^dead ([1-4]%u)$')
+                if id then
+                    dead[id],state[id]=true,{latched=true}
+                elseif line:match('^[1-4]%u$') then
+                    played[line]=true
+                end
+            end
         end
     end
     local function state_of(env,eve,now)
@@ -166,9 +191,15 @@ function Zones.new(o)
     end
     local function latch(s,st,p,t)
         local hit=false
+        if s.needs and not played[s.needs] then return end
         if s.box then hit=inside(p,s.box)
         elseif s.leave then hit=played[s.after] and not inside(p,s.leave)
-        elseif s.boss then hit=Boss.dead[s.boss]
+        elseif s.boss then
+            hit=Boss.dead[s.boss]
+            if hit then
+                dead[s.id]=true
+                save()
+            end
         elseif s.env and inside(p,Zones.ZONE4) then hit=s.states[state_of(s.env,t.eve,t.now) or '']
         end
         if hit then st.latched,st.last=true,t.now end
@@ -176,21 +207,39 @@ function Zones.new(o)
     local function start(s,t)
         local lines=Zones.lines_of(s.id,t.q and t.q.oblivion==1)
         playing=s.id
-        log(string.format('zone talk %s (%s): %d of %d lines, on the kit',s.id,s.place,#lines,#LINES[s.id]))
+        if not kit_said[s.id] then
+            log(string.format('zone talk %s (%s): %d of %d lines, on the kit',s.id,s.place,#lines,#LINES[s.id]))
+        end
         talks.lines('zone '..s.id,lines,function() return open end,function(how)
             playing=nil
             if how=='kit' then
                 played[s.id]=true
                 save()
             else
-                log('STOP: zone talk '..s.id..': the kit is not up: it plays when the kit is back')
+                no_kit_until=t.now+Zones.RETRY
+                if not kit_said[s.id] then
+                    kit_said[s.id]=true
+                    log('STOP: zone talk '..s.id..': the kit is not up: it plays when the kit is back')
+                end
             end
         end)
     end
     local function mila(where,eve)
+        placed=where~=nil
         if not o.mila then return end
         local ok,why=pcall(o.mila.set,where,eve)
         if not ok then log('STOP: Mila: '..tostring(why)) end
+    end
+    -- A scene under way dropped, not marked: it plays again from its start.
+    function self.drop(why)
+        if playing then talks.stop(why) end
+        playing=nil
+    end
+    -- From on_time.lua each tick with no save of ours to judge, and at coop off: no line, no body, no held object.
+    function self.leave(why)
+        self.drop(why)
+        calm_since,envs,find_at=nil,{},-math.huge
+        if placed then mila(nil) end
     end
     local function step(t)
         if t.now<next_at then return end
@@ -198,9 +247,8 @@ function Zones.new(o)
         load_slot(t.raw)
         if playing and not talks.playing() then playing=nil end
         if not (t.there and t.held and t.eve and slot) then
-            if playing then talks.stop('out of Matrix XIII') playing=nil end
-            calm_since=nil
-            mila(nil)
+            self.leave('out of Matrix XIII')
+            mila(nil) -- With no body placed yet too: the first call sweeps one an earlier Lua load left.
             return
         end
         local p=o.plan(U.value_of(t.eve:K2_GetActorLocation()))
@@ -211,10 +259,15 @@ function Zones.new(o)
                 state[s.id]=state[s.id] or {}
                 local st=state[s.id]
                 if not st.latched and not st.closed then latch(s,st,p,t) end
-                if st.latched and played['3K'] and has_lily(s.id) then
-                    st.latched,st.closed=false,true
-                    log('zone talk '..s.id..' never plays: 3K ended Lily')
+                if st.latched then
+                    local over=played['3K'] and has_lily(s.id) and '3K ended Lily'
+                        or s.before and played[s.before] and s.before..' played'
+                    if over then
+                        st.latched,st.closed=false,true
+                        log('zone talk '..s.id..' never plays: '..over)
+                    end
                 end
+                if st.latched and s.fight and not st.fought and not inside(p,s.box) then st.latched=false end
                 if st.latched then
                     waiting=true
                     if s.fight and inside(p,s.box) then
@@ -234,12 +287,13 @@ function Zones.new(o)
             calm_since=nil
             for _,s in ipairs(Zones.SCENES) do
                 local st=state[s.id]
-                if s.fight and st and st.latched then st.fought=true end
+                if s.fight and st and st.latched then st.fought=true end -- Still latched: she is in its box.
             end
             return
         end
         calm_since=calm_since or t.now
-        if playing or t.busy or talks.playing() or not t.quiet or t.now-calm_since<Zones.CALM then return end
+        if playing or t.busy or talks.playing() or not t.quiet or t.now-calm_since<Zones.CALM
+            or t.now<no_kit_until then return end
         for _,s in ipairs(Zones.SCENES) do
             local st=state[s.id]
             if not played[s.id] and st and st.latched then
@@ -267,8 +321,8 @@ function Zones.new(o)
     end
     -- A new "On Time" on this slot: every scene plays again.
     function self.restart()
-        played,state={},{}
-        for row in pairs(Boss.dead) do Boss.dead[row]=nil end
+        played,state,dead={},{},{}
+        forget_deaths()
         if slot then o.write(file(),'') end
     end
     return self

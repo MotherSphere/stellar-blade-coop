@@ -61,6 +61,8 @@ do
     assert(#Z.lines_of('3J',false)==#Z.LINES['3J']-5)
 end
 
+-- The lamp's box touches the corridor to the Lion's room, so 4E needs 4D before its box counts.
+assert(scene('4E').needs=='4D')
 -- Mila's body: nothing before 4E (so not during the Lion's fight), the shelf from 4E playing until 4M played, nothing
 -- between 4M and 4N, the floor from 4N playing, only with EVE in zone 4.
 do
@@ -73,7 +75,7 @@ do
     assert(place({['4N']=true},nil,false)==nil and place({},'4E',false)==nil)
 end
 
-local function new_world(files)
+local function new_world(files,mila)
     local lines,played={},{}
     local talks={now=nil,cut=nil,walks=0}
     function talks.playing() return talks.now end
@@ -87,7 +89,7 @@ local function new_world(files)
         d(how or 'kit')
     end
     local z=Z.new({log=function(m) lines[#lines+1]=m end,talks=talks,plan=function() return plan_of end,
-        read=function(n) return files[n] end,write=function(n,t) files[n]=t; return true end})
+        read=function(n) return files[n] end,write=function(n,t) files[n]=t; return true end,mila=mila})
     return z,talks,lines,played
 end
 local clock=0
@@ -197,6 +199,15 @@ foe.InteractionState,foe.Controller=3,nil
 calm(z)
 assert(talks.now=='zone 2B')
 talks.finish()
+-- A fight scene crossed with no fight lets go on leaving: a fight elsewhere does not play it there.
+stand('2G'); calm(z); talks.finish()
+stand('3D'); calm(z); talks.finish()
+stand('3H'); tick(z); away(); tick(z)
+foe.InteractionState,foe.Controller=0,object()
+tick(z); tick(z)
+foe.InteractionState,foe.Controller=3,nil
+calm(z)
+assert(talks.now==nil,'3H is about its own room')
 stand('3H')
 for _=1,Z.SETTLE-1 do tick(z) end
 assert(talks.now==nil)
@@ -257,11 +268,18 @@ assert(talks.dropped=='out of Matrix XIII' and talks.now==nil)
 assert(not files['coop-mxiii-talks-3.txt']:find('4A',1,true))
 calm(z)
 assert(talks.now=='zone 4A','A dropped scene plays again')
--- A kit that is not up: not marked, said, and tried again.
+-- A kit that is not up: not marked, said once, and tried again every RETRY s, not every second.
 talks.finish('none')
 assert(lines[#lines]:find('the kit is not up',1,true))
 assert(not files['coop-mxiii-talks-3.txt']:find('4A',1,true))
+local said_lines=#lines
 calm(z)
+assert(talks.now==nil and #lines==said_lines,'No retry before RETRY s')
+for _=1,Z.RETRY do tick(z) end
+assert(talks.now=='zone 4A','Tried again')
+talks.finish('none')
+assert(#lines==said_lines,'Said once')
+for _=1,Z.RETRY+1 do tick(z) end
 assert(talks.now=='zone 4A')
 talks.finish()
 
@@ -292,6 +310,72 @@ do
     assert(files['coop-mxiii-talks-4.txt']=='')
     calm(y,{raw='\nslot=coop index=4\n'})
     assert(t.now=='zone 1A','A new On Time plays its scenes again')
+end
+-- The lamp before the Lion's death latches nothing, even when she comes back after 4D with no new crossing; the lamp
+-- after it plays 4E. A death read goes in the file, so 4D survives a new Lua load, once; another slot forgets it.
+envs[1],envs[2]=nil,nil -- The water's states of the block above stay out of these.
+do
+    Boss.dead={}
+    local f={}
+    local y,t=new_world(f)
+    stand('4E'); calm(y); tick(y)
+    assert(t.now==nil,tostring(t.now)..': 4E needs 4D')
+    away()
+    Boss.dead['DLC02_40_E_CharS_051']=true
+    tick(y)
+    assert(f['coop-mxiii-talks-3.txt']=='dead 4D\n',f['coop-mxiii-talks-3.txt'])
+    -- Ctrl+R during the calm: Boss.dead is gone, the Lion stays dead.
+    Boss.dead={}
+    local y2,t2=new_world(f)
+    calm(y2); tick(y2)
+    assert(t2.now=='zone 4D','The death outlives the Lua load')
+    t2.finish()
+    assert(f['coop-mxiii-talks-3.txt']=='4D\n','Played: the mark goes')
+    calm(y2); tick(y2)
+    assert(t2.now==nil,'No crossing since 4D: 4E waits for the lamp')
+    stand('4E'); calm(y2); tick(y2)
+    assert(t2.now=='zone 4E')
+    t2.finish()
+    away()
+    -- Another save: a death read on slot 3 proves nothing on slot 4.
+    Boss.dead['DLC02_20_E_CharS_904']=true
+    calm(y2,{raw='\nslot=coop index=4\n'}); tick(y2,{raw='\nslot=coop index=4\n'})
+    assert(t2.now==nil and not next(Boss.dead),'Another slot: no 2F')
+end
+-- 4M closes 4K and 4L: they say nothing after it, one line each when latched.
+do
+    Boss.dead={}
+    local y,t,l=new_world({})
+    stand('4M'); calm(y); tick(y)
+    assert(t.now=='zone 4M')
+    t.finish()
+    stand('4N'); calm(y); tick(y)
+    assert(t.now=='zone 4N')
+    t.finish()
+    stand('4K')
+    for _=1,Z.SETTLE+3 do tick(y) end
+    assert(t.now==nil and l[#l]=='zone talk 4K never plays: 4M played',l[#l])
+end
+-- leave and drop: the scene dropped and not marked, Mila's body gone only when placed; drop keeps her.
+do
+    Boss.dead={}
+    local wanted,calls={},0
+    local mila={set=function(where) calls=calls+1; wanted[#wanted+1]=tostring(where) end}
+    local f={['coop-mxiii-talks-3.txt']='4D\n'}
+    local y,t=new_world(f,mila)
+    y.leave('a load')
+    assert(calls==0,'Nothing placed, nothing to do on a main save')
+    stand('4E'); calm(y); tick(y)
+    assert(t.now=='zone 4E')
+    assert(wanted[#wanted]=='shelf')
+    y.drop('a quest step')
+    assert(t.dropped=='a quest step' and t.now==nil and not f['coop-mxiii-talks-3.txt']:find('4E',1,true))
+    calm(y); tick(y)
+    assert(t.now=='zone 4E','Plays again')
+    y.leave('not solo on a co-op save')
+    assert(t.dropped=='not solo on a co-op save' and t.now==nil and wanted[#wanted]=='nil')
+    calm(y); tick(y)
+    assert(t.now=='zone 4E','A leave marks nothing')
 end
 -- An error is said once and stops nothing else.
 do

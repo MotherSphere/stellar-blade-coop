@@ -448,13 +448,17 @@ do
     L.tick()
     assert(view.speaker.text=='Noa' and view.line.text=='Mom?',tostring(view.speaker.text))
     open=false
-    at(5002.9); L.tick(); assert(shown.talk==true,'A line keeps its time')
-    at(5003.1); L.tick(); assert(shown.talk==false and view.line.text=='Mom?','The gate holds the next line')
+    at(5001); L.tick(); assert(shown.talk==false,'A shut gate hides the line at once')
     at(5010); L.tick(); assert(done==nil)
     open=true
     L.tick()
+    assert(shown.talk==true and view.line.text=='Mom?','The line it cut short shows again')
+    open=false
+    at(5013.1); L.tick(); assert(shown.talk==false,'Its time over: nothing to show again')
+    at(5013.2); open=true
+    L.tick()
     assert(shown.talk==true and view.speaker.text=='EVE' and view.line.text=='My name is EVE.',tostring(view.speaker.text))
-    at(5013.1); L.tick()
+    at(5016.3); L.tick()
     assert(done=='kit' and shown.talk==false and L.playing()==nil and #logs==said,last())
     assert(L.lines('zone 1A',list,function() return true end,finished))
     L.stop('out of Matrix XIII')

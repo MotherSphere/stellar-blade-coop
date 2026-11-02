@@ -482,7 +482,10 @@ function Lily.new(o)
             flow=nil
             return
         end
-        if slot=='none' or slot=='unknown' then return end -- A load: no save to judge yet.
+        if slot=='none' or slot=='unknown' then -- A load: no save to judge yet.
+            if o.zones then o.zones.leave('a load') end
+            return
+        end
         if not watching and not cheap(raw,rows) then -- The quest unit's reads start, once a Lua load.
             watching=true
             local ran,ok,said_watch=pcall(ask,'signal watch')
@@ -553,6 +556,7 @@ function Lily.new(o)
                 local n=labels[text]
                 if n and n==label and not flow then
                     flow={step='wait',at=now+Lily.AFTER,label=n}
+                    if o.zones then o.zones.drop('a quest step') end -- Its talk finds the player free.
                     talks.arm()
                     log((n==1 and 'the other signal picked: the prologue talk, then the quest and the travel'
                         or 'about Matrix 13 picked: the end talk, then On Time complete')..', after her goodbye '
@@ -561,7 +565,8 @@ function Lily.new(o)
             end)
         end
         if flow then advance(q,now) end
-        if not cheap(raw,rows) then matrix(eve,q,now,quiet,raw) end
+        if not cheap(raw,rows) then matrix(eve,q,now,quiet,raw)
+        elseif o.zones then o.zones.leave('not solo on a co-op save') end
     end
     -- coop lily signal [status|quest|travel|next]: status only reads; no word runs the pick's last steps (the quest,
     -- then the travel), quest the acquire alone, travel coop mxiii alone, next a test word (the task of On Time's
@@ -624,6 +629,7 @@ function Lily.new(o)
     -- coop off: lily off asked (may raise; main.lua logs it and goes on), the waits and the talk ended.
     function self.stop()
         flow=nil
+        if o.zones then o.zones.leave('coop off') end
         talks.stop()
         title_stop()
         e.stop()

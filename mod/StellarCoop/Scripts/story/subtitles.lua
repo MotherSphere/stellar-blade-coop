@@ -328,8 +328,8 @@ function Subtitles.new(o)
         wait(c,now)
         return true,'talk '..name..' asked: [LY] lines follow'
     end
-    -- lines (a list as matrix13/talks/ holds them) on the kit alone, under name; gate() false holds the next line and
-    -- hides the kit's group. done(how) as play's: 'kit', or 'none' when the kit is not up, maybe before this returns.
+    -- lines (a list as matrix13/talks/ holds them) on the kit alone, under name; gate() false hides the kit's group at
+    -- once and holds the line it cut short, which shows again in full. done(how) as play's: 'kit', or 'none' when the kit is not up, maybe before this returns.
     -- Ok, message.
     function self.lines(name,lines,gate,done)
         if cur then return false,'a talk plays ('..cur.name..')' end
@@ -345,11 +345,12 @@ function Subtitles.new(o)
         if not c then return end
         local now=os.clock()
         if c.step=='kit' then
-            if now<c.next_at then return end
             if c.gate and not c.gate() then
                 if c.kit_on then c.kit_on=false; kit.show('talk',false) end
+                if now<c.next_at then c.line,c.next_at=c.line-1,now end -- Cut short: it shows again in full.
                 return
             end
+            if now<c.next_at then return end
             if not c.kit_on then c.kit_on=true; kit.show('talk',true) end
             c.line=c.line+1
             local key,line=Subtitles.entry(c.lines,c.line,c.culture)
