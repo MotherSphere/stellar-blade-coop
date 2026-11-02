@@ -311,9 +311,9 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     -- mod: a mod's asset mod_assets() names (fetch()). LoadAsset finds an asset through the cooked asset registry,
     -- which a mod's added assets are not in, so one it misses is loaded by AssetRegistryHelpers:GetAsset (an asset
     -- data with only its path: FAssetData::GetAsset loads it by that path), as UE4SS's BPModLoaderMod loads mod actors;
-    -- how each was found or that it was not goes into counts.mods for the build line. Never one the sentinel set aside
-    -- (a shared mod can hold a game path: the base suit, a listed effect). peek: only a cached one still itself, else
-    -- nil and 'not loaded' (start(), never a load in place()).
+    -- how each was found or that it was not goes into counts.mods for the build line, as does any mesh with no
+    -- Skeleton. Never one the sentinel set aside (a shared mod can hold a game path: the base suit, a listed effect).
+    -- peek: only a cached one still itself, else nil and 'not loaded' (start(), never a load in place()).
     local function resolve(path,counts,class,mod,peek)
         if sentinel.aside(path) then return nil end
         class=class or '/Script/Engine.SkeletalMesh'
@@ -346,7 +346,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         end)
         cache[key]=asset or false
         counts.loaded,counts.ms=counts.loaded+1,counts.ms+(os.clock()-started)*1000
-        if mod then
+        -- A game path with no skeleton is named too: a pak mod replaced it (the base suit, a hair) and broke it.
+        if mod or no_skeleton then
             counts.mods[#counts.mods+1]=path..' '..(asset and by or no_skeleton and 'has no skeleton' or 'missing')
         end
         return asset
