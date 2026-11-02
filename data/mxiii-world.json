@@ -2669,6 +2669,186 @@
     },
     {
      "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_905",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024017,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_905",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_RoadBlockA_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 A1 Z2R16, Hive at the stores nest"
+    },
+    {
+     "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_906",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024018,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_906",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_ClriketCFear_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 A1 Z2R16, Cricket Butcher (Fear)"
+    },
+    {
+     "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_907",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024019,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_907",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_ClriketBChain_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 A2 Z2R19, Chain Cricket Slasher"
+    },
+    {
+     "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_908",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024020,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_908",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_ClriketCGrab_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 A3 Z2R29, Cricket Butcher (Grab)"
+    },
+    {
+     "table": "EventSpawnTable",
+     "name": "DLC02_20_E_CharS_909",
+     "donor": "DLC02_10_E_CharS_001",
+     "id": 2805024021,
+     "set": [
+      [
+       "SpawnPointName",
+       "DLC02_20_E_CharS_909",
+       true
+      ],
+      [
+       "CharacterAlias",
+       [
+        "UME_M_BarnacleA_01"
+       ],
+       true
+      ],
+      [
+       "Zone",
+       "Zone_DLC02_20",
+       true
+      ],
+      [
+       "GoPathAfterSpawn",
+       false,
+       true
+      ],
+      [
+       "PathWay",
+       "",
+       true
+      ]
+     ],
+     "note": "zone 2 Z2P05 landfill ledge, Barnacle"
+    },
+    {
+     "table": "EventSpawnTable",
      "name": "DLC02_30_E_CharS_024",
      "donor": "DLC02_10_E_CharS_001",
      "id": 2810024024,
@@ -4133,6 +4313,64 @@
     },
     {
      "table": "EventItemTable",
+     "name": "DLC02_00_E_ItemS_005",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800027005,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_E_ItemS_005",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "hidden pickup: nook west of the head house"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_00_E_ItemS_006",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800027006,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_E_ItemS_006",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "hidden pickup: north margin behind the east floodlight"
+    },
+    {
+     "table": "EventItemTable",
      "name": "DLC02_10_E_ItemS_007",
      "donor": "DLC02_10_E_ItemS_001",
      "id": 2800020007,
@@ -4602,6 +4840,95 @@
       ]
      ],
      "note": "pickup, label names no item"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_015",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020015,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_015",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       8,
+       true
+      ]
+     ],
+     "note": "pickup: R23 store, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_10_E_ItemS_016",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800020016,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_E_ItemS_016",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       6,
+       true
+      ]
+     ],
+     "note": "pickup: drain sewer, final pass 2 November"
+    },
+    {
+     "table": "ZoneEnvSpawnTable",
+     "name": "DLC02_10_EnvS_448",
+     "donor": "DLC02_10_EnvS_440",
+     "id": 2800032448,
+     "set": [
+      [
+       "ZoneList",
+       [
+        "Zone_DLC02_10"
+       ],
+       false
+      ],
+      [
+       "EnvActorName",
+       "DLC02_10_EnvS_448",
+       true
+      ],
+      [
+       "EnvBPPath",
+       "/Game/GameDesign/Level/ZoneEnv/BP_Env_SupplyBox01.BP_Env_SupplyBox01_C",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_10_EnvS_448",
+       true
+      ]
+     ],
+     "note": "supply box: drain sewer, final pass 2 November"
     },
     {
      "table": "EventItemTable",
@@ -6839,6 +7166,93 @@
      "note": "pickup"
     },
     {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_029",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020029,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_029",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "HighDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup: Z4R21 outfall sewer, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_030",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020030,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_030",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ECelluloseRayon",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       2,
+       true
+      ]
+     ],
+     "note": "pickup: filter bed edge in Z4R09, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_40_E_ItemS_031",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2815020031,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_40",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_40_E_ItemS_031",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "2DQuantumWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       true
+      ]
+     ],
+     "note": "pickup: fan room shelf 1, west end, final pass 2 November"
+    },
+    {
      "table": "ZoneEnvSpawnTable",
      "name": "DLC02_10_EnvS_428",
      "donor": "DLC02_10_EnvS_428",
@@ -8168,6 +8582,93 @@
       ]
      ],
      "note": "pickup"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_030",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020030,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_030",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "2DQuantumWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       1,
+       true
+      ]
+     ],
+     "note": "pickup: Z3R33, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_031",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020031,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_031",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "HighDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup: Z3R11, final pass 2 November"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_30_E_ItemS_032",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2810020032,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_30",
+       true
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_30_E_ItemS_032",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "PolymerOrganicFilm",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       4,
+       true
+      ]
+     ],
+     "note": "pickup: Z3R27, final pass 2 November"
     }
    ]
   },

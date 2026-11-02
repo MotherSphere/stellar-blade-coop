@@ -576,7 +576,7 @@ int main() {
   // opener's On tag firing the ZoneEvent row of an EnvC row of the batch that opens its door, door 051 opened only
   // by 050's link, the Lion's spawn row shutting its doors on battle and opening them on its death.
   {
-    static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 164 &&
+    static_assert(kMxiiiRows == 75 && kMxspawnRows == 51 && kMxenvRows == 171 && kMxupperRows == 164 &&
                       kMxmiddleRows == 106 && kMxlowerRows == 105 && kMxnamesRows == 11 && kMxlilyRows == 6 &&
                       kMxrecordsRows == 100,
                   "the data file's batches");
@@ -705,7 +705,7 @@ int main() {
       ++spawn_rows;
       assert(text(kMxspawn, r, 0x14) == r.name && text(kMxspawn, r, 0x20).find('|') == std::string::npos);
     }
-    assert(spawn_rows == 28);
+    assert(spawn_rows == 33);
     for (const char *boss : {"DLC02_20_E_CharS_904", "DLC02_30_E_CharS_029", "DLC02_40_E_CharS_051"})
       assert(value(kMxspawn, row(kMxspawn, boss), 0x44) == 1); // SaveType Save.
     assert(text(kMxspawn, row(kMxspawn, "DLC02_30_E_CharS_029"), 0x20) == stalker.name);
