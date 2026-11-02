@@ -4970,7 +4970,7 @@ constexpr Patch kMxrecordsPatches[] = {
     {0x40, Kind::string, 0, "Records_MX13_Z1_06_Desc"}, // Desc
     {0x70, Kind::name, 0, "Ach_Album_Unlock_MX13_Z1_06"}, // AchievementUnlocked
     {0x80, Kind::name, 0, "None"}, // AchievementPopup
-    // Records_MX13_Z1_08 (AlbumTable, MX13-Z1-08 Service 18:40, One Passenger)
+    // Records_MX13_Z1_08 (AlbumTable, MX13-Z1-08 Service 18:40, Two Passengers)
     {0x1d, Kind::u8, 0, nullptr}, // PopupWhenUnlock
     {0x1e, Kind::u8, 0, nullptr}, // PauseWhenPopup
     {0x20, Kind::string, 0, "UI_Album_Document_Category_Log"}, // GroupName
