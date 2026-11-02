@@ -2604,7 +2604,7 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   `DLC02_20_ZTrigger_002`; `DLC02_30_E_CharS_029` the Stalker; `DLC02_40_E_CharS_051` the Lion; all SaveType Save, no
   patrol, RewardGroup `m_beach_elite1`), the four zone events that spawn the Gardener and the zone 4 trio, and the two
   trigger rows that run them.
-- `mxenv`, 160 rows: the shipped device rows dev patched first, now on the mechanism design: the one-way doors 050, 051
+- `mxenv`, 162 rows: the shipped device rows dev patched first, now on the mechanism design: the one-way doors 050, 051
   and 037 spawn an empty arrow at their point and move the cooked leaf with our sequences (051 has no prompt: 050's
   link opens it); the R29 gate switch spawns the wall switch `Env_CardControl_Switch_Wireless_C` (below) and, with the
   gate, lists zones 10 and 20; the 55 m lift waits at the top with our
@@ -2612,7 +2612,7 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   wired them; two kill volumes go under the lift shafts. Then the loot: the 10 shipped supply box rows, which ship with
   no blueprint and no spawn point, are patched in place with `BP_Env_SupplyBox01_C` (the class of
   `Env_SupplyBox_Normal01` boxes in the shipped levels) and the point of their own name; 54 new boxes copy
-  `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 86 new pickups copy
+  `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 88 new pickups copy
   `DLC02_10_E_ItemS_001` with the item and count of their map marker (`BetaCrystal` x12 where the marker names none).
   The 25 records wait for the records batch.
 - `mxupper` (zones 0 to 2, 164 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the

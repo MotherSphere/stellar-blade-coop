@@ -4133,6 +4133,64 @@
     },
     {
      "table": "EventItemTable",
+     "name": "DLC02_00_E_ItemS_005",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800027005,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_E_ItemS_005",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "LowDensityWafer",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       7,
+       true
+      ]
+     ],
+     "note": "hidden pickup: nook west of the head house"
+    },
+    {
+     "table": "EventItemTable",
+     "name": "DLC02_00_E_ItemS_006",
+     "donor": "DLC02_10_E_ItemS_001",
+     "id": 2800027006,
+     "set": [
+      [
+       "Zone",
+       "Zone_DLC02_10",
+       false
+      ],
+      [
+       "SpawnPointName",
+       "DLC02_00_E_ItemS_006",
+       true
+      ],
+      [
+       "SpawnItemAlias",
+       "ElastomerFiber",
+       true
+      ],
+      [
+       "SpawnItemCount",
+       9,
+       true
+      ]
+     ],
+     "note": "hidden pickup: north margin behind the east floodlight"
+    },
+    {
+     "table": "EventItemTable",
      "name": "DLC02_10_E_ItemS_007",
      "donor": "DLC02_10_E_ItemS_001",
      "id": 2800020007,
