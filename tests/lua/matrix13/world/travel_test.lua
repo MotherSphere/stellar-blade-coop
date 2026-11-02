@@ -722,9 +722,9 @@ assert(#asked==n0+2 and asked[#asked]:find('^mxenv rows ZoneEnvSpawnTable=0x%x+ 
     ..'EffectVolumeTable=0x%x+$'),
     asked[#asked])
 lines_of('mxspawn=refused added=3/46 asks=1 spawns=? why=id table=EventSpawnTable row=DLC02_10_E_CharS_901\n'
-    ..'mxenv=rows added=160/160 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n')
+    ..'mxenv=rows added=162/162 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0\n')
 clock=clock+0.25
-assert(mx.tick()==nil and logged('mxenv rows read back through FindRow: 160/160 authored rows'))
+assert(mx.tick()==nil and logged('mxenv rows read back through FindRow: 162/162 authored rows'))
 mx.title(true,true)
 assert(#asked==n0+2,'No mxupper line: nothing asked, and nothing after it')
 -- The camp names: after the gardener's answer and only with camptext=ready. wait, fault or no line ask nothing, and a

@@ -576,7 +576,7 @@ int main() {
   // opener's On tag firing the ZoneEvent row of an EnvC row of the batch that opens its door, door 051 opened only
   // by 050's link, the Lion's spawn row shutting its doors on battle and opening them on its death.
   {
-    static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 164 &&
+    static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 162 && kMxupperRows == 164 &&
                       kMxmiddleRows == 106 && kMxlowerRows == 105 && kMxnamesRows == 11 && kMxlilyRows == 6 &&
                       kMxrecordsRows == 100,
                   "the data file's batches");
