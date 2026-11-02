@@ -18,6 +18,7 @@ local function object(fields)
 end
 FName=function(t) return t end
 FText=function(t) return {text=t} end
+EFindName={FNAME_Find=0}
 local map='MXIII_P'
 local world=object({GetFullName=function() return 'World /Game/Art/BG/WorldMap_DLC_01/Level_P/'..map..'.'..map end})
 local here={X=0,Y=0,Z=0}
@@ -32,7 +33,9 @@ local function body(class,at)
     bodies[#bodies+1]=c
     return c
 end
-StaticFindObject=function(path) return object({path=path}) end
+local zone_events={}
+StaticFindObject=function(path) return object({path=path,
+    CreateSBZoneEvent=function(_,kind,name) zone_events[#zone_events+1]=kind..' '..name end}) end
 FindAllOf=function(name)
     if name=='TextBlock' then return blocks end
     walks=walks+1
@@ -130,6 +133,24 @@ clock=73; b.tick()
 assert(Boss.dead.DLC02_40_E_CharS_051 and #lines==said+1 and lines[#lines]=='Lion DLC02_40_E_CharS_051 dead',lines[#lines])
 clock=74; b.tick()
 assert(#lines==said+1,'One line')
+assert(#zone_events==0,'A Lion from its row: its EventOnDead enables the levers')
+-- The fallback Lion has no EventOnDead: its death fires the three lever events, and only its own.
+do
+    Boss.dead={}
+    local s=Boss.new({log=function() end,lion=lion,points={DLC02_40_E_CharS_051={at={10000,0,0},yaw=0}}})
+    here={X=10000,Y=0,Z=0}
+    bodies={}
+    assert(s.command())
+    local fallback=body('CH_M_NA_02_BluePrint_Large_C',{X=10000,Y=0,Z=0})
+    fallback.InteractionState,fallback.Controller=0,object()
+    clock=75; s.tick()
+    fallback.InteractionState,fallback.Controller=3,nil
+    clock=76; s.tick()
+    assert(table.concat(zone_events,',')=='10 DLC02_40_E_EnvC_631,10 DLC02_40_E_EnvC_632,10 DLC02_40_E_EnvC_633',
+        table.concat(zone_events,','))
+end
+assert(Boss.allowed(10,'DLC02_40_E_EnvC_633') and not Boss.allowed(15,'DLC02_40_E_EnvC_631')
+    and not Boss.allowed(10,'DLC02_40_E_EnvC_630'))
 -- The Stalker: no fix, no note about coop mxiii boss, which never spawns it; its death counts.
 do
     local p={DLC02_30_E_CharS_029={at={0,50000,0},yaw=0}}

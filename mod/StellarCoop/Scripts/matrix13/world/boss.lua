@@ -11,24 +11,38 @@
 -- visit. The Stalker is a plain row-backed character and needs neither: it is listed for its death alone. A body of the
 -- three seen near its point is followed wherever it goes, and its death (not standing, no controller; a dying body
 -- loses its controller at once) sets Boss.dead[row] and logs one line; matrix13/quest/zone_talks.lua reads that. A body
--- that disappears without that read (a camp rest resets the zone) counts as no death.
+-- that disappears without that read (a camp rest resets the zone) counts as no death. The fallback Lion has no spawn
+-- row, so no EventOnDead: its death read here fires the row's three events that enable the fan levers
+-- (CreateSBZoneEvent kind 10, as the row's ZoneEventTable rows say [inference: never run on these]).
 local U=require('core.unreal')
 local N=require('nightop.probe')
 local Rows=require('matrix13.world.rows')
 local Boss={}
 Boss.MAP='/mxiii_p'
 Boss.LIST={
-    {row='DLC02_40_E_CharS_051',name='Lion',class='CH_M_NA_02_BluePrint_Large_C',shown='^<M_LionC[%w_]*>$',fix='lion'},
+    {row='DLC02_40_E_CharS_051',name='Lion',class='CH_M_NA_02_BluePrint_Large_C',shown='^<M_LionC[%w_]*>$',fix='lion',
+        on_dead={'DLC02_40_E_EnvC_631','DLC02_40_E_EnvC_632','DLC02_40_E_EnvC_633'}},
     {row='DLC02_20_E_CharS_904',name='Gardener',class='CH_M_NA_01_BluePrint_C',shown='^<M_Gardener[%w_]*>$',
         fix='gardener',mesh_yaw=-90},
     -- [inference] The class of CharacterAppearanceTable's M_Sawshark row, which its donor row's look is taken to use.
     {row='DLC02_30_E_CharS_029',name='Stalker',class='CH_M_NA_13_Blueprint_C'},
 }
-Boss.dead={} -- By row: the bosses seen dying this Lua load.
+Boss.dead={} -- By row: the bosses seen dying this Lua load (matrix13/quest/zone_talks.lua keeps them per save).
 -- cm: a body this near its point is the row's; EVE this near a point is in its arena; a point this near EVE is looked
 -- at (a body search may walk every object, 25 to 80 ms, so only near a boss); s EVE waits in an arena before the note.
 Boss.NEAR,Boss.ARENA,Boss.LOOK,Boss.WAIT=3000,2500,8000,20
 local EVERY,LOOK=1,10 -- s between passes, s between looks for the boss bar's text blocks.
+local ENV_CONTROL=10 -- ESBZoneEventType ZoneEvent_ZoneEnvControl.
+-- The only zone events this file fires: the Lion's three lever events, kind 10.
+function Boss.allowed(kind,name)
+    return kind==ENV_CONTROL and (name=='DLC02_40_E_EnvC_631' or name=='DLC02_40_E_EnvC_632'
+        or name=='DLC02_40_E_EnvC_633')
+end
+local function find_name(t) return FName(t,EFindName.FNAME_Find) end
+local function zone_event(kind,name)
+    assert(Boss.allowed(kind,name),'zone event refused')
+    U.find('/Script/SB.Default__SBBlueprintLibrary'):CreateSBZoneEvent(kind,find_name(name))
+end
 local BOSS_TEXT,LIVE='TextBlock_BossName','/Engine/Transient'
 
 local function far(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2) end
@@ -41,7 +55,7 @@ function Boss.new(o)
     local points=o.points or Rows.BOSS
     local self={}
     local next_pass,next_look,blocks=0,0,{}
-    local state={} -- By row: fixed (the body's address), waited (os.clock EVE came near), said.
+    local state={} -- By row: fixed (the body's address), waited (os.clock EVE came near), said, fallback (spawned so).
     local function reset() for _,b in ipairs(Boss.LIST) do state[b.row]={} end end
     reset()
     local function in_world()
@@ -60,6 +74,12 @@ function Boss.new(o)
         local m=assert(U.valid(c.Mesh),'no mesh on the body')
         m:K2_SetRelativeRotation({Pitch=0,Yaw=b.mesh_yaw,Roll=0},false,{},false)
         return string.format('mesh turned %d degrees',b.mesh_yaw)
+    end
+    local function fire(b)
+        for _,event in ipairs(b.on_dead or {}) do
+            local ok,e=pcall(zone_event,ENV_CONTROL,event)
+            log('fallback '..b.name..' dead: '..event..(ok and ' fired' or ' not fired ('..tostring(e)..')'))
+        end
     end
     -- The boss bar's name, while a fixed boss lives.
     local function names(now,living)
@@ -97,6 +117,7 @@ function Boss.new(o)
                 if type(st)=='number' and st~=0 and st~=1 and not U.valid(seen.Controller) then
                     s.body,Boss.dead[b.row]=nil,true
                     log(string.format('%s %s dead',b.name,b.row))
+                    if s.fallback then fire(b) end
                 end
             end
             if spot and far(here,spot)<=Boss.LOOK then
@@ -153,6 +174,7 @@ function Boss.new(o)
         end
         if not best then return false,'coop mxiii boss: no Lion or Gardener spawn point within 25 m' end
         log('fallback: '..best.name..' by its own command, key 0, no saved death')
+        state[best.row].fallback=true
         if best.fix=='lion' then
             if not o.lion then return false,'coop mxiii boss: no coop lion' end
             return o.lion.command()
