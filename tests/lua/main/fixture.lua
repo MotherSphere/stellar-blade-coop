@@ -638,7 +638,7 @@ package.loaded['session.chat']={new=function(lines,on)
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
 USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
-    ..'status | report | mark [text] | where | travel host | loopback '
+    ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
     ..'emote [list|<name>|off] | '

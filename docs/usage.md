@@ -848,6 +848,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |
 | `coop where` | Print one line of positions to compare between two PCs |
+| `coop near [metres]` | Print the zone objects the game spawned within that range of EVE (8 m by default, 100 at most), nearest first: row, class, position, state, whether hidden, whether it collides. A test tool for the Matrix XIII map |
 | `coop puppet` | Turn the ghost on or off by hand |
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
 | `coop look` | Show which looks are on |
