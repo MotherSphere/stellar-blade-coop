@@ -1923,6 +1923,16 @@ send(9021,{{name='CharacterMesh0',path=NO_SKELETON,names={'Root','Bip001','Bip00
 ok,message=build()
 assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
 assert(message:find(NO_SKELETON:gsub('%p','%%%0')..' has no skeleton'),message)
+-- A game path a pak mod replaced with no Skeleton: missing as well, and named although no CNS pack declares it.
+do
+    local GAME_NO_SKELETON='/Game/Art/Character/PC/CH_P_EVE_Broken/CH_P_EVE_Broken.CH_P_EVE_Broken'
+    mesh(GAME_NO_SKELETON,{'Root','Bip001','Bip001-Pelvis'})
+    meshes[GAME_NO_SKELETON].Skeleton=nil
+    send(9022,{{name='CharacterMesh0',path=GAME_NO_SKELETON,names={'Root','Bip001','Bip001-Pelvis'},materials={}}},'peer')
+    ok,message=build()
+    assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+    assert(message:find(plain(GAME_NO_SKELETON)..' has no skeleton'),message)
+end
 said_before=#said
 -- No CNS pack declares her suit: on the base body, said; never looked up.
 cns={}
