@@ -22,7 +22,8 @@
 -- coop mxiii, the camp travel into the cut Matrix XIII dungeon (matrix13/world/travel.lua, o.mxiii; a test tool left
 -- out of the usage line, needing the zMXIII_P test pak), coop mxiii 30, the same to its third zone's camp, and coop
 -- mxiii leave, its way out, and coop mxiii boss, the key-0 Lion or Gardener of the arena EVE stands in
--- (matrix13/world/boss.lua), run on a co-op save only.
+-- (matrix13/world/boss.lua), run on a co-op save only. coop mxiii mila, Mila's pose and scale (matrix13/world/mila.lua,
+-- o.mila), runs on any save: a display only, nothing of it is saved.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -156,7 +157,8 @@ function Cut.new(o)
     end
     -- coop mxiii (matrix13/world/travel.lua, o.mxiii): a camp travel into a world the save has never been in, which the
     -- game may write into the save, so on a co-op save only; coop mxiii leave too, as coop travel probe.
-    function self.mxiii(extra,point)
+    function self.mxiii(extra,point,more)
+        if extra=='mila' then return o.mila.command(point,more) end
         local ok,why=coop_slot('coop mxiii')
         if not ok then return false,why end
         return o.mxiii.command(extra,point)

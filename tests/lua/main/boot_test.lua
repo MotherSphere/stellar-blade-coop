@@ -805,6 +805,11 @@ assert(mx.folder=='mod/StellarCoop' and mx.o.paks=='mod/StellarCoop|paks'
 assert(type(mx.o.travel().probe)=='function','The follow')
 coop('mxiii')
 assert(#mx.cmds==0 and last():find('^%[StellarCoop%] STOP: coop mxiii runs only on a co%-op save'),last())
+-- coop mxiii mila: Mila's pose (matrix13/world/mila.lua), on any save, its words never to the travel.
+coop('mxiii','mila','9')
+assert(#mx.cmds==0 and last():find('^%[StellarCoop%] STOP: Use: coop mxiii mila '),last())
+coop('mxiii','mila','scale','1.0')
+assert(#mx.cmds==0 and last():find('scale 1.00',1,true),last())
 status_text=COOP
 coop('mxiii'); coop('mxiii','x'); coop('mxiii','warp','12')
 assert(#mx.cmds==3 and mx.cmds[1].n==2 and mx.cmds[1][1]==nil and mx.cmds[2][1]=='x' and mx.cmds[2][2]==nil

@@ -582,6 +582,10 @@ o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][N
 -- play through coop scene's rows, ticked each frame below.
 local function lily_log(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end
 local talks=require('story.subtitles').new({log=lily_log,scene=scene})
+-- Mila's body (matrix13/world/mila.lua): placed by the zone talks, posed by coop mxiii mila (commands/cut.lua).
+o.mila=require('matrix13.world.mila').new({log=lily_log,
+    read=function(name) return link and link.read_file(name) end,
+    write=function(name,text) if link then return link.write_file(name,text) end end})
 o.lily=require('matrix13.quest.on_time').new({log=lily_log,
     status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
     mode=function() return link and link.mode() end,paused=function() return kit~=nil and kit.paused(true) end,
@@ -589,10 +593,7 @@ o.lily=require('matrix13.quest.on_time').new({log=lily_log,
     read=require('core.link').files.read,talks=talks,
     zones=require('matrix13.quest.zone_talks').new({log=lily_log,talks=talks,plan=require('matrix13.quest.on_time').plan,
         read=function(name) return link and link.read_file(name) end,
-        write=function(name,text) if link then return link.write_file(name,text) end end,
-        mila=require('matrix13.world.mila').new({log=lily_log,
-            read=function(name) return link and link.read_file(name) end,
-            write=function(name,text) if link then return link.write_file(name,text) end end})})})
+        write=function(name,text) if link then return link.write_file(name,text) end end,mila=o.mila})})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
