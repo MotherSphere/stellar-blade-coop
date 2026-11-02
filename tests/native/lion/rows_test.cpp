@@ -573,7 +573,7 @@ int main() {
   // by 050's link, the Lion's spawn row shutting its doors on battle and opening them on its death.
   {
     static_assert(kMxiiiRows == 75 && kMxspawnRows == 46 && kMxenvRows == 160 && kMxupperRows == 164 &&
-                      kMxmiddleRows == 106 && kMxlowerRows == 99 && kMxnamesRows == 11 && kMxlilyRows == 6,
+                      kMxmiddleRows == 106 && kMxlowerRows == 105 && kMxnamesRows == 11 && kMxlilyRows == 6,
                   "the data file's batches");
     const Batch *mx[] = {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower, &kMxnames, &kMxlily};
     assert(kMxiii.patches == kMxiiiPatches && kMxspawn.patches == kMxspawnPatches &&

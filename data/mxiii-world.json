@@ -3393,7 +3393,10 @@
        [
         "DLC02_40_E_EnvC_615",
         "DLC02_40_E_EnvC_619",
-        "DLC02_40_E_EnvC_613"
+        "DLC02_40_E_EnvC_613",
+        "DLC02_40_E_EnvC_631",
+        "DLC02_40_E_EnvC_632",
+        "DLC02_40_E_EnvC_633"
        ],
        true
       ]
@@ -22577,6 +22580,11 @@
        "TagEventList2",
        [],
        true
+      ],
+      [
+       "InitActivate",
+       2,
+       true
       ]
      ]
     },
@@ -22604,6 +22612,11 @@
       [
        "TagEventList2",
        [],
+       true
+      ],
+      [
+       "InitActivate",
+       2,
        true
       ]
      ]
@@ -22633,6 +22646,11 @@
        "TagEventList2",
        [],
        true
+      ],
+      [
+       "InitActivate",
+       2,
+       true
       ]
      ]
     },
@@ -22650,6 +22668,177 @@
       [
        "SpawnPointName",
        "DLC02_40_EnvS_021",
+       true
+      ]
+     ]
+    },
+    {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_40_E_EnvC_631",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3061,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_40_EnvS_023",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "None",
+       true
+      ]
+     ],
+     "note": "the Lion dead: lever 023 can be used"
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_40_E_EnvC_631",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8755,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_40_E_EnvC_631",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       0.0,
+       true
+      ]
+     ]
+    },
+    {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_40_E_EnvC_632",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3062,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_40_EnvS_024",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "None",
+       true
+      ]
+     ],
+     "note": "the Lion dead: lever 024 can be used"
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_40_E_EnvC_632",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8756,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_40_E_EnvC_632",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       0.0,
+       true
+      ]
+     ]
+    },
+    {
+     "table": "EventEnvControlTable",
+     "name": "DLC02_40_E_EnvC_633",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 3063,
+     "set": [
+      [
+       "EnvSpawnAlias",
+       "DLC02_40_EnvS_025",
+       true
+      ],
+      [
+       "EnvControlType",
+       1,
+       false
+      ],
+      [
+       "Activate",
+       1,
+       false
+      ],
+      [
+       "TagName",
+       "None",
+       true
+      ]
+     ],
+     "note": "the Lion dead: lever 025 can be used"
+    },
+    {
+     "table": "ZoneEventTable",
+     "name": "DLC02_40_E_EnvC_633",
+     "donor": "DLC02_20_E_EnvC_001",
+     "id": 8757,
+     "set": [
+      [
+       "Type",
+       10,
+       false
+      ],
+      [
+       "EventAlias",
+       "DLC02_40_E_EnvC_633",
+       true
+      ],
+      [
+       "EventConditionCheckType",
+       0,
+       false
+      ],
+      [
+       "EventDelayTime",
+       0.0,
        true
       ]
      ]

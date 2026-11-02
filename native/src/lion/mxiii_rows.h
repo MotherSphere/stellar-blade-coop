@@ -652,7 +652,7 @@ constexpr Patch kMxspawnPatches[] = {
     {0xb8, Kind::string, 0, ""}, // PathWay
     {0xc8, Kind::name, 0, "m_beach_elite1"}, // RewardGroup
     {0x80, Kind::names, 0, "DLC02_40_E_EnvC_614|DLC02_40_E_EnvC_618|DLC02_40_E_EnvC_620|DLC02_40_E_EnvC_630"}, // EventOnBattle
-    {0x70, Kind::names, 0, "DLC02_40_E_EnvC_615|DLC02_40_E_EnvC_619|DLC02_40_E_EnvC_613"}, // EventOnDead
+    {0x70, Kind::names, 0, "DLC02_40_E_EnvC_615|DLC02_40_E_EnvC_619|DLC02_40_E_EnvC_613|DLC02_40_E_EnvC_631|DLC02_40_E_EnvC_632|DLC02_40_E_EnvC_633"}, // EventOnDead
     // DLC02_20_ZoneE_033 (ZoneEventTable)
     {0x18, Kind::name, 0, "DLC02_20_E_CharS_904"}, // EventAlias
     // DLC02_40_ZoneE_015 (ZoneEventTable)
@@ -4390,19 +4390,52 @@ constexpr Patch kMxlowerPatches[] = {
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_023"}, // SpawnPointName
     {0x90, Kind::names, 0, ""}, // TagEventList2
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_40_EnvS_024 (ZoneEnvSpawnTable)
     {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/DLC_MXIII/Zone_MXIII_40/MT40_ShortCutRope_01_On.MT40_ShortCutRope_01_On"}, // Interaction
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_024"}, // SpawnPointName
     {0x90, Kind::names, 0, ""}, // TagEventList2
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_40_EnvS_025 (ZoneEnvSpawnTable)
     {0x230, Kind::string, 0, "/Game/GameDesign/Level/ToolData/InteractionGraph/DLC_MXIII/Zone_MXIII_40/MT40_ShortCutRope_01_On.MT40_ShortCutRope_01_On"}, // Interaction
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_025"}, // SpawnPointName
     {0x90, Kind::names, 0, ""}, // TagEventList2
+    {0x60, Kind::u8, 2, nullptr}, // InitActivate
     // DLC02_40_EnvS_021 (ZoneEnvSpawnTable)
     {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_CardControl_Switch2.Env_CardControl_Switch2_C"}, // EnvBPPath
     {0x48, Kind::name, 0, "DLC02_40_EnvS_021"}, // SpawnPointName
+    // DLC02_40_E_EnvC_631 (EventEnvControlTable, the Lion dead: lever 023 can be used)
+    {0x14, Kind::name, 0, "DLC02_40_EnvS_023"}, // EnvSpawnAlias
+    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
+    {0x30, Kind::u8, 1, nullptr}, // Activate
+    {0x28, Kind::name, 0, "None"}, // TagName
+    // DLC02_40_E_EnvC_631 (ZoneEventTable)
+    {0x14, Kind::u8, 10, nullptr}, // Type
+    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_631"}, // EventAlias
+    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
+    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
+    // DLC02_40_E_EnvC_632 (EventEnvControlTable, the Lion dead: lever 024 can be used)
+    {0x14, Kind::name, 0, "DLC02_40_EnvS_024"}, // EnvSpawnAlias
+    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
+    {0x30, Kind::u8, 1, nullptr}, // Activate
+    {0x28, Kind::name, 0, "None"}, // TagName
+    // DLC02_40_E_EnvC_632 (ZoneEventTable)
+    {0x14, Kind::u8, 10, nullptr}, // Type
+    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_632"}, // EventAlias
+    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
+    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
+    // DLC02_40_E_EnvC_633 (EventEnvControlTable, the Lion dead: lever 025 can be used)
+    {0x14, Kind::name, 0, "DLC02_40_EnvS_025"}, // EnvSpawnAlias
+    {0x1c, Kind::u8, 1, nullptr}, // EnvControlType
+    {0x30, Kind::u8, 1, nullptr}, // Activate
+    {0x28, Kind::name, 0, "None"}, // TagName
+    // DLC02_40_E_EnvC_633 (ZoneEventTable)
+    {0x14, Kind::u8, 10, nullptr}, // Type
+    {0x18, Kind::name, 0, "DLC02_40_E_EnvC_633"}, // EventAlias
+    {0x30, Kind::u8, 0, nullptr}, // EventConditionCheckType
+    {0x34, Kind::f32, 0.0f, nullptr}, // EventDelayTime
 };
 constexpr Row kMxlowerRecipe[] = {
     {Table::env, "DLC02_40_EnvS_016", "DLC02_40_EnvS_016", 2815032016u, 0, 3},
@@ -4500,10 +4533,16 @@ constexpr Row kMxlowerRecipe[] = {
     {Table::zevent, "DLC02_40_E_EnvC_629", "DLC02_20_E_EnvC_001", 8750u, 641, 4},
     {Table::envc, "DLC02_40_E_EnvC_630", "DLC02_20_E_EnvC_001", 3057u, 645, 4},
     {Table::zevent, "DLC02_40_E_EnvC_630", "DLC02_20_E_EnvC_001", 8751u, 649, 4},
-    {Table::env, "DLC02_40_EnvS_023", "DLC02_40_EnvS_023", 2815032023u, 653, 4},
-    {Table::env, "DLC02_40_EnvS_024", "DLC02_40_EnvS_024", 2815032024u, 657, 4},
-    {Table::env, "DLC02_40_EnvS_025", "DLC02_40_EnvS_025", 2815032025u, 661, 4},
-    {Table::env, "DLC02_40_EnvS_021", "DLC02_40_EnvS_021", 2815032021u, 665, 2},
+    {Table::env, "DLC02_40_EnvS_023", "DLC02_40_EnvS_023", 2815032023u, 653, 5},
+    {Table::env, "DLC02_40_EnvS_024", "DLC02_40_EnvS_024", 2815032024u, 658, 5},
+    {Table::env, "DLC02_40_EnvS_025", "DLC02_40_EnvS_025", 2815032025u, 663, 5},
+    {Table::env, "DLC02_40_EnvS_021", "DLC02_40_EnvS_021", 2815032021u, 668, 2},
+    {Table::envc, "DLC02_40_E_EnvC_631", "DLC02_20_E_EnvC_001", 3061u, 670, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_631", "DLC02_20_E_EnvC_001", 8755u, 674, 4},
+    {Table::envc, "DLC02_40_E_EnvC_632", "DLC02_20_E_EnvC_001", 3062u, 678, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_632", "DLC02_20_E_EnvC_001", 8756u, 682, 4},
+    {Table::envc, "DLC02_40_E_EnvC_633", "DLC02_20_E_EnvC_001", 3063u, 686, 4},
+    {Table::zevent, "DLC02_40_E_EnvC_633", "DLC02_20_E_EnvC_001", 8757u, 690, 4},
 };
 
 constexpr Patch kMxlilyPatches[] = {

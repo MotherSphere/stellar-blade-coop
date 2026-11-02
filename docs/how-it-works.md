@@ -75,7 +75,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](#the-cut-tendril)) |
 | `matrix13/world/travel.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v4, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00` on v4 (`DLC02_10_Camp_01` on older paks), or with 30 to `DLC02_30_Camp_01` on v3 or later; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](#the-cut-matrix-xiii-dungeon-experimental)) |
 | `matrix13/world/rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
-| `matrix13/world/move.lua`, `matrix13/world/boss.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, and the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
+| `matrix13/world/move.lua`, `matrix13/world/boss.lua`, `matrix13/world/fans.lua` | In world 2800: the ladders, ledges and ropes spawned at run time, the fixes on the Lion and Gardener the game spawns from their rows, with `coop mxiii boss` as the key-0 fallback, and the fan rotors held still until their levers read On ([Matrix XIII's world rows](#matrix-xiiis-world-rows)) |
 | `matrix13/quest/on_time.lua`, `matrix13/quest/text.lua`, `matrix13/culture.lua` | Lily's signal: the signal rows asked and read back, the words written, the prologue's acquire, her choice list's swap asked on and off with its two labels, the picks, the talks, the quests' asks and `coop mxiii`'s travel, the M01 fallback, the drive room check, and `coop lily signal\|talk\|hold` ([Lily's signal](#lilys-signal-experimental)); `culture.lua` maps the game's culture to `fr` or `en` for the words and the talks |
 | `matrix13/talks/prologue.lua`, `arrival.lua`, `finale.lua`, `zone1.lua` to `zone4.lua` | The talks' lines, one module per talk and one per zone (1A to 1E, 2A to 2G, 3A to 3K, 4A to 4N), each line its speaker, English and French |
 | `matrix13/quest/zone_talks.lua` | The zone talks in game: a trigger for each of the 36 scenes, the order rules, the fight gate, one file per co-op slot for the played scenes ([Lily's signal](#lilys-signal-experimental)) |
@@ -2577,7 +2577,7 @@ rows`, `mxlily rows`, `mxnames rows`), so a refusal in one never stops another (
   `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 86 new pickups copy
   `DLC02_10_E_ItemS_001` with the item and count of their map marker (`BetaCrystal` x12 where the marker names none).
   The 25 records wait for the records batch.
-- `mxupper` (zones 0 to 2, 164 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 99): the mechanisms, built the
+- `mxupper` (zones 0 to 2, 164 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the
   way Matrix 11 builds its own. A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an
   empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name; its four LevelSequences
   in `/Game/MXIII_Editor/Seq` (ToOpen as the Close state's OutTransit, ToClose as the Open state's, Closed and Opened as
@@ -2611,7 +2611,10 @@ rows`, `mxlily rows`, `mxnames rows`), so a refusal in one never stops another (
   spawn row) shuts the doors, each EventOnDead adds 1 to an `Env_<N>CountProgress` row (an
   EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and the Lion's own deaths open
   theirs. The Lion shuts its fan door and gate D7 on battle (D7 through `DLC02_40_E_EnvC_630` and the
-  `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. The counters, the zone 2 wave triggers, the
+  `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. Its death also enables the fan levers 023 to
+  025 (`DLC02_40_E_EnvC_631` to `633`), which start disabled. `matrix13/world/fans.lua` holds each cooked rotor's
+  RotatingMovementComponent off until that fan's lever reads On, so the fans stand still from arrival without a cook
+  change. Lever 023's On also fires scene 4G. The counters, the zone 2 wave triggers, the
   14 zone 3 and fan room arena doors and every opener a lock disables (D7's) are `ResetZone` (2), as SE_08's counter
   `SE_08_EnvS_090` is: if EVE dies in an arena, the zone reset puts them back, the arena doors to their Open start, the
   other doors keep their saved state, and the next fight locks them again (that a death

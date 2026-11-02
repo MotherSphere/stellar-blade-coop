@@ -318,6 +318,7 @@ function Mxiii.new(o)
         return ok and eve or nil
     end
     local drone=require('matrix13.world.drone').new({log=function(m) log('[MXDRONE] '..m) end,here=here})
+    local fans=require('matrix13.world.fans').new({log=function(m) log('[MXFAN] '..m) end,here=here})
     -- coop mxiii warp [n|name]: the list, or EVE put on that arrival point, under the follow's guards (solo, a co-op
     -- save, no travel under way) and in world 2800 only.
     function self.warp(point)
@@ -347,6 +348,7 @@ function Mxiii.new(o)
         move.tick()
         boss.tick()
         drone.tick()
+        fans.tick()
         return ok,message
     end
     -- coop off ends the waits without their end, so a title batch asked is free to ask again at the next call.
