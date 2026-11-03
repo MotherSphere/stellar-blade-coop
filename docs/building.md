@@ -57,9 +57,10 @@ never touches saves, `StellarCoopSlot.txt` or `mods.txt`, and it reports any `mo
 StellarCoop.
 
 The release zip from `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, a `CHANGELOG.md` and a
-`SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`. `CHANGELOG.md` is generated for the zip
-and never committed. Commit subjects follow Conventional Commits. The changelog lists the `feat` and `fix` subjects
-only, newest first, with their scope; a `!` marks a breaking change.
+`SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`. The zip's `CHANGELOG.md` is generated
+from the commit history when the zip is built; the repository's own `CHANGELOG.md` is the one Release Please writes
+(see [Releases](#releases)). Commit subjects follow Conventional Commits. The zip's changelog lists the `feat` and
+`fix` subjects only, newest first, with their scope; a `!` marks a breaking change.
 
 ## Tests
 
@@ -363,7 +364,9 @@ build/host/pose_codec_test
     names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
     `python3 tools/mxiii_rows.py` and commit the two files it writes;
   - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
-    (see [night-operation.md](night-operation.md#how-the-original-matchmaking-is-blocked)).
+    (see [night-operation.md](night-operation.md#how-the-original-matchmaking-is-blocked));
+  - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
+    `tools/install.py` faked.
 
 ## tools/wine_smoke.py
 
@@ -395,6 +398,77 @@ CMake build writes `dev`.
 The release zip is reproducible too: the same commit gives the same zip, with every entry dated from the commit and in
 sorted order. Anyone with the repository can rebuild a release and compare its `SHA256SUMS.txt` (see
 [INSTALL.md: Check the files](../INSTALL.md#check-the-files)).
+
+## Releases
+
+`.github/workflows/release-please.yml` runs [Release Please](https://github.com/googleapis/release-please) on each
+push to `main`. It keeps a release pull request open that bumps `version.txt` and `.release-please-manifest.json`
+and adds the `feat`, `fix`, `perf` and `revert` commits since the last release to `CHANGELOG.md`. A `feat` commit
+raises the minor version and a `fix` the patch version. On 0.x a `!` raises the minor version too, set by
+`bump-minor-pre-major` in `release-please-config.json`. For 1.0.0, push a commit to `main` whose message ends with
+the footer `Release-As: 1.0.0`.
+
+A release goes through these steps, in order:
+
+1. Merge `dev` into `main` and push `main`. Release Please opens or updates the release pull request.
+2. Read the release pull request. Its body becomes the GitHub release notes, and so the Nexus changelog. Its
+   `CHANGELOG.md` entry only goes into the file in the repository. Each push to `main` rebuilds the pull request and
+   its branch, which drops any edit made to them, so make edits last, right before step 3. Edit the body, keeping the
+   two `---` lines and the `## [<version>]` heading: Release Please reads the notes back from between them at the
+   merge. Then push a commit to the `release-please--branches--main` branch that changes `CHANGELOG.md` the same way.
+3. Merge the release pull request. Release Please tags the merge commit `v<version>` and creates the GitHub release.
+   The workflow turns that release back into a draft at once and names it `Stellar Blade Online <version>`, because
+   its zip does not exist yet: the DLL needs the local clang-cl and xwin toolchain.
+4. On the build machine, fetch the tag (`git fetch --tags`) and run `python3 tools/release.py v0.8.0`. It builds the
+   zip at that tag in a temporary worktree, uploads it to the draft release, checks the uploaded file and publishes
+   the release. `--help` lists the options that run one step alone or reuse a zip, and `--dry-run` prints what each
+   step would do and calls nothing. The script never contacts Nexus Mods. Notes written by hand can also go on the
+   draft at this point, before the script publishes it: `gh release edit v0.8.0 --notes-file notes.md`.
+5. Publishing the release starts `.github/workflows/nexus-upload.yml`. It downloads `StellarCoop-<tag>.zip` from the
+   release and sends it to Nexus Mods as a new version of the mod's main file: the release title becomes the file's
+   name, the notes its changelog and the tag without its `v` the version. The previous version is archived and the
+   mod page takes the new version number. `tools/release.py` publishes with the `gh` login's own token, which is
+   what starts the workflow. A release published with the workflow's `GITHUB_TOKEN` starts no workflow, so Release
+   Please's own release in step 3 sends nothing.
+6. Merge `main` back into `dev`, so `dev` gets the new `version.txt`, `CHANGELOG.md` and manifest and has the tag in
+   its history.
+
+`nexus-upload.yml` reads three repository settings (Settings, Secrets and variables, Actions):
+
+| Setting | Kind | Value |
+|---|---|---|
+| `NEXUSMODS_API_KEY` | secret | an API key from nexusmods.com/settings/api-keys |
+| `NEXUS_MOD_ID` | variable | `33517924781995`, the mod's API ID |
+| `NEXUS_FILE_ID` | variable | `8255901`, the main file's API ID |
+
+The two Nexus IDs are API IDs: neither is the number in the mod page's URL, and the file's `uid` on the page is not
+its API ID either. Both were checked on 2026-11-03 with `GET /v3/mod-files/8255901` and
+`GET /v3/mods/33517924781995/files`.
+
+Release Please opens its pull request with the workflow's `GITHUB_TOKEN`. In Settings, Actions, General, Workflow
+permissions, tick "Allow GitHub Actions to create and approve pull requests". The default permission can stay
+read-only: `release-please.yml` asks for `contents: write` and `pull-requests: write` itself.
+
+To send a release to Nexus again (a key set later, a run that failed before the upload), run "Nexus Mods upload" from
+the Actions tab with the release's tag. Check Nexus first: each run adds a new version of the file and archives the
+previous one. If the version is already there and only the changelog failed, add the changelog by hand instead.
+
+### Commit order
+
+Release Please reads the history of `main` newest first, in commit date order, and stops at the last release commit.
+A commit that is not in that release but has an older commit date is skipped: it reaches neither the changelog nor
+the version bump. Two cases lead there:
+
+- a branch whose commits were made before the last release and merged after it. Rebase it with
+  `git rebase --force-rebase dev` right before merging it, which gives its commits new commit dates even when `dev`
+  has not moved;
+- commits merged into `dev` while a release pull request is open. Merge nothing into `dev` between steps 1 and 3.
+
+A commit already on `dev` cannot be fixed this way. Write its entry by hand in step 2.
+
+The first release after `v0.7.5` has this problem: 43 of the 65 `feat` and `fix` commits in `v0.7.5..dev` have commit
+dates before the `v0.7.5` commit (`bef1a8d`), so its pull request leaves them out. Later `feat` commits still make
+it 0.8.0, but write its notes by hand in step 2.
 
 ## Repository layout
 
@@ -430,11 +504,19 @@ data/
 tools/
   install.py                checks, build, install, uninstall, release zip
   mxiii_rows.py             writes native/src/lion/mxiii_rows.h and matrix13/world/rows.lua from data/mxiii-world.json
+  release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
   wine_smoke.py             loads the DLL under Wine
+.github/workflows/
+  release-please.yml        the release pull request, the tag and the draft release (see Releases)
+  nexus-upload.yml          sends a published release's zip to Nexus Mods
 docs/                       this documentation
 INSTALL.md                  the player install guide (shipped in the release zip)
 LICENSE                     GPL-3.0-or-later (shipped in the release zip)
+release-please-config.json  Release Please's settings
+.release-please-manifest.json
+                            the last released version, read and bumped by Release Please
+version.txt                 the last released version, bumped by Release Please
 ```
 
 ### Native sources
