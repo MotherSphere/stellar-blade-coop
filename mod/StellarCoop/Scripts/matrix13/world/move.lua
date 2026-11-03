@@ -45,7 +45,8 @@ function Move.new(o)
         end
         return assert(c,path..' does not load')
     end
-    -- An object of the ledge's mesh, loaded once.
+    -- An object of the ledge's mesh, loaded once a world: the game unloads it with the map, and a held object read in
+    -- the next Matrix XIII world crashed the game (2026-11-03).
     local meshes={}
     local function mesh_of(path)
         if not meshes[path] then
@@ -158,14 +159,14 @@ function Move.new(o)
             return x and U.map_of(x),x
         end)
         if not ok or not map or map:sub(-#Move.MAP)~=Move.MAP then
-            world,spawned=nil,{}
+            world,spawned,meshes=nil,{},{}
             return
         end
         -- By address: UE4SS hands out a new wrapper on every call, so two wrappers of one world never compare equal.
         local w=U.valid(eve:GetWorld())
         local here=w and U.address(w)
         if here==world and (not spawned[1] or U.valid(spawned[1])) then return end
-        world,spawned=here,{}
+        world,spawned,meshes=here,{},{}
         local made=0
         for _,m in ipairs(list) do
             local fine,a,got,how=pcall(spawn,eve,m)
