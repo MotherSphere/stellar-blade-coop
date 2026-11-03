@@ -836,6 +836,36 @@ loads={}
 send(602,her_parts())
 build()
 assert(spawned[#spawned].parts[2].mesh==meshes[FACE] and table.concat(loads,' ')==FACE,'Another class there')
+-- A new EVE (travel, a load) drops the assets found: one of the old world is never read again, not even by IsValid
+-- (freed memory, or a new object at its address, passes it). A missing DLC stays missing.
+send(610,her_parts({hair=NIER}))
+build()
+meshes[FACE].IsValid=function() error('an asset of the old world was read') end
+mesh(FACE)
+player=eve_of('EVE4')
+ghost.tick()
+clock=clock+2
+loads={}
+ok,message=build()
+assert(ok and spawned[#spawned].parts[2].mesh==meshes[FACE],tostring(message))
+for _,path in ipairs(loads) do assert(path~=NIER,'A missing DLC stays missing') end
+player=eve
+ghost.tick()
+clock=clock+2
+build()
+-- The same with the ghost off: off, travel, a new EVE where the old one stood, on.
+ghost.toggle()
+meshes[FACE].IsValid=function() error('an asset of the old world was read') end
+mesh(FACE)
+player=eve_of('EVE5',nil,eve.GetAddress())
+ghost.toggle()
+ghost.tick()
+clock=clock+2
+loads={}
+ok,message=build()
+assert(ok and spawned[#spawned].parts[2].mesh==meshes[FACE],tostring(message))
+for _,path in ipairs(loads) do assert(path~=NIER,'A missing DLC stays missing after off and on') end
+player=eve
 
 -- A built part whose parent part was left out hangs on part 0, at its socket.
 local charmed=her_parts({blade='/Game/Art/Character/Weapon/Gone/Gone.Gone'}) -- Missing, and no fallback.

@@ -3,8 +3,9 @@
 -- distance, so the list is found again: at once on a new map, then at most every EVERY s, and only while EVE moves at
 -- PACE or slower. A scan asks the engine's class hash for each class's actors (core/unreal.lua's actors_of): FindAllOf,
 -- which walks every object, held the game thread 60 to 79 ms at each scan in game, a freeze every 4 s. Each class is
--- found by its path once a map while it is in memory; one that is not is looked up again RETRY s later (a lookup of a
--- path not in memory costs up to 35 ms). Each scan is timed and a slow one gets its own line, with its route.
+-- found by its path at each scan (instant while it is in memory): a class kept across a reload of the same map is freed,
+-- and IsValid on freed memory is no guard. One not in memory is looked up again RETRY s later (a lookup of a path not in
+-- memory costs up to 35 ms). Each scan is timed and a slow one gets its own line, with its route.
 -- Positions are read during a scan only, and no booth is touched between scans. Nothing in the game is changed: the
 -- only game calls are the class lookups, the actor lists of the two classes, K2_GetActorLocation and the EnvActorName
 -- read.
@@ -23,10 +24,10 @@ function Booth.new(log)
     -- The last scan's booths ({id,class,at}), its map, the next scan's time, and the last line's '<n> on <map>' (or
     -- 'scan failed on <map>: <why>').
     local list,map,due,said={},nil,-math.huge,nil
-    local classes,retry={},{} -- This map's class objects found, and when a class not found is looked up again.
+    local retry={} -- When a class not found on this map is looked up again.
     local route='walk'
     local function scan(now,where)
-        if where~=map then classes,retry={},{} end
+        if where~=map then retry={} end
         list,map,due=({}),where,now+Booth.EVERY
         local t=os.clock()
         -- A scan that raises finds no booth, says why once (until the next change) and is tried again EVERY s later:
@@ -34,10 +35,10 @@ function Booth.new(log)
         local ok,why=pcall(function()
             local ctx=U.controller()
             for _,class in ipairs(Booth.CLASSES) do
-                local cls=U.valid(classes[class])
-                if not cls and now>=(retry[class] or -math.huge) then
+                local cls=nil
+                if now>=(retry[class] or -math.huge) then
                     cls=U.valid(StaticFindObject(Booth.PATHS[class]))
-                    classes[class],retry[class]=cls,now+Booth.RETRY
+                    retry[class]=not cls and now+Booth.RETRY or nil
                 end
                 local found={}
                 if cls then found,route=U.actors_of(cls,class,ctx) end

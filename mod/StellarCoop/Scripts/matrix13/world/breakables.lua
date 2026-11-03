@@ -34,17 +34,16 @@ function Breakables.new(o)
     -- world: the address the list was spawned in (or is being spawned in); todo: the next entry to spawn,
     -- nil when done.
     local world,next_look,todo,proxies,made,hidden=nil,0,nil,nil,0,0
-    -- Once a world: the game unloads them with the map, and a freed class read crashed it (2026-11-03).
-    local classes={}
+    -- Found each time, never held: the game unloads them with the map, and a freed class read crashed it
+    -- (2026-11-03). A class in memory is found at once.
     local function class_of(cls)
         local path=Breakables.ASSETS[cls]..'_C'
-        local c=U.valid(classes[cls]) or U.valid(StaticFindObject(path))
+        local c=U.valid(StaticFindObject(path))
         if not c then
             pcall(LoadAsset,Breakables.ASSETS[cls])
             c=U.valid(StaticFindObject(path))
         end
-        classes[cls]=assert(c,path..' does not load')
-        return c
+        return assert(c,path..' does not load')
     end
     -- One pass over the StaticMeshActors: the tagged ones the list names, by name.
     local function find_proxies()
@@ -83,7 +82,10 @@ function Breakables.new(o)
         local p=nil
         if m.proxy_in_cook~=false then
             p=proxies[m.key]
-            if not p then return false,'not spawned: no proxy '..m.key..' in '..m.level end
+            -- Still the one found by name: a reload at the same world address frees it, and another object can sit
+            -- at its address.
+            local same,is=pcall(function() return U.text(p:GetFName())==m.key end)
+            if not (same and is) then return false,'not spawned: no proxy '..m.key..' in '..m.level end
             local off,why=pcall(show,p,false)
             if not off then
                 pcall(show,p,true)
@@ -112,14 +114,14 @@ function Breakables.new(o)
             return x and U.map_of(x),x
         end)
         if not ok or not map or map:sub(-#Breakables.MAP)~=Breakables.MAP then
-            world,todo,classes=nil,nil,{}
+            world,todo=nil,nil
             return
         end
         -- By address only: a broken box destroys itself, so no spawned actor can say whether this world has them.
         local w=U.valid(eve:GetWorld())
         local here=w and U.address(w)
         if here~=world then
-            world,todo,proxies,made,hidden,classes=here,1,nil,0,0,{}
+            world,todo,proxies,made,hidden=here,1,nil,0,0
         end
         if not todo then return end
         if not proxies then -- Its own tick: the pass walks every object.

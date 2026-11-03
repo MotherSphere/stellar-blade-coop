@@ -497,8 +497,8 @@ function Capture.new(publish,looks,assets,private)
             return
         end
         local at=address(eve)
-        if at~=seen then -- A new EVE: the old addresses mean nothing.
-            seen,since,scan,named,named_at=at,os.clock(),1,{},{}
+        if at~=seen then -- A new EVE: the old addresses mean nothing, and the old world's systems may be freed.
+            seen,since,scan,systems,named,named_at=at,os.clock(),1,{},{},{}
             withdraw()
         end
         if looks.effects and fx==nil then

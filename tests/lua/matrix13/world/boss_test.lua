@@ -104,14 +104,31 @@ here={X=-10200,Y=0,Z=0}
 ok,why=b.command(); assert(ok and spawns[2]=='gardener',tostring(why))
 here={X=0,Y=0,Z=0}
 ok,why=b.command(); assert(ok==false and why=='coop mxiii boss: no Lion or Gardener spawn point within 25 m',why)
--- Leaving Matrix XIII forgets the fixed bodies: a new visit fixes again.
+-- Leaving Matrix XIII forgets the fixed bodies and the boss bar's blocks: a new visit fixes again and looks again.
+local function freed(x) x.IsValid=function() error('read of a freed object') end end
 map='Matrix_XI'
 clock=61; b.tick()
 map='MXIII_P'
 here={X=10000,Y=0,Z=0}
 bodies={l1}
+freed(bar)
+local bar_text='<M_LionC>'
+local bar2=object({GetFName=function() return 'TextBlock_BossName' end,
+    GetFullName=function() return 'TextBlock /Engine/Transient.GameEngine.BossBar.TextBlock_BossName' end,
+    GetText=function() return bar_text end,SetText=function(_,t) bar_text=t.text end})
+blocks={bar2}
 clock=62; b.tick()
 assert(#adopted==2,'Fixed again after a map change')
+assert(bar_text=='Lion' and not lines[#lines]:find('pass failed',1,true),lines[#lines])
+-- World 2800 loaded again with no tick out of it (a death, a save made there): nothing of the freed world is read, and
+-- a new body at a freed body's address is fixed.
+freed(l1); freed(bar2)
+world=object({GetFullName=world.GetFullName})
+local l2=body('CH_M_NA_02_BluePrint_Large_C',{X=10000,Y=0,Z=0})
+l2.GetAddress=l1.GetAddress
+bodies,blocks={l2},{}
+clock=63; b.tick()
+assert(#adopted==3 and adopted[3]==l2 and not lines[#lines]:find('pass failed',1,true),lines[#lines])
 -- A death: a body seen near its point, then not standing with no controller, wherever it went: one line, Boss.dead.
 -- A hit that leaves it standing, or a state with its controller, is no death; nor is a body that disappears.
 Boss.dead={}

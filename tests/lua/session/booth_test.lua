@@ -5,8 +5,9 @@
 -- after 4 s and at once on a new map; a due scan put off while EVE moves faster than 3 m/s, never on a new map; near (2.9 m in, 3 m in, 3.1 m out in 3D, another map, the nearest of two, the
 -- position copied at the scan); a booth whose name read raises and an invalid one skipped; a scan that raises (one
 -- line, nothing near, the next try 4 s later); the count line once per change and the slow-scan line, byte-exact;
--- FindAllOf absent; each class found by its path once a map (again 30 s after it was not in memory); and the only game
--- calls made, all reads: nothing in the game is granted or changed. With no player controller (as here) the class hash
+-- FindAllOf absent; each class found by its path at every scan, never kept across a reload of the same map (one not in
+-- memory looked up again 30 s later, or at once on a new map); and the only game calls made, all reads: nothing in the game is granted or
+-- changed. With no player controller (as here) the class hash
 -- is never tried and each scan walks with FindAllOf (core/unreal.lua's actors_of).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 package.loaded.UEHelpers={GetPlayerController=function() return nil end}
@@ -68,12 +69,18 @@ FindAllOf=function(class)
     if class==CAMP then clock=clock+cost end
     return #list>0 and list or nil
 end
-local loaded -- class -> false while its class object is not in memory
+local loaded,issued -- class -> false while its class object is not in memory; every class object given
+-- A freed class object still passes IsValid (a new object at its address), but any read of it is recorded.
 StaticFindObject=function(path)
     local class=path:match('%.([%w_]+)$')
     record('class '..class)
     if loaded[class]==false then return nil end
-    return {type=function() return 'UClass' end,IsValid=function() return true end}
+    local cls={}
+    local function read() if cls.freed then record('freed class read') end end
+    cls.type=function() read(); return 'UClass' end
+    cls.IsValid=function() read(); return true end
+    issued[#issued+1]=cls
+    return cls
 end
 setmetatable(_G,{__index=function(_,key)
     if key=='FindAllOf' then return nil end
@@ -89,7 +96,7 @@ local function off(dx,dy,dz) return {X=P.X+dx,Y=P.Y+(dy or 0),Z=P.Z+(dz or 0)} e
 local function eve(at,map) return {at=at,map=map or XION} end
 local lines
 local function fresh(camps,phones)
-    world,broken,loaded={[CAMP]=camps or {},[PHONE]=phones or {}},{},{}
+    world,broken,loaded,issued={[CAMP]=camps or {},[PHONE]=phones or {}},{},{},{}
     lines,clock,cost={},0,0.001
     reset()
     return B.new(function(m) lines[#lines+1]=m end)
@@ -129,7 +136,7 @@ reset()
 b.tick(103.999,me)
 assert(scans()==0)
 b.tick(104,me)
-assert(scans()==1 and count('FindAllOf '..PHONE)==1 and #lines==1 and count('class '..CAMP)==0,'Kept on its map')
+assert(scans()==1 and count('FindAllOf '..PHONE)==1 and #lines==1 and count('class '..CAMP)==1,'Found at each scan')
 -- A new map scans at once; the next scan waits 4 s from there.
 world={[CAMP]={booth('WLA_10_EnvS_007',P)},[PHONE]={booth('WLA_10_EnvS_191',off(5000))}}
 reset()
@@ -227,6 +234,24 @@ loaded[PHONE]=nil
 b.tick(132,me)
 assert(count('class '..PHONE)==1 and count('FindAllOf '..PHONE)==1 and lines[2]=='booths: 2 on '..XION..' (1.0 ms)',
     tostring(lines[2]))
+-- A class not in memory on one map is looked up at once on the next.
+b=fresh({booth('A',P)},{booth('B',off(1000))})
+loaded[PHONE]=false
+b.tick(100,me)
+reset()
+b.tick(104.5,eve(P,WASTE))
+assert(count('class '..PHONE)==1,'Looked up at once on a new map')
+
+-- The title, then a save on the same map: the old world's class objects are freed and none is read again; the scan
+-- finds both classes by path.
+b=fresh({booth('Xion_10_EnvS_016',P)})
+b.tick(100,me)
+for _,cls in ipairs(issued) do cls.freed=true end
+b.tick(101,nil)
+reset()
+b.tick(104,me)
+assert(count('freed class read')==0 and count('class '..CAMP)==1 and count('class '..PHONE)==1
+    and b.near(me).id=='Xion_10_EnvS_016',table.concat(calls,','))
 
 -- No FindAllOf in this UE4SS: an empty list, no error.
 b=fresh({booth('A',P)})

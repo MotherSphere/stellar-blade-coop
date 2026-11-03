@@ -179,15 +179,24 @@ function Zones.new(o)
             end
         end
     end
+    -- A held env actor while it still is the one found: after a reload no tick saw, another object can sit at its
+    -- address, and U.valid alone passes it.
+    local function held(env)
+        local ok,a=pcall(function()
+            local a=U.valid(envs[env])
+            return a and U.text(a.EnvActorName)==env and a or nil
+        end)
+        return ok and a or nil
+    end
     local function state_of(env,eve,now)
-        local a=U.valid(envs[env])
+        local a=held(env)
         if not a and now>=find_at then
             find_at=now+Zones.FIND
             for _,x in ipairs((U.actors_of(U.find('/Script/SB.SBZoneEnvActor'),'SBZoneEnvActor',eve))) do
                 local ok,name=pcall(function() return U.text(x.EnvActorName) end)
                 if ok and (name==WATER or name==FAN) then envs[name]=x end
             end
-            a=U.valid(envs[env])
+            a=held(env)
             if not a and not env_said then
                 env_said=true
                 log('STOP: zone talks: no env actor '..env..' in this world yet: looked for again every '..Zones.FIND..' s')

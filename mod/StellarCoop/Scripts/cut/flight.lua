@@ -36,12 +36,13 @@ function Flight.new(o)
     local on,failed,restored=false,nil,false
     -- This flight: dropped (the space bar pressed in it), space (the space bar down at the last tick), since (os.clock
     -- with no key held, nil while one is), said (its line), at (os.clock at its first tick), last (at the last tick),
-    -- v (the eased climb, -1 to 1), speed (the game's MaxFlyingActionSpeed, put back at its end), cmc (EVE's movement
-    -- component).
+    -- v (the eased climb, -1 to 1), speed (the game's MaxFlyingActionSpeed, put back at its end). EVE's movement
+    -- component is read each frame, never kept: a map change frees it (a write there is a native fault).
     local fl=nil
     local probes,probe_was=0,false -- Space presses logged outside a flight (PROBE_MAX at most); the last read.
-    local function speed_back()
-        if fl and fl.speed then pcall(function() fl.cmc.MaxFlyingActionSpeed=fl.speed end) end
+    local function speed_back(eve)
+        local cmc=fl and fl.speed and eve and U.valid(eve.CharacterMovement)
+        if cmc then pcall(function() cmc.MaxFlyingActionSpeed=fl.speed end) end
     end
     local function handler()
         local pc=U.controller()
@@ -98,7 +99,7 @@ function Flight.new(o)
     end
     function self.off()
         if not on then return end
-        speed_back()
+        pcall(function() speed_back(U.valid(U.controller():K2_GetPawn())) end)
         on,fl=false,nil
         local ok,why=pcall(function() return put_back(handler().DefinedFlyActionKeyLists) end)
         log(ok and 'flight keys back: '..why or 'flight keys not put back: '..tostring(why))
@@ -148,7 +149,7 @@ function Flight.new(o)
             end
             probe_was=press
             if not flying then
-                speed_back()
+                speed_back(eve)
                 if fl and fl.since and not fl.dropped and not fl.said then
                     log(string.format('level flight did not hold: the flight ended %.2f s after the keys were let go',
                         os.clock()-fl.since))
@@ -158,15 +159,13 @@ function Flight.new(o)
             end
             local now=os.clock()
             local space=pc:IsInputKeyDown(key(Flight.DROP))==true
-            if not fl then
-                local cmc=U.valid(eve.CharacterMovement)
-                fl={at=now,last=now,v=0,cmc=cmc,speed=cmc and tonumber(cmc.MaxFlyingActionSpeed),space=space}
-            end
+            local cmc=U.valid(eve.CharacterMovement)
+            if not fl then fl={at=now,last=now,v=0,speed=cmc and tonumber(cmc.MaxFlyingActionSpeed),space=space} end
             local dt=math.min(0.1,now-fl.last)
             fl.last=now
-            if fl.speed then -- The start: from START of the speed to all of it, then the game's value again.
+            if fl.speed and cmc then -- The start: from START of the speed to all of it, then the game's value again.
                 local share=math.min(1,Flight.START+(1-Flight.START)*(now-fl.at)/Flight.START_RAMP)
-                fl.cmc.MaxFlyingActionSpeed=fl.speed*share
+                cmc.MaxFlyingActionSpeed=fl.speed*share
                 if share>=1 then fl.speed=nil end
             end
             local up,down=pc:IsInputKeyDown(key(Flight.UP))==true,pc:IsInputKeyDown(key(Flight.DOWN))==true

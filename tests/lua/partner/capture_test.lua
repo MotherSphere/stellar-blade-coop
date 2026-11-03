@@ -347,19 +347,26 @@ assert(step(1)==nil and #published==1 and #looked_up()==0,'Looked up once: no ne
 looks.effects=false
 ok,message=step(1)
 assert(ok and message:find('^Capture 100002: .* ms$') and not published[2]:find('\neffect'),tostring(message))
+systems[E[19]].GetFullName=function() return 'Texture2D /Game/Other.Other' end -- Another object at its address.
+systems[E[5]].IsValid=function() return false end -- Collected between off and on, within one EVE.
+systems[E[5]]=system(E[5])
 looks.effects=true
 local scanned={}
-for _=1,16 do
-    assert(step(0.25)==nil and #published==2,'The old one stays until the scan ends')
+for _=1,20 do
+    ok,message=step(0.25)
     for _,path in ipairs(looked_up()) do scanned[#scanned+1]=path end
+    if message then break end
+    assert(#published==2,'The old one stays until the scan ends')
 end
-ok,message=step(0.25)
 assert(ok and message:find('^Capture 100003: .*; effects: 3 of 19 found$') and #published==3,tostring(message))
-assert(#scanned==16 and published[3]:sub(-#lines)==lines,'Each system found and still itself is not looked up again')
--- A new EVE: a new scan, where a system collected since, or another object at its address, is looked up again.
-systems[E[5]].IsValid=function() return false end
-systems[E[19]].GetFullName=function() return 'Texture2D /Game/Other.Other' end
-systems[E[5]],systems[E[19]]=system(E[5]),nil
+lines=string.format('effects 0x%x 0x5d8\neffect 1 0x%x\neffect 5 0x%x\neffect 19 0x%x\n',niagara.GetAddress(),
+    systems[E[1]].GetAddress(),systems[E[5]].GetAddress(),systems[E[19]].GetAddress())
+assert(#scanned==18 and published[3]:sub(-#lines)==lines,
+    'Each system found and still itself is not looked up again; a collected one is, and its new object published')
+-- A new EVE (travel, a load): a new scan that looks every system up again and never reads one found before, not even
+-- by IsValid (freed with the old world, or another object at its address, passes it).
+for _,k in ipairs({1,5,19}) do systems[E[k]].IsValid=function() error('a system of the old world was read') end end
+systems[E[1]],systems[E[5]],systems[E[19]]=system(E[1]),system(E[5]),nil
 player=eve_of('EVE8',{body,hair})
 scanned={}
 for _=1,20 do
@@ -368,8 +375,9 @@ for _=1,20 do
     if message then break end
 end
 assert(ok and message:find('^Capture 100004: .*; effects: 2 of 19 found$'),tostring(message))
-assert(#scanned==18 and not table.concat(scanned,' '):find(E[1],1,true),'The first, still itself, is kept')
-assert(published[#published]:find('\neffect 5 '..string.format('0x%x',systems[E[5]].GetAddress())..'\n$'),'The new one')
+assert(#scanned==19,'Every system looked up again')
+assert(published[#published]:find(string.format('\neffect 1 0x%x\neffect 5 0x%x\n$',systems[E[1]].GetAddress(),
+    systems[E[5]].GetAddress())),'The new ones')
 -- Systems playing on her leaders that the list lacks: one of the game's FX folders, or a mod's asset both players have
 -- (assets()), gets the next index as an fx line by path, published at the next look; never renumbered, at most 45 for
 -- one EVE. The listed ones, other mods' systems, other folders and stopped ones get none; with mod_names=off, no mod's.
