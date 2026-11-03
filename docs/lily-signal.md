@@ -131,13 +131,14 @@ Nothing of a talk goes into the save.
 ## The zone talks
 
 Inside Matrix XIII, while "On Time" is in progress, 36 short scenes (1A to 4N) play as EVE moves through the zones.
-They show at the bottom of the screen on the mod's own text, not in the game's subtitle box: nothing stops the game, and
-EVE keeps walking and fighting. The game's subtitle options do not apply to them. Each line stays 3 s, or longer when
-it needs the reading time.
+They show in the game's subtitle box, the way the game shows talks on the move: EVE can walk while a scene plays.
+Each line stays for its window of a talk the scene borrows, held longer when it needs the reading time. If the game
+refuses that talk, the lines show at the bottom of the screen on the mod's own text instead, 3 s a line at least.
 
 A scene starts when EVE enters its room, when a boss dies (Gardener, Stalker, Lion), when pipe panels 006 and 007 lower
-the water, or when the first fan starts. No scene starts during a fight, over a game screen or over a cutscene: it
-waits, then plays whole. A fight that starts during a scene hides it, and the next line comes after the fight. Scenes
+the water, or when the first fan starts. No scene starts during a fight or over a game screen, and a scene ready during
+a cutscene waits for its end. A fight that starts during a scene stops it, and the scene plays again from its start
+once things are calm, 30 s later at the earliest. A scene that ends before its last line also plays again. Scenes
 that belong after a fight (2B, 3H, 4K) wait for that fight, or for 25 s in the room when there is none.
 
 3C needs 3B, and 3J needs 3I. After 3K Lily is out of radio range, so a scene of hers that has not played by then never

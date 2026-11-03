@@ -16,7 +16,13 @@
 -- sequence plays (theater or no theater) failed with no kit. The 2026-10-30 log: a Duration 0.035 s over each length
 -- with repeated lengths, every one of the 17 lines once and in order, SB's or our text again not counted. After a map
 -- change: window 1 later than 1 s after the observer rewritten; the guard from window 1's start plus 2 s, with the
--- hook's call count; a slot update after the fallback logged.
+-- hook's call count; a slot update after the fallback logged. A caller's lines (play_lines): the talk with the
+-- fewest windows that holds them, through the theater; cut in its theater (the Stop row) or while it waits, never on
+-- the sequence with no theater; once its Stop row was sent, ending already (true, no second Stop, no done); a refused
+-- Stop leaves it going; after a cut's Stop row the talk kept and a new window blanked until the scene ends, with no
+-- fallback after; after window 1's guard, cut with no kit; an end before the last line failed; a cut during a hold
+-- plays the player before the Stop row; scene.talk raising leads to the fallbacks; its kit lines under the caller's
+-- gate and 3 s at least; 22 lines on the kit.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -467,6 +473,174 @@ do
     L.lines('zone 1A',list,function() return true end,finished)
     assert(done=='none' and logged('STOP: talk zone 1A: the kit is not up'))
     language='fr-FR'
+end
+-- A caller's lines in SB's box (play_lines): the talk with the fewest windows that holds them, through the theater;
+-- cut() ends one in its theater (the Stop row) or waiting for it (no Stop row) as cut, never one on the sequence with
+-- no theater; more lines than 21: the kit.
+assert(S.borrow(1)=='arrival' and S.borrow(9)=='arrival' and S.borrow(10)=='finale' and S.borrow(19)=='finale'
+    and S.borrow(20)=='prologue' and S.borrow(21)=='prologue' and S.borrow(22)==nil,'The fewest windows that hold them')
+do
+    local L=S.new({log=function(m) logs[#logs+1]=m end,scene=scene})
+    L.hud({kit=kit,theme=THEME})
+    kit_up,busy,hook_raise=true,nil,nil
+    talks,done,stops={},nil,0
+    local list={{'Seq_Actor_EVE','One.','Un.'},{'Seq_Actor_Lily','Two.','Deux.'}}
+    at(6000)
+    assert(L.play_lines('zone 1A',list,function() return true end,finished))
+    assert(#talks==1 and talks[1].seq==S.TALKS.arrival.sequence and not talks[1].o.direct,'The arrival\'s, a theater')
+    assert(logged('talk zone 1A: Subtitle_POD_ArriveDED_01, 2 lines in 9 windows, fr'))
+    assert(L.play_lines('zone 1B',list,nil,finished)==false,'One talk at a time')
+    assert(L.cut('a fight') and done=='cut' and stops==1,'Cut in its theater: the Stop row')
+    assert(logged('talk zone 1A: a fight: the Stop row: stop asked'))
+    -- Until the scene ends: kept (nothing starts), a cut again true as it ends already, a window SB opens blanked, no
+    -- second Stop, no second done, no fallback after.
+    done=nil
+    assert(L.playing()=='zone 1A' and L.cut('a fight') and stops==1 and done==nil,'Kept until the scene ends')
+    window(2.59)
+    assert(slot.Message:ToString()=='' and slot.author:ToString()=='' and last()=='blanked 1/9',last())
+    at(6010); L.tick(); assert(stops==1 and done==nil,'No second Stop, no second done')
+    talks[1].o.done(true,'stopped',{seen=false,own=false})
+    assert(L.playing()==nil and done==nil and #talks==1,'Ended: no done again, no sequence with no theater')
+    assert(L.cut('a fight')==false,'No talk: nothing to cut')
+    busy,done,stops='DED_Area01',nil,0
+    at(6100); assert(L.play_lines('zone 1B',list,nil,finished))
+    assert(#talks==1 and L.cut('a fight') and done=='cut' and stops==0,'Cut while it waits: no Stop row')
+    busy,done=nil,nil
+    -- A caller's lines wait a cutscene of the game out with no limit, looked for every AGAIN s, then the theater.
+    busy,talks='DED_Area01',{}
+    local l0=looks
+    at(6150); assert(L.play_lines('zone 1C',list,nil,finished))
+    assert(#talks==0 and looks==l0+1 and last():find('waits for a cutscene of the game to end (DED_Area01), '
+        ..'looked for every 5 s',1,true),last())
+    at(6154.9); L.tick(); assert(looks==l0+1,'Not before AGAIN s')
+    at(6155); L.tick(); assert(looks==l0+2 and #talks==0)
+    at(6210); L.tick(); assert(#talks==0 and L.playing()=='zone 1C' and done==nil,'No limit while it plays')
+    busy=nil
+    at(6215); L.tick(); assert(#talks==0,'One look more once it ended')
+    at(6215.5); L.tick(); assert(#talks==1,'The theater asked once it ended')
+    assert(L.cut('a fight') and done=='cut')
+    talks[1].o.done(true,'stopped',{seen=false,own=false})
+    assert(L.playing()==nil)
+    talks,stops,done={},0,nil
+    local talk=scene.talk
+    scene.talk=function(seq,o)
+        talks[#talks+1]={seq=seq,o=o}
+        if not o.direct then return false,'refused' end
+        return true,'asked'
+    end
+    at(6200); assert(L.play_lines('zone 1C',list,nil,finished))
+    assert(talks[#talks].o.direct and L.cut('a fight')==false and L.playing()=='zone 1C' and stops==0,
+        'On the sequence with no theater: not cut')
+    L.stop('test')
+    scene.talk=talk
+    -- A Stop the scene refuses: not cut, the talk goes on; the next cut asks again.
+    local stop_talk=scene.stop_talk
+    scene.stop_talk=function() stops=stops+1; return false,'refused' end
+    talks,stops,done={},0,nil
+    at(6400); assert(L.play_lines('zone 2A',list,nil,finished))
+    assert(L.cut('a fight')==false and L.playing()=='zone 2A' and stops==1 and done==nil,'Refused: goes on')
+    scene.stop_talk=stop_talk
+    assert(L.cut('a fight') and stops==2 and done=='cut','Asked again')
+    talks[1].o.done(true,'stopped',{seen=true})
+    assert(L.playing()==nil)
+    -- Cut during a reading hold: the paused player played again before the Stop row (a paused theater may not end),
+    -- then a window SB opens before the scene ends blanked, not left with the borrowed sequence's own line.
+    talks,stops,done={},0,nil
+    player.pauses,player.plays,player_seen=0,0,player
+    local long=('x'):rep(90) -- 0.5+90/15=6.5 s against arrival window 1 (2.59 s): a hold of 3.91 s.
+    local plays_at_stop=nil
+    scene.stop_talk=function() plays_at_stop=player.plays; return stop_talk() end
+    at(6450); assert(L.play_lines('zone 2D',{{'Seq_Actor_Lily',long,long},list[2]},nil,finished))
+    talks[1].o.seen()
+    window(2.59)
+    at(6450+2.59-0.15); L.tick(); assert(player.pauses==1,'Held')
+    assert(L.cut('a fight') and done=='cut' and stops==1 and plays_at_stop==1,'Played again before the Stop row')
+    at(6453); window(2.27)
+    assert(slot.Message:ToString()=='' and last()=='blanked 2/9',last())
+    at(6460); L.tick(); assert(player.plays==1 and stops==1,'No second Play, no second Stop')
+    talks[1].o.done(true,'stopped',{seen=true})
+    assert(L.playing()==nil and done=='cut' and #talks==1)
+    scene.stop_talk=stop_talk
+    -- Cut after the hold's Play, its stuck watch armed: the watch never fires during the teardown (no second done).
+    do
+        local dones=0
+        local function counted(how) dones=dones+1; done=how end
+        talks,stops,done={},0,nil
+        player.pauses,player.plays=0,0
+        at(6470); assert(L.play_lines('zone 2E',{{'Seq_Actor_Lily',long,long},list[2]},nil,counted))
+        talks[1].o.seen()
+        window(2.59)
+        at(6470+2.59-0.15); L.tick(); assert(player.pauses==1,'Held')
+        at(6470+2.59-0.15+3.91+0.01); L.tick(); assert(player.plays==1,'Played after its hold: the watch armed')
+        assert(L.cut('a fight') and dones==1 and done=='cut' and stops==1,'Cut after the hold')
+        at(6490); L.tick()
+        assert(dones==1 and L.playing()=='zone 2E' and stops==1,'No stuck watch during the teardown')
+        talks[1].o.done(true,'stopped',{seen=true})
+        assert(L.playing()==nil and dones==1)
+    end
+    -- The last line's window over, the Stop row sent: ending already, so a cut (a drop) is true with no second Stop
+    -- and no done; a window SB opens before the scene ends blanked; it ends as the theater.
+    talks,stops,done={},0,nil
+    at(6500); assert(L.play_lines('zone 2B',{list[1]},nil,finished))
+    talks[1].o.seen()
+    window(2.59)
+    at(6500+2.59+0.01); L.tick()
+    assert(stops==1 and L.cut('a quest step') and L.playing()=='zone 2B' and done==nil,'Its Stop sent: ending')
+    L.tick(); assert(stops==1,'Still one Stop: the cut left it sent')
+    at(6503); window(2.27)
+    assert(slot.Message:ToString()=='' and last()=='blanked 2/9',last())
+    talks[1].o.done(true,'ended',{seen=true})
+    assert(done=='theater' and L.playing()==nil,done)
+    -- The Stop row of window 1's guard sent: a cut ends it as cut, with no second Stop and no kit after.
+    talks,stops,done,shown.talk={},0,nil,nil
+    at(6520); assert(L.play_lines('zone 2F',list,nil,finished))
+    talks[1].o.seen()
+    at(6520+0.68+2.0+0.01); L.tick()
+    assert(stops==1 and last()=='the Stop row, then the kit version: stop asked',last())
+    assert(L.cut('a fight') and done=='cut' and stops==1,'Cut: no second Stop')
+    done=nil
+    assert(L.cut('a fight') and done==nil and stops==1,'Cut again: no second done')
+    talks[1].o.done(true,'stopped',{seen=true})
+    assert(L.playing()==nil and shown.talk==nil and done==nil,'No kit after')
+    -- An end before the last line, theater or sequence: failed, so the caller plays it again (Lily's own talks keep
+    -- theater: the arrival above ended after 7 of 9 lines).
+    talks,stops,done={},0,nil
+    at(6540); assert(L.play_lines('zone 2G',list,nil,finished))
+    talks[1].o.seen()
+    window(2.59)
+    talks[1].o.done(true,"Lily's talk ended after 2 s.",{seen=true})
+    assert(done=='failed' and L.playing()==nil
+        and logged("STOP: talk zone 2G: Lily's talk ended after 2 s.: 1 of 2 lines shown"),last())
+    talks,done={},nil
+    at(6545); assert(L.play_lines('zone 2G',list,nil,finished))
+    talks[1].o.seen()
+    window(2.59)
+    at(6548); window(2.27)
+    talks[1].o.done(true,"Lily's talk ended after 3 s.",{seen=true})
+    assert(done=='theater','Its last line shown: played')
+    -- scene.talk raising: a refusal, the next fallback each time, then the kit with the caller's gate; its lines 3 s
+    -- at least.
+    local talk2=scene.talk
+    scene.talk=function() error('swap: no take') end
+    talks,done={},nil
+    local open=false
+    at(6600); assert(L.play_lines('zone 2C',list,function() return open end,finished))
+    assert(L.playing()=='zone 2C' and shown.talk==true and logged('scene.talk raised (swap: no take)'),'The kit')
+    L.tick()
+    assert(shown.talk==false and view.line.text~='Un.','The caller\'s gate shut: the group hidden, the line held')
+    open=true
+    L.tick()
+    assert(shown.talk==true and view.line.text=='Un.','French: the first line')
+    at(6600+2.6); L.tick(); assert(view.line.text=='Un.','Not after its 2.59 s window: 3 s at least')
+    at(6600+3.01); L.tick(); assert(view.line.text=='Deux.','After 3 s')
+    L.stop('test')
+    scene.talk=talk2
+    local many={}
+    for k=1,22 do many[k]={'','x','x'} end
+    local asked=#talks
+    at(6300); assert(L.play_lines('zone 4N',many,function() return true end,finished))
+    assert(#talks==asked and L.playing()=='zone 4N' and shown.talk==true,'22 lines: the kit')
+    L.stop('test')
 end
 busy='DED_Area01'
 assert(Q.cutscene()=='DED_Area01')

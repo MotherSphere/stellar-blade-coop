@@ -337,6 +337,7 @@ function Lily.new(o)
             if o.paused() then flow.shown,flow.look=true,now+Subtitles.POLL return end -- A screen of her goodbye.
             if now<(flow.look or now) then return end
             flow.look=now+Subtitles.POLL
+            if talks.playing() then return end -- A cut zone talk still ending: its scene first.
             local ran,busy=pcall(talks.cutscene) -- Her goodbye's theater: the talk player waits for its end.
             if not (ran and busy) and not flow.shown and now<flow.at then return end
             local raw='\n'..(status() or '')

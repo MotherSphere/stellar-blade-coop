@@ -390,7 +390,11 @@ assert(#plays==0,'Not while her goodbye shows')
 paused=false
 clock=clock+0.25; ly.tick()
 assert(#plays==0,'Not before 0.5 s after its screen closed')
+talks.now='zone 1A' -- A cut zone talk still ending.
 clock=clock+0.25; ly.tick()
+assert(#plays==0,'Not while a cut zone talk ends')
+talks.now=nil
+clock=clock+0.5; ly.tick()
 assert(#plays==1 and plays[1].name=='prologue' and not plays[1].kit and talks.playing()=='prologue',last())
 local n=#asked
 clock=clock+30; ly.tick(); assert(#asked==n,'Nothing asked during the talk')

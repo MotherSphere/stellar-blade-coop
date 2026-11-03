@@ -3059,13 +3059,16 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    game's save keeps the death and no body is left to read), `GetStateTagname` of env row `DLC02_40_EnvS_001` (the water, which
    pipe panels 006 and 007 set: A plays 4H, B plays 4J) or `DLC02_40_EnvS_023` (On plays 4G), or leaving Z3R28 (3J). A
    trigger latches. A latched scene starts after 3 s with no standing, shown enemy within 50 m in `IsBattle` (read through
-   `GetAllActorsOfClass`, only while a scene waits or plays), no game screen, no talk, no quest step, and no theater of
-   the game (one object walk at the start, then every 5 s while one plays). 2B, 3H and 4K also need a fight seen in their
+   `GetAllActorsOfClass`, only while a scene waits or plays), no game screen, no talk and no quest step; its talk then
+   waits for a theater of the game to end (`subtitles.lua` looks every 5 s, with no limit). 2B, 3H and 4K also need a fight seen in their
    box, or 25 s in it, and let go of the latch when EVE leaves with neither. 3B comes before 3C, 3I before 3J, 4E before 4F
    before 4G, 4K before 4L, 4M before 4N. 4E's lamp counts only once 4D has played, and 4M closes 4K and 4L. Once 3K has
-   played, a scene with a Lily line never plays. The lines go through `story/subtitles.lua`'s `lines()`, on the kit alone,
-   so no theater holds EVE's input; a fight or a screen hides the group within a second, and the line it cut short shows
-   again in full after. A load, a session, a main save, `coop off` or a pick at Lily drop the scene under way, unmarked,
+   played, a scene with a Lily line never plays. The lines go through `story/subtitles.lua`'s `play_lines()`: the talk
+   with the fewest windows that holds them (arrival 9, finale 19, prologue 21) is borrowed and played through a theater
+   that lets EVE walk only, with the sequence alone and then the kit as fallbacks. A fight cuts it (the Stop row) and the
+   scene plays again from its start 30 s later at the earliest; a scene that ends as none, failed (also an end before
+   its last line) or cut is not marked. On the kit, a fight or a screen hides the group within a second, and the line it
+   cut short shows again in full after. A load, a session, a main save, `coop off` or a pick at Lily drop the scene under way, unmarked,
    and all but the pick also take Mila's body away. `oblivion=true` lines need
    `oblivion=1` on the `signalquest=` line, which `quest/own.h` reads from Quest_Sub_030 (ID 69) the way it reads
    Quest_Sub_005. The played scenes go in `coop-mxiii-talks-<co-op slot index>.txt` beside `coop-settings.txt`, cleared

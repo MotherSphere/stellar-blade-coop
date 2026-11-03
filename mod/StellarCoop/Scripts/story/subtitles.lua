@@ -27,15 +27,24 @@
 --   1 s after it), or the hook not registered, the Stop row and the kit version (ui/kit.lua: the
 --   speaker and the line at the bottom of the screen, each for its window or its reading time, whichever is longer;
 --   not SB's widget, so the player's subtitle options do not apply); no kit, no talk. Every talk ends with done(how)
---   (theater, sequence, kit, none or failed), so the quest flow never waits on one.
--- - The wait: a talk (the prologue or the finale after a pick, the arrival, one by hand; not the kit version by hand)
---   starts only once no cutscene of the game plays (her goodbye after a pick), looked for every POLL s up to WAIT s,
---   and POLL s after one it waited for ended; past WAIT s it is asked anyway and the fallbacks follow as above.
+--   (theater, sequence, kit, none, failed or cut), so the quest flow never waits on one.
+-- - The wait: a talk (the prologue or the finale after a pick, the arrival, a zone talk, one by hand; not the kit
+--   version by hand) starts only once no cutscene of the game plays (her goodbye after a pick), looked for every POLL s
+--   up to WAIT s, and POLL s after one it waited for ended; past WAIT s it is asked anyway and the fallbacks follow as
+--   above. A caller's lines (play_lines()) wait the cutscene out with no limit, looked for every AGAIN s.
 -- - Our own sequence: a rewritten window tells scene.lua the talk plays (alive), and a talk refused because a talk's
 --   own sequence still plays gets no fallback (failed): the kit would show its lines under SB's.
--- - The kit-only lines (lines()): the zone talks of matrix13/quest/zone_talks.lua, on the kit with no theater and no
---   sequence, so nothing blocks EVE's input. Each line lasts 3 s or its reading time; a line that ends while the
---   caller's gate is shut hides the kit's group and the next waits for the gate. A speaker that is no StringTable_Seq
+-- - Lines of a caller (play_lines()): the zone talks of matrix13/quest/zone_talks.lua, as a talk with the sequence and
+--   windows of the talk with the fewest windows that holds them all (Subtitles.borrow: arrival 9, finale 19, prologue
+--   21) and the same fallbacks, its kit lines 3 s at least; the Stop row ends the theater after the last line, and a
+--   theater or sequence that ends before it ends as failed, so the caller plays it again. cut() ends one that waits
+--   for its theater or plays through it (the Stop row, done('cut'), then its windows blanked until the scene ends): the
+--   theater lets EVE walk only, so the caller cuts it when a fight starts; one whose Stop row was sent is ending
+--   already and gets no second one. One on the sequence with no theater runs on through a fight: with no Stop row,
+--   ending it would leave SB's own lines of the borrowed sequence on screen. More lines than 21: the kit version.
+-- - The kit-only lines (lines()): on the kit with no theater and no sequence, so nothing blocks EVE's input. Each
+--   line lasts its window or 3 s, or its reading time; a line that ends while the caller's gate is shut hides the kit's
+--   group and the next waits for the gate (the kit version of play_lines() too). A speaker that is no StringTable_Seq
 --   key (Noa, Yohan, Mila) shows as written.
 -- Nothing here reaches the save: the take, the rows and the slot's fields live in memory.
 local U=require('core.unreal')
@@ -52,8 +61,8 @@ local function sequence(n) return DIR..n..'.'..n end
 -- armed.
 Subtitles.READ,Subtitles.SPARE,Subtitles.EARLY,Subtitles.FIRST,Subtitles.STUCK,Subtitles.CAPTURE=15,0.5,0.15,2.0,2,30
 -- s between two looks for a cutscene of the game before a talk (each a walk of every object, 25 to 80 ms); the
--- longest wait for it to end.
-Subtitles.POLL,Subtitles.WAIT=0.5,20
+-- longest wait for it to end; s between two looks for a caller's lines (play_lines()), which wait with no limit.
+Subtitles.POLL,Subtitles.WAIT,Subtitles.AGAIN=0.5,20,5
 -- The talks: the sequence each borrows, its window 1's start in s and its subtitle windows' lengths in s, in order
 -- (read from the cooked sequences: 21, 9 and 19 windows), and its lines (matrix13/talks/<name>.lua).
 Subtitles.TALKS={
@@ -65,6 +74,14 @@ Subtitles.TALKS={
     finale={sequence=sequence('Subtitle_POD_1stMeetAdam_02'),first=0.53,windows={1.58,2.39,3.72,2.82,4.58,2.54,2.94,
         2.47,4.94,3.42,3.29,0.95,2.67,3.29,2.56,2.05,3.23,5.39,1.63},lines=require('matrix13.talks.finale')},
 }
+-- The talk whose sequence carries n lines on the fewest windows (arrival 9, finale 19, prologue 21), or nil past 21.
+function Subtitles.borrow(n)
+    local best=nil
+    for name,t in pairs(Subtitles.TALKS) do
+        if #t.windows>=n and (not best or #t.windows<#Subtitles.TALKS[best].windows) then best=name end
+    end
+    return best
+end
 local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
 -- The window of a talk's call: windows (lengths), w the window shown last ({k=, sb=, ours=, until_at=}; k 0 before
 -- the first), shown the slot's text at the call (nil when unread), now the os.clock. The window shown again when the
@@ -115,9 +132,9 @@ function Subtitles.new(o)
         end
         return c.names[key] or FText('')
     end
-    local function finish(how)
+    local function finish(how,keep) -- keep: cur stays, its windows blanked, until the scene's end (a cut's Stop row).
         local c=cur
-        cur=nil
+        if keep then c.cut=true else cur=nil end
         if c.kit_on and kit then pcall(kit.show,'talk',false) end
         if not c.quiet then log(string.format('talk %s: %s (%d windows rewritten)',c.name,how,c.rewritten)) end
         c.done(how)
@@ -138,6 +155,7 @@ function Subtitles.new(o)
     -- Scene's end of the talk's theater or sequence: done, or the next fallback.
     local function ended(c,ok,message,info)
         if cur~=c or c.step=='kit' then return end
+        if c.cut then cur=nil return end -- Its done('cut') already given.
         if c.failed then return start_kit(os.clock()) end
         if c.step=='theater' and (info.own or not info.seen) then
             log('STOP: talk '..c.name..': '..message..': the sequence with no theater next')
@@ -147,11 +165,18 @@ function Subtitles.new(o)
             log('STOP: talk '..c.name..': '..message..': the kit version next')
             return start_kit(os.clock())
         end
+        if ok and c.t.whole and c.k<#c.lines then -- A caller's lines play whole or are tried again.
+            log(string.format('STOP: talk %s: %s: %d of %d lines shown',c.name,message,c.k,#c.lines))
+            ok=false
+        end
         finish(ok and c.step or 'failed')
     end
-    local function call(c,direct)
-        return scene.talk(c.t.sequence,{direct=direct,seen=function() if cur==c then c.seen_at=os.clock() end end,
+    local function call(c,direct) -- A raise is a refusal: the next fallback, never a talk left with no scene talk.
+        local ran,ok,said,mine=pcall(scene.talk,c.t.sequence,{direct=direct,
+            seen=function() if cur==c then c.seen_at=os.clock() end end,
             alive=function() return cur==c and c.last_at or nil end,done=function(...) ended(c,...) end})
+        if not ran then return false,'scene.talk raised ('..why(ok)..')',false end
+        return ok,said,mine
     end
     -- Refused because a talk's own sequence still plays: no fallback, whose kit would show under SB's lines.
     local function ours(c,what,said)
@@ -170,17 +195,20 @@ function Subtitles.new(o)
         end
     end
     -- Before the theater: while a cutscene of the game plays, looked for every POLL s up to WAIT s; then the theater
-    -- asked, whatever plays (a refusal leads to the fallbacks).
+    -- asked, whatever plays (a refusal leads to the fallbacks). A caller's lines look every AGAIN s with no limit.
     local function wait(c,now)
         if now<c.poll_at then return end
         c.poll_at=now+Subtitles.POLL
         local ran,busy=pcall(scene.busy)
         busy=ran and busy or nil
-        if busy and now<c.wait_until then
+        local whole=c.t.whole -- A caller's lines wait the cutscene out, looked for every AGAIN s.
+        if busy and (whole or now<c.wait_until) then
+            if whole then c.poll_at=now+Subtitles.AGAIN end
             if not c.waited then
                 c.waited=now
-                log(string.format('talk %s: waits up to %d s for a cutscene of the game to end (%s)',c.name,
-                    Subtitles.WAIT,busy))
+                log(whole and string.format('talk %s: waits for a cutscene of the game to end (%s), looked for every '
+                    ..'%d s',c.name,busy,Subtitles.AGAIN) or string.format('talk %s: waits up to %d s for a cutscene '
+                    ..'of the game to end (%s)',c.name,Subtitles.WAIT,busy))
             end
             return
         end
@@ -200,12 +228,13 @@ function Subtitles.new(o)
             start_sequence(c)
         end
     end
-    local function stop_row(c,why_now)
+    local function stop_row(c,why_now) -- The scene's answer, nil when a Stop was already sent.
         if c.stopping then return end
         c.stopping=true
         local ok,said=scene.stop_talk()
         log(why_now..': '..tostring(said))
         if not ok and c.step=='sequence' then finish('failed') end
+        return ok
     end
     local function play_player(c,what)
         local ok,e=pcall(function() local p=assert(scene.player(),'no sequence player') p[what](p) end)
@@ -229,6 +258,7 @@ function Subtitles.new(o)
         end
         c.k=k
         local key,line=Subtitles.entry(c.lines,k,c.culture)
+        if c.cut then line=nil end
         local length=c.t.windows[k]
         slot.author=line and speaker(c,key) or FText('')
         slot.Message=FText(line or '')
@@ -299,14 +329,11 @@ function Subtitles.new(o)
         if not ok then return log('STOP: hook: '..e..' (tried again at the talk)') end
         capture_until=os.clock()+Subtitles.CAPTURE
     end
-    -- name's talk (TALKS); kit: the kit version only. done(how) once it ends, maybe before play returns. Ok, message.
-    function self.play(name,kit_only,done)
-        if cur then return false,'a talk plays ('..cur.name..')' end
-        local t=Subtitles.TALKS[name]
-        local lines=t and t.lines
-        if not t or not lines then return false,'no talk '..tostring(name) end
+    -- A talk of SB's subtitle box: t its borrowed sequence and windows, lines one a window; gate() as lines' for the
+    -- kit version, nil for none. Ok, message.
+    local function begin(name,t,lines,kit_only,done,gate)
         local now=os.clock()
-        cur={name=name,t=t,lines=lines,culture=culture(),k=0,w={k=0},rewritten=0,names={},done=done}
+        cur={name=name,t=t,lines=lines,culture=culture(),k=0,w={k=0},rewritten=0,names={},done=done,gate=gate}
         local c=cur
         local known={}
         for key in pairs(colors) do known[#known+1]=key end
@@ -328,6 +355,46 @@ function Subtitles.new(o)
         wait(c,now)
         return true,'talk '..name..' asked: [LY] lines follow'
     end
+    -- name's talk (TALKS); kit: the kit version only. done(how) once it ends, maybe before play returns. Ok, message.
+    function self.play(name,kit_only,done)
+        if cur then return false,'a talk plays ('..cur.name..')' end
+        local t=Subtitles.TALKS[name]
+        if not t or not t.lines then return false,'no talk '..tostring(name) end
+        return begin(name,t,t.lines,kit_only,done)
+    end
+    -- lines (a list as matrix13/talks/ holds them) as a talk of SB's subtitle box under name, on the sequence and
+    -- windows of the talk Subtitles.borrow gives, with play's fallbacks; gate() as lines' for the kit version; more
+    -- lines than any talk has windows: the kit version. done(how) as play's. Ok, message.
+    function self.play_lines(name,lines,gate,done)
+        if cur then return false,'a talk plays ('..cur.name..')' end
+        local borrowed=Subtitles.borrow(#lines)
+        if not borrowed then return self.lines(name,lines,gate,done) end
+        local t=Subtitles.TALKS[borrowed]
+        return begin(name,{sequence=t.sequence,first=t.first,windows=t.windows,floor=3,whole=true},lines,false,done,
+            gate)
+    end
+    -- A fight while a talk waits for its theater or plays through it (the theater lets EVE walk only): the Stop row
+    -- for a theater, then done('cut'); a talk on the sequence with no theater or on the kit goes on. True when cut or
+    -- ending already: a theater whose Stop row was sent gets no second one (the last line over: no done here, it ends
+    -- as theater; window 1's guard: done('cut'), no kit after). A Stop the scene refuses leaves the talk going, asked
+    -- again at the next cut. A paused hold plays first. After the Stop row the talk is kept (playing()) and every
+    -- window SB opens is blanked until the scene ends, as after the last line.
+    function self.cut(why_now)
+        local c=cur
+        if not c or (c.step~='wait' and c.step~='theater') then return false end
+        if c.stopping then
+            if c.failed and not c.cut then finish('cut',true) end
+            return true
+        end
+        if c.hold and c.hold.paused then pcall(play_player,c,'Play') end -- As stop(): a paused theater may not end.
+        c.hold=nil
+        if c.step=='theater' and not stop_row(c,'talk '..c.name..': '..why_now..': the Stop row') then
+            c.stopping=false
+            return false
+        end
+        finish('cut',c.step=='theater')
+        return true
+    end
     -- lines (a list as matrix13/talks/ holds them) on the kit alone, under name; gate() false hides the kit's group at
     -- once and holds the line it cut short, which shows again in full. done(how) as play's: 'kit', or 'none' when the kit is not up, maybe before this returns.
     -- Ok, message.
@@ -342,7 +409,7 @@ function Subtitles.new(o)
     -- kit's lines.
     function self.tick()
         local c=cur
-        if not c then return end
+        if not c or c.cut then return end
         local now=os.clock()
         if c.step=='kit' then
             if c.gate and not c.gate() then
@@ -360,7 +427,7 @@ function Subtitles.new(o)
             c.view.speaker.color(key=='Seq_Actor_Lily' and theme.teal or key=='Seq_Actor_EVE' and theme.text
                 or theme.grey)
             c.view.line.set(line)
-            local length=c.t.windows[c.line] or 3
+            local length=math.max(c.t.windows[c.line] or 3,c.t.floor or 0)
             c.next_at=now+length+(holds and Subtitles.hold(line,length) or 0)
             return
         end

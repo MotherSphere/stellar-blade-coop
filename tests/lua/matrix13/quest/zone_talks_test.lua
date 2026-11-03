@@ -1,8 +1,12 @@
 -- matrix13/quest/zone_talks.lua over fakes: every scene has one trigger, its box holds its design point, a box, a boss's
--- death, an env state and a way out latch a scene; a fight or a screen delays it and sets the kit's gate shut; 3B before
--- 3C, 3I before 3J, nothing of Lily after 3K; fight scenes wait for a fight or 25 s in the box; oblivion lines only with
--- oblivion=1; once per co-op slot through its file, cleared by restart; one log line a scene; at most one look a second,
--- no object walk; a theater of the game delays a scene; leaving the world drops the one playing.
+-- death, an env state and a way out latch a scene; a fight or a screen delays it and sets the kit's gate shut, and a
+-- fight cuts a scene that waits for its theater or plays through it (not marked, said once, again from its start after
+-- RETRY s, not while its scene still ends); a drop leaves a talk whose Stop row was sent to end, marked at its end but
+-- not on a co-op slot loaded since; the lines asked of the game's subtitle box (play_lines), a theater, sequence or kit
+-- end marked; 3B before 3C, 3I before 3J, nothing of Lily after 3K; fight scenes wait for a fight or 25 s in the box;
+-- oblivion lines only with oblivion=1; once per co-op slot through its file, cleared by restart; one log line a scene;
+-- at most one look a second, no object walk, no theater look (the talk player waits for a theater of the game);
+-- leaving the world drops the one playing.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local function object(t)
     t=t or {}
@@ -77,11 +81,23 @@ end
 
 local function new_world(files,mila)
     local lines,played={},{}
-    local talks={now=nil,cut=nil,walks=0}
+    local talks={now=nil,scene=nil,walks=0}
     function talks.playing() return talks.now end
-    function talks.cutscene() talks.walks=talks.walks+1; return talks.cut end
+    function talks.cutscene() talks.walks=talks.walks+1; return talks.scene end
     function talks.stop(why) talks.dropped=why; talks.now=nil end
-    function talks.lines(name,l,gate,done) talks.now,talks.gate,talks.done,talks.got=name,gate,done,l; return true end
+    function talks.play_lines(name,l,gate,done) talks.now,talks.gate,talks.done,talks.got=name,gate,done,l; return true end
+    -- subtitles' cut(): a talk on its theater (talks.theater) ends as cut, kept (talks.now) until its scene ends
+    -- (talks.ended()); one already stopping (talks.stopping) is ending: true, no done; on the kit it goes on.
+    function talks.cut(why)
+        talks.cut_why=why
+        if talks.stopping then return true end
+        if not talks.theater then return false end
+        local d=talks.done
+        talks.done=nil
+        d('cut')
+        return true
+    end
+    function talks.ended() talks.now=nil end
     function talks.finish(how)
         local d=talks.done
         played[#played+1]=talks.now
@@ -121,7 +137,7 @@ assert(looks==after,'At most one look a second')
 assert(talks.now==nil,'CALM s first')
 -- 1A plays after CALM s of calm, one line, and once.
 calm(z)
-assert(talks.now=='zone 1A' and #lines==1 and lines[1]=='zone talk 1A (R03): 5 of 5 lines, on the kit',lines[1])
+assert(talks.now=='zone 1A' and #lines==1 and lines[1]=='zone talk 1A (R03): 5 of 5 lines, in the game\'s subtitle box',lines[1])
 assert(talks.gate()==true)
 talks.finish()
 assert(files['coop-mxiii-talks-3.txt']=='1A\n',files['coop-mxiii-talks-3.txt'])
@@ -157,16 +173,11 @@ for _=1,5 do tick(z,{quiet=false}) end
 assert(talks.now==nil)
 for _=1,5 do tick(z,{busy=true}) end
 assert(talks.now==nil)
--- A theater of the game: looked for once at the start, then every AGAIN s.
-talks.cut='Subtitle_X'
-local w=talks.walks
+-- A theater of the game: not looked for here (a walk of every object); the talk player waits for its end.
+talks.scene='Subtitle_X'
 for _=1,Z.CALM do tick(z) end
-assert(talks.walks==w+1 and talks.now==nil,'One theater look')
-tick(z)
-assert(talks.walks==w+1,'Not every second')
-talks.cut=nil
-for _=1,Z.AGAIN do tick(z) end
-assert(talks.now=='zone 1D')
+assert(talks.now=='zone 1D' and talks.walks==0,'No theater look of ours')
+talks.scene=nil
 talks.finish()
 
 -- Order: 3C latches in its box but waits for 3B; 3J plays on leaving once 3I played.
@@ -270,7 +281,7 @@ calm(z)
 assert(talks.now=='zone 4A','A dropped scene plays again')
 -- A kit that is not up: not marked, said once, and tried again every RETRY s, not every second.
 talks.finish('none')
-assert(lines[#lines]:find('the kit is not up',1,true))
+assert(lines[#lines]=='STOP: zone talk 4A: none: it plays again from its start in 30 s at the earliest',lines[#lines])
 assert(not files['coop-mxiii-talks-3.txt']:find('4A',1,true))
 local said_lines=#lines
 calm(z)
@@ -283,6 +294,51 @@ for _=1,Z.RETRY+1 do tick(z) end
 assert(talks.now=='zone 4A')
 talks.finish()
 
+-- Through the theater: a fight cuts the scene, not marked, said once; nothing starts while its scene still ends, even
+-- past RETRY s; again from its start once it ended, RETRY s after the cut at the earliest. Its last line shown and its
+-- Stop row sent, a drop leaves it ending and its theater end marks it, but not on a co-op slot loaded since.
+do
+    local f={}
+    local y,t,said=new_world(f)
+    t.theater=true
+    chars[1]=foe
+    foe.InteractionState,foe.Controller=0,object()
+    foe.IsBattle=function() return true end
+    foe.K2_GetActorLocation=function() return {X=Z.NEAR+1,Y=0,Z=0} end -- Far: no fight yet.
+    stand('1A'); calm(y)
+    assert(t.now=='zone 1A' and t.got and #t.got==5,'Asked of the subtitle box')
+    foe.K2_GetActorLocation=function() return {X=100,Y=0,Z=0} end
+    tick(y)
+    assert(t.done==nil and t.cut_why=='a fight' and not (f['coop-mxiii-talks-3.txt'] or ''):find('1A',1,true),'Cut')
+    assert(said[#said]=='STOP: zone talk 1A: cut: it plays again from its start in 30 s at the earliest',said[#said])
+    foe.IsBattle=function() return false end
+    for _=1,Z.RETRY+Z.CALM do tick(y) end
+    assert(t.now=='zone 1A' and t.done==nil,'No start while its scene ends')
+    t.ended()
+    tick(y)
+    assert(t.now=='zone 1A' and t.done,'Again from its start')
+    -- Leaving the world during its theater: cut (the Stop row), not only dropped.
+    tick(y,{there=false})
+    assert(t.cut_why=='out of Matrix XIII' and t.dropped==nil and t.done==nil,'Cut on leaving')
+    t.ended()
+    calm(y)
+    assert(t.now==nil,'No retry before RETRY s')
+    for _=1,Z.RETRY do tick(y) end
+    assert(t.now=='zone 1A')
+    t.stopping=true
+    y.drop('a quest step')
+    assert(t.dropped==nil and t.now=='zone 1A','Left to end')
+    t.finish('theater')
+    assert(f['coop-mxiii-talks-3.txt']:find('^1A\n'),tostring(f['coop-mxiii-talks-3.txt']))
+    stand('1B'); calm(y)
+    assert(t.now=='zone 1B')
+    y.leave('a load')
+    tick(y,{raw='\nslot=coop index=4\n'})
+    t.finish('theater')
+    assert(not f['coop-mxiii-talks-3.txt']:find('1B',1,true) and f['coop-mxiii-talks-4.txt']==nil,'Another slot since')
+    t.stopping=nil
+    chars[1]=nil
+end
 -- On Time not held: nothing starts.
 do
     local f={}
