@@ -211,4 +211,27 @@ do
     assert(r.level=='MXIII_Z1_Life' and r.at[1]==33806.648 and r.at[2]==31317.418 and r.at[3]==-2469.754
         and r.yaw==-95 and r.gates=='DLC02_10_E_ItemS_015','The R23 box')
 end
+-- Matrix XIII, another map, Matrix XIII again in one Lua load: a class the game unloaded in between is never touched
+-- again (reading the freed object of the first world crashed the game on 2026-11-03), it is found anew.
+do
+    local held={}
+    for path,c in pairs(classes) do held[#held+1]=c end
+    actors={proxy('A',true)}
+    fail_key=nil
+    local b3=B.new({log=function() end,list={entry('A','box1')}})
+    new_world()
+    clock=clock+10; b3.tick(); b3.tick()
+    local first=spawned[#spawned].class
+    assert(first,'first world: a box spawned')
+    world_name='World /Game/Art/BG/WorldMap/E05_GreatDesert_P/E05_GreatDesert_P.E05_GreatDesert_P'
+    clock=clock+10; b3.tick()
+    for path,c in pairs(classes) do c.IsValid=function() error('read of a freed object: '..path) end end
+    loaded,classes={},{}
+    world_name='World /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P.MXIII_P'
+    new_world()
+    actors={proxy('A',true)}
+    local before=#spawned
+    clock=clock+10; b3.tick(); b3.tick()
+    assert(#spawned==before+1 and spawned[#spawned].class~=first,'back in Matrix XIII: the class found anew')
+end
 print('matrix13/world/breakables_test: ok')

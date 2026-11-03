@@ -241,4 +241,24 @@ do
     local a=spawned[#spawned]
     assert(a.how=='deferred' and a.finished and a.Meshes[1],'the ledge spawned by the deferred pair, its mesh set')
 end
+-- Matrix XIII, another map, Matrix XIII again in one Lua load: the game unloads the ledge mesh in between, so the mesh
+-- is found again in the new world, never the freed object of the first (that read crashed the game on 2026-11-03).
+do
+    world=new_world()
+    loaded,classes={},{}
+    loaded[M.ASSETS.ledge]=true
+    LoadAsset=function(path) assert(not in_deferred,'LoadAsset inside a deferred spawn: '..path); loaded[path]=true end
+    local mv4=M.new({log=function() end,list={{cls='ledge',key='E8',at={0,0,0},yaw=0,role='test',mesh=MESH}}})
+    clock=clock+10; mv4.tick()
+    local first=spawned[#spawned].Meshes[1]
+    assert(first and first==classes[MESH],'first world: the mesh set')
+    world_name='World /Game/Art/BG/WorldMap/E05_GreatDesert_P/E05_GreatDesert_P.E05_GreatDesert_P'
+    clock=clock+10; mv4.tick()
+    loaded[MESH],classes[MESH]=nil,nil -- Unloaded with the map: the old object is gone.
+    world_name='World /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P.MXIII_P'
+    world=new_world()
+    clock=clock+10; mv4.tick()
+    local again=spawned[#spawned].Meshes[1]
+    assert(again and again~=first and again==classes[MESH] and loaded[MESH],'back in Matrix XIII: the mesh found again')
+end
 print('matrix13/world/move_test: ok')
