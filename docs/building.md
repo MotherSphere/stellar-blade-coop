@@ -396,6 +396,34 @@ The release zip is reproducible too: the same commit gives the same zip, with ev
 sorted order. Anyone with the repository can rebuild a release and compare its `SHA256SUMS.txt` (see
 [INSTALL.md: Check the files](../INSTALL.md#check-the-files)).
 
+## Releases
+
+A release is a tag `v<version>` with the zip of that commit attached. Tag first, since `tools/install.py` names the
+zip after `git describe`:
+
+```bash
+git tag v0.7.6 && git push origin v0.7.6
+python3 tools/install.py --zip
+gh release create v0.7.6 build/StellarCoop-v0.7.6.zip --title "Stellar Blade Online 0.7.6" --notes-file notes.md
+```
+
+Add `--prerelease` for a beta. Publishing the release (a pre-release too, a draft not until it is published) starts
+`.github/workflows/nexus-upload.yml`. It downloads `StellarCoop-<tag>.zip` from the release and sends it to Nexus Mods
+as a new version of the mod's main file: the release title becomes the file's name, the notes its changelog and the tag
+without its `v` the version. The previous version is archived and the mod page takes the new version number.
+
+The workflow reads three repository settings (Settings, Secrets and variables, Actions):
+
+| Setting | Kind | Value |
+|---|---|---|
+| `NEXUSMODS_API_KEY` | secret | an API key from nexusmods.com/settings/api-keys |
+| `NEXUS_MOD_ID` | variable | the mod's ID, from the mod page's Files tab with Advanced ticked (not the number in the page's URL) |
+| `NEXUS_FILE_ID` | variable | the main file's ID, from the same place |
+
+To send a release again (a key set later, a run that failed before the upload), run the workflow from the Actions tab
+with its tag. Check Nexus first: each run adds a new file version and archives the previous one, so if the version is
+already there and only the changelog failed, add the changelog by hand instead.
+
 ## Repository layout
 
 ```
@@ -432,6 +460,8 @@ tools/
   mxiii_rows.py             writes native/src/lion/mxiii_rows.h and matrix13/world/rows.lua from data/mxiii-world.json
   save_guard.py             save backups and the manual co-op slot
   wine_smoke.py             loads the DLL under Wine
+.github/workflows/
+  nexus-upload.yml          sends a published release's zip to Nexus Mods
 docs/                       this documentation
 INSTALL.md                  the player install guide (shipped in the release zip)
 LICENSE                     GPL-3.0-or-later (shipped in the release zip)
