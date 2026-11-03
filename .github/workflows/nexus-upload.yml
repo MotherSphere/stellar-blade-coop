@@ -1,0 +1,60 @@
+# Sends the zip of a published GitHub release to Nexus Mods as a new version of the mod's main file.
+# The zip is built locally (python3 tools/install.py --zip: the native DLL needs the clang-cl and xwin toolchain) and
+# attached to the release as StellarCoop-<tag>.zip; this workflow only uploads it (docs/building.md, Releases).
+# Repository settings: secret NEXUSMODS_API_KEY, variables NEXUS_MOD_ID and NEXUS_FILE_ID (both from the mod page's Files
+# tab with Advanced ticked; the mod ID is not the number in the page's URL).
+name: Nexus Mods upload
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of a published release to send again (for example v0.7.5)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexus-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    if: github.repository == 'MotherSphere/stellar-blade-coop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release zip and notes
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          zip="StellarCoop-${TAG}.zip"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$zip"
+          test -s "$zip"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body > release.json
+          end="NOTES_$(openssl rand -hex 16)"
+          {
+            echo "zip=$zip"
+            echo "version=${TAG#v}"
+            echo "name=$(jq -r '.name // "" | gsub("[\r\n]+"; " ")' release.json)"
+            echo "notes<<$end"
+            jq -r '.body // ""' release.json | tr -d '\r'
+            echo "$end"
+          } >> "$GITHUB_OUTPUT"
+      - name: Upload to Nexus Mods
+        uses: Nexus-Mods/upload-action@98532f7670c27cbecc78fae03fa3e278147827e2 # v1.0.0-beta.11
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          mod_id: ${{ vars.NEXUS_MOD_ID }}
+          file_id: ${{ vars.NEXUS_FILE_ID }}
+          filename: ${{ steps.release.outputs.zip }}
+          version: ${{ steps.release.outputs.version }}
+          display_name: ${{ steps.release.outputs.name }}
+          changelog: ${{ steps.release.outputs.notes }}
+          archive_existing_version: 'true'
+          update_mod_version: 'true'
