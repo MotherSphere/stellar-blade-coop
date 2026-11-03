@@ -33,8 +33,10 @@ local function uobject(full,t)
 end
 local mesh=uobject('SkeletalMeshComponent /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0.Mesh',
     {K2_GetComponentLocation=function() return W.at end})
-local eve=uobject('BP_PC_EVE_C /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0',{Mesh=mesh})
+local eve=uobject('BP_PC_EVE_C /Game/Map.Map:PersistentLevel.BP_PC_EVE_C_0',{Mesh=mesh,
+    GetWorld=function() return W.world end})
 local pc=uobject('SBNetworkPlayerController /Game/Map.Map:PersistentLevel.SBNetworkPlayerController_0',{
+    GetWorld=function() return W.world end,
     ServerRequest_ActorRespawn=function(_,guid,warp)
         W.calls[#W.calls+1]=string.format('respawn %d %s',guid,tostring(warp))
         if W.respawn then W.respawn() end
@@ -91,10 +93,11 @@ local GUEST='fight=on mode=on role=guest pairs=1 claims=0 corrections=0 kills=0 
     ..'spawns=off scale=100/100 sim_us=5/9 threads=1/1/2 bosses=off battle=0 epoch=1/1/0 boss='
 local ENGINE='engine=on reason=pinned build 24463856 remote=3 1 peer'
 local clock=0
+local map=uobject('World /Game/Map.Map',{})
 local function world(change)
     W={life={state=3,hp=0},mate={life=1,hp=900,max_hp=1600},fight=GUEST..'0',engine=ENGINE..' warp=idle me=4242',
         mode='guest',linked=true,at={X=1000,Y=2000,Z=300},ghost={X=1150,Y=2000,Z=300},shown=true,map='/game/e04',
-        her_map='/game/e04',standalone=true,playing=true,vis=4,huds=huds,eve=eve,
+        her_map='/game/e04',standalone=true,playing=true,vis=4,huds=huds,eve=eve,world=map,
         settings={revive=true,cutscene_wait=true},calls={},said={},logs={},sets={},finds={},observers={}}
     if change then change(W) end
     clock=0
@@ -439,9 +442,10 @@ assert(not g.cutscene_playing() and g.photo('0')=='0' and logged('cutscene off')
 W.scene,W.mode=true,'guest'
 run(g,1)
 assert(g.cutscene_playing() and g.photo('0')=='0','A guest sends no cutscene')
+assert(W.finds.SBTheaterLevelSequenceObserver==2,'An ended one is not kept: '..W.finds.SBTheaterLevelSequenceObserver)
 W.linked=false
 run(g,1)
-assert(not g.cutscene_playing() and g.photo('0')=='0' and W.finds.SBTheaterLevelSequenceObserver==1,'Not linked')
+assert(not g.cutscene_playing() and g.photo('0')=='0' and W.finds.SBTheaterLevelSequenceObserver==2,'Not linked')
 -- A looping sequence actor with no theater: one walk for that set of playing actors, logged with its name, not one a
 -- second. The theater starting changes the set: one walk, found. Once it ends, one walk for the set left, then none;
 -- the next theater on the same actor, with an observer of its own, is walked for again.
@@ -480,6 +484,29 @@ W.sequences,W.observers={theater},{observer('Mann_Entrance',scene)}
 run(g,1)
 assert(g.cutscene_playing() and W.finds.SBTheaterLevelSequenceObserver==2,'Same address, another actor: '
     ..W.finds.SBTheaterLevelSequenceObserver)
+-- The observer kept is not read again once its cutscene ended (the collector may free it), nor after a map change (the
+-- map frees it), even when it played at the last read: a read of one freed here errors, which turns the read off.
+local function freed(ob) ob.IsValid=function() error('a freed observer was read',0) end end
+local ended,last_one=observer('Mann_Entrance',scene),observer('Mann_Exit',scene)
+g=world(function(w)
+    w.mode,w.life,w.scene='host',{state=1,hp=1600},true
+    w.observers,w.sequences={ended},sequences()
+end)
+run(g,1)
+W.scene=false
+run(g,1)
+assert(logged('cutscene off') and not g.cutscene_playing())
+freed(ended)
+run(g,2)
+assert(not logged('off for this run'),'Read after its end: '..table.concat(W.logs,'|'))
+W.scene,W.observers=true,{last_one}
+run(g,1)
+assert(g.cutscene_playing() and logged('cutscene on: Mann_Exit'))
+freed(last_one)
+W.world,W.scene,W.observers=uobject('World /Game/MapB.MapB',{}),false,{}
+run(g,2)
+assert(not g.cutscene_playing() and not logged('off for this run'),'Read after a map change: '
+    ..table.concat(W.logs,'|'))
 -- No EVE (the title screen, a load): the class hash takes our SB controller's world (the hash's proof is asked); with
 -- no controller either, no sequence actor is looked up at all (actors_of with no world walks every object).
 local probe=package.loaded['nightop.probe']

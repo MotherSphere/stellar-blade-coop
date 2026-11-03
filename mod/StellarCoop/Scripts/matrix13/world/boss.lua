@@ -56,7 +56,11 @@ function Boss.new(o)
     local self={}
     local next_pass,next_look,blocks=0,0,{}
     local state={} -- By row: fixed (the body's address), waited (os.clock EVE came near), said, fallback (spawned so).
-    local function reset() for _,b in ipairs(Boss.LIST) do state[b.row]={} end end
+    local world=nil -- The address of the world state was read in.
+    local function reset()
+        world,blocks=nil,{}
+        for _,b in ipairs(Boss.LIST) do state[b.row]={} end
+    end
     reset()
     local function in_world()
         local ok,map,eve=pcall(function()
@@ -158,6 +162,11 @@ function Boss.new(o)
         next_pass=now+EVERY
         local eve=in_world()
         if not eve then return reset() end
+        -- By address: a reload of world 2800 that no tick saw out of it frees the bodies and blocks held.
+        local w=U.valid(eve:GetWorld())
+        local here=w and U.address(w)
+        if world and here~=world then reset() end
+        world=here
         local ok,e=pcall(pass,now,eve)
         if not ok then log('pass failed: '..tostring(e)) end
     end

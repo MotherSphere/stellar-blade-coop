@@ -118,6 +118,25 @@ fresh().restore()
 assert(#removed==was_removed+6 and removed[#removed][2]==true and names()=='Gamepad_RightTrigger,Z'
     and lines[#lines]:find('^flight keys an earlier Lua load left, back'),#removed-was_removed)
 settings.ActionMappings=nil
+-- A map change in a flight's first START_RAMP s: the old world's movement component is freed, so nothing is written
+-- into it again; the speed goes on the new EVE's, whether she lands (the first frame) or still flies, and at off.
+local function map_change(speed)
+    local old=eve.CharacterMovement
+    old.MaxFlyingActionSpeed='freed'
+    eve.CharacterMovement=object({MaxFlyingActionSpeed=speed or 1000})
+    return old
+end
+eve.CharacterMovement=object({MaxFlyingActionSpeed=1000})
+local m=fresh(); m.on(); flying=true; clock=70; m.tick()
+local old=map_change(); flying=false; clock=70.1; m.tick()
+assert(old.MaxFlyingActionSpeed=='freed' and eve.CharacterMovement.MaxFlyingActionSpeed==1000,'Landed after a map change')
+flying=true; clock=80; m.tick()
+old=map_change(); clock=80.3; m.tick()
+assert(old.MaxFlyingActionSpeed=='freed' and math.abs(eve.CharacterMovement.MaxFlyingActionSpeed-700)<1e-6,
+    'Still flying after a map change')
+local older=map_change(0); m.off()
+assert(old.MaxFlyingActionSpeed=='freed' and older.MaxFlyingActionSpeed=='freed'
+    and eve.CharacterMovement.MaxFlyingActionSpeed==1000,'Off after a map change')
 -- No player input: the game's keys stay, said.
 have_pc=false
 said=fresh().on()

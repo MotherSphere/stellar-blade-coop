@@ -273,7 +273,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
     local mods_said -- The generation whose parts from mods not shown were said on screen.
-    local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
+    -- Meshes and materials by class and path, for one EVE; false: none this Lua load (a missing DLC stays missing).
+    local cache={}
     local value_names,value_name_count={},0 -- The FNames made for value lines, by name.
     local value_note -- Why a value was ignored, until said (then false): once per Lua load.
     local cns_off -- Why the CNS part is off (a Lua error in it): until coop cns reset or the next Lua load.
@@ -997,6 +998,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         sweep()
         if wanted then
             wanted=false
+            -- tick() stops looking for a new EVE while off: the assets found go too.
+            for k,v in pairs(cache) do if v then cache[k]=nil end end
             return true,clear('coop puppet') or 'Ghost off.'
         end
         wanted,failed,tries=true,nil,0 -- A table whose build failed is tried again.
@@ -1490,6 +1493,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         if at~=her_at then -- A new EVE (travel, a load) or none: the ghost goes, a failed table is tried again.
             her_at,back_since,failed,tries=at,nil,nil,0
             if ghost then clear('level changed') end
+            -- The old world's assets may be freed: never read again, not even by IsValid. Misses stay (a missing DLC).
+            for k,v in pairs(cache) do if v then cache[k]=nil end end
         elseif ghost and not valid(ghost.actor) then
             clear('level changed')
             back_since=nil

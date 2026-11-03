@@ -1,6 +1,6 @@
 -- matrix13/world/drone.lua with fake UE4SS objects: nothing outside world 2800; in it, the hook once, each radius the
 -- blueprint writes scaled once and never compounded on a tick that wrote nothing, the cone set once per light and put
--- back on leaving or stopping; a raise stops it for good.
+-- back on stopping and forgotten, never called, on leaving; a raise stops it for good.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -53,9 +53,11 @@ hooks[1].f(ctx())
 assert(near(light.AttenuationRadius,270),'A faint light keeps its proportion')
 assert(#lines==2,'One hook line and one light line: '..#lines)
 
+-- Leaving: the left world's light is forgotten, never called (the game frees it with the map).
 inside=false
+light.inner,light.outer=0,0
 clock=9; mv.tick()
-assert(light.inner==30 and light.outer==40,'The cone put back on leaving')
+assert(light.inner==0 and light.outer==0,'The light of the left world untouched')
 light.AttenuationRadius=1500
 hooks[1].f(ctx())
 assert(light.AttenuationRadius==1500,'Nothing outside world 2800')
@@ -63,7 +65,7 @@ assert(light.AttenuationRadius==1500,'Nothing outside world 2800')
 inside=true
 clock=10; mv.tick()
 hooks[1].f(ctx())
-assert(near(light.outer,48) and #hooks==1,'Back in the world, no second hook')
+assert(near(light.outer,48) and near(light.AttenuationRadius,1800) and #hooks==1,'Back in the world, no second hook')
 mv.stop()
 assert(light.outer==40,'The cone put back on stop')
 

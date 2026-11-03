@@ -255,9 +255,14 @@ assert(reads>0 and talks.now=='zone 4H',tostring(talks.now))
 talks.finish()
 calm(z)
 assert(talks.now==nil,'4J waits for B')
+-- World 2800 loaded again with no tick out of it: another object at the held water's address is never read, and the
+-- new water is looked for at the next search.
+local stale=reads
+water.EnvActorName='DLC02_40_EnvS_999'
+envs[1]=object({EnvActorName='DLC02_40_EnvS_001',GetStateTagname=function() return state end})
 state='B'
-calm(z); tick(z)
-assert(talks.now=='zone 4J')
+for _=1,Z.FIND+Z.CALM+1 do tick(z) end
+assert(reads==stale and talks.now=='zone 4J',tostring(talks.now))
 talks.finish()
 -- A switch not on: 4G waits; on but 4F not played, it still waits.
 fan.GetStateTagname=function() return 'On' end

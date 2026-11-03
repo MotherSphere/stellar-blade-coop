@@ -234,4 +234,36 @@ do
     clock=clock+10; b3.tick(); b3.tick()
     assert(#spawned==before+1 and spawned[#spawned].class~=first,'back in Matrix XIII: the class found anew')
 end
+-- World 2800 loaded again at the same address within the spawn spread (a death seconds after arriving): the classes
+-- and proxies of the freed world are never touched. The class is found anew; another object at a proxy's address is
+-- no proxy.
+do
+    local many,props={},{}
+    for i=1,B.PER_TICK do
+        many[i]=entry('S'..i,'box1')
+        props[i]=proxy('S'..i,true)
+    end
+    many[#many+1]=entry('S_ALONE','box1',{proxy_in_cook=false})
+    many[#many+1]=entry('S_LAST','box1')
+    local last=proxy('S_LAST',true)
+    props[#props+1]=last
+    actors=props
+    fail_key=nil
+    local got={}
+    local b4=B.new({log=function(m) got[#got+1]=m end,list=many})
+    new_world()
+    clock=clock+10; b4.tick(); b4.tick()
+    local first=spawned[#spawned].class
+    assert(#got==B.PER_TICK and first,'first world: PER_TICK boxes spawned')
+    for path,c in pairs(classes) do c.IsValid=function() error('read of a freed class: '..path) end end
+    loaded,classes={},{}
+    last.GetFName=function() return 'Other' end
+    last.SetActorEnableCollision=function() error('call on a freed proxy') end
+    last.SetActorHiddenInGame=last.SetActorEnableCollision
+    local before=#spawned
+    b4.tick()
+    assert(#spawned==before+1 and spawned[#spawned].key=='S_ALONE' and spawned[#spawned].class~=first,
+        'the class found anew')
+    assert(got[#got-1]=='box1 S_LAST (MXIII_Z1_Life) not spawned: no proxy S_LAST in MXIII_Z1_Life',got[#got-1])
+end
 print('matrix13/world/breakables_test: ok')
