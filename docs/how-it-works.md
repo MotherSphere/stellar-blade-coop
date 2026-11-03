@@ -2330,9 +2330,9 @@ it and every row in its `LinkEnvSpawnList` on, 900 included, as the shipped full
 row `ME_03_EnvS_012`. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
 at the spawn point of that name when EVE enters the zone. The camp keeps
 `ME01_Camp_03`'s picture, and its name until [the camp names](#the-camp-names) replace it. Its Region is `Matrix13`, a name the game makes a bucket for on first sight, so a full
-camp's list shows only the dungeon's full camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11`. The
-teleport screen fills its tabs in bucket order, and a bucket of its own, made after the shipped ones, would put this
-Tetrapod past the game's 7 tabs when 7 others are active, where only [the mod's tabs 8 and 9](#the-teleport-screens-extra-tabs) would show it. No dungeon has a world map in the
+camp's list shows only the dungeon's full camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11` from its
+donor `ME01_Camp_00`. In game (2026-11-03) the region teleport screen still shows it under a tab of its own, "Matrice 13",
+right after "Matrice 11", with Matrix 11's picture; Matrix 11's tab lists only its own six camps. No dungeon has a world map in the
 game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
 
 The third zone's camp gives `coop mxiii 30` a way past the climb from `Zone_DLC02_20` (see below). The travel reads
@@ -2781,7 +2781,7 @@ The rows hold keys of `StringTable_UI`, so the names go in two steps, in this or
 2. `matrix13/world/travel.lua` asks `mxnames` at the title once `gardener=` has an answer and the line reads
    `camptext=ready`. The batch is 11 rows that name themselves as donor: the existing in-place form, with the same
    IDs, applied to rows the `mxiii` batch added. It writes `CampName` (`+0x18`) and `RegionName` (`+0x34`) and no other field, on the Tetrapod row
-   `DLC02_00_Camp_00` too, which keeps Region `Matrix11` for the reason [above](#its-rows-2).
+   `DLC02_00_Camp_00` too, which keeps Region `Matrix11` ([above](#its-rows-2)).
 
 The order is there because of what this build does with a key it cannot find: `FUN_142879140` shows `<key>`. A row names
 a key only after its entry exists, so this path cannot show `<key>`. If the pass faults (`camptext=fault`, with a `camp
