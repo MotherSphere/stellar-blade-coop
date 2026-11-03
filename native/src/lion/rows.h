@@ -42,22 +42,26 @@
 // shock stun (SkillResultTable 100200801). What makes the ammo selectable and the gun fire it is no row: lion/shock.h
 // grows two lists in place once these rows are in. A fifth, Matrix XIII's
 // (kMxiiiRecipe, written by hand below the generated part with its own patches), holds the 8 rows the cut dungeon's
-// first zone lacks for a camp of its own (coop mxiii, cut/mxiii.lua): ZoneCampTable DLC02_10_Camp_01 (280001, a copy of
-// ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in Zone_DLC02_10 whose TargetCamp
-// names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420 to 426): DLC02_10_EnvS_900
-// leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points of those names, in the two
-// zone tables only it writes. Then 2 rows give zone 30 a camp with no kit (coop mxiii 30): ZoneCampTable
-// DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900, DLC02_10_EnvS_900's recipe in
-// Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows in place, the table only it reads,
-// so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A sixth, the Night
-// Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it (nightop/shop.lua asks for it
-// before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011, over Clyde's currency
-// FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and the Shock Bolt
-// (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop (1061) and
+// first zone lacks for a camp of its own (coop mxiii, matrix13/world/travel.lua): ZoneCampTable DLC02_10_Camp_01
+// (280001, a copy of ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in
+// Zone_DLC02_10 whose TargetCamp names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420
+// to 426): DLC02_10_EnvS_900 leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points
+// of those names, in the two zone tables only it writes. Then 2 rows give zone 30 a camp with no kit (coop mxiii 30):
+// ZoneCampTable DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900,
+// DLC02_10_EnvS_900's recipe in Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows in place, the
+// table only it reads, so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A
+// sixth, the Night Operation shop's (kShopRecipe), holds the 6 rows SB's own shop screen needs for it (nightop/shop.lua
+// asks for it before it opens that screen): the Beta Seed's ItemTable row (Money_NightOperation 9011, over Clyde's
+// currency FishingPoint, with the seed's shipped text keys), ShopItemTable rows for the two stimpacks and the Shock
+// Bolt (3571-3573, over the shipped Night Operation rows) and two ShopTable rows, Shop_NightOperation_Coop (1061) and
 // _CoopBolt (1062, the same with the Shock Bolt), over the cut Shop_NightOperation with the Beta Seed as currency and
-// no tag. A Batch names its rows, its patches and the word its status line, log lines and request start
-// with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop": coop-status.txt's shock line is lion/shock.h's); every
-// batch shares the table checks, the block and the rules below, and each keeps its own Builder.
+// no tag. A seventh, Lily's signal (kSignalRecipe, written by hand like Matrix XIII's, matrix13/quest/on_time.lua),
+// holds the mod's own quests, the prologue "A Second Signal" (Quest_Sub_MX13_00, 164) and "On Time" (Quest_Sub_MX13_01,
+// 163): 8 LevelTargetFilter rows, 7 tasks, 7 groups and the two quest rows last of them, and patches Lily's borrowed
+// choice row TS_GoToTest_2 in place, last. A Batch names its rows, its patches and
+// the word its status line, log lines and request start with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop",
+// "signal": coop-status.txt's shock line is lion/shock.h's); every batch shares the table checks, the block and the
+// rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
@@ -108,10 +112,18 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 20 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii, shop) name each with its address. The generated kTables describes them all, the two zone tables camp
-// (ZoneCampTable) and env (ZoneEnvSpawnTable) and the last, trigger (ZoneTriggerTable), too, though only Matrix XIII's
-// hand-written batch writes them.
+// The 37 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords) name those their batch writes, each with its
+// address. kTables describes them all: the generated part's, the two zone tables camp (ZoneCampTable) and env
+// (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which Matrix XIII's batches write, the five only Lily's signal
+// batch writes: quest (QuestTable), group (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and
+// select (TheaterSelectDataTable, whose ID the batch neither writes nor checks: it only patches a shipped row in
+// place), then the seven only Matrix XIII's batches write (lion/mxiii_rows.h): spawn (EventSpawnTable), eitem
+// (EventItemTable), zevent (ZoneEventTable), envc (EventEnvControlTable), transition (WorldTransitionTable), warp
+// (EventZoneWarpTable) and effvol (EffectVolumeTable), then the two only the mxlily batch writes: condition
+// (ConditionTable) and cgroup (ConditionGroupTable), then the three only the mxrecords batch writes: album (AlbumTable),
+// achievement (AchievementTable) and puzzle (PuzzleStringArrayTable). None of the twelve has a Transient field (SDK
+// stellar-sdk-647527f).
 enum class Table : uint8_t {
   character,
   appearance,
@@ -132,9 +144,26 @@ enum class Table : uint8_t {
   env,
   shop,
   shopitem,
-  trigger
+  trigger,
+  quest,
+  group,
+  task,
+  target,
+  select,
+  spawn,
+  eitem,
+  zevent,
+  envc,
+  transition,
+  warp,
+  effvol,
+  condition,
+  cgroup,
+  album,
+  achievement,
+  puzzle
 };
-constexpr size_t kTableCount = 20;
+constexpr size_t kTableCount = 37;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -142,9 +171,10 @@ struct TableInfo {
   uint16_t transient[25]; // The Transient TArrays SB's lazy init fills from the row's JSON strings; 0 ends the list.
 };
 // A patch writes one field of the copy: a float, an int32 or a byte (a bool or an enum's value), both held exactly in f
-// (the generator keeps every int32 under 2^24), an FName, an FString (UTF-16 in the pool), or a TArray of FNames or of
-// FStrings (items joined by '|' in text; empty text: an empty array).
-enum class Kind : uint8_t { f32, i32, u8, name, string, names, strings };
+// (the generator keeps every int32 under 2^24), an FName, an FString (UTF-16 in the pool), a TArray of FNames or of
+// FStrings (items joined by '|' in text; empty text: an empty array), or a TArray of structs that each hold one TArray
+// of FNames at +0 (FSBQuestTaskContainer: containers joined by ';', each one's FNames by '|').
+enum class Kind : uint8_t { f32, i32, u8, name, string, names, strings, containers };
 struct Patch {
   uint16_t at;
   Kind kind;
@@ -294,6 +324,24 @@ constexpr TableInfo kTables[kTableCount] = {
     {"ShopTable", 0xa8, true, {}},                                                       // SBShopTableProperty
     {"ShopItemTable", 0xa0, true, {}},                                                   // SBShopItemTableProperty
     {"ZoneTriggerTable", 0xa8, true, {}},                                                // SBZoneTriggerTableProperty
+    {"QuestTable", 0x188, true, {}},                                                     // SBQuestTableProperty
+    {"QuestTaskGroupTable", 0x118, true, {}},    // SBQuestTaskGroupTableProperty
+    {"QuestTaskTable", 0x128, true, {}},         // SBQuestTaskTableProperty
+    {"LevelTargetFilter", 0x50, true, {}},       // SBLevelTargetFilterTableProperty
+    {"TheaterSelectDataTable", 0xd8, false, {}}, // SBTheaterSelectDataTableProperty
+    // Matrix XIII's world tables (by hand, after the generated ones: the generator knows none of them).
+    {"EventSpawnTable", 0x290, true, {}},      // SBZoneEventSpawnTableProperty
+    {"EventItemTable", 0x80, true, {}},        // SBZoneEventItemTableProperty
+    {"ZoneEventTable", 0x70, true, {}},        // SBZoneEventTableProperty
+    {"EventEnvControlTable", 0x70, true, {}},  // SBEventEnvControlTableProperty
+    {"WorldTransitionTable", 0x88, true, {}},  // SBWorldTransitionTableProperty
+    {"EventZoneWarpTable", 0x70, true, {}},    // SBEventZoneWarpTableProperty
+    {"EffectVolumeTable", 0xc0, true, {}},     // SBEffectVolumeTableProperty
+    {"ConditionTable", 0x78, true, {}},        // SBConditionTableProperty
+    {"ConditionGroupTable", 0x50, true, {}},   // SBConditionGroupTableProperty
+    {"AlbumTable", 0x90, true, {}},            // SBAlbumTableProperty
+    {"AchievementTable", 0xf0, true, {}},      // SBAchievementTableProperty
+    {"PuzzleStringArrayTable", 0x30, true, {}}, // SBPuzzleStringArrayTableProperty
 };
 constexpr Patch kPatches[] = {
     // P_Eve_Sword_Normal_Buff_1 (SkillTable, cut item)
@@ -6313,121 +6361,204 @@ constexpr Row kShopRecipe[] = {
 };
 // ---- End of the generated part ----
 
-// ---- Matrix XIII's batch (coop mxiii), written by hand: the generator holds no zone table ----
-// Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13, whose map no pak ships: the zMXIII_P test pak adds it) has no camp,
-// so SB's camp travel (game/travel.h) cannot reach it. These 8 rows give it one. The camp first. Then DLC02_10_EnvS_900,
-// the camp's first env-spawn row (FUN_141d18100 lists a camp's rows in table order, and AddRow appends), which leads
-// the travel to Zone_DLC02_10 and that zone's world and has no actor. Then the kit, 901 to 906: with EnvBPPath set,
-// FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's env rows are created, as for
-// the shipped supply boxes and DLC02_10_EnvS_441 (the kit rows 420 to 426 have none, so they look for placed actors no
-// pak holds). The zMXIII_P v2 pak has the points; on v1 SB finds none and spawns nothing. Every row names the new camp,
-// so activating, resting, the phone booth and a respawn use DLC02_10_Camp_01, not the kit's placeholder camps
-// (WLB10_Camp_05, SE02_Camp_02). The vending machine comes last: its LinkEnvSpawnList switches the other five kit
-// objects on once a coin activates the camp. It leaves out 900, which has no object (the template links 425 for the
-// camp base actor a full camp places), as Matrix 11's simple vending machine ME_01_EnvS_017 links only its objects.
-// Free names and IDs in the build 24463856 dumps. Struct sizes and offsets from the SDK
-// (stellar-sdk-647527f), which the generated kTables reads too; none of the three structs has a Transient field.
-//
-// Then zone 30's camp, so the upper half of the dungeon is reached without the zone 20 climb, which runs on Matrix 11
-// triggers and sequences the test pak does not stream. Two rows, the least a camp travel takes: FUN_141cdd7b0 reads
-// only the camp's first env-spawn row (its Zone, else ZoneList[0], then that zone's world) and the arrival
-// FUN_141a8afe0 puts EVE at the SBSpawnPoint named after the camp, which only the zMXIII_P v3 pak holds. No kit, so
-// nothing there can be activated or rested at, and no coin. DLC02_30_EnvS_900 repeats DLC02_10_EnvS_900's recipe (no
-// DLC02_30 row is an activation-only one) with ZoneList Zone_DLC02_30 (ZoneTable 2810, world DLCMatrix13).
-//
-// Then 5 shipped ZoneTriggerTable rows, patched in place. The DLC02 data starts the zone 20 waves from gates (when
-// DLC02_20_EnvS_014, 018 and 016 reach their Open tag they run DLC02_20_ZoneE_022 to 025, 026 to 028 and 029 to 032,
-// the ZoneEvent spawns 001 to 004, 006 to 008 and 009 to 012) and the zone 40 chains (spawns 003 to 007 and 013 to
-// 015) from triggers DLC02_40_ZTrigger_001 and 002, which start disabled until the drain devices DLC02_40_EnvS_002 and
-// 003 enable them (DLC02_40_E_ObjectC_001, 002). Those gates and devices are placed props of the cut map, which no pak
-// holds (the devices' interaction graph is a greybox asset that is not in the paks either), so neither fires. The test
-// pak puts every DLC02 trigger on a box, so the waves go on three of them: DLC02_20_ZTrigger_001 at the Area02 entry
-// (shipped with no event), 005 at the entrance of the arena and 006 between its halves (each after the gate event it
-// already runs); 40_001 and 40_002 start enabled. That is the smallest set: one field a row, no new row, and every
-// spawn row and zone event stays SB's own. SaveType stays the shipped one: 001 rearms when the zone resets, 005 and 006
-// fire once a save, the zone 40 pair saves nothing.
+// ---- Matrix XIII's batches (coop mxiii), generated by tools/mxiii_rows.py from data/mxiii-world.json ----
+// Nine batches, each its own ask so a refusal in one never stops another: mxrecords (last), mxiii, mxspawn, mxenv, mxupper, mxmiddle,
+// mxlower, mxlily (Lily's menu in this world: three IsInWorld conditions and three groups of her Tetrapod graph,
+// shipped rows patched in place) and mxnames (the camps' display keys, patched last in place on the mxiii batch's own
+// rows, and only once game/camp_text.h's entries exist). They go in at the title on the co-op save files with the
+// zMXIII_P pak there (matrix13/world/travel.lua), so a co-op save that names one of their rows loads with it. Each row
+// copies a shipped row of its table; a row whose donor is itself is that shipped row patched in place.
+// mxiii: the camps and what they need. Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13) has no camp, so SB's camp
+// travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first env row DLC02_10_EnvS_900 (the
+// camp base; FUN_141cdd7b0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit
+// 901 to 906. With EnvBPPath set, FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's
+// env rows are created; the shipped DLC02 kit rows have none and look for placed actors no pak holds, so every kit row
+// gets one, and its TargetCamp names its own camp instead of the placeholders WLB10_Camp_05 and SE02_Camp_02. A vending
+// machine's LinkEnvSpawnList switches its kit objects on once a coin activates the camp; a full camp's lists its base
+// row too, in the shipped order (not yet run in game). Then zone 30's rest stop DLC02_30_Camp_01 (a simple
+// camp now; the alias stays) with its travel row, zone 40's triggers 001 and 002 (enabled from the start), the other 9
+// camps of the map (Tetrapod, simple and full), their kits (34 shipped rows patched, 14 new), the three new coins, and
+// zone 0's Tetrapod: machine DLC02_00_EnvS_960, Lily DLC02_00_E_CharS_960 and WorldTransitionTable WT_T_MX13.
+// mxspawn: the Naytibas. The killable Stalker MX13_M_Sawshark (CharacterTable 50071, CHAL_UME_M_Sawshark_01 without
+// Passive_Immortal) first, then the 8 M_DummyC rows patched to shipped Naytibas, the zone 4 trio 035, 036 and 042 made
+// ZoneEvent spawns, 25 new enemy rows and the three bosses (Gardener M_Gardener and Lion M_LionC come from the gardener
+// and lion batches, which matrix13/world/travel.lua asks first), the 4 zone events that spawn the Gardener and the
+// trio, and the two trigger rows that run them. SB binds a spawn row to the placed SBSpawnPoint whose name equals the
+// row's SpawnPointName field (FUN_14228ce40); every name here is one the cooked map places.
+// mxenv: loot, kill volumes and the shipped device rows dev already patched: the one-way doors 050, 051 and 037 (an
+// empty arrow at their point, our own sequences moving the cooked leaf), the R29 gate and its card switch listing zone
+// 1 and 2, the 55 m lift waiting at the top with our sequences, the 74 m lift's call switches (the lift controller,
+// disabled until the first ride up as Shift Up wired them), two kill volumes under the lift shafts.
+// mxupper, mxmiddle, mxlower: the mechanisms of zones 0 to 2, of zone 3 and of zone 4, the way Matrix 11 builds its
+// own. A door is an Env_Countdown_Gate row with an empty arrow at its point, closed at the start, whose four
+// LevelSequences (ToOpen, Closed, Opened, ToClose, in /Game/MXIII_Editor/Seq) move the cooked leaf; one opener row per
+// side (ME_Area01_ShotCutDoor) fires the EventEnvControlTable row that opens it, and a one-way door's other side has
+// the _Opposite graph. Gates keep their shipped switch chains with our sequences; lifts are their shipped Env_Lift rows
+// with our sequences and call switches that send the cab to their landing. Arenas lock and unlock through the spawn
+// rows' EventOnBattle, EventFirstTimeOnBattle and EventOnDead: the first fight shuts the doors and disables their
+// openers, each death adds 1 to an Env_<N>CountProgress row whose On state opens them again (SE_08's pattern), and the
+// Lion's own death opens the fan door and D7. The zone 2 wave triggers 601 to 603 also shut the arena gate behind EVE,
+// and trigger 601 of zone 3 shuts the pressure door behind her for good. Zone 4's water device keeps its shipped P1, P2
+// and P3 states with our sequences, driven by its drain and pipe panels, with two toxic effect volumes.
+// Free names and IDs in the build 24463856 dumps; struct sizes and offsets from the SDK (stellar-sdk-647527f).
 static_assert(kTables[kTableCount - 1].name, "the generated kTables describes every table");
 constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
-// The camp is ME01_Camp_03 (a Matrix 11 FullCamp, CampDisplayType WhenActive) with the coin's spawn point of the test
-// pak, DLC02_10_E_ItemS_001 (EventItemTable spawns the coin there). DLC02_10_EnvS_900 is the kit's activation-only row
-// DLC02_10_EnvS_425 (ZoneList Zone_DLC02_10) with its own actor name and the new camp. Each kit row is its kit row
-// (skill machine 420, chair 421, storage 422, turntable 423, phone booth 424, vending machine 426) with its own actor
-// and spawn point names, the blueprint SE02_Camp_02's full camp places, and the new camp. Zone 30's camp is
-// ME03_Camp_03, Area03's FullCamp with no coin (ME03_Camp_01, whose site the v3 pak's arrival point takes, has one).
-constexpr Patch kMxiiiPatches[] = {
-    // DLC02_10_Camp_01 (ZoneCampTable, Matrix XIII)
-    {0x28, Kind::u8, 3, nullptr},                  // CampType
-    {0x60, Kind::name, 0, "DLC02_10_E_ItemS_001"}, // CoinSpawnPointName
-    // DLC02_10_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_900"}, // EnvActorName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_10_EnvS_901 (ZoneEnvSpawnTable, Matrix XIII: skill machine)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_901"}, // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_SkillMachine.Env_Camp_SkillMachine_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_901"}, // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_10_EnvS_902 (ZoneEnvSpawnTable, Matrix XIII: chair)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_902"},                                         // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Chair.Env_Camp_Chair_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_902"},                                         // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                         // TargetCamp
-    // DLC02_10_EnvS_903 (ZoneEnvSpawnTable, Matrix XIII: storage)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_903"},                                             // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Storage.Env_Camp_Storage_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_903"},                                             // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                             // TargetCamp
-    // DLC02_10_EnvS_904 (ZoneEnvSpawnTable, Matrix XIII: turntable)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_904"},                                                 // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Turntable.Env_Camp_Turntable_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_904"},                                                 // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"},                                                 // TargetCamp
-    // DLC02_10_EnvS_905 (ZoneEnvSpawnTable, Matrix XIII: phone booth)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_905"}, // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_905"}, // SpawnPointName
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_10_EnvS_906 (ZoneEnvSpawnTable, Matrix XIII: vending machine, linking the five kit objects, not 900)
-    {0x30, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // EnvActorName
-    {0x38, Kind::string, 0, "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C"}, // EnvBPPath
-    {0x48, Kind::name, 0, "DLC02_10_EnvS_906"},                                                 // SpawnPointName
-    {0x260, Kind::names, 0, "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905"}, // LinkEnvSpawnList
-    {0x270, Kind::name, 0, "DLC02_10_Camp_01"}, // TargetCamp
-    // DLC02_30_Camp_01 (ZoneCampTable, Matrix XIII zone 30)
-    {0x28, Kind::u8, 3, nullptr}, // CampType
-    // DLC02_30_EnvS_900 (ZoneEnvSpawnTable, Matrix XIII zone 30)
-    {0x20, Kind::names, 0, "Zone_DLC02_30"},     // ZoneList
-    {0x30, Kind::name, 0, "DLC02_30_EnvS_900"}, // EnvActorName
-    {0x270, Kind::name, 0, "DLC02_30_Camp_01"}, // TargetCamp
-    // DLC02_20_ZTrigger_001 (ZoneTriggerTable, shipped: wave 1)
-    {0x20, Kind::names, 0,
-     "DLC02_20_ZoneE_022|DLC02_20_ZoneE_023|DLC02_20_ZoneE_024|DLC02_20_ZoneE_025"}, // TouchEvents
-    // DLC02_20_ZTrigger_005 (ZoneTriggerTable, shipped: its gate event, then wave 2)
-    {0x20, Kind::names, 0,
-     "DLC02_20_E_EnvC_030|DLC02_20_ZoneE_026|DLC02_20_ZoneE_027|DLC02_20_ZoneE_028"}, // TouchEvents
-    // DLC02_20_ZTrigger_006 (ZoneTriggerTable, shipped: its gate event, then wave 3)
-    {0x20, Kind::names, 0,
-     "DLC02_20_E_EnvC_031|DLC02_20_ZoneE_029|DLC02_20_ZoneE_030|DLC02_20_ZoneE_031|DLC02_20_ZoneE_032"}, // TouchEvents
-    // DLC02_40_ZTrigger_001 (ZoneTriggerTable, shipped: the chain from spawn 003)
-    {0x1c, Kind::u8, 1, nullptr}, // InitActivate ESBObject_Enable (shipped 2, Disable)
-    // DLC02_40_ZTrigger_002 (ZoneTriggerTable, shipped: the chain from spawn 013)
-    {0x1c, Kind::u8, 1, nullptr}, // InitActivate ESBObject_Enable (shipped 2, Disable)
+#include "lion/mxiii_rows.h"
+
+// ---- Lily's signal batch (matrix13/quest/on_time.lua), written by hand: the generator holds no quest table ----
+// The mod's own quests. The prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164, a Sub quest), which
+// matrix13/quest/on_time.lua acquires through quest/own.h in the Phase 5 window: one group whose one task is the
+// shipped "Talk to Lily" (Quest_Epic_11_M04_T01's counter, its keyed text in every language), tracking Lily at every
+// Tetrapod. Then "On Time" (Quest_Sub_MX13_01, QuestTable 163, a Sub quest), acquired once the prologue's talk is done:
+// six groups of one task each. M01 to M04 enter Zone_DLC02_10 to Zone_DLC02_40, the four zones of the cut Matrix XIII
+// (EnterZone, as Quest_Epic_06_M01_T01 enters Zone_ME_01); M05 is a counter with no marker that
+// matrix13/quest/on_time.lua completes once EVE stands in the zone 4 drive room; M06 is "Talk to Lily" again, tracking
+// her at every Tetrapod, completed after the end talk. Groups run in list order, so M06 starts only once M05 ends. The
+// markers are 8 LevelTargetFilter rows of ours, one per Tetrapod Lily (Eidos 9 has two spawns, only one live at a
+// time), each a copy of the one Quest_Epic_11_M04_T01 tracks with another EventSpawnAlias, all listed in both "Talk to
+// Lily" tasks. New names and IDs only, every one free in the build 24463856 dumps (shipped IDs end at 162, 334, 482): a
+// save that names a quest and loads without these rows drops it (FUN_141c5b4f0 logs "LoadQuest : QuestData Not Found"
+// and returns 0), where a borrowed shipped quest would stay half there. The save keys quests, groups and tasks by
+// alias, so these aliases must never change. Templates: each quest is Quest_Sub_WLB_001 (a shipped Sub with no reward,
+// no event, no fail condition, no next quest), each group Quest_Sub_002_M01 (one container, no event, no warp), each
+// task the shipped task its type comes from (neither has task events). Their FText (titles, descriptions, group lines,
+// the lines of On Time's tasks 1 to 5) is the templates' until matrix13/quest/on_time.lua writes ours in the game's
+// language. Filters first, then tasks, groups and the two quest rows last of them, so a quest exists only once the rows
+// it names are all in. Then Lily's borrowed choice row, TS_GoToTest_2 (TheaterSelectDataTable 86, in the test list
+// TS_GoToTest that no story graph shows), patched in place for the game run: Conditions [Xion_10_Condition_051]
+// (QuestState Quest_Epic_11 M04 in progress: the game shows the row from "Talk to Lily to decide on the next
+// destination" until "Leave for the Nest"), shown or hidden rather than greyed, priority 3 (above her Travel, Repair
+// and End rows: the cancel input picks the last slot, End's), and her goodbye's exec, Success5 (Success runs her bike
+// signal's point of no return on every Lily node). nightop/roxanne.h's lily swap lists it in her choice list;
+// matrix13/quest/on_time.lua writes its label. It comes last, but that only helps with a refusal at its own row step
+// (no template, an FName not made): the 24 quest rows stay in. The table checks (class, AddRow slot, row size) run for
+// every table of the batch before any row, so a TheaterSelectDataTable that fails them stops the whole batch with no
+// row in. Struct sizes and offsets from the SDK (stellar-sdk-647527f); none of the five structs has a Transient field.
+// Both "Talk to Lily" tasks' TrackingTargetFilter: the 8 filters below, one per Tetrapod Lily.
+constexpr const char kLilyFilters[] = "Quest_Sub_MX13_01_LevelTargetFilter_001|Quest_Sub_MX13_01_LevelTargetFilter_002|"
+                                      "Quest_Sub_MX13_01_LevelTargetFilter_003|Quest_Sub_MX13_01_LevelTargetFilter_004|"
+                                      "Quest_Sub_MX13_01_LevelTargetFilter_005|Quest_Sub_MX13_01_LevelTargetFilter_006|"
+                                      "Quest_Sub_MX13_01_LevelTargetFilter_007|Quest_Sub_MX13_01_LevelTargetFilter_008";
+constexpr Patch kSignalPatches[] = {
+    // Quest_Sub_MX13_01_LevelTargetFilter_001 (LevelTargetFilter: Xion, Lily's Phase 5 spawn)
+    {0x14, Kind::u8, 2, nullptr},                 // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "Xion_10_E_CharS_146"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_LevelTargetFilter_002 (LevelTargetFilter: Eidos 7)
+    {0x14, Kind::u8, 2, nullptr},               // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "DED10_E_CharS_173"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_LevelTargetFilter_003 (LevelTargetFilter: Eidos 9, at the Tetrapod)
+    {0x14, Kind::u8, 2, nullptr},               // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "DED40_E_CharS_152"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_LevelTargetFilter_004 (LevelTargetFilter: Eidos 9, near the atelier)
+    {0x14, Kind::u8, 2, nullptr},               // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "DED40_E_CharS_167"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_LevelTargetFilter_005 (LevelTargetFilter: Wasteland)
+    {0x14, Kind::u8, 2, nullptr},                // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "WLA_30_E_CharS_105"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_LevelTargetFilter_006 (LevelTargetFilter: Great Desert)
+    {0x14, Kind::u8, 2, nullptr},                // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "WLB_10_E_CharS_125"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_LevelTargetFilter_007 (LevelTargetFilter: Matrix 11 entrance)
+    {0x14, Kind::u8, 2, nullptr},                // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "WLB_20_E_CharS_073"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_LevelTargetFilter_008 (LevelTargetFilter: Spire 4)
+    {0x14, Kind::u8, 2, nullptr},               // TargetType ESBLevelTarget_Specified
+    {0x18, Kind::name, 0, "SE_01_E_CharS_009"}, // EventSpawnAlias
+    // Quest_Sub_MX13_01_M01_T01 (QuestTaskTable: reach Matrix 13 station, zone 1)
+    {0x30, Kind::u8, 2, nullptr},            // MissionType ESBMission_EnterZone
+    {0x40, Kind::names, 0, "Zone_DLC02_10"}, // TargetFilter
+    // Quest_Sub_MX13_01_M02_T01 (QuestTaskTable: zone 2)
+    {0x30, Kind::u8, 2, nullptr},            // MissionType ESBMission_EnterZone
+    {0x40, Kind::names, 0, "Zone_DLC02_20"}, // TargetFilter
+    // Quest_Sub_MX13_01_M03_T01 (QuestTaskTable: zone 3)
+    {0x30, Kind::u8, 2, nullptr},            // MissionType ESBMission_EnterZone
+    {0x40, Kind::names, 0, "Zone_DLC02_30"}, // TargetFilter
+    // Quest_Sub_MX13_01_M04_T01 (QuestTaskTable: zone 4)
+    {0x30, Kind::u8, 2, nullptr},            // MissionType ESBMission_EnterZone
+    {0x40, Kind::names, 0, "Zone_DLC02_40"}, // TargetFilter
+    // Quest_Sub_MX13_01_M05_T01 (QuestTaskTable: the drive room, no marker)
+    {0x30, Kind::u8, 12, nullptr}, // MissionType ESBMission_Counter
+    {0x50, Kind::names, 0, ""},    // TrackingTargetFilter
+    // Quest_Sub_MX13_01_M06_T01 (QuestTaskTable: tell Lily)
+    {0x30, Kind::u8, 12, nullptr},        // MissionType ESBMission_Counter
+    {0x50, Kind::names, 0, kLilyFilters}, // TrackingTargetFilter
+    // Quest_Sub_MX13_00_M01_T01 (QuestTaskTable: the prologue: talk to Lily)
+    {0x30, Kind::u8, 12, nullptr},        // MissionType ESBMission_Counter
+    {0x50, Kind::names, 0, kLilyFilters}, // TrackingTargetFilter
+    // Quest_Sub_MX13_01_M01 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_01_M01_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_01_M02 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_01_M02_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_01_M03 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_01_M03_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_01_M04 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_01_M04_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_01_M05 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_01_M05_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_01_M06 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_01_M06_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_00_M01 (QuestTaskGroupTable)
+    {0x30, Kind::containers, 0, "Quest_Sub_MX13_00_M01_T01"}, // TaskContainerArray
+    {0xa9, Kind::u8, 0, nullptr},                             // WarpType None
+    // Quest_Sub_MX13_01 (QuestTable, "On Time")
+    {0x14, Kind::u8, 1, nullptr},  // QuestType ESBQuest_Sub
+    {0x18, Kind::name, 0, "None"}, // NextQuest
+    {0x80, Kind::name, 0, "None"}, // reward
+    {0x108, Kind::names, 0,
+     "Quest_Sub_MX13_01_M01|Quest_Sub_MX13_01_M02|Quest_Sub_MX13_01_M03|"
+     "Quest_Sub_MX13_01_M04|Quest_Sub_MX13_01_M05|Quest_Sub_MX13_01_M06"}, // TaskGroupAlias
+    // Quest_Sub_MX13_00 (QuestTable, the prologue, "A Second Signal")
+    {0x14, Kind::u8, 1, nullptr},                     // QuestType ESBQuest_Sub
+    {0x18, Kind::name, 0, "None"},                    // NextQuest
+    {0x80, Kind::name, 0, "None"},                    // reward
+    {0x108, Kind::names, 0, "Quest_Sub_MX13_00_M01"}, // TaskGroupAlias
+    // TS_GoToTest_2 (TheaterSelectDataTable, shipped: Lily's borrowed choice)
+    {0x20, Kind::names, 0, "Xion_10_Condition_051"}, // Conditions (shipped none)
+    {0x58, Kind::u8, 1, nullptr},                    // TextVisibleType IsVisibility (shipped 2, IsEnable)
+    {0x78, Kind::name, 0, "None"},                   // NextTaskTagName
+    {0x80, Kind::i32, 3, nullptr},                   // SelectDataPriority (shipped 0)
+    {0x84, Kind::name, 0, "Success5"},               // InteractionGraphExec (shipped Success2)
 };
-constexpr Row kMxiiiRecipe[] = {
-    {Table::camp, "DLC02_10_Camp_01", "ME01_Camp_03", 280001, 0, 2},
-    {Table::env, "DLC02_10_EnvS_900", "DLC02_10_EnvS_425", 2800032900u, 2, 2},
-    {Table::env, "DLC02_10_EnvS_901", "DLC02_10_EnvS_420", 2800032901u, 4, 4},
-    {Table::env, "DLC02_10_EnvS_902", "DLC02_10_EnvS_421", 2800032902u, 8, 4},
-    {Table::env, "DLC02_10_EnvS_903", "DLC02_10_EnvS_422", 2800032903u, 12, 4},
-    {Table::env, "DLC02_10_EnvS_904", "DLC02_10_EnvS_423", 2800032904u, 16, 4},
-    {Table::env, "DLC02_10_EnvS_905", "DLC02_10_EnvS_424", 2800032905u, 20, 4},
-    {Table::env, "DLC02_10_EnvS_906", "DLC02_10_EnvS_426", 2800032906u, 24, 5},
-    {Table::camp, "DLC02_30_Camp_01", "ME03_Camp_03", 281001, 29, 1},
-    {Table::env, "DLC02_30_EnvS_900", "DLC02_10_EnvS_425", 2810032900u, 30, 3},
-    {Table::trigger, "DLC02_20_ZTrigger_001", "DLC02_20_ZTrigger_001", 280501001, 33, 1},
-    {Table::trigger, "DLC02_20_ZTrigger_005", "DLC02_20_ZTrigger_005", 280501005, 34, 1},
-    {Table::trigger, "DLC02_20_ZTrigger_006", "DLC02_20_ZTrigger_006", 280501006, 35, 1},
-    {Table::trigger, "DLC02_40_ZTrigger_001", "DLC02_40_ZTrigger_001", 281501001, 36, 1},
-    {Table::trigger, "DLC02_40_ZTrigger_002", "DLC02_40_ZTrigger_002", 281501002, 37, 1},
+constexpr Row kSignalRecipe[] = {
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_001", "Quest_Epic_11_LevelTargetFilter__04_002", 280004001, 0,
+     2},
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_002", "Quest_Epic_11_LevelTargetFilter__04_002", 280004002, 2,
+     2},
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_003", "Quest_Epic_11_LevelTargetFilter__04_002", 280004003, 4,
+     2},
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_004", "Quest_Epic_11_LevelTargetFilter__04_002", 280004004, 6,
+     2},
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_005", "Quest_Epic_11_LevelTargetFilter__04_002", 280004005, 8,
+     2},
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_006", "Quest_Epic_11_LevelTargetFilter__04_002", 280004006, 10,
+     2},
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_007", "Quest_Epic_11_LevelTargetFilter__04_002", 280004007, 12,
+     2},
+    {Table::target, "Quest_Sub_MX13_01_LevelTargetFilter_008", "Quest_Epic_11_LevelTargetFilter__04_002", 280004008, 14,
+     2},
+    {Table::task, "Quest_Sub_MX13_01_M01_T01", "Quest_Epic_06_M01_T01", 483, 16, 2},
+    {Table::task, "Quest_Sub_MX13_01_M02_T01", "Quest_Epic_06_M01_T01", 484, 18, 2},
+    {Table::task, "Quest_Sub_MX13_01_M03_T01", "Quest_Epic_06_M01_T01", 485, 20, 2},
+    {Table::task, "Quest_Sub_MX13_01_M04_T01", "Quest_Epic_06_M01_T01", 486, 22, 2},
+    {Table::task, "Quest_Sub_MX13_01_M05_T01", "Quest_Epic_11_M04_T01", 487, 24, 2},
+    {Table::task, "Quest_Sub_MX13_01_M06_T01", "Quest_Epic_11_M04_T01", 488, 26, 2},
+    {Table::task, "Quest_Sub_MX13_00_M01_T01", "Quest_Epic_11_M04_T01", 489, 28, 2},
+    {Table::group, "Quest_Sub_MX13_01_M01", "Quest_Sub_002_M01", 335, 30, 2},
+    {Table::group, "Quest_Sub_MX13_01_M02", "Quest_Sub_002_M01", 336, 32, 2},
+    {Table::group, "Quest_Sub_MX13_01_M03", "Quest_Sub_002_M01", 337, 34, 2},
+    {Table::group, "Quest_Sub_MX13_01_M04", "Quest_Sub_002_M01", 338, 36, 2},
+    {Table::group, "Quest_Sub_MX13_01_M05", "Quest_Sub_002_M01", 339, 38, 2},
+    {Table::group, "Quest_Sub_MX13_01_M06", "Quest_Sub_002_M01", 340, 40, 2},
+    {Table::group, "Quest_Sub_MX13_00_M01", "Quest_Sub_002_M01", 341, 42, 2},
+    {Table::quest, "Quest_Sub_MX13_01", "Quest_Sub_WLB_001", 163, 44, 4},
+    {Table::quest, "Quest_Sub_MX13_00", "Quest_Sub_WLB_001", 164, 48, 4},
+    {Table::select, "TS_GoToTest_2", "TS_GoToTest_2", 0, 52, 5},
 };
 
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
@@ -6435,7 +6566,16 @@ constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe
 constexpr size_t kTendrilRows = sizeof kTendrilRecipe / sizeof kTendrilRecipe[0];
 constexpr size_t kBoltRows = sizeof kBoltRecipe / sizeof kBoltRecipe[0];
 constexpr size_t kMxiiiRows = sizeof kMxiiiRecipe / sizeof kMxiiiRecipe[0];
+constexpr size_t kMxspawnRows = sizeof kMxspawnRecipe / sizeof kMxspawnRecipe[0];
+constexpr size_t kMxenvRows = sizeof kMxenvRecipe / sizeof kMxenvRecipe[0];
+constexpr size_t kMxupperRows = sizeof kMxupperRecipe / sizeof kMxupperRecipe[0];
+constexpr size_t kMxmiddleRows = sizeof kMxmiddleRecipe / sizeof kMxmiddleRecipe[0];
+constexpr size_t kMxlowerRows = sizeof kMxlowerRecipe / sizeof kMxlowerRecipe[0];
+constexpr size_t kMxnamesRows = sizeof kMxnamesRecipe / sizeof kMxnamesRecipe[0];
+constexpr size_t kMxlilyRows = sizeof kMxlilyRecipe / sizeof kMxlilyRecipe[0];
+constexpr size_t kMxrecordsRows = sizeof kMxrecordsRecipe / sizeof kMxrecordsRecipe[0];
 constexpr size_t kShopRows = sizeof kShopRecipe / sizeof kShopRecipe[0];
+constexpr size_t kSignalRows = sizeof kSignalRecipe / sizeof kSignalRecipe[0];
 // A batch: its rows, the patches their first and count index (the generated kPatches unless said) and its word, which
 // starts its status line, its log lines and Lua's request for it (link/protocol.h's kRowWords).
 struct Batch {
@@ -6446,7 +6586,16 @@ struct Batch {
 };
 constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRecipe, kGardenerRows},
     kTendril{"tendril", kTendrilRecipe, kTendrilRows}, kBolt{"bolt", kBoltRecipe, kBoltRows},
-    kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches}, kShop{"shop", kShopRecipe, kShopRows};
+    kMxiii{"mxiii", kMxiiiRecipe, kMxiiiRows, kMxiiiPatches}, kShop{"shop", kShopRecipe, kShopRows},
+    kSignal{"signal", kSignalRecipe, kSignalRows, kSignalPatches},
+    kMxspawn{"mxspawn", kMxspawnRecipe, kMxspawnRows, kMxspawnPatches},
+    kMxenv{"mxenv", kMxenvRecipe, kMxenvRows, kMxenvPatches},
+    kMxupper{"mxupper", kMxupperRecipe, kMxupperRows, kMxupperPatches},
+    kMxmiddle{"mxmiddle", kMxmiddleRecipe, kMxmiddleRows, kMxmiddlePatches},
+    kMxlower{"mxlower", kMxlowerRecipe, kMxlowerRows, kMxlowerPatches},
+    kMxnames{"mxnames", kMxnamesRecipe, kMxnamesRows, kMxnamesPatches},
+    kMxlily{"mxlily", kMxlilyRecipe, kMxlilyRows, kMxlilyPatches},
+    kMxrecords{"mxrecords", kMxrecordsRecipe, kMxrecordsRows, kMxrecordsPatches};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -6490,7 +6639,9 @@ struct Answer {
   uint32_t detail = 0; // size: the size read (24 bits); net: the net mode read.
 };
 static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256 && kMxiiiRows < 256 &&
-                  kShopRows < 256,
+                  kShopRows < 256 && kSignalRows < 256 && kMxspawnRows < 256 && kMxenvRows < 256 &&
+                  kMxupperRows < 256 && kMxmiddleRows < 256 && kMxlowerRows < 256 && kMxnamesRows < 256 &&
+                  kMxlilyRows < 256 && kMxrecordsRows < 256,
               "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
@@ -6526,9 +6677,9 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
-  // One run over the batch (see the top of this file). tables: the 20 tables' addresses as Lua found them, in Table's
-  // order; block: kBlock bytes of the glue's, 16-aligned; base: SB's image base. Runs every row not added yet and
-  // stops at the first refusal.
+  // One run over the batch (see the top of this file). tables: the 37 tables' addresses as Lua found them, in Table's
+  // order (0 for a table the batch never writes, which is never read); block: kBlock bytes of the glue's, 16-aligned;
+  // base: SB's image base. Runs every row not added yet and stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {
     Answer a;
     a.state = State::refused;
@@ -6680,6 +6831,37 @@ public: // For the test's pool and FName cases, which the recipe's own data neve
       return Why::none;
     }
     uint8_t header[16];
+    if (p.kind == Kind::containers) {
+      // Each container a TArray of FNames, its header in the pool, written there as a names patch of its own.
+      int32_t n = *p.text != 0;
+      for (const char *c = p.text; *c; ++c)
+        n += *c == ';';
+      const uint64_t items = n ? take(pool, end, 16 * size_t(n)) : 0;
+      if (n && !items)
+        return Why::pool;
+      const char *at = p.text;
+      for (int32_t k = 0; k < n; ++k) {
+        const char *semi = std::strchr(at, ';');
+        const size_t len = semi ? size_t(semi - at) : std::strlen(at);
+        char names[512];
+        if (len >= sizeof names)
+          return Why::pool;
+        std::memcpy(names, at, len);
+        names[len] = 0;
+        if (const Why why = patch(g, items + 16 * uint64_t(k), Patch{0, Kind::names, 0, names}, pool, end);
+            why != Why::none)
+          return why;
+        at = semi ? semi + 1 : at + len;
+      }
+      std::memset(header, 0, sizeof header);
+      if (n) {
+        std::memcpy(header, &items, 8);
+        std::memcpy(header + 8, &n, 4);
+        std::memcpy(header + 12, &n, 4);
+      }
+      g.write(row + p.at, header, 16);
+      return Why::none;
+    }
     if (p.kind == Kind::string) {
       if (!string(g, p.text, std::strlen(p.text), pool, end, header))
         return Why::pool;
@@ -6733,8 +6915,9 @@ private:
 };
 
 // coop-status.txt's line for a batch (cut/lion.lua reads lion=, bolt= and shop=, cut/gardener.lua gardener=,
-// cut/tendril.lua tendril=, cut/mxiii.lua mxiii=), from its answer word, its read-back, the frames its ask waited, the
-// spawn manager's counter and, after the latch, where the fault was:
+// cut/tendril.lua tendril=, matrix13/world/travel.lua mxiii=, mxspawn=, mxenv=, mxupper=, mxmiddle= and mxlower=,
+// matrix13/quest/on_time.lua signal=), from its answer word, its read-back, the frames its ask waited, the spawn
+// manager's counter and, after the latch, where the fault was:
 //   <word>=off
 //   <word>=waiting added=<n>/<N> asks=<a> spawns=<s> why=<busy|net|unread> ticks=<t>
 //   <word>=rows added=<N>/<N> asks=<a> spawns=<s> char=<k>/<n> skills=<k>/<n> stance=<k>/<n>

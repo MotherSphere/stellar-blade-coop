@@ -10,6 +10,7 @@ void block() {
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   filter_undo("coop off");
   hold_undo("coop off");
+  region_tabs_undo("coop off");
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
 }
@@ -71,9 +72,23 @@ std::string camps_status() {
   return camps_text;
 }
 
-// coop-status.txt's lion, gardener, tendril, bolt, mxiii and shop lines (lion/rows.h's status_line), from what the
-// game thread published, then the shock line (lion/shock.h's shock_line), read after the bolt line it was published
-// before, then the nightshop and roxanne lines (nightop_worker.inc's nightop_status).
+// coop-status.txt's camptext and recordtext lines (game/camp_text.h), which matrix13/world/travel.lua waits for before
+// it asks the mxnames and mxrecords rows; from atomics, with no engine access.
+std::string camp_text_status() {
+  if (!game_pinned)
+    return std::string();
+  const auto state = [](size_t w) {
+    return camp_text_faulted ? camp_text::State::fault
+           : camp_text_ready[w] ? camp_text::State::ready
+                                : camp_text::State::wait;
+  };
+  return camp_text::line(state(0)) + "\n" + camp_text::line(state(1), "recordtext");
+}
+
+// coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower,
+// mxnames, mxlily and mxrecords lines (lion/rows.h's status_line), from what the game thread published, then the shock line (lion/shock.h's
+// shock_line), read after the bolt line it was published before, then the nightshop, roxanne and lily lines
+// (nightop_worker.inc's nightop_status).
 std::string rows_status() {
   std::string lines;
   for (const RowsJob *j : kJobs) {

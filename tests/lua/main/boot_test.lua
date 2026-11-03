@@ -19,9 +19,9 @@
 -- reaches cut/lion.lua (the words that spawn on the co-op save slot only; ticked every frame, ended by coop off), coop
 -- gardener fight reaches cut/gardener.lua (the words that spawn on the co-op save slot only, after the viewer's off;
 -- ticked every frame, ended by coop off), coop tendril fight reaches cut/tendril.lua the same way, coop chainspin reaches cut/chainspin.lua on the co-op save slot only (its
--- rows through coop lion's), coop mxiii reaches cut/mxiii.lua on the co-op save slot only (with the follow, the Paks
--- folder from the mod folder; ticked every frame, ended by coop off), coop wear reaches cut/wear.lua with all its words
--- on any slot (restored and ticked every
+-- rows through coop lion's), coop mxiii reaches matrix13/world/travel.lua on the co-op save slot only (with the follow,
+-- the Paks folder from the mod folder; ticked every frame, ended by coop off), coop wear reaches cut/wear.lua with all
+-- its words on any slot (restored and ticked every
 -- frame, waiting while the game is paused, ended by coop off), coop scene reaches cut/scene.lua (a scene on the co-op save slot only, the list and stop
 -- on any; restored and ticked every frame, ended by coop off), coop lines reaches cut/lines.lua with all its words on
 -- any slot (its lines into the chat's feed only while the kit's root is up; ticked every frame, ended by coop off),
@@ -174,6 +174,10 @@ assert(#sessions==1 and sessions[1]:find('^%d+%-%d+$'),'A session token per load
 loops[1].f(); loops[1].f()
 assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ra.ticks==2,
     'The native tick, the notices, the probe, the recruiter and the race run every frame')
+assert(rt.ticks==2 and rt.stops==0,'The teleport tabs tick every frame')
+assert(rt.o.ready()==true,'A link and a player controller: the teleport tabs may load')
+cv.pc=nil; assert(rt.o.ready()==false,'No player controller yet'); cv.pc=cv.stale
+assert(rt.o.ready()==false,'Another object at the old address'); cv.pc=cv.PC
 assert(ra.steers==2 and ra.steered_at==1,'The driving each frame, before the native tick: the pose has its yaw')
 -- coop race: its words to race/run.lua (record, cp, save, cancel, quit on any slot), its start on the co-op save slot
 -- only; race.new got the [DR] logger, the link, the ghost, the Doro look, the notices, Night Operation's run, the slot
@@ -449,8 +453,8 @@ in_world=false; loops[2].f(); assert(states[#states]=='world=0 rate=60')
 at_title=true; loops[2].f(); assert(states[#states]=='world=title rate=60','The title screen goes along')
 at_title=false
 in_world=true; loops[2].f(); assert(states[#states]=='world=1 rate=60' and #asked==before,'No request written')
--- Matrix XIII's rows at the title (cut/mxiii.lua's title): every 250 ms with whether the title shows with no save
--- loaded and whether the game uses the co-op save files (saves=coop).
+-- Matrix XIII's rows at the title (matrix13/world/travel.lua's title): every 250 ms with whether the title shows with
+-- no save loaded and whether the game uses the co-op save files (saves=coop).
 local function titled() local t=mx.titles[#mx.titles]; return t.n==2 and t[1],t[2] end
 local a,b=titled(); assert(a==false and b==false,'A world, saves unread')
 in_world,at_title,saves_info=false,true,{saves='coop'}
@@ -459,6 +463,10 @@ saves_info={saves='main'}
 loops[2].f(); a,b=titled(); assert(a==true and b==false,'Your own saves')
 in_world,saves_info=true,{saves='coop'}
 loops[2].f(); a,b=titled(); assert(a==false and b==true,'A save loaded')
+-- Lily's signal's rows at the title the same way (matrix13/quest/on_time.lua's title), with each of Matrix XIII's
+-- calls.
+assert(#ly.titles==#mx.titles and ly.titles[#ly.titles][1]==false and ly.titles[#ly.titles][2]==true,
+    "Lily's signal's title batch with the same arguments")
 at_title,saves_info=false,{}
 -- The photo mode with the state, read only with a save loaded: '1', 's' (a selfie wins), then '0', with photo_sync and
 -- photo_freeze_max. During our own, the notices are veiled, the ghost stays (photo_ghost=on) and its tag goes
@@ -797,14 +805,54 @@ assert(mx.folder=='mod/StellarCoop' and mx.o.paks=='mod/StellarCoop|paks'
 assert(type(mx.o.travel().probe)=='function','The follow')
 coop('mxiii')
 assert(#mx.cmds==0 and last():find('^%[StellarCoop%] STOP: coop mxiii runs only on a co%-op save'),last())
+-- coop mxiii mila: Mila's pose (matrix13/world/mila.lua), on any save, its words never to the travel.
+coop('mxiii','mila','9')
+assert(#mx.cmds==0 and last():find('^%[StellarCoop%] STOP: Use: coop mxiii mila '),last())
+coop('mxiii','mila','scale','1.0')
+assert(#mx.cmds==0 and last():find('scale 1.00',1,true),last())
 status_text=COOP
-coop('mxiii'); coop('mxiii','x')
-assert(#mx.cmds==2 and mx.cmds[1].n==1 and mx.cmds[1][1]==nil and mx.cmds[2][1]=='x'
-    and last()=='[StellarCoop] OK: mx x\n','On a co-op save: its word reaches it, an extra one to be refused there')
+coop('mxiii'); coop('mxiii','x'); coop('mxiii','warp','12')
+assert(#mx.cmds==3 and mx.cmds[1].n==2 and mx.cmds[1][1]==nil and mx.cmds[2][1]=='x' and mx.cmds[2][2]==nil
+    and mx.cmds[3][1]=='warp' and mx.cmds[3][2]=='12' and last()=='[StellarCoop] OK: mx warp\n',
+    'On a co-op save: its words reach it (coop mxiii warp <n> with its point), an extra one to be refused there')
 status_text=plain
-mx.t,mx.says=mx.ticks,{true,'coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 is asked'}
+-- coop lily signal (matrix13/quest/on_time.lua): status on any save, the rest on a co-op save only; its lines [LY]
+-- lines, its status and requests the link's, its travel coop mxiii's command (with that command's co-op save check),
+-- its Paks folder and file reads coop mxiii's, its talk player story/subtitles.lua's, built with the same log and coop
+-- scene.
+ly.o.log('picked'); assert(last()=='[StellarCoop][LY] picked\n',last())
+assert(ly.o.status()==status_text and ly.o.ask('lily on') and asked[#asked]=='lily on' and ly.o.mode()=='none'
+    and ly.o.paks=='mod/StellarCoop|paks' and ly.o.read==require('core.link').files.read)
+assert(ts.o and ts.o.log==ly.o.log and ts.o.scene~=nil and ly.o.talks~=nil,'The talk player')
+local LILY_USE='[StellarCoop] STOP: Use: coop lily signal [status|quest|travel|next] | talk prologue|arrival|finale '
+    ..'[kit] | hold on|off\n'
+coop('lily'); coop('lily','signal','quest','x')
+assert(#ly.cmds==0 and last()==LILY_USE,last())
+coop('lily','talk','prologue')
+assert(#ly.talks==0 and last():find('^%[StellarCoop%] STOP: coop lily talk runs only on a co%-op save'),last())
+coop('lily','hold','off'); coop('lily','hold','maybe')
+assert(#ly.holds==1 and ly.holds[1]==false and last()==LILY_USE,'hold on any save, on or off only')
+coop('lily','signal','quest')
+assert(#ly.cmds==0 and last():find('^%[StellarCoop%] STOP: coop lily signal runs only on a co%-op save'),last())
+coop('lily','signal','status')
+assert(#ly.cmds==1 and ly.cmds[1][1]=='status' and last()=='[StellarCoop] OK: ly status\n',last())
+status_text=COOP
+coop('lily','signal'); coop('lily','signal','travel')
+assert(#ly.cmds==3 and ly.cmds[2].n==1 and ly.cmds[2][1]==nil and ly.cmds[3][1]=='travel','On a co-op save')
+status_text=plain
+coop('scene','lily')
+assert(#ly.talks==0 and last():find('^%[StellarCoop%] STOP: coop scene lily runs only on a co%-op save'),last())
+status_text=COOP
+coop('lily','talk','finale','kit'); coop('scene','lily')
+assert(#ly.talks==2 and ly.talks[1][1]=='finale' and ly.talks[1][2]=='kit' and ly.talks[2][1]=='prologue'
+    and ly.talks[2][2]==nil and last()=='[StellarCoop] OK: talk prologue\n','coop scene lily is the prologue talk')
+local travels=#mx.cmds
+assert(select(2,ly.o.travel())=='mx nil' and #mx.cmds==travels+1,'Its travel is coop mxiii, checked there')
+status_text=plain
+assert(ly.o.travel()==false and #mx.cmds==travels+1,'Off a co-op save, coop mxiii refuses it')
+mx.t,mx.says=mx.ticks,{true,'coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 is asked'}
 loops[1].f()
-assert(mx.ticks==mx.t+1 and last()=='[StellarCoop] OK: coop mxiii: the rows are in and the travel to DLC02_10_Camp_01 '
+assert(mx.ticks==mx.t+1 and last()=='[StellarCoop] OK: coop mxiii: the rows are in and the travel to DLC02_00_Camp_00 '
     ..'is asked\n',last())
 mx.says=nil
 -- coop wear: all its words to cut/wear.lua on any save, coop-wear.txt through the link; each frame its restore (done
@@ -991,6 +1039,8 @@ nr.ticked=nr.ticks
 rx.ticked=rx.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 assert(rx.ticks==rx.ticked+1 and rx.stops==0 and rx.stopped==false,"Roxanne's choices tick every 250 ms too")
+assert(ly.ticks>0 and ly.stops==0 and ly.stopped==false,"Lily's signal ticks every 250 ms too")
+assert(ts.ticks>0 and ts.hud and ts.hud.kit and ts.hud.theme,"Lily's talks tick each frame, with the kit's group")
 -- A tick of hers that raises is logged, and the rest of the loop goes on.
 rx.tick_raise='roxanne.lua:9: boom'
 local follows=#tv.ticks
@@ -1017,6 +1067,7 @@ assert(#nr.stops==1 and nr.stops[1]=='coop off','off ends the run')
 assert(gf.stops==1,'off takes the gift toast off')
 local gift_ticks_off=gf.ticks
 assert(rx.stops==1,"off puts Roxanne's two choices back")
+assert(ly.stops==1,"off puts Lily's eight choices back")
 rx.ticked=rx.ticks
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
@@ -1043,6 +1094,7 @@ loops[2].f(); assert(captured[#captured]==false,'Her capture is withdrawn after 
 assert(ra.slows==ra.s,'No race check after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
 assert(rx.ticks==rx.ticked+1 and rx.stopped==true,"Roxanne's tick goes on after coop off, as stopped")
+assert(ly.stopped==true,"Lily's tick goes on after coop off, as stopped")
 assert(#gr.ticks==gr.count+3,'No revive tick after coop off')
 assert(#tv.ticks==tv.count+2,'No follow tick after coop off')
 assert(gf.ticks==gift_ticks_off and #gf.received==2,'No gift tick nor gift line after coop off')
@@ -1081,6 +1133,7 @@ coop('ui','reset'); assert(last()=='[StellarCoop] STOP: coop off is active until
 status_text=status_text..'engine=off reason=coop_off\n'; loops[2].f(); loops[1].f()
 assert(ticks==24 and notice_ticks==drawn,'Once the native part has it, its tick alone (it releases a pause tag)')
 assert(probe_ticks==probed and rc_ticks==recruited,'No probe or recruiter follow-up after coop off')
+assert(rt.stops==1,'coop off stops new teleport tabs')
 before=#probe_runs
 coop('no')
 assert(#probe_runs==before and last():find('STOP: coop off is active until the game restarts',1,true),last())
@@ -1185,6 +1238,7 @@ coop('fight','on'); assert(last():find('STOP: the native tick is unavailable',1,
 local refused,refusal=probe.ask('nightop')
 assert(not refused and refusal=='the Steam link needs the native part' and probe.status()==nil and #asked==0)
 loops[1].f(); assert(probe_ticks==1,'The probe still ticks without the native part')
+assert(rt.ticks==1 and rt.o.ready()==false,'The teleport tabs tick and stay off without the link')
 coop('no','rule'); assert(#probe_runs==0 and last()==STOP..'no slot status\n','No native part, no co-op slot: '..last())
 coop('ui','reset'); assert(last()=='[StellarCoop] STOP: the co-op UI needs the Steam link\n',last())
 coop('revive','test'); assert(gr.o==nil and last()=='[StellarCoop] STOP: the Steam link needs the native part\n',last())

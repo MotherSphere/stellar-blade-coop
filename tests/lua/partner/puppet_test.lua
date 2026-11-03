@@ -836,6 +836,36 @@ loads={}
 send(602,her_parts())
 build()
 assert(spawned[#spawned].parts[2].mesh==meshes[FACE] and table.concat(loads,' ')==FACE,'Another class there')
+-- A new EVE (travel, a load) drops the assets found: one of the old world is never read again, not even by IsValid
+-- (freed memory, or a new object at its address, passes it). A missing DLC stays missing.
+send(610,her_parts({hair=NIER}))
+build()
+meshes[FACE].IsValid=function() error('an asset of the old world was read') end
+mesh(FACE)
+player=eve_of('EVE4')
+ghost.tick()
+clock=clock+2
+loads={}
+ok,message=build()
+assert(ok and spawned[#spawned].parts[2].mesh==meshes[FACE],tostring(message))
+for _,path in ipairs(loads) do assert(path~=NIER,'A missing DLC stays missing') end
+player=eve
+ghost.tick()
+clock=clock+2
+build()
+-- The same with the ghost off: off, travel, a new EVE where the old one stood, on.
+ghost.toggle()
+meshes[FACE].IsValid=function() error('an asset of the old world was read') end
+mesh(FACE)
+player=eve_of('EVE5',nil,eve.GetAddress())
+ghost.toggle()
+ghost.tick()
+clock=clock+2
+loads={}
+ok,message=build()
+assert(ok and spawned[#spawned].parts[2].mesh==meshes[FACE],tostring(message))
+for _,path in ipairs(loads) do assert(path~=NIER,'A missing DLC stays missing after off and on') end
+player=eve
 
 -- A built part whose parent part was left out hangs on part 0, at its socket.
 local charmed=her_parts({blade='/Game/Art/Character/Weapon/Gone/Gone.Gone'}) -- Missing, and no fallback.
@@ -1034,6 +1064,33 @@ ok,message=ghost.where()
 assert(ok and message:find(' ghost=none$') and message:find(' camp=Xion_10_EnvS_016:'),'No link, no ghost: still a line')
 camps.SBSpawnPoint=nil -- None loaded: the field says so, the line stays.
 assert(select(2,ghost.where()):find(' spawn=none origin=',1,true),'No spawn point')
+-- coop near: the zone objects within range, nearest first, each once though SBZoneEnvActor also returns them; a
+-- breakable named by its alias; a field that fails says why in place; the camps of where count too (teleport 3 m,
+-- vending machine 5 m; the Tetrapod at 9 m is out of the default 8 m).
+do
+    local near_switch=object('Switch',{EnvSpawnAlias=fname('DLC02_20_EnvS_663'),StateTagName=fname('B'),bHidden=false,
+        K2_GetActorLocation=function() return {X=1,Y=402,Z=3} end,GetActorEnableCollision=function() return true end})
+    local near_box=object('Box',{EnvSpawnAlias=fname('None'),ZoneEventActorTableAlias=fname('ME_01_ZEA_003'),
+        StateTagName=fname('None'),bHidden=true,K2_GetActorLocation=function() return {X=1,Y=102,Z=3} end})
+    local near_far=object('Far',{EnvSpawnAlias=fname('DLC02_20_EnvS_999'),
+        K2_GetActorLocation=function() return {X=1,Y=2,Z=1503} end})
+    camps.Env_MatrixXIII_DoorSwitch_01_C={near_switch}
+    camps.SBZoneEnvActor={invalid,near_far,near_switch}
+    camps.BP_Destruction_Box_01_C={near_box}
+    ok,message=ghost.near()
+    assert(ok and message:find('^near 8 m of 1.0,2.0,3.0: 4 %('
+        ..'ME_01_ZEA_003:BP_Destruction_Box_01_C@1.0,102.0,3.0 m=1.0 state=None hidden=true collide=%?%(.- | '
+        ..'%?%(.-%):Env_Camp_TeleportMachine_C@301.0,2.0,3.0 m=3.0 .- | '
+        ..'DLC02_20_EnvS_663:Env_MatrixXIII_DoorSwitch_01_C@1.0,402.0,3.0 m=4.0 state=B hidden=false collide=true | '
+        ..'%?%(.-%):Env_VendingMachine_C@1.0,%-498.0,3.0 m=5.0 .-%)$'),message)
+    ok,message=ghost.near('20')
+    assert(ok and message:find('^near 20 m of 1.0,2.0,3.0: 6 %(')
+        and message:find(' | DLC02_20_EnvS_999:SBZoneEnvActor@',1,true)
+        and select(2,message:gsub('DLC02_20_EnvS_663:',''))==1,message)
+    assert(not ghost.near('0') and not ghost.near('101') and not ghost.near('x') and not ghost.near('8','m'),
+        'Bad range')
+    camps.Env_MatrixXIII_DoorSwitch_01_C,camps.SBZoneEnvActor,camps.BP_Destruction_Box_01_C=nil,nil,nil
+end
 player=menu
 ok,message=ghost.where()
 assert(ok==false and message=='no EVE in the world',message)
@@ -1923,6 +1980,16 @@ send(9021,{{name='CharacterMesh0',path=NO_SKELETON,names={'Root','Bip001','Bip00
 ok,message=build()
 assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
 assert(message:find(NO_SKELETON:gsub('%p','%%%0')..' has no skeleton'),message)
+-- A game path a pak mod replaced with no Skeleton: missing as well, and named although no CNS pack declares it.
+do
+    local GAME_NO_SKELETON='/Game/Art/Character/PC/CH_P_EVE_Broken/CH_P_EVE_Broken.CH_P_EVE_Broken'
+    mesh(GAME_NO_SKELETON,{'Root','Bip001','Bip001-Pelvis'})
+    meshes[GAME_NO_SKELETON].Skeleton=nil
+    send(9022,{{name='CharacterMesh0',path=GAME_NO_SKELETON,names={'Root','Bip001','Bip001-Pelvis'},materials={}}},'peer')
+    ok,message=build()
+    assert(ok and spawned[#spawned].parts[1].mesh==meshes[BASE_BODY],message)
+    assert(message:find(plain(GAME_NO_SKELETON)..' has no skeleton'),message)
+end
 said_before=#said
 -- No CNS pack declares her suit: on the base body, said; never looked up.
 cns={}

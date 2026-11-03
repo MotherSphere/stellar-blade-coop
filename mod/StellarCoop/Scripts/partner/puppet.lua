@@ -273,7 +273,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     local failed,tries=nil,0 -- After a failure: when her table may be built again (os.clock; math.huge: not by itself).
     local said_pair -- The map pair last said on screen: a new table on it (an outfit, a new EVE) says nothing.
     local mods_said -- The generation whose parts from mods not shown were said on screen.
-    local cache={} -- Meshes and materials by class and path; false: none this Lua load (a missing DLC stays missing).
+    -- Meshes and materials by class and path, for one EVE; false: none this Lua load (a missing DLC stays missing).
+    local cache={}
     local value_names,value_name_count={},0 -- The FNames made for value lines, by name.
     local value_note -- Why a value was ignored, until said (then false): once per Lua load.
     local cns_off -- Why the CNS part is off (a Lua error in it): until coop cns reset or the next Lua load.
@@ -311,9 +312,9 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     -- mod: a mod's asset mod_assets() names (fetch()). LoadAsset finds an asset through the cooked asset registry,
     -- which a mod's added assets are not in, so one it misses is loaded by AssetRegistryHelpers:GetAsset (an asset
     -- data with only its path: FAssetData::GetAsset loads it by that path), as UE4SS's BPModLoaderMod loads mod actors;
-    -- how each was found or that it was not goes into counts.mods for the build line. Never one the sentinel set aside
-    -- (a shared mod can hold a game path: the base suit, a listed effect). peek: only a cached one still itself, else
-    -- nil and 'not loaded' (start(), never a load in place()).
+    -- how each was found or that it was not goes into counts.mods for the build line, as does any mesh with no
+    -- Skeleton. Never one the sentinel set aside (a shared mod can hold a game path: the base suit, a listed effect).
+    -- peek: only a cached one still itself, else nil and 'not loaded' (start(), never a load in place()).
     local function resolve(path,counts,class,mod,peek)
         if sentinel.aside(path) then return nil end
         class=class or '/Script/Engine.SkeletalMesh'
@@ -346,7 +347,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         end)
         cache[key]=asset or false
         counts.loaded,counts.ms=counts.loaded+1,counts.ms+(os.clock()-started)*1000
-        if mod then
+        -- A game path with no skeleton is named too: a pak mod replaced it (the base suit, a hair) and broke it.
+        if mod or no_skeleton then
             counts.mods[#counts.mods+1]=path..' '..(asset and by or no_skeleton and 'has no skeleton' or 'missing')
         end
         return asset
@@ -996,6 +998,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         sweep()
         if wanted then
             wanted=false
+            -- tick() stops looking for a new EVE while off: the assets found go too.
+            for k,v in pairs(cache) do if v then cache[k]=nil end end
             return true,clear('coop puppet') or 'Ghost off.'
         end
         wanted,failed,tries=true,nil,0 -- A table whose build failed is tried again.
@@ -1435,6 +1439,49 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         return true,string.format('where map=%s eve=%s yaw=%.1f mesh=%s camp=%s spawn=%s origin=%s %s ghost=%s',map,
             xyz(at),value_of(body:K2_GetComponentRotation()).Yaw,xyz(mesh),camp,spawn,origin,flags,other)
     end
+    -- coop near [metres]: the zone objects the game holds within that range of EVE (8 m by default), nearest first,
+    -- at most 30, each '<row>:<class>@x,y,z m=<metres> state=<tag> hidden=<bool> collide=<bool>' (<row> the
+    -- ZoneEnvSpawnTable row, or for a breakable its ZoneEventActorTableAlias). A test tool for the Matrix XIII map
+    -- checks: what spawned and where, against what the cooked map holds. FindAllOf walks every object: on demand only.
+    local NEAR={'Env_MatrixXIII_DoorSwitch_01_C','Env_CardControl_Switch_Wireless_C','Env_CardControl_Switch2_C',
+        'BP_Env_LiftController_C','BP_Env_SupplyBox01_C','BP_Env_Empty_Arrow_C','SBZoneEnvActor','Env_Camp_Base_C',
+        'Env_Camp_Chair_C','Env_Camp_SkillMachine_C','Env_Camp_Storage_C','Env_Camp_Turntable_C',
+        'BP_Destruction_Box_01_C','BP_Destruction_Box_02_C','BP_Barrel_01_Child_C'}
+    function self.near(range,extra)
+        local m=range==nil and 8 or tonumber(range)
+        if extra~=nil or not m or m<=0 or m>100 then return false,'Use: coop near [1-100 metres]' end
+        local eve=her(valid(UE.GetPlayer()))
+        if not eve then return false,'no EVE in the world' end
+        local at=value_of(eve:K2_GetActorLocation())
+        local seen,found={},{}
+        for _,list in ipairs({NEAR,CAMPS}) do
+            for _,class in ipairs(list) do
+                each(FindAllOf(class) or {},function(_,a)
+                    a=valid(a)
+                    local key=a and address(a)
+                    if not a or seen[key] then return end -- SBZoneEnvActor may also return the classes above.
+                    seen[key]=true
+                    local p=value_of(a:K2_GetActorLocation())
+                    local d=metres(p,at)
+                    if d>m then return end
+                    local row=try(function()
+                        local r=text(a.EnvSpawnAlias)
+                        return r~='None' and r~='' and r or text(a.ZoneEventActorTableAlias)
+                    end)
+                    local state=try(function() return text(a.StateTagName) end)
+                    local hidden=try(function() return tostring(a.bHidden) end)
+                    local collide=try(function() return tostring(a:GetActorEnableCollision()) end)
+                    found[#found+1]={d=d,line=string.format('%s:%s@%s m=%.1f state=%s hidden=%s collide=%s',row,class,
+                        xyz(p),d,state,hidden,collide)}
+                end)
+            end
+        end
+        table.sort(found,function(x,y) return x.d<y.d end)
+        local lines={}
+        for i=1,math.min(#found,30) do lines[i]=found[i].line end
+        return true,string.format('near %g m of %s: %d (%s)',m,xyz(at),#found,
+            #lines>0 and table.concat(lines,' | ') or 'none')
+    end
     -- Once per game-thread tick: nothing while the ghost is off. A level change removes the ghost; it is built again
     -- (or for a new table) once EVE has been in the world 2 s and she is on the table's map.
     function self.tick()
@@ -1446,6 +1493,8 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         if at~=her_at then -- A new EVE (travel, a load) or none: the ghost goes, a failed table is tried again.
             her_at,back_since,failed,tries=at,nil,nil,0
             if ghost then clear('level changed') end
+            -- The old world's assets may be freed: never read again, not even by IsValid. Misses stay (a missing DLC).
+            for k,v in pairs(cache) do if v then cache[k]=nil end end
         elseif ghost and not valid(ghost.actor) then
             clear('level changed')
             back_since=nil

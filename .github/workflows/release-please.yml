@@ -1,0 +1,32 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# A push made right after the release pull request merge waits for the run that creates the release.
+concurrency: release-please
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Manifest mode: release-please-config.json and .release-please-manifest.json on main. The config keeps a
+      # breaking change on 0.x to a minor bump (bump-minor-pre-major), which no action input can set.
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+
+      # Release Please publishes the release before its zip exists. The zip needs the local clang-cl and xwin
+      # toolchain, so python3 tools/release.py <tag> builds it, attaches it and publishes the release.
+      - name: Hold the release as a draft until its zip is attached
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+          VERSION: ${{ steps.release.outputs.version }}
+        # -R: the job has no checkout, so gh has no git remote to find the repository from.
+        run: gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=true --title "Stellar Blade Online $VERSION"

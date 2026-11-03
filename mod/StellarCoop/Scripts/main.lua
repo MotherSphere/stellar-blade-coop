@@ -211,7 +211,7 @@ end
 local off=native_off()
 -- The native part has it too: from then on its tick runs again, as it only releases a held photo pause tag.
 local blocked=off
-local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
+local USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | status | report | mark [text] | where | near [metres] | travel host | loopback <delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | emote [list|<name>|off] | no [heal|rule|spawnpt|actor] | nightop [start [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy [<n> [count]]] | challenge [<name>|stop] | recruiter [off] | gift [send <item> [count]|take [n]] | race record <name>|cp|save [laps]|cancel|start <name>|quit | fight on|off|status|probe|test|record|replay|pilot|spawn | quests on|off|status|probe|record|replay|force <number> | freeze <seconds>|off | ui reset|off | saves probe|convert|coop|main|refresh <0-4>|export <0-4> <0-4> | off'
 local function ask(line)
     return function()
         if not link then return false,'the Steam link needs the native part' end
@@ -277,15 +277,22 @@ local night=require('nightop.run').new({log=function(m) print('[StellarCoop][NR]
             -- The rename refused once the old file went (a virus scanner holding the .tmp): written in place.
             return fs.rename(p..'.tmp',p)==true or not fs.read(p) and fs.write(p,text)
         end} or nil})
--- coop mxiii [30] (cut/mxiii.lua), logging [MX] lines: Matrix XIII's 15 rows asked of the native part, then the
--- follow's camp travel (read at each call: built below), once the zMXIII_P test pak is found under SB/Content/Paks;
--- coop mxiii leave, the follow's probe to the camp EVE respawned at before coop mxiii, or another camp this save has
--- activated. The same rows alone at the title, before any save loads, while the game uses the co-op save files (the
--- 250 ms loop below: mxiii.title).
-local mxiii=require('cut.mxiii').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
+-- coop mxiii [30] (matrix13/world/travel.lua), logging [MX] lines: Matrix XIII's camp rows asked of the native part,
+-- then the follow's camp travel (read at each call: built below), once the zMXIII_P test pak is found under
+-- SB/Content/Paks; coop mxiii leave, the follow's probe to the camp EVE respawned at before coop mxiii, or another camp
+-- this save has activated. The same rows alone at the title, before any save loads, while the game uses the co-op save
+-- files (the 250 ms loop below: mxiii.title), then its spawn, loot and mechanism rows and the Lion's and the
+-- Gardener's. In world 2800 its tick spawns the ladders, ledges and ropes (matrix13/world/move.lua) and fixes the
+-- bosses the game spawns (matrix13/world/boss.lua, with coop lion's and coop gardener fight's instances); coop mxiii
+-- boss is their key-0 fallback, and coop mxiii warp <n|name> puts EVE on one of the old warp switches' arrival points
+-- (a test fallback).
+local mxiii=require('matrix13.world.travel').new({log=function(m) print('[StellarCoop][MX] '..tostring(m)..'\n') end,
     ask=function(line) return ask(line)() end,status=function() return link and link.status() end,
-    travel=function() return travel end,paks=require('cut.mxiii').paks_of(folder),
-    read=require('core.link').files.read})
+    travel=function() return travel end,paks=require('matrix13.world.travel').paks_of(folder),
+    read=require('core.link').files.read,lion=lion,gardener=gardener})
+-- The teleport screen's extra tabs (ui/region_tabs.lua), logging [RT] lines. Their records come from the native part.
+local region_tabs=require('ui.region_tabs').new({log=function(m) print('[StellarCoop][RT] '..tostring(m)..'\n') end,
+    ready=function() return link~=nil and require('core.unreal').controller()~=nil end})
 -- commands.recruiter runs only on a co-op save; coop off despawns on any slot (cleanup).
 local recruiter=require('nightop.recruiter').new(function(m) print('[StellarCoop][RC] '..tostring(m)..'\n') end)
 local function ui_log(m) print('[StellarCoop][UI] '..tostring(m)..'\n') end -- The UI kit's lines.
@@ -498,11 +505,16 @@ local commands={
         -- A failing despawn or run end is logged and never stops the rest of coop off.
         local stopped,e=pcall(recruiter.stop)
         if not stopped then log('recruiter: '..tostring(e)) end
+        region_tabs.stop() -- No more tabs: only a flag.
         stopped,e=pcall(wear.stop) -- EVE's own meshes back.
         if not stopped then log('wear: '..tostring(e)) end
         if o.roxanne then -- Her two choices back before the native part stops taking requests.
             stopped,e=pcall(o.roxanne.stop)
             if not stopped then log('roxanne: '..tostring(e)) end
+        end
+        if o.lily then -- Lily's eight choices back too.
+            stopped,e=pcall(o.lily.stop)
+            if not stopped then log('lily: '..tostring(e)) end
         end
         stopped,e=pcall(night.stop,'coop off') -- The shop's screen closes first.
         if not stopped then log('nightop: '..tostring(e)) end
@@ -562,6 +574,26 @@ o.roxanne=require('nightop.roxanne').new({log=function(m) print('[StellarCoop][N
     paused=function() return kit~=nil and kit.paused(true) end,title=function() return at_title end,tell=tell,
     start=function(level) return commands.nightop('start',level) end,
     shop=function() return commands.nightop('shop') end,phase=function() return night.phase() end})
+-- Lily's signal (matrix13/quest/on_time.lua, experimental), logging [LY] lines: on a co-op save, solo, with the
+-- zMXIII_P test pak, in Phase 5 the mod's prologue starts and her choice list offers "The other signal"; its pick plays
+-- the prologue talk, starts the mod's quest "On Time" and runs coop mxiii's travel; coop lily signal|talk|hold by hand.
+-- Ticked in the 250 ms loop below (with the Steam link only), after coop off too: coop off puts her list back. Its rows
+-- also go in at the title on the co-op save files, with the test pak only (lily.title). Its talks (story/subtitles.lua)
+-- play through coop scene's rows, ticked each frame below.
+local function lily_log(m) print('[StellarCoop][LY] '..tostring(m)..'\n') end
+local talks=require('story.subtitles').new({log=lily_log,scene=scene})
+-- Mila's body (matrix13/world/mila.lua): placed by the zone talks, posed by coop mxiii mila (commands/cut.lua).
+o.mila=require('matrix13.world.mila').new({log=lily_log,
+    read=function(name) return link and link.read_file(name) end,
+    write=function(name,text) if link then return link.write_file(name,text) end end})
+o.lily=require('matrix13.quest.on_time').new({log=lily_log,
+    status=function() return link and link.status() end,ask=function(line) return ask(line)() end,
+    mode=function() return link and link.mode() end,paused=function() return kit~=nil and kit.paused(true) end,
+    travel=function() return commands.mxiii() end,paks=require('matrix13.world.travel').paks_of(folder),
+    read=require('core.link').files.read,talks=talks,
+    zones=require('matrix13.quest.zone_talks').new({log=lily_log,talks=talks,plan=require('matrix13.quest.on_time').plan,
+        read=function(name) return link and link.read_file(name) end,
+        write=function(name,text) if link then return link.write_file(name,text) end end,mila=o.mila})})
 local function report(ok,message) log((ok and 'OK: ' or 'STOP: ')..tostring(message)) end
 local OFF='coop off is active until the game restarts'
 -- A console command, a key or a menu row, on the game thread: logged, and its result returned.
@@ -592,6 +624,7 @@ if settings then
     hud=require('partner.hud').hud({kit=kit,link=link,puppet=puppet,settings=settings,theme=Ui.THEME})
     night.hud({kit=kit,theme=Ui.THEME,settings=settings})
     race.hud({kit=kit,theme=Ui.THEME,settings=settings})
+    talks.hud({kit=kit,theme=Ui.THEME}) -- The kit version of Lily's talks.
     local Join=require('session.join')
     code_box=Join.box({kit=kit,link=link,settings=settings,theme=Ui.THEME,run=run})
     -- The first-launch guide (ui/guide.lua): the menu's Guide row and coop guide open it; in front of the co-op saves'
@@ -735,6 +768,8 @@ LoopInGameThreadWithDelay(1,function()
     if message then report(ok,message) end
     ok,message=guarded('scene',scene.tick)
     if message then report(ok,message) end
+    guarded('region tabs',region_tabs.tick) -- Once a load: its two hooks, once there is a player controller.
+    guarded('talks',talks.tick) -- Lily's talks: a hold, the Stop after the last line, the kit's lines.
     guarded('flight',flight.tick)
     ok,message=guarded('lines',cut_lines.tick)
     if message then report(ok,message) end
@@ -1028,6 +1063,7 @@ if link then
         if not off then guarded('nightop',night.tick) end -- Night Operation's run, if any: it logs its own lines.
         -- Roxanne's Night Operation choices: likewise; after coop off, only her two choices and the rows back.
         guarded('roxanne',o.roxanne.tick,off)
+        guarded('lily',o.lily.tick,off) -- Lily's signal: likewise.
         chat_clock=chat_clock+0.25
         if not off then guarded('revive',group.tick,chat_clock) end -- The friend's revive: it logs its own lines.
         if not off then guarded('travel',travel.tick,chat_clock) end -- The follow: likewise.
@@ -1135,8 +1171,10 @@ if link then
             guarded('hud',hud.slow)
             guarded('saves',saves_ui.slow,world==true,title==true)
             -- Matrix XIII's rows at the title with the co-op save files, so a co-op save that names its camp loads
-            -- with them (cut/mxiii.lua: once a game run, with the test pak only).
+            -- with them (matrix13/world/travel.lua: once a game run, with the test pak only).
             guarded('mxiii',mxiii.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
+            -- Lily's signal's rows likewise (test pak only), so a co-op save that holds the quest keeps it.
+            guarded('lily',o.lily.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
             -- A story dump asked for by coop-story.txt in the mod folder (story/dump.lua, read only): once per
             -- request, in a loaded world, and named in the log.
             local dumped,dump_message=guarded('story',story_dump.poll,world==true)

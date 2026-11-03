@@ -316,7 +316,7 @@ More about sessions:
 - Your friend's ghost shows only when you are both on the same map. When they are on another map, a notice shows once:
   `<name> is in <map>, you are in <map>.`, with the last segment of each map's path (for example `b07`).
 - Your friend's ghost hides after a second without a pose and shows again with the next one.
-- Both players need the same protocol (18) and game build. A mismatch shows a notice on screen (see
+- Both players need the same protocol (19) and game build. A mismatch shows a notice on screen (see
   [Notices](#notices)).
 
 The ghost is display only. Items, unlocks and progress are not copied between your two games, except the consumables
@@ -804,6 +804,27 @@ radius by hand, from 300 to 3000. The file keeps this form: whole numbers, singl
 checkpoints, each at least 15 m from the one before it (the first from the start line), at most 4096 bytes.
 `coop race start` refuses a file that breaks a rule, with the reason.
 
+## Teleport screen
+
+The game's between-regions teleport screen has 7 tabs and drops every active Tetrapod past the 7th. The mod adds up to 2
+more tabs, so it shows up to 9 regions, in the game's own order. Holding on a tab travels as on the game's own tabs, with
+the mouse, the keyboard or a gamepad. Tabs without a region stay hidden.
+
+8 tabs fit on the screen. With 9, a horizontal bar appears under the row: drag it with the mouse or use the wheel. With
+the keyboard or a gamepad, moving left and right should follow the focus. A region past the 9th still does not show.
+Added tabs appear at once, without the game's fade-in.
+
+The screen writes nothing to your save and unlocks no trophy. After `coop off`, or if a check fails, the screen goes back to the game's 7
+tabs. Screens already open keep their tabs until they close. These lines tell you what happened:
+
+- `coop-link.log`: `region tabs on: 0x145c3eb38 swapped from the Region logic's init to our hook` at start, and
+  `region tabs: <n> records added, <n> in the list, <n> tabs in the Region logic` once, for the first screen opened. With
+  0 records added on a screen that opened with the mod's hooks on, the screen was built in another order than expected.
+- `coop-link.log`: `region tabs refused: ...` means another mod holds that pointer or its page would not change.
+  `region tabs fault ...: off for this run` means a fault in the mod's hook. The screen keeps its 7 tabs in both cases.
+- `UE4SS.log`: `[RT] hooks on: ...` once a Lua load, or `[RT] STOP: <why>; the teleport screen keeps its 7 tabs until the
+  mod reloads`.
+
 ## Console commands
 
 The console comes with ConsoleEnablerMod (see [INSTALL.md](../INSTALL.md#requirements)) and opens with F10 or `~`.
@@ -827,6 +848,7 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop report` | Write `coop-report.txt`, to send with a bug report |
 | `coop mark [text]` | Write a numbered line in your logs and your friend's, to line up the steps of a [test played together](#coop-mark) |
 | `coop where` | Print one line of positions to compare between two PCs |
+| `coop near [metres]` | Print the zone objects the game spawned within that range of EVE (8 m by default, 100 at most), nearest first: row, class, position, state, whether hidden, whether it collides. A test tool for the Matrix XIII map |
 | `coop puppet` | Turn the ghost on or off by hand |
 | `coop basesuit` | Draw the ghost's body and hair on the base suit, or back on her own meshes |
 | `coop look` | Show which looks are on |
@@ -856,6 +878,10 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop mxiii` | A camp travel into the [cut Matrix XIII dungeon](#cut-dungeon-coop-mxiii-experimental) and a camp there (experimental test command; the travel arrived in game with test pak v2 after a reload, the rows at the title are untested; needs the zMXIII_P test pak, which the mod does not ship; solo, co-op save only) |
 | `coop mxiii 30` | The same with a travel to a second camp, in the dungeon's third zone (experimental test command, untested in game; needs the v3 test pak; solo, co-op save only) |
 | `coop mxiii leave` | The way out of Matrix XIII: a travel back to the camp where EVE respawned before `coop mxiii`, or to another camp your save has activated (test command, untested in game; solo, co-op save only) |
+| `coop lily signal` | [Lily's signal](lily-signal.md) by hand: the mod's quest "On Time", then `coop mxiii`'s camp travel (experimental test command, untested in game; needs the zMXIII_P test pak; solo, co-op save only) |
+| `coop lily signal quest\|travel\|next\|status` | The quest alone, the travel alone, the task of the step "On Time" is at (a test word), or one status line (the status on any save) |
+| `coop lily talk prologue\|arrival\|finale [kit]` | One of Lily's talks by hand, in the game's subtitle box or, with `kit`, in the mod's own subtitles; `coop scene lily` is the prologue talk (same conditions as `coop lily signal`) |
+| `coop lily hold on\|off` | The talks' reading holds on or off until the next Lua load (any save) |
 | `coop fly on\|off`, `coop slowmo on\|off` | The game's [developer flight and slow motion](#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo): a third press of the space bar in the air flies (test commands, untested in game; on on a co-op save only) |
 | `coop glide on\|off` | EVE's [cut glide](#cut-glide-coop-glide) while Jump is held in the air (test command, untested in game; on on a co-op save only) |
 | `coop shortcut` | List the [cut Load Shortcut menu's saves](#cut-load-shortcut-saves-coop-shortcut) in `coop-link.log` (test command, untested in game, any save) |
@@ -977,7 +1003,7 @@ These three commands run the ghost pipeline on one PC. They need the native tick
   `coop-record.bin` in the mod folder if it holds a pose. The name is fixed, so a new recording replaces the last one.
   Rename the file by hand to keep it.
 - `coop replay` checks the whole of `coop-record.bin` before anything plays and refuses a file that fails, with the
-  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 18). It
+  reason (`protocol` for a file made under another protocol, which includes every file made before protocol 19). It
   then plays the file in a loop as the remote side, each pose re-stamped as if sent now, until `coop replay off`, which
   removes the ghost. The generation, map and positions stay as recorded: the ghost wears the recorded outfit and walks
   where you walked, with no offset, and the map gate applies.
@@ -1305,7 +1331,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
+| `tables: 14/14 found: CharacterTable=0x...` | The 14 tables the Lion's rows go into, found, with the addresses sent to the native part |
 | `lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 1004500-6000101 23/23, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need (SkillTable: the Lion's 21 skills, the stimpacks' skill, 6000101, and the ChainSpin, 1004500) |
 | `rows read back through FindRow: 237/237 authored rows, 3178 fields as written (2156 differ from the template row)` | Every field the native part wrote reads as written; 2156 of them hold a value the shipped row it started from did not, and the other 1022 restate that row's value |
@@ -1396,7 +1422,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
+| `tables: 5/5 found: CharacterTable=0x...` | The 5 tables the Gardener's rows go into, found, with the addresses sent to the native part |
 | `gardener rows: 13/13 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `gardener rows by SB's lookups: CharacterTable 50010-50012 3/3, SkillTable 5001010-5001012 3/3, stance 500101 1/1` (`coop-link.log`) | The game's own lookups by ID find its three CharacterTable rows, its three skills and its stance |
 | `rows read back through FindRow: 13/13 authored rows, 279 fields as written (102 differ from the template row)` | Every field the native part wrote reads as written |
@@ -1453,7 +1479,7 @@ The log lines, in `UE4SS.log` unless marked:
 
 | Line | What it answers |
 | --- | --- |
-| `tables: 20/20 found: CharacterTable=0x...` | The 20 tables found, with the addresses sent to the native part |
+| `tables: 11/11 found: CharacterTable=0x...` | The 11 tables the Tendril's rows go into, found, with the addresses sent to the native part |
 | `tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
 | `tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable 5006000-5006010 11/11, stance 500600 1/1` (`coop-link.log`) | The game's own lookups by ID find its CharacterTable row, its 11 skills and its stance |
 | `rows read back through FindRow: 107/107 authored rows, 1281 fields as written (997 differ from the template row)` | Every field the native part wrote reads as written |
@@ -1579,14 +1605,15 @@ world table names, built from shipped Matrix 11 levels. Without that pak the com
 is a test command, left out of the usage line, and runs only alone (not in a session) on a
 [co-op save](#co-op-saves). Its lines go to `UE4SS.log` as `[StellarCoop][MX]`, the travel's as `[StellarCoop][TR]`.
 
-The test pak has three builds, and the command takes any of them and logs which one it found. v1 holds the map, the
+The test pak has four builds, and the command takes any of them and logs which one it found. v1 holds the map, the
 zone and the enemies' spawn points, with the camp's arrival point at the dungeon start. v2 adds spawn points for the
 camp's six objects and its coin at the site of Matrix 11's first simple camp (`ME01_Camp_01`, in Area01), and moves
 the arrival point there. v3 adds the arrival point of the third zone's camp at the site of Matrix 11's camp
 `ME03_Camp_01` (26392, -23650, 4414, in Area03), between the two doors that v2 already moves out of the way, and moves
 that Matrix 11 camp's six objects out of the way too. It also moves the vending machines of Matrix 11's other camps in
 those levels, since activating a Matrix 11 camp counts toward the camp trophy. v2 leaves one of them in the first zone
-(Matrix 11's `ME01_Camp_02`, at 28804, 1308): do not use it. Only v3 takes `coop mxiii 30`.
+(Matrix 11's `ME01_Camp_02`, at 28804, 1308): do not use it. v4 is the full map, with the arrival point of the
+Tetrapod camp beside Lily. v3 and v4 take `coop mxiii 30`.
 
 1. With the game closed, put `zMXIII_P.utoc`, `zMXIII_P.ucas` and `zMXIII_P.pak` in `SB/Content/Paks/~mods` (or
    `SB/Content/Paks/LogicMods`).
@@ -1596,14 +1623,19 @@ those levels, since activating a Matrix 11 camp counts toward the camp trophy. v
    live in memory only, so the mod adds them again at the title of each game start, before you load a save, while the
    pak is installed and the game uses the co-op saves (see the save notes below). Before you remove the pak, replace
    that copy with `coop saves refresh <0-4>`.
-3. Type `coop mxiii`. It checks the pak and the travel's conditions and adds ten rows to the game's tables in memory,
-   unless they went in at the title already:
+3. Type `coop mxiii`. It checks the pak and the travel's conditions and adds the rows to the game's tables in memory,
+   unless they went in at the title already. Among them are
    the camp `DLC02_10_Camp_01`, a row in the dungeon's first zone (`Zone_DLC02_10`) that leads the travel there, one
    row for each of the camp's six objects, and the third zone's camp `DLC02_30_Camp_01` with the row in
    `Zone_DLC02_30` that leads there. It also changes five of the dungeon's own trigger rows in memory, so
    the enemies of the second and fourth zones that wait for missing props appear (see below). Then it asks the game's
-   own camp travel to go there, as `coop travel probe` does for an activated camp.
-4. If the log says `travel: SB refused DLC02_10_Camp_01`, the game listed its camps when the map started, before the
+   own camp travel to go there, as `coop travel probe` does for an activated camp. With the full map's pak (v4) EVE
+   arrives at the Tetrapod camp `DLC02_00_Camp_00`, beside Lily, with no camp of the dungeon active; with an older pak
+   she arrives at `DLC02_10_Camp_01`. Before any of that it checks that
+   the other five batches (Naytibas; doors, lifts and loot; warps; the Lion's and the Gardener's rows) went
+   in at the title. If one did not, it asks nothing and names it: return to the title with the co-op save files, wait
+   until `coop-link.log` shows all five in, then load the save and type `coop mxiii` again.
+4. If the log says `travel: SB refused DLC02_00_Camp_00` (or `DLC02_10_Camp_01`), the game listed its camps when the map started, before the
    rows went in (they did not go in at the title). Load the save again (or travel to any camp), then type `coop mxiii`
    again: the rows stay until the game exits, so the second time it only travels.
 5. `coop mxiii 30` adds the same rows and travels to `DLC02_30_Camp_01` instead, from the main game or from the first
@@ -1620,10 +1652,29 @@ those levels, since activating a Matrix 11 camp counts toward the camp trophy. v
    camps. `coop mxiii leave` refuses when the mod has no read of your activated camps yet (during a load, for example);
    try again a few seconds later.
 
+On the full map every full and simple camp stands inactive with its own coin on the floor beside its vending machine,
+put there when EVE enters that camp's zone. A full camp has the tall vending machine, a skill machine, a chair, a
+storage box, a turntable, a phone booth and the base with its parasol and fire, which light up on activation. A simple
+camp has the small vending machine, a skill machine, a chair and a turntable, as in the base game. Pick the coin up and
+use it at the machine to activate the camp. A camp
+you activated in an earlier test stays active in that save and its coin stays taken, so check this on a co-op slot
+that has not been in the dungeon. A full camp activated before the base rows existed keeps an unlit base with no way to
+light it: the shield belt and the off light, no parasol or fire (read from the row data, not seen in game).
+
+The installed pak has two gaps at the full camps. It has no spawn point for `DLC02_10_EnvS_900`, so
+`DLC02_10_Camp_01` has no spawned base; its coin and kit work, and the cooked floor, brazier and table stand there
+unlit. The other four full camps still have cooked copies of the base's meshes and a cooked vending machine under the
+working one, so those objects appear twice, and a machine that failed to spawn would look present.
+
+Lily's Talk prompt opens her menu there: the other region (the teleport screen), the
+console and her goodbye, the bike signal once its conditions hold, and the mod's row at the end of On Time. Picking
+"leave" under the bike signal ends the trip for Quest_Epic_11 and there is no row back, so a save with On Time
+running should not take it.
+
 With v2 the camp stands where EVE arrives: a vending machine, a chair, a skill machine, a storage box, a turntable and
 a phone booth, the same objects as a full camp elsewhere in the game. The vending machine coin it needs lies on the
 floor beside them; the zone puts it there when EVE enters. At first only the vending machine works. Activate the camp
-with the coin and the other five objects switch on. The camp then shows in the camp list under Matrix 11, with the name
+with the coin and the other objects switch on. The camp then shows in the camp list under Matrix 11, with the name
 and picture of Matrix 11's first full camp, since the game has no text for Matrix XIII. On a save that has activated
 that camp (`ME01_Camp_03`, Matrix 11's start camp), the list shows two entries that look the same, and which one comes
 first has not been checked. After a travel from the list, `coop where` tells you where EVE landed: `map=` ends in
@@ -1631,8 +1682,7 @@ first has not been checked. After a travel from the list, `coop where` tells you
 the phone booth opens the camp list for fast travel out and back, and a death in the zone brings EVE back to this camp.
 With v1 the game finds no spawn point for the six objects and places none; the travel still works.
 
-The third zone's camp has no objects and no coin: there is nothing to activate, rest at or buy, and it never shows in
-the camp list, which lists only activated camps. It is a way in. EVE arrives at Matrix 11's arrival point for
+On v3 the third zone's camp is a way in. EVE arrives at Matrix 11's arrival point for
 `ME03_Camp_01`, facing the room's camp base, which v3 leaves in place. From there the zone goes on through the door
 opening to the south. That spot is off the navigation mesh, like the first zone's camp and most of Matrix 11's
 camps, so enemies do not follow her into the room; the first polygon starts about 42 m south. A death in the third or
@@ -1653,6 +1703,9 @@ the fourth zone start switched on:
 | Fourth | `DLC02_40_ZTrigger_001`, the main hall | off until a drain device | on: 5 Antlions, one after another |
 | Fourth | `DLC02_40_ZTrigger_002`, the main hall | off until a drain device | on: 3 Clrikets, one after another |
 
+With the full map's pak, the second zone's waves come from three triggers of their own inside the arena doorways,
+which also shut the arena gate behind EVE; the three triggers above are back to what the game ships.
+
 The rows keep how the game saves each trigger. From the rows (not checked in game): the zone's reset re-arms the
 first wave's trigger, the triggers of waves 2 and 3 fire once per save, and the two in the fourth zone save nothing.
 The change lives in memory for the game run, like the camp's rows, and these rows belong to zones that only this
@@ -1661,9 +1714,10 @@ Matrix 11's own triggers and cutscene levels, which the test pak does not stream
 in for them. `coop mxiii 30` goes around that climb.
 
 - The pak check reads `zMXIII_P.utoc` once per command and looks for `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` in
-  it, with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it. It then reads up to 16 MB of `zMXIII_P.ucas`: v2 names the
-  objects' spawn points there (`DLC02_10_EnvS`), v1 does not, and v3 also names the third zone's camp point
-  (`DLC02_30_Camp_01`). A container compressed with Oodle hides those names and reads as v1. A pak under another name is
+  it, with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it. It then reads `zMXIII_P.ucas` 16 MB at a time, up to its
+  end as the `.utoc` gives it, until it has seen all three names: v2 names the objects' spawn points there
+  (`DLC02_10_EnvS`), v1 does not, v3 also names the third zone's camp point (`DLC02_30_Camp_01`), and the full map (v4)
+  the Tetrapod camp's (`DLC02_00_Camp_00`). A container compressed with Oodle hides those names and reads as v1. A pak under another name is
   not found. The check reads the folder as it is now: it cannot tell whether the game mounted the pak at start, and the
   game mounts paks only at start. Copy the files in with the game closed.
 - The mod's camp reaches the save file as soon as you activate it, without a save and quit: the vending machine saves
@@ -1697,6 +1751,25 @@ in for them. `coop mxiii 30` goes around that climb.
 - `coop off` ends the wait for the rows. A travel the game already took goes on. At the title, the mod asks for the
   rows again after `coop on`.
 
+With the full map's pak (all four zones, cooked with the mechanisms), the title adds the rest of the dungeon after the
+camp rows: its other camps and their kits, Lily and the Tetrapod on the zone 0 plaza, the zones' enemies with the three
+bosses, and the mechanisms, built the way Matrix 11 builds its own. Every door starts closed. Its panel on either side
+shows the game's open prompt; a one-way door's far side says it cannot be opened from there. Gates open from their
+switches, a lift goes to the landing whose call switch you use, and the zone 4 water drains through its panels. Arena
+doors shut when the fight starts and open once its last enemy dies; the Lion's fan door and D7 shut when it fights and
+open on its death. If EVE dies in an arena, its locks should reset with the zone and lock again at the next fight (not tested in game). The R02
+shutter under the surface lift starts down and rises from the switch on the pillar between its two halves. The
+car 9 airlock and the zone 3 pressure door start open and close by their own mechanism (the pressure door for good,
+behind EVE). The map has no warp switch: for tests, `coop mxiii warp` lists in `UE4SS.log` the 72 points the old
+switches led to, and `coop mxiii warp <n|name>` puts EVE on one (solo, on a co-op save, in the dungeon only). Once in
+the dungeon, the mod spawns the ladders, ledges and the two ropes itself (`[MXMOVE]` lines) and fixes the Lion and the
+Gardener when the game spawns them (`[MXBOSS]` lines). `coop mxiii boss`, typed within 25 m of the Lion's or the
+Gardener's spawn point, spawns that boss as `coop lion` or `coop gardener fight` would (no saved death), for when the
+game spawned none there. The fan levers wait for the Lion's death: a save whose Lion died on a build older than these
+levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight. The link protocol is
+15: both players need a build with the same rows. A co-op save that played in the dungeon can no longer be exported to
+your own saves ([saves.md](saves.md)).
+
 | Line | What it answers |
 | --- | --- |
 | `[StellarCoop][MX] title: the co-op save files and test pak v<n>: the rows asked before any save loads (try <k> of 4)` | At the title, the rows asked of the native part |
@@ -1709,12 +1782,24 @@ in for them. `coop mxiii 30` goes around that climb.
 | `[StellarCoop][MX] refused: no test pak: no <path> or <path>` | No test pak in either folder: nothing was asked |
 | `[StellarCoop][MX] refused: no test pak: <path> does not hold <name>` or `no <path> beside <path>` | The `.utoc` names the map under another folder or not at all, or its `.pak` or `.ucas` is missing: nothing was asked |
 | `[StellarCoop][MX] refused: <why>` | A condition of the travel failed (a session, another save, a travel under way or under 10 s ago, the native travel stopped by a fault): nothing was asked |
-| `mxiii rows: 15/15 in, 10 added through SB's AddRow 0x14417ba30 and 5 shipped rows patched in place, 0 refused` (`coop-link.log`) | The native part added the 10 rows of the two camps and changed the 5 trigger rows |
-| `mxiii rows refused <row>: <why>; <n>/15 added` (`coop-link.log`) | A row the native part would not add or change, and why: no travel |
-| `[StellarCoop][MX] rows read back through FindRow: 15/15 authored rows, 38 fields as written (36 differ from the template row)` | Every field the native part wrote reads as written |
-| `[StellarCoop][MX] travel to DLC02_10_Camp_01 asked: ...` (or `DLC02_30_Camp_01`) | The camp travel went to the native part |
-| `[StellarCoop][TR] travel accepted: DLC02_10_Camp_01` (or `DLC02_30_Camp_01`) | The game took the travel: the fade and the load follow |
-| `[StellarCoop][TR] travel: SB refused DLC02_10_Camp_01` (or `DLC02_30_Camp_01`) | The game did not find the camp (see step 4) |
+| `mxiii rows: 75/75 in, 39 added through SB's AddRow 0x14417ba30 and 36 shipped rows patched in place, 0 refused` (`coop-link.log`) | The native part added the camp rows and changed the shipped kit and trigger rows |
+| `mxiii rows refused <row>: <why>; <n>/75 added` (`coop-link.log`) | A row the native part would not add or change, and why: no travel |
+| `[StellarCoop][MX] rows read back through FindRow: 75/75 authored rows, <n> fields as written (<k> differ from the template row)` | Every field the native part wrote reads as written |
+| `mxspawn rows: 51/51 in, ...`, `mxenv rows: 172/172 in, ...`, `mxupper rows: 168/168 in, ...`, `mxmiddle rows: 106/106 in, ...`, `mxlower rows: 105/105 in, ...`, `mxrecords rows: 100/100 in, ...` (`coop-link.log`) | The full map's other batches went in at the title, after the camp rows (`mxrecords`: the 25 records, optional) |
+| `mxnames rows: 11/11 in, ...` (`coop-link.log`) | The camps' names went in, last of all and only after `camptext=ready` |
+| `mxlily rows: 6/6 in, 0 added through SB's AddRow 0x14417ba30 and 6 shipped rows patched in place, 0 refused` (`coop-link.log`) | Lily's menu conditions were patched for this game run. `coop mxiii` does not wait for this batch; if it is refused or missing she has no menu in the dungeon and travel still works |
+| `[StellarCoop][MX] refused: mxspawn rows not in` (or `mxenv`, `mxupper`, `mxmiddle`, `mxlower`, `lion`, `gardener`) | `coop mxiii` found a batch that did not go in at the title (a save loaded before the chain ended, or the tries ran out): nothing was asked; return to the title with the co-op save files, wait until `coop-link.log` shows all seven batches in, then run it again |
+| `camptext=wait` that never turns `ready`, or `camptext=fault` (`coop-status.txt`) | Matrix XIII's camps keep their donors' names and travel still works: `coop mxiii` does not wait for the `mxnames` batch. On a fault `coop-link.log` has a `camp names off` line, and the names stay off until the game restarts |
+| `[StellarCoop][MX] mxspawn title: ...`, `mxenv title: ...`, `mxupper title: ...`, `mxmiddle title: ...`, `mxlower title: ...`, `lion title: ...`, `gardener title: ...`, `mxlily title: ...`, `mxnames title: ...` | Each of those batches at the title, with the same words as the camp rows' lines |
+| `[StellarCoop][MX] [MXMOVE] ladder <key> at <x> <y> <z> yaw <d> height <h> stack <pieces> built <h> (<role>), deferred spawn` (or `ledge`, `rope ... drop <cm> env <row>`) | In the dungeon, a ladder, ledge or rope the mod spawned, and how (`SpawnActor, construction script run again` when the deferred spawn failed). `stack` is the ladder's `Meshes` as the actor holds them before it finishes spawning (for example `3,3`); a `0` there, or `?`, means the stack did not go in and the ladder is short. `built` is the `TotalHeight` its construction script came to and should equal `height`; when it is larger, the ladder stands `built - height` cm too high |
+| `[StellarCoop][MX] [MXMOVE] <n>/47 ladders, ledges and ropes spawned in world 2800` | All of them, once a world |
+| `[StellarCoop][MX] warp <n> <point> (<mover>)` | `coop mxiii warp` alone: one line per point |
+| `[StellarCoop][MX] warp <n> <point> (<mover>) to <x> <y> <z> yaw <d>` | `coop mxiii warp <n|name>` moved EVE there (`: the game refused the teleport` when it did not) |
+| `[StellarCoop][MX] [MXBOSS] Lion DLC02_40_E_CharS_051 found near its point: <what was done>` (or the Gardener) | The game spawned the boss from its row and the mod fixed it |
+| `[StellarCoop][MX] [MXBOSS] no Lion body within 30 m of DLC02_40_E_CharS_051 after 20 s: coop mxiii boss spawns one (key 0, no saved death)` | No body at the arena: type `coop mxiii boss` there for the fallback fight |
+| `[StellarCoop][MX] travel to DLC02_00_Camp_00 asked: ...` (or `DLC02_10_Camp_01`, `DLC02_30_Camp_01`) | The camp travel went to the native part |
+| `[StellarCoop][TR] travel accepted: DLC02_00_Camp_00` (or `DLC02_10_Camp_01`, `DLC02_30_Camp_01`) | The game took the travel: the fade and the load follow |
+| `[StellarCoop][TR] travel: SB refused DLC02_00_Camp_00` (or `DLC02_10_Camp_01`, `DLC02_30_Camp_01`) | The game did not find the camp (see step 4) |
 
 None of it has been tried in game yet. Start the game with the pak installed and the co-op saves on, and check at
 the title, before you load a save, that `UE4SS.log` shows `[StellarCoop][MX] title: the rows are in, before any save
@@ -1732,6 +1817,74 @@ can walk out to the south into the third zone and that its enemies appear, that 
 room, and that `coop mxiii leave` from there goes back out. To check that v2 refuses `coop mxiii 30`, swap the pak only
 after that `coop mxiii leave`, with the game closed. Check that the game keeps running and saves normally after you
 leave, then replace the slot with `coop saves refresh <0-4>` at the title.
+
+With the full map's pak, check at the title that `coop-link.log` shows the six Matrix XIII batches and the lion and
+gardener batches in, each `rows=N/N` on its status line, and that no `[MX]` line says a table is missing. The `mxlily`
+batch comes after them, and so does `mxnames`, which is asked only once `coop-status.txt` reads `camptext=ready`: check
+for `mxnames rows: 11/11 in` in `coop-link.log`. `mxnames=off` with `camptext=wait` is no failure, only a batch not
+asked yet. Check `mxlily rows: 6/6 in` too. Then, on a co-op slot that has not been in the dungeon, in one session:
+`coop mxiii` arrives beside Lily at the Tetrapod and no dungeon camp is active; Talk opens her menu, its console and
+goodbye work, the other region opens the teleport screen with the Matrix 13 tab and comes back; each camp in zones 1
+to 4 has a coin on the floor and activates with it; a Great Desert Lily still shows her own menu after the patch; the surface lift rides
+down from its cab panel and comes back to the call switch you use; the R02 shutter is down and rises from the switch
+on the pillar; every door you meet is closed and opens from its
+panel, and a one-way door refuses from its far side; zone 1's enemies appear in R08, R20, R23 and R26, the new rows
+included (`DLC02_10_E_CharS_901` in R20); the `[MXMOVE]` count line shows 47 and no ladder line has a `0` in its
+stack; the R10 ladder climbs; the R28 rope drops when its winch turns and ladder gate 435's lever makes its ladder
+usable (the two rows the mod's late spawns bind by `EnvActorName`); a rest at the R04
+camp brings a killed Creeper back; the R29 gate opens from its switch; zone 2's waves come at the arena doorways, the
+arena gate shuts behind you and opens after the last kill, and after a death in the arena the waves and the lock come
+back at the doorway; the Gardener comes at the gantry step; the car 9 airlock
+shuts its outer door before the inner one opens; the Stalker in Z3R19 dies at 0 HP and the hall doors open then; the
+pressure door shuts behind you; the zone 4 trio appears only after trigger 004; the water drops from its panels; the
+Lion spawns with the `[MXBOSS]` fix line and its name on the boss bar, the fan door and D7 shut during the fight and
+open on its death; `coop mxiii warp 1` puts EVE at the surface lift; and `coop saves export` refuses the save
+afterwards.
+
+### Lily's signal (experimental)
+
+In Phase 5, before her "Follow the bike signal and leave", on a co-op save, solo, with the zMXIII_P test pak and
+Quest_Sub_005 complete, the mod starts its prologue quest "A Second Signal" and Lily's menu offers "The other signal".
+Its pick plays a talk in the game's subtitle box, starts the mod's quest "On Time" and runs `coop mxiii`'s camp travel.
+"On Time" has six steps through Matrix XIII and ends with a second talk with Lily. Without the test pak the mod adds
+none of its rows and reads nothing. The whole feature, its conditions,
+its notes on saves and its `[StellarCoop][LY]` lines are in [lily-signal.md](lily-signal.md). None of it has been tried
+in game yet. The native part reports it in `coop-status.txt`:
+
+- `signal=`, the quests' rows and the borrowed choice row, in the same forms as the `lion=` line (see
+  [Cut boss](#cut-boss-coop-lion)): `signal=off` before an ask, `signal=rows added=25/25 asks=1 spawns=? char=0/0
+  skills=0/0 stance=0/0` once the 25 rows are in.
+- `lily=`, her choice list, in the forms of the `roxanne=` line (see
+  [Night Operation's shop screen and Roxanne's choices](#night-operations-shop-screen-and-roxannes-choices)): `on` is
+  her eight rows with the borrowed one in front, `off` her own eight in any order.
+- `signalquest=`, the quests in your quest list, read every 250 ms on a co-op save once the mod asked `signal watch`
+  (solo, the test pak found, the signal rows read back; before that the line reads `unread`):
+  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> oblivion=<0|1> pro=<unread|none|held>
+  prostate=<s> progroup=<g> protask=<t> epic11=<g> epic11state=<s> asks=<a> want=<ask> why=<w>`. The first fields are
+  "On Time"'s: `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4 complete, 5 failed),
+  its active group (`0` is M01, the station, to `5`, M06, "Talk to Lily") and that group's first task's state (1 in
+  progress, 2 complete); `-1` while unread. `pro`, `prostate`, `progroup` and `protask` are the same for the prologue.
+  `epic11` and `epic11state` are Quest_Epic_11's active group and state (`3` and `1`: "Talk to Lily to decide on the
+  next destination" in progress), `-1` when it is not in the list. `epic12=1` means Quest_Epic_12, the bike signal's
+  quest, is in the list. `sub005` is Quest_Sub_005's state in the same numbers, `-1` when it is not in the list; her
+  choice needs 3 or more. `oblivion=1` means Quest_Sub_030 is complete; the zone talks' Oblivion lines need it. `asks` counts the requests handled, `want` and `why` are the last one's (`want` is the word
+  after `signal `: `acquire`, `complete`, `prologue`, `talked`, `zone4`, `tell` or `next`): `none` when it ran, `slot`
+  (not a co-op save), `unread` (no quest data yet), `held` (already in the list), `refused` (the game's acquire said
+  no), `absent` (no quest to complete), `group` (not in progress at that word's group) or `task` (its task not in
+  progress, or no task Complete in its vtable). `signalquest=fault asks=<a> where=<where>` after a fault.
+
+The native part's own lines, in `coop-link.log`:
+
+| Line | What it answers |
+| --- | --- |
+| `signal rows: 25/25 in, 24 added through SB's AddRow 0x14417ba30 and 1 shipped rows patched in place, 0 refused` | The quests' 24 rows are in, and the borrowed choice row is patched |
+| `signal watch asked: the quest unit read every 250 ms on a co-op save from now on` | The quest list's reads start; before this line nothing reads it |
+| `lily on: her list reads on` | Her choice list now holds the borrowed row and her eight |
+| `lily off: her list reads off` | Her own eight choices are back |
+| `lily on refused: other, her list reads other` | Her list was not the eight rows the mod knows, so it changed nothing |
+| `signal acquire: done, signalquest=held ...` | The game's acquire ran and the quest is in the list (`signal prologue: done, ...` for the prologue) |
+| `signal complete refused: task, signalquest=held ...` | A task's Complete did not run, and why (the words as in the `signalquest=` line); the same for `talked`, `zone4`, `tell` and `next` |
+| `signal quest fault 0x... in ... reading 0x...: no quest reads or calls until the game restarts` | A fault in the quest's reads or calls |
 
 ### Cut hairs and suits: `coop wear`
 
@@ -3366,7 +3519,7 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 
 `coop status` prints the full state on one log line, its parts separated by ` | `:
 
-- Steam: `mod=<version> proto=18 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
+- Steam: `mod=<version> proto=19 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code

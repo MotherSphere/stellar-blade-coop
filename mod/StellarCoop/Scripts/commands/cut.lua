@@ -7,21 +7,23 @@
 -- skulling) on a co-op save only, after the viewer's display and free camera are put away, so the two models never
 -- stand in the same place; rows on any. coop tendril fight, the cut Tendril spawned as an enemy (cut/tendril.lua;
 -- every other coop tendril word is the viewer's), the same way: the spawn on a co-op save only, rows on any. coop
--- scene, two cut scenes through the game's theater (cut/scene.lua): a scene's name on a co-op save only; the list and
--- stop on any. main.lua builds it with new(o) at each Lua load and merges it into its command table. o: main.lua's
--- coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion (cut/lion.lua's), gardener
--- (cut/gardener.lua's), tendril (cut/tendril.lua's), wear (cut/wear.lua's), scene (cut/scene.lua's), lines
--- (cut/lines.lua's), flight (cut/flight.lua's keys for coop fly), chainspin (cut/chainspin.lua's), glide
--- (cut/glide.lua's), ask (a native request; coop fly, coop slowmo, coop shortcut and coop devinfo) and devmenu
--- (cut/devmenu.lua's). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of the usage line), runs
--- on a co-op save only. coop emote, one of EVE's clips (cut/emote.lua, o.emote), runs on any save. coop devmenu, the
--- developer menu's rows that still work (left out of the usage line too): its list on any save, a row on a co-op save
--- only. coop devinfo, two read-only panels of the game's developer UI (left out too), on any save. coop gift, the
--- cut mailbox as a co-op gift box (cut/mailbox.lua, o.mailbox, built with the Steam link only), runs on a co-op save
--- only: every word of it.
--- coop mxiii, the camp travel into the cut Matrix XIII dungeon (cut/mxiii.lua, o.mxiii; a test tool left out of the
--- usage line, needing the zMXIII_P test pak), coop mxiii 30, the same to its third zone's camp, and coop mxiii leave,
--- its way out, run on a co-op save only.
+-- scene, two cut scenes through the game's theater (cut/scene.lua): a scene's name on a co-op save only (lily, Lily's
+-- prologue talk, through o.lily); the list and stop on any. main.lua builds it with new(o) at each Lua load and merges
+-- it into its command table. o: main.lua's coop_slot, leviathan (cut/leviathan.lua's, one command a creature), lion
+-- (cut/lion.lua's), gardener (cut/gardener.lua's), tendril (cut/tendril.lua's), wear (cut/wear.lua's), scene
+-- (cut/scene.lua's), lines (cut/lines.lua's), flight (cut/flight.lua's keys for coop fly), chainspin
+-- (cut/chainspin.lua's), glide (cut/glide.lua's), ask (a native request; coop fly, coop slowmo, coop shortcut and coop
+-- devinfo) and devmenu (cut/devmenu.lua's). coop chainspin, EVE's cut Tachy Mode ChainSpin (a test tool, left out of
+-- the usage line), runs on a co-op save only. coop emote, one of EVE's clips (cut/emote.lua, o.emote), runs on any
+-- save. coop devmenu, the developer menu's rows that still work (left out of the usage line too): its list on any save,
+-- a row on a co-op save only. coop devinfo, two read-only panels of the game's developer UI (left out too), on any
+-- save. coop gift, the cut mailbox as a co-op gift box (cut/mailbox.lua, o.mailbox, built with the Steam link only),
+-- runs on a co-op save only: every word of it.
+-- coop mxiii, the camp travel into the cut Matrix XIII dungeon (matrix13/world/travel.lua, o.mxiii; a test tool left
+-- out of the usage line, needing the zMXIII_P test pak), coop mxiii 30, the same to its third zone's camp, and coop
+-- mxiii leave, its way out, and coop mxiii boss, the key-0 Lion or Gardener of the arena EVE stands in
+-- (matrix13/world/boss.lua), run on a co-op save only. coop mxiii mila, Mila's pose and scale (matrix13/world/mila.lua,
+-- o.mila), runs on any save: a display only, nothing of it is saved.
 local Cut={}
 function Cut.new(o)
     local coop_slot,leviathan,lion=o.coop_slot,o.leviathan,o.lion
@@ -153,18 +155,22 @@ function Cut.new(o)
         end
         return o.ask('devinfo '..which)()
     end
-    -- coop mxiii (cut/mxiii.lua, o.mxiii): a camp travel into a world the save has never been in, which the game may
-    -- write into the save, so on a co-op save only; coop mxiii leave too, as coop travel probe.
-    function self.mxiii(extra)
+    -- coop mxiii (matrix13/world/travel.lua, o.mxiii): a camp travel into a world the save has never been in, which the
+    -- game may write into the save, so on a co-op save only; coop mxiii leave too, as coop travel probe.
+    function self.mxiii(extra,point,more)
+        if extra=='mila' then return o.mila.command(point,more) end
         local ok,why=coop_slot('coop mxiii')
         if not ok then return false,why end
-        return o.mxiii.command(extra)
+        return o.mxiii.command(extra,point)
     end
+    -- coop scene lily: Lily's prologue talk by hand, coop lily talk prologue's (matrix13/quest/on_time.lua: solo, the
+    -- test pak).
     function self.scene(sub,extra)
         if o.scene.SCENES[sub] then
             local ok,why=coop_slot('coop scene '..sub)
             if not ok then return false,why end
         end
+        if sub=='lily' and o.lily then return o.lily.talk('prologue',extra) end
         return o.scene.command(sub,extra)
     end
     return self

@@ -1,0 +1,61 @@
+# Sends the zip of a published GitHub release to Nexus Mods as a new version of the mod's main file.
+# python3 tools/release.py <tag> builds the zip locally (the DLL needs the clang-cl and xwin toolchain), attaches it to
+# the draft release as StellarCoop-<tag>.zip and publishes the release with the user's gh token. A release published
+# with the GITHUB_TOKEN would not start this workflow. See docs/building.md, Releases.
+# Repository settings: secret NEXUSMODS_API_KEY; variables NEXUS_MOD_ID (the mod's API ID, 33517924781995) and
+# NEXUS_FILE_ID (the main file's API ID, 8255901). Neither is the number in the mod page's URL or the file's uid there.
+name: Nexus Mods upload
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag of a published release to send again (for example v0.7.5)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexus-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    if: github.repository == 'MotherSphere/stellar-blade-coop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release zip and notes
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -euo pipefail
+          zip="StellarCoop-${TAG}.zip"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$zip"
+          test -s "$zip"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body > release.json
+          end="NOTES_$(openssl rand -hex 16)"
+          {
+            echo "zip=$zip"
+            echo "version=${TAG#v}"
+            echo "name=$(jq -r '.name // "" | gsub("[\r\n]+"; " ")' release.json)"
+            echo "notes<<$end"
+            jq -r '.body // ""' release.json | tr -d '\r'
+            echo "$end"
+          } >> "$GITHUB_OUTPUT"
+      - name: Upload to Nexus Mods
+        uses: Nexus-Mods/upload-action@98532f7670c27cbecc78fae03fa3e278147827e2 # v1.0.0-beta.11
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          mod_id: ${{ vars.NEXUS_MOD_ID }}
+          file_id: ${{ vars.NEXUS_FILE_ID }}
+          filename: ${{ steps.release.outputs.zip }}
+          version: ${{ steps.release.outputs.version }}
+          display_name: ${{ steps.release.outputs.name }}
+          changelog: ${{ steps.release.outputs.notes }}
+          archive_existing_version: 'true'
+          update_mod_version: 'true'

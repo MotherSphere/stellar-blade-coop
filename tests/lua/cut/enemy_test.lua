@@ -1,4 +1,4 @@
--- cut/enemy.lua's parts that need no world (lion_test and gardener_test run its flow through both specs): its 20 tables
+-- cut/enemy.lua's parts that need no world (lion_test and gardener_test run its flow through both specs): its 37 tables
 -- are link/protocol.h's kLionTables in order, a batch's line parses by its word only (from the start of its own line,
 -- each of its forms), the generated rows take their named form, the counts a batch's line gives once its rows are in,
 -- and an error's text loses its file and line.
@@ -16,8 +16,11 @@ do
         n=n+1
         assert(Enemy.TABLES[n]==t,'kLionTables order: '..t)
     end
-    assert(n==20 and #Enemy.TABLES==20)
-    assert(src:find('kRowWords%[kRowWordCount%] = {"lion", "gardener", "tendril", "bolt", "mxiii", "shop"}'),
+    assert(n==37 and #Enemy.TABLES==37)
+    local words={}
+    for w in assert(src:match('kRowWords%[kRowWordCount%] = {(.-)};')):gmatch('"(%a+)"') do words[#words+1]=w end
+    assert(table.concat(words,' ')=='lion gardener tendril bolt mxiii shop signal mxspawn mxenv mxupper mxmiddle '
+        ..'mxlower mxnames mxlily mxrecords',
         'The words, the batches\' order')
 end
 

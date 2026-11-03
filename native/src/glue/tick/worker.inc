@@ -32,6 +32,7 @@ int pad_logged = kPadUnread; // pad_seen as last logged.
 // number), for the call's log line.
 bool travel_fault_logged = false, travel_globals_logged = false;
 bool camps_fault_logged = false; // The activated camps' read (camps_game.inc): its fault.
+bool camp_text_fault_logged = false; // Matrix XIII's camp names (camp_text_game.inc): their fault.
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
@@ -518,6 +519,17 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(camps_fault_code.load()),
                   static_cast<unsigned long long>(camps_fault_rva.load()),
                   static_cast<unsigned long long>(camps_fault_address.load()));
+    event(text);
+  }
+  if (camp_text_faulted && !camp_text_fault_logged) {
+    camp_text_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "camp names off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; the Matrix XIII camps keep "
+                  "the names they show until the game restarts",
+                  static_cast<unsigned long long>(camp_text_fault_code.load()),
+                  static_cast<unsigned long long>(camp_text_fault_rva.load()),
+                  static_cast<unsigned long long>(camp_text_fault_address.load()));
     event(text);
   }
   if (travel_globals_read && !travel_globals_logged) { // Once: what the request carries at +0x3c and +0x48.

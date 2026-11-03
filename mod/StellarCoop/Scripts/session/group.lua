@@ -221,7 +221,7 @@ function G.new(o)
             end
         end
     end
-    -- The cutscene's name while one plays, else nil. The observer found playing is kept while it lives. A theater plays
+    -- The cutscene's name while one plays, else nil. The observer found playing is kept while it plays. A theater plays
     -- through a level sequence actor, whose class's actors come from the engine's class hash (core/unreal.lua's
     -- actors_of): the theater observers are walked for (FindAllOf walks every object, 25 to 80 ms in game: once a
     -- second while linked, that was a frozen frame each second) only when the set of playing sequence actors changes,
@@ -231,16 +231,20 @@ function G.new(o)
     -- The hash needs a world: our EVE's, else our SB controller's. With neither (a load, the title screen) no theater
     -- plays, and actors_of would walk for want of a world.
     -- last: the playing sequence actors' addresses and full names at the last read (after a map change a freed address
-    -- may hold another actor; the full name has its map).
-    local observer,last=nil,nil
+    -- may hold another actor; the full name has its map). world: the address of the world the observer was found in.
+    local observer,last,world=nil,nil,nil
     local function name_of(ob)
         local player=ob and weak(ob.Player)
         return player and player:IsPlaying()==true and U.text(ob.SequenceName) or nil
     end
     local function theater()
+        local ctx=N.her() or N.controller()
+        local here=ctx and U.valid(ctx:GetWorld())
+        here=here and U.address(here)
+        if here~=world then observer,world=nil,here end -- The map frees it: never read it again (IsValid included).
         local kept=name_of(U.valid(observer))
         if kept then return kept end
-        local ctx=N.her() or N.controller()
+        observer=nil -- Its cutscene over, the collector may free it.
         if not ctx then return nil end
         local read,playing,names=pcall(function()
             local keys,names={},{}

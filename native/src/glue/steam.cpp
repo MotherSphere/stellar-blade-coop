@@ -528,11 +528,12 @@ std::string status_text() {
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   const std::string camps = coop::pose::camps_status();
+  const std::string camp_text = coop::pose::camp_text_status();
   return head + cns_line + "shared=" + std::to_string(shared_version) + " " + std::to_string(shared_count) + "\n" +
          coop::pose::status() + "\n" + (camps.empty() ? camps : camps + "\n") +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
-         coop::pose::rows_status() + "\n" +
+         coop::pose::rows_status() + "\n" + (camp_text.empty() ? camp_text : camp_text + "\n") +
          coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
          "last=" + journal.last() + "\n";
 }
@@ -632,8 +633,8 @@ bool step() {
       event(coop::pose::ask_items(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii, the
-                              // shop: the game thread's.
+    case coop::Command::rows: // The rows of coop lion, coop gardener/tendril fight, the Shock Bolt, coop mxiii's four, the
+                              // shop, Lily's signal: the game thread's.
       event(coop::pose::ask_rows(coop::parse_request(request)));
       request.clear();
       break;
@@ -669,8 +670,12 @@ bool step() {
       event(coop::pose::ask_nightshop(coop::parse_request(request)));
       request.clear();
       break;
-    case coop::Command::roxanne: // Roxanne's Night Operation choices: the game thread's.
+    case coop::Command::roxanne: // Roxanne's Night Operation choices or Lily's signal choice: the game thread's.
       event(coop::pose::ask_roxanne(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::signal: // The mod's own quests, their reads, acquires or a task's Complete: the game thread's.
+      event(coop::pose::ask_signal(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::saves:

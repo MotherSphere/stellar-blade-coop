@@ -43,7 +43,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 18; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 19; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -68,9 +68,12 @@ constexpr int kProtocol = 18; // Bump on any wire change. 1 was the first link (
                               // hide lines (hidden material sections), which a protocol-16 peer would refuse the same
                               // way; 18 adds the table's fx lines (effects named by path, indexes past the fixed list)
                               // and effect slots up to index 64, which a protocol-17 peer would refuse with the whole
-                              // table and the pose. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's
-                              // builds, 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14:
-                              // v0.7.0-beta.1, 17: a v0.7.5 test build; 16 was never released) is told why: the lobby tag, then the
+                              // table and the pose; 19 adds Matrix XIII's world rows (lion/mxiii_rows.h: spawn rows,
+                              // camps, warps), and shared Naytibas key an enemy by its spawn row's ID, so a protocol-18
+                              // peer, without those rows, would never match the host's new enemies. An older peer (6:
+                              // v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1, 12:
+                              // v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
+                              // build, 18: v0.7.5; 15 and 16 were never released) is told why: the lobby tag, then the
                               // hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
@@ -311,7 +314,7 @@ constexpr size_t kMaxMark = 100;
 inline std::string mark_line(uint32_t n, const std::string &text) {
   return "SBC" + std::to_string(kProtocol) + " mark " + std::to_string(n) + (text.empty() ? "" : " " + text);
 }
-// Channel 2's tags, versioned like channel 0's: "SBF18" for the shared fight, "SBQ18" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF19" for the shared fight, "SBQ19" for the shared quests.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
 
@@ -578,11 +581,14 @@ inline uint64_t code_lobby(std::string_view text) {
 // index above 0, both within 32 bits); and for coop lion (cut/lion.lua) "lion rows
 // <Table>=0x<address> ...", for coop gardener fight (cut/gardener.lua) "gardener rows <Table>=0x<address> ...", for
 // coop tendril fight (cut/tendril.lua) "tendril rows <Table>=0x<address> ...", for the shop's Shock Bolt (through
-// cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (cut/mxiii.lua) "mxiii rows <Table>=0x<address>
-// ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop rows
-// <Table>=0x<address> ..."
-// (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each of the kLionTables, in any
-// order, each once, its address in 1 to 16 hex digits and plausible; Request::batch says which). Lua finds the tables
+// cut/lion.lua) "bolt rows <Table>=0x<address> ...", for coop mxiii (matrix13/world/travel.lua) "mxiii rows
+// <Table>=0x<address> ..." and for the Night Operation shop's screen (nightop/shop.lua, through cut/lion.lua) "shop
+// rows <Table>=0x<address> ..." and for Lily's signal (matrix13/quest/on_time.lua) "signal rows <Table>=0x<address>
+// ..." and for Matrix XIII's other batches (matrix13/world/travel.lua) "mxspawn rows ...", "mxenv rows ...", "mxupper
+// rows ...", "mxmiddle rows ...", "mxlower rows ...", "mxnames rows ...", "mxlily rows ..." and "mxrecords rows ..."
+// (that batch of lion/rows.h for SB's AddRow, glue/tick/lion_game.inc: one word for each table the batch writes, 1 to
+// 37 of the kLionTables, in any order, each once, its address in 1 to 16 hex digits and plausible; a table left out
+// stays 0, and a batch that writes it refuses it as no UDataTable; Request::batch says which). Lua finds the tables
 // by their fixed paths, so no console argument reaches an address, and the native part trusts none before it checked
 // the table's vtable and row size (lion/rows.h). For coop emote (cut/emote.lua) "anim play <id> <path> once|loop" (one
 // of EVE's clips on her through SB's custom animation call, glue/tick/anim_game.inc: an id from 1 to 2^32-1, a path
@@ -593,31 +599,48 @@ inline uint64_t code_lobby(std::string_view text) {
 // Night Operation shop in SB's own shop screen (nightop/shop.lua, nightop/shop_ui.h)
 // "nightshop open" (Shop_NightOperation_Coop), "nightshop open bolt" (Shop_NightOperation_CoopBolt), "nightshop close"
 // and "nightshop watch" (the reads only); for Roxanne's Night Operation choices (nightop/roxanne.lua,
-// nightop/roxanne.h) "roxanne on" and "roxanne off". No console argument reaches either: the words are fixed.
+// nightop/roxanne.h) "roxanne on" and "roxanne off"; for Lily's signal choice (matrix13/quest/on_time.lua, the same
+// header) "lily on" and "lily off"; for the mod's own quests (matrix13/quest/on_time.lua, quest/own.h) "signal watch"
+// (the reads only, from then on), "signal acquire" (acquire On Time), "signal complete" (its M01 task's Complete),
+// "signal prologue" (acquire the prologue), "signal talked" (the prologue's task's Complete), "signal zone4" and
+// "signal tell" (On Time's M05 and M06 tasks' Complete) and "signal next" (a test word: the task of On Time's active
+// group). No console argument reaches any of them: the words are fixed, and so are each word's quest ID and group.
 enum class Command {
   none, host, invite, join, leave, report, off, loopback, record, replay, nightop, fight, freeze, saves, allow, deny,
-  remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne
+  remove, copy, quests, camps, travel, mark, rows, gate, anim, shortcut, devinfo, gift, items, nightshop, roxanne,
+  signal
 };
 // shortcut load's maps, save/shortcut.h's kMapNames in its order (shortcut_load_test checks they match).
 constexpr const char *kShortcutMaps[4] = {"B07", "F02", "G03", "Matrix_XI"};
-// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop), in
-// Request::batch's order.
-constexpr size_t kRowWordCount = 6;
-constexpr const char *kRowWords[kRowWordCount] = {"lion", "gardener", "tendril", "bolt", "mxiii", "shop"};
+// The words of the rows requests, one a batch of lion/rows.h (kLion, kGardener, kTendril, kBolt, kMxiii, kShop,
+// kSignal, kMxspawn, kMxenv, kMxupper, kMxmiddle, kMxlower, kMxnames, kMxlily, kMxrecords), in Request::batch's order.
+constexpr size_t kRowWordCount = 15;
+constexpr const char *kRowWords[kRowWordCount] = {"lion",   "gardener", "tendril", "bolt",    "mxiii",    "shop",
+                                                  "signal", "mxspawn",  "mxenv",   "mxupper", "mxmiddle", "mxlower",
+                                                  "mxnames", "mxlily", "mxrecords"};
 // The tables the rows of every batch go into (lion/rows.h's Table, in this order), as their assets are named.
-constexpr size_t kLionTableCount = 20;
+constexpr size_t kLionTableCount = 37;
 constexpr const char *kLionTables[kLionTableCount] = {
     "CharacterTable",        "CharacterAppearanceTable", "CharacterDeadTable", "CharacterStanceTable",
     "CharacterAnimSetTable", "SkillCommandTable",        "SkillTable",         "SkillActiveStepTable",
     "CharacterMoveTable",    "TargetFilterTable",        "SkillResultTable",   "EffectTable",
     "ItemTable",             "ItemConsumableTable",      "ProjectileTable",    "ZoneCampTable",
-    "ZoneEnvSpawnTable",     "ShopTable",                "ShopItemTable",      "ZoneTriggerTable"};
+    "ZoneEnvSpawnTable",     "ShopTable",                "ShopItemTable",      "ZoneTriggerTable",
+    "QuestTable",            "QuestTaskGroupTable",      "QuestTaskTable",     "LevelTargetFilter",
+    "TheaterSelectDataTable", "EventSpawnTable",         "EventItemTable",     "ZoneEventTable",
+    "EventEnvControlTable",  "WorldTransitionTable",     "EventZoneWarpTable", "EffectVolumeTable",
+    "ConditionTable",        "ConditionGroupTable",      "AlbumTable",         "AchievementTable",
+    "PuzzleStringArrayTable"};
 // coop-request.txt's bytes the native part reads (glue/steam.cpp): the longest rows request, 16 digits to each of its
-// 20 addresses, and its line end fit (protocol_test).
-constexpr size_t kMaxRequestFile = 1024;
+// 37 addresses, and its line end fit (protocol_test: 1352 bytes).
+constexpr size_t kMaxRequestFile = 2048;
 // nightshop: what nightop/shop_ui.h is asked: SB's shop screen opened on Shop_NightOperation_Coop or on
 // Shop_NightOperation_CoopBolt, closed, or no call but the reads.
 enum class ShopAsk : uint8_t { open, open_bolt, close, watch };
+// signal: the words after "signal ", in quest/own.h's Ask order (protocol_test checks both lists match).
+constexpr size_t kSignalWordCount = 8;
+constexpr const char *kSignalWords[kSignalWordCount] = {"watch",  "acquire", "complete", "prologue",
+                                                        "talked", "zone4",   "tell",     "next"};
 enum class Who { friends, code, invited }; // who_can_join: friends, code, private.
 enum class Fight { none, on, off, status, probe, test, record, replay, pilot };
 // fight pilot ...; bstart to summon: stage 5's probes (fight/engine.h's Engine::boss_test).
@@ -643,7 +666,9 @@ struct Request {
   uint8_t gate = 0;                      // gate: game/debug_keys.h's Gate, 0 for fly, 1 for slowmo.
   uint8_t panel = 0;                     // devinfo: game/dev_panels.h's Panel, 0 off, 1 quest, 2 player.
   ShopAsk shop = ShopAsk::close;         // nightshop: open, open bolt, close or watch.
-  bool on = false;                       // roxanne on (true) or off.
+  bool on = false;                       // roxanne on, lily on (true) or off.
+  bool lily = false;                     // roxanne: lily on or off (Lily's list) rather than Roxanne's.
+  uint8_t signal = 0;                    // signal: its word's index in kSignalWords.
   bool rule = false;                     // nightop rule.
   Who who = Who::friends;                // host: who can join the lobby.
   bool code = false;                     // join: with a code; lobby 0 when it is no valid code.
@@ -799,18 +824,22 @@ inline Request parse_quests(const std::string &text) {
   r.deny = deny;
   return r;
 }
-// What follows "<word> rows ". Command::none when anything is off.
+// What follows "<word> rows ": 1 to kLionTableCount words, one space apart. Command::none when anything is off.
 inline Request parse_rows(const std::string &text) {
-  std::string w[kLionTableCount];
-  if (!split(text, w, kLionTableCount, nullptr))
-    return Request();
   Request r;
-  for (const std::string &word : w) {
+  size_t n = 0;
+  for (size_t at = 0, space = 0; at <= text.size(); at = space + 1) {
+    space = text.find(' ', at);
+    if (space == std::string::npos)
+      space = text.size();
+    const std::string_view word = std::string_view(text).substr(at, space - at);
+    if (++n > kLionTableCount)
+      return Request();
     const size_t eq = word.find("=0x");
-    const auto *name = eq == std::string::npos ? std::end(kLionTables)
-                                               : std::find(std::begin(kLionTables), std::end(kLionTables),
-                                                           std::string_view(word).substr(0, eq));
-    const std::string_view hex = eq == std::string::npos ? std::string_view() : std::string_view(word).substr(eq + 3);
+    const auto *name = eq == std::string::npos
+                           ? std::end(kLionTables)
+                           : std::find(std::begin(kLionTables), std::end(kLionTables), word.substr(0, eq));
+    const std::string_view hex = eq == std::string::npos ? std::string_view() : word.substr(eq + 3);
     if (name == std::end(kLionTables) || r.tables[size_t(name - kLionTables)] || hex.empty() || hex.size() > 16 ||
         hex.find_first_not_of("0123456789abcdefABCDEF") != std::string_view::npos)
       return Request();
@@ -823,6 +852,13 @@ inline Request parse_rows(const std::string &text) {
   }
   r.command = Command::rows;
   return r;
+}
+// A signal request's word as its index in kSignalWords, or kSignalWordCount for any other text.
+inline uint8_t signal_word(const std::string &text) {
+  uint8_t w = 0;
+  while (w < kSignalWordCount && (text.rfind("signal ", 0) != 0 || text.compare(7, std::string::npos, kSignalWords[w])))
+    ++w;
+  return w;
 }
 inline Request parse_request(std::string text) {
   while (!text.empty() && (text.back() == '\n' || text.back() == '\r' || text.back() == ' '))
@@ -932,6 +968,11 @@ inline Request parse_request(std::string text) {
   } else if (text == "roxanne on" || text == "roxanne off") {
     r.command = Command::roxanne;
     r.on = text.size() == 10;
+  } else if (text == "lily on" || text == "lily off") {
+    r.command = Command::roxanne;
+    r.lily = true, r.on = text.size() == 7;
+  } else if (const uint8_t w = signal_word(text); w < kSignalWordCount) {
+    r.command = Command::signal, r.signal = w;
   } else if (text == "fly on" || text == "fly off" || text == "slowmo on" || text == "slowmo off") {
     r.command = Command::gate;
     r.gate = text[0] == 's' ? 1 : 0;

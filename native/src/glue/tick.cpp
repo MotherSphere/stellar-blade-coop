@@ -50,6 +50,12 @@
 // engine lists as one the host lacks, so that enemy never appears in her game. The worker makes the swap when the gate
 // first opens and swaps back at coop off or after a fault in the hook, which has its own SEH latch.
 //
+// The mod's own quests (quest/own.h, Lily's signal): from Lua's first signal request (signal watch, once Lily's cheap
+// gates hold) until coop off, every 250 ms on a co-op save, the game thread reads whether the quest unit holds the
+// prologue and "On Time", Quest_Epic_11, Quest_Epic_12 and Quest_Sub_005, each of our quests' state, group and first
+// task, and runs Lua's signal asks (an acquire by ID, or one fixed group's first task's Complete) under its own SEH
+// latch; status() gives the signalquest line, and the worker logs each answer.
+//
 // The shared quests (Phase 12, quest/engine.h): every 250 ms coop_tick runs the engine's pass on the game thread, where
 // SB's quest manager runs, under their own SEH latch: it reads the quest unit and, on the guest, makes at most one step
 // through SB's own quest functions. The worker's side (the Worker) takes her SBQ lines out of channel 2, hands the game
@@ -68,7 +74,11 @@
 // The camps this save has activated (game/camps.h): every 250 ms, once the client is in game and no warp, respawn or
 // logic task is in flight, the game thread asks SB's own camp list for each travel type at most every 2 s, and reads
 // the camp EVE respawns at, under its own SEH latch; camps_status() gives both as coop-status.txt's activated line for
-// session/travel.lua and cut/mxiii.lua. A load drops the list until the next read.
+// session/travel.lua and matrix13/world/travel.lua. A load drops the list until the next read.
+//
+// Matrix XIII's camp names (game/camp_text.h): every 250 ms, at the title and with coop off too, the game thread adds
+// its 12 entries to StringTable_UI once the table has loaded, and rewrites them on a language change, under its own SEH
+// latch; camp_text_status() gives coop-status.txt's camptext line, which matrix13/world/travel.lua waits for.
 //
 // coop fly and coop slowmo (game/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
 // (on a co-op save; slow motion with no friend linked); every 250 ms the game thread sets each wanted gate's byte in
@@ -78,24 +88,27 @@
 // and then sets the flight key again while EVE flies with none held (game/debug_keys.h's Hold), under its own latch;
 // the worker swaps them back at coop off and after a fault.
 //
-// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's and the Night Operation shop's
-// (lion/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt, coop mxiii and the
-// shop): the worker hands over the 20 tables' addresses from Lua's lion rows, gardener rows, tendril rows, bolt rows,
-// mxiii rows or shop rows request; the game thread adds that batch's rows through SB's own AddRow once the gate holds
-// (net mode 0, no logic task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and,
-// once asked, reads the spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril,
-// bolt, mxiii and shop lines, and the worker logs each answer. Right after the bolt rows batch's last row, in the same
-// call, the Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status() gives the shock
-// line, and the worker logs it once.
+// The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's, the Night Operation shop's and
+// Lily's signal's (lion/rows.h's batches, coop lion, coop gardener fight, coop tendril fight, the shop's Shock Bolt,
+// coop mxiii, the shop and matrix13/quest/on_time.lua): the worker hands over the tables' addresses from Lua's lion
+// rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop rows or signal rows request (those that batch writes,
+// 0 for the others); the game thread adds that batch's rows through SB's own AddRow once the gate holds (net mode 0, no
+// logic task in flight), under one SEH latch for all, reads them back through SB's lookups by ID and, once asked, reads
+// the spawn manager's counter every 250 ms; status() gives it all in the lion, gardener, tendril, bolt, mxiii, shop and
+// signal lines, and the worker logs each answer. Right after the bolt rows batch's last row, in the same call, the
+// Shock Bolt's two lists grow in place (lion/shock.h) under a latch of their own; status() gives the shock line, and
+// the worker logs it once.
 //
 // The Night Operation shop in SB's own shop screen (nightop/shop_ui.h, coop nightop shop): the worker hands over Lua's
 // nightshop open, open bolt or close; the next frame the game thread opens SB's shop screen on one of the shop rows
 // batch's two ShopTable rows, or closes it, with the calls SB's vending machine node makes, under its own SEH latch,
 // after coop off too for a close; every 250 ms after the first ask it reads whether a shop screen is open and, inside
-// the rows' gate, the bucket's Beta Seeds, for nightop/shop.lua's wallet. Roxanne's Night Operation choices
-// (nightop/roxanne.h): on Lua's roxanne on or off, once the rows' gate holds, her choice list's entry in SB's select
-// cache points at six names of ours (four test rows nightop/roxanne.lua edited, then her two) or back at hers, under a
-// latch of its own; status() gives both in the nightshop and roxanne lines, and the worker logs each answer.
+// the rows' gate, the bucket's Beta Seeds, for nightop/shop.lua's wallet. Roxanne's Night Operation choices and Lily's
+// signal choice (nightop/roxanne.h): on Lua's roxanne on or off (or lily on or off), once the rows' gate holds, that
+// choice list's entry in SB's select cache points at names of ours followed by the list's own (Roxanne's four test rows
+// nightop/roxanne.lua edited, then her two; Lily's borrowed row, then her eight) or back at the list's own, under a
+// latch of its own for each list; status() gives them in the nightshop, roxanne and lily lines, and the worker logs
+// each answer.
 //
 // coop emote's native clips (game/anim.h): the worker hands over Lua's anim play (an id, one of EVE's clip paths, once
 // or in a loop) or anim stop; the game thread takes our EVE as the player controller's pawn and plays the clip through
@@ -113,6 +126,10 @@
 // opens the one asked with the game's own calls, under its own SEH latch, after coop off too (coop off asks off first);
 // the worker logs each answer.
 //
+// The teleport screen's extra tabs (game/region_tabs.h): the worker swaps one pointer of the game's image once a run, the
+// Region logic's vtable +0x30, for a hook that adds a record for each tab ui/region_tabs.lua made, under its own SEH
+// latch, on the game thread. It swaps back at coop off and after a fault, and logs the first screen once.
+//
 // coop gift's inventory read (game/items.h) is the worker's alone: on Lua's items request it reads how many of one item
 // our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cut/mailbox.lua.
@@ -124,6 +141,8 @@
 #define NOMINMAX // std::min and std::max in pose/stream.h.
 #include <windows.h>
 #include <xinput.h>
+
+#include <intrin.h>
 
 #include <array>
 #include <atomic>
@@ -137,6 +156,7 @@
 #include <vector>
 
 #include "fight/worker.h"
+#include "game/camp_text.h"
 #include "game/camps.h"
 #include "game/anim.h"
 #include "game/debug_keys.h"
@@ -145,6 +165,7 @@
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
+#include "game/region_tabs.h"
 #include "game/travel.h"
 #include "glue/tick.h"
 #include "link/protocol.h"
@@ -158,6 +179,7 @@
 #include "pose/record.h"
 #include "pose/stream.h"
 #include "quest/engine.h"
+#include "quest/own.h"
 #include "save/shortcut.h"
 #include "save/shortcut_load.h"
 #include "save/slot.h"
@@ -174,10 +196,12 @@
 #include "glue/tick/debug_game.inc" // Before nightop_game.inc, which takes its UI calls and ui_reads.
 #include "glue/tick/nightop_game.inc"
 #include "glue/tick/anim_game.inc"
+#include "glue/tick/camp_text_game.inc" // After anim_game.inc and freeze_game.inc: their FStringArg and MakeName.
 #include "glue/tick/shortcut_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
+#include "glue/tick/region_tabs_worker.inc"
 #include "glue/tick/nightop_worker.inc"
 #include "glue/tick/travel_worker.inc"
 #include "glue/tick/shortcut_worker.inc"
@@ -227,6 +251,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The shared quests' own latch: a pass each 250 ms, none after coop off or their first fault.
   if (game_pinned && !quest_faulted && !blocked)
     quest_tick();
+  // The mod's own quests, their own latch: a pass each 250 ms, none after coop off or its first fault.
+  if (game_pinned && !own_faulted && !blocked)
+    own_tick();
   // The revive's guard, its own latch: a read each 250 ms, none after coop off or its first fault.
   if (game_pinned && !warp_faulted && !blocked)
     warp_tick();
@@ -236,6 +263,9 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The activated camps' read, its own latch: a check each 250 ms, none after coop off or its first fault.
   if (game_pinned && !camps_faulted && !blocked)
     camps_tick();
+  // Matrix XIII's camp names, their own latch: a check each 250 ms, at the title too, none after their first fault.
+  if (game_pinned && !camp_text_faulted)
+    camp_text_tick();
   // The rows of every batch, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no
   // call made.
   if (game_pinned && !lion_faulted)
@@ -254,11 +284,13 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // SB's developer panels, their own latch: an ask taken each frame, after coop off too (only off is asked then).
   if (game_pinned && !devinfo_faulted)
     devinfo_tick();
-  // The Night Operation shop's screen and Roxanne's choices, each its own latch: an ask taken each frame, after coop
-  // off too (only a close or an off is taken then), and their reads every 250 ms before it.
+  // The Night Operation shop's screen, Roxanne's choices and Lily's signal choice, each its own latch: an ask taken
+  // each frame, after coop off too (only a close or an off is taken then), and their reads every 250 ms before it.
   if (game_pinned && !nightshop_faulted)
     nightshop_tick();
-  if (game_pinned && !roxanne_faulted)
-    roxanne_tick();
+  if (game_pinned && !roxanne_side.faulted)
+    swap_tick(roxanne_side);
+  if (game_pinned && !lily_side.faulted)
+    swap_tick(lily_side);
   return 0;
 }

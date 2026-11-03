@@ -261,6 +261,11 @@ package.loaded['ui.notice']={new=function()
     return the_notice
 end}
 probe,probe_runs,probe_ticks=nil,{},0 -- What nightop.new got, coop no's arguments, its ticks.
+rt={o=nil,ticks=0,stops=0} -- The teleport tabs: what region_tabs.new got, its ticks and stops.
+package.loaded['ui.region_tabs']={new=function(o)
+    rt.o,rt.ticks,rt.stops=o,0,0
+    return {tick=function() rt.ticks=rt.ticks+1 end,stop=function() rt.stops=rt.stops+1 end}
+end}
 package.loaded['nightop.probe']={new=function(log,ask,status)
     probe={log=log,ask=ask,status=status}
     return {run=function(sub,extra) probe_runs[#probe_runs+1]={sub,extra}; return true,'probe '..tostring(sub) end,
@@ -361,10 +366,12 @@ package.loaded['cut.tendril']={new=function(o)
         tick=function() td.ticks=td.ticks+1; if td.says then return table.unpack(td.says) end end,
         stop=function() td.stops=td.stops+1 end}
 end}
--- coop mxiii (cut/mxiii.lua; mxiii_test tests it): what new got (log, ask, status, travel, paks, read), the folder
--- paks_of was given, its commands, ticks and stops, what a tick says, and its title calls' arguments.
+-- coop mxiii (matrix13/world/travel.lua; matrix13/world/travel_test tests it): what new got (log, ask, status, travel,
+-- paks, read), the folder paks_of was given, its commands, ticks and stops, what a tick says, and its title calls'
+-- arguments.
 mx={}
-package.loaded['cut.mxiii']={paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end,
+package.loaded['matrix13.world.travel']={
+    paks_of=function(folder) mx.folder=folder; return folder and folder..'|paks' end,
     new=function(o)
         mx.o=o
         return {command=function(...) mx.cmds[#mx.cmds+1]=table.pack(...); return true,'mx '..tostring((...)) end,
@@ -402,7 +409,7 @@ end}
 sc={}
 package.loaded['cut.scene']={new=function(o)
     sc.o=o
-    return {SCENES={emil=true,orcal=true},
+    return {SCENES={emil=true,orcal=true,lily=true},
         command=function(...) sc.cmds[#sc.cmds+1]={...}; return true,'sc '..tostring((...)) end,
         restore=function() sc.restores=sc.restores+1 end,
         tick=function() sc.ticks=sc.ticks+1; if sc.says then return table.unpack(sc.says) end end,
@@ -484,6 +491,24 @@ package.loaded['nightop.roxanne']={new=function(o)
         end,
         stop=function() rx.stops=rx.stops+1; if rx.raise then error(rx.raise,0) end end,
         cancel=function() local b=rx.booked; rx.booked=nil; return b end}
+end}
+-- Lily's signal (matrix13/quest/on_time.lua; matrix13/quest/on_time_test tests it): what lily.new got (o), its ticks
+-- (the last one's stopped), title calls, stops and commands.
+ly={o=nil,ticks=0,stops=0,titles={},cmds={},talks={},holds={}}
+package.loaded['matrix13.quest.on_time']={new=function(o)
+    ly.o=o
+    return {tick=function(stopped) ly.ticks,ly.stopped=ly.ticks+1,stopped end,
+        title=function(...) ly.titles[#ly.titles+1]=table.pack(...) end,
+        stop=function() ly.stops=ly.stops+1 end,
+        command=function(...) ly.cmds[#ly.cmds+1]=table.pack(...); return true,'ly '..tostring((...)) end,
+        talk=function(...) ly.talks[#ly.talks+1]=table.pack(...); return true,'talk '..tostring((...)) end,
+        hold=function(on) ly.holds[#ly.holds+1]=on; return true,'hold '..tostring(on) end}
+end}
+-- Lily's talks (story/subtitles.lua; subtitles_test tests it): what new got (o), the kit hud, its frame ticks.
+ts={o=nil,hud=nil,ticks=0}
+package.loaded['story.subtitles']={new=function(o)
+    ts.o=o
+    return {hud=function(h) ts.hud=h end,tick=function() ts.ticks=ts.ticks+1 end}
 end}
 rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
 package.loaded['nightop.recruiter']={new=function(log)
@@ -613,7 +638,7 @@ package.loaded['session.chat']={new=function(lines,on)
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
 USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
-    ..'status | report | mark [text] | where | travel host | loopback '
+    ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
     ..'emote [list|<name>|off] | '
@@ -661,6 +686,8 @@ function load_main(with_native,no_folder,source)
     gd.o,gd.cmds,gd.ticks,gd.stops,gd.says=nil,{},0,0,nil
     td.o,td.cmds,td.ticks,td.stops,td.says=nil,{},0,0,nil
     mx.o,mx.folder,mx.cmds,mx.ticks,mx.stops,mx.says,mx.titles=nil,nil,{},0,0,nil,{}
+    ly.o,ly.ticks,ly.stops,ly.titles,ly.cmds,ly.stopped,ly.talks,ly.holds=nil,0,0,{},{},nil,{},{}
+    ts.o,ts.hud,ts.ticks=nil,nil,0
     cs.o,cs.cmds=nil,{}
     dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
     gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0

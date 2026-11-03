@@ -308,6 +308,32 @@ int main() {
            held.find("use them up or sell them") != std::string::npos && held.find("Matrix") == std::string::npos);
     assert(mod_only(names_field("ItemQuickSlotArray", "ArrayProperty", {"None", item.alias}) + clean_body()) == held);
   }
+  // The mod's quests, the prologue and On Time, by their alias as the save writes it (an FString, in a quest list or as
+  // the tracked quest): no way out by playing, so no "export it again"; a longer alias that starts with one does not
+  // count.
+  const std::string done_too = ": the save keeps a quest's name even once it is done, so this save cannot be exported";
+  const std::string on_time = "the mod's quest On Time (Quest_Sub_MX13_01)" + done_too;
+  assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_01")) == on_time);
+  assert(mod_only(clean_body() + fstring("TrackingQuestAliases") + fstring("Quest_Sub_MX13_01")) == on_time);
+  assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_01_M01")).empty());
+  assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_00")) ==
+         "the mod's quest A Second Signal (Quest_Sub_MX13_00)" + done_too);
+  assert(mod_only(clean_body() + fstring("CompleteQuestList") + fstring("Quest_Sub_MX13_00") +
+                  fstring("Quest_Sub_MX13_01")) ==
+         "the mod's quests A Second Signal (Quest_Sub_MX13_00) and On Time (Quest_Sub_MX13_01)" + done_too);
+  assert(mod_only(clean_body() + fstring("Quest_Sub_MX13_00_M01") + fstring("Quest_Sub_MX13_00_M01_T01")).empty());
+  assert(mod_only(clean_body() + name_field("ItemAlias", "Bullet_Shock") + fstring("Quest_Sub_MX13_01")) ==
+         "the mod's items Shock Bolt (Bullet_Shock): use them up or sell them, and take them off the quick slots (Beta "
+         "Seeds go back to the wallet when coop nightop shop closes); " +
+             on_time);
+  // The records' names, by alias wherever the save writes them; a shipped record's does not count.
+  assert(mod_only(clean_body() + fstring("Ach_Album_Unlock_MX13_Z1_04"))
+             .find("the mod's Matrix XIII records (Ach_Album_Unlock_MX13_Z1_04 among them)") != std::string::npos);
+  assert(mod_only(clean_body() + fstring("Records_MX13_00"))
+             .find("the mod's Matrix XIII records (Records_MX13_00 among them)") != std::string::npos);
+  assert(mod_only(clean_body() + fstring("Ach_Album_Unlock_Item_Records_ME01_Memory_01") +
+                  fstring("Records_ME01_Memory_01"))
+             .empty());
   assert(mod_only(clean_body() + name_field("ItemAlias", "Buff_HP2MP") + name_field("ItemAlias", "Bullet_Shock"))
              .find("Beta Stimpack (Buff_HP2MP), Shock Bolt (Bullet_Shock):") != std::string::npos);
   // A quick slot array is read within its size and the file: a size past the file's end stops at it, a negative one
@@ -353,10 +379,24 @@ int main() {
                   name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_900")) ==
          "the cut Matrix XIII dungeon as its map, its camp, its last full camp" + rest +
              "; then save and export it again");
-  // The camp's row elsewhere (the zone's list of camps it activated) and the map's name in a level actor's path do not.
-  assert(mod_only(name_field("EnvAlias", "DLC02_10_EnvS_900") +
-                  fstring("/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P/MXIII_Area01.Actor_1"))
+  // The map's name in a level actor's path and the zones' names (every save holds Zone_DLC02_10 to 40) do not count;
+  // any other name of the dungeon's rows does, wherever it is (a zone's activated camps, an enemy's saved death, an
+  // env state, a pickup), and the save can never be exported: the game keeps a world's zone state.
+  assert(mod_only(fstring("/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P/MXIII_Area01.Actor_1") +
+                  name_field("ZoneAlias", "Zone_DLC02_40") + fstring("Zone_DLC02_10") + fstring("DLC02_"))
              .empty());
+  assert(mod_only(name_field("EnvAlias", "DLC02_10_EnvS_900")) ==
+         "the cut Matrix XIII dungeon's rows (1 name, DLC02_10_EnvS_900): the save keeps them once it has played "
+         "there, so this save cannot be exported");
+  assert(mod_only(clean_body() + fstring("DLC02_40_E_CharS_051") + name_field("EventSpawnAlias", "DLC02_10_E_CharS_901") +
+                  name_field("LastFullCampEnvSpawnAlias", "DLC02_10_EnvS_906")) ==
+         "the cut Matrix XIII dungeon as its last full camp" + rest +
+             "; the cut Matrix XIII dungeon's rows (2 names, first DLC02_40_E_CharS_051): the save keeps them once it "
+             "has played there, so this save cannot be exported");
+  // A length that does not end on its NUL is no FString.
+  std::string odd_row = fstring("DLC02_10_EnvS_901");
+  odd_row.back() = 'x';
+  assert(mod_only(odd_row).empty());
   const std::string both = mod_only(name_field("ItemAlias", "Money_NightOperation") + fstring("MapName") +
                                     fstring("MXIII_P"));
   assert(both.rfind("the mod's items Beta Seed (Money_NightOperation): ", 0) == 0 &&
@@ -387,7 +427,7 @@ int main() {
          mod_only(long_kept).find("snapshot") == std::string::npos);
   // Any row of the dungeon counts in those fields, in the save as played and in the snapshot: the kit's vending
   // machine, where the activation leaves the camp; the mod's camp by its name; a row of another of its zones.
-  for (const char *row : {"DLC02_10_EnvS_906", "DLC02_10_Camp_01", "DLC02_30_EnvS_011"}) {
+  for (const char *row : {"DLC02_10_EnvS_906", "DLC02_10_Camp_01", "DLC02_30_EnvS_011", "DLC02_00_Camp_00"}) {
     assert(mod_only(clean_body() + fstring("CampAlias") + fstring(row)) ==
            "the cut Matrix XIII dungeon as its camp" + rest + "; then save and export it again");
     assert(mod_only(clean_body() + name_field("CampEnvSpawnAlias", row) + name_field("LastFullCampEnvSpawnAlias", row) +

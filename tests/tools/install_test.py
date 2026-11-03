@@ -171,8 +171,14 @@ with tempfile.TemporaryDirectory() as tmp:
                               'commands/session', 'commands/story', 'core/keybind', 'core/link', 'core/settings_file', 'core/unreal',
                               'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
                               'cut/glide', 'cut/gardener', 'cut/leviathan',
-                              'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox', 'cut/mxiii',
+                              'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox',
                               'cut/scene', 'cut/tendril', 'cut/wear', 'main',
+                              'matrix13/culture', 'matrix13/quest/on_time', 'matrix13/quest/text', 'matrix13/quest/zone_talks',
+                              *(f'matrix13/talks/{talk}' for talk in ('prologue', 'arrival', 'finale', 'zone1',
+                                                                       'zone2', 'zone3', 'zone4')),
+                              'matrix13/world/boss', 'matrix13/world/breakables',
+                              'matrix13/world/drone', 'matrix13/world/fans', 'matrix13/world/mila', 'matrix13/world/move', 'matrix13/world/rows',
+                              'matrix13/world/travel',
                               'nightop/board', 'nightop/challenges',
                               'nightop/probe',
                               'nightop/recruiter', 'nightop/recruiter_text', 'nightop/roxanne', 'nightop/roxanne_text',
@@ -181,8 +187,9 @@ with tempfile.TemporaryDirectory() as tmp:
                               'partner/capture', 'partner/hud', 'partner/puppet', 'partner/sentinel', 'race/doro',
                               'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
-                              'session/group', 'session/join', 'session/saves', 'session/travel', 'story/dump', 'ui/kit', 'ui/menu',
-                              'ui/model', 'ui/notice', 'ui/text', 'version'))}
+                              'session/group', 'session/join', 'session/saves', 'session/travel', 'story/dump',
+                              'story/subtitles', 'ui/kit', 'ui/menu',
+                              'ui/model', 'ui/notice', 'ui/region_tabs', 'ui/text', 'version'))}
     assert set(files) == shipped - {'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]
