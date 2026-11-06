@@ -14,12 +14,12 @@
 #include <string>
 #include <vector>
 
-#include "game/memory.h" // kImageBase, kGlobals, plausible, get
+#include "game/memory.h" // kImageBase, kGlobalsBlock, plausible, get
 
 namespace coop::nightop {
 
 using game::get;
-using game::kGlobals;
+using game::kGlobalsBlock;
 using game::kImageBase;
 using game::plausible;
 
@@ -57,14 +57,14 @@ struct Sample {
 template <class Read> Sample sample(uint64_t base, Read &&read) {
   Sample s;
   uint8_t b[0x5c8]; // The largest block, logic's.
-  if (!read(base + (kGlobals - kImageBase), b, 0x50))
+  if (!read(base + (kGlobalsBlock - kImageBase), b, 0x50))
     return s;
   s.ok = true;
-  s.net = get<uint64_t>(b, 0);
-  s.mgr = get<uint64_t>(b, 0x28);
-  s.spawn = get<uint64_t>(b, 0x30);
-  s.logic = get<uint64_t>(b, 0x40);
-  s.world = get<uint64_t>(b, 0x48);
+  s.net = get<uint64_t>(b, 0x20);
+  s.mgr = get<uint64_t>(b, 0x48);
+  s.spawn = get<uint64_t>(b, 0);
+  s.logic = get<uint64_t>(b, 0x18);
+  s.world = get<uint64_t>(b, 8);
   // n bytes at pointer + offset, once the pointer itself is plausible.
   auto follow = [&read](uint64_t pointer, uint64_t offset, void *out, size_t n) {
     return plausible(pointer) && read(pointer + offset, out, n);

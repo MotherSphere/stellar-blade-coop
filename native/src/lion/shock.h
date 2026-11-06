@@ -13,7 +13,7 @@
 // next time she enters the stance (aiming again, if she aimed while they went in). AddRow under a live stance's name
 // would free the row SB hands out.
 //
-// The ammo list. SB's const store (the singleton at 0x147032540, game/debug_keys.h's) holds BulletItemSlotArray, a
+// The ammo list. SB's const store (the singleton at 0x147037400, game/debug_keys.h's) holds BulletItemSlotArray, a
 // TArray<FString> in its string-array map at +0x288 (the gates' map layout, 0x20-byte elements: key, the array at +8,
 // the next element's index at +0x18), keyed by Strihash_DEPRECATED of the name (SB's FUN_14117c1f0, called, not
 // copied): Bullet_Normal, Bullet_Scatter, Bullet_Railgun, Bullet_Missile, Bullet_Explosive. The item slot manager
@@ -53,7 +53,7 @@ constexpr uint32_t kGunStanceIds[2] = {100104, 100110};
 constexpr const char *kShockFire[2] = {"P_Eve_Gun_ShootShockSlug1_1", "P_Eve_Gun_ShootShockSlug1_2"};
 constexpr size_t kCommandArray = 0x90; // FSBCharacterStanceTableProperty::CommandArray.
 // The const store, its string-array map (fields as FUN_14261dfa0 reads them) and the ammo list's name and entries.
-constexpr uint64_t kConsts = 0x147032540, kSlotsHolder = 0x147032570;
+constexpr uint64_t kConsts = 0x147037400, kSlotsHolder = 0x1470373d0;
 constexpr size_t kArrays = 0x288, kArraysCount = 0x290, kArraysFree = 0x2bc, kArraysInlineHash = 0x2c0,
                  kArraysHashPointer = 0x2c8, kArraysHashSize = 0x2d0, kArrayElement = 0x20, kArrayAt = 8,
                  kArrayNext = 0x18;

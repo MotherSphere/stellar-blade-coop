@@ -35,7 +35,7 @@ uint32_t freeze_unsure_seen = 0;
 struct FreezeGame {
   uintptr_t controller() { return game_function<Controller>(kController)(); }
   bool ready() {
-    return at<uint64_t>(base + (game::kGlobals + fight::kPauseAt - game::kImageBase)) && controller();
+    return at<uint64_t>(base + (game::kGlobalsBlock + fight::kPauseAt - game::kImageBase)) && controller();
   }
   void tag(bool add) { game_function<PauseTag>(kPauseTag)(add, &freeze_name, true); }
   bool paused() {

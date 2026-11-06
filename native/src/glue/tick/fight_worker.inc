@@ -327,7 +327,7 @@ constexpr uint64_t kSpawnSlot = 0x145c10020, kExecute = 0x141c10a90, kRowByName 
 // EventSpawnTable row: the EventSpawnId Execute passes NewActor (+0x10).
 constexpr size_t kRequestName = 0x28, kRequestIndex = 0x30, kRowSpawnId = 0x10;
 using Execute = void *(*)(void *request);
-// The table holder (DAT_147032510, which the getter FUN_141a97f20 returns; never called here, since it makes one when
+// The table holder (DAT_1470373b0, which the getter FUN_141a97f20 returns; never called here, since it makes one when
 // none is made), an unused argument and the row's name: the EventSpawnTable row, or null. It runs the row's lazy init,
 // as Execute's own first call does.
 using RowByName = void *(*)(void *holder, uint64_t unused, const void *name);

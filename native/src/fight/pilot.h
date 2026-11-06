@@ -1139,13 +1139,13 @@ inline bool compact_id(std::string_view pkg, std::string_view obj, uint8_t &form
 // getters allocate on a first call): the world (the actor manager FUN_141aace90 searches at +0xc8), SB's registry (the
 // character map FUN_14201b1e0 searches at +0x48), SB's show manager (its stages at +0x18, their count at +0x20), the
 // classes USBShowData and ASBCharacter (FUN_141ff2b70's, which FUN_14201b1e0's own IsA test takes), and the FNamePool.
-constexpr uint64_t kWorldAt = 0x147032570, kRegistryAt = 0x147032558, kShowsAt = 0x1470326d8,
+constexpr uint64_t kWorldAt = 0x1470373d0, kRegistryAt = 0x1470373c8, kShowsAt = 0x147037578,
                    kShowDataClassAt = 0x14703c7c8, kCharacterClassAt = 0x147033f48, kNamePool = 0x146ffec40;
 constexpr size_t kActorManager = 0xc8, kCharacterMap = 0x48, kStageList = 0x18, kStageCount = 0x20;
 constexpr size_t kFsbGuid = 0x4a4; // FSBActor: its FGuid, the character map's key.
-// SB's globals block (game::kGlobals), read one word at a time: the net-mode cache, whose cached net mode is at
+// SB's globals block (game::kGlobalsBlock), read one word at a time: the net-mode cache, whose cached net mode is at
 // +0x14 (0 standalone), and the logic singleton, whose +0x5c0 is the logic task in flight (0: none).
-constexpr uint64_t kNetCacheAt = 0x147032528, kLogicSingletonAt = 0x147032568;
+constexpr uint64_t kNetCacheAt = 0x1470373e8, kLogicSingletonAt = 0x1470373e0;
 constexpr size_t kNetMode = 0x14, kLogicTask = 0x5c0;
 // ASBCharacter: its root component and its show interface (a stage's main actor), and from +0xC64 the anim speed
 // fields GetSBSpeedForAnimGraph (0x1420cf5d0) reads (speed_read()).
@@ -2205,7 +2205,7 @@ private:
 // The two singletons SB's force target takes through their getters, FUN_141a97b90 (before its TargetedByEnemy jobs) and
 // FUN_141a97f20 (for a table row), each of which makes its singleton when it is still null: the call runs only once
 // both exist, so it never makes one (PHASE11-STAGE3 7 rule 4).
-constexpr uint64_t kTargetSingletonsAt[] = {0x147032560, 0x147032510};
+constexpr uint64_t kTargetSingletonsAt[] = {0x1470373c0, 0x1470373b0};
 // The world's actor manager (Globals::manager): its FSBActor array, their count and the local player's index, as SB
 // finds its own EVE; an FSBActor's player flag.
 constexpr size_t kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c, kFsbPlayer = 0x49a;

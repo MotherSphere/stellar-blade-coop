@@ -30,7 +30,7 @@
 
 namespace coop::shopui {
 
-constexpr uint64_t kWorldAt = 0x147032570, kPlayerData = 0xe8;
+constexpr uint64_t kWorldAt = 0x1470373d0, kPlayerData = 0xe8;
 constexpr int32_t kShopType = 0xab;
 constexpr uint64_t kShopInit = 0x141f47130, kBucket = 0x141cc1d60, kCount = 0x141c3e6c0;
 constexpr size_t kEntryLogic = 0x60;

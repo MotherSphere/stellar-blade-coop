@@ -143,7 +143,7 @@ Map shipped(int32_t size) {
 int main() {
   // The keys are Strihash_DEPRECATED of the names, as the gate functions hash them (FUN_1423c9ea0's inline loop).
   assert(strihash(kNames[kFly]) == kHashes[kFly] && strihash(kNames[kSlowmo]) == kHashes[kSlowmo]);
-  assert(kSingleton == 0x147032540 && game::plausible(kSingle) && game::plausible(kElems));
+  assert(kSingleton == 0x147037400 && game::plausible(kSingle) && game::plausible(kElems));
 
   // Found through allocated buckets, past two other keys of its bucket, and through one inline bucket.
   for (int32_t size : {8, 1}) {

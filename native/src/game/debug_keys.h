@@ -29,7 +29,7 @@ constexpr const char *kNames[kGates] = {"UseFlyingActionKey", "UseTimeControlKey
 // a pass writes only while that static holds this same key, so a key the game does not use never leads to a write.
 constexpr uint32_t kHashes[kGates] = {0x1147f83c, 0x43812976};
 constexpr uint64_t kStatics[kGates] = {0x1471082ec, 0x1471082f4};
-constexpr uint64_t kSingleton = game::kGlobals + 0x18; // 0x147032540: FUN_141a977b0's pointer.
+constexpr uint64_t kSingleton = game::kGlobals + 0x18; // 0x147037400: FUN_141a977b0's pointer.
 // The map's fields in the singleton, as FUN_14261db60 (the gates' lookup) reads them: the elements, their count and
 // free count (equal: none), the hash buckets (inline, or the pointer when set) and their count (a power of two). An
 // element: {int32 key, bool value, ..., int32 next element's index at +8, -1 for none}, 16 bytes.

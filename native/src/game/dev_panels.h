@@ -28,7 +28,7 @@
 
 namespace coop::devinfo {
 
-constexpr uint64_t kClientAt = 0x147032520;
+constexpr uint64_t kClientAt = 0x1470373f8;
 constexpr uint64_t kManager = 0x48, kFlow = 0xa00, kPhase = 0xb9c;
 constexpr int32_t kInGame = 2, kPlaying = 0xe;
 constexpr uint64_t kFindUi = 0x141fc51d0, kOpenUi = 0x141fc4aa0, kCloseUi = 0x141fc5120;

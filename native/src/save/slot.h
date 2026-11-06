@@ -22,7 +22,7 @@
 
 namespace coop::slot {
 
-constexpr uint64_t kClient = 0x147032520; // The client game-flow singleton's pointer (getter 0x141a978c0), 8 bytes
+constexpr uint64_t kClient = 0x1470373f8; // The client game-flow singleton's pointer (getter 0x141a978c0), 8 bytes
                                           // before game::kGlobals. Its +0x54 is the slot the game entered (stored
                                           // by 0x141cd5e10) and names every in-game save's file (0x141ce5c30).
 constexpr int kSlots = 5;                 // SaveSlotMaxCount: files 00-04 (WB_LoadGame has five); 05-09 are never listed.
@@ -50,7 +50,7 @@ template <class Read> int field(uint64_t base, Read &&read, uint64_t offset) {
 // The slot the game entered: client +0x54.
 template <class Read> int index(uint64_t base, Read &&read) { return field(base, read, kEntered); }
 
-constexpr uint64_t kNames = 0x147032540;    // The constant table's pointer (getter 0x141a977b0), 0 until it exists.
+constexpr uint64_t kNames = 0x147037400;    // The constant table's pointer (getter 0x141a977b0), 0 until it exists.
 constexpr uint64_t kKeyCache = 0x1471035ac; // The builder's cached key: 0 until its first call.
 constexpr uint32_t kNameKey = 0xbb9194f2;   // UE4's Strihash_DEPRECATED of "GameSaveFileName".
 constexpr uint32_t kMaxNames = 4096;        // SB's table holds about 200 constants; more is not its table.

@@ -21,7 +21,7 @@ namespace coop::travel {
 // The globals the call reaches through SB's getters, which allocate when the pointer is null: 141a978c0 (client),
 // 141a97c40 (world), 141a97f20 (the tables; it reads +0x20) and 141a97cb0 (the registry). The mod never calls them:
 // it reads the globals and calls only when all of them are set.
-constexpr uint64_t kClientAt = 0x147032520, kWorldAt = 0x147032570, kTablesAt = 0x147032510, kRegistryAt = 0x147032558;
+constexpr uint64_t kClientAt = 0x1470373f8, kWorldAt = 0x1470373d0, kTablesAt = 0x1470373b0, kRegistryAt = 0x1470373c8;
 // The 12 bytes ReturnToCamp copies into the request's +0x3c and +0x48 (an FVector and an FRotator, zero [L]).
 constexpr uint64_t kLocationAt = 0x14710dda8, kRotationAt = 0x14710dd98;
 // Offsets read for the guard and the watch. The client: its flow state (2: in game) and phase (0xe: playing), the

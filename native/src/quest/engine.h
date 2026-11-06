@@ -57,7 +57,7 @@ inline int slot_index(std::string_view slot) {
 // SB's globals: the logic singleton (its +0x598 is the current zone's FName), the game world, the quest manager, and
 // the logic worker's thread ID while it ticks (else 0). The world and the manager are read, never made: their getters
 // construct them.
-constexpr uint64_t kLogicGlobal = 0x147032568, kWorldGlobal = 0x147032570, kManagerGlobal = 0x147032588;
+constexpr uint64_t kLogicGlobal = 0x1470373e0, kWorldGlobal = 0x1470373d0, kManagerGlobal = 0x147037428;
 constexpr uint64_t kLogicThread = 0x1470634f0;
 constexpr size_t kZoneAt = 0x598;
 // FName text: the static pool (+0x8 its current block, +0x10 the block pointers), its ready flag, and "None"'s index.

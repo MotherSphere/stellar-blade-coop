@@ -15,7 +15,7 @@ template <class Game, class T> bool Engine::get(Game &g, uint64_t at, T &out) {
 
 template <class Game> bool Engine::globals(Game &g, uint64_t &net, uint64_t &logic, uint64_t &world) {
   uint8_t b[0x50];
-  if (!g.read(base_ + (game::kGlobals - kImageBase), b, sizeof b)) {
+  if (!g.read(base_ + (game::kGlobalsBlock - kImageBase), b, sizeof b)) {
     latch("unreadable");
     return false;
   }
@@ -28,7 +28,7 @@ template <class Game> bool Engine::globals(Game &g, uint64_t &net, uint64_t &log
 template <class Game> bool Engine::paused(Game &g) {
   uint64_t tags = 0;
   int32_t count = 0, gaps = 0;
-  if (!get(g, base_ + (game::kGlobals + kPauseAt - kImageBase), tags))
+  if (!get(g, base_ + (game::kGlobalsBlock + kPauseAt - kImageBase), tags))
     return true;
   if (!tags)
     return false;

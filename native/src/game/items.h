@@ -1,7 +1,7 @@
 // coop gift's inventory read (cut/mailbox.lua): how many of one item our EVE carries, read through a read function only
 // (ReadProcessMemory on the worker, which fails rather than faults; a fake image in tests/native/game/items_test.cpp).
 // It never calls the game and never writes. The game's own lookups, mirrored here, all on build 24463856:
-//   - the item bucket manager, SB's lazy singleton at 0x147032568 (its getter FUN_141a97b20 makes it when null, so a 0
+//   - the item bucket manager, SB's lazy singleton at 0x1470373e0 (its getter FUN_141a97b20 makes it when null, so a 0
 //     here is no inventory yet, never made by us);
 //   - the manager's bucket map at +0x2b0, a TMap from the bucket type (1, the inventory) to a TMap from the owner's
 //     GUID to the bucket, both looked up by their int key as their hash (FUN_141ad7250);
@@ -28,7 +28,7 @@ namespace coop::items {
 using game::get;
 using game::plausible;
 
-constexpr uint64_t kManager = 0x147032568;
+constexpr uint64_t kManager = 0x1470373e0;
 constexpr uint32_t kInventory = 1; // ESBItemBucketType_Inventory.
 constexpr size_t kBuckets = 0x2b0, kInstances = 0x210, kAliases = 0x90, kItemCount = 0x6c;
 constexpr size_t kSetCount = 8, kSetFree = 0x34, kSetHash = 0x38, kSetHashArray = 0x40, kSetHashSize = 0x48,

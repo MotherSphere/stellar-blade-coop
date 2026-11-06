@@ -136,8 +136,8 @@ struct WinLionGame {
 
 // The gate's reads: the cached net mode (0 standalone) and the logic task in flight, both through SB's globals block.
 lion::Why lion_gate(uint32_t &mode) {
-  const uintptr_t net = at<uintptr_t>(base + (game::kGlobals + fight::kNetAt - game::kImageBase));
-  const uintptr_t logic = at<uintptr_t>(base + (game::kGlobals + fight::kLogicAt - game::kImageBase));
+  const uintptr_t net = at<uintptr_t>(base + (game::kGlobalsBlock + fight::kNetAt - game::kImageBase));
+  const uintptr_t logic = at<uintptr_t>(base + (game::kGlobalsBlock + fight::kLogicAt - game::kImageBase));
   if (!game::plausible(net) || !game::plausible(logic))
     return lion::Why::unread;
   mode = at<uint32_t>(net + fight::kNetMode);

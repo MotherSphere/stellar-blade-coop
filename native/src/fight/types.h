@@ -19,16 +19,16 @@
 #include "fight/pilot.h"      // Side, kBattle, kDying: same-place enemies' pair table
 #include "fight/spawn_sync.h" // Epochs, SpawnHost, SpawnGuest, Mine, SpawnRow, BlockTable: same spawns
 #include "fight/sync.h"       // Host, Guest, Seen, Write, Message, Event, kStatType
-#include "game/memory.h"      // kImageBase, kGlobals, plausible, get
+#include "game/memory.h"      // kImageBase, kGlobalsBlock, plausible, get
 
 namespace coop::fight {
 
 using game::kImageBase;
 using game::plausible;
 
-// SB's globals block (game/memory.h's kGlobals, 0x50 bytes): +0 the net-mode cache, whose +0x14 is the cached mode (4
-// until resolved, 0 standalone); +0x40 the logic singleton; +0x48 the world.
-constexpr size_t kNetAt = 0, kLogicAt = 0x40, kWorldAt = 0x48, kNetMode = 0x14;
+// SB's globals block (game/memory.h's kGlobalsBlock, 0x50 bytes): +0x20 the net-mode cache, whose +0x14 is the cached
+// mode (4 until resolved, 0 standalone); +0x18 the logic singleton; +8 the world.
+constexpr size_t kNetAt = 0x20, kLogicAt = 0x18, kWorldAt = 8, kNetMode = 0x14;
 // Logic: the turn, then the actor map, a TMap<u32 GUID, logic actor *> held as a TSparseArray: elements of 0x18 bytes
 // {key +0, value +8, hash links}, ArrayNum, allocation bits inline (128) or on the heap when that pointer is set,
 // NumBits; and +0x5c0, the logic task in flight (0: none, and none can start before an arm returns).
@@ -258,7 +258,7 @@ struct Told {
 // bResetZoneKeepObject +0x46; a ZoneTable row: its ID +0x10. Both are read without SB's lazy init (row->vtbl[0x20] once
 // while row +8 is 0), which skips nothing: that slot of both row vtables (0x145d4ac30, 0x145e1eda8) is the empty
 // FUN_140e32fa0. FSBActor +0x4e4: its rotation (pitch, yaw, roll), which its actor tick copies with +0x4cc [L].
-constexpr uint64_t kTables = 0x147032510, kSpawnManager = 0x147032590, kJobSender = 0x147032560;
+constexpr uint64_t kTables = 0x1470373b0, kSpawnManager = 0x147037438, kJobSender = 0x1470373c0;
 constexpr size_t kTablesAt = 0x20, kZoneAlias = 0x598, kSpawnState = 0x1c;
 constexpr size_t kRowSpawnType = 0x30, kRowZone = 0x34, kRowSaveType = 0x44, kRowKeep = 0x46, kZoneId = 0x10;
 constexpr size_t kFsbRotation = 0x4e4;
@@ -271,13 +271,13 @@ constexpr float kSlow = 0.99f; // Below this, slow motion.
 
 // The world's actor manager: its FSBActor array, count and the local player's index, as SB finds its own EVE.
 constexpr size_t kManager = 0xc8, kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c;
-// SB's pause tags: the singleton at globals +0x30 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
+// SB's pause tags: the registry at globals block +0 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
 // count and free slots are at +0x1f0 and +0x21c. FUN_1422aafe0 pauses the world when the first tag comes and unpauses
 // it when the last goes: the pause menu, photo mode, a movie, a lost focus...
-constexpr size_t kPauseAt = 0x30, kTagsNum = 0x1f0, kTagsFree = 0x21c;
+constexpr size_t kPauseAt = 0, kTagsNum = 0x1f0, kTagsFree = 0x21c;
 // SB's photo mode manager (FUN_141adc360's): +0x38 active, +0x48 the camera (1 free, 2 selfie, 3 cutscene). SB's logic
 // dispatch (FUN_141acd5c0) returns at once while it is active with any camera but the selfie's.
-constexpr uint64_t kPhotoMode = 0x147032598;
+constexpr uint64_t kPhotoMode = 0x147037440;
 constexpr size_t kPhotoActive = 0x38, kPhotoCamera = 0x48;
 constexpr int32_t kSelfie = 2;
 
@@ -438,7 +438,7 @@ template <class Read> bool photo_mode(uint64_t base, Read &&read) {
 template <class Read> bool world_paused(uint64_t base, Read &&read) {
   uint64_t tags = 0;
   int32_t count = 0, gaps = 0;
-  return read(base + (game::kGlobals + kPauseAt - kImageBase), &tags, sizeof tags) && plausible(tags) &&
+  return read(base + (game::kGlobalsBlock + kPauseAt - kImageBase), &tags, sizeof tags) && plausible(tags) &&
          read(tags + kTagsNum, &count, sizeof count) && read(tags + kTagsFree, &gaps, sizeof gaps) && count > gaps;
 }
 
@@ -455,7 +455,7 @@ template <class Read> bool vitals(uint64_t base, Read &&read, Vitals &out) {
   uint8_t slot[kLocalIndex + 4 - kActorArray], player = 0; // The actor array, its count and the local index.
   float stats[23];
   int32_t life = 0;
-  if (!read(base + (game::kGlobals + kWorldAt - kImageBase), &world, sizeof world) || !plausible(world) ||
+  if (!read(base + (game::kGlobalsBlock + kWorldAt - kImageBase), &world, sizeof world) || !plausible(world) ||
       !read(world + kManager, &manager, sizeof manager) || !plausible(manager) ||
       !read(manager + kActorArray, slot, sizeof slot))
     return false;

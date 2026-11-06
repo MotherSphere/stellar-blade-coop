@@ -10,7 +10,7 @@
 using namespace coop::nightop;
 
 namespace {
-constexpr uint64_t kBase = 0x7ff600000000, kAt = kBase + (kGlobals - kImageBase);
+constexpr uint64_t kBase = 0x7ff600000000, kAt = kBase + (kGlobalsBlock - kImageBase);
 constexpr uint64_t kNet = 0x10000, kMgr = 0x20000, kElement = 0x21000, kTimers = 0x22000, kWorld = 0x30000,
                    kActors = 0x31000, kLogic = 0x40000, kSpawn = 0x50000, kHop = 0x51000, kRegistry = 0x52000;
 
@@ -52,11 +52,11 @@ struct Image {
 Image full() {
   Image m;
   m.map(kAt, 0x50);
-  m.put(kAt, kNet);
-  m.put(kAt + 0x28, kMgr);
-  m.put(kAt + 0x30, kSpawn);
-  m.put(kAt + 0x40, kLogic);
-  m.put(kAt + 0x48, kWorld);
+  m.put(kAt + 0x20, kNet);
+  m.put(kAt + 0x48, kMgr);
+  m.put(kAt, kSpawn);
+  m.put(kAt + 0x18, kLogic);
+  m.put(kAt + 8, kWorld);
   m.map(kNet, 0x18);
   m.put<int32_t>(kNet + 0x14, 3);
   m.map(kMgr, 0x88);
@@ -205,11 +205,11 @@ int main() {
   const uint64_t bad[] = {0x8, 0xffff800000000000, 0x7ff600000003};
   {
     Image m = full();
-    m.put(kAt, bad[0]);
-    m.put(kAt + 0x28, bad[1]);
-    m.put(kAt + 0x30, bad[2]);
-    m.put(kAt + 0x40, bad[0]);
-    m.put(kAt + 0x48, bad[2]);
+    m.put(kAt + 0x20, bad[0]);
+    m.put(kAt + 0x48, bad[1]);
+    m.put(kAt, bad[2]);
+    m.put(kAt + 0x18, bad[0]);
+    m.put(kAt + 8, bad[2]);
     Sample s = m.sample();
     assert(fixed(s, false) == "rule=? state=? lives=? players=? p0=? timers=? world=? actors=? b5b1=? zone=? "
                               "threaded=no net=? spawnreg=?");

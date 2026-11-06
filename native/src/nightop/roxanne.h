@@ -3,7 +3,7 @@
 // TS_Xion_Roxane_Choice, holds two TheaterSelectDataTable rows, Shop and End Conversation; Lily's, TS_Xion_Lily_Choice,
 // holds eight (the bike signal, four About Enya rows, Travel to Another Region, Repair Console, End Conversation). SB
 // does not read a list from the table when a dialogue starts: it reads a cache built before play, a TMap from a select
-// list's name to the TArray of its row names, at the world singleton's (the global at 0x147032570) +0xe0 object's
+// list's name to the TArray of its row names, at the world singleton's (the global at 0x1470373d0) +0xe0 object's
 // +0x5f0 (FUN_141b41090 finds the list with FUN_1417022e0 there, then fetches each listed row by name and reads its
 // fields live). So a row of ours never shows by its SelectDataName, and AddRow would not list it either. Here a list's
 // own entry in that cache is pointed at a TArray of names: our rows first, then the list's own rows as the entry held
@@ -35,7 +35,7 @@
 
 namespace coop::roxanne {
 
-constexpr uint64_t kImageBase = 0x140000000, kWorldAt = 0x147032570, kMapFind = 0x1417022e0;
+constexpr uint64_t kImageBase = 0x140000000, kWorldAt = 0x1470373d0, kMapFind = 0x1417022e0;
 constexpr size_t kHolder = 0xe0, kMap = 0x5f0;
 // A map element: the list's name at +0, its TArray of row names at +0x10 (data), +0x18 (count), +0x1c (max).
 constexpr size_t kStride = 0x28, kData = 0x10, kCount = 0x18, kMax = 0x1c;

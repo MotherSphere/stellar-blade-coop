@@ -204,7 +204,9 @@ struct Pc {
     mem.put(rebased(kTaskVtable) + kCompleteSlot, rebased(kComplete));
     mem.region(rebased(kConditionVtable), 0x100);
     mem.put(rebased(kConditionVtable) + kCompleteSlot, rebased(kCompleteParent));
-    mem.region(rebased(kLogicGlobal), 0x28);
+    mem.region(rebased(kLogicGlobal), 8);
+    mem.region(rebased(kWorldGlobal), 8);
+    mem.region(rebased(kManagerGlobal), 8);
     mem.region(rebased(kLogicThread), 4);
     mem.region(rebased(kNamePool), 0x20);
     mem.region(rebased(kNamesReady), 1);
