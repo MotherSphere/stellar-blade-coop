@@ -104,14 +104,14 @@ changes the file.
   pick your friend. The session is friends-only unless Options sets Who can join to Invited only or With a code (see
   below). While you host, the menu has Invite a friend and Leave the session instead. The arrow keys (or WASD, or
   ZQSD) move, Enter selects and Esc goes back. Within 3 m of a camp phone booth, `F5` opens the co-op line instead, a
-  page with the same session rows. See [usage.md](docs/usage.md#co-op-menu).
+  page with the same session rows. See [docs/interface.md](docs/interface.md#co-op-menu).
 - On a controller, hold View for 1 s to open or close the co-op menu. The D-pad or the left stick moves, A selects
   and B goes back. The mouse works in the menu too: move onto a row, left click to select, right click to go back. See
-  [usage.md](docs/usage.md#controller).
+  [docs/interface.md](docs/interface.md#controller).
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
-- `F9` sets a checkpoint while you record a Doro race track. See [usage.md](docs/usage.md#doro-races).
-- `Enter`, during a session, opens the chat box. See [usage.md](docs/usage.md#session-chat).
+- `F9` sets a checkpoint while you record a Doro race track. See [docs/doro-races.md](docs/doro-races.md).
+- `Enter`, during a session, opens the chat box. See [docs/interface.md](docs/interface.md#session-chat).
 
 Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once they have loaded a
 save, and both ghosts turn on automatically. Session events (a friend joined or left, connection lost, a rejoin)
@@ -125,7 +125,7 @@ to the other player, who selects Join with a code in their co-op menu and types 
 For a player who is not on your Steam friends list, in any session you host, a question asks whether to let them in:
 Accept or Deny. With no answer in 60 s, the player is refused. A refused player cannot come back to that session. To
 send out a player you let in, select Remove <name> in the menu, then select it again within 3 s. See
-[usage.md](docs/usage.md#join-codes).
+[docs/playing-with-a-friend.md](docs/playing-with-a-friend.md#join-codes).
 
 The mod writes `Mods/StellarCoop/coop-settings.txt` the first time the game starts with it. The menu's Options page
 changes one line of the file at a time, and keeps the file as it was before its first change since the mod loaded as
@@ -152,7 +152,7 @@ changes one line of the file at a time, and keeps the file as it was before its 
   - `dyes=off` and `effects=off` each also stop your game from sending your own, so the ghost of you in your friend's
     game lacks them too.
 - `auto_coop_save`: see "Co-op saves" below. The photo, menu, chat, partner HUD and shared enemies settings are
-  listed in [usage.md](docs/usage.md#coop-settingstxt).
+  listed in [docs/settings.md](docs/settings.md#coop-settingstxt).
 
 If the mod rejects a value, that setting keeps its default, and `UE4SS.log` gives the reason in a line that starts with
 `[StellarCoop] settings:`. The `[StellarCoop] keys:` line lists the keys in use, and the `[StellarCoop] look:` line
@@ -205,7 +205,7 @@ screen. Up and down arrows (or W, Z and S) move, Enter selects, Esc is Decide la
 choice under the mouse. On a controller, the D-pad or the left stick moves, A selects and B is Decide later. For 1 s
 after the question shows, Enter, Space, A and a click do nothing, so a press meant for the title screen does not
 answer it. The mod reads XInput controllers (Xbox controllers, the Steam Deck, any controller under Steam Input); a
-DualSense needs Steam Input on for Stellar Blade (see [usage.md](docs/usage.md#controller)). With no answer for 60 s,
+DualSense needs Steam Input on for Stellar Blade (see [docs/interface.md](docs/interface.md#controller)). With no answer for 60 s,
 the question closes as Decide later.
 
 - Convert and play co-op (Play co-op once copies exist): the mod copies your saves, then switches the game to the

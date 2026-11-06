@@ -7,9 +7,9 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
 - The mod writes one of your own saves (`StellarBladeSave00.sav` to `04.sav`) only when you export a co-op save over
   it with `coop saves export` (see [Co-op saves](#co-op-saves)), after a backup of that save. It never writes your
   unlocks or equipment. It changes the inventory only when you buy in Night Operation's shop (`coop nightop buy`) or
-  send and take a gift (`coop gift`, see [usage.md](usage.md#cut-mailbox-coop-gift)), on a co-op save, so the items
+  send and take a gift (`coop gift`, see [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-mailbox-coop-gift)), on a co-op save, so the items
   land in or leave that co-op save.
-  The shop's points (see [night-operation.md](night-operation.md#the-reward-shop)) and the gifts' mailbox are kept in
+  The shop's points (see [night-operation-shop.md](night-operation-shop.md)) and the gifts' mailbox are kept in
   the mod folder, not in a save, so restoring a save backup does not change them.
 - The native part reads your saves only to make their co-op copies, `StellarBladeCoop00.sav` to `04.sav`, on a
   `saves convert` or `saves coop` request at the title. The question on the title screen and `auto_coop_save=always`
@@ -18,7 +18,7 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
   exist yet, a backup of every `StellarBlade*.sav` of the account in
   `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`, before the first copy. On a `saves export` request it
   reads a co-op copy and writes it over the save you named, after a backup of that save in the same folder. The rules
-  are in [how-it-works.md](how-it-works.md#safety-design).
+  are in [internals/safety.md](internals/safety.md#safety-design).
 - With the experimental shared quests on (off by default), the native part also writes `StellarCoopQuests00.txt` to
   `04.txt` beside the co-op copies: the record of the quest steps shared on that co-op slot, through the same name
   check. On the guest's side, her game makes the host's quest steps through its own quest functions, in the co-op save
@@ -122,7 +122,7 @@ The question and `always` show their result as a notice: `Co-op saves on: you pl
 own saves are not changed.`, or `Co-op saves off for this load: <why>. You play your own saves.` While the game uses
 the copies, the title screen shows `CO-OP SAVES` at the top right. In a session on your
 own save with shared enemies on, a notice says how to switch to the co-op copy (see
-[usage.md: Shared enemies](usage.md#shared-enemies-experimental)).
+[shared-enemies.md: Shared enemies](shared-enemies.md#shared-enemies-experimental)).
 
 A copy pass:
 
@@ -152,7 +152,7 @@ The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N
 `coop saves coop` is refused until that pass ends, since the other slots may have no copy or an older one; once it has
 ended, `coop saves coop` runs its own pass over every slot first.
 
-`coop shortcut load` ([usage.md](usage.md#loading-one-coop-shortcut-load), off unless `shortcut_load=on`) writes a
+`coop shortcut load` ([cut-scenes-and-menus.md](cut-scenes-and-menus.md#loading-one-coop-shortcut-load), off unless `shortcut_load=on`) writes a
 cleaned developer save as `StellarBladeCoop04.sav` through the same kind of pass, while the game uses the copies: the
 old copy goes to a new folder of `StellarCoopBackups` first, and the new one gets no line in `StellarCoopSaves.txt`, so
 later passes keep it as played. Before the save, it writes `StellarCoopShortcut04.txt` beside it, a mark that names
@@ -304,4 +304,4 @@ The full steps are in [INSTALL.md: Recovery](../INSTALL.md#recovery).
 - New Game and New Game+ ask which slot to overwrite, among the co-op copies while the game uses them. That prompt
   comes from the game, not from the mod.
 - After a Night Operation preview, kill the game instead of quitting from the menu (which saves), then check and
-  restore your backup. See [night-operation.md](night-operation.md#after-a-preview-run).
+  restore your backup. See [night-operation-previews.md](night-operation-previews.md#after-a-preview-run).

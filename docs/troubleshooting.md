@@ -16,7 +16,7 @@ StellarCoop is an experimental pre-release, played in only a few sessions betwee
   `dinput8.dll`, `dwmapi.dll` (UE4SS's loader) and `steam_api64.dll` were loaded from (other mods' DLLs can change
   results), the status, a summary of save folder changes and the last 100 events.
 
-## Common problems
+## Install and the Steam link
 
 ### F6 does nothing, or no `[StellarCoop]` line at all
 
@@ -29,7 +29,7 @@ StellarCoop is an experimental pre-release, played in only a few sessions betwee
   no ghost shows, and the loopback, record and replay refuse to start.
 - A `settings:` line: a value in `coop-settings.txt` was refused and keeps its default. `F10` is never allowed, and
   two actions on one key put all five keys back to their defaults: `F5` (menu), `none` (host), `F6` (status), `F8`
-  (leave) and `F9` (race checkpoint). See [usage.md](usage.md#coop-settingstxt).
+  (leave) and `F9` (race checkpoint). See [settings.md](settings.md#coop-settingstxt).
 - `keys: <key> is also bound by a mod loaded earlier; both run`: another mod uses the same key. Pick another key.
 
 ### `Co-op: waiting for Steam.` or `Co-op: the Steam link stopped; coop status says why.`
@@ -94,6 +94,8 @@ For the host:
 - `Hosting without a join code (unexpected lobby id): ...`: Steam gave the lobby an id that a code cannot hold. The
   invite dialog opens instead; invite the player from it.
 
+## The ghost and its looks
+
 ### I do not see my friend's ghost
 
 - `ghost=off` in `coop status`: no session has started since the mod loaded, or the ghost was turned off with
@@ -128,9 +130,11 @@ the ghost looks wrong with one on, turn it off: `cloth=off` (or `dyes=off`, `eff
 Options > Ghost in the co-op menu, or `coop look <look> off`. An `effects off: fault ...` line means a fault turned
 effects off until the game restarts; the ghost stays, without effects.
 
+## Doro races
+
 ### EVE is invisible, or only a Doro shows
 
-During a [Doro race](usage.md#doro-races), and after `coop race look on`, the Doro look hides EVE's parts and the drone
+During a [Doro race](doro-races.md), and after `coop race look on`, the Doro look hides EVE's parts and the drone
 that follows her, and draws a Doro at her feet. The race's end, `coop race quit`, `coop off` and a map change show both
 again. If EVE or the drone stays hidden:
 
@@ -147,18 +151,20 @@ A Doro left standing alone where a race was (at a checkpoint or the start line) 
 `[StellarCoop][DR] race: <n> display Doros an earlier Lua load left destroyed`.
 
 While your look is on, your friend sees your ghost with no body unless their game takes part in the race (see
-[how-it-works.md](how-it-works.md#the-doro-look)).
+[internals/doro-races.md](internals/doro-races.md#the-doro-look)).
 
 ### EVE does not speed up or stop after a race
 
-During a [Doro race](usage.md#doro-races), the race sets four values of EVE's movement to 0 so it can drive her (see
-[Driving](usage.md#driving)). Her result, `coop race quit`, `coop off` and a map change put them back. If she keeps
+During a [Doro race](doro-races.md), the race sets four values of EVE's movement to 0 so it can drive her (see
+[Driving](doro-races.md#driving)). Her result, `coop race quit`, `coop off` and a map change put them back. If she keeps
 sliding or does not move with the stick after a race or `coop race drive probe`:
 
 - Type `coop race drive off` if the probe still runs.
 - Press Ctrl+R. The next Lua load reads `coop-drive.txt`, which the race keeps while it drives, and writes the values
   back at its first tick: `UE4SS.log` says `[StellarCoop][DR] drive restored from coop-drive.txt: MaxAcceleration=...`.
 - Restart the game if neither works. The values are in memory only, and no save holds them.
+
+## Menu, chat, controller and screen
 
 ### The game ignores its keys after the co-op menu or the chat
 
@@ -192,7 +198,7 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
   `code`, `ask` (the host's question, answered with Deny) or `saves` (the co-op saves' question, closed as Decide later;
   a copy already under way keeps going and its result shows as a notice). A click of the middle or a side mouse button
   does this too. Open the menu again. If it closes this way with nothing else on screen, send `UE4SS.log` with a note of
-  what you did just before. See [usage.md: Focus watchdog](usage.md#focus-watchdog).
+  what you did just before. See [interface.md: Focus watchdog](interface.md#focus-watchdog).
 - No watchdog line: the menu also closes when the game pauses or shows the mouse cursor for one of its own screens
   (EVE dies, a shop opens, your friend's photo mode pauses your game). The chat box closes the same way, and what you
   typed is lost.
@@ -214,16 +220,22 @@ Look at the `pad:` lines in `coop-link.log`:
   `STOP:` line as for F5 shows. The host's question takes no controller input, and in the chat box and the code box
   only B acts (it closes them).
 
-### Turn the spawn filter off
+### Screen notices stopped
 
-The spawn filter (`spawn_filter`, the guest's own setting, off by default) has not been tested in game. If the game
-misbehaves with it on (a crash, a door or a zone event that waits for enemies that never come), close the game, set
-`spawn_filter=off` in the guest's `coop-settings.txt` and start again. `coop off` puts the game's pointer back at once,
-until the game restarts. Send the guest's `coop-link.log` and `coop-fight.log`: the `spawn filter` lines name each
-enemy it refused (`spawn filter refused <spawnId>:<index>`), and the `fight stats:` lines count `filter <n> seen, <n>
-refused`. `spawn filter refused: ...` with no key means the filter never started (another mod holds the same pointer,
-or the page would not become writable), and every spawn went on as with it off. See
-[usage.md: Spawn filter](usage.md#spawn-filter-experimental).
+`Screen notices off: <why>; notices stay in UE4SS.log.`: the engine refused the line above EVE. That line stays off
+until the next Lua load (game start or Ctrl+R); the notices still go to `UE4SS.log`, and to the feed at the top left
+while the on-screen UI is up.
+
+### Photo mode still freezes everything with Scenery live
+
+- `UE4SS.log` has `[StellarCoop] photo pause: off until the mod reloads: <why>`: the game refused the console variable
+  `SB.PhotoMode.PauseMethod` (`reads 0 after the set` on another game build), and photo mode keeps the game's full
+  pause until the mod reloads.
+- The change applies from the next photo mode: leave photo mode and press P again.
+- To go back to the game's own pause, choose Full in Options, or type `SB.PhotoMode.PauseMethod 0` in the console
+  (F10).
+
+## UE4SS settings and mod errors
 
 ### The game crashes when EVE lets go of a crate
 
@@ -234,12 +246,6 @@ Stellar Blade UE4SS 1.3 values), and start it again. The usual cause is another 
 the 1.3 one. See [INSTALL.md: Other mods](../INSTALL.md#other-mods). `UE4SS-settings.ini not checked: <why>` means the
 mod could not read the file, so check the two lines by hand.
 
-### Screen notices stopped
-
-`Screen notices off: <why>; notices stay in UE4SS.log.`: the engine refused the line above EVE. That line stays off
-until the next Lua load (game start or Ctrl+R); the notices still go to `UE4SS.log`, and to the feed at the top left
-while the on-screen UI is up.
-
 ### `<name>: error (logged once until the mod reloads; the other modules go on)`
 
 A Lua error escaped one part of the mod. The name before the colon says which (`lion`, `race`, `menu`, `ghost`...).
@@ -249,17 +255,19 @@ or Ctrl+R), even when the error comes back every frame, so the same name can sho
 keep running, and the named part is still called at each pass, so it can recover by itself. If it stays broken, a Lua
 reload builds it again. Send `UE4SS.log` either way.
 
+## Commands
+
 ### `coop no` or `coop recruiter` says `STOP`
 
 - `runs only on a co-op save`: at the title, choose Play co-op (or Convert and play co-op), then load your save. See
   [saves.md](saves.md#co-op-saves).
 - `STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter ...` is expected: the
   recruiter's lines stay in Korean, and the Emil scene's subtitles in Korean and Japanese. `coop recruiter` and
-  `coop scene emil` go on (see [night-operation.md](night-operation.md#his-language) and
-  [usage.md](usage.md#cut-scenes-coop-scene)).
+  `coop scene emil` go on (see [night-operation-previews.md](night-operation-previews.md#his-language) and
+  [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-scenes-coop-scene)).
 - Most other `STOP:` lines from the previews give the reason, and many say that nothing was changed. If the probe logs
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
-  [night-operation.md](night-operation.md).
+  [night-operation-previews.md](night-operation-previews.md).
 
 ### `coop devmenu` or `coop devinfo` does nothing
 
@@ -272,14 +280,7 @@ reload builds it again. Send `UE4SS.log` either way.
   and `UE4SS.log`.
 - `devinfo fault ...: coop devinfo off for the run`: the panels stay off until the game restarts. Send both logs.
 
-### Photo mode still freezes everything with Scenery live
-
-- `UE4SS.log` has `[StellarCoop] photo pause: off until the mod reloads: <why>`: the game refused the console variable
-  `SB.PhotoMode.PauseMethod` (`reads 0 after the set` on another game build), and photo mode keeps the game's full
-  pause until the mod reloads.
-- The change applies from the next photo mode: leave photo mode and press P again.
-- To go back to the game's own pause, choose Full in Options, or type `SB.PhotoMode.PauseMethod 0` in the console
-  (F10).
+## Saves
 
 ### The co-op saves question does not show
 
@@ -298,11 +299,29 @@ reason:
 - `UE4SS.log` has `[StellarCoop] co-op saves: the question cannot show (the co-op UI is off)`: the on-screen UI
   stopped (see the `[StellarCoop][UI]` lines). `auto_coop_save=always` still switches to the copies.
 
+### `Co-op saves off for this load: <why>`
+
+The copies were not switched on, and the game uses your own saves. The reason comes from `coop-link.log`:
+
+- `Continue or Load Game was chosen at the title (load mode 2)`: Continue or Load Game was pressed before the copies
+  were ready, so the game loads your own save.
+- `slot N's save ...` or `slot N's copy ...`: that save could not be copied (it fails the game's own check, it changed
+  while it was read, or the disk is full). The other copies are made, but the switch needs a copy of every save.
+- `the backup folder could not be made` or `the backup of <file> could not be written`: the disk is full, or
+  `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups` cannot be written.
+
+### A save looks wrong
+
+Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then restore your backup. See
+[saves.md](saves.md#steam-cloud) and [INSTALL.md: Recovery](../INSTALL.md#recovery).
+
+## Shared play
+
 ### Enemies are not shared
 
 Shared enemies are on by default. Both players need Options > Combat > Shared enemies (experimental) set to On in the
 co-op menu. The `fight=` line of `coop status` says what is missing (see
-[usage.md: Shared enemies](usage.md#shared-enemies-experimental)):
+[shared-enemies.md: Shared enemies](shared-enemies.md#shared-enemies-experimental)):
 
 - `fight=off` with no `why=`, and `shared enemies: off (experimental)` in `UE4SS.log` at load: shared enemies are off
   in your game. A `coop-settings.txt` from version 0.2 says `shared_enemies=off`.
@@ -336,7 +355,7 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
 
 Shared quests are experimental and off by default, and both players need Options > Saves > Shared quests
 (experimental) set to On. The `quests=` line of `coop status` says what is missing (see
-[usage.md: Shared quests](usage.md#shared-quests-experimental)):
+[playing-with-a-friend.md: Shared quests](playing-with-a-friend.md#shared-quests-experimental)):
 
 - `quests=off`, and `shared quests: off (experimental)` in `UE4SS.log` at load: shared quests are off in your game.
 - `quests=waiting mode=on why=friend`: no friend is linked. `why=save`: you play your own save; quit to the title
@@ -364,7 +383,7 @@ Shared quests are experimental and off by default, and both players need Options
 ### Same place does not start, or stops
 
 Same place is experimental and on by default, and only the host's setting counts. `coop fight pilot status` prints
-the `pilot=` line of `coop status` (see [usage.md: Same place](usage.md#same-place-experimental)):
+the `pilot=` line of `coop status` (see [shared-enemies.md: Same place](shared-enemies.md#same-place-experimental)):
 
 - `pilot=refused why=...`: another game build, or `coop off`.
 - `pilot=off why=fight`: shared enemies are not running. See [Enemies are not shared](#enemies-are-not-shared).
@@ -413,7 +432,7 @@ moves it.
 
 Shared bosses (`bosses`) are experimental, on by default and not tested in game yet, and only the host's setting counts.
 With same place on, the guest's copy of a boss follows the host's through the lines in
-[how-it-works.md: Shared bosses](how-it-works.md#shared-bosses). Look in the guest's `coop-link.log` first:
+[internals/shared-enemies.md: Shared bosses](internals/shared-enemies.md#shared-bosses). Look in the guest's `coop-link.log` first:
 
 - No arena walls on her side: there is no `fight bstart hguid=<n>` line. Her game calls the boss start only for a copy
   it draws: check `pilot=` in `coop status` and the `fight paired` and `fight frozen` lines for that boss. The host
@@ -453,7 +472,7 @@ With same place on, the guest's copy of a boss follows the host's through the li
 ### A kill or an achievement did not count
 
 A shared enemy dies in your game only if you took part in its fight ([usage.md: Shared
-enemies](usage.md#shared-enemies-experimental)). When the other player kills one that you never hit, that never targeted
+enemies](shared-enemies.md#shared-enemies-experimental)). When the other player kills one that you never hit, that never targeted
 you and that stood more than 30 m from your EVE (`kill_credit=together`, the default), your copy stays alive at full HP,
 and its kill, loot and achievements do not reach your save. Fight it yourself to get them. As the guest, while same
 spawns run (within 100 m of each other in one zone), the host's next drop line removes that copy a few seconds later
@@ -467,7 +486,7 @@ The mod then stops counting that record for this enemy, so only your hit or the 
 ### Travel to the host does not start
 
 In this version the travel never starts and no offer shows. F7 or `coop travel host` writes `travel refused: the
-follow stays off until it has been tested in game` in `UE4SS.log` ([Following the host](usage.md#following-the-host)).
+follow stays off until it has been tested in game` in `UE4SS.log` ([Following the host](playing-with-a-friend.md#following-the-host)).
 The rest of this section applies once the follow is on. A refusal that ends in `no read of the camps this save has
 activated (<why>)` means the mod had no read of your activated camps at that moment (a load, the title); the
 `activated=` line of `coop status` shows the read. With `(fault)`, a fault stopped that read until the game restarts,
@@ -551,7 +570,7 @@ vanish without dying and without rewards. Both happen only where the two players
 one zone, and only to enemies of rows the zone resets anyway (bosses, quest and event enemies and the enemies a save
 records are never touched). To go back, turn off Options > Combat > Same spawns (experimental) in the host's menu, then
 turn Shared enemies off and on again or restart the game: the setting counts from the next start of shared enemies.
-[usage.md](usage.md#same-spawns-experimental) has the details.
+[shared-enemies.md](shared-enemies.md#same-spawns-experimental) has the details.
 
 Read the `spawns=` part of the `fight=` line in `coop status` on both PCs:
 
@@ -579,23 +598,18 @@ An enemy that the host's game lacks still appears for a moment on the guest's sc
 then vanishes: that is same spawns with the spawn filter off, its default. With `spawn_filter=on` on her PC it stays
 away after the first entry into the zone, unless her reset is also a world change (`fight world <why>` in her
 `coop-link.log`; see [Turn the spawn filter off](#turn-the-spawn-filter-off) and
-[usage.md: Spawn filter](usage.md#spawn-filter-experimental)).
+[shared-enemies.md: Spawn filter](shared-enemies.md#spawn-filter-experimental)).
 
-### `Co-op saves off for this load: <why>`
+### Turn the spawn filter off
 
-The copies were not switched on, and the game uses your own saves. The reason comes from `coop-link.log`:
-
-- `Continue or Load Game was chosen at the title (load mode 2)`: Continue or Load Game was pressed before the copies
-  were ready, so the game loads your own save.
-- `slot N's save ...` or `slot N's copy ...`: that save could not be copied (it fails the game's own check, it changed
-  while it was read, or the disk is full). The other copies are made, but the switch needs a copy of every save.
-- `the backup folder could not be made` or `the backup of <file> could not be written`: the disk is full, or
-  `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups` cannot be written.
-
-### A save looks wrong
-
-Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then restore your backup. See
-[saves.md](saves.md#steam-cloud) and [INSTALL.md: Recovery](../INSTALL.md#recovery).
+The spawn filter (`spawn_filter`, the guest's own setting, off by default) has not been tested in game. If the game
+misbehaves with it on (a crash, a door or a zone event that waits for enemies that never come), close the game, set
+`spawn_filter=off` in the guest's `coop-settings.txt` and start again. `coop off` puts the game's pointer back at once,
+until the game restarts. Send the guest's `coop-link.log` and `coop-fight.log`: the `spawn filter` lines name each
+enemy it refused (`spawn filter refused <spawnId>:<index>`), and the `fight stats:` lines count `filter <n> seen, <n>
+refused`. `spawn filter refused: ...` with no key means the filter never started (another mod holds the same pointer,
+or the page would not become writable), and every spawn went on as with it off. See
+[shared-enemies.md: Spawn filter](shared-enemies.md#spawn-filter-experimental).
 
 ## Reading the 60 s lines
 

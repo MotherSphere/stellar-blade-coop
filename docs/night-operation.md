@@ -28,7 +28,7 @@ challenges.
   a matchmaking service and dedicated game servers hosted on Amazon.
 
 StellarCoop never contacts those servers. They belong to Shift Up and served a mode that never shipped. See
-[How the original matchmaking is blocked](#how-the-original-matchmaking-is-blocked).
+[How the original matchmaking is blocked](night-operation-previews.md#how-the-original-matchmaking-is-blocked).
 
 ## The plan
 
@@ -41,9 +41,9 @@ parts exist:
 - The cut mode's revive in a co-op run, with the experimental `revive` setting on: a dead EVE waits 30 s for her
   partner, who revives her with the interact key, or revives herself a few times a run (see
   [Down and revive](#down-and-revive)).
-- The reward shop, on the console, with two cut items the game never sold (see [The reward shop](#the-reward-shop)).
+- The reward shop, on the console, with two cut items the game never sold (see [The reward shop](night-operation-shop.md)).
 - The recruiter, as a preview: he stands next to Roxanne in Xion's Scrap Market. His lines stay in Korean (see
-  [His language](#his-language)).
+  [His language](night-operation-previews.md#his-language)).
 - Everything runs on a co-op save, a copy of your save, and never on your own saves.
 
 These parts do not exist yet:
@@ -53,7 +53,7 @@ These parts do not exist yet:
 - More players, up to six. The Steam link holds two.
 - A boss wave.
 
-The Steam link connects two players and shows each player the other's ghost (see [usage.md](usage.md)). The previews
+The Steam link connects two players and shows each player the other's ghost (see [playing-with-a-friend.md](playing-with-a-friend.md)). The previews
 test how the cut mode's parts behave.
 
 ## The solo run (`coop nightop`)
@@ -86,13 +86,13 @@ Protocol, with its author's permission (see [Credits](../README.md#credits)).
 | `coop nightop stop` | End the run that is on, Night Operation or a challenge, on any save. `coop off` ends it too |
 | `coop nightop revive` | In a co-op run with `revive=on`, while your EVE is down: revive her yourself, a few times a run (see [Down and revive](#down-and-revive)) |
 | `coop nightop` | The run's wave, run time, score and kills while a run is on, then the census: how many living characters stand within 40 m of EVE, and the wave monsters still in the world that show a wave key, each with its run number (8 at most are named). The game shows a monster's wave key only in a networked game, so this list is empty in practice |
-| `coop nightop shop` | Open the game's own shop screen with the items of the [reward shop](#the-reward-shop), your points shown as Beta Seeds (see [The shop screen](#the-shop-screen-coop-nightop-shop)) |
+| `coop nightop shop` | Open the game's own shop screen with the items of the [reward shop](night-operation-shop.md), your points shown as Beta Seeds (see [The shop screen](night-operation-shop.md#the-shop-screen-coop-nightop-shop)) |
 | `coop nightop buy` | Your points and the seven items, in the console |
-| `coop nightop buy <n> [count]` | Buy 1 to 10 of item n with your points (see [Buying from the console](#buying-from-the-console-coop-nightop-buy)) |
+| `coop nightop buy <n> [count]` | Buy 1 to 10 of item n with your points (see [Buying from the console](night-operation-shop.md#buying-from-the-console-coop-nightop-buy)) |
 
 ### Before your first run
 
-1. Load a co-op save, as in step 1 of [Before you try a preview](#before-you-try-a-preview). For a solo run, leave any
+1. Load a co-op save, as in step 1 of [Before you try a preview](night-operation-previews.md#before-you-try-a-preview). For a solo run, leave any
    Steam session (`coop leave`).
 2. Back up your saves and keep Steam Cloud off for Stellar Blade (steps 2 and 3 there). Whether the game saves a wave
    monster that is still alive when it saves is not known yet.
@@ -105,7 +105,7 @@ progress like any co-op save, and your own saves are not touched.
 
 Go to open ground outside Xion, with no enemy or other character within 40 m of EVE, and type `coop nightop start`.
 On a co-op save you can also pick the level from Roxanne in Xion: see
-[Night Operation at Roxanne's](#night-operation-at-roxannes).
+[Night Operation at Roxanne's](night-operation-shop.md#night-operation-at-roxannes).
 The answer is `OK: Night Operation starts in 5 s (run 0x2A)`, where `0x2A` is the run's number, or
 `OK: Night Operation (hard) starts in 5 s (run 0x2A)` at another level. The command refuses with one `STOP:` line, and
 changes nothing, when:
@@ -230,7 +230,7 @@ any shared enemy (see [Shared waves](#shared-waves)).
 The card counts down the level's time limit but does not name the level, and neither do the notices. The start
 answer, `coop nightop` (`run 0x2A level hard: wave, wave 2/5, ...`), the `start:` line in `UE4SS.log`
 (`... map <map> level hard; census: ...`) and the `result:` line (`challenge=night_hard`) name it. Each level keeps its
-own best run (see [Best runs](#best-runs-coop-recordstxt)).
+own best run (see [Best runs](challenges.md#best-runs-coop-recordstxt)).
 
 ### Score and the end of a run
 
@@ -259,7 +259,7 @@ result: success waves=5/5 kills=20 score=731 time=5:28 find_ms=0.9/2.4 challenge
 while monsters are tracked, and at each wave's start and finds. It asks the engine for the characters of one class
 (`GetAllActorsOfClass`); up to 0.6.0-beta.3 the run used `FindAllOf`, which walks every object (25 to 80 ms in game).
 A success that beats the best run kept in `coop-records.txt` is written there, and `best=` gives the best after the run
-(see [Best runs](#best-runs-coop-recordstxt)).
+(see [Best runs](challenges.md#best-runs-coop-recordstxt)).
 
 Monsters still alive when a run ends, written-off ones after a success included, stay in the world as ordinary enemies,
 and they no longer score. The mod has no safe way to remove them. Ctrl+R during a run ends it with no result, and its
@@ -279,7 +279,7 @@ When the run ends, a result panel takes the card's place for 10 s. Its heading i
 Operation Successful or Operation Failed in the game's language. The line under it says why a run did not succeed, or
 reads `New personal best.` after a success that set one. The rows give the waves cleared, the kills, the score, the time
 and the best run kept on this PC (`-` when none is). The card and the panel follow the game's language, or English with
-`ui_language=english` (see [usage.md](usage.md#options)).
+`ui_language=english` (see [interface.md](interface.md#options)).
 
 With `coop ui off`, the same facts come as notices: the start, each wave, each wave cleared, and the result.
 
@@ -340,7 +340,7 @@ the run is on. Her notice and card do not.
 
 - The host's game decides when each wave starts and when and how the run ends. The guest's game follows the host's
   night line, which comes at least once a second (see
-  [how-it-works.md](how-it-works.md#channel-0-text)).
+  [internals/steam-link.md](internals/steam-link.md#channel-0-text)).
 - A monster scores once, when it dies in either world. With shared enemies on, a death in both worlds also scores
   once.
 - A wave is down once each of its monsters is down, written off, missing or no longer tracked in both worlds, so the
@@ -367,7 +367,7 @@ did before the revive.
   `Resuscitate [F]` and her time left, then the percent of the hold. Letting go, stepping away or a pause starts the hold over. Only the game's
   default interact keys count, not a key rebound in the game's options.
 - Once the hold is full, her game calls the game's in-place respawn on her EVE, the call that `coop revive test` makes
-  (see [usage.md](usage.md#revive-by-your-friend-experimental)). She gets up where she fell with full health and her
+  (see [playing-with-a-friend.md](playing-with-a-friend.md#revive-by-your-friend-experimental)). She gets up where she fell with full health and her
   recovery items refilled, as after a camp respawn, and the zone does not reset. She reads `Revived by <partner>.`,
   her partner reads `You revived <name>.` and `<name> has joined the game.`
 - She can revive herself with `coop nightop revive`: 3 times a run at easy, 2 at normal, 1 at hard and none at
@@ -397,7 +397,7 @@ The run fails when:
 The down also needs each game's own life state, the `life=` line that `coop status` shows while a session holds.
 Without it, a death ends the run as in a solo run. A revive call also needs `revive=on` at the time of the call, the
 death screen up, a life state of 3 to 5, no respawn or warp under way, a standalone game and no `coop no` probe rule.
-During a run the [friend's revive](usage.md#revive-by-your-friend-experimental) (3 s next to the downed EVE with no
+During a run the [friend's revive](playing-with-a-friend.md#revive-by-your-friend-experimental) (3 s next to the downed EVE with no
 key) and its notices stand aside, so a revive comes only from the run.
 
 `UE4SS.log` has `[StellarCoop][NR]` lines for each step: on the downed side `down (life 3): 30 s for a revive, 2 self
@@ -437,15 +437,15 @@ result.
 
 ### Shared waves
 
-With shared enemies on (the default, see [usage.md](usage.md#shared-enemies-experimental)), each wave monster pairs
+With shared enemies on (the default, see [shared-enemies.md](shared-enemies.md#shared-enemies-experimental)), each wave monster pairs
 with its copy in the other game by its spawn key, like a field enemy: one HP bar, balance gauge and death, decided by
 the host's game, with the host's `enemy_hp_scale` and `enemy_balance_scale`. A copy dies in your world only if you took
-part in its fight (see [how-it-works.md](how-it-works.md#achievements)). A copy that stays alive in your world for that
+part in its fight (see [internals/safety.md](internals/safety.md#achievements)). A copy that stays alive in your world for that
 reason keeps your wave open until you kill it, it is still out of reach after its two moves (as in the solo run), or
 the time runs out.
 
 With same place on (the default), a pair's two copies stand in the same place on both screens: one game runs the
-monster's AI and the other draws its copy (see [usage.md](usage.md#same-place-experimental)). The guest's game then
+monster's AI and the other draws its copy (see [shared-enemies.md](shared-enemies.md#same-place-experimental)). The guest's game then
 leaves the push towards her EVE and the stuck moves of a monster to same place while all of these hold: her shared
 enemies run as the guest, same place draws at least one copy (`pilot=on piloted=1` or more in `coop status`), and the
 host's night line lists that monster as found and not yet down, killed, written off or lost in his world. `UE4SS.log`
@@ -457,638 +457,3 @@ Same spawns leave wave monsters out, since none of the game's spawn rows holds t
 
 With `shared_enemies=off` on either PC, nothing pairs: each player fights the monsters of their own world, and the
 wave starts, the timer and the score are still shared.
-
-## The reward shop
-
-A run of yours that goes from its countdown to a success or a time up gives you points: 1 for each 25 of its final score
-at the normal level, times the level's percent at the others (50 % at easy, 150 % at hard, 200 % at nightmare), rounded
-down. The score counts up to the highest its level allows, so a run gives at most 20 points at easy, 42 at normal, 83 at
-hard and 129 at nightmare. A normal run with a score of about 730 gives 29, a hard one 43. Your game adds them to your
-own points and shows `Night Operation: +29 points, 41 in all.` A success where a monster never came (its spawn failed)
-or nothing was killed pays for its kills only, without the bonus for the time left. A solo run counts too; a challenge
-gives none. A failed or aborted run gives nothing, and a guest whose game missed the countdown gets nothing either. Each
-game credits only its own player: no line between the two games carries points. If the points cannot be written, a
-notice says so and `UE4SS.log` says why.
-
-The shop sells seven items. `coop nightop shop` opens them in the game's own shop screen (below), and
-`coop nightop buy` sells them from the console, the way the shop worked before the screen.
-
-| # | Item | Points (Beta Seeds) | At a camp |
-| --- | --- | --- | --- |
-| 1 | `HP_Potion` | 15 | 400 gold |
-| 2 | `HP_Potion_Small` | 10 | 300 gold |
-| 3 | `PulseGrenade` | 6 | 300 gold |
-| 4 | `ConcussionGrenade` | 8 | 400 gold |
-| 5 | `HP2Burst_Potion` (Burst Stimpack) | 20 | not sold |
-| 6 | `Buff_HP2MP` (Beta Stimpack) | 16 | not sold |
-| 7 | `Bullet_Shock` (Shock Bolt) | 5 a bolt | not sold |
-
-Items 1 to 4 and their prices come from the cut mode's own shop table, `Shop_NightOperation`. It lists 12 items; these
-four are the ones every camp shop sells with no story condition, so a buy here skips no story gate.
-
-Items 5 to 7 are cut items. The game ships their effects, use conditions, icons and English text, but no ItemTable
-row, so it cannot hold them. Their prices are the mod's own starting values.
-
-- The Burst Stimpack takes 400 HP and fills the Burst gauge by 600. The game's use conditions refuse it when EVE has
-  too little HP or a full Burst gauge.
-- The Beta Stimpack takes 20% of EVE's maximum HP and gives 50 Beta energy, refused the same way with too little HP or
-  full Beta energy.
-- The Shock Bolt is ammo for EVE's gun. A hit stuns a common enemy for 10 s, or until it is hit again, with the game's
-  own stun effect, which does nothing to animals, elites or bosses. EVE carries 30 bolts at most; each shot takes one,
-  and the next shot waits 1.5 s. The game adds bolts only up to 30 and drops the rest, and the shop cannot read how
-  many she holds, so a buy past 30 costs the points of the dropped bolts.
-
-The two stimpacks play the health potion's drinking animation and have a charge count of 2 that no upgrade raises, like
-the Heal Grenade. The native part adds the rows of all three through the game's own AddRow, in memory for the game
-run: the stimpacks' (two ItemTable rows, the Beta Stimpack's ItemConsumableTable row and the skill both play, which the
-game names but never shipped) in the same batch as the [cut Lion's](usage.md#cut-boss-coop-lion) rows, and the Shock
-Bolt's (its item, skill, projectile and hit result) in a batch of their own, so a Shock Bolt row the game refuses
-leaves the Lion and the stimpacks alone. A buy of item 5, 6 or 7 asks for its rows first. When they are already in, the
-buy goes through at once. Otherwise the answer is `OK: Buff_HP2MP x1: its rows are asked of the native part; the buy
-follows once they are in`, and the buy's own answer follows within 30 s, as an `OK:` or `STOP:` line of `coop lion`.
-Rows that cannot be added buy nothing and take no points: `STOP: Buff_HP2MP cannot be added to the game (...): nothing
-bought, no points taken`, with the reason in the parentheses.
-
-For the Shock Bolt the rows are not enough: EVE's two gun stances list only its failed shot, and the game's ammo list
-stops at five types. Right after the Shock Bolt's rows go in, the native part adds the two fire commands the game
-ships to both stances and `Bullet_Shock` as a sixth ammo type, in place (see [usage.md](usage.md#cut-ammo-shock-bolt)).
-Only the shop does this, through a Shock Bolt buy or `coop nightop shop`: a stimpack buy, `coop lion` and
-`coop chainspin` leave the gun as the game ships it. A buy of item 7 goes through only when `coop-status.txt` then
-reads `shock=in`. Otherwise it stops with
-`STOP: Bullet_Shock cannot be fired in this game (shock=...): nothing bought, no points taken`, and the shop screen
-leaves the Shock Bolt out.
-
-The rows of these items went in during the 2026-10-27 game run and the shop screen opened, but no item has been
-bought, used or fired in game yet. Check that the items show with their names and icons, that using a stimpack
-plays the animation and changes HP and the gauge, that the Shock Bolt shows in the ammo selector, fires and stuns, and
-what happens to a cut item left in the inventory when the game saves: after a restart the rows are not in until the next
-buy of that item or the next `coop nightop shop` (or `coop lion rows` for the stimpacks), and how the game loads an
-item it has no row for is not known. Use them up or
-keep a backup of the co-op save. If the Shock Bolt is selected, switch to another ammo before you save or quit from the
-menu; the game's autosaves at a camp or a zone change keep the selected slot too.
-
-### The shop screen (`coop nightop shop`)
-
-`coop nightop shop` opens the game's own shop screen, the one its vending machines use, with the items of the table
-above. It shows each item's icon, price, Available and Stored counts, and its Purchase button buys through the game's
-own purchase. While the screen is open your points are Beta Seeds, the cut mode's currency: the top of the screen
-shows how many you hold, every price is in Beta Seeds (one seed for one point), and a purchase takes them out of the
-inventory. The screen also caps a purchase as the game's vending machines do: at most what your seeds pay for, what
-the item's carry limit leaves (30 Shock Bolts) and 99.
-
-What the command does, in order:
-
-1. It checks the co-op save, your Steam ID, that no run is on and that the game plays (no pause, no menu screen).
-2. It asks the native part for three rows batches at once, through `coop lion`'s flow (their `[LI]` lines start with
-   `lion`, `bolt` and `shop`): the stimpacks' (the lion rows batch), the Shock Bolt's (which also grows EVE's gun
-   lists, as a Shock Bolt buy does) and the shop's own 6 rows. The shop's go last because they have not been added in
-   game yet: a fault in the game's AddRow stops every batch that is not in yet until the game restarts, and a batch
-   already in stays usable. The shop's rows and the stimpacks' have to go in, since both shops list the stimpacks.
-   Without the Shock Bolt's, the screen leaves the Shock Bolt out.
-3. It reads EVE again and stops if her map changed while the rows were asked. Then it puts as many Beta Seeds in the
-   inventory as your wallet holds (seeds left over from a crash are taken out first), waits until the native part
-   counts them, and asks it to open the screen. The Shock Bolt is on sale only when its rows are in and
-   `coop-status.txt` reads `shock=in`. Until the screen opens, each step first checks that the co-op save the wallet
-   belongs to is still the one loaded.
-4. While the screen is open, each change of the seed count is written to your wallet at once.
-5. When you close the screen, the wallet keeps what is left and the seeds leave the inventory.
-
-Beta Seeds are in the inventory from step 3 until they leave after the close. A save made in that time, an autosave
-included, holds them. So does a save made after a removal that failed: the log then says that the next
-`coop nightop shop` takes them, and that screen sets the count back to the wallet. A game restarted from such a save
-loads Beta Seeds before the shop's rows are in, and how the game loads an item it has no row for is not known (as for
-the cut items above), so keep a backup of the co-op save. Each step logs a `[StellarCoop][NR]` line in `UE4SS.log`:
-
-```
-[StellarCoop][NR] shop: 41 points; its rows asked
-[StellarCoop][NR] shop: rows in (Shock Bolt in)
-[StellarCoop][NR] shop: wallet 41, the bucket held 0 Beta Seeds: +41
-[StellarCoop][NR] shop: SB's shop screen open with 41 Beta Seeds, the Shock Bolt sold
-[StellarCoop][NR] shop: 26 Beta Seeds, wallet written
-[StellarCoop][NR] shop: closed: 26 Beta Seeds back in the wallet; 26 Beta Seeds left the inventory
-```
-
-The command answers at once with
-`OK: Night Operation shop: 41 points as Beta Seeds; SB's shop screen opens once its rows are in ([NR] lines)`. It
-answers with one `STOP:` line and opens nothing when the save is not a co-op save, the Steam link has no Steam ID yet,
-a run is on, the game is paused or shows one of its screens, the screen is already open, `coop-status.txt` has no
-`nightshop` line (an older DLL) or reads a fault there, or the wallet holds more than 999999 points.
-
-Once the seeds are counted, a pause or one of the game's screens (the pause menu that Escape opens when it closes the
-console, for example) holds the open: it goes on when the game plays again, for up to 30 s.
-
-If a later step fails (the shop's or the stimpacks' rows refused, EVE's map changed while they were asked, the seeds
-not counted within 5 s, the game still paused or on one of its screens 30 s after they are, the game not opening the
-screen),
-the seeds leave the inventory, the wallet stays as it was, the log has a `STOP: shop:` line with the reason, and a
-notice says `The Night Operation shop could not open. UE4SS.log says why.` A shop screen the game already had open
-stays open. When another save was loaded before the open (or a load still reads no save), the mod stops in the same
-way but adds no seeds, asks no open and removes nothing: seeds it already added stay with the co-op save, and the next
-`coop nightop shop` there takes them. After a fault in the native part's shop calls, the mod can no longer read or close the screen: the seeds it
-counted last leave the inventory, so a screen left open sells nothing more, and you close it yourself. A fault while
-the game sets the new screen up leaves that screen open without its goods in the same way. While the screen runs, no
-run starts, a guest turns down the host's run, and `coop nightop buy` refuses. `coop off` closes it first, writes the
-last seed count to the wallet and takes the seeds out (before the screen opened, the seeds the mod added); a purchase
-made in the last 250 ms before `coop off` is not counted. In the 250 ms or so between the open request and its answer,
-`coop off` closes whatever shop screen is up, a vending machine's included. After a Lua reload while the screen is
-open, the mod takes it over at its first tick, so purchases still reach the wallet and the seeds leave after the close.
-Seeds still in the inventory with no shop screen open leave at that first tick, and the wallet keeps its count.
-
-The rows are a sixth rows batch of the native part, `shop` (`native/src/lion/rows.h`), added through the game's own
-AddRow in memory for the game run, as the Lion's are:
-
-| Table | Row | ID | Copy of |
-| --- | --- | --- | --- |
-| ItemTable | `Money_NightOperation` (Beta Seed) | 9011 | `FishingPoint`, Clyde's currency |
-| ShopItemTable | `NightOperation_HP2Burst_Potion_Buy`, 20 seeds | 3571 | `NightOperation_HP_Potion_Buy` |
-| ShopItemTable | `NightOperation_Buff_HP2MP_Buy`, 16 seeds | 3572 | `NightOperation_HP_Potion_Buy` |
-| ShopItemTable | `NightOperation_Bullet_Shock_Buy`, 5 seeds | 3573 | `NightOperation_Bullet_Scatter_Buy` |
-| ShopTable | `Shop_NightOperation_Coop` | 1061 | `Shop_NightOperation` |
-| ShopTable | `Shop_NightOperation_CoopBolt` | 1062 | `Shop_NightOperation` |
-
-The Beta Seed keeps the name, function and lore text the game ships for it ("Beta Seed", "Used for trading with
-Roxanne") and uses BetaCore's icon, since no seed icon ships. The two shops have the Beta Seed as their currency and no
-shop tag; the first lists items 1 to 6 (the shipped rows of items 1 to 4 and the two new stimpack rows), the second the
-same and the Shock Bolt. No shipped row changes. A purchase takes Beta Seeds, which none of the game's achievement
-rows names, in a shop with no tag. The gold-spending trophy needs gold spent in a shop tagged `AllShop`, so a purchase
-here cannot move it.
-
-Check in game: the screen opens with the seed count at the top and the items with their icons and prices; a purchase
-takes the seeds, adds the item and writes the wallet; the screen stops the Shock Bolt at 30; the seeds are gone from
-the inventory after the close; whether the screen takes the game's input and keeps EVE still with no vending machine
-behind it; a save made while it is open and loaded again gives the same count.
-
-### Buying from the console (`coop nightop buy`)
-
-`coop nightop buy` with no number lists your points and the seven items:
-
-```
-OK: Night Operation shop, 41 points: 1 HP_Potion 15, 2 HP_Potion_Small 10, 3 PulseGrenade 6, 4 ConcussionGrenade 8, 5 HP2Burst_Potion 20, 6 Buff_HP2MP 16, 7 Bullet_Shock 5. coop nightop buy <n> [count] buys up to 10.
-```
-
-`coop nightop buy <n> [count]` buys 1 to 10 of item n, 1 when the count is left out. The answer reads
-`OK: bought 2 HP_Potion for 30 points; 11 left`. The game's own request for adding an item puts it in the inventory
-of the co-op save, with the game's pickup message. The buy takes no points and answers with one `STOP:` line when:
-
-- the save is not a co-op save, or the Steam link has not given the mod your Steam ID yet;
-- the item number or the count is not a whole number in range, or a word follows them;
-- a run is on, or the shop screen is open;
-- the game is paused or shows one of its screens;
-- EVE or the player controller is not in the world, or EVE's GUID reads 0;
-- you have too few points, for example `STOP: HP_Potion x1 needs 15 points; you have 11`;
-- for items 5 and 6, their rows cannot be added, or `coop lion` is busy with another command;
-- the game's request raises an error.
-
-The points go once the game's request has returned. If the game turns the item down without an error, the points
-are gone all the same, so check the inventory after a buy. The first potion or grenade a save gets can open the game's
-guide for it, as a buy at a camp does. In the game's tables, none of items 1 to 4 feeds a Steam achievement.
-
-Your points are kept per Steam ID and co-op slot, in `coop-night-<steamid>-<index>.txt` in the mod folder, one line
-with the number. The game never reads that file, so restoring a save backup does not give points back or take them
-away. `coop off` leaves the file as it is, an install never removes it, and `tools/install.py --uninstall` backs it up
-with the mod's other files. While the file cannot be opened (another program holds it, or access is denied), a run's
-points are not credited and `coop nightop shop` and `buy` refuse with `wallet not read:`, so the total in the file stays
-as it is.
-
-## Night Operation at Roxanne's
-
-On a co-op save, Roxanne in Xion's Scrap Market offers Night Operation in her dialogue. Talk to her as usual: above
-her Shop and End Conversation choices, the list shows Night Operation (Easy), Night Operation (Normal), Night Operation
-(Hard) and Night Operation supplies, in the game's language. The game ships no such dialogue. Her graph's one dormant
-Night Operation branch only greets a customer who paid her in Beta Seeds, and nothing reaches it. So the mod lends her
-four of the game's test choice rows, which no story dialogue lists.
-
-- A level: she says one of her goodbyes and the run is booked, with the notice
-  `Night Operation starts once you leave Xion and no one is within 40 m.` A run never starts in Xion, so it starts on
-  its own once EVE is out of Xion, the game plays and no one is within 40 m, as `coop nightop start <level>` would
-  (the mod tries every 5 s, through that command's own checks). `coop nightop stop` drops the booking. In a Steam
-  session only the host's pick books a run; a guest's pick shows `In a co-op session, only the host starts Night
-  Operation.` The host's start asks the guest to join, and the booking holds until the guest's answer. When the guest
-  cannot join (another map, more than 50 m away, a game screen up), the host gets a notice with the reason and the
-  mod asks again 30 s later, until the run counts down or `coop nightop stop` drops the booking.
-- Night Operation supplies: she says goodbye, and 5 s later the shop screen opens, as with `coop nightop shop`.
-- Shop and End Conversation work as before, and the cancel input still ends the talk.
-
-Nightmare is not in her list: the choice box has six slots, and her own two choices take two of them.
-`coop nightop start nightmare` starts it.
-
-Once EVE is in Xion on a co-op save, the mod reads the game's language, edits the rows in place (each checked first,
-then read back: InteractionGraphExec `Success2`, the one her End Conversation uses, NextTaskTagName `None`, and
-DisplayText the label in that language, or in English for a language the game does not ship), then asks the native part
-to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). The labels take the
-game's language each time the rows are armed: at the next Lua load (game start or Ctrl+R), or when her choices come back
-after `coop off` or after a save that is not a co-op save. Going to the title and loading a co-op save keeps the labels.
-A pick is read from the game's choice boxes, looked for every 250 ms so a box the game builds for a later talk is read
-too: a selected line turning from none to one, and that line's text matched against the labels. Everything goes back on
-`coop off` and on a save that is not a co-op save: the choice list first (asked again every 10 s until the native part
-has put it back), then the rows' shipped values. Until the list is back, and after a fault in its calls, the rows keep
-the goodbye, which ends the talk on any save. A map load, leaving Xion included, reads no save for a while: a booking
-and her choices hold through it. The supplies' shop screen waits up to 30 s for the game to play (while it is paused or
-loading), then the pick goes. The title screen and another co-op save drop the booking and the supplies pick. Nothing is
-saved, and a game restart undoes it too. Talking to her still runs her own graph, so her first meeting and her side
-quest start as without the mod. No quest, item, achievement or save call is added.
-
-`UE4SS.log` has `[StellarCoop][NR]` lines for each step, for example:
-
-```
-[StellarCoop][NR] roxanne text: game language fr-FR -> fr; the 4 rows get its labels
-[StellarCoop][NR] roxanne: 4 rows read back as ours; asked the native part: roxanne on
-[StellarCoop][NR] roxanne: hard booked: it starts once EVE is out of Xion with no one within 40 m
-[StellarCoop][NR] roxanne: the booked hard run waits: census: 1 living within 40 m (nearest 23.4 m); 0 wave bodies: go where no one is within 40 m
-[StellarCoop][NR] roxanne: the booked hard run: Night Operation (hard) starts in 5 s (run 0x2A)
-[StellarCoop][NR] roxanne off (coop off): asked the native part: roxanne off; the 4 rows go back once her list reads off
-[StellarCoop][NR] roxanne: her two choices back, the 4 rows shipped
-```
-
-A step that fails logs a `STOP: roxanne` line and leaves her two choices as the game ships them until the next Lua load
-(the rows it wrote are put back, also when a label does not read back, and nothing is asked of the native part). After
-a Ctrl+R while her list still holds the six choices, a step that fails leaves the rows as they are instead, since they
-only play her goodbye; `coop off` or a save that is not a co-op save puts them back.
-`coop-status.txt`'s `roxanne=` line is described in
-[usage.md](usage.md#night-operations-shop-screen-and-roxannes-choices).
-
-Check in game: the six choices in this order, End Conversation last, the four labels in the game's language; each level
-books its run and the run starts out of Xion; the supplies open the shop screen after her goodbye; Shop and End
-Conversation as before; `coop off` gives her two choices back.
-
-## Challenges (`coop challenge`)
-
-A challenge is a short fight picked from a fixed list. Three of them send waves of the game's monsters at EVE, as the
-solo run does. Target Practice stands the game's target dummies in front of her, and the Shooting Range all around her.
-Each run ends on the result panel with the time, the score and the best run kept on this PC. The challenges run on the
-solo run's code, on a co-op save, and log `[StellarCoop][NR]` lines. Four of them need no Steam session; the Shooting
-Range also runs for two linked players (see [The Shooting Range for two](#the-shooting-range-for-two)). They give no
-shop points. They have not been tested in game yet.
-
-| Command | What it does |
-| --- | --- |
-| `coop challenge` | List the challenges and Night Operation's four levels with each one's best run, then the run that is on, if any |
-| `coop challenge <name>` | Start that challenge where EVE stands. Its number in the list works too: `coop challenge 5` is `coop challenge range` |
-| `coop challenge stop` | End the run that is on, a challenge or Night Operation, on any save. `coop nightop stop` and `coop off` end a challenge too |
-
-With no best kept yet, the list reads:
-
-```
-OK: 1 swarm Antlion Swarm: 3 waves, 3:00, no best yet
-2 skulls Skull Squad: 3 waves, 6:00, no best yet
-3 gauntlet Gauntlet: 8 waves, 12:00, no best yet
-4 targets Target Practice: 3 waves, 1:30, no best yet
-5 range Shooting Range: 3 waves, 2:00, no best yet
-night_easy: Night Operation easy (coop nightop start easy), no best yet
-night: Night Operation (coop nightop start), no best yet
-night_hard: Night Operation hard (coop nightop start hard), no best yet
-night_nightmare: Night Operation nightmare (coop nightop start nightmare), no best yet
-```
-
-A start runs the checks of `coop nightop start` and refuses for the same reasons, with one `STOP:` line (see
-[Starting a run](#starting-a-run)). The Steam session line names the challenge:
-`STOP: Target Practice is solo for now: leave the Steam session first (coop leave)`. The Shooting Range has no such
-line: in a session it starts for both players (see [The Shooting Range for two](#the-shooting-range-for-two)). One run
-exists at a time, so a start while a challenge or Night Operation is on gets
-`STOP: a run is on: coop challenge stop ends it`. A word that is neither a challenge's name nor its number gets
-`STOP: unknown challenge: coop challenge lists them`. On a save that is not a co-op save, every form except
-`coop challenge stop` gets the co-op save line (see [usage.md](usage.md#night-operation-previews)).
-
-A start answers `OK: Target Practice starts in 5 s (run 0x2A)`, and its `start:` line in `UE4SS.log` names the
-challenge after the map (`... map <map> challenge targets; census: ...`).
-
-### The challenges
-
-| # | Name | Waves | Time limit | Next wave | Full heal after wave | Score for all kills | Points per second left |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `swarm`, Antlion Swarm | 3 | 3:00 | 5 s after a clear | none | 180 | 1 |
-| 2 | `skulls`, Skull Squad | 3 | 6:00 | 5 s after a clear | 2 | 320 | 1 |
-| 3 | `gauntlet`, Gauntlet | 8 | 12:00 | 5 s after a clear | 3 and 6 | 900 | 1 |
-| 4 | `targets`, Target Practice | 3 | 1:30 | 3 s after a clear | none | 720 | 10 |
-| 5 | `range`, Shooting Range | 3 | 2:00 | 3 s after a clear | none | 480 | 10 |
-
-| Challenge | Wave | Monsters |
-| --- | --- | --- |
-| Antlion Swarm | 1 | 4 `M_Antlion` |
-| Antlion Swarm | 2 | 6 `M_Antlion` |
-| Antlion Swarm | 3 | 8 `M_Antlion` |
-| Skull Squad | 1 | 1 `M_SkullSwordAlone`, 2 `M_SkullGunnerAlone` |
-| Skull Squad | 2 | 2 `M_SkullSpearAlone`, 1 `M_SkullGunnerAlone` |
-| Skull Squad | 3 | 1 `M_SkullHammerAlone`, 1 `M_SkullSwordAlone`, 1 `M_SkullSpearAlone` |
-| Gauntlet | 1 | 4 `M_Antlion` |
-| Gauntlet | 2 | 3 `M_LurkerA` |
-| Gauntlet | 3 | 2 `M_SkullSwordAlone`, 1 `M_SkullGunnerAlone` |
-| Gauntlet | 4 | 3 `M_HedgeBoarA` |
-| Gauntlet | 5 | 2 `M_SkullSpearAlone`, 2 `M_SkullGunnerAlone` |
-| Gauntlet | 6 | 3 `M_LurkerA`, 3 `M_HedgeBoarA` |
-| Gauntlet | 7 | 1 `M_SkullHammerAlone`, 1 `M_SkullSwordAlone`, 1 `M_SkullGunnerAlone` |
-| Gauntlet | 8 | 1 `M_SkullHammerAlone`, 1 `M_SkullSpearAlone`, 1 `M_SkullSwordAlone`, 1 `M_SkullGunnerAlone` |
-| Target Practice | 1 | 2 `M_DummyA`, 2 `M_DummyB` |
-| Target Practice | 2 | 2 `M_DummyA`, 2 `M_DummyB`, 2 `M_DummyC` |
-| Target Practice | 3 | 3 `M_DummyA`, 3 `M_DummyB`, 2 `M_DummyC` |
-| Shooting Range | 1 | 3 `M_DummyA` |
-| Shooting Range | 2 | 4 `M_DummyA` |
-| Shooting Range | 3 | 5 `M_DummyA` |
-
-The 5 s countdown comes first, and wave 1 comes when it ends. Each later wave comes only once the wave before it is
-down: 5 s after, or 3 s in Target Practice and the Shooting Range. Meanwhile the card counts down to it
-(`NEXT WAVE IN 4`). Unlike Night Operation's waves, a challenge's waves have no set run time, so a slow clear holds the
-next wave back until the time limit. As in the solo run, a wave is down once each of its monsters is dying, is hidden
-by the game, is written off, is missing or is no longer tracked.
-
-In Antlion Swarm, Skull Squad and Gauntlet the monsters come as in the solo run: at the four points 14 m from where EVE
-started, after the same ground check, sent at her, and moved back at most twice when they are stuck or fall (see [The
-waves](#the-waves)). The full heal is the solo run's too.
-
-### Target Practice
-
-Target Practice uses the game's three target dummy rows, `M_DummyA`, `M_DummyB` and `M_DummyC` (character IDs 40010,
-40020 and 40030). The shipped game places `M_DummyC` in two areas of its DLC. Like the monster rows, the dummy rows drop
-nothing and have no kill achievement of their own.
-
-The dummies stand on eight spots in front of the point where EVE started. Angles are from the way she faced:
-
-| Spots | Angle | Distance from the start point |
-| --- | --- | --- |
-| 1 and 2 | 45 degrees to each side | 12 m |
-| 3 and 4 | 25 degrees to each side | 18 m |
-| 5 | straight ahead | 22 m |
-| 6 and 7 | 40 degrees to each side | 26 m |
-| 8 | straight ahead | 32 m |
-
-Each wave draws its own order of the spots, so the dummies stand in other places each round. Each spot goes through the
-solo run's ground check (see [The waves](#the-waves)): a blocked spot comes back towards the start point, or the dummy
-goes to the next spot that no other dummy of its wave uses (`(ground: spot 3 blocked, spot 6)`). The third wave uses
-all eight spots, so there the dummy stands 2.5 m beside another one's spot. A dummy appears as high above the floor at
-its spot as a monster does, and faces the start point. The mod neither sends it at EVE nor gives it an AI controller.
-How the dummies look, whether they stand still and how many shots each one takes are not known yet.
-
-Start Target Practice on flat open ground, with nothing in the way for 32 m ahead of EVE. When the ground check cannot
-run (`(ground: unchecked: ...)` in the log), a spot on a slope can lie inside the ground or above it. A dummy more than
-10 m below both the start point and EVE, or more than 40 m from both, is written off where it is at its first check
-(2.5 s after it is found, then every 3 s). It is never moved, its wave stops waiting for it, and shooting it later still
-scores. Dummies left after a run stay in the world, as monsters do (see [Score and the end of a
-run](#score-and-the-end-of-a-run)).
-
-### Shooting Range
-
-The Shooting Range brings back the game's cut shooting test. Its test level, `LV_Test_Shooting_01`, is no longer in
-the game's files, but the game's tables still hold its zone and its quest: 12 `M_DummyA` (character ID 40010) and
-three rounds that asked for 3, then 4, then 5 kills. The range keeps those rounds. Its dummies stand all around the
-point where EVE started, not only in front of her. Angles are from the way she faced:
-
-| Spots | Angle | Distance from the start point |
-| --- | --- | --- |
-| 1 and 5 | straight ahead and straight behind | 15 m |
-| 3 and 7 | 90 degrees to each side | 15 m |
-| 2, 4, 6 and 8 | 45 and 135 degrees to each side | 20 m |
-
-Each round draws its own order of the eight spots. The dummies are placed and written off as in Target Practice (see
-[Target Practice](#target-practice)), so start the range on flat open ground with nothing in the way for 20 m around
-EVE.
-
-The range is meant for the gun: switch to the drone's ranged mode and shoot. Ranged mode needs the drone's gun, which
-the story unlocks. Before that, EVE can still reach the dummies with her sword, and they score the same. How many
-shots a dummy takes is not known yet.
-
-The game's own gun targets, the target drones (`BP_TargetDrone_01`), are not used. The game breaks a drone through
-data it keeps only for the drones it placed from its own tables, so a drone spawned by the mod would most likely never
-break.
-
-While a Shooting Range run is on, and during its 10 s result, its score also shows on `WB_ShootingTrainingTest`, the
-cut test's own score widget, which held a placeholder Korean score. It is one line of pink text near the top left
-corner, in the card's words (`SCORE 120`), drawn at half its size. It hides while the game is paused, after the
-result, with `coop ui off` and at `coop off`. When the widget cannot be made, `UE4SS.log` has one
-`[StellarCoop][NR] board: off until the mod reloads (...)` line and the card shows the score alone.
-
-### The Shooting Range for two
-
-With a partner linked, the host types `coop challenge range` (or `coop challenge 5`). The run then starts, plays and
-ends as a co-op Night Operation run does (see [The co-op run](#the-co-op-run)). The dummies are wave monsters there
-too: with shared enemies on, the two copies of a dummy pair as [Shared waves](#shared-waves) says. The differences:
-
-- His night line carries `range` in place of a level. Her `join:` line in `UE4SS.log` names it
-  (`... challenge range; census: ...`), and her notice reads `Shooting Range: <host> started the challenge. It begins
-  in 5 s.`
-- `coop challenge range` on the guest's side answers `STOP: the host starts a co-op run`.
-- There is no heal. A co-op run gives no shop points and keeps no best on either PC. Each result panel's Best row
-  shows the best already kept on that player's own PC.
-- A death is a down as in a co-op Night Operation run (see [Down and revive](#down-and-revive)), but the range gives
-  no self revive: `coop nightop revive` answers `STOP: no self revive left in this run`, and only the partner's hold
-  gets a downed EVE up.
-
-### Score
-
-Each kill scores by the monster's rank, as in the solo run: 10 for `M_Antlion`, 20 for `M_SkullGunnerAlone` and
-`M_LurkerA`, 40 for `M_SkullSwordAlone`, `M_SkullSpearAlone`, `M_HedgeBoarA` and each dummy, and 60 for
-`M_SkullHammerAlone`. A success adds a time bonus: 1 point for each whole second left, or in Target Practice and the
-Shooting Range 10 points per second left, counted to the tenth of a second. A Target Practice run that shoots all 18
-dummies with 53 s left scores 720 for the kills and 530 for the time, 1250 in all. A Shooting Range run that downs all
-12 dummies with 89 s left scores 480 and 890, 1370 in all.
-
-A challenge ends in the solo run's four ways (see [Score and the end of a run](#score-and-the-end-of-a-run)): success
-once every monster of its last wave is down, time up at its time limit, failed when EVE dies, and aborted, which
-includes `coop challenge stop`.
-
-### The card and the result panel
-
-The card shows the challenge's name in place of `NIGHT OPERATION`. The result panel is the solo run's (see
-[What you see](#what-you-see)), with a fifth row, Best: the best run kept for this challenge as score and time, for
-example `1250  0:37`, or `-` when none is kept. After a success that set a new best, the line under the heading reads
-`New personal best.` A challenge ended with `coop challenge stop` or `coop nightop stop` shows
-`Stopped with coop challenge stop.` `coop off` turns the mod's screens off before it ends the run, so only the
-`result: aborted (coop off)` line in `UE4SS.log` says how that run ended.
-
-The `result:` line in `UE4SS.log` ends with the challenge and its best:
-
-```
-result: success waves=3/3 kills=18 score=1250 time=0:37 find_ms=0.8/2.1 challenge=targets best=1250/37 new
-```
-
-`new` means this run wrote the best and `kept` that the stored best stays. `best=none` means no best is kept, or the
-file could not be read.
-
-With `coop ui off`, the notices name the challenge (`Target Practice: wave 2/3.`), and after the result a new best adds
-a `New personal best.` notice.
-
-### Best runs (`coop-records.txt`)
-
-Best runs are kept in `Mods/StellarCoop/coop-records.txt`, one line per challenge in the form
-`best_<name>=<score> <seconds>`. Night Operation's lines are `best_night` for the normal level, `best_night_easy`,
-`best_night_hard` and `best_night_nightmare`. After a first Target Practice best, the file reads:
-
-```
-# StellarCoop: your best challenge runs on this PC (score and seconds).
-best_targets=1250 37
-```
-
-A run reads its best when it starts, for the Best row. The file is written only when a run ends in success and beats the
-stored best, if there is one: a higher score, or the same score in less time. Failed, time up and aborted runs never
-write it. A success keeps no best when a monster never came (its spawn failed), when nothing was killed, when `coop
-nightop start` ran with `noaggro` or `nomove`, or in a co-op run, Night Operation or the Shooting Range. The log says
-why in a `record: not kept (...)` line.
-
-Before it writes, the mod reads the file again and changes only that challenge's line, so every other line, a note of
-yours included, stays. It writes `coop-records.txt.tmp` first, then deletes the old file and renames the `.tmp` to
-`coop-records.txt`, or writes `coop-records.txt` directly if the rename is refused. A write that fails before the
-delete leaves the file as it was. One that fails after it leaves the new text only in `coop-records.txt.tmp`: rename
-that file to `coop-records.txt` before the next run or update, or the bests it holds are lost. A file that cannot be
-read gives a `record: cannot read coop-records.txt (...)` line, and nothing is written. A write that fails gives
-`record: cannot write coop-records.txt (...)`.
-
-The file stays on this PC and never goes over the Steam link. `tools/install.py` keeps it, as it keeps every
-`coop-*.txt` file, and `--uninstall` backs it up with the folder. When you update from the zip, copy it out and back
-with `coop-settings.txt` (see [INSTALL.md: Update](../INSTALL.md#update)).
-
-### What a challenge touches
-
-A challenge spawns only the solo run's monster rows and the three dummy rows, through the same game request and with
-wave keys in the same range, `0xD8000000` to `0xD8FFFFFF`. Like the solo run, it adds or edits no table row, starts no
-rule, writes no save, and fires no zone event other than the full heal. It gives no item or reward. Its kills count
-toward nothing but the game's general kill achievements, as the solo run's do (see
-[What a run touches](#what-a-run-touches)). The only file a challenge writes is `coop-records.txt`. The Shooting Range
-also puts one widget on screen, the cut `WB_ShootingTrainingTest`.
-
-## The two previews
-
-- The probe, `coop no`, checks whether a heal event, a rule, a wave spawn and one monster from the cut mode still work
-  in a solo game.
-- The recruiter, `coop recruiter`, brings back the cut recruiter near Roxanne. You can talk to him in your game
-  language.
-
-Both are research tools and run only on a co-op save. Neither writes a game file, but their changes stay in the
-running game until it ends.
-
-## Before you try a preview
-
-1. Load a co-op save: at the title, choose Play co-op (see [INSTALL.md: Co-op saves](../INSTALL.md#co-op-saves)), then
-   load your save. `coop status` must then show `slot=coop`. Both previews refuse to run on any other save.
-2. Back up your saves, with the game closed: `python3 tools/save_guard.py backup` on Linux, or a copy of the save
-   folder on Windows. See [saves.md](saves.md#backups).
-3. Keep Steam Cloud off for Stellar Blade during preview runs, so nothing from the run replaces the good copy in the
-   cloud. See [saves.md](saves.md#steam-cloud).
-4. End the run by killing the game, not with Quit from the menu, which saves. On Linux:
-   `pkill -9 -f SB-Win64-Shipping`. On Windows: Task Manager, End task. Never load another save in that run.
-5. Afterwards, with the game closed, check and restore your backup (see
-   [After a preview run](#after-a-preview-run)).
-
-Without a co-op save loaded, each preview stops with a `STOP:` line that names the command and the current slot line,
-for example:
-
-```
-STOP: coop recruiter runs only on a co-op save (INSTALL.md: Co-op saves); now slot=main index=0 marker=none saves=main
-```
-
-## Preview 1: the probe (`coop no`)
-
-The probe checks, on your own PC, whether the cut mode's parts still respond. You run it by hand, one command at a
-time. Each step is logged in `UE4SS.log` as `[StellarCoop][NO]` lines.
-
-The probe fires only the zone events and the one monster listed below (no achievement, no drop). It kills nothing and
-calls no save, inventory, equip or quest function. No console argument reaches a game call.
-
-1. `coop no` starts the native part's read-only poller and logs a baseline. Every 100 ms the poller reads the game's
-   rule manager and a few of its neighbours, and writes a line to `nightop-probe.txt` on each change, otherwise once a
-   second. `coop status` shows `nightop=on`. Each subcommand below refuses to run until the poller runs.
-2. `coop no heal` fires the game's heal zone event `SE_10_E_ActorEff_011`. EVE's health bar should refill.
-3. `coop no rule` adds a probe row to the game's empty `MultiPlayRuleTable` (no achievement, quest or reward), reads it
-   back field by field and sets it as the rule, once per game run (`nightop=rule`). 60 s later the native part writes
-   its verdict to `nightop-probe.txt` and `coop-link.log`, and so to `UE4SS.log` as a `link:` line.
-4. `coop no spawnpt` fires one spawn row of the `DLC02_20` area on a loaded spawn point 60 m or more from EVE. 3 s later
-   it logs the new characters, with a `G8=yes` or `G8=no` verdict.
-5. `coop no actor` asks the game for one `M_Antlion` 60 m ahead of EVE and logs it 3 s and 10 s later, with a `G7=yes`
-   or `G7=no` verdict.
-
-While the probe runs:
-
-- At the `spawnpt` check (+3 s) and the `actor` checks (+3 s and +10 s), a new character within 20 m of EVE logs a
-  `STOP` line: kill the game. No check runs at other times, so if a monster comes towards EVE, kill the game.
-- A probe rule ends only when the game ends. `coop off` stops the poller but not the rule, so the test always ends by
-  killing the game.
-
-If you ran the probe, send `nightop-probe.txt` with the other logs (see
-[troubleshooting.md](troubleshooting.md#which-logs-to-send)).
-
-## Preview 2: the recruiter (`coop recruiter`)
-
-`coop recruiter` brings back the cut recruiter: a Xion guard (the `N_XionGuardA` model) with the recruiter's dialogue,
-so you can talk to him. Each step is logged in `UE4SS.log` as `[StellarCoop][RC]` lines.
-
-### Where to stand
-
-The command runs only in Xion (`/game/art/bg/worldmap/level_p/e04`), with EVE in the world within 50 m of
-`TeleportPoint_Xion_MultiPlay`, the recruiter's cut spawn point near Roxanne in the Scrap Market. Anywhere else it stops
-with `STOP:` and changes nothing. He is never spawned automatically.
-
-### What it does, in order
-
-1. The command disarms Join first. In the game data, the dialogue's Join choice starts the cut mode's matchmaking. The
-   command sets that zone event (`MultiplayTest_ZoneE_059`) to a harmless type and reads it back. If the row is not the
-   one expected, or the write does not read back, it stops with `STOP:` and spawns nothing. In this preview, Join does
-   nothing.
-2. Once the Join event reads back, a `STOP: text:` line ending `TEXT=no` says that his text stays in Korean (see
-   [His language](#his-language)), and the command goes on.
-3. If someone already stands at the spawn point, the command says so and spawns nothing. Otherwise, in memory only, it
-   flips the recruiter's network condition (so the question and its two choices show), points one unused test spawn
-   row at the cut spawn point (a Xion guard with the recruiter's dialogue, not marked for saving, no walking path), and
-   points one unused test filter at that row, for the despawn. It edits each row in place, field by field, and reads
-   it back. It adds and removes no rows.
-4. The game's Spawn event places him. 3 s later a line says whether he stands at the point
-   (`RECRUITER=yes: talk to him`).
-
-The game spawns a row only once per game run, so after `coop recruiter off` another `coop recruiter` may need a game
-restart.
-
-### His language
-
-His lines (speaker title, question, Join and Cancel, the replies) stay in Korean, as the game files have them. The mod
-has them in the game's 23 languages (`nightop/recruiter_text.lua`), but showing them needs the game's text
-registration, KismetTextLibrary `PolyglotDataToText`, which takes the languages as a map inside a struct parameter.
-The UE4SS build the mod uses cannot pass a Lua table there. In game on 2026-10-28 the same call for Roxanne's choices
-raised `StrProperty can only be set to a string or FString`, and depending on Lua's table order it can read another
-field as a string, which may crash the game. So the command makes no text call and logs:
-
-```
-[StellarCoop][RC] STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter (PolyglotDataToText LocalizedStrings): nothing registered, his text stays Korean: TEXT=no
-```
-
-### Sending him away
-
-`coop recruiter off` despawns him through the game's Despawn event and reports 2 s later whether he is gone. `coop off`
-despawns him too. A map change removes him.
-
-### What stays changed
-
-Everything the command changes stays in the running game until it ends: the Join event, the network condition, the test
-spawn row and the test filter. The mod neither undoes nor saves any of it. Whether the game saves the spawned recruiter
-is not known yet, so the run ends by killing the game and restoring your backup.
-
-## After a preview run
-
-With the game killed and closed:
-
-- On Linux, from the repository: `python3 tools/save_guard.py check`, then
-  `python3 tools/save_guard.py restore <backup> --yes`, where `<backup>` is the folder name that `backup` printed.
-- On Windows: in File Explorer, find the files with a newer modified time, then copy the backup back over the save
-  folder.
-
-Only these files may differ: the co-op save you played (`StellarBladeCoop0N.sav`, or the manual co-op slot) and its
-`Backup/` copy, the game's `StellarBladeSetting.sav` and its `Backup/` copy, the `steam_autocloud.vdf` files and other
-mods' saves. Any other `StellarBladeSave0N.sav`, or its `Backup/` copy, means the run wrote one of your own slots. The
-restore puts it back; please send the logs in that case. The full recovery steps are in
-[INSTALL.md: Recovery](../INSTALL.md#recovery).
-
-## How the original matchmaking is blocked
-
-The cut mode's Join choice would ask Shift Up's servers for a match. StellarCoop keeps that request from leaving your
-game in these ways:
-
-- `coop recruiter` disarms the Join zone event and reads it back before it writes anything else (step 1 above). It also
-  checks that the shipped zone event table is the only one in memory, so no other copy of the row can run. If any check
-  fails, it stops, and no recruiter is spawned.
-- Each preview fires zone events through one guarded function that accepts only its own short list: the heal event and
-  eleven safe spawn rows for the probe, and the recruiter's spawn row and despawn filter for `coop recruiter`. A run,
-  solo or co-op, fires only the heal, through the probe's function. No console argument reaches that function.
-- `tests/tools/matchmaking_scan_test.py` scans every script and native source of the mod and fails if any of them could
-  reach the matchmaking path. The Join row may appear only as the recruiter's constant, which the recruiter neutralizes
-  and never fires. The test also sets how many calls each file may make that fire zone events, add table rows or make
-  game requests: the run has one spawn request and the shop one item request. The only console call it allows is
-  main.lua's photo pause, which sets `SB.PhotoMode.PauseMethod` to 0 or 1. It first runs on planted violations, so no
-  rule passes vacuously.
-- The mod has no code that talks to Shift Up's services. Its only network use is the Steam link between friends,
-  through the Steam client the game already runs (see [how-it-works.md](how-it-works.md#the-steam-link)).
