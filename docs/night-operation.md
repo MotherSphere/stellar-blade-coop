@@ -11,6 +11,10 @@ playable modes. The shop screen opened in game on 2026-10-27, with its rows adde
 inside walls. The fixes for both have not been tested in game yet, and neither have buying, Roxanne's choices and the
 challenges.
 
+The reward shop, the challenges and the two previews have pages of their own:
+[night-operation-shop.md](night-operation-shop.md), [challenges.md](challenges.md) and
+[night-operation-previews.md](night-operation-previews.md).
+
 ## What the game files contain
 
 - The Xion recruiter. He was meant to stand next to Roxanne in Xion's Scrap Market, at a spawn point named

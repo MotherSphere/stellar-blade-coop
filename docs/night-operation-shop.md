@@ -1,5 +1,10 @@
 # The reward shop
 
+This page is one of four on Night Operation, with [the run](night-operation.md), [the challenges](challenges.md) and
+[the previews](night-operation-previews.md). It covers the points that runs give, the seven items, the shop screen,
+buying from the console, Roxanne's Night Operation choices, the cut Shock Bolt ammo and the shop's status lines. How the
+shop's rows, screen and wallet work is in [internals/night-operation-shop.md](internals/night-operation-shop.md).
+
 A run of yours that goes from its countdown to a success or a time up gives you points: 1 for each 25 of its final score
 at the normal level, times the level's percent at the others (50 % at easy, 150 % at hard, 200 % at nightmare), rounded
 down. The score counts up to the highest its level allows, so a run gives at most 20 points at easy, 42 at normal, 83 at

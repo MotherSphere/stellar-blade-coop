@@ -1,5 +1,11 @@
 # Your friend's ghost
 
+Your friend's EVE shows in your game as a ghost, built from the table of her mesh parts and the poses that their game
+sends. This page covers the three looks that change what the ghost shows (`cloth`, `dyes` and `effects`), how .pak mods
+and CNS outfits reach it, and the solid partner. Problems are in
+[troubleshooting.md](troubleshooting.md#the-ghost-and-its-looks), and the pipeline that builds the ghost in
+[internals/ghost.md](internals/ghost.md).
+
 ## Looks
 
 Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`: `cloth` is on by default,

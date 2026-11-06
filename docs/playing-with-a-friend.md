@@ -1,5 +1,11 @@
 # Playing with a friend
 
+This page is for the two players of a session: how the host starts it and the friend joins, then join codes, following
+the host, a player down and the friend's revive, camp rests, the known limits, the co-op saves, synced photo mode with
+the cutscene wait, and shared quests. Shared enemies have their own page, [shared-enemies.md](shared-enemies.md), and so
+does your friend's EVE, [ghost.md](ghost.md). How the link and these features work is in
+[internals/steam-link.md](internals/steam-link.md) and [internals/group-play.md](internals/group-play.md).
+
 1. The host presses F5 and selects Host a session. This creates a Steam lobby for 2 players and opens the Steam invite
    dialog. Pick your friend there. By default the lobby is friends-only: your Steam friends who have the mod can also
    join from their friends list or with `coop join`. With Options > Session > Who can join set to Invited only

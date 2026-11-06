@@ -1,5 +1,11 @@
 # Cut scenes, menus and the mailbox
 
+The commands on this page bring back scenes, lines and menus that the game's files still hold: two scenes that no
+cutscene trigger plays (`coop scene`), subtitles of cut scenes and voice takes that nothing plays (`coop lines`), the
+saves of the cut Load Shortcut menu (`coop shortcut`), the developers' cheat menu and two debug panels (`coop devmenu`
+and `coop devinfo`), and the cut mailbox, used for gifts between two players (`coop gift`). How the menus and the
+mailbox work is in [internals/cut-menus.md](internals/cut-menus.md).
+
 ## Cut scenes: `coop scene`
 
 The game's files hold scenes that no cutscene trigger plays. `coop scene` plays two of them through the game's own

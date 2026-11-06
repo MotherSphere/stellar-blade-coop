@@ -1,5 +1,9 @@
 # The ghost pipeline
 
+This page follows the ghost in seven numbered steps, from the capture of your EVE to the ghost your friend's game
+builds, then covers the looks, the CNS guard and crash sentinel, and the solid partner. The player's side is in
+[ghost.md](../ghost.md).
+
 The ghost goes through the same pipeline whatever its source: a linked friend, the loopback or a replay.
 
 ## 1. Capture

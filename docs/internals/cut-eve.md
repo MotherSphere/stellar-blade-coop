@@ -1,5 +1,9 @@
 # EVE's cut moves: how they work
 
+This page describes how the mod gives EVE the cut ChainSpin, the developer flight and slow motion, the cut glide and the
+emotes. The ChainSpin's 11 rows go in with the cut Lion's (see [The rows](cut-enemies.md#the-rows)). The commands are in
+[cut-eve.md](../cut-eve.md).
+
 ## The cut ChainSpin
 
 EVE's four shipped Tachy Mode skills (ChainStab1, ScrewAttack1, SwordAura1 and ParrySlash1) each have a SkillTable row

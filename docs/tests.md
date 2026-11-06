@@ -1,5 +1,8 @@
 # Tests
 
+This page lists the repository's Lua, C++ and Python tests and what each one checks. The toolchain they need is in
+[building.md](building.md#toolchain).
+
 The tests run on the build machine, without the game. `tools/install.py` runs them all before every build. To run one
 by hand, from the repository root:
 

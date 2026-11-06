@@ -1,5 +1,11 @@
 # Architecture
 
+This page describes how the mod is put together: its Lua part and its native DLL, what each Lua script does, the files
+the two parts share, how the co-op UI takes the game's input, and the loopback, record and replay tools that run the
+whole pipeline on one PC. The other pages in `docs/internals/` go feature by feature, and
+[how-it-works.md](../how-it-works.md) lists them. The repository layout is in
+[building.md](../building.md#repository-layout).
+
 ## Lua and native parts
 
 StellarCoop has two parts, both in the mod folder `Mods/StellarCoop/`:

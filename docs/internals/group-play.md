@@ -1,5 +1,10 @@
 # Group play: how it works
 
+This page describes how shared quests, following the host, the teleport screen's extra tabs, a player down and the
+revive, camp rests in a shared area and the cutscene wait work. The player's side is in
+[playing-with-a-friend.md](../playing-with-a-friend.md), and the teleport screen in
+[interface.md](../interface.md#teleport-screen).
+
 ## Shared quests
 
 Shared quests (`shared_quests`, experimental, off by default, not tested in game yet) move the guest's quests to the

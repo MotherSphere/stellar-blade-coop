@@ -1,5 +1,11 @@
 # EVE's cut moves and looks
 
+The commands on this page change what your own EVE can do or wear: a Tachy Mode skill cut before release (`coop
+chainspin`), two hairs and four suits that no item gives (`coop wear`), animation clips played as emotes (`coop emote`),
+two developer tools the game ships switched off, flight and slow motion (`coop fly` and `coop slowmo`), and a cut glide
+(`coop glide`). How they work, except `coop wear`, is in [internals/cut-eve.md](internals/cut-eve.md). Cut enemies are
+in [cut-enemies.md](cut-enemies.md).
+
 ## Cut Tachy skill: `coop chainspin`
 
 The game's files hold a Tachy Mode skill for EVE that was cut before release, the ChainSpin: her animation

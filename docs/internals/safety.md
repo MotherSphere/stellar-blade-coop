@@ -1,5 +1,9 @@
 # Achievements and safety design
 
+This page describes which kills, rewards and achievements reach each player's save when enemies are shared, and the
+safety design: how the mod fails closed when a check fails or a read faults. What the mod writes in the save folder is
+listed in [saves.md](../saves.md#what-the-mod-reads-and-writes).
+
 ## Achievements
 
 The mod calls no achievement function. Each game raises its own Kill achievement, kill rewards, drops, quest kill tasks

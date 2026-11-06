@@ -4,6 +4,9 @@ A Doro race is a run along a track of checkpoints that you record, for one playe
 Doro (Dororong): your EVE on your screen, and your ghost on your friend's. From GO, EVE drives like a rally car (see
 [Driving](#driving)); her jumps, dodges and camera stay the game's. Doro races have not been tested in game yet.
 
+How the mod draws the Doros and drives EVE is in [internals/doro-races.md](internals/doro-races.md), and problems are in
+[troubleshooting.md](troubleshooting.md#doro-races).
+
 ## Recording a track
 
 1. Stand where the race starts, facing the way it goes, and type `coop race record <name>`. The name is 1 to 24

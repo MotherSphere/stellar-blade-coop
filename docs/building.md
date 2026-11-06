@@ -1,7 +1,7 @@
 # Building from source
 
 StellarCoop is developed on Linux. The Lua scripts need no build, and the Windows DLL is cross-compiled with clang-cl.
-For the design, see [how-it-works.md](how-it-works.md).
+For the design, see [how-it-works.md](how-it-works.md). The tests are listed in [tests.md](tests.md).
 
 ## Toolchain
 

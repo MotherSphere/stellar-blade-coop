@@ -1,5 +1,8 @@
 # Challenges (`coop challenge`)
 
+This page is one of four on Night Operation, with [the run](night-operation.md),
+[the reward shop](night-operation-shop.md) and [the previews](night-operation-previews.md).
+
 A challenge is a short fight picked from a fixed list. Three of them send waves of the game's monsters at EVE, as the
 solo run does. Target Practice stands the game's target dummies in front of her, and the Shooting Range all around her.
 Each run ends on the result panel with the time, the score and the best run kept on this PC. The challenges run on the

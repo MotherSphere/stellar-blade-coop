@@ -1,5 +1,11 @@
 # Shared enemies and bosses
 
+With shared enemies on, the two games of a session fight the same enemies: each enemy that both games spawned shares one
+HP bar, balance gauge and death, decided by the host. The other options on this page add to that: same place, same
+spawns, the spawn filter, extra enemies and shared bosses. All of them are experimental. Their settings are in
+[coop-settings.txt](settings.md#coop-settingstxt), problems in [troubleshooting.md](troubleshooting.md#shared-play), and
+how each part works in [internals/shared-enemies.md](internals/shared-enemies.md).
+
 ## Shared enemies (experimental)
 
 `coop fight` is the first stage of shared enemies. It has not been tested in game yet. With a friend linked, each

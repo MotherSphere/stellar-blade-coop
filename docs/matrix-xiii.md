@@ -1,5 +1,9 @@
 # Cut dungeon: `coop mxiii` (experimental)
 
+This page covers `coop mxiii`, the zMXIII_P test pak it needs, what each build of the pak adds and what to check in
+game. [Lily's signal](lily-signal.md) leads into the same dungeon through two quests of the mod's own. The rows and the
+camp travel behind the command are described in [internals/matrix-xiii.md](internals/matrix-xiii.md).
+
 The game's tables keep a dungeon that was cut before release, Matrix XIII (world `DLCMatrix13`), with four zones and
 the enemies of each, but no pak holds its map and no camp or warp leads there. `coop mxiii` tests one way in and gives
 the first zone a camp; `coop mxiii 30` goes to a second camp, in the third zone. It needs the zMXIII_P test pak, which

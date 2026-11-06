@@ -1,5 +1,9 @@
 # Night Operation previews
 
+This page is one of four on Night Operation, with [the run](night-operation.md),
+[the reward shop](night-operation-shop.md) and [the challenges](challenges.md). It covers the two research previews,
+what to prepare before you try one, and how the mod blocks the cut mode's original matchmaking.
+
 - The probe, `coop no`, checks whether a heal event, a rule, a wave spawn and one monster from the cut mode still work
   in a solo game.
 - The recruiter, `coop recruiter`, brings back the cut recruiter near Roxanne. You can talk to him in your game

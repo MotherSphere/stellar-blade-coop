@@ -1,5 +1,9 @@
 # Features and test status
 
+This page lists what the mod does, one item per feature, with what has been tested in game and when. The
+[README](../README.md) gives the short version, and the [documentation index](README.md) lists the page that describes
+each feature in full.
+
 ## Status
 
 Status: v0.7.5, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was

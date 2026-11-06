@@ -1,5 +1,10 @@
 # Night Operation's shop: how it works
 
+This page describes how the Night Operation shop screen, its wallet and Roxanne's Night Operation choices work, and the
+rows that make the cut stimpacks and the Shock Bolt usable. All of these rows go in through the row batches of
+`lion/rows.h` (see [The cut Lion](cut-enemies.md#the-cut-lion)): the stimpacks' with the Lion's own rows, the shop's and
+the Shock Bolt's as batches of their own. The player's side is in [night-operation-shop.md](../night-operation-shop.md).
+
 ## The Night Operation shop screen
 
 `coop nightop shop` (`nightop/shop.lua`) sells the shop's seven items in the game's own shop screen, the vending
@@ -152,6 +157,7 @@ each talk or keeps one (both are read).
 
 ## The cut stimpacks
 
+The cut stimpacks' rows are 4 of the 237 in the cut Lion's batch (see [The rows](cut-enemies.md#the-rows)).
 The game ships the Burst Stimpack's consumable row (`HP2Burst_Potion`, ID 1004: 400 HP for 600 Burst gauge), the Beta
 Stimpack's use condition, effects (20% of maximum HP for 50 Beta energy) and icon, and English text for both, but no
 ItemTable row for either. The first 4 rows of the batch make them usable. Each is a copy of a shipped row of its table

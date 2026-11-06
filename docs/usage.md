@@ -1,5 +1,9 @@
 # Keys and console commands
 
+This page lists the keys, the `coop` console commands and the status lines that F6 and `coop status` print. It used to
+hold the whole player guide. Those sections now have pages of their own, listed in the [documentation index](README.md),
+and [Sections that moved](#sections-that-moved) at the end of this page gives the new place of each one.
+
 To install the mod, see [INSTALL.md](../INSTALL.md). For what happens behind each feature, see
 [how-it-works.md](how-it-works.md).
 
@@ -379,3 +383,81 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
 Each changed status line, except the per-peer ones, the `fight=` line, the `mate=` and `life=` lines and the `night=`
 line (Night Operation's run logs each one as an `[NR]` line), also goes to `UE4SS.log` as `[StellarCoop] link: ...`.
 Each load logs the save slot as `link: slot=...`.
+
+## Sections that moved
+
+This page used to hold every part of the player guide. Each section that left it is listed here, under its old name,
+with its new place.
+
+| Section | Now in |
+| --- | --- |
+| Co-op menu | [interface.md](interface.md#co-op-menu) |
+| Co-op line | [interface.md](interface.md#co-op-line) |
+| Controller | [interface.md](interface.md#controller) |
+| Mouse | [interface.md](interface.md#mouse) |
+| Options | [interface.md](interface.md#options) |
+| Focus watchdog | [interface.md](interface.md#focus-watchdog) |
+| Session chat | [interface.md](interface.md#session-chat) |
+| Partner HUD | [interface.md](interface.md#partner-hud) |
+| Status strip above the card | [interface.md](interface.md#status-strip-above-the-card) |
+| Playing with a friend | [playing-with-a-friend.md](playing-with-a-friend.md) |
+| Your world and your friend's | [playing-with-a-friend.md](playing-with-a-friend.md#your-world-and-your-friends) |
+| Join codes | [playing-with-a-friend.md](playing-with-a-friend.md#join-codes) |
+| Following the host | [playing-with-a-friend.md](playing-with-a-friend.md#following-the-host) |
+| A player down | [playing-with-a-friend.md](playing-with-a-friend.md#a-player-down) |
+| Revive by your friend (experimental) | [playing-with-a-friend.md](playing-with-a-friend.md#revive-by-your-friend-experimental) |
+| Camp rests in a shared area | [playing-with-a-friend.md](playing-with-a-friend.md#camp-rests-in-a-shared-area) |
+| Known limits | [playing-with-a-friend.md](playing-with-a-friend.md#known-limits) |
+| Guide | [interface.md](interface.md#guide) |
+| Co-op saves | [playing-with-a-friend.md](playing-with-a-friend.md#co-op-saves) |
+| Synced photo mode | [playing-with-a-friend.md](playing-with-a-friend.md#synced-photo-mode) |
+| Photo mode pause (experimental) | [playing-with-a-friend.md](playing-with-a-friend.md#photo-mode-pause-experimental) |
+| Cutscene wait | [playing-with-a-friend.md](playing-with-a-friend.md#cutscene-wait) |
+| Doro races | [doro-races.md](doro-races.md) |
+| Recording a track | [doro-races.md](doro-races.md#recording-a-track) |
+| Starting a race | [doro-races.md](doro-races.md#starting-a-race) |
+| Slots and countdown | [doro-races.md](doro-races.md#slots-and-countdown) |
+| Driving | [doro-races.md](doro-races.md#driving) |
+| Rules | [doro-races.md](doro-races.md#rules) |
+| Results | [doro-races.md](doro-races.md#results) |
+| The Doro look | [doro-races.md](doro-races.md#the-doro-look) |
+| Limits | [doro-races.md](doro-races.md#limits) |
+| Track files | [doro-races.md](doro-races.md#track-files) |
+| Teleport screen | [interface.md](interface.md#teleport-screen) |
+| Night Operation previews | [this page: Commands that need a co-op save](#commands-that-need-a-co-op-save) |
+| Night Operation's shop screen and Roxanne's choices | [night-operation-shop.md: Status lines](night-operation-shop.md#status-lines) |
+| Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril` | [cut-enemies.md](cut-enemies.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril) |
+| Other cut models: `coop mann`, `coop nier`, `coop orcal` and `coop enya` | [cut-enemies.md](cut-enemies.md#other-cut-models-coop-mann-coop-nier-coop-orcal-and-coop-enya) |
+| Free camera | [cut-enemies.md](cut-enemies.md#free-camera) |
+| Cut boss: `coop lion` | [cut-enemies.md](cut-enemies.md#cut-boss-coop-lion) |
+| Cut enemy: `coop gardener fight` | [cut-enemies.md](cut-enemies.md#cut-enemy-coop-gardener-fight) |
+| Cut enemy: `coop tendril fight` | [cut-enemies.md](cut-enemies.md#cut-enemy-coop-tendril-fight) |
+| Cut Tachy skill: `coop chainspin` | [cut-eve.md](cut-eve.md#cut-tachy-skill-coop-chainspin) |
+| Cut ammo: Shock Bolt | [night-operation-shop.md](night-operation-shop.md#cut-ammo-shock-bolt) |
+| Cut dungeon: `coop mxiii` (experimental) | [matrix-xiii.md](matrix-xiii.md) |
+| Lily's signal (experimental) | [lily-signal.md: Status lines](lily-signal.md#status-lines) |
+| Cut hairs and suits: `coop wear` | [cut-eve.md](cut-eve.md#cut-hairs-and-suits-coop-wear) |
+| Cut scenes: `coop scene` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-scenes-coop-scene) |
+| Cut scene lines: `coop lines` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-scene-lines-coop-lines) |
+| Emotes: `coop emote` | [cut-eve.md](cut-eve.md#emotes-coop-emote) |
+| Debug flight and slow motion: `coop fly` and `coop slowmo` | [cut-eve.md](cut-eve.md#debug-flight-and-slow-motion-coop-fly-and-coop-slowmo) |
+| Cut glide: `coop glide` | [cut-eve.md](cut-eve.md#cut-glide-coop-glide) |
+| Cut Load Shortcut saves: `coop shortcut` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-load-shortcut-saves-coop-shortcut) |
+| Loading one: `coop shortcut load` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) |
+| Developer menu: `coop devmenu` and `coop devinfo` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo) |
+| Cut mailbox: `coop gift` | [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-mailbox-coop-gift) |
+| Shared enemies (experimental) | [shared-enemies.md](shared-enemies.md#shared-enemies-experimental) |
+| Same place (experimental) | [shared-enemies.md](shared-enemies.md#same-place-experimental) |
+| Same spawns (experimental) | [shared-enemies.md](shared-enemies.md#same-spawns-experimental) |
+| Spawn filter (experimental) | [shared-enemies.md](shared-enemies.md#spawn-filter-experimental) |
+| Extra enemies (experimental) | [shared-enemies.md](shared-enemies.md#extra-enemies-experimental) |
+| Shared bosses (experimental) | [shared-enemies.md](shared-enemies.md#shared-bosses-experimental) |
+| Shared quests (experimental) | [playing-with-a-friend.md](playing-with-a-friend.md#shared-quests-experimental) |
+| coop-settings.txt | [settings.md](settings.md#coop-settingstxt) |
+| Looks | [ghost.md](ghost.md#looks) |
+| Mods and CNS outfits | [ghost.md](ghost.md#mods-and-cns-outfits) |
+| Mods you both have | [ghost.md](ghost.md#mods-you-both-have) |
+| When a mod asset fails | [ghost.md](ghost.md#when-a-mod-asset-fails) |
+| Solid partner (experimental) | [ghost.md](ghost.md#solid-partner-experimental) |
+| Notices | [interface.md](interface.md#notices) |
+| Files in the mod folder | [settings.md](settings.md#files-in-the-mod-folder) |

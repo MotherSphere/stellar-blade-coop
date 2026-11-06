@@ -3,7 +3,7 @@
 Lily's signal adds two quests of the mod's own near the end of the story. A short prologue, "A Second Signal" ("Un
 second signal"), sends EVE to Lily. A longer quest, "On Time" ("À l'heure"), leads through the cut Matrix XIII dungeon
 and back to her. Three talks between EVE and Lily play in the game's own subtitle box. None of it has been tried in
-game yet.
+game yet. How the mod does it is in [internals/lily-signal.md](internals/lily-signal.md).
 
 In Phase 5, after the first Raven fight in burning Xion, Lily asks EVE where to go next. One of her choices, "Follow the
 bike signal and leave", is the point of no return: after it the game goes to the Nest and nothing comes back. Before

@@ -1,5 +1,9 @@
 # Cut menus and the mailbox: how they work
 
+This page describes how `coop shortcut` lists and loads the saves of the cut Load Shortcut menu, how `coop devmenu` and
+`coop devinfo` open the developer menu and two debug panels, and how `coop gift` uses the cut mailbox. The commands are
+in [cut-scenes-and-menus.md](../cut-scenes-and-menus.md).
+
 ## The cut Load Shortcut menu
 
 `coop shortcut` (`save/shortcut.h`, `glue/tick/shortcut_game.inc`, not tested in game yet) lists the saves of a cut

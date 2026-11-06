@@ -1,5 +1,10 @@
 # Cut enemies: how they are added
 
+This page describes how the mod adds the cut Lion, Gardener and Tendril to the game: the table rows it writes for each,
+their spawn, and the open questions. The Lion's section also describes the row batches of `lion/rows.h`, which the cut
+stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night Operation shop and Lily's signal use too. The commands
+are in [cut-enemies.md](../cut-enemies.md).
+
 ## The cut Lion
 
 `coop lion` spawns the cut Naytiba 02, the Lion, as an enemy to fight (plan A of the Lion study). In its first test
