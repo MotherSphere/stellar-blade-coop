@@ -1,8 +1,7 @@
 # EVE's cut moves: how they work
 
-This page describes how the mod gives EVE the cut ChainSpin, the developer flight and slow motion, the cut glide and the
-emotes. The ChainSpin's 11 rows go in with the cut Lion's (see [The rows](cut-enemies.md#the-rows)). The commands are in
-[cut-eve.md](../cut-eve.md).
+The ChainSpin's 11 rows go in with the cut Lion's (see [The rows](cut-enemies.md#the-rows)). The commands are in
+[EVE's cut moves](../cut-eve.md).
 
 ## The cut ChainSpin
 

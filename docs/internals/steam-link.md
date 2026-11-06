@@ -1,8 +1,7 @@
 # The Steam link
 
-This page is for anyone who reads the native code or the link's logs. The player's side of a session is in
-[playing-with-a-friend.md](../playing-with-a-friend.md), and
-[troubleshooting.md](../troubleshooting.md#reading-the-60-s-lines) explains the link's 60 s log lines.
+The player's side of a session is in [Playing with a friend](../playing-with-a-friend.md), and
+[Troubleshooting](../troubleshooting.md#reading-the-60-s-lines) explains the link's 60 s log lines.
 
 The link runs in the native worker, through the Steamworks API that the game itself loaded and started (the game's
 `steam_api64.dll`, flat API, SDK 1.59). StellarCoop does not start Steam or call `SteamAPI_Init`, and linking changes

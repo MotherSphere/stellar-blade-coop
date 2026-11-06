@@ -1,8 +1,8 @@
 # Keys and console commands
 
-This page lists the keys, the `coop` console commands and the status lines that F6 and `coop status` print. It used to
-hold the whole player guide. Those sections now have pages of their own, listed in the [documentation index](README.md),
-and [Sections that moved](#sections-that-moved) at the end of this page gives the new place of each one.
+The other player pages are listed in the [documentation index](README.md). The mod's `coop shortcut` messages, its
+`coop-settings.txt` and some code comments still name this page for sections that have moved, so
+[Sections that moved](#sections-that-moved) at its end gives the new place of each one.
 
 To install the mod, see [INSTALL.md](../INSTALL.md). For what happens behind each feature, see
 [how-it-works.md](how-it-works.md).
@@ -386,8 +386,7 @@ Each load logs the save slot as `link: slot=...`.
 
 ## Sections that moved
 
-This page used to hold every part of the player guide. Each section that left it is listed here, under its old name,
-with its new place.
+Each section that left this page is listed under its old name, with its new place.
 
 | Section | Now in |
 | --- | --- |

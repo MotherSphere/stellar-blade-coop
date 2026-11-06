@@ -1,16 +1,15 @@
 # Cut dungeon: `coop mxiii` (experimental)
 
-This page covers `coop mxiii`, the zMXIII_P test pak it needs, what each build of the pak adds and what to check in
-game. [Lily's signal](lily-signal.md) leads into the same dungeon through two quests of the mod's own. The rows and the
-camp travel behind the command are described in [internals/matrix-xiii.md](internals/matrix-xiii.md).
+The game's tables keep a dungeon that was cut before release, Matrix XIII (world `DLCMatrix13`), with four zones and the
+enemies of each, but no pak holds its map and no camp or warp leads there. `coop mxiii` tests one way in and gives the
+first zone a camp; `coop mxiii 30` goes to a second camp, in the third zone. It needs the zMXIII_P test pak, which does
+not come with the mod: a map at the path the game's world table names, built from shipped Matrix 11 levels. Without that
+pak the command refuses and changes nothing. It is a test command, left out of the usage line, and runs only alone (not
+in a session) on a [co-op save](playing-with-a-friend.md#co-op-saves). Its lines go to `UE4SS.log` as
+`[StellarCoop][MX]`, the travel's as `[StellarCoop][TR]`.
 
-The game's tables keep a dungeon that was cut before release, Matrix XIII (world `DLCMatrix13`), with four zones and
-the enemies of each, but no pak holds its map and no camp or warp leads there. `coop mxiii` tests one way in and gives
-the first zone a camp; `coop mxiii 30` goes to a second camp, in the third zone. It needs the zMXIII_P test pak, which
-does not come with the mod: a map at the path the game's
-world table names, built from shipped Matrix 11 levels. Without that pak the command refuses and changes nothing. It
-is a test command, left out of the usage line, and runs only alone (not in a session) on a
-[co-op save](playing-with-a-friend.md#co-op-saves). Its lines go to `UE4SS.log` as `[StellarCoop][MX]`, the travel's as `[StellarCoop][TR]`.
+[Lily's signal](lily-signal.md) leads into the same dungeon through two quests of the mod's own. The rows and the camp
+travel behind the command are described in [internals/matrix-xiii.md](internals/matrix-xiii.md).
 
 The test pak has four builds, and the command takes any of them and logs which one it found. v1 holds the map, the
 zone and the enemies' spawn points, with the camp's arrival point at the dungeon start. v2 adds spawn points for the

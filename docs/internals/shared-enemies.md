@@ -1,8 +1,7 @@
 # Shared enemies: how they work
 
-This page describes how same place, same spawns with their spawn filter, extra enemies and shared bosses work. The
-player's side, with the settings of each part, is in [shared-enemies.md](../shared-enemies.md). The rule for kills and
-achievements is in [safety.md](safety.md#achievements).
+The player's side, with the settings of each part, is in [Shared enemies](../shared-enemies.md). The rule for kills and
+achievements is in [Achievements and safety](safety.md#achievements).
 
 ## Same-place enemies
 

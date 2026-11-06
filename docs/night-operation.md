@@ -461,3 +461,22 @@ Same spawns leave wave monsters out, since none of the game's spawn rows holds t
 
 With `shared_enemies=off` on either PC, nothing pairs: each player fights the monsters of their own world, and the
 wave starts, the timer and the score are still shared.
+
+## Credits
+
+Night Operation's run, the challenges and the friend's revive adapt code from
+[Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective, used with the author's
+permission (see [Credits](../README.md#credits) in the README). The adapted parts are:
+
+- sending a new monster at EVE;
+- giving a monster with no AI controller its default one;
+- moving a stuck or fallen monster;
+- spacing monsters around a spawn point;
+- finding wave monsters by their spawn key;
+- reading a tracked monster only while the game still lists it and it keeps its name;
+- telling a dying monster from one that can be executed;
+- watching for EVE's death screen, a map load, and EVE leaving the start point.
+
+`mod/StellarCoop/Scripts/nightop/run.lua`, `nightop/waves.lua` and `core/unreal.lua` mark each adapted function. The
+death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in
+`session/group.lua`. Stellar Blade Online contains no file from Survival Protocol.

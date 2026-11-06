@@ -1,24 +1,31 @@
 # Features and test status
 
-This page lists what the mod does, one item per feature, with what has been tested in game and when. The
+Each feature of the mod is listed below with what has been tested in game and when, except Matrix XIII and Lily's
+signal, which have their own pages: [Matrix XIII](matrix-xiii.md) and [Lily's signal](lily-signal.md). The
 [README](../README.md) gives the short version, and the [documentation index](README.md) lists the page that describes
 each feature in full.
 
 ## Status
 
-Status: v0.7.5, an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Two-PC co-op was
-first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil at about 240 ms
-ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and same place (each
-enemy in the same spot on both screens). No later version has been played on two PCs, so nothing added since 0.4 has
-been tested between two PCs: shared quests, the friend's revive, the cutscene wait, kills that count only for a player
-who took part, Night Operation's run, levels, revive and challenges, Doro races, the co-op line at camp phone booths,
-the .pak mod list and CNS outfits over the link, `coop gift` and the pose rate that adapts to Steam's queue. On one PC,
-the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the first-launch guide
-opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen. 0.6.0-beta.1 to beta.3
-use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses protocol 18 and does not
-link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it use protocol 19, for Matrix
-XIII's world rows, and do not link with 0.7.5. On 2026-11-01 two PCs played 0.7.0-beta.1 with its ghost fix: joining
-with CNS packs no longer crashed.
+Version 0.8.0 is an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Steam updated the game to
+build 26123051 on 2026-11-05, and 0.8.0 does not support that build: `coop status` shows `engine=off`, and every
+feature that reads the game's memory stays off (see [INSTALL.md: Update](../INSTALL.md#update)).
+
+Two-PC co-op was first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil
+at about 240 ms ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and
+same place (each enemy in the same spot on both screens). On 2026-11-01 two PCs played 0.7.0-beta.1 with its ghost
+fix: joining with CNS packs no longer crashed. No other version after 0.4 has been played on two PCs, so apart from
+that ghost fix nothing added since 0.4 has been tested between two PCs: shared quests, the friend's revive, the
+cutscene wait, kills that count only for a player who took part, Night Operation's run, levels, revive and challenges,
+Doro races, the co-op line at camp phone booths, the .pak mod list and CNS outfits over the link, `coop gift` and the
+pose rate that adapts to Steam's queue.
+
+On one PC, the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the
+first-launch guide opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen.
+
+0.6.0-beta.1 to beta.3 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses
+protocol 18 and does not link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it, 0.8.0
+included, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5.
 
 ## Features
 

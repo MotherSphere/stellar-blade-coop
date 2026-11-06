@@ -1,9 +1,8 @@
 # Cut enemies: how they are added
 
-This page describes how the mod adds the cut Lion, Gardener and Tendril to the game: the table rows it writes for each,
-their spawn, and the open questions. The Lion's section also describes the row batches of `lion/rows.h`, which the cut
-stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night Operation shop and Lily's signal use too. The commands
-are in [cut-enemies.md](../cut-enemies.md).
+The cut stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night Operation shop and Lily's signal use the row
+batches of `lion/rows.h` too, which [The cut Lion](#the-cut-lion) describes. The commands are in
+[Cut enemies](../cut-enemies.md).
 
 ## The cut Lion
 

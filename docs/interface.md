@@ -1,11 +1,8 @@
 # The co-op menu, chat and HUD
 
-This page describes what the mod adds to the screen and how you use it. The co-op menu opens with F5; its section also
-covers the co-op line at camp phone booths, the controller and the mouse, and the Options pages. The other parts are the
-session chat, your friend's card on the HUD, the guide that opens at the mod's first run, the extra tabs of the teleport
-screen and the notices. The keys and console commands are in [usage.md](usage.md), and the settings file that the
-Options pages write is in [settings.md](settings.md). How the menu takes the game's input is in
-[internals/architecture.md](internals/architecture.md#the-co-op-uis-input).
+The keys and console commands are in [Keys and commands](usage.md), and the settings file that the Options pages write
+is in [Settings](settings.md). How the menu takes the game's input is in
+[Architecture](internals/architecture.md#the-co-op-uis-input).
 
 ## Co-op menu
 

@@ -1,10 +1,12 @@
-# How StellarCoop works
+# How Stellar Blade Online works
 
 For the commands, see [usage.md](usage.md). For the code layout, see [building.md](building.md#repository-layout).
 
-This page is the index of the internals: how the code does what the player pages describe, for anyone who reads or
-changes the code. Each topic has its own page in `docs/internals/`, and
-[Where each section went](#where-each-section-went) gives the new place of every section that used to be on this page.
+Each internals topic has its own page in `docs/internals/`: how the code does what the player pages describe, for anyone
+who reads or changes the code. Code comments still cite sections of this page by name, for example
+`native/src/lion/mxiii_rows.h` and `tools/mxiii_rows.py` ("Matrix XIII's world rows") and
+`mod/StellarCoop/Scripts/cut/mailbox.lua` ("Achievements"), so [Where each section went](#where-each-section-went) gives
+the new place of every section that used to be here.
 
 ## The internals pages
 

@@ -1,7 +1,7 @@
 # The cut Matrix XIII dungeon (experimental)
 
-The player's side of the dungeon is in [matrix-xiii.md](../matrix-xiii.md), and the quests that lead into it in
-[lily-signal.md](lily-signal.md).
+The player's side of the dungeon is in [Matrix XIII](../matrix-xiii.md), and the quests that lead into it in
+[Lily's signal: how it works](lily-signal.md).
 
 WorldTable row `DLCMatrix13` (ID 2800) points to `/Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P`, a map that no pak of
 build 24463856 holds. ZoneTable keeps its four zones (`Zone_DLC02_10` to `Zone_DLC02_40`, IDs 2800 to 2815) and

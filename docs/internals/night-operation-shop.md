@@ -1,9 +1,8 @@
 # Night Operation's shop: how it works
 
-This page describes how the Night Operation shop screen, its wallet and Roxanne's Night Operation choices work, and the
-rows that make the cut stimpacks and the Shock Bolt usable. All of these rows go in through the row batches of
-`lion/rows.h` (see [The cut Lion](cut-enemies.md#the-cut-lion)): the stimpacks' with the Lion's own rows, the shop's and
-the Shock Bolt's as batches of their own. The player's side is in [night-operation-shop.md](../night-operation-shop.md).
+The rows of the shop, the cut stimpacks and the Shock Bolt go in through the row batches of `lion/rows.h` (see
+[The cut Lion](cut-enemies.md#the-cut-lion)): the stimpacks' with the Lion's own rows, the shop's and the Shock Bolt's
+as batches of their own. The player's side is in [Reward shop](../night-operation-shop.md).
 
 ## The Night Operation shop screen
 

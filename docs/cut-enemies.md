@@ -1,10 +1,9 @@
 # Cut enemies and models
 
-The test commands on this page show cut enemies and other cut models from the game's files in a viewer with a free
-camera, or spawn three cut enemies to fight: the Lion, the Gardener and the Tendril. They are left out of the usage
-line. How the mod adds their table rows is in [internals/cut-enemies.md](internals/cut-enemies.md). The other cut
-content is in [cut-eve.md](cut-eve.md), [cut-scenes-and-menus.md](cut-scenes-and-menus.md) and
-[matrix-xiii.md](matrix-xiii.md).
+Test commands show cut enemies and other cut models from the game's files in a viewer with a free camera, or spawn three
+cut enemies to fight: the Lion, the Gardener and the Tendril. How the mod adds their table rows is in
+[internals/cut-enemies.md](internals/cut-enemies.md). The other cut content is in [cut-eve.md](cut-eve.md),
+[cut-scenes-and-menus.md](cut-scenes-and-menus.md) and [matrix-xiii.md](matrix-xiii.md).
 
 ## Cut enemy preview: `coop leviathan`, `coop gardener` and `coop tendril`
 

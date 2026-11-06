@@ -1,9 +1,7 @@
 # Settings and files
 
-This page holds `coop-settings.txt` as the mod writes it, defaults and comments included, then the list of files the mod
-keeps in `Mods/StellarCoop/`. The [Options](interface.md#options) pages of the co-op menu change the same settings. The
-files the mod reads and writes in the game's save folder are listed in
-[saves.md](saves.md#what-the-mod-reads-and-writes).
+The files the mod reads and writes in the game's save folder, outside `Mods/StellarCoop/`, are listed in
+[Saves](saves.md#what-the-mod-reads-and-writes).
 
 ## coop-settings.txt
 

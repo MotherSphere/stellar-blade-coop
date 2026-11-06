@@ -1,9 +1,9 @@
-# Installing StellarCoop
+# Installing Stellar Blade Online
 
-StellarCoop is an experimental co-op mod for Stellar Blade on PC. It runs inside UE4SS. These steps cover Windows and
-Linux with Proton; a Windows PC and a Linux PC have played together.
-The rest of the documentation is in [docs/](https://github.com/MotherSphere/stellar-blade-coop/tree/main/docs) in the
-repository.
+Stellar Blade Online is an experimental co-op mod for Stellar Blade on PC. Its folder, its DLL and its zip keep its
+first name, StellarCoop. It runs inside UE4SS. These steps cover Windows and Linux with Proton; a Windows PC and a
+Linux PC have played together. The rest of the documentation is in
+[docs/](https://github.com/MotherSphere/stellar-blade-coop/tree/main/docs) in the repository.
 
 **Close the game before you copy, change or delete any mod file.**
 
@@ -60,13 +60,13 @@ WINEDLLOVERRIDES="dwmapi=n,b" %command%
 
 ### Update
 
-StellarCoop runs on game build 24463856 only. After a game update, `coop status` shows
-`engine=off reason=build stamp ...` (or `reason=code bytes differ`), and the ghost, the co-op saves and every other
-feature that reads the game's memory stay off until a StellarCoop version supports the new build. To stop Steam from
-updating the game in the background, right-click Stellar Blade in your Steam library, then Properties, Updates, and set
-Automatic updates to Wait until I launch the game (older Steam clients: Only update this game when I launch it). Steam
-still installs a waiting update when you start the game, so check for a new StellarCoop version first. Both players
-need the same game build.
+StellarCoop 0.8.0 runs on game build 24463856 only. Steam updated the game to build 26123051 on 2026-11-05, and 0.8.0
+does not support that build. After a game update, `coop status` shows `engine=off reason=build stamp ...` (or
+`reason=code bytes differ`), and the ghost, the co-op saves and every other feature that reads the game's memory stay
+off until a StellarCoop version supports the new build. To stop Steam from updating the game in the background,
+right-click Stellar Blade in your Steam library, then Properties, Updates, and set Automatic updates to Wait until I
+launch the game (older Steam clients: Only update this game when I launch it). Steam still installs a waiting update
+when you start the game, so check for a new StellarCoop version first. Both players need the same game build.
 
 `CHANGELOG.md` in the zip gives the zip's version and its features and fixes, newest first. Both players must update
 together. Two games with different protocols cannot link, and the player who tries to join sees
