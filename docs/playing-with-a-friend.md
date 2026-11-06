@@ -1,8 +1,8 @@
 # Playing with a friend
 
-Shared enemies have their own page, [Shared enemies](shared-enemies.md), and so does your friend's EVE,
-[Ghost](ghost.md). How the link and the features below work is in [The Steam link](internals/steam-link.md) and
-[Group play](internals/group-play.md).
+One player hosts a session and the other joins it through Steam. Shared enemies and your friend's EVE have their own
+pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link and the features below work is in
+[The Steam link](internals/steam-link.md) and [Group play: how it works](internals/group-play.md).
 
 1. The host presses F5 and selects Host a session. This creates a Steam lobby for 2 players and opens the Steam invite
    dialog. Pick your friend there. By default the lobby is friends-only: your Steam friends who have the mod can also

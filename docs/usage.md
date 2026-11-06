@@ -1,11 +1,9 @@
 # Keys and console commands
 
-The other player pages are listed in the [documentation index](README.md). The mod's `coop shortcut` messages, its
-`coop-settings.txt` and some code comments still name this page for sections that have moved, so
-[Sections that moved](#sections-that-moved) at its end gives the new place of each one.
-
-To install the mod, see [INSTALL.md](../INSTALL.md). For what happens behind each feature, see
-[how-it-works.md](how-it-works.md).
+To install the mod, see [INSTALL.md](../INSTALL.md). The other player pages are listed in the
+[documentation index](README.md), and what happens behind each feature is in [How it works](how-it-works.md). The mod's
+`coop shortcut` messages, its `coop-settings.txt` and some code comments still name this page for sections that have
+moved; [Sections that moved](#sections-that-moved), at the end, gives the new place of each one.
 
 Close the game before you change any file in the mod folder.
 
@@ -276,29 +274,37 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 
 ### `coop off`
 
-`coop off` stops the following until the game restarts, even across a Lua reload: the ghost, EVE's capture, the
-loopback, a recording (which is written), a replay, engine reads, the Steam link, the screen notices, the co-op menu,
-the chat box, the feed and the partner HUD (the game gets its keys back), the chat history (cleared), a Night Operation
-run or a challenge (it ends as aborted, and so does the partner's co-op run; your shop points stay as they are), the
-Night Operation poller, the Night Operation shop screen (closed, its seeds back in your wallet), Roxanne's Night
-Operation choices (her own two back, and a run booked at her dropped), a recruiter (despawned if one was requested, in
-Xion), the shared quests, the photo pause
-(released; the native tick keeps running for this alone), a Doro race (left as a DNF, or cancelled before GO, with EVE's
-movement values put back), the drive probe, a race track being recorded (dropped, nothing written), the Doro look (EVE
-drawn again), the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes
-back as it was), what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living
-Lion stays), the same for `coop gardener fight` and `coop tendril fight` (a living Gardener or Tendril stays), the
-`coop wear` look (your EVE's own hair and suit come back), a `coop lines` scene, the game's
-developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
-(`coop glide`: EVE's glide flag is cleared), a `coop emote` clip (it blends out), the game's developer panels
-(`coop devinfo`: closed), a `coop shortcut` list under way and the gift toast (taken off the screen). When a
-`coop devmenu` row ran, `coop off` runs its `clear` and `lockswitch` rows once more, but that `clear` reaches only the
-enemies near EVE at that moment, and both are skipped while a respawn or a warp is under way (see
-[Developer menu](cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after the items left your
-inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift lines from your
-friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and `coop report`
-answer. Every other command answers `STOP: coop off is active until the game restarts`,
-and so do the menu, host and leave keys. The race key does nothing.
+`coop off` stops the following until the game restarts, even across a Lua reload:
+
+- the ghost, EVE's capture, the loopback, a recording (which is written) and a replay;
+- engine reads and the Steam link;
+- the screen notices, the co-op menu, the chat box, the feed and the partner HUD (the game gets its keys back), and the
+  chat history (cleared);
+- a Night Operation run or a challenge (it ends as aborted, and so does the partner's co-op run; your shop points stay
+  as they are), the Night Operation poller, the Night Operation shop screen (closed, its seeds back in your wallet) and
+  Roxanne's Night Operation choices (her own two back, and a run booked at her dropped);
+- a recruiter (despawned if one was requested, in Xion);
+- the shared quests;
+- the photo pause (released; the native tick keeps running for this alone);
+- a Doro race (left as a DNF, or cancelled before GO, with EVE's movement values put back), the drive probe, a race
+  track being recorded (dropped, nothing written) and the Doro look (EVE drawn again);
+- the cut model display and its free camera (`coop leviathan` and the other viewer commands; the view goes back as it
+  was);
+- what `coop lion` is doing (a wait for its rows, its search, its entrance copy, its log lines; a living Lion stays),
+  and the same for `coop gardener fight` and `coop tendril fight` (a living Gardener or Tendril stays);
+- the `coop wear` look (your EVE's own hair and suit come back) and a `coop lines` scene;
+- the game's developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
+  (`coop glide`: EVE's glide flag is cleared) and a `coop emote` clip (it blends out);
+- the game's developer panels (`coop devinfo`: closed);
+- a `coop shortcut` list under way and the gift toast (taken off the screen).
+
+When a `coop devmenu` row ran, `coop off` runs its `clear` and `lockswitch` rows once more, but that `clear` reaches
+only the enemies near EVE at that moment, and both are skipped while a respawn or a warp is under way (see
+[Developer menu](cut-scenes-and-menus.md#developer-menu-coop-devmenu-and-coop-devinfo)). A `coop gift send` caught after
+the items left your inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift
+lines from your friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and
+`coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
+menu, host and leave keys. The race key does nothing.
 
 ## Status lines
 

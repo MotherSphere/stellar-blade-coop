@@ -42,9 +42,9 @@ Linux PC have played together. The rest of the documentation is in
 
 UE4SS starts every mod folder that contains an `enabled.txt` file, so you do not need to edit `mods.txt`.
 
-On Linux, you can build and install the mod from the StellarCoop repository instead, with `python3 tools/install.py`.
-Add `--game <Stellar Blade folder>` if the game is not in the script's default folder (`--help` shows it). The script
-first backs up the files it replaces into `~/StellarCoop-install-backups`.
+On Linux, you can build and install the mod from the Stellar Blade Online repository instead, with
+`python3 tools/install.py`. Add `--game <Stellar Blade folder>` if the game is not in the script's default folder
+(`--help` shows it). The script first backs up the files it replaces into `~/StellarCoop-install-backups`.
 
 ### Linux and Steam Deck
 
@@ -60,13 +60,13 @@ WINEDLLOVERRIDES="dwmapi=n,b" %command%
 
 ### Update
 
-StellarCoop 0.8.0 runs on game build 24463856 only. Steam updated the game to build 26123051 on 2026-11-05, and 0.8.0
+This version runs on game build 24463856 only. Steam updated the game to build 26123051 on 2026-11-05, and this version
 does not support that build. After a game update, `coop status` shows `engine=off reason=build stamp ...` (or
 `reason=code bytes differ`), and the ghost, the co-op saves and every other feature that reads the game's memory stay
-off until a StellarCoop version supports the new build. To stop Steam from updating the game in the background,
+off until a Stellar Blade Online version supports the new build. To stop Steam from updating the game in the background,
 right-click Stellar Blade in your Steam library, then Properties, Updates, and set Automatic updates to Wait until I
 launch the game (older Steam clients: Only update this game when I launch it). Steam still installs a waiting update
-when you start the game, so check for a new StellarCoop version first. Both players need the same game build.
+when you start the game, so check for a new Stellar Blade Online version first. Both players need the same game build.
 
 `CHANGELOG.md` in the zip gives the zip's version and its features and fixes, newest first. Both players must update
 together. Two games with different protocols cannot link, and the player who tries to join sees
@@ -326,11 +326,12 @@ Close the game first.
   `coop-settings.txt`, `coop-guide.txt`, `coop-records.txt`, the Night Operation shop points (`coop-night-*.txt`), the
   `coop gift` mailbox (`coop-gift-*.txt`) and the Doro race tracks (`coop-track-*.txt`), so first copy out what you
   want to keep. If you added a `StellarCoop` line to `Mods/mods.txt`, remove that line.
-- Installed with `tools/install.py` (Linux), from the StellarCoop repository: `python3 tools/install.py --uninstall`
-  (add `--dry-run` first to see what it would do, and `--game <Stellar Blade folder>` if the game is not in the
-  script's default folder). It backs up the whole folder into `~/StellarCoop-install-backups`, then removes it. It
-  removes only a folder it installed (one with `install-manifest.txt`); delete a folder copied from the zip by hand, as
-  above. It never edits `mods.txt`, but it reports a line there that still names StellarCoop, for you to remove.
+- Installed with `tools/install.py` (Linux), from the Stellar Blade Online repository:
+  `python3 tools/install.py --uninstall` (add `--dry-run` first to see what it would do, and
+  `--game <Stellar Blade folder>` if the game is not in the script's default folder). It backs up the whole folder into
+  `~/StellarCoop-install-backups`, then removes it. It removes only a folder it installed (one with
+  `install-manifest.txt`); delete a folder copied from the zip by hand, as above. It never edits `mods.txt`, but it
+  reports a line there that still names StellarCoop, for you to remove.
 
 Your saves stay, and so do the co-op copies, `StellarCoopSaves.txt`, the shared quests' records
 (`StellarCoopQuests0N.txt`), a shortcut save's mark (`StellarCoopShortcut04.txt`), the backups in `StellarCoopBackups`

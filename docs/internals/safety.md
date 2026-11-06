@@ -102,19 +102,20 @@ claim the host accepts):
 
 ## Safety design
 
-StellarCoop reads and writes game memory, so it fails closed: a failed check or a fault stops the affected feature or
-drops the input.
+Stellar Blade Online reads and writes game memory, so it fails closed: a failed check or a fault stops the affected
+feature or drops the input.
 
 - Before it reads any engine memory, the native part checks the game's exe against the pinned build (Steam build
   24463856): its PE time stamp, its image size and 19 code bytes. On any other build the pose path stays off
   (`engine=off reason=...`) and nothing is read. The save slot read, the vitals read for the partner card and the
   Night Operation poller also run only on the pinned build.
 - Every engine access in `coop_tick` runs under a Windows structured exception (SEH) guard. The first fault latches the
-  feature off for the run and is logged with its code, the DLL offset, the address and the part. Effects have a latch
-  of their own. A fault inside Steam in the worker (for example a call racing the game's Steam shutdown at exit) stops
-  the link and the pose path for the rest of the run (`stopped=fault <code>`) instead of crashing the game. The log's
-  last line gives the reason the worker stopped. The rows batches (the cut Naytibas, the Shock Bolt, Matrix XIII and
-  the Night Operation shop) share one latch; [Its batch in the native part](cut-enemies.md#its-batch-in-the-native-part) says why.
+  feature off for the run and is logged with its code, the DLL offset, the address and the part. Effects have a latch of
+  their own. A fault inside Steam in the worker (for example a call racing the game's Steam shutdown at exit) stops the
+  link and the pose path for the rest of the run (`stopped=fault <code>`) instead of crashing the game. The log's last
+  line gives the reason the worker stopped. The rows batches (the cut Naytibas, the Shock Bolt, Matrix XIII and the
+  Night Operation shop) share one latch;
+  [The Gardener's batch in the native part](cut-enemies.md#the-gardeners-batch-in-the-native-part) says why.
 - On the Lua side, `main.lua` calls each module's work in its two loops (every frame and every 250 ms) through an
   `xpcall` guard. An error that escapes one, for example `cut/lion.lua`'s tick, is logged with the module's name, the
   message and its stack traceback:

@@ -1,12 +1,14 @@
 # How Stellar Blade Online works
 
-For the commands, see [usage.md](usage.md). For the code layout, see [building.md](building.md#repository-layout).
-
 Each internals topic has its own page in `docs/internals/`: how the code does what the player pages describe, for anyone
-who reads or changes the code. Code comments still cite sections of this page by name, for example
-`native/src/lion/mxiii_rows.h` and `tools/mxiii_rows.py` ("Matrix XIII's world rows") and
-`mod/StellarCoop/Scripts/cut/mailbox.lua` ("Achievements"), so [Where each section went](#where-each-section-went) gives
-the new place of every section that used to be here.
+who reads or changes the code. The commands are in [usage.md](usage.md), and the code layout in
+[building.md](building.md#repository-layout).
+
+Code comments still cite sections of this page by name, for example `native/src/lion/mxiii_rows.h` and
+`tools/mxiii_rows.py` ("Matrix XIII's world rows") and `mod/StellarCoop/Scripts/cut/mailbox.lua` ("Achievements"), so
+[Where each section went](#where-each-section-went) gives the new place of every section that used to be here.
+`cut/enemy.lua` and `nightop/run.lua` cite this page for how a spawned body reads its state and how the game reuses Lion
+bodies, which is in [internals/cut-enemies.md: The spawn](internals/cut-enemies.md#the-spawn).
 
 ## The internals pages
 
@@ -83,18 +85,18 @@ the new place of every section that used to be here.
 | The cut Lion: The spawn | [internals/cut-enemies.md](internals/cut-enemies.md#the-spawn) |
 | The cut Lion: What stays out | [internals/cut-enemies.md](internals/cut-enemies.md#what-stays-out) |
 | The cut Lion: The records | [internals/matrix-xiii.md](internals/matrix-xiii.md#the-records) |
-| The cut Lion: Open questions | [internals/cut-enemies.md](internals/cut-enemies.md#open-questions) |
+| The cut Lion: Open questions | [internals/cut-enemies.md](internals/cut-enemies.md#open-questions-about-the-lion) |
 | The cut Gardener | [internals/cut-enemies.md](internals/cut-enemies.md#the-cut-gardener) |
-| The cut Gardener: Its rows | [internals/cut-enemies.md](internals/cut-enemies.md#its-rows) |
-| The cut Gardener: Its batch in the native part | [internals/cut-enemies.md](internals/cut-enemies.md#its-batch-in-the-native-part) |
-| The cut Gardener: Its spawn | [internals/cut-enemies.md](internals/cut-enemies.md#its-spawn) |
-| The cut Gardener: Open questions | [internals/cut-enemies.md](internals/cut-enemies.md#open-questions-1) |
+| The cut Gardener: Its rows | [internals/cut-enemies.md](internals/cut-enemies.md#the-gardeners-rows) |
+| The cut Gardener: Its batch in the native part | [internals/cut-enemies.md](internals/cut-enemies.md#the-gardeners-batch-in-the-native-part) |
+| The cut Gardener: Its spawn | [internals/cut-enemies.md](internals/cut-enemies.md#the-gardeners-spawn) |
+| The cut Gardener: Open questions | [internals/cut-enemies.md](internals/cut-enemies.md#open-questions-about-the-gardener) |
 | The cut Tendril | [internals/cut-enemies.md](internals/cut-enemies.md#the-cut-tendril) |
-| The cut Tendril: Its rows | [internals/cut-enemies.md](internals/cut-enemies.md#its-rows-1) |
-| The cut Tendril: Its Shows | [internals/cut-enemies.md](internals/cut-enemies.md#its-shows) |
-| The cut Tendril: Its batch in the native part | [internals/cut-enemies.md](internals/cut-enemies.md#its-batch-in-the-native-part-1) |
-| The cut Tendril: Its spawn | [internals/cut-enemies.md](internals/cut-enemies.md#its-spawn-1) |
-| The cut Tendril: Open questions | [internals/cut-enemies.md](internals/cut-enemies.md#open-questions-2) |
+| The cut Tendril: Its rows | [internals/cut-enemies.md](internals/cut-enemies.md#the-tendrils-rows) |
+| The cut Tendril: Its Shows | [internals/cut-enemies.md](internals/cut-enemies.md#the-tendrils-shows) |
+| The cut Tendril: Its batch in the native part | [internals/cut-enemies.md](internals/cut-enemies.md#the-tendrils-batch-in-the-native-part) |
+| The cut Tendril: Its spawn | [internals/cut-enemies.md](internals/cut-enemies.md#the-tendrils-spawn) |
+| The cut Tendril: Open questions | [internals/cut-enemies.md](internals/cut-enemies.md#open-questions-about-the-tendril) |
 | The cut Matrix XIII dungeon (experimental) | [internals/matrix-xiii.md](internals/matrix-xiii.md) |
 | The cut Matrix XIII dungeon (experimental): Its rows | [internals/matrix-xiii.md](internals/matrix-xiii.md#its-rows) |
 | The cut Matrix XIII dungeon (experimental): Its event spawns | [internals/matrix-xiii.md](internals/matrix-xiii.md#its-event-spawns) |

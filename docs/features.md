@@ -1,9 +1,8 @@
 # Features and test status
 
-Each feature of the mod is listed below with what has been tested in game and when, except Matrix XIII and Lily's
-signal, which have their own pages: [Matrix XIII](matrix-xiii.md) and [Lily's signal](lily-signal.md). The
-[README](../README.md) gives the short version, and the [documentation index](README.md) lists the page that describes
-each feature in full.
+Each feature of the mod is listed below with what has been tested in game and when. [Matrix XIII](matrix-xiii.md) and
+[Lily's signal](lily-signal.md) have their own pages. The [README](../README.md) gives the short version, and the
+[documentation index](README.md) lists the page that describes each feature in full.
 
 ## Status
 
@@ -13,12 +12,12 @@ feature that reads the game's memory stays off (see [INSTALL.md: Update](../INST
 
 Two-PC co-op was first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil
 at about 240 ms ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and
-same place (each enemy in the same spot on both screens). On 2026-11-01 two PCs played 0.7.0-beta.1 with its ghost
-fix: joining with CNS packs no longer crashed. No other version after 0.4 has been played on two PCs, so apart from
-that ghost fix nothing added since 0.4 has been tested between two PCs: shared quests, the friend's revive, the
-cutscene wait, kills that count only for a player who took part, Night Operation's run, levels, revive and challenges,
-Doro races, the co-op line at camp phone booths, the .pak mod list and CNS outfits over the link, `coop gift` and the
-pose rate that adapts to Steam's queue.
+same place (each enemy in the same spot on both screens). On 2026-11-01 two PCs played 0.7.0-beta.1 with its ghost fix:
+joining with CNS packs no longer crashed. Apart from the 2026-11-01 session, no version after 0.4 has been played on two
+PCs, so nothing else added since 0.4 has been tested between two PCs: shared quests, the friend's revive, the cutscene
+wait, kills that count only for a player who took part, Night Operation's run, levels, revive and challenges, Doro
+races, the co-op line at camp phone booths, the .pak mod list and CNS outfits over the link, `coop gift` and the pose
+rate that adapts to Steam's queue.
 
 On one PC, the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the
 first-launch guide opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen.
@@ -146,22 +145,27 @@ before release. Its recruiter was meant to stand next to Roxanne in Xion's Scrap
 back for friends over Steam, started from the recruiter's Join choice, for up to six players; the Steam link holds two
 today. The mod never contacts the cut mode's online services (Shift Up's servers).
 
-`coop nightop start` runs five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and
-a score, on a co-op save. `coop nightop start easy`, `hard` or `nightmare` changes the number of monsters (15 to 40 in
+`coop nightop start` runs five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and a
+score, on a co-op save. `coop nightop start easy`, `hard` or `nightmare` changes the number of monsters (15 to 40 in
 all, 20 at normal), the time limit and the shop points. With no Steam session it is a solo run. In a session the host
-types it, at his level, and both games get the same waves while both screens show one timer and one score; with
-shared enemies on, each wave monster has one HP bar and one death in both games. With the experimental revive on, a
-dead EVE in such a run is down for 30 s: her partner revives her with the interact key, as the cut mode planned, or she
-revives herself a few times a run (`coop nightop revive`). A run that ends in success or time up gives points for a
-shop of seven items: four of the game's, and three cut items the mod adds back (two stimpacks and the Shock Bolt ammo
-for EVE's gun). `coop nightop shop` opens it in the game's own shop screen, with your points shown as the cut Beta
-Seed, and on a co-op save Roxanne in Xion offers the run's levels and its supplies among her choices. The shop screen
-ran in game on 2026-10-27. One solo run on 2026-10-28 spawned its waves, some monsters inside walls, but tracked none
-of them. The fixes for the tracking and for the spawn points are untested, and so are the levels, the revive, the
-purchases and Roxanne's choices (see [docs/night-operation.md](night-operation.md#the-co-op-run)). `coop challenge` runs five short fights on the same
-code, two of them against the game's target dummies, and keeps each one's best run in `coop-records.txt`. They need a
-co-op save and give no shop points. Four are solo. The fifth, the Shooting Range, rebuilds the game's cut shooting
-test with its score widget, and the host can start it for both players. They have not been tested in game yet either
-(see [challenges.md](challenges.md)). Two research
-previews also run only on a co-op save. `coop recruiter` brings back the cut recruiter near Roxanne, and you can talk
-to him. `coop no` tests parts of the cut mode in a solo game. Neither preview is a playable mode.
+types it, at his level, and both games get the same waves while both screens show one timer and one score; with shared
+enemies on, each wave monster has one HP bar and one death in both games. With the experimental revive on, a dead EVE in
+such a run is down for 30 s: her partner revives her with the interact key, as the cut mode planned, or she revives
+herself a few times a run (`coop nightop revive`).
+
+A run that ends in success or time up gives points for a shop of seven items: four of the game's, and three cut items
+the mod adds back (two stimpacks and the Shock Bolt ammo for EVE's gun). `coop nightop shop` opens it in the game's own
+shop screen, with your points shown as the cut Beta Seed, and on a co-op save Roxanne in Xion offers the run's levels
+and its supplies among her choices.
+
+The shop screen ran in game on 2026-10-27. One solo run on 2026-10-28 spawned its waves, some monsters inside walls, but
+tracked none of them. The fixes for the tracking and for the spawn points are untested, and so are the levels, the
+revive, the purchases and Roxanne's choices (see [docs/night-operation.md](night-operation.md#the-co-op-run)).
+
+`coop challenge` runs five short fights on the same code, two of them against the game's target dummies, and keeps each
+one's best run in `coop-records.txt`. They need a co-op save and give no shop points. Four are solo. The fifth, the
+Shooting Range, rebuilds the game's cut shooting test with its score widget, and the host can start it for both players.
+They have not been tested in game yet either (see [challenges.md](challenges.md)).
+
+Two research previews also run only on a co-op save. `coop recruiter` brings back the cut recruiter near Roxanne, and
+you can talk to him. `coop no` tests parts of the cut mode in a solo game. Neither preview is a playable mode.

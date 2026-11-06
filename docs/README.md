@@ -1,23 +1,23 @@
 # Documentation
 
-These pages describe Stellar Blade Online. Its folder, its DLL, its `coop` console commands and this repository still
-use its first name, StellarCoop. To install the mod, start with [INSTALL.md](../INSTALL.md); to play, with
+To install the mod, start with [Install](../INSTALL.md); to play, with
 [Playing with a friend](playing-with-a-friend.md). The pages under [Building and internals](#building-and-internals)
-describe the code, for anyone who builds the mod or changes it.
+describe the code, for anyone who builds the mod or changes it. Stellar Blade Online was first called StellarCoop, and
+its folder, its DLL and its `coop` console commands keep that name.
 
 ## Install and play
 
 | Page | What it covers |
 | --- | --- |
-| [INSTALL.md](../INSTALL.md) | Install, update and uninstall on Windows, Linux and the Steam Deck; saves and Steam Cloud; which logs to send |
-| [Features](features.md) | The features with their test status, the dated two-PC tests and which versions link together |
+| [Install](../INSTALL.md) | Install, update and uninstall on Windows, Linux and the Steam Deck; saves and Steam Cloud; which logs to send |
+| [Features and test status](features.md) | The features with their test status, the dated two-PC tests and which versions link together |
 | [Playing with a friend](playing-with-a-friend.md) | Hosting and joining, join codes, following the host, the revive, co-op saves, synced photo mode, shared quests |
 | [Interface](interface.md) | The co-op menu, the session chat, the partner HUD, the guide, the teleport screen, notices |
 | [Ghost](ghost.md) | The ghost's looks, .pak mods and CNS outfits, the solid partner |
 | [Shared enemies](shared-enemies.md) | Shared enemies, same place, same spawns, the spawn filter, extra enemies, shared bosses |
 | [Doro races](doro-races.md) | Recording a track, starting a race, driving, rules, results, the Doro look, track files |
 | [Settings](settings.md) | `coop-settings.txt` as the mod writes it, the files in the mod folder |
-| [Keys and commands](usage.md) | Every key, `coop` console command and status line, and the new place of each section that moved |
+| [Keys and commands](usage.md) | Every key and `coop` console command, the F6 and `coop status` lines, and the new place of each section that moved |
 | [Saves](saves.md) | What the mod reads and writes, backups, Steam Cloud, the co-op saves, recovery |
 | [Troubleshooting](troubleshooting.md) | Where to look, problems grouped by topic, the 60 s link lines, which logs to send |
 
@@ -51,13 +51,13 @@ describe the code, for anyone who builds the mod or changes it.
 | [Architecture](internals/architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the co-op UI's input, loopback, record and replay |
 | [The Steam link](internals/steam-link.md) | Lobby and invites, the handshake, channels 0 and 1, protocol versions, link health |
 | [The ghost pipeline](internals/ghost.md) | The ghost in seven steps, looks, the CNS guard and crash sentinel, the solid partner |
-| [Shared enemies](internals/shared-enemies.md) | Same-place enemies, same spawns and the spawn filter, extra enemies, shared bosses |
-| [Group play](internals/group-play.md) | Shared quests, following the host, the teleport screen, the revive, camp rests, the cutscene wait |
-| [Doro races](internals/doro-races.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, race lines |
-| [Cut enemies](internals/cut-enemies.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
-| [EVE's cut moves](internals/cut-eve.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |
-| [Cut menus and the mailbox](internals/cut-menus.md) | The cut Load Shortcut menu, the developer menu and panels, the cut mailbox |
-| [Night Operation's shop](internals/night-operation-shop.md) | The shop screen and its wallet, Roxanne's choices, the cut stimpacks, the cut Shock Bolt |
-| [Matrix XIII](internals/matrix-xiii.md) | The cut dungeon's rows, event spawns, arrival, camps, save, title and world rows |
-| [Lily's signal](internals/lily-signal.md) | The rows, quests and talks of Lily's signal |
-| [Achievements and safety](internals/safety.md) | Which kills and achievements count for each player, the safety design |
+| [Shared enemies: how they work](internals/shared-enemies.md) | Same-place enemies, same spawns and the spawn filter, extra enemies, shared bosses |
+| [Group play: how it works](internals/group-play.md) | Shared quests, following the host, the teleport screen, the revive, camp rests, the cutscene wait |
+| [Doro races: how they work](internals/doro-races.md) | The display Doro, the Doro look, the ghost's Doro mode, driving, race lines |
+| [Cut enemies: how they are added](internals/cut-enemies.md) | The cut Lion with the row batches, the cut Gardener, the cut Tendril |
+| [EVE's cut moves: how they work](internals/cut-eve.md) | The cut ChainSpin, developer flight and slow motion, the cut glide, emotes |
+| [Cut menus and the mailbox: how they work](internals/cut-menus.md) | The cut Load Shortcut menu, the developer menu and panels, the cut mailbox |
+| [Night Operation's shop: how it works](internals/night-operation-shop.md) | The shop screen and its wallet, Roxanne's choices, the cut stimpacks, the cut Shock Bolt |
+| [Matrix XIII: how it works](internals/matrix-xiii.md) | The cut dungeon's rows, event spawns, arrival, camps, save, title and world rows |
+| [Lily's signal: how it works](internals/lily-signal.md) | The rows, quests and talks of Lily's signal |
+| [Achievements and safety design](internals/safety.md) | Which kills and achievements count for each player, the safety design |

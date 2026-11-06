@@ -1,7 +1,7 @@
 # Building from source
 
-StellarCoop is developed on Linux. The Lua scripts need no build, and the Windows DLL is cross-compiled with clang-cl.
-For the design, see [how-it-works.md](how-it-works.md). The tests are listed in [tests.md](tests.md).
+Stellar Blade Online is developed on Linux. The Lua scripts need no build, and the Windows DLL is cross-compiled with
+clang-cl. For the design, see [how-it-works.md](how-it-works.md). The tests are listed in [tests.md](tests.md).
 
 ## Toolchain
 
@@ -106,10 +106,12 @@ A release goes through these steps, in order:
 
 1. Merge `dev` into `main` and push `main`. Release Please opens or updates the release pull request.
 2. Read the release pull request. Its body becomes the GitHub release notes, and so the Nexus changelog. Its
-   `CHANGELOG.md` entry only goes into the file in the repository. Each push to `main` rebuilds the pull request and
-   its branch, which drops any edit made to them, so make edits last, right before step 3. Edit the body, keeping the
-   two `---` lines and the `## [<version>]` heading: Release Please reads the notes back from between them at the
-   merge. Then push a commit to the `release-please--branches--main` branch that changes `CHANGELOG.md` the same way.
+   `CHANGELOG.md` entry only goes into the file in the repository. Each push to `main` rebuilds the pull request and its
+   branch, which drops any edit made to them, so make edits last, right before step 3. Edit the body, keeping the two
+   `---` lines and the `## [<version>]` heading: Release Please reads the notes back from between them at the merge.
+   Then push a commit to the `release-please--branches--main` branch that changes `CHANGELOG.md` the same way. In the
+   same commit, update these lines, which Release Please does not change: the version in `README.md` (Install, Status
+   and Requirements) and `docs/features.md` (Status), and the game build in `INSTALL.md` (Update) when it changes.
 3. Merge the release pull request. Release Please tags the merge commit `v<version>` and creates the GitHub release.
    The workflow turns that release back into a draft at once and names it `Stellar Blade Online <version>`, because
    its zip does not exist yet: the DLL needs the local clang-cl and xwin toolchain.
@@ -170,7 +172,7 @@ it 0.8.0, but write its notes by hand in step 2.
 mod/StellarCoop/            the UE4SS mod folder
   enabled.txt               makes UE4SS start the mod
   Assets/                   MotherSphere.png, the guide's art by timediffer24 (not covered by the GPL)
-  Scripts/                  the Lua side (see how-it-works.md)
+  Scripts/                  the Lua side (see internals/architecture.md)
     main.lua                the entry UE4SS runs: settings, keys, the coop console command, the per-frame loop
     commands/               the coop console commands' handlers, by feature, merged into main.lua's command table
     core/                   the files shared with the native part, settings, keys, UE4SS helpers

@@ -1,6 +1,6 @@
 # Troubleshooting
 
-StellarCoop is an experimental pre-release, played in only a few sessions between two PCs so far.
+Stellar Blade Online is an experimental beta, played in only a few sessions between two PCs so far.
 
 **Close the game before you copy, change or delete any mod file.**
 
@@ -44,11 +44,12 @@ StellarCoop is an experimental pre-release, played in only a few sessions betwee
 
 ### My friend cannot join
 
-- `Version mismatch: ...`: you run different StellarCoop protocols or game builds. Both players update together:
-  see [INSTALL.md: Update](../INSTALL.md#update).
+- `Version mismatch: ...`: you run different Stellar Blade Online protocols or game builds. Both players update
+  together: see [INSTALL.md: Update](../INSTALL.md#update).
 - `Invite held: joining once your save has loaded.`: they join once their save has loaded. This is normal.
 - `Could not join: that game is full.`: a session holds 2 players. `Left: the lobby has more than 2 players.` means the
-  lobby was not made by StellarCoop (it holds more players than a StellarCoop lobby can), so the mod left it.
+  lobby was not made by Stellar Blade Online (it holds more players than a Stellar Blade Online lobby can), so the mod
+  left it.
 - `coop join` without an id logs `no friend is in a Stellar Blade lobby`: ask your friend to host, then accept their
   invite, or use `coop join <lobby id>`.
 - `You are in <host>'s game: leave it first.`: a guest cannot host. Press F8 first.
@@ -82,8 +83,8 @@ For the host:
   cursor, and while the chat box is closed. After `coop ui off` it never shows. From the console, `coop status` gives
   the waiting player on its `pending=<SteamID> <name>` line; then type `coop allow <SteamID>` or
   `coop deny <SteamID>`. With no answer, the player is refused after 60 s.
-- A refused player is still in the lobby. Steam cannot take a player out of a lobby: a StellarCoop game leaves when
-  it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
+- A refused player is still in the lobby. Steam cannot take a player out of a lobby: a Stellar Blade Online game leaves
+  when it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
   never links. Host again: the new session has a new code.
 - Players you do not know keep asking: host again for a new code, and give it only to the player you expect.
 - `No join code to copy.`: you do not host, or you host with Friends or Invited only. Set Who can join to With a code,
@@ -255,7 +256,7 @@ or Ctrl+R), even when the error comes back every frame, so the same name can sho
 keep running, and the named part is still called at each pass, so it can recover by itself. If it stays broken, a Lua
 reload builds it again. Send `UE4SS.log` either way.
 
-## Commands
+## Preview and developer commands
 
 ### `coop no` or `coop recruiter` says `STOP`
 
@@ -291,9 +292,9 @@ reason:
   the title screen. They stay on until the game restarts.
 - `saves=off` or `saves=?`: the mod cannot use the save file name on this game build, or a check failed. The
   `save name: saves=...` line of `coop-link.log` says why. The mod makes no copies, and the game uses your own saves.
-  After a game update, the engine line reads `engine=off reason=build stamp ...` or `reason=code bytes differ`, and
-  the title screen says once `Co-op saves are off: StellarCoop does not support this version of the game.` Wait for a
-  StellarCoop update for the new game version.
+  After a game update, the engine line reads `engine=off reason=build stamp ...` or `reason=code bytes differ`, and the
+  title screen says once `Co-op saves are off: StellarCoop does not support this version of the game.` Wait for a
+  Stellar Blade Online update for the new game version.
 - `steam=waiting`: Steam is not ready yet, and the mod needs your Steam ID to find your save folder.
 - `convert=busy ...`: a copy pass runs. The question waits for its end.
 - `UE4SS.log` has `[StellarCoop] co-op saves: the question cannot show (the co-op UI is off)`: the on-screen UI
@@ -315,7 +316,7 @@ The copies were not switched on, and the game uses your own saves. The reason co
 Do not start the game again. Turn Steam Cloud off for Stellar Blade first, then restore your backup. See
 [saves.md](saves.md#steam-cloud) and [INSTALL.md: Recovery](../INSTALL.md#recovery).
 
-## Shared play
+## Shared enemies and group play
 
 ### Enemies are not shared
 
@@ -471,17 +472,19 @@ With same place on, the guest's copy of a boss follows the host's through the li
 
 ### A kill or an achievement did not count
 
-A shared enemy dies in your game only if you took part in its fight ([usage.md: Shared
-enemies](shared-enemies.md#shared-enemies-experimental)). When the other player kills one that you never hit, that never targeted
-you and that stood more than 30 m from your EVE (`kill_credit=together`, the default), your copy stays alive at full HP,
-and its kill, loot and achievements do not reach your save. Fight it yourself to get them. As the guest, while same
-spawns run (within 100 m of each other in one zone), the host's next drop line removes that copy a few seconds later
-instead, without a kill. The guest's `coop-link.log` says `fight dead-unshared <key> hguid=<n> not taken part`, the
-host's says `fight kill-unshared <key> hguid=<n> not taken part`, and the `fight stats:` lines in `coop-fight.log` count
-them as `not taken part`. With `kill_credit=fought` the 30 m do not count, and they never count while your EVE is down.
-A `kill_credit=all` line from 0.4.0-beta.1 reads as `together`. A `fight last player <key> set by a mirrored crowd
-control` line means that a knockdown the other player started made the game record your EVE as that enemy's last player.
-The mod then stops counting that record for this enemy, so only your hit or the 30 m make its kill yours.
+A shared enemy dies in your game only if you took part in its fight
+([shared-enemies.md: Shared enemies](shared-enemies.md#shared-enemies-experimental)). When the other player kills one
+that you never hit, that never targeted you and that stood more than 30 m from your EVE (`kill_credit=together`, the
+default), your copy stays alive at full HP, and its kill, loot and achievements do not reach your save. Fight it
+yourself to get them. As the guest, while same spawns run (within 100 m of each other in one zone), the host's next drop
+line removes that copy a few seconds later instead, without a kill. The guest's `coop-link.log` says
+`fight dead-unshared <key> hguid=<n> not taken part`, the host's says
+`fight kill-unshared <key> hguid=<n> not taken part`, and the `fight stats:` lines in `coop-fight.log` count them as
+`not taken part`. With `kill_credit=fought` the 30 m do not count, and they never count while your EVE is down. A
+`kill_credit=all` line from 0.4.0-beta.1 reads as `together`. A
+`fight last player <key> set by a mirrored crowd control` line means that a knockdown the other player started made the
+game record your EVE as that enemy's last player. The mod then stops counting that record for this enemy, so only your
+hit or the 30 m make its kill yours.
 
 ### Travel to the host does not start
 

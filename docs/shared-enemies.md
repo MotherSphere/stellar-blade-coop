@@ -1,8 +1,9 @@
 # Shared enemies and bosses
 
 Shared enemies and every option that builds on them are experimental. Their settings are in
-[coop-settings.txt](settings.md#coop-settingstxt), problems in [troubleshooting.md](troubleshooting.md#shared-play), and
-how each part works in [internals/shared-enemies.md](internals/shared-enemies.md).
+[coop-settings.txt](settings.md#coop-settingstxt), problems in
+[troubleshooting.md](troubleshooting.md#shared-enemies-and-group-play), and how each part works in
+[internals/shared-enemies.md](internals/shared-enemies.md).
 
 ## Shared enemies (experimental)
 

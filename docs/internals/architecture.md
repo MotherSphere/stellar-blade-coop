@@ -5,7 +5,7 @@ repository layout is in [Building](../building.md#repository-layout).
 
 ## Lua and native parts
 
-StellarCoop has two parts, both in the mod folder `Mods/StellarCoop/`:
+Stellar Blade Online has two parts, both in the mod folder `Mods/StellarCoop/`:
 
 - The Lua part (`Scripts/*.lua`), run by UE4SS on the game thread. It uses UE4SS's object API to read what EVE is made
   of, build the ghost's actor and place it, draw the co-op menu, the chat and your friend's card, marker and arrow,
@@ -74,7 +74,7 @@ Both games run the same pipeline in both directions, so each player sees the oth
 | `cut/lion.lua` | `coop lion`: the Lion's spec for `cut/enemy.lua` and its own parts (the anim instance repair, `unfreeze`, `brain`, `control`); `Lion.rows`, the lion rows batch for the shop's stimpacks and `coop chainspin`, or the bolt rows batch for the shop's Shock Bolt ([The cut Shock Bolt](night-operation-shop.md#the-cut-shock-bolt)) |
 | `cut/gardener.lua` | `coop gardener fight`: the Gardener's spec for `cut/enemy.lua` ([The cut Gardener](cut-enemies.md#the-cut-gardener)) |
 | `cut/tendril.lua` | `coop tendril fight`: the Tendril's spec for `cut/enemy.lua` and the Shows of its clips, built in memory ([The cut Tendril](cut-enemies.md#the-cut-tendril)) |
-| `matrix13/world/travel.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v4, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00` on v4 (`DLC02_10_Camp_01` on older paks), or with 30 to `DLC02_30_Camp_01` on v3 or later; at the title its four batches and the Lion's and the Gardener's ([The cut Matrix XIII dungeon](matrix-xiii.md)) |
+| `matrix13/world/travel.lua` | `coop mxiii [30\|leave\|boss]`: the test pak's check (v1 to v4, the `.ucas` read window by window through the `.utoc`'s block table), Matrix XIII's camp batch through `cut/enemy.lua`'s rows part, then the follow's camp travel to `DLC02_00_Camp_00` on v4 (`DLC02_10_Camp_01` on older paks), or with 30 to `DLC02_30_Camp_01` on v3 or later; at the title its four batches and the Lion's and the Gardener's ([Matrix XIII: how it works](matrix-xiii.md)) |
 | `matrix13/world/rows.lua` | Matrix XIII's rows as `lion/mxiii_rows.h` writes them, the ladders, ledges and ropes, the boxes and barrels, the boss points and `coop mxiii warp`'s points, written by `tools/mxiii_rows.py` ([Matrix XIII's world rows](matrix-xiii.md#matrix-xiiis-world-rows)) |
 | `matrix13/world/mila.lua` | Mila's body, a display only (`race/doro.lua`): Kara's mesh in the sitting clip at the cooked markers, placed by `zone_talks.lua` after scenes 4E and 4N ([Lily's signal](lily-signal.md)) |
 | `matrix13/world/breakables.lua` | In world 2800: the 317 boxes and barrels spawned at run time in place of the cooked proxies, which it hides ([Matrix XIII's world rows](matrix-xiii.md#matrix-xiiis-world-rows)) |

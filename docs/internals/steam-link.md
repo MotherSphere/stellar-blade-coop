@@ -4,9 +4,9 @@ The player's side of a session is in [Playing with a friend](../playing-with-a-f
 [Troubleshooting](../troubleshooting.md#reading-the-60-s-lines) explains the link's 60 s log lines.
 
 The link runs in the native worker, through the Steamworks API that the game itself loaded and started (the game's
-`steam_api64.dll`, flat API, SDK 1.59). StellarCoop does not start Steam or call `SteamAPI_Init`, and linking changes
-nothing in the game or the saves. If one of the Steam functions it needs is missing (another Steamworks build), the
-worker and the pose path stop for the rest of the run, and the status file says `missing=<name>`.
+`steam_api64.dll`, flat API, SDK 1.59). Stellar Blade Online does not start Steam or call `SteamAPI_Init`, and linking
+changes nothing in the game or the saves. If one of the Steam functions it needs is missing (another Steamworks build),
+the worker and the pose path stop for the rest of the run, and the status file says `missing=<name>`.
 
 One worker thread makes every Steam call. The game's Steam callback thread only stores a few numbers for it. The worker
 runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recording, a replay or a friend).
@@ -18,12 +18,12 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
   (`19:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
-- The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask
-  to join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it.
-  StellarCoop never searches, and a player who finds it that way waits for the host's answer like any other player
-  who is not a friend. No invite dialog opens. The host gets a 7-character join code instead (`CCS-CBMH`), on screen
-  and in `coop-status.txt`. The request `copy` puts it on the Windows clipboard. Under Proton, Wine should pass it on
-  to the desktop's clipboard; the Wine smoke test checks the Windows side only. `join <code>` joins the lobby it names.
+- The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask to
+  join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it. Stellar Blade
+  Online never searches, and a player who finds it that way waits for the host's answer like any other player who is not
+  a friend. No invite dialog opens. The host gets a 7-character join code instead (`CCS-CBMH`), on screen and in
+  `coop-status.txt`. The request `copy` puts it on the Windows clipboard. Under Proton, Wine should pass it on to the
+  desktop's clipboard; the Wine smoke test checks the Windows side only. `join <code>` joins the lobby it names.
 - The code holds the low 32 bits of the lobby id in Crockford's base 32, which leaves out I, L, O and U. Every lobby
   id seen so far starts with the same high 32 bits, `0x01860000`, which the code leaves out. The 3 spare bits hold the
   low part modulo 7, so 89% of the codes with one character wrong are turned away (over 2,000 random ids) instead of
@@ -299,8 +299,8 @@ other screen.
 
 ## Protocol versions
 
-The protocol number goes up with any change to what travels between two games, so an older StellarCoop is refused
-instead of misread:
+The protocol number goes up with any change to what travels between two games, so an older Stellar Blade Online version
+is refused instead of misread:
 
 | Protocol | Change |
 | --- | --- |

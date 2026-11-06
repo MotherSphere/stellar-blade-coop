@@ -1,15 +1,20 @@
 # Night Operation
 
 Night Operation is a multiplayer wave-survival mode that Shift Up prototyped and cut before Stellar Blade's release.
-Much of it is still in the game files. StellarCoop has a run of its waves, `coop nightop`, which you play alone or with
-a linked partner at one of four levels, a shop that sells seven items (three of them cut items) for the points runs
-earn, in the game's own shop screen with the cut Beta Seed as its currency, Night Operation choices in Roxanne's
-dialogue in Xion, and five challenges on the same code, `coop challenge`: four solo fights and the Shooting Range,
-which the host can also run for both players. Two research previews test other parts of the cut mode; they are not
-playable modes. The shop screen opened in game on 2026-10-27, with its rows added. One solo run was played on
-2026-10-28: its waves spawned, but the mod tracked none of its monsters, so no kill scored, and some monsters stood
-inside walls. The fixes for both have not been tested in game yet, and neither have buying, Roxanne's choices and the
-challenges.
+Much of it is still in the game files. Stellar Blade Online has:
+
+- a run of its waves, `coop nightop`, which you play alone or with a linked partner at one of four levels;
+- a shop that sells seven items (three of them cut items) for the points runs earn, in the game's own shop screen with
+  the cut Beta Seed as its currency;
+- Night Operation choices in Roxanne's dialogue in Xion;
+- five challenges on the same code, `coop challenge`: four solo fights and the Shooting Range, which the host can also
+  run for both players.
+
+Two research previews test other parts of the cut mode; they are not playable modes.
+
+The shop screen opened in game on 2026-10-27, with its rows added. One solo run was played on 2026-10-28: its waves
+spawned, but the mod tracked none of its monsters, so no kill scored, and some monsters stood inside walls. The fixes
+for both have not been tested in game yet, and neither have buying, Roxanne's choices and the challenges.
 
 The reward shop, the challenges and the two previews have pages of their own:
 [night-operation-shop.md](night-operation-shop.md), [challenges.md](challenges.md) and
@@ -31,7 +36,7 @@ The reward shop, the challenges and the two previews have pages of their own:
 - The online part. The recruiter's Join choice starts the mode's matchmaking: a request to Shift Up's online services,
   a matchmaking service and dedicated game servers hosted on Amazon.
 
-StellarCoop never contacts those servers. They belong to Shift Up and served a mode that never shipped. See
+Stellar Blade Online never contacts those servers. They belong to Shift Up and served a mode that never shipped. See
 [How the original matchmaking is blocked](night-operation-previews.md#how-the-original-matchmaking-is-blocked).
 
 ## The plan
@@ -52,7 +57,7 @@ parts exist:
 
 These parts do not exist yet:
 
-- The recruiter's Join choice starting StellarCoop's Steam friends matchmaking. Today the host types
+- The recruiter's Join choice starting Stellar Blade Online's Steam friends matchmaking. Today the host types
   `coop nightop start`.
 - More players, up to six. The Steam link holds two.
 - A boss wave.

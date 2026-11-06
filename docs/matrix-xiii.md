@@ -1,4 +1,4 @@
-# Cut dungeon: `coop mxiii` (experimental)
+# Matrix XIII: the cut dungeon (experimental)
 
 The game's tables keep a dungeon that was cut before release, Matrix XIII (world `DLCMatrix13`), with four zones and the
 enemies of each, but no pak holds its map and no camp or warp leads there. `coop mxiii` tests one way in and gives the
@@ -223,22 +223,25 @@ your own saves ([saves.md](saves.md)).
 
 ## What to check in game
 
-None of it has been tried in game yet. Start the game with the pak installed and the co-op saves on, and check at
-the title, before you load a save, that `UE4SS.log` shows `[StellarCoop][MX] title: the rows are in, before any save
-loads` and `coop-link.log` shows `mxiii rows: 15/15 in`; if it shows `mxiii rows refused -: net mode 4` or `no logic or
-net-mode global`, note which, then load and use `coop mxiii` as before. With the rows in at the title, check that the
-first `coop mxiii` travels at once. Check that the travel loads the map and that EVE stands on its floor at the
-camp's arrival point, and which enemies appear. With v2, check that the six objects and the coin stand on the floor
-without clipping, that the coin activates the camp, that the chair rests, that the phone booth travels to a camp of the
-main game and back from the camp list (with `coop where` showing `map=` ending in `mxiii_p` on the way back), and that
-a death in the zone brings EVE back to the camp. Walking on, check that the second zone's three waves come at its
-entry, at the arena's entrance and halfway through the arena, and that the fourth zone's main hall brings its 5
-Antlions and 3 Clrikets. With v3, check that `coop mxiii 30` puts EVE on the floor of `ME03_Camp_01`'s room (`coop
-where`: `map=` ending in `mxiii_p`, `eve=` near 26392,-23650), that no Matrix 11 camp object stands there, that she
-can walk out to the south into the third zone and that its enemies appear, that a death there brings her back to that
-room, and that `coop mxiii leave` from there goes back out. To check that v2 refuses `coop mxiii 30`, swap the pak only
-after that `coop mxiii leave`, with the game closed. Check that the game keeps running and saves normally after you
-leave, then replace the slot with `coop saves refresh <0-4>` at the title.
+None of it has been tried in game yet. Start the game with the pak installed and the co-op saves on, then check:
+
+1. At the title, before you load a save: `UE4SS.log` shows
+   `[StellarCoop][MX] title: the rows are in, before any save loads` and `coop-link.log` shows `mxiii rows: 15/15 in`.
+   If it shows `mxiii rows refused -: net mode 4` or `no logic or net-mode global`, note which, then load and use
+   `coop mxiii` as before.
+2. With the rows in at the title, the first `coop mxiii` travels at once.
+3. The travel loads the map and EVE stands on its floor at the camp's arrival point. Note which enemies appear.
+4. With v2: the six objects and the coin stand on the floor without clipping, the coin activates the camp, the chair
+   rests, the phone booth travels to a camp of the main game and back from the camp list (with `coop where` showing
+   `map=` ending in `mxiii_p` on the way back), and a death in the zone brings EVE back to the camp.
+5. Walking on: the second zone's three waves come at its entry, at the arena's entrance and halfway through the arena,
+   and the fourth zone's main hall brings its 5 Antlions and 3 Clrikets.
+6. With v3: `coop mxiii 30` puts EVE on the floor of `ME03_Camp_01`'s room (`coop where`: `map=` ending in `mxiii_p`,
+   `eve=` near 26392,-23650), no Matrix 11 camp object stands there, she can walk out to the south into the third zone
+   and its enemies appear, a death there brings her back to that room, and `coop mxiii leave` from there goes back out.
+7. To check that v2 refuses `coop mxiii 30`, swap the pak only after that `coop mxiii leave`, with the game closed.
+8. The game keeps running and saves normally after you leave. Then replace the slot with `coop saves refresh <0-4>` at
+   the title.
 
 ### With the full map's pak
 
@@ -246,21 +249,34 @@ With the full map's pak, check at the title that `coop-link.log` shows the six M
 gardener batches in, each `rows=N/N` on its status line, and that no `[MX]` line says a table is missing. The `mxlily`
 batch comes after them, and so does `mxnames`, which is asked only once `coop-status.txt` reads `camptext=ready`: check
 for `mxnames rows: 11/11 in` in `coop-link.log`. `mxnames=off` with `camptext=wait` is no failure, only a batch not
-asked yet. Check `mxlily rows: 6/6 in` too. Then, on a co-op slot that has not been in the dungeon, in one session:
-`coop mxiii` arrives beside Lily at the Tetrapod and no dungeon camp is active; Talk opens her menu, its console and
-goodbye work, the other region opens the teleport screen with the Matrix 13 tab and comes back; each camp in zones 1
-to 4 has a coin on the floor and activates with it; a Great Desert Lily still shows her own menu after the patch; the surface lift rides
-down from its cab panel and comes back to the call switch you use; the R02 shutter is down and rises from the switch
-on the pillar; every door you meet is closed and opens from its
-panel, and a one-way door refuses from its far side; zone 1's enemies appear in R08, R20, R23 and R26, the new rows
-included (`DLC02_10_E_CharS_901` in R20); the `[MXMOVE]` count line shows 47 and no ladder line has a `0` in its
-stack; the R10 ladder climbs; the R28 rope drops when its winch turns and ladder gate 435's lever makes its ladder
-usable (the two rows the mod's late spawns bind by `EnvActorName`); a rest at the R04
-camp brings a killed Creeper back; the R29 gate opens from its switch; zone 2's waves come at the arena doorways, the
-arena gate shuts behind you and opens after the last kill, and after a death in the arena the waves and the lock come
-back at the doorway; the Gardener comes at the gantry step; the car 9 airlock
-shuts its outer door before the inner one opens; the Stalker in Z3R19 dies at 0 HP and the hall doors open then; the
-pressure door shuts behind you; the zone 4 trio appears only after trigger 004; the water drops from its panels; the
-Lion spawns with the `[MXBOSS]` fix line and its name on the boss bar, the fan door and D7 shut during the fight and
-open on its death; `coop mxiii warp 1` puts EVE at the surface lift; and `coop saves export` refuses the save
-afterwards.
+asked yet. Check `mxlily rows: 6/6 in` too.
+
+Then, on a co-op slot that has not been in the dungeon, in one session:
+
+1. `coop mxiii` arrives beside Lily at the Tetrapod and no dungeon camp is active.
+2. Talk opens her menu, its console and goodbye work, the other region opens the teleport screen with the Matrix 13 tab
+   and comes back.
+3. Each camp in zones 1 to 4 has a coin on the floor and activates with it.
+4. A Great Desert Lily still shows her own menu after the patch.
+5. The surface lift rides down from its cab panel and comes back to the call switch you use.
+6. The R02 shutter is down and rises from the switch on the pillar.
+7. Every door you meet is closed and opens from its panel, and a one-way door refuses from its far side.
+8. Zone 1's enemies appear in R08, R20, R23 and R26, the new rows included (`DLC02_10_E_CharS_901` in R20).
+9. The `[MXMOVE]` count line shows 47 and no ladder line has a `0` in its stack.
+10. The R10 ladder climbs.
+11. The R28 rope drops when its winch turns and ladder gate 435's lever makes its ladder usable (the two rows the mod's
+    late spawns bind by `EnvActorName`).
+12. A rest at the R04 camp brings a killed Creeper back.
+13. The R29 gate opens from its switch.
+14. Zone 2's waves come at the arena doorways, the arena gate shuts behind you and opens after the last kill, and after
+    a death in the arena the waves and the lock come back at the doorway.
+15. The Gardener comes at the gantry step.
+16. The car 9 airlock shuts its outer door before the inner one opens.
+17. The Stalker in Z3R19 dies at 0 HP and the hall doors open then.
+18. The pressure door shuts behind you.
+19. The zone 4 trio appears only after trigger 004.
+20. The water drops from its panels.
+21. The Lion spawns with the `[MXBOSS]` fix line and its name on the boss bar, the fan door and D7 shut during the fight
+    and open on its death.
+22. `coop mxiii warp 1` puts EVE at the surface lift.
+23. `coop saves export` refuses the save afterwards.

@@ -1,4 +1,4 @@
-# The cut Matrix XIII dungeon (experimental)
+# Matrix XIII: how it works
 
 The player's side of the dungeon is in [Matrix XIII](../matrix-xiii.md), and the quests that lead into it in
 [Lily's signal: how it works](lily-signal.md).
@@ -7,14 +7,17 @@ WorldTable row `DLCMatrix13` (ID 2800) points to `/Game/Art/BG/WorldMap_DLC_01/L
 build 24463856 holds. ZoneTable keeps its four zones (`Zone_DLC02_10` to `Zone_DLC02_40`, IDs 2800 to 2815) and
 EventSpawnTable 92 spawn rows for them, but no camp, zone warp, world transition or cheat row leads there. `coop mxiii`
 tests one way in. The zMXIII_P test pak, built outside the repository from shipped Matrix 11 levels and never in the
-mod's zip, puts a map at that path with a spawn point named `DLC02_10_Camp_01`; its v2 build adds the spawn points of
-a camp's objects, its v3 build a spawn point named `DLC02_30_Camp_01` in the third zone, and the full map (v4) a spawn
-point named `DLC02_00_Camp_00` at the zone 0 Tetrapod, 4.4 m from Lily. The mod adds the rows of
-a camp in `Zone_DLC02_10` and of a camp with no objects in `Zone_DLC02_30`, patches five trigger rows of the later
-zones in place, then calls the game's camp travel: on v4 `coop mxiii` goes to the Tetrapod camp, on older paks to the first camp, and
-`coop mxiii 30` to the second. With the
-test pak installed and the game on the co-op save files, the same rows also go in at the title, before any save loads
-([At the title](#at-the-title)).
+mod's zip, puts a map at that path. Its four builds add these spawn points:
+
+- v1: one named `DLC02_10_Camp_01`;
+- v2: those of a camp's objects;
+- v3: one named `DLC02_30_Camp_01`, in the third zone;
+- v4, the full map: one named `DLC02_00_Camp_00`, at the zone 0 Tetrapod, 4.4 m from Lily.
+
+The mod adds the rows of a camp in `Zone_DLC02_10` and of a camp with no objects in `Zone_DLC02_30`, patches five
+trigger rows of the later zones in place, then calls the game's camp travel: on v4 `coop mxiii` goes to the Tetrapod
+camp, on older paks to the first camp, and `coop mxiii 30` to the second. With the test pak installed and the game on
+the co-op save files, the same rows also go in at the title, before any save loads ([At the title](#at-the-title)).
 
 ## Its rows
 
@@ -341,25 +344,32 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
 
 ### The mechanisms
 
-- `mxupper` (zones 0 to 2, 168 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the
-  way Matrix 11 builds its own. A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an
-  empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name; its four LevelSequences
-  in `/Game/MXIII_Editor/Seq` (ToOpen as the Close state's OutTransit, ToClose as the Open state's, Closed and Opened as
-  the two Active ones, KeepState) move the cooked leaf and the hidden doorway blockers, as Matrix 11's `ME_04_EnvS_030`
-  moves its door. 34 doors start in the Open state and have no opener row, so EVE walks through them and presses
-  nothing (14 of them are arena doors, below). Twelve start closed: eleven doors and the Z2P07 grille. Nine are shortcut doors opened from one side: zone
-  1's R12 door and zone 4's D2, D3, D5, D7, drive room door, Z4P07 lift door, I3 walkway door and outfall grate door.
-  The zone 4 control room door opens once E10 is dead, and the car 9 airlock's inner door opens from its panels. The
-  airlock's outer door and the zone 3 pressure door start open and close by mechanism (below). A
-  shortcut door's opener (`Env_EnvState_2Phase` with the graph `ME_Area01_ShotCutDoor`, a copy of `ME_01_EnvS_026`)
-  fires, from its On state, the ZoneEvent row whose EventEnvControlTable row of the same name sets the door Open; the
-  locked side has the `_Opposite` graph, which only says it cannot be opened from there. Zone 2's one-way doors 050
-  and 037 keep their shipped rows (graph `MT20_ShortCutDoor01`); new rows `DLC02_20_EnvS_934` and `_935` show the
-  notice on the locked side of 051 and 037, and 050 and 037 disable them from their On state. In the cook copy each of
-  these twelve leaves carries Matrix 11's lock box (`Interaction/Door/004_C_SM` at scale 0.7, 112 cm over the floor;
-  on the drive room door and on D2, D3, D5 and D7 it sits on the bar that rises 150 cm during the first second of the swing), and the opener's spawn point is where
-  Matrix 11's `ME_Area01_ShotCutDoor_C` puts EVE relative to its box, so her hand lands on it. Zone 2's lattice gates
-  077, 078, 079, 081, 082 and 083 lead only to scenery: no prompt, disabled at the start, shut for good.
+`mxupper` (zones 0 to 2, 168 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the way
+Matrix 11 builds its own.
+
+A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an empty arrow
+(`BP_Env_Empty_Arrow_C`) at the spawn point of its own name; its four LevelSequences in `/Game/MXIII_Editor/Seq` (ToOpen
+as the Close state's OutTransit, ToClose as the Open state's, Closed and Opened as the two Active ones, KeepState) move
+the cooked leaf and the hidden doorway blockers, as Matrix 11's `ME_04_EnvS_030` moves its door.
+
+34 doors start in the Open state and have no opener row, so EVE walks through them and presses nothing (14 of them are
+arena doors, below). Twelve start closed: eleven doors and the Z2P07 grille. Nine are shortcut doors opened from one
+side: zone 1's R12 door and zone 4's D2, D3, D5, D7, drive room door, Z4P07 lift door, I3 walkway door and outfall grate
+door. The zone 4 control room door opens once E10 is dead, and the car 9 airlock's inner door opens from its panels. The
+airlock's outer door and the zone 3 pressure door start open and close by mechanism (below).
+
+A shortcut door's opener (`Env_EnvState_2Phase` with the graph `ME_Area01_ShotCutDoor`, a copy of `ME_01_EnvS_026`)
+fires, from its On state, the ZoneEvent row whose EventEnvControlTable row of the same name sets the door Open; the
+locked side has the `_Opposite` graph, which only says it cannot be opened from there.
+
+Zone 2's one-way doors 050 and 037 keep their shipped rows (graph `MT20_ShortCutDoor01`); new rows `DLC02_20_EnvS_934`
+and `_935` show the notice on the locked side of 051 and 037, and 050 and 037 disable them from their On state.
+
+In the cook copy each of these twelve leaves carries Matrix 11's lock box (`Interaction/Door/004_C_SM` at scale 0.7,
+112 cm over the floor; on the drive room door and on D2, D3, D5 and D7 it sits on the bar that rises 150 cm during the
+first second of the swing), and the opener's spawn point is where Matrix 11's `ME_Area01_ShotCutDoor_C` puts EVE
+relative to its box, so her hand lands on it. Zone 2's lattice gates 077, 078, 079, 081, 082 and 083 lead only to
+scenery: no prompt, disabled at the start, shut for good.
 
 ### Switches
 

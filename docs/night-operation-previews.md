@@ -132,8 +132,8 @@ restore puts it back; please send the logs in that case. The full recovery steps
 
 ## How the original matchmaking is blocked
 
-The cut mode's Join choice would ask Shift Up's servers for a match. StellarCoop keeps that request from leaving your
-game in these ways:
+The cut mode's Join choice would ask Shift Up's servers for a match. Stellar Blade Online keeps that request from
+leaving your game in these ways:
 
 - `coop recruiter` disarms the Join zone event and reads it back before it writes anything else (step 1 above). It also
   checks that the shipped zone event table is the only one in memory, so no other copy of the row can run. If any check

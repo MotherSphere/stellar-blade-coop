@@ -169,28 +169,31 @@ player's custom animation. Photo mode's own poses do not use these clips either:
 writes `PoseName_PhotoMode` and hands a pose snapshot baked from them to the animation instance, which the blueprint
 reads only in photo mode.
 
-So the native part plays the clip (`game/anim.h`, `glue/tick/anim_game.inc`). Lua asks
-`anim play <id> <path> once|loop` (the id counts up from the load's start time; the path must start with
-`/Game/Art/Character/PC/CH_P_EVE_01/Animation/`). On its next frame the game thread takes our EVE as the pawn
-(`AController::Pawn`, `+0x2f8`) of the player controller SB's getter `0x14231c710` gives, the actor
-`UEHelpers.GetPlayer` gives Lua, once it checked she is a live `ASBCharacter`, and calls SB's by-path entry
-`0x1420b31d0` the way the MovingTarget animation calls it (`0x1420909c3`): slot 0, the path as a `const FString&`,
-start 0, end -1 (the whole clip), rate 1, 0.25 s blends, -1 for SB's own stop at input (off), the loop flag with count
--1 or none, priority 0 (the flight start's), and five empty
-`FString` arguments, which that function frees only when their data is set. It loads the path as a
-`UAnimSequenceBase`, applies the priority rule, builds the other defaults itself and returns 0 once it played, 1 for an
-additive clip, -1 when the clip did not load or the slot's clip outranks ours; the FGuid comes back in its fourth
-argument. The flight start's wrapper `0x1420af3c0` was not used: it has no loop flag. `anim stop` calls SB's stop
-`0x1420addc0(character, 0, 0.25, the clip's FName, 1)`, which blends the slot out only while it holds that clip.
-While ours plays, the game thread reads slot 0 every 100 ms after checking the character is still the live object it
-played on: another FGuid, a cleared playing byte or a gone EVE end it, and a slot that took no weight in 1 s (SB's
-node is not playing it, so its time would never move) is freed and reported as `ended:weight`. Only time in a world
-that is not paused counts toward that second: the weight moves in her tick (`0x1420a7fd0`, the only caller of
+So the native part plays the clip (`game/anim.h`, `glue/tick/anim_game.inc`). Lua asks `anim play <id> <path> once|loop`
+(the id counts up from the load's start time; the path must start with `/Game/Art/Character/PC/CH_P_EVE_01/Animation/`).
+
+On its next frame the game thread takes our EVE as the pawn (`AController::Pawn`, `+0x2f8`) of the player controller
+SB's getter `0x14231c710` gives, the actor `UEHelpers.GetPlayer` gives Lua, once it checked she is a live
+`ASBCharacter`, and calls SB's by-path entry `0x1420b31d0` the way the MovingTarget animation calls it (`0x1420909c3`):
+slot 0, the path as a `const FString&`, start 0, end -1 (the whole clip), rate 1, 0.25 s blends, -1 for SB's own stop at
+input (off), the loop flag with count -1 or none, priority 0 (the flight start's), and five empty `FString` arguments,
+which that function frees only when their data is set. It loads the path as a `UAnimSequenceBase`, applies the priority
+rule, builds the other defaults itself and returns 0 once it played, 1 for an additive clip, -1 when the clip did not
+load or the slot's clip outranks ours; the FGuid comes back in its fourth argument. The flight start's wrapper
+`0x1420af3c0` was not used: it has no loop flag.
+
+`anim stop` calls SB's stop `0x1420addc0(character, 0, 0.25, the clip's FName, 1)`, which blends the slot out only while
+it holds that clip. While ours plays, the game thread reads slot 0 every 100 ms after checking the character is still
+the live object it played on: another FGuid, a cleared playing byte or a gone EVE end it, and a slot that took no weight
+in 1 s (SB's node is not playing it, so its time would never move) is freed and reported as `ended:weight`. Only time in
+a world that is not paused counts toward that second: the weight moves in her tick (`0x1420a7fd0`, the only caller of
 `UpdateCustomAnimWeight`), which a paused world does not run, so while the slot has no weight yet each watch asks the
-photo pause's read of the WorldSettings' `PauserPlayerState`. A new Lua load and `coop off` stop ours. A play taken
-while ours still plays stops ours first, and a play taken in the same frame as a new Lua load or after `coop off` is
-refused (`session` or `off`), so no clip of ours goes unwatched. All of it runs on the pinned build under its own SEH
-latch; the first fault tries once to stop ours and turns the native clips off for the run.
+photo pause's read of the WorldSettings' `PauserPlayerState`.
+
+A new Lua load and `coop off` stop ours. A play taken while ours still plays stops ours first, and a play taken in the
+same frame as a new Lua load or after `coop off` is refused (`session` or `off`), so no clip of ours goes unwatched. All
+of it runs on the pinned build under its own SEH latch; the first fault tries once to stop ours and turns the native
+clips off for the run.
 
 The engine status line carries `anim=<state> anim_id=<id>` for the last play the game thread took (`idle`, `playing`,
 `ended`, `ended:weight`, `stopped`, `refused:<eve|slots|game|off|session>` or `fault`). Lua sends a start only while

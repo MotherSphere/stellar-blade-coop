@@ -1,8 +1,8 @@
 # Cut enemies: how they are added
 
-The cut stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night Operation shop and Lily's signal use the row
-batches of `lion/rows.h` too, which [The cut Lion](#the-cut-lion) describes. The commands are in
-[Cut enemies](../cut-enemies.md).
+The cut Lion, Gardener and Tendril get the table rows they lack from the row batches of `lion/rows.h`, which
+[The cut Lion](#the-cut-lion) describes. The cut stimpacks, the ChainSpin, the Shock Bolt, Matrix XIII, the Night
+Operation shop and Lily's signal use the same batches. The commands are in [Cut enemies](../cut-enemies.md).
 
 ## The cut Lion
 
@@ -10,15 +10,15 @@ batches of `lion/rows.h` too, which [The cut Lion](#the-cut-lion) describes. The
 (0.6.0-beta.1) it spawned, moved and hit EVE, but stayed in its idle pose. Its assets ship in
 `/Game/Art/Character/Monster/CH_M_NA_02/`: the blueprint `CH_M_NA_02_BluePrint_Large`, the mesh with its fur cloth, 138
 animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and 41 Shows. No table row
-names it. Six files do the work: `cut/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and [the
-Tendril](#the-cut-tendril) share), `cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the rows as
-Lua reads them back), `lion/rows.h` (the rows and their build, free of Windows, tested on the build machine),
-`lion/shock.h` (the Shock Bolt's two lists, also free of Windows) and `glue/tick/lion_game.inc` (the game's calls).
-The rows of one request form a batch: `lion/rows.h` holds six, the lion rows batch below, the Gardener's, the
-Tendril's, the Shock Bolt's (see [The cut Shock Bolt](night-operation-shop.md#the-cut-shock-bolt)), Matrix XIII's (see
-[The cut Matrix XIII dungeon](matrix-xiii.md)) and the Night Operation shop's (see
-[The Night Operation shop screen](night-operation-shop.md#the-night-operation-shop-screen)), each with its own request word, answer and status
-line.
+names it. Six files do the work: `cut/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and
+[the Tendril](#the-cut-tendril) share), `cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the
+rows as Lua reads them back), `lion/rows.h` (the rows and their build, free of Windows, tested on the build machine),
+`lion/shock.h` (the Shock Bolt's two lists, also free of Windows) and `glue/tick/lion_game.inc` (the game's calls). The
+rows of one request form a batch: `lion/rows.h` holds six, the lion rows batch below, the Gardener's, the Tendril's, the
+Shock Bolt's (see [The cut Shock Bolt](night-operation-shop.md#the-cut-shock-bolt)), Matrix XIII's (see
+[Matrix XIII: how it works](matrix-xiii.md)) and the Night Operation shop's (see
+[The Night Operation shop screen](night-operation-shop.md#the-night-operation-shop-screen)), each with its own request
+word, answer and status line.
 
 ### The rows
 
@@ -260,7 +260,7 @@ runs. The copy is in no file, so a Lua reload during its 13 s leaves it until th
   typed the command. Sharing one would need a key range of its own, a host spawn through `NewActor` in the shared
   fight's job, a guest rule in same spawns, a `kBosses` row and a protocol bump.
 
-### Open questions
+### Open questions about the Lion
 
 Only the game can settle these:
 
@@ -297,7 +297,7 @@ sets and its appearance (`M_Gardener`, 50010), dead and detection rows. It lacks
 tree. `cut/gardener.lua` holds its spec for `cut/enemy.lua`, the flow it shares with the Lion; its rows are the second
 batch of `lion/rows.h` (`kGardenerRecipe`) and `cut/lion_rows.lua` (`R.GARDENER`), from the same generator.
 
-### Its rows
+### The Gardener's rows
 
 The 13 rows are near copies: each is a shipped row with every field it holds restated and a few changed (279 fields,
 102 of them changed).
@@ -333,7 +333,7 @@ lists exactly the three commands at speed 0, the name key is in `CharacterString
 missing from the collision data the blueprint uses (`CH_M_NA_02_Lion_Collision`: the Gardener's data started as a copy
 of the Lion prototype's).
 
-### Its batch in the native part
+### The Gardener's batch in the native part
 
 The Gardener's rows go in on their own request, `gardener rows <Table>=0x<address> ...`, with the same 20 table words as
 the Lion's (`Request::batch` says which batch). Each batch has its own ask, answer word and builder (a `RowsJob` in
@@ -356,7 +356,7 @@ calls. A fault anywhere in that call may leave shared state half written, so it 
 are built by the worker from what the game thread published and make no engine call. The Shock Bolt's list growth
 writes nothing a batch writes, and keeps its own latch ([The cut Shock Bolt](night-operation-shop.md#the-cut-shock-bolt)).
 
-### Its spawn
+### The Gardener's spawn
 
 `cut/gardener.lua` spawns 50010 (50012 with `half`, 50011 with `skulling`) through the Lion's call, 25 m ahead of EVE
 (12.5 m at half size) and 7.5 m above her feet: the blueprint's capsule half-height (700 cm) plus 50 cm, so the capsule
@@ -368,7 +368,7 @@ once found the body's mesh gets a relative yaw of -90 degrees (`K2_SetRelativeRo
 Hide or UnHide plays: no Show plays those clips, and a clip on the real mesh would replace the anim instance the game
 plays its skills on.
 
-### Open questions
+### Open questions about the Gardener
 
 Beyond the Lion's:
 
@@ -393,7 +393,7 @@ and 42 clips. No table row names it and no Show plays any of its clips. `cut/ten
 `cut/enemy.lua` and builds its Shows in memory; its rows are the third batch of `lion/rows.h` (`kTendrilRecipe`) and
 `cut/lion_rows.lua` (`R.TENDRIL`, the Shows in `R.TENDRIL_SHOWS`), from the same generator.
 
-### Its rows
+### The Tendril's rows
 
 107 rows, authored as the Lion's are: every field stated over the Lion's template rows (1281 fields, 997 of them set to
 a value other than the template's).
@@ -438,7 +438,7 @@ every reference lands, each skill's steps last as long as its clip, every hit ho
 front, the anim sets name clips of its folder, the stance lists its commands, the template Show has one anim key and
 nothing else, and the blueprint turns its mesh as the measurements and `cut/tendril.lua` expect.
 
-### Its Shows
+### The Tendril's Shows
 
 A step names its Show in `ShowPath`. No pak holds a Show of a Tendril clip, so after the read-back and before the
 spawn `cut/tendril.lua` builds the 12 the rows name, one per skill and one for its death, in a package of the mod's own,
@@ -464,14 +464,14 @@ grenade and fishing skills do.
 A Lua reload finds the package and the Shows already built and sets the Shows again. Once a second while a Tendril
 lives, a Show that is gone (the root set flag did not hold) is built again, and the log says so.
 
-### Its batch in the native part
+### The Tendril's batch in the native part
 
 The Tendril's rows go in on their own request, `tendril rows <Table>=0x<address> ...`, with their own job, answer and
 `tendril=` line in the `lion=` line's format (`added=<n>/107`, `char=<k>/1 skills=<k>/11 stance=<k>/1`). The gate, the
 block, the spawn counter and the SEH latch are shared with the other two batches. This is a local request: the link
 protocol did not change.
 
-### Its spawn
+### The Tendril's spawn
 
 `cut/tendril.lua` spawns 50060 through the Lion's call, 8 m ahead of EVE (out of its strikes' reach) and 1 m above her
 middle, facing her. The body is the new `CH_M_NA_06_Blueprint_C` nearest the spot. Its skeleton faces +X (its head is
@@ -481,7 +481,7 @@ turns it back. Its one material slot is empty, so the mesh takes the Hydra's ten
 hydra` does in the viewer. The boss bar reads `<M_TendrilC>` (no Tendril text in CharacterStringTable), and
 `cut/enemy.lua` writes `Tendril` there as it writes `Lion` for the Lion. There is no entrance: none of its clips is one.
 
-### Open questions
+### Open questions about the Tendril
 
 Beyond the Lion's:
 
