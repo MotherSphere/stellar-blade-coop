@@ -261,7 +261,7 @@ Quest_Sub_005 complete, the mod starts its prologue quest "A Second Signal" and 
 Its pick plays a talk in the game's subtitle box, starts the mod's quest "On Time" and runs `coop mxiii`'s camp travel.
 "On Time" has six steps through Matrix XIII and ends with a second talk with Lily. Without the test pak the mod adds
 none of its rows and reads nothing. The whole feature, its conditions,
-its notes on saves and its `[StellarCoop][LY]` lines are in lily-signal.md. None of it has been tried
+its notes on saves and its `[StellarCoop][LY]` lines are described earlier on this page. None of it has been tried
 in game yet. The native part reports it in `coop-status.txt`:
 
 - `signal=`, the quests' rows and the borrowed choice row, in the same forms as the `lion=` line (see

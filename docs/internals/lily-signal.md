@@ -1,9 +1,11 @@
-# Lily's signal (experimental)
+# Lily's signal: how it works
 
 `matrix13/quest/on_time.lua` starts a prologue quest of the mod's own in Phase 5, adds a choice to Lily's menu, starts a
-longer quest of the mod's own and plays three talks (player's side: [lily-signal.md](../lily-signal.md)). Nothing of it has
+longer quest of the mod's own and plays three talks (player's side: [Lily's signal](../lily-signal.md)). Nothing of it has
 run in game yet. It joins pieces that exist for other features: a rows batch through SB's AddRow, the select cache swap
 of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s camp travel.
+
+## The rows
 
 1. Rows: `lion/rows.h`'s seventh batch, `kSignalRecipe` (request `signal rows`, status `signal=`), adds 24 rows to 4
    tables no other batch writes, each a copy of a shipped row with its own patches. 8 LevelTargetFilter rows, one per
@@ -39,6 +41,9 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    through the recruiter's checked edit (each row's ID checked first, the choice row's exec too, then a fresh FindRow
    reads them back). The choice row's label is written again (checked the same way) when the wanted one changes. No
    text key is registered, for the reason given under [Roxanne's choices](night-operation-shop.md#roxannes-night-operation-choices).
+
+## The quests
+
 4. The quests' reads and asks: `quest/own.h` (free of Windows, tested against fake memory) runs on the game thread
    every 250 ms on a co-op save until `coop off`, under its own SEH latch, with the shared quests' save-slot line and
    offsets, but only from Lua's first signal request: `signal watch`, which Lua sends once a Lua load when the cheap
@@ -59,6 +64,9 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
 5. The prologue: once every gate below up to Quest_Sub_005 holds, Quest_Epic_11 reads group 3 (M04) in progress and
    neither quest is held, Lua waits 5 s with the game unpaused and no game screen shown, reads `coop scene`'s
    theater observers once (no cutscene of the game may play then), and asks `signal prologue`, once a Lua load.
+
+## Lily's choice
+
 6. The list: `nightop/roxanne.h` takes a list (its name, its own rows, ours, and whether its own rows must come in
    order). Roxanne's keeps her two rows in her order; Lily's checks her eight (`TS_Xion_Lily_Choice_1` to `_8`) as a
    set, since the cache's order of them is not known, and installs a new array of nine: the borrowed row, then her
@@ -79,6 +87,9 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    prologue to complete, then asks `signal acquire` and, once the line reads `held`, calls `coop mxiii` (its co-op save
    check, the follow's guards, the test pak, the mxiii rows, the travel). After the end talk Lua asks `signal tell`. A
    talk that does not play, a refused ask or a wait that runs out logs a `STOP:` line and the flow goes on.
+
+## The talks
+
 8. The zone talks: `matrix13/quest/zone_talks.lua` is ticked by `on_time.lua` in world 2800 with "On Time" in progress
    and looks once a second. Each scene has one trigger: a box in the plan frame around its room (rooms, routes and
    markers of the design plans), a boss's death (`boss.lua` follows a body it saw near its point and sets `Boss.dead`
@@ -129,6 +140,9 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    not registered, the Stop row and the kit version (`ui/kit.lua`: the speaker and the line at the bottom centre,
    each for its window or its reading time); no kit, no talk. `cut/scene.lua`'s donor row check accepts an empty
    theater and the talks' level sequences, and every play writes both fields.
+
+## In Matrix XIII
+
 9. Matrix XIII: the arrival talk plays once a Lua load (Lua memory only), 1 s after EVE's map turns to `MXIII_P` with
    "On Time" held and no game screen shown, never during another talk. Once EVE stands in that map with the quest at
    M01 and its task in progress for 10 s (SB's EnterZone check did not fire after the camp travel), Lua asks
@@ -136,9 +150,14 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    asks `signal zone4`, once a visit. The box is the planned dungeon's (zone 4's room Z4R18 in zone 1's plan frame,
    turned into world centimetres in `matrix13/quest/on_time.lua`); the test pak has no zone 4 room there, so `coop lily
    signal next` stands in for it.
+
+## Export
+
 10. Export: `save/twins.h`'s `mod_only` refuses a co-op save that names `Quest_Sub_MX13_00` or `Quest_Sub_MX13_01`
     anywhere (an FString in a released-game save, the tracked quest and `CompleteQuestList` included). The save keeps
     a finished quest's alias, so the refusal says the save cannot be exported, with no "export it again".
+
+## Not checked offline
 
 Not checked offline: AddRow on the quest tables (only the Lion's, the shop's and `coop mxiii`'s batches went through it
 in game) and TheaterSelectDataTable's class and row size; that the quest UI reads the title and description written

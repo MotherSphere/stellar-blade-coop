@@ -288,6 +288,8 @@ bytes, a batch of 256 rows or more, a name given twice, a string list of one emp
 as no item) and a row whose strings and lists overflow the native part's 4 KB pool. The data file is built outside the
 repository from the cook's manifest, the mechanism design and the build 24463856 table dumps.
 
+### The nine batches
+
 Nine batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxupper rows`, `mxmiddle rows`, `mxlower
 rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one never stops another (`mxlily`: [Lily's menu](#lilys-menu)):
 
@@ -336,6 +338,9 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   `DLC02_10_EnvS_440` (reward group `b_desert_Box2`) at their point and in their zone; 97 new pickups copy
   `DLC02_10_E_ItemS_001` with the item and count of their map marker (`BetaCrystal` x12 where the marker names none).
   The 25 records wait for the records batch.
+
+### The mechanisms
+
 - `mxupper` (zones 0 to 2, 168 rows), `mxmiddle` (zone 3, 106) and `mxlower` (zone 4, 105): the mechanisms, built the
   way Matrix 11 builds its own. A door is an `Env_Countdown_Gate` row (a copy of `DLC02_20_EnvS_076`) whose actor is an
   empty arrow (`BP_Env_Empty_Arrow_C`) at the spawn point of its own name; its four LevelSequences
@@ -354,53 +359,68 @@ rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one nev
   these twelve leaves carries Matrix 11's lock box (`Interaction/Door/004_C_SM` at scale 0.7, 112 cm over the floor;
   on the drive room door and on D2, D3, D5 and D7 it sits on the bar that rises 150 cm during the first second of the swing), and the opener's spawn point is where
   Matrix 11's `ME_Area01_ShotCutDoor_C` puts EVE relative to its box, so her hand lands on it. Zone 2's lattice gates
-  077, 078, 079, 081, 082 and 083 lead only to scenery: no prompt, disabled at the start, shut for good. The switches
-  of zone 1's doors 438 and 439, the shutter switches 432, 446 and 447, the ladder gate switch 434, the R29 gate's switches 001 and 601, the
-  Z2P07 grille switch 937 and the sockets 027 and 038 spawn `Env_CardControl_Switch_Wireless_C`: the Off/On code of `Env_CardControl_Switch2_C` on
-  the `003_E_SM` box of the zone 2 switches (Switch2's `003_D_SM` has a second piece 4 m up). Their spawn points sit
-  on a wall beside the door, root 115 cm over the floor, with EVE 60 cm in front of the box.
-  The Z2P07 grille (`DLC02_20_EnvS_936`, a copy of `DLC02_20_EnvS_076`) is such a gate: switch 937 in the manhole room
-  fires `DLC02_20_E_EnvC_936` 1.5 s after the press, the grille rises 255 cm in 4 s and pickup `DLC02_20_E_ItemS_023`
-  (2DQuantumWafer x1) lies in the pipe behind it.
-  Switch gates and approach gates keep their shipped rows and switch chains with our sequences. Lifts are their shipped
-  `Env_Lift` rows with our sequences per Wait state. A cab panel's graph holds EVE for a fixed time after her press
-  (`WLA30_Lift` and `MT40_Lift`: the ride starts 1.5 s after the press animation, she moves again 11 s into the ride and
-  the panel comes back 1.5 s later), so the ride has to end when that time does. The surface lift 431 and the train lift
-  R13 (row 621) ride for 6 to 7 s and take Drowned Eidos's rooftop lift graph `DED02_RooftopLift` instead: the ride
-  starts with the press and she moves again 7.25 s into it. Call switches (`MT20_DoorSwitch01` rows) send the cab to
-  their landing from either of their states; the zone 4 lift I3's two call switches start enabled, since their shipped
-  enabler, row `DLC02_40_EnvS_017`, has no actor in the map. Arenas use SE_08's pattern: a fight (EventOnBattle of a
-  spawn row) shuts the doors, each EventOnDead adds 1 to an `Env_<N>CountProgress` row (an
-  EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and the Lion's own deaths open
-  theirs. The Lion shuts its fan door and gate D7 on battle (D7 through `DLC02_40_E_EnvC_630` and the
-  `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. Its death also enables the fan levers 023 to
-  025 (`DLC02_40_E_EnvC_631` to `633`), which start disabled. The fallback Lion of `coop mxiii boss` has no spawn row and
-  so no EventOnDead: `boss.lua` fires the same three events with `CreateSBZoneEvent` kind 10 when it reads that Lion dead
-  [inference: never run in game]. A save whose Lion died on a build without these rows keeps its levers disabled and
-  needs a new run. `matrix13/world/fans.lua` holds each cooked rotor's
-  RotatingMovementComponent off until that fan's lever reads On, so the fans stand still from arrival without a cook
-  change. Lever 023's On also fires scene 4G. The counters, the zone 2 wave triggers, the
-  14 zone 3 and fan room arena doors and every opener a lock disables (D7's) are `ResetZone` (2), as SE_08's counter
-  `SE_08_EnvS_090` is: if EVE dies in an arena, the zone reset puts them back, the arena doors to their Open start, the
-  other doors keep their saved state, and the next fight locks them again (that a death
-  resets ResetZone rows and keeps Save rows is not traced). The zone 2 waves moved to new triggers 601 to 603
-  (the cooked boxes inside each arena doorway), which also shut the arena gate behind EVE but leave switches 005, 007
-  and 009 alone; triggers 001, 005 and 006 go back to their shipped rows. Zone 3's trigger 601 shuts the pressure door
-  behind EVE for good. Zone 1's shutter 429 (the two 015_B leaves between R02 and R03) starts down and rises when EVE
-  uses switch `DLC02_10_EnvS_447` on the R02 side of the pillar between them, a copy of switch 432, which opens
-  shutter 433 the same way; the shipped foot switch row 430 is an `Env_Lift` with a level-placed foothold, which the
-  map does not have. The car 9 airlock's panel inside toggles two states:
-  one shuts the outer door and opens the inner one 3.5 s later, the other does the reverse, and a call panel outside
-  each door sets the state that opens its own door. Zone 4's water device keeps its shipped P1, P2 and P3 states with
-  our sequences, driven by its drain and pipe panels (`ME_Area04_2Phase`), with two toxic effect volumes. An enable-only
-  EnvC row has TagName None, as 100 shipped rows do. Every new name and ID is free in the dumps, and every event a row
-  fires resolves to a ZoneEvent row of the data or of the game.
+  077, 078, 079, 081, 082 and 083 lead only to scenery: no prompt, disabled at the start, shut for good.
+
+### Switches
+
+The switches of zone 1's doors 438 and 439, the shutter switches 432, 446 and 447, the ladder gate switch 434, the R29
+gate's switches 001 and 601, the Z2P07 grille switch 937 and the sockets 027 and 038 spawn
+`Env_CardControl_Switch_Wireless_C`: the Off/On code of `Env_CardControl_Switch2_C` on the `003_E_SM` box of the zone 2
+switches (Switch2's `003_D_SM` has a second piece 4 m up). Their spawn points sit on a wall beside the door, root 115 cm
+over the floor, with EVE 60 cm in front of the box. The Z2P07 grille (`DLC02_20_EnvS_936`, a copy of
+`DLC02_20_EnvS_076`) is such a gate: switch 937 in the manhole room fires `DLC02_20_E_EnvC_936` 1.5 s after the press,
+the grille rises 255 cm in 4 s and pickup `DLC02_20_E_ItemS_023` (2DQuantumWafer x1) lies in the pipe behind it.
+
+### Gates and lifts
+
+Switch gates and approach gates keep their shipped rows and switch chains with our sequences. Lifts are their shipped
+`Env_Lift` rows with our sequences per Wait state. A cab panel's graph holds EVE for a fixed time after her press
+(`WLA30_Lift` and `MT40_Lift`: the ride starts 1.5 s after the press animation, she moves again 11 s into the ride and
+the panel comes back 1.5 s later), so the ride has to end when that time does. The surface lift 431 and the train lift
+R13 (row 621) ride for 6 to 7 s and take Drowned Eidos's rooftop lift graph `DED02_RooftopLift` instead: the ride starts
+with the press and she moves again 7.25 s into it. Call switches (`MT20_DoorSwitch01` rows) send the cab to their
+landing from either of their states; the zone 4 lift I3's two call switches start enabled, since their shipped enabler,
+row `DLC02_40_EnvS_017`, has no actor in the map.
+
+### Arenas
+
+Arenas use SE_08's pattern: a fight (EventOnBattle of a spawn row) shuts the doors, each EventOnDead adds 1 to an
+`Env_<N>CountProgress` row (an EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and
+the Lion's own deaths open theirs. The Lion shuts its fan door and gate D7 on battle (D7 through `DLC02_40_E_EnvC_630`
+and the `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. Its death also enables the fan levers
+023 to 025 (`DLC02_40_E_EnvC_631` to `633`), which start disabled. The fallback Lion of `coop mxiii boss` has no spawn
+row and so no EventOnDead: `boss.lua` fires the same three events with `CreateSBZoneEvent` kind 10 when it reads that
+Lion dead [inference: never run in game]. A save whose Lion died on a build without these rows keeps its levers disabled
+and needs a new run. `matrix13/world/fans.lua` holds each cooked rotor's RotatingMovementComponent off until that fan's
+lever reads On, so the fans stand still from arrival without a cook change. Lever 023's On also fires scene 4G. The
+counters, the zone 2 wave triggers, the 14 zone 3 and fan room arena doors and every opener a lock disables (D7's) are
+`ResetZone` (2), as SE_08's counter `SE_08_EnvS_090` is: if EVE dies in an arena, the zone reset puts them back, the
+arena doors to their Open start, the other doors keep their saved state, and the next fight locks them again (that a
+death resets ResetZone rows and keeps Save rows is not traced). The zone 2 waves moved to new triggers 601 to 603 (the
+cooked boxes inside each arena doorway), which also shut the arena gate behind EVE but leave switches 005, 007 and 009
+alone; triggers 001, 005 and 006 go back to their shipped rows. Zone 3's trigger 601 shuts the pressure door behind EVE
+for good.
+
+### Shutters, the airlock and the water
+
+Zone 1's shutter 429 (the two 015_B leaves between R02 and R03) starts down and rises when EVE uses switch
+`DLC02_10_EnvS_447` on the R02 side of the pillar between them, a copy of switch 432, which opens shutter 433 the same
+way; the shipped foot switch row 430 is an `Env_Lift` with a level-placed foothold, which the map does not have. The car
+9 airlock's panel inside toggles two states: one shuts the outer door and opens the inner one 3.5 s later, the other
+does the reverse, and a call panel outside each door sets the state that opens its own door. Zone 4's water device keeps
+its shipped P1, P2 and P3 states with our sequences, driven by its drain and pipe panels (`ME_Area04_2Phase`), with two
+toxic effect volumes. An enable-only EnvC row has TagName None, as 100 shipped rows do. Every new name and ID is free in
+the dumps, and every event a row fires resolves to a ZoneEvent row of the data or of the game.
+
+### Warp points
 
 The 72 warp switches of the first full build are gone (Matrix 11 has none): their rows went with the `mxwarp` batch,
 and their spawn points in the cooked map stay empty. `coop mxiii warp` lists the 72 arrival points they led to
 (`DLC02_<zone>_WarpPoint_<n>`, kept in the cooked map and in `matrix13/world/rows.lua`'s WARP list), and `coop mxiii
 warp <n|name>` puts EVE on one with `K2_TeleportTo`, under the follow's guards (solo, a co-op save, no travel under way)
 and in world 2800 only, as a test fallback.
+
+### The order at the title
 
 At the title, once the `mxiii=` line has an answer, `matrix13/world/travel.lua` asks the others one at a time, each once
 the batch before it has an answer (rows, or a refusal, which never holds the next one back): `mxspawn`, `mxenv`,
@@ -410,9 +430,13 @@ since the zone manager lists a world's rows when the world starts. `coop mxiii` 
 lines but `mxnames` reads `rows`, and names the first batch that does not: the travel would reach a dungeon without its
 Naytibas or its doors, and a peer's shared Naytibas would match no spawn row.
 
+### The drone's light
+
 In world 2800, `matrix13/world/drone.lua` gives the drone's spot light 20 % more range and cone at the same intensity: a
 post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes each tick, and the cone goes back to
 30/40 degrees on leaving the world.
+
+### Ladders, ledges and ropes
 
 In world 2800, `matrix13/world/travel.lua`'s tick runs two more files. `matrix13/world/move.lua` spawns, once a world,
 SB's `BP_EM_Ladder_C` at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder),
@@ -440,13 +464,19 @@ value (its TArray fix, #436, came in 4.0): filled from its last piece, every mul
 short in game (R28's 3,3 as 3). The `Meshes` stack now gets its first piece, then a write one past its last piece
 that only sizes the array, then every piece inside it. It is read back; a stack that differs is emptied and written
 front to back, and one that still differs is destroyed before its finish and named in the log. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back
-before `FinishSpawningActor` and the `TotalHeight` its script built. `matrix13/world/boss.lua` looks, once a second
-while EVE is within 80 m of a boss point, for a body of the Lion's or the Gardener's blueprint within 30 m of it, and
-fixes it once: the Lion through `cut/lion.lua`'s `adopt` (its anim instance, else the hidden Behemoth leader that `coop
-lion` uses), the Gardener's mesh turned -90 degrees. While one lives, the boss bar shows its name. EVE standing 20 s
-within 25 m of a boss point with no body there gets one `[MXBOSS]` line naming `coop mxiii boss`, which spawns that
-arena's boss through `coop lion` or `coop gardener fight` (key 0, no saved death). It never runs by itself: a boss
-killed before stays dead through its row's SaveType, and an automatic spawn would bring it back at each visit.
+before `FinishSpawningActor` and the `TotalHeight` its script built.
+
+### Bosses
+
+`matrix13/world/boss.lua` looks, once a second while EVE is within 80 m of a boss point, for a body of the Lion's or the
+Gardener's blueprint within 30 m of it, and fixes it once: the Lion through `cut/lion.lua`'s `adopt` (its anim instance,
+else the hidden Behemoth leader that `coop lion` uses), the Gardener's mesh turned -90 degrees. While one lives, the
+boss bar shows its name. EVE standing 20 s within 25 m of a boss point with no body there gets one `[MXBOSS]` line
+naming `coop mxiii boss`, which spawns that arena's boss through `coop lion` or `coop gardener fight` (key 0, no saved
+death). It never runs by itself: a boss killed before stays dead through its row's SaveType, and an automatic spawn
+would bring it back at each visit.
+
+### Breakable boxes
 
 The same tick runs `matrix13/world/breakables.lua`. The cooked map has 316 StaticMeshActors tagged `MXIII_BREAK` in
 `MXIII_Z0_Surface` and `MXIII_Z1_Life` to `MXIII_Z4_Life`. They are proxies and cannot be broken. The shipped levels
@@ -464,6 +494,8 @@ that rests on it. Only the world's address decides a new spawn, since a broken b
 one `[MX] [MXBREAK]` line, and a total line follows the last one. Each PC spawns its own boxes, so a box broken on one
 PC stays whole on the other. Whether a ZoneEventActor spawned after its level loaded registers with its row and breaks
 is untested.
+
+### Export
 
 The export check (`save/twins.h`) refuses a co-op save holding any FString that starts with `DLC02_` outside the camp
 fields it already reads (names that start with `Zone_DLC02_` excepted, every save holds them). None of the user's 15

@@ -147,7 +147,7 @@ file is written in full beside its final name and then renamed over it, so the r
 - Two files are Lua's alone, for the [crash sentinel](ghost.md#cns-guard-and-crash-sentinel): `coop-cns-call.txt`, written in
   place with no temporary file to keep each write to one, and `coop-cns-aside.txt`, the set-aside list.
 
-The full list is in [../settings.md](../settings.md#files-in-the-mod-folder).
+The full list is in [Settings](../settings.md#files-in-the-mod-folder).
 
 ## The co-op UI's input
 

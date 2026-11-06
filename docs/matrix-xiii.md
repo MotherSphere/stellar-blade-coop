@@ -11,6 +11,8 @@ in a session) on a [co-op save](playing-with-a-friend.md#co-op-saves). Its lines
 [Lily's signal](lily-signal.md) leads into the same dungeon through two quests of the mod's own. The rows and the camp
 travel behind the command are described in [internals/matrix-xiii.md](internals/matrix-xiii.md).
 
+## The test pak
+
 The test pak has four builds, and the command takes any of them and logs which one it found. v1 holds the map, the
 zone and the enemies' spawn points, with the camp's arrival point at the dungeon start. v2 adds spawn points for the
 camp's six objects and its coin at the site of Matrix 11's first simple camp (`ME01_Camp_01`, in Area01), and moves
@@ -20,6 +22,8 @@ that Matrix 11 camp's six objects out of the way too. It also moves the vending 
 those levels, since activating a Matrix 11 camp counts toward the camp trophy. v2 leaves one of them in the first zone
 (Matrix 11's `ME01_Camp_02`, at 28804, 1308): do not use it. v4 is the full map, with the arrival point of the
 Tetrapod camp beside Lily. v3 and v4 take `coop mxiii 30`.
+
+## Using `coop mxiii`
 
 1. With the game closed, put `zMXIII_P.utoc`, `zMXIII_P.ucas` and `zMXIII_P.pak` in `SB/Content/Paks/~mods` (or
    `SB/Content/Paks/LogicMods`).
@@ -58,6 +62,8 @@ Tetrapod camp beside Lily. v3 and v4 take `coop mxiii 30`.
    camps. `coop mxiii leave` refuses when the mod has no read of your activated camps yet (during a load, for example);
    try again a few seconds later.
 
+## The camps
+
 On the full map every full and simple camp stands inactive with its own coin on the floor beside its vending machine,
 put there when EVE enters that camp's zone. A full camp has the tall vending machine, a skill machine, a chair, a
 storage box, a turntable, a phone booth and the base with its parasol and fire, which light up on activation. A simple
@@ -94,6 +100,8 @@ opening to the south. That spot is off the navigation mesh, like the first zone'
 camps, so enemies do not follow her into the room; the first polygon starts about 42 m south. A death in the third or
 fourth zone should bring EVE back to this camp, since the arrival makes it hers (read from the game's code, not tried).
 
+## Enemies of the later zones
+
 Some enemies of the dungeon's later zones start from props of the cut map, which no pak holds. In the second zone
 (`Zone_DLC02_20`), three waves of Antlions (4, 3 and 4) come when three gates open. In the fourth zone
 (`Zone_DLC02_40`), two chains of enemies (5 Antlions, then 3 Clrikets) wait for two zone triggers that stay switched
@@ -118,6 +126,8 @@ The change lives in memory for the game run, like the camp's rows, and these row
 dungeon has. Whether EVE can climb from the second zone to the third is still open: in Matrix 11 that climb runs on
 Matrix 11's own triggers and cutscene levels, which the test pak does not stream, and no row of the dungeon can stand
 in for them. `coop mxiii 30` goes around that climb.
+
+## Notes on the pak, the save and the rows
 
 - The pak check reads `zMXIII_P.utoc` once per command and looks for `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` in
   it, with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it. It then reads `zMXIII_P.ucas` 16 MB at a time, up to its
@@ -157,6 +167,8 @@ in for them. `coop mxiii 30` goes around that climb.
 - `coop off` ends the wait for the rows. A travel the game already took goes on. At the title, the mod asks for the
   rows again after `coop on`.
 
+## The full map
+
 With the full map's pak (all four zones, cooked with the mechanisms), the title adds the rest of the dungeon after the
 camp rows: its other camps and their kits, Lily and the Tetrapod on the zone 0 plaza, the zones' enemies with the three
 bosses, and the mechanisms, built the way Matrix 11 builds its own. Every door starts closed. Its panel on either side
@@ -175,6 +187,8 @@ game spawned none there. The fan levers wait for the Lion's death: a save whose 
 levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight. The link protocol is
 15: both players need a build with the same rows. A co-op save that played in the dungeon can no longer be exported to
 your own saves ([saves.md](saves.md)).
+
+## Status lines
 
 | Line | What it answers |
 | --- | --- |
@@ -200,12 +214,14 @@ your own saves ([saves.md](saves.md)).
 | `[StellarCoop][MX] [MXMOVE] ladder <key> at <x> <y> <z> yaw <d> height <h> stack <pieces> built <h> (<role>), deferred spawn` (or `ledge`, `rope ... drop <cm> env <row>`) | In the dungeon, a ladder, ledge or rope the mod spawned, and how (`SpawnActor, construction script run again` when the deferred spawn failed). `stack` is the ladder's `Meshes` as the actor holds them before it finishes spawning (for example `3,3`); a `0` there, or `?`, means the stack did not go in and the ladder is short. `built` is the `TotalHeight` its construction script came to and should equal `height`; when it is larger, the ladder stands `built - height` cm too high |
 | `[StellarCoop][MX] [MXMOVE] <n>/47 ladders, ledges and ropes spawned in world 2800` | All of them, once a world |
 | `[StellarCoop][MX] warp <n> <point> (<mover>)` | `coop mxiii warp` alone: one line per point |
-| `[StellarCoop][MX] warp <n> <point> (<mover>) to <x> <y> <z> yaw <d>` | `coop mxiii warp <n|name>` moved EVE there (`: the game refused the teleport` when it did not) |
+| `[StellarCoop][MX] warp <n> <point> (<mover>) to <x> <y> <z> yaw <d>` | `coop mxiii warp <n\|name>` moved EVE there (`: the game refused the teleport` when it did not) |
 | `[StellarCoop][MX] [MXBOSS] Lion DLC02_40_E_CharS_051 found near its point: <what was done>` (or the Gardener) | The game spawned the boss from its row and the mod fixed it |
 | `[StellarCoop][MX] [MXBOSS] no Lion body within 30 m of DLC02_40_E_CharS_051 after 20 s: coop mxiii boss spawns one (key 0, no saved death)` | No body at the arena: type `coop mxiii boss` there for the fallback fight |
 | `[StellarCoop][MX] travel to DLC02_00_Camp_00 asked: ...` (or `DLC02_10_Camp_01`, `DLC02_30_Camp_01`) | The camp travel went to the native part |
 | `[StellarCoop][TR] travel accepted: DLC02_00_Camp_00` (or `DLC02_10_Camp_01`, `DLC02_30_Camp_01`) | The game took the travel: the fade and the load follow |
 | `[StellarCoop][TR] travel: SB refused DLC02_00_Camp_00` (or `DLC02_10_Camp_01`, `DLC02_30_Camp_01`) | The game did not find the camp (see step 4) |
+
+## What to check in game
 
 None of it has been tried in game yet. Start the game with the pak installed and the co-op saves on, and check at
 the title, before you load a save, that `UE4SS.log` shows `[StellarCoop][MX] title: the rows are in, before any save
@@ -223,6 +239,8 @@ can walk out to the south into the third zone and that its enemies appear, that 
 room, and that `coop mxiii leave` from there goes back out. To check that v2 refuses `coop mxiii 30`, swap the pak only
 after that `coop mxiii leave`, with the game closed. Check that the game keeps running and saves normally after you
 leave, then replace the slot with `coop saves refresh <0-4>` at the title.
+
+### With the full map's pak
 
 With the full map's pak, check at the title that `coop-link.log` shows the six Matrix XIII batches and the lion and
 gardener batches in, each `rows=N/N` on its status line, and that no `[MX]` line says a table is missing. The `mxlily`

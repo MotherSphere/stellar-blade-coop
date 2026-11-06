@@ -265,7 +265,7 @@ any save. See [night-operation.md](night-operation.md#the-solo-run-coop-nightop)
 - On a co-op save, Roxanne in Xion offers Night Operation (Easy, Normal, Hard) and its supplies in her dialogue. See
   [night-operation-shop.md](night-operation-shop.md#night-operation-at-roxannes).
 
-The ghost, the link and every other command except `coop fight` (below), `coop race start`, `coop race look on`,
+The ghost, the link and every other command except `coop fight` (see [Shared enemies](shared-enemies.md#shared-enemies-experimental)), `coop race start`, `coop race look on`,
 `coop race probe doro` and `coop race drive probe` (see [Doro races](doro-races.md)), `coop leviathan show`,
 `coop leviathan cam` when it turns the camera on (and the same two in the six other
 [viewer commands](cut-enemies.md#cut-enemy-preview-coop-leviathan-coop-gardener-and-coop-tendril)), `coop lion`, `coop lion intro`,

@@ -145,7 +145,7 @@ What the cleaning does not cover:
   `GamePlayProgressRecordData` in G03 1. The game counts collection achievements from events as the player adds to
   them, and whether any of those counts read the save's contents again was not traced. A load can therefore still
   unlock a Steam achievement during play, and a Steam achievement cannot be taken back. That is why the command is
-  off by default, and why [../cut-scenes-and-menus.md](../cut-scenes-and-menus.md#loading-one-coop-shortcut-load) says to try it only on a Steam account
+  off by default, and why [Cut scenes and menus](../cut-scenes-and-menus.md#loading-one-coop-shortcut-load) says to try it only on a Steam account
   whose achievements do not matter, with Steam Cloud off.
 - The seven items with no `ItemTable` row stay in the inventory, in `PlayerActor`'s equipment and in its slot lists,
   where the developer left them. How the game loads an equipped or held item with no row was not traced. Some of its

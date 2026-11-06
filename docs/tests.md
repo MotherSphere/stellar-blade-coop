@@ -13,6 +13,8 @@ c++ -std=c++17 -Wall -Wextra -Werror -I native/src tests/native/pose/codec_test.
 build/host/pose_codec_test
 ```
 
+## Lua tests
+
 - Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `chainspin`, `devmenu`,
   `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `scene`, `tendril`, `wear`;
   `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
@@ -32,7 +34,13 @@ build/host/pose_codec_test
   question; at most 8 a frame; an older DLL without it), the mouse in the menu and the focus watchdog's reset.
   `ui/kit_test` covers the menu's mouse cursor, the focus put back after a click and the focus watchdog;
   `session/chat_test` the Thai leading vowels at a row's end.
+
+## C++ tests
+
 - C++ tests cover the platform-free headers in `native/src`:
+
+### Link
+
   - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
     `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
     and the boss tests included; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`, `mxiii rows`, `shop rows`
@@ -49,6 +57,9 @@ build/host/pose_codec_test
     a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
     20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up
     undone within its wait doubles the wait up to 80 s, and one that holds brings it back to 10 s;
+
+### Poses
+
   - `pose_engine_test`: the pose path against fake memory;
   - `pose_codec_test`: the codec's round trips, the deltas against a keyframe, and a decoder fuzz;
   - `pose_delta_gain_test`: what the sender's delta tolerance (`kTolerance` in `pose/codec.h`) saves. With no
@@ -64,6 +75,9 @@ build/host/pose_codec_test
   - `pose_record_test`: the recording's reader, with a fuzz, and its replay, with same-place enemies' `SBE` and show
     lines re-stamped on the poses' clock;
   - `pose_stream_test`: the loopback pipeline in simulated time;
+
+### Saves
+
   - `save_watch_test`: the save watcher;
   - `save_slot_test`: the slot line, the marker, the save file name's lookup in the game's constant table, its
     switch and the read-only probe, against fake memory;
@@ -80,6 +94,9 @@ build/host/pose_codec_test
     the machine holds the research copies under `~/.claude/project-notes/stellar-blade-minecraft/runtime/2026-10-26/`
     (skipped elsewhere): each cleaned and checked, the file without `SBAchievement` byte for byte, with no achievement
     name or gear left and no item missing from the `ItemTable` dump but the seven known ones;
+
+### Night Operation
+
   - `nightop_probe_test`: the Night Operation poller's reads, lines and verdict against a fake image;
   - `nightop_roxanne_test`: Roxanne's and Lily's choice lists in SB's select cache (`nightop/roxanne.h`) against fake
     memory laid out like the pinned build: on (our six rows in a GMalloc array, the pointer written before the count,
@@ -90,6 +107,9 @@ build/host/pose_codec_test
   - `nightop_shop_ui_test`: the Night Operation shop screen's guard (`nightop/shop_ui.h`: a client and its UI manager
     always, in game and playing for an open only), its answer word's round trip, the `nightshop=` line and the log
     lines;
+
+### Table rows
+
   - `lion_rows_test`: the Lion's, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's and the Night Operation
     shop's rows against fake memory laid out like the pinned build: the recipes (unique names and IDs across the
     batches, every patch inside its struct, the steps, skills, commands, stances, moves and target filters pointing at
@@ -117,6 +137,9 @@ build/host/pose_codec_test
     (through the game's grow or inside the capacity), the const ammo list and the slot manager's list given
     `Bullet_Shock`, a second run writing nothing, no slot manager yet, the key found down its hash chain, each refusal
     writing nothing, an allocation that fails, the answer word, the `shock=` line and the log line;
+
+### Shared enemies
+
   - `fight_engine_test`: the shared enemies' side inside the game, the enemies `fight_chars=auto` picks and leaves out,
     the enemies' state map, the two-player scaling, the vitals read, and same-place enemies' freeze (BlockAI put back
     after the game's own dispel, freeze-lost after 5 tries in any 10 s, none in the turn we start a crowd control, taken
@@ -237,6 +260,9 @@ build/host/pose_codec_test
     move (an 8 m/s lunge to a dead stop included) and 5 cm at rest, the show lines apply in the host's order with no
     Show held back by those two caps, and
     restore puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
+
+### Other headers
+
   - `photo_freeze_test`: the synced photo mode's pause against a fake pause set;
   - `debug_keys_test`: `coop fly`'s and `coop slowmo`'s gates against fake memory laid out like the pinned build: the
     keys' hash, the lookup through inline and allocated buckets and along a chain of collisions, each refusal with no
@@ -280,6 +306,9 @@ build/host/pose_codec_test
     under `~mods` with their outfits and the `/Game` assets they declare (comments, other keys and a text cut short
     included), a `.utoc` directory index read into object paths (maps, other roots, encrypted, unindexed, cut short
     and looped indexes refused) and the shared list of containers both players have;
+
+### Quests
+
   - `quest_sync_test`: the shared quests' quest table, line format and parser (with a fuzz), the host's and the guest's
     rules, the zone marks, the steps made together and those that are not, the record file, and lost lines and
     reloads;
@@ -292,6 +321,9 @@ build/host/pose_codec_test
     and Quest_Epic_11 read beside "On Time"; each request word's one call (an acquire once, never when held; a first
     task's Complete only at that word's group with its task in progress, through SB's Complete and no other address);
     the answer word (every field through it, a value out of its 4 bits read as -1) and the `signalquest=` line.
+
+## Python tests
+
 - Python tests:
   - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
   - `story_test.py`: `tools/story.py` and `tools/gvas.py`, the story lines and digest of a built save, and the

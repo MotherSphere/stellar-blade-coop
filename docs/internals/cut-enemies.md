@@ -121,6 +121,8 @@ blueprint names none.
   `M_LesserLurker_AI`). Both trees pick skills by their AISkillFlag (MeleeAttack), not by name, which leaves out the
   side steps (MoveAttack) and the phase-2 roar.
 
+### The generator
+
 The generator writes the data part of `lion/rows.h` and the whole of `cut/lion_rows.lua` from the offline reader's dumps
 of the tables, the Lion Shows and the collision data, the pak listing, the SDK and the clip measurements. It refuses a
 taken ID or name (in any case, as the game compares names), a missing template, a field the SDK does not place where its
@@ -135,6 +137,8 @@ while it moves, no range may pass its first hit's reach plus what its moves clos
 3 m or more needs a space check that way, no shorter than that travel while a longer one ships. Anim sets must name
 clips of the Lion's folder, and no stance may hold HP at 60%. Each link flag must pick EVE link steps whose Shows play a
 clip the Lion has, and no move may travel over 17 m.
+
+### The request
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
 (the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
@@ -164,6 +168,8 @@ Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything els
 word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
 slot and its row size.
 
+### Adding the rows
+
 The game thread adds the rows in `coop_tick` only while the cached net mode is 0 and no logic task is in flight (logic
 `+0x5c0` is 0, the same check as same-place enemies' force target): no lock guards the tables, and the logic thread
 reads them. A shut gate tries again at the next frame and refuses after 300 frames. For each row not added yet, the
@@ -173,6 +179,8 @@ JSON strings, then calls AddRow through the table's vtable with the new name. A 
 again, so AddRow's own RemoveRow never frees a row that a living Lion reads. The first refusal stops the run before any
 later row. The CharacterTable rows come last, so a refused run leaves no Lion to spawn; asking again skips the rows
 already in. These calls run under their own SEH latch.
+
+### The read-back
 
 Then the native part reads the rows back through the game's own lookups by ID and writes the `lion=` line of
 `coop-status.txt`:

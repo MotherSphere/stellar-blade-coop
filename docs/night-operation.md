@@ -480,3 +480,34 @@ permission (see [Credits](../README.md#credits) in the README). The adapted part
 `mod/StellarCoop/Scripts/nightop/run.lua`, `nightop/waves.lua` and `core/unreal.lua` mark each adapted function. The
 death screen lookup is `U.death_screen()` in `core/unreal.lua`, used by the solo run and by the revive in
 `session/group.lua`. Stellar Blade Online contains no file from Survival Protocol.
+
+## Sections that moved
+
+Each section that left this page is listed under its old name, with its new place.
+
+| Section | Now in |
+| --- | --- |
+| The reward shop | [night-operation-shop.md](night-operation-shop.md) |
+| The shop screen (`coop nightop shop`) | [night-operation-shop.md](night-operation-shop.md#the-shop-screen-coop-nightop-shop) |
+| Buying from the console (`coop nightop buy`) | [night-operation-shop.md](night-operation-shop.md#buying-from-the-console-coop-nightop-buy) |
+| Night Operation at Roxanne's | [night-operation-shop.md](night-operation-shop.md#night-operation-at-roxannes) |
+| Challenges (`coop challenge`) | [challenges.md](challenges.md) |
+| The challenges | [challenges.md](challenges.md#the-challenges) |
+| Target Practice | [challenges.md](challenges.md#target-practice) |
+| Shooting Range | [challenges.md](challenges.md#shooting-range) |
+| The Shooting Range for two | [challenges.md](challenges.md#the-shooting-range-for-two) |
+| Score | [challenges.md](challenges.md#score) |
+| The card and the result panel | [challenges.md](challenges.md#the-card-and-the-result-panel) |
+| Best runs (`coop-records.txt`) | [challenges.md](challenges.md#best-runs-coop-recordstxt) |
+| What a challenge touches | [challenges.md](challenges.md#what-a-challenge-touches) |
+| The two previews | [night-operation-previews.md](night-operation-previews.md) |
+| Before you try a preview | [night-operation-previews.md](night-operation-previews.md#before-you-try-a-preview) |
+| Preview 1: the probe (`coop no`) | [night-operation-previews.md](night-operation-previews.md#preview-1-the-probe-coop-no) |
+| Preview 2: the recruiter (`coop recruiter`) | [night-operation-previews.md](night-operation-previews.md#preview-2-the-recruiter-coop-recruiter) |
+| Where to stand | [night-operation-previews.md](night-operation-previews.md#where-to-stand) |
+| What it does, in order | [night-operation-previews.md](night-operation-previews.md#what-it-does-in-order) |
+| His language | [night-operation-previews.md](night-operation-previews.md#his-language) |
+| Sending him away | [night-operation-previews.md](night-operation-previews.md#sending-him-away) |
+| What stays changed | [night-operation-previews.md](night-operation-previews.md#what-stays-changed) |
+| After a preview run | [night-operation-previews.md](night-operation-previews.md#after-a-preview-run) |
+| How the original matchmaking is blocked | [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked) |

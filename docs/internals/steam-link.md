@@ -111,13 +111,17 @@ SBC19 gift a <id>
 SBC19 gift n <id> <why>
 ```
 
+### The photo line
+
 The photo line is sent reliable. It carries the sender's photo mode (`1`, `s` for selfie mode, `0`) and whether their
 game may be paused for the other player's photo mode (`both`). It is sent after each handshake and on each change, and
 the receiver takes at most 8 a second. While your friend's line says `1 both` and your setting is `photo_sync=both`,
 the game thread holds a pause tag of the mod's own in the game's pause set. It sets the tag through the function that
-the game's photo mode pauses with (build 24463856 only). [../playing-with-a-friend.md](../playing-with-a-friend.md#synced-photo-mode) lists when the pause is
+the game's photo mode pauses with (build 24463856 only). [Playing with a friend](../playing-with-a-friend.md#synced-photo-mode) lists when the pause is
 released. A host's line says `c` while a cutscene plays in its game and its own photo state is `0`
 ([Cutscene wait](group-play.md#cutscene-wait)).
+
+### The say line
 
 The say line is one chat line, sent reliable. Both games clean it the same way: they keep well-formed UTF-8 only, drop
 control, bidi and zero-width characters, trim spaces, and keep at most 200 bytes, never cutting inside a character.
@@ -126,6 +130,8 @@ line a minute that holds no text. At most 64 received lines, chat and race lines
 text never goes into `coop-link.log`, `coop-status.txt`, `coop-report.txt` or the console. When the session ends, the
 log gets the counts only: `chat this session: <n> in, <n> out, <n> dropped; race lines: <n> in, <n> out, <n> dropped`.
 
+### The vit line
+
 The vit line is sent unreliable. It carries your EVE's numbers for your friend's partner card, in whole units: HP,
 shield and shield blocks, Beta, Burst and Tachy with their maximums, and the life state. It is sent when a number
 changes, at most 10 times a second, and once a second otherwise. During a session the native worker reads the numbers
@@ -133,6 +139,8 @@ every 100 ms, or 500 ms after a read that took over 1 ms (game build 24463856 on
 `ReadProcessMemory` calls on the worker, never on the game thread, on the EVE that the game's actor manager marks as the
 local player. A vit line is invalid if a value is over 10,000,000, HP is over its maximum, there are more than 64 shield
 blocks or the life state is over 255. Your friend's last line shows in `coop status` as `mate=` for 3 s.
+
+### The pak and paks lines
 
 The pak and paks lines are sent reliable, once after each handshake. At start the native part lists the files under
 `SB/Content/Paks` (eight folders deep, 4096 files at most) and leaves out the base game's own
@@ -152,7 +160,7 @@ lack), `mods_other=<n> <names>` (the same name with another hash: another versio
 `coop-link.log` names the ones you lack and the other versions each time their list changes
 (`<name> has mods we lack (<n> <names>) and mods we have in another version (<n> <names>)`). Once a session, a notice
 names the mods you lack and then the other versions, up to two file names each (see
-[../shared-enemies.md](../shared-enemies.md#shared-enemies-experimental)). Without names, or with only mods of yours that they lack, the notice
+[Shared enemies](../shared-enemies.md#shared-enemies-experimental)). Without names, or with only mods of yours that they lack, the notice
 gives the two counts. Nothing is refused: enemies that differ already stay unshared (same character id and maximum HP
 for each pair).
 
@@ -181,11 +189,15 @@ file again when the version changes and rebuilds the ghost. The hash is FNV-1a o
 friend's game states it, so it says that both of you run one build of the mod, without proving it. The list only ever
 holds paths of your own containers.
 
+### The camps lines
+
 The camps lines carry the [follow](group-play.md#following-the-host), both reliable: the guest's `camps?` with a number from 0 to
 65535, and the host's answer to it, its world and up to 8 camps nearest its EVE with their distance in whole metres, or
 `none` and why. Only the guest asks and only the host answers. The host's link takes one `camps?` each 2 s, and the
 guest's keeps only the answer to her last number. A world or camp name is letters, digits and `_`, at most 64
 characters. Both lines show in `coop status` (`camps?=`, `camps=`) until the session ends.
+
+### The night line
 
 The night line carries a Night Operation run between the two games (see
 [night-operation.md](../night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of
@@ -214,6 +226,8 @@ field and refuses the whole line on one bad field. A co-op run ends as lost once
 5 s. No line carries points: each game turns its own run's final score into points, at most 42 a run at the normal
 level and 129 at nightmare.
 
+### The mark line
+
 The mark line is one `coop mark`, sent reliable to each friend past the handshake: its number in the sender's game
 (from 1, one count per game process) and its text, cleaned as a say line is and cut to 100 bytes, maybe empty. A longer
 text from a friend is cut, not refused. The receiver counts mark lines with say lines against the same 10 a second and
@@ -221,12 +235,16 @@ drops the rest, with one log line a minute (`dropped marks from <name>: over the
 text goes into `coop-link.log` on both sides (`mark <n>: <text>`, `mark <n> from <name>: <text>`) and into
 `coop-status.txt` as the `mark=` line, which the Lua side copies into `UE4SS.log`.
 
+### The race line
+
 The race line carries one line of a [Doro race](doro-races.md), sent reliable. The link passes its text on as it is: it
 reads no further, and only refuses a line with a byte outside printable ASCII (0x20 to 0x7e) or longer than 512 bytes
 in all. At most 40 lines a second are sent, and at most 40 a second are kept from a friend. Your friend's lines past
 that are dropped, with at most one line a minute per friend in `coop-link.log` (`dropped race lines from <name>: over
 the rate limit` or `too many waiting`). Yours past it are only counted, in the session's end line. During
 `coop loopback` with no friend linked, your race lines come back as your friend's.
+
+### The gift line
 
 The gift line carries a [cut mailbox](cut-menus.md#cut-mailbox) gift and its answer, sent reliable: `s` with the gift's id (1
 to 20 digits, not 0), an item name (letters, digits and `_`, at most 64) and a count from 1 to 10; `a` when the
@@ -237,6 +255,8 @@ that cannot go (no session, past the rate, a send Steam refused) comes back to L
 Lua gives the items back only when it was the gift's first line.
 Your friend's lines reach Lua in `coop-chat.txt` as `gift <payload>`, beside the chat and race lines. During
 `coop loopback` with no friend linked, your gift lines come back as your friend's.
+
+### Unlinked peers, pings and session requests
 
 Say, vit, pak, paks, camps, night, mark, race and gift lines from a friend who has not passed the handshake are ignored, without a log line.
 

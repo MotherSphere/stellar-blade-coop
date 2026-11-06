@@ -16,6 +16,8 @@ co-op save. Back up your saves first (see [saves.md](saves.md)). When an enemy b
 death, a load or photo mode, the guest's copy takes the host's HP without a damage number; later drops from the host's
 hits show one.
 
+### Knockdowns and kills
+
 When a hit knocks a shared enemy down (face up or face down), launches it or slams it into a wall on one screen, the
 other game starts the same effect on its copy, as if its own EVE had landed that hit. A copy that is already down, in
 the air or groggy finishes that first and skips it, and a copy the game holds immune to it stays up. Groggy needs
@@ -36,6 +38,8 @@ your EVE, burrows or warps in), because the game never kills an enemy in the mid
 state ends, or after 6 seconds anyway. When the guest's hit is the kill, the host's copy waits at 1 HP.
 `coop-link.log` says `fight kill held <key>`, then `fight held-expired <key>` when the 6 seconds ran out.
 
+### Two-player scaling
+
 Shared enemies get more HP and balance, since two players hit them. The host's `enemy_hp_scale` (default `1.35`)
 multiplies a shared enemy's maximum HP, and `enemy_balance_scale` (default `1.15`) its balance gauge, each from `1.0`
 (no change) to `4.0`. Both games use the host's values for the whole session; the guest's are not used, and the
@@ -50,6 +54,8 @@ maximum HP the game has changed in another way keeps its own (the stats line of 
 unscaled). The `Shared enemies on` notice names the values when they are not both 1.0,
 for example `Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % (the host's setting).`, and the
 `fight=` line of `coop status` has `scale=135/115`.
+
+### Kill credit
 
 `kill_credit` is each player's own and decides when you took part in a shared enemy's fight. With `together`, the
 default, you took part when your EVE hit it, when it targeted your EVE, or when your EVE stands within 30 m of it as it
@@ -70,6 +76,8 @@ other player started, mirrored on your copy, makes the game record your EVE as t
 the 30 m still do. `kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill wherever you stood, is gone
 (see [coop-settings.txt](settings.md#coop-settingstxt)).
 
+### Slow motion
+
 Slow motion is not shared: each game slows down on its own, as in solo. With [same place](#same-place-experimental)
 on, a shared enemy runs in the game of the player it fights, and the other screen draws it from that game. So when
 that player's perfect dodge slows the enemy down, it slows down on both screens, and an enemy that your friend's game
@@ -78,12 +86,16 @@ runs keeps its speed on your screen while your own perfect dodge slows your game
 enemy of the shared fight began to run below normal speed, the turns that lasted, and the lowest speed in percent.
 How the two screens compare during slow motion has not been tested in game yet.
 
+### Turning it on and off
+
 It is on by default. Options > Combat > Shared enemies (experimental) in the [co-op menu](interface.md#options) shows On, and a
 new [coop-settings.txt](settings.md#coop-settingstxt) has `shared_enemies=on`; a file with no `shared_enemies` line counts as on
 too. A file from version 0.2 says `shared_enemies=off` and keeps it off until you turn the row on. It starts by itself
 once you are linked and both play a [co-op save](playing-with-a-friend.md#co-op-saves), and changes no enemy on your own save. Enemies get
 linked only while you are on the same map. Turning the row off (`shared_enemies=off`) stops it at once, but not the
 solo test tools below.
+
+### Which enemies are shared
 
 `fight_chars=auto`, the default, shares every common enemy (the game's Monster type). Bosses and Alpha Naytibas (the
 game's BossMonster type) are shared only with the host's `bosses=on` ([shared bosses](#shared-bosses-experimental)).
@@ -98,6 +110,8 @@ The host shares 16 enemies at a time. When all 16 places are taken, an enemy the
 full HP that the friend never hit. When every place holds an enemy in a fight, `coop-link.log` says
 `fight full every place holds an enemy in a fight; a hurt one is not shared`, and the next enemies stay unshared until
 one of the 16 dies or leaves.
+
+### Notices
 
 While something keeps it from sharing, one notice says what. It shows again only when that changes, or in the next
 session, and 5 seconds after the last one at the soonest:
@@ -138,6 +152,8 @@ leaves, when an enemy of the host's cannot be paired because its maximum HP diff
 scaling). `Shared enemies: <name> is down. Once they respawn, the enemies you share go back to full health.` shows each
 time the host goes down while enemies are linked: the host's respawn resets the enemies in the host's game, and your
 copies follow them back to full health. A respawn on another map leaves your copies unshared, with the HP they had.
+
+### Commands
 
 - `coop fight on` asks for it by hand (it needs `shared_enemies=on`) and `coop fight off` stops it until the mod reloads
   or the row is turned off and on again. It waits for a linked friend, a loaded save and a co-op save, and pauses while
