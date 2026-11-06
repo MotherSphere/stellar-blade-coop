@@ -3,7 +3,8 @@
 To install the mod, start with [Install](../INSTALL.md); to play, with
 [Playing with a friend](playing-with-a-friend.md). The pages under [Building and internals](#building-and-internals)
 describe the code, for anyone who builds the mod or changes it. Stellar Blade Online was first called StellarCoop, and
-its folder, its DLL and its `coop` console commands keep that name.
+its folder, its DLL, its `[StellarCoop]` log tags and its release zip keep that name; its console commands still
+start with `coop`.
 
 ## Install and play
 

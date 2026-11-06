@@ -6,8 +6,8 @@
 
 Each player sees the other's EVE in their own world. Stellar Blade Online is a UE4SS mod made of Lua scripts and a
 native DLL. The link between the two games goes through the Steam client that the game already runs, so the mod needs
-no other program and no server of its own. It was called StellarCoop until October 2026: the mod's folder, its DLL and
-its `coop` console commands keep that name.
+no other program and no server of its own. It was called StellarCoop until October 2026: the mod's folder, its DLL, its
+`[StellarCoop]` log tags and its release zip keep that name, and its console commands still start with `coop`.
 
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/MotherSphere/stellar-blade-coop?include_prereleases&label=release)](https://github.com/MotherSphere/stellar-blade-coop/releases)

@@ -160,17 +160,17 @@ feature or drops the input.
   - A `saves export N M` request is the one write to your own saves, behind a check of its own that passes only
     `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It refuses a co-op copy with a shortcut save's
     mark beside it before it reads anything.
-  - It reads the co-op copy, checks it as the game does, refuses it when its stored CRC-32 is one of the 12 cleaned
-    developer saves' or it names one of their five items with no `ItemTable` row, and refuses it while an `ItemAlias`
-    field or a quick slot names one of the mod's items, while `BulletItemSlotIndex` is 5 or more (the Shock Bolt
-    `lion/shock.h` appends after the five ammo types the game ships), or while the save's `MapName` is `MXIII_P` or one
-    of its four camp fields (`CampAlias`, `CampEnvSpawnAlias`, `LastFullCampEnvSpawnAlias`,
-    `LastSimplyCampEnvSpawnAlias`) holds a name that starts with `DLC02_`, a row of the Matrix XIII dungeon. A find
-    inside `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing does not change, is refused
-    too, with a line that says so instead of what to use up or where to rest.
-  - Only then does it back up the target save, read the copy again (unchanged since the check, or it stops), scan those
-    bytes again, check that the target save is as its backup read it (or still missing) and write the copy over that
-    save through a `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
+    - It reads the co-op copy, checks it as the game does, refuses it when its stored CRC-32 is one of the 12 cleaned
+      developer saves' or it names one of their five items with no `ItemTable` row, and refuses it while an `ItemAlias`
+      field or a quick slot names one of the mod's items, while `BulletItemSlotIndex` is 5 or more (the Shock Bolt
+      `lion/shock.h` appends after the five ammo types the game ships), or while the save's `MapName` is `MXIII_P` or one
+      of its four camp fields (`CampAlias`, `CampEnvSpawnAlias`, `LastFullCampEnvSpawnAlias`,
+      `LastSimplyCampEnvSpawnAlias`) holds a name that starts with `DLC02_`, a row of the Matrix XIII dungeon. A find
+      inside `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing does not change, is refused
+      too, with a line that says so instead of what to use up or where to rest.
+    - Only then does it back up the target save, read the copy again (unchanged since the check, or it stops), scan those
+      bytes again, check that the target save is as its backup read it (or still missing) and write the copy over that
+      save through a `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
   - The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
     every 250 ms; an entry that moves or changes stops it for the run.
 - The [spawn filter](shared-enemies.md#the-spawn-filter), off by default, is the one write into the game's image rather than into
