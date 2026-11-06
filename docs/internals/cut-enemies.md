@@ -10,7 +10,9 @@ Operation shop and Lily's signal use the same batches. The commands are in [Cut 
 (0.6.0-beta.1) it spawned, moved and hit EVE, but stayed in its idle pose. Its assets ship in
 `/Game/Art/Character/Monster/CH_M_NA_02/`: the blueprint `CH_M_NA_02_BluePrint_Large`, the mesh with its fur cloth, 138
 animations on the Behemoth's skeleton (`CH_M_NA_46_Skeleton`), hit and attack collision data and 41 Shows. No table row
-names it. Six files do the work: `cut/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and
+names it.
+
+Six files do the work: `cut/enemy.lua` (the Lua flow, which [the Gardener](#the-cut-gardener) and
 [the Tendril](#the-cut-tendril) share), `cut/lion.lua` (the Lion's spec and its own parts), `cut/lion_rows.lua` (the
 rows as Lua reads them back), `lion/rows.h` (the rows and their build, free of Windows, tested on the build machine),
 `lion/shock.h` (the Shock Bolt's two lists, also free of Windows) and `glue/tick/lion_game.inc` (the game's calls). The
@@ -129,14 +131,17 @@ taken ID or name (in any case, as the game compares names), a missing template, 
 patch writes, and a template value the recipe does not set. It also refuses a value naming a Behemoth row or asset other
 than the sound set, and a reference that lands on no Lion or shipped row: steps, skills, commands, stances, moves,
 target filters, results, anim sets, effects (also inside JSON effect strings), Shows, clips, blueprint, tree and sound
-set. Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or 0.05 s late at
-most), and each collision group must exist with every socket tracked for the clip playing. A move toward where its skill
-expects EVE must stop short of her, a skill whose move before its first hit stops short of her needs a range that starts
-30 cm or more past that stop and ends past its start, a skill that looks for EVE off its front may not turn toward her
-while it moves, no range may pass its first hit's reach plus what its moves close, and each way the moves take the Lion
-3 m or more needs a space check that way, no shorter than that travel while a longer one ships. Anim sets must name
-clips of the Lion's folder, and no stance may hold HP at 60%. Each link flag must pick EVE link steps whose Shows play a
-clip the Lion has, and no move may travel over 17 m.
+set.
+
+Steps must match their Show's steps, each Hit step must hold its striking peak (0.1 s early or 0.05 s late at most), and
+each collision group must exist with every socket tracked for the clip playing.
+
+A move toward where its skill expects EVE must stop short of her, a skill whose move before its first hit stops short of
+her needs a range that starts 30 cm or more past that stop and ends past its start, a skill that looks for EVE off its
+front may not turn toward her while it moves, no range may pass its first hit's reach plus what its moves close, and
+each way the moves take the Lion 3 m or more needs a space check that way, no shorter than that travel while a longer
+one ships. Anim sets must name clips of the Lion's folder, and no stance may hold HP at 60%. Each link flag must pick
+EVE link steps whose Shows play a clip the Lion has, and no move may travel over 17 m.
 
 ### The request
 
@@ -159,14 +164,15 @@ ProjectileTable, ZoneCampTable, ZoneEnvSpawnTable, ShopTable, ShopItemTable, Zon
 QuestTaskGroupTable, QuestTaskTable, LevelTargetFilter, TheaterSelectDataTable, then Matrix XIII's EventSpawnTable,
 EventItemTable, ZoneEventTable, EventEnvControlTable, WorldTransitionTable, EventZoneWarpTable and EffectVolumeTable,
 then ConditionTable and ConditionGroupTable for Lily's menu in Matrix XIII, then AlbumTable, AchievementTable and
-PuzzleStringArrayTable for its records);
-a request names 1 to 37 of them, each once, in any order, and the others stay 0, which a batch that writes that table
-refuses as no UDataTable. So a table no row of the batch uses, not loaded at that moment, stops nothing. A request
-naming all 37 would take 1204 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible address and
-its line end (1352 with 16 digits); the native part reads up to 2048 bytes of that file.
-Each address has 1 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console
-word reaches an address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow
-slot and its row size.
+PuzzleStringArrayTable for its records); a request names 1 to 37 of them, each once, in any order, and the others stay
+0, which a batch that writes that table refuses as no UDataTable. So a table no row of the batch uses, not loaded at
+that moment, stops nothing.
+
+A request naming all 37 would take 1204 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
+address and its line end (1352 with 16 digits); the native part reads up to 2048 bytes of that file. Each address has 1
+to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console word reaches an
+address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow slot and its row
+size.
 
 ### Adding the rows
 
@@ -215,17 +221,20 @@ EventSpawnId 0, as the game's own summons spawn. The body is the new character o
 the spot, looked for at 0.3, 1, 2, 3.5 and 5 s among the SBCharacters of EVE's world from the engine's class hash
 (`GetAllActorsOfClass`), or with `FindAllOf` of the class, which walks every object, where this UE4SS cannot use the
 class hash. Up to 0.6.0-beta.3 every look walked. A body with no controller that reads `InteractionState` 0 gets its
-default one 1.5 s after the call (`SpawnDefaultController`). Its death is read from `InteractionState` and
-`Controller`: a value other than 0 with no controller. Every body of this spawn reads `InteractionState` 1
-(executable) from its first second, in battle or not (the Lion's and the Antlion's follow lines, 2026-10-23), until its
-death reads 3 (every death logged). For these bodies 1 is the standing state, not a sign of the fight, so
-`nightop/run.lua` counts 0 and 1 as standing; a Night Operation run that counted 0 alone found none of its monsters
-(2026-10-28). The Lion code (`cut/enemy.lua`) still adopts a body only at 0 and still reads any other value with no
-controller as a death. That holds because these bodies had a controller from the spawn on (`controller SBAIController`
-on 2026-10-23); a state-1 body without one would never be adopted and would read as dead. Which game code sets 1 was
-not traced. The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away
-came back on 2026-10-23), so a body that stood more than 100 m from the spot at the call and stands within 30 m of it
-after counts as the new one; its old follow line ends as recycled.
+default one 1.5 s after the call (`SpawnDefaultController`).
+
+Its death is read from `InteractionState` and `Controller`: a value other than 0 with no controller. Every body of this
+spawn reads `InteractionState` 1 (executable) from its first second, in battle or not (the Lion's and the Antlion's
+follow lines, 2026-10-23), until its death reads 3 (every death logged). For these bodies 1 is the standing state, not a
+sign of the fight, so `nightop/run.lua` counts 0 and 1 as standing; a Night Operation run that counted 0 alone found
+none of its monsters (2026-10-28). The Lion code (`cut/enemy.lua`) still adopts a body only at 0 and still reads any
+other value with no controller as a death. That holds because these bodies had a controller from the spawn on
+(`controller SBAIController` on 2026-10-23); a state-1 body without one would never be adopted and would read as dead.
+Which game code sets 1 was not traced.
+
+The game can send a Lion body far away and reuse it for the next spawn (a Lion 466 m away came back on 2026-10-23), so a
+body that stood more than 100 m from the spot at the call and stands within 30 m of it after counts as the new one; its
+old follow line ends as recycled.
 
 While a Lion lives, the follow line also carries what the first test lacked: the body's place, the speed its blend space
 reads (`GetSBSpeedForAnimGraph`), whether a skill runs (`IsRunningSkill`) and the two custom anim alphas the animation

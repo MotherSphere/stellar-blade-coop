@@ -121,22 +121,27 @@ a run is on, the game is paused or shows one of its screens, the screen is alrea
 Once the seeds are counted, a pause or one of the game's screens (the pause menu that Escape opens when it closes the
 console, for example) holds the open: it goes on when the game plays again, for up to 30 s.
 
-If a later step fails (the shop's or the stimpacks' rows refused, EVE's map changed while they were asked, the seeds
-not counted within 5 s, the game still paused or on one of its screens 30 s after they are, the game not opening the
-screen),
-the seeds leave the inventory, the wallet stays as it was, the log has a `STOP: shop:` line with the reason, and a
-notice says `The Night Operation shop could not open. UE4SS.log says why.` A shop screen the game already had open
-stays open. When another save was loaded before the open (or a load still reads no save), the mod stops in the same
-way but adds no seeds, asks no open and removes nothing: seeds it already added stay with the co-op save, and the next
-`coop nightop shop` there takes them. After a fault in the native part's shop calls, the mod can no longer read or close the screen: the seeds it
-counted last leave the inventory, so a screen left open sells nothing more, and you close it yourself. A fault while
-the game sets the new screen up leaves that screen open without its goods in the same way. While the screen runs, no
-run starts, a guest turns down the host's run, and `coop nightop buy` refuses. `coop off` closes it first, writes the
-last seed count to the wallet and takes the seeds out (before the screen opened, the seeds the mod added); a purchase
-made in the last 250 ms before `coop off` is not counted. In the 250 ms or so between the open request and its answer,
-`coop off` closes whatever shop screen is up, a vending machine's included. After a Lua reload while the screen is
-open, the mod takes it over at its first tick, so purchases still reach the wallet and the seeds leave after the close.
-Seeds still in the inventory with no shop screen open leave at that first tick, and the wallet keeps its count.
+If a later step fails (the shop's or the stimpacks' rows refused, EVE's map changed while they were asked, the seeds not
+counted within 5 s, the game still paused or on one of its screens 30 s after they are, the game not opening the
+screen), the seeds leave the inventory, the wallet stays as it was, the log has a `STOP: shop:` line with the reason,
+and a notice says `The Night Operation shop could not open. UE4SS.log says why.` A shop screen the game already had open
+stays open.
+
+When another save was loaded before the open (or a load still reads no save), the mod stops in the same way but adds no
+seeds, asks no open and removes nothing: seeds it already added stay with the co-op save, and the next
+`coop nightop shop` there takes them.
+
+- After a fault in the native part's shop calls, the mod can no longer read or close the screen: the seeds it counted
+  last leave the inventory, so a screen left open sells nothing more, and you close it yourself. A fault while the game
+  sets the new screen up leaves that screen open without its goods in the same way.
+- While the screen runs, no run starts, a guest turns down the host's run, and `coop nightop buy` refuses.
+- `coop off` closes it first, writes the last seed count to the wallet and takes the seeds out (before the screen
+  opened, the seeds the mod added); a purchase made in the last 250 ms before `coop off` is not counted. In the 250 ms
+  or so between the open request and its answer, `coop off` closes whatever shop screen is up, a vending machine's
+  included.
+- After a Lua reload while the screen is open, the mod takes it over at its first tick, so purchases still reach the
+  wallet and the seeds leave after the close. Seeds still in the inventory with no shop screen open leave at that first
+  tick, and the wallet keeps its count.
 
 The rows are a sixth rows batch of the native part, `shop` (`native/src/lion/rows.h`), added through the game's own
 AddRow in memory for the game run, as the Lion's are:
@@ -222,15 +227,19 @@ DisplayText the label in that language, or in English for a language the game do
 to point her choice list in the game's select cache at the four rows and her two (`roxanne on`). The labels take the
 game's language each time the rows are armed: at the next Lua load (game start or Ctrl+R), or when her choices come back
 after `coop off` or after a save that is not a co-op save. Going to the title and loading a co-op save keeps the labels.
+
 A pick is read from the game's choice boxes, looked for every 250 ms so a box the game builds for a later talk is read
-too: a selected line turning from none to one, and that line's text matched against the labels. Everything goes back on
-`coop off` and on a save that is not a co-op save: the choice list first (asked again every 10 s until the native part
-has put it back), then the rows' shipped values. Until the list is back, and after a fault in its calls, the rows keep
-the goodbye, which ends the talk on any save. A map load, leaving Xion included, reads no save for a while: a booking
-and her choices hold through it. The supplies' shop screen waits up to 30 s for the game to play (while it is paused or
-loading), then the pick goes. The title screen and another co-op save drop the booking and the supplies pick. Nothing is
-saved, and a game restart undoes it too. Talking to her still runs her own graph, so her first meeting and her side
-quest start as without the mod. No quest, item, achievement or save call is added.
+too: a selected line turning from none to one, and that line's text matched against the labels.
+
+Everything goes back on `coop off` and on a save that is not a co-op save: the choice list first (asked again every 10 s
+until the native part has put it back), then the rows' shipped values. Until the list is back, and after a fault in its
+calls, the rows keep the goodbye, which ends the talk on any save. A map load, leaving Xion included, reads no save for
+a while: a booking and her choices hold through it. The supplies' shop screen waits up to 30 s for the game to play
+(while it is paused or loading), then the pick goes. The title screen and another co-op save drop the booking and the
+supplies pick. Nothing is saved, and a game restart undoes it too.
+
+Talking to her still runs her own graph, so her first meeting and her side quest start as without the mod. No quest,
+item, achievement or save call is added.
 
 `UE4SS.log` has `[StellarCoop][NR]` lines for each step, for example:
 

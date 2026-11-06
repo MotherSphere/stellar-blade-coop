@@ -216,35 +216,43 @@ The C++ tests cover the platform-free headers in `native/src`.
     her reset, nothing published without the filter or on the host's side, a key the host spawns again let through, the
     host's dead on her paired copy blocking its key but not her own lethal hit, the table empty at a new session, at the
     host's off and at the end, and the gate);
-- `fight_sync_test`: the shared enemies' channel 2 text (with a fuzz), the host's and the guest's rules (the place
-  line sent after the world and at each change, and held by the guest until the host's next world; the aggro, own
-  and own-no lines taken from the right side only; the bosses line after the aggro line, held the same way; boss
-  pairs first in the 16 places, a common enemy's place taken by a boss (not while its kill or her takedown is under
-  way) and never the other way; the exec line's checks, rate and holds of a kill and of a dead, an exec 1 that never
-  restarts a running takedown, a held claim's 6 s
-  cap, a balance emptied by her claim in the step of her exec 1, refusals within 2 s counted with no line; same
-  spawns' epoch, have, spawn and drop lines refused by Host and Guest, since the engine takes them, and never
-  recorded), the boss table of stage 5 (one row a
-  boss, each row's allowlist sent in a phase line and read back the same, the rows two bosses' shared step applies
-  kept apart, the summon rows), the bstart, phase and summon spawn lines with a fuzz, the guest's checks of them (one
-  bstart a copy, taken again by a new copy under the same key or on a repeat after the pair forms, phase IDs from that
-  boss's allowlist only, a summon's key, row, charId and owner), and two fake worlds linked through a delayed, lossy
-  line;
-- `spawn_sync_test`: the core of same spawns (stage 4): which rows take part, each side's epoch (a zone change, a
-  reset of the spawn manager, 3 or more keys with a new GUID, two actors of one key no change) and its 3 s grace, the
-  host's epoch line (at each change and every 5 s), her rounds and its answers (a key more than 1 km from her held
-  back until she is nearer), the guest's rounds and her checks of each answer (the epoch, the shared zone, her own
-  tables, 1 km, the rates, a created key that is no Monster or another charId, removed again within the rates or kept
-  and logged when it cannot be found again, a drop of an enemy she fights refused as busy and asked again, the
-  refusals that show the two games differ counted apart), a key refused as too far asked again, a created key that
-  died leaving her rounds, extra enemies (their keys and places, which enemies get them, none for a Save or keep
-  row, an Elite or an enemy past 116 m, once a life, the room left and stage 1's 16 pairs, n going on after a new
-  session, the host's answers and her checks for extra keys, `row taken`, a charId none of her Monsters has yet or a
-  `full` refusal asked again, `not made` counted as no difference; their keys below the summons' range, and a
-  summon's key never made by same spawns), the guest's blocked keys for the spawn filter (a drop she despawned, the
-  host's kill of a paired copy, never an extra's key, a spawn line of the host's epoch taking a key off before her
-  spawn, cleared at a new host epoch and by `clear()`, kept through her own epoch moves, 240 at most), and two fake
-  worlds through a delayed line until her set is the host's, with an epoch that moves while a round is on the way;
+- `fight_sync_test`:
+  - the shared enemies' channel 2 text (with a fuzz),
+  - the host's and the guest's rules (the place line sent after the world and at each change, and held by the guest
+    until the host's next world; the aggro, own and own-no lines taken from the right side only; the bosses line after
+    the aggro line, held the same way; boss pairs first in the 16 places, a common enemy's place taken by a boss (not
+    while its kill or her takedown is under way) and never the other way; the exec line's checks, rate and holds of a
+    kill and of a dead, an exec 1 that never restarts a running takedown, a held claim's 6 s cap, a balance emptied by
+    her claim in the step of her exec 1, refusals within 2 s counted with no line; same spawns' epoch, have, spawn and
+    drop lines refused by Host and Guest, since the engine takes them, and never recorded),
+  - the boss table of stage 5 (one row a boss, each row's allowlist sent in a phase line and read back the same, the
+    rows two bosses' shared step applies kept apart, the summon rows),
+  - the bstart, phase and summon spawn lines with a fuzz,
+  - the guest's checks of them (one bstart a copy, taken again by a new copy under the same key or on a repeat after the
+    pair forms, phase IDs from that boss's allowlist only, a summon's key, row, charId and owner),
+  - and two fake worlds linked through a delayed, lossy line;
+- `spawn_sync_test`: the core of same spawns (stage 4):
+  - which rows take part,
+  - each side's epoch (a zone change, a reset of the spawn manager, 3 or more keys with a new GUID, two actors of one
+    key no change) and its 3 s grace,
+  - the host's epoch line (at each change and every 5 s),
+  - her rounds and its answers (a key more than 1 km from her held back until she is nearer),
+  - the guest's rounds and her checks of each answer (the epoch, the shared zone, her own tables, 1 km, the rates, a
+    created key that is no Monster or another charId, removed again within the rates or kept and logged when it cannot
+    be found again, a drop of an enemy she fights refused as busy and asked again, the refusals that show the two games
+    differ counted apart),
+  - a key refused as too far asked again,
+  - a created key that died leaving her rounds,
+  - extra enemies (their keys and places, which enemies get them, none for a Save or keep row, an Elite or an enemy past
+    116 m, once a life, the room left and stage 1's 16 pairs, n going on after a new session, the host's answers and her
+    checks for extra keys, `row taken`, a charId none of her Monsters has yet or a `full` refusal asked again,
+    `not made` counted as no difference; their keys below the summons' range, and a summon's key never made by same
+    spawns),
+  - the guest's blocked keys for the spawn filter (a drop she despawned, the host's kill of a paired copy, never an
+    extra's key, a spawn line of the host's epoch taking a key off before her spawn, cleared at a new host epoch and by
+    `clear()`, kept through her own epoch moves, 240 at most),
+  - and two fake worlds through a delayed line until her set is the host's, with an epoch that moves while a round is on
+    the way;
 - `pilot_test`: the core of same-place enemies (stages 3a to 3c):
   - the SBE message with a fuzz, the gen and owner epoch filters, an enemy's samples drawn on the ghost's own clock
     (150 ms extrapolation cap, warp, hole and 3 m snaps, a velocity of 100 m/s at most), the drawn copy's states with

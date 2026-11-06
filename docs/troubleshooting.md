@@ -477,14 +477,16 @@ A shared enemy dies in your game only if you took part in its fight
 that you never hit, that never targeted you and that stood more than 30 m from your EVE (`kill_credit=together`, the
 default), your copy stays alive at full HP, and its kill, loot and achievements do not reach your save. Fight it
 yourself to get them. As the guest, while same spawns run (within 100 m of each other in one zone), the host's next drop
-line removes that copy a few seconds later instead, without a kill. The guest's `coop-link.log` says
-`fight dead-unshared <key> hguid=<n> not taken part`, the host's says
+line removes that copy a few seconds later instead, without a kill.
+
+The guest's `coop-link.log` says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says
 `fight kill-unshared <key> hguid=<n> not taken part`, and the `fight stats:` lines in `coop-fight.log` count them as
-`not taken part`. With `kill_credit=fought` the 30 m do not count, and they never count while your EVE is down. A
-`kill_credit=all` line from 0.4.0-beta.1 reads as `together`. A
-`fight last player <key> set by a mirrored crowd control` line means that a knockdown the other player started made the
-game record your EVE as that enemy's last player. The mod then stops counting that record for this enemy, so only your
-hit or the 30 m make its kill yours.
+`not taken part`.
+
+With `kill_credit=fought` the 30 m do not count, and they never count while your EVE is down. A `kill_credit=all` line
+from 0.4.0-beta.1 reads as `together`. A `fight last player <key> set by a mirrored crowd control` line means that a
+knockdown the other player started made the game record your EVE as that enemy's last player. The mod then stops
+counting that record for this enemy, so only your hit or the 30 m make its kill yours.
 
 ### Travel to the host does not start
 

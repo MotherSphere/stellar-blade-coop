@@ -201,21 +201,25 @@ characters. Both lines show in `coop status` (`camps?=`, `camps=`) until the ses
 
 The night line carries a Night Operation run between the two games (see
 [night-operation.md](../night-operation.md#the-co-op-run)). It is sent reliable, and each line holds the whole state of
-one side, so a lost line is repaired by the next. The host's `h` line has a counter, the run number and seed, the
-phase (`ask`, `count`, `wave`, `rest` or `end`), the wave, the run time in milliseconds, the score, kills and waves
-cleared, the wave monsters his run found and has not done (a hex mask), his start point, yaw and map, the outcome once
-the run ends (`success`, `time`, `failed:host`, `failed:guest`, `failed:both` or `aborted:<reason>`), and the run's
-level (`easy`, `normal`, `hard` or `nightmare`, or `range` for the Shooting Range challenge), which the guest's run
-takes. A mask has one bit for each wave and slot, 8 slots a wave, so it covers the largest level's waves and the
-range's three rounds. The guest's `g` line has a counter, the run number, her state (`ready`, `refuse`, `run`, `dead`
-or `abort`), her monsters still up, masks of the ones killed and done in her world, and a refusal or abort word. Both
-lines end with the [revive](../night-operation.md#down-and-revive)'s two words: the seconds the side's downed EVE still
-waits (1 to 30, 0 while she stands) and the side's revive of the other, the percent of the 3 s its interact key has
-been held next to her (0 to 100). The downed game makes its call once the other line says 100. The host's run fails
-as `failed:both` once his down and her down word above 0 have held together for 6 s with no call of his under way:
-her line does not show a call of hers, which has 5 s to get her up. Each game writes its line when it changes and
-at least once a second, never twice in one Lua tick, and logs each line out and in as
-`[StellarCoop][NR] night out: ...` and `night in: ...`.
+one side, so a lost line is repaired by the next.
+
+The host's `h` line has a counter, the run number and seed, the phase (`ask`, `count`, `wave`, `rest` or `end`), the
+wave, the run time in milliseconds, the score, kills and waves cleared, the wave monsters his run found and has not done
+(a hex mask), his start point, yaw and map, the outcome once the run ends (`success`, `time`, `failed:host`,
+`failed:guest`, `failed:both` or `aborted:<reason>`), and the run's level (`easy`, `normal`, `hard` or `nightmare`, or
+`range` for the Shooting Range challenge), which the guest's run takes. A mask has one bit for each wave and slot, 8
+slots a wave, so it covers the largest level's waves and the range's three rounds.
+
+The guest's `g` line has a counter, the run number, her state (`ready`, `refuse`, `run`, `dead` or `abort`), her
+monsters still up, masks of the ones killed and done in her world, and a refusal or abort word. Both lines end with the
+[revive](../night-operation.md#down-and-revive)'s two words: the seconds the side's downed EVE still waits (1 to 30, 0
+while she stands) and the side's revive of the other, the percent of the 3 s its interact key has been held next to her
+(0 to 100). The downed game makes its call once the other line says 100. The host's run fails as `failed:both` once his
+down and her down word above 0 have held together for 6 s with no call of his under way: her line does not show a call
+of hers, which has 5 s to get her up.
+
+Each game writes its line when it changes and at least once a second, never twice in one Lua tick, and logs each line
+out and in as `[StellarCoop][NR] night out: ...` and `night in: ...`.
 
 The native part checks only the bytes: 3 to 300 of `0-9`, `a-z`, `/`, `_`, `:` and `-` with single spaces between
 words, the first word `h` from the lobby owner and `g` from the guest. It sends an `h` line only while it owns the

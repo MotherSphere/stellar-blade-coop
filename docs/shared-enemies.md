@@ -43,18 +43,21 @@ state ends, or after 6 seconds anyway. When the guest's hit is the kill, the hos
 
 Shared enemies get more HP and balance, since two players hit them. The host's `enemy_hp_scale` (default `1.35`)
 multiplies a shared enemy's maximum HP, and `enemy_balance_scale` (default `1.15`) its balance gauge, each from `1.0`
-(no change) to `4.0`. Both games use the host's values for the whole session; the guest's are not used, and the
-guest's `coop-link.log` says so once a run when they are not both `1.0`. An enemy gets
-them when it becomes shared, and its HP and balance rise in the same proportion, so an enemy at half HP stays at half.
-When it stops being shared, or shared enemies stop, it gets its own maximums back and keeps the same share of HP and
-balance. On the host's side an enemy gets them once the guest's side is on, and keeps them until it dies or leaves the
-16 shared places, even while the guest pauses. That covers every enemy in the 16 places, also one the guest's game
-never links (it is in another part of the map, or its copy does not match), which the host then fights alone at the
-higher values. The mod changes the game's MaxHPValue and MaxStamina stats through the game's own code. An enemy whose
-maximum HP the game has changed in another way keeps its own (the stats line of `coop-fight.log` counts it as
-unscaled). The `Shared enemies on` notice names the values when they are not both 1.0,
-for example `Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % (the host's setting).`, and the
-`fight=` line of `coop status` has `scale=135/115`.
+(no change) to `4.0`. Both games use the host's values for the whole session; the guest's are not used, and the guest's
+`coop-link.log` says so once a run when they are not both `1.0`.
+
+An enemy gets them when it becomes shared, and its HP and balance rise in the same proportion, so an enemy at half HP
+stays at half. When it stops being shared, or shared enemies stop, it gets its own maximums back and keeps the same
+share of HP and balance. On the host's side an enemy gets them once the guest's side is on, and keeps them until it dies
+or leaves the 16 shared places, even while the guest pauses. That covers every enemy in the 16 places, also one the
+guest's game never links (it is in another part of the map, or its copy does not match), which the host then fights
+alone at the higher values.
+
+The mod changes the game's MaxHPValue and MaxStamina stats through the game's own code. An enemy whose maximum HP the
+game has changed in another way keeps its own (the stats line of `coop-fight.log` counts it as unscaled). The
+`Shared enemies on` notice names the values when they are not both 1.0, for example
+`Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % (the host's setting).`, and the `fight=` line of
+`coop status` has `scale=135/115`.
 
 ### Kill credit
 
@@ -62,20 +65,23 @@ for example `Shared enemies on: 3 enemies linked. Enemy HP 135 %, balance 115 % 
 default, you took part when your EVE hit it, when it targeted your EVE, or when your EVE stands within 30 m of it as it
 dies. With `fought`, the distance does not count, and with either value it does not count while your EVE is down.
 Whether it targeted you or your hit landed comes from the game's record of the last player an enemy fought, the record
-the game itself uses to credit a kill. An enemy that your own hit kills always gives you the kill. When the other player
-kills a shared enemy you took no part in, your copy does not die: it stops being shared and stays alive in your game,
-back at full HP, so its kill rewards, drops, quest kills and achievements never reach your save, and one hit of yours
-later does not finish what the other player's hits did. A boss copy goes back to full HP the same way. Whether you can
-then beat that boss alone before the area reloads has not been tested in game. The guest's `coop-link.log` then says
-`fight dead-unshared <key> hguid=<n> not taken part`, the host's says `fight kill-unshared <key> hguid=<n> not taken
-part`, and the host's game does not share that enemy again in this session. As the guest, while [same
-spawns](#same-spawns-experimental) run (within 100 m of each other in one zone), the host's next drop line removes the
-copy of a common enemy from your game a few seconds later, without a kill, unless you are fighting it. Damage dealt
-before an enemy became shared does not count as yours, since the other player may have dealt it. When a knockdown the
-other player started, mirrored on your copy, makes the game record your EVE as that enemy's last player, the log says
-`fight last player <key> set by a mirrored crowd control` and that record no longer counts for this enemy: your hit or
-the 30 m still do. `kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill wherever you stood, is gone
-(see [coop-settings.txt](settings.md#coop-settingstxt)).
+the game itself uses to credit a kill. An enemy that your own hit kills always gives you the kill.
+
+When the other player kills a shared enemy you took no part in, your copy does not die: it stops being shared and stays
+alive in your game, back at full HP, so its kill rewards, drops, quest kills and achievements never reach your save, and
+one hit of yours later does not finish what the other player's hits did. A boss copy goes back to full HP the same way.
+Whether you can then beat that boss alone before the area reloads has not been tested in game. The guest's
+`coop-link.log` then says `fight dead-unshared <key> hguid=<n> not taken part`, the host's says
+`fight kill-unshared <key> hguid=<n> not taken part`, and the host's game does not share that enemy again in this
+session.
+
+As the guest, while [same spawns](#same-spawns-experimental) run (within 100 m of each other in one zone), the host's
+next drop line removes the copy of a common enemy from your game a few seconds later, without a kill, unless you are
+fighting it. Damage dealt before an enemy became shared does not count as yours, since the other player may have dealt
+it. When a knockdown the other player started, mirrored on your copy, makes the game record your EVE as that enemy's
+last player, the log says `fight last player <key> set by a mirrored crowd control` and that record no longer counts for
+this enemy: your hit or the 30 m still do. `kill_credit=all` from 0.4.0-beta.1, which gave you every shared kill
+wherever you stood, is gone (see [coop-settings.txt](settings.md#coop-settingstxt)).
 
 ### Slow motion
 
@@ -326,19 +332,21 @@ a few seconds later. The same happens after each reset of her zone, unless she t
 - The guest's game sends its list of enemies there at once, then every 5 s while the zone is shared. The host's game
   answers with up to 16 enemies to create and 16 to remove each time. It asks for an enemy more than 1 km from the
   guest only once she comes nearer.
-- `coop-link.log` names each change by spawn key. On the guest: `fight spawned <key>`, `fight despawned <key>`, `fight
-  spawn refused <key> <why>` and `fight drop refused <key> <why>`, where why is `too far` (more than 1 km from your
-  EVE), `no row`, `save-row`, `keep-row`, `event-row` or `another zone` (as your game's tables have it), `no spawn
-  manager`, `not shared` (an enemy shared enemies leave out: no common enemy, or one `fight_chars` does not name),
-  `full` (240 enemies already handled since either game's last `fight spawns epoch`, or 48 extras), `row taken`, `no
-  such enemy` and `not made` (for an extra, below), `gone` or `busy` (you are fighting that enemy or taking it down: it
-  is removed once you are done, if the host's game still lacks it); and `fight spawn
-  undone <key> <why>` when an enemy it created turns out to be one shared enemies leave out (`not shared`) or another
-  character than the host's (`charId`), or `fight spawn kept <key> <why>` when that enemy could not be removed (it was
-  dying, for one). On the host: `fight spawn sent <key>` and `fight drop sent <key>`. Both log `fight spawns epoch
-  <why>` when their zone changes (`zone`), its enemies reset (`reset`), or 3 or more of them come back at once
-  (`guids`). `fight spawns leave <spawnId>:0 save-row` (or `keep-row`) comes once a session for a row of a shared enemy
-  that same spawns leave as it is. A game keeps the first 512 rows it reads, and rows past those are not logged.
+- `coop-link.log` names each change by spawn key.
+  - On the guest: `fight spawned <key>`, `fight despawned <key>`, `fight spawn refused <key> <why>` and
+    `fight drop refused <key> <why>`, where why is `too far` (more than 1 km from your EVE), `no row`, `save-row`,
+    `keep-row`, `event-row` or `another zone` (as your game's tables have it), `no spawn manager`, `not shared` (an
+    enemy shared enemies leave out: no common enemy, or one `fight_chars` does not name), `full` (240 enemies already
+    handled since either game's last `fight spawns epoch`, or 48 extras), `row taken`, `no such enemy` and `not made`
+    (for an extra, below), `gone` or `busy` (you are fighting that enemy or taking it down: it is removed once you are
+    done, if the host's game still lacks it); and `fight spawn undone <key> <why>` when an enemy it created turns out to
+    be one shared enemies leave out (`not shared`) or another character than the host's (`charId`), or
+    `fight spawn kept <key> <why>` when that enemy could not be removed (it was dying, for one).
+  - On the host: `fight spawn sent <key>` and `fight drop sent <key>`.
+  - Both log `fight spawns epoch <why>` when their zone changes (`zone`), its enemies reset (`reset`), or 3 or more of
+    them come back at once (`guids`). `fight spawns leave <spawnId>:0 save-row` (or `keep-row`) comes once a session for
+    a row of a shared enemy that same spawns leave as it is. A game keeps the first 512 rows it reads, and rows past
+    those are not logged.
 - The `fight=` line of `coop status` (and `coop fight status`) says `spawns=off`, `spawns=on` or `spawns=stopped` (the
   error of same place stopped them too), and on the guest's side `spawned=<n> despawned=<n> spawns_differ=<n>`: the
   enemies her game created and removed, and the refusals that show the two games differ (`no row`, `save-row`,
@@ -438,20 +446,25 @@ not been tested in game yet, and the default is 0.
 
 With `bosses=on` in the host's coop-settings.txt, shared enemies also share the bosses and Alpha Naytibas (the game's
 BossMonster type) that both games hold: one HP bar, balance gauge and death, as for a common enemy. Shared bosses are on
-by default and have not been tested in game yet. With same place on, the guest's copy is frozen like any copy her game
-draws, so it never casts its own skills. The host's game tells hers when its boss enters battle mode, which phase
-effects it holds and which enemies it summons, and her game applies the same to her copy: the arena events, the phase
-changes and the summoned enemies, which are shared like any other. Her copy leaves battle mode up to 10 s after the
-host's boss does, not counting time while the host's game is paused, and at once when it stops being shared. Without
-same place, each game runs these for its own copy. A boss in its Finish stance ends only by the host's finisher: a
-killing hit of the guest's then leaves it at 1 HP, and her game takes the finisher's state off her copy. If the boss
-stops being shared first (the link drops, the host's world changes, `coop fight off`), her game removes the Immortal it
-put back on her copy, and her own hit ends that boss in her game. A boss without a Finish stance dies of her killing hit
-as a common enemy does, unless its own thresholds or Immortal hold it. When the host's boss dies, her copy dies too if
-she took part in its fight (`kill_credit` under [shared enemies](#shared-enemies-experimental)), its thresholds taken
-off first. Otherwise her copy stays alive in her game, so the boss's trophy and story events come only when she fights
-it herself. Her game starts the boss fight on her copy (the arena events) only while her EVE stands within 30 m of it
-or has hit it. [How it works](internals/shared-enemies.md#shared-bosses) has the details, and
+by default and have not been tested in game yet.
+
+With same place on, the guest's copy is frozen like any copy her game draws, so it never casts its own skills. The
+host's game tells hers when its boss enters battle mode, which phase effects it holds and which enemies it summons, and
+her game applies the same to her copy: the arena events, the phase changes and the summoned enemies, which are shared
+like any other. Her copy leaves battle mode up to 10 s after the host's boss does, not counting time while the host's
+game is paused, and at once when it stops being shared. Without same place, each game runs these for its own copy.
+
+A boss in its Finish stance ends only by the host's finisher: a killing hit of the guest's then leaves it at 1 HP, and
+her game takes the finisher's state off her copy. If the boss stops being shared first (the link drops, the host's world
+changes, `coop fight off`), her game removes the Immortal it put back on her copy, and her own hit ends that boss in her
+game. A boss without a Finish stance dies of her killing hit as a common enemy does, unless its own thresholds or
+Immortal hold it.
+
+When the host's boss dies, her copy dies too if she took part in its fight (`kill_credit` under
+[shared enemies](#shared-enemies-experimental)), its thresholds taken off first. Otherwise her copy stays alive in her
+game, so the boss's trophy and story events come only when she fights it herself. Her game starts the boss fight on her
+copy (the arena events) only while her EVE stands within 30 m of it or has hit it.
+[How it works](internals/shared-enemies.md#shared-bosses) has the details, and
 [troubleshooting](troubleshooting.md#a-shared-boss-differs-between-the-two-games) the log lines.
 
 - Only the host's values count, from the next `coop fight on`: Options > Combat > Shared bosses (experimental) and

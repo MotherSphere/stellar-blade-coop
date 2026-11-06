@@ -45,16 +45,20 @@ ItemTable AddRow leaves that table in an unknown state for each of them.
 `nightop/shop_ui.h` (free of Windows, tested on the build machine) and `glue/tick/nightop_game.inc` make the calls the
 vending machine's interaction node makes (`SBInteractionNode_ShopUI`, its execute `FUN_141b89c80`), on the game thread
 under their own SEH latch. The UI manager is the client's `+0x48` (client global `0x147032520`, read directly and never
-through its getter, which allocates). An open needs the client in game (flow `+0xa00` 2) and playing (phase `+0xb9c`
-`0xe`) and no shop screen open (`FUN_141fc51d0` with the shop logic's type `0xab`); then `FUN_141fc4aa0` opens the
-screen (manager, type, no child list, no parent, 0, an empty FString, 0) and the shop logic (the entry's `+0x60`) takes
-the shop alias, the instance alias (the same: the rows keep `UnionLimitedItem`) and the title tag (None, as the cut
-machine leaves it) through `FUN_141f47130`. A close calls `FUN_141fc5120` with the entry's own type, the virtual at
-`+0x38` of its `+0x10`, as the node does. A new entry with no shop logic is closed the same way at once, and the open
-answers `logic`. A fault inside `FUN_141f47130` leaves the new screen up without its shop: the latch then stops every
-read and close, so the player closes it. A purchase is then the game's own local job (`FSBActorBuyItem`): it checks
-the seeds, removes them, raises its BuyItem and ConsumeInShop achievement events with the seed and the shop's (empty)
-tags, and adds the item through the bucket add `ItemBucketItemAdd` also uses.
+through its getter, which allocates).
+
+An open needs the client in game (flow `+0xa00` 2) and playing (phase `+0xb9c` `0xe`) and no shop screen open
+(`FUN_141fc51d0` with the shop logic's type `0xab`); then `FUN_141fc4aa0` opens the screen (manager, type, no child
+list, no parent, 0, an empty FString, 0) and the shop logic (the entry's `+0x60`) takes the shop alias, the instance
+alias (the same: the rows keep `UnionLimitedItem`) and the title tag (None, as the cut machine leaves it) through
+`FUN_141f47130`. A close calls `FUN_141fc5120` with the entry's own type, the virtual at `+0x38` of its `+0x10`, as the
+node does. A new entry with no shop logic is closed the same way at once, and the open answers `logic`. A fault inside
+`FUN_141f47130` leaves the new screen up without its shop: the latch then stops every read and close, so the player
+closes it.
+
+A purchase is then the game's own local job (`FSBActorBuyItem`): it checks the seeds, removes them, raises its BuyItem
+and ConsumeInShop achievement events with the seed and the shop's (empty) tags, and adds the item through the bucket add
+`ItemBucketItemAdd` also uses.
 
 After the first request (Lua's `nightshop watch`), every 250 ms the game thread reads whether a shop screen is open and,
 with the client in game (flow 2, which the title screen fails) and inside the rows' gate (net mode 0, no logic task in
@@ -65,29 +69,35 @@ and the last request's answer. A close asked after `coop off` still runs.
 
 ### The wallet
 
-The wallet file (`coop-night-<steamid>-<index>.txt`) stays the record. Before the open, Lua adds the wallet's points to
-the bucket as Beta Seeds, minus any seeds already there (or takes the surplus out), through the player controller's
-`ServerRequest_ItemBucketItemAdd` (no pickup message) and `ServerRequest_ItemBucketItemRemove` (any pocket), with
-`Money_NightOperation` only, and asks for the open once the count matches. While the screen is open, each new count is
-written to the wallet. After the close, the wallet keeps the last count and the seeds leave the bucket, through the
-controller and GUID read again then (after a map change the controller read at the open may be another object; Lua
-also stops before the fill when EVE's map changed during the rows). Until the open, each step first checks that the
-status still reads the wallet's co-op save (`slot=coop` with its index): on another save, or during a load, Lua stops
-with no seeds added, no open and no removal, since the bucket may then be another save's. A save made while seeds are
-in the bucket holds them: from the fill to the removal, or after a removal that failed, which the next
-`coop nightop shop` corrects. A game
-restarted from that save loads them before the shop's rows are in. A save restore does not change the points, as
-before. The run's start refuses while the screen runs, and so does a guest's answer to the host's run, so no credit
-lands while seeds are out. When a step fails, Lua asks for the close only once the game opened the screen for it,
-never after a refused open, when the screen up may be the game's own. `coop off` also asks for it while the open's
-answer is not read yet (about 250 ms), so a game shop screen that came up in that time closes too. When the screen
-ends early (`coop off`, a fault, a step that times out), the seeds that go are the last count read once open, and
-before that at least the count Lua added, since a read from before the add still says the old count. After a fault the
-native part no longer reads or closes the screen, so those seeds leave the bucket at once and a screen left open sells
-nothing. After a Lua reload, the first tick that reads seeds in the bucket with a shop screen open takes the screen
-over as open: only the screen adds Beta Seeds, so they are this wallet's. With no shop screen open, those seeds leave at
-once and the wallet is not written: after a removal that failed or an older save loaded, the bucket no longer matches
-the wallet, which stays the record as at a fill.
+The wallet file (`coop-night-<steamid>-<index>.txt`) stays the record.
+
+- Before the open, Lua adds the wallet's points to the bucket as Beta Seeds, minus any seeds already there (or takes the
+  surplus out), through the player controller's `ServerRequest_ItemBucketItemAdd` (no pickup message) and
+  `ServerRequest_ItemBucketItemRemove` (any pocket), with `Money_NightOperation` only, and asks for the open once the
+  count matches.
+- While the screen is open, each new count is written to the wallet.
+- After the close, the wallet keeps the last count and the seeds leave the bucket, through the controller and GUID read
+  again then (after a map change the controller read at the open may be another object; Lua also stops before the fill
+  when EVE's map changed during the rows).
+- Until the open, each step first checks that the status still reads the wallet's co-op save (`slot=coop` with its
+  index): on another save, or during a load, Lua stops with no seeds added, no open and no removal, since the bucket may
+  then be another save's.
+- A save made while seeds are in the bucket holds them: from the fill to the removal, or after a removal that failed,
+  which the next `coop nightop shop` corrects. A game restarted from that save loads them before the shop's rows are in.
+  A save restore does not change the points, as before. The run's start refuses while the screen runs, and so does a
+  guest's answer to the host's run, so no credit lands while seeds are out.
+- When a step fails, Lua asks for the close only once the game opened the screen for it, never after a refused open,
+  when the screen up may be the game's own.
+- `coop off` also asks for it while the open's answer is not read yet (about 250 ms), so a game shop screen that came up
+  in that time closes too.
+- When the screen ends early (`coop off`, a fault, a step that times out), the seeds that go are the last count read
+  once open, and before that at least the count Lua added, since a read from before the add still says the old count.
+- After a fault the native part no longer reads or closes the screen, so those seeds leave the bucket at once and a
+  screen left open sells nothing.
+- After a Lua reload, the first tick that reads seeds in the bucket with a shop screen open takes the screen over as
+  open: only the screen adds Beta Seeds, so they are this wallet's. With no shop screen open, those seeds leave at once
+  and the wallet is not written: after a removal that failed or an older save loaded, the bucket no longer matches the
+  wallet, which stays the record as at a fill.
 
 ## Roxanne's Night Operation choices
 

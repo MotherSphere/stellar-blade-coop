@@ -189,17 +189,21 @@ run each game checks the points against its own copy of the map. Both get the sa
 The game does not keep a monster's wave key where the mod can read it (it copies the key to the character only in a
 networked game), so the mod finds each monster by where it stands. Just before a wave's first spawn, it lists the
 characters in the world and where each one stands. 1 s and 2.5 s after the wave's last spawn, it lists them again and
-logs how many of the wave's monsters it has found (`wave 1 find +1 s: tracked 4/4`). A character that is alive and
-shown, is not EVE, is not one of the run's monsters already, and is not standing within 50 m of where it stood before
-the wave counts as new. It becomes the monster of the nearest of the wave's spawn points within 5 m (the points the
-spawn requests used, after the ground check). Alive means that its `InteractionState` reads 0 or 1. A monster from the
-run's spawn request reads 1 (executable) from its first second until it dies, when it reads 3. The run of 2026-10-28
-took only 0 as alive, so it found none of its monsters: each wave's finds logged 0 (`wave 1 find +2.5 s: tracked 0/4`),
-every monster was `missing` with `no new body`, and no kill scored. A field enemy that walked onto a point before the
-wave is never taken. The game reuses its characters, sometimes from far away, which is why the 50 m rule exists. A
-monster not found 2.5 s after its wave's last spawn is logged as `missing`, with the distance of the nearest new
-character left over (`missing 0xD82A0103 M_Antlion (nearest new body 6.2 m)`, or `no new body`), and its wave does not
-wait for it.
+logs how many of the wave's monsters it has found (`wave 1 find +1 s: tracked 4/4`).
+
+A character that is alive and shown, is not EVE, is not one of the run's monsters already, and is not standing within 50
+m of where it stood before the wave counts as new. It becomes the monster of the nearest of the wave's spawn points
+within 5 m (the points the spawn requests used, after the ground check).
+
+Alive means that its `InteractionState` reads 0 or 1. A monster from the run's spawn request reads 1 (executable) from
+its first second until it dies, when it reads 3. The run of 2026-10-28 took only 0 as alive, so it found none of its
+monsters: each wave's finds logged 0 (`wave 1 find +2.5 s: tracked 0/4`), every monster was `missing` with
+`no new body`, and no kill scored.
+
+A field enemy that walked onto a point before the wave is never taken. The game reuses its characters, sometimes from
+far away, which is why the 50 m rule exists. A monster not found 2.5 s after its wave's last spawn is logged as
+`missing`, with the distance of the nearest new character left over
+(`missing 0xD82A0103 M_Antlion (nearest new body 6.2 m)`, or `no new body`), and its wave does not wait for it.
 
 The mod then sends each new monster at EVE. 0.6 s after the monster is found, the mod reports a 0.01 damage event and
 a noise from EVE, puts the monster in battle state, and gives it EVE as focus and a move towards her; if it is still

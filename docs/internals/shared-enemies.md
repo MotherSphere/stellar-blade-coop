@@ -138,18 +138,19 @@ pairs through its spawn key like any other.
   asks again once she is nearer or has room, and an enemy she created leaves the list once it has died or left her game.
 - Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the table
   holder and the job sender are read from their globals and never made by the mod: their getters (`FUN_141adc3d0`,
-  `FUN_141a97f20`, `FUN_141a97b90`) allocate one when it is missing. The spawn call gets the spawn manager, the
-  EventSpawnId, the SpawnIndex, the position, the rotation (0, yaw, 0), no extra request data and flag 0 (what the flag
-  does is not known yet). `FUN_141c1c9a0` itself passes a delay of 0 to `FUN_141c1ca40`, so the key spawns at once. It
-  reads the table holder through its getter, and for a row with EventOnSpawning events it sends them through the job
-  sender's getter. The spawn it starts reaches `NewActor`, whose actor setup reads the reg through `FUN_141a97cb0`. So
-  the guest calls it only while the holder, its tables, the job sender and the reg exist; with the spawn manager or
-  one of those not made she refuses the key (`no spawn manager`) and calls nothing. The despawn call gets the job
-  sender, the logic turn and the enemy's GUID, after the enemy is found again by GUID with that key and still fighting.
-  While that enemy holds BattleMode (state 30) or runs a takedown marker, or either read fails, she refuses the drop
-  (`busy`): the enemy stays in her list, so the host asks again and the despawn goes once she is done with it. A census
-  whose list of enemies came out partial (a read that failed, or more than 256 enemies with spawn keys) does nothing,
-  since an enemy missing from it would read as one the game lacks.
+  `FUN_141a97f20`, `FUN_141a97b90`) allocate one when it is missing.
+  - The spawn call gets the spawn manager, the EventSpawnId, the SpawnIndex, the position, the rotation (0, yaw, 0), no
+    extra request data and flag 0 (what the flag does is not known yet). `FUN_141c1c9a0` itself passes a delay of 0 to
+    `FUN_141c1ca40`, so the key spawns at once. It reads the table holder through its getter, and for a row with
+    EventOnSpawning events it sends them through the job sender's getter. The spawn it starts reaches `NewActor`, whose
+    actor setup reads the reg through `FUN_141a97cb0`. So the guest calls it only while the holder, its tables, the job
+    sender and the reg exist; with the spawn manager or one of those not made she refuses the key (`no spawn manager`)
+    and calls nothing.
+  - The despawn call gets the job sender, the logic turn and the enemy's GUID, after the enemy is found again by GUID
+    with that key and still fighting. While that enemy holds BattleMode (state 30) or runs a takedown marker, or either
+    read fails, she refuses the drop (`busy`): the enemy stays in her list, so the host asks again and the despawn goes
+    once she is done with it. A census whose list of enemies came out partial (a read that failed, or more than 256
+    enemies with spawn keys) does nothing, since an enemy missing from it would read as one the game lacks.
 - The `fight=` line of `coop-status.txt` carries `spawns=off`, `on` or `stopped` (the pilot's latch stops same spawns,
   since the ghost's position no longer reaches the job), and on the guest's side `spawned=`, `despawned=` and
   `spawns_differ=`: the refusals, and the created enemies undone or kept, whose reason shows that the two games' tables
@@ -275,48 +276,53 @@ battle mode, change phase or summon anything. The host's job reads them on its o
 applies them to her copy:
 
 - The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF19 bstart <gen> <hguid>` when it turns on,
-  then every second while it stays on. The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy,
-  once while the copy stays in battle mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on,
-  then `0, 0, 0, 1`. The fifth argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs
-  `EventFirstTimeOnBattle` once. Called from the logic thread, the game queues it for its game thread. She calls it only
-  for a copy her game draws as a BossMonster in life state 1, with the job sender and the reg already made (the call
-  reads both through getters that would make them), and only while her EVE is within 30 m of her copy or its last
-  player ([Achievements](safety.md#achievements)). A refused bstart is taken at the host's next repeat. Her game takes
-  the copy out of battle mode through the same wrapper with off, then `0, 0, 1, 1`, the arguments of the game's own
-  battle-off calls: when the host's lines bring no bstart for 10 s (the host's boss left battle mode; a gap of over 2 s
-  with no line from the host, as while the host's game is paused, is not counted), when her game stops drawing the copy
-  (the pair ends, same place stops) and when the session ends (`coop fight off`, the link, the fault latch). A dying
-  copy gets no call. The host's next bstart for that copy calls it again.
+  then every second while it stays on.
+  - The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy, once while the copy stays in battle
+    mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on, then `0, 0, 0, 1`. The fifth
+    argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs `EventFirstTimeOnBattle`
+    once. Called from the logic thread, the game queues it for its game thread. She calls it only for a copy her game
+    draws as a BossMonster in life state 1, with the job sender and the reg already made (the call reads both through
+    getters that would make them), and only while her EVE is within 30 m of her copy or its last player
+    ([Achievements](safety.md#achievements)). A refused bstart is taken at the host's next repeat.
+  - Her game takes the copy out of battle mode through the same wrapper with off, then `0, 0, 1, 1`, the arguments of
+    the game's own battle-off calls: when the host's lines bring no bstart for 10 s (the host's boss left battle mode; a
+    gap of over 2 s with no line from the host, as while the host's game is paused, is not counted), when her game stops
+    drawing the copy (the pair ends, same place stops) and when the session ends (`coop fight off`, the link, the fault
+    latch). A dying copy gets no call. The host's next bstart for that copy calls it again.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
-  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as `SBF19 phase <gen> <hguid> <oe>
-  <id,id,...|->` when they change and every second in battle mode. The guest refuses a line with an ID her own table
-  does not hold for that boss (a bad line), of another owner epoch, or for a copy her game does not draw. Through the
-  game's effect call (`FUN_141ad08b0`), her copy its own caster as for the boss's own skill step, she applies each row
-  that came into the host's set since her last line for that copy, in the host's order, a dispel row first (the host's
-  copy holds a row next to the dispel that would end it only when that row started later). On her first line for a
-  copy, and on the line after the game refused one of her rows, she compares the set with her copy's effect list
-  instead: each row the copy lacks has come, and each row of the allowlist it holds that the set lacks has left. Before
-  them she applies `MinimumHP_Dispel` when a threshold left the set and none came in, and the boss's phase dispel row
-  (Crawler 5022094, SkullJuggernaut 5015002) when a phase row left and none came in. The phase row's own stance change
-  does the rest on her copy. 19 bosses have a row in the table; the other BossMonsters (the
-  Alpha Naytibas, challenge and variant rows) get bstart lines only.
-- At each census the host looks for actors with no spawn key whose owner (logic actor `+0x400`) is a boss it shares,
-  and finds the SummonActor row that made each one in the owner's effect list, by the effect GUID at `+0x40c` (an
-  effect's GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward
-  dummies and the Elder's dummy have none and stay in the host's game. A summon gets a key in the summon range,
-  EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons since the game started, and joins the
-  shared list under it. After its up the host sends `SBF19 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner
-  hguid> <row>`, with epoch 1 when same spawns do not run, and sends it again every second while it follows the
-  summon: her game takes a repeat as one it has, and a line it refused for a passing reason (its boss not paired yet)
-  can go through later. The guest makes it through `NewActor`, as for extra enemies,
-  with that key where the host's stands: only within 1 km of her EVE, for an owner she pairs as a BossMonster, and for a
-  row of her table that makes that charId. She then applies the row's effects through the effect call (its Start row,
-  which holds the summon still for a moment, and its Check row), and the pair forms on the key; same place freezes and
-  drives it like any other copy. If the game refuses one of those effects, she despawns the summon at once: without
-  them her hits would take far more HP than the host's copy loses. A summon of hers that no pair holds 3 s after she
-  made it is despawned too, and so is every one still fighting when the session ends. A key she despawned for either
-  reason is not made again until the next on, off or world line of either game. She holds 32 at most at once.
+  thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as
+  `SBF19 phase <gen> <hguid> <oe> <id,id,...|->` when they change and every second in battle mode.
+  - The guest refuses a line with an ID her own table does not hold for that boss (a bad line), of another owner epoch,
+    or for a copy her game does not draw. Through the game's effect call (`FUN_141ad08b0`), her copy its own caster as
+    for the boss's own skill step, she applies each row that came into the host's set since her last line for that copy,
+    in the host's order, a dispel row first (the host's copy holds a row next to the dispel that would end it only when
+    that row started later).
+  - On her first line for a copy, and on the line after the game refused one of her rows, she compares the set with her
+    copy's effect list instead: each row the copy lacks has come, and each row of the allowlist it holds that the set
+    lacks has left. Before them she applies `MinimumHP_Dispel` when a threshold left the set and none came in, and the
+    boss's phase dispel row (Crawler 5022094, SkullJuggernaut 5015002) when a phase row left and none came in. The phase
+    row's own stance change does the rest on her copy.
+  - 19 bosses have a row in the table; the other BossMonsters (the Alpha Naytibas, challenge and variant rows) get
+    bstart lines only.
+- At each census the host looks for actors with no spawn key whose owner (logic actor `+0x400`) is a boss it shares, and
+  finds the SummonActor row that made each one in the owner's effect list, by the effect GUID at `+0x40c` (an effect's
+  GUID is at its `+0x20`). Marionette's DollHeads and Maelstrom's BodyBags have rows in the table. The reward dummies
+  and the Elder's dummy have none and stay in the host's game.
+  - A summon gets a key in the summon range, EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons
+    since the game started, and joins the shared list under it. After its up the host sends
+    `SBF19 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner hguid> <row>`, with epoch 1 when same spawns do not
+    run, and sends it again every second while it follows the summon: her game takes a repeat as one it has, and a line
+    it refused for a passing reason (its boss not paired yet) can go through later.
+  - The guest makes it through `NewActor`, as for extra enemies, with that key where the host's stands: only within 1 km
+    of her EVE, for an owner she pairs as a BossMonster, and for a row of her table that makes that charId. She then
+    applies the row's effects through the effect call (its Start row, which holds the summon still for a moment, and its
+    Check row), and the pair forms on the key; same place freezes and drives it like any other copy. If the game refuses
+    one of those effects, she despawns the summon at once: without them her hits would take far more HP than the host's
+    copy loses.
+  - A summon of hers that no pair holds 3 s after she made it is despawned too, and so is every one still fighting when
+    the session ends. A key she despawned for either reason is not made again until the next on, off or world line of
+    either game. She holds 32 at most at once.
 - A Finish stance (HP under 2) applies `Passive_DeathReady` (2001101), which chains `Passive_FinishReady` (2001102, the
   state the finisher needs). In each turn a paired boss copy of hers holds either one, her game applies
   `FinishReady_Dispel` (2001103) and then the boss's own `Passive_Immortal` (2001100) again: her hits stop at 1 HP and

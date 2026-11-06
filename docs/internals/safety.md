@@ -54,34 +54,37 @@ claim the host accepts):
   the PC whose own solo run ended in success, never from a co-op run and never over the link.
 - Every camp travel of the mod but `coop mxiii`'s and `coop mxiii 30`'s goes only to a camp the player's save has
   already activated, because activating a camp counts toward achievements and the game's fast travel does not check it
-  ([Following the host](group-play.md#following-the-host)). The native read asks the game's own camp list (`FUN_141d1d650`, the
-  function the camp list screen calls) for the camps of the travel table that hold an active ZoneEnvSpawn row, so the
-  mod travels only where the game's own camp list would let the player travel. The follow is off in this version and
-  makes no call at all. `coop travel probe <camp>`, the follow's solo test, and `coop mxiii leave` refuse any camp the
-  read does not list, and every camp while there is no read (a load, the title, after a fault). Whether arriving at a
-  camp through the game's fast travel activates it has not been checked. `coop mxiii` and `coop mxiii 30` travel to
-  their own camps (`DLC02_00_Camp_00` or `DLC02_10_Camp_01`, and `DLC02_30_Camp_01`) without that read ([The cut Matrix XIII
-  dungeon](matrix-xiii.md)): the two camp trophies count only named ZoneEnvSpawnTable rows
-  turning On (`Trophy_Activate_FirstCamp` one, `Trophy_Activate_AllCamp` the 89 `ChangeState_ZoneEnv_*_Camp` rows of
-  AchievementTable), and none of them names `DLC02_00_EnvS_960`, `DLC02_10_EnvS_900` or `DLC02_30_EnvS_900`, the mod's rows for those camps.
-  A revive changes only the downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills
+  ([Following the host](group-play.md#following-the-host)). The native read asks the game's own camp list
+  (`FUN_141d1d650`, the function the camp list screen calls) for the camps of the travel table that hold an active
+  ZoneEnvSpawn row, so the mod travels only where the game's own camp list would let the player travel. The follow is
+  off in this version and makes no call at all.
+  - `coop travel probe <camp>`, the follow's solo test, and `coop mxiii leave` refuse any camp the read does not list,
+    and every camp while there is no read (a load, the title, after a fault). Whether arriving at a camp through the
+    game's fast travel activates it has not been checked.
+  - `coop mxiii` and `coop mxiii 30` travel to their own camps (`DLC02_00_Camp_00` or `DLC02_10_Camp_01`, and
+    `DLC02_30_Camp_01`) without that read ([The cut Matrix XIII dungeon](matrix-xiii.md)): the two camp trophies count
+    only named ZoneEnvSpawnTable rows turning On (`Trophy_Activate_FirstCamp` one, `Trophy_Activate_AllCamp` the 89
+    `ChangeState_ZoneEnv_*_Camp` rows of AchievementTable), and none of them names `DLC02_00_EnvS_960`,
+    `DLC02_10_EnvS_900` or `DLC02_30_EnvS_900`, the mod's rows for those camps.
+- A revive changes only the downed player's own EVE: her life, her HP and the recovery items that a camp respawn refills
   too. The cutscene wait is a pause, and the solid partner changes no game state.
 - Matrix XIII's rows go in at the title whenever the test pak is installed and the game uses the co-op save files
-  ([At the title](matrix-xiii.md#at-the-title)), so they stand in memory under co-op saves that never use `coop mxiii`. They can
-  neither unlock nor block a camp trophy. `Trophy_Activate_AllCamp` (trophy 26, `Activate_AllCamp`) completes at a
-  fixed count, 89 in both AchievementTable and TrophyTable, and only its 89 `ChangeState_ZoneEnv_*_Camp` rows raise it,
-  each on one named shipped ZoneEnvSpawnTable row turning On (`DED10_EnvS_113` and the others).
-  `Trophy_Activate_FirstCamp` takes `DED10_EnvS_100` alone. No count of ZoneCampTable or ZoneEnvSpawnTable rows goes
-  into either: the game's code names `Trophy_Activate_AllCamp` once, in `FSBActorProgressAchievement::Execute`
-  (`FUN_141b1b280`), to call `FUN_141ce5c30` after that row has progressed. None of the 2747 AchievementTable rows
-  names a `DLC02` row, zone or world, `MXIII` or `DLCMatrix13`. The only rows that match a camp object by its class
-  are the skill machine's guide rows (`Ach_Guide_InteractEnvAlias_SkillMachine`, `Ach_Guide_TrainingRoom`), which open
-  a guide and the skill manual page and lead to no trophy, as any camp's skill machine does. A row that is only
-  present raises no event: the kit's objects exist only inside the dungeon. The test pak's levels are copies of Matrix
-  11's, and the camp vending machines in them keep Matrix 11's rows (`ME_01_EnvS_017` and `_018`, `ME_03_EnvS_005`,
-  `_015` and `_023`, `ME_04_EnvS_008` and `_009`), seven of the 89. Matrix 11's zones never start in that world,
-  which should leave them unusable, but that was not checked, so v3 moves all seven 400 m below the floor (v2 moves
-  only `ME_01_EnvS_017`).
+  ([At the title](matrix-xiii.md#at-the-title)), so they stand in memory under co-op saves that never use `coop mxiii`.
+  They can neither unlock nor block a camp trophy.
+  - `Trophy_Activate_AllCamp` (trophy 26, `Activate_AllCamp`) completes at a fixed count, 89 in both AchievementTable
+    and TrophyTable, and only its 89 `ChangeState_ZoneEnv_*_Camp` rows raise it, each on one named shipped
+    ZoneEnvSpawnTable row turning On (`DED10_EnvS_113` and the others). `Trophy_Activate_FirstCamp` takes
+    `DED10_EnvS_100` alone. No count of ZoneCampTable or ZoneEnvSpawnTable rows goes into either: the game's code names
+    `Trophy_Activate_AllCamp` once, in `FSBActorProgressAchievement::Execute` (`FUN_141b1b280`), to call `FUN_141ce5c30`
+    after that row has progressed.
+  - None of the 2747 AchievementTable rows names a `DLC02` row, zone or world, `MXIII` or `DLCMatrix13`. The only rows
+    that match a camp object by its class are the skill machine's guide rows (`Ach_Guide_InteractEnvAlias_SkillMachine`,
+    `Ach_Guide_TrainingRoom`), which open a guide and the skill manual page and lead to no trophy, as any camp's skill
+    machine does. A row that is only present raises no event: the kit's objects exist only inside the dungeon.
+  - The test pak's levels are copies of Matrix 11's, and the camp vending machines in them keep Matrix 11's rows
+    (`ME_01_EnvS_017` and `_018`, `ME_03_EnvS_005`, `_015` and `_023`, `ME_04_EnvS_008` and `_009`), seven of the 89.
+    Matrix 11's zones never start in that world, which should leave them unusable, but that was not checked, so v3 moves
+    all seven 400 m below the floor (v2 moves only `ME_01_EnvS_017`).
 - A [Doro race](doro-races.md) gives nothing to either player: its Doros cannot die, and it calls no achievement, reward
   or save function.
 - A [Lion](cut-enemies.md#the-cut-lion) lives only in the world of the player who typed the command and is never shared: its kill is
@@ -147,27 +150,29 @@ feature or drops the input.
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
   title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game
-  was not chosen (the game's load mode is 0). A pass checks this again before each file and before the switch. The
-  native part reads your saves and writes each copy as a `.coop-tmp` file, renames it over the copy and reads it back.
-  One name check guards every write but the export's (below): only the copies, their temporary files,
-  `StellarCoopSaves.txt`, the shared quests' records `StellarCoopQuests00.txt` to `04.txt`, the shortcut saves' marks
-  `StellarCoopShortcut00.txt` to `04.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken
-  before any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
-  A `saves export N M` request is the one write to your own saves, behind a check of its own that passes only
-  `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It refuses a co-op copy with a shortcut save's
-  mark beside it before it reads anything. It reads the co-op copy, checks it as the game does, refuses it when its
-  stored CRC-32 is one of the 12 cleaned developer saves' or it names one of their five items with no `ItemTable` row,
-  and refuses it while an `ItemAlias` field or a quick slot names one of the mod's items, while
-  `BulletItemSlotIndex` is 5 or more (the Shock Bolt `lion/shock.h` appends after the five ammo types the game ships),
-  or while the save's `MapName` is `MXIII_P` or one of its four camp fields (`CampAlias`, `CampEnvSpawnAlias`,
-  `LastFullCampEnvSpawnAlias`, `LastSimplyCampEnvSpawnAlias`) holds a name that starts with `DLC02_`, a row of the
-  Matrix XIII dungeon. A find inside `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing
-  does not change, is refused too, with a line that says so instead of what to use up or where to rest. Only then does
-  it back up the target save, read the copy again (unchanged since the check, or it stops), scan those bytes again,
-  check that the target save is as its backup read it (or still missing) and write the copy over that save through a
-  `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
-  The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
-  every 250 ms; an entry that moves or changes stops it for the run.
+  was not chosen (the game's load mode is 0).
+  - A pass checks this again before each file and before the switch. The native part reads your saves and writes each
+    copy as a `.coop-tmp` file, renames it over the copy and reads it back.
+  - One name check guards every write but the export's (below): only the copies, their temporary files,
+    `StellarCoopSaves.txt`, the shared quests' records `StellarCoopQuests00.txt` to `04.txt`, the shortcut saves' marks
+    `StellarCoopShortcut00.txt` to `04.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken before
+    any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
+  - A `saves export N M` request is the one write to your own saves, behind a check of its own that passes only
+    `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It refuses a co-op copy with a shortcut save's
+    mark beside it before it reads anything.
+  - It reads the co-op copy, checks it as the game does, refuses it when its stored CRC-32 is one of the 12 cleaned
+    developer saves' or it names one of their five items with no `ItemTable` row, and refuses it while an `ItemAlias`
+    field or a quick slot names one of the mod's items, while `BulletItemSlotIndex` is 5 or more (the Shock Bolt
+    `lion/shock.h` appends after the five ammo types the game ships), or while the save's `MapName` is `MXIII_P` or one
+    of its four camp fields (`CampAlias`, `CampEnvSpawnAlias`, `LastFullCampEnvSpawnAlias`,
+    `LastSimplyCampEnvSpawnAlias`) holds a name that starts with `DLC02_`, a row of the Matrix XIII dungeon. A find
+    inside `NewGamePlusBaseData`, the New Game+ copy of the inventory and camps that playing does not change, is refused
+    too, with a line that says so instead of what to use up or where to rest.
+  - Only then does it back up the target save, read the copy again (unchanged since the check, or it stops), scan those
+    bytes again, check that the target save is as its backup read it (or still missing) and write the copy over that
+    save through a `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
+  - The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
+    every 250 ms; an entry that moves or changes stops it for the run.
 - The [spawn filter](shared-enemies.md#the-spawn-filter), off by default, is the one write into the game's image rather than into
   memory the game allocated: one 8-byte pointer in `.rdata`, swapped by compare-and-swap from the game's own value
   only, with the page writable for that store alone, and swapped back from the mod's value only at `coop off` or after

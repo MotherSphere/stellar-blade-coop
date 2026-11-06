@@ -46,23 +46,25 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
 
 ## The quests
 
-4. The quests' reads and asks: `quest/own.h` (free of Windows, tested against fake memory) runs on the game thread
-   every 250 ms on a co-op save until `coop off`, under its own SEH latch, with the shared quests' save-slot line and
-   offsets, but only from Lua's first signal request: `signal watch`, which Lua sends once a Lua load when the cheap
-   gates hold (a co-op save, solo, the test pak found, the rows read back). Before it, nothing calls SB's quest unit
-   getter and the line reads `signalquest=unread`. It reads the local player's quest unit (`FUN_141c5e880`, called
-   only once the world and the manager exist, never on SB's logic thread): the ID map through its allocation bits for
-   163, 164, 24 (Quest_Epic_11), 25 (Quest_Epic_12) and 44 (Quest_Sub_005); each quest object through the quest
-   vtable check, its state at `+0x48`, its active group and that group's first task. Each request word calls one fixed
-   thing: `acquire` and `prologue` the acquire by ID a quest zone event makes (`FUN_141c5cf20`: the ID's row name
-   through the QuestTable ID map AddRow filled, then AcquireQuest and PushQuest, which refuses an ID already held) for
-   163 or 164, only while the map does not hold it; `complete`, `talked`, `zone4`, `tell` and `next` the first task's
-   own Complete through its vtable's `+0x60` (`0x141c6eb10`, or `0x141c70850`, the one that ends child tasks; the
-   glue's call refuses any other address), only while that quest is in progress at that word's group (163's M01, 164's
-   M01, 163's M05, 163's M06, or 163's active group for the test word `next`) with that task in progress in that group.
-   The answer fits one 64-bit word (each small number in 4 bits), so the worker never reads half of it. The
-   `signalquest=` line gives the read and the last request's answer. The Steam wire protocol does not change: these
-   are local requests from Lua.
+4. The quests' reads and asks: `quest/own.h` (free of Windows, tested against fake memory) runs on the game thread every
+   250 ms on a co-op save until `coop off`, under its own SEH latch, with the shared quests' save-slot line and offsets,
+   but only from Lua's first signal request: `signal watch`, which Lua sends once a Lua load when the cheap gates hold
+   (a co-op save, solo, the test pak found, the rows read back). Before it, nothing calls SB's quest unit getter and the
+   line reads `signalquest=unread`.
+   - It reads the local player's quest unit (`FUN_141c5e880`, called only once the world and the manager exist, never on
+     SB's logic thread): the ID map through its allocation bits for 163, 164, 24 (Quest_Epic_11), 25 (Quest_Epic_12) and
+     44 (Quest_Sub_005); each quest object through the quest vtable check, its state at `+0x48`, its active group and
+     that group's first task.
+   - Each request word calls one fixed thing: `acquire` and `prologue` the acquire by ID a quest zone event makes
+     (`FUN_141c5cf20`: the ID's row name through the QuestTable ID map AddRow filled, then AcquireQuest and PushQuest,
+     which refuses an ID already held) for 163 or 164, only while the map does not hold it; `complete`, `talked`,
+     `zone4`, `tell` and `next` the first task's own Complete through its vtable's `+0x60` (`0x141c6eb10`, or
+     `0x141c70850`, the one that ends child tasks; the glue's call refuses any other address), only while that quest is
+     in progress at that word's group (163's M01, 164's M01, 163's M05, 163's M06, or 163's active group for the test
+     word `next`) with that task in progress in that group.
+   - The answer fits one 64-bit word (each small number in 4 bits), so the worker never reads half of it. The
+     `signalquest=` line gives the read and the last request's answer. The Steam wire protocol does not change: these
+     are local requests from Lua.
 5. The prologue: once every gate below up to Quest_Sub_005 holds, Quest_Epic_11 reads group 3 (M04) in progress and
    neither quest is held, Lua waits 5 s with the game unpaused and no game screen shown, reads `coop scene`'s
    theater observers once (no cutscene of the game may play then), and asks `signal prologue`, once a Lua load.

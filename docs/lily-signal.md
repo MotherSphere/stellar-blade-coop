@@ -256,13 +256,7 @@ line. The status lines and the native part's own lines are listed in
 
 ## Status lines
 
-In Phase 5, before her "Follow the bike signal and leave", on a co-op save, solo, with the zMXIII_P test pak and
-Quest_Sub_005 complete, the mod starts its prologue quest "A Second Signal" and Lily's menu offers "The other signal".
-Its pick plays a talk in the game's subtitle box, starts the mod's quest "On Time" and runs `coop mxiii`'s camp travel.
-"On Time" has six steps through Matrix XIII and ends with a second talk with Lily. Without the test pak the mod adds
-none of its rows and reads nothing. The whole feature, its conditions,
-its notes on saves and its `[StellarCoop][LY]` lines are described earlier on this page. None of it has been tried
-in game yet. The native part reports it in `coop-status.txt`:
+The native part reports Lily's signal in `coop-status.txt`:
 
 - `signal=`, the quests' rows and the borrowed choice row, in the same forms as the `lion=` line (see
   [Cut boss](cut-enemies.md#cut-boss-coop-lion)): `signal=off` before an ask, `signal=rows added=25/25 asks=1 spawns=? char=0/0
@@ -272,19 +266,22 @@ in game yet. The native part reports it in `coop-status.txt`:
   her eight rows with the borrowed one in front, `off` her own eight in any order.
 - `signalquest=`, the quests in your quest list, read every 250 ms on a co-op save once the mod asked `signal watch`
   (solo, the test pak found, the signal rows read back; before that the line reads `unread`):
-  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> oblivion=<0|1> pro=<unread|none|held>
-  prostate=<s> progroup=<g> protask=<t> epic11=<g> epic11state=<s> asks=<a> want=<ask> why=<w>`. The first fields are
-  "On Time"'s: `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4 complete, 5 failed),
-  its active group (`0` is M01, the station, to `5`, M06, "Talk to Lily") and that group's first task's state (1 in
-  progress, 2 complete); `-1` while unread. `pro`, `prostate`, `progroup` and `protask` are the same for the prologue.
-  `epic11` and `epic11state` are Quest_Epic_11's active group and state (`3` and `1`: "Talk to Lily to decide on the
-  next destination" in progress), `-1` when it is not in the list. `epic12=1` means Quest_Epic_12, the bike signal's
-  quest, is in the list. `sub005` is Quest_Sub_005's state in the same numbers, `-1` when it is not in the list; her
-  choice needs 3 or more. `oblivion=1` means Quest_Sub_030 is complete; the zone talks' Oblivion lines need it. `asks` counts the requests handled, `want` and `why` are the last one's (`want` is the word
-  after `signal `: `acquire`, `complete`, `prologue`, `talked`, `zone4`, `tell` or `next`): `none` when it ran, `slot`
-  (not a co-op save), `unread` (no quest data yet), `held` (already in the list), `refused` (the game's acquire said
-  no), `absent` (no quest to complete), `group` (not in progress at that word's group) or `task` (its task not in
-  progress, or no task Complete in its vtable). `signalquest=fault asks=<a> where=<where>` after a fault.
+  `signalquest=<unread|none|held> state=<s> group=<g> task=<t> epic12=<0|1> sub005=<s> oblivion=<0|1> pro=<unread|none|held> prostate=<s> progroup=<g> protask=<t> epic11=<g> epic11state=<s> asks=<a> want=<ask> why=<w>`.
+  - The first fields are "On Time"'s: `none` means not in the list, `held` in it, with its state (1 in progress, 3 or 4
+    complete, 5 failed), its active group (`0` is M01, the station, to `5`, M06, "Talk to Lily") and that group's first
+    task's state (1 in progress, 2 complete); `-1` while unread. `pro`, `prostate`, `progroup` and `protask` are the
+    same for the prologue.
+  - `epic11` and `epic11state` are Quest_Epic_11's active group and state (`3` and `1`: "Talk to Lily to decide on the
+    next destination" in progress), `-1` when it is not in the list. `epic12=1` means Quest_Epic_12, the bike signal's
+    quest, is in the list.
+  - `sub005` is Quest_Sub_005's state in the same numbers, `-1` when it is not in the list; her choice needs 3 or more.
+    `oblivion=1` means Quest_Sub_030 is complete; the zone talks' Oblivion lines need it.
+  - `asks` counts the requests handled, `want` and `why` are the last one's (`want` is the word after `signal `:
+    `acquire`, `complete`, `prologue`, `talked`, `zone4`, `tell` or `next`): `none` when it ran, `slot` (not a co-op
+    save), `unread` (no quest data yet), `held` (already in the list), `refused` (the game's acquire said no), `absent`
+    (no quest to complete), `group` (not in progress at that word's group) or `task` (its task not in progress, or no
+    task Complete in its vtable).
+  - `signalquest=fault asks=<a> where=<where>` after a fault.
 
 The native part's own lines, in `coop-link.log`:
 

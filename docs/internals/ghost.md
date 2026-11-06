@@ -9,19 +9,24 @@ The ghost goes through the same pipeline whatever its source: a linked friend, t
 When the ghost is on, `partner/capture.lua` describes your EVE once she has been in the world for 2 s (never on a menu
 pawn). It only reads. For each skeletal mesh part (up to 16, with up to 1024 bones each) it notes the mesh path, the
 part it follows, the part and socket it hangs from, its placement there, whether it is shown, a leader's bone names, and
-the map she is on (the package path of her world, lowercased). With the dyes look on, it adds each part's overridden
-materials, and for a dynamic material (one CNS made at run time) the vector, scalar and texture values set on it, read
-from `VectorParameterValues`, `ScalarParameterValues` and `TextureParameterValues`. A look reads one part's values and a
-new generation reads all of them, so 16 parts take 16 s at worst to read a change. A change goes out again under the
-same generation, compared at 3 significant digits, at most one such table each 5 s (21 s at worst in all). A part hung
-elsewhere, shown or hidden goes at once and carries the values read so far. The table's geometry comes first: value
-lines stop at 56 KB and the `Capture ...` line says how many were left out. A texture goes only if the viewer's rule
-could load it: under the game's own folders, or a path your own CNS packs declare. Under the same rule as the materials,
-it also reads which material slots each part hides at LOD 0 (`IsMaterialSectionShown`). CNS hides slots for an
-outfit's `HiddenMats` and `MaterialToggles`, so the capture reads the result on the component and never reads CNS
-itself. A change waits like a value change. Shape keys are not read, since the ghost cannot draw them (see
-[Looks](#looks)). With the effects look on, it adds what the native part needs to read her effects. A part whose ponytail cloth has a collision
-asset of its own (`OverrideClothPhysicsAsset`) names it.
+the map she is on (the package path of her world, lowercased).
+
+With the dyes look on, it adds each part's overridden materials, and for a dynamic material (one CNS made at run time)
+the vector, scalar and texture values set on it, read from `VectorParameterValues`, `ScalarParameterValues` and
+`TextureParameterValues`. A look reads one part's values and a new generation reads all of them, so 16 parts take 16 s
+at worst to read a change. A change goes out again under the same generation, compared at 3 significant digits, at most
+one such table each 5 s (21 s at worst in all). A part hung elsewhere, shown or hidden goes at once and carries the
+values read so far. The table's geometry comes first: value lines stop at 56 KB and the `Capture ...` line says how many
+were left out. A texture goes only if the viewer's rule could load it: under the game's own folders, or a path your own
+CNS packs declare.
+
+Under the same rule as the materials, it also reads which material slots each part hides at LOD 0
+(`IsMaterialSectionShown`). CNS hides slots for an outfit's `HiddenMats` and `MaterialToggles`, so the capture reads the
+result on the component and never reads CNS itself. A change waits like a value change. Shape keys are not read, since
+the ghost cannot draw them (see [Looks](#looks)).
+
+With the effects look on, it adds what the native part needs to read her effects. A part whose ponytail cloth has a
+collision asset of its own (`OverrideClothPhysicsAsset`) names it.
 
 A mesh outside the game's own folders (`/Game/[DLC_<n>/]Art/Character/`) comes from a mod. Such a part gets a tag: the
 `UniqueFitID` that your CNS packs give its path (from `coop-cns.txt`), else the first two folders of the path
@@ -217,16 +222,19 @@ run and the ghost stays. See [Ghost](../ghost.md#looks).
 Indexes 1 to 19 are `Capture.EFFECTS`, which both sides compile in. Once a second the capture also reads the
 NiagaraComponents attached directly to her leader parts (the ones the native read walks, 256 children a part at most)
 that are active, and each one's `Asset`. A system outside the list gets the next index from 20 when its path is in the
-game's FX folders (`/Game/Art/FX/...`, `/Game/DLC_<n>/Art/FX/...`, the character folders' name rule) or among your
-CNS and shared assets (`core/link.lua`'s `mod_assets()`). With `mod_names=off` only game FX paths go,
-and none your CNS packs or shared mods name. An index is never given another path while the same EVE is in the world,
-and 45 is the cap. A new name publishes the table again under the same generation, at most once a second. The worker
-hands the game thread the new `effect` addresses without a new Live, so her ghost's playback does not restart. The
-viewer's ghost loads each named system by the fetch rules above, as a NiagaraSystem: game FX paths as the game's, the
-others only from your own CNS and shared lists. The build loads those its table names, a step each; one named later is
-loaded by the tick, one each 0.25 s, never while the boxes are read. A slot naming a system not loaded yet is skipped
-silently, so the first instance of a new effect does not show on either side. One that fails or is refused draws
-nothing on its index, with one note a ghost. Not tested in game yet.
+game's FX folders (`/Game/Art/FX/...`, `/Game/DLC_<n>/Art/FX/...`, the character folders' name rule) or among your CNS
+and shared assets (`core/link.lua`'s `mod_assets()`). With `mod_names=off` only game FX paths go, and none your CNS
+packs or shared mods name.
+
+An index is never given another path while the same EVE is in the world, and 45 is the cap. A new name publishes the
+table again under the same generation, at most once a second. The worker hands the game thread the new `effect`
+addresses without a new Live, so her ghost's playback does not restart.
+
+The viewer's ghost loads each named system by the fetch rules above, as a NiagaraSystem: game FX paths as the game's,
+the others only from your own CNS and shared lists. The build loads those its table names, a step each; one named later
+is loaded by the tick, one each 0.25 s, never while the boxes are read. A slot naming a system not loaded yet is skipped
+silently, so the first instance of a new effect does not show on either side. One that fails or is refused draws nothing
+on its index, with one note a ghost. Not tested in game yet.
 
 Cloth, on by default, uses only the table's `cloth` line (sent whatever the setting): each PC runs NvCloth on the
 ghost's ponytail from the body bones that already arrive (her hair chain `Ab-TL-HairB01` to `HairB09` among them). While

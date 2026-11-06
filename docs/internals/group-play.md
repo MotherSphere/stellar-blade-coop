@@ -86,19 +86,21 @@ game yet, and in this version it never travels: `main.lua` leaves it off until t
 - The read (`game/camps.h`) asks the game's own camp list. The camp list screen (`FUN_141f65980`) calls
   `FUN_141d1d650(zones, region, type, out, false)`, which returns the ZoneCampTable rows of that region and CampType
   that hold an active row: a camp's rows are the ZoneEnvSpawn rows whose `TargetCamp` names it (the zone manager's
-  `+0x550` map, built by `FUN_141d18100`), and a row is active when its `ESBZoneEnvActiveState` is Active (1), read
-  from the live env object (`+0x21c`, set by `FSBZoneEnvRegister` through `FUN_141fdf900`) for a row of the zone EVE
-  stands in and from the zone's stored record (`+0x24`) for the others. The game thread checks the client is in game,
-  with no warp, respawn or logic task in flight, every 250 ms, and then calls that function every 2 s with no region
-  (every region) once for each travel type (SimplyCamp, FullCamp, Tetrapod, PhoneBooth), frees each list with the
-  game's `FMemory::Free` (`0x14261adb0`) and reads the names from the game's name pool. It reads the list again at once
-  in a new world, and drops it when the client leaves the game (a load), so a list never outlives its save. It also
-  reads the camp EVE respawns at: her FSBActor's `+0x26d0`, which the respawn (`FUN_141b0f8f0`) reads, and that row's
-  `TargetCamp` (`+0x270`). `+0x26d0` is the ZoneEnvSpawn row of her last rest or fast-travel arrival: in warp phase
-  0xd the client tick (`FUN_141cd0b30`) passes the travel's camp and its first row to the arrival (`FUN_141a8afe0`),
-  which writes it there, since every camp travel (`FUN_141cdd7b0`) sets the request's arrival flag (client `+0xa22`).
-  It runs out of line under its own SEH latch; `coop-status.txt` carries it as `activated=<n>:<camp>,... rested=<camp>`,
-  or `activated=none:<why>`.
+  `+0x550` map, built by `FUN_141d18100`), and a row is active when its `ESBZoneEnvActiveState` is Active (1), read from
+  the live env object (`+0x21c`, set by `FSBZoneEnvRegister` through `FUN_141fdf900`) for a row of the zone EVE stands
+  in and from the zone's stored record (`+0x24`) for the others.
+  - The game thread checks the client is in game, with no warp, respawn or logic task in flight, every 250 ms, and then
+    calls that function every 2 s with no region (every region) once for each travel type (SimplyCamp, FullCamp,
+    Tetrapod, PhoneBooth), frees each list with the game's `FMemory::Free` (`0x14261adb0`) and reads the names from the
+    game's name pool. It reads the list again at once in a new world, and drops it when the client leaves the game (a
+    load), so a list never outlives its save.
+  - It also reads the camp EVE respawns at: her FSBActor's `+0x26d0`, which the respawn (`FUN_141b0f8f0`) reads, and
+    that row's `TargetCamp` (`+0x270`). `+0x26d0` is the ZoneEnvSpawn row of her last rest or fast-travel arrival: in
+    warp phase 0xd the client tick (`FUN_141cd0b30`) passes the travel's camp and its first row to the arrival
+    (`FUN_141a8afe0`), which writes it there, since every camp travel (`FUN_141cdd7b0`) sets the request's arrival flag
+    (client `+0xa22`).
+  - It runs out of line under its own SEH latch; `coop-status.txt` carries it as
+    `activated=<n>:<camp>,... rested=<camp>`, or `activated=none:<why>`.
 - The game's ReturnToCamp job (`FUN_141b2b000`) takes another camp: effect action 26 (`FUN_141bc7af0`) gives it the
   FSBActor's `+0x2738`, which the camp arrival (`FUN_141a8afe0`) writes only for a Tetrapod camp, so that job returns
   EVE to her last Tetrapod. The mod does not use it.

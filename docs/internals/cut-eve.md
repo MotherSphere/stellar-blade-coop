@@ -77,26 +77,30 @@ mode) and the time pool allows it (`RemainFlyingActionTime` at least `FlyingActi
 cooldown), and ends it when the key is released. With the slow-motion gate on, holding R1 sets the time dilation to
 `TimeControlKeyScale` (0.2), and every tick without it sets 1 again, so slow motion ends by itself.
 
-The start and the level flight (`Hold` in `game/debug_keys.h`) set the flight key's flag after the game's key pass.
-The player controller's input pass (`0x1423c47a0`, its `ProcessPlayerInput(dt, paused)`) recomputes `USBPlayerInput`'s
+The start and the level flight (`Hold` in `game/debug_keys.h`) set the flight key's flag after the game's key pass. The
+player controller's input pass (`0x1423c47a0`, its `ProcessPlayerInput(dt, paused)`) recomputes `USBPlayerInput`'s
 `bPushedFlyingActionKey` (`+0x193`) from the keys held each frame, through `0x1423c86f0`, and EVE's tick, which runs
 after the controller's, starts a flight while the flight flag reads true in the air and ends it when the flag reads
-false. A write from Lua came before the pass, which cleared it, and one from a
-hook on EVE's blueprint `ReceiveTick` came after the character tick's check: both times the flight ended 0.02 s after
-the keys were let go. The pass is called only through two vtable slots, `0x145cc74a8` and `0x145cd37a8` (its other
-references are unwind data). At the first `coop fly on` of a run, the worker swaps each slot by a compare-and-swap from
-the game's function to a hook of ours, only after checking that both hold exactly that function. The hook calls the
-game's pass, then, on the game thread, while both slots hold it, the fly gate is ours and the game is not paused, reads
-the controller's pawn (`+0x2f8`) and input handler (`+0x668`). The same pass sets `bPushedJumpKey` (`+0x197`) only
-from `DefinedJumpKeyLists` (`+0xF8`, at `0x1423c887e`), and `DefaultInput.ini` puts no key in that list, so the flag
-stays 0. The first version of the hook read it and counted no press in a test of 2026-10-26 (six presses in the air,
-no flight). The hook asks the game whether the space bar is down instead, through `FUN_14231f470`, the check the pass
-runs on each key of its lists: it looks the key up in the player input's `KeyStateMap` (the controller's `PlayerInput`,
-`+0x3F0`). A space typed into the co-op chat, a Space select in the co-op menu or saves list (they take the game's input
-with `SetInputMode_UIOnlyEx` while the game runs) and a key pressed in the Steam overlay never reach that map, so none
-of them counts as a press or drops a flight. The build before read the keyboard with `GetAsyncKeyState`, which saw
-those keys too. A press is the key going down. A key already down when the hook first reads it counts only once let go
-and pressed again. A Jump key rebound in the game's settings is not followed.
+false. A write from Lua came before the pass, which cleared it, and one from a hook on EVE's blueprint `ReceiveTick`
+came after the character tick's check: both times the flight ended 0.02 s after the keys were let go.
+
+The pass is called only through two vtable slots, `0x145cc74a8` and `0x145cd37a8` (its other references are unwind
+data). At the first `coop fly on` of a run, the worker swaps each slot by a compare-and-swap from the game's function to
+a hook of ours, only after checking that both hold exactly that function. The hook calls the game's pass, then, on the
+game thread, while both slots hold it, the fly gate is ours and the game is not paused, reads the controller's pawn
+(`+0x2f8`) and input handler (`+0x668`).
+
+The same pass sets `bPushedJumpKey` (`+0x197`) only from `DefinedJumpKeyLists` (`+0xF8`, at `0x1423c887e`), and
+`DefaultInput.ini` puts no key in that list, so the flag stays 0. The first version of the hook read it and counted no
+press in a test of 2026-10-26 (six presses in the air, no flight). The hook asks the game whether the space bar is down
+instead, through `FUN_14231f470`, the check the pass runs on each key of its lists: it looks the key up in the player
+input's `KeyStateMap` (the controller's `PlayerInput`, `+0x3F0`).
+
+A space typed into the co-op chat, a Space select in the co-op menu or saves list (they take the game's input with
+`SetInputMode_UIOnlyEx` while the game runs) and a key pressed in the Steam overlay never reach that map, so none of
+them counts as a press or drops a flight. The build before read the keyboard with `GetAsyncKeyState`, which saw those
+keys too. A press is the key going down. A key already down when the hook first reads it counts only once let go and
+pressed again. A Jump key rebound in the game's settings is not followed.
 
 The hook counts the space bar's presses since EVE left the ground. She is on the ground when her movement component
 (`ACharacter`'s `+0x330`) has a `MovementMode` (`+0x19C`) other than falling (3): the pinned build's `IsFalling`

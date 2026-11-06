@@ -139,16 +139,18 @@ in for them. `coop mxiii 30` goes around that climb.
 - The mod's camp reaches the save file as soon as you activate it, without a save and quit: the vending machine saves
   the game after the activation, and the phone booth saves before it opens the camp list. The save's activated camps
   then include `DLC02_10_Camp_01`, and its last camp is one of the mod's rows (`DLC02_10_EnvS_906` after the
-  activation). So that such a save never loads without them, the mod adds the rows at the title, before any save
-  loads, whenever the pak is installed and the game uses the co-op saves; `coop mxiii` then finds them in and only
-  travels. They are not added on your own saves, and not for a manual co-op slot (`StellarCoopSlot.txt`), whose file
-  is one of your own saves: there the rows exist only once `coop mxiii` has run in the same game run, and what the
-  game does with a save that names a camp or row it does not have has not been checked. Resting at another camp
-  afterwards does not clean the save: `DLC02_10_Camp_01` stays among the activated camps, and a rest at a simple camp
-  leaves the last full camp on a mod row. To get a slot without them back (before you remove the pak, for example),
-  type `coop saves refresh <0-4>` at the title, while the game uses your own saves, before you load the slot again. The
-  same applies if the game crashes after the activation. The game also saves on each camp travel arrival (read from
-  its code), so after `coop mxiii 30` the save's camp is the mod's row `DLC02_30_EnvS_900` until a travel out.
+  activation).
+  - So that such a save never loads without them, the mod adds the rows at the title, before any save loads, whenever
+    the pak is installed and the game uses the co-op saves; `coop mxiii` then finds them in and only travels. They are
+    not added on your own saves, and not for a manual co-op slot (`StellarCoopSlot.txt`), whose file is one of your own
+    saves: there the rows exist only once `coop mxiii` has run in the same game run, and what the game does with a save
+    that names a camp or row it does not have has not been checked.
+  - Resting at another camp afterwards does not clean the save: `DLC02_10_Camp_01` stays among the activated camps, and
+    a rest at a simple camp leaves the last full camp on a mod row. To get a slot without them back (before you remove
+    the pak, for example), type `coop saves refresh <0-4>` at the title, while the game uses your own saves, before you
+    load the slot again. The same applies if the game crashes after the activation.
+  - The game also saves on each camp travel arrival (read from its code), so after `coop mxiii 30` the save's camp is
+    the mod's row `DLC02_30_EnvS_900` until a travel out.
 - At the title the rows go in once per game run. The native part adds rows only on a frame with no game logic
   running and the game offline, and gives up after 300 frames. If it gave up, the mod asks again 10 s later, at most
   four times each time the title shows; after that `coop mxiii` adds them as above. They then stay for the game run,
@@ -171,22 +173,29 @@ in for them. `coop mxiii 30` goes around that climb.
 
 With the full map's pak (all four zones, cooked with the mechanisms), the title adds the rest of the dungeon after the
 camp rows: its other camps and their kits, Lily and the Tetrapod on the zone 0 plaza, the zones' enemies with the three
-bosses, and the mechanisms, built the way Matrix 11 builds its own. Every door starts closed. Its panel on either side
-shows the game's open prompt; a one-way door's far side says it cannot be opened from there. Gates open from their
-switches, a lift goes to the landing whose call switch you use, and the zone 4 water drains through its panels. Arena
-doors shut when the fight starts and open once its last enemy dies; the Lion's fan door and D7 shut when it fights and
-open on its death. If EVE dies in an arena, its locks should reset with the zone and lock again at the next fight (not tested in game). The R02
-shutter under the surface lift starts down and rises from the switch on the pillar between its two halves. The
-car 9 airlock and the zone 3 pressure door start open and close by their own mechanism (the pressure door for good,
-behind EVE). The map has no warp switch: for tests, `coop mxiii warp` lists in `UE4SS.log` the 72 points the old
-switches led to, and `coop mxiii warp <n|name>` puts EVE on one (solo, on a co-op save, in the dungeon only). Once in
-the dungeon, the mod spawns the ladders, ledges and the two ropes itself (`[MXMOVE]` lines) and fixes the Lion and the
-Gardener when the game spawns them (`[MXBOSS]` lines). `coop mxiii boss`, typed within 25 m of the Lion's or the
+bosses, and the mechanisms, built the way Matrix 11 builds its own.
+
+- Every door starts closed. Its panel on either side shows the game's open prompt; a one-way door's far side says it
+  cannot be opened from there.
+- Gates open from their switches, a lift goes to the landing whose call switch you use, and the zone 4 water drains
+  through its panels.
+- Arena doors shut when the fight starts and open once its last enemy dies; the Lion's fan door and D7 shut when it
+  fights and open on its death. If EVE dies in an arena, its locks should reset with the zone and lock again at the next
+  fight (not tested in game).
+- The R02 shutter under the surface lift starts down and rises from the switch on the pillar between its two halves.
+- The car 9 airlock and the zone 3 pressure door start open and close by their own mechanism (the pressure door for
+  good, behind EVE).
+- The map has no warp switch: for tests, `coop mxiii warp` lists in `UE4SS.log` the 72 points the old switches led to,
+  and `coop mxiii warp <n|name>` puts EVE on one (solo, on a co-op save, in the dungeon only).
+
+Once in the dungeon, the mod spawns the ladders, ledges and the two ropes itself (`[MXMOVE]` lines) and fixes the Lion
+and the Gardener when the game spawns them (`[MXBOSS]` lines). `coop mxiii boss`, typed within 25 m of the Lion's or the
 Gardener's spawn point, spawns that boss as `coop lion` or `coop gardener fight` would (no saved death), for when the
 game spawned none there. The fan levers wait for the Lion's death: a save whose Lion died on a build older than these
-levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight. The link protocol is
-15: both players need a build with the same rows. A co-op save that played in the dungeon can no longer be exported to
-your own saves ([saves.md](saves.md)).
+levers needs a new run. A boss that never spawns locks nothing: its doors lock on its first fight.
+
+The link protocol is 19: both players need a build with the same rows. A co-op save that played in the dungeon can no
+longer be exported to your own saves ([saves.md](saves.md)).
 
 ## Status lines
 

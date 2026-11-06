@@ -34,19 +34,22 @@ nothing of it can fight, die or reach a save. Their lines go to `UE4SS.log` as `
   or `eviathan` (Leviathan, and Reviathan as the statue spells it), with the row's character ID and `MeshScale`, and
   the number of rows it read.
 - `coop leviathan show [body|a|b|tentacle|statue] [<distance m>|auto] [<height m>|auto] [<scale>]` puts one mesh in
-  front of EVE, facing her, and turns on the [free camera](#free-camera). `body` (the default) is `CH_M_NA_10`, `a`
-  and `b` are `Leviathan_A` and `Leviathan_B`, `tentacle` is `M_LeviathanTentacleA` and `statue` is `C_Reviathan`, a
-  static mesh from the game's secret room assets. The distance is in metres, up to 5000; `auto`, the default, is 1.6
-  times the radius of the mesh's bounding sphere, and at least 6 m. The height is in metres above EVE's feet, and a
-  negative one lowers the mesh; `auto`, the default, lifts the mesh until its lowest point is 5 m above her feet. The
-  two `auto` values use the bounds stored in the mesh asset, times the scale. When those cannot be read, the mesh goes
-  6 m ahead, with the point it stands on 5 m up. The log line
-  `show body: bounding sphere radius 50 m, centre 30 m and lowest point -2 m above its root` gives the radius, and the
-  heights of the mesh's middle and of its lowest point above the point it stands on. The scale goes from 0.01 to 100,
-  1 by default. A number first is a distance for the body: `coop leviathan show 40 15` shows the body 40 m away and
-  15 m up. The mesh plays each animation made for its skeleton twice, one after another, and starts over after the
-  last, with a log line for each. A blend space plays at input 0, 3 s twice. A second `show` replaces the first and
-  keeps the last skin. It runs only on a [co-op save](playing-with-a-friend.md#co-op-saves).
+  front of EVE, facing her, and turns on the [free camera](#free-camera). `body` (the default) is `CH_M_NA_10`, `a` and
+  `b` are `Leviathan_A` and `Leviathan_B`, `tentacle` is `M_LeviathanTentacleA` and `statue` is `C_Reviathan`, a static
+  mesh from the game's secret room assets.
+  - The distance is in metres, up to 5000; `auto`, the default, is 1.6 times the radius of the mesh's bounding sphere,
+    and at least 6 m.
+  - The height is in metres above EVE's feet, and a negative one lowers the mesh; `auto`, the default, lifts the mesh
+    until its lowest point is 5 m above her feet. The two `auto` values use the bounds stored in the mesh asset, times
+    the scale. When those cannot be read, the mesh goes 6 m ahead, with the point it stands on 5 m up. The log line
+    `show body: bounding sphere radius 50 m, centre 30 m and lowest point -2 m above its root` gives the radius, and the
+    heights of the mesh's middle and of its lowest point above the point it stands on.
+  - The scale goes from 0.01 to 100, 1 by default.
+  - A number first is a distance for the body: `coop leviathan show 40 15` shows the body 40 m away and 15 m up.
+  - The mesh plays each animation made for its skeleton twice, one after another, and starts over after the last, with a
+    log line for each. A blend space plays at input 0, 3 s twice.
+  - A second `show` replaces the first and keeps the last skin. It runs only on a
+    [co-op save](playing-with-a-friend.md#co-op-saves).
 - `coop leviathan move <distance m>|auto [<height m>|auto]` puts the shown mesh that far in front of where EVE stands
   now, facing her, at that height. `auto` works as for `show`, and a missing height is `auto`. It is the same mesh,
   with its animation, scale and skin: walk EVE to another spot, then move it there.

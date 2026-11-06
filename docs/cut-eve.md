@@ -140,16 +140,18 @@ it ends. Instead of `movement input` the end line can say `in the air`, `a skill
 The native part's lines go to `coop-link.log`: `anim 482913 asked: <path> in a loop` (or `once`), then
 `anim 482913 playing: SB took the clip in EVE's custom animation slot 0 (ret 0)`, and at the end
 `anim 482913 ended after 4.9 s, weight up to 1.00` or `anim 482913 stopped after 4.2 s, weight up to 1.00`, with
-`(coop off)` or `(a new Lua load)` after the time when one of them stopped it. The weight says how much of the clip
-the blueprint blended in: 1.00 is all of it. `anim 482913 refused: no EVE of ours in the world`,
-`refused: EVE has no custom animation slot` and `refused: the game played nothing (ret -1: the clip did not load, or a
-clip of a higher priority holds the slot)` say why nothing played; `refused: coop off` and `refused: a new Lua load`
-name a play asked just before one of them. A clip the blueprint takes no weight of for 1 s
-ends with `: the slot took no weight, so EVE's animation blueprint did not show the clip`. Time while the game is
-paused (`coop freeze`, or a host's photo mode holding the guest) does not count toward that second, since EVE's
-animation does not move then; the `after ... s` figure is still the clock's. A fault in the game's call
-logs `anim fault ...`, says on screen that the native clips stopped until the game restarts, and sends later emotes to
-the montage.
+`(coop off)` or `(a new Lua load)` after the time when one of them stopped it. The weight says how much of the clip the
+blueprint blended in: 1.00 is all of it.
+
+`anim 482913 refused: no EVE of ours in the world`, `refused: EVE has no custom animation slot` and
+`refused: the game played nothing (ret -1: the clip did not load, or a clip of a higher priority holds the slot)` say
+why nothing played; `refused: coop off` and `refused: a new Lua load` name a play asked just before one of them.
+
+A clip the blueprint takes no weight of for 1 s ends with
+`: the slot took no weight, so EVE's animation blueprint did not show the clip`. Time while the game is paused
+(`coop freeze`, or a host's photo mode holding the guest) does not count toward that second, since EVE's animation does
+not move then; the `after ... s` figure is still the clock's. A fault in the game's call logs `anim fault ...`, says on
+screen that the native clips stopped until the game restarts, and sends later emotes to the montage.
 
 Without the native part the start line is
 `emote clap: Clap in DefaultSlot, montage AnimMontage /Engine/Transient.AnimMontage_0, playing yes`, and
@@ -170,24 +172,28 @@ The first space bar start was tried on 2026-10-26 and started no flight, since i
 current one has not been tried in game.
 
 - `coop fly on`: press the space bar a third time while EVE is in the air, and she flies. The jump and the double jump
-  are the first two presses, as in the game, and holding the second one still glides with `coop glide on`. After a
-  fall from a ledge, it takes three presses in the air. Z and S no longer start a flight; R2 held on a pad still does,
-  as in the game. The game's flight carries her along the camera's heading at 10 m/s: turn the camera to steer. Z held
-  climbs, S held descends, and with neither she flies level until you press the space bar again or the flight ends on
-  its own (landing, or its time pool). The third press does not need to stay held: if the game is not ready to start
-  the flight yet (an action still playing, or less than 0.5 s since the last flight), it starts as soon as it is,
-  unless she lands first. The press that starts the flight does not drop her, even if you keep it held. After a drop
-  the count starts over, and with `coop glide on` the space bar held after the drop glides. Flight time comes from a
-  pool of 90 s that drains while she flies and refills at 1 s per second, the game's own values. During a flight the
-  face buttons dodge up, down, left and right, and so do Shift with Z, S, Q or D on the keyboard (up, down, left,
-  right). `coop fly on` writes R2 over Z (and over any third slot) in the game's flight key list and adds the four
-  Shift keys to the input settings. The game itself ends a flight once no flight key is held. The native part hooks
-  the player controller's key pass and, right after it, counts the space bar's presses since EVE left the ground. From
-  the third one it sets the flight key each frame until the game starts the flight or she lands. While EVE flies with
-  no flight key held, it sets the key again each frame, until the next press. The log's `[FL]` lines say once a flight
-  whether the level flight held. The game sets the flight's velocity whole each frame, with no easing: the mod eases
-  the climb and the descent in and out over 0.3 s, and starts a flight at 40 % of its speed, full after 0.6 s. Turns
-  follow the camera at once, as in the game.
+  are the first two presses, as in the game, and holding the second one still glides with `coop glide on`. After a fall
+  from a ledge, it takes three presses in the air. Z and S no longer start a flight; R2 held on a pad still does, as in
+  the game.
+  - The game's flight carries her along the camera's heading at 10 m/s: turn the camera to steer. Z held climbs, S held
+    descends, and with neither she flies level until you press the space bar again or the flight ends on its own
+    (landing, or its time pool).
+  - The third press does not need to stay held: if the game is not ready to start the flight yet (an action still
+    playing, or less than 0.5 s since the last flight), it starts as soon as it is, unless she lands first. The press
+    that starts the flight does not drop her, even if you keep it held. After a drop the count starts over, and with
+    `coop glide on` the space bar held after the drop glides.
+  - Flight time comes from a pool of 90 s that drains while she flies and refills at 1 s per second, the game's own
+    values.
+  - During a flight the face buttons dodge up, down, left and right, and so do Shift with Z, S, Q or D on the keyboard
+    (up, down, left, right). `coop fly on` writes R2 over Z (and over any third slot) in the game's flight key list and
+    adds the four Shift keys to the input settings.
+  - The game itself ends a flight once no flight key is held. The native part hooks the player controller's key pass
+    and, right after it, counts the space bar's presses since EVE left the ground. From the third one it sets the flight
+    key each frame until the game starts the flight or she lands. While EVE flies with no flight key held, it sets the
+    key again each frame, until the next press. The log's `[FL]` lines say once a flight whether the level flight held.
+  - The game sets the flight's velocity whole each frame, with no easing: the mod eases the climb and the descent in and
+    out over 0.3 s, and starts a flight at 40 % of its speed, full after 0.6 s. Turns follow the camera at once, as in
+    the game.
 - `coop slowmo on`: hold R1 on a controller and time runs at 0.2 of its speed until you release it. The game binds no
   keyboard key to it. It waits while a friend is linked, since the slow time would be your game's alone.
 - `coop fly off`, `coop slowmo off`, `coop off` and a Lua reload (Ctrl+R) put the game's values back. On a save that is

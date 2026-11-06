@@ -42,19 +42,22 @@ rows, each a copy of a shipped row with its own name and ID:
 | `DLC02_30_EnvS_900` | ZoneEnvSpawnTable | 2810032900 | `DLC02_10_EnvS_425` | `ZoneList` `Zone_DLC02_30`, `TargetCamp` `DLC02_30_Camp_01`, `EnvActorName` its own name |
 
 `FUN_141d18100` lists a camp's rows in table order, and AddRow appends, so row 900 stays the camp's first: it leads the
-travel to `Zone_DLC02_10`. All seven spawn their objects. `FUN_141d1e5b0`, which makes a zone's
-env objects, looks for a placed actor named `EnvActorName` when `EnvBPPath` is empty; with `EnvBPPath` set it spawns
-that class at the actor named `SpawnPointName`, as 137 shipped rows do (Xion's supply boxes, `DLC02_10_EnvS_441`), none
-of them a camp object until now. The blueprints are the six kit actors of the Space Elevator's full camp
-`SE02_Camp_02`. The vending machine row starts enabled and the others disabled: activating the camp with a coin sets
-it and every row in its `LinkEnvSpawnList` on, 900 included, as the shipped full camp `ME03_Camp_01` links its base
-row `ME_03_EnvS_012`. The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin
-at the spawn point of that name when EVE enters the zone. The camp keeps
-`ME01_Camp_03`'s picture, and its name until [the camp names](#the-camp-names) replace it. Its Region is `Matrix13`, a name the game makes a bucket for on first sight, so a full
-camp's list shows only the dungeon's full camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11` from its
-donor `ME01_Camp_00`. In game (2026-11-03) the region teleport screen still shows it under a tab of its own, "Matrice 13",
-right after "Matrice 11", with Matrix 11's picture; Matrix 11's tab lists only its own six camps. No dungeon has a world map in the
-game (WorldMapTable has 5 rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
+travel to `Zone_DLC02_10`. All seven spawn their objects. `FUN_141d1e5b0`, which makes a zone's env objects, looks for a
+placed actor named `EnvActorName` when `EnvBPPath` is empty; with `EnvBPPath` set it spawns that class at the actor
+named `SpawnPointName`, as 137 shipped rows do (Xion's supply boxes, `DLC02_10_EnvS_441`), none of them a camp object
+until now. The blueprints are the six kit actors of the Space Elevator's full camp `SE02_Camp_02`.
+
+The vending machine row starts enabled and the others disabled: activating the camp with a coin sets it and every row in
+its `LinkEnvSpawnList` on, 900 included, as the shipped full camp `ME03_Camp_01` links its base row `ME_03_EnvS_012`.
+The coin is `DLC02_10_E_ItemS_001`, an EventItemTable row of the game's that spawns a vending machine coin at the spawn
+point of that name when EVE enters the zone.
+
+The camp keeps `ME01_Camp_03`'s picture, and its name until [the camp names](#the-camp-names) replace it. Its Region is
+`Matrix13`, a name the game makes a bucket for on first sight, so a full camp's list shows only the dungeon's full
+camps. The Tetrapod row `DLC02_00_Camp_00` keeps Region `Matrix11` from its donor `ME01_Camp_00`. In game (2026-11-03)
+the region teleport screen still shows it under a tab of its own, "Matrice 13", right after "Matrice 11", with Matrix
+11's picture; Matrix 11's tab lists only its own six camps. No dungeon has a world map in the game (WorldMapTable has 5
+rows, none of them Matrix 11), so for a dungeon camp the camp list is the whole display.
 
 The third zone's camp gives `coop mxiii 30` a way past the climb from `Zone_DLC02_20` (see below). The travel reads
 only the camp's first env-spawn row (its `Zone`, else `ZoneList[0]`, then that zone's world), and the arrival needs
@@ -121,26 +124,29 @@ starting there could write Matrix 11 zone state into the save, so the third zone
 
 ## The command
 
-`matrix13/world/travel.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for `coop travel
-probe`'s guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under way and no
-travel accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
+`matrix13/world/travel.lua` runs on a co-op save only (`commands/cut.lua`). It first asks the follow for
+`coop travel probe`'s guards (solo, a co-op save, the native travel there, not stopped by a fault, with no warp under
+way and no travel accepted in the last 10 s), then looks for the test pak: `zMXIII_P.utoc` in `SB/Content/Paks/~mods` or
 `SB/Content/Paks/LogicMods`, whose directory index must name `WorldMap_DLC_01`, `Level_P` and `MXIII_P.umap` (plain text
 in a container that is not encrypted), with `zMXIII_P.pak` and `zMXIII_P.ucas` beside it, since UE 4.26 mounts an
 IoStore container through its `.pak`. It reads the live folder, so a pak copied in after the game started passes the
 check although the engine mounts paks only at start. It reads those files once a command and never looks the map up with
-`StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss. Then the rows go in through
-`cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp travel for the Tetrapod camp
-`DLC02_00_Camp_00` (`DLC02_30_Camp_01` for `coop mxiii 30`), a camp in none of its tables (`probe(alias, true)`). A pak
-before v4 has no spawn point named after the Tetrapod camp, so there `coop mxiii` travels to `DLC02_10_Camp_01`.
-`coop mxiii 30` stops before the rows unless the pak is v3 or later: on v1 or v2 the arrival would find no spawn point
-of that name, and what it does then was not traced. The native side is the follow's: the guard, the count and the watch of `game/travel.h`. The
-travel's result comes in `[TR]` lines. The command's answer names the way out, `coop mxiii leave`: the follow's probe,
-with its activation read ([Following the host](group-play.md#following-the-host)), to a camp the read lists among the 120 travel
-camps. The arrival at the Tetrapod camp, `DLC02_10_Camp_01` or `DLC02_30_Camp_01` makes it the camp EVE respawns at
-(`+0x26d0`), and none of the three is in a travel table, so each command keeps the camp she respawned at when it asked its travel, if the read
-lists it (inside the dungeon it keeps the one it had), and `leave` takes that camp first, then the camp she respawns at
-now, then the read's first travel camp. The kept camp lives in the Lua state only, so a reload of the scripts in the
-dungeon loses it.
+`StaticFindObject`, which finds only loaded packages and costs 4 to 35 ms a miss.
+
+Then the rows go in through `cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp
+travel for the Tetrapod camp `DLC02_00_Camp_00` (`DLC02_30_Camp_01` for `coop mxiii 30`), a camp in none of its tables
+(`probe(alias, true)`). A pak before v4 has no spawn point named after the Tetrapod camp, so there `coop mxiii` travels
+to `DLC02_10_Camp_01`. `coop mxiii 30` stops before the rows unless the pak is v3 or later: on v1 or v2 the arrival
+would find no spawn point of that name, and what it does then was not traced. The native side is the follow's: the
+guard, the count and the watch of `game/travel.h`. The travel's result comes in `[TR]` lines.
+
+The command's answer names the way out, `coop mxiii leave`: the follow's probe, with its activation read
+([Following the host](group-play.md#following-the-host)), to a camp the read lists among the 120 travel camps. The
+arrival at the Tetrapod camp, `DLC02_10_Camp_01` or `DLC02_30_Camp_01` makes it the camp EVE respawns at (`+0x26d0`),
+and none of the three is in a travel table, so each command keeps the camp she respawned at when it asked its travel, if
+the read lists it (inside the dungeon it keeps the one it had), and `leave` takes that camp first, then the camp she
+respawns at now, then the read's first travel camp. The kept camp lives in the Lua state only, so a reload of the
+scripts in the dungeon loses it.
 
 The check tells the builds of the test pak apart by the `.ucas`, of which it reads up to 16 MB at a time. A zen package of
 UE 4.26 keeps its own name map, in plain text when the container is not compressed, and an FName whose text ends in `_`
@@ -219,20 +225,22 @@ has not run in game.
 
 ## The save
 
-The save names camps and their rows in four fields: `USBSaveData`'s activated camps (`OpenCampAliases`, `+0x88`) and
-the row a camp was last used through (`LastInteractCampEnvSpawnAlias`, `+0x98`), and `FSBSaveGameData_Actor`'s last
-full camp and last simple camp rows (`LastFullCampEnvSpawnAlias`, `+0x26c`; `LastSimplyCampEnvSpawnAlias`, `+0x28c`).
-A death or a load resolves the last row to its camp. The vending machine's interaction graph saves after the
-activation and the phone booth's saves before its camp list (read from the graphs), so `DLC02_10_Camp_01` and the
-mod's rows are on disk from the activation on. Resting at another camp does not take the camp out of
-`OpenCampAliases`, and a rest at a SimplyCamp, such as Matrix 11's `ME01_Camp_01`, changes only the simple camp row
-and leaves `LastFullCampEnvSpawnAlias` on a mod row. The arrival of `coop mxiii 30` saves the game too (read from its
-code), with `DLC02_30_EnvS_900` as the save's camp row. What a load or the camp list does with a camp or row that has
-no table row (`ESBEnterGameResult_NotFoundTargetCamp`, a skip or a null read) was not traced. So the rows go in at the
-title whenever a co-op save could name them, and the usage section gives `coop saves refresh` at the title as the way
-back once the pak is gone. On the manual co-op slot that `StellarCoopSlot.txt` names, the game uses the player's own
-save files and the title adds nothing: there, as before, the rows exist only once `coop mxiii` has run in the game
-run.
+The save names camps and their rows in four fields: `USBSaveData`'s activated camps (`OpenCampAliases`, `+0x88`) and the
+row a camp was last used through (`LastInteractCampEnvSpawnAlias`, `+0x98`), and `FSBSaveGameData_Actor`'s last full
+camp and last simple camp rows (`LastFullCampEnvSpawnAlias`, `+0x26c`; `LastSimplyCampEnvSpawnAlias`, `+0x28c`). A death
+or a load resolves the last row to its camp.
+
+The vending machine's interaction graph saves after the activation and the phone booth's saves before its camp list
+(read from the graphs), so `DLC02_10_Camp_01` and the mod's rows are on disk from the activation on. Resting at another
+camp does not take the camp out of `OpenCampAliases`, and a rest at a SimplyCamp, such as Matrix 11's `ME01_Camp_01`,
+changes only the simple camp row and leaves `LastFullCampEnvSpawnAlias` on a mod row. The arrival of `coop mxiii 30`
+saves the game too (read from its code), with `DLC02_30_EnvS_900` as the save's camp row.
+
+What a load or the camp list does with a camp or row that has no table row (`ESBEnterGameResult_NotFoundTargetCamp`, a
+skip or a null read) was not traced. So the rows go in at the title whenever a co-op save could name them, and the usage
+section gives `coop saves refresh` at the title as the way back once the pak is gone. On the manual co-op slot that
+`StellarCoopSlot.txt` names, the game uses the player's own save files and the title adds nothing: there, as before, the
+rows exist only once `coop mxiii` has run in the game run.
 
 ## At the title
 
@@ -297,29 +305,31 @@ Nine batches, each its own ask (`mxiii rows`, `mxspawn rows`, `mxenv rows`, `mxu
 rows`, `mxlily rows`, `mxnames rows`, `mxrecords rows`), so a refusal in one never stops another (`mxlily`: [Lily's menu](#lilys-menu)):
 
 - `mxiii`, 75 rows: the 15 rows of the camp work above, less the three zone 2 trigger patches (the waves moved to
-  triggers of their own, below) (the zone 3 rest stop `DLC02_30_Camp_01` is now a simple camp
-  with its coin `DLC02_30_E_ItemS_001`), then the nine other camps of the map (the zone 0 Tetrapod camp
-  `DLC02_00_Camp_00`, simple and full camps in every zone), their kits (34 shipped rows patched in place with a
-  blueprint, a spawn point and the camp's name; 14 new rows for the two new full camps), the three new coins, and zone
-  0's Tetrapod: the machine `DLC02_00_EnvS_960`, Lily `DLC02_00_E_CharS_960` (a copy of her Great Desert row with her
-  Tetrapod graph) and WorldTransitionTable `WT_T_MX13`. Each of the ten coin camps holds the rows of the shipped camp of
-  its type. A full camp, like `ME03_Camp_01`, has the base `Env_Camp_Base` (floor, parasol, brazier and its fire, lights
-  and shield belt, its row's alias `Env_Camp_OnlyActivation`), skill machine, chair, storage, turntable, phone and
-  `Env_VendingMachine`. A simple camp, like `ME01_Camp_02`, has skill machine, chair, turntable and
-  `Env_VendingMachine_Simple`, with no base, storage or phone. No shipped camp spawns these objects from a row: the
-  levels place them. Here each row spawns its blueprint at the point of its own name. The vending machine links every
-  other object of its camp, 6 on a full camp and 3 on a simple one, and the game's graph has 7 link nodes. The base rows
-  are `DLC02_10_EnvS_900`, `DLC02_20_EnvS_048`, `DLC02_20_EnvS_110`, `DLC02_30_EnvS_033` and `DLC02_40_EnvS_015`. The
-  pak had points for the last four, each where the shipped offsets put the base from its vending machine, within
-  0.01 unit. `DLC02_10_EnvS_900` needs a point at (39693.4, 36897.6, 587.0), yaw 15.07, in `MXIII_Z0_LD`, where the
-  cooked `Z0_Camp_Floor` mesh stands; until a pak has it, that row makes no object. The cooked levels also hold static
-  copies of the base's meshes (`Z0_Camp_*`, `Z2_Z2R06_D_Camp_*`, `Z2_Z2R17_D_CampD_*`, `Z3_Z3R35_D_Camp_*`,
-  `Z4_Z4R03_D_Camp_*`) and, at the last four camps, a static `VendingMachine` mesh at the row's machine. A pak has to
-  remove them, or the spawned objects stand on top of them and the static ones stay as they are after activation. The
-  DLC02 kits ship with the
-  `ShopDataList` `SE_02_EnvS_010`, a row one of the 89 `ChangeState_ZoneEnv_*_Camp` trophy rows counts, so each of the
-  ten vending machines names itself there instead, as 77 shipped machines do. The rows name no trophy row, in their own
-  fields or in those their donors give them.
+  triggers of their own, below) (the zone 3 rest stop `DLC02_30_Camp_01` is now a simple camp with its coin
+  `DLC02_30_E_ItemS_001`), then the nine other camps of the map (the zone 0 Tetrapod camp `DLC02_00_Camp_00`, simple and
+  full camps in every zone), their kits (34 shipped rows patched in place with a blueprint, a spawn point and the camp's
+  name; 14 new rows for the two new full camps), the three new coins, and zone 0's Tetrapod: the machine
+  `DLC02_00_EnvS_960`, Lily `DLC02_00_E_CharS_960` (a copy of her Great Desert row with her Tetrapod graph) and
+  WorldTransitionTable `WT_T_MX13`.
+  - Each of the ten coin camps holds the rows of the shipped camp of its type. A full camp, like `ME03_Camp_01`, has the
+    base `Env_Camp_Base` (floor, parasol, brazier and its fire, lights and shield belt, its row's alias
+    `Env_Camp_OnlyActivation`), skill machine, chair, storage, turntable, phone and `Env_VendingMachine`. A simple camp,
+    like `ME01_Camp_02`, has skill machine, chair, turntable and `Env_VendingMachine_Simple`, with no base, storage or
+    phone.
+  - No shipped camp spawns these objects from a row: the levels place them. Here each row spawns its blueprint at the
+    point of its own name. The vending machine links every other object of its camp, 6 on a full camp and 3 on a simple
+    one, and the game's graph has 7 link nodes.
+  - The base rows are `DLC02_10_EnvS_900`, `DLC02_20_EnvS_048`, `DLC02_20_EnvS_110`, `DLC02_30_EnvS_033` and
+    `DLC02_40_EnvS_015`. The pak had points for the last four, each where the shipped offsets put the base from its
+    vending machine, within 0.01 unit. `DLC02_10_EnvS_900` needs a point at (39693.4, 36897.6, 587.0), yaw 15.07, in
+    `MXIII_Z0_LD`, where the cooked `Z0_Camp_Floor` mesh stands; until a pak has it, that row makes no object.
+  - The cooked levels also hold static copies of the base's meshes (`Z0_Camp_*`, `Z2_Z2R06_D_Camp_*`,
+    `Z2_Z2R17_D_CampD_*`, `Z3_Z3R35_D_Camp_*`, `Z4_Z4R03_D_Camp_*`) and, at the last four camps, a static
+    `VendingMachine` mesh at the row's machine. A pak has to remove them, or the spawned objects stand on top of them
+    and the static ones stay as they are after activation.
+  - The DLC02 kits ship with the `ShopDataList` `SE_02_EnvS_010`, a row one of the 89 `ChangeState_ZoneEnv_*_Camp`
+    trophy rows counts, so each of the ten vending machines names itself there instead, as 77 shipped machines do. The
+    rows name no trophy row, in their own fields or in those their donors give them.
 - `mxspawn`, 51 rows: `MX13_M_Sawshark` (CharacterTable 50071, the Stalker `CHAL_UME_M_Sawshark_01` without
   `Passive_Immortal`, so it dies at 0 HP without Matrix 11's finisher), the 8 `M_DummyC` rows patched to shipped
   Naytibas (zone 3's to `DED_M_ClriketAGround_01`, zone 4's to `WLB_M_AntlionE_01`), the zone 4 rows 035, 036 and 042
@@ -397,19 +407,23 @@ row `DLC02_40_EnvS_017`, has no actor in the map.
 Arenas use SE_08's pattern: a fight (EventOnBattle of a spawn row) shuts the doors, each EventOnDead adds 1 to an
 `Env_<N>CountProgress` row (an EnvC of type StateProgress), and its On state opens the doors again; the Stalker's and
 the Lion's own deaths open theirs. The Lion shuts its fan door and gate D7 on battle (D7 through `DLC02_40_E_EnvC_630`
-and the `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death. Its death also enables the fan levers
-023 to 025 (`DLC02_40_E_EnvC_631` to `633`), which start disabled. The fallback Lion of `coop mxiii boss` has no spawn
-row and so no EventOnDead: `boss.lua` fires the same three events with `CreateSBZoneEvent` kind 10 when it reads that
-Lion dead [inference: never run in game]. A save whose Lion died on a build without these rows keeps its levers disabled
-and needs a new run. `matrix13/world/fans.lua` holds each cooked rotor's RotatingMovementComponent off until that fan's
-lever reads On, so the fans stand still from arrival without a cook change. Lever 023's On also fires scene 4G. The
-counters, the zone 2 wave triggers, the 14 zone 3 and fan room arena doors and every opener a lock disables (D7's) are
-`ResetZone` (2), as SE_08's counter `SE_08_EnvS_090` is: if EVE dies in an arena, the zone reset puts them back, the
+and the `MX13_DLC02_40_EnvS_611_ToClose` sequence) and opens both on its death.
+
+Its death also enables the fan levers 023 to 025 (`DLC02_40_E_EnvC_631` to `633`), which start disabled. The fallback
+Lion of `coop mxiii boss` has no spawn row and so no EventOnDead: `boss.lua` fires the same three events with
+`CreateSBZoneEvent` kind 10 when it reads that Lion dead [inference: never run in game]. A save whose Lion died on a
+build without these rows keeps its levers disabled and needs a new run. `matrix13/world/fans.lua` holds each cooked
+rotor's RotatingMovementComponent off until that fan's lever reads On, so the fans stand still from arrival without a
+cook change. Lever 023's On also fires scene 4G.
+
+The counters, the zone 2 wave triggers, the 14 zone 3 and fan room arena doors and every opener a lock disables (D7's)
+are `ResetZone` (2), as SE_08's counter `SE_08_EnvS_090` is: if EVE dies in an arena, the zone reset puts them back, the
 arena doors to their Open start, the other doors keep their saved state, and the next fight locks them again (that a
-death resets ResetZone rows and keeps Save rows is not traced). The zone 2 waves moved to new triggers 601 to 603 (the
-cooked boxes inside each arena doorway), which also shut the arena gate behind EVE but leave switches 005, 007 and 009
-alone; triggers 001, 005 and 006 go back to their shipped rows. Zone 3's trigger 601 shuts the pressure door behind EVE
-for good.
+death resets ResetZone rows and keeps Save rows is not traced).
+
+The zone 2 waves moved to new triggers 601 to 603 (the cooked boxes inside each arena doorway), which also shut the
+arena gate behind EVE but leave switches 005, 007 and 009 alone; triggers 001, 005 and 006 go back to their shipped
+rows. Zone 3's trigger 601 shuts the pressure door behind EVE for good.
 
 ### Shutters, the airlock and the water
 
@@ -451,30 +465,37 @@ post hook on `CH_Drone_BP_C:ReceiveTick` scales the radius the blueprint writes 
 In world 2800, `matrix13/world/travel.lua`'s tick runs two more files. `matrix13/world/move.lua` spawns, once a world,
 SB's `BP_EM_Ladder_C` at 41 ladders (the 37 of the map, the three fan room walls and ladder gate 435's lowered ladder),
 `BP_EM_Ledge_C` at the three R16 ledges, the shimmy and an exit ledge on the counterweight's east face (its south end
-hangs over catwalk S1, so a drop from there lands on the catwalk), and `Env_EM_VerticalRope_C` at the R28 and zone 4 ropes. A
-ladder's height comes from its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160.9, 200, 240, 600 or 40.9 cm pieces) plus
-the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, starting at the actor's
+hangs over catwalk S1, so a drop from there lands on the catwalk), and `Env_EM_VerticalRope_C` at the R28 and zone 4
+ropes.
+
+A ladder's height comes from its `Meshes` stack (enum `Enum_EM_LadderMeshes`: 160.9, 200, 240, 600 or 40.9 cm pieces)
+plus the 79.885 cm head. Its construction script stacks the pieces up from the actor's origin, starting at the actor's
 `TotalHeight` and adding each piece to it, so the mod leaves `TotalHeight` at its class default 0: written before the
-finish, it lifted every ladder by its own height. `tools/mxiii_climb.py` takes each map ladder's stack, foot and rung
-line from the editor's proxy ladder (`data/mxiii-climb.json`), its -X toward the upper landing, and checks that the
-pieces, rebuilt as the script builds them, lie within 2 cm of the proxies; it checks the ledges and ropes against their
-editor ledges and markers the same way. At the top EVE steps off onto the floor a trace from 25 cm over the stack's top
-to 25 cm under it finds at x -60, else into the air. The editor's stacks miss that at 20 ladders: 17 tops stand 23 to
-100 cm over their landing, R11_R08's and Z3P08's 78 and 60 cm under their deck, and Z4_L1's foot floats 24 cm over its
-floor. Those ladders get the stack and foot that put the landing within 20 cm of the top and the foot on its floor, with
-the rungs nearest the editor's, and match the proxies on the rail line only. A ledge gets the
-climbing mesh `006_B_SM`. A rope gets its drop (`RopeDistanceB`) and the `EnvActorName` of its row (R28's
-`DLC02_10_EnvS_642`, zone 4's `DLC02_40_EnvS_022`), which its winch turns On; gate 435's ladder gets
+finish, it lifted every ladder by its own height.
+
+`tools/mxiii_climb.py` takes each map ladder's stack, foot and rung line from the editor's proxy ladder
+(`data/mxiii-climb.json`), its -X toward the upper landing, and checks that the pieces, rebuilt as the script builds
+them, lie within 2 cm of the proxies; it checks the ledges and ropes against their editor ledges and markers the same
+way. At the top EVE steps off onto the floor a trace from 25 cm over the stack's top to 25 cm under it finds at x -60,
+else into the air. The editor's stacks miss that at 20 ladders: 17 tops stand 23 to 100 cm over their landing, R11_R08's
+and Z3P08's 78 and 60 cm under their deck, and Z4_L1's foot floats 24 cm over its floor. Those ladders get the stack and
+foot that put the landing within 20 cm of the top and the foot on its floor, with the rungs nearest the editor's, and
+match the proxies on the rail line only.
+
+A ledge gets the climbing mesh `006_B_SM`. A rope gets its drop (`RopeDistanceB`) and the `EnvActorName` of its row
+(R28's `DLC02_10_EnvS_642`, zone 4's `DLC02_40_EnvS_022`), which its winch turns On; gate 435's ladder gets
 `DLC02_10_EnvS_437`, the row the gate's lever turns On. Whether an SBZoneEnvActor spawned after its zone's rows were
-made registers with its row is untested. A cooked map never reruns a placed actor's construction script, so these values
-must reach the actor at spawn. The spawn is deferred (`BeginDeferredActorSpawnFromClass`, the fields,
-`FinishSpawningActor`); if that call fails, `SpawnActor` and a second `UserConstructionScript` call take over for the
-rest of the Lua load. UE4SS 3.0.1 grows a TArray written two or more past its end to the index before and loses the
-value (its TArray fix, #436, came in 4.0): filled from its last piece, every multi-piece stack read back one piece
-short in game (R28's 3,3 as 3). The `Meshes` stack now gets its first piece, then a write one past its last piece
-that only sizes the array, then every piece inside it. It is read back; a stack that differs is emptied and written
-front to back, and one that still differs is destroyed before its finish and named in the log. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back
-before `FinishSpawningActor` and the `TotalHeight` its script built.
+made registers with its row is untested.
+
+A cooked map never reruns a placed actor's construction script, so these values must reach the actor at spawn. The spawn
+is deferred (`BeginDeferredActorSpawnFromClass`, the fields, `FinishSpawningActor`); if that call fails, `SpawnActor`
+and a second `UserConstructionScript` call take over for the rest of the Lua load. UE4SS 3.0.1 grows a TArray written
+two or more past its end to the index before and loses the value (its TArray fix, #436, came in 4.0): filled from its
+last piece, every multi-piece stack read back one piece short in game (R28's 3,3 as 3). The `Meshes` stack now gets its
+first piece, then a write one past its last piece that only sizes the array, then every piece inside it. It is read
+back; a stack that differs is emptied and written front to back, and one that still differs is destroyed before its
+finish and named in the log. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back before
+`FinishSpawningActor` and the `TotalHeight` its script built.
 
 ### Bosses
 
@@ -491,19 +512,22 @@ would bring it back at each visit.
 The same tick runs `matrix13/world/breakables.lua`. The cooked map has 316 StaticMeshActors tagged `MXIII_BREAK` in
 `MXIII_Z0_Surface` and `MXIII_Z1_Life` to `MXIII_Z4_Life`. They are proxies and cannot be broken. The shipped levels
 place `BP_Destruction_Box_01`, `BP_Destruction_Box_02` and `BP_Barrel_01_Child` actors, and no table row spawns them.
+
 Once a world, the mod spawns one of these actors at each of the 317 points of the `break` list in
 `data/mxiii-world.json` (`R.BREAK` in `matrix13/world/rows.lua`). The deferred spawn is the same as the ladders'. The
 row alias follows Matrix 11: `ME_01_ZEA_003` on a Box_01, `ME_01_ZEA_007` on a Plus Box_01 and on every Box_02, and
 `ME_01_ZEA_001` on a barrel, which explodes 2.0 to 2.5 s after it is hit and drops nothing. No save type is written,
-because a spawned actor's name changes from load to load. The boxes come back at each world load. One
-`FindAllOf('StaticMeshActor')` pass per world finds the proxies by name. Each proxy loses its collision and is hidden
-before its actor spawns, and gets both back if the spawn fails. A proxy that is not found means no spawn at that
-point. The R23 box in front of `DLC02_10_E_ItemS_015` has no cooked proxy and spawns alone. It stands in the way of
-that pickup until it is broken. The list spawns 40 entries per tick, and the Z4R21 Box_02 spawns before the Box_01
-that rests on it. Only the world's address decides a new spawn, since a broken box destroys itself. Each entry writes
-one `[MX] [MXBREAK]` line, and a total line follows the last one. Each PC spawns its own boxes, so a box broken on one
-PC stays whole on the other. Whether a ZoneEventActor spawned after its level loaded registers with its row and breaks
-is untested.
+because a spawned actor's name changes from load to load. The boxes come back at each world load.
+
+One `FindAllOf('StaticMeshActor')` pass per world finds the proxies by name. Each proxy loses its collision and is
+hidden before its actor spawns, and gets both back if the spawn fails. A proxy that is not found means no spawn at that
+point. The R23 box in front of `DLC02_10_E_ItemS_015` has no cooked proxy and spawns alone. It stands in the way of that
+pickup until it is broken.
+
+The list spawns 40 entries per tick, and the Z4R21 Box_02 spawns before the Box_01 that rests on it. Only the world's
+address decides a new spawn, since a broken box destroys itself. Each entry writes one `[MX] [MXBREAK]` line, and a
+total line follows the last one. Each PC spawns its own boxes, so a box broken on one PC stays whole on the other.
+Whether a ZoneEventActor spawned after its level loaded registers with its row and breaks is untested.
 
 ### Export
 
