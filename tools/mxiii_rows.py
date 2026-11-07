@@ -107,6 +107,8 @@ def check(data):
             assert before is None or (before != b['word'] and r['donor'] == r['name']), r['name']
             seen[(r['table'], r['name'])] = b['word']
             assert 0 < r['id'] < 2 ** 32, r['name']
+            # The game numbers its own ZoneEvent rows from 1 up, and build 26123051 added 8480 and 8481.
+            assert r['table'] != 'ZoneEventTable' or r['id'] >= 2 ** 31, (r['name'], 'an ID the game may take')
             fields = FIELDS[r['table']][1]
             spans, pool = [], 0
             for field, value, changed in r['set']:

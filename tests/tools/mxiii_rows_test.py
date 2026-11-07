@@ -49,6 +49,8 @@ assert data['batches'][0]['rows'][7]['set'][3][0] == 'LinkEnvSpawnList'
 assert refused(lambda d: d['batches'][0]['rows'][7]['set'][3].__setitem__(1, ['A|B']))  # A separator in an item.
 assert refused(lambda d: d['batches'][0]['rows'][0]['set'][0].__setitem__(1, 300))  # A byte past 255.
 assert refused(lambda d: d['batches'][0]['rows'][0].__setitem__('id', 2 ** 32))
+assert refused(lambda d: next(r for b in d['batches'] for r in b['rows'] if r['table'] == 'ZoneEventTable')
+               .__setitem__('id', 8480))  # A ZoneEvent ID in the game's own range.
 door = data['batches'][3]['rows'][0]
 assert door['set'][10][0] == 'OutTransitSequenceList', door['set'][10]
 assert refused(lambda d: d['batches'][3]['rows'][0]['set'][10].__setitem__(1, ['']))  # Would read as no item.
