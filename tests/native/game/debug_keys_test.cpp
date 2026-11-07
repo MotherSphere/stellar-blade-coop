@@ -1,5 +1,5 @@
 // coop fly's and coop slowmo's gates (game/debug_keys.h) against fake memory laid out like the pinned build: the
-// settings singleton's pointer at kGlobals + 0x18, its TMap<int32, bool> at +0xa8 with FUN_14261db60's fields, and the
+// settings singleton's pointer at kGlobals + 0x18, its TMap<int32, bool> at +0xa8 with FUN_1426235a0's fields, and the
 // two gate functions' key statics. Checked: the keys are UE's Strihash_DEPRECATED of the names; the lookup through
 // inline and allocated buckets and along a chain of collisions; every refusal (the gate never ran, a key the game
 // hashes otherwise, no singleton, an empty map, fields out of range, a chain that loops or leaves the elements, no
@@ -141,7 +141,7 @@ Map shipped(int32_t size) {
 } // namespace
 
 int main() {
-  // The keys are Strihash_DEPRECATED of the names, as the gate functions hash them (FUN_1423c9ea0's inline loop).
+  // The keys are Strihash_DEPRECATED of the names, as the gate functions hash them (FUN_1423cf670's inline loop).
   assert(strihash(kNames[kFly]) == kHashes[kFly] && strihash(kNames[kSlowmo]) == kHashes[kSlowmo]);
   assert(kSingleton == 0x147037400 && game::plausible(kSingle) && game::plausible(kElems));
 
@@ -218,7 +218,7 @@ int main() {
   assert(m.writes == 1 && gates.writes == 1 && "Held: no write");
   gates.step(m, kBase, {true, true});
   assert(m.writes == 2 && m.u8(map.value(kHashes[kSlowmo])) == 1 && gates.on[kSlowmo]);
-  map.lay(m); // FUN_14261bf90 copies the defaults again.
+  map.lay(m); // FUN_1426219d0 copies the defaults again.
   gates.step(m, kBase, {true, true});
   assert(m.writes == 4 && m.u8(map.value(kHashes[kFly])) == 1 && m.u8(map.value(kHashes[kSlowmo])) == 1);
   gates.step(m, kBase, {false, true});

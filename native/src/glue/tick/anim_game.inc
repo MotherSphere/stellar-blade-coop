@@ -3,10 +3,10 @@
 namespace coop::pose {
 namespace {
 // ---- coop emote's clips on EVE (game/anim.h), the game thread's calls ----
-// SB's by-path custom animation play FUN_1420b31d0, in the shape the MovingTarget animation calls it (0x1420909c3):
+// SB's by-path custom animation play FUN_1420b7800, in the shape the MovingTarget animation calls it (0x142094ff3):
 // the character, slot 0, the path (a const FString&), the FGuid out, a zero FGuid, the scalars of anim::Play, bytes 15
 // to 17 (stop at input, 16, hold at the end) 0, five empty FStrings with 0 weights between them, 0, 0, 0.0, 0, 0. And
-// SB's stop FUN_1420addc0(character, slot, blend out, the clip's FName, force 1). Our EVE is the pawn of the player
+// SB's stop FUN_1420b23f0(character, slot, blend out, the clip's FName, force 1). Our EVE is the pawn of the player
 // controller SB's getter gives (kController, the photo pause's), checked to be a live ASBCharacter (fight/pilot.h's
 // live and is_a, through anim::eve); every read of her goes through safe_read. The watch reads slot 0 every
 // anim::kWatchMs while ours plays, after checking she is still the live object played on, and while her slot has taken
@@ -109,7 +109,7 @@ __declspec(noinline) void anim_play(uint64_t now) {
 __declspec(noinline) void anim_watch(bool stop, anim::Why why, uint64_t now) {
   anim::Slot s;
   const bool alive = anim_alive() && anim_slot(anim_ch, s);
-  // The photo pause's read (FUN_1422ab320's PauserPlayerState), only while the no-weight clock runs: a paused world
+  // The photo pause's read (FUN_1422b0af0's PauserPlayerState), only while the no-weight clock runs: a paused world
   // does not tick her, so her weight cannot move.
   const bool paused = alive && anim_track.live() && anim_track.peak() <= 0 && FreezeGame().paused();
   const bool stale = anim_track.watch(alive, s, now, paused);

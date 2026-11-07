@@ -36,7 +36,7 @@ local Shop={}
 local MASK=0xFFFFFFFF
 -- The item number is the row's place here. cut: the native part adds its rows (lion/rows.h's cut items) before a buy;
 -- shock: its rows are the bolt rows batch, and the shock line must read in too (a price per bolt). SB's bucket add
--- (FUN_141bda9d0) keeps a capped item only up to its MaxAmount (30 bolts) and drops the rest; EVE's count lives in SB's
+-- (FUN_141bdbc20) keeps a capped item only up to its MaxAmount (30 bolts) and drops the rest; EVE's count lives in SB's
 -- unreflected item bucket and is not read here, so a buy past the cap still costs the dropped bolts' points (the docs
 -- say so).
 -- ponytail: the cut items' prices are starting values (a full normal run credits 42 points at most); tune them in game.

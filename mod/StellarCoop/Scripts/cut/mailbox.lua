@@ -2,9 +2,9 @@
 -- sends you consumables from her inventory, they wait in your mailbox, and you take them when you want.
 -- What SB kept of its mailbox: the widgets WB_MailBox_Set, _Detail, _ListSlot and _Toast_GetGift, their textures,
 -- BP_MailBoxItemData, the sound UI_MailBox_GetGift and MailBoxGiftTable's two rows (they enable a mailbox on an actor
--- of an uncooked test map only). Its UI logic (ESBUILogicType_MailBox, FUN_141ef3850 and its handlers) is still
+-- of an uncooked test map only). Its UI logic (ESBUILogicType_MailBox, FUN_141ef5de0 and its handlers) is still
 -- compiled in, unlike the Load Shortcut menu's load call, but it lists MailBoxGiftTable rows only, and taking one
--- grants that row's EventGiftTable gift through SB's event-gift path (FUN_141cfd8e0, then FUN_141cfde20 per item) and
+-- grants that row's EventGiftTable gift through SB's event-gift path (FUN_141cffaf0, then FUN_141d00030 per item) and
 -- adds its alias to the game data's received-gift list (+0x848), which the save most likely keeps
 -- (FSBSaveGameData_EventGiftInfo.GiftList). That is a second grant path and a write of mod data into the save, so this
 -- file does not feed it. It shows the cut toast (WB_MailBox_Toast_GetGift; its In animation calls its Toast In Play
@@ -13,7 +13,7 @@
 --   coop gift send <item> [count]: 1 to 10 of one of ITEMS (its number or its alias) to the linked friend;
 --   coop gift take [n]: every gift that waits, or the nth.
 -- A send: the native part reads how many she carries (its items request, game/items.h, answered in the engine line's
--- items=); the game's own remove request takes them out (ServerRequest_ItemBucketItemRemove, FUN_1423ba230, which
+-- items=); the game's own remove request takes them out (ServerRequest_ItemBucketItemRemove, FUN_1423bfa00, which
 -- queues SB's remove by alias for its logic thread: asked for more than she has, that remove takes what there is, so
 -- the count comes first); the native part reads again until the count fell by the gift's (SETTLE s of play at most:
 -- SB's logic, and its remove with it, stops while the game is paused or in photo mode, so that time does not count;
@@ -127,7 +127,7 @@ function Mailbox.write(st)
     return #lines>0 and table.concat(lines,'\n')..'\n' or ''
 end
 -- The one remove call: SB's own request, bucket type 1, EVE's GUID, an alias of ITEMS, 1 to MOST items, no pocket (-1,
--- as SB's request pool sets it, FUN_141b48810).
+-- as SB's request pool sets it, FUN_141b49a50).
 function Mailbox.remove(pc,guid,alias,count)
     assert(listed[alias],'not a gift item')
     assert(math.type(count)=='integer' and count>=1 and count<=Mailbox.MOST,'not a count')

@@ -1224,7 +1224,7 @@ int main() {
            g.name_text(Game::field<uint64_t>(transition, 0x48)) == "DLCMatrix13");
     rb = mb.read_back(g, g.tables);
     assert(rb.character == 0 && rb.skills == 0 && rb.stance == 0);
-    assert(describe(kMxiii, ma) == "mxiii rows: 75/75 in, 39 added through SB's AddRow 0x14417ba30 and 36 shipped "
+    assert(describe(kMxiii, ma) == "mxiii rows: 75/75 in, 39 added through SB's AddRow 0x1441815b0 and 36 shipped "
                                    "rows patched in place, 0 refused");
     assert(describe_read(kMxiii, rb) ==
            "mxiii rows by SB's lookups: CharacterTable - 0/0, SkillTable - 0/0, stance - 0/0");
@@ -1285,7 +1285,7 @@ int main() {
            g.list_field(choice, 0x20, Kind::names) == "Xion_10_Condition_051" && choice.block[0x58] == 1 &&
            Game::field<int32_t>(choice, 0x80) == 3 && g.name_text(Game::field<uint64_t>(choice, 0x84)) == "Success5");
     assert(describe(kSignal, ka) ==
-           "signal rows: 25/25 in, 24 added through SB's AddRow 0x14417ba30 and 1 shipped rows "
+           "signal rows: 25/25 in, 24 added through SB's AddRow 0x1441815b0 and 1 shipped rows "
            "patched in place, 0 refused");
     assert(kb.run(g, kBase, g.tables, g.block).added == kSignalRows && g.adds.size() == quests + 24 &&
            g.puts.size() == kPut + 1); // A later run adds and patches nothing again.
@@ -1332,7 +1332,7 @@ int main() {
     }
     assert(!std::strcmp(kMxnamesRecipe[1].name, "DLC02_10_Camp_01") &&
            g.name_text(Game::field<uint64_t>(g.puts[puts + 1], 0x2c)) == "Matrix13");
-    assert(describe(kMxnames, na) == "mxnames rows: 11/11 in, 0 added through SB's AddRow 0x14417ba30 and 11 shipped "
+    assert(describe(kMxnames, na) == "mxnames rows: 11/11 in, 0 added through SB's AddRow 0x1441815b0 and 11 shipped "
                                      "rows patched in place, 0 refused");
     assert(nb.run(g, kBase, g.tables, g.block).added == kMxnamesRows && g.puts.size() == puts + kMxnamesRows);
     // Lily's menu: three IsInWorld conditions naming the dungeon's world (CustomStr01, +0x18), then three groups turned
@@ -1351,7 +1351,7 @@ int main() {
       for (size_t k = 0x14; k < table_info(r.table).size; ++k)
         assert((k >= at && k < at + n) || p.block[k] == p.before[k]);
     }
-    assert(describe(kMxlily, la) == "mxlily rows: 6/6 in, 0 added through SB's AddRow 0x14417ba30 and 6 shipped rows "
+    assert(describe(kMxlily, la) == "mxlily rows: 6/6 in, 0 added through SB's AddRow 0x1441815b0 and 6 shipped rows "
                                     "patched in place, 0 refused");
   }
   {
@@ -1629,7 +1629,7 @@ int main() {
     a = Answer(), a.state = State::rows, a.added = 237;
     s.word = pack(a, 1), s.read = {2, 23, 2}, s.spawns_read = true, s.spawns = 7;
     assert(status_line(kLion, s) == "lion=rows added=237/237 asks=1 spawns=7 char=2/2 skills=23/23 stance=2/2");
-    assert(describe(kLion, a) == "lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused");
+    assert(describe(kLion, a) == "lion rows: 237/237 added through SB's AddRow 0x1441815b0, 0 refused");
     a = Answer(), a.state = State::refused, a.why = Why::size, a.added = 0, a.row = uint8_t(kRows - 2),
     a.detail = 0x540;
     s.word = pack(a, 2);
@@ -1643,15 +1643,15 @@ int main() {
     assert(status_line(kLion, s) == "lion=refused added=3/237 asks=4 spawns=7 why=net table=- row=- detail=3");
     a.why = Why::off, s.word = pack(a, 5);
     assert(status_line(kLion, s) == "lion=refused added=3/237 asks=5 spawns=7 why=coop_off table=- row=-");
-    a = Answer(), a.state = State::fault, a.added = 30, s.word = pack(a, 6), s.fault = "the game at 0x14417ba30";
-    assert(status_line(kLion, s) == "lion=fault added=30/237 asks=6 spawns=7 where=the game at 0x14417ba30");
+    a = Answer(), a.state = State::fault, a.added = 30, s.word = pack(a, 6), s.fault = "the game at 0x1441815b0";
+    assert(status_line(kLion, s) == "lion=fault added=30/237 asks=6 spawns=7 where=the game at 0x1441815b0");
     // The Gardener's line: its word, its own counts.
     Status gs;
     assert(status_line(kGardener, gs) == "gardener=off");
     a = Answer(), a.state = State::rows, a.added = 13;
     gs.word = pack(a, 1), gs.read = {3, 3, 1}, gs.spawns_read = true, gs.spawns = 6;
     assert(status_line(kGardener, gs) == "gardener=rows added=13/13 asks=1 spawns=6 char=3/3 skills=3/3 stance=1/1");
-    assert(describe(kGardener, a) == "gardener rows: 13/13 added through SB's AddRow 0x14417ba30, 0 refused");
+    assert(describe(kGardener, a) == "gardener rows: 13/13 added through SB's AddRow 0x1441815b0, 0 refused");
     a = Answer(), a.state = State::refused, a.why = Why::donor, a.added = 3, a.row = 3, gs.word = pack(a, 2);
     assert(status_line(kGardener, gs) ==
            "gardener=refused added=3/13 asks=2 spawns=6 why=donor table=SkillTable row=M_GardenerC_SingleShot");
@@ -1663,7 +1663,7 @@ int main() {
     a = Answer(), a.state = State::rows, a.added = 107;
     ts.word = pack(a, 1), ts.read = {1, 11, 1}, ts.spawns_read = true, ts.spawns = 5;
     assert(status_line(kTendril, ts) == "tendril=rows added=107/107 asks=1 spawns=5 char=1/1 skills=11/11 stance=1/1");
-    assert(describe(kTendril, a) == "tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused");
+    assert(describe(kTendril, a) == "tendril rows: 107/107 added through SB's AddRow 0x1441815b0, 0 refused");
     // The Shock Bolt's line: its word (the shock line is lion/shock.h's), its own counts, none of CharacterTable or
     // stance rows.
     Status bs;

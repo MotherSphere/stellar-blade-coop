@@ -206,7 +206,7 @@ refused('1','8','HP_Potion x8 needs 120 points; you have 113')
 pc.PlayerState=nil
 -- None in the player state either (as in game): the native part's engine line's me=.
 local before=status_text
-status_text=status_text..'engine=on reason=pinned build 24463856 remote=0 0 peer warp=idle me=81\n'
+status_text=status_text..'engine=on reason=pinned build 26123051 remote=0 0 peer warp=idle me=81\n'
 refused('1','8','HP_Potion x8 needs 120 points; you have 113')
 status_text=before
 eve.BroadcastSpawnInfo.ActorGuid=guid

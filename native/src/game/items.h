@@ -1,14 +1,14 @@
 // coop gift's inventory read (cut/mailbox.lua): how many of one item our EVE carries, read through a read function only
 // (ReadProcessMemory on the worker, which fails rather than faults; a fake image in tests/native/game/items_test.cpp).
-// It never calls the game and never writes. The game's own lookups, mirrored here, all on build 24463856:
-//   - the item bucket manager, SB's lazy singleton at 0x1470373e0 (its getter FUN_141a97b20 makes it when null, so a 0
+// It never calls the game and never writes. The game's own lookups, mirrored here, all on build 26123051:
+//   - the item bucket manager, SB's lazy singleton at 0x1470373e0 (its getter FUN_141a98a30 makes it when null, so a 0
 //     here is no inventory yet, never made by us);
 //   - the manager's bucket map at +0x2b0, a TMap from the bucket type (1, the inventory) to a TMap from the owner's
-//     GUID to the bucket, both looked up by their int key as their hash (FUN_141ad7250);
+//     GUID to the bucket, both looked up by their int key as their hash (FUN_141ad8490);
 //   - the bucket's item map at +0x90, a TMap from the item's alias (FName) to the TArray of its instances' FGuids,
-//     hashed as UE 4.26 hashes an FName (FUN_140ecc610, the find the remove by alias calls, FUN_141bde8c0);
+//     hashed as UE 4.26 hashes an FName (FUN_140ecc9d0, the find the remove by alias calls, FUN_141bdfb10);
 //   - the manager's instance map at +0x210, a TMap from an FGuid to the item, hashed with CityHash64 of the 16 bytes
-//     (FUN_142835af0), and the item's count at +0x6c, which the remove by alias lowers (FSBItemInstance's ItemCount
+//     (FUN_14283b5f0), and the item's count at +0x6c, which the remove by alias lowers (FSBItemInstance's ItemCount
 //     +0x34, the instance at +0x38).
 // Every set is a TSet laid out the same way: its elements' array at +0, the array's count at +8, its free count at
 // +0x34 (equal: empty), its hash's inline bucket at +0x38, the hash's array at +0x40 when it has one, its size at
@@ -51,12 +51,12 @@ struct Count {
   uint32_t count = 0;
 };
 
-// An FName's hash in UE 4.26 (its entry handle's block and offset, plus its number), as FUN_140ecc610 computes it.
+// An FName's hash in UE 4.26 (its entry handle's block and offset, plus its number), as FUN_140ecc9d0 computes it.
 inline uint32_t name_hash(uint64_t name) {
   const uint32_t index = uint32_t(name), block = index >> 16, offset = index & 0xffff;
   return uint32_t(name >> 32) + (offset >> 4) + block * 0x80001u + offset * 0x10001u;
 }
-// CityHash64 of 16 bytes (its HashLen0to16 path), cut to 32 bits as FUN_142835af0's caller takes it.
+// CityHash64 of 16 bytes (its HashLen0to16 path), cut to 32 bits as FUN_14283b5f0's caller takes it.
 inline uint32_t guid_hash(const uint8_t *guid) {
   constexpr uint64_t k2 = 0x9ae16a3b2f90404fULL, mul = k2 + 16 * 2;
   const auto rotate = [](uint64_t v, int s) { return v >> s | v << (64 - s); };

@@ -13,38 +13,38 @@
 // logic-thread callers). Mail carries the job's lines, events and probe census to our worker thread and hers back, and
 // the pair table to the game thread, without ever making the logic thread wait; Worker is the worker's side: the user's
 // coop fight requests, the gates, channel 2's text, the record and replay files and the log.
-// Offsets and functions are for Stellar Blade's Steam build 24463856 (PHASE11-DESIGN.md 4.3-4.7); the caller runs it
+// Offsets and functions are for Stellar Blade's Steam build 26123051 (PHASE11-DESIGN.md 4.3-4.7); the caller runs it
 // only on the pinned build, with the feature on.
 //
 // The Game the engine takes:
 //   bool read(uint64_t address, void *out, size_t n): the game's memory, false when unreadable;
-//   uint64_t find(uint64_t logic, uint32_t guid): FUN_141ad6ab0(logic, guid), the logic actor or 0;
+//   uint64_t find(uint64_t logic, uint32_t guid): FUN_141ad7cf0(logic, guid), the logic actor or 0;
 //   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify):
-//     FUN_141ba8720(la, type, 0, delta, 0, cause, 0, 0, 0, notify, true): every write passes NoDamage (fight/sync.h);
+//     FUN_141ba9960(la, type, 0, delta, 0, cause, 0, 0, 0, notify, true): every write passes NoDamage (fight/sync.h);
 //   uint64_t effect(uint64_t logic, uint64_t la, uint64_t caster, int32_t id):
-//     FUN_141ad08b0(logic, la, caster, id, &zero vector, 0, nullptr): the effect started, or 0 when refused;
-//   void push(Job *job): FUN_141af3930(nullptr, job, 0), never param_3 = 1;
+//     FUN_141ad1af0(logic, la, caster, id, &zero vector, 0, nullptr): the effect started, or 0 when refused;
+//   void push(Job *job): FUN_141af4b70(nullptr, job, 0), never param_3 = 1;
 //   bool receive(Message &m): the friend's next line, parsed by the worker; false when none;
 //   void send(const Message &m), void event(const Event &e), void probe(const Actor &a): to the worker, which never
 //     calls SB;
 //   bool publish(const PilotTable &t, StreamFlags &f): Mail::publish, the pair table to the game thread and its word
 //     back;
 //   same spawns (stage 4), from inside our job only:
-//   uint64_t spawn_row(uint64_t tables, uint32_t id): FUN_141a9db80(tables, 0, id), the EventSpawnTable row or 0;
-//   uint64_t zone_row(uint64_t tables, uint64_t alias): FUN_141a9b8a0(tables, false, alias), the ZoneTable row or 0;
+//   uint64_t spawn_row(uint64_t tables, uint32_t id): FUN_141a9eba0(tables, 0, id), the EventSpawnTable row or 0;
+//   uint64_t zone_row(uint64_t tables, uint64_t alias): FUN_141a9c8c0(tables, false, alias), the ZoneTable row or 0;
 //   void create(uint64_t manager, uint32_t id, uint8_t index, const float *at, const float *rot):
-//     FUN_141c1c9a0(manager, id, index, at, rot, 0, nullptr, 0), as FSBCreateActor::Simulate spawns a key;
-//   void despawn(uint64_t sender, uint32_t turn, uint32_t guid): FUN_141b077f0(sender, turn, guid), as SB's ZoneEvent
+//     FUN_141c1dbf0(manager, id, index, at, rot, 0, nullptr, 0), as FSBCreateActor::Simulate spawns a key;
+//   void despawn(uint64_t sender, uint32_t turn, uint32_t guid): FUN_141b08a30(sender, turn, guid), as SB's ZoneEvent
 //     Despawn does;
 //   extra enemies (stage 4b), from inside our job only:
 //   uint64_t make(uint64_t logic, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index):
-//     FUN_141ad1290(logic, chr, at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0, 0), SB's NewActor as
+//     FUN_141ad24d0(logic, chr, at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0, 0), SB's NewActor as
 //     SpawnRequest::Execute calls it: the new logic actor, or 0 (a boss's summons on the guest's side too, stage 5);
 //   bosses (stage 5), from inside our job only:
-//   void battle(uint64_t fsb, bool on): SetBattleMode's wrapper; on: FUN_141a7cd30(fsb, 1, 0, 0, 0, 1), the arguments
-//     of SB's FSBActor::AddTargetedByEnemy, so the boss's EventOnBattle runs (arena walls); off: FUN_141a7cd30(fsb, 0,
-//     0, 0, 1, 1), the arguments of SB's own battle-off calls (FUN_141a63ba0 adding PeacefulMode, the actor update
-//     FUN_141a59780, the safe-location warp FUN_141bb0bf0); from the logic thread SB queues it for its game thread.
+//   void battle(uint64_t fsb, bool on): SetBattleMode's wrapper; on: FUN_141a7db20(fsb, 1, 0, 0, 0, 1), the arguments
+//     of SB's FSBActor::AddTargetedByEnemy, so the boss's EventOnBattle runs (arena walls); off: FUN_141a7db20(fsb, 0,
+//     0, 0, 1, 1), the arguments of SB's own battle-off calls (FUN_141a63da0 adding PeacefulMode, the actor update
+//     FUN_141a59970, the safe-location warp FUN_141bb1e40); from the logic thread SB queues it for its game thread.
 #pragma once
 
 #include "fight/types.h" // Job, Actor, Snapshot, PilotTable, Ring and the stage headers
@@ -443,8 +443,8 @@ private:
   // none or when not found.
   template <class Game> uint32_t zone_id(Game &g, uint64_t tables, uint64_t alias);
   // The job sender and the reg made, read from their globals: SB's spawn call reaches the job sender's getter
-  // FUN_141a97b90 (for a row with EventOnSpawning events), and NewActor's actor setup (FUN_141ba6d20) both it and the
-  // reg's FUN_141a97cb0. Each getter would make a missing one.
+  // FUN_141a98aa0 (for a row with EventOnSpawning events), and NewActor's actor setup (FUN_141ba7f60) both it and the
+  // reg's FUN_141a98bc0. Each getter would make a missing one.
   template <class Game> bool senders_made(Game &g);
   // The guest: SB's spawn of a key where the host's stands, on SB's spawn manager, never made here: not while it, the
   // tables (which the call reads through their getter), the job sender or the reg are not made (senders_made). An

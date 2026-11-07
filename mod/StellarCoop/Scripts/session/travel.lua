@@ -40,7 +40,7 @@ Travel.WORLDS={AbyssLab='/game/art/bg/worldmap/dungeon_p/abysslab_p',
     WasteLandB='/game/art/bg/worldmap/e05_greatdesert_p/e05_greatdesert_p',Xion='/game/art/bg/worldmap/level_p/e04'}
 -- The travel camps, {alias, type, world}: the ZoneCampTable rows of type FullCamp, SimplyCamp, PhoneBooth or Tetrapod
 -- whose ZoneEnvSpawnTable rows (TargetCamp), through each row's zone and ZoneTable's WorldAlias, lead to exactly one
--- world, in the tables of the game's Steam build 24463856. Left out: the SaveVolume rows, the camps that lead to
+-- world, in the tables of the game's Steam build 26123051. Left out: the SaveVolume rows, the camps that lead to
 -- several worlds or to none, and the camps of the developer test worlds (CombatTestMapMk2, SysTest_P,
 -- SysTest_Nikke_P).
 Travel.CAMPS={

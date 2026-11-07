@@ -173,7 +173,7 @@ end
 -- Xion Elder's materials (one slot empty), and the Native_Ver preview, which reaches 1.3 m below its root. Each is a
 -- 1-bone mesh in a fixed pose, so none has a clip. PreviewMesh/CH_NPC_XE_testmesh, 1.8 m tall and 3.7 m wide in the
 -- Xion Elder's materials, names no skeleton in its file: the engine then makes no single-node instance for it (the
--- component's InitializeAnimScriptInstance, 0x14410df70, makes one only when the mesh's Skeleton, at +0x88, is set)
+-- component's InitializeAnimScriptInstance, 0x144113af0, makes one only when the mesh's Skeleton, at +0x88, is set)
 -- and draws it in its reference pose.
 DIR='/Game/Art/Character/NPC/CH_NPC_XionElder/'
 local OR=creature('orcal',{title='Orcal prototype',meshes={'test1','test2','native','preview'},skins={},

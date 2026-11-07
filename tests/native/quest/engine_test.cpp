@@ -34,7 +34,7 @@ namespace {
 constexpr uint64_t kBase = 0x7ff600000000;
 uint64_t rebased(uint64_t address) { return kBase + (address - kImageBase); }
 // The task base vtable, and one standing for the TaskCondition class whose Complete also ends child tasks.
-constexpr uint64_t kTaskVtable = 0x145c10408, kConditionVtable = 0x145c10800;
+constexpr uint64_t kTaskVtable = 0x145c16158, kConditionVtable = 0x145c16b68;
 constexpr uint64_t kStale = 0x0bad0000; // A free map slot's old pointer: unmapped, never read.
 const std::string kSlot = "slot=coop index=2 marker=2 saves=coop";
 
@@ -197,7 +197,7 @@ struct Pc {
   Pc() {
     mem.region(rebased(kRequestVtable), 0x70); // The Request vtable's 7 slots, then the base one's.
     mem.put(rebased(kRequestVtable) + kAcceptSlot, rebased(kAccept));
-    mem.put(rebased(kQuestVtable) + 0x10, rebased(0x141c56940));
+    mem.put(rebased(kQuestVtable) + 0x10, rebased(0x141c57b90));
     mem.region(rebased(kGroupVtable), 0x60);
     mem.region(rebased(kReportVtable), 0x60);
     mem.region(rebased(kTaskVtable), 0x100);
@@ -465,7 +465,7 @@ void implausible() {
       {"implausible quest arrays", [](Pc &p) { p.mem.put<int32_t>(p.unit_at + kLists + 8, -1); }},
       {"implausible quest arrays", [](Pc &p) { p.mem.put<int32_t>(p.unit_at + kLists + 0x18, 300); }},
       {"implausible quest map", [](Pc &p) { p.mem.put<int32_t>(p.unit_at + kMapNumBits, 200); }},
-      {"implausible quest object", [](Pc &p) { p.mem.put(p.obj[at("Quest_Sub_017")].quest, rebased(0x145c11300)); }},
+      {"implausible quest object", [](Pc &p) { p.mem.put(p.obj[at("Quest_Sub_017")].quest, rebased(0x145c17228)); }},
       {"implausible quest object",
        [](Pc &p) { p.mem.put(p.obj[at("Quest_Request_006")].quest, rebased(kQuestVtable)); }},
       {"implausible quest object", [](Pc &p) { p.mem.put<int32_t>(p.obj[at("Quest_Sub_017")].quest + kQuestState, 9); }},
@@ -564,7 +564,7 @@ void guards() {
   assert(is(e.apply(pc, plan(s17, Act::complete)), "task not in progress"));
   pc.mem.put(t + kTaskGroup, pc.obj[s17].group[0]), pc.mem.put(t, pc.mem.alloc(0x100));
   assert(is(e.apply(pc, plan(s17, Act::complete)), "not a task's Complete"));
-  pc.mem.put(t, rebased(kConditionVtable)), pc.mem.put(rebased(kConditionVtable) + kCompleteSlot, rebased(0x141c57270));
+  pc.mem.put(t, rebased(kConditionVtable)), pc.mem.put(rebased(kConditionVtable) + kCompleteSlot, rebased(0x141c584c0));
   assert(is(e.apply(pc, plan(s17, Act::complete)), "not a task's Complete"));
   pc.mem.put(rebased(kConditionVtable) + kCompleteSlot, rebased(kCompleteParent));
   assert(pc.calls == 0);
@@ -578,7 +578,7 @@ void guards() {
   assert(is(e.apply(pc, plan(r19, Act::accept)), "not a Request her board accepts"));
   assert(is(e.apply(pc, plan(s17, Act::accept)), "not a Request her board accepts"));
   assert(is(e.apply(pc, plan(r1, Act::accept)), "not on her board"));
-  pc.mem.put(rebased(kRequestVtable) + kAcceptSlot, rebased(0x141c56940));
+  pc.mem.put(rebased(kRequestVtable) + kAcceptSlot, rebased(0x141c57b90));
   assert(is(e.apply(pc, plan(r6, Act::accept)), "not a Request object"));
   pc.mem.put(rebased(kRequestVtable) + kAcceptSlot, rebased(kAccept)), pc.mem.put(pc.obj[r7].quest, rebased(kQuestVtable));
   assert(is(e.apply(pc, plan(r7, Act::accept)), "not a Request object"));
@@ -717,9 +717,9 @@ void fault() {
   auto s = std::make_unique<Side>(setup(Mode::guest, kHostId));
   host_says(*s, {"q 1 1 14 1 - - - ."});
   s->tick(1000);
-  s->e.fault("the game at 0x141c6eb10");
+  s->e.fault("the game at 0x141c6fd60");
   s->tick(1250);
-  assert(s->lines.back() == q("off fault") && s->e.latched() && has(s->log, "fault the game at 0x141c6eb10"));
+  assert(s->lines.back() == q("off fault") && s->e.latched() && has(s->log, "fault the game at 0x141c6fd60"));
   s->e.on(setup(Mode::guest, kHostId));
   s->tick(1500);
   assert(s->lines.back() == q("off fault") && s->pc.calls == 1);
@@ -1424,7 +1424,7 @@ void workers() {
   assert(!g.e.active() && h.state() == "quests=on mode=on role=host partner=off");
   assert(g.w.ask(parse_request("quests off"), g.io) == "quests off: they were not on");
   // A fault: stopped for the run, a new on refused.
-  h.e.fault("the game at 0x141c6eb10");
+  h.e.fault("the game at 0x141c6fd60");
   step();
   assert(h.state() == "quests=stopped" &&
          h.w.ask(on, h.io).find("refused: shared quests stopped for this run") != std::string::npos);

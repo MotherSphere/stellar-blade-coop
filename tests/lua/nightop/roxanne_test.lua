@@ -382,7 +382,7 @@ local again=Roxanne.new({log=function(m) logs[#logs+1]=m end,status=function() r
     start=function() end,shop=function() end})
 again.tick()
 assert(asked[#asked]=='roxanne on' and exec('Temp_TS_Select_Test_1')=='Success2')
-status_text='mod=v\nslot=main index=0\nroxanne=fault asks=8 where=SB-Win64-Shipping.exe+0x1702300\n'
+status_text='mod=v\nslot=main index=0\nroxanne=fault asks=8 where=SB-Win64-Shipping.exe+0x17024e0\n'
 offs=#asked
 at(200); again.tick(); at(215); again.tick(); at(230); again.tick()
 assert(#asked==offs+1 and exec('Temp_TS_Select_Test_1')=='Success2','After a fault: one off, the rows ours')

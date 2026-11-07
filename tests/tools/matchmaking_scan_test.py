@@ -52,7 +52,7 @@ CONSOLE = "library:ExecuteConsoleCommand(pc,PAUSE_METHOD..' '..want,pc)"  # The 
 NAMES = ('Develop_NetworkPlay', 'DED10_ZoneE_13')  # The network-play option and the vanilla matchmaking rows.
 ADD_ROW = re.compile(r"[:.]\s*AddRow\s*[('{]")
 # StartMatchMaking, RequestMatchRequest, RunEvent, RunZoneEvent and the CreateSBZoneEvent job, as image offsets.
-ADDRESSES = re.compile('1ca2c50|23058c0|1ca47c0|1ca4540|1abcb40', re.I)
+ADDRESSES = re.compile('1ca3ea0|230b090|1ca5a10|1ca5790|1abdd80', re.I)
 NATIVE_NAMES = re.compile('MatchMaking|RequestMatch')  # Case-sensitive: Steam's Matchmaking lobby API stays allowed.
 
 
@@ -203,8 +203,8 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L5'}, {NS: SHOP + "log('no ServerRequest_ItemBucketItemRemove here')\n"}),
           ({'L5'}, {NS: None}),
           ({'L5'}, {EN: ENEMY + 'pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n'}),
-          *[({'N1'}, {H: f'// {a}\n'}) for a in ('0x141ca2c50', '0x1423058C0', 'FUN_141CA47C0', '1ca4540', '1aBcb40')],
-          ({'N1'}, {W: 'auto job = 0x141abcb40;\n'}),
+          *[({'N1'}, {H: f'// {a}\n'}) for a in ('0x141ca3ea0', '0x14230B090', 'FUN_141CA5A10', '1ca5790', '1aBdd80')],
+          ({'N1'}, {W: 'auto job = 0x141abdd80;\n'}),
           ({'N2'}, {H: 'void StartMatchMaking();\n'}),
           ({'N2'}, {W: '// RequestMatchRequest\n'}),
           ({'N0'}, {H: None}),

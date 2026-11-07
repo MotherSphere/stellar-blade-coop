@@ -1,7 +1,7 @@
 -- coop glide on|off: EVE's cut glide (cut survey entry 9), a test tool left out of the usage line. What is left of it
 -- in the pinned build (Ghidra, 2026-10-26): ASBCharacter's bGlide (+0x1100) is read by the character movement's
--- GetGravityZ (FUN_14214d380, before flight and wall run: gravity times GlideGravityScale, 0.1), by its air control
--- (FUN_142154f80: GlideAirControlScale, 1.0, the same as without), by IsGlide (0x142686080, a plain read of it, which
+-- GetGravityZ (FUN_142152100, before flight and wall run: gravity times GlideGravityScale, 0.1), by its air control
+-- (FUN_142159d00: GlideAirControlScale, 1.0, the same as without), by IsGlide (0x14268bb90, a plain read of it, which
 -- the animation graph may use for Proto_Glide) and by the movement debug print ("Glide %s"). Nothing writes it, and
 -- nothing reads GlideHoldKeyDurationOnJump (+0x1360, 0.2 in DefaultGame.ini) or RemainGlideKeyHoldDuration (+0x1364):
 -- the code that started and ended a glide was cut, so no setting or cheat can turn it on. This module plays that part:

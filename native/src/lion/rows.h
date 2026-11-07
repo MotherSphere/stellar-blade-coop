@@ -105,7 +105,7 @@ namespace coop::lion {
 
 // SB's UDataTable vtable and its AddRow slot (the exe's EmptyTable, RemoveRow and AddRow at +0x2a0, +0x2a8, +0x2b0;
 // UE4SS 3.0.1 computes them one slot off), the row struct (+0x28) and its PropertiesSize (UScriptStruct +0x58).
-constexpr uint64_t kImageBase = 0x140000000, kTableVtable = 0x146402e10, kAddRow = 0x14417ba30;
+constexpr uint64_t kImageBase = 0x140000000, kTableVtable = 0x146409530, kAddRow = 0x1441815b0;
 constexpr size_t kAddRowSlot = 0x2b0, kRowStruct = 0x28, kPropertiesSize = 0x58;
 // A row: its vtable, SB's lazy-init flag (a byte at +8: 0 until first used) and, in tables that have one, its ID.
 constexpr size_t kInitFlag = 8, kIdAt = 0x10;
@@ -6370,8 +6370,8 @@ constexpr Row kShopRecipe[] = {
 // copies a shipped row of its table; a row whose donor is itself is that shipped row patched in place.
 // mxiii: the camps and what they need. Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13) has no camp, so SB's camp
 // travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first env row DLC02_10_EnvS_900 (the
-// camp base; FUN_141cdd7b0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit
-// 901 to 906. With EnvBPPath set, FUN_141d1e5b0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's
+// camp base; FUN_141cdfbd0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit
+// 901 to 906. With EnvBPPath set, FUN_141d207c0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's
 // env rows are created; the shipped DLC02 kit rows have none and look for placed actors no pak holds, so every kit row
 // gets one, and its TargetCamp names its own camp instead of the placeholders WLB10_Camp_05 and SE02_Camp_02. A vending
 // machine's LinkEnvSpawnList switches its kit objects on once a coin activates the camp; a full camp's lists its base
@@ -6384,7 +6384,7 @@ constexpr Row kShopRecipe[] = {
 // ZoneEvent spawns, 25 new enemy rows and the three bosses (Gardener M_Gardener and Lion M_LionC come from the gardener
 // and lion batches, which matrix13/world/travel.lua asks first), the 4 zone events that spawn the Gardener and the
 // trio, and the two trigger rows that run them. SB binds a spawn row to the placed SBSpawnPoint whose name equals the
-// row's SpawnPointName field (FUN_14228ce40); every name here is one the cooked map places.
+// row's SpawnPointName field (FUN_1422925c0); every name here is one the cooked map places.
 // mxenv: loot, kill volumes and the shipped device rows dev already patched: the one-way doors 050, 051 and 037 (an
 // empty arrow at their point, our own sequences moving the cooked leaf), the R29 gate and its card switch listing zone
 // 1 and 2, the 55 m lift waiting at the top with our sequences, the 74 m lift's call switches (the lift controller,
@@ -6400,7 +6400,7 @@ constexpr Row kShopRecipe[] = {
 // Lion's own death opens the fan door and D7. The zone 2 wave triggers 601 to 603 also shut the arena gate behind EVE,
 // and trigger 601 of zone 3 shuts the pressure door behind her for good. Zone 4's water device keeps its shipped P1, P2
 // and P3 states with our sequences, driven by its drain and pipe panels, with two toxic effect volumes.
-// Free names and IDs in the build 24463856 dumps; struct sizes and offsets from the SDK (stellar-sdk-647527f).
+// Free names and IDs in the build 26123051 dumps; struct sizes and offsets from the SDK (stellar-sdk-647527f).
 static_assert(kTables[kTableCount - 1].name, "the generated kTables describes every table");
 constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
 #include "lion/mxiii_rows.h"
@@ -6416,8 +6416,8 @@ constexpr const TableInfo &table_info(Table t) { return kTables[size_t(t)]; }
 // her at every Tetrapod, completed after the end talk. Groups run in list order, so M06 starts only once M05 ends. The
 // markers are 8 LevelTargetFilter rows of ours, one per Tetrapod Lily (Eidos 9 has two spawns, only one live at a
 // time), each a copy of the one Quest_Epic_11_M04_T01 tracks with another EventSpawnAlias, all listed in both "Talk to
-// Lily" tasks. New names and IDs only, every one free in the build 24463856 dumps (shipped IDs end at 162, 334, 482): a
-// save that names a quest and loads without these rows drops it (FUN_141c5b4f0 logs "LoadQuest : QuestData Not Found"
+// Lily" tasks. New names and IDs only, every one free in the build 26123051 dumps (shipped IDs end at 162, 334, 482): a
+// save that names a quest and loads without these rows drops it (FUN_141c5c740 logs "LoadQuest : QuestData Not Found"
 // and returns 0), where a borrowed shipped quest would stay half there. The save keys quests, groups and tasks by
 // alias, so these aliases must never change. Templates: each quest is Quest_Sub_WLB_001 (a shipped Sub with no reward,
 // no event, no fail condition, no next quest), each group Quest_Sub_002_M01 (one container, no event, no warp), each
@@ -6668,12 +6668,12 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 // rows.h's Game: the glue's (glue/tick/lion_game.inc) or a test's. read (the tables' headers only, false when
 // unmapped) and write (the block only); name(text, len, number): FName's MakeWithNumber with FNAME_Add, as a word
 // (ComparisonIndex, then Number in the high half; 0 is None); find(table, name): the row by name in the table's
-// RowMap, whatever its row struct (not SB's FindRow FUN_141aa8760, which knows CharacterTable's only), or 0;
-// id_name(table, id): the row name the table's ID map holds for id (FUN_141a2ce50), or 0; construct(struct, row):
+// RowMap, whatever its row struct (not SB's FindRow FUN_141aa99a0, which knows CharacterTable's only), or 0;
+// id_name(table, id): the row name the table's ID map holds for id (FUN_141a2cf40), or 0; construct(struct, row):
 // InitializeStruct (the struct's vtable +0x2a8); copy(struct, dest, src): CopyScriptStruct; add(add_row, table, name,
 // row): the AddRow the table's slot holds. For the read-back: character(id) and skill(id), SB's own row lookups by ID
-// through its table registry (FUN_141a9de20, FUN_141a9d900), and stance(id), the stance's row name by ID
-// (FUN_141a2cef0).
+// through its table registry (FUN_141a9ee40, FUN_141a9e920), and stance(id), the stance's row name by ID
+// (FUN_141a2cfe0).
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
@@ -6970,10 +6970,10 @@ inline std::string describe(const Batch &b, const Answer &a) {
     shipped += shipped_row(b.rows[i]);
   if (a.state == State::rows && shipped)
     return std::string(b.word) + " rows: " + added + " in, " + std::to_string(b.count - shipped) +
-           " added through SB's AddRow 0x14417ba30 and " + std::to_string(shipped) +
+           " added through SB's AddRow 0x1441815b0 and " + std::to_string(shipped) +
            " shipped rows patched in place, 0 refused";
   if (a.state == State::rows)
-    return std::string(b.word) + " rows: " + added + " added through SB's AddRow 0x14417ba30, 0 refused";
+    return std::string(b.word) + " rows: " + added + " added through SB's AddRow 0x1441815b0, 0 refused";
   if (a.state != State::refused)
     return std::string(b.word) + " rows: " + added + " added";
   const bool row = a.row < b.count;

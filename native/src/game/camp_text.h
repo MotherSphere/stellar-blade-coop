@@ -3,16 +3,16 @@
 // StringTable_Records (game/record_text.h), the titles and texts the mxrecords rows name. This file names the calls and
 // offsets, holds the names, picks the language, says when a pass is due and writes the status lines (camptext=,
 // recordtext=). The records' entries are text only and no row of a save without the mxrecords batch names them.
-// tests/native/game/camp_text_test.cpp checks it on the build machine. All read from build 24463856's code; it has not
-// run in game.
+// tests/native/game/camp_text_test.cpp checks it on the build machine. All read from build 24463856's code and matched
+// to build 26123051's; it has not run in game.
 //
-// SB's rows hold a key, and FText::FromStringTable (FUN_142862780) looks the key up in the registered table each time
-// a display string is read. On a missing key this build shows "<key>" (FUN_142879140), so a row may name a key only
+// SB's rows hold a key, and FText::FromStringTable (FUN_142868230) looks the key up in the registered table each time
+// a display string is read. On a missing key this build shows "<key>" (FUN_14287ebf0), so a row may name a key only
 // once the entry exists: matrix13/world/travel.lua asks the mxnames batch only when this file's line reads
 // camptext=ready, and a row left with its donor's key shows the donor's name. The build has no
 // FStringTable::SetSourceString and ImportStrings clears the table first, so the entry is made by the same out of line
 // calls ImportStrings makes. The table is registered in its ctor, before Serialize fills it: only its loaded byte,
-// which PostLoad sets, says it holds its rows. FTextLocalizationManager::GetDisplayString (FUN_14287d320) overrides an
+// which PostLoad sets, says it holds its rows. FTextLocalizationManager::GetDisplayString (FUN_142882dd0) overrides an
 // existing display string only under the culture "ko", so a language change assigns the strings directly.
 #pragma once
 
@@ -24,10 +24,10 @@ namespace coop::camp_text {
 // The registry's getter, its find (TSharedPtr out, an FName by value), the table's FindEntry (TSharedPtr out; takes the
 // table's lock itself), FTextKey from an FString, the text manager's holder, GetDisplayString, FString's copy, the
 // entry factory ImportStrings calls, the two map emplaces, FString's assign and FInternationalization's getter.
-constexpr uint64_t kRegistry = 0x14285ba90, kFindTable = 0x14285bd10, kFindEntry = 0x142859090, kTextKey = 0x14287ac60,
-                   kManagerHolder = 0x142642210, kDisplayString = 0x14287d320, kCopy = 0x140e4b370,
-                   kMakeEntry = 0x142857ff0, kAddKey = 0x142888180, kAddDisplay = 0x142888090, kAssign = 0x140e4a330,
-                   kInternationalization = 0x14284b150;
+constexpr uint64_t kRegistry = 0x142861590, kFindTable = 0x142861810, kFindEntry = 0x14285eb90, kTextKey = 0x142880710,
+                   kManagerHolder = 0x142647d20, kDisplayString = 0x142882dd0, kCopy = 0x140e4b740,
+                   kMakeEntry = 0x14285daf0, kAddKey = 0x14288dc30, kAddDisplay = 0x14288db40, kAssign = 0x140e4a700,
+                   kInternationalization = 0x142850c50;
 // FStringTable: its loaded byte, namespace, KeysToEntries, DisplayStringsToKeys and KeyMappingCS.
 constexpr size_t kLoaded = 0x18, kNamespace = 0x20, kKeys = 0x30, kDisplays = 0x80, kTableLock = 0xd0;
 // FStringTableEntry: its source and its display string's shared pointer (object, then controller).

@@ -12,11 +12,11 @@ namespace {
 // as SpawnRequest::Execute calls it. Bosses (stage 5), only from inside our job: SetBattleMode's wrapper, as
 // FSBActor::AddTargetedByEnemy calls it and as SB's own battle-off calls do (NewActor again for a boss's summons, and
 // the effect call for its rows).
-constexpr uint64_t kSendJob = 0x141af3930, kFindActor = 0x141ad6ab0, kApplyStat = 0x141ba8720,
-                   kApplyEffect = 0x141ad08b0, kSpawnRow = 0x141a9db80, kZoneRow = 0x141a9b8a0,
-                   kSpawnByKey = 0x141c1c9a0, kDespawn = 0x141b077f0, kNewActor = 0x141ad1290,
-                   kSetBattleMode = 0x141a7cd30;
-constexpr uint64_t kLogicThreadId = 0x1470634f0; // DAT_1470634f0: the logic worker's thread ID during its tick, else 0.
+constexpr uint64_t kSendJob = 0x141af4b70, kFindActor = 0x141ad7cf0, kApplyStat = 0x141ba9960,
+                   kApplyEffect = 0x141ad1af0, kSpawnRow = 0x141a9eba0, kZoneRow = 0x141a9c8c0,
+                   kSpawnByKey = 0x141c1dbf0, kDespawn = 0x141b08a30, kNewActor = 0x141ad24d0,
+                   kSetBattleMode = 0x141a7db20;
+constexpr uint64_t kLogicThreadId = 0x1470683b0; // DAT_1470683b0: the logic worker's thread ID during its tick, else 0.
 using SendJob = uint8_t (*)(void *, fight::Job *job, uint8_t unlocked_queue);
 using FindActor = void *(*)(void *logic, int32_t guid);
 using ApplyStat = void (*)(void *la, int32_t stat, uint64_t key, float delta, uint32_t, void *cause, uint32_t,
@@ -31,14 +31,14 @@ using SpawnRow = void *(*)(void *tables, uint64_t unused, uint32_t id);
 using ZoneRow = void *(*)(void *tables, uint8_t none, uint64_t alias);
 // The spawn manager, the EventSpawnId, the SpawnIndex, where, the rotation (pitch, yaw, roll), an unused argument, no
 // extra request data and its flag 0 (its use not known yet). The key spawns now: the function itself passes
-// RequestSpawn (FUN_141c1ca40) a delay of 0.
+// RequestSpawn (FUN_141c1dc90) a delay of 0.
 using SpawnByKey = void (*)(void *manager, uint32_t id, uint32_t index, const float *at, const float *rot,
                             uint64_t unused, void *extra, uint8_t flag);
 // The job sender, the logic turn and the actor's GUID: a despawn job for it.
 using Despawn = void (*)(void *sender, uint32_t turn, uint32_t guid);
 // NewActor: the logic singleton, the charId, where, the rotation (pitch, yaw, roll), not a player (0) and its player ID
 // (0), the EventSpawnId and SpawnIndex, the row's +0x14 field (0: no row), 0, 1, the request's extra data (null: SB's
-// FSBActor creation FUN_141ca9100 null-checks it and then keeps its own default, the same state a fresh request's
+// FSBActor creation FUN_141caa350 null-checks it and then keeps its own default, the same state a fresh request's
 // copy gives, read 2026-10-21), 0, its flag 0 (no actor replaced) and 0. The new logic actor, or null.
 using NewActor = void *(*)(void *logic, int32_t chr, const float *at, const float *rot, uint8_t player,
                            uint32_t player_id, uint32_t id, uint8_t index, uint64_t row_field, uint8_t, uint8_t,

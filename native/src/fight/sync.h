@@ -165,7 +165,7 @@ struct Summon {
   int32_t list[kMaxSummonEffects] = {};
 };
 // ---- boss table: generated, begin ----
-// Built from build 24463856's CharacterTable, EffectTable, CharacterStanceTable and the skill rows they reach.
+// Built from build 26123051's CharacterTable, EffectTable, CharacterStanceTable and the skill rows they reach.
 // Another game build needs it built again from that build's tables.
 constexpr Boss kBosses[] = {
     // DED_M_Opener_01

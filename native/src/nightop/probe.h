@@ -3,7 +3,7 @@
 // a game pointer itself: every access goes through a read function (ReadProcessMemory on the worker, which fails rather
 // than faults; a fake image in tests/native/nightop/probe_test.cpp), and only after plausible() accepted the pointer.
 // Every count is range-checked before it sizes a read. No Windows types.
-// Offsets are for Stellar Blade's Steam build 24463856 (night-operation/STUDY.md, PHASE10-DESK-RE.md); the caller polls
+// Offsets are for Stellar Blade's Steam build 26123051 (night-operation/STUDY.md, PHASE10-DESK-RE.md); the caller polls
 // only a pinned build.
 #pragma once
 

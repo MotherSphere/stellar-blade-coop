@@ -39,7 +39,7 @@ void hold_install() {
   if (done == 1)
     swap_slot(debug::kInputSlots[0], hold_address(), pass, held);
   hold_on = hold_live = done == 2;
-  say(hold_on ? "level flight on: 0x145cc74a8 and 0x145cd37a8 swapped from the game's input pass to our hook"
+  say(hold_on ? "level flight on: 0x145ccd738 and 0x145cd9a38 swapped from the game's input pass to our hook"
               : "level flight refused: the input pass's slots would not swap (error " + std::to_string(error) +
                     "); a flight ends once no flight key is held");
 }

@@ -352,8 +352,8 @@ int main() {
     assert(unpack(pack(c)).look.state == -1 && unpack(pack(c)).look.group == -1 && unpack(pack(c)).look.sub005 == -1);
     c.look.state = 14, c.look.group = 15, c.look.task = -2; // 14 fits its 4 bits; 15 and -2 do not: read as -1.
     assert(unpack(pack(c)).look.state == 14 && unpack(pack(c)).look.group == -1 && unpack(pack(c)).look.task == -1);
-    assert(status_line(c, true, "SB-Win64-Shipping.exe+0x1c5cf20") ==
-           "signalquest=fault asks=0 where=SB-Win64-Shipping.exe+0x1c5cf20");
+    assert(status_line(c, true, "SB-Win64-Shipping.exe+0x1c5e170") ==
+           "signalquest=fault asks=0 where=SB-Win64-Shipping.exe+0x1c5e170");
   }
   std::puts("quest_own_test: ok");
   return 0;

@@ -43,7 +43,7 @@ end
 local Travel=require('session.travel')
 local XION=Travel.WORLDS.Xion
 local DEDA=Travel.WORLDS.DrownedEidosDistrict
-local ENGINE='engine=on reason=pinned build 24463856 remote=3 1 peer'
+local ENGINE='engine=on reason=pinned build 26123051 remote=3 1 peer'
 local FIGHT='fight=on mode=on role=guest pairs=1 kills=0 bosses=off boss=0 battle=0 epoch=1/1/0'
 local clock=0
 local EVERY={} -- The native read with every travel camp activated.

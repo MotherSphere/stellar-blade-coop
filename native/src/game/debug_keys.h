@@ -1,9 +1,9 @@
-// coop fly and coop slowmo: two developer gates that SB ships switched off. ASBCharacter's tick (FUN_14205eec0) reads
-// the flight key (USBPlayerInput's bPushedFlyingActionKey: R2, or Z) only through FUN_1423c9ea0 and the time-control
-// key (bPushedTimeControlKey: R1) only through FUN_1423c9f90, and each passes its key on only while its gate reads
+// coop fly and coop slowmo: two developer gates that SB ships switched off. ASBCharacter's tick (FUN_1420634f0) reads
+// the flight key (USBPlayerInput's bPushedFlyingActionKey: R2, or Z) only through FUN_1423cf670 and the time-control
+// key (bPushedTimeControlKey: R1) only through FUN_1423cf760, and each passes its key on only while its gate reads
 // true. Flight then runs while the key is held in the air (its time pool, 90 s, refills on the ground); slow motion
 // sets the time dilation to TimeControlKeyScale (0.2) while R1 is held and to 1 every other tick. A gate is one bool in
-// a native settings singleton (FUN_141a977b0's pointer, at kGlobals + 0x18): a TMap<int32, bool> at +0xa8 keyed by the
+// a native settings singleton (FUN_141a986c0's pointer, at kGlobals + 0x18): a TMap<int32, bool> at +0xa8 keyed by the
 // Strihash_DEPRECATED of the gate's name, which the singleton's constructor fills from its defaults (both false). The
 // cheat command meant for them (USBCheatManager::SBSetCustomBool) is a stub in shipping and ASBCharacter's
 // SetCustomBool writes another map, so the native part writes the value byte of the existing element, never inserts
@@ -25,12 +25,12 @@ namespace coop::debug {
 enum Gate : uint8_t { kFly, kSlowmo, kGates };
 constexpr const char *kNames[kGates] = {"UseFlyingActionKey", "UseTimeControlKey"};
 // Strihash_DEPRECATED of the names (upper case, two CRCTable_DEPRECATED steps a UTF-16 unit; the table is at
-// 0x145f6dce0, polynomial 0x04C11DB7), as each gate function hashes its name once into a static of its own (kStatics):
+// 0x145f762f0, polynomial 0x04C11DB7), as each gate function hashes its name once into a static of its own (kStatics):
 // a pass writes only while that static holds this same key, so a key the game does not use never leads to a write.
 constexpr uint32_t kHashes[kGates] = {0x1147f83c, 0x43812976};
-constexpr uint64_t kStatics[kGates] = {0x1471082ec, 0x1471082f4};
-constexpr uint64_t kSingleton = game::kGlobals + 0x18; // 0x147037400: FUN_141a977b0's pointer.
-// The map's fields in the singleton, as FUN_14261db60 (the gates' lookup) reads them: the elements, their count and
+constexpr uint64_t kStatics[kGates] = {0x14710d18c, 0x14710d194};
+constexpr uint64_t kSingleton = game::kGlobals + 0x18; // 0x147037400: FUN_141a986c0's pointer.
+// The map's fields in the singleton, as FUN_1426235a0 (the gates' lookup) reads them: the elements, their count and
 // free count (equal: none), the hash buckets (inline, or the pointer when set) and their count (a power of two). An
 // element: {int32 key, bool value, ..., int32 next element's index at +8, -1 for none}, 16 bytes.
 constexpr size_t kElements = 0xa8, kCount = 0xb0, kFree = 0xdc, kInlineHash = 0xe0, kHashPointer = 0xe8,
@@ -204,14 +204,14 @@ struct Asks {
   }
 };
 
-// coop fly's start and level flight. The player controller's input pass (FUN_1423c47a0, its ProcessPlayerInput(dt,
+// coop fly's start and level flight. The player controller's input pass (FUN_1423c9f70, its ProcessPlayerInput(dt,
 // paused), in the slots kInputSlots of two player controller vtables, called through them only: its other references,
-// at 0x1468ffe58, 0x1468ffeec, 0x1468ffefc and 0x1556e6600, are unwind data holding its RVA) sets USBPlayerInput's
-// bPushedFlyingActionKey each frame from the keys held (FUN_1423c86f0), and EVE's tick, which runs after it, starts a
+// at 0x1469068bc, 0x146906950, 0x146906960 and 0x155d087d4, are unwind data holding its RVA) sets USBPlayerInput's
+// bPushedFlyingActionKey each frame from the keys held (FUN_1423cdec0), and EVE's tick, which runs after it, starts a
 // flight while it reads true in the air (the falling movement mode) and ends her flight once it reads false.
 // glue/tick/debug_game.inc's hook in those slots runs the pass, then Hold's step while the fly gate is ours, with the
 // space bar's state. The game's own jump flag is no use: the same pass sets bPushedJumpKey (+0x197) only from
-// DefinedJumpKeyLists (+0xF8, at 0x1423c887e), which DefaultInput.ini never fills, so it stays 0 (the test of
+// DefinedJumpKeyLists (+0xF8, at 0x1423ce04e), which DefaultInput.ini never fills, so it stays 0 (the test of
 // 2026-10-26: six presses in the air, no flight). Hold counts the presses since EVE left the ground: on the ground (any
 // movement mode but falling) the count is 0, or 1 while the press she jumps with is still down or kGroundPress s old
 // (her jump may leave the ground some frames after it, and a short tap may be let go before); each press in the air
@@ -221,11 +221,11 @@ struct Asks {
 // set again when no fly key set it, so she flies level; the next press (the one that armed it is no press there, even
 // still down) drops her: no write until that flight ends, and the count starts over. The pass recomputes both flags
 // each frame, so a write lasts one frame and nothing is put back.
-constexpr uint64_t kInputPass = 0x1423c47a0;
-constexpr uint64_t kInputSlots[] = {0x145cc74a8, 0x145cd37a8};
+constexpr uint64_t kInputPass = 0x1423c9f70;
+constexpr uint64_t kInputSlots[] = {0x145ccd738, 0x145cd9a38};
 // AController::Pawn, ASBPlayerController::InputHandler (a USBPlayerInput), ASBCharacter::bFlyingAction, the input's
 // bPushedFlyingActionKey, ACharacter::CharacterMovement and its MovementMode (MOVE_Falling 3: the pinned build's
-// IsFalling, 0x1440a5b80 in the movement component's vtable, compares this byte).
+// IsFalling, 0x1440ab6f0 in the movement component's vtable, compares this byte).
 constexpr size_t kPawn = 0x2f8, kInputHandler = 0x668, kFlyingAction = 0x1101, kFlyKey = 0x193,
                  kCharacterMovement = 0x330, kMovementMode = 0x19c;
 constexpr uint8_t kFalling = 3, kFlyPresses = 3;

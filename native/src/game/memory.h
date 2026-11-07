@@ -1,6 +1,6 @@
 // The game image's base and globals block, and the two helpers every read of game memory goes through: plausible()
 // for a pointer before it reaches a read, get() for a value inside a block already read. Offsets are for Stellar
-// Blade's Steam build 24463856.
+// Blade's Steam build 26123051.
 #pragma once
 
 #include <cstddef>

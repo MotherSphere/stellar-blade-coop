@@ -3,10 +3,10 @@
 namespace coop::pose {
 namespace {
 // ---- The shared quests (quest/engine.h), the game thread's pass ----
-// SB's on the pinned build: the local player's quest unit (FUN_141c5e880) and the acquire by ID that a quest zone event
-// makes (FUN_141c5cf20, false when SB refused it); the engine's other two calls, the Request vtable's +0x10 and a task
+// SB's on the pinned build: the local player's quest unit (FUN_141c5fad0) and the acquire by ID that a quest zone event
+// makes (FUN_141c5e170, false when SB refused it); the engine's other two calls, the Request vtable's +0x10 and a task
 // vtable's +0x60, go to the addresses quest/engine.h names, and QuestGame::call refuses any other.
-constexpr uint64_t kQuestUnit = 0x141c5e880, kQuestAcquire = 0x141c5cf20;
+constexpr uint64_t kQuestUnit = 0x141c5fad0, kQuestAcquire = 0x141c5e170;
 using QuestUnit = void *(*)(void *manager);
 using QuestAcquire = bool (*)(void *manager, uint32_t owner, uint32_t quest);
 using QuestCall = void (*)(void *object);

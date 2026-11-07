@@ -91,7 +91,7 @@ local G=require('session.group')
 
 local GUEST='fight=on mode=on role=guest pairs=1 claims=0 corrections=0 kills=0 floored=0 desync=0 unpaired=0 maxhp=0 '
     ..'spawns=off scale=100/100 sim_us=5/9 threads=1/1/2 bosses=off battle=0 epoch=1/1/0 boss='
-local ENGINE='engine=on reason=pinned build 24463856 remote=3 1 peer'
+local ENGINE='engine=on reason=pinned build 26123051 remote=3 1 peer'
 local clock=0
 local map=uobject('World /Game/Map.Map',{})
 local function world(change)

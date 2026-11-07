@@ -86,7 +86,7 @@ struct Memory {
 };
 
 // A pool at kPool with blocks 0 and 1 (current block 1) and entries written into them.
-constexpr uint64_t kPool = 0x146ffec40, kBlock0 = 0x20000000, kBlock1 = 0x30000000;
+constexpr uint64_t kPool = 0x147003ac0, kBlock0 = 0x20000000, kBlock1 = 0x30000000;
 struct Pool : Memory {
   Pool() {
     region(kPool, 0x10 + 8 * 8192);
@@ -1927,7 +1927,7 @@ int main() {
     d.draw(g, kBase, 5032, 1000);
     assert(s.since(seen).empty() && d.counts.cmc_refused == 1 && d.counts.frames == 0);
     s.put<uint64_t>(s.cmc(ch), kCmcVtable); // SB's vtable, but slot 0x350 is not SB's override.
-    s.put<uint64_t>(kCmcVtable + kCmcTickSlot, 0x140f32a70);
+    s.put<uint64_t>(kCmcVtable + kCmcTickSlot, 0x140f32de0);
     Driver d2;
     d2.rows(g, kBase, 7, kGuest, &row, 1);
     d2.sbe(bytes, encode_sbe(h, &e, 1, bytes));
@@ -2004,7 +2004,7 @@ int main() {
     assert(d.counts.shows == 1);
   }
   // A movement component that changes class between frames (a pooled actor back under the same GUID): refused, and on
-  // the way back neither SB's 142158f40 nor a Velocity write touches it; only SB's speed override byte goes back. The
+  // the way back neither SB's 14215dcc0 nor a Velocity write touches it; only SB's speed override byte goes back. The
   // same when the pair goes.
   for (bool unpair : {false, true}) {
     Stage s;
@@ -2469,7 +2469,7 @@ int main() {
 
   // ---- Stage 3b, a take-over on the game thread (Taker). In the frame the table makes a pair ours at a new epoch the
   // Driver puts the copy back (its replay stopped, Velocity zeroed, its movement component back in SB's manager, the
-  // speed override's byte), and then SB's force target points its AI at our EVE: FUN_141a36010(fsb + 0x710, our EVE,
+  // speed override's byte), and then SB's force target points its AI at our EVE: FUN_141a361b0(fsb + 0x710, our EVE,
   // 0, 100.0f). Only a pair a hand-over brought (Owned::taken): never epoch 0, nor a pair back after an own-no or place
   // 0, nor one still ours at the same epoch; a table that is stale or off changes nothing the Taker knows ----
   {

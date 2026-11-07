@@ -5,19 +5,19 @@
 //
 // The fire commands. EVE's gun stances P_Eve_Gun (100104) and P_Eve_GunBlockSword (100110) list 22 commands in their
 // CommandArray (a TArray<FName> at row +0x90); for Shock only P_Eve_Gun_ShootShockSlugFail1_1. SB reads that array in
-// one place: when a stance starts (FUN_141a7d4b0), FUN_141a61c50 copies every command into nodes of its own and keeps
+// one place: when a stance starts (FUN_141a7e2a0), FUN_141a61e50 copies every command into nodes of its own and keeps
 // no pointer into the array. So the two fire commands SB ships (SkillCommandTable P_Eve_Gun_ShootShockSlug1_1 and
 // _1_2: RangedFireItem, BulletItemAlias Bullet_Shock) go at the end of the live row the stance change reads (the
-// registry's FUN_141a9cd20 by name, its override map first), the way SB itself appends: Num raised, FUN_140e47f00 (SB's
+// registry's FUN_141a9dd40 by name, its override map first), the way SB itself appends: Num raised, FUN_140e482d0 (SB's
 // grow of an 8-byte TArray through GMalloc's Realloc) when Num passes Max, then the FNames written. EVE gets them the
 // next time she enters the stance (aiming again, if she aimed while they went in). AddRow under a live stance's name
 // would free the row SB hands out.
 //
 // The ammo list. SB's const store (the singleton at 0x147037400, game/debug_keys.h's) holds BulletItemSlotArray, a
 // TArray<FString> in its string-array map at +0x288 (the gates' map layout, 0x20-byte elements: key, the array at +8,
-// the next element's index at +0x18), keyed by Strihash_DEPRECATED of the name (SB's FUN_14117c1f0, called, not
+// the next element's index at +0x18), keyed by Strihash_DEPRECATED of the name (SB's FUN_14117c560, called, not
 // copied): Bullet_Normal, Bullet_Scatter, Bullet_Railgun, Bullet_Missile, Bullet_Explosive. The item slot manager
-// (FUN_141a97c40's object +0xe8, its list of FNames at +0x238) and the TPS bullet HUD build their own lists from it
+// (FUN_141a98b50's object +0xe8, its list of FNames at +0x238) and the TPS bullet HUD build their own lists from it
 // when they start. SB locks an entry only while its index is below BulletItemAcquisitionSlotArray's 5 entries, so a
 // sixth, Bullet_Shock, is never locked. It goes at the end of the const array (GMalloc's Realloc for the array, its
 // Malloc for the text) and, when the slot manager already exists, of its list too (SB's grow again). The HUD (a
@@ -52,7 +52,7 @@ constexpr const char *kGunStances[2] = {"P_Eve_Gun", "P_Eve_GunBlockSword"};
 constexpr uint32_t kGunStanceIds[2] = {100104, 100110};
 constexpr const char *kShockFire[2] = {"P_Eve_Gun_ShootShockSlug1_1", "P_Eve_Gun_ShootShockSlug1_2"};
 constexpr size_t kCommandArray = 0x90; // FSBCharacterStanceTableProperty::CommandArray.
-// The const store, its string-array map (fields as FUN_14261dfa0 reads them) and the ammo list's name and entries.
+// The const store, its string-array map (fields as FUN_142623ab0 reads them) and the ammo list's name and entries.
 constexpr uint64_t kConsts = 0x147037400, kSlotsHolder = 0x1470373d0;
 constexpr size_t kArrays = 0x288, kArraysCount = 0x290, kArraysFree = 0x2bc, kArraysInlineHash = 0x2c0,
                  kArraysHashPointer = 0x2c8, kArraysHashSize = 0x2d0, kArrayElement = 0x20, kArrayAt = 8,
@@ -61,7 +61,7 @@ constexpr const char *kSlotArray = "BulletItemSlotArray";
 constexpr const char *kShippedBullets[5] = {"Bullet_Normal", "Bullet_Scatter", "Bullet_Railgun", "Bullet_Missile",
                                             "Bullet_Explosive"};
 constexpr const char *kShockBullet = "Bullet_Shock";
-// The item slot manager's object (FUN_141a97c40's, never made here: 0 until SB made it) and its list.
+// The item slot manager's object (FUN_141a98b50's, never made here: 0 until SB made it) and its list.
 constexpr size_t kSlotManager = 0xe8, kSlotList = 0x238;
 // Far above any count these hold (22 commands, 5 bullets, a few hundred string arrays).
 constexpr int32_t kMaxCommands = 256, kMaxBullets = 64, kMaxArrays = 1 << 16;
@@ -104,8 +104,8 @@ inline ShockAnswer unpack_shock(uint64_t w) {
 }
 
 // The Game shock() takes: lion/rows.h's read (false when unmapped), write and name(text, len, number), and
-// stance_row(name): the stance row the registry gives for an FName (FUN_141a9cd20), or 0; grow(array): SB's
-// FUN_140e47f00 on a TArray of 8-byte items whose Num was raised; hash(text): FUN_14117c1f0 of the ASCII text as
+// stance_row(name): the stance row the registry gives for an FName (FUN_141a9dd40), or 0; grow(array): SB's
+// FUN_140e482d0 on a TArray of 8-byte items whose Num was raised; hash(text): FUN_14117c560 of the ASCII text as
 // UTF-16; malloc(n) and realloc(address, n): GMalloc's, 0 when they give nothing.
 template <class Game> struct ShockRun {
   Game &g;

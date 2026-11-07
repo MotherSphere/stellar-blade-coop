@@ -4,28 +4,28 @@
 //
 // Why not a montage: CH_P_EVE_01_AnimBP_New has no AnimNode_Slot, so a dynamic montage plays with nothing shown. SB
 // plays her clips through SB's own nodes instead (SBAnimNode_SequenceBlendedPlayer, CustomAnimNode in that blueprint),
-// fed by ASBCharacter::PlayCustomAnim (FUN_1420ae740, 38 parameters). It plays a UAnimSequenceBase in one of the
+// fed by ASBCharacter::PlayCustomAnim (FUN_1420b2d70, 38 parameters). It plays a UAnimSequenceBase in one of the
 // character's custom animation slots (an array of 0x70-byte slots at +0x21b8, its count at +0x21c0) and returns the
 // play's FGuid, all zero when it played nothing: an additive clip, a clip of another skeleton, an end before the start,
 // no animation instance, or a slot already playing a clip of a higher priority. On success the slot holds +0x14 the
 // weight, +0x18 1 while it plays, +0x20 the FGuid, +0x30 the priority and +0x3c the clip's FName.
 //
-// The call made here is its by-path entry FUN_1420b31d0 (31 parameters), as the MovingTarget animation calls it
-// (0x1420909c3): StaticLoadObject of the path as a UAnimSequenceBase, an additive clip sent to the additive play
-// (FUN_1420b1300), the priority rule, and the defaults it builds itself (five -1 body weights, the 44-byte struct copied
-// from 0x1470f7598). It returns 0 once it called the play, 1 for the additive play, -1 when the clip did not load or the
+// The call made here is its by-path entry FUN_1420b7800 (31 parameters), as the MovingTarget animation calls it
+// (0x142094ff3): StaticLoadObject of the path as a UAnimSequenceBase, an additive clip sent to the additive play
+// (FUN_1420b5930), the priority rule, and the defaults it builds itself (five -1 body weights, the 44-byte struct copied
+// from 0x1470fc3f8). It returns 0 once it called the play, 1 for the additive play, -1 when the clip did not load or the
 // slot's clip outranks ours, and writes the FGuid into its fourth argument (zeroed first). The path is a const FString&
 // it only reads; its five other FString arguments are by value and freed by the callee when their data is set, so
-// empty ones (null data) free nothing. The flight start's wrapper FUN_1420af3c0 cannot loop: it passes no loop flag.
+// empty ones (null data) free nothing. The flight start's wrapper FUN_1420b39f0 cannot loop: it passes no loop flag.
 //
-// Each tick ASBCharacter::UpdateCustomAnimWeight (FUN_1420a7130) moves each slot's time and weight. A clip played once
+// Each tick ASBCharacter::UpdateCustomAnimWeight (FUN_1420ab760) moves each slot's time and weight. A clip played once
 // starts blending out at its end minus the blend out time and clears +0x18 when its weight reaches 0; a loop with count
 // -1 never blends out. A slot whose node is not playing gets weight 0 each tick, its +0x18 left set. Photo mode stops
-// the player's custom animation (FUN_1420addc0(character, 0, ...)), which this watch reads as the clip ending. Its one
-// caller, FUN_1420a7fd0(character, delta time), is reached only through vtables: her tick, which a paused world does
+// the player's custom animation (FUN_1420b23f0(character, 0, ...)), which this watch reads as the clip ending. Its one
+// caller, FUN_1420ac600(character, delta time), is reached only through vtables: her tick, which a paused world does
 // not run, so coop freeze and the photo pause a host's photo mode puts on the guest leave the weight where it was.
 //
-// The stop is SB's FUN_1420addc0(character, slot, blend out, FName, force): the slot's clip blends out when it is the
+// The stop is SB's FUN_1420b23f0(character, slot, blend out, FName, force): the slot's clip blends out when it is the
 // named one (NAME_None: any), so ours stops only while the slot still holds the clip we played.
 #pragma once
 
@@ -39,7 +39,7 @@
 #include "game/memory.h" // plausible
 
 namespace coop::anim {
-constexpr uint64_t kPlayByPath = 0x1420b31d0, kStop = 0x1420addc0;
+constexpr uint64_t kPlayByPath = 0x1420b7800, kStop = 0x1420b23f0;
 constexpr size_t kSlots = 0x21b8, kSlotCount = 0x21c0; // The slot array and its count on the ASBCharacter.
 // Slot 0's fields: the weight, the playing byte, the FGuid (16 bytes), the clip's FName (8 bytes). The watch reads the
 // kSlotRead bytes from +kSlotWeight at once.
@@ -83,7 +83,7 @@ inline Path widen(std::string_view p) {
 }
 
 // Our EVE, the actor Lua's UEHelpers.GetPlayer gives: the pawn of the player controller pc (AController::Pawn, as
-// execK2_GetPawn 0x144723570 reads it), when live(pawn, &index, &serial) says it is a live object (index and serial
+// execK2_GetPawn 0x144729020 reads it), when live(pawn, &index, &serial) says it is a live object (index and serial
 // take its object item's) and is_a(pawn) that it is an ASBCharacter; else 0. The glue passes fight/pilot.h's live and
 // is_a, which this header cannot include (pilot.h reaches link/protocol.h, which includes this file).
 constexpr size_t kPawn = 0x2f8;

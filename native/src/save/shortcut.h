@@ -4,10 +4,10 @@
 // Nothing is written: no save slot, no file, and the bytes are never kept (coop shortcut load keeps one file's bytes:
 // save/shortcut_load.h).
 //
-// The shipped game: the ShortcutGame menu (UI logic 130, FUN_141f60140) lists slots 1 to 4 of one map through
-// FUN_1422907c0, which builds "%s%s%s/%s%02d.sav" (FUN_142324b70: the project's content folder, ShortCutRootFolderPath,
+// The shipped game: the ShortcutGame menu (UI logic 130, FUN_141f62fd0) lists slots 1 to 4 of one map through
+// FUN_142295f40, which builds "%s%s%s/%s%02d.sav" (FUN_14232a340: the project's content folder, ShortCutRootFolderPath,
 // the map, "ShortCut", the slot) and reads each file as FFileHelper::LoadFileToArray does. Its Accept branch
-// (FUN_141f5f9b0) keeps only GetBestSaveSlotNum (0x142290b50), whose result it drops: the load was compiled out, and
+// (FUN_141f62840) keeps only GetBestSaveSlotNum (0x1422962d0), whose result it drops: the load was compiled out, and
 // the lobby gives no button to the menu. These are saves of 2021 and 2022 development builds, and two of them carry
 // boss achievements already done (trophies 3 to 5, 8 to 10): coop shortcut load (save/shortcut_load.h) takes their
 // achievement data out first, and only with shortcut_load=on (docs/how-it-works.md).
@@ -29,7 +29,7 @@
 
 namespace coop::shortcut {
 
-constexpr int kMaps = 4, kPerMap = 4, kFiles = kMaps * kPerMap; // FUN_1422907c0 reads slots 1 to 4.
+constexpr int kMaps = 4, kPerMap = 4, kFiles = kMaps * kPerMap; // FUN_142295f40 reads slots 1 to 4.
 constexpr const char *kMapNames[kMaps] = {"B07", "F02", "G03", "Matrix_XI"};
 // WorldTable's row for each map (its UMapPath /Game/Art/BG/WorldMap/.../<map>), as session/travel.lua names worlds.
 constexpr const char *kWorlds[kMaps] = {"SpaceElevator", "DrownedEidosDistrict", "Beach", "MatrixEleven"};

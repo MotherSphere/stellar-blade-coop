@@ -1,14 +1,14 @@
 // The synced photo mode's pause (FEATURE-PARITY.md 6.3): while the friend takes photos, or a coop freeze test runs,
 // this game holds a pause tag of its own in SB's set, through the function SB's photo mode pauses with
-// (FUN_1422aafe0: the world pauses when the set's first tag comes and resumes when its last goes, so ours overlaps SB's
+// (FUN_1422b07b0: the world pauses when the set's first tag comes and resumes when its last goes, so ours overlaps SB's
 // own pausers, its menu and photo mode, safely). Pure, so tests/native/game/photo_freeze_test.cpp drives it with a fake
 // game; glue/tick.cpp runs it on the game thread, each coop_tick, under its own SEH latch, on the pinned build only.
 //
 // The Game it takes, on the game thread:
-//   bool ready(): SB's tag set and a player controller exist, so a tag call acts (without either, FUN_1422aafe0
+//   bool ready(): SB's tag set and a player controller exist, so a tag call acts (without either, FUN_1422b07b0
 //     returns before touching the set);
-//   void tag(bool add): FUN_1422aafe0(add, &FName "StellarCoopFreeze", notify): removing an absent tag does nothing;
-//   bool paused(): the world is paused (its WorldSettings' PauserPlayerState, FUN_1422ab320's test), true when unknown.
+//   void tag(bool add): FUN_1422b07b0(add, &FName "StellarCoopFreeze", notify): removing an absent tag does nothing;
+//   bool paused(): the world is paused (its WorldSettings' PauserPlayerState, FUN_1422b0af0's test), true when unknown.
 #pragma once
 
 #include <cstdint>

@@ -66,13 +66,13 @@ void debug_tick() {
 // The worker swaps the pass's two vtable slots to hold_input once a run (debug_worker.inc) and back at coop off and
 // after a fault, and says whether both slots hold it (hold_live). Inert while the fly gate is not ours, so it stays in
 // between.
-using InputPass = void (*)(void *pc, float dt, bool paused); // FUN_1423c47a0 reads them from rcx, xmm1 and r8b.
-// The space bar as the game sees it (SB fills no jump key list, so its jump flag stays 0): FUN_14231f470, the check the
+using InputPass = void (*)(void *pc, float dt, bool paused); // FUN_1423c9f70 reads them from rcx, xmm1 and r8b.
+// The space bar as the game sees it (SB fills no jump key list, so its jump flag stays 0): FUN_142324c40, the check the
 // pass runs on each key of its lists, finds the key in the first player controller's PlayerInput (+0x3f0) KeyStateMap
-// (FUN_14231b7a0) and reads its bDown. Keys typed into a UI-only widget (the co-op chat, menu and saves) or the Steam
+// (FUN_142320f70) and reads its bDown. Keys typed into a UI-only widget (the co-op chat, menu and saves) or the Steam
 // overlay never reach that map, though GetAsyncKeyState sees them. It takes an FKey by value: 0x18 bytes, the FName,
 // then a TSharedPtr<FKeyDetails> it releases (null here, so nothing to release).
-constexpr uint64_t kKeyDown = 0x14231f470;
+constexpr uint64_t kKeyDown = 0x142324c40;
 struct KeyArg {
   uint64_t name;
   void *details, *controller;

@@ -4,7 +4,7 @@
 -- P_Eve_Tachy_Skill_ChainSpin1_1, its 9 steps on that Show and the effect P_Eve_Tachy_Skill_ChainSpin1_Use that starts
 -- it (lion/rows.h, the lion rows batch: Lion.rows gets them in as for the shop's cut items). This file then asks SB to
 -- apply that effect on EVE through the player controller's Cheat request: its logic job (FSBCheat::Simulate, the
--- SBApplyEffectMe word) finds the actor by GUID and runs SB's effect call (0x141ad08b0, the call the shared fight's job
+-- SBApplyEffectMe word) finds the actor by GUID and runs SB's effect call (0x141ad1af0, the call the shared fight's job
 -- makes) with EVE as target and caster. The effect's UseSkill action starts the skill by its SkillTable name, and only
 -- while EVE has P_Eve_TachyMode: outside Tachy Mode the request changes nothing. No button starts it: the four Tachy
 -- skill commands (BetaSkill1-4) are taken; a fifth could be appended to the P_Eve_Tachy stance's CommandArray in place,

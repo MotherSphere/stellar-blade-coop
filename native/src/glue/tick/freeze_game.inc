@@ -4,13 +4,13 @@ namespace coop::pose {
 namespace {
 // ---- The synced photo mode's pause (game/photo_freeze.h) ----
 // SB's on the pinned build (FEATURE-PARITY.md 6.2): the pause-tag function photo mode pauses with, the player
-// controller getter it pauses through, and FName's MakeWithNumber (FUN_142938380, which SB calls for "PhotoMode"; our
+// controller getter it pauses through, and FName's MakeWithNumber (FUN_14293dde0, which SB calls for "PhotoMode"; our
 // name has no number suffix, so ParseNumber's 0 goes as it is). The set's singleton is fight/engine.h's kPauseAt.
-constexpr uint64_t kPauseTag = 0x1422aafe0, kController = 0x14231c710, kMakeName = 0x142938380;
-// FUN_1422ab320's reads, null-checked here: the controller's GetWorld (virtual +0x158), the world's persistent level,
+constexpr uint64_t kPauseTag = 0x1422b07b0, kController = 0x142321ee0, kMakeName = 0x14293dde0;
+// FUN_1422b0af0's reads, null-checked here: the controller's GetWorld (virtual +0x158), the world's persistent level,
 // the level's WorldSettings, and their PauserPlayerState.
 constexpr size_t kGetWorld = 0x158, kLevel = 0x30, kWorldSettings = 0x268, kPauser = 0x20b0;
-struct NameView { // FUN_142938380's name: its characters, their count, and whether any needs more than 7 bits.
+struct NameView { // FUN_14293dde0's name: its characters, their count, and whether any needs more than 7 bits.
   const wchar_t *text;
   uint32_t len;
   bool wide;

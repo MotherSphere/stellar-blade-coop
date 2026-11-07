@@ -62,7 +62,7 @@ struct Game {
     const coop::lion::NameParts p = coop::lion::split_number(text);
     return name(text, p.len, p.number);
   }
-  // SB's FUN_1417022e0 on the map at holder +0x5f0: a linear look at the elements' keys (the hash is SB's).
+  // SB's FUN_1417024c0 on the map at holder +0x5f0: a linear look at the elements' keys (the hash is SB's).
   uint64_t elements_at = kElements;
   int32_t count = 0;
   int32_t find(uint64_t map, uint64_t key) {
@@ -282,8 +282,8 @@ int main() {
     assert(status_line(kRoxanne, st) == "roxanne=off asks=3 want=on why=busy");
     st.shape = Shape::other, st.why = Why::other;
     assert(status_line(kRoxanne, st) == "roxanne=other asks=3 want=on why=other");
-    st.faulted = true, st.fault = "SB-Win64-Shipping.exe+0x1702300";
-    assert(status_line(kRoxanne, st) == "roxanne=fault asks=3 where=SB-Win64-Shipping.exe+0x1702300");
+    st.faulted = true, st.fault = "SB-Win64-Shipping.exe+0x17024e0";
+    assert(status_line(kRoxanne, st) == "roxanne=fault asks=3 where=SB-Win64-Shipping.exe+0x17024e0");
   }
   std::puts("nightop_roxanne_test: ok");
   return 0;

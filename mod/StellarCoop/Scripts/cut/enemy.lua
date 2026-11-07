@@ -74,7 +74,7 @@ local MASK=0xFFFFFFFF
 -- keeps it still while the body runs and attacks (the in-game test of 2026-10-24: frame 1 of its idle, alphas 0). The
 -- Lion's and the Gardener's skeletons both have it.
 local BONE='Bip001-L-Hand'
--- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4c3f0), the live ones (under
+-- The boss bar's name: the TextBlock SB writes once a boss bind (FUN_141e4ea60), the live ones (under
 -- /Engine/Transient, not a widget class's template), and how often (s) the blocks are looked for again while none is
 -- held.
 local BOSS_TEXT,BOSS_LOOK,LIVE='TextBlock_BossName',10,'/Engine/Transient'

@@ -4,7 +4,7 @@
 // holds eight (the bike signal, four About Enya rows, Travel to Another Region, Repair Console, End Conversation). SB
 // does not read a list from the table when a dialogue starts: it reads a cache built before play, a TMap from a select
 // list's name to the TArray of its row names, at the world singleton's (the global at 0x1470373d0) +0xe0 object's
-// +0x5f0 (FUN_141b41090 finds the list with FUN_1417022e0 there, then fetches each listed row by name and reads its
+// +0x5f0 (FUN_141b422d0 finds the list with FUN_1417024c0 there, then fetches each listed row by name and reads its
 // fields live). So a row of ours never shows by its SelectDataName, and AddRow would not list it either. Here a list's
 // own entry in that cache is pointed at a TArray of names: our rows first, then the list's own rows as the entry held
 // them. Roxanne's are four shipped test rows no story graph lists (Temp_TS_Select_Test_1 to _3 and TS_GoToTest_1,
@@ -15,7 +15,7 @@
 // staying last either way); the game hides the rows whose conditions fail before the widget fills, as it does for her
 // own eight. Roxanne's two rows must be in her order; Lily's eight are checked as a set, since the cache's order of
 // them is not known, and kept in that order.
-// The new array is SB's GMalloc's (FMalloc at 0x14706b500, Malloc at its vtable's +0x10), so SB may free it like
+// The new array is SB's GMalloc's (FMalloc at 0x1470703c0, Malloc at its vtable's +0x10), so SB may free it like
 // its own: from the moment the entry points at it, it is SB's, reused only once off took it back, and an entry the game
 // rebuilt meanwhile gets a new one. The old one is kept untouched, and off puts the old pointer, count and max back
 // while the entry still points at ours. The entry is found again by name at each step (a rehash may move the map's
@@ -35,7 +35,7 @@
 
 namespace coop::roxanne {
 
-constexpr uint64_t kImageBase = 0x140000000, kWorldAt = 0x1470373d0, kMapFind = 0x1417022e0;
+constexpr uint64_t kImageBase = 0x140000000, kWorldAt = 0x1470373d0, kMapFind = 0x1417024c0;
 constexpr size_t kHolder = 0xe0, kMap = 0x5f0;
 // A map element: the list's name at +0, its TArray of row names at +0x10 (data), +0x18 (count), +0x1c (max).
 constexpr size_t kStride = 0x28, kData = 0x10, kCount = 0x18, kMax = 0x1c;
@@ -86,7 +86,7 @@ struct Swap {
 };
 
 // Game: read(address, out, n) (false when unmapped), write(address, in, n), name(text, len, number) (FName's
-// MakeWithNumber, 0 for none), find(map, name) (SB's FUN_1417022e0: the element's index, or -1), malloc(n) (SB's
+// MakeWithNumber, 0 for none), find(map, name) (SB's FUN_1417024c0: the element's index, or -1), malloc(n) (SB's
 // GMalloc, 0 for none).
 template <class Game> uint64_t make(Game &g, const char *text) {
   const lion::NameParts p = lion::split_number(text); // FName's own split of a trailing number.

@@ -1,22 +1,22 @@
 // The camps the current save has activated, the native half, free of Windows: SB's own list, as its camp list screen
-// (the TeleportCamp list, FUN_141f65980) builds it, read on the game thread for session/travel.lua and
+// (the TeleportCamp list, FUN_141f69530) builds it, read on the game thread for session/travel.lua and
 // matrix13/world/travel.lua. This file names the calls and offsets, checks the guard over the game thread's reads, says
 // when to read and writes the status line (activated=). tests/native/game/camps_test.cpp checks it on the build
 // machine.
 //
-// How SB decides, on build 24463856: FUN_141d1d650(zones, region, type, out, all) fills out, a TArray<FName>, with the
+// How SB decides, on build 26123051: FUN_141d1f860(zones, region, type, out, all) fills out, a TArray<FName>, with the
 // ZoneCampTable rows of that region (NAME_None: every region) and that CampType which hold an active row. A camp's rows
-// are the ZoneEnvSpawn rows whose TargetCamp names it (the zone manager's +0x550 map, which FUN_141d18100 builds), and
+// are the ZoneEnvSpawn rows whose TargetCamp names it (the zone manager's +0x550 map, which FUN_141d1a310 builds), and
 // a row is active when its ESBZoneEnvActiveState is Active (1): read from its live env object (+0x21c, which
-// FSBZoneEnvRegister sets through FUN_141fdf900) for a row of the zone EVE stands in, from its zone's stored record
+// FSBZoneEnvRegister sets through FUN_141fe3b20) for a row of the zone EVE stands in, from its zone's stored record
 // (+0x24) for any other. all=true skips that test; the screen passes false, and so does the mod. The screen asks one
 // region and FullCamp; the mod asks NAME_None once for each of the four travel types. The camp map and the records
 // change only on the game and logic threads, so the read waits while a logic task runs.
 //
 // The camp EVE respawns at: her FSBActor's +0x26d0, the ZoneEnvSpawn row of her last rest (InteractCamp) or fast-travel
-// arrival (FUN_141a8afe0, the camp's first row; the save's CampEnvSpawnAlias), which FSBActorRespawn (FUN_141b0f8f0)
-// reads, and that row's TargetCamp (+0x270). SB's ReturnToCamp job (FUN_141b2b000, made by effect action 26 in
-// FUN_141bc7af0) takes another camp, her FSBActor's +0x2738, which the camp arrival (FUN_141a8afe0) writes only for a
+// arrival (FUN_141a8bef0, the camp's first row; the save's CampEnvSpawnAlias), which FSBActorRespawn (FUN_141b10b30)
+// reads, and that row's TargetCamp (+0x270). SB's ReturnToCamp job (FUN_141b2c240, made by effect action 26 in
+// FUN_141bc8d40) takes another camp, her FSBActor's +0x2738, which the camp arrival (FUN_141a8bef0) writes only for a
 // Tetrapod camp: her last Tetrapod.
 #pragma once
 
@@ -29,9 +29,9 @@
 
 namespace coop::camps {
 // SB's list (above), FMemory::Free (the list's TArray is SB's to free) and a ZoneEnvSpawnTable row by name on the
-// tables' +0x20 (the getter FUN_141d1d650 itself calls; its second argument is unused), on the pinned build. GMalloc,
+// tables' +0x20 (the getter FUN_141d1f860 itself calls; its second argument is unused), on the pinned build. GMalloc,
 // which FMemory's calls make when null: the mod never lets them.
-constexpr uint64_t kCampList = 0x141d1d650, kFree = 0x14261adb0, kEnvRow = 0x141a9d660, kMallocAt = 0x14706b500;
+constexpr uint64_t kCampList = 0x141d1f860, kFree = 0x1426207f0, kEnvRow = 0x141a9e680, kMallocAt = 0x1470703c0;
 // The world's zone manager, the FSBActor's respawn camp row, a ZoneEnvSpawn row's TargetCamp.
 constexpr size_t kZones = 0xe0, kRestedRow = 0x26d0, kTargetCamp = 0x270;
 // The travel types, ESBZoneCampType: SimplyCamp, FullCamp, Tetrapod, PhoneBooth (session/travel.lua's 120 camps).

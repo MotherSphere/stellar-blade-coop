@@ -109,7 +109,7 @@ size_t game_inbox_count = 0;
 std::atomic<uint64_t> send_us{50'000};
 // GFrameCounter (PHASE2-RE.md): incremented once per frame by FEngineLoop::Tick, and on some loading paths; compare
 // "different from the last call", never "last + 1".
-constexpr uint32_t kFrameCounterRva = 0x706b508;
+constexpr uint32_t kFrameCounterRva = 0x70703c8;
 
 // Same-place enemies' SBE goes to her (the pilot capture's, below): the poses give up kSbeBytesPerSecond of their
 // budget meanwhile. Game thread.

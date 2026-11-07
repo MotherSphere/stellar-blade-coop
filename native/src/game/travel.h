@@ -1,10 +1,10 @@
 // The guest's follow (Phase 13), the native half, free of Windows: SB's own fast travel to a camp,
-// FUN_141cdd7b0(client, request), as SB's ReturnToCamp job (FUN_141b2b000) calls it. This file builds the request,
+// FUN_141cdfbd0(client, request), as SB's ReturnToCamp job (FUN_141b2c240) calls it. This file builds the request,
 // checks the guard over the reads glue/tick.cpp makes on the game thread right before the call, counts the calls and
 // watches the warp block the call writes. tests/native/game/travel_test.cpp checks it on the build machine.
 //
 // The call finds the camp alias (an FName) in the world's camp map, takes its first ZoneEnvSpawn row's zone and that
-// zone's world, and hands the warp to FUN_141cdda50, which writes the warp block at client +0xa20 for the client tick
+// zone's world, and hands the warp to FUN_141cdfe70, which writes the warp block at client +0xa20 for the client tick
 // to run (a fade, a load on another world, EVE placed at the camp). Either returns 0 in AL, having written nothing,
 // when a lookup fails, when the local player is not in the world's actor map, or in a boss challenge zone. Neither
 // checks camp activation, and a second call overwrites a pending warp: the guard and the count below are ours.
@@ -18,12 +18,12 @@
 #include <string>
 
 namespace coop::travel {
-// The globals the call reaches through SB's getters, which allocate when the pointer is null: 141a978c0 (client),
-// 141a97c40 (world), 141a97f20 (the tables; it reads +0x20) and 141a97cb0 (the registry). The mod never calls them:
+// The globals the call reaches through SB's getters, which allocate when the pointer is null: 141a987d0 (client),
+// 141a98b50 (world), 141a98e30 (the tables; it reads +0x20) and 141a98bc0 (the registry). The mod never calls them:
 // it reads the globals and calls only when all of them are set.
 constexpr uint64_t kClientAt = 0x1470373f8, kWorldAt = 0x1470373d0, kTablesAt = 0x1470373b0, kRegistryAt = 0x1470373c8;
 // The 12 bytes ReturnToCamp copies into the request's +0x3c and +0x48 (an FVector and an FRotator, zero [L]).
-constexpr uint64_t kLocationAt = 0x14710dda8, kRotationAt = 0x14710dd98;
+constexpr uint64_t kLocationAt = 0x147112cb8, kRotationAt = 0x147112ca8;
 // Offsets read for the guard and the watch. The client: its flow state (2: in game) and phase (0xe: playing), the
 // warp block (+0xa20 written, +0xa21 started, +0xa26 another world), the death screen's camp request (+0xb60 asked,
 // +0xb61 waiting) and the local player's GUID. The world: its respawn state and its actor map (FindActor's).
@@ -32,7 +32,7 @@ constexpr uint64_t kFlow = 0xa00, kPhase = 0xb9c, kWarp = 0xa20, kStarted = 0xa2
 constexpr int32_t kInGame = 2, kPlaying = 0xe;
 
 // The request, 0x60 bytes: +0x00 our EVE's GUID, +0x04 the camp's FName (ComparisonIndex, then Number at +0x08),
-// +0x0c 1, +0x10 no camp interaction pointer (the camp menu passes one that 141cdda50 never reads), +0x18 the effect
+// +0x0c 1, +0x10 no camp interaction pointer (the camp menu passes one that 141cdfe70 never reads), +0x18 the effect
 // value (0), +0x1c the delay before the fade in s, +0x20 -1.0 (the fade time ReturnToCamp passes), +0x3c and +0x48 the
 // two globals' 12 bytes each, the rest 0 (ReturnToCamp leaves +0x0d to +0x0f, +0x29 to +0x2b and +0x59 on unwritten,
 // and nothing reads them).

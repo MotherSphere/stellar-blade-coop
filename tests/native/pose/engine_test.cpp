@@ -59,10 +59,14 @@ int main() {
     assert(check_build(addr(image)) == "code bytes differ");
     image[kPinRva + 18] ^= 1;
     put<uint32_t>(image, 0x100 + 24 + 56, 0x1000); // Size alone.
-    assert(check_build(addr(image)) == "build stamp 6a6a3b74 size 00001000");
+    assert(check_build(addr(image)) == "build stamp 6ad8eff1 size 00001000");
     put<uint32_t>(image, 0x100 + 24 + 56, kSizeOfImage);
     put<uint32_t>(image, 0x108, 0x12345678); // Stamp alone.
-    assert(check_build(addr(image)) == "build stamp 12345678 size 15981000");
+    assert(check_build(addr(image)) == "build stamp 12345678 size 15fa3000");
+    put<uint32_t>(image, 0x108, 0x6a6a3b74); // Build 24463856's header, which this version no longer runs on.
+    put<uint32_t>(image, 0x100 + 24 + 56, 0x15981000);
+    assert(check_build(addr(image)) == "build stamp 6a6a3b74 size 15981000");
+    put<uint32_t>(image, 0x100 + 24 + 56, kSizeOfImage);
     put<uint32_t>(image, 0x108, kTimeDateStamp);
     assert(check_build(addr(image)).empty());
     image[0x100] = 0;

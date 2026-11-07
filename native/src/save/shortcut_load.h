@@ -2,13 +2,13 @@
 // released game loads, with its achievement data taken out. glue/steam.cpp writes the result into co-op slot 5
 // (StellarBladeCoop04.sav) through save/twins.h's Convert::plant; the player loads it with the game's own Load Game.
 //
-// What the game does with a loaded save (Ghidra, 2026-10-27): FUN_1421def10 runs nine fix-up passes on it. The save's
+// What the game does with a loaded save (Ghidra, 2026-10-27): FUN_1421e44d0 runs nine fix-up passes on it. The save's
 // achievement list (SBAchievement, USBSaveGame +0x2c8: AchievementList of {AchievementAlias, ProgressValue,
-// bCompleted, bRecievedReward}) is read by six of them: FUN_1421defb0 writes its count of Ach_Album_Unlock_* entries
-// into the Trophy_KillCharacter_AllNative entry, FUN_1421e1ff0 queues an achievement event for that entry (the path to
-// Steam), FUN_1421e21f0 raises PlayerActor's weapon level from Trophy_WeaponMaxUpgrade, FUN_1421e3860 changes a
-// Matrix 11 door from a completed entry, FUN_1421e41e0 adds completed Ach_BossChal_Unlock_* entries and
-// FUN_1421e5e60 reads Nest_Ending. FUN_1421e41e0 also adds those entries for six gears in the inventory
+// bCompleted, bRecievedReward}) is read by six of them: FUN_1421e4570 writes its count of Ach_Album_Unlock_* entries
+// into the Trophy_KillCharacter_AllNative entry, FUN_1421e75b0 queues an achievement event for that entry (the path to
+// Steam), FUN_1421e77b0 raises PlayerActor's weapon level from Trophy_WeaponMaxUpgrade, FUN_1421e8e20 changes a
+// Matrix 11 door from a completed entry, FUN_1421e97a0 adds completed Ach_BossChal_Unlock_* entries and
+// FUN_1421eb420 reads Nest_Ending. FUN_1421e97a0 also adds those entries for six gears in the inventory
 // (DataMap_SBItem's Item, Inventory): the only pass that makes achievement data from anything but the list. The others
 // read quests, zone objects, PlayerActor, DataMap_int32 and NewGamePlusBaseData and write only those.
 //
@@ -22,8 +22,8 @@
 // takes only the 15 files the pinned build's paks hold, by their CRC-32, the bytes
 // tests/native/save/shortcut_load_test.cpp checked: no achievement name left, none of the six gears anywhere, the rest
 // byte for byte, every item without an ItemTable row one of the seven. The result is wrapped as the game's save writer
-// (FSBSaveSystemWindows::OnCompleteSerialize, FUN_1421f5de0) wraps its own: "EVAS", version byte 1, three bytes the
-// writer leaves unset (0 here, as most real saves hold), the GVAS body, then its CRC-32 (FUN_1428dbbd0, zlib's) in
+// (FSBSaveSystemWindows::OnCompleteSerialize, FUN_1421fb3a0) wraps its own: "EVAS", version byte 1, three bytes the
+// writer leaves unset (0 here, as most real saves hold), the GVAS body, then its CRC-32 (FUN_1428e15e0, zlib's) in
 // little endian. The GVAS header keeps the file's own engine and package versions, which LoadGameFromMemory reads the
 // body with.
 //
@@ -50,7 +50,7 @@ constexpr int kSlot = 4; // Co-op slot 5, StellarBladeCoop04.sav: the one a shor
 // The 12 distinct files' CRC-32 in the pinned build's paks (G03 2 to 4 are F02 1 to 3).
 constexpr uint32_t kPinned[] = {0x7edc57b1, 0xea03b476, 0x6fd0b77e, 0x00602f19, 0x7d2dd982, 0x22f93399,
                                 0x0b6a83e8, 0xf2329ce2, 0x2d33039c, 0xc93f5d31, 0x864887b3, 0x0b9dd5d3};
-// Items dropped, ASCII case ignored as FName compares: FUN_1421e41e0's six gears.
+// Items dropped, ASCII case ignored as FName compares: FUN_1421e97a0's six gears.
 constexpr const char *kDropped[] = {"Gear_HighHpDamageAdditiveRate_Common",
                                     "Gear_KillEnemyAdditiveDamageRate_Common",
                                     "Gear_KillEnemyAdditiveDamageRate_Uncommon",

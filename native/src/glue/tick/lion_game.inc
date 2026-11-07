@@ -5,13 +5,13 @@ namespace {
 // ---- The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's, Matrix XIII's and the Night Operation shop's
 // (lion/rows.h's batches), the game thread's calls ----
 // SB's functions on the pinned build (the Lion study, plan A): InitializeStruct through the row struct's vtable +0x2a8
-// and CopyScriptStruct (0x1429d8830), as AddRow itself calls them; FName's MakeWithNumber with FNAME_Add (the photo
+// and CopyScriptStruct (0x1429de290), as AddRow itself calls them; FName's MakeWithNumber with FNAME_Add (the photo
 // pause's kMakeName); a table's row by name, through its RowMap (+0x30, GetRowMap's own lea at vtable +0x280) and
-// that TMap's find 0x140e8c5f0, and its ID map's row name (FUN_141a2ce50), both read-only; AddRow through the table's
-// vtable slot +0x2b0, once lion/rows.h saw it hold 0x14417ba30. Not SB's FindRow (FUN_141aa8760): it is
+// that TMap's find 0x140e8ca00, and its ID map's row name (FUN_141a2cf40), both read-only; AddRow through the table's
+// vtable slot +0x2b0, once lion/rows.h saw it hold 0x1441815b0. Not SB's FindRow (FUN_141aa99a0): it is
 // FindRow<FSBCharacterTableProperty>, null for a table whose row struct is no child of that struct, as the other 9
 // tables' are not (FSBTablePropertyBase's other children); the TMap find is its untyped second half. For the read-back,
-// the registry's own lookups by ID: FUN_141a9de20 (CharacterTable), FUN_141a9d900 (SkillTable) and FUN_141a2cef0 (a
+// the registry's own lookups by ID: FUN_141a9ee40 (CharacterTable), FUN_141a9e920 (SkillTable) and FUN_141a2cfe0 (a
 // stance's row name, the registry's table 10), on the registry at fight::kTables +0x20, read and never made (its getter
 // allocates when null). All of them run in coop_tick only while the gate holds: the build pinned, coop off not on, the
 // cached net mode 0 and no logic task in flight (logic +0x5c0 == 0, as stage 3b's force target waits for it), so no
@@ -20,8 +20,8 @@ namespace {
 // Each batch has its own ask, answer and Builder (a RowsJob); the gate, the block, the spawn counter and the SEH latch
 // are shared: the first fault in SB's table calls ends every batch's calls for the run (whichever batch ran into it),
 // turns every batch not in yet to fault and leaves the rest of the mod running.
-constexpr uint64_t kCopyStruct = 0x1429d8830, kMapFind = 0x140e8c5f0, kIdName = 0x141a2ce50,
-                   kCharacterById = 0x141a9de20, kSkillById = 0x141a9d900, kStanceName = 0x141a2cef0;
+constexpr uint64_t kCopyStruct = 0x1429de290, kMapFind = 0x140e8ca00, kIdName = 0x141a2cf40,
+                   kCharacterById = 0x141a9ee40, kSkillById = 0x141a9e920, kStanceName = 0x141a2cfe0;
 constexpr size_t kInitializeSlot = 0x2a8;
 // RowMap, a TMap<FName, uint8 *>: its TSet's elements first, 0x18 bytes each ({FName, row, hash next, hash index}).
 constexpr size_t kRowMap = 0x30, kRowPair = 0x18, kPairRow = 8;
@@ -173,15 +173,15 @@ void lion_count() {
     lion_spawns = n;
 }
 // ---- The Shock Bolt's lists (lion/shock.h), once the bolt rows batch is in ----
-// SB's functions for them on the pinned build: the registry's stance row by name (FUN_141a9cd20, read-only, the lookup
-// the stance change itself makes), SB's grow of an 8-byte TArray (FUN_140e47f00), the const store's key hash
-// (FUN_14117c1f0) and GMalloc (the FMalloc whose pointer is at 0x14706b500: Malloc at vtable +0x10, Realloc at +0x20).
+// SB's functions for them on the pinned build: the registry's stance row by name (FUN_141a9dd40, read-only, the lookup
+// the stance change itself makes), SB's grow of an 8-byte TArray (FUN_140e482d0), the const store's key hash
+// (FUN_14117c560) and GMalloc (the FMalloc whose pointer is at 0x1470703c0: Malloc at vtable +0x10, Realloc at +0x20).
 // Run in the same game-thread call as the bolt batch's last AddRow, so inside the gate that call checked, under a latch
 // of its own: a fault there leaves every batch's rows as they are and only turns the Shock Bolt off for the run. Only
 // the shop asks for that batch (a Shock Bolt buy, and coop nightop shop before it opens the screen, Roxanne's supplies
 // choice included), so no other command grows SB's lists.
-constexpr uint64_t kStanceByName = 0x141a9cd20, kGrowNames = 0x140e47f00, kConstHash = 0x14117c1f0,
-                   kGMalloc = 0x14706b500;
+constexpr uint64_t kStanceByName = 0x141a9dd40, kGrowNames = 0x140e482d0, kConstHash = 0x14117c560,
+                   kGMalloc = 0x1470703c0;
 constexpr size_t kMallocSlot = 0x10, kReallocSlot = 0x20;
 using StanceByName = void *(*)(void *registry, uint64_t unused, uint64_t name); // The FName by value.
 using GrowNames = void (*)(void *array);

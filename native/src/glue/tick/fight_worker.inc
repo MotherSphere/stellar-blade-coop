@@ -315,19 +315,19 @@ std::string pilot_status() {
 
 namespace {
 // ---- The spawn filter (spawn_filter=on, the guest's) ----
-// SB's SpawnRequest vtable (.rdata 0x145c10018) holds its destructor, then Execute (0x141c10a90) in the slot at
-// 0x145c10020. RequestSpawn (FUN_141c1ca40) calls Execute directly only while the slot holds it, and through the slot
-// otherwise; the consumer of its delayed queue (FUN_141c1cd20) always calls through the slot; neither has a CFG check.
+// SB's SpawnRequest vtable (.rdata 0x145c15e98) holds its destructor, then Execute (0x141c11ce0) in the slot at
+// 0x145c15ea0. RequestSpawn (FUN_141c1dc90) calls Execute directly only while the slot holds it, and through the slot
+// otherwise; the consumer of its delayed queue (FUN_141c1df70) always calls through the slot; neither has a CFG check.
 // So one aligned 8-byte store into the slot routes both call sites through filter_execute from then on, and no
 // instruction byte of the game changes. The worker makes it once a run, by a compare-and-swap from Execute only, and
 // undoes it at coop off and after a fault in the hook, by a compare-and-swap from our hook only: another mod's value
 // is never overwritten. The DLL is pinned (never unloaded), so a thread still inside the hook after the undo is safe.
-constexpr uint64_t kSpawnSlot = 0x145c10020, kExecute = 0x141c10a90, kRowByName = 0x141a9a780;
+constexpr uint64_t kSpawnSlot = 0x145c15ea0, kExecute = 0x141c11ce0, kRowByName = 0x141a9b690;
 // SpawnRequest: its row's name (an FName, +0x28) and the SpawnIndex byte Execute passes NewActor (+0x30); the
 // EventSpawnTable row: the EventSpawnId Execute passes NewActor (+0x10).
 constexpr size_t kRequestName = 0x28, kRequestIndex = 0x30, kRowSpawnId = 0x10;
 using Execute = void *(*)(void *request);
-// The table holder (DAT_1470373b0, which the getter FUN_141a97f20 returns; never called here, since it makes one when
+// The table holder (DAT_1470373b0, which the getter FUN_141a98e30 returns; never called here, since it makes one when
 // none is made), an unused argument and the row's name: the EventSpawnTable row, or null. It runs the row's lazy init,
 // as Execute's own first call does.
 using RowByName = void *(*)(void *holder, uint64_t unused, const void *name);
@@ -390,7 +390,7 @@ void *filter_execute(void *request) {
   return nullptr;
 }
 // The slot's address in the game, as the decompiles name it, and what a value in it points at.
-const char kSlotName[] = "0x145c10020";
+const char kSlotName[] = "0x145c15ea0";
 std::string slot_value(uint64_t value) {
   char text[64];
   if (value - base < kSizeOfImage)

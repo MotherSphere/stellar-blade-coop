@@ -407,7 +407,7 @@ struct Game {
     mem.put(stat_at(guid, kHp), std::min(max, hp_now + amount));
   }
 
-  // FUN_141ba8720 for HP, Shield and Stamina (RE3): whole units; nothing on HP once dying; NoDamage blocks HP and
+  // FUN_141ba9960 for HP, Shield and Stamina (RE3): whole units; nothing on HP once dying; NoDamage blocks HP and
   // Shield drops unless ignored; HP stops at max(MinimumHP, 1 when Immortal) and at MaxHP, the others at 0 and their
   // max; HP reaching 0 starts the death (pending, life state 4) once. MaxHPValue (3): MaxHP becomes stat 3 x (1 + stat
   // 4) and HP is clamped to it; MaxStamina (13): stored, Stamina clamped to it (PHASE11-STAGE2-RE 4).
@@ -511,7 +511,7 @@ struct Game {
       throw torn;
     return mem.read(address, out, n);
   }
-  // FUN_141ad6ab0: the element by key, then the value's own test (+0x20 set, +0x491, +0x60); no GUID compare.
+  // FUN_141ad7cf0: the element by key, then the value's own test (+0x20 set, +0x491, +0x60); no GUID compare.
   uint64_t find(uint64_t lg, uint32_t guid) {
     assert(lg == logic);
     for (int32_t i = 0; i < used(); ++i)
@@ -527,11 +527,11 @@ struct Game {
   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify) {
     stat(la, type, delta, cause, notify, true);
   }
-  // FUN_141ad08b0(logic, target, caster, id, &zero, 0, nullptr): the effect, which starts at this turn's actor tick, or
+  // FUN_141ad1af0(logic, target, caster, id, &zero, 0, nullptr): the effect, which starts at this turn's actor tick, or
   // 0 when the target refuses it. A copy in a crowd control never gets a mirrored one from us. FinishReady_Dispel and
   // MinimumHP_Dispel start inside the call, as the call starts any effect when its sixth argument is 0: a kill right
   // after them meets neither Immortal nor a floor. starts_now: every effect does. marks_last: the call stores the
-  // caster's GUID at the target's +0x638, as FUN_141ba8190 would if the call reached it.
+  // caster's GUID at the target's +0x638, as FUN_141ba93d0 would if the call reached it.
   bool starts_now = false, marks_last = false;
   uint64_t effect(uint64_t lg, uint64_t la, uint64_t caster, int32_t id) {
     casts.push_back({lg, la, caster, id, ++ops});
@@ -555,8 +555,8 @@ struct Game {
         out.push_back(c.id);
     return out;
   }
-  // SetBattleMode's wrapper from inside the job: FUN_141a7cd30(fsb, 1, 0, 0, 0, 1), the game's battle mode on, or
-  // FUN_141a7cd30(fsb, 0, 0, 0, 1, 1), off (its functor runs later on the game thread, which this fake folds in).
+  // SetBattleMode's wrapper from inside the job: FUN_141a7db20(fsb, 1, 0, 0, 0, 1), the game's battle mode on, or
+  // FUN_141a7db20(fsb, 0, 0, 0, 1, 1), off (its functor runs later on the game thread, which this fake folds in).
   std::vector<uint64_t> battles, battles_off;
   void battle(uint64_t f, bool on) {
     assert(processing);
@@ -614,7 +614,7 @@ struct Game {
   // ---- Same spawns (stage 4): SB's tables, zones, spawn manager and job sender ----
   // Each made by spawns(): the table holder (its +0x20 the tables), the spawn manager (+0x1c its state, 3 after an
   // entry) and the job sender, the global just before the globals block. A spawn row holds SpawnType, Zone, SaveType
-  // and the keep flag where the build has them, a zone row its ID; FUN_141a9db80 and FUN_141a9b8a0 find them, SB's
+  // and the keep flag where the build has them, a zone row its ID; FUN_141a9eba0 and FUN_141a9c8c0 find them, SB's
   // spawn call makes an actor of the row's character at once in Spawn state, and SB's despawn job puts one in Despawn
   // (life state 4, its HP kept) and takes it out of the map three turns later: no death.
   uint64_t tables = 0, spawn_manager = 0, sender = 0;
@@ -629,7 +629,7 @@ struct Game {
   };
   std::vector<Made> made;
   std::vector<uint32_t> despawned;
-  uint64_t lookups = 0;  // FUN_141a9db80 and FUN_141a9b8a0 calls.
+  uint64_t lookups = 0;  // FUN_141a9eba0 and FUN_141a9c8c0 calls.
   uint32_t next_guid = 50000;
   void spawns() {
     const uint64_t holder = mem.alloc(0x30);
@@ -710,7 +710,7 @@ struct Game {
     mem.put<int32_t>(fsb(guid) + kLife, 4);
     body(guid).gone_at = turn() + 3;
   }
-  // Extras (stage 4b): NewActor (FUN_141ad1290) of charId chr with an extra's key, from inside the job, makes an actor
+  // Extras (stage 4b): NewActor (FUN_141ad24d0) of charId chr with an extra's key, from inside the job, makes an actor
   // in the map at once in Spawn state, a Monster; 0 with refuse_make set. make_refuses: the effect row SB's effect call
   // refuses on what it makes.
   std::vector<Made> extras;
@@ -4542,8 +4542,8 @@ int main() {
   }
 
   // ---- Same spawns' two game calls on fake memory: their arguments; none with no spawn manager or after a latch ----
-  // The host holds keys 1 and 5:2 (where it stands, at its yaw), she holds 3 and 4. FUN_141c1c9a0 gets SB's spawn
-  // manager as the global holds it, the key's EventSpawnId and SpawnIndex, where and (0, yaw, 0); FUN_141b077f0 the job
+  // The host holds keys 1 and 5:2 (where it stands, at its yaw), she holds 3 and 4. FUN_141c1dbf0 gets SB's spawn
+  // manager as the global holds it, the key's EventSpawnId and SpawnIndex, where and (0, yaw, 0); FUN_141b08a30 the job
   // sender as its global holds it, this logic turn and the actor's GUID (the fakes check both on the logic thread,
   // inside the job). With the spawn manager's global still null her game refuses each spawn and calls nothing (the
   // drops go on: they need the job sender only). With the job sender's global null she calls neither: the spawn of a
@@ -5231,7 +5231,7 @@ int main() {
 
   // ---- Together only: our effect call naming our EVE as the game's last player ----
   // The host's crowd control mirrored on her copy 911, 60 m from our EVE: when SB's effect call stores our EVE at the
-  // copy's +0x638 (the hit path's FUN_141ba8190, not ruled out), that is noted and logged once, and the host's dead
+  // copy's +0x638 (the hit path's FUN_141ba93d0, not ruled out), that is noted and logged once, and the host's dead
   // then finds no part of ours: dead-unshared. 912, whose +0x638 was our EVE before the call, still dies ours.
   {
     Game g;

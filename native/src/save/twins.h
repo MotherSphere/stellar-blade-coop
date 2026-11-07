@@ -811,7 +811,7 @@ private:
 // refresh), while the game uses the player's saves, and saves coop is refused until its end; saves export N M writes
 // co-op slot N's copy over the player's save M (Convert's export_to) while the game uses either saves, switching
 // nothing, and saves coop is refused until its end; all at the title only.
-// The title's slot list is the game's, rebuilt from the files only at its own load points (0x141cd4ef0, at StartClient
+// The title's slot list is the game's, rebuilt from the files only at its own load points (0x141cd7310, at StartClient
 // and at each return to the title). The mod never calls that rebuild: it reads and loads every slot on the game thread,
 // and the game follows it with its own UI updates. So once a co-op save was loaded, the title lists the copies, and a
 // switch back would load the player's saves through that list: refused until the game restarts. coop off and a fault

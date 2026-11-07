@@ -158,7 +158,7 @@ struct Game {
     const auto it = stances.find(n);
     return it == stances.end() ? 0 : it->second;
   }
-  // SB's FUN_140e47f00: Max from Num (max(4, n) the first time, n + 3n/8 + 16 after), the data reallocated.
+  // SB's FUN_140e482d0: Max from Num (max(4, n) the first time, n + 3n/8 + 16 after), the data reallocated.
   void grow(uint64_t array) {
     ++grows;
     const int32_t num = mem.get<int32_t>(array + 8), max = mem.get<int32_t>(array + 12);

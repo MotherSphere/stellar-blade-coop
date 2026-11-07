@@ -7,7 +7,7 @@ namespace {
 // Every 250 ms, at the title too, with coop off too (the entries stay for the run and a language change still needs
 // them rewritten): the culture, read here with no Lua round trip, each loaded table's first key, then a pass over each
 // table when its own game/camp_text.h Pass says so. A pass waits while the table is missing or not loaded. It adds each absent entry the way ImportStrings does
-// (14285a4f2-14285a643) and assigns each present one, which is what a language change finds. Out of line under its own
+// (14285fff2-142860143) and assigns each present one, which is what a language change finds. Out of line under its own
 // SEH latch: the first fault ends the passes for the run, the handler lets go of the locks this code took, and the
 // line says camptext=fault. A fault inside GetDisplayString can leave the manager's own lock held, as with every other
 // game call in the mod.
@@ -45,7 +45,7 @@ FStringArg camp_text_view(const char16_t *text) {
 volatile long *camp_text_count(uintptr_t controller, size_t count) {
   return reinterpret_cast<volatile long *>(controller + count);
 }
-// SharedPointerInternals' release, as SB's code inlines it (14285a587-14285a5b3).
+// SharedPointerInternals' release, as SB's code inlines it (142860087-1428600b3).
 void camp_text_release(uintptr_t controller) {
   if (!controller || _InterlockedExchangeAdd(camp_text_count(controller, camp_text::kStrong), -1) != 1)
     return;
@@ -74,7 +74,7 @@ void camp_text_add(const SharedRef &table, uintptr_t manager, const FStringArg &
     _InterlockedIncrement(camp_text_count(shown.controller, camp_text::kStrong));
   const auto add_display = game_function<AddDisplay>(camp_text::kAddDisplay);
   add_display(reinterpret_cast<void *>(table.object + camp_text::kDisplays), &shown, &key);
-  camp_text_release(shown.controller); // As ImportStrings does (14285a643): what the emplace left, if anything.
+  camp_text_release(shown.controller); // As ImportStrings does (142860143): what the emplace left, if anything.
   camp_text_release(entry.controller);
 }
 // One present entry in the other language, under the manager's lock since its display string is the manager's.

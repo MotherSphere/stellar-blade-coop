@@ -67,7 +67,7 @@ __declspec(noinline) void region_tabs_body(uintptr_t logic, region_tabs::Records
     if (!game::plausible(child) || at<uintptr_t>(child + kObjectClass) != tab_class ||
         at<uintptr_t>(child + kWidgetParent) != screen || has(*records, at<uint64_t>(child + kObjectName)))
       continue;
-    // What FUN_1425303c0 does for a class property's widget: its logic type, which its notifies climb to, and its path.
+    // What FUN_142535e00 does for a class property's widget: its logic type, which its notifies climb to, and its path.
     *reinterpret_cast<uint32_t *>(child + kWidgetLogic) = kTabLogic;
     game_function<RegionPath>(kPanelPath)(child);
     Guid guid{};
@@ -106,12 +106,12 @@ void region_tabs_install() {
   const bool on = page_ok && held == init;
   region_state = on ? Filter::on : Filter::refused;
   if (on)
-    say("region tabs on: 0x145c3eb38 swapped from the Region logic's init to our hook");
+    say("region tabs on: 0x145c44978 swapped from the Region logic's init to our hook");
   else if (slot_ok && !page_ok)
-    say("region tabs refused: the page of 0x145c3eb38 would not become writable (error " +
+    say("region tabs refused: the page of 0x145c44978 would not become writable (error " +
         std::to_string(GetLastError()) + "); the teleport screen keeps its 7 tabs");
   else
-    say("region tabs refused: 0x145c3eb38 holds " + slot_value(held) +
+    say("region tabs refused: 0x145c44978 holds " + slot_value(held) +
         ", not the Region logic's init (another mod's hook?); left as it is, the teleport screen keeps its 7 tabs");
 }
 // The slot back by a compare-and-swap from our hook only. If the swap cannot be made the hook stays: after coop off Lua
@@ -123,11 +123,11 @@ void region_tabs_undo(const char *why) {
   uint64_t held = 0;
   if (!swap_slot(region_tabs::kSlot, region_hook_address(), region_init_address(), held))
     say(std::string("region tabs off (") + why +
-        "): the page of 0x145c3eb38 would not become writable; our hook stays in it");
+        "): the page of 0x145c44978 would not become writable; our hook stays in it");
   else if (held == region_hook_address())
-    say(std::string("region tabs off (") + why + "): 0x145c3eb38 holds the Region logic's init again");
+    say(std::string("region tabs off (") + why + "): 0x145c44978 holds the Region logic's init again");
   else
-    say(std::string("region tabs off (") + why + "): 0x145c3eb38 holds " + slot_value(held) + ", left as it is");
+    say(std::string("region tabs off (") + why + "): 0x145c44978 holds " + slot_value(held) + ", left as it is");
 }
 // Each worker pass (from lion_pass): the swap, the hook's fault once, and one line a run for the first screen opened,
 // a second later so that SB has filled its array by then. The array is read through safe_read: the screen may be gone.

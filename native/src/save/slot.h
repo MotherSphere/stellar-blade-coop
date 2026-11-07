@@ -5,7 +5,7 @@
 // No Windows types.
 //
 // The co-op saves (AUTO-COOP-SAVE): every slot file name starts with the GameSaveFileName string of SB's constant
-// table, which the name builder (0x141cf7310) copies at each call. find() walks the table the builder's way to that
+// table, which the name builder (0x141cf9520) copies at each call. find() walks the table the builder's way to that
 // string through the same read function; its last four characters, "Save" or "Coop", say which files the game uses:
 // StellarBladeSave00-04.sav (the player's own) or StellarBladeCoop00-04.sav (the co-op copies, save/twins.h). Names
 // keeps what was found and latches when the entry moves.
@@ -22,9 +22,9 @@
 
 namespace coop::slot {
 
-constexpr uint64_t kClient = 0x1470373f8; // The client game-flow singleton's pointer (getter 0x141a978c0), 8 bytes
-                                          // before game::kGlobals. Its +0x54 is the slot the game entered (stored
-                                          // by 0x141cd5e10) and names every in-game save's file (0x141ce5c30).
+constexpr uint64_t kClient = 0x1470373f8; // The client game-flow singleton's pointer (getter 0x141a987d0), 0x10
+                                          // bytes after game::kGlobals. Its +0x54 is the slot the game entered
+                                          // (stored by 0x141cd8230) and names every in-game save's file (0x141ce8050).
 constexpr int kSlots = 5;                 // SaveSlotMaxCount: files 00-04 (WB_LoadGame has five); 05-09 are never listed.
 constexpr size_t kMaxMarker = 4096;
 constexpr int kUnread = INT32_MIN;                  // index: not read (see pose::loaded_slot).
@@ -32,7 +32,7 @@ constexpr int kNotRead = -3, kBad = -2, kNone = -1; // marker: not looked up yet
 
 // The client's fields this file reads: the entered slot; the load the title asked for, its slot and its mode (the
 // Continue and Load Game handlers set them, 2 for a load; 0 at boot [L]); the count of the title's slot list (rebuilt
-// from the save files by 0x141cd4ef0 at StartClient and at each return to the title); our EVE's GUID, the key the
+// from the save files by 0x141cd7310 at StartClient and at each return to the title); our EVE's GUID, the key the
 // world's player map holds for the local player (the revive guard and coop gift's inventory read take it).
 constexpr uint64_t kEntered = 0x54, kLoadSlot = 0x868, kLoadMode = 0x86c, kCacheCount = 0xa10, kPlayerGuid = 0x58;
 
@@ -50,8 +50,8 @@ template <class Read> int field(uint64_t base, Read &&read, uint64_t offset) {
 // The slot the game entered: client +0x54.
 template <class Read> int index(uint64_t base, Read &&read) { return field(base, read, kEntered); }
 
-constexpr uint64_t kNames = 0x147037400;    // The constant table's pointer (getter 0x141a977b0), 0 until it exists.
-constexpr uint64_t kKeyCache = 0x1471035ac; // The builder's cached key: 0 until its first call.
+constexpr uint64_t kNames = 0x147037400;    // The constant table's pointer (getter 0x141a986c0), 0 until it exists.
+constexpr uint64_t kKeyCache = 0x147108404; // The builder's cached key: 0 until its first call.
 constexpr uint32_t kNameKey = 0xbb9194f2;   // UE4's Strihash_DEPRECATED of "GameSaveFileName".
 constexpr uint32_t kMaxNames = 4096;        // SB's table holds about 200 constants; more is not its table.
 constexpr int32_t kNameChars = 17;          // "StellarBladeSave" and its NUL, as the FString counts them.

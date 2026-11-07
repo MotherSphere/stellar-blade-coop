@@ -88,7 +88,7 @@ int wmain(int argc, wchar_t **argv) {
   auto *page = static_cast<char *>(VirtualAlloc(reinterpret_cast<char *>(GetModuleHandleW(nullptr)) + 0x7030000,
                                                 0x10000, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE));
   if (page) {
-    *reinterpret_cast<uint64_t *>(page + 0x2520) = reinterpret_cast<uintptr_t>(page + 0x2800);
+    *reinterpret_cast<uint64_t *>(page + 0x73f8) = reinterpret_cast<uintptr_t>(page + 0x2800);
     *reinterpret_cast<int32_t *>(page + 0x2854) = 3;
   }
 

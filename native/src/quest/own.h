@@ -8,12 +8,12 @@
 // own, every slot of the choice box, so ours stays off), whether Quest_Sub_030 (ID 69, Oblivion) is complete (the
 // zone talks' oblivion lines), and for each of our two quests its state, active group and that group's first task's
 // state. On Lua's ask it acquires one of them through the acquire by ID a quest zone event
-// makes (FUN_141c5cf20: the ID's row name through the QuestTable ID map that AddRow filled, then AcquireQuest and
+// makes (FUN_141c5e170: the ID's row name through the QuestTable ID map that AddRow filled, then AcquireQuest and
 // PushQuest, which refuses an ID already held), or completes the first task of one fixed group through the task
 // vtable's +0x60, the Complete the shared quests' guest calls (quest/engine.h's kComplete or kCompleteParent; the
 // glue's QuestGame::call refuses any other). Each ask is a fixed word mapped to one fixed quest and group (kAskWords,
 // run()); no console argument reaches a call. The offsets and functions are quest/engine.h's, for Stellar Blade's Steam
-// build 24463856. The Game is the engine's: read, thread, unit, acquire, call.
+// build 26123051. The Game is the engine's: read, thread, unit, acquire, call.
 #pragma once
 
 #include <cstddef>

@@ -35,9 +35,9 @@ constexpr size_t kNetAt = 0x20, kLogicAt = 0x18, kWorldAt = 8, kNetMode = 0x14;
 constexpr size_t kTurn = 0x14, kMapData = 0x170, kMapNum = 0x178, kMapBits = 0x180, kMapBitsHeap = 0x190,
                  kMapNumBits = 0x198, kElement = 0x18, kTask = 0x5c0;
 constexpr int32_t kInlineBits = 128, kMaxSlots = 1 << 16; // More slots than that is implausible.
-// Logic actor (constructor FUN_141b9e580): its GUID, FSBActor, controlled flag (1: the local player's), pending death,
+// Logic actor (constructor FUN_141b9f7c0): its GUID, FSBActor, controlled flag (1: the local player's), pending death,
 // alive byte, and the identity CreateClientActor writes once: charId, EventSpawnId, SpawnIndex.
-constexpr uint64_t kActorVtable = 0x145c0bee0;
+constexpr uint64_t kActorVtable = 0x145c11e40;
 constexpr size_t kGuid = 0x20, kFsb = 0x60, kControlled = 0xbc, kPendingDeath = 0x414, kAlive = 0x491,
                  kCharId = 0x618, kSpawnId = 0x61c, kSpawnIndex = 0x620;
 // FSBActor: stat type t at kStatBase + 4 t (HP 1, MaxHP 2, Shield 7, MaxShield 8, Stamina 12, MaxStamina 13: each max
@@ -47,7 +47,7 @@ constexpr size_t kStatBase = 0x118, kLife = 0x2600, kPlayer = 0x49a;
 // 3). Stored plainly, never clamped; SB's own MinimumHP effects add and take off deltas too, so ours composes.
 constexpr int kFloorStat = 107;
 constexpr size_t kMinimumHp = kStatBase + 4 * size_t(kFloorStat);
-// Two-player scaling (PHASE11-STAGE2-RE 4). MaxHP through stat 3, MaxHPValue: SetStat (FUN_141a684f0) derives MaxHP
+// Two-player scaling (PHASE11-STAGE2-RE 4). MaxHP through stat 3, MaxHPValue: SetStat (FUN_141a68770) derives MaxHP
 // (2) as stat 3 x (1 + stat 4, MaxHPRate) whenever either changes, so a delta on 2 itself would not last. Balance
 // through stat 13, MaxStamina, which SetStat stores as it comes: its derived table has no entry for 13 (the RE's
 // setstat_jumpidx), and ApplyStat's case for 13 only clamps Stamina to it. Both truncate to whole units, and a lower
@@ -74,7 +74,7 @@ inline const char *auto_out(uint32_t chr, float max_hp) {
 // FSBActor +0x560: SB's TMap<ESBActorState, int32 reference count>, 0x50 bytes (PHASE11-STAGE2-RE 1): elements of 0x10
 // bytes {key, count, hash next, hash index} at +0x00, ArrayNum +0x08, NumFree +0x34, the inline bucket +0x38 (HashSize
 // 1), the buckets at +0x40 when that is set, HashSize +0x48. A key hashes to itself. A state is held while its key is
-// there with a count other than 0, as FUN_141a64b40 (a leaf SB calls on the logic thread) tells; read here without it.
+// there with a count other than 0, as FUN_141a64dc0 (a leaf SB calls on the logic thread) tells; read here without it.
 constexpr size_t kStateMap = 0x560;
 constexpr int32_t kNoDamage = 4; // And fight/sync.h's kNoDamageNoHit, 3.
 constexpr int32_t kBattleState = 30, kDelayDeath = 32, kBlockAiState = 39; // BattleMode, DelayDeath, BlockAI.
@@ -119,7 +119,7 @@ template <class Read> bool held_states(Read &&read, uint64_t fsb, uint64_t &held
 
 constexpr uint64_t kStunned = 1u << 6 | 1u << 7 | 1u << 8; // Of kStatesRead: Down, Groggy, Airborne.
 // Logic actor +0x170: the effects running on it, a TArray<effect *> (ArrayNum +0x178); an effect's EffectTable ID at
-// +0x104 (PHASE11-STAGE2-RE 2: SB's dispel walk FUN_141ba60d0 and effect end FUN_141bca730 read them so).
+// +0x104 (PHASE11-STAGE2-RE 2: SB's dispel walk FUN_141ba7310 and effect end FUN_141bcb980 read them so).
 constexpr size_t kEffects = 0x170, kEffectCount = 0x178, kEffectId = 0x104;
 constexpr int32_t kMaxEffects = 128; // A longer list is taken for a torn read.
 
@@ -152,11 +152,11 @@ constexpr uint16_t kRowBattle = pilot::kBattle, kRowDying = pilot::kDying, kRowF
 constexpr size_t kAiTask = 0x744, kLocation = 0x4cc;
 // Together only (fight/sync.h): our EVE took part in an enemy's fight when she hit it (the sides' fought), when the
 // game's last player on its logic actor is our EVE, or when she stands within kPartCm of it. Logic actor +0x638: the
-// GUID FUN_141ba8190 stores, only a player's, from FSBActorAddTargetedByEnemy::Execute (FUN_141b0f440: it targeted
-// her) and from the hit paths FUN_141bf10c0 and FUN_141bfbf10 (her hit landed); 0 from actor init (FUN_141b9f040).
-// Each world has one player, so it is 0 or our EVE. SB's death handler (FUN_141bae5d0) takes it as the killer when a
+// GUID FUN_141ba93d0 stores, only a player's, from FSBActorAddTargetedByEnemy::Execute (FUN_141b10680: it targeted
+// her) and from the hit paths FUN_141bf2310 and FUN_141bfd160 (her hit landed); 0 from actor init (FUN_141ba0280).
+// Each world has one player, so it is 0 or our EVE. SB's death handler (FUN_141baf820) takes it as the killer when a
 // death has no player cause: its Kill achievement and its Tachy gain. Our own effect call (cast()) names our EVE as the
-// caster and may reach FUN_141ba8190 too (not ruled out): a copy whose +0x638 turned into our EVE in that call is
+// caster and may reach FUN_141ba93d0 too (not ruled out): a copy whose +0x638 turned into our EVE in that call is
 // noted, and its +0x638 no longer counts (lent()).
 constexpr size_t kLastPlayer = 0x638;
 constexpr float kPartCm = 3000; // 30 m.
@@ -251,44 +251,44 @@ struct Told {
 };
 
 // ---- Same spawns (stage 4, PHASE11-STAGE3 9.2, RE12): the logic side ----
-// SB's table holder (FUN_141a97f20's global; its +0x20 holds the tables), spawn manager (FUN_141adc3d0's) and job
-// sender (FUN_141a97b90's): read, never made here (each getter allocates when null). Logic +0x598: the current zone's
+// SB's table holder (FUN_141a98e30's global; its +0x20 holds the tables), spawn manager (FUN_141add610's) and job
+// sender (FUN_141a98aa0's): read, never made here (each getter allocates when null). Logic +0x598: the current zone's
 // alias, an FName (0 at a level's start). The spawn manager's +0x1c: 1 entering a zone, then 3; 2 resetting it, then 4.
 // An EventSpawnTable row (FSBZoneEventSpawnTableProperty): SpawnType +0x30, Zone +0x34 (an FName), SaveType +0x44,
 // bResetZoneKeepObject +0x46; a ZoneTable row: its ID +0x10. Both are read without SB's lazy init (row->vtbl[0x20] once
-// while row +8 is 0), which skips nothing: that slot of both row vtables (0x145d4ac30, 0x145e1eda8) is the empty
-// FUN_140e32fa0. FSBActor +0x4e4: its rotation (pitch, yaw, roll), which its actor tick copies with +0x4cc [L].
+// while row +8 is 0), which skips nothing: that slot of both row vtables (0x145d50f10, 0x145e25060) is the empty
+// FUN_140e333c0. FSBActor +0x4e4: its rotation (pitch, yaw, roll), which its actor tick copies with +0x4cc [L].
 constexpr uint64_t kTables = 0x1470373b0, kSpawnManager = 0x147037438, kJobSender = 0x1470373c0;
 constexpr size_t kTablesAt = 0x20, kZoneAlias = 0x598, kSpawnState = 0x1c;
 constexpr size_t kRowSpawnType = 0x30, kRowZone = 0x34, kRowSaveType = 0x44, kRowKeep = 0x46, kZoneId = 0x10;
 constexpr size_t kFsbRotation = 0x4e4;
 constexpr size_t kMaxRows = 512, kMaxZones = 16; // Rows and zones kept for a session (the tables never change in one).
 
-// FSBActor +0x27c4: its time scale, which SB's presentation FSBChangeTimeScale::Execute (FUN_141b1d150) sets for slow
+// FSBActor +0x27c4: its time scale, which SB's presentation FSBChangeTimeScale::Execute (FUN_141b1e390) sets for slow
 // motion; 1 otherwise [L]. Read for the stats line only, to size slow motion before stage 3 (FEATURE-PARITY C33).
 constexpr size_t kTimeScale = 0x27c4;
 constexpr float kSlow = 0.99f; // Below this, slow motion.
 
 // The world's actor manager: its FSBActor array, count and the local player's index, as SB finds its own EVE.
 constexpr size_t kManager = 0xc8, kActorArray = 0x28, kActorCount = 0x30, kLocalIndex = 0x3c;
-// SB's pause tags: the registry at globals block +0 (FUN_141a97cb0's) holds a TSet of FNames at +0x1e8, whose elements'
-// count and free slots are at +0x1f0 and +0x21c. FUN_1422aafe0 pauses the world when the first tag comes and unpauses
+// SB's pause tags: the registry at globals block +0 (FUN_141a98bc0's) holds a TSet of FNames at +0x1e8, whose elements'
+// count and free slots are at +0x1f0 and +0x21c. FUN_1422b07b0 pauses the world when the first tag comes and unpauses
 // it when the last goes: the pause menu, photo mode, a movie, a lost focus...
 constexpr size_t kPauseAt = 0, kTagsNum = 0x1f0, kTagsFree = 0x21c;
-// SB's photo mode manager (FUN_141adc360's): +0x38 active, +0x48 the camera (1 free, 2 selfie, 3 cutscene). SB's logic
-// dispatch (FUN_141acd5c0) returns at once while it is active with any camera but the selfie's.
+// SB's photo mode manager (FUN_141add5a0's): +0x38 active, +0x48 the camera (1 free, 2 selfie, 3 cutscene). SB's logic
+// dispatch (FUN_141ace800) returns at once while it is active with any camera but the selfie's.
 constexpr uint64_t kPhotoMode = 0x147037440;
 constexpr size_t kPhotoActive = 0x38, kPhotoCamera = 0x48;
 constexpr int32_t kSelfie = 2;
 
 // ---- Bosses (stage 5): the logic side ----
-// FSBActor +0xb58: its battle mode, a byte SetBattleMode's body (FUN_141a7cda0) writes. Logic actor +0x400: a summon's
-// owner, a logic actor, and +0x40c the GUID of the effect that made it, as SetOwner (FUN_141ba6860) stores them; an
-// effect's GUID at +0x20 (its vtable's slot 7, FUN_140e4d660, as an actor's). The SummonActor effect that made a summon
+// FSBActor +0xb58: its battle mode, a byte SetBattleMode's body (FUN_141a7db90) writes. Logic actor +0x400: a summon's
+// owner, a logic actor, and +0x40c the GUID of the effect that made it, as SetOwner (FUN_141ba7aa0) stores them; an
+// effect's GUID at +0x20 (its vtable's slot 7, FUN_140e4da30, as an actor's). The SummonActor effect that made a summon
 // runs on its owner, so the owner's effect list names its row.
 constexpr size_t kBattleFlag = 0xb58, kOwner = 0x400, kSummonEffect = 0x40c, kEffectGuid = 0x20;
 // FSBActor +0x45a: the latch of its spawn row's EventFirstTimeOnBattle; +0x45b, set when SetBattleMode's body runs its
-// EventOnBattle (FUN_141a681c0). Read by the solo probes only.
+// EventOnBattle (FUN_141a68440). Read by the solo probes only.
 constexpr size_t kFirstBattle = 0x45a, kOnBattle = 0x45b;
 constexpr size_t kMaxSummoned = kMaxTracked; // Summons the host keys at once.
 // A summon the guest made that no pair holds this many turns later (about 3 s at 60 FPS: the host's up comes first)
@@ -373,7 +373,7 @@ struct Snapshot {
   uint32_t session = 0;          // The session the sides are of: Engine::session() once its first turn ran.
   uint64_t lost = 0;             // Lines and events the job had no room for.
   uint64_t runs = 0, us = 0, max_us = 0; // Simulate calls since the DLL loaded, their time and the longest (the glue's).
-  uint32_t thread = 0, sb_thread = 0;    // The thread Simulate last ran on, and SB's DAT_1470634f0 then.
+  uint32_t thread = 0, sb_thread = 0;    // The thread Simulate last ran on, and SB's DAT_1470683b0 then.
   uint32_t game_thread = 0;              // The thread that armed last.
   uint32_t turn = 0;                     // SB's logic turn at the last turn's work.
   size_t floors = 0;                     // Enemies holding our floor (guest_kills=confirmed).

@@ -3,15 +3,15 @@
 namespace coop::pose {
 namespace {
 // ---- Follow the host: SB's own fast travel to a camp, the game thread's call (game/travel.h) ----
-// kCampTravel, FUN_141cdd7b0(client, request): the fast travel SB's ReturnToCamp job, camp menu, quest warp node and
+// kCampTravel, FUN_141cdfbd0(client, request): the fast travel SB's ReturnToCamp job, camp menu, quest warp node and
 // death respawn on another map call, to a ZoneCampTable alias. The worker hands over the camp's FName (index and
 // number, from Lua's FNAME_Find: never a new name); each frame the game thread takes a new ask, checks the count and
 // game/travel.h's guard over its reads (the globals the call's own getters reach, the client in game, no warp or
 // respawn in flight, our EVE in the world's actor map through FindActor), builds the request and calls, out of line
 // under the travel latch. Every 250 ms after an accepted call it reads the warp block for the watch. Never called: the
-// getters 141a978c0, 141a97c40, 141a97f20 and 141a97cb0, which allocate when their global is null. The first fault ends
+// getters 141a987d0, 141a98b50, 141a98e30 and 141a98bc0, which allocate when their global is null. The first fault ends
 // travel for the run.
-constexpr uint64_t kCampTravel = 0x141cdd7b0;
+constexpr uint64_t kCampTravel = 0x141cdfbd0;
 using CampTravel = uint8_t (*)(void *client, const void *request); // The return is a bool in AL.
 std::atomic<bool> travel_faulted{false};
 std::atomic<uint64_t> travel_fault_code{0}, travel_fault_rva{0}, travel_fault_address{0};

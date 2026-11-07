@@ -175,7 +175,7 @@ function W.settle(p0,spot,nav)
     return at
 end
 -- A wave's new bodies to its slots by place. The key a spawn gives never reaches the character in a standalone game:
--- SB copies it to BroadcastSpawnInfo only in its spawn broadcast (FUN_1422707f0), under net mode 1 or 2, and InitActor
+-- SB copies it to BroadcastSpawnInfo only in its spawn broadcast (FUN_142275e70), under net mode 1 or 2, and InitActor
 -- clears it. slots: {at=} each, where its spawn call stood it; bodies: {at=} each; radius in cm. Nearest pairs first by
 -- ground distance (a body falls from its spot), within radius, each slot and each body in one pair at most; ties in
 -- slot, then body order. Returns {slot=, body=, d=} each (indexes, cm), in pairing order.

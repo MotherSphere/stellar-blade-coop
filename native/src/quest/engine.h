@@ -11,14 +11,14 @@
 // never while it reads the game or calls it, so a fault there leaves nothing locked. The glue's SEH filter then calls
 // fault(), and the feature stays off for the run. The Worker below is the worker thread's side: the requests, the gates
 // that start and stop a side, channel 2's SBQ lines both ways, the record file, the recording and coop-status.txt's
-// lines. Offsets and functions are for Stellar Blade's Steam build 24463856; the glue runs it only on the pinned build.
+// lines. Offsets and functions are for Stellar Blade's Steam build 26123051; the glue runs it only on the pinned build.
 //
 // The Game the engine takes, every call on the game thread:
 //   bool read(uint64_t address, void *out, size_t n): the game's memory, false when unreadable;
 //   uint32_t thread(): this thread's ID (GetCurrentThreadId);
-//   uint64_t unit(uint64_t manager): FUN_141c5e880(manager), the local player's quest unit, or 0; the engine calls it
+//   uint64_t unit(uint64_t manager): FUN_141c5fad0(manager), the local player's quest unit, or 0; the engine calls it
 //     only while the world singleton exists, since that function would make one;
-//   bool acquire(uint64_t manager, uint32_t owner, uint32_t id): FUN_141c5cf20(manager, owner, id), the acquire by ID
+//   bool acquire(uint64_t manager, uint32_t owner, uint32_t id): FUN_141c5e170(manager, owner, id), the acquire by ID
 //     that a quest zone event makes; false when SB refused it;
 //   void call(uint64_t function, uint64_t object): the function at that image address with the object as its only
 //     argument: kAccept on a Request quest, kComplete or kCompleteParent on a task. The glue refuses any other.
@@ -58,21 +58,21 @@ inline int slot_index(std::string_view slot) {
 // the logic worker's thread ID while it ticks (else 0). The world and the manager are read, never made: their getters
 // construct them.
 constexpr uint64_t kLogicGlobal = 0x1470373e0, kWorldGlobal = 0x1470373d0, kManagerGlobal = 0x147037428;
-constexpr uint64_t kLogicThread = 0x1470634f0;
+constexpr uint64_t kLogicThread = 0x1470683b0;
 constexpr size_t kZoneAt = 0x598;
 // FName text: the static pool (+0x8 its current block, +0x10 the block pointers), its ready flag, and "None"'s index.
 // An entry is at block + (index & 0xffff) * 2: a uint16 header (bit 0 wide, length header >> 6), then the text.
-constexpr uint64_t kNamePool = 0x146ffec40, kNamesReady = 0x146faa749, kNoneName = 0x147012c80;
+constexpr uint64_t kNamePool = 0x147003ac0, kNamesReady = 0x146fb0aaa, kNoneName = 0x147017b00;
 constexpr size_t kMaxName = 128;
 // .rdata, where every vtable is.
-constexpr uint64_t kRdata = 0x1455ad000, kRdataEnd = 0x146bca000;
-// Quest vtables (FUN_141c5a590 picks one per row): Epic, Sub and Instant, and Request; group vtables: a table group,
+constexpr uint64_t kRdata = 0x1455b3000, kRdataEnd = 0x146bd0000;
+// Quest vtables (FUN_141c5b7e0 picks one per row): Epic, Sub and Instant, and Request; group vtables: a table group,
 // and the report group a Request appends last.
-constexpr uint64_t kQuestVtable = 0x145c11280, kRequestVtable = 0x145c11248;
-constexpr uint64_t kGroupVtable = 0x145c104e0, kReportVtable = 0x145c111e8;
+constexpr uint64_t kQuestVtable = 0x145c171a8, kRequestVtable = 0x145c17170;
+constexpr uint64_t kGroupVtable = 0x145c16408, kReportVtable = 0x145c17110;
 // The calls Game::call makes: the Request vtable's +0x10 (base Acquire, then the report group), as the board's
 // accept calls it; the task Complete of task vtable +0x60, the base one and the one that also ends child tasks.
-constexpr uint64_t kAccept = 0x141c58b80, kComplete = 0x141c6eb10, kCompleteParent = 0x141c70850;
+constexpr uint64_t kAccept = 0x141c59dd0, kComplete = 0x141c6fd60, kCompleteParent = 0x141c71aa0;
 constexpr size_t kAcceptSlot = 0x10, kCompleteSlot = 0x60;
 // Quest unit: +0x10 the owner GUID; +0x18 the ID map, a TMap<int32 quest ID, quest *> whose elements of 0x18 bytes
 // {key, value, hash next} sit at +0x18 with ArrayNum +0x20 and allocation bits inline at +0x28 (128) or on the heap
@@ -555,7 +555,7 @@ private:
   }
 
   // The current zone's alias, "" while unknown (no logic yet, None or the pool not ready). An FName keeps a trailing
-  // "_<n>" as its Number, n + 1 (Zone_Xion_10 is Zone_Xion with 11), which SB's FUN_142939000 adds back the same way.
+  // "_<n>" as its Number, n + 1 (Zone_Xion_10 is Zone_Xion with 11), which SB's FUN_14293ea60 adds back the same way.
   template <class Game> bool zone(Game &g, std::string &out) {
     uint32_t name[2] = {}, none = 0;
     uint8_t ready = 0;

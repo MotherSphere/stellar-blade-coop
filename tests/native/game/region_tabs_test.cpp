@@ -22,7 +22,7 @@ int main() {
   int grows = 0;
   const auto grow = [&](Records *r) {
     ++grows;
-    assert(r->num == 8 && r->max == 7); // The count is already up, as FUN_1418fc350 reads it.
+    assert(r->num == 8 && r->max == 7); // The count is already up, as FUN_1418fc4e0 reads it.
     store.resize(16);
     r->data = store.data();
     r->max = 16;

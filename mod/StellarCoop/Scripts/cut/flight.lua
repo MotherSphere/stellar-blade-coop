@@ -62,7 +62,7 @@ function Flight.new(o)
         return names(list)
     end
     -- The rebuild on the last one copies the input settings into every PlayerInput. SB's own key changes do the same
-    -- after they edit Default__InputSettings (FUN_1423ca0c0, FUN_1422a6350), where its rebinds live: they stay.
+    -- after they edit Default__InputSettings (FUN_1423cf890, FUN_1422abb20), where its rebinds live: they stay.
     local function mappings(add,evades)
         local s=U.find(SETTINGS)
         for i,e in ipairs(evades) do

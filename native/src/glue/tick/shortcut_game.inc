@@ -3,14 +3,14 @@
 namespace coop::pose {
 namespace {
 // ---- coop shortcut: the cut Load Shortcut menu's saves, read through SB's file manager (save/shortcut.h) ----
-// The calls FUN_1422907c0 makes for the menu's own list: IFileManager::Get()'s object (FUN_142820e70 returns its
-// function-local static at 0x14710a7a8, made at startup, vtable 0x145f5c9a0), its CreateFileReader at vtable +0x18
-// (FUN_142811eb0: flags 0, so a file that is not there gives null and no fatal error), then the reader's
-// (FArchiveFileReaderGeneric, vtable 0x145f5bc60) TotalSize +0x30 (its Size at +0xa8), Serialize +0x150, Close +0x1b8
+// The calls FUN_142295f40 makes for the menu's own list: IFileManager::Get()'s object (FUN_1428269c0 returns its
+// function-local static at 0x14710f6b8, made at startup, vtable 0x145f62d70), its CreateFileReader at vtable +0x18
+// (FUN_142817a00: flags 0, so a file that is not there gives null and no fatal error), then the reader's
+// (FArchiveFileReaderGeneric, vtable 0x145f61de8) TotalSize +0x30 (its Size at +0xa8), Serialize +0x150, Close +0x1b8
 // (false after a read error) and its deleting destructor +0 with 1. Both vtables are checked before their slots are
 // called. One file a frame on the game thread, where the menu reads them too, into our own buffer, under the list's
 // own SEH latch: its first fault ends coop shortcut for the run.
-constexpr uint64_t kFileManager = 0x14710a7a8, kFileManagerVtable = 0x145f5c9a0, kReaderVtable = 0x145f5bc60;
+constexpr uint64_t kFileManager = 0x14710f6b8, kFileManagerVtable = 0x145f62d70, kReaderVtable = 0x145f61de8;
 constexpr size_t kCreateReader = 0x18, kTotalSize = 0x30, kSerialize = 0x150, kClose = 0x1b8;
 using CreateReader = void *(*)(void *manager, const wchar_t *path, uint32_t flags);
 using TotalSize = int64_t (*)(void *reader);

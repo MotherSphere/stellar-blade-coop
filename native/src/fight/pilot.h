@@ -841,7 +841,7 @@ private:
 
 constexpr size_t kMaxPath = 200;
 constexpr uint32_t kMaxRate = 10000, kMaxStep = 65535, kMaxShowMs = 3'600'000; // 10 times; an hour.
-constexpr char kShowRoot[] = "/Game/Art/Show/"; // SB's show root prefix (DAT_146f5bdc8): form 0 is relative to it.
+constexpr char kShowRoot[] = "/Game/Art/Show/"; // SB's show root prefix (DAT_146f61e18): form 0 is relative to it.
 // Form 1's roots: the Show roots in the binary's strings.
 constexpr std::string_view kShowRoots[] = {"/Game/Art/Show/", "/Game/Art/FX/Show/", "/Game/DLC_1/Art/Show/"};
 
@@ -1058,7 +1058,7 @@ private:
 
 // ---- Show paths from the FNamePool (RE7) ----
 
-// The pool (0x146ffec40 in this build): CurrentBlock (u32) at +8, Blocks[8192] (pointers) at +0x10, 0x20000 bytes each.
+// The pool (0x147003ac0 in this build): CurrentBlock (u32) at +8, Blocks[8192] (pointers) at +0x10, 0x20000 bytes each.
 constexpr uint64_t kPoolCurrentBlock = 0x8, kPoolBlocks = 0x10;
 constexpr uint32_t kPoolBlockCount = 8192, kBlockBytes = 0x20000;
 // One FName (comparison index, number) as text into out (cap bytes, NUL-terminated), straight from the pool: entry =
@@ -1135,12 +1135,12 @@ inline bool compact_id(std::string_view pkg, std::string_view obj, uint8_t &form
 
 // ---- The owner's capture (game thread, every 33 ms of clock) ----
 
-// The pinned build's globals the capture reads, never their getters (FUN_1420193a0, FUN_141a97cb0 and the class
-// getters allocate on a first call): the world (the actor manager FUN_141aace90 searches at +0xc8), SB's registry (the
-// character map FUN_14201b1e0 searches at +0x48), SB's show manager (its stages at +0x18, their count at +0x20), the
-// classes USBShowData and ASBCharacter (FUN_141ff2b70's, which FUN_14201b1e0's own IsA test takes), and the FNamePool.
+// The pinned build's globals the capture reads, never their getters (FUN_14201b460, FUN_141a98bc0 and the class
+// getters allocate on a first call): the world (the actor manager FUN_141aae0d0 searches at +0xc8), SB's registry (the
+// character map FUN_14201d4e0 searches at +0x48), SB's show manager (its stages at +0x18, their count at +0x20), the
+// classes USBShowData and ASBCharacter (FUN_141ff4cc0's, which FUN_14201d4e0's own IsA test takes), and the FNamePool.
 constexpr uint64_t kWorldAt = 0x1470373d0, kRegistryAt = 0x1470373c8, kShowsAt = 0x147037578,
-                   kShowDataClassAt = 0x14703c7c8, kCharacterClassAt = 0x147033f48, kNamePool = 0x146ffec40;
+                   kShowDataClassAt = 0x147041650, kCharacterClassAt = 0x147038de8, kNamePool = 0x147003ac0;
 constexpr size_t kActorManager = 0xc8, kCharacterMap = 0x48, kStageList = 0x18, kStageCount = 0x20;
 constexpr size_t kFsbGuid = 0x4a4; // FSBActor: its FGuid, the character map's key.
 // SB's globals block (game::kGlobalsBlock), read one word at a time: the net-mode cache, whose cached net mode is at
@@ -1148,12 +1148,12 @@ constexpr size_t kFsbGuid = 0x4a4; // FSBActor: its FGuid, the character map's k
 constexpr uint64_t kNetCacheAt = 0x1470373e8, kLogicSingletonAt = 0x1470373e0;
 constexpr size_t kNetMode = 0x14, kLogicTask = 0x5c0;
 // ASBCharacter: its root component and its show interface (a stage's main actor), and from +0xC64 the anim speed
-// fields GetSBSpeedForAnimGraph (0x1420cf5d0) reads (speed_read()).
+// fields GetSBSpeedForAnimGraph (0x1420d3c00) reads (speed_read()).
 constexpr size_t kRootComponent = 0x178, kShowInterface = 0x560, kSpeedFields = 0xc64, kSpeedBytes = 0x18;
 // UE 4.26 UObject: its name (an FName) at +0x18, its outer at +0x20; UStruct: the struct base chain IsA walks.
 constexpr size_t kObjectName = 0x18, kOuter = 0x20, kBaseChain = 0x30, kBaseDepth = 0x38;
 // A show stage (the first kStageBytes): its main actor's weak pointer (index, serial; serial 0: none) and interface,
-// its players and their count, and the float at +0x9c (SkillPres_OnHit's); past them, the handle FUN_142284a30 stamps
+// its players and their count, and the float at +0x9c (SkillPres_OnHit's); past them, the handle FUN_14228a1b0 stamps
 // on a stage it makes.
 constexpr size_t kStageMainWeak = 0x18, kStageMain = 0x20, kStagePlayers = 0x88, kStagePlayerCount = 0x90,
                  kStageField9c = 0x9c, kStageBytes = 0xa0, kStageHandle = 0x128;
@@ -1201,7 +1201,7 @@ bool live(Read &&read, uint64_t objects, uint64_t object, int32_t *index = nullp
     *serial = detail::field<int32_t>(item, pose::kItemSerial);
   return true;
 }
-// IsA through UE 4.26's struct base chain, as FUN_14201c180 tests it: object's class holds cls's chain at cls's depth.
+// IsA through UE 4.26's struct base chain, as FUN_14201e590 tests it: object's class holds cls's chain at cls's depth.
 template <class Read> bool is_a(Read &&read, uint64_t object, uint64_t cls) {
   uint64_t own = 0, chain = 0, link = 0;
   int32_t want = 0, depth = 0;
@@ -1222,8 +1222,8 @@ inline float speed_read(const uint8_t *b) {
   return field<float>(b, 0xc) > 0 ? 0 : field<float>(b, 0);
 }
 
-// SB's globals both halves of stage 3a start from, read again each time, never kept: the actor manager FUN_141aace90
-// searches, SB's registry (the Show handle API's first argument) and the character map FUN_14201b1e0 searches in it,
+// SB's globals both halves of stage 3a start from, read again each time, never kept: the actor manager FUN_141aae0d0
+// searches, SB's registry (the Show handle API's first argument) and the character map FUN_14201d4e0 searches in it,
 // ASBCharacter's class and SB's show manager. Each is 0 when null or implausible (and those read through it); true
 // when the lookups can run.
 struct Globals {
@@ -1249,9 +1249,9 @@ template <class Read> bool globals(Read &&read, uint64_t base, Globals &s) {
   return s.manager && s.map && s.character_class;
 }
 // A logic task in flight, or no logic singleton to tell: then no lookup runs, and the frame's capture, drive and target
-// reads wait. SB's dispatch (FUN_141acd5c0) sets +0x5c0 on this thread and clears it only once it has waited for the
+// reads wait. SB's dispatch (FUN_141ace800) sets +0x5c0 on this thread and clears it only once it has waited for the
 // task, so 0 means none runs. One that runs may spawn (NewActor): FSBActorManager::AddActor grows the actor map
-// FUN_141aace90 walks, which has no bound on its chain, and SB's CreateHandle the character map FUN_14201b1e0 walks.
+// FUN_141aae0d0 walks, which has no bound on its chain, and SB's CreateHandle the character map FUN_14201d4e0 walks.
 template <class Read> bool logic_busy(Read &&read, uint64_t base) {
   uint64_t logic = 0, task = 0;
   return !read(base + (kLogicSingletonAt - game::kImageBase), &logic, sizeof logic) || !game::plausible(logic) ||
@@ -1357,8 +1357,8 @@ struct Owned {
 // Outbox: show lines for the new ones, with their context and path, show-set and show-stop for the others. A stage
 // belongs to a character by its weak pointer when it has one, else by the character's show interface. No pointer is
 // kept past the call: the Outbox compares addresses as numbers only.
-// The Game: read(address, out, n) as a Game's; uint64_t fsb(manager, guid): FUN_141aace90(manager, guid), 0 when none;
-// uint64_t character(map, const int32_t guid[4]): FUN_14201b1e0(map, guid), 0 when none or pending kill.
+// The Game: read(address, out, n) as a Game's; uint64_t fsb(manager, guid): FUN_141aae0d0(manager, guid), 0 when none;
+// uint64_t character(map, const int32_t guid[4]): FUN_14201d4e0(map, guid), 0 when none or pending kill.
 // A stage whose handle one of our own replays holds or held (mine(), the drawn side's Driver::made) is never told: a
 // pair this side takes over (stage 3b) still plays the other side's replayed Shows for a while, and telling them back
 // would be an echo (R35).
@@ -1610,11 +1610,11 @@ private:
 
 // ---- The drawn side's write half (game thread, every frame) ----
 
-// The pinned build's movement component class, USBCharacterMovementComponent (its vtable, which ctor 1421414e0 sets),
-// and SB's own SetComponentTickEnabled in its slot 0x350 (142158f40): false takes the component out of SB's parallel
-// movement manager, true puts it back in, and +0x10cd says which. The engine base of that slot (140f32a70) does nothing
+// The pinned build's movement component class, USBCharacterMovementComponent (its vtable, which ctor 142146260 sets),
+// and SB's own SetComponentTickEnabled in its slot 0x350 (14215dcc0): false takes the component out of SB's parallel
+// movement manager, true puts it back in, and +0x10cd says which. The engine base of that slot (140f32de0) does nothing
 // on this class and is never called; a component of another class is never driven.
-constexpr uint64_t kCmcVtable = 0x145c700d0, kCmcTick = 0x142158f40;
+constexpr uint64_t kCmcVtable = 0x145c76178, kCmcTick = 0x14215dcc0;
 constexpr size_t kCmcTickSlot = 0x350, kCmcParallel = 0x10cd, kCmcVelocity = 0xd4; // Velocity: UMovementComponent's.
 // ACharacter's movement component; ASBCharacter's speed override, the pair SB's own MoveToLocation writes: while its
 // byte is set, GetSBSpeedForAnimGraph takes the speed after it.
@@ -1622,7 +1622,7 @@ constexpr size_t kCharacterMovement = 0x330, kSpeedOverride = 0xc68, kSpeedOverr
 // The root component's MoveComponent, vtable +0x4a0, called as SB's SetActorLocation calls it, as a teleport.
 constexpr size_t kMoveSlot = 0x4a0;
 
-// A movement component of SB's class with SB's override in slot 0x350: the only kind driven, and the only one 142158f40
+// A movement component of SB's class with SB's override in slot 0x350: the only kind driven, and the only one 14215dcc0
 // is called on or a Velocity written to.
 template <class Read> bool sb_cmc(Read &read, uint64_t base, uint64_t cmc) {
   uint64_t vt = 0, tick = 0;
@@ -1655,17 +1655,17 @@ inline double angle_deg(const float *a, const float *b) {
 // speed override's byte. fault() does that once and stops every write for the run.
 // The Game: read, fsb() and character() as the Capturer's, and
 //   void write(uint64_t address, const void *in, size_t n): a plain write;
-//   void cmc(uint64_t cmc, bool on): SB's 142158f40, called only on a component sb_cmc() passed that frame;
+//   void cmc(uint64_t cmc, bool on): SB's 14215dcc0, called only on a component sb_cmc() passed that frame;
 //   void move(uint64_t fn, uint64_t root, const float delta[3], const float quat[4]): fn, the root's vtable +0x4a0, as
 //     fn(root, delta, quat, no sweep, no hit result, no flags, a teleport);
-//   bool handle(uint64_t reg, uint8_t h[16]): FUN_142284a30(reg, h, 1) (the stage goes when its players finish), false
+//   bool handle(uint64_t reg, uint8_t h[16]): FUN_14228a1b0(reg, h, 1) (the stage goes when its players finish), false
 //     when it made none;
-//   void main_actor(uint64_t reg, const uint8_t h[16], uint64_t guid): FUN_142285010, guid the address of the copy's
+//   void main_actor(uint64_t reg, const uint8_t h[16], uint64_t guid): FUN_14228a790, guid the address of the copy's
 //     FSBActor FGuid;
 //   int32_t add(uint64_t reg, const uint8_t h[16], const char *path, size_t len, uint8_t form, float rate, uint8_t gate,
-//     uint8_t b4d): FUN_1422853e0 with the path as an FString and no delay; the player's slot, or -1;
-//   void step(reg, h, int32_t slot, int32_t step): FUN_142285200(reg, h, slot, step, 1);
-//   void rate(reg, h, int32_t slot, float rate): FUN_142285270; void stop(reg, h): FUN_1422852f0(reg, h, 0).
+//     uint8_t b4d): FUN_14228ab60 with the path as an FString and no delay; the player's slot, or -1;
+//   void step(reg, h, int32_t slot, int32_t step): FUN_14228a980(reg, h, slot, step, 1);
+//   void rate(reg, h, int32_t slot, float rate): FUN_14228a9f0; void stop(reg, h): FUN_14228aa70(reg, h, 0).
 class Driver {
 public:
   struct Counts {
@@ -2139,7 +2139,7 @@ private:
     return false;
   }
   // A show's hit context into the player AddShow just made, as SB's skill path writes some of these fields after its
-  // own AddShow: FUN_142284a30 appended that stage to the show manager's list and stamped it with our handle, so it is
+  // own AddShow: FUN_14228a1b0 appended that stage to the show manager's list and stamped it with our handle, so it is
   // among the newest kNewest (a child stage AddShow made may follow it). Left out when all zero, when R33's 1 km rule
   // refuses it against the copy, or when the stage or player does not read.
   static constexpr int32_t kNewest = 8;
@@ -2202,8 +2202,8 @@ private:
 
 // ---- Stage 3b: a pair this side takes over (game thread) ----
 
-// The two singletons SB's force target takes through their getters, FUN_141a97b90 (before its TargetedByEnemy jobs) and
-// FUN_141a97f20 (for a table row), each of which makes its singleton when it is still null: the call runs only once
+// The two singletons SB's force target takes through their getters, FUN_141a98aa0 (before its TargetedByEnemy jobs) and
+// FUN_141a98e30 (for a table row), each of which makes its singleton when it is still null: the call runs only once
 // both exist, so it never makes one (PHASE11-STAGE3 7 rule 4).
 constexpr uint64_t kTargetSingletonsAt[] = {0x1470373c0, 0x1470373b0};
 // The world's actor manager (Globals::manager): its FSBActor array, their count and the local player's index, as SB
@@ -2219,7 +2219,7 @@ constexpr uint64_t kTargetTestMs = 1000; // coop fight pilot test target reads i
 // The side that takes a pair over (stage 3b, PHASE11-STAGE3 3.8). The job thaws the copy in the turn its owner
 // changes; in the frame the table says so, the Driver puts the copy back (rows(): our replays stopped, its movement
 // component back in SB's manager if we took it out), and then step() points the copy's AI at our EVE with SB's force
-// target, FUN_141a36010(fsb + kAi, our EVE's FSBActor, 0, kTargetHold): detect result 3, aggro level 1 and SB's
+// target, FUN_141a361b0(fsb + kAi, our EVE's FSBActor, 0, kTargetHold): detect result 3, aggro level 1 and SB's
 // TargetedByEnemy jobs (the HUD and music). Only with the cached net mode 0 and no logic task in flight (M3-4: in net
 // mode 3 its senders become ServerRequest_*, and SB's own callers run inside logic tasks). A task in flight, or a copy
 // the lookups miss, puts it off a frame at a time for kTakeMs. Another net mode, a task still in flight after that, a
@@ -2232,7 +2232,7 @@ constexpr uint64_t kTargetTestMs = 1000; // coop fight pilot test target reads i
 // aggro level and detect result whenever they change for kTargetTestMs. Nothing after fault(). Fixed memory, no
 // pointer kept.
 // The Game: read, fsb() and character() as the Capturer's, and
-//   void target(uint64_t ai, uint64_t eve): FUN_141a36010(ai, eve, 0, kTargetHold).
+//   void target(uint64_t ai, uint64_t eve): FUN_141a361b0(ai, eve, 0, kTargetHold).
 class Taker {
 public:
   struct Counts {

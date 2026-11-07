@@ -93,7 +93,7 @@ struct Chain {
 // one-task group when a task row has that name, and a task alias with no row, or a row of a type SB makes no task for,
 // is skipped, so positions count made tasks only.
 // ---- quest table: generated, begin ----
-// Built from build 24463856's QuestTable, QuestTaskGroupTable, QuestTaskTable, ZoneEventTable, EventSpawnTable,
+// Built from build 26123051's QuestTable, QuestTaskGroupTable, QuestTaskTable, ZoneEventTable, EventSpawnTable,
 // EventEnvControlTable, ZoneEnvSpawnTable, EventTheaterTable and EventQuestTable. Another game build needs it built
 // again from that build's tables.
 constexpr Row kRows[] = {

@@ -2,7 +2,7 @@
 // pose and effects read and the ghost's written behind CopyPose's own gate. Plain accesses of addresses only, but for
 // alive()'s first read (safe_read); the caller runs every one of them under an SEH guard on the game thread. No
 // Windows types, so tests/native/pose/engine_test.cpp drives it with fake memory.
-// Offsets are for Stellar Blade's Steam build 24463856 (UE 4.26), pinned by check_build().
+// Offsets are for Stellar Blade's Steam build 26123051 (UE 4.26), pinned by check_build().
 #pragma once
 
 #include <cmath>
@@ -29,10 +29,10 @@ template <class T> T at(uintptr_t where) {
 constexpr bool passed_on(uint32_t code) { return code == 1 || code == 0x4000 || code == 0xc00000fd; }
 
 // The pinned executable: PE TimeDateStamp, SizeOfImage and 19 code bytes (the sister repository's pin).
-constexpr uint32_t kTimeDateStamp = 0x6a6a3b74, kSizeOfImage = 0x15981000;
-constexpr uint32_t kPinRva = 0x2bf7a28;
+constexpr uint32_t kTimeDateStamp = 0x6ad8eff1, kSizeOfImage = 0x15fa3000;
+constexpr uint32_t kPinRva = 0x2bfd488;
 constexpr unsigned char kPinBytes[19] = {0x0f, 0x57, 0xc0, 0x48, 0x8d, 0x55, 0x90, 0x33, 0xc9, 0x0f,
-                                         0x11, 0x45, 0x90, 0xff, 0x15, 0x3d, 0x6f, 0x9b, 0x02};
+                                         0x11, 0x45, 0x90, 0xff, 0x15, 0xdd, 0x74, 0x9b, 0x02};
 
 // Empty when the image at base is the pinned build, else why not.
 inline std::string check_build(uintptr_t base) {
@@ -53,9 +53,9 @@ inline std::string check_build(uintptr_t base) {
 }
 
 // UObject and FUObjectArray of the pinned build (sister repository, pose_stream.cpp): the object's index at 0x0c, its
-// class at 0x10; GUObjectArray at RVA 0x6dd7230 with the chunk table at +0x10 and the element count at +0x24, 64K
+// class at 0x10; GUObjectArray at RVA 0x6ddd240 with the chunk table at +0x10 and the element count at +0x24, 64K
 // 24-byte items per chunk (object, flags, cluster root, serial).
-constexpr uint32_t kObjectsRva = 0x6dd7230;
+constexpr uint32_t kObjectsRva = 0x6ddd240;
 constexpr size_t kInternalIndex = 0x0c, kClass = 0x10, kChunkTable = 0x10, kElementCount = 0x24, kItemBytes = 24,
                  kItemFlags = 8;
 constexpr int32_t kPendingKill = 1 << 29, kUnreachable = 1 << 28;
@@ -85,8 +85,8 @@ inline bool alive(uintptr_t objects, uintptr_t object) {
   return item && at<uintptr_t>(item) == object && !(at<int32_t>(item + kItemFlags) & (kPendingKill | kUnreachable));
 }
 
-// USkinnedMeshComponent::SkeletalMesh; the poses (decompile of CopyPoseFromSkeletalComponent 0x1448e0f80 and
-// GetBoneSpaceTransforms 0x144119140; verified live by the Phase 2a probe before any write):
+// USkinnedMeshComponent::SkeletalMesh; the poses (decompile of CopyPoseFromSkeletalComponent 0x1448e6a30 and
+// GetBoneSpaceTransforms 0x14411ecc0; verified live by the Phase 2a probe before any write):
 //   source (USkeletalMeshComponent): BoneSpaceTransforms array at +0x8c0, count at +0x8c8; GetBoneSpaceTransforms waits
 //   on two parallel tasks first, at +0x1180 and +0xf80 (PHASE2-RE.md), so a read needs both null;
 //   target (UPoseableMeshComponent): BoneSpaceTransforms array at +0x878, count at +0x880, refresh flag at +0x9d0.
@@ -107,7 +107,7 @@ inline bool published(uintptr_t objects, const Part &p) {
 constexpr size_t kItemSerial = 0x10, kWorldTransform = 0x1f0, kRelativeLocation = 0x13c, kRelativeRotation = 0x148,
                  kRelativeScale = 0x154;
 
-// A FWeakObjectPtr (index, serial) as the engine resolves it (0x2ba3ab0; the sister repository's weak_object): valid
+// A FWeakObjectPtr (index, serial) as the engine resolves it (0x2ba9510; the sister repository's weak_object): valid
 // while the object's item keeps the serial and is neither pending kill nor unreachable.
 inline bool weak_valid(uintptr_t objects, uintptr_t weak) {
   auto item = object_item(objects, at<int32_t>(weak));

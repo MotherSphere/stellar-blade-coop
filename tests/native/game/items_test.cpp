@@ -1,6 +1,6 @@
 // coop gift's inventory read (game/items.h) against a fake memory image laid out like the pinned build: the manager's
 // bucket map, the owner's bucket, the alias map and the instance map, each a TSet with its hash chains. Covered: the
-// two hashes against the game's (CityHash64 emulated in Ghidra on FUN_142835af0; the FName hash as FUN_140ecc610 writes
+// two hashes against the game's (CityHash64 emulated in Ghidra on FUN_14283b5f0; the FName hash as FUN_140ecc9d0 writes
 // it); a count over two instances and over chains with collisions; an alias she does not carry; no bucket, no owner, no
 // manager; an instance the manager no longer holds; and hostile memory (a chain that loops, an index past the array, a
 // hash size that is no power of two, an unreadable item) ending in unread, never in a hang.
@@ -137,7 +137,7 @@ Image full() {
 } // namespace
 
 int main() {
-  // The game's hashes: FUN_142835af0 emulated on the 16 bytes of L"MailBox" at 0x145c39508 gave 0x6ee2adb734a124f2.
+  // The game's hashes: FUN_14283b5f0 emulated on the 16 bytes of L"MailBox" at 0x145c3ff18 gave 0x6ee2adb734a124f2.
   const uint8_t mailbox[16] = {0x4d, 0, 0x61, 0, 0x69, 0, 0x6c, 0, 0x42, 0, 0x6f, 0, 0x78, 0, 0, 0};
   assert(guid_hash(mailbox) == 0x34a124f2u);
   const uint8_t zeros[16] = {};

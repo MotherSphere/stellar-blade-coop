@@ -31,7 +31,7 @@
 -- coop mxiii leave: the follow's probe, under its guards and its activation read (game/camps.h), to a travel camp the
 -- read lists: the camp EVE respawned at when coop mxiii asked its travel, else the one she respawns at now, else the
 -- read's first. Her respawn camp is that of her last rest or fast-travel arrival (FSBActor +0x26d0): the arrival in
--- the dungeon (FUN_141a8afe0) makes it DLC02_00_Camp_00, DLC02_10_Camp_01 or DLC02_30_Camp_01, which are in no travel
+-- the dungeon (FUN_141a8bef0) makes it DLC02_00_Camp_00, DLC02_10_Camp_01 or DLC02_30_Camp_01, which are in no travel
 -- table, and so does
 -- a rest at the zone 10 camp.
 -- The test pak's check makes no StaticFindObject (a package that is not loaded is never found that way, and each miss
@@ -89,8 +89,8 @@ function Mxiii.ucas_size(utoc)
     end
     return last
 end
--- SB lists every camp's env-spawn rows in FSBGameWorld::Init (FUN_141c97ca0 makes the zone manager, whose setup runs
--- FUN_141d18100 over ZoneEnvSpawnTable), so the world the rows went in on may know neither camp until the next one
+-- SB lists every camp's env-spawn rows in FSBGameWorld::Init (FUN_141c98ef0 makes the zone manager, whose setup runs
+-- FUN_141d1a310 over ZoneEnvSpawnTable), so the world the rows went in on may know neither camp until the next one
 -- (not when they went in at the title). Read from the code, untested.
 local function hint(camp,command)
     return 'if [TR] says SB refused '..camp..': SB lists the camps when its world starts, maybe before these rows; '
