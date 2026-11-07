@@ -109,7 +109,7 @@ Stellar Blade Online reads and writes game memory, so it fails closed: a failed 
 feature or drops the input.
 
 - Before it reads any engine memory, the native part checks the game's exe against the pinned build (Steam build
-  24463856): its PE time stamp, its image size and 19 code bytes. On any other build the pose path stays off
+  26123051): its PE time stamp, its image size and 19 code bytes. On any other build the pose path stays off
   (`engine=off reason=...`) and nothing is read. The save slot read, the vitals read for the partner card and the
   Night Operation poller also run only on the pinned build.
 - Every engine access in `coop_tick` runs under a Windows structured exception (SEH) guard. The first fault latches the

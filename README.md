@@ -27,8 +27,9 @@ no other program and no server of its own. It was called StellarCoop until Octob
    Decide later until you have backed up your saves. Load a save and press F6. The screen shows
    `Co-op: not in a session.`
 
-Close the game before you copy, change or delete any mod file. Version 0.8.0 does not run on game build 26123051, which
-Steam installed on 2026-11-05 (see [Status](#status)). [INSTALL.md](INSTALL.md) has the full guide.
+Close the game before you copy, change or delete any mod file. The mod runs on game build 26123051, which Steam
+installed on 2026-11-05; version 0.8.0 and older need build 24463856 (see [Status](#status)). [INSTALL.md](INSTALL.md)
+has the full guide.
 
 | Setup | Notes | Guide |
 | --- | --- | --- |
@@ -38,12 +39,12 @@ Steam installed on 2026-11-05 (see [Status](#status)). [INSTALL.md](INSTALL.md) 
 
 ## Status
 
-Version 0.8.0 is an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Steam updated the game to
-build 26123051 on 2026-11-05, and 0.8.0 does not support that build. On that build, `coop status` shows
-`engine=off reason=build stamp ...` (or `reason=code bytes differ`), and the ghost, the co-op saves and every other
-feature that reads the game's memory stay off until a release supports it. Setting Steam's automatic updates to Wait
-until I launch the game stops background updates, but Steam still installs a waiting update when the game starts
-([INSTALL.md: Update](INSTALL.md#update)).
+Stellar Blade Online is an experimental beta. This version runs on Stellar Blade's Steam build 26123051 only, which
+Steam installed on 2026-11-05. Versions up to 0.8.0 run on build 24463856 only, which Steam no longer serves. On any
+other build, `coop status` shows `engine=off reason=build stamp ...` (or `reason=code bytes differ`), and the ghost, the
+co-op saves and every other feature that reads the game's memory stay off until a release supports it. Setting Steam's
+automatic updates to Wait until I launch the game stops background updates, but Steam still installs a waiting update
+when the game starts ([INSTALL.md: Update](INSTALL.md#update)).
 
 Two-PC co-op was first played on 2026-10-17, between a Linux PC with Proton and a Windows PC.
 [Features and test status](docs/features.md#status) lists every later test and what has not been tested between two
@@ -91,7 +92,7 @@ features; Matrix XIII and Lily's signal have their own pages.
 
 | Requirement | Details |
 | --- | --- |
-| Game | Stellar Blade on Steam (PC), game build 24463856. [INSTALL.md: Update](INSTALL.md#update) says how to stop Steam from updating the game in the background. |
+| Game | Stellar Blade on Steam (PC), game build 26123051. [INSTALL.md: Update](INSTALL.md#update) says how to stop Steam from updating the game in the background. |
 | UE4SS | v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3". |
 | System | Windows, or Linux with Proton (Steam Deck included). |
 | Console | Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it. |

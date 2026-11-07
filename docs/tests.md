@@ -301,6 +301,9 @@ The C++ tests cover the platform-free headers in `native/src`.
 ### Other native headers
 
 - `photo_freeze_test`: the synced photo mode's pause against a fake pause set;
+- `globals_test`: SB's globals as build 26123051 lays them out, checked at compile time: the block offsets the fight
+  engine, the photo freeze, the lion gate and the Night Operation probe read land on the registry, the world, logic
+  and the net-mode cache, and every header that names one of these globals by address names the same one;
 - `debug_keys_test`: `coop fly`'s and `coop slowmo`'s gates against fake memory laid out like the pinned build: the
   keys' hash, the lookup through inline and allocated buckets and along a chain of collisions, each refusal with no
   write, and the passes (a gate set with its old value kept, set again after the game built its map again, its old

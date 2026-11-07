@@ -301,7 +301,7 @@ Added tabs appear at once, without the game's fade-in.
 The screen writes nothing to your save and unlocks no trophy. After `coop off`, or if a check fails, the screen goes back to the game's 7
 tabs. Screens already open keep their tabs until they close. These lines tell you what happened:
 
-- `coop-link.log`: `region tabs on: 0x145c3eb38 swapped from the Region logic's init to our hook` at start, and
+- `coop-link.log`: `region tabs on: 0x145c44978 swapped from the Region logic's init to our hook` at start, and
   `region tabs: <n> records added, <n> in the list, <n> tabs in the Region logic` once, for the first screen opened. With
   0 records added on a screen that opened with the mod's hooks on, the screen was built in another order than expected.
 - `coop-link.log`: `region tabs refused: ...` means another mod holds that pointer or its page would not change.

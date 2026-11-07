@@ -213,7 +213,7 @@ logs a line such as `fly hold: 5400 steps, 7 presses, 1 armed, 12 armed writes, 
 the space bar presses it saw, the third presses in the air, the frames it set the flight key before a takeoff and the
 flights it saw start. When the game's memory does not hold the setting the way the pinned build does, the native part
 writes nothing, logs why and says `coop fly refused: ...` on screen. The level flight's hook goes in at the first
-`coop fly on` of a game run (`level flight on: 0x145cc74a8 and 0x145cd37a8 swapped from the game's input pass to our
+`coop fly on` of a game run (`level flight on: 0x145ccd738 and 0x145cd9a38 swapped from the game's input pass to our
 hook`) and stays until `coop off` (`level flight off (coop off): 2 of 2 slots hold the game's input pass again`); in
 between it does nothing while `coop fly` is off. If another mod already changed
 those slots, it logs `level flight refused: ...` and leaves them alone: the space bar then starts no flight, and R2

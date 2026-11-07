@@ -290,7 +290,7 @@ applies them to her copy:
     drawing the copy (the pair ends, same place stops) and when the session ends (`coop fight off`, the link, the fault
     latch). A dying copy gets no call. The host's next bstart for that copy calls it again.
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
-  tables for build 24463856: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
+  tables for build 26123051: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
   thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as
   `SBF19 phase <gen> <hguid> <oe> <id,id,...|->` when they change and every second in battle mode.
   - The guest refuses a line with an ID her own table does not hold for that boss (a bad line), of another owner epoch,

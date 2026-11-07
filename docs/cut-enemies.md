@@ -234,7 +234,7 @@ The log lines, in `UE4SS.log` unless marked:
 | Line | What it answers |
 | --- | --- |
 | `tables: 14/14 found: CharacterTable=0x...` | The 14 tables the Lion's rows go into, found, with the addresses sent to the native part |
-| `lion rows: 237/237 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `lion rows: 237/237 added through SB's AddRow 0x1441815b0, 0 refused` (`coop-link.log`) | The native part added every row |
 | `lion rows by SB's lookups: CharacterTable 50020-50021 2/2, SkillTable 1004500-6000101 23/23, stance 500200-500201 2/2` (`coop-link.log`) | The game's own lookups by ID find the rows, which the spawn and the skills need (SkillTable: the Lion's 21 skills, the stimpacks' skill, 6000101, and the ChainSpin, 1004500) |
 | `rows read back through FindRow: 237/237 authored rows, 3178 fields as written (2156 differ from the template row)` | Every field the native part wrote reads as written; 2156 of them hold a value the shipped row it started from did not, and the other 1022 restate that row's value |
 | `rows already in (237/237; ...): not added again` | A later `coop lion` in the same game run |
@@ -325,7 +325,7 @@ The log lines, in `UE4SS.log` unless marked:
 | Line | What it answers |
 | --- | --- |
 | `tables: 5/5 found: CharacterTable=0x...` | The 5 tables the Gardener's rows go into, found, with the addresses sent to the native part |
-| `gardener rows: 13/13 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `gardener rows: 13/13 added through SB's AddRow 0x1441815b0, 0 refused` (`coop-link.log`) | The native part added every row |
 | `gardener rows by SB's lookups: CharacterTable 50010-50012 3/3, SkillTable 5001010-5001012 3/3, stance 500101 1/1` (`coop-link.log`) | The game's own lookups by ID find its three CharacterTable rows, its three skills and its stance |
 | `rows read back through FindRow: 13/13 authored rows, 279 fields as written (102 differ from the template row)` | Every field the native part wrote reads as written |
 | `rows already in (13/13; ...): not added again` | A later `coop gardener fight` in the same game run |
@@ -382,7 +382,7 @@ The log lines, in `UE4SS.log` unless marked:
 | Line | What it answers |
 | --- | --- |
 | `tables: 11/11 found: CharacterTable=0x...` | The 11 tables the Tendril's rows go into, found, with the addresses sent to the native part |
-| `tendril rows: 107/107 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added every row |
+| `tendril rows: 107/107 added through SB's AddRow 0x1441815b0, 0 refused` (`coop-link.log`) | The native part added every row |
 | `tendril rows by SB's lookups: CharacterTable 50060 1/1, SkillTable 5006000-5006010 11/11, stance 500600 1/1` (`coop-link.log`) | The game's own lookups by ID find its CharacterTable row, its 11 skills and its stance |
 | `rows read back through FindRow: 107/107 authored rows, 1281 fields as written (997 differ from the template row)` | Every field the native part wrote reads as written |
 | `shows: 12/12 ready (12 made, 0 found built), each with its own anim key on its clip and found by the path its steps name` | The Shows are built and the game can find them; after a Lua reload, `0 made, 12 found built` |

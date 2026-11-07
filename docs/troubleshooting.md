@@ -108,7 +108,7 @@ For the host:
   their table changed) brings it.
 - The ghost appears and disappears: it hides after a second without a pose, so poses are arriving with gaps. Look
   at the `<name>, last 60 s:` line in `coop-link.log` (RTT, drops, Steam's session quality).
-- `engine=off reason=...` in `coop status`: the native pose path is off. On a game build other than 24463856 it never
+- `engine=off reason=...` in `coop status`: the native pose path is off. On a game build other than 26123051 it never
   reads game memory, so no ghost can be drawn. After a fault, `coop-link.log` has an `engine off: fault ...` line.
 - `Ghost not built: ...`: the build failed for that table. It is tried again 2 s later, up to 3 tries in all; after
   the third failure the notice `Ghost failed 3 times: the reason is in UE4SS.log.` shows. Then a new table, a level

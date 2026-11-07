@@ -287,7 +287,7 @@ The native part's own lines, in `coop-link.log`:
 
 | Line | What it answers |
 | --- | --- |
-| `signal rows: 25/25 in, 24 added through SB's AddRow 0x14417ba30 and 1 shipped rows patched in place, 0 refused` | The quests' 24 rows are in, and the borrowed choice row is patched |
+| `signal rows: 25/25 in, 24 added through SB's AddRow 0x1441815b0 and 1 shipped rows patched in place, 0 refused` | The quests' 24 rows are in, and the borrowed choice row is patched |
 | `signal watch asked: the quest unit read every 250 ms on a co-op save from now on` | The quest list's reads start; before this line nothing reads it |
 | `lily on: her list reads on` | Her choice list now holds the borrowed row and her eight |
 | `lily off: her list reads off` | Her own eight choices are back |

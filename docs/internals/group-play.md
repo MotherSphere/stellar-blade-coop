@@ -26,7 +26,7 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   hint events), `t` in the zones the game's tables give for its events (spawns, despawns, environment changes, scenes),
   `z<n>` in the zone where the host stood when its pass saw the step (for the 38 steps the tables cannot place), `?`
   for such a step the host's pass did not see, `K` for a kill task and `#` for a quest the host denies. The table that
-  gives each step's class, zones and events is built into `quest/sync.h` from the tables of build 24463856; another
+  gives each step's class, zones and events is built into `quest/sync.h` from the tables of build 26123051; another
   game build needs it built again.
 - The guest's pass compares each host line with her own quest and plans the next forward step: an Epic or Sub quest
   she lacks is acquired by ID (`FUN_141c5cf20`, the call a quest zone event makes), a Request on her board is accepted
@@ -163,8 +163,8 @@ the hooks run once a Lua load, at the first tick with a player controller.
 
 The slot goes back at coop off and after a fault in the hook, by a compare-and-swap from the hook only. The DLL is pinned
 and is never unloaded, so nothing restores the slot at unload, as with the spawn filter. The feature writes only to UI
-objects and the records list: no save, trophy, inventory or table write. The `0xb8` offset and every address hold only on
-build 24463856, and the hook is never installed off the pinned build.
+objects and the records list: no save, trophy, inventory or table write. The `0xb8` offset and the addresses here are
+build 24463856's (the code holds their 26123051 values), and the hook is never installed off the pinned build.
 
 ## A player down
 

@@ -6,9 +6,9 @@ Each feature of the mod is listed below with what has been tested in game and wh
 
 ## Status
 
-Version 0.8.0 is an experimental beta. It runs on Stellar Blade's Steam build 24463856 only. Steam updated the game to
-build 26123051 on 2026-11-05, and 0.8.0 does not support that build: `coop status` shows `engine=off`, and every
-feature that reads the game's memory stays off (see [INSTALL.md: Update](../INSTALL.md#update)).
+Stellar Blade Online is an experimental beta. This version runs on Stellar Blade's Steam build 26123051 only, which
+Steam installed on 2026-11-05; versions up to 0.8.0 run on build 24463856 only. On another build `coop status` shows
+`engine=off`, and every feature that reads the game's memory stays off (see [INSTALL.md: Update](../INSTALL.md#update)).
 
 Two-PC co-op was first played on 2026-10-17, one PC on Linux with Proton and one on Windows, between Belgium and Brazil
 at about 240 ms ping. On 2026-10-21 two players on 0.4.0 played on the automatic co-op saves with shared enemies and

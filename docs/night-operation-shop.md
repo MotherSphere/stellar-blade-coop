@@ -307,7 +307,7 @@ The log lines, in `UE4SS.log` (the shop's `[StellarCoop][NR]` lines) unless mark
 
 | Line | What it answers |
 | --- | --- |
-| `bolt rows: 4/4 added through SB's AddRow 0x14417ba30, 0 refused` (`coop-link.log`) | The native part added the 4 rows |
+| `bolt rows: 4/4 added through SB's AddRow 0x1441815b0, 0 refused` (`coop-link.log`) | The native part added the 4 rows |
 | `bolt rows by SB's lookups: CharacterTable - 0/0, SkillTable 1003401 1/1, stance - 0/0` (`coop-link.log`) | The game's own lookup by ID finds the Shock Bolt's skill |
 | `[StellarCoop][LI] bolt rows read back through FindRow: 4/4 authored rows, 87 fields as written (22 differ from the template row)` | Every field the native part wrote reads as written |
 | `bolt rows refused <row>: <why>; <n>/4 added` (`coop-link.log`) | A row the native part would not add, and why. The buy stops with no points taken, and the Lion's rows are not touched |
@@ -350,7 +350,7 @@ The native part's own lines, in `coop-link.log`:
 
 | Line | What it answers |
 | --- | --- |
-| `shop rows: 6/6 added through SB's AddRow 0x14417ba30, 0 refused` | The shop's 6 rows are in |
+| `shop rows: 6/6 added through SB's AddRow 0x1441815b0, 0 refused` | The shop's 6 rows are in |
 | `nightshop watch: the shop screen and the Beta Seeds read every 250 ms` | The reads started (the screen's first request) |
 | `nightshop open_bolt: SB's shop screen opened on Shop_NightOperation_CoopBolt` | The game opened its shop screen on the shop that sells the Shock Bolt (`open` and `Shop_NightOperation_Coop` without it) |
 | `nightshop open refused: phase` | The screen did not open: the game was not playing (the other words as in the `nightshop=` line) |

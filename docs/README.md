@@ -43,6 +43,9 @@ start with `coop`.
 
 ## Building and internals
 
+The game addresses in the internals pages were read on build 24463856, unless a page names another build. The code
+holds their build 26123051 values, matched by comparing the two executables.
+
 | Page | What it covers |
 | --- | --- |
 | [Building](building.md) | Toolchain, `tools/install.py`, `tools/wine_smoke.py`, the reproducible build, releases, repository layout |

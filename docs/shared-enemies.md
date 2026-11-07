@@ -391,7 +391,7 @@ world changes in her game has not been tested yet; one that does is not covered 
   removed, as with the filter off.
 - The filter only refuses a spawn. It never kills, so a refused enemy gives no kill, reward, drop or quest progress,
   and no death of it is recorded. Quest and zone event enemies are other rows and never reach the list.
-- It refuses spawns on the guest's side only, on game build 24463856, and its list fills only while the host's
+- It refuses spawns on the guest's side only, on game build 26123051, and its list fills only while the host's
   `same_spawns=on` runs. The setting is read when the mod loads and counts from the next start of shared enemies.
 - The pointer is changed once a run, when shared enemies first start with the filter on the guest's side (or at
   `coop fight spawn probe`), and stays changed until `coop off` or the game exits. Between sessions every spawn passes.
@@ -399,16 +399,16 @@ world changes in her game has not been tested yet; one that does is not covered 
 
 The guest's `coop-link.log` says:
 
-- `spawn filter on: 0x145c10020 swapped from the game's Execute to our filter`: the filter is in place.
+- `spawn filter on: 0x145c15ea0 swapped from the game's Execute to our filter`: the filter is in place.
 - `spawn filter refused <spawnId>:<index>`: her game asked to spawn that enemy, and the filter refused it. Her game asks
   again after a while; each enemy is named once a session, and later refusals only count. `spawn filter: <n> more
   refused, not listed` counts the ones the log did not name.
-- `spawn filter refused: 0x145c10020 holds <address>, not the game's Execute (another mod's hook?); ...` or `spawn
-  filter refused: the page of 0x145c10020 would not become writable (error <n>); ...`: the filter did not start, and
+- `spawn filter refused: 0x145c15ea0 holds <address>, not the game's Execute (another mod's hook?); ...` or `spawn
+  filter refused: the page of 0x145c15ea0 would not become writable (error <n>); ...`: the filter did not start, and
   every spawn goes on as with it off. Nothing was written.
 - `spawn filter fault <code> in <where> reading <address>: off for this run`, then `spawn filter off (a fault): ...`:
   a fault in the filter's lookup turned it off until the game restarts.
-- `spawn filter off (coop off): 0x145c10020 holds the game's Execute again`. If another value is there by then, the
+- `spawn filter off (coop off): 0x145c15ea0 holds the game's Execute again`. If another value is there by then, the
   line names it and the mod leaves it.
 
 While the filter is in place, the `fight stats:` lines in `coop-fight.log` add `filter <n> seen, <n> refused`: the

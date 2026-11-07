@@ -238,7 +238,7 @@ the game's own pause, held in memory only, and nothing is saved. This has not be
 - During your own photo or selfie mode, the mod's screen is hidden (the feed, the menu, the partner HUD), and notices
   wait until it ends, then show above EVE. Your friend's ghost stays in the shot unless `photo_ghost=off`, and its name
   tag is hidden unless `photo_name_tag=on`.
-- The pause works on game build 24463856 only. On another build, or after a fault (`photo pause off: ...` in the log),
+- The pause works on game build 26123051 only. On another build, or after a fault (`photo pause off: ...` in the log),
   photo sync gives notices only.
 - `coop freeze <seconds>` (1 to 3600) holds the same pause in your game alone, so you can test it without a friend.
   `coop freeze off` ends it, and so does a load.
