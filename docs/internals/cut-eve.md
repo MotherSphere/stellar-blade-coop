@@ -54,7 +54,7 @@ world's player map, which the revive uses too); nothing is asked while `warp=` s
 `glue/tick/debug_game.inc`; not tested in game yet). EVE's character tick reads the flight key (R2 or Z) only through
 one function (`0x1423cf670`) and the time-control key (R1) only through another (`0x1423cf760`), and each passes its key
 on only while its gate reads true. A gate is one bool in a settings singleton of the game's, not a UObject: the pointer
-at `0x147037400` (the globals block's `+0x18`) leads to a `TMap<int32, bool>` at `+0xa8`, keyed by the
+at `0x147037400` (`+0x18` from the net-mode cache `0x1470373e8`) leads to a `TMap<int32, bool>` at `+0xa8`, keyed by the
 `Strihash_DEPRECATED` of the gate's name (`UseFlyingActionKey` `0x1147F83C`, `UseTimeControlKey` `0x43812976`), which
 its constructor fills with false. The cheat command meant for them, `USBCheatManager::SBSetCustomBool`, does nothing in
 the shipping build, and the character's own `SetCustomBool` writes another map, so no Lua call reaches them.

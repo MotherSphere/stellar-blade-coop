@@ -66,7 +66,7 @@ game yet, and in this version it never travels: `main.lua` leaves it off until t
   world, read once a map, sorted by distance to the host's EVE. The answer names the world and the 8 nearest, or
   `none` with `title`, `loading`, `nocamp` or `busy` (a warp or respawn of the host's under way).
 - The travel camps are the 120 ZoneCampTable rows of type FullCamp, SimplyCamp, PhoneBooth or Tetrapod that lead to
-  exactly one story world in build 24463856. Autosave volumes, camps that lead to several worlds or none, and the camps
+  exactly one story world in build 26123051. Autosave volumes, camps that lead to several worlds or none, and the camps
   of the developer test worlds are left out. The guest's game uses a camp of the answer only if it is in her own table
   under the host's world, her save has activated it, and it already exists as a name in her game (`FName` with
   `FNAME_Find`, which never makes one).
