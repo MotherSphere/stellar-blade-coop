@@ -8,24 +8,24 @@ The commands are in [Cut scenes and menus](../cut-scenes-and-menus.md).
 chapter loader. What the pinned build keeps of it:
 
 - The title screen's widget `WB_Lobby_Menu_Set` has a `WB_Lobby_Menu_Btn_ShortCut` button, collapsed, whose text key
-  `UI_Lobby_ShortCut` is in no string table. The lobby's set-up (`FUN_141ef0e70`) gives a click handler to 14 named
+  `UI_Lobby_ShortCut` is in no string table. The lobby's set-up (`FUN_141ef3420`) gives a click handler to 14 named
   buttons, and this one is not among them.
-- The `ShortcutGame` menu (UI logic 130, constructor `FUN_141f5efd0`) lists slots 1 to 4 of one map, the one the
-  constant `ShortCutMapPath` names (`FUN_141f60140`). `FUN_1422907c0` builds each path as `"%s%s%s/%s%02d.sav"`
-  (`FUN_142324b70`: the project's content folder, `ShortCutRootFolderPath`, the map, `ShortCut`, the slot), reads the
+- The `ShortcutGame` menu (UI logic 130, constructor `FUN_141f61e60`) lists slots 1 to 4 of one map, the one the
+  constant `ShortCutMapPath` names (`FUN_141f62fd0`). `FUN_142295f40` builds each path as `"%s%s%s/%s%02d.sav"`
+  (`FUN_14232a340`: the project's content folder, `ShortCutRootFolderPath`, the map, `ShortCut`, the slot), reads the
   file the way `FFileHelper::LoadFileToArray` does, turns it into a save object and keeps a few fields of it for the
   slot.
-- The menu's Accept branch (`FUN_141f5f9b0`) copies the chosen slot, calls `GetBestSaveSlotNum` (`0x142290b50`) and
+- The menu's Accept branch (`FUN_141f62840`) copies the chosen slot, calls `GetBestSaveSlotNum` (`0x1422962d0`) and
   drops its result, then asks for the lobby's UI logic and drops that too: the load itself was compiled out. The
   cheats `SBLoadFromShortcut` and `SBLoadShortcutData` read their parameters and return.
 - The paks hold 15 such saves under `SB/Content/System/Waypoint/`: B07 4, F02 3, G03 4 and Matrix_XI 4. G03's slots
   2 to 4 are byte for byte F02's 1 to 3.
 
 The list makes the menu's own calls, on the game thread, one file a frame, under its own SEH latch. It reads the file
-manager object that `IFileManager::Get()` (`FUN_142820e70`) returns, a function-local static at `0x14710a7a8`, and
-checks its vtable (`0x145f5c9a0`). It calls `CreateFileReader` at vtable `+0x18` (`FUN_142811eb0`) with the path
+manager object that `IFileManager::Get()` (`FUN_1428269c0`) returns, a function-local static at `0x14710f6b8`, and
+checks its vtable (`0x145f62d70`). It calls `CreateFileReader` at vtable `+0x18` (`FUN_142817a00`) with the path
 `../../../SB/Content/System/Waypoint/<map>/ShortCut0<n>.sav` and flags 0, so a missing file returns null instead of a
-fatal error. On the reader it checks the vtable (`FArchiveFileReaderGeneric`, `0x145f5bc60`), then calls `TotalSize`
+fatal error. On the reader it checks the vtable (`FArchiveFileReaderGeneric`, `0x145f61de8`), then calls `TotalSize`
 (`+0x30`), `Serialize` into a buffer of ours (`+0x150`), `Close` (`+0x1b8`, false after a read error) and the deleting
 destructor (`+0`). The bytes go to `shortcut::parse()` and are then dropped. It reads the GVAS header's engine branch,
 `MapName` and `CampAlias` in the map property `DataMap_FString`, and `DateTime` in `DataMap_int64`, each searched only
@@ -44,9 +44,9 @@ What the files are, against a save of the released game (2026-10-26):
 
 - Format. The files are bare GVAS, with no EVAS header and no CRC. Eleven come from UE 4.26 (package version 522) and
   Matrix_XI's four from 4.25 (518), against 525 for the released game's saves. Their dates run from March 2021 to July
-  2022. The game's slot loader (`FUN_141cd5e10`) hands the bytes to the engine's `LoadGameFromMemory`
-  (`FUN_1441fbbc0`), which reads a save with the package and custom versions its own header names, and its account
-  check (`FUN_1421d1390`) passes a save with no `OnlineAccountInfo`.
+  2022. The game's slot loader (`FUN_141cd8230`) hands the bytes to the engine's `LoadGameFromMemory`
+  (`FUN_144201790`), which reads a save with the package and custom versions its own header names, and its account
+  check (`FUN_1421d6950`) passes a save with no `OnlineAccountInfo`.
 - Missing fields. None of the 15 has `NewGameCreateTime`, `LevelActorStorage`, `UIStorage`, `EventGiftInfo`,
   `NikkeStageInfo`, `SaveFileVersionInfo`, `OnlineAccountInfo` or a `GameDifficulty`, and only G03 1 has
   `GamePlayProgressRecordData`. The game creates the save object before it reads the properties, so a missing one
@@ -68,27 +68,27 @@ What the files are, against a save of the released game (2026-10-26):
   `ME_Tachy_KillCharacter` (trophies 8, 9 and 10), with progress toward trophies 28 to 31 and 43. G03 3 and 4 are the
   same files. No achievement name appears anywhere else in the 15 files.
 
-The game runs nine fix-up passes on a loaded save (`FUN_1421def10`, reached through no direct call, with the save
+The game runs nine fix-up passes on a loaded save (`FUN_1421e44d0`, reached through no direct call, with the save
 object as its second argument). `SBAchievement` is the save object's `+0x2c8` (the `USBSaveGame` layout of a
 Dumper-7 SDK of the game), and each pass reads these fields:
 
 | Pass | Reads | Writes |
 | --- | --- | --- |
-| `FUN_1421defb0` | `SBAchievement`: its `Ach_Album_Unlock_*` entries | the count of them into the `Trophy_KillCharacter_AllNative` entry, when the list has one |
-| `FUN_1421e1ff0` | `SBAchievement`: `Trophy_KillCharacter_AllNative` | an achievement event for it (the pool `FUN_1421f1920`, the list at the manager's `+0x50`, when its `+0xe0` is 1): the path to Steam |
-| `FUN_1421e21f0` | `SBAchievement`: `Trophy_WeaponMaxUpgrade`; `DataMap_SBActor`'s `PlayerActor` | `PlayerActor`'s weapon level |
-| `FUN_1421e2650` | `DataMap_SBQuest`'s `Quest_Epic_Hidden` (M05 to M07); `DataMap_SBEnv` objects of `Zone_DED40` | a stuck DED40 object's position |
-| `FUN_1421e31f0` | `DataMap_SBEnv`'s `DED20_E_EnvC_002` and `DED20_EnvS_250` | their On or Off state |
-| `FUN_1421e3860` | `SBAchievement`: one completed entry; `DataMap_SBEnv` objects of ME_03 | a Matrix 11 object's state (`OpenMode_Burst`, `ToOpen`, `Closed`) |
-| `FUN_1421e41e0` | `DataMap_SBItem`'s `Item` inventory: six gears; `SBAchievement`: `Kill_Character_*`, `ChangeState_*` and record entries | completed `Ach_BossChal_Unlock_*` entries added to `SBAchievement` |
-| `FUN_1421e5e60` | `DataMap_int32` (a New Game+ count), `NewGamePlusBaseData`, two `_MK2` gears in the inventory, `SBAchievement`'s `Nest_Ending` | `NewGamePlusBaseData` |
-| `FUN_1421e62b0` | `DataMap_SBActor`'s `PlayerActor`; `DataMap_SBEnv`'s `SE_06_EnvS_071`, `SE_07_EnvS_001` and `SE_07_EnvS_076` | `PlayerActor` |
+| `FUN_1421e4570` | `SBAchievement`: its `Ach_Album_Unlock_*` entries | the count of them into the `Trophy_KillCharacter_AllNative` entry, when the list has one |
+| `FUN_1421e75b0` | `SBAchievement`: `Trophy_KillCharacter_AllNative` | an achievement event for it (the pool `FUN_1421f6ee0`, the list at the manager's `+0x50`, when its `+0xe0` is 1): the path to Steam |
+| `FUN_1421e77b0` | `SBAchievement`: `Trophy_WeaponMaxUpgrade`; `DataMap_SBActor`'s `PlayerActor` | `PlayerActor`'s weapon level |
+| `FUN_1421e7c10` | `DataMap_SBQuest`'s `Quest_Epic_Hidden` (M05 to M07); `DataMap_SBEnv` objects of `Zone_DED40` | a stuck DED40 object's position |
+| `FUN_1421e87b0` | `DataMap_SBEnv`'s `DED20_E_EnvC_002` and `DED20_EnvS_250` | their On or Off state |
+| `FUN_1421e8e20` | `SBAchievement`: one completed entry; `DataMap_SBEnv` objects of ME_03 | a Matrix 11 object's state (`OpenMode_Burst`, `ToOpen`, `Closed`) |
+| `FUN_1421e97a0` | `DataMap_SBItem`'s `Item` inventory: six gears; `SBAchievement`: `Kill_Character_*`, `ChangeState_*` and record entries | completed `Ach_BossChal_Unlock_*` entries added to `SBAchievement` |
+| `FUN_1421eb420` | `DataMap_int32` (a New Game+ count), `NewGamePlusBaseData`, two `_MK2` gears in the inventory, `SBAchievement`'s `Nest_Ending` | `NewGamePlusBaseData` |
+| `FUN_1421eb870` | `DataMap_SBActor`'s `PlayerActor`; `DataMap_SBEnv`'s `SE_06_EnvS_071`, `SE_07_EnvS_001` and `SE_07_EnvS_076` | `PlayerActor` |
 
-So only `FUN_1421e1ff0` turns save data into an achievement event, only from the achievement list, and only
-`FUN_1421e41e0` makes achievement data from anything else: from six gears in the inventory
+So only `FUN_1421e75b0` turns save data into an achievement event, only from the achievement list, and only
+`FUN_1421e97a0` makes achievement data from anything else: from six gears in the inventory
 (`Gear_HighHpDamageAdditiveRate_Common`, `Gear_KillEnemyAdditiveDamageRate_Common` and `_Uncommon`,
 `Gear_GainBurstGaugeValueOnDamaged_Common` and `_Uncommon`, `Gear_AdditiveGiveAndReciveDamageRate_Rare`), none of
-which the 15 files hold. The game's save builder (`FUN_1421d3ec0`) copies the running achievement container into
+which the 15 files hold. The game's save builder (`FUN_1421d9480`) copies the running achievement container into
 `+0x2c8` when it saves, which is the same list in the other direction.
 
 `shortcut::clean()` therefore:
@@ -106,9 +106,9 @@ which the 15 files hold. The game's save builder (`FUN_1421d3ec0`) copies the ru
    removing their inventory elements would leave EVE's suit in Matrix_XI pointing at an element that no longer
    exists.
 4. Wraps the body as the game's save writer wraps its own (`FSBSaveSystemWindows::OnCompleteSerialize`,
-   `FUN_1421f5de0`): `EVAS`, the version byte 1, three bytes the writer leaves unset (0 here, as in most real saves;
-   one real save seen holds `47 61 3e`), the body, then its CRC-32 (`FUN_1428dbbd0`, zlib's) in little endian.
-   The game's validity check (`FUN_1421f4e00`) compares that CRC.
+   `FUN_1421fb3a0`): `EVAS`, the version byte 1, three bytes the writer leaves unset (0 here, as in most real saves;
+   one real save seen holds `47 61 3e`), the body, then its CRC-32 (`FUN_1428e15e0`, zlib's) in little endian.
+   The game's validity check (`FUN_1421fa3c0`) compares that CRC.
 5. Checks the result before it is written: the game's own check (EVAS, version 1, CRC), a body of class
    `/Script/SB.SBSaveGame` whose tags all fit and end in `None` with the 4 trailing bytes, no `SBAchievement`, a
    `DataMap_SBItem` that parses, and none of the six gears anywhere in the body (any whole string, case ignored). A
@@ -130,12 +130,12 @@ for slot 4, so later passes count it as played and keep it. `saves export` refus
 and only a later copy of the player's own save into slot 4 removes it. Every write goes through the co-op saves' name
 check, and the player's own `StellarBladeSave0N.sav` files are only read, by the backup.
 
-The load is the game's own Load Game. Picking the fifth slot stores the slot at client `+0x868` (`FUN_141eee190`)
-and starts the lobby's fade; the start of play (`FUN_141cd6890`, run by the client's start-step queue in
-`FUN_141ccbb30`) then calls `FUN_141cd5e10(client, slot, 0, ...)`, which reads `StellarBladeCoop04.sav` through the
-save system, strips the EVAS header, loads it (`FUN_1441fbbc0`), checks its class and account, and applies it
-(`FUN_141cd7480`). The mod does not call `FUN_141cd5e10` itself: the game calls it as one step of that start
-sequence, after the fade, the level travel and the prep calls `FUN_141cd6890` makes first, and none of that can be
+The load is the game's own Load Game. Picking the fifth slot stores the slot at client `+0x868` (`FUN_141ef0740`)
+and starts the lobby's fade; the start of play (`FUN_141cd8cb0`, run by the client's start-step queue in
+`FUN_141ccde80`) then calls `FUN_141cd8230(client, slot, 0, ...)`, which reads `StellarBladeCoop04.sav` through the
+save system, strips the EVAS header, loads it (`FUN_144201790`), checks its class and account, and applies it
+(`FUN_141cd98a0`). The mod does not call `FUN_141cd8230` itself: the game calls it as one step of that start
+sequence, after the fade, the level travel and the prep calls `FUN_141cd8cb0` makes first, and none of that can be
 tested without the game. The title's slot list is not rebuilt, so the fifth slot may show the old copy's details;
 the file is read when the slot is picked.
 
@@ -149,7 +149,7 @@ What the cleaning does not cover:
   whose achievements do not matter, with Steam Cloud off.
 - The seven items with no `ItemTable` row stay in the inventory, in `PlayerActor`'s equipment and in its slot lists,
   where the developer left them. How the game loads an equipped or held item with no row was not traced. Some of its
-  item code checks for a missing row and logs it (`FSBUILogicReward::AddItem`, `FUN_141f36090`: `Failed to find
+  item code checks for a missing row and logs it (`FSBUILogicReward::AddItem`, `FUN_141f38620`: `Failed to find
   ItemTableProperty`). Matrix_XI 1 to 4 and F02 2 and 3 are the files that hold them.
 - The quests and task groups with no row stay in `DataMap_SBQuest`; what the game does with them was not traced.
 - Nothing was tried in game, so whether these old saves load at all, and where they start, is untested.
@@ -161,21 +161,21 @@ The lobby's ShortCut button stays hidden: its menu's load call was compiled out,
 The game ships its developer cheat menu as assets only. The UI definition `/Game/Art/UI/Definition/DebugCommand` names
 `WB_DebugCommand_Master` with `ESBUILogicType_DebugCommand` (191), and the widget is a plain `SBUserWidget` whose list
 and buttons a native UI logic would fill. SB registers one prototype logic per type at startup (the static initializers
-that call `0x141fc33a0`); the open path (`0x141fc4aa0`, through `0x141fc4d20`) clones the prototype of the type asked
-(`0x141fc3220`). Of the 220 initializers, 218 resolve to a type through the getter at their vtable's `+0x10` (`mov eax,
+that call `0x141fc75c0`); the open path (`0x141fc8cc0`, through `0x141fc8f40`) clones the prototype of the type asked
+(`0x141fc7440`). Of the 220 initializers, 218 resolve to a type through the getter at their vtable's `+0x10` (`mov eax,
 <type>`), and 191 is not among them, nor are the other debug panels (DebugViewer 193, HUDRealTimeDebug 194, the sound
 debuggers 195 and 196, FishingDebugger 49, BossChallengeDebugInfo 240). HUDQuestDebugger (51), DebugToastMessage (230)
 and DebugPlayerInfo (232) are.
 
 Each `CheatCommandTable` row is a console command for `USBCheatManager`. The class's native function table
-(`0x145dbc690`, 703 name and thunk pairs) points to 111 distinct thunks, and every thunk but one calls only the
+(`0x145dc2960`, 703 name and thunk pairs) points to 111 distinct thunks, and every thunk but one calls only the
 parameter readers (`FFrame::Step` and its typed helpers, `FMemory::Free`, the FString copy): the bodies are compiled
-out. 267 names share the empty thunk `0x141167170`. The one with a body, `SBLoadingScreenFadeAuto` (`0x14269e260`),
+out. 267 names share the empty thunk `0x1411674e0`. The one with a body, `SBLoadingScreenFadeAuto` (`0x1426a3e20`),
 is in no row. The 157 command words of the table include none with a body. The table's queue for game play progress
-cheats (`0x141c94fb0`) runs its rows through `APlayerController::ConsoleCommand` (vtable `+0xcd0`), so they end in the
+cheats (`0x141c96200`) runs its rows through `APlayerController::ConsoleCommand` (vtable `+0xcd0`), so they end in the
 same stubs.
 
-What still runs is the controller's `ServerRequest_Cheat`, whose logic job (`FSBCheat::Simulate`, `0x141b11800`) knows
+What still runs is the controller's `ServerRequest_Cheat`, whose logic job (`FSBCheat::Simulate`, `0x141b12a40`) knows
 `SBSuicide`, `SBPlayerRevival`, `SBPlayerSP`, `SBApplyEffectMe`, `SBLogPlayerLocation` and `SBPlayerMaxTachyGauge`. The
 table uses three: `SBApplyEffectMe` in 82 rows (64 effects, 62 of them in the shipped EffectTable), `SBPlayerSP` in 4
 and `SBPlayerRevival` in 1.
@@ -213,24 +213,24 @@ see [Achievements](safety.md#achievements)), the TPS unlock (`ActorStatType_Unlo
 `Test_Final*DamageReduce_080p`, `T_Drone_NoCoolScan` and `Test_EnemyEffectGroggy`).
 
 `coop devinfo` (`game/dev_panels.h`, run by `glue/tick/debug_game.inc`) opens the two registered read-only panels
-through the client's UI manager (`FSBUMGManager`, the client global `0x147032520` at `+0x48`). The quest debugger's
-logic (vtable `0x145c31fc8`) builds its text in its tick (`0x141e99710`, the vtable's `+0x48`, which the manager's tick
-`0x141fc5440` calls for each open UI) from the quest manager's quests, task groups and tasks, and sends it to the widget
-as a `LogMessage` notification. The player info's logic (vtable `0x145c209e8`) sets `PlayerTagName: %s` from the
-client's string at `+0xe0` once at its start (`0x141d854c0`).
+through the client's UI manager (`FSBUMGManager`, the client global `0x1470373f8` at `+0x48`). The quest debugger's
+logic (vtable `0x145c37fc8`) builds its text in its tick (`0x141e9bd80`, the vtable's `+0x48`, which the manager's tick
+`0x141fc9660` calls for each open UI) from the quest manager's quests, task groups and tasks, and sends it to the widget
+as a `LogMessage` notification. The player info's logic (vtable `0x145c26ef0`) sets `PlayerTagName: %s` from the
+client's string at `+0xe0` once at its start (`0x141d876e0`).
 
 The cheats meant to show them (`SBQuestDebuggerShow`, `SBHUDPlayerInfoDetailToggle`) are on the empty thunk. The calls
-copy SB's own: find (`0x141fc51d0`, the open entry whose logic has that type), open
-(`0x141fc4aa0(manager, type, null, null, 0, &FString{}, 0)`, as the client tick `0x141cd2e50` opens type 235) and close
-(`0x141fc5120(manager, type)`, the type read through the virtual at `+0x38` of the entry's `+0x10`, as `0x141abe390`
+copy SB's own: find (`0x141fc93f0`, the open entry whose logic has that type), open
+(`0x141fc8cc0(manager, type, null, null, 0, &FString{}, 0)`, as the client tick `0x141cd5270` opens type 235) and close
+(`0x141fc9340(manager, type)`, the type read through the virtual at `+0x38` of the entry's `+0x10`, as `0x141abf5d0`
 closes type 242).
 
 An open waits for part of the guard the client tick checks before its own open: flow 2 at `+0xa00` and phase `0xe` at
 `+0xb9c`. The tick also needs `+0xa21` not 1, not both `+0xb60` and `+0xb61`, the local player's `+0x25` at 3
-(`0x141cff700`) and `0x141cf0580` true; their meaning is unknown and the mod does not read them, so a panel may open
+(`0x141d01910`) and `0x141cf29a0` true; their meaning is unknown and the mod does not read them, so a panel may open
 where the game would not open its own. Both panels are untested in game.
 
-The client is read from its global, never through `0x141a978c0`, which allocates it. The worker hands the ask over with
+The client is read from its global, never through `0x141a987d0`, which allocates it. The worker hands the ask over with
 a number; the game thread takes it with `try_lock` at its next frame, under its own SEH latch, and hands back the
 number, the panel, the reason for a refusal and what it opened and closed. Lua's `coop off` asks `devinfo off` before
 `off`, and the game thread takes it after the block too.
@@ -242,11 +242,11 @@ number, the panel, the reason for a refusal and what it opened and closed. Lua's
 ### Why the game's mailbox is not used
 
 The mailbox's UI logic (`ESBUILogicType_MailBox`) is still compiled in, unlike the Load Shortcut menu's load call. Its
-open (`FUN_141ef3850`) takes the mailbox object's alias from its init parameter, builds the list from
+open (`FUN_141ef5de0`) takes the mailbox object's alias from its init parameter, builds the list from
 `MailBoxGiftTable` rows whose `EnableMailBoxEnvSpawnList` holds that alias, and marks a row received when its
 `EventGiftAlias` is in the game data's received list (`+0x848`, its array at `+0x850`). Its confirm handler
-(`FUN_141ef4db0`) calls `FUN_141cfd8e0`, which adds the gift's alias to that list, looks up its `EventGiftTable` row and
-grants each item through `FUN_141cfde20`, a grant of its own that builds an item instance and queues an add. The save
+(`FUN_141ef7340`) calls `FUN_141cffaf0`, which adds the gift's alias to that list, looks up its `EventGiftTable` row and
+grants each item through `FUN_141d00030`, a grant of its own that builds an item instance and queues an add. The save
 struct has the same kind of list (`FSBSaveGameData_EventGiftInfo.GiftList`, an array of names), which is where the
 received list most likely goes.
 
@@ -266,16 +266,16 @@ when asked for more, so the native part reads the count itself (`game/items.h`, 
 (client `+0x58`) included, apart from the revive guard and its latch, and the engine line of `coop-status.txt` gets
 `items=<ask> <count>` or `items=<ask> none <why>` (`unpinned`, `noeve`, `nomanager`, `nobucket`, `unread`; after
 `coop off` the status leaves `items=` out and only the worker's log line has `none off`).
-The read follows the game's own lookups on build 24463856:
+The read follows the game's own lookups on build 26123051:
 
-- the item bucket manager, a lazy singleton at `0x147032568` (its getter `FUN_141a97b20` makes it when null; the read
+- the item bucket manager, a lazy singleton at `0x1470373e0` (its getter `FUN_141a98a30` makes it when null; the read
   never does, so 0 is no inventory yet);
 - its bucket map at `+0x2b0`, from the bucket type (1, the inventory) to a map from the owner's GUID to the bucket,
-  both keyed by an int that is its own hash (`FUN_141ad7250`);
+  both keyed by an int that is its own hash (`FUN_141ad8490`);
 - the bucket's map at `+0x90` from the item's alias (an FName) to the GUIDs of its instances, hashed as UE 4.26 hashes
-  an FName (`FUN_140ecc610`, the find that the remove by alias `FUN_141bde8c0` calls);
+  an FName (`FUN_140ecc9d0`, the find that the remove by alias `FUN_141bdfb10` calls);
 - the manager's instance map at `+0x210` from an instance GUID to the item, hashed with CityHash64 of its 16 bytes
-  (`FUN_142835af0`; the test checks the result against that function run in Ghidra's emulator), and each item's count
+  (`FUN_14283b5f0`; the test checks the result against that function run in Ghidra's emulator), and each item's count
   at `+0x6c`, the field the remove lowers.
 
 Each set is a TSet: its element array at `+0`, the array's count at `+8`, its free count at `+0x34`, an inline hash
@@ -285,10 +285,10 @@ an index outside it, a hash size that is not a power of two or an implausible po
 ### The remove, the gift and its answer
 
 The remove is the player controller's `ServerRequest_ItemBucketItemRemove(1, <GUID>, <alias>, <count>, -1)`. Its
-implementation (`FUN_1423ba230`, vtable `+0x13d8` of the network player controller, behind a validate that returns true)
-queues the game's remove request (type 0x16, `FUN_141af93e0`) for the next turn of the logic thread, where
-`FSBItemBucketItemRemove::Simulate` (`FUN_141b0ba20`) removes by alias. -1 is the pocket index the request pool sets by
-default (`FUN_141b48810`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by the
+implementation (`FUN_1423bfa00`, vtable `+0x13d8` of the network player controller, behind a validate that returns true)
+queues the game's remove request (type 0x16, `FUN_141afa620`) for the next turn of the logic thread, where
+`FSBItemBucketItemRemove::Simulate` (`FUN_141b0cc60`) removes by alias. -1 is the pocket index the request pool sets by
+default (`FUN_141b49a50`). The count therefore falls a turn later, and Lua reads again every 0.5 s until it fell by the
 gift's count, for 10 s of play at most. A read that comes back `unread` (the remove changes the very sets the worker
 walks, so a read can tear) or `noeve` is asked again the same way; any other `none` answer stops the send. A tick while
 the game is paused, in photo mode, or in the friend's photo mode that pauses ours does not count: SB's logic thread

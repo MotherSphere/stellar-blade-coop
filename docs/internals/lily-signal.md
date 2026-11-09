@@ -51,15 +51,15 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
    but only from Lua's first signal request: `signal watch`, which Lua sends once a Lua load when the cheap gates hold
    (a co-op save, solo, the test pak found, the rows read back). Before it, nothing calls SB's quest unit getter and the
    line reads `signalquest=unread`.
-   - It reads the local player's quest unit (`FUN_141c5e880`, called only once the world and the manager exist, never on
+   - It reads the local player's quest unit (`FUN_141c5fad0`, called only once the world and the manager exist, never on
      SB's logic thread): the ID map through its allocation bits for 163, 164, 24 (Quest_Epic_11), 25 (Quest_Epic_12) and
      44 (Quest_Sub_005); each quest object through the quest vtable check, its state at `+0x48`, its active group and
      that group's first task.
    - Each request word calls one fixed thing: `acquire` and `prologue` the acquire by ID a quest zone event makes
-     (`FUN_141c5cf20`: the ID's row name through the QuestTable ID map AddRow filled, then AcquireQuest and PushQuest,
+     (`FUN_141c5e170`: the ID's row name through the QuestTable ID map AddRow filled, then AcquireQuest and PushQuest,
      which refuses an ID already held) for 163 or 164, only while the map does not hold it; `complete`, `talked`,
-     `zone4`, `tell` and `next` the first task's own Complete through its vtable's `+0x60` (`0x141c6eb10`, or
-     `0x141c70850`, the one that ends child tasks; the glue's call refuses any other address), only while that quest is
+     `zone4`, `tell` and `next` the first task's own Complete through its vtable's `+0x60` (`0x141c6fd60`, or
+     `0x141c71aa0`, the one that ends child tasks; the glue's call refuses any other address), only while that quest is
      in progress at that word's group (163's M01, 164's M01, 163's M05, 163's M06, or 163's active group for the test
      word `next`) with that task in progress in that group.
    - The answer fits one 64-bit word (each small number in 4 bits), so the worker never reads half of it. The

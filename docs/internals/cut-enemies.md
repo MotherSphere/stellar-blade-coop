@@ -146,7 +146,7 @@ EVE link steps whose Shows play a clip the Lion has, and no move may travel over
 ### The request
 
 The game reads CharacterTable, SkillTable and CharacterStanceTable by ID, through maps that only its own AddRow fills
-(the table's vtable slot `+0x2b0`, `0x14417ba30`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
+(the table's vtable slot `+0x2b0`, `0x1441815b0`). UE4SS's Lua `AddRow` is a raw RowMap insert that those maps miss, and
 its `RemoveRow` frees a row they may still point to, so the mod calls neither on a game table. Lua finds the tables
 the batch's rows go into by their fixed paths (`/Game/Local/Data/<table>.<table>`) and sends their addresses in one
 request, for the Lion its 14:
@@ -171,7 +171,7 @@ that moment, stops nothing.
 A request naming all 37 would take 1204 bytes at most with the 12 hex digits Lua's `%x` gives the highest plausible
 address and its line end (1352 with 16 digits); the native part reads up to 2048 bytes of that file. Each address has 1
 to 16 hex digits, is plausible and is 8-aligned; anything else gets `unknown request`. No console word reaches an
-address. The native part trusts none before it checks the table's vtable (`0x146402e10`), its AddRow slot and its row
+address. The native part trusts none before it checks the table's vtable (`0x146409530`), its AddRow slot and its row
 size.
 
 ### Adding the rows
@@ -199,7 +199,7 @@ lion=refused added=<n>/237 asks=<a> spawns=<s> why=<word> table=<table|-> row=<r
 lion=fault added=<n>/237 asks=<a> spawns=<s> where=<text>
 ```
 
-`asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147032590`
+`asks` counts the answers; Lua waits for it to grow. `spawns` is the logic thread's spawn manager counter (`0x147037438`
 `+0x198`), read every 250 ms once a first request came, `?` until then. It is read through ReadProcessMemory, outside
 the SEH latch, so a bad read leaves the last value and never stops the rows. It moves whenever any enemy spawns or goes,
 so `core/link.lua` leaves the line (and the Gardener's `gardener=`, the Tendril's `tendril=` and the Shock Bolt's
@@ -463,9 +463,9 @@ end time, with no step array, and reads each one back: the key must be the copy'
 value as written, and `/Game/Art/Show/StellarCoop/Tendril.<name>` must find the copy.
 
 That path is the one the game loads. The steps' `ShowPath` is `StellarCoop/Tendril.<name>`. The game's Show loaders
-(`0x1422853e0` and the six others that use the same `/Game/Art/Show/` string) put `/Game/Art/Show/` in front of it, keep
-a path that already has an extension as it is (`0x14202c500` appends `.<last word>` only when there is none) and call
-`StaticLoadObject` (`0x142b920d0`), synchronously. `StaticLoadObject` finds a package already in memory, then the object
+(`0x14228ab60` and the six others that use the same `/Game/Art/Show/` string) put `/Game/Art/Show/` in front of it, keep
+a path that already has an extension as it is (`0x142026b00` appends `.<last word>` only when there is none) and call
+`StaticLoadObject` (`0x142b97b30`), synchronously. `StaticLoadObject` finds a package already in memory, then the object
 in it, before it reads any file, so it returns the copy; no pak holds a package of that name, which the generator
 checks. A Show with no step array plays across the whole chain of steps its first step starts, as the game's own flash
 grenade and fishing skills do.

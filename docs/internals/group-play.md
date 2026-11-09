@@ -11,10 +11,10 @@ host's state through the game's own quest functions, one step at a time, for the
 on the game's quest data and the worker's side.
 
 The game's quest manager runs on the game thread, so the mod's pass does too: every 250 ms `coop_tick` reads the local
-player's quest unit (the quest manager at `0x147032588`, its unit from `FUN_141c5e880`) under the shared quests' own SEH
+player's quest unit (the quest manager at `0x147037428`, its unit from `FUN_141c5fad0`) under the shared quests' own SEH
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
-it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470634f0`) and that the save
+it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470683b0`) and that the save
 is still the co-op save it started on: another save ends the side with `SBQ19 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
@@ -29,7 +29,7 @@ on the next co-op save), while a load (the title screen, a map change) only paus
   gives each step's class, zones and events is built into `quest/sync.h` from the tables of build 26123051; another
   game build needs it built again.
 - The guest's pass compares each host line with her own quest and plans the next forward step: an Epic or Sub quest
-  she lacks is acquired by ID (`FUN_141c5cf20`, the call a quest zone event makes), a Request on her board is accepted
+  she lacks is acquired by ID (`FUN_141c5e170`, the call a quest zone event makes), a Request on her board is accepted
   with the board's own call (the Request quest's vtable `+0x10`), and a task is completed through its own Complete
   (task vtable `+0x60`). There is no quest-complete call: an Epic or Sub quest completes inside its last task's
   Complete, with its reward and next quest, and a Request stops ready to hand in, as in solo play.
@@ -72,7 +72,7 @@ game yet, and in this version it never travels: `main.lua` leaves it off until t
   `FNAME_Find`, which never makes one).
 - Her Lua checks its guards again, then hands the camp's name to the native part. On the game thread, the native part
   builds the game's 0x60-byte camp request as the game's ReturnToCamp job does and calls the game's fast travel
-  (`0x141cdd7b0`), out of line under its own SEH latch. Before the call it reads the globals that the call's getters
+  (`0x141cdfbd0`), out of line under its own SEH latch. Before the call it reads the globals that the call's getters
   reach, the client's flow and phase, any warp or respawn in flight, and whether the local player's EVE is in the
   world. It makes at most 3 calls in 10 s and none for 10 s after an accepted one.
 - A return of 0 is the game's refusal, and the guest's Lua tries the next camp of the answer.
@@ -83,26 +83,26 @@ game yet, and in this version it never travels: `main.lua` leaves it off until t
 - The follow itself is off: `main.lua` does not pass `follow` to `session/travel.lua`, so every travel is refused
   before `camps?` is sent (`travel refused: the follow stays off until it has been tested in game` in `UE4SS.log`, and
   the failed notice), and no offer shows. `coop travel probe` and `coop mxiii leave` use the read already.
-- The read (`game/camps.h`) asks the game's own camp list. The camp list screen (`FUN_141f65980`) calls
-  `FUN_141d1d650(zones, region, type, out, false)`, which returns the ZoneCampTable rows of that region and CampType
+- The read (`game/camps.h`) asks the game's own camp list. The camp list screen (`FUN_141f69530`) calls
+  `FUN_141d1f860(zones, region, type, out, false)`, which returns the ZoneCampTable rows of that region and CampType
   that hold an active row: a camp's rows are the ZoneEnvSpawn rows whose `TargetCamp` names it (the zone manager's
-  `+0x550` map, built by `FUN_141d18100`), and a row is active when its `ESBZoneEnvActiveState` is Active (1), read from
-  the live env object (`+0x21c`, set by `FSBZoneEnvRegister` through `FUN_141fdf900`) for a row of the zone EVE stands
+  `+0x550` map, built by `FUN_141d1a310`), and a row is active when its `ESBZoneEnvActiveState` is Active (1), read from
+  the live env object (`+0x21c`, set by `FSBZoneEnvRegister` through `FUN_141fe3b20`) for a row of the zone EVE stands
   in and from the zone's stored record (`+0x24`) for the others.
   - The game thread checks the client is in game, with no warp, respawn or logic task in flight, every 250 ms, and then
     calls that function every 2 s with no region (every region) once for each travel type (SimplyCamp, FullCamp,
-    Tetrapod, PhoneBooth), frees each list with the game's `FMemory::Free` (`0x14261adb0`) and reads the names from the
+    Tetrapod, PhoneBooth), frees each list with the game's `FMemory::Free` (`0x1426207f0`) and reads the names from the
     game's name pool. It reads the list again at once in a new world, and drops it when the client leaves the game (a
     load), so a list never outlives its save.
-  - It also reads the camp EVE respawns at: her FSBActor's `+0x26d0`, which the respawn (`FUN_141b0f8f0`) reads, and
+  - It also reads the camp EVE respawns at: her FSBActor's `+0x26d0`, which the respawn (`FUN_141b10b30`) reads, and
     that row's `TargetCamp` (`+0x270`). `+0x26d0` is the ZoneEnvSpawn row of her last rest or fast-travel arrival: in
-    warp phase 0xd the client tick (`FUN_141cd0b30`) passes the travel's camp and its first row to the arrival
-    (`FUN_141a8afe0`), which writes it there, since every camp travel (`FUN_141cdd7b0`) sets the request's arrival flag
+    warp phase 0xd the client tick (`FUN_141cd2f50`) passes the travel's camp and its first row to the arrival
+    (`FUN_141a8bef0`), which writes it there, since every camp travel (`FUN_141cdfbd0`) sets the request's arrival flag
     (client `+0xa22`).
   - It runs out of line under its own SEH latch; `coop-status.txt` carries it as
     `activated=<n>:<camp>,... rested=<camp>`, or `activated=none:<why>`.
-- The game's ReturnToCamp job (`FUN_141b2b000`) takes another camp: effect action 26 (`FUN_141bc7af0`) gives it the
-  FSBActor's `+0x2738`, which the camp arrival (`FUN_141a8afe0`) writes only for a Tetrapod camp, so that job returns
+- The game's ReturnToCamp job (`FUN_141b2c240`) takes another camp: effect action 26 (`FUN_141bc8d40`) gives it the
+  FSBActor's `+0x2738`, which the camp arrival (`FUN_141a8bef0`) writes only for a Tetrapod camp, so that job returns
   EVE to her last Tetrapod. The mod does not use it.
 - After an accepted call, the native part reads the game's warp block every 250 ms: `pending`, `warping`, `arrived`,
   or `refused:stuck` when the warp has not started 10 s after the call. `coop status` shows it as `travel=` on the
@@ -115,47 +115,47 @@ game yet, and in this version it never travels: `main.lua` leaves it off until t
 ## The teleport screen's extra tabs
 
 The between-regions teleport screen, `WB_AreaTeleport_Set`, has 7 tabs, and an 8th active Tetrapod never shows. The Region
-logic (`FSBUILogic` type 0xBC, vtable `0x145c3eb08`) fills its tab array once per open and holds child logic objects of
-type 0xBD, not widgets. A node exists only for a widget in the list of 0x2C records that `FUN_14252de30` builds from the
+logic (`FSBUILogic` type 0xBC, vtable `0x145c44948`) fills its tab array once per open and holds child logic objects of
+type 0xBD, not widgets. A node exists only for a widget in the list of 0x2C records that `FUN_142533870` builds from the
 widget's class properties. `AddChildSBUserWidget` and `CreateDynamicChildUserWidget` discard their records, so a tab made
 at run time gets no node and no camp.
 
 `ui/region_tabs.lua` hooks the Set's `Construct` and makes tabs 8 and 9 with `CreateDynamicChildUserWidget`, with `TabCount`
 and `TabName` set (`WB_AreaTeleport_Tab_8` and so on, as the Set stores for its own). The trailing spacer is removed first
-and added back after them. Each tab starts collapsed. The game shows a tab only through its logic (`FUN_141f690e0` sets
+and added back after them. Each tab starts collapsed. The game shows a tab only through its logic (`FUN_141f6cc40` sets
 each filled tab to `SelfHitTestInvisible` and each surplus one to `Collapsed`), so a tab that got no node stays hidden and
 takes no focus. That is the fallback for every failure below.
 
-`FUN_141fc4d20` builds the root node, calls its vtable +0x30, and only then walks the records (`0x141fc4e5a`). The native
-part swaps that slot, `.rdata` `0x145c3eb38`, from `FUN_141f66a00` to a hook, once a run, by the same aligned
+`FUN_141fc8f40` builds the root node, calls its vtable +0x30, and only then walks the records (`0x141fc907a`). The native
+part swaps that slot, `.rdata` `0x145c44978`, from `FUN_141f6a560` to a hook, once a run, by the same aligned
 compare-and-swap as [the spawn filter](shared-enemies.md#the-spawn-filter). No instruction byte changes. The hook acts only when its return
-address is `0x141fc4e21`, the root's call: the other call site, a child's at `0x141fc4fa2`, holds a pointer into the list
-that a grow would leave dangling. It reads the list's address from `0x141fc4d20`'s fifth argument on the stack
+address is `0x141fc9041`, the root's call: the other call site, a child's at `0x141fc91c2`, holds a pointer into the list
+that a grow would leave dangling. It reads the list's address from `0x141fc8f40`'s fifth argument on the stack
 (`[rbp+0x50]`, 0xb8 above the hook's return address). The list must look sane and hold at least one child of
 `HB_AreaTeleportRoot`, otherwise nothing changes. That child's class is the tab class. Each panel child of that class with
-no record then gets what `FUN_1425303c0` gives a class-property widget: `+0x4d0 = 0xBD`, `FUN_1425315e0` and a GUID from
-`FUN_142269830`. Its record `{name, guid, 0xBD, node+0x44}` is appended with the count raised before the grow
-(`FUN_1418fc350`), as the game's own code does. Node creation, the delegates, the array and the camp list then run unchanged.
+no record then gets what `FUN_142535e00` gives a class-property widget: `+0x4d0 = 0xBD`, `FUN_142537020` and a GUID from
+`FUN_14226eeb0`. Its record `{name, guid, 0xBD, node+0x44}` is appended with the count raised before the grow
+(`FUN_1418fc4e0`), as the game's own code does. Node creation, the delegates, the array and the camp list then run unchanged.
 
-Surplus tabs stay collapsed by `FUN_141f690e0`, so a save with 8 regions shows 8 tabs. The row is `HB_AreaTeleportRoot`, a
+Surplus tabs stay collapsed by `FUN_141f6cc40`, so a save with 8 regions shows 8 tabs. The row is `HB_AreaTeleportRoot`, a
 horizontal ScrollBox that ships with `ScrollBarVisibility` `Hidden`. A tab is 410 units wide in the row and the space is
 3528, so 8 tabs fit in 3340 and 9 need 3750. The Lua sets `SetClipping(1)`, `SetScrollBarVisibility(0)` and
 `SetScrollbarThickness` once. The engine collapses the bar while nothing overflows. The bar keeps the engine's default
 look, since `WidgetBarStyle` applies only when the Slate widget is built.
 
-There is no tab 10. While a newly activated camp's tab plays `Unlock`, the logic's `+0x128` stays set (`0x141f67478` sets
-it, `0x141f68f05` clears it once the unlock list is empty), and `FUN_141f67cc0` returns early on it, which blocks the hold
+There is no tab 10. While a newly activated camp's tab plays `Unlock`, the logic's `+0x128` stays set (`0x141f6afd8` sets
+it, `0x141f6ca65` clears it once the unlock list is empty), and `FUN_141f6b820` returns early on it, which blocks the hold
 and the close. A 10th tab would start at about 3700, wholly outside the row at scroll 0. From UE 4.26's source, Slate then
 does not paint it, it gets no tick, and its animation does not advance, so the lock would never clear. That engine step
 has not been run in game. With 9 tabs the row scrolls only 222 units, so every 410-wide tab stays partly painted.
 
-Which camp a hold takes comes from `+0xb4`, which the handler `FUN_141f68750` sets from the last `_` token of a
+Which camp a hold takes comes from `+0xb4`, which the handler `FUN_141f6c2b0` sets from the last `_` token of a
 `NotifyBlueprint` string. The Set's `Construct` binds its `EventFocusSlotN` chain for Tab_1 to Tab_7 only, so a focus on tab 8
 would leave `+0xb4` on the last vanilla tab and a keyboard or gamepad hold would travel to that tab's camp. The Lua hooks
 the Tab's `EventWidgetFocusActive`: for `TabCount` above 7 it calls `ParentWidget:NotifyBlueprint(TabName)`. The focus hook
 is registered before the `Construct` hook, and a failed send collapses that tab. The focus hook keeps running after coop
 off and after a failure, for tabs already on screen. A mouse press takes `+0xb4` from the slot's own `+0x2f4` through the slot's
-delegate. An out-of-range `+0xb4` can start no hold: `FUN_141f67d80` checks it against the array's count.
+delegate. An out-of-range `+0xb4` can start no hold: `FUN_141f6b8e0` checks it against the array's count.
 
 The game can unload a Blueprint class that nothing references, and a class loaded again would have no hook. A rooted
 instance of the Set class (`StellarCoop_RegionTabsKeeper`, never added to a screen) holds both classes. The asset load and
@@ -164,7 +164,7 @@ the hooks run once a Lua load, at the first tick with a player controller.
 The slot goes back at coop off and after a fault in the hook, by a compare-and-swap from the hook only. The DLL is pinned
 and is never unloaded, so nothing restores the slot at unload, as with the spawn filter. The feature writes only to UI
 objects and the records list: no save, trophy, inventory or table write. The `0xb8` offset and the addresses here are
-build 24463856's (the code holds their 26123051 values), and the hook is never installed off the pinned build.
+build 26123051's, and the hook is never installed off the pinned build.
 
 ## A player down
 

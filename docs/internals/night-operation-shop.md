@@ -43,17 +43,17 @@ ItemTable AddRow leaves that table in an unknown state for each of them.
 ### The opener
 
 `nightop/shop_ui.h` (free of Windows, tested on the build machine) and `glue/tick/nightop_game.inc` make the calls the
-vending machine's interaction node makes (`SBInteractionNode_ShopUI`, its execute `FUN_141b89c80`), on the game thread
-under their own SEH latch. The UI manager is the client's `+0x48` (client global `0x147032520`, read directly and never
+vending machine's interaction node makes (`SBInteractionNode_ShopUI`, its execute `FUN_141b8aec0`), on the game thread
+under their own SEH latch. The UI manager is the client's `+0x48` (client global `0x1470373f8`, read directly and never
 through its getter, which allocates).
 
 An open needs the client in game (flow `+0xa00` 2) and playing (phase `+0xb9c` `0xe`) and no shop screen open
-(`FUN_141fc51d0` with the shop logic's type `0xab`); then `FUN_141fc4aa0` opens the screen (manager, type, no child
+(`FUN_141fc93f0` with the shop logic's type `0xab`); then `FUN_141fc8cc0` opens the screen (manager, type, no child
 list, no parent, 0, an empty FString, 0) and the shop logic (the entry's `+0x60`) takes the shop alias, the instance
 alias (the same: the rows keep `UnionLimitedItem`) and the title tag (None, as the cut machine leaves it) through
-`FUN_141f47130`. A close calls `FUN_141fc5120` with the entry's own type, the virtual at `+0x38` of its `+0x10`, as the
+`FUN_141f49ab0`. A close calls `FUN_141fc9340` with the entry's own type, the virtual at `+0x38` of its `+0x10`, as the
 node does. A new entry with no shop logic is closed the same way at once, and the open answers `logic`. A fault inside
-`FUN_141f47130` leaves the new screen up without its shop: the latch then stops every read and close, so the player
+`FUN_141f49ab0` leaves the new screen up without its shop: the latch then stops every read and close, so the player
 closes it.
 
 A purchase is then the game's own local job (`FSBActorBuyItem`): it checks the seeds, removes them, raises its BuyItem
@@ -62,8 +62,8 @@ and ConsumeInShop achievement events with the seed and the shop's (empty) tags, 
 
 After the first request (Lua's `nightshop watch`), every 250 ms the game thread reads whether a shop screen is open and,
 with the client in game (flow 2, which the title screen fails) and inside the rows' gate (net mode 0, no logic task in
-flight, since a purchase is a logic task), the bucket's seed count through the screen's own call (`FUN_141c3e6c0` on
-`FUN_141cc1d60` of the player data, the world's `+0xe8`). The reads go on for the rest of the game run; whether a level
+flight, since a purchase is a logic task), the bucket's seed count through the screen's own call (`FUN_141c3f910` on
+`FUN_141cc4020` of the player data, the world's `+0xe8`). The reads go on for the rest of the game run; whether a level
 load leaves the flow at 2 while the player data is torn down is not checked. The `nightshop=` status line carries both
 and the last request's answer. A close asked after `coop off` still runs.
 
@@ -103,9 +103,9 @@ The wallet file (`coop-night-<steamid>-<index>.txt`) stays the record.
 
 `nightop/roxanne.lua` adds Night Operation's levels and supplies to Roxanne's dialogue on a co-op save. Her choice list,
 `TS_Xion_Roxane_Choice`, holds two TheaterSelectDataTable rows (Shop, End Conversation). The game does not read the list
-from the table when a dialogue starts: `FUN_141b41090` looks the list's name up in a cache built before play, a TMap at
-the world singleton's (`0x147032570`) `+0xe0` object's `+0x5f0` (elements of `0x28` bytes: the name at `+0`, its TArray
-of row names at `+0x10`, count `+0x18`, max `+0x1c`; find `FUN_1417022e0`), then fetches each listed row by name and
+from the table when a dialogue starts: `FUN_141b422d0` looks the list's name up in a cache built before play, a TMap at
+the world singleton's (`0x1470373d0`) `+0xe0` object's `+0x5f0` (elements of `0x28` bytes: the name at `+0`, its TArray
+of row names at `+0x10`, count `+0x18`, max `+0x1c`; find `FUN_1417024c0`), then fetches each listed row by name and
 reads its fields live. So writing a row's `SelectDataName` does nothing, and a row added with AddRow is not listed
 either.
 
@@ -126,7 +126,7 @@ either.
    may show the rows, so they stay ours until the off of step 5.
 3. The list: `nightop/roxanne.h` (free of Windows, tested against fake memory) and `glue/tick/nightop_game.inc` point
    her entry at a new array of six FNames, the four rows then her two, allocated with the game's GMalloc
-   (`0x14706b500`, Malloc at its vtable's `+0x10`) so the game may free it like its own. From the moment the entry
+   (`0x1470703c0`, Malloc at its vtable's `+0x10`) so the game may free it like its own. From the moment the entry
    points at it, the array is the game's: it is used again only after off took it back, and an entry the game rebuilt
    meanwhile gets a new one (the shape check compares the count too, as GMalloc may hand a freed array out again). The
    entry is changed only while it holds exactly her two rows in her order; the old array is kept, and off puts the old
@@ -224,12 +224,12 @@ it, so `coop lion`, `coop chainspin` and the stimpack buys leave both lists as t
 
 - The game reads a stance's `CommandArray` (a `TArray<FName>` at row `+0x90`) in one place: when the stance starts, it
   copies each command into nodes of its own and keeps no pointer into the array. The native part takes the row the
-  stance change looks up (the registry's lookup by name, `0x141a9cd20`), checks its ID and appends the two fire
-  commands the way the game appends: the count raised, the game's grow (`0x140e47f00`, a reallocation through the
+  stance change looks up (the registry's lookup by name, `0x141a9dd40`), checks its ID and appends the two fire
+  commands the way the game appends: the count raised, the game's grow (`0x140e482d0`, a reallocation through the
   game's allocator) when it passes the capacity, then the names. EVE gets them the next time she enters the stance.
   AddRow under a live stance's name would free the row the game hands out.
-- The ammo list is `BulletItemSlotArray`, a string array in the game's constant store (the singleton at `0x147032540`,
-  keyed by the hash of the name, `0x14117c1f0`): `Bullet_Normal`, `Bullet_Scatter`, `Bullet_Railgun`, `Bullet_Missile`,
+- The ammo list is `BulletItemSlotArray`, a string array in the game's constant store (the singleton at `0x147037400`,
+  keyed by the hash of the name, `0x14117c560`): `Bullet_Normal`, `Bullet_Scatter`, `Bullet_Railgun`, `Bullet_Missile`,
   `Bullet_Explosive`. The item slot manager and the TPS bullet HUD copy it when they start. The game locks a slot only
   while its index is below the 5 entries of `BulletItemAcquisitionSlotArray`, so a sixth, `Bullet_Shock`, is never
   locked. The native part appends it there through the game's allocator and, when the slot manager already exists, to

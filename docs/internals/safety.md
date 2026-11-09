@@ -13,12 +13,12 @@ claim the host accepts):
 - That kill kills our copy, with our EVE as the cause, only when our EVE took part in its fight: a drop on our copy
   that no write of ours made (her own hit), our EVE as the game's last player on the copy, or, with
   `kill_credit=together` (the default), our EVE within 30 m of the copy (FSBActor `+0x4cc`) at the kill. The last
-  player is the GUID at logic actor `+0x638`, which the game stores (`FUN_141ba8190`) when an enemy targets a player or
-  a player's hit lands, and which its death handler (`FUN_141bae5d0`) takes as the killer of a death with no player
+  player is the GUID at logic actor `+0x638`, which the game stores (`FUN_141ba93d0`) when an enemy targets a player or
+  a player's hit lands, and which its death handler (`FUN_141baf820`) takes as the killer of a death with no player
   cause. No EVE of ours found counts as no part. Damage from before the enemy was shared or paired does not count as
   our hit: the other player's claims before a pause hurt it too.
-- Our mirrored crowd controls go through the game's effect call (`FUN_141ad08b0`) with our EVE as the caster. Whether
-  that call can reach `FUN_141ba8190` is not ruled out, so the engine reads `+0x638` before and after each such call:
+- Our mirrored crowd controls go through the game's effect call (`FUN_141ad1af0`) with our EVE as the caster. Whether
+  that call can reach `FUN_141ba93d0` is not ruled out, so the engine reads `+0x638` before and after each such call:
   a copy on which it turned into our EVE is noted for the session (`last player ... set by a mirrored crowd control`),
   and its `+0x638` no longer counts as our part.
 - Without part, our copy does not die, since a death with no cause still drops loot, records the death in the zone and
@@ -55,7 +55,7 @@ claim the host accepts):
 - Every camp travel of the mod but `coop mxiii`'s and `coop mxiii 30`'s goes only to a camp the player's save has
   already activated, because activating a camp counts toward achievements and the game's fast travel does not check it
   ([Following the host](group-play.md#following-the-host)). The native read asks the game's own camp list
-  (`FUN_141d1d650`, the function the camp list screen calls) for the camps of the travel table that hold an active
+  (`FUN_141d1f860`, the function the camp list screen calls) for the camps of the travel table that hold an active
   ZoneEnvSpawn row, so the mod travels only where the game's own camp list would let the player travel. The follow is
   off in this version and makes no call at all.
   - `coop travel probe <camp>`, the follow's solo test, and `coop mxiii leave` refuse any camp the read does not list,
@@ -75,7 +75,7 @@ claim the host accepts):
     and TrophyTable, and only its 89 `ChangeState_ZoneEnv_*_Camp` rows raise it, each on one named shipped
     ZoneEnvSpawnTable row turning On (`DED10_EnvS_113` and the others). `Trophy_Activate_FirstCamp` takes
     `DED10_EnvS_100` alone. No count of ZoneCampTable or ZoneEnvSpawnTable rows goes into either: the game's code names
-    `Trophy_Activate_AllCamp` once, in `FSBActorProgressAchievement::Execute` (`FUN_141b1b280`), to call `FUN_141ce5c30`
+    `Trophy_Activate_AllCamp` once, in `FSBActorProgressAchievement::Execute` (`FUN_141b1c4c0`), to call `FUN_141ce8050`
     after that row has progressed.
   - None of the 2747 AchievementTable rows names a `DLC02` row, zone or world, `MXIII` or `DLCMatrix13`. The only rows
     that match a camp object by its class are the skill machine's guide rows (`Ach_Guide_InteractEnvAlias_SkillMachine`,

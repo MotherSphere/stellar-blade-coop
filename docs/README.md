@@ -43,8 +43,9 @@ start with `coop`.
 
 ## Building and internals
 
-The game addresses in the internals pages were read on build 24463856, unless a page names another build. The code
-holds their build 26123051 values, matched by comparing the two executables.
+The game addresses in the internals pages are build 26123051's, the build the code pins. They were read on build
+24463856 and matched to their build 26123051 values by comparing the two executables; none of the old addresses is
+left. The pages still name build 24463856 where a fact was read on that build, such as the table dumps.
 
 | Page | What it covers |
 | --- | --- |

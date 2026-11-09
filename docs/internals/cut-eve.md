@@ -38,10 +38,10 @@ place, as `lion/shock.h` does for the gun stances (see [The cut Shock Bolt](nigh
 
 `coop chainspin` (`cut/chainspin.lua`) starts it. It gets the rows in through `Lion.rows`, as the shop does, then calls
 `ServerRequest_Cheat(<EVE's GUID>, 0, "SBApplyEffectMe", "1004500")` on the player controller. The request's
-implementation queues an `FSBCheat` logic request (`0x141afe5e0`); its `Simulate` (`0x141b11800`) finds the actor by
-GUID, reads the first argument as a number and calls the effect function `0x141ad08b0` (the one the shared fight's job
+implementation queues an `FSBCheat` logic request (`0x141aff820`); its `Simulate` (`0x141b12a40`) finds the actor by
+GUID, reads the first argument as a number and calls the effect function `0x141ad1af0` (the one the shared fight's job
 calls) with the actor as target and caster. The effect's action 69 turns its `ActionValue1` into an FName, finds the
-SkillTable row by that name (`0x141a9a620`) and calls `FSBActorLogicObject::UseSkill` (`0x141ba23c0`) with the row's ID.
+SkillTable row by that name (`0x141a9b530`) and calls `FSBActorLogicObject::UseSkill` (`0x141ba3600`) with the row's ID.
 The effect's condition keeps all of it to Tachy Mode. Two other ways were ruled out in the disassembly:
 `ServerRequest_UseSkill` builds an `FSBUseSkill` request whose `Simulate` looks for a command node in the actor's
 stance and global command lists and does nothing without one ("skillCommandNode is null"), and the cheat manager's
@@ -52,16 +52,16 @@ world's player map, which the revive uses too); nothing is asked while `warp=` s
 
 `coop fly` and `coop slowmo` switch on two developer gates that the game ships off (`game/debug_keys.h`, run by
 `glue/tick/debug_game.inc`; not tested in game yet). EVE's character tick reads the flight key (R2 or Z) only through
-one function (`0x1423c9ea0`) and the time-control key (R1) only through another (`0x1423c9f90`), and each passes its key
+one function (`0x1423cf670`) and the time-control key (R1) only through another (`0x1423cf760`), and each passes its key
 on only while its gate reads true. A gate is one bool in a settings singleton of the game's, not a UObject: the pointer
-at `0x147032540` (the globals block's `+0x18`) leads to a `TMap<int32, bool>` at `+0xa8`, keyed by the
+at `0x147037400` (the globals block's `+0x18`) leads to a `TMap<int32, bool>` at `+0xa8`, keyed by the
 `Strihash_DEPRECATED` of the gate's name (`UseFlyingActionKey` `0x1147F83C`, `UseTimeControlKey` `0x43812976`), which
 its constructor fills with false. The cheat command meant for them, `USBCheatManager::SBSetCustomBool`, does nothing in
 the shipping build, and the character's own `SetCustomBool` writes another map, so no Lua call reaches them.
 
-Every 250 ms while a gate is wanted, the game thread looks its key up as the game's lookup (`0x14261db60`) does and
+Every 250 ms while a gate is wanted, the game thread looks its key up as the game's lookup (`0x1426235a0`) does and
 writes 1 into the value byte of the element it finds. It first checks that the gate function's own copy of the key (a
-static that function fills at its first call, at `0x1471082ec` and `0x1471082f4`) holds the same key, that the map's
+static that function fills at its first call, at `0x14710d18c` and `0x14710d194`) holds the same key, that the map's
 counts and buckets are in range and that the byte reads 0 or 1. It never inserts an element. The reads go through
 `ReadProcessMemory`, and the one write runs under the gates' own SEH latch. The value read before the first write goes
 back once the gate is no longer wanted: `off`, `coop off`, the next Lua load (the worker clears the asks when Lua's
@@ -78,22 +78,22 @@ cooldown), and ends it when the key is released. With the slow-motion gate on, h
 `TimeControlKeyScale` (0.2), and every tick without it sets 1 again, so slow motion ends by itself.
 
 The start and the level flight (`Hold` in `game/debug_keys.h`) set the flight key's flag after the game's key pass. The
-player controller's input pass (`0x1423c47a0`, its `ProcessPlayerInput(dt, paused)`) recomputes `USBPlayerInput`'s
-`bPushedFlyingActionKey` (`+0x193`) from the keys held each frame, through `0x1423c86f0`, and EVE's tick, which runs
+player controller's input pass (`0x1423c9f70`, its `ProcessPlayerInput(dt, paused)`) recomputes `USBPlayerInput`'s
+`bPushedFlyingActionKey` (`+0x193`) from the keys held each frame, through `0x1423cdec0`, and EVE's tick, which runs
 after the controller's, starts a flight while the flight flag reads true in the air and ends it when the flag reads
 false. A write from Lua came before the pass, which cleared it, and one from a hook on EVE's blueprint `ReceiveTick`
 came after the character tick's check: both times the flight ended 0.02 s after the keys were let go.
 
-The pass is called only through two vtable slots, `0x145cc74a8` and `0x145cd37a8` (its other references are unwind
+The pass is called only through two vtable slots, `0x145ccd738` and `0x145cd9a38` (its other references are unwind
 data). At the first `coop fly on` of a run, the worker swaps each slot by a compare-and-swap from the game's function to
 a hook of ours, only after checking that both hold exactly that function. The hook calls the game's pass, then, on the
 game thread, while both slots hold it, the fly gate is ours and the game is not paused, reads the controller's pawn
 (`+0x2f8`) and input handler (`+0x668`).
 
-The same pass sets `bPushedJumpKey` (`+0x197`) only from `DefinedJumpKeyLists` (`+0xF8`, at `0x1423c887e`), and
+The same pass sets `bPushedJumpKey` (`+0x197`) only from `DefinedJumpKeyLists` (`+0xF8`, at `0x1423ce04e`), and
 `DefaultInput.ini` puts no key in that list, so the flag stays 0. The first version of the hook read it and counted no
 press in a test of 2026-10-26 (six presses in the air, no flight). The hook asks the game whether the space bar is down
-instead, through `FUN_14231f470`, the check the pass runs on each key of its lists: it looks the key up in the player
+instead, through `FUN_142324c40`, the check the pass runs on each key of its lists: it looks the key up in the player
 input's `KeyStateMap` (the controller's `PlayerInput`, `+0x3F0`).
 
 A space typed into the co-op chat, a Space select in the co-op menu or saves list (they take the game's input with
@@ -104,7 +104,7 @@ pressed again. A Jump key rebound in the game's settings is not followed.
 
 The hook counts the space bar's presses since EVE left the ground. She is on the ground when her movement component
 (`ACharacter`'s `+0x330`) has a `MovementMode` (`+0x19C`) other than falling (3): the pinned build's `IsFalling`
-(`0x1440a5b80`, in the movement component's vtable) compares that byte with 3. There the count is 0, or 1 while the
+(`0x1440ab6f0`, in the movement component's vtable) compares that byte with 3. There the count is 0, or 1 while the
 press she jumps with is still down or less than 0.3 s old (game time, from the pass's own delta), since her
 jump may leave the ground a frame or more after the press and a short tap can end before that. Each press in the air
 adds one. The third press arms the start: from then on, on every frame her `bFlyingAction` (`+0x1101`) reads 0, the
@@ -126,9 +126,9 @@ run. `coop off` puts them back too. The pass recomputes the flag each frame, so 
 
 `coop glide` (`cut/glide.lua`, not tested in game yet) plays the part of a cut piece of EVE's movement code. In the
 pinned build, `ASBCharacter`'s `bGlide` (`+0x1100`) has four readers and no writer. The movement component's gravity
-(`0x14214d380`, its `GetGravityZ` slot) checks it before the flight and the wall run and scales gravity by
-`GlideGravityScale` (`+0xC80`, 0.1). Its air control (`0x142154f80`) scales by `GlideAirControlScale` (`+0xC8C`, 1.0,
-the same as without a glide). The reflected `IsGlide` (`0x142686080`) returns it, and the movement debug print shows it
+(`0x142152100`, its `GetGravityZ` slot) checks it before the flight and the wall run and scales gravity by
+`GlideGravityScale` (`+0xC80`, 0.1). Its air control (`0x142159d00`) scales by `GlideAirControlScale` (`+0xC8C`, 1.0,
+the same as without a glide). The reflected `IsGlide` (`0x14268bb90`) returns it, and the movement debug print shows it
 as `Glide %s`. No instruction writes it, and nothing reads `GlideHoldKeyDurationOnJump` (`+0x1360`, 0.2) or
 `RemainGlideKeyHoldDuration` (`+0x1364`): the hold-Jump code that set and cleared the flag was cut. Unlike the flight,
 no setting gates it, so no write to the settings map could turn it on.
@@ -164,12 +164,12 @@ native call finds it in memory. A start is refused in the air or during a skill.
 The montage most likely shows nothing: `CH_P_EVE_01_AnimBP_New`, EVE's animation blueprint, has no slot node and no
 montage in the 2026-10-06 extract. SB plays her clips through its own custom animation nodes
 (`SBAnimNode_SequenceBlendedPlayer`, `CustomAnimNode` in that blueprint), fed by `ASBCharacter::PlayCustomAnim`
-(`0x1420ae740`, 38 parameters), which no reflected function reaches. It plays a clip in one of the character's custom
+(`0x1420b2d70`, 38 parameters), which no reflected function reaches. It plays a clip in one of the character's custom
 animation slots (0x70 bytes each, the array at `+0x21b8`, its count at `+0x21c0`) and returns the play's FGuid, all
 zero when it refused: an additive clip, another skeleton, no animation instance, or a slot whose clip has a higher
-priority. Each tick `UpdateCustomAnimWeight` (`0x1420a7130`) moves a slot's time and weight; a clip played once blends
+priority. Each tick `UpdateCustomAnimWeight` (`0x1420ab760`) moves a slot's time and weight; a clip played once blends
 out at its end and clears the slot's playing byte (`+0x18`), a loop with count -1 never does. Photo mode stops the
-player's custom animation. Photo mode's own poses do not use these clips either: its pose setter (`0x1420f12f0`)
+player's custom animation. Photo mode's own poses do not use these clips either: its pose setter (`0x1420f5920`)
 writes `PoseName_PhotoMode` and hands a pose snapshot baked from them to the animation instance, which the blueprint
 reads only in photo mode.
 
@@ -177,20 +177,20 @@ So the native part plays the clip (`game/anim.h`, `glue/tick/anim_game.inc`). Lu
 (the id counts up from the load's start time; the path must start with `/Game/Art/Character/PC/CH_P_EVE_01/Animation/`).
 
 On its next frame the game thread takes our EVE as the pawn (`AController::Pawn`, `+0x2f8`) of the player controller
-SB's getter `0x14231c710` gives, the actor `UEHelpers.GetPlayer` gives Lua, once it checked she is a live
-`ASBCharacter`, and calls SB's by-path entry `0x1420b31d0` the way the MovingTarget animation calls it (`0x1420909c3`):
+SB's getter `0x142321ee0` gives, the actor `UEHelpers.GetPlayer` gives Lua, once it checked she is a live
+`ASBCharacter`, and calls SB's by-path entry `0x1420b7800` the way the MovingTarget animation calls it (`0x142094ff3`):
 slot 0, the path as a `const FString&`, start 0, end -1 (the whole clip), rate 1, 0.25 s blends, -1 for SB's own stop at
 input (off), the loop flag with count -1 or none, priority 0 (the flight start's), and five empty `FString` arguments,
 which that function frees only when their data is set. It loads the path as a `UAnimSequenceBase`, applies the priority
 rule, builds the other defaults itself and returns 0 once it played, 1 for an additive clip, -1 when the clip did not
 load or the slot's clip outranks ours; the FGuid comes back in its fourth argument. The flight start's wrapper
-`0x1420af3c0` was not used: it has no loop flag.
+`0x1420b39f0` was not used: it has no loop flag.
 
-`anim stop` calls SB's stop `0x1420addc0(character, 0, 0.25, the clip's FName, 1)`, which blends the slot out only while
+`anim stop` calls SB's stop `0x1420b23f0(character, 0, 0.25, the clip's FName, 1)`, which blends the slot out only while
 it holds that clip. While ours plays, the game thread reads slot 0 every 100 ms after checking the character is still
 the live object it played on: another FGuid, a cleared playing byte or a gone EVE end it, and a slot that took no weight
 in 1 s (SB's node is not playing it, so its time would never move) is freed and reported as `ended:weight`. Only time in
-a world that is not paused counts toward that second: the weight moves in her tick (`0x1420a7fd0`, the only caller of
+a world that is not paused counts toward that second: the weight moves in her tick (`0x1420ac600`, the only caller of
 `UpdateCustomAnimWeight`), which a paused world does not run, so while the slot has no weight yet each watch asks the
 photo pause's read of the WorldSettings' `PauserPlayerState`.
 
