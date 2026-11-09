@@ -24,7 +24,7 @@ first-launch guide opened, and on 2026-10-27 the co-op saves loaded and `coop ni
 
 0.6.0-beta.1 to beta.3 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses
 protocol 18 and does not link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it, 0.8.0
-included, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5.
+and 0.9.0 included, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5.
 
 ## Features
 

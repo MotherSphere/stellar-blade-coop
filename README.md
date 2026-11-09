@@ -96,7 +96,7 @@ features; Matrix XIII and Lily's signal have their own pages.
 | UE4SS | v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3". |
 | System | Windows, or Linux with Proton (Steam Deck included). |
 | Console | Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it. |
-| Playing together | The same game build and the same link protocol: 19 in 0.8.0, which does not link with 0.7.5 (protocol 18) or older versions. |
+| Playing together | The same game build and the same link protocol: 19 in 0.8.0 and 0.9.0, which does not link with 0.7.5 (protocol 18) or older versions. |
 
 ## Documentation
 
