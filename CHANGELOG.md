@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.9.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.8.0...v0.9.0) (2026-11-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* the mod no longer runs on build 24463856.
+
+### Features
+
+* support Stellar Blade build 26123051 ([75b8604](https://github.com/MotherSphere/stellar-blade-coop/commit/75b86047e31cb1d487e91b47aac2ca8e1492dde2))
+
+
+### Bug Fixes
+
+* **game:** read the singletons at their build 26123051 addresses ([940e9d7](https://github.com/MotherSphere/stellar-blade-coop/commit/940e9d7685ff683d1d9f7b175d2b6b12423bcbdd))
+* **mxiii:** move the ZoneEvent rows out of the game's ID range ([18aea7a](https://github.com/MotherSphere/stellar-blade-coop/commit/18aea7afe48b66165cf14b3f9ff3e274d9bcd26e))
+
 ## [0.8.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.7.5...v0.8.0) (2026-11-03)
 
 
