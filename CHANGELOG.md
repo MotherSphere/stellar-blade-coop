@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.9.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.8.0...v0.9.0) (2026-11-09)
+
+Both players need 0.9.0 and Stellar Blade's Steam build 26123051.
+
+Game update
+- Steam's update of Stellar Blade on 2026-11-05 (build 26123051, the Bayonetta collaboration) moved every address the
+  mod reads in the game. This version is ported to that build and does not run on the old build 24463856.
+- 0.8.0 does not run on the new build: its native part turns itself off (`coop status` shows `engine=off`), so the
+  partner's movements, shared fights, shared quests and the co-op saves stop working.
+- The link protocol stays 19. A player on 0.8.0 can still join a 0.9.0 session, but with the native part off, so
+  both players should update.
+- Checked on one PC on 2026-11-09: the native part starts on the new build, the co-op saves switch on and load, and
+  every table row the mod adds goes in with none refused. It has not been played between two PCs on this build yet.
+
+Documentation
+- The README and the guides are split into one page per subject, with an index in docs/README.md and the technical
+  pages under docs/internals/.
+
+Report problems on the Discord with coop-report.txt, coop-link.log and UE4SS.log.
+
+
 ## [0.8.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.7.5...v0.8.0) (2026-11-03)
 
 
