@@ -186,7 +186,7 @@ mod/StellarCoop/            the UE4SS mod folder
     matrix13/               the cut Matrix XIII dungeon, by place then quest: world/ (coop mxiii's travel, rows,
                             ladders, bosses, drone light), quest/ ("On Time" and its words),
                             talks/ (the talks' lines, one file per talk or zone), culture.lua
-    story/                  the story dump and the talk player (subtitles.lua)
+    story/                  the talk player (subtitles.lua)
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side

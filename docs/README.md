@@ -51,7 +51,6 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | --- | --- |
 | [Building](building.md) | Toolchain, `tools/install.py`, `tools/wine_smoke.py`, the reproducible build, releases, repository layout |
 | [Tests](tests.md) | The Lua, C++ and Python tests and what each one checks |
-| [Story](story.md) | Where the save keeps the story and world state, the tool that snapshots and diffs it, the live dump (`coop story`) |
 | [How it works](how-it-works.md) | Index of the internals pages, and where each section of the old single page went |
 | [Architecture](internals/architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the co-op UI's input, loopback, record and replay |
 | [The Steam link](internals/steam-link.md) | Lobby and invites, the handshake, channels 0 and 1, protocol versions, link health |

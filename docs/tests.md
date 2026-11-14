@@ -21,7 +21,7 @@ The Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_
 `matrix13/quest/`: `on_time`, `zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`, `fans`,
 `mila`, `move`, `travel`; `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`,
 `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
-`run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `dump`, `subtitles`; `ui/`: `guide`,
+`run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `subtitles`; `ui/`: `guide`,
 `kit`, `model`, `notice`, `region_tabs`, `text`) run the scripts, with fake UE4SS objects for those that call the
 engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua` first,
 with UE4SS stubbed for `main.lua`.
@@ -365,8 +365,6 @@ The C++ tests cover the platform-free headers in `native/src`.
 ## Python tests
 
 - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
-- `story_test.py`: `tools/story.py` and `tools/gvas.py`, the story lines and digest of a built save, and the
-  fixture `story/dump_test` reads, against the tool's own sample;
 - `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the

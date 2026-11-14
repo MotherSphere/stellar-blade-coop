@@ -117,8 +117,7 @@ which the 15 files hold. The game's save builder (`FUN_1421d9480`) copies the ru
 `tests/native/save/shortcut_load_test.cpp` cleans the 15 files themselves when the machine holds the research copies:
 each passes that check, holds none of the strings `Achievement`, `Trophy` or `Ach_`, and is the file without its
 `SBAchievement` bytes, byte for byte. Against the table's dump, the only inventory items with no `ItemTable` row are
-the seven above. A parse of the 15 results with `tools/gvas.py` (EVAS, CRC, header and every property, 2026-10-27)
-read them whole.
+the seven above. A parse of the 15 results (EVAS, CRC, header and every property, 2026-10-27) read them whole.
 
 The write is a co-op saves pass (`Switch::plant`), refused unless the game uses the co-op copies (`saves=coop`), the
 title is shown with no save loaded and no load asked (client `+0x86c` is 0), the Steam account is known and no other

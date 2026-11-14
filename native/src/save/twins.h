@@ -216,7 +216,7 @@ inline std::pair<size_t, size_t> snapshot(const std::string &b) {
 // every item ever held, so neither counts. What the New Game+ snapshot holds is said apart: playing cannot clear it.
 // The mod's quests, the prologue A Second Signal (Quest_Sub_MX13_00) and On Time (Quest_Sub_MX13_01, lion/rows.h's
 // signal batch), count wherever their alias is: the save keys quests by alias, the tracked one included, and keeps a
-// finished one's in CompleteQuestList (docs/story.md), so no play takes them out.
+// finished one's in CompleteQuestList, so no play takes them out.
 // Matrix XIII's records (the mxrecords batch) count as well: the save keeps their unlock achievements and red dots by
 // alias, and nothing takes a record out.
 inline std::string mod_only(const std::string &b) {

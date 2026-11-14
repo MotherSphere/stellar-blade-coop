@@ -13,9 +13,8 @@
 -- part's copies and save name by hand, coop saves refresh <0-4> to replace one co-op copy and coop saves export <0-4>
 -- <0-4> to write a co-op copy over one of your own saves; and coop where, a line of
 -- coordinates to compare between the two PCs; coop mark [text], a numbered line in both players' logs (coop-link.log,
--- and UE4SS.log through the status's mark= line) to line up a test played together; coop story [dump|find], the save
--- object the game holds and its story lines, read only (story/dump.lua, a test tool to compare with tools/story.py,
--- left out of the usage line); coop no [heal|rule|spawnpt|actor],
+-- and UE4SS.log through the status's mark= line) to line up a test played together;
+-- coop no [heal|rule|spawnpt|actor],
 -- the Night Operation probe of the T6 test only (nightop/probe.lua), on a co-op save only; coop nightop [start
 -- [easy|normal|hard|nightmare] [noaggro|nomove]|stop|revive|shop|buy <n> [count]], Night Operation's run at a level
 -- (nightop/run.lua, revive: a downed player's own revive in a co-op run) and its reward shop
@@ -308,11 +307,6 @@ local leviathan=require('cut.leviathan').new({log=function(m) print('[StellarCoo
         return menu~=nil and (menu.is_open() or box.is_open() or code_box.is_open() or approval.is_open()
             or saves_ui.is_open())
     end})
--- The live story dump (story/dump.lua, a test tool): coop story [dump|find], the save object the running game holds
--- and its story lines, read only, in the lines tools/story.py prints from a save file; coop-story.txt in the mod folder
--- asks for one once, in a loaded world.
-local story_dump=require('story.dump').new({log=function(m) print('[StellarCoop][ST] '..tostring(m)..'\n') end,
-    folder=folder})
 -- The races' driving (race/drive.lua), logging [DR] lines: coop-drive.txt lets the next Lua load put EVE's movement
 -- back.
 local drive=require('race.drive').new({log=doro.log,store=link and link.store('coop-drive.txt'),settings=settings})
@@ -437,8 +431,7 @@ local o={link=link,settings=settings,puppet=puppet,native_tick=native_tick,look=
     coop_slot=coop_slot,nightop=nightop,night=night,race=race,doro=doro,recruiter=recruiter,leviathan=leviathan,
     lion=lion,gardener=gardener,tendril=tendril,mxiii=mxiii,group=function() return group end,
     travel=function() return travel end,
-    fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end,
-    story_dump=story_dump}
+    fight_auto_off=function() fight_auto=false end,quests_auto_off=function() quests_auto=false end}
 -- coop fly's keys (cut/flight.lua), logging [FL] lines: R2 alone flies, Shift with a direction evades.
 local flight=require('cut.flight').new({log=function(m) print('[StellarCoop][FL] '..tostring(m)..'\n') end})
 o.wear,o.scene,o.lines,o.flight,o.glide,o.emote=wear,scene,cut_lines,flight,glide,emote
@@ -1175,10 +1168,6 @@ if link then
             guarded('mxiii',mxiii.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
             -- Lily's signal's rows likewise (test pak only), so a co-op save that holds the quest keeps it.
             guarded('lily',o.lily.title,title==true and world~=true,(link.saves() or {}).saves=='coop')
-            -- A story dump asked for by coop-story.txt in the mod folder (story/dump.lua, read only): once per
-            -- request, in a loaded world, and named in the log.
-            local dumped,dump_message=guarded('story',story_dump.poll,world==true)
-            if dump_message then report(dumped,dump_message) end
             -- Her marker carries her name: the ghost's tag is its fallback.
             guarded('ghost',puppet.marker,hud.marking())
             if world or title then photo_pause(settings.photo_pause=='scenery' and 1 or 0,settings.photo_pause) end
