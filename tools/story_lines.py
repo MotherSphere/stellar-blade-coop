@@ -24,26 +24,35 @@ USE = ('Use: story_lines.py snapshot SAVE [PREFIX] | diff OLD NEW | digest SAVE 
 NAMING = ('ZoneAlias', 'EnvAlias', 'TriggerAlias', 'QuestAlias', 'TaskGroupAlias', 'TaskAlias', 'CharacterDataAlias',
           'UniqueKey', 'WorldAlias', 'ObjectName', 'RecordGroupName', 'DataAlias', 'Alias')
 DROPPED = {'ActorLocation', 'ActorRotation', 'QuestMarkerLocation', 'LastUpdateTimestamp'}  # In path lines.
-INTERACTED = (('InteractData', 'bInteracted'), 'interacted')
-RECORD = [(('bSuccessTask',), 'done')]
-QUEST = [(('QuestState',), 'state')]
-GROUP = [(('TaskGroupState',), 'state')]
-TASK = [(('CompleteOrder',), 'order'), (('TaskState',), 'state'), (('CurrentValue',), 'value')]
-ZONE = [(('ZoneObjectState',), 'state')]
-ENV = [(('EnvActivate',), 'activate'), (('EnvActiveState',), 'active'), (('CurrentTriggerCount',), 'count'),
-       (('EnvStateSlotTag',), 'slot'), INTERACTED]
-NPC = [(('bActiveActor',), 'active'), (('bHiddenGame',), 'hidden'), (('LifeState',), 'life'), (('SpawnIndex',), 'spawn'),
-       (('ObjectState',), 'state'), INTERACTED]
-OBJECT = [(('Activate',), 'activate'), (('EffectVolumeDeadCount',), 'deaths')]
-TRIGGER = [(('TriggerActivate',), 'activate'), (('DoingCount',), 'count'), INTERACTED]
+# The labelled fields of each kind of entry: a dotted path below the entry, and its label.
+RECORD = {'bSuccessTask': 'done'}
+QUEST = {'QuestState': 'state'}
+GROUP = {'TaskGroupState': 'state'}
+TASK = {'CompleteOrder': 'order', 'CurrentValue': 'value', 'TaskState': 'state'}
+ZONE = {'ZoneObjectState': 'state'}
+ENV = {'CurrentTriggerCount': 'count', 'EnvActivate': 'activate', 'EnvActiveState': 'active', 'EnvStateSlotTag': 'slot',
+       'InteractData.bInteracted': 'interacted'}
+NPC = {'bActiveActor': 'active', 'bHiddenGame': 'hidden', 'InteractData.bInteracted': 'interacted',
+       'LifeState': 'life', 'ObjectState': 'state', 'SpawnIndex': 'spawn'}
+OBJECT = {'Activate': 'activate', 'EffectVolumeDeadCount': 'deaths'}
+TRIGGER = {'DoingCount': 'count', 'InteractData.bInteracted': 'interacted', 'TriggerActivate': 'activate'}
+# A zone's containers: the key word, the save field, and either the labels of an entry and the fields under it that
+# give path lines, or None: every plain value of the entry is a path line.
+PARTS = (('actor', 'ZoneEventActorStorageList', None, ()),
+         ('env', 'ZoneEnvStorageList', ENV, ('StateInfoList', 'EnvProgressInfo')),
+         ('item', 'ZoneEventItemStorageList', None, ()),
+         ('npc', 'ZoneNpcStorageList', NPC, ()),
+         ('object', 'WorldObjectStorageMap', OBJECT, ()),
+         ('trigger', 'ZoneTriggerStorageList', TRIGGER, ()))
 
 
 def plain(value):
     return isinstance(value, (bool, int, float, str))
 
 
-def get(entry, *names):
-    for name in names: entry = entry.get(name) if isinstance(entry, dict) else None
+def get(entry, path):
+    """The value at a dotted path of struct fields below entry, or None."""
+    for name in path.split('.'): entry = entry.get(name) if isinstance(entry, dict) else None
     return entry
 
 
@@ -55,10 +64,8 @@ def keyed(container, key):
 
 def name_field(entry):
     if isinstance(entry, str): return entry
-    for field in NAMING:
-        value = get(entry, field)
-        if isinstance(value, str) and value != 'None': return value
-    return None
+    found = (get(entry, field) for field in NAMING)
+    return next((v for v in found if isinstance(v, str) and v != 'None'), None)
 
 
 def entries(container, counts=None):
@@ -80,9 +87,9 @@ def entries(container, counts=None):
         yield numbered, name, entry
 
 
-def labels(out, prefix, entry, table):
-    for field, label in table:
-        value = get(entry, *field)
+def label_lines(out, prefix, entry, fields):
+    for path, label in fields.items():
+        value = get(entry, path)
         if plain(value) and value != 'None': out[f'{prefix} {label}'] = text(value)
 
 
@@ -92,56 +99,58 @@ def path_lines(out, prefix, value):
         if path and field not in DROPPED and not isinstance(inner, list): out[f'{prefix} {path}'] = text(inner)
 
 
+def finished(out, done, word):
+    """quest <alias> <word> = True for each entry of a finished or failed list: a name, or a record's QuestAlias."""
+    if isinstance(done, Map) or not isinstance(done, list): return
+    for entry in done:
+        alias = get(entry, 'QuestAlias') if isinstance(entry, dict) else entry
+        if isinstance(alias, str) and alias: out[f'quest {alias} {word}'] = 'True'
+
+
 def quests(out, data):
     quest = keyed(data, 'Quest')
-    tracked = {a for a in get(quest, 'TrackingQuestAliases') or [] if isinstance(a, str)}
+    finished(out, get(quest, 'CompleteQuestList'), 'complete')
+    finished(out, get(quest, 'FailedQuestList'), 'failed')
+    tracking = get(quest, 'TrackingQuestAliases')
     for name, base, entry in entries(get(quest, 'ProgressQuestList'), {}):
         prefix = f'quest {name}'
-        labels(out, prefix, entry, QUEST)
-        out[f'{prefix} tracked'] = str(base in tracked)
+        label_lines(out, prefix, entry, QUEST)
+        out[f'{prefix} tracked'] = str(isinstance(tracking, list) and base in tracking)
         tasks = {}  # Tasks are numbered across all the quest's groups.
         for group, _, g in entries(get(entry, 'QuestTaskGroupList'), {}):
-            labels(out, f'{prefix} group {group}', g, GROUP)
+            label_lines(out, f'{prefix} group {group}', g, GROUP)
             for task, _, t in entries(get(g, 'AllChildTaskList'), tasks):
-                labels(out, f'{prefix} group {group} task {task}', t, TASK)
-    for field, word in (('CompleteQuestList', 'complete'), ('FailedQuestList', 'failed')):
-        done = get(quest, field)
-        for entry in done if isinstance(done, list) and not isinstance(done, Map) else []:
-            alias = entry if isinstance(entry, str) else get(entry, 'QuestAlias')
-            if isinstance(alias, str) and alias: out[f'quest {alias} {word}'] = 'True'
+                label_lines(out, f'{prefix} group {group} task {task}', t, TASK)
 
 
 def records(out, data):
     for group, _, g in entries(get(data, 'ProgressRecordGroup')):
         for mission, _, m in entries(get(g, 'RecordTaskGroupMap'), {}):
             for record, _, r in entries(get(m, 'TaskDataList'), {}):
-                labels(out, f'progress {group} {mission} {record}', r, RECORD)
+                label_lines(out, f'progress {group} {mission} {record}', r, RECORD)
+
+
+def has_alias(entry, field):
+    alias = get(entry, field)
+    return isinstance(alias, str) and alias != 'None'
 
 
 def zone(out, entry):
     """The lines of one zone, if it has a ZoneAlias."""
-    alias = get(entry, 'ZoneAlias')
-    if not isinstance(alias, str) or alias == 'None': return
+    if not has_alias(entry, 'ZoneAlias'): return
     prefix = f'zone {name_field(entry)}'
-    labels(out, prefix, entry, ZONE)
-    for word, field, table in (('env', 'ZoneEnvStorageList', ENV), ('npc', 'ZoneNpcStorageList', NPC),
-                               ('trigger', 'ZoneTriggerStorageList', TRIGGER)):
+    label_lines(out, prefix, entry, ZONE)
+    for word, field, fields, below in PARTS:
         for name, _, e in entries(get(entry, field), {}):
-            labels(out, f'{prefix} {word} {name}', e, table)
-            if word == 'env':
-                path_lines(out, f'{prefix} env {name}', get(e, 'StateInfoList'))
-                path_lines(out, f'{prefix} env {name}', get(e, 'EnvProgressInfo'))
-    for name, _, e in entries(get(entry, 'WorldObjectStorageMap'), {}):
-        labels(out, f'{prefix} object {name}', e, OBJECT)
-    for word, field in (('item', 'ZoneEventItemStorageList'), ('actor', 'ZoneEventActorStorageList')):
-        for name, _, e in entries(get(entry, field), {}):
-            path_lines(out, f'{prefix} {word} {name}', e)
+            key = f'{prefix} {word} {name}'
+            if fields is None: path_lines(out, key, e)
+            else: label_lines(out, key, e, fields)
+            for inner in below: path_lines(out, key, get(e, inner))
 
 
 def worlds(out, data):
     for world, _, w in entries(data):
-        alias = get(w, 'WorldAlias')
-        if not isinstance(alias, str) or alias == 'None': continue
+        if not has_alias(w, 'WorldAlias'): continue
         for name, _, a in entries(get(w, 'ZoneEventActorStorageList'), {}):
             path_lines(out, f'world {world} actor {name}', a)
 
@@ -169,8 +178,12 @@ def file_lines(path):
     """A dump file's lines, sorted: UTF-8 (bad bytes replaced), trailing white space cut, blank and # lines left out."""
     with open(path, 'rb') as f: data = f.read()
     if b'\0' in data: raise ValueError(f'{path} holds a NUL byte: not a file of lines')
-    stripped = (line.rstrip() for line in data.decode('utf-8', 'replace').split('\n'))
-    return sorted(line for line in stripped if line and not line.startswith('#'))
+    kept = []
+    for raw in data.decode('utf-8', 'replace').split('\n'):
+        line = raw.rstrip()
+        if line and line[0] != '#': kept.append(line)
+    kept.sort()
+    return kept
 
 
 def fail(message):

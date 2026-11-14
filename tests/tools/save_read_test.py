@@ -139,10 +139,10 @@ with tempfile.TemporaryDirectory() as tmp:
     bad.write_bytes(b'EVAS' + bytes(20))
     code, out = run('dump', old)
     lines = out.splitlines()
-    assert code == 0 and lines[0].startswith('# /Script/SB.SBSaveGame, engine 4.26.2-0, read ') and lines[1:] == [
+    assert code == 0 and lines[0].startswith('# /Script/SB.SBSaveGame (UE 4.26.2-0): ') and lines[1:] == [
         'Level = 3', 'Quest.Alias = Q1', 'Quest.State = 1', 'Gone = True', 'Ratio = 0.5'], out
     size = len(S.encode(first))
-    assert lines[0] == f'# /Script/SB.SBSaveGame, engine 4.26.2-0, read {size} of {size} bytes', lines[0]
+    assert lines[0] == f'# /Script/SB.SBSaveGame (UE 4.26.2-0): {size} of {size} body bytes read', lines[0]
     assert run('dump', old, 'Quest.') == (0, lines[0] + '\nQuest.Alias = Q1\nQuest.State = 1\n')
     assert run('diff', old, new) == (0, '+ Added = x y\n- Gone = True\n~ Quest.State: 1 -> 2\n')
     assert run('diff', old, old) == (0, '')

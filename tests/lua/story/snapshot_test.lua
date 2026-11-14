@@ -294,7 +294,7 @@ disk={}
 local ok,why=snap.command()
 assert(ok and why=='no live save object was found: '..OUT..' lists what was found',why)
 assert(#split(disk[OUT])==0 and disk[OUT]:find('# coop story dump: no candidate, nothing dumped',1,true),disk[OUT])
-assert(disk[OUT]:find('# class SBSaveGame: 0 live',1,true) and disk[OUT]:find('# class SBSaveManager: 1 live',1,true))
+assert(disk[OUT]:find('# SBSaveGame instances: 0\n',1,true) and disk[OUT]:find('# SBSaveManager instances: 1\n',1,true))
 instances.SBSaveGame[2]=save_object('SBSaveGame /Engine/Transient.SBSaveGame_3',case)
 disk={}
 ok,why=snap.command('find')

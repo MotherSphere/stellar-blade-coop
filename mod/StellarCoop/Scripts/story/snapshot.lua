@@ -13,38 +13,41 @@ local USE='Use: coop story [dump|find]'
 -- by={name=value}}, a list {kind='list', ...}, a map {kind='map', {key, value}, ...}; anything else is a boolean, a
 -- number or a string.
 
--- Python's repr of a double: the shortest decimal that reads back as x and, of that length, the nearest to it; plain
--- notation for decimal exponents -4 to 15, else d.ddde+XX.
-local function digits_of(x)
-    for p=1,17 do
-        local s=string.format('%.'..(p-1)..'e',x)
-        local m,e=s:match('^(%d[.%d]*)e([-+]%d+)$')
-        local digits,exp=m:gsub('%.',''),tonumber(e)
-        if tonumber(s)==x then return digits,exp end
-        -- Next to a power of two the gap below x is half the one above it: the nearest p-digit decimal can miss while
-        -- its neighbour on the other side reads back.
-        local c=math.tointeger(tonumber(digits))
-        for _,d in ipairs({c-1,c+1}) do
-            if tonumber(d..'e'..(exp-p+1))==x then return tostring(d),exp-p+#tostring(d) end
-        end
-    end
+-- A p-digit decimal n*10^q that reads back as x>0, or nil. C's printf gives the nearest one. When that one lies below
+-- x, the one above is tried too: rounding to the nearest alone gets some values next to powers of two wrong
+-- (docs/story.md, Values).
+local function decimal(x,p)
+    local lead,rest,e=string.format('%.'..(p-1)..'e',x):match('^(%d)%.?(%d*)e([-+]%d+)$')
+    local n,q=tonumber(lead..rest),tonumber(e)-p+1
+    local back=tonumber(n..'e'..q)
+    if back==x then return n,q end
+    if back<x and tonumber((n+1)..'e'..q)==x then return n+1,q end
 end
+-- Python's repr of a double (docs/story.md, Values).
 function S.repr(x)
     if x~=x then return 'nan' end
-    if x==math.huge then return 'inf' end
-    if x==-math.huge then return '-inf' end
-    if x==0 then return 1/x<0 and '-0.0' or '0.0' end
+    if math.abs(x)==math.huge then return x>0 and 'inf' or '-inf' end
+    if x==0 then return tostring(x) end -- Lua 5.4 writes 0.0 and -0.0 as Python does.
     local sign=x<0 and '-' or ''
-    local digits,exp=digits_of(math.abs(x))
-    digits=digits:gsub('0+$','')
-    if exp<-4 or exp>15 then
-        return string.format('%s%s%se%s%02d',sign,digits:sub(1,1),#digits>1 and '.'..digits:sub(2) or '',
-            exp<0 and '-' or '+',math.abs(exp))
+    x=math.abs(x)
+    -- If p digits can read back, p+1 can (one more zero), and 17 always can: the fewest digits, searched in halves.
+    local lo,hi=1,17
+    while lo<hi do
+        local mid=(lo+hi)//2
+        if decimal(x,mid) then hi=mid else lo=mid+1 end
     end
-    if exp<0 then return sign..'0.'..('0'):rep(-exp-1)..digits end
-    local int=digits:sub(1,exp+1)
-    local frac=digits:sub(exp+2)
-    return sign..int..('0'):rep(exp+1-#int)..'.'..(frac=='' and '0' or frac)
+    local n,q=decimal(x,lo)
+    while n%10==0 do n,q=n//10,q+1 end
+    local d=tostring(n)
+    local lead=q+#d-1 -- The decimal exponent of the first digit.
+    if lead<-4 or lead>15 then
+        return sign..d:sub(1,1)..(#d>1 and '.'..d:sub(2) or '')..string.format('e%+03d',lead)
+    end
+    local point=lead+1 -- The digits before the decimal point.
+    if point<1 then d,point=('0'):rep(1-point)..d,1 end
+    d=d..('0'):rep(point-#d)
+    local tail=d:sub(point+1)
+    return sign..d:sub(1,point)..'.'..(tail~='' and tail or '0')
 end
 local function text(v)
     if type(v)=='boolean' then return v and 'True' or 'False' end
@@ -52,8 +55,9 @@ local function text(v)
     return tostring(v)
 end
 local function plain(v) return type(v)~='table' and v~=nil end
-local function get(entry,...)
-    for _,name in ipairs({...}) do
+-- The value at a dotted path of struct fields below entry, or nil.
+local function get(entry,path)
+    for name in path:gmatch('[^.]+') do
         if type(entry)~='table' or entry.kind~='struct' then return nil end
         entry=entry.by[name]
     end
@@ -68,18 +72,23 @@ end
 local NAMING={'ZoneAlias','EnvAlias','TriggerAlias','QuestAlias','TaskGroupAlias','TaskAlias','CharacterDataAlias',
     'UniqueKey','WorldAlias','ObjectName','RecordGroupName','DataAlias','Alias'}
 local DROPPED={ActorLocation=true,ActorRotation=true,QuestMarkerLocation=true,LastUpdateTimestamp=true}
-local INTERACTED={{'InteractData','bInteracted'},'interacted'}
-local RECORD={{{'bSuccessTask'},'done'}}
-local QUEST={{{'QuestState'},'state'}}
-local GROUP={{{'TaskGroupState'},'state'}}
-local TASK={{{'CompleteOrder'},'order'},{{'TaskState'},'state'},{{'CurrentValue'},'value'}}
-local ZONE={{{'ZoneObjectState'},'state'}}
-local ENV={{{'EnvActivate'},'activate'},{{'EnvActiveState'},'active'},{{'CurrentTriggerCount'},'count'},
-    {{'EnvStateSlotTag'},'slot'},INTERACTED}
-local NPC={{{'bActiveActor'},'active'},{{'bHiddenGame'},'hidden'},{{'LifeState'},'life'},{{'SpawnIndex'},'spawn'},
-    {{'ObjectState'},'state'},INTERACTED}
-local OBJECT={{{'Activate'},'activate'},{{'EffectVolumeDeadCount'},'deaths'}}
-local TRIGGER={{{'TriggerActivate'},'activate'},{{'DoingCount'},'count'},INTERACTED}
+local RECORD={bSuccessTask='done'}
+local QUEST={QuestState='state'}
+local GROUP={TaskGroupState='state'}
+local TASK={CompleteOrder='order',CurrentValue='value',TaskState='state'}
+local ZONE={ZoneObjectState='state'}
+local ENV={CurrentTriggerCount='count',EnvActivate='activate',EnvActiveState='active',EnvStateSlotTag='slot',
+    ['InteractData.bInteracted']='interacted'}
+local NPC={bActiveActor='active',bHiddenGame='hidden',['InteractData.bInteracted']='interacted',LifeState='life',
+    ObjectState='state',SpawnIndex='spawn'}
+local OBJECT={Activate='activate',EffectVolumeDeadCount='deaths'}
+local TRIGGER={DoingCount='count',['InteractData.bInteracted']='interacted',TriggerActivate='activate'}
+-- A zone's containers: key word, save field, the labels of an entry (false: each plain value of the entry is a path
+-- line) and the fields under an entry that give path lines.
+local PARTS={{'actor','ZoneEventActorStorageList',false,{}},
+    {'env','ZoneEnvStorageList',ENV,{'StateInfoList','EnvProgressInfo'}},{'item','ZoneEventItemStorageList',false,{}},
+    {'npc','ZoneNpcStorageList',NPC,{}},{'object','WorldObjectStorageMap',OBJECT,{}},
+    {'trigger','ZoneTriggerStorageList',TRIGGER,{}}}
 local function name_field(entry)
     if type(entry)=='string' then return entry end
     for _,field in ipairs(NAMING) do
@@ -108,10 +117,10 @@ local function entries(container,counts)
     end
     return out
 end
-local function labels(out,prefix,entry,list)
-    for _,row in ipairs(list) do
-        local v=get(entry,table.unpack(row[1]))
-        if plain(v) and v~='None' then out[prefix..' '..row[2]]=text(v) end
+local function label_lines(out,prefix,entry,fields)
+    for path,label in pairs(fields) do
+        local v=get(entry,path)
+        if plain(v) and v~='None' then out[prefix..' '..label]=text(v) end
     end
 end
 local function nested(v) return type(v)=='table' end
@@ -149,27 +158,32 @@ local function path_lines(out,prefix,value)
         if path~='' and not DROPPED[field] and not nested(v) then out[prefix..' '..path]=text(v) end
     end)
 end
+local function finished(out,done,word)
+    if type(done)~='table' or done.kind~='list' then return end
+    for _,entry in ipairs(done) do
+        local a=type(entry)=='table' and get(entry,'QuestAlias') or entry
+        if type(a)=='string' and a~='' then out['quest '..a..' '..word]='True' end
+    end
+end
+local function holds(list,s)
+    for _,v in ipairs(type(list)=='table' and list.kind=='list' and list or {}) do if v==s then return true end end
+    return false
+end
 function S.quests(out,data)
     local quest=keyed(data,'Quest')
-    local tracked={}
-    for _,a in ipairs(get(quest,'TrackingQuestAliases') or {}) do if type(a)=='string' then tracked[a]=true end end
+    finished(out,get(quest,'CompleteQuestList'),'complete')
+    finished(out,get(quest,'FailedQuestList'),'failed')
+    local tracking=get(quest,'TrackingQuestAliases')
     for _,q in ipairs(entries(get(quest,'ProgressQuestList'),{})) do
         local prefix='quest '..q[1]
-        labels(out,prefix,q[3],QUEST)
-        out[prefix..' tracked']=tracked[q[2]] and 'True' or 'False'
+        label_lines(out,prefix,q[3],QUEST)
+        out[prefix..' tracked']=holds(tracking,q[2]) and 'True' or 'False'
         local tasks={} -- Tasks are numbered across all the quest's groups.
         for _,g in ipairs(entries(get(q[3],'QuestTaskGroupList'),{})) do
-            labels(out,prefix..' group '..g[1],g[3],GROUP)
+            label_lines(out,prefix..' group '..g[1],g[3],GROUP)
             for _,t in ipairs(entries(get(g[3],'AllChildTaskList'),tasks)) do
-                labels(out,prefix..' group '..g[1]..' task '..t[1],t[3],TASK)
+                label_lines(out,prefix..' group '..g[1]..' task '..t[1],t[3],TASK)
             end
-        end
-    end
-    for _,pair in ipairs({{'CompleteQuestList','complete'},{'FailedQuestList','failed'}}) do
-        local done=get(quest,pair[1])
-        for _,entry in ipairs(type(done)=='table' and done.kind=='list' and done or {}) do
-            local a=type(entry)=='string' and entry or get(entry,'QuestAlias')
-            if type(a)=='string' and a~='' then out['quest '..a..' '..pair[2]]='True' end
         end
     end
 end
@@ -177,40 +191,31 @@ function S.records(out,data)
     for _,g in ipairs(entries(get(data,'ProgressRecordGroup'))) do
         for _,m in ipairs(entries(get(g[3],'RecordTaskGroupMap'),{})) do
             for _,r in ipairs(entries(get(m[3],'TaskDataList'),{})) do
-                labels(out,'progress '..g[1]..' '..m[1]..' '..r[1],r[3],RECORD)
+                label_lines(out,'progress '..g[1]..' '..m[1]..' '..r[1],r[3],RECORD)
             end
         end
     end
 end
-local function aliased(entry,field)
+local function has_alias(entry,field)
     local a=get(entry,field)
     return type(a)=='string' and a~='None'
 end
 function S.zone(out,z)
-    if not aliased(z,'ZoneAlias') then return end
+    if not has_alias(z,'ZoneAlias') then return end
     local prefix='zone '..name_field(z)
-    labels(out,prefix,z,ZONE)
-    for _,part in ipairs({{'env','ZoneEnvStorageList',ENV},{'npc','ZoneNpcStorageList',NPC},
-        {'trigger','ZoneTriggerStorageList',TRIGGER}}) do
-        for _,e in ipairs(entries(get(z,part[2]),{})) do
-            local p=prefix..' '..part[1]..' '..e[1]
-            labels(out,p,e[3],part[3])
-            if part[1]=='env' then
-                path_lines(out,p,get(e[3],'StateInfoList'))
-                path_lines(out,p,get(e[3],'EnvProgressInfo'))
-            end
+    label_lines(out,prefix,z,ZONE)
+    for _,part in ipairs(PARTS) do
+        local word,field,fields,below=table.unpack(part)
+        for _,e in ipairs(entries(get(z,field),{})) do
+            local key=prefix..' '..word..' '..e[1]
+            if fields then label_lines(out,key,e[3],fields) else path_lines(out,key,e[3]) end
+            for _,inner in ipairs(below) do path_lines(out,key,get(e[3],inner)) end
         end
-    end
-    for _,e in ipairs(entries(get(z,'WorldObjectStorageMap'),{})) do
-        labels(out,prefix..' object '..e[1],e[3],OBJECT)
-    end
-    for _,part in ipairs({{'item','ZoneEventItemStorageList'},{'actor','ZoneEventActorStorageList'}}) do
-        for _,e in ipairs(entries(get(z,part[2]),{})) do path_lines(out,prefix..' '..part[1]..' '..e[1],e[3]) end
     end
 end
 function S.worlds(out,data)
     for _,w in ipairs(entries(data)) do
-        if aliased(w[3],'WorldAlias') then
+        if has_alias(w[3],'WorldAlias') then
             for _,a in ipairs(entries(get(w[3],'ZoneEventActorStorageList'),{})) do
                 path_lines(out,'world '..w[1]..' actor '..a[1],a[3])
             end
@@ -414,8 +419,8 @@ function S.new(o)
                     if not props then props={names_of(object:GetClass())} end
                 end
             end)
-            lines[#lines+1]='# class '..name..': '..#live_ones..' live instances'
-            for i=1,math.min(#live_ones,SHOWN_INSTANCES) do lines[#lines+1]='#   '..live_ones[i] end
+            lines[#lines+1]='# '..name..' instances: '..#live_ones
+            for i=1,math.min(#live_ones,SHOWN_INSTANCES) do lines[#lines+1]='#  - '..live_ones[i] end
             local has={}
             for _,s in ipairs(STORY) do if props and props[2][s] then has[#has+1]=s end end
             if #has>0 then

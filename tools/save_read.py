@@ -14,13 +14,19 @@ import zlib
 
 USE = 'Use: save_read.py dump SAVE [PREFIX] | diff OLD NEW | selftest'
 SAVE_CLASS = '/Script/SB.SBSaveGame'
-SCALARS = {'IntProperty': '<i', 'UInt32Property': '<I', 'Int64Property': '<q', 'UInt64Property': '<Q',
-           'Int16Property': '<h', 'UInt16Property': '<H', 'Int8Property': '<b', 'FloatProperty': '<f',
-           'DoubleProperty': '<d'}
+SCALARS = {kind: struct.Struct(fmt) for kind, fmt in (
+    ('IntProperty', '<i'), ('UInt32Property', '<I'), ('Int64Property', '<q'), ('UInt64Property', '<Q'),
+    ('Int16Property', '<h'), ('UInt16Property', '<H'), ('Int8Property', '<b'), ('FloatProperty', '<f'),
+    ('DoubleProperty', '<d'))}
 STRINGS = {'NameProperty', 'StrProperty', 'ObjectProperty', 'EnumProperty'}
-# Structs the engine writes as raw fields, with no tags. Guid apart: 16 bytes shown as hex.
-FIXED = {'Vector': '<3f', 'Rotator': '<3f', 'Quat': '<4f', 'LinearColor': '<4f', 'Vector2D': '<2f', 'Color': '<4B',
-         'IntPoint': '<2i', 'DateTime': '<q', 'Timespan': '<q'}
+# Structs the engine writes as raw fields, with no tags: read as a list of numbers, or as one number. A Guid is 16
+# bytes shown as hex.
+NUMBER_LISTS = {name: struct.Struct(fmt) for name, fmt in (
+    ('Vector', '<3f'), ('Rotator', '<3f'), ('Quat', '<4f'), ('LinearColor', '<4f'), ('Vector2D', '<2f'),
+    ('Color', '<4B'), ('IntPoint', '<2i'))}
+ONE_NUMBER = {'DateTime': struct.Struct('<q'), 'Timespan': struct.Struct('<q')}
+INT32, ENGINE = struct.Struct('<i'), struct.Struct('<3HI')
+FSTRING_LIMIT = 1024 * 1024  # A longer FString means the reader is out of step.
 
 
 class SaveError(ValueError):
@@ -32,29 +38,95 @@ class Map(list):
 
 
 class Reader:
+    """A cursor over a GVAS body. From the top down: a tagged property list, one tag, the values, then the FStrings,
+    numbers and bytes they are made of."""
+
     def __init__(self, data):
         self.data, self.pos = data, 0
 
-    def take(self, n):
-        if n < 0 or self.pos + n > len(self.data):
-            raise SaveError(f'a read of {n} bytes at {self.pos} goes past the end of the {len(self.data)} bytes')
-        self.pos += n
-        return self.data[self.pos - n:self.pos]
+    def properties(self):
+        """A tagged property list up to the name None, as {name: value}; a tag with array index i is name#i."""
+        found = {}
+        while (tag := self.tag()) is not None:
+            name, kind, size, index, extra = tag
+            start = self.pos
+            found[f'{name}#{index}' if index else name] = self.value(kind, size, extra)
+            self.pos = start + size  # Whatever the value used, the next tag starts there.
+        return found
 
-    def unpack(self, fmt):
-        return struct.unpack(fmt, self.take(struct.calcsize(fmt)))
+    def tag(self):
+        """(name, type, value size, array index, type header) of the next tag, or None at the name None. The type
+        header holds the bool's value, the struct type, the enum or element type, or the map's key and value types."""
+        name = self.fstring()
+        if name == 'None': return None
+        kind, size, index = self.fstring(), self.int32(), self.int32()
+        extra = None
+        if kind == 'BoolProperty': extra = self.take(1)[0] != 0
+        elif kind == 'StructProperty': extra = self.fstring(); self.take(16)  # The struct GUID.
+        elif kind in ('ByteProperty', 'EnumProperty', 'ArrayProperty', 'SetProperty'): extra = self.fstring()
+        elif kind == 'MapProperty': extra = (self.fstring(), self.fstring())
+        if self.take(1)[0]: self.take(16)  # The property GUID, after its flag.
+        return name, kind, size, index, extra
 
-    def i32(self):
-        return self.unpack('<i')[0]
+    def value(self, kind, size, extra):
+        start, end = self.pos, self.pos + size
+        if kind == 'BoolProperty': return extra
+        if kind in SCALARS or kind in STRINGS: return self.element(kind)
+        if kind == 'SoftObjectProperty':
+            path = self.fstring()
+            return f'{path}|{self.fstring()}' if self.pos < end else path
+        if kind == 'ByteProperty': return self.fstring() if extra != 'None' else self.take(1)[0]
+        if kind == 'StructProperty': return self.struct(extra)
+        if kind == 'SetProperty': self.int32()  # 0 in saves: the count of elements taken out.
+        if kind in ('ArrayProperty', 'SetProperty'): return self.array(extra, end)
+        if kind == 'MapProperty': return self.map(extra, start, size)
+        if kind == 'TextProperty': return self.take(size).hex()
+        return f'<{kind} {self.take(size).hex()}>'
+
+    def struct(self, name):
+        if name in ONE_NUMBER: return self.read(ONE_NUMBER[name])[0]
+        if name in NUMBER_LISTS: return list(self.read(NUMBER_LISTS[name]))
+        if name == 'Guid': return self.take(16).hex()
+        return self.properties()
+
+    def array(self, inner, end):
+        count = self.int32()
+        if inner == 'ByteProperty' and self.pos + count == end: return self.take(count).hex()  # Plain bytes.
+        if inner != 'StructProperty': return [self.element(inner) for _ in range(count)]
+        if count == 0: return []
+        inner_tag = self.tag()  # It names the struct type.
+        if inner_tag is None: raise SaveError(f'a struct array with no inner tag, before byte {self.pos}')
+        return [self.struct(inner_tag[4]) for _ in range(count)]
+
+    def map(self, types, start, size):
+        self.int32()  # 0 in saves: the count of entries taken out.
+        count = self.int32()
+        pairs = Map()
+        for _ in range(count): pairs.append((self.element(types[0]), self.element(types[1])))
+        used = self.pos - start
+        return pairs if used == size else f"<error: the map's entries take {used} of its {size} bytes>"
+
+    def element(self, kind):
+        """A value inside a container: no tag, and a struct there has no type name, so it is a tagged list."""
+        if kind in SCALARS: return self.read(SCALARS[kind])[0]
+        if kind in STRINGS or kind == 'SoftObjectProperty': return self.fstring()
+        if kind == 'BoolProperty': return self.take(1)[0] != 0
+        if kind == 'ByteProperty': return self.fstring() if self.name_ahead() else self.take(1)[0]
+        if kind == 'StructProperty': return self.properties()
+        raise SaveError(f'no reading for a {kind} inside a container')
 
     def fstring(self):
         """An FString: an int32 length that counts the NUL, then Latin-1 bytes (positive) or UTF-16LE units."""
-        n = self.i32()
-        if n > 1 << 20: raise SaveError(f'an FString of {n} bytes at {self.pos - 4}: a misread')
-        if n >= 0: return self.take(n)[:-1].decode('latin-1')
-        return self.take(-2 * n)[:-2].decode('utf-16-le', 'replace')
+        at = self.pos
+        length = self.int32()
+        if length > FSTRING_LIMIT:
+            raise SaveError(f'byte {at}: an FString length of {length}, so the reader is out of step')
+        if length < 0:
+            units = -length
+            return self.take(units * 2).decode('utf-16-le', 'replace').removesuffix('\0')
+        return self.take(length).decode('latin-1').removesuffix('\0')
 
-    def short_name_next(self):
+    def name_ahead(self):
         """Whether the next bytes read as an FString of 1 to 255 printable ASCII characters and its NUL."""
         at = self.pos
         if at + 4 > len(self.data): return False
@@ -62,68 +134,19 @@ class Reader:
         text = self.data[at + 4:at + 4 + n]
         return 2 <= n <= 256 and len(text) == n and text[-1] == 0 and all(0x20 <= b < 0x7f for b in text[:-1])
 
-    def properties(self):
-        """A tagged property list up to the name None, as {name: value}; a tag with array index i is name#i."""
-        fields = {}
-        while (name := self.fstring()) != 'None':
-            kind, size, index = self.fstring(), self.i32(), self.i32()
-            extra = None
-            if kind == 'BoolProperty': extra = self.take(1)[0] != 0
-            elif kind == 'StructProperty': extra = self.fstring(); self.take(16)
-            elif kind in ('ByteProperty', 'EnumProperty', 'ArrayProperty', 'SetProperty'): extra = self.fstring()
-            elif kind == 'MapProperty': extra = (self.fstring(), self.fstring())
-            if self.take(1)[0]: self.take(16)  # The property GUID.
-            start = self.pos
-            fields[name if index == 0 else f'{name}#{index}'] = self.value(kind, size, extra)
-            self.pos = start + size  # Whatever the value used, the next tag starts there.
-        return fields
+    def int32(self):
+        return self.read(INT32)[0]
 
-    def value(self, kind, size, extra):
-        start = self.pos
-        if kind == 'BoolProperty': return extra
-        if kind in SCALARS: return self.unpack(SCALARS[kind])[0]
-        if kind in STRINGS: return self.fstring()
-        if kind == 'SoftObjectProperty':
-            text = self.fstring()
-            return text + '|' + self.fstring() if self.pos < start + size else text
-        if kind == 'ByteProperty': return self.take(1)[0] if extra == 'None' else self.fstring()
-        if kind == 'StructProperty': return self.struct(extra)
-        if kind in ('ArrayProperty', 'SetProperty'): return self.array(extra, kind == 'SetProperty', start + size)
-        if kind == 'MapProperty':
-            self.i32()  # Removed entries.
-            pairs = Map((self.element(extra[0]), self.element(extra[1])) for _ in range(self.i32()))
-            if self.pos != start + size: return f"<error: the map's entries take {self.pos - start} of its {size} bytes>"
-            return pairs
-        if kind == 'TextProperty': return self.take(size).hex()
-        return f'<{kind} {self.take(size).hex()}>'
+    def read(self, layout):
+        """The values of a struct.Struct layout at the cursor."""
+        return layout.unpack(self.take(layout.size))
 
-    def struct(self, name):
-        if name == 'Guid': return self.take(16).hex()
-        if name in FIXED:
-            fields = self.unpack(FIXED[name])
-            return fields[0] if len(fields) == 1 else list(fields)
-        return self.properties()
-
-    def array(self, inner, is_set, end):
-        if is_set: self.i32()  # Removed elements.
-        count = self.i32()
-        if inner == 'ByteProperty' and self.pos + count == end: return self.take(count).hex()  # Plain bytes.
-        if inner != 'StructProperty': return [self.element(inner) for _ in range(count)]
-        if count == 0: return []
-        self.fstring(), self.fstring(), self.i32(), self.i32()  # The inner tag: name, type, size, index,
-        name = self.fstring()  # its struct type,
-        self.take(16)
-        if self.take(1)[0]: self.take(16)  # GUID and GUID flag.
-        return [self.struct(name) for _ in range(count)]
-
-    def element(self, kind):
-        """A value inside a container: no tag, and a struct there has no type name, so it is a tagged list."""
-        if kind == 'StructProperty': return self.properties()
-        if kind == 'BoolProperty': return self.take(1)[0] != 0
-        if kind in SCALARS: return self.unpack(SCALARS[kind])[0]
-        if kind in STRINGS or kind == 'SoftObjectProperty': return self.fstring()
-        if kind == 'ByteProperty': return self.fstring() if self.short_name_next() else self.take(1)[0]
-        raise SaveError(f'no reading for a {kind} inside a container')
+    def take(self, n):
+        end = self.pos + n
+        if n < 0 or end > len(self.data):
+            raise SaveError(f'a read of {n} bytes at {self.pos} goes past the end of the {len(self.data)} bytes')
+        chunk, self.pos = self.data[self.pos:end], end
+        return chunk
 
 
 def read_body(body):
@@ -131,11 +154,11 @@ def read_body(body):
     read) and size; tree: the top-level properties."""
     r = Reader(body)
     if r.take(4) != b'GVAS': raise SaveError('not a GVAS body')
-    save_version, package_version = r.i32(), r.i32()
-    major, minor, patch, changelist = r.unpack('<3HI')
+    save_version, package_version = r.int32(), r.int32()
+    major, minor, patch, changelist = r.read(ENGINE)
     branch = r.fstring()
-    r.i32()  # Custom version format.
-    for _ in range(r.i32()): r.take(20)  # GUID and version of each custom version.
+    r.int32()  # Custom version format.
+    for _ in range(r.int32()): r.take(20)  # GUID and version of each custom version.
     save_class = r.fstring()
     tree = r.properties()
     r.take(4)
@@ -200,12 +223,11 @@ def values(tree):
 
 def diff(old, new):
     """The lines that turn {key: text} old into new, sorted by key."""
-    out = []
-    for key in sorted(old.keys() | new.keys()):
-        if key not in old: out.append(f'+ {key} = {new[key]}')
-        elif key not in new: out.append(f'- {key} = {old[key]}')
-        elif old[key] != new[key]: out.append(f'~ {key}: {old[key]} -> {new[key]}')
-    return out
+    change = {key: f'+ {key} = {value}' for key, value in new.items() if key not in old}
+    for key, value in old.items():
+        if key not in new: change[key] = f'- {key} = {value}'
+        elif new[key] != value: change[key] = f'~ {key}: {value} -> {new[key]}'
+    return [change[key] for key in sorted(change)]
 
 
 # The writer: a body for the selftest and the tests, with each property's type picked from its value.
@@ -238,7 +260,7 @@ def element_bytes(kind, value):
     if kind == 'StructProperty': return properties_bytes(value)
     if kind == 'BoolProperty': return bytes([value])
     if kind == 'StrProperty': return fstring_bytes(value)
-    return struct.pack(SCALARS[kind], value)
+    return SCALARS[kind].pack(value)
 
 
 def properties_bytes(fields):
@@ -297,7 +319,7 @@ def main(argv=None):
     if command == 'dump' and len(rest) in (1, 2):
         header, tree = read_file(rest[0])
         prefix = rest[1] if len(rest) == 2 else ''
-        print(f"# {header['save_class']}, engine {header['engine']}, read {header['read']} of {header['size']} bytes")
+        print(f"# {header['save_class']} (UE {header['engine']}): {header['read']} of {header['size']} body bytes read")
         for path, _, value in walk(tree):
             if path.startswith(prefix): print(f'{path} = {text(value)}')
         return 0

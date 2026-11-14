@@ -3,13 +3,12 @@
 -- only, any save). main.lua builds it with new(o) at each Lua load and merges it into its command table. o.lily: Lily's
 -- signal, set after this is built, so read at each call; o.coop_slot: main.lua's co-op save check; o.story: the story
 -- dump.
-local Lily={}
 local USE='Use: coop lily signal [status|quest|travel|next] | talk prologue|arrival|finale [kit] | hold on|off'
-function Lily.new(o)
-    local self={}
+return {new=function(o)
+    local handlers={}
     -- The quests and the camp travel may go into the save, so on a co-op save only, and a talk too, as a quest step;
     -- status and hold (Lua memory only) anywhere.
-    function self.lily(sub,what,extra)
+    function handlers.lily(sub,what,extra)
         if not o.lily then return false,USE end
         if sub=='hold' then
             if extra~=nil or what~='on' and what~='off' then return false,USE end
@@ -23,7 +22,6 @@ function Lily.new(o)
         if sub=='talk' then return o.lily.talk(what,extra) end
         return o.lily.command(what)
     end
-    function self.story(sub,extra) return o.story.command(sub,extra) end
-    return self
-end
-return Lily
+    function handlers.story(sub,extra) return o.story.command(sub,extra) end
+    return handlers
+end}
