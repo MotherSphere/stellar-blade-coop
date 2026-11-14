@@ -65,3 +65,4 @@ left. The pages still name build 24463856 where a fact was read on that build, s
 | [Matrix XIII: how it works](internals/matrix-xiii.md) | The cut dungeon's rows, event spawns, arrival, camps, save, title and world rows |
 | [Lily's signal: how it works](internals/lily-signal.md) | The rows, quests and talks of Lily's signal |
 | [Achievements and safety design](internals/safety.md) | Which kills and achievements count for each player, the safety design |
+| [Story dump](story.md) | `coop story`, `tools/story_lines.py` and `tools/save_read.py`: the story state of a save or of the running game, one line per value |

@@ -17,14 +17,14 @@ build/host/pose_codec_test
 
 The Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `chainspin`,
 `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `scene`, `tendril`,
-`wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`;
-`matrix13/quest/`: `on_time`, `zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`, `fans`,
-`mila`, `move`, `travel`; `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`,
-`shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
-`run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `subtitles`; `ui/`: `guide`,
-`kit`, `model`, `notice`, `region_tabs`, `text`) run the scripts, with fake UE4SS objects for those that call the
-engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load `main/fixture.lua` first,
-with UE4SS stubbed for `main.lua`.
+`wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`,
+`story`; `matrix13/quest/`: `on_time`, `zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`,
+`fans`, `mila`, `move`, `travel`; `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`,
+`run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`,
+`model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `snapshot`, `subtitles`;
+`ui/`: `guide`, `kit`, `model`, `notice`, `region_tabs`, `text`) run the scripts, with fake UE4SS objects for those
+that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load
+`main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
 
 - `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included),
   `coop fight spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`,
@@ -37,7 +37,9 @@ with UE4SS stubbed for `main.lua`.
   and the two boxes, never to the host's question; at most 8 a frame; an older DLL without it), the mouse in the menu
   and the focus watchdog's reset;
 - `ui/kit_test` covers the menu's mouse cursor, the focus put back after a click and the focus watchdog;
-- `session/chat_test` covers the Thai leading vowels at a row's end.
+- `session/chat_test` covers the Thai leading vowels at a row's end;
+- `story/snapshot_test` holds the in-game story dump to `tests/tools/story_case.txt` and its floats to
+  `tests/tools/float_repr.txt`, the files `story_lines_test.py` checks the save side against.
 
 ## C++ tests
 
@@ -373,4 +375,10 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
   (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked));
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
-  `tools/install.py` faked.
+  `tools/install.py` faked;
+- `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS
+  wrapper's checks, the byte-or-name guess, value paths) and its commands on saves in a temporary folder;
+- `story_lines_test.py`: `tools/story_lines.py` on an invented 29-line example with a known digest, on
+  `story_case.json` against `story_case.txt`, on what must leave the digest alone, and its commands on saves and dump
+  files in a temporary folder. It also checks `float_repr.txt`, Python's `repr` of 2,331 doubles for the Lua side;
+  `python3 tests/tools/story_lines_test.py --write` writes it again.

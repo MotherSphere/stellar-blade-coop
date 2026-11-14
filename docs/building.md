@@ -186,7 +186,7 @@ mod/StellarCoop/            the UE4SS mod folder
     matrix13/               the cut Matrix XIII dungeon, by place then quest: world/ (coop mxiii's travel, rows,
                             ladders, bosses, drone light), quest/ ("On Time" and its words),
                             talks/ (the talks' lines, one file per talk or zone), culture.lua
-    story/                  the talk player (subtitles.lua)
+    story/                  the talk player (subtitles.lua), the story dump (snapshot.lua, see story.md)
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side
@@ -202,6 +202,8 @@ tools/
   mxiii_rows.py             writes native/src/lion/mxiii_rows.h and matrix13/world/rows.lua from data/mxiii-world.json
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
+  save_read.py              every value of a .sav file, and the values two saves differ in (see story.md)
+  story_lines.py            a save's story lines, their digest, and a save against an in-game dump (see story.md)
   wine_smoke.py             loads the DLL under Wine
 .github/workflows/
   release-please.yml        the release pull request, the tag and the draft release (see Releases)

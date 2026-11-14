@@ -1,7 +1,8 @@
 -- Lily's signal by hand: coop lily signal [status|quest|travel|next], coop lily talk prologue|arrival|finale [kit] and
--- coop lily hold on|off (matrix13/quest/on_time.lua, experimental). main.lua builds it with new(o) at each Lua load and
--- merges it into its command table. o.lily: Lily's signal, set after this is built, so read at each call; o.coop_slot:
--- main.lua's co-op save check.
+-- coop lily hold on|off (matrix13/quest/on_time.lua, experimental), and coop story [dump|find] (story/snapshot.lua, read
+-- only, any save). main.lua builds it with new(o) at each Lua load and merges it into its command table. o.lily: Lily's
+-- signal, set after this is built, so read at each call; o.coop_slot: main.lua's co-op save check; o.story: the story
+-- dump.
 local Lily={}
 local USE='Use: coop lily signal [status|quest|travel|next] | talk prologue|arrival|finale [kit] | hold on|off'
 function Lily.new(o)
@@ -22,6 +23,7 @@ function Lily.new(o)
         if sub=='talk' then return o.lily.talk(what,extra) end
         return o.lily.command(what)
     end
+    function self.story(sub,extra) return o.story.command(sub,extra) end
     return self
 end
 return Lily

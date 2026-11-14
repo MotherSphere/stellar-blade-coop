@@ -189,7 +189,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
                               'session/group', 'session/join', 'session/saves', 'session/travel',
-                              'story/subtitles', 'ui/kit', 'ui/menu',
+                              'story/snapshot', 'story/subtitles', 'ui/kit', 'ui/menu',
                               'ui/model', 'ui/notice', 'ui/region_tabs', 'ui/text', 'version'))}
     assert set(files) == shipped - {'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
     assert not [rel for rel in files

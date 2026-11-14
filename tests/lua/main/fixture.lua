@@ -510,6 +510,19 @@ package.loaded['story.subtitles']={new=function(o)
     ts.o=o
     return {hud=function(h) ts.hud=h end,tick=function() ts.ticks=ts.ticks+1 end}
 end}
+-- coop story (story/snapshot.lua; story/snapshot_test tests it): what new got (o), its commands, each poll's world
+-- flag, what the next poll answers.
+st={o=nil,cmds={},polls={},says=nil}
+package.loaded['story.snapshot']={new=function(o)
+    st.o=o
+    return {command=function(...) st.cmds[#st.cmds+1]=table.pack(...); return true,'st '..tostring((...)) end,
+        poll=function(world)
+            st.polls[#st.polls+1]=world
+            local says=st.says
+            st.says=nil
+            if says then return table.unpack(says) end
+        end}
+end}
 rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
 package.loaded['nightop.recruiter']={new=function(log)
     rc_log=log
@@ -688,6 +701,7 @@ function load_main(with_native,no_folder,source)
     mx.o,mx.folder,mx.cmds,mx.ticks,mx.stops,mx.says,mx.titles=nil,nil,{},0,0,nil,{}
     ly.o,ly.ticks,ly.stops,ly.titles,ly.cmds,ly.stopped,ly.talks,ly.holds=nil,0,0,{},{},nil,{},{}
     ts.o,ts.hud,ts.ticks=nil,nil,0
+    st.o,st.cmds,st.polls,st.says=nil,{},{},nil
     cs.o,cs.cmds=nil,{}
     dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
     gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0

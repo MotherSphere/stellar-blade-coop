@@ -85,6 +85,9 @@
 -- out of the usage line; any save, as both only read); coop off closes them.
 -- coop gift [send <item> [count]|take [n]], SB's cut mailbox as a co-op gift box: consumables sent to the linked
 -- friend's mailbox and taken from yours, with the cut toast when one arrives (cut/mailbox.lua; on a co-op save only).
+-- coop story [dump|find], the story lines of the game's live save object written to StellarCoopStory.txt, to compare
+-- with a save through tools/story_lines.py, or a list of the objects that may hold them; coop-story.txt in the mod
+-- folder asks the same while a world is loaded (story/snapshot.lua; read only, any save, left out of the usage line).
 local function log(message) print('[StellarCoop] '..tostring(message)..'\n') end
 local has_version,VERSION=pcall(require,'version') -- Written by tools/install.py; absent in the source tree.
 if not has_version or type(VERSION)~='string' then VERSION='dev' end
@@ -441,6 +444,10 @@ o.chainspin=require('cut.chainspin').new({log=function(m) print('[StellarCoop][C
 -- coop devmenu (cut/devmenu.lua), logging [DM] lines: the developer menu's working rows, through the same call.
 o.devmenu=require('cut.devmenu').new({log=function(m) print('[StellarCoop][DM] '..tostring(m)..'\n') end,
     status=function() return link and link.status() end,store=link and link.store('coop-devmenu.txt')})
+-- coop story (story/snapshot.lua), logging [ST] lines: the live save object's story lines; its request file is
+-- polled in the 250 ms loop below, with the Steam link only.
+o.story=require('story.snapshot').new({log=function(m) print('[StellarCoop][ST] '..tostring(m)..'\n') end,
+    folder=folder})
 -- coop gift (cut/mailbox.lua), logging [GF] lines: SB's cut mailbox as a co-op gift box, with the Steam link only. Its
 -- tick runs in the 250 ms loop below, her gift lines come through inbox(), and coop gift runs on a co-op save only
 -- (commands/cut.lua). An alias's FName is FNAME_Find's and must read back as the alias, as the follow's camps do.
@@ -1124,6 +1131,8 @@ if link then
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
             local world,title=guarded('ghost',puppet.world)
             at_title=title==true
+            local asked,why=guarded('story',o.story.poll,world==true) -- coop-story.txt, in a loaded world only.
+            if why then report(asked,why) end
             local photo=world and photo_state() or '0'
             local own=photo~='0' -- Our photo or selfie mode: nothing of ours in the shot unless the settings say so.
             guarded('notice',notice.veil,own)
