@@ -161,11 +161,14 @@ fight_text='fight=on mode=probe actors=12 eve=1 turn=40 turns_per_s=60 writes=ar
 key('RETURN'); quarter(); assert(#asked==fight_asks+3 and asked[#asked]=='fight on scale 135 115')
 key('RETURN'); quarter(); assert(#asked==fight_asks+3 and select(2,focus())=='Off','The probe goes on')
 fight_text=nil
--- Shared quests at once: off by default; on asks coop quests on (the native part judged the save above), off asks
--- coop quests off while coop quests on waits or runs.
+-- Shared quests at once: On by default, while this load read it off (fixture.lua), so the first press writes off and
+-- asks nothing; on asks coop quests on (the native part judged the save above), off asks coop quests off while coop
+-- quests on waits or runs.
 do
     local asks=#asked
-    to('Shared quests (experimental)'); assert(select(2,focus())=='Off')
+    to('Shared quests (experimental)'); assert(select(2,focus())=='On')
+    key('RETURN'); quarter()
+    assert(settings_text:find('\nshared_quests=off\n',1,true) and select(2,focus())=='Off' and #asked==asks)
     key('RETURN')
     assert(settings_text:find('\nshared_quests=on\n',1,true) and select(2,focus())=='On')
     quarter()
@@ -331,7 +334,8 @@ settings_text,in_world,kit_ready='',false,false
 -- rows of the state, Co-op menu and Hang up, and a sentence by state; 3.1 m away, the main page as before. Co-op menu
 -- turns to the main page; Hang up and Esc close; Leave still asks twice; Host and Invite run the same commands and
 -- close as from the main page. The hint shows at a booth with nothing open, and hides with the menu, a box or a
--- question open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off.
+-- question open, while paused and after coop off. No scan while the menu is open, while paused, nor after coop off,
+-- with EVE 100 m from the last scan's spot and 30 s after it; none either back where it ran.
 (function()
     local CAMP='Env_Camp_TeleportMachine_C'
     local function lines_with(text)
@@ -361,12 +365,13 @@ settings_text,in_world,kit_ready='',false,false
         ..'Co-op menu||normal\nHang up||normal',screen())
     assert(menu_view.title.s=='CO-OP' and menu_view.note.s=='The line is free. Host a session or join a friend.')
     local scans=bt.scans
-    clock=clock+5; quarter()
+    bt.me.at.X=20000; clock=clock+30; quarter(); quarter()
     assert(bt.scans==scans and not kit_shown.line_hint,'Open: no scan, no hint')
+    bt.me.at.X=0
     to('Co-op menu'); key('RETURN')
     assert(kit_shown.menu and starts('SESSION||disabled\nHost a session||focus\n') and menu_view.note.s=='',screen())
     key('ESCAPE'); assert(not kit_shown.menu,'Esc closes the main page reached from the line')
-    quarter(); assert(kit_shown.line_hint and bt.scans==scans+2,'Closed: the hint back, the scan due')
+    quarter(); assert(kit_shown.line_hint and bt.scans==scans,'Closed: the hint back, no scan where the last one ran')
     key('F5'); to('Hang up'); key('RETURN')
     assert(not kit_shown.menu and kit_sounds[#kit_sounds]=='close','Hang up closes')
     key('F5'); key('ESCAPE'); assert(not kit_shown.menu,'Esc closes the line')
@@ -431,9 +436,11 @@ settings_text,in_world,kit_ready='',false,false
     link_mode='none'
     scans=bt.scans
     kit_paused=true
+    bt.me.at.X=20000; clock=clock+30
     for _=1,20 do quarter() end
     assert(not kit_shown.line_hint and bt.scans==scans,'Paused')
-    kit_paused=false; quarter(); assert(kit_shown.line_hint and bt.scans==scans+2)
+    kit_paused=false; quarter(); assert(not kit_shown.line_hint and bt.scans==scans+2,'The scan due, far from the booth')
+    bt.me.at.X=0; quarter(); assert(kit_shown.line_hint and bt.scans==scans+2,'Found by the first scan')
     -- The co-op saves' question, still open on the first 250 ms back in the world (it closes after the menu's turn).
     saves_info={saves='main',convert='idle',slot='none',steamid='76561198000000001'}
     in_world,at_title=false,true; quarter(); assert(kit_shown.saves and not kit_shown.line_hint)
@@ -445,8 +452,10 @@ settings_text,in_world,kit_ready='',false,false
     coop('off')
     assert(not kit_shown.line_hint,'coop off hides it')
     scans=bt.scans
+    bt.me.at.X=20000; clock=clock+30
     for _=1,40 do quarter() end
     assert(bt.scans==scans and not kit_shown.line_hint,'No scan after coop off')
+    bt.me.at.X=0
     -- The hint names the menu key as set.
     settings_text='menu_key=Shift+F7\n'
     load_main(true)

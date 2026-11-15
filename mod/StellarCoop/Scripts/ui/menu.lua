@@ -158,6 +158,7 @@ function Menu.new(o)
         o.log('menu: '..key..'='..text..' saved in coop-settings.txt')
         if ROW[key].reload then note=words.reload else apply(new,key) end
     end
+    self.set=set -- The lobby's settings screen (ui/lobby.lua, through main.lua) writes the same way.
     function self.is_open() return open end
     -- Whether a key row waits for a key (main.lua's pad leaves it alone then, but for back).
     function self.capturing() return open and capturing~=nil end
@@ -269,14 +270,18 @@ function Menu.new(o)
     end
     -- Each 250 ms: whether our HUD may show (a world, not our photo mode); closed when not, or when the game pauses or
     -- shows the mouse cursor. Closed, the game's input is given back again while still due (no player controller at the
-    -- close: a map change). at: the booth within reach (nil while a box or a question is open): its hint shows while
-    -- the menu is closed, the HUD may show and the game is not paused.
+    -- close: a map change). at: the booth within reach, or in the SBO lobby a hall seat's {word='sit'|'stand'} (nil
+    -- while a box or a question is open): its hint shows while the menu is closed, the HUD may show and the game is not
+    -- paused, with the co-op line's word, or that word.
     function self.slow(shown,at)
         world=shown==true
         local hint=world and at~=nil and not open and not kit.off() and not kit.paused()
         kit.show('line_hint',hint)
         local h=hint and kit.view('line_hint')
-        if h then h.text.set(settings.menu_key.name..'  '..T.pick(kit.language(),settings.ui_language).line.prompt) end
+        if h then
+            local w=T.pick(kit.language(),settings.ui_language)
+            h.text.set(settings.menu_key.name..'  '..(at.word and w[at.word] or w.line.prompt))
+        end
         if open and (not world or kit.off() or kit.paused()) then return self.close() end
         if not (open or back_at) then kit.input(false) end
         draw()

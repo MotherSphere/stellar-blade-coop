@@ -305,7 +305,7 @@ function Doro.apply(d,c)
     if c.at then m:SetPosition(c.at,false) end
 end
 
-local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')) and pawn or nil end
+local her=U.her
 local function flags(c)
     return string.format('visible=%d hidden=%d',c.bVisible==true and 1 or 0,c.bHiddenInGame==true and 1 or 0)
 end

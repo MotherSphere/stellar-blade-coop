@@ -69,7 +69,7 @@ local WIDGETS='/Script/UMG.Default__WidgetBlueprintLibrary'
 local TOAST_Z=40
 local listed={}
 for i,alias in ipairs(Mailbox.ITEMS) do listed[alias]=i end
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 local function whole(text) return type(text)=='string' and text:match('^%d+$') and math.tointeger(tonumber(text)) end
 -- An id as link/protocol.h's gift_ok() takes it: 1 to 20 digits, not 0.
 local function id_ok(id) return #id<=20 and id:match('[1-9]')~=nil end

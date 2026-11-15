@@ -157,14 +157,15 @@ end
 local s=Link.parse_settings('')
 local values=M.read('')
 assert(values.status_key==s.status_key.name and values.leave_key==s.leave_key.name and values.send_rate=='60'
-    and values.name_tag=='on' and values.cloth=='on' and values.dyes=='off' and values.effects=='off'
+    and values.name_tag=='on' and values.cloth=='on' and values.dyes=='on' and values.effects=='on'
     and values.shared_enemies=='on' and values.menu_key=='F5' and values.host_key=='none'
     and values.photo_freeze_max=='600' and values.ui_scale=='100' and values.ui_sounds=='on'
     and values.ui_language=='game' and values.chat=='on' and values.enemy_hp_scale=='1.35'
     and values.enemy_balance_scale=='1.15' and values.kill_credit=='together' and values.same_place=='on'
     and values.aggro=='game' and values.same_spawns=='on' and values.enemy_extra=='0' and values.bosses=='on'
-    and values.boss_hp_scale=='2.0' and values.shared_quests=='off' and values.revive=='off'
-    and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='off' and values.race_key=='F9')
+    and values.boss_hp_scale=='2.0' and values.shared_quests=='on' and values.revive=='on'
+    and values.follow_host=='ask' and values.follow_key=='F7' and values.collide=='on' and values.race_key=='F9'
+    and values.photo_name_tag=='on' and values.status_overlay=='compact')
 
 -- Values as the mod reads the file: the last line it takes, any case; a refused value leaves the default.
 values=M.read('send_rate=25\nsend_rate=99\nNAME_TAG=Off\nphoto_sync=NOTICE\nstatus_key=shift+f7\nui_scale=7\n'
@@ -247,14 +248,14 @@ on('auto_coop_save')
 assert(values.auto_coop_save=='ask' and select(3,menu.change(NONE,values,1))=='always'
     and select(3,menu.change(NONE,values,-1))=='off' and not menu.current(NONE).reload)
 assert(M.read('auto_coop_save=OFF\n').auto_coop_save=='off' and M.read('auto_coop_save=x\n').auto_coop_save=='ask')
--- Shared quests: off by default, a toggle in effect at once (main.lua asks coop quests on or off).
+-- Shared quests: on by default, a toggle in effect at once (main.lua asks coop quests on or off).
 on('shared_quests')
-assert(values.shared_quests=='off' and select(3,menu.change(NONE,values,1))=='on' and not menu.current(NONE).reload)
-assert(M.read('shared_quests=ON\n').shared_quests=='on' and M.read('shared_quests=x\n').shared_quests=='off')
--- Revive by the friend: off by default, a toggle in effect at once (session/group.lua reads it at each tick).
+assert(values.shared_quests=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
+assert(M.read('shared_quests=OFF\n').shared_quests=='off' and M.read('shared_quests=x\n').shared_quests=='on')
+-- Revive by the friend: on by default, a toggle in effect at once (session/group.lua reads it at each tick).
 on('revive')
-assert(values.revive=='off' and select(3,menu.change(NONE,values,1))=='on' and not menu.current(NONE).reload)
-assert(M.read('revive=ON\n').revive=='on' and M.read('revive=x\n').revive=='off')
+assert(values.revive=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
+assert(M.read('revive=OFF\n').revive=='off' and M.read('revive=x\n').revive=='on')
 -- The wait during the host's cutscene: on by default, a toggle in effect at once.
 on('cutscene_wait')
 assert(values.cutscene_wait=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
@@ -265,18 +266,18 @@ assert(values.follow_host=='ask' and select(3,menu.change(NONE,values,1))=='alwa
 assert(M.read('follow_host=OFF\n').follow_host=='off' and M.read('follow_host=x\n').follow_host=='ask')
 on('follow_key')
 assert(select(1,menu.select(NONE,0,values))=='rebind')
--- The solid partner: off by default, a toggle in effect at once (main.lua gives it to the ghost each 250 ms).
+-- The solid partner: on by default, a toggle in effect at once (main.lua gives it to the ghost each 250 ms).
 on('collide')
-assert(values.collide=='off' and select(3,menu.change(NONE,values,1))=='on' and not menu.current(NONE).reload)
-assert(M.read('collide=ON\n').collide=='on' and M.read('collide=x\n').collide=='off')
--- The status strip above the partner card: off (the default), compact or detailed, wrapping; in effect at once (the
+assert(values.collide=='on' and select(3,menu.change(NONE,values,1))=='off' and not menu.current(NONE).reload)
+assert(M.read('collide=OFF\n').collide=='off' and M.read('collide=x\n').collide=='on')
+-- The status strip above the partner card: off, compact (the default) or detailed, wrapping; in effect at once (the
 -- HUD reads it at each slow).
 on('status_overlay')
-assert(values.status_overlay=='off' and select(3,menu.change(NONE,values,1))=='compact'
-    and select(3,menu.change(NONE,values,-1))=='detailed' and not menu.current(NONE).reload)
-assert(select(3,menu.change(NONE,{status_overlay='compact'},1))=='detailed')
+assert(values.status_overlay=='compact' and select(3,menu.change(NONE,values,1))=='detailed'
+    and select(3,menu.change(NONE,values,-1))=='off' and not menu.current(NONE).reload)
+assert(select(3,menu.change(NONE,{status_overlay='off'},1))=='compact')
 assert(M.read('status_overlay=Detailed\n').status_overlay=='detailed'
-    and M.read('status_overlay=x\n').status_overlay=='off')
+    and M.read('status_overlay=x\n').status_overlay=='compact')
 on('send_rate')
 assert(menu.change(NONE,values,1)==nil and select(3,menu.change(NONE,values,-1))=='55','60 by default, the top')
 -- 5 a step: an older file's 20 is 8 presses from 60. A value set in the file between steps moves by 5 too.

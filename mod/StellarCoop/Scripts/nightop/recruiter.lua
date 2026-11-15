@@ -2,16 +2,15 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop recruiter [off]: the cut Night Operation recruiter's dialogue on a Xion guard near Roxanne (the Phase 8R
--- preview), on the game thread. The dialogue's Join fires a StartMatchMaking zone event, which asks Shift Up's stage
--- servers for a match: before anything else that row becomes a Spawn event with no alias (type 0, which returns at
--- once) and is read back, and the command stops at the first doubt. Then, in memory for the game run and never saved
--- by the mod: the dialogue's network condition flipped (Join shows only while the network option is off, where the
--- game sends nothing), an unused test spawn row of a Xion guard pointed at the cut point with the recruiter's graph,
--- and an unused test filter pointed at that row, so that SB's own Despawn event removes him. Rows are edited in place,
--- field by field, and read back through a fresh FindRow; no row is added or removed. The two zone events go through one
--- guarded choke point, and no console argument reaches it or a table. His text stays Korean: once the Join row reads
--- back, a STOP: text line says that this UE4SS build cannot pass a Lua table as a map inside a struct parameter, which
--- the engine's text registration (PolyglotDataToText) needs for the 23 languages of nightop/recruiter_text.lua.
+-- preview), on the game thread; he also comes by himself at each Xion load, on any save (auto()). The dialogue's Join
+-- fires a StartMatchMaking zone event, which asks Shift Up's stage servers for a match: before anything else that row
+-- becomes a Spawn event with no alias (type 0, which returns at once) and is read back, and the command stops at the
+-- first doubt. Then, in memory for the game run and never saved by the mod: the dialogue's network condition flipped
+-- (Join shows only while the network option is off, where the game sends nothing), an unused test spawn row of a Xion
+-- guard pointed at the cut point with the recruiter's graph, and an unused test filter pointed at that row, so that
+-- SB's own Despawn event removes him. Rows are edited in place, field by field, and read back through a fresh FindRow;
+-- no row is added or removed. The two zone events go through one guarded choke point, and no console argument reaches
+-- it or a table. His lines get the game's language from nightop/guard_text.lua and the native part, not from here.
 local U=require('core.unreal')
 local UE=require('UEHelpers')
 local Recruiter={}
@@ -24,6 +23,10 @@ local XION='/game/art/bg/worldmap/level_p/e04'
 local JOIN,JOIN_ID='MultiplayTest_ZoneE_059',1296 -- The recruiter's Join: StartMatchMaking (15), Shift Up's stage API.
 local CONDITION,CONDITION_ID='MultiplayTest_Condition_001',195
 local SPAWN,SPAWN_ID,MODEL='Test_Dialogue_01_E_CharS_021',75024021,'N_XionGuardA'
+-- The class SB gives MODEL's character on build 26123051 (UE4SS.log 2026-11-12 20:13:09: "+3 s:
+-- CH_NPC_XionGuard_Blueprint_C@-5332.4,7647.8,689.1"). The presence checks count only him: an animal of the scene at
+-- the point is not the guard ("already here: Animal_BP_C stands 0.8 m" earlier that day, and no guard came).
+local GUARD='CH_NPC_XionGuard_Blueprint_C'
 local FILTER,FILTER_ID,FILTER_SHIPPED='LV_TempTestMap_LevelTargetFilter_002',6604002,'LV_TempTestMap_E_CharS_015'
 local POINT,ZONE='TeleportPoint_Xion_MultiPlay','Zone_Xion_10'
 local GRAPH='/Game/GameDesign/Level/ToolData/InteractionGraph/Xion/Xion01/Xion01_NPC_MultiPlay.Xion01_NPC_MultiPlay'
@@ -33,8 +36,8 @@ function Recruiter.allowed(kind,name) return (kind==0 and name==SPAWN) or (kind=
 local function find_name(text) return FName(text,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
 local function index_of(name) return U.value_of(name):GetComparisonIndex() end
 local function xyz(v) return string.format('%.1f,%.1f,%.1f',v.X,v.Y,v.Z) end
-local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local metres=U.metres
+local why=U.why
 local function class_of(object) return U.text(object:GetFullName()):match('^%S+') end
 local function location(actor) local v=U.value_of(actor:K2_GetActorLocation()); return {X=v.X,Y=v.Y,Z=v.Z} end
 local function her()
@@ -59,6 +62,11 @@ local function characters()
     local list={}
     U.each(FindAllOf('SBCharacter') or {},function(_,c) c=U.valid(c); if c then list[#list+1]=c end end)
     return list
+end
+local function guards(list) -- Only the characters of GUARD's class in list.
+    local out={}
+    for _,c in ipairs(list) do if class_of(c)==GUARD then out[#out+1]=c end end
+    return out
 end
 local function near(list,at,skip) -- Those within NEAR of at, but EVE and skip's addresses, as {c=, at=, d=}.
     local eve=her()
@@ -152,15 +160,11 @@ local function edit(path,key,known,writes,keep,what)
     for _,c in ipairs(keep or {}) do back[#back+1]=c end
     return check(key,dt:FindRow(key),back,differs_line),old
 end
--- The engine's text registration (KismetTextLibrary PolyglotDataToText) takes the languages as a TMap inside its
--- struct parameter. This UE4SS build converts a Lua table there from the wrong stack slot (the outer struct's): the
--- call raises, or may read an FText as an FString. So nothing calls it.
-local TEXT_NO='STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter '
-    ..'(PolyglotDataToText LocalizedStrings): nothing registered, his text stays Korean: TEXT=no'
 -- For nightop/roxanne.lua: the same row edit, and the helpers its checks and its log take.
 Recruiter.edit,Recruiter.one,Recruiter.find_name,Recruiter.index_of,Recruiter.ascii=edit,one,find_name,index_of,ascii
--- log(text) writes an [RC] line.
-function Recruiter.new(log)
+Recruiter.JOIN=JOIN -- For session/sbo.lua's Join count (main.lua arms it with this row's FName).
+-- log(text) writes an [RC] line; on_ready() runs after each RECRUITER=yes line (he stands there).
+function Recruiter.new(log,on_ready)
     local pending=nil -- The one follow-up: {sub=, at=os.clock() when due, f=}.
     local function later(sub,delay,f) pending={sub=sub,at=os.clock()+delay,f=f} end
     -- Stateless, so it works after Ctrl+R: the filter reads the spawn row only once a recruiter was asked this run.
@@ -180,39 +184,39 @@ function Recruiter.new(log)
         if not asked then return log('coop off: CreateSBZoneEvent(5, '..FILTER..') called') end
         log('despawn: CreateSBZoneEvent(5, '..FILTER..') called')
         later('coop recruiter off',2,function()
-            local left=#near(characters(),location(assert(point(),POINT..' is not loaded')),{})
+            local left=#near(guards(characters()),location(assert(point(),POINT..' is not loaded')),{})
             if left==0 then return log('+2 s: gone') end
             log(string.format('STOP: +2 s: %d character(s) still within %.1f m of %s (a map change or a game restart '
                 ..'removes him)',left,NEAR,POINT))
         end)
         return true,'despawn asked: the +2 s line says whether he is gone'
     end
-    local function run(sub,extra)
-        if extra~=nil or (sub~=nil and sub~='off') then
-            return false,'Use: coop recruiter [off] (the Night Operation recruiter preview, in Xion only)'
-        end
-        if pending then return false,pending.sub..' is still running' end
-        if sub=='off' then return despawn(true) end
-        -- Everything up to the Join row only reads.
+    -- Everything up to the Join row only reads: EVE in Xion, the point loaded (p: one found before, else a walk) and
+    -- EVE within FAR of it, the five names. The point's place and EVE's distance, or nil and why.
+    local function gates(p)
         local eve=her()
-        if not eve then return false,'no EVE in the world: nothing was changed' end
+        if not eve then return nil,'no EVE in the world: nothing was changed' end
         local map=U.map_of(eve)
         if map~=XION then
-            return false,'coop recruiter runs only in Xion ('..XION..'); this map is '..map..': nothing was changed'
+            return nil,'coop recruiter runs only in Xion ('..XION..'); this map is '..map..': nothing was changed'
         end
-        local p=point()
-        if not p then return false,POINT..' is not loaded: nothing was changed' end
+        p=p or point()
+        if not p then return nil,POINT..' is not loaded: nothing was changed' end
         local at=location(p)
         local far=metres(at,location(eve))
         if not (far<=FAR) then
-            return false,string.format('%s is %.1f m away, %d m at most (stand near Roxanne in the Scrap Market): '
+            return nil,string.format('%s is %.1f m away, %d m at most (stand near Roxanne in the Scrap Market): '
                 ..'nothing was changed',POINT,far,FAR)
         end
         for _,text in ipairs({SPAWN,MODEL,POINT,ZONE,FILTER}) do
             if index_of(find_name(text))==0 then
-                return false,text..' is not a name in this game run: nothing was changed'
+                return nil,text..' is not a name in this game run: nothing was changed'
             end
         end
+        return at,far
+    end
+    -- From the Join row on: the rows, the spawn and its +3 s check.
+    local function spawn(at,far)
         local zt=U.find(ZONE_TABLE)
         local count,shipped=zone_tables(zt)
         if count~=1 or not shipped then
@@ -236,11 +240,8 @@ function Recruiter.new(log)
         end
         log(string.format('join row: %s #%d type %d->0, alias None; read back type 0; 1 zone event table in memory',
             JOIN,JOIN_ID,old))
-        -- His text: not registered (TEXT_NO), said once the Join row reads back. It stays Korean, as in 8R, and never
-        -- stops the recruiter: text is not a safety path.
-        log(TEXT_NO)
         local list=characters()
-        local here=near(list,at,{})[1]
+        local here=near(guards(list),at,{})[1]
         if here then
             return true,string.format('already here: %s stands %.1f m from %s; nothing was spawned',class_of(here.c),
                 here.d,POINT)
@@ -278,15 +279,69 @@ function Recruiter.new(log)
         zone_event(0,SPAWN)
         log(string.format('spawn: CreateSBZoneEvent(0, %s) called; the point is %.1f m from EVE',SPAWN,far))
         later('coop recruiter',3,function()
-            local new=near(characters(),at,before)
+            local new=near(guards(characters()),at,before)
             for k=1,math.min(#new,3) do
                 log(string.format('+3 s: %s@%s point_m=%.1f',class_of(new[k].c),xyz(new[k].at),new[k].d))
             end
-            if #new>0 then return log('RECRUITER=yes: talk to him (Join does nothing in this preview)') end
+            if #new>0 then
+                log('RECRUITER=yes: talk to him')
+                if on_ready then on_ready() end
+                return
+            end
             log(string.format('STOP: +3 s: no new character within %.1f m of %s (RECRUITER=no; SB spawns a row once '
                 ..'per game run, so a second try may need a game restart)',NEAR,POINT))
         end)
         return true,'recruiter asked: the +3 s line says whether he stands at '..POINT
+    end
+    -- The Xion load EVE stands in (her address and her world's), or nil outside Xion or without her.
+    -- shortcut: a reload that gives EVE and her world the same addresses again counts as the same load; read a load
+    -- counter of SB's if a guard goes missing after a reload in Xion.
+    local function xion_load()
+        local eve=her()
+        if not eve or U.map_of(eve)~=XION then return nil end
+        return U.address(eve)..':'..U.address(eve:GetWorld())
+    end
+    -- The auto spawn's state for the load in key: the point once found, the next try (os.clock), done (the spawn ran,
+    -- or coop recruiter off), the last wait logged.
+    local load,found,next_try,done,waited=nil,nil,0,false,nil
+    local function run(sub,extra)
+        if extra~=nil or (sub~=nil and sub~='off') then
+            return false,'Use: coop recruiter [off] (the Night Operation recruiter preview, in Xion only)'
+        end
+        if pending then return false,pending.sub..' is still running' end
+        if sub=='off' then
+            local key=xion_load() -- No auto spawn for the rest of this Xion load.
+            if key~=load then load,found,waited=key,nil,nil end
+            done=true
+            return despawn(true)
+        end
+        local at,far=gates()
+        if not at then return false,far end
+        return spawn(at,far)
+    end
+    -- Every 250 ms, on any save: at each Xion load the spawn sequence once, as coop recruiter runs it. While a gate
+    -- refuses (the point not loaded, EVE too far), tried again every 5 s, its line logged once; a refusal from the Join
+    -- row on, an existing guard (already here) or the spawn ends it for that load.
+    local function auto()
+        local key=xion_load()
+        if key~=load then load,found,next_try,done,waited=key,nil,0,false,nil end
+        if not key or done or pending or os.clock()<next_try then return end
+        next_try=os.clock()+5
+        -- shortcut: one walk each try until the point is found (it sits in the always-loaded E04_LD_Respawn).
+        found=U.valid(found) or point()
+        local at,far=nil,POINT..' is not loaded: nothing was changed'
+        if found then at,far=gates(found) end
+        if not at then
+            local shape=far:gsub('[%d.]+','#') -- The same wait at another distance is the same line.
+            if shape~=waited then
+                waited=shape
+                log('auto: waits: '..far)
+            end
+            return
+        end
+        done=true
+        local ok,message=spawn(at,far)
+        log('auto: '..(ok and '' or 'STOP: ')..message)
     end
     -- Every game-thread tick: nothing unless a follow-up is due.
     local function tick()
@@ -297,6 +352,6 @@ function Recruiter.new(log)
         if not ok then log('STOP: '..due.sub..': '..why(e)) end
     end
     -- coop off: the despawn when a recruiter was asked, in Xion with EVE; may raise (main.lua logs it and goes on).
-    return {run=run,stop=function() despawn(false) end,tick=tick}
+    return {run=run,stop=function() despawn(false) end,tick=tick,auto=auto}
 end
 return Recruiter

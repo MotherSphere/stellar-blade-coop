@@ -11,9 +11,9 @@ local SF=require('core.settings_file')
 local K=require('core.keybind')
 local Link=require('core.link')
 local M={}
--- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=a friend linked or the loopback running,
--- code=our join code while we host with one (link.code), stranger=a player we let in who is not our Steam friend
--- ({id=, name=}, link.stranger)}. confirm: the row runs on a second Select within 3 s.
+-- ctx: {mode=link.mode() ('none', 'host', 'guest', nil before Steam), chat=the chat box can open (a session, the SBO
+-- lobby too), code=our join code while we host with one (link.code), stranger=a player we let in who is not our Steam
+-- friend ({id=, name=}, link.stranger)}. confirm: the row runs on a second Select within 3 s.
 local function none(c) return c.mode=='none' end
 M.MAIN={
     {head='session'},
@@ -49,25 +49,25 @@ M.OPTIONS={
     {key='photo_sync',values={'both','notice','off'},default='both'},
     -- The file's range: 0 (no limit) or 30 to 3600 s; a minute a step, shown in minutes.
     {key='photo_freeze_max',min=30,max=3600,step=60,zero=true,default='600'},
-    toggle('photo_ghost','on'),toggle('photo_name_tag','off'),
+    toggle('photo_ghost','on'),toggle('photo_name_tag','on'),
     {key='photo_pause',values={'full','scenery'},default='full'}, -- From the next photo mode.
     {head='partner'},
     reload(toggle('name_tag','on')),toggle('partner_bar','on'),toggle('partner_arrow','on'),toggle('partner_card','on'),
     toggle('card_details','on'), -- Ping and the friend's map on the card.
     {head='ghost'},
-    toggle('cloth','on'),toggle('dyes','off'),toggle('effects','off'),
-    toggle('collide','off'), -- Yours, at once: the solid partner (partner/puppet.lua).
+    toggle('cloth','on'),toggle('dyes','on'),toggle('effects','on'),
+    toggle('collide','on'), -- Yours, at once: the solid partner (partner/puppet.lua).
     range('send_rate',10,60,5,60), -- 5 a step.
     {head='session'},
     {key='who_can_join',values={'friends','code','private'},default='friends'}, -- At the next host.
-    toggle('revive','off'), -- Yours, at once: the friend's revive of your EVE (session/group.lua).
+    toggle('revive','on'), -- Yours, at once: the friend's revive of your EVE (session/group.lua).
     toggle('cutscene_wait','on'), -- Yours as the guest, at once: the pause during the host's cutscene.
     -- Yours as the guest, at once: the travel to the camp nearest the host (session/travel.lua), offered (ask), started
     -- by itself (always) or neither (off).
     {key='follow_host',values={'ask','always','off'},default='ask'},
     {head='saves'},
     {key='auto_coop_save',values={'ask','always','off'},default='ask'}, -- At the next title.
-    toggle('shared_quests','off'), -- At once: main.lua asks coop quests on or off.
+    toggle('shared_quests','on'), -- At once: main.lua asks coop quests on or off.
     {head='combat'},
     toggle('shared_enemies','on'), -- At once: main.lua asks coop fight on or off.
     -- The host's for both games: at once while shared enemies wait or run (main.lua asks coop fight pilot off or on),
@@ -83,7 +83,7 @@ M.OPTIONS={
     range('enemy_hp_scale',1,4,0.05,1.35),range('enemy_balance_scale',1,4,0.05,1.15),range('boss_hp_scale',1,4,0.05,2),
     {key='kill_credit',values={'together','fought'},default='together'},
     {head='display'},
-    {key='status_overlay',values={'off','compact','detailed'},default='off'}, -- At once: the HUD reads it each 250 ms.
+    {key='status_overlay',values={'off','compact','detailed'},default='compact'}, -- At once: the HUD reads it each 250 ms.
     range('ui_scale',75,150,5,100),toggle('ui_sounds','on'),
     {key='ui_language',values={'game','english'},default='game'},
     {head='chat'},

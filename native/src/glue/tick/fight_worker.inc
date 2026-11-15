@@ -495,8 +495,8 @@ void filter_pass() {
 } // namespace
 
 // coop lion's, coop gardener fight's, coop tendril fight's, the shop's Shock Bolt's, coop mxiii's eight, the Night
-// Operation shop's and Lily's signal's rows (Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop
-// rows, signal rows, mxspawn rows, mxenv rows, mxupper rows, mxmiddle rows, mxlower rows, mxnames rows, mxlily rows and mxrecords rows requests): the addresses of
+// Operation shop's, Lily's signal's and the hall lobbies' rows (Lua's lion rows, gardener rows, tendril rows, bolt rows, mxiii rows, shop
+// rows, signal rows, mxspawn rows, mxenv rows, mxupper rows, mxmiddle rows, mxlower rows, mxnames rows, mxlily rows, mxrecords rows and halls rows requests): the addresses of
 // the tables that batch writes (0 for the others) for the game thread, which adds that batch's rows at the first frame
 // its gate holds. An ask it has not taken yet is replaced. Refused off the pinned build, after coop off and after the
 // rows' fault; once every row of a batch is in, nothing more is asked of it (the rows stay for the game run).
@@ -527,11 +527,13 @@ namespace {
 // the Shock Bolt's line once, after the bolt rows' (its fault with where it was).
 void nightop_pass(); // nightop_worker.inc's, after this part.
 void region_tabs_pass(); // region_tabs_worker.inc's, after this part.
+void sbo_pass();         // sbo_worker.inc's, after this part.
 uint32_t rows_logged[kRowWordCount] = {};
 bool lion_fault_logged = false, shock_logged = false;
 void lion_pass() {
   nightop_pass(); // The Night Operation shop screen's, Roxanne's and Lily's answers too.
   region_tabs_pass();
+  sbo_pass();
   for (size_t k = 0; k < kRowWordCount; ++k) {
     const RowsJob &j = *kJobs[k];
     uint32_t asks = 0;
@@ -577,7 +579,7 @@ void lion_pass() {
 } // namespace
 
 bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const std::vector<std::string> &lines,
-                bool (*send)(const std::string &, bool), coop::Life mate) {
+                bool (*send)(const std::string &, bool), coop::Life mate, uint64_t partner) {
   fight_send = send;
   lion_pass(); // The rows' answers, logged here at every pass whatever the fight does.
   if (fight_faulted && !fight_fault_logged) {
@@ -604,7 +606,7 @@ bool fight_pass(uint64_t now_ms, bool linked, bool hosting, int marker, const st
     paused = pinned && !blocked && fight::world_paused(base, rpm);
   }
   fight_worker.pass(now_ms, linked, hosting, lua.world, lines, [marker] { return fight_gate(marker); }, io, photo,
-                    mate, paused);
+                    mate, paused, partner);
   filter_pass();
   pilot_pass(now_ms, linked, lines, send);
   return fight_engine.on();

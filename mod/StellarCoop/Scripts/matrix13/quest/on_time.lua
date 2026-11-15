@@ -138,7 +138,7 @@ for i=1,5 do
 end
 Lily.CHOICE={'TheaterSelectDataTable','TS_GoToTest_2',86,{{'DisplayText','L'}},'Success5'}
 Lily.TEXTS[#Lily.TEXTS+1]=Lily.CHOICE
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
+local why=U.why
 -- The signalquest line (quest/own.h) as fields: held (unread, none, held, fault), state, group (0 is M01), task,
 -- epic12, sub005, pro (the prologue: unread, none, held), prostate, progroup, protask, epic11 (Quest_Epic_11's active
 -- group), epic11state, asks (numbers), want, why; nil without one.

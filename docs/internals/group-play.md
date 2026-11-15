@@ -5,7 +5,7 @@ The player's side is in [Playing with a friend](../playing-with-a-friend.md), an
 
 ## Shared quests
 
-Shared quests (`shared_quests`, experimental, off by default, not tested in game yet) move the guest's quests to the
+Shared quests (`shared_quests`, experimental, on by default, not tested in game yet) move the guest's quests to the
 host's state through the game's own quest functions, one step at a time, for the steps the two players make together.
 `quest/sync.h` holds the line format, the quest table and each side's rules; `quest/engine.h` holds the reads and calls
 on the game's quest data and the worker's side.
@@ -15,11 +15,11 @@ player's quest unit (the quest manager at `0x147037428`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470683b0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ19 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ20 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
 - The host only reads. Each quest whose state changed goes to the guest as one reliable line on channel 2 with the
-  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ19 q <gen> <seq> <id> <state>
+  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ20 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables.
 - Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or
@@ -58,7 +58,7 @@ one. A bad line only loses that quest's marks; her live quests always decide wha
 
 The guest's travel to the host (`session/travel.lua`, the camps lines, `game/travel.h` and the native call) moves only
 the guest's EVE, through the game's own fast travel, and changes nothing in the host's game. It has not been tested in
-game yet, and in this version it never travels: `main.lua` leaves it off until that test (see below).
+game yet.
 
 - The guest's Lua sends `camps? <id>` when she presses F7 (`follow_key`) or types `coop travel host`, and with
   `follow_host=always` 5 s after the host arrived somewhere new. It sends one at most each 2.5 s.
@@ -80,9 +80,9 @@ game yet, and in this version it never travels: `main.lua` leaves it off until t
   counts toward the game's camp achievements (`Trophy_Activate_AllCamp` and the camp rows of AchievementTable). Her Lua
   therefore takes only a camp that the native read of her activated camps lists (below). With no read at that moment
   (a load, the title), the travel is refused with `no read of the camps this save has activated (<why>)`.
-- The follow itself is off: `main.lua` does not pass `follow` to `session/travel.lua`, so every travel is refused
-  before `camps?` is sent (`travel refused: the follow stays off until it has been tested in game` in `UE4SS.log`, and
-  the failed notice), and no offer shows. `coop travel probe` and `coop mxiii leave` use the read already.
+- `main.lua` passes `follow=true` to `session/travel.lua`. Without it, every travel is refused before `camps?` is
+  sent (`travel refused: the follow is off (no o.follow)` in `UE4SS.log`, and the failed notice), and no offer shows.
+  `coop travel probe` and `coop mxiii leave` use the same read.
 - The read (`game/camps.h`) asks the game's own camp list. The camp list screen (`FUN_141f69530`) calls
   `FUN_141d1f860(zones, region, type, out, false)`, which returns the ZoneCampTable rows of that region and CampType
   that hold an active row: a camp's rows are the ZoneEnvSpawn rows whose `TargetCamp` names it (the zone manager's

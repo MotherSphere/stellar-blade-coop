@@ -100,9 +100,9 @@ local CUT={UI_Night_Watching='Spectating',UI_Night_Revive='Resuscitate',
     UI_Night_Message_RequestRevive='Asked {Name} for a resuscitation.',
     UI_Night_Message_RequestRevive_Receive='{Name} has requested resuscitation.',
     UI_Night_Message_ComeBackFriend='{Name} has joined the game.'}
-local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
+local metres=U.metres
 local function xyz(v) return string.format('%.0f,%.0f,%.0f',v.X,v.Y,v.Z) end
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 local function location(actor)
     local v=U.value_of(actor:K2_GetActorLocation())
     return {X=v.X,Y=v.Y,Z=v.Z}
@@ -759,7 +759,7 @@ function Run.new(o)
         return false,no
     end
     -- A co-op run's death is a down while life= reads (our vitals, read in a session only) and revive=on (the
-    -- downed player's opt-in to the in-place respawn, off by default): the death screen's start, or life 3 to 5 that
+    -- downed player's opt-in to the in-place respawn, on by default): the death screen's start, or life 3 to 5 that
     -- its watch missed. Else the death ends the run as in a solo run. A down lasts W.DOWN s of ticks (a pause does not
     -- hold it), plus CALL s past it once a call went, and input.down tells the host's states that both downs held
     -- with no call that can still land (failed 'both'). The partner's line at help 100 asks for the call. Up again

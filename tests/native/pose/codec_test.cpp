@@ -4,8 +4,8 @@
 // The pose codec on the build machine: round trips within NetPose's bounds (effect slots too), the decoder's refusals
 // one defect at a time, and fuzzed input (random and mutated messages) that must never crash or yield a non-finite
 // value. Codec v2's deltas: rebuilds within the sender's tolerance and at its edge, their refusals, fuzzed deltas,
-// which keyframe the receiver holds, the sender's keyframe choice and byte budget, and a lossy stream that never
-// decodes a pose past the tolerance.
+// which keyframe the receiver holds, the sender's keyframe choice and byte budget, a lossy stream that never decodes a
+// pose past the tolerance, and a 60 a second stream with every second delta dropped, which decodes whole.
 #include "pose/codec.h"
 
 #include <algorithm>
@@ -818,6 +818,36 @@ int main() {
                 keyframes, deltas, lost, decoded_ok, inexact, keyless);
     assert(keyframes >= 240 && keyframes < 300 && keyless > 0 && decoded_ok + keyless + lost == 3600);
     assert(inexact > 300 && inexact < decoded_ok); // About 730 of 2900.
+  }
+
+  // Per-peer pose caps (link/core.h): the stream is encoded once at 60 a second and a peer capped at 30 gets every
+  // second delta only. 60 poses, a keyframe each 250 ms, every second delta dropped: each pose left decodes, none
+  // refused (key), each within the tolerance.
+  {
+    KeyedEncoder sender;
+    KeyedDecoder receiver;
+    sender.reset(pose_size(t));
+    receiver.reset(pose_size(t));
+    Pose p;
+    random_pose(p);
+    std::vector<uint8_t> buf(kMaxPose);
+    size_t keyframes = 0, deltas = 0, decoded_ok = 0;
+    for (uint32_t k = 1; k <= 60; ++k) {
+      const uint64_t publication = 1'000'000 + k * 16667ull;
+      move_root(p);
+      bone_field(p, k % kLeaderBones, int(k % 3));
+      const std::vector<uint8_t> f = encode(p, k, publication);
+      std::copy(f.begin(), f.end(), buf.begin());
+      const size_t n = sender.encode(t, buf.data(), f.size(), publication);
+      if (buf[2] == 'D' && ++deltas % 2 == 0)
+        continue;
+      keyframes += buf[2] == 'P';
+      Decoded d;
+      const char *why = receiver.decode(t, buf.data(), n, d.h, d.root, d.bones.data(), d.fx);
+      assert(!why && d.near(decoded_full(f)));
+      ++decoded_ok;
+    }
+    assert(keyframes == 4 && deltas == 56 && decoded_ok == 32);
   }
 
   // A table over 16 KB has no pose size: the caller refuses to stream it.

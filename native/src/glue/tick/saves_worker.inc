@@ -31,7 +31,13 @@ slot::Saves saves() {
   return saves_now();
 }
 std::string saves_why() { return !pinned ? engine_reason : blocked ? std::string("coop off") : names.why(); }
-int load_mode() { return pinned && !blocked ? slot::field(base, rpm, slot::kLoadMode) : slot::kUnread; }
+int load_mode(bool after_off) {
+  return pinned && (after_off || !blocked) ? slot::field(base, rpm, slot::kLoadMode) : slot::kUnread;
+}
+int reloading(bool after_off) {
+  const int value = pinned && (after_off || !blocked) ? slot::field(base, rpm, slot::kReloading) : slot::kUnread;
+  return value == slot::kUnread ? value : value & 0xff; // One byte; +0x2f9d to +0x2f9f are other flags.
+}
 std::string saves_switch(bool coop) {
   if (!pinned || blocked)
     return saves_why();

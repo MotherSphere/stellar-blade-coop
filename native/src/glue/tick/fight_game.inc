@@ -14,11 +14,14 @@ namespace {
 // ZoneEvent Despawn sends it). Extra enemies (stage 4b, PHASE11-STAGE3 9.3, M3-7), only from inside our job: NewActor,
 // as SpawnRequest::Execute calls it. Bosses (stage 5), only from inside our job: SetBattleMode's wrapper, as
 // FSBActor::AddTargetedByEnemy calls it and as SB's own battle-off calls do (NewActor again for a boss's summons, and
-// the effect call for its rows).
+// the effect call for its rows). The PvP test (design 13), only from inside our job: NewActor and the effect call for
+// its stand-in, the relocation thunk as FSBActorRespawn::Simulate calls it, the skill lookup, and the SkillTable row by
+// ID as FSBLogicSimulation::NewSkillLogic finds it.
 constexpr uint64_t kSendJob = 0x141af4b70, kFindActor = 0x141ad7cf0, kApplyStat = 0x141ba9960,
                    kApplyEffect = 0x141ad1af0, kSpawnRow = 0x141a9eba0, kZoneRow = 0x141a9c8c0,
                    kSpawnByKey = 0x141c1dbf0, kDespawn = 0x141b08a30, kNewActor = 0x141ad24d0,
-                   kSetBattleMode = 0x141a7db20;
+                   kSetBattleMode = 0x141a7db20, kRelocate = 0x141a51f60, kFindSkill = 0x141ad7bb0,
+                   kSkillTableRow = 0x141a9e920;
 constexpr uint64_t kLogicThreadId = 0x1470683b0; // DAT_1470683b0: the logic worker's thread ID during its tick, else 0.
 using SendJob = uint8_t (*)(void *, fight::Job *job, uint8_t unlocked_queue);
 using FindActor = void *(*)(void *logic, int32_t guid);
@@ -50,6 +53,15 @@ using NewActor = void *(*)(void *logic, int32_t chr, const float *at, const floa
 // fifth argument, 0, running the boss's EventOnBattle; or 0 (off), 0, 0, 1, 1 as SB's own battle-off calls pass them.
 // Called on the logic thread, it queues its functor for the game thread.
 using SetBattleMode = void (*)(void *fsb, uint8_t on, uint8_t, uint8_t, uint8_t, uint8_t);
+// The relocation thunk to FUN_14b949090: the FSBActor, where (FSB +0x4cc, the old place in +0x4c0), an unused argument,
+// and how the game thread's functor moves its UE actor (2: a teleport with ResetPhysics, no sweep). Nothing when the
+// place is the same.
+using Relocate = void (*)(void *fsb, const float *at, uint64_t unused, uint8_t how);
+// The logic singleton and a skill's GUID: its skill object (+0x58 its SkillTable row), or null.
+using FindSkill = void *(*)(void *logic, int32_t guid);
+// The tables, an unused argument and the SkillTable ID: the row, or null. A map lookup with no allocation, the
+// EventSpawnTable getter's sibling (table index 0 in place of 0x13); the row's first-use call is left to SB.
+using SkillRow = void *(*)(void *tables, uint64_t unused, int32_t id);
 template <class F> F game_function(uint64_t address) {
   return reinterpret_cast<F>(base + (address - game::kImageBase));
 }
@@ -72,9 +84,9 @@ struct WinGame {
     return reinterpret_cast<uintptr_t>(
         game_function<FindActor>(kFindActor)(reinterpret_cast<void *>(logic), static_cast<int32_t>(guid)));
   }
-  void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify) {
+  void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify, bool ignore_nodamage = true) {
     game_function<ApplyStat>(kApplyStat)(reinterpret_cast<void *>(la), type, 0, delta, 0,
-                                         reinterpret_cast<void *>(cause), 0, 0, 0, notify, 1);
+                                         reinterpret_cast<void *>(cause), 0, 0, 0, notify, ignore_nodamage);
   }
   uint64_t effect(uint64_t logic, uint64_t la, uint64_t caster, int32_t id) {
     static const float kZero[3] = {};
@@ -98,6 +110,16 @@ struct WinGame {
     return reinterpret_cast<uintptr_t>(game_function<NewActor>(kNewActor)(
         reinterpret_cast<void *>(logic), static_cast<int32_t>(chr), at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0,
         0));
+  }
+  void relocate(uint64_t fsb, const float *at) {
+    game_function<Relocate>(kRelocate)(reinterpret_cast<void *>(fsb), at, 0, 2);
+  }
+  uint64_t skill(uint64_t logic, int32_t guid) {
+    return reinterpret_cast<uintptr_t>(game_function<FindSkill>(kFindSkill)(reinterpret_cast<void *>(logic), guid));
+  }
+  uint64_t skill_row(uint64_t tables, int32_t id) {
+    return reinterpret_cast<uintptr_t>(
+        game_function<SkillRow>(kSkillTableRow)(reinterpret_cast<void *>(tables), 0, id));
   }
   void battle(uint64_t fsb, bool on) {
     game_function<SetBattleMode>(kSetBattleMode)(reinterpret_cast<void *>(fsb), on, 0, 0, !on, 1);

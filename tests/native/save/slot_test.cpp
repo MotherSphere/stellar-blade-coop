@@ -382,14 +382,19 @@ int main() {
   assert(cas_calls == calls && moved_state.latched());
   // Off the title: a save loaded, the title screen not shown (a loading screen, a New Game intro, an older Lua or
   // none), Continue or Load Game chosen there, or the load state unreadable. Only Lua's title with load mode 0 passes.
-  assert(not_title(false, true, 0).empty());
-  assert(not_title(true, false, 0) == "a save is loaded: quit to the title first");
-  assert(not_title(true, true, 0) == "a save is loaded: quit to the title first");
-  assert(not_title(false, false, 0) == "the title screen is not shown");
-  assert(not_title(false, false, kUnread) == "the title screen is not shown");
-  assert(not_title(false, true, 2) == "Continue or Load Game was chosen at the title (load mode 2)");
-  assert(not_title(false, true, kUnread) == "the game's load state is unreadable");
-  assert(not_title(true, true, kUnread) == "a save is loaded: quit to the title first");
+  assert(not_title(false, true, 0, 0).empty());
+  assert(not_title(true, false, 0, 0) == "a save is loaded: quit to the title first");
+  assert(not_title(true, true, 0, 0) == "a save is loaded: quit to the title first");
+  assert(not_title(false, false, 0, 0) == "the title screen is not shown");
+  assert(not_title(false, false, kUnread, 0) == "the title screen is not shown");
+  assert(not_title(false, true, 2, 0) == "Continue or Load Game was chosen at the title (load mode 2)");
+  assert(not_title(false, true, kUnread, 0) == "the game's load state is unreadable");
+  assert(not_title(true, true, kUnread, 0) == "a save is loaded: quit to the title first");
+  // SB's own reload under way (client +0x2f9c, one byte), or unreadable: refused after the checks above.
+  assert(not_title(false, true, 0, 1) == "the game is reloading the save (client +0x2f9c)");
+  assert(not_title(false, true, 0, kUnread) == "the game's reload state is unreadable");
+  assert(not_title(false, true, 2, 1) == "Continue or Load Game was chosen at the title (load mode 2)");
+  assert(kReloading == 0x2f9c);
 
   // The read-only probe (T-AS0 step 1): the client's slot cache count, the pending load's slot and mode and the entered
   // slot, then the entry, the verdict and the builder's cached key. It reads; it never writes.

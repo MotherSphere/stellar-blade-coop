@@ -327,8 +327,9 @@ int main() {
   assert(sw.kept > 100 && sw.keys_overwritten > 10 && sw.keyless == 0 && sw.stats.stale == 0);
 
   // A lost keyframe at 60 a second: its deltas are dropped as keyless, so 16 sequence numbers pass between two poses.
-  // The interval is that gap over the sequence numbers, so she is drawn as far behind the newest pose after the hole as
-  // before it (taking the 267 ms gap as one interval drew her 37 ms further back, a step back on screen).
+  // The interval follows the median of the last 8 gaps, which one 267 ms gap does not move, so she is drawn as far
+  // behind the newest pose after the hole as before it (taking it as one interval drew her 37 ms further back, a step
+  // back on screen).
   {
     Playback p;
     p.reset(kTransformBytes);
@@ -347,6 +348,27 @@ int main() {
         assert(std::fabs(behind - before) < 0.5);
     }
     assert(std::fabs(before - 125) < 0.5);
+  }
+
+  // A match lobby member under a cap of 20 or 30 gets a 60 a second stream's keyframes (each 15th pose) and, after
+  // each, every 3rd or every 2nd delta (link/core.h's send_binary). She is drawn 1.5 of her own intervals back (50 or
+  // 33.3 ms), so a pose is still ahead of her; the gap over the sequence numbers kept the sender's 16.7 ms and drew
+  // her 125 ms back, and a 50 ms wait between poses outran that.
+  for (auto [cap, expect] : {std::pair<uint32_t, double>{20, 175}, {30, 150}}) {
+    Playback p;
+    p.reset(kTransformBytes);
+    double behind = 0;
+    for (uint32_t k = 1; k <= 120; ++k) { // 2 s.
+      if (k % 15 % (60 / cap))
+        continue;
+      p.scratch().sequence = k;
+      p.scratch().publication = k * 16'667;
+      const uint64_t arrival = p.scratch().publication + 100'000;
+      assert(p.accept(arrival));
+      behind = arrival / 1000.0 - p.display_ms(arrival / 1000.0);
+    }
+    std::printf("  cap %u: drawn %.1f ms behind the arrival\n", cap, behind);
+    assert(std::fabs(behind - expect) < 1);
   }
 
   // A stale pose (not newer than the newest) is refused and counted.

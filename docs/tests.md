@@ -15,29 +15,137 @@ build/host/pose_codec_test
 
 ## Lua tests
 
-The Lua tests (`core/`: `actors_of`, `keybind`, `link`, `settings_file`, `ue4ss_settings`; `cut/`: `chainspin`,
-`devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`, `mailbox`, `scene`, `tendril`,
-`wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `input`, `menu`, `quests`, `session_ui`, `settings`,
-`story`; `matrix13/quest/`: `on_time`, `zone_talks`; `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `drone`,
-`fans`, `mila`, `move`, `travel`; `nightop/`: `board`, `challenges`, `probe`, `recruiter`, `recruiter_text`, `roxanne`,
-`run`, `shop`, `waves`; `partner/`: `capture`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`,
-`model`, `run`; `session/`: `booth`, `chat`, `group`, `join`, `saves`, `travel`; `story/`: `snapshot`, `subtitles`;
-`ui/`: `guide`, `kit`, `model`, `notice`, `region_tabs`, `text`) run the scripts, with fake UE4SS objects for those
-that call the engine. In the capture test, any write to the fake EVE fails the test. The `main/` tests load
+The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `pak_gate`, `settings_file`, `ue4ss_settings`,
+`unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
+`mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
+`menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`; `matrix13/quest/`: `on_time`, `zone_talks`;
+`matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
+`nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
+`waves`; `partner/`: `capture`, `ghosts`, `hud`, `puppet`, `sentinel`; `race/`: `doro`, `drive`, `drive_model`, `model`,
+`run`; `session/`: `arrival`, `booth`, `chat`, `group`, `halls_rows`, `join`, `saves`, `sbo`, `travel`; `story/`:
+`snapshot`, `subtitles`; `ui/`: `guide`, `kit`, `lobby`, `lobby_model`, `model`, `notice`, `region_tabs`, `text`) run
+the scripts, with fake UE4SS objects for those that call the engine. In the capture test, any write to the fake EVE
+fails the test. The `main/` tests load
 `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
 
+- `core/link_test` also covers the status's `uidev=` and `me=` lines and the `owner=`, `room=` and `hall=` fields of a
+  match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never from a
+  player's name;
+- `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
+  version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
+  read is bounded,
+  and refuses a missing game folder, `.utoc`, `.pak` or `.ucas`, a map or folder missing from the directory index, and a
+  `.utoc` whose header does not read as one;
 - `main/fight_test` also covers `coop fight pilot` (its `test target` and boss tests included),
   `coop fight spawn probe`, the `spawn_filter` setting with the `filter` word it adds, and the `same_place`, `aggro`,
   `same_spawns`, `enemy_extra`, `bosses` and `boss_hp_scale` settings, whose rows `main/menu_test` covers with the
-  `shared_quests` row;
+  `shared_quests` row, and `coop pvp` (its words, the `pvp_spike` and `shared_enemies` refusals, status, and
+  `pvp_spike=off` ending an earlier load's PvP test at a reload);
 - `main/fight_notices_test` covers the same place and same spawns notices in both languages;
 - `main/quests_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
+- `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
+  case from a fresh Lua load: 4 and 5 in a world with the UI up, 0 and 2 at the title, all in the first second;
 - `main/input_test` covers the controller's events from a fake `coop_pad` (routed to the menu, the co-op saves' question
-  and the two boxes, never to the host's question; at most 8 a frame; an older DLL without it), the mouse in the menu
-  and the focus watchdog's reset;
-- `ui/kit_test` covers the menu's mouse cursor, the focus put back after a click and the focus watchdog;
+  and the two boxes, never to the host's question; LB and RB taken and doing nothing there; at most 8 a frame; an
+  older DLL without it), the mouse in the menu and the focus watchdog's reset, the Lua frame time line with its
+  longest frame and 250 ms pass, their counts over 16 ms and over 50 ms, and the longest call of five modules, and the
+  gap lines (a frame over 100 ms after the last, with the 250 ms pass in the gap or none, at most 200 a minute);
+- `main/match_test` covers `coop match` (search, create, cancel, end, join with a code, leave), search and create with
+  the SBO lobby's room and hall words, `coop mute` and `coop unmute`, and their usage line;
+- `main/sbo_test` covers `coop sbo` and the SBO lobby's wiring (the arm at the recruiter, the tick, the title's
+  put-back, coop off), the recruiter's auto spawn pass every 250 ms on any save, and the ghost's collision kept off
+  during a session; then the lobby's input routing (menu_key, the pad's View, LB and RB, the keys with C's tabs on
+  QWERTY and AZERTY, the mouse), the hall seats (menu_key and View held 1 s stand EVE up while she sits, sit her near a
+  seat SB's chairs left to menu_key, else open B; the hint says Sit or Stand up, and hides while B is open; a seat read
+  that raises is logged once and the rest of the 250 ms pass runs), the engine calls behind SB's chairs (the class found
+  in memory or loaded once, with LoadAsset's own error when it does not load, the deferred spawn in EVE's world with
+  AlwaysSpawn, EnvActorName set before FinishSpawningActor, each part hidden with its collision off, the actor destroyed
+  when a step raises, and the zone and row SB bound it to), its view and what its rows ask for (Search with the SBO
+  lobby's room and hall words, Private with the map picked on the settings screen, which is not written to
+  `coop-settings.txt`), the countdown feed, the start line, the focus watchdog and the `hud hide` requests (`off` at the
+  first pass after a load, then `on` and `off` once each as the screens open and close, and one that cannot be written
+  logged once and asked again; `main/fixture.lua` keeps them apart from the other requests); last, the arrival's hold:
+  after a lobby warp, ClientRestart's hook puts SB's black up at the next pass (`LoadingScreenFadeAuto` with a 10 s
+  lifetime, 0.5 s fades and tag 5) and veils the kit; `hud hide on` is asked under it from the arrival on, passes before
+  the lift; the menu camera takes the view while B waits, and once nothing is missing `loading lift` is asked, the veil
+  goes and B opens in that pass with SB's HUD still hidden; a Lua load under an earlier load's hold asks `loading lift`
+  once, at its first pass in the lobby world and not before, and none when that pass also puts up its own black (one
+  fade); without the hook, one log line;
+- `nightop/recruiter_test` also covers the auto spawn at each Xion load (waits while the spawn point is not loaded or
+  EVE is too far, one spawn a load, a guard kept after a Lua reload, none after `coop recruiter off`) and the arm call
+  after `RECRUITER=yes`;
+- `ui/kit_test` covers the veil (the root built and kept collapsed, the look warmed in one 250 ms pass, shown again at
+  once, and a hidden world's root left collapsed), the menu's mouse cursor, the focus put back after a click, the focus
+  watchdog and the focus line
+  it logs as it fires, text shadows and wrap, fixed groups, SB parts and the keyboard layout from the game's device. It
+  also checks that a root built while its look warms holds each texture it wanted once warmed, so a GC before the next
+  build frees none of them;
+- `ui/lobby_test` covers the lobby menu and settings on fake SB parts: layout, rows, focus looks, the leave question,
+  the countdown, the kit drawing that stands in for a part the game cannot make (row labels, settings items, the
+  leave question with Yes and No, the countdown's seconds), the lines logged as the screens open and close and the
+  question is asked and answered, the Map row of a Private match (left and right, the pick shown by its name), and
+  that no part is ever focused, clicked through or sent a call outside the allowed list;
+- `ui/lobby_model_test` covers the lobby menu's rows, actions, status and members by state, the settings rows (the
+  Map row only with no lobby open and the hall lobbies in use) and the countdown's resync;
+- `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included,
+  and the lobby menu's rows, settings, values and status within their columns, and the hall seats' Sit and Stand up
+  hint within the booth hint's width;
+- `session/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
+  controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
+  one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
+  second warp under the hold (a guest following her host), which keeps the black and counts the cap from its own
+  controller; a disarm (a refused warp, coop off); the 60 s arm cap; a black that does not show; and a lift the native
+  part cannot take, which still removes the veil;
 - `session/chat_test` covers the Thai leading vowels at a row's end;
+- `session/halls_rows_test` checks the hall lobbies' 181 rows (5 worlds, 5 zones, 171 seats) against
+  `lion/halls_rows.h` and `session/sbo_maps.lua`, then the title's ask: none without the lobby pak, once with it on the
+  co-op save files, read back; a refusal, a fault or rows that read back wrong keep the lobby in Xion with one log line,
+  also after a Lua reload, and a shut gate's refusal is asked again;
+- `session/sbo_test` covers the lobby's spots, fence, row sets, notices and entry checks, and the entry and return from
+  the status line, a double Join, a late arrival, coop off while warping and a Lua load in the middle of an entry, and a
+  Join that enters again after SB's own reload cut an entry short (record open or warping); then the room shown, the
+  spots and their re-place, the fence, hop and back, and a Lua reload in the lobby, with the log lines for the room, for
+  where EVE stands one pass after a teleport and for each fence catch. It also covers an arrival whose status shows
+  `arrivals=` one line before `record=arrived`, a room read that raises, and a new session that drops the last session's
+  round order. Then the menu camera, its sweep after a reload, the view and sequence tools (`coop sbo view`, `view set`,
+  `seq`). Last, the hall lobbies: Xion and one log line when the game folder, the lobby pak or the hall rows are missing
+  (refused rows are logged by `halls_rows` only), a hall drawn at random with no Xion row edited, a hall zone that is
+  not a name yet, and in a hall its spots' Z, its fence, its menu camera and FOV, no training room, no `seq`, its status
+  word, hop and back, and a Lua reload that takes the hall from the client zone. Then a match request's room and hall
+  words, and the match lobby's map: a guest whose lobby is on another hall warps there once per arrival and joined lobby
+  (a refused warp is not asked again, and a lobby the regroup moves her to is followed), a lobby on a map she lacks, on
+  Xion while she uses the halls, or of another pak version is left with its notice, the same lobby joined again is left
+  again, and a host or a co-op lobby makes no warp. Last, a Private match: asked at once on the hall EVE stands in, else
+  after a warp to the picked hall at her arrival there; Random draws a hall; a refused warp creates nothing, nor does a
+  warp that lands in another lobby (its line is logged) or one whose session closes before the arrival; Private again
+  while the warp runs is refused, and asked once that session has closed; a warp the Lua side refuses at once (the
+  hall's zone not a name in this game run) returns its why, asks nothing, and leaves the next Private free to warp;
+  without the halls the request names Xion. Last, the hall seats. SB's chair per kind: its place puts EVE's seated spot
+  on the seat with her facing the seat's yaw (Hotel's seat 1 checked by number). A hall arrival spawns one chair per
+  seat with a row, in the arrival's pass on the budget or one a pass past it, with the kind's class looked up once, the
+  seat's row, its place and the parts to hide; a spawn that raises is logged and the rest go on; a class that does not
+  load costs one lookup and leaves its kind without chairs; the camp seats get none; Xion and the arena get none; a warp
+  stops the spread, and each new arrival spawns again; a Lua load in a hall spawns none, reads the binds of the earlier
+  load's chairs and leaves to menu_key each seat none of them is bound to (every seat when that read raises, logged).
+  The bind check runs once, 1 s after the last spawn and with SB's loader at 3 or 4: one line with the counts and the
+  seats left to menu_key (no chair, one SB did not bind, or one whose bind read raised: the first such error is logged
+  with its seat), whose sit loops are looked up once a kind, a look-up that raises listed with its error. SB's
+  interaction on EVE is logged as it starts, with the seat nearest her, and as it ends, and `busy()` says it runs. Then
+  the menu_key sit on those seats: the nearest within 1.5 m, none in Xion, while EVE sits, while SB's interaction runs
+  on her (an unbound seat 70 cm from the chair SB seats her on), before the bind check, on a bound seat, or at a low
+  bench the generator left out; a sit turns her collision off, teleports her to the seat at her standing height, holds
+  her movement and plays the seat's loop, in that order; she stands up when the loop ends, on `stand()` and at coop off,
+  with the teleport to the approach point while her collision is still off, then her collision and walking back, also
+  when the teleport raises, and the next pass logs where she stands and how far from the approach point; a refused
+  teleport or loop is undone the same way; an arrival forgets the seat, and so does a warp whose new EVE (or no EVE)
+  ends the loop before the arrival, with no call to that EVE, even when the game puts the new EVE at the old one's
+  address (the seat keeps the arrival count she sat at); a Lua load in a hall that finds her collision off stands her up
+  at the approach point of the nearest seat, and in Xion changes nothing. Last, the arrival's hold: the entry's warp, a
+  guest's follow, a Private match's warp and `coop sbo back` arm it, the hop to an arena does not; a warp the native
+  part ends without an arrival, SB's own reload and coop off disarm it; `unready()` lists the arrival, EVE's spot, a
+  hall's bind check and the menu camera until each is done (no chairs in Xion); under the hold the chairs spawn on the
+  100 ms budget;
 - `story/snapshot_test` holds the in-game story dump to `tests/tools/story_case.txt` and its floats to
   `tests/tools/float_repr.txt`, the files `story_lines_test.py` checks the save side against.
 
@@ -48,49 +156,113 @@ The C++ tests cover the platform-free headers in `native/src`.
 ### Link
 
 - `link_protocol_test`: the text protocol, with a fuzz loop, the requests from Lua (`coop fight` with its `place`,
-  `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target`
-  and the boss tests included; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`, `mxiii rows`, `shop rows`
-  and `signal rows` with their 25 table words and bad addresses, the longest of them 813 bytes; `fly` and `slowmo` on
-  or off; `anim play` with its id, path and `once` or `loop`, and `anim stop`; `shortcut list` and `shortcut load
-  <map> <1-4>`; `nightshop`, `roxanne`, `lily` and the 8 `signal` words, in `quest/own.h`'s order), Night
-  Operation's night line (its round trip, its refusals and a fuzz seed), and the join codes (both real lobby ids,
-  loose typing, malformed codes, and the share of one-character typos the check turns away);
-- `link_core_test`: the link against a fake Steam, and two links through it with the handshake both ways, channel 1
-  and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line, joining
-  with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer, removed, a
-  flood while waiting);
+  `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target` and
+  the boss tests included; `coop fight pvp` and `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
+  `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
+  bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once` or `loop`, and `anim stop`;
+  `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `nightshop`,
+  `roxanne`, `lily`,
+  `guardtext` and the 8 `signal` words, in `quest/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`,
+  `abort`, `leave`, `seq`) and their refusals),
+  Night Operation's night line (its round trip, its refusals and a fuzz seed), and the join
+  codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away),
+  the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
+  missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`,
+  the match lines (start, count, end) with their bounds, and protocol 20 refusing a protocol-19 lobby and line;
+- `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
+  channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
+  joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
+  removed, a flood while waiting);
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up
   undone within its wait doubles the wait up to 80 s, and one that holds brings it back to 10 s;
+- `link_match_test`: the fake Steam shared with `link_core_test` (`tests/native/link/fake_steam.h`, eight clients and
+  the `Mesh` harness that runs several links in one test): the matchmaking exports named when missing, two co-op links
+  through the harness, callback 506's log line, `me=` with our name after the first status line and no `owner=` in a
+  co-op lobby, eight links in one match lobby (no approval, every pair linked, the owner's SteamID as `owner=` on the
+  owner's and a guest's `link=` line, ghost slots 0 to 6 and a freed slot taken again, `friend=` from slot 0, the
+  slot-0 member leaving a lobby of three, whose `friend=` line goes while the third member stays linked and still gets
+  our chat line, no `mate=` line, the mods every member shares), a
+  co-op lobby that stays at two, a lobby of an unknown mode left, each channel-1 message, channel-2 line and chat line
+  handed on with its sender, a channel-2 line to one member, `lines_from`, quick match (the exact filters and their
+  order with the relay-only setting, a lobby created when none is found with its member limit and data, seven more
+  searchers joining it, another version's lobby and a code match lobby never found, two searchers in one pass each
+  hosting a lobby of one, merged into the lower lobby id when the lone host searches again 5 s later with her lobby's
+  hall, the mover then reading the lower lobby's room, which the next searcher joins, one search at a time, a full
+  first result skipped, a lobby created when every result fails, an unknown mode, a search refused in a lobby, a
+  cancelled search), a private match lobby by code (Invisible, no `sbo_state`, its code, a stranger joining with no
+  approval), the room and hall a created lobby carries and its `link=` line, a search that finds only lobbies of its
+  own hall, a member reading both each pass and dropping a word `alias_word` refuses, the ICE setting given back in a
+  co-op lobby, the host's
+  countdown (none alone, 10 s from two members with each member told, a member joining while it runs told the time
+  left, 5 s once eight, stopped under the minimum, checked again at 0), the start (the lobby closed, `sbo_state` and
+  `sbo_map`, one start line with the same seed and member order everywhere), `match end` and the next round's countdown
+  and seed, the lines a guest refuses (from a member who is not the owner, a start without her), a code join after the
+  start told the game is closed, a host left alone in a round in play, who does not search again, the host leaving
+  (the lobby handed over before a menu leave, a crash, a silent owner, an owner change during the countdown: the round
+  ends everywhere and the new owner reopens the lobby and counts down; a silent owner's countdown stopped on each guest
+  once the owner is lost; a guest who drops out of a match lobby leaves without a rejoin), the stranger rules of a match
+  lobby (a reject from the owner only, a mismatched hello refused by
+  the owner who keeps the lobby and ignored by a guest, no photo or cutscene pause, gift, race, follow, night or shared
+  quest line either way), floods (no pong past 4 pings a second; a member over channel 0's 128 lines a second for 5 s
+  refused by the owner and by a guest, who both stay, her session closed and no reject every 10 s; 200 lines at once
+  not refused; pose data before any hello, over channel 1's limit for 5 s, refused; a guest leaving an owner who
+  floods), the owner's round lines on a guest (a count line logged only when it moves her countdown, one notice for
+  a start without her, past 8 a second dropped and logged once), the per-player chat mute kept for the run, per-peer
+  pose caps (30 a second for a member of a match lobby, one peer's cap stepping down alone, one second of poses
+  reaching peers at 20, 30 and 60 a second, tables always sent) and the 60 s line of passes and full receive batches;
 
 ### Poses
 
 - `pose_engine_test`: the pose path against fake memory;
-- `pose_codec_test`: the codec's round trips, the deltas against a keyframe, and a decoder fuzz;
+- `pose_codec_test`: the codec's round trips, the deltas against a keyframe, a decoder fuzz and a 60 a second stream
+  with every second delta dropped, which decodes whole;
 - `pose_delta_gain_test`: what the sender's delta tolerance (`kTolerance` in `pose/codec.h`) saves. With no
   argument, as `tools/install.py` runs it, it encodes two synthetic recordings (idle and running) made by the real
   sender with no tolerance and with it, checks that the tolerance saves bytes on both and prints keyframes, deltas,
   their mean sizes and KiB/s for each. `build/host/pose_delta_gain_test path/to/coop-record.bin` measures a recording
   of the current protocol instead;
-- `pose_table_test`: the component table and the display file, with a parser fuzz;
+- `pose_table_test`: the component table and the display file, with a parser fuzz, and the per-slot file names
+  (`slot_file`);
 - `pose_resend_test`: our component table's resends (`TableResend` in `pose/table.h`) on a worker passing every
   50 ms: at once to a new friend, then 5, 10, 20, 40 and 60 s apart, every 60 s from then on; a change brings the
   next one 5 s after it and starts the doubling over; a sign her side lost our table brings it within 5 s, and a
   flood of them sends one each 5 s at most;
 - `pose_record_test`: the recording's reader, with a fuzz, and its replay, with same-place enemies' `SBE` and show
   lines re-stamped on the poses' clock;
-- `pose_stream_test`: the loopback pipeline in simulated time;
+- `pose_stream_test`: the loopback pipeline in simulated time, and the playback of a match lobby member who gets every
+  2nd or 3rd pose of a 60 a second stream (cap 30 or 20): with 100 ms of lag she is drawn 150 or 175 ms back;
+- `pose_inbox_test`: the game thread's pose inbox (`kInbox` in `pose/core.h`) in a full match lobby, 7 members
+  sending 60 or 30 poses a second: one game-thread stall of 102, 198, 291 or 361 ms (the stalls of steady play
+  in the 2026-11-12 log) drops no pose and leaves no delta without its keyframe;
+- `pose_gap_test`: the native tick's gap line (`gap_line` in `pose/core.h`) from fixed values: the UTC time of day out
+  of a FILETIME (the last 100 ns of a day included), the gap in whole ms, a frame past 32 bits, the tick before it,
+  and the `vkd3d-proton.cache.write` growth, left out when there is no such file;
 
 ### Saves
 
 - `save_watch_test`: the save watcher;
 - `save_slot_test`: the slot line, the marker, the save file name's lookup in the game's constant table, its
-  switch and the read-only probe, against fake memory;
+  switch and the read-only probe, against fake memory, and the title check, which also refuses while SB reloads the
+  save (client +0x2f9c) or that flag cannot be read;
 - `save_twins_test`: the co-op save copies on a temporary folder: the game's save check, the name check on every
-  write, the manifest, the backup before the first copy, torn reads and failed writes, the requests and the
-  switch against a fake game, the plant of a built save as one co-op copy with its mark, and the export's refusal
-  of a planted copy;
+  write (the SBO session record `StellarCoopSBO0N.bin` included), the manifest, the backup before the first copy,
+  torn reads and failed writes, the requests and the switch against a fake game (refused during SB's own reload too),
+  the plant of a built save as one co-op copy with its mark, and the export's refusal of a planted copy;
+- `save_rotation_test`: the per-save copies' folder: the names it accepts (`<UTC>.sav`, `-pre.sav`, `-session.sav`,
+  `-replaced.sav`, a `-<n>` after a clash) and every other name refused, a free name on a clash, the drop that keeps
+  the 10 newest, spares the open session's two copies, never lists a `-replaced.sav` copy and never lists another
+  file, the save queue's fall to 0, a save seen as rewritten by its size or write time, and the copy a restore keeps
+  of the file it replaces as `-replaced.sav` (no name when the write fails or reads back different);
+- `save_sbo_record_test`: the SBO session record's text and its refusals (another version, an unknown or repeated
+  key, a slot outside 0 to 4, an unknown state, a copy name with a folder in it, a line cut short, over 4096 bytes,
+  each required key left out, a `pre` or `session` that is not a rotation name), the sidecar's name,
+  `NewGameCreateTime` read from a built save and C1's test that it matches the record's, and the write against a fake
+  folder: the old sidecar backed up first, then put, and a read-back that differs refused; a missing sidecar reads as a
+  closed record; the rotation copy against a fake folder (the oldest past 10 removed only after the copy reads back
+  and the sidecar reads, the open record's session copy spared) and the restore (the replaced file kept first, no put
+  without it);
 - `save_shortcut_test`: `coop shortcut`'s paths and its read of built GVAS bytes (the engine branch, `MapName`,
   `CampAlias` and `DateTime` within their maps, an EVAS header stripped, short and bad bytes), its copies, lines and
   summary;
@@ -110,6 +282,9 @@ The C++ tests cover the platform-free headers in `native/src`.
   rehash, an entry the game rebuilt, the refusals (no world, no holder, her list absent or of another shape, no
   memory) and the `roxanne=` line; Lily's eight rows taken in the cache's own order behind the borrowed row, a row
   twice, one of another list or one missing refused, and the `lily=` line;
+- `nightop_guard_text_test`: the Xion guard's 12 text keys and the 23 cultures, a `guardtext` request's culture and
+  seven lines into UTF-16 (Korean, the French no-break space, a character outside the BMP) and each refusal, what the
+  game thread writes before and after coop off, and the `guardtext=` line;
 - `nightop_shop_ui_test`: the Night Operation shop screen's guard (`nightop/shop_ui.h`: a client and its UI manager
   always, in game and playing for an open only), its answer word's round trip, the `nightshop=` line and the log
   lines;
@@ -141,6 +316,9 @@ The C++ tests cover the platform-free headers in `native/src`.
     - Lily's signal's 24 quest rows (8 filters, 7 tasks, 7 groups, the two quest rows last of them) with their task
       containers and filter list built in the pool and the borrowed choice row patched in place with no ID check, a
       TheaterSelectDataTable of another row size or a taken quest ID stopping it;
+    - the hall lobbies' 5 world rows, then 5 zone rows each naming its world row, then 171 seat rows each naming
+      itself and its hall's zone, a taken zone ID stopping it after the worlds, a taken seat ID at that seat and a
+      ZoneTable of another row size before any row;
   - the refusals that call no AddRow (a missing template, a taken ID or name, a wrong vtable, AddRow slot or row size);
   - a later run skipping the rows already in, FName's number split, the read-back through the game's lookups by ID, the
     answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=` and `signal=` status lines and the log
@@ -218,6 +396,9 @@ The C++ tests cover the platform-free headers in `native/src`.
     her reset, nothing published without the filter or on the host's side, a key the host spawns again let through, the
     host's dead on her paired copy blocking its key but not her own lethal hit, the table empty at a new session, at the
     host's off and at the end, and the gate);
+  - the PvP test's mode in the worker (a co-op save and a linked friend, never beside the shared fight either way, her
+    pvp lines alone reaching the job with her SteamID, its own sent reliable, no restart at a host change, a pause and a
+    new session when her link drops and comes back, `coop pvp off`);
 - `fight_sync_test`:
   - the shared enemies' channel 2 text (with a fuzz),
   - the host's and the guest's rules (the place line sent after the world and at each change, and held by the guest
@@ -232,6 +413,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   - the bstart, phase and summon spawn lines with a fuzz,
   - the guest's checks of them (one bstart a copy, taken again by a new copy under the same key or on a repeat after the
     pair forms, phase IDs from that boss's allowlist only, a summon's key, row, charId and owner),
+  - the PvP test's pvp line (round trip, and the refusals: d of 0, a sign, a decimal, past 10,000,000, a skill of 0 or
+    past INT32_MAX, a seq of 0, a missing or extra field, the old tag),
   - and two fake worlds linked through a delayed, lossy line;
 - `spawn_sync_test`: the core of same spawns (stage 4):
   - which rows take part,
@@ -300,6 +483,26 @@ The C++ tests cover the platform-free headers in `native/src`.
     and 5 cm at rest, the show lines apply in the host's order with no Show held back by those two caps, and restore
     puts every copy back to local, with its CMC back in SB's movement manager and the speed override gone;
 
+### PvP test
+
+- `fight_pvp_test`: the PvP test's bounds: the cap per named move (the victim's attack and critical damage, the move's
+  AttackDamageRate, 1.2 and a margin of 2, at most 10,000,000), a sender outside the members, the range, a move with no
+  cap, d clamped to its cap and to half the victim's MaxHP a second per attacker, 60 lines a second per attacker, and
+  the windows of members who leave and come back;
+- `fight_engine_test`, the attacker's side: no stand-in before her ghost is drawn, one `M_DummyA` from `NewActor` at
+  her feet plus 97 cm with no spawn key, BlockAI_Infinite, Off_Hud, DisableMonsterWarp and Passive_Immortal in that
+  order with itself as caster, its MaxShield set to 0 once with NoDamage passed (its Shield goes with it, with no
+  shield break), each drop healed at the next turn and sent naming our EVE's skill (or one seen within 1 s; else
+  unnamed), a hit past its HP held at 1 by Immortal and never a death, no move for 3 cm, one for 10 cm and none while
+  her ghost is not drawn, a stand-in the map lost made again, three tries 5 s apart when SB refuses BlockAI, and the
+  despawn at the end;
+- `fight_engine_test`, the victim's side: a MinimumHP floor of 1 on her EVE for the session and off at its end, each
+  line through ApplyStat on her EVE with no cause, the HP number and NoDamage not passed, the cap per named move (252
+  for LightAttack1_1 with attack 100 and critical damage 1.5), her dodge (state 3) refusing it in the game with the
+  state logged, half her MaxHP a second, a stranger, a skill with no row, her ghost 20 m away or not drawn; her own load
+  mid-session (a line with no EVE refused and nothing written on the old actor, the floor and the hits on her new EVE);
+  and two worlds, where a 60 HP drop of the stand-in in one game takes 60 HP from the other's EVE;
+
 ### Other native headers
 
 - `photo_freeze_test`: the synced photo mode's pause against a fake pause set;
@@ -327,7 +530,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   `unread`, never in a hang;
 - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
   diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
-  stick's thresholds, View held 1 s, a disconnect,
+  stick's thresholds, View held 1 s, LB and RB once a press and in event order with up's repeat going on, a disconnect,
   the event queue) and which XInput slots each poll asks;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
@@ -336,7 +539,15 @@ The C++ tests cover the platform-free headers in `native/src`.
   (a respawn in flight included), the call count (three calls in 10 s, a 10 s wait after an accepted call, none after
   a refused one) and the watch over the warp block (pending, warping, arrived, a block cleared before it ran, and one
   that never ran: stuck);
+- `game_sbo_test`: the SBO lobby's Join match, record states, why words and status line; the entry's guard in order, one
+  entry at a time (`busy`, also while this run's warp still loads) and none while the slot's record is open (`record`),
+  the save wait and its 30 s limit, the saved-file checks, the warp's guard, the arrival watch and its 60 s limit; the
+  return's guard, the restore rule, the reload watch, SB's own reloads, the title recovery and the load of an open slot;
+  `seq_pick`, which lets `coop sbo seq` run only one of the four sequence names the native part made;
+- `game_preset_test`: the match loadout's call order, the slots it empties, refusals and read-back;
 - `region_tabs_test`: the teleport screen's record list: the sanity check, the name lookup, the append.
+- `loading_test`: the lift of the lobby arrival's black over a copy of SB's auto list: each entry of tag 5 gets lifetime
+  0, SB's own entries and every other byte stay as they were, and a count out of range touches nothing;
 - `camp_text_test`: Matrix XIII's camp names and the 25 records' words, the keys (unique, the region's ending in a
   letter), the language pick, when a pass is due and the `camptext=` and `recordtext=` lines;
 - `camps_test`: the activated camps' read, each guard refusing with its own reason (a warp, a respawn or a logic
@@ -367,13 +578,33 @@ The C++ tests cover the platform-free headers in `native/src`.
 ## Python tests
 
 - `save_guard_test.py`: `tools/save_guard.py`, its `slot` command included, on temporary folders;
-- `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder;
+- `install_test.py`: `tools/install.py`'s install, backup, uninstall and zip, on a fake game folder, and its `--pak`
+  part: the copy of the three `zSBO_Lobby` files into `~mods` with a backup of the ones it replaces, a copy that does
+  not hash like its source, a folder that lacks one of the files, the dry run, the refusal while the game runs, and an
+  uninstall without and with the mod folder (the pak first, each into its own backup folder), all of them leaving the
+  rest of `~mods` and `LogicMods` alone;
 - `mxiii_rows_test.py`: `tools/mxiii_rows.py`'s two outputs match `data/mxiii-world.json`, its checks refuse bad rows,
   and the data holds the camps, bosses and mechanism rows the cooked map expects, with no warp switch left and the
   names of every new door, EnvC and ZoneEvent row chained. After a change to the data file, run
   `python3 tools/mxiii_rows.py` and commit the two files it writes;
+- `mxiii_climb_test.py`: `tools/mxiii_climb.py --check` passes on the tree, every ladder, ledge and rope of
+  `data/mxiii-world.json`'s move list, rebuilt as the game's construction scripts build it, lies within 2 cm of the
+  editor's in `data/mxiii-climb.json`, and every ladder lands. The check refuses what the move list held before
+  2026-10-31 (ladders lifted by their own height, sunk feet, other stacks, the landing on the wrong side) and the
+  editor's stack at the 20 ladders where it does not land;
+- `sbo_lobby_rows_test.py`: `tools/sbo_lobby_rows.py`'s two outputs, `session/sbo_maps.lua` and `lion/halls_rows.h`,
+  match `data/sbo-lobby.json`, the module loads in Lua, the halls batch holds one seat row per kept seat but the camp
+  ones (unique names that never end in `_<digits>`, unique IDs above build 26123051's highest), and its checks refuse
+  bad spots, seats, names, IDs, fences and a batch of more than 255 rows. After a change to the data file, run
+  `python3 tools/sbo_lobby_rows.py` and commit the two files it writes;
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
-  (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked));
+  (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Its one
+  native exception is `coop sbo seq`: Stellar Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and
+  called once in `native/src/glue/tick/sbo_game.inc`;
+- `sbo_difficulty_scan_test.py`: a scan that fails unless `native/src` calls Stellar Blade's difficulty setter
+  (`sbo::kSetDifficulty`, 0x141cf3180) exactly once, in R8 after the return's reload. Called in game outside a
+  Boss Challenge zone, the setter makes the game reload the save, and on 2026-11-12 the call the SBO lobby's entry made
+  right after its warp did that and sent the player back to the saved spot;
 - `release_test.py`: `tools/release.py`'s build, upload and publish steps and its refusals, with git, gh and
   `tools/install.py` faked;
 - `save_read_test.py`: `tools/save_read.py` on GVAS bodies built in the test (the header, values, containers, the EVAS

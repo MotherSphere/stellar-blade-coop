@@ -2,14 +2,15 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- An XInput pad (the native part's coop_pad) and the mouse in the co-op UI, through main.lua on fixture.lua's fake kit;
--- the focus watchdog; coop ui reset and coop ui off; and the Lua frame time, logged once a minute with the UI up.
+-- the focus watchdog; coop ui reset and coop ui off; the Lua frame time, logged once a minute with the UI up; and the
+-- gap lines.
 dofile('tests/lua/main/fixture.lua')
 -- An XInput pad (the native part reads it; pad_test tests its events): each frame up to 8 events, routed as the keys
 -- route theirs. With nothing open in a world, View held opens the co-op menu as menu_key does, its refusals said the
 -- same way; the menu takes the six navigation words and View held closes it; the co-op saves' question takes up, down,
--- select and back. Nothing while the host's question is open, while the menu waits for a key (B still stops the wait),
--- at the title with nothing open, or after coop off; the chat box and the code box take only B, which closes them. An
--- older DLL: one log line, no pad.
+-- select and back; LB and RB are taken and do nothing, as nothing here has tabs. Nothing while the host's question is
+-- open, while the menu waits for a key (B still stops the wait), at the title with nothing open, or after coop off;
+-- the chat box and the code box take only B, which closes them. An older DLL: one log line, no pad.
 ;(function()
     local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
     settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',false,false
@@ -26,6 +27,14 @@ dofile('tests/lua/main/fixture.lua')
     pad(1); assert(focus()=='Host a session')
     pad(7); assert(not kit_shown.menu,'View held again closes it')
     pad(7); pad(6); assert(not kit_shown.menu and kit_sounds[#kit_sounds-1]=='back','B on the main page closes it')
+    -- LB and RB (8 and 9 values back: tab_left and tab_right) are taken like the others; the co-op menu has no tabs, so
+    -- they change nothing there, and the down after them in the same frame still moves.
+    pad(7); assert(kit_shown.menu and focus()=='Host a session')
+    local sounds=#kit_sounds
+    pad(8,9,2)
+    assert(#pd.q==0 and focus()=='Join a friend' and #kit_sounds==sounds+1 and not logged('pad: error'),
+        'LB and RB taken, nothing done')
+    pad(7); assert(not kit_shown.menu)
     -- At most 8 a frame: the rest the next frame, where a 0 ends the taking.
     pad(7); assert(kit_shown.menu)
     local calls=pd.calls
@@ -72,7 +81,7 @@ dofile('tests/lua/main/fixture.lua')
     local saves_view=kit_views.saves
     kit_ready=true; quarter(); quarter()
     assert(kit_shown.saves and saves_view.rows[1].st=='focus')
-    pad(7,3,4); assert(kit_shown.saves and saves_view.rows[1].st=='focus' and not kit_shown.menu
+    pad(7,3,4,8,9); assert(kit_shown.saves and saves_view.rows[1].st=='focus' and not kit_shown.menu
         and not logged('pad: menu'))
     pad(2); assert(saves_view.rows[2].st=='focus')
     local before=#asked
@@ -199,17 +208,51 @@ settings_text,status_text,link_mode,in_world,photo_mode='',plain,'none',true,fal
 load_main(true)
 kit_ready=true; quarter()
 -- Once a minute with the UI up: the Lua frame time of the ghost's place, the Doro look and the UI's ticks, over the
--- minute's frames.
+-- minute's frames; then the longest frame and 250 ms pass with their counts over 16 ms and over 50 ms, and the longest
+-- call of mxiii, lion, scene, booth and kit.slow. Here one frame's lion tick takes 20 ms and one pass's kit.slow 62.5
+-- ms; the next minute starts from nothing.
 local start=clock
-loops[1].f(); clock=clock+30; loops[1].f()
+loops[1].f(); clock=clock+30; li.cost=0.02; loops[1].f(); li.cost=nil
+kit_slow_cost=0.0625; quarter(); kit_slow_cost=nil
 assert(not logged('Lua frame time'),'Not before a minute')
 clock=start+60; loops[1].f()
-assert(last():find('^%[StellarCoop%] Lua frame time, last 60 s: ghost 0%.000 ms, doro 0%.000 ms, race 0%.000 ms, UI '
-    ..'0%.000 ms a frame %(3 frames%)'),
-    last())
+assert(last()=='[StellarCoop] Lua frame time, last 60 s: ghost 0.000 ms, doro 0.000 ms, race 0.000 ms, UI 0.000 ms a '
+    ..'frame (3 frames); longest frame 20.0 ms (1 over 16 ms, 0 over 50 ms): mxiii 0.0 ms, lion 20.0 ms, scene 0.0 ms; '
+    ..'longest 250 ms pass 62.5 ms (1 over 16 ms, 1 over 50 ms): booth 0.0 ms, kit.slow 62.5 ms\n',last())
+clock=start+120; loops[1].f()
+assert(last()=='[StellarCoop] Lua frame time, last 60 s: ghost 0.000 ms, doro 0.000 ms, race 0.000 ms, UI 0.000 ms a '
+    ..'frame (1 frames); longest frame 0.0 ms (0 over 16 ms, 0 over 50 ms): mxiii 0.0 ms, lion 0.0 ms, scene 0.0 ms; '
+    ..'longest 250 ms pass 0.0 ms (0 over 16 ms, 0 over 50 ms): booth 0.0 ms, kit.slow 0.0 ms\n',last())
+start=clock
 local lines=#printed
 kit_ready=false; clock=start+120; loops[1].f(); kit_ready=true
-assert(#printed==lines,'Not while the UI is down (a map loads, warming)')
+assert(not table.concat(printed,'|',lines+1):find('Lua frame time',1,true),'Not while the UI is down (a map loads, '
+    ..'warming)')
+-- A frame that starts over 100 ms after the last one logs a gap line, the Lua twin of the native part's
+-- (coop-link.log): the 250 ms pass that ran in between, with its kit.slow and booth calls, or none. A pass before the
+-- last frame is not in the gap. At most 200 lines a minute from the first, then one line says so; the next minute logs
+-- again.
+lines=#printed
+clock=clock+60; loops[1].f() -- A minute after the lines above: this one starts a minute of its own.
+assert(printed[lines+1]=='[StellarCoop] gap 60000 ms before this frame; no pass in it\n',printed[lines+1])
+clock=clock+0.1; loops[1].f()
+assert(not last():find('gap',1,true),'100 ms is no gap')
+kit_slow_cost=0.125; quarter(); kit_slow_cost=nil
+loops[1].f()
+assert(last()=='[StellarCoop] gap 375 ms before this frame; 250 ms pass in it: 125 ms (kit.slow 125, booth 0)\n',last())
+clock=clock+0.25; loops[1].f()
+assert(last()=='[StellarCoop] gap 250 ms before this frame; no pass in it\n',last())
+quarter(); loops[1].f(); clock=clock+0.5; loops[1].f()
+assert(last()=='[StellarCoop] gap 500 ms before this frame; no pass in it\n',last())
+lines=#printed
+for _=1,200 do clock=clock+0.2; loops[1].f() end -- 40 s of a load at 5 frames a second.
+local gaps={}
+for i=lines+1,#printed do if printed[i]:find('gap',1,true) then gaps[#gaps+1]=printed[i] end end
+assert(#gaps==196 and gaps[196]=='[StellarCoop] gap lines: 200 this minute, no more until it ends\n',#gaps..' '..
+    tostring(gaps[196]))
+lines=#printed
+clock=clock+60; loops[1].f()
+assert(printed[lines+1]=='[StellarCoop] gap 60000 ms before this frame; no pass in it\n',printed[lines+1])
 key('F5'); assert(kit_shown.menu and kit_input)
 coop('ui','reset')
 assert(not kit_shown.menu and kit_calls[#kit_calls]=='reset nil' and last()=='[StellarCoop] OK: co-op UI reset: menu '

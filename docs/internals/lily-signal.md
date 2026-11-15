@@ -29,7 +29,7 @@ of Roxanne's choices, `coop scene`'s borrowed theater rows and `coop mxiii`'s ca
      in: the table checks (class, AddRow slot, row size) run for every table of the batch before any row, so a
      TheaterSelectDataTable that fails them stops the batch with no row in. The batch neither writes nor checks a
      TheaterSelectDataTable ID (`kTables`' id false: whether SB's ID map holds that table's IDs is not known).
-   - The native part knows 37 tables, the 5 quest ones after the first 20; the signal request names those 5 only.
+   - The native part knows 39 tables, the 5 quest ones after the first 20; the signal request names those 5 only.
 2. When: only with the test pak, since nothing else uses the rows and AddRow on these tables has not run in game. At the
    title while the game uses the co-op save files (`cut/enemy.lua`'s `title_batch`, which `matrix13/world/travel.lua`
    uses too), so a co-op save that holds a quest finds its rows when it loads; in game on a co-op save, once a Lua load,

@@ -5,11 +5,11 @@ challenges](challenges.md).
 
 - The probe, `coop no`, checks whether a heal event, a rule, a wave spawn and one monster from the cut mode still work
   in a solo game.
-- The recruiter, `coop recruiter`, brings back the cut recruiter near Roxanne. You can talk to him in your game
-  language.
+- The recruiter stands near Roxanne in Xion: the mod brings back the cut recruiter by itself at each Xion load, and
+  `coop recruiter` does it by hand. You can talk to him.
 
-Both are research tools and run only on a co-op save. Neither writes a game file, but their changes stay in the
-running game until it ends.
+Both are research tools. The two commands run only on a co-op save; the recruiter's automatic appearance runs on any
+save. Neither writes a game file, but their changes stay in the running game until it ends.
 
 ## Before you try a preview
 
@@ -70,39 +70,51 @@ so you can talk to him. Each step is logged in `UE4SS.log` as `[StellarCoop][RC]
 
 The command runs only in Xion (`/game/art/bg/worldmap/level_p/e04`), with EVE in the world within 50 m of
 `TeleportPoint_Xion_MultiPlay`, the recruiter's cut spawn point near Roxanne in the Scrap Market. Anywhere else it stops
-with `STOP:` and changes nothing. He is never spawned automatically.
+with `STOP:` and changes nothing.
+
+The mod also runs these steps by itself at each Xion load, on any save: he appears once EVE is within 50 m of the
+point, and until then the mod checks again every 5 s. Each Xion load gets one spawn, and a guard already standing there
+is kept. After `coop recruiter off` he stays away until the next Xion load. These log lines start with `auto:`.
 
 ### What it does, in order
 
 1. The command disarms Join first. In the game data, the dialogue's Join choice starts the cut mode's matchmaking. The
    command sets that zone event (`MultiplayTest_ZoneE_059`) to a harmless type and reads it back. If the row is not the
-   one expected, or the write does not read back, it stops with `STOP:` and spawns nothing. In this preview, Join does
-   nothing.
-2. Once the Join event reads back, a `STOP: text:` line ending `TEXT=no` says that his text stays in Korean (see
-   [His language](#his-language)), and the command goes on.
-3. If someone already stands at the spawn point, the command says so and spawns nothing. Otherwise, in memory only, it
+   one expected, or the write does not read back, it stops with `STOP:` and spawns nothing. Join never reaches Shift
+   Up's servers. With `sbo_lobby=on` in `coop-settings.txt` (the default) it saves the co-op game and takes you to the
+   [SBO lobby](sbo-lobby.md); otherwise, or when something else is missing, a notice says what.
+2. If someone already stands at the spawn point, the command says so and spawns nothing. Otherwise, in memory only, it
    flips the recruiter's network condition (so the question and its two choices show), points one unused test spawn
    row at the cut spawn point (a Xion guard with the recruiter's dialogue, not marked for saving, no walking path), and
    points one unused test filter at that row, for the despawn. It edits each row in place, field by field, and reads
    it back. It adds and removes no rows.
-4. The game's Spawn event places him. 3 s later a line says whether he stands at the point
+3. The game's Spawn event places him. 3 s later a line says whether he stands at the point
    (`RECRUITER=yes: talk to him`).
 
 The game spawns a row only once per game run, so after `coop recruiter off` another `coop recruiter` may need a game
-restart.
+restart. The same goes for his automatic appearance at a later Xion load of the same run.
 
 ### His language
 
-His lines (speaker title, question, Join and Cancel, the replies) stay in Korean, as the game files have them. The mod
-has them in the game's 23 languages (`nightop/recruiter_text.lua`), but showing them needs the game's text
-registration, KismetTextLibrary `PolyglotDataToText`, which takes the languages as a map inside a struct parameter.
-The UE4SS build the mod uses cannot pass a Lua table there. In game on 2026-10-28 the same call for Roxanne's choices
-raised `StrProperty can only be set to a string or FString`, and depending on Lua's table order it can read another
-field as a string, which may crash the game. So the command makes no text call and logs:
+His lines (speaker title, question, Join and Cancel, the replies) show in the game's language, one of the 23 the game
+ships (`nightop/recruiter_text.lua`). From the title screen on, with no command, the mod sends the seven lines of the
+game's language to the native part, which writes them into the game's text manager under his 12 text keys. After a
+language change in the options, it sends the new language's lines. The engine's own route, KismetTextLibrary
+`PolyglotDataToText`, needs a map inside a struct parameter that the UE4SS build the mod uses cannot pass, so the
+native part writes the texts itself. Once they are written, the log says:
 
 ```
-[StellarCoop][RC] STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter (PolyglotDataToText LocalizedStrings): nothing registered, his text stays Korean: TEXT=no
+[StellarCoop][RC] text: the native part wrote his 12 texts in fr: TEXT=yes
 ```
+
+If the native part faults while it writes them, it stops writing them until the game restarts, and his texts stay as
+they are:
+
+```
+[StellarCoop][RC] STOP: text: the native part stopped at a fault (<where>): his texts stay as they are until the game restarts: TEXT=no
+```
+
+`coop off` puts his Korean lines back.
 
 ### Sending him away
 
@@ -113,7 +125,8 @@ despawns him too. A map change removes him.
 
 Everything the command changes stays in the running game until it ends: the Join event, the network condition, the test
 spawn row and the test filter. The mod neither undoes nor saves any of it. Whether the game saves the spawned recruiter
-is not known yet, so the run ends by killing the game and restoring your backup.
+is not known yet, so the run ends by killing the game and restoring your backup. His texts are written in memory only
+and never saved, and `coop off` puts the Korean back.
 
 ## After a preview run
 

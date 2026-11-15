@@ -48,8 +48,8 @@ assert refused(lambda d: d['batches'][0]['rows'][0]['set'].append(['NoSuchField'
 assert refused(lambda d: d['batches'][0]['rows'][0]['set'].append(['CampType', 2, True]))  # The same bytes again.
 assert refused(lambda d: d['batches'][3]['rows'].extend(d['batches'][3]['rows'][:40]))  # Names twice, in one batch.
 assert refused(lambda d: d['batches'][1]['rows'].append(d['batches'][0]['rows'][0]))  # A name in two batches.
-assert data['batches'][0]['rows'][7]['set'][3][0] == 'LinkEnvSpawnList'
-assert refused(lambda d: d['batches'][0]['rows'][7]['set'][3].__setitem__(1, ['A|B']))  # A separator in an item.
+assert data['batches'][0]['rows'][7]['set'][1][0] == 'LinkEnvSpawnList'
+assert refused(lambda d: d['batches'][0]['rows'][7]['set'][1].__setitem__(1, ['A|B']))  # A separator in an item.
 assert refused(lambda d: d['batches'][0]['rows'][0]['set'][0].__setitem__(1, 300))  # A byte past 255.
 assert refused(lambda d: d['batches'][0]['rows'][0].__setitem__('id', 2 ** 32))
 assert refused(lambda d: next(r for b in d['batches'] for r in b['rows'] if r['table'] == 'ZoneEventTable')
@@ -132,8 +132,10 @@ assert all(w['name'].startswith('DLC02_') and '_WarpPoint_' in w['name'] for w i
 # Each camp holds the kit of its shipped type. A full camp (ME03_Camp_01): the base at the point of its row's name, skill
 # machine, chair, storage, turntable, phone and vending machine. A simple camp (ME01_Camp_02): skill machine, chair,
 # turntable and the small vending machine, no base, storage or phone. Every object row spawns its blueprint at the point
-# of its own name, the vending machine links all the others in the shipped order, and it is its own shop. No value names
-# SE_02_EnvS_010, the trophy row the DLC02 kits inherit their shop from.
+# of its own name, except the 11 rows of the two zone 10 camps (PLACED): those bind the objects the pak places in
+# MXIII_Camps_A by EnvActorName, the row's own name, and keep their donor's empty EnvBPPath and SpawnPointName None, as
+# every shipped camp row does. The vending machine links all the others in the shipped order, and it is its own shop.
+# No value names SE_02_EnvS_010, the trophy row the DLC02 kits inherit their shop from.
 ZE = '/Game/GameDesign/Level/ZoneEnv/'
 KIT = {'Env_Camp_SkillMachine', 'Env_Camp_Chair', 'Env_Camp_Turntable'}
 FULL = {'DLC02_10_Camp_01': ('906', '900', '901 902 900 903 904 905'),
@@ -144,23 +146,37 @@ FULL = {'DLC02_10_Camp_01': ('906', '900', '901 902 900 903 904 905'),
 SIMPLE = {'DLC02_10_Camp_02': ('426', '420 421 423'), 'DLC02_20_Camp_02': ('062', '056 057 059'),
           'DLC02_20_Camp_03': ('074', '068 069 071'), 'DLC02_30_Camp_01': ('004', '005 006 007'),
           'DLC02_30_Camp_02': ('008', '009 010 011')}
+PLACED = {'DLC02_10_EnvS_' + n for n in '900 901 902 903 904 905 906 420 421 423 426'.split()}
 assert set(FULL) | set(SIMPLE) == set(coins)
+placed = set()
 for camp, parts in {**FULL, **{c: (v, None, l) for c, (v, l) in SIMPLE.items()}}.items():
     vend, base, links = parts
     env = camp[:8] + '_EnvS_'
     want = [env + n for n in links.split()]
     machine = dict((f, v) for f, v, _ in rows[('ZoneEnvSpawnTable', env + vend)]['set'])
     assert machine['LinkEnvSpawnList'] == want and machine['ShopDataList'] == [env + vend], camp
-    assert machine['EnvBPPath'] == ZE + ('Env_VendingMachine.Env_VendingMachine_C' if base
-                                         else 'Env_VendingMachine_Simple.Env_VendingMachine_Simple_C'), camp
     assert len(want) == (6 if base else 3), camp
     classes = set()
     for n in want + [env + vend]:
-        s = dict((f, v) for f, v, _ in rows[('ZoneEnvSpawnTable', n)]['set'])
-        assert s['TargetCamp'] == camp and s['SpawnPointName'] == n and s['EnvBPPath'].startswith(ZE), n
+        r = rows[('ZoneEnvSpawnTable', n)]
+        s = dict((f, v) for f, v, _ in r['set'])
+        assert s['TargetCamp'] == camp, n
+        if n in PLACED:
+            # A copy names itself; a shipped row patched in place keeps its own name (EnvActorName = key in the dumps).
+            assert 'EnvBPPath' not in s and 'SpawnPointName' not in s, n
+            assert s.get('EnvActorName') == n or ('EnvActorName' not in s and r['donor'] == n), n
+            placed.add(n)
+            continue
+        assert s['SpawnPointName'] == n and s['EnvBPPath'].startswith(ZE), n
         classes.add(s['EnvBPPath'][len(ZE):].split('.')[0])
+    if env + vend in PLACED:
+        assert all(env + n in PLACED for n in links.split()), camp  # A camp's kit is placed whole or not at all.
+        continue
+    assert machine['EnvBPPath'] == ZE + ('Env_VendingMachine.Env_VendingMachine_C' if base
+                                         else 'Env_VendingMachine_Simple.Env_VendingMachine_Simple_C'), camp
     assert classes - {'Env_VendingMachine', 'Env_VendingMachine_Simple'} == (
         KIT | {'Env_Camp_Base', 'Env_Camp_Storage', 'Env_Camp_TeleportMachine'} if base else KIT), camp
+assert placed == PLACED
 assert not [n for (t, n), r in rows.items() if t == 'ZoneEnvSpawnTable' and 'SE_02_EnvS_010' in str(r['set'])]
 # Every door the data adds has its four sequences at the spawn point of its own name. Eleven start closed: the R12 and
 # zone 4 shortcut doors, opened from one side, the control room door, opened once E10 is dead, and the car 9 airlock's

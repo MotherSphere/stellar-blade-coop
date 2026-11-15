@@ -117,7 +117,7 @@ template <class Game> void Engine::bosses(Game &g, uint64_t logic, size_t n, boo
     } else if (turn_ - c.turn >= kSummonWaitTurns && fighting(a)) {
       caps_[i] = caps_[--captures_];
       refuse(g, c.key, nullptr, true);
-      unmake(g, logic, a, "unpaired", true);
+      unmake(g, logic, a, "unpaired", kSummon);
     } else {
       ++i;
     }

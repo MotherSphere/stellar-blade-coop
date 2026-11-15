@@ -26,7 +26,7 @@ local function same(o,path)
     o=valid(o)
     return o and path_of(o)==path and o or nil
 end
-local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')) and pawn or nil end
+local her=U.her
 local function list(values)
     local out={}
     for _,name in ipairs(M.NAMES) do out[#out+1]=name..'='..values[name] end

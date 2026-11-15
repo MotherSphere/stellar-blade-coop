@@ -21,14 +21,14 @@ assert(F.set(text,'fight_chars','')==Link.DEFAULT:gsub('\nfight_chars=auto\n','\
     'An empty value is a value')
 
 -- spawn_filter has no menu row: a hand edit through set() changes its line only, and the mod reads it.
-text=assert(F.set(Link.DEFAULT,'spawn_filter','on'))
-assert(text==Link.DEFAULT:gsub('\nspawn_filter=off\n','\nspawn_filter=on\n'))
-assert(Link.parse_settings(text).spawn_filter==true and Link.parse_settings(Link.DEFAULT).spawn_filter==false)
+text=assert(F.set(Link.DEFAULT,'spawn_filter','off'))
+assert(text==Link.DEFAULT:gsub('\nspawn_filter=on\n','\nspawn_filter=off\n'))
+assert(Link.parse_settings(text).spawn_filter==false and Link.parse_settings(Link.DEFAULT).spawn_filter==true)
 
 -- A commented example is a comment: the key goes at the end instead, and the comment stays.
-text=assert(F.set(Link.DEFAULT,'dyes','on'))
-assert(text==Link.DEFAULT..'dyes=on\n' and text:find('# For example: dyes=on\n',1,true))
-assert(Link.parse_settings(text).dyes==true)
+text=assert(F.set(Link.DEFAULT,'dyes','off'))
+assert(text==Link.DEFAULT..'dyes=off\n' and text:find('# For example: dyes=off\n',1,true))
+assert(Link.parse_settings(text).dyes==false)
 
 -- Comments, unknown lines, blank lines, spacing and case of the line's own name are kept; trailing spaces go.
 local mine='# mine\n\ncolour=red\n  SEND_RATE = 12  \n# send_rate=30\nname_tag=off\n'

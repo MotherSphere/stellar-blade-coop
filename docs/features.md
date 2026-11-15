@@ -20,11 +20,23 @@ races, the co-op line at camp phone booths, the .pak mod list and CNS outfits ov
 rate that adapts to Steam's queue.
 
 On one PC, the Leviathan viewer and its free camera ran on 2026-10-22, the Lion was fought on 2026-10-24, the
-first-launch guide opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen.
+first-launch guide opened, and on 2026-10-27 the co-op saves loaded and `coop nightop shop` opened its shop screen. On
+2026-11-12 the recruiter's Join took one PC to the SBO lobby in Xion's training room, and on 2026-11-14 to a hall lobby
+with a local pak. No match lobby has held two players in game yet (see
+[SBO lobby: Test status](sbo-lobby.md#test-status)).
 
 0.6.0-beta.1 to beta.3 use link protocol 13. 0.7.0-beta.1 uses protocol 14 and does not link with them. 0.7.5 uses
 protocol 18 and does not link with 0.7.0-beta.1 or with the first 0.7.5 test build (protocol 17). Builds after it, 0.8.0
-and 0.9.0 included, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5.
+to 0.10.0, use protocol 19, for Matrix XIII's world rows, and do not link with 0.7.5. This version uses protocol 20, for
+the PvP test and the match lobbies, and does not link with 0.10.0 or older: every player has to update.
+
+In this version every on/off setting is on by default, the experimental ones and the test tools included: the ghost's
+dyes and effects, the spawn filter, the name tag in your photos, shared quests, the revive, the solid partner, the Load
+Shortcut saves, the PvP test and the SBO lobby. The status strip shows its compact form, and F7's travel to the host is
+on. A `coop-settings.txt` written by 0.5.0-beta.1 to 0.10.0 that holds the old off values is changed once at the next
+load (see [Settings](settings.md#coop-settingstxt)). Most of these features have not been tested in game.
+`shortcut_load=on` lets `coop shortcut load` write a developer save that can unlock Steam achievements, which cannot be
+taken back.
 
 ## Features
 
@@ -39,26 +51,26 @@ and 0.9.0 included, use protocol 19, for Matrix XIII's world rows, and do not li
   linked with your friend. The booth's own fast travel works as before. The line is not tested in game yet.
 - Your friend's EVE appears in your world as a ghost: a display-only copy that moves as she moves, wears her outfit and
   has your friend's Steam name above it. Her ponytail moves as cloth, as in solo (on by default). Her hair colour and
-  her attack and skill effects are optional looks, off by default. None of the three looks is tested in game yet.
+  her attack and skill effects are optional looks, on by default. None of the three looks is tested in game yet.
 - Session notices show in a feed at the top left of the screen, for example when a friend joins or leaves, when the
   connection is lost or when the two versions do not match. If a guest loses the host's session, their game tries to
   rejoin it for 60 s.
-- During a session, Enter opens a text box to chat with your friend. Chat lines show in the same feed and are kept in
-  memory only.
+- During a session, Enter opens a text box to chat with your friend, and in the SBO lobby with the players of your
+  match lobby. Chat lines show in the same feed and are kept in memory only.
 - Your friend's card at the top left shows their name with their ping and map, then their HP, shield and Beta. A
   marker over their ghost shows their name and HP, and an arrow at the edge of the screen points to them when they are
   out of view. The card, marker and arrow stay inside the screen at any resolution and menu size.
 - Group play, not tested in game yet:
-  - as the guest, F7 is meant to take you to the camp nearest the host through the game's own fast travel when the
-    host is on another map or more than 150 m away. It stays off until the follow has been tested in game. The game's
-    fast travel does not check whether your save has activated a camp, so the mod reads the activated camps itself;
-    `coop travel probe` and `coop mxiii leave` already use that read;
+  - as the guest, F7 takes you to the camp nearest the host through the game's own fast travel when the host is on
+    another map or more than 150 m away. The game's fast travel does not check whether your save has activated a camp,
+    so the mod reads the activated camps itself and travels only to one of them; `coop travel probe` and
+    `coop mxiii leave` use the same read;
   - when one EVE is down, the shared enemies near the other one fight it, and a down EVE gets no kill by standing near
-    one; with the experimental revive (off by default), a friend who stands next to the downed EVE for 3 s revives it
+    one; with the experimental revive (on by default), a friend who stands next to the downed EVE for 3 s revives it
     where it fell;
   - the guest's game pauses while a cutscene plays in the host's game;
   - in a shared area only the host's camp rest brings the enemies back, and a notice tells the guest so;
-  - the experimental solid partner option (off by default) stops your EVE at your friend's ghost.
+  - the experimental solid partner option (on by default) stops your EVE at your friend's ghost.
 - Doro races: record a track by setting checkpoints with F9, then race it alone against the clock or against your
   friend, each racer drawn as a Doro (Dororong). The race has a countdown, a timer, checkpoint markers and a ranking.
   It gives no reward or achievement and writes nothing to a save. Doro races are not tested in game yet (see
@@ -112,8 +124,8 @@ and 0.9.0 included, use protocol 19, for Matrix XIII's world rows, and do not li
   tried in game yet (see [cut-eve.md](cut-eve.md#emotes-coop-emote)).
 - `coop shortcut` lists the 15 developer saves of the cut Load Shortcut menu, read from the game's files: the map and
   camp each one starts at. `coop shortcut load` writes one as co-op slot 5 for Load Game, without its achievement
-  list. It is off unless `shortcut_load=on`, since what is left of the developer's progress can still unlock Steam
-  achievements. Neither has been tried in game yet (see
+  list. It needs `shortcut_load=on` (the default), and what is left of the developer's progress can still unlock
+  Steam achievements. Neither has been tried in game yet (see
   [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-load-shortcut-saves-coop-shortcut)).
 - At its first run the mod opens a guide of nine pages, with art of Mother Sphere by timediffer24. The Guide row of the
   co-op menu and `coop guide` open it again (see [interface.md](interface.md#guide)).
@@ -134,16 +146,35 @@ Shared enemies option (co-op menu, Options, Combat) is on by default and unteste
 while both players play a co-op save (see [shared-enemies.md](shared-enemies.md#shared-enemies-experimental)). Same place, same
 spawns and shared bosses build on it. They are experimental and on by default too, and the host's settings decide them
 for both games. As guest, the Same place row of your co-op menu can still turn same place off on your screen. The
-experimental Shared quests option (Options, Saves) is off by default and untested in game. While both players play a
+experimental Shared quests option (Options, Saves) is on by default and untested in game. While both players play a
 co-op save, it makes the quest steps that the host and the guest make together in the guest's game too, through the
 game's own quest functions (see [playing-with-a-friend.md](playing-with-a-friend.md#shared-quests-experimental)).
+
+## SBO lobby and matches
+
+The recruiter near Roxanne in Xion now appears at each Xion load, on any save. On a co-op save, his Join choice saves
+the game and takes EVE to the SBO lobby, a waiting room in Xion's hidden training room. Its menu searches for a public
+free-for-all match lobby or hosts one, hosts a private one with a join code, or joins one by its code. A match lobby
+holds up to 8 players, each shown to the others as a ghost, with chat and a mute for each player; nobody waits for the
+host's answer, and the link goes through Steam's relays only. When 2 players have linked, a countdown of 10 s starts
+(5 s when the lobby is full), but the free-for-all mode itself is not built: at 0 nobody travels to an arena and
+nothing is scored. Leave reloads the save made at Join, next to the recruiter. Five hall lobbies replace the training
+room when the hall lobby pak is installed; the code is in this version, but the pak is not published yet. `coop pvp`
+tests PvP damage between two linked friends: hits on a stand-in at the friend's ghost take HP off her EVE, never below
+1 HP. See [SBO lobby and matches](sbo-lobby.md).
+
+Tested in game, on one PC only: the Join and the travel to Xion's training room (2026-11-12) and to a hall lobby with a
+local pak (2026-11-14), each time with a Search that found nobody and hosted a lobby. Not tested in game: Leave and the
+return, any match lobby with two or more players, private matches, the countdown and the round's start, the PvP test,
+and the black screen held over each arrival.
 
 ## Night Operation
 
 This project found Night Operation in the game files: a multiplayer wave-survival mode that Shift Up prototyped and cut
 before release. Its recruiter was meant to stand next to Roxanne in Xion's Scrap Market. The plan is to bring the mode
-back for friends over Steam, started from the recruiter's Join choice, for up to six players; the Steam link holds two
-today. The mod never contacts the cut mode's online services (Shift Up's servers).
+back for friends over Steam, started from the recruiter's Join choice, for up to six players. A co-op session holds
+two players today; the match lobbies hold eight but run no Night Operation yet, and Join takes you to the
+[SBO lobby](sbo-lobby.md) instead. The mod never contacts the cut mode's online services (Shift Up's servers).
 
 `coop nightop start` runs five timed waves of the game's monsters at EVE where she stands, with an 8-minute timer and a
 score, on a co-op save. `coop nightop start easy`, `hard` or `nightmare` changes the number of monsters (15 to 40 in
@@ -168,4 +199,5 @@ Shooting Range, rebuilds the game's cut shooting test with its score widget, and
 They have not been tested in game yet either (see [challenges.md](challenges.md)).
 
 Two research previews also run only on a co-op save. `coop recruiter` brings back the cut recruiter near Roxanne, and
-you can talk to him. `coop no` tests parts of the cut mode in a solo game. Neither preview is a playable mode.
+you can talk to him; the mod also brings him back by itself at each Xion load, on any save, and he appeared that way in
+game on 2026-11-14. `coop no` tests parts of the cut mode in a solo game. Neither preview is a playable mode.

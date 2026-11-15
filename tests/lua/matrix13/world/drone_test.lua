@@ -3,7 +3,8 @@
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/drone.lua with fake UE4SS objects: nothing outside world 2800; in it, the hook once, each radius the
 -- blueprint writes scaled once and never compounded on a tick that wrote nothing, the cone set once per light and put
--- back on stopping and forgotten, never called, on leaving; a raise stops it for good.
+-- back on stopping and forgotten, never called, on leaving; a raise stops it for good. A hook that will not register
+-- is logged once a stay in world 2800.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -36,6 +37,7 @@ inside=true
 hook_raises=1
 clock=1; mv.tick()
 assert(#hooks==0,'A hook that raises is not kept')
+assert(#lines==1 and lines[1]:find('no such function',1,true),'The hook error logged: '..tostring(lines[1]))
 clock=3; mv.tick()
 assert(#hooks==0,'The hook waits before its next try')
 clock=7; mv.tick()
@@ -54,7 +56,7 @@ assert(near(light.AttenuationRadius,1800) and light.writes==2,'The next write sc
 light.AttenuationRadius=225
 hooks[1].f(ctx())
 assert(near(light.AttenuationRadius,270),'A faint light keeps its proportion')
-assert(#lines==2,'One hook line and one light line: '..#lines)
+assert(#lines==3,'One error line, one hook line and one light line: '..#lines)
 
 -- Leaving: the left world's light is forgotten, never called (the game frees it with the map).
 inside=false
@@ -83,4 +85,20 @@ hooks[1].f(ctx())
 clock=12; mv.tick()
 hooks[1].f(ctx())
 assert(light.AttenuationRadius==1500,'A raise stops it for good')
+
+-- A hook that raises at every try: one line a stay in world 2800, and one more on the next stay.
+do
+    hook_raises=math.huge
+    local got={}
+    local d2=M.new({log=function(s) got[#got+1]=s end,here=function() return inside and {} or nil end})
+    inside=true
+    for t=1,30 do clock=clock+1; d2.tick() end
+    assert(#hooks==1 and #got==1 and got[1]:find('no such function',1,true),'One error line in 30 s: '..#got)
+    inside=false
+    clock=clock+1; d2.tick()
+    inside=true
+    for t=1,10 do clock=clock+1; d2.tick() end
+    assert(#got==2 and got[2]:find('no such function',1,true),'One more line on the next stay: '..#got)
+    hook_raises=0
+end
 print('matrix13/world/drone_test: ok')

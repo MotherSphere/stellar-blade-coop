@@ -33,8 +33,8 @@ function Glide.want(s,dt,held,falling,descending,flying)
     return falling and descending and not flying and s.held>=Glide.HOLD
 end
 
-local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')) and pawn or nil end
-local function why_of(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local her=U.her
+local why_of=U.why
 
 -- o: log (the [GL] lines) and slot() (true on a co-op save, else false and why; main.lua's coop_slot).
 function Glide.new(o)

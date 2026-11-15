@@ -125,6 +125,7 @@ public:
     count_ = newest_ = 0;
     floor_ = std::numeric_limits<double>::quiet_NaN();
     interval_ = 50;
+    gap_at_ = 0;
     spread_ = 0;
     above_ = false;
   }
@@ -142,10 +143,17 @@ public:
       if (arrival - last_arrival_ > kSilentMs)
         count_ = 0; // Counted below as a stall; the poses from before the silence are not blended with this one.
       stats_.lost += scratch_.sequence - newest.sequence - 1;
-      // Over the sequence numbers between: lost poses (a lost keyframe's 15 keyless deltas) do not lengthen it.
-      double gap = (publication - newest.publication / 1000.0) / (scratch_.sequence - newest.sequence);
-      if (gap > 0 && gap < kIntervalCapMs)
-        interval_ = interval_ * 0.9 + gap * 0.1;
+      // The median of the last 8 gaps: a steady skip (a match member's cap, every 2nd or 3rd pose) is the spacing she
+      // gets, while one hole (a lost keyframe's 15 keyless deltas) does not lengthen it.
+      double gap = publication - newest.publication / 1000.0;
+      if (gap > 0 && gap < kIntervalCapMs) {
+        gaps_[gap_at_++ % 8] = gap;
+        double sorted[8];
+        const size_t n = std::min<size_t>(gap_at_, 8);
+        std::copy(gaps_, gaps_ + n, sorted);
+        std::nth_element(sorted, sorted + n / 2, sorted + n);
+        interval_ = interval_ * 0.9 + sorted[n / 2] * 0.1;
+      }
       if (arrival - last_arrival_ > std::max(250.0, 3 * interval_))
         ++stats_.stalls;
     }
@@ -213,6 +221,8 @@ private:
   Frame frames_[kFrames], scratch_;
   size_t count_ = 0, newest_ = 0;
   double floor_ = std::numeric_limits<double>::quiet_NaN(), interval_ = 50, spread_ = 0, last_arrival_ = 0;
+  double gaps_[8] = {}; // The last publication gaps between accepted poses, for the interval's median.
+  size_t gap_at_ = 0;
   bool above_ = false;
   double lowest_ = 0, above_since_ = 0;
   Stats stats_;

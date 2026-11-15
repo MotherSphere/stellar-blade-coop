@@ -451,4 +451,41 @@ cns_v=nil
 coop('status'); assert(not last():find('CNS',1,true),last())
 -- mod_names reaches the state each pass (on by default; settings_test.lua has it off).
 assert(state_names[#state_names]==true)
+-- coop pvp (the PvP test, a test tool): strict words; on needs pvp_spike=on and shared_enemies=off, off and status
+-- check nothing; pvp_spike=off at a reload ends a PvP test an earlier load asked, waiting or running.
+local PVP_USE='[StellarCoop] STOP: Use: coop pvp on | off | status\n'
+settings_text='shared_enemies=off\n'
+status_text=COOP -- No fight= line: the reload kill switches above ask nothing.
+load_main(true)
+for _,bad in ipairs({{},{'start'},{'ON'},{'on','x'},{'off','x'},{'status','x'}}) do
+    coop('pvp',table.unpack(bad)); assert(last()==PVP_USE and #asked==0,table.concat(bad,' ')..': '..last())
+end
+coop('pvp','on')
+assert(last()=='[StellarCoop] STOP: the PvP test is off in coop-settings.txt (pvp_spike=off)\n' and #asked==0)
+settings_text='pvp_spike=on\n' -- shared_enemies=on by default.
+load_main(true)
+coop('pvp','on')
+assert(last()=='[StellarCoop] STOP: the PvP test needs shared_enemies=off in coop-settings.txt: both use the same '
+    ..'fight job\n' and asked[#asked]~='fight pvp',last())
+settings_text='pvp_spike=on\nshared_enemies=off\n'
+load_main(true)
+coop('pvp','on')
+assert(asked[#asked]=='fight pvp' and last()=='[StellarCoop] OK: asked the native part: fight pvp\n',last())
+coop('pvp','off'); assert(asked[#asked]=='fight pvp off',asked[#asked])
+fight_text='fight=on mode=pvp proxy=50000 sent=3 unnamed=0 lines=2 applied=2 capped=0 refused=0 game_refused=0 '
+    ..'floor=on sim_us=8/30 threads=1/1/2'
+coop('pvp','status'); assert(asked[#asked]=='fight status' and last()=='[StellarCoop] OK: '..fight_text..'\n',last())
+fight_text=nil
+coop('pvp','status'); assert(last()=='[StellarCoop] OK: no PvP status yet\n',last())
+settings_text='shared_enemies=off\n'
+for _,case in ipairs({{with_slot('fight=on mode=pvp proxy=0 sent=0 unnamed=0 lines=0 applied=0 capped=0 refused=0 '
+        ..'game_refused=0 floor=off sim_us=0/0 threads=0/0/0\n'),true},
+        {with_slot('fight=waiting mode=pvp why=no friend linked\n'),true},
+        {with_slot('fight=waiting mode=on why=no friend linked\n'),false}}) do
+    status_text=case[1]
+    load_main(true)
+    assert(not case[2] or (asked[1]=='fight pvp off' and logged('OK: pvp_spike=off: asked the native part: fight pvp off')),
+        table.concat(printed,'|'))
+end
+settings_text=''
 io.stdout:write('fight_test ok\n')

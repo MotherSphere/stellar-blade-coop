@@ -13,9 +13,8 @@
 -- never makes one), checks the guards again, and asks the native part to call SB's own fast travel with it; after SB's
 -- refusal (a return of 0) the next one, 3 calls at most. SB's fast travel does not check activation (game/travel.h),
 -- and a travel that activated a camp would count toward its achievements, so a camp counts only when the native part's
--- read of SB's own camp list (game/camps.h, the activated status line) lists it; no read, no travel. The follow itself
--- stays off until it has been tested in game: without o.follow, which main.lua does not pass, a guard refuses every
--- travel and no offer shows.
+-- read of SB's own camp list (game/camps.h, the activated status line) lists it; no read, no travel. main.lua passes
+-- o.follow=true; without it a guard refuses every travel and no offer shows.
 -- Notices: going (the call was taken), none (no camp passed, or SB refused each), busy (a guard of the moment, or the
 -- host's game busy or loading), failed (the native part refused, no answer came, the warp never started, no read of
 -- the activated camps, or the follow off; UE4SS.log says why).
@@ -127,10 +126,10 @@ function Travel.number(alias)
     end
     return 0
 end
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 -- o: {link=, puppet=, settings= (follow_host, follow_key), tell(build), name(words) (her name, or the words' friend),
 -- log(text), paused() (the game paused, photo mode or a menu), night() (a Night Operation run), cutscene() (one plays
--- in our game), follow (true: the follow may travel; main.lua leaves it off)}.
+-- in our game), follow (true: the follow may travel; main.lua passes it)}.
 function Travel.new(o)
     local link,puppet,settings,log=o.link,o.puppet,o.settings,o.log
     local self,now,off={},0,false
@@ -188,7 +187,7 @@ function Travel.new(o)
     local function check(calling)
         if not guest() then return 'not a guest in a session' end
         if settings.follow_host=='off' then return 'follow_host=off' end
-        if not o.follow then return 'the follow stays off until it has been tested in game','failed' end
+        if not o.follow then return 'the follow is off (no o.follow)','failed' end
         local list,unread=read()
         if not list then return 'no read of the camps this save has activated ('..unread..')','failed' end
         if not line('slot'):find('^slot=coop ') then return 'not on a co-op save' end

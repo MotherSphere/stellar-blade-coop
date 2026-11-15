@@ -172,9 +172,8 @@ with tempfile.TemporaryDirectory() as tmp:
                *(f'Scripts/{name}.lua' for name in ('commands/guide', 'ui/guide', 'ui/guide_text')),
                *(f'Scripts/{name}.lua'
                  for name in ('commands/cut', 'commands/fight', 'commands/nightop', 'commands/partner', 'commands/race',
-                              'commands/session', 'commands/story', 'core/keybind', 'core/link',
-                              'core/settings_file', 'core/unreal',
-                              'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
+                              'commands/session', 'commands/story', 'core/keybind', 'core/link', 'core/pak_gate', 'core/settings_file',
+                              'core/unreal', 'core/ue4ss_settings', 'cut/chainspin', 'cut/devmenu', 'cut/emote', 'cut/enemy', 'cut/flight',
                               'cut/glide', 'cut/gardener', 'cut/leviathan',
                               'cut/lines', 'cut/lion', 'cut/lion_rows', 'cut/mailbox',
                               'cut/scene', 'cut/tendril', 'cut/wear', 'main',
@@ -184,16 +183,18 @@ with tempfile.TemporaryDirectory() as tmp:
                               'matrix13/world/boss', 'matrix13/world/breakables',
                               'matrix13/world/drone', 'matrix13/world/fans', 'matrix13/world/mila', 'matrix13/world/move', 'matrix13/world/rows',
                               'matrix13/world/travel',
-                              'nightop/board', 'nightop/challenges',
+                              'nightop/board', 'nightop/challenges', 'nightop/guard_text',
                               'nightop/probe',
                               'nightop/recruiter', 'nightop/recruiter_text', 'nightop/roxanne', 'nightop/roxanne_text',
                               'nightop/run', 'nightop/shop',
                               'nightop/waves',
-                              'partner/capture', 'partner/hud', 'partner/puppet', 'partner/sentinel', 'race/doro',
+                              'partner/capture', 'partner/ghosts', 'partner/hud', 'partner/puppet', 'partner/sentinel',
+                              'race/doro',
                               'race/drive',
                               'race/drive_model', 'race/model', 'race/run', 'session/booth', 'session/chat',
-                              'session/group', 'session/join', 'session/saves', 'session/travel',
-                              'story/snapshot', 'story/subtitles', 'ui/kit', 'ui/menu',
+                              'session/group', 'session/halls_rows', 'session/join', 'session/saves', 'session/sbo',
+                              'session/arrival', 'session/sbo_maps', 'session/travel', 'story/snapshot',
+                              'story/subtitles', 'ui/kit', 'ui/lobby', 'ui/lobby_model', 'ui/menu',
                               'ui/model', 'ui/notice', 'ui/region_tabs', 'ui/text', 'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
@@ -219,6 +220,125 @@ with tempfile.TemporaryDirectory() as tmp:
         for name in install.DOCS:  # The license files go into the zip as they are in the repository.
             assert archive.read(f'StellarCoop/{name}') == (install.ROOT / name).read_bytes(), name
         assert b'SBO License' in archive.read('StellarCoop/LICENSE')
+
+    def put(root, files):
+        for rel, data in files.items():
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_bytes(data)
+
+    # 14. --pak copies the three hall lobby pak files of its folder into ~mods, made when missing, and nothing else of
+    # that folder. A fresh copy backs up nothing.
+    paks = install.GAME / 'SB/Content/Paks'
+    lobby, src = paks / '~mods', tmp / 'pak'
+    pak1, pak2 = ({name: f'{name} {n}'.encode() for name in install.PAK} for n in (1, 2))
+    put(paks, {'LogicMods/x.pak': b'logic'})
+    put(src, {**pak1, 'SHA256SUMS': b'sums'})
+    count = len(backups())
+    code, out = run(install.install_pak, install.pak_sources(src), lobby, False)
+    assert code is None and out == f'Installed 3 pak files into {lobby}\n', out
+    assert files_of(paks) == {'LogicMods/x.pak': b'logic', **{f'~mods/{n}': d for n, d in pak1.items()}}
+    assert len(backups()) == count
+
+    # 15. A reinstall backs up the three files it replaces and only them: the Matrix XIII pak, another mod's folder in
+    # ~mods and LogicMods are never read, backed up or changed.
+    others = {**{f'~mods/zMXIII_P.{ext}': f'mxiii {ext}'.encode() for ext in ('pak', 'ucas', 'utoc')},
+              '~mods/CustomNanosuitSystem/x.pak': b'cns', 'LogicMods/x.pak': b'logic'}
+    put(paks, others)
+    put(src, pak2)
+    old = set(backups())
+    code, out = run(install.install_pak, install.pak_sources(src), lobby, False)
+    new, = set(backups()) - old
+    assert code is None and out == f'Backed up 3 files into {new / "Paks"}\nInstalled 3 pak files into {lobby}\n', out
+    assert files_of(new / 'Paks') == pak1
+    assert files_of(paks) == {**others, **{f'~mods/{n}': d for n, d in pak2.items()}}
+
+    # 16. A copy that does not hash like its source stops the install and names the file. A folder without one of the
+    # three files is refused before anything is copied.
+    shutil_, install.shutil = install.shutil, types.SimpleNamespace(
+        copy2=shutil.copy2, copyfile=lambda a, b: Path(b).write_bytes(b'torn'))
+    try:
+        code, out = run(install.install_pak, install.pak_sources(src), lobby, False)
+    finally: install.shutil = shutil_
+    assert code == f'{lobby / "zSBO_Lobby.pak"} does not hash like {src / "zSBO_Lobby.pak"}: run --pak again', code
+    assert run(install.install_pak, install.pak_sources(src), lobby, False)[0] is None
+    assert files_of(paks) == {**others, **{f'~mods/{n}': d for n, d in pak2.items()}}
+    (src / 'zSBO_Lobby.ucas').rename(tmp / 'aside.ucas')
+    assert run(install.pak_sources, src) == (f'No zSBO_Lobby.ucas in {src}', '')
+    (tmp / 'aside.ucas').rename(src / 'zSBO_Lobby.ucas')
+
+    # 17. A pak dry run says what it would do and changes nothing. While the game runs, a pak install and an uninstall
+    # with the pak in ~mods change nothing either.
+    before = tree()
+    assert run(install.install_pak, install.pak_sources(src), lobby, True) == (
+        None, f'Dry run: would back up 3 pak files first\nDry run: would install 3 pak files into {lobby}\n')
+    assert tree() == before
+    install.running_game = lambda: True
+    assert run(install.install_pak, install.pak_sources(src), lobby, False) == (CLOSE, '')
+    assert uninstall() == (CLOSE, '') and tree() == before
+    install.running_game = lambda: False
+
+    # 18. An uninstall backs up and removes the three pak files and nothing else in ~mods or LogicMods, first without
+    # the mod folder, then with an installed one; its dry run says so. With no pak left it says nothing about one.
+    target.unlink()  # The link of 10: no mod folder now.
+    nothing = f'Nothing to uninstall: no StellarCoop folder at {target}\n'
+    before = tree()
+    assert uninstall('--dry-run') == (None, f'Dry run: would back up 3 pak files into {install.BACKUPS} and remove '
+                                            f'them from {lobby}\n{nothing}') and tree() == before
+    old = set(backups())
+    code, out = uninstall()
+    new, = set(backups()) - old
+    assert code is None and out == (f'Backed up 3 files into {new / "Paks"}\n'
+                                    + ''.join(f'Removed {lobby / name}\n' for name in install.PAK) + nothing), out
+    assert files_of(new / 'Paks') == pak2 and files_of(paks) == others
+    before = tree()
+    assert uninstall() == (None, nothing) and tree() == before
+    # A tester's uninstall: the pak and an installed mod folder. The pak goes first, each into its own backup folder
+    # (one frozen second, so the mod's gets -1).
+    (mods / 'mods.txt').write_bytes(b'BPModLoaderMod : 1\n')  # 9's StellarCoop line would add its report.
+    assert run(install.install_files, target, v2)[0] is None
+    assert run(install.install_pak, install.pak_sources(src), lobby, False)[0] is None
+    clock = install.time
+    install.time = types.SimpleNamespace(strftime=time.strftime, gmtime=lambda: time.gmtime(0))
+    try:
+        code, out = uninstall()
+    finally: install.time = clock
+    pak_dest, mod_dest = install.BACKUPS / '19700101T000000Z/Paks', install.BACKUPS / '19700101T000000Z-1/StellarCoop'
+    assert code is None and out == (f'Backed up 3 files into {pak_dest}\n'
+                                    + ''.join(f'Removed {lobby / name}\n' for name in install.PAK)
+                                    + f'Backed up 4 files into {mod_dest}\nRemoved {target}\n{SAVES_LINE}'), out
+    assert files_of(pak_dest) == pak2 and files_of(paks) == others and not target.exists()
+    assert files_of(mod_dest) == {**v2, install.MANIFEST: b''.join(f'{r}\n'.encode() for r in sorted(v2))}
+
+    # 19. main with --pak, on a new game folder: no Paks folder, or a folder without the three files, stops it before
+    # the tests (a run of them would run this test again). Then its dry run and its install each say the mod's line,
+    # then the pak's, and the install copies the pak.
+    game2 = tmp / 'game2'
+    target2, lobby2 = game2 / 'SB/Binaries/Win64/ue4ss/Mods/StellarCoop', game2 / 'SB/Content/Paks/~mods'
+    target2.parent.mkdir(parents=True)
+    (tmp / 'empty').mkdir()
+    saved = install.subprocess, install.sanitizers, install.version, install.package
+
+    def pak(folder, *extra):
+        return run(install.main, ['--pak', str(folder), *extra, '--game', str(game2)])
+
+    def tests_ran(*args, **kwargs):
+        raise AssertionError('main ran the tests')
+
+    install.subprocess = types.SimpleNamespace(run=tests_ran)
+    try:
+        assert pak(src) == (f'No Paks folder at {lobby2.parent}', '')
+        lobby2.parent.mkdir(parents=True)
+        assert pak(tmp / 'empty') == (f'No {", ".join(install.PAK)} in {tmp / "empty"}', '')
+        install.subprocess = types.SimpleNamespace(run=lambda *args, **kwargs: None, DEVNULL=None)
+        install.sanitizers, install.version = (lambda: []), (lambda: 'v')
+        install.package = lambda ver, dll: {'enabled.txt': b''}
+        assert pak(src, '--dry-run') == (None, f'Version: v\nDry run: would install 1 files into {target2}\n'
+                                               f'Dry run: would install 3 pak files into {lobby2}\n')
+        assert not target2.exists() and not lobby2.exists()
+        assert pak(src) == (None, f'Version: v\nInstalled 1 files into {target2}\n'
+                                  f'Installed 3 pak files into {lobby2}\n')
+    finally: install.subprocess, install.sanitizers, install.version, install.package = saved
+    assert files_of(lobby2) == pak2
 
 # 13. CHANGELOG.md: features and fixes from the commit subjects, newest first; other types and empty sections left out.
 # The subjects are those after the last GPL-3.0 commit: none of 0.9.0's history.

@@ -136,16 +136,17 @@ struct HostFs {
 };
 
 // The game as the switch sees it: the name as last read back, a save loaded or not, the title screen shown or not
-// (Lua's world=title), the load mode, and the swap.
+// (Lua's world=title), the load mode, SB's reload flag, and the swap.
 struct Game {
   Saves name = Saves::main;
   bool loaded = false, at_title = true, swap_fails = false;
-  int mode = 0, swaps = 0;
+  int mode = 0, reload = 0, swaps = 0;
   Saves saves() const { return name; }
   std::string why() const { return name == Saves::off ? "no GameSaveFileName entry" : ""; }
   bool world() const { return loaded; }
   bool title() const { return at_title; }
   int load_mode() const { return mode; }
+  int reloading() const { return reload; }
   std::string swap(bool coop) {
     ++swaps;
     if (swap_fails)
@@ -271,6 +272,9 @@ int main() {
   assert(shortcut_name(4) == "StellarCoopShortcut04.txt" && !writable("StellarCoopShortcut05.txt") &&
          !writable("stellarcoopshortcut04.txt"));
   assert(writable("StellarCoopSaves.txt") && writable("StellarCoopSaves.txt.coop-tmp"));
+  // The SBO session record beside each co-op slot (save/sbo_record.h) and its temporary file.
+  assert(writable("StellarCoopSBO00.bin") && writable("StellarCoopSBO04.bin.coop-tmp") &&
+         !writable("StellarCoopSBO05.bin") && !writable("StellarCoopSBO0.bin") && !writable("stellarcoopsbo00.bin"));
   for (const char *name :
        {"StellarBladeSave00.sav", "StellarBladeSave04.sav", "StellarBladeSetting.sav", "StellarBladeCoop05.sav",
         "StellarBladeCoop0.sav", "stellarbladecoop00.sav", "StellarBladeCoop00.sav ", "StellarBladeCoop00.sav.old",
@@ -782,6 +786,9 @@ int main() {
   game.mode = coop::slot::kUnread;
   assert(sw.ask(SavesAsk::coop, &f, game) == "co-op saves refused: the game's load state is unreadable");
   game.mode = 0;
+  game.reload = 1; // SB's own reload under way (client +0x2f9c): no copy.
+  assert(sw.ask(SavesAsk::convert, &f, game) == "co-op saves refused: the game is reloading the save (client +0x2f9c)");
+  game.reload = 0;
   game.name = Saves::off;
   assert(sw.ask(SavesAsk::coop, &f, game) == "co-op saves refused: the save name reads off: no GameSaveFileName entry");
   game.name = Saves::unread;

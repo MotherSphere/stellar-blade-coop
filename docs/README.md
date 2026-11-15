@@ -13,6 +13,7 @@ start with `coop`.
 | [Install](../INSTALL.md) | Install, update and uninstall on Windows, Linux and the Steam Deck; saves and Steam Cloud; which logs to send |
 | [Features and test status](features.md) | The features with their test status, the dated two-PC tests and which versions link together |
 | [Playing with a friend](playing-with-a-friend.md) | Hosting and joining, join codes, following the host, the revive, co-op saves, synced photo mode, shared quests |
+| [SBO lobby and matches](sbo-lobby.md) | The recruiter's Join, the lobby menu, Search, private matches, the countdown, leaving, the hall lobbies, the PvP test, the link protocol |
 | [Interface](interface.md) | The co-op menu, the session chat, the partner HUD, the guide, the teleport screen, notices |
 | [Ghost](ghost.md) | The ghost's looks, .pak mods and CNS outfits, the solid partner |
 | [Shared enemies](shared-enemies.md) | Shared enemies, same place, same spawns, the spawn filter, extra enemies, shared bosses |

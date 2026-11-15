@@ -69,7 +69,7 @@ local function feet(e)
     local at=value_of(valid(e.Mesh):K2_GetComponentLocation())
     return {x=at.X,y=at.Y,z=at.Z}
 end
-local function why_of(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why_of=U.why
 
 -- o: log (the [DR] lines), link (nil without the native part: no race), puppet (anchor, her_map, me, doro, emote,
 -- drive), look (race/doro.lua's Doro.new: on, off, emote, drive, log), drive (race/drive.lua's Drive.new), tell(build)

@@ -37,7 +37,7 @@ line. A fault ends `coop shortcut` for the run.
 
 `coop shortcut load <map> <1-4>` (`save/shortcut_load.h`, `Convert::plant` in `save/twins.h`, not tested in game yet)
 writes one of the 15 files, cleaned, as co-op slot 5 (`StellarBladeCoop04.sav`). The player then loads it with the
-game's own Load Game. It is refused unless `coop-settings.txt` has `shortcut_load=on` (off by default), and
+game's own Load Game. It is refused unless `coop-settings.txt` has `shortcut_load=on` (on by default), and
 `commands/cut.lua` sends the request only when the same words come twice within 10 s.
 
 What the files are, against a save of the released game (2026-10-26):
@@ -143,8 +143,8 @@ What the cleaning does not cover:
 - The developer's progress stays: quests, zone objects, skills (`DataMap_SBAcquisitionSkill`), items, camps and
   `GamePlayProgressRecordData` in G03 1. The game counts collection achievements from events as the player adds to
   them, and whether any of those counts read the save's contents again was not traced. A load can therefore still
-  unlock a Steam achievement during play, and a Steam achievement cannot be taken back. That is why the command is
-  off by default, and why [Cut scenes and menus](../cut-scenes-and-menus.md#loading-one-coop-shortcut-load) says to try it only on a Steam account
+  unlock a Steam achievement during play, and a Steam achievement cannot be taken back. That is why the command has
+  its own `shortcut_load` switch, and why [Cut scenes and menus](../cut-scenes-and-menus.md#loading-one-coop-shortcut-load) says to try it only on a Steam account
   whose achievements do not matter, with Steam Cloud off.
 - The seven items with no `ItemTable` row stay in the inventory, in `PlayerActor`'s equipment and in its slot lists,
   where the developer left them. How the game loads an equipped or held item with no row was not traced. Some of its

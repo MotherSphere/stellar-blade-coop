@@ -14,11 +14,13 @@
 // wire_send: into the loopback's delay line (pose/stream.h), into the recording (pose/record.h) and to the linked
 // friend over Steam (Phase 4, glue/steam.cpp). All that is received comes back through wire_receive, from the delay
 // line, a replayed recording or the friend: a table is checked and handed to Lua as coop-remote.txt, Lua builds the
-// ghost from it and names what it built in coop-display.txt; a pose (a keyframe, or a delta rebuilt on the held
-// keyframe) is decoded with that table into the playback, whose pose for each frame the game thread writes into the
-// ghost's leaders, and the main mesh's world transform into its mailbox for Lua to place it. With effect lines in her
-// capture (protocol 6), her effects travel in the pose's four slots too, and the drawn slots go into the ghost's effect
-// boxes; they have their own SEH latch, so a fault there turns effects off for the run and the ghost goes on.
+// ghost from it and names what it built in coop-display.txt (in a match lobby each other member has a ghost slot of
+// her own, slot k from 1 with coop-remote-<k>.txt and coop-display-<k>.txt); a pose (a keyframe, or a delta rebuilt
+// on the held keyframe) is decoded with that table into the playback, whose pose for each frame the game thread
+// writes into the ghost's leaders, and the main mesh's world transform into its mailbox for Lua to place it. With
+// effect lines in her capture (protocol 6), her effects travel in the pose's four slots too, and the drawn slots go
+// into the ghost's effect boxes; they have their own SEH latch, so a fault there turns effects off for the run and the
+// ghost goes on.
 //
 // The Night Operation probe (Phase 6) is the worker's alone: on the nightop request it reads the rule manager and its
 // neighbours through ReadProcessMemory (nightop/probe.h) into nightop-probe.txt, never touching a game pointer itself.
@@ -31,6 +33,14 @@
 // The synced photo mode's pause (game/photo_freeze.h) is the game thread's too: while the friend's photo mode asks for
 // it (the link's photo line) or coop freeze runs, coop_tick holds a pause tag of ours in SB's set through SB's own
 // pause-tag function, under its own SEH latch, and releases it on every way out, coop off included.
+//
+// SB's HUD under the SBO lobby's screens: while Lua asks (hud hide on), coop_tick puts our key "SBOLobby" into the
+// HUD's set of hiding keys through SB's own keyed request, under its own SEH latch, and takes it out at hud hide off
+// and at coop off.
+//
+// The SBO lobby arrival's black (session/arrival.lua): at Lua's loading lift, coop_tick sets the lifetime of each
+// LoadingScreenFadeAuto entry of tag Load to 0 in SB's UI manager (game/loading.h), under its own SEH latch, so SB's
+// loading controller ends that black with its own end fade.
 //
 // Same-place enemies (stage 3a, fight/pilot.h), the owner's read half: each frame coop_tick takes the job's newest pair
 // table (Mail, try_lock), and every 33 ms of clock, for the pairs this side owns while same_place is on or the pilot
@@ -48,7 +58,7 @@
 // the pair back. The first fault stops all of it for the run and, when it was in this DLL, puts every copy back once.
 // coop fight pilot off turns it off on this side until the next start.
 //
-// The spawn filter (spawn_filter=on, the guest's own, off by default) swaps one pointer of the game's image, once a
+// The spawn filter (spawn_filter=on, the guest's own, on by default) swaps one pointer of the game's image, once a
 // run: the Execute slot of SB's spawn request vtable, for a hook that refuses a request whose key the shared fight's
 // engine lists as one the host lacks, so that enemy never appears in her game. The worker makes the swap when the gate
 // first opens and swaps back at coop off or after a fault in the hook, which has its own SEH latch.
@@ -82,6 +92,8 @@
 // Matrix XIII's camp names (game/camp_text.h): every 250 ms, at the title and with coop off too, the game thread adds
 // its 12 entries to StringTable_UI once the table has loaded, and rewrites them on a language change, under its own SEH
 // latch; camp_text_status() gives coop-status.txt's camptext line, which matrix13/world/travel.lua waits for.
+// The Xion guard's 12 texts (nightop/guard_text.h) are written on the game thread from Lua's guardtext request, under
+// their own SEH latch. coop off writes their Korean sources back.
 //
 // coop fly and coop slowmo (game/debug_keys.h): the worker hands over which of SB's two developer gates Lua asked for
 // (on a co-op save; slow motion with no friend linked); every 250 ms the game thread sets each wanted gate's byte in
@@ -133,6 +145,27 @@
 // Region logic's vtable +0x30, for a hook that adds a record for each tab ui/region_tabs.lua made, under its own SEH
 // latch, on the game thread. It swaps back at coop off and after a fault, and logs the first screen once.
 //
+// The SBO lobby's Join (game/sbo.h): on Lua's sbo arm the worker swaps one pointer of the game's image once a run, the
+// ZoneEvent action's vtable +0x88, for a hook on the game thread that counts the action whose alias is the recruiter's
+// Join and always runs the game's function; the worker logs the first Join, swaps back at coop off and puts the count
+// in coop-status.txt's sbo line. After sbo on, the co-op saves' copies (save/rotation.h): each frame the game thread
+// watches SB's save queue, under its own SEH latch, and once it falls to 0 reads SB's _Old.sav of each co-op save SB
+// just rewrote; the worker writes it into that slot's rotation folder, reads it back, then removes all but the 10
+// newest there, never the open session's copies (save/sbo_record.h's record), and logs each copy. Lua's sbo enter runs
+// the entry: the game thread checks the guards, reads the co-op save before, asks SB for a full save and waits for its
+// queue, reads the save after; the worker writes the session record and the two session copies between those steps.
+// sbo warp makes SB's URL warp into a type-5 zone on the game thread, and the worker writes the record warping. While
+// the record reads warping or arrived, the game thread watches SB's loader each frame, under its own SEH latch: at
+// each type-5 arrival it resets EVE's effects and puts the match loadout on her with SB's own functions
+// (game/preset.h), and the worker writes the record arrived; 60 s after a warp with no arrival, the sbo line reads late.
+// sbo leave writes the record leaving; the game thread puts the session copy back over the co-op save when it moved,
+// sets T and asks SB's own reload of the slot, watches it for 60 s and sets T again when the load left another; the
+// worker then closes the record. SB's own reload during a session is accepted the same way (sb running, then sb done).
+// At the title (C1) the worker checks each record left open and the game thread restores the session copy when the
+// slot still holds that save; after a load of a slot whose record is open (C2), the game thread sets T or the sbo line
+// reads sb record. coop off logs an open record and leaves it for C1: a job then running ends off with nothing
+// written, and only C1 runs after it.
+//
 // coop gift's inventory read (game/items.h) is the worker's alone: on Lua's items request it reads how many of one item
 // our EVE carries through ReadProcessMemory, her GUID too, and status() puts the answer in the engine
 // line for cut/mailbox.lua.
@@ -165,15 +198,19 @@
 #include "game/debug_keys.h"
 #include "game/dev_panels.h"
 #include "game/items.h"
+#include "game/loading.h"
 #include "game/memory.h"
 #include "game/pad.h"
 #include "game/photo_freeze.h"
+#include "game/preset.h"
 #include "game/region_tabs.h"
+#include "game/sbo.h"
 #include "game/travel.h"
 #include "glue/tick.h"
 #include "link/protocol.h"
 #include "lion/rows.h"
 #include "lion/shock.h"
+#include "nightop/guard_text.h"
 #include "nightop/probe.h"
 #include "nightop/roxanne.h"
 #include "nightop/shop_ui.h"
@@ -183,6 +220,8 @@
 #include "pose/stream.h"
 #include "quest/engine.h"
 #include "quest/own.h"
+#include "save/rotation.h"
+#include "save/sbo_record.h"
 #include "save/shortcut.h"
 #include "save/shortcut_load.h"
 #include "save/slot.h"
@@ -190,6 +229,8 @@
 #include "glue/tick/pose_game.inc"
 #include "glue/tick/fight_game.inc"
 #include "glue/tick/freeze_game.inc"
+#include "glue/tick/hud_game.inc" // After freeze_game.inc: its MakeName.
+#include "glue/tick/loading_game.inc"
 #include "glue/tick/quests_game.inc"
 #include "glue/tick/warp_game.inc"
 #include "glue/tick/pilot_game.inc"
@@ -200,11 +241,14 @@
 #include "glue/tick/nightop_game.inc"
 #include "glue/tick/anim_game.inc"
 #include "glue/tick/camp_text_game.inc" // After anim_game.inc and freeze_game.inc: their FStringArg and MakeName.
+#include "glue/tick/guard_text_game.inc" // After camp_text_game.inc: its calls and camp_text_view.
 #include "glue/tick/shortcut_game.inc"
+#include "glue/tick/sbo_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
 #include "glue/tick/fight_worker.inc"
 #include "glue/tick/region_tabs_worker.inc"
+#include "glue/tick/sbo_worker.inc"
 #include "glue/tick/nightop_worker.inc"
 #include "glue/tick/travel_worker.inc"
 #include "glue/tick/shortcut_worker.inc"
@@ -213,13 +257,15 @@
 #include "glue/tick/freeze_worker.inc"
 #include "glue/tick/debug_worker.inc"
 #include "glue/tick/anim_worker.inc"
+#include "glue/tick/hud_worker.inc" // After fight_worker.inc: its fault_where.
+#include "glue/tick/loading_worker.inc" // Likewise.
 #include "glue/tick/status.inc"
 #include "glue/tick/pad_game.inc"
 
 
 // Called by Lua for each pad event it takes (package.loadlib(dll, "coop_pad")), in lua_CFunction's shape, the Lua state
-// ignored. The DLL links no Lua, so the event is the result count: Lua passes 7 arguments and gets that many of them
-// back, 0 for none or game/pad.h's event 1 to 7, so this never returns more than 7. Polls the pads at most once per 8
+// ignored. The DLL links no Lua, so the event is the result count: Lua passes 9 arguments and gets that many of them
+// back, 0 for none or game/pad.h's event 1 to 9, so this never returns more than 9. Polls the pads at most once per 8
 // ms, so Lua can take several events in one frame. Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
   using namespace coop::pose;
@@ -229,13 +275,15 @@ extern "C" __declspec(dllexport) int coop_pad(void *) noexcept {
     poll_pad(now);
   }
   const int event = pad.next();
-  return event >= 0 && event <= 7 ? event : 0;
+  return event >= 0 && event <= 9 ? event : 0;
 }
 
 // Called by Lua once per frame (package.loadlib(dll, "coop_tick")), in lua_CFunction's shape: the Lua state is
 // ignored and nothing is returned to Lua. Never throws, never waits.
 extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   using namespace coop::pose;
+  LARGE_INTEGER entry;
+  QueryPerformanceCounter(&entry);
   if (engine_on && !blocked)
     guarded_tick();
   // Its own latch: a ghost fault leaves the shared fight running, and the reverse. Once more after off: the arm rule
@@ -247,6 +295,12 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // The photo pause's own latch, after coop off too: its tag is released then, and nothing more is called.
   if (game_pinned && !freeze_faulted)
     guarded_freeze();
+  // SB's HUD under the SBO lobby's screens, its own latch: a call only on a change, after coop off too, to show it.
+  if (game_pinned && !hud_faulted)
+    hud_tick();
+  // The SBO lobby arrival's black lifted, its own latch: one write an ask, after coop off too.
+  if (game_pinned && !loading_faulted)
+    loading_tick();
   // Same-place enemies' capture and drive, their own latch too; after coop off while a drawn copy is held, to put it
   // back.
   if (game_pinned && !pilot_faulted && (!blocked || driver.holding()))
@@ -269,6 +323,12 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // Matrix XIII's camp names, their own latch: a check each 250 ms, at the title too, none after their first fault.
   if (game_pinned && !camp_text_faulted)
     camp_text_tick();
+  // SB's input device byte, its own latch: a read each 250 ms, at the title too, none after its first fault.
+  if (game_pinned && !uidev_faulted)
+    uidev_tick();
+  // The Xion guard's texts, their own latch: each frame, after coop off too, to write his Korean sources back.
+  if (game_pinned && !guard_faulted)
+    guard_text_tick();
   // The rows of every batch, their own latch: an ask waits for the gate; after coop off a waiting one is refused, no
   // call made.
   if (game_pinned && !lion_faulted)
@@ -284,6 +344,18 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // coop off or a fault.
   if (game_pinned && !shortcut_faulted && !blocked)
     shortcut_tick();
+  // The co-op saves' copies before each of SB's saves (sbo on), their own latch: the save queue read each frame; none
+  // after coop off or a fault.
+  if (game_pinned && !sbo_faulted && !blocked && sbo_copies)
+    sbo_copy_tick();
+  // The SBO entry's, warp's and return's game steps (C1's too), their own latch: one each frame while a step waits;
+  // none after a fault. After coop off only C1's run; any other job is handed back to the worker unread.
+  if (game_pinned && !sbo_step_faulted)
+    sbo_step_tick();
+  // The SBO arrival watch and the match loadout, their own latch: each frame while the record reads warping or arrived,
+  // C2's load edge each frame; none after coop off or a fault.
+  if (game_pinned && !sbo_arrival_faulted && !blocked)
+    sbo_arrival_tick();
   // SB's developer panels, their own latch: an ask taken each frame, after coop off too (only off is asked then).
   if (game_pinned && !devinfo_faulted)
     devinfo_tick();
@@ -295,5 +367,8 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
     swap_tick(roxanne_side);
   if (game_pinned && !lily_side.faulted)
     swap_tick(lily_side);
+  LARGE_INTEGER left;
+  QueryPerformanceCounter(&left);
+  coop_tick_us = micros_between(entry, left); // The next gap line's "that tick took".
   return 0;
 }

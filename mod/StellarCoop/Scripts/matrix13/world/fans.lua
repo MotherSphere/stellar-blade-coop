@@ -8,8 +8,9 @@
 -- and 025 start disabled and the Lion's EventOnDead enables them (data/mxiii-world.json, DLC02_40_E_EnvC_631 to 633);
 -- their row state On is saved, so a reload finds the fans it left running. Once a second, only within NEAR of the room:
 -- the components are looked for by a walk of every object (25 to 80 ms, no path assumed for a streamed level's objects),
--- at most every FIND s and only while one is missing, then held, and a level streamed back in gets a fresh object that
--- turns for at most FIND s before the next walk. One [MXFAN] line a change. If nothing is found the fans keep turning.
+-- at most every FIND s and only while a rotor is missing; a missing lever is looked for through the class hash alone.
+-- Then held, and a level streamed back in gets a fresh object that turns for at most FIND s before the next walk. One
+-- [MXFAN] line a change. If nothing is found the fans keep turning.
 local U=require('core.unreal')
 local Fans={}
 Fans.LEVERS={{env='DLC02_40_EnvS_023',rotor='Z4_Z4R10_S_Fan1_Rotor'},{env='DLC02_40_EnvS_024',rotor='Z4_Z4R10_S_Fan2_Rotor'},
@@ -47,13 +48,15 @@ function Fans.new(o)
         local v,c=U.value_of(eve:K2_GetActorLocation()),Fans.CENTER
         return (v.X-c.X)^2+(v.Y-c.Y)^2+(v.Z-c.Z)^2<=Fans.NEAR^2
     end
-    local function look(eve,now)
+    local function look(eve,now,rotor_missing)
         next_find=now+Fans.FIND
-        U.each(FindAllOf('RotatingMovementComponent') or {},function(_,c)
-            c=U.valid(c)
-            local owner=c and U.valid(c:GetOwner())
-            if owner then rotors[U.text(owner:GetFName())]=c end
-        end)
+        if rotor_missing then
+            U.each(FindAllOf('RotatingMovementComponent') or {},function(_,c)
+                c=U.valid(c)
+                local owner=c and U.valid(c:GetOwner())
+                if owner then rotors[U.text(owner:GetFName())]=c end
+            end)
+        end
         for _,x in ipairs((U.actors_of(U.find('/Script/SB.SBZoneEnvActor'),'SBZoneEnvActor',eve))) do
             local ok,name=pcall(function() return U.text(x.EnvActorName) end)
             if ok then levers[name]=x end
@@ -66,11 +69,12 @@ function Fans.new(o)
             return
         end
         if not near(eve) then return end
-        local missing=false
+        local rotor_missing,lever_missing=false,false
         for _,f in ipairs(Fans.LEVERS) do
-            missing=missing or not rotor_of(f) or not lever_of(f)
+            rotor_missing=rotor_missing or not rotor_of(f)
+            lever_missing=lever_missing or not lever_of(f)
         end
-        if missing and now>=next_find then look(eve,now) end
+        if (rotor_missing or lever_missing) and now>=next_find then look(eve,now,rotor_missing) end
         local found=0
         for _,f in ipairs(Fans.LEVERS) do
             local rotor,lever=rotor_of(f),lever_of(f)

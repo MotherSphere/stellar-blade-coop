@@ -34,6 +34,7 @@
 #include "glue/tick.h"
 #include "link/core.h"
 #include "pose/table.h" // path_allowed
+#include "save/rotation.h"      // rotation_name(), stamped()
 #include "save/shortcut_load.h" // kSlot
 #include "save/slot.h"
 #include "save/twins.h"
@@ -75,6 +76,10 @@ std::atomic<bool> log_open{false}, faulted{false};
 // What Steam's callbacks store, on the game's Steam thread; taken by the worker.
 std::atomic<uint64_t> join_requested{0}, session_requested{0};
 std::atomic<int> cb333{0}, cb505{0}, cb1251{0};
+// Callback 506's last event, for the log only (a member's leave still shows in the next poll of the members).
+std::atomic<uint64_t> chat_lobby{0}, chat_user{0};
+std::atomic<uint32_t> chat_state{0};
+std::atomic<int> cb506{0};
 
 // The SDK's CCallbackBase: a vtable with these three virtuals in this order (MSVC lays out the two Run overloads the
 // same way for us as for Steam), then the flags byte and the callback ID. Steam calls Run on its dispatch thread.
@@ -99,6 +104,16 @@ Listener on_join(
     },
     sizeof(coop::JoinRequested));
 Listener on_data(coop::kDataUpdateId, [](const void *) { ++cb505; }, 24);
+Listener on_chat(
+    coop::kChatUpdateId,
+    [](const void *p) {
+      const auto *u = static_cast<const coop::ChatUpdate *>(p);
+      chat_lobby.store(u->lobby);
+      chat_state.store(u->state);
+      chat_user.store(u->user); // Last: the worker takes the event by it.
+      ++cb506;
+    },
+    sizeof(coop::ChatUpdate));
 Listener on_session(
     coop::kSessionRequestId, // SteamNetworkingMessagesSessionRequest_t: the requester's identity.
     [](const void *p) {
@@ -245,6 +260,7 @@ int coop_marker = coop::slot::kNotRead; // StellarCoopSlot.txt's slot, kNone or 
 int slot_index = coop::slot::kUnread;   // The slot the game entered, every 250 ms (pose::loaded_slot).
 coop::slot::Saves saves_state = coop::slot::Saves::unread; // The save files the game uses, with it (pose::saves).
 uint64_t next_slot = 0;
+bool sbo_title_held = false; // C1 holds a co-op slot (pose::sbo_title_pass): the conversion's pass waits.
 bool probed = false; // The save name's probe ran at load.
 // The files under dir, in folders down to deepest levels below it, most of them at most.
 void list_saves(const std::wstring &dir, const std::string &prefix, std::vector<coop::SaveWatch::Entry> &out, int depth,
@@ -366,11 +382,13 @@ void watch_saves(uint64_t now_ms, uint64_t steam_id) {
 
 // The co-op saves' file functions (save/twins.h): names in this account's save folder, and in a new folder of the
 // backups' folder. Reads share everything, so the game's own writes are never blocked; writes are flushed before
-// their rename.
-class WinFs {
+// their rename. The SBO lobby's (glue/tick.h's SboFs) add each co-op slot's rotation folder,
+// StellarCoopBackups\autosave\StellarBladeCoop0N\, and its sidecar backups' folder,
+// StellarCoopBackups\sidecar\StellarCoopSBO0N\, each made when first used.
+class WinFs final : public coop::pose::SboFs {
 public:
   WinFs(const std::wstring &dir, const std::wstring &backups) : dir_(dir + L"\\"), backups_(backups) {}
-  coop::twins::Stat stat(const std::string &name) {
+  coop::twins::Stat stat(const std::string &name) override {
     WIN32_FILE_ATTRIBUTE_DATA a;
     if (!GetFileAttributesExW((dir_ + wide(name)).c_str(), GetFileExInfoStandard, &a) ||
         (a.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
@@ -378,25 +396,46 @@ public:
     return {true, (uint64_t(a.nFileSizeHigh) << 32) | a.nFileSizeLow,
             (uint64_t(a.ftLastWriteTime.dwHighDateTime) << 32) | a.ftLastWriteTime.dwLowDateTime};
   }
-  bool read(const std::string &name, std::string &out, size_t max) { return read_at(dir_ + wide(name), out, max); }
-  bool write(const std::string &name, const std::string &bytes) { return write_at(dir_ + wide(name), bytes); }
-  bool rename(const std::string &from, const std::string &to) {
+  bool read(const std::string &name, std::string &out, size_t max) override {
+    return read_at(dir_ + wide(name), out, max);
+  }
+  bool write(const std::string &name, const std::string &bytes) override { return write_at(dir_ + wide(name), bytes); }
+  bool rename(const std::string &from, const std::string &to) override {
     return MoveFileExW((dir_ + wide(from)).c_str(), (dir_ + wide(to)).c_str(),
                        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
   }
-  bool remove(const std::string &name) { return DeleteFileW((dir_ + wide(name)).c_str()); }
-  std::vector<std::string> list() {
-    std::vector<std::string> names;
-    WIN32_FIND_DATAW f;
-    HANDLE h = FindFirstFileW((dir_ + L"*").c_str(), &f);
-    if (h == INVALID_HANDLE_VALUE)
-      return names;
-    do {
-      if (!(f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-        names.push_back(utf8(f.cFileName));
-    } while (FindNextFileW(h, &f));
-    FindClose(h);
-    return names;
+  bool remove(const std::string &name) override { return DeleteFileW((dir_ + wide(name)).c_str()); }
+  std::vector<std::string> list() { return list_at(dir_); }
+  std::wstring folder() const override { return dir_; }
+  bool rotation_write(int slot, const std::string &name, const std::string &bytes) override {
+    const std::wstring dir = rotation_dir(slot);
+    return !dir.empty() && coop::rotation::rotation_name(name) && store(dir + wide(name), bytes);
+  }
+  bool rotation_read(int slot, const std::string &name, std::string &out, size_t max) override {
+    const std::wstring dir = rotation_dir(slot);
+    return !dir.empty() && coop::rotation::rotation_name(name) && read_at(dir + wide(name), out, max);
+  }
+  std::vector<std::string> rotation_list(int slot) override {
+    const std::wstring dir = rotation_dir(slot);
+    return dir.empty() ? std::vector<std::string>() : list_at(dir);
+  }
+  bool rotation_remove(int slot, const std::string &name) override {
+    const std::wstring dir = rotation_dir(slot);
+    return !dir.empty() && coop::rotation::rotation_name(name) && DeleteFileW((dir + wide(name)).c_str());
+  }
+  // name: <UTC>.bin, or <UTC>-1.bin, -2... when it is there already, as backup_dir names its folders.
+  bool sidecar_backup(int slot, const std::string &name, const std::string &bytes) override {
+    const std::wstring dir = slot_dir(L"sidecar", coop::twins::sidecar_name(slot), slot);
+    if (dir.empty() || !coop::rotation::stamped(name, ".bin") || name.size() != 20)
+      return false;
+    for (int n = 0; n < 100; ++n) {
+      const std::wstring path = dir + wide(n ? name.substr(0, 16) + "-" + std::to_string(n) + ".bin" : name);
+      if (store(path, bytes))
+        return true;
+      if (GetFileAttributesW(path.c_str()) == INVALID_FILE_ATTRIBUTES)
+        return false;
+    }
+    return false;
   }
   // StellarCoopBackups\<UTC time>[-n]\, new; its path, or empty.
   std::string backup_dir() {
@@ -419,21 +458,51 @@ public:
     }
     return {};
   }
-  // Written beside as .coop-tmp, then renamed: a full disk or a killed game never leaves a cut .sav in the backup.
   bool backup_write(const std::string &name, const std::string &bytes) {
-    if (current_.empty())
-      return false;
-    const std::wstring path = current_ + wide(name), temp = path + L".coop-tmp";
-    if (write_at(temp, bytes) && MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_WRITE_THROUGH))
-      return true;
-    DeleteFileW(temp.c_str());
-    return false;
+    return !current_.empty() && store(current_ + wide(name), bytes);
   }
   bool backup_read(const std::string &name, std::string &out, size_t max) {
     return !current_.empty() && read_at(current_ + wide(name), out, max);
   }
 
 private:
+  // Written beside as .coop-tmp, then renamed: a full disk or a killed game never leaves a cut file in a backup. A file
+  // already at path stays, and the store fails.
+  static bool store(const std::wstring &path, const std::string &bytes) {
+    const std::wstring temp = path + L".coop-tmp";
+    if (write_at(temp, bytes) && MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_WRITE_THROUGH))
+      return true;
+    DeleteFileW(temp.c_str());
+    return false;
+  }
+  static std::vector<std::string> list_at(const std::wstring &dir) {
+    std::vector<std::string> names;
+    WIN32_FIND_DATAW f;
+    HANDLE h = FindFirstFileW((dir + L"*").c_str(), &f);
+    if (h == INVALID_HANDLE_VALUE)
+      return names;
+    do {
+      if (!(f.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+        names.push_back(utf8(f.cFileName));
+    } while (FindNextFileW(h, &f));
+    FindClose(h);
+    return names;
+  }
+  // StellarCoopBackups\<kind>\<name without its extension>\ for co-op slot slot, made when missing; empty when the
+  // backups' folder is unknown or there is no such slot.
+  std::wstring slot_dir(const wchar_t *kind, const std::string &name, int slot) {
+    if (backups_.empty() || slot < 0 || slot >= coop::twins::kSlots)
+      return {};
+    std::wstring path = backups_;
+    CreateDirectoryW(path.c_str(), nullptr); // Each already there after its first use.
+    for (const std::wstring &part : {std::wstring(kind), wide(name.substr(0, name.rfind('.')))}) {
+      path += L"\\" + part;
+      CreateDirectoryW(path.c_str(), nullptr);
+    }
+    return path + L"\\";
+  }
+  std::wstring rotation_dir(int slot) { return slot_dir(L"autosave", coop::twins::twin_name(slot), slot); }
+
   static bool read_at(const std::wstring &path, std::string &out, size_t max) {
     HANDLE f = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -502,6 +571,7 @@ struct GameView {
   bool world() { return coop::pose::lua_state().world; }
   bool title() { return coop::pose::lua_state().title; }
   int load_mode() { return coop::pose::load_mode(); }
+  int reloading() { return coop::pose::reloading(); }
   std::string swap(bool coop) {
     std::string why = coop::pose::saves_switch(coop);
     saves_state = coop::pose::saves(); // The status shows the switch at once.
@@ -527,16 +597,18 @@ void write_shared() {
 }
 
 std::string status_text() {
-  std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb1251.load()})
+  std::string head = link ? link->status(coop::Counters{cb333.load(), cb505.load(), cb506.load(), cb1251.load()})
                           : "mod=" + coop::token(STELLARCOOP_VERSION) + " proto=" +
                                 std::to_string(coop::kProtocol) + " steam=waiting\n";
   const std::string camps = coop::pose::camps_status();
   const std::string camp_text = coop::pose::camp_text_status();
+  const std::string uidev = coop::pose::uidev_status();
   return head + cns_line + "shared=" + std::to_string(shared_version) + " " + std::to_string(shared_count) + "\n" +
          coop::pose::status() + "\n" + (camps.empty() ? camps : camps + "\n") +
          coop::slot::line(slot_index, coop_marker, coop::pose::lua_state().world, saves_state) + "\n" +
          coop_saves.status() + "\n" + coop::pose::fight_status() + "\n" + coop::pose::pilot_status() + "\n" +
-         coop::pose::rows_status() + "\n" + (camp_text.empty() ? camp_text : camp_text + "\n") +
+         coop::pose::sbo_status() + "\n" + (uidev.empty() ? uidev : uidev + "\n") + coop::pose::rows_status() + "\n" +
+         (camp_text.empty() ? camp_text : camp_text + "\n") +
          coop::pose::quest_status() + (link ? link->photo_status(coop::pose::frozen()) + "\n" : std::string()) +
          "last=" + journal.last() + "\n";
 }
@@ -581,12 +653,15 @@ bool step() {
         return false; // Another Steamworks build: never call it.
       }
       loaded = true;
-      link = std::make_unique<coop::Link>(api, STELLARCOOP_VERSION, event,
-                                          [](const uint8_t *d, size_t n) { coop::pose::peer_receive(d, n); });
+      link = std::make_unique<coop::Link>(
+          api, STELLARCOOP_VERSION, event,
+          [](size_t slot, const uint8_t *d, size_t n) { coop::pose::peer_receive(slot, d, n); });
       link->paks(game_paks.count, game_paks.hash, game_mods);
     }
-    if (loaded && !account && !saves_dir.empty() && link->me()) // The game's save folder for this account.
+    if (loaded && !account && !saves_dir.empty() && link->me()) { // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);
+      coop::pose::sbo_files(account.get());
+    }
     std::string request = take_text(folder + L"coop-request.txt", DWORD(coop::kMaxRequestFile));
     // Taken at every pass, even when it cannot go, so a typed line never stays on disk. Never logged.
     const std::string typed = take_text(folder + L"coop-say.txt");
@@ -665,6 +740,14 @@ bool step() {
       }
       request.clear();
       break;
+    case coop::Command::hud: // SB's HUD under the SBO lobby's screens: the game thread's; the change is logged.
+      coop::pose::ask_hud(coop::parse_request(request).on);
+      request.clear();
+      break;
+    case coop::Command::loading: // The SBO lobby arrival's black lifted: the game thread's; its answer is logged.
+      event(coop::pose::ask_loading());
+      request.clear();
+      break;
     case coop::Command::devinfo: // coop devinfo: the game thread's too.
       event(coop::pose::ask_devinfo(coop::parse_request(request)));
       request.clear();
@@ -677,8 +760,16 @@ bool step() {
       event(coop::pose::ask_roxanne(coop::parse_request(request)));
       request.clear();
       break;
+    case coop::Command::guardtext: // The Xion guard's lines: the game thread's.
+      event(coop::pose::ask_guard(coop::parse_request(request)));
+      request.clear();
+      break;
     case coop::Command::signal: // The mod's own quests, their reads, acquires or a task's Complete: the game thread's.
       event(coop::pose::ask_signal(coop::parse_request(request)));
+      request.clear();
+      break;
+    case coop::Command::sbo: // The SBO lobby: the worker's, the Join slot's swap included.
+      event(coop::pose::ask_sbo(coop::parse_request(request)));
       request.clear();
       break;
     case coop::Command::saves:
@@ -717,8 +808,14 @@ bool step() {
         event(std::string("save name: saves=") + coop::slot::saves_name(saves_state) +
               (why.empty() ? std::string() : " (" + why + ")"));
       }
+      // C1, the SBO session records left open: at each title pass, before any conversion job, and after coop off too,
+      // so its two reads of the client ignore coop off (Lua still writes world= then).
+      GameView game;
+      sbo_title_held = coop::pose::sbo_title_pass(
+          coop::slot::not_title(game.world(), game.title(), coop::pose::load_mode(true), coop::pose::reloading(true))
+              .empty());
     }
-    { // A conversion's next job, at most one a pass, then the switch asked at its end.
+    if (!sbo_title_held) { // A conversion's next job, at most one a pass, then the switch asked at its end.
       GameView game;
       for (const std::string &line : coop_saves.pass(account.get(), game, switched_off))
         event(line);
@@ -758,9 +855,10 @@ bool step() {
     if (loaded) {
       if (ready == coop::Link::Ready::now) {
         // Known race, accepted: steam_api inserts into its callback map without a lock while the game's Steam thread
-        // may be dispatching. Three inserts, once per run; never register or unregister anywhere else.
+        // may be dispatching. Four inserts, once per run; never register or unregister anywhere else.
         api.register_callback(&on_join, coop::kJoinRequestedId);
         api.register_callback(&on_data, coop::kDataUpdateId);
+        api.register_callback(&on_chat, coop::kChatUpdateId);
         api.register_callback(&on_session, coop::kSessionRequestId);
         // Pinned: a call in flight while the game shuts Steam down at exit then returns into mapped code.
         HMODULE pinned = nullptr;
@@ -771,6 +869,8 @@ bool step() {
         uint64_t join = join_requested.exchange(0), session = session_requested.exchange(0);
         if (switched_off) // Invites accepted in the overlay and session requests are dropped too.
           join = session = 0;
+        if (uint64_t user = chat_user.exchange(0))
+          link->member_update({chat_lobby.load(), user, 0, chat_state.load()});
         link->tick(GetTickCount64(), request, join, session);
         if (link->take_report())
           write_report();
@@ -827,20 +927,26 @@ bool step() {
     said = coop::pose::anim_pass();
     if (loaded && !said.empty())
       link->notice(said);
-    // Channel 2 both ways: the shared quests take their SBQ lines out first, the shared fight's job gets the rest; the
-    // lobby owner hosts both. Ours are queued for the next tick.
-    std::vector<std::string> channel2 = loaded ? link->take_fight() : std::vector<std::string>();
+    coop::pose::hud_pass();
+    coop::pose::loading_pass();
+    // Channel 2 both ways, with the co-op partner only (none in a match lobby, where partner() is 0): the shared quests
+    // take their SBQ lines out first, the shared fight's job gets the rest; the lobby owner hosts both. Ours are queued
+    // for the next tick. Lines from any other member are dropped.
+    const std::vector<coop::FightLine> fights = loaded ? link->take_fight() : std::vector<coop::FightLine>();
+    const uint64_t partner = linked ? link->partner() : 0;
+    const bool shared = partner != 0;
+    std::vector<std::string> channel2 = coop::lines_from(fights, partner);
     coop::pose::quest_pass(
-        GetTickCount64(), linked && link->host(), linked ? link->partner() : 0, coop_marker, channel2,
+        GetTickCount64(), shared && link->host(), partner, coop_marker, channel2,
         [](const std::string &line) { return link && link->send_fight(line, true); }, quest_files);
     bool fighting = coop::pose::fight_pass(
-        GetTickCount64(), linked, linked && link->host(), coop_marker, channel2,
+        GetTickCount64(), shared, shared && link->host(), coop_marker, channel2,
         [](const std::string &line, bool reliable) { return link && link->send_fight(line, reliable); },
-        linked ? link->mate_life() : coop::Life::unknown);
+        shared ? link->mate_life() : coop::Life::unknown, partner);
     streaming = streaming || fighting;
     // Every send passes here, worker_poll's and worker_stream's before this pass's ready(): none once Steam shut down.
     coop::pose::peer(
-        linked, GetTickCount64(),
+        linked ? link->slots() : 0, GetTickCount64(),
         [](const uint8_t *d, size_t n, bool reliable) {
           if (api.user_handle())
             link->send_binary(d, n, reliable);
@@ -882,6 +988,9 @@ DWORD WINAPI worker(void *) {
   for (const wchar_t *stale : {L"coop-components.txt", L"coop-remote.txt", L"coop-display.txt", L"coop-state.txt",
                                L"coop-night.txt", L"coop-cns.txt", L"coop-shared-assets.txt"})
     DeleteFileW((folder + stale).c_str()); // Tables, addresses and a run's line from a previous run mean nothing now.
+  for (size_t k = 1; k < coop::kMaxRemote; ++k) // And those of the other ghost slots.
+    for (const char *stem : {"coop-remote", "coop-display"})
+      DeleteFileW((folder + wide(coop::pose::slot_file(stem, k))).c_str());
   write_header();
   log_paks();
   log_open = true;

@@ -61,7 +61,7 @@ local BY={}
 for _,r in ipairs(DevMenu.ROWS) do BY[r[1]]=r end
 function DevMenu.row(name) return BY[name] end -- The row of that name, or nil.
 local USE='Use: coop devmenu [list|<row>]'
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 -- An effect's EffectTable ID by its row name, or nil when this game has no such row.
 function DevMenu.effect_id(name)
     local row=U.find(EFFECTS):FindRow(name)

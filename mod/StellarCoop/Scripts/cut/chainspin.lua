@@ -26,7 +26,7 @@ end
 assert(math.type(ChainSpin.ID)=='integer','cut/lion_rows.lua lacks '..ChainSpin.EFFECT)
 local USE='Use: coop chainspin'
 local MASK=0xFFFFFFFF
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=require('core.unreal').why
 -- The one call: SB's cheat request, SBApplyEffectMe with an EffectTable ID as its argument, on EVE's GUID; no player
 -- ID (that word reads none). ChainSpin's effect, or one of coop devmenu's.
 function ChainSpin.apply(pc,guid,id)

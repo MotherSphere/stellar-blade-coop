@@ -38,6 +38,10 @@ constexpr int kNotRead = -3, kBad = -2, kNone = -1; // marker: not looked up yet
 // from the save files by 0x141cd7310 at StartClient and at each return to the title); our EVE's GUID, the key the
 // world's player map holds for the local player (the revive guard and coop gift's inventory read take it).
 constexpr uint64_t kEntered = 0x54, kLoadSlot = 0x868, kLoadMode = 0x86c, kCacheCount = 0xa10, kPlayerGuid = 0x58;
+// SB's in-game reload under way: a byte, set to 1 by the reload call 0x141cf2610 and read by StartLobby (0x141cca410)
+// to load the save again. That call also writes +0x2f9e, and +0x2f9d and +0x2f9f are flags of their own, so an int32
+// read here keeps only its low byte.
+constexpr uint64_t kReloading = 0x2f9c;
 
 // The int32 at client + offset, or kUnread when the pointer's read fails, the pointer is implausible (0 before the
 // client exists: one read only) or the field's read fails. Two reads at most; read(address, out, n) returns false when
@@ -207,8 +211,9 @@ private:
 // (coop-state.txt's world=title: a pawn on the title screen's map, so never during a loading screen, a New Game intro
 // or with no Lua), with no save loaded (world=1) and no load asked there (client +0x86c is 0; 0 at boot [L], set by
 // Continue and Load Game, and whether the game resets it at the title is for the probe to show), so a world never
-// saves into the other files (AUTO-COOP-SAVE §4.3).
-inline std::string not_title(bool world, bool title, int load_mode) {
+// saves into the other files (AUTO-COOP-SAVE §4.3), and with no reload of SB's own under way (client +0x2f9c's byte,
+// reloading: kReloading), which loads the entered slot's file again.
+inline std::string not_title(bool world, bool title, int load_mode, int reloading) {
   if (world)
     return "a save is loaded: quit to the title first";
   if (!title)
@@ -217,6 +222,10 @@ inline std::string not_title(bool world, bool title, int load_mode) {
     return "the game's load state is unreadable";
   if (load_mode)
     return "Continue or Load Game was chosen at the title (load mode " + std::to_string(load_mode) + ")";
+  if (reloading == kUnread)
+    return "the game's reload state is unreadable";
+  if (reloading)
+    return "the game is reloading the save (client +0x2f9c)";
   return {};
 }
 

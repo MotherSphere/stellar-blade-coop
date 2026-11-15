@@ -53,7 +53,7 @@ Wear.USE='Use: coop wear [nyaaa|rabbit|gothic|rider|diving2|golden|off [hair|sui
 
 local function name_of(path) return path:match('[^.]+$') end
 local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end
-local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')) and pawn or nil end
+local her=U.her
 local function mesh_of(c) local m=valid(c.SkeletalMesh); return m and path_of(m) or nil end
 -- A part's component on EVE: her main mesh for a suit, SBHair for a hair; nil when she has none.
 local function component(eve,part)

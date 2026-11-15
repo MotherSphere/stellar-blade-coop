@@ -1,6 +1,7 @@
 # Stellar Blade Online
 
-**Two-player online co-op for Stellar Blade on PC, linked through Steam.**
+**Two-player online co-op for Stellar Blade on PC, linked through Steam, with a test lobby for matches of up to 8
+players.**
 
 <img align="right" width="200" src="mod/StellarCoop/Assets/MotherSphere.png" alt="Mother Sphere, illustration by timediffer24">
 
@@ -48,7 +49,14 @@ when the game starts ([INSTALL.md: Update](INSTALL.md#update)).
 
 Two-PC co-op was first played on 2026-10-17, between a Linux PC with Proton and a Windows PC.
 [Features and test status](docs/features.md#status) lists every later test and what has not been tested between two
-PCs yet.
+PCs yet. The SBO lobby has run on one PC only, and no match lobby has held two players in game yet. Leave and the
+return to Xion have not run in game, nor has the restore at the title after a failed return. In the lobby EVE wears
+Stellar Blade's `Preset_Eve_Max` build, and only that return or restore gives the co-op save its own skills and
+equipment back ([SBO lobby: Leaving](docs/sbo-lobby.md#leaving)).
+
+This version uses link protocol 20 and does not link with 0.10.0 or older, so every player has to update. Every on/off
+setting is now on by default, the experimental ones included; most of them have not been tested in game
+([Settings](docs/settings.md#coop-settingstxt)).
 
 ## What it does
 
@@ -60,14 +68,19 @@ PCs yet.
   [Ghost](docs/ghost.md).
 - Your friend's card at the top left shows their ping, map, HP, shield and Beta. During a session, Enter opens a chat
   box. See [Interface](docs/interface.md#partner-hud).
+- The SBO lobby (a test) is a waiting room in Xion's training room for matches of up to 8 players. On a co-op save,
+  talk to the recruiter near Roxanne and choose Join. Its menu searches for a public free-for-all match, hosts a
+  private one with a join code, or joins one by code, and a countdown starts once 2 players have linked. The
+  free-for-all itself is not built yet, so a round's start takes nobody to an arena. `coop pvp` tests PvP damage
+  between two linked friends. See [SBO lobby and matches](docs/sbo-lobby.md).
 - Shared enemies (experimental, on by default) give each common enemy one HP bar and one death in both games, while
   both players play a co-op save. Same place, same spawns and shared bosses build on them, and the host's settings
   apply to both games. See [Shared enemies](docs/shared-enemies.md).
 - Co-op saves (`StellarBladeCoop00.sav` to `04.sav`) are copies of your own saves that the mod makes on the title
   screen. Night Operation, the challenges, shared enemies and shared quests run on them only, and nothing goes back to
   your own saves unless you export it. See [Co-op saves](docs/playing-with-a-friend.md#co-op-saves).
-- Group play adds the friend's revive and shared quests (both experimental and off by default), a pause while a
-  cutscene plays in the host's game, and travel to the camp nearest the host (F7, off in this version). See
+- Group play adds the friend's revive and shared quests (both experimental and on by default), a pause while a
+  cutscene plays in the host's game, and travel to the camp nearest the host (F7, not tested in game yet). See
   [Playing with a friend](docs/playing-with-a-friend.md).
 - In Doro races you record a track with F9 checkpoints, then race it alone or against your friend, each racer drawn
   as a Doro. See [Doro races](docs/doro-races.md).
@@ -96,7 +109,7 @@ features; Matrix XIII and Lily's signal have their own pages.
 | UE4SS | v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3". |
 | System | Windows, or Linux with Proton (Steam Deck included). |
 | Console | Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it. |
-| Playing together | The same game build and the same link protocol: 19 in 0.8.0 and 0.9.0, which does not link with 0.7.5 (protocol 18) or older versions. |
+| Playing together | The same game build and the same link protocol: 20 in this version, which does not link with 0.8.0 to 0.10.0 (protocol 19) or older versions. |
 
 ## Documentation
 
@@ -104,6 +117,7 @@ features; Matrix XIII and Lily's signal have their own pages.
 | --- | --- |
 | [Install](INSTALL.md) | Install, update and uninstall on Windows, Linux and Steam Deck |
 | [Playing with a friend](docs/playing-with-a-friend.md) | Hosting, joining, join codes and the co-op saves |
+| [SBO lobby and matches](docs/sbo-lobby.md) | The recruiter's Join, the lobby menu, match lobbies of up to 8 players, the hall lobbies, the PvP test |
 | [Keys and commands](docs/usage.md) | Every key and `coop` console command, and the F6 and `coop status` lines |
 | [Features and test status](docs/features.md) | What the features do and when each was tested |
 | [Troubleshooting](docs/troubleshooting.md) | Common problems and which logs to send |

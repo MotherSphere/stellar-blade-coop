@@ -22,8 +22,9 @@
 // The Game the engine takes:
 //   bool read(uint64_t address, void *out, size_t n): the game's memory, false when unreadable;
 //   uint64_t find(uint64_t logic, uint32_t guid): FUN_141ad7cf0(logic, guid), the logic actor or 0;
-//   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify):
-//     FUN_141ba9960(la, type, 0, delta, 0, cause, 0, 0, 0, notify, true): every write passes NoDamage (fight/sync.h);
+//   void apply(uint64_t la, int type, float delta, uint64_t cause, bool notify, bool ignore_nodamage = true):
+//     FUN_141ba9960(la, type, 0, delta, 0, cause, 0, 0, 0, notify, ignore_nodamage): the PvP test's victim write passes
+//     0, every other write 1, so NoDamage never blocks the shared fight's writes (fight/sync.h);
 //   uint64_t effect(uint64_t logic, uint64_t la, uint64_t caster, int32_t id):
 //     FUN_141ad1af0(logic, la, caster, id, &zero vector, 0, nullptr): the effect started, or 0 when refused;
 //   void push(Job *job): FUN_141af4b70(nullptr, job, 0), never param_3 = 1;
@@ -43,6 +44,13 @@
 //   uint64_t make(uint64_t logic, uint32_t chr, const float *at, const float *rot, uint32_t id, uint8_t index):
 //     FUN_141ad24d0(logic, chr, at, rot, 0, 0, id, index, 0, 0, 1, nullptr, 0, 0, 0), SB's NewActor as
 //     SpawnRequest::Execute calls it: the new logic actor, or 0 (a boss's summons on the guest's side too, stage 5);
+//   the PvP test (design 13), from inside our job only:
+//   void relocate(uint64_t fsb, const float *at): the thunk 0x141a51f60 to FUN_14b949090(fsb, at, 0, 2), as
+//     FSBActorRespawn::Simulate moves an actor (0x141b1114c): FSB +0x4cc now, and the game thread's teleport queued;
+//   uint64_t skill(uint64_t logic, int32_t guid): FUN_141ad7bb0(logic, guid), the skill object of that GUID or 0;
+//   uint64_t skill_row(uint64_t tables, int32_t id): FUN_141a9e920(tables, 0, id), the SkillTable row or 0, as
+//     FSBLogicSimulation::NewSkillLogic (FUN_141ad14a0) finds it before the skill keeps it at +0x58; the row's own
+//     first-use call (its vtable +0x20, which fills +0x2f8 from +0xe8) is left to SB's callers;
 //   bosses (stage 5), from inside our job only:
 //   void battle(uint64_t fsb, bool on): SetBattleMode's wrapper; on: FUN_141a7db20(fsb, 1, 0, 0, 0, 1), the arguments
 //     of SB's FSBActor::AddTargetedByEnemy, so the boss's EventOnBattle runs (arena walls); off: FUN_141a7db20(fsb, 0,
@@ -120,8 +128,11 @@ public:
   // Any thread. on: the user's fight on with every gate open (the link handshaken, both on the co-op slot); each on
   // starts a new session of the side (host: the lobby owner), or of the probe, so nothing carries over. off ends the
   // job at its next turn; the worker sends our on and off lines, and the job says on again at the session's first turn
-  // (simulate). A test not run yet (coop fight test, coop fight pilot test exec) goes either way.
-  void set(bool on, bool hosting, bool probing = false);
+  // (simulate). A test not run yet (coop fight test, coop fight pilot test exec) goes either way. pvp: a session of the
+  // PvP test (design 13) instead of the shared fight.
+  void set(bool on, bool hosting, bool probing = false, bool pvp = false);
+  bool pvp() const { return pvp_; } // Any thread: the last set() asked a PvP session (false once off).
+  void pvp_peer(uint64_t id) { pvp_peer_ = id; } // Any thread: the linked partner's SteamID, 0 for none.
   // Any thread: a test write for the probe's next turn (stat as Request::stat; change unused for a kill). One word for
   // both, so the turn that takes it never pairs one request's stat with another's change.
   void test(int stat, int32_t change) { test_ = uint64_t(stat - kNoTest) << 32 | uint32_t(change); }
@@ -333,6 +344,7 @@ private:
   // the copy is no longer drawn (its pair gone, same place off), no bstart came for kBattleEndMs, and on every lift
   // path.
   static constexpr int kBattleOn = -5;
+  static constexpr int kProxy = -6; // Not a stat: the PvP test's stand-in this side made, despawned at the end.
   static constexpr const char *kUnlisted = "its row's effects refused"; // A summon's (make_extra()).
   struct Capture {
     uint32_t guid = 0;
@@ -473,9 +485,10 @@ private:
   // ghost stands here while her_ok) is despawned.
   template <class Game>
   void hold_extras(Game &g, uint64_t logic, const float *eve, bool eve_ok, bool her_ok, bool hosting);
-  // One of our extras (or summons) despawned through SB's job sender at the logic's turn now, never killed (why: far,
-  // end, unpaired); logged, as kept when the job sender is not made.
-  template <class Game> void unmake(Game &g, uint64_t logic, const Actor &a, const char *why, bool summon = false);
+  // One of our extras, summons or PvP stand-ins (type: its capture kind) despawned through SB's job sender at the
+  // logic's turn now, never killed (why: far, end, unpaired, a row refused); logged, as kept when the job sender is not
+  // made.
+  template <class Game> void unmake(Game &g, uint64_t logic, const Actor &a, const char *why, int type = kExtra);
   // The guest: SB's despawn job for one actor of hers, found again by GUID with that key and fighting (never dying),
   // through SB's job sender with this turn. Never a kill, and never under her: not while it holds BattleMode or runs a
   // takedown marker (kMarkers), nor when either read fails. Null when sent, else why not (gone, busy).
@@ -615,6 +628,36 @@ private:
   void takedowns(Game &g, const uint32_t *local, const uint32_t *hguids, size_t count, size_t n, uint64_t now);
   template <class Game> void no(Game &g, uint32_t hguid, uint8_t oe, uint8_t why);
 
+  // ---- The PvP test (design 13.2) ----
+  // A turn of the PvP session: our EVE found (a census at most every kCensusTurns while she is not), our MinimumHP
+  // floor held on our EVE alone (hold_floors), the gate's members set to the partner, attack(), then defend() for each
+  // of her pvp lines of the turn, in order; her other lines change nothing.
+  template <class Game> void pvp_turn(Game &g, uint64_t logic, uint64_t now_ms);
+  // The stand-in for the partner (pvp_peer_): M_DummyA made at her ghost's feet plus kLiftCm while her ghost is drawn
+  // and our EVE found, kMakeTries times at most kRemakeMs apart when refused; then each turn its MaxShield held at 0,
+  // each HP drop healed and sent as a pvp line naming our EVE's skill (one seen within kSkillMemoryMs), moved after her
+  // ghost once it moved kMoveCm, and its line once each kProxyLineMs. One in the map but not fighting (life state 0,
+  // 2, 3 to 5, or a death pending) is kept and waited for, its waiting line once each kProxyLineMs; one the map lost
+  // is made again kRemakeMs later; a new partner despawns the old one's.
+  template <class Game> void attack(Game &g, uint64_t logic, uint64_t eve_la, uint64_t now_ms);
+  // SB's NewActor of M_DummyA at at with no spawn key, captured (kProxy), then kProxyRows through SB's effect call,
+  // itself their caster. Null when made, else why not: full, not made (a singleton NewActor reads, or a GUID not
+  // read), NewActor (it made nothing), or the row refused when that row is BlockAI_Infinite or Passive_Immortal (the
+  // stand-in despawned). Off_Hud and DisableMonsterWarp refused only say so.
+  template <class Game> const char *make_proxy(Game &g, uint64_t logic, const float *at);
+  // The SkillTable ID of the skill logic actor la runs (la +0x5d0, FUN_141ad7bb0, skill +0x58, row +0x10), or 0. Reads
+  // that fail never latch: an unread skill names no move.
+  template <class Game> int32_t running_skill(Game &g, uint64_t logic, uint64_t la);
+  // The victim's side: one of her pvp lines on our EVE eve_la (0: none found, refused). The gate bounds it with the
+  // cap of its move, her ghost within kHitRangeCm of our EVE and our MaxHP; taken, ApplyStat takes it off our HP with
+  // no cause, the number shown and NoDamage not passed, and the HP read again says whether the game applied it.
+  // Logged with the states ApplyStat checks (3, 4 and 27) and the life state, or with why the gate refused it.
+  template <class Game> void defend(Game &g, uint64_t logic, uint64_t eve_la, const Message &m, uint64_t now_ms);
+  // The most one hit of this SkillTable ID takes off the actor fsb: pvp::move_cap of the row's AttackDamageRate
+  // (+0x140) and of fsb's attack (+0x180, or +0x18c when the row's kind +0x75 is 2) and critical damage (+0x1b4), as
+  // FUN_141bfa740 reads them. 0 with no row; a read that fails counts 0 and never latches.
+  template <class Game> int32_t cap_of(Game &g, uint64_t fsb, int32_t skill);
+
   // The pair table to the game thread (none once off or latched), and what it says back, for the next turn.
   template <class Game> void publish(Game &g, uint64_t now);
 
@@ -625,6 +668,8 @@ private:
   std::atomic<bool> on_{false}, hosting_{false}, probing_{false}, latched_{false}, confirm_{false}, nearby_{true};
   std::atomic<bool> same_place_{false}, pilot_off_{false}, pilot_stopped_{false}, aggro_host_{false}, exec_test_{false};
   std::atomic<bool> same_spawns_{false}, filter_{false};
+  std::atomic<bool> pvp_{false};
+  std::atomic<uint64_t> pvp_peer_{0};
   std::atomic<uint8_t> extra_{0}; // enemy_extra.
   std::atomic<uint16_t> scale_hp_{kMinScale}, scale_balance_{kMinScale};
   std::atomic<uint16_t> bosses_{0}; // Our boss_hp_scale with bosses=on; 0: off.
@@ -640,6 +685,15 @@ private:
   // The logic thread's.
   uint32_t session_seen_ = 0, census_turn_ = kNever, eve_ = 0, turn_ = 0;
   bool hosting_seen_ = false, probing_seen_ = false; // The side of session_seen_, or the probe.
+  bool pvp_seen_ = false;                            // Or the PvP test.
+  // The PvP test's attacker side: the stand-in, the counts, our EVE's last skill named and when it was read (ms), and
+  // the last pvp line's number.
+  pvp::Proxy proxy_;
+  pvp::Counts pvp_counts_;
+  pvp::HitGate gate_; // The victim's side: each attacker's window.
+  int32_t skill_ = 0;
+  uint64_t skill_ms_ = 0;
+  uint32_t seq_ = 0;
   uint64_t next_probe_ = 0;
   size_t actors_ = 0; // Live actors at the probe's last census.
   Fence probe_fence_;
@@ -767,3 +821,4 @@ private:
 #include "fight/engine_bosses.h"
 #include "fight/engine_trial.h"
 #include "fight/engine_lines.h"
+#include "fight/engine_pvp.h"

@@ -4,8 +4,10 @@
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """No script or native source of the mod can reach Stellar Blade's matchmaking. The cut recruiter's Join fires zone
 event MultiplayTest_ZoneE_059 (type 15) -> RunEvent_StartMatchMaking -> RequestMatchRequest, an HTTP client to Shift
-Up's stage servers; types 16 and 19 sit on the same path. A text scan: scan(root) lists the violations. It first runs
-on planted trees, one violation each, so no rule passes vacuously, then on this repository, which must be clean.
+Up's stage servers; types 16 and 19 sit on the same path. One native exception: RunZoneEvent's address is held once in
+game/sbo.h and called once in sbo_game.inc, for coop sbo seq's four PlayLevelSeq rows, with the native part's own
+FNames. A text scan: scan(root) lists the violations. It first runs on planted trees, one violation each, so no rule
+passes vacuously, then on this repository, which must be clean.
 Run: python3 tests/tools/matchmaking_scan_test.py"""
 import re
 import tempfile
@@ -57,6 +59,11 @@ ADD_ROW = re.compile(r"[:.]\s*AddRow\s*[('{]")
 # StartMatchMaking, RequestMatchRequest, RunEvent, RunZoneEvent and the CreateSBZoneEvent job, as image offsets.
 ADDRESSES = re.compile('1ca3ea0|230b090|1ca5a10|1ca5790|1abdd80', re.I)
 NATIVE_NAMES = re.compile('MatchMaking|RequestMatch')  # Case-sensitive: Steam's Matchmaking lobby API stays allowed.
+# coop sbo seq's one RunZoneEvent site (L15-R3), raw counts with comments: its address only in game/sbo.h (N1 anywhere
+# else), its constant there and at the call. The address is counted case-insensitively.
+RUN_ZONE_EVENT = '1ca5790'
+NATIVE_RATIONED = {RUN_ZONE_EVENT: {'native/src/game/sbo.h': 1},
+                   'kRunZoneEvent': {'native/src/game/sbo.h': 1, 'native/src/glue/tick/sbo_game.inc': 1}}
 
 
 def scan(root):
@@ -92,13 +99,23 @@ def scan(root):
         for name in sorted(set(got) | set(expected)):
             if got.get(name, 0) != expected.get(name, 0):
                 out.append(f'{rule} {name}: {got.get(name, 0)} {what}, expected {expected.get(name, 0)}')
+    native = {word: {} for word in NATIVE_RATIONED}
     for folder in NATIVE:
         files = sorted(p for p in (root / folder).rglob('*') if p.is_file())
         if not files: out.append(f'N0 {folder}: no file to scan')
         for path in files:
-            text, rel = path.read_bytes().decode('utf-8', 'replace'), path.relative_to(root)
-            out += [f'N1 {rel}: {m.group(0)}' for m in ADDRESSES.finditer(text)]
+            text, rel = path.read_bytes().decode('utf-8', 'replace'), path.relative_to(root).as_posix()
+            held = rel in NATIVE_RATIONED[RUN_ZONE_EVENT]  # There N3 counts the address; N1 everywhere else.
+            out += [f'N1 {rel}: {m.group(0)}' for m in ADDRESSES.finditer(text)
+                    if not (held and m.group(0).lower() == RUN_ZONE_EVENT)]
             out += [f'N2 {rel}: {m.group(0)}' for m in NATIVE_NAMES.finditer(text)]
+            if held: native[RUN_ZONE_EVENT][rel] = text.lower().count(RUN_ZONE_EVENT)
+            native['kRunZoneEvent'][rel] = text.count('kRunZoneEvent')
+    for word, expected in NATIVE_RATIONED.items():
+        got = native[word]
+        for name in sorted(set(got) | set(expected)):
+            if got.get(name, 0) != expected.get(name, 0):
+                out.append(f'N3 {name}: {got.get(name, 0)} {word}, expected {expected.get(name, 0)}')
     return out
 
 
@@ -116,6 +133,9 @@ N, M, H, W = f'{SCRIPTS}/nightop/probe.lua', f'{SCRIPTS}/main.lua', 'native/src/
 R, NR, GR = f'{SCRIPTS}/nightop/recruiter.lua', f'{SCRIPTS}/nightop/run.lua', f'{SCRIPTS}/session/group.lua'
 NS, LI, SC = f'{SCRIPTS}/nightop/shop.lua', f'{SCRIPTS}/cut/lion.lua', f'{SCRIPTS}/cut/scene.lua'
 BO = f'{SCRIPTS}/matrix13/world/boss.lua'
+SH, SG = 'native/src/game/sbo.h', 'native/src/glue/tick/sbo_game.inc'
+SEQ_CONST, SEQ_CALL = ('constexpr uint64_t kRunZoneEvent = 0x141ca5790;\n',
+                       'game_function<RunZoneEvent>(sbo::kRunZoneEvent)(world, id, &sbo_seq_names[k], 0);\n')
 CS, EN, MB = f'{SCRIPTS}/cut/chainspin.lua', f'{SCRIPTS}/cut/enemy.lua', f'{SCRIPTS}/cut/mailbox.lua'
 GUARDED = ("local function zone_event(kind,name)\n\n    assert(NightOp.allowed(kind,name),'zone event refused')\n    "
            + FIRE + '\nend\n')
@@ -142,7 +162,8 @@ CHAINSPIN = padded('cut/chainspin.lua', "pc:ServerRequest_Cheat(guid,0,'SBApplyE
 MAILBOX = padded('cut/mailbox.lua', "pc:ServerRequest_ItemBucketItemRemove(1,guid,FName(alias),count,-1)\n")
 CLEAN = {N: NIGHTOP, R: RECRUITER, NR: RUN, GR: GROUP, NS: SHOP, LI: LION, EN: ENEMY, SC: SCENE, BO: BOSS, CS: CHAINSPIN,
          MB: MAILBOX, M: 'local coop=1 -- Steam lobby, friends matchmaking later\n',
-         H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n'}
+         H: 'get(api.create_lobby, "SteamAPI_ISteamMatchmaking_CreateLobby");\n', W: 'int main() { return 0; }\n',
+         SH: SEQ_CONST, SG: SEQ_CALL}
 assert scan_of(CLEAN) == [], scan_of(CLEAN)  # A blank line in zone_event and Steam's Matchmaking are fine.
 PHOTO = f'{PAUSE}\n    {CONSOLE}\n'
 assert scan_of({**CLEAN, M: PHOTO}) == [], scan_of({**CLEAN, M: PHOTO})
@@ -208,9 +229,18 @@ PLANTS = [({'L1'}, {N: NIGHTOP.replace("    assert(NightOp.allowed(kind,name),'z
           ({'L5'}, {EN: ENEMY + 'pc:ServerRequest_CreateActor(id,at,rot,false,true,0,0,0,n,false)\n'}),
           *[({'N1'}, {H: f'// {a}\n'}) for a in ('0x141ca3ea0', '0x14230B090', 'FUN_141CA5A10', '1ca5790', '1aBdd80')],
           ({'N1'}, {W: 'auto job = 0x141abdd80;\n'}),
+          ({'N1'}, {SG: SEQ_CALL + '// 0x141ca5790\n'}),
+          ({'N1'}, {SH: SEQ_CONST + '// RunEvent 0x141ca5a10\n'}),
+          ({'N3'}, {SH: SEQ_CONST + '// FUN_141CA5790\n'}),
+          ({'N3'}, {SH: '#pragma once\n'}),
+          ({'N3'}, {SH: SEQ_CONST.replace('kRunZoneEvent', 'kPlaySequence')}),
+          ({'N3'}, {SH: '// kRunZoneEvent\n' + SEQ_CONST}),
+          ({'N3'}, {H: '// kRunZoneEvent\n'}),
+          ({'N3'}, {SG: SEQ_CALL * 2}),
+          ({'N3'}, {SG: 'void sbo_step_tick();\n'}),
           ({'N2'}, {H: 'void StartMatchMaking();\n'}),
           ({'N2'}, {W: '// RequestMatchRequest\n'}),
-          ({'N0'}, {H: None}),
+          ({'N0', 'N3'}, {H: None, SH: None, SG: None}),
           ({'N0'}, {W: None})]
 for tags, change in PLANTS:
     got = scan_of({**CLEAN, **change})

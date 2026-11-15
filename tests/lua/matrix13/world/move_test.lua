@@ -5,15 +5,18 @@
 -- and rope of the MOVE list spawned by the deferred pair (BeginDeferredActorSpawnFromClass, then the ladder's Meshes,
 -- StartUnit and CollisionBottomZAdd, the ledge's mesh, the rope's drop and EnvActorName set before
 -- FinishSpawningActor, at its point with its yaw; never the ladder's TotalHeight, the construction script's running
--- sum, nor the head values it writes), one [MXMOVE] line each, a ladder's with the TotalHeight it built, and a count;
--- a class or mesh not in memory
--- loaded first; nothing again in the same world, all again in a new one. When the deferred call fails, that spawn and
--- every later one go through SpawnActor and the construction script (TotalHeight back to 0 before it), and the line
--- says so. The MOVE list: each ladder's height is its Meshes stack plus the head, the ledges carry 006_B_SM,
--- the ropes and gate 435's ladder name their rows. The fake Meshes array writes like UE4SS 3.0.1 (a write past the end
--- grows it to index-1 and loses the value), so the fill from the last piece, which read every multi-piece stack back
--- a piece short in game on 2026-10-30, reads 3,3 as 3 here too. A stack that reads back wrong is emptied and filled
--- front to back (a fixed UE4SS's way); one that still reads wrong spawns nothing for that ladder, and says so.
+-- sum, nor the head values it writes), one [MXMOVE] line per class with the ways taken, the spread and a count, and a
+-- line of its own only for an entry not spawned, one whose construction script did not run again after SpawnActor, or
+-- a ladder whose built TotalHeight is not its listed height;
+-- one entry a tick or more while BUDGET lasts, in list order, the ledge mesh never held from one tick to the next; a
+-- class or mesh not in memory loaded first; nothing again in the same world, all again in a new one. When the deferred
+-- call fails, that spawn and every later one go through SpawnActor and the construction script (TotalHeight back to 0
+-- before it), and the line says so. The MOVE list: each ladder's height is its Meshes stack plus the head, the ledges
+-- carry 006_B_SM, the ropes and gate 435's ladder name their rows. The fake Meshes array writes like UE4SS 3.0.1 (a
+-- write past the end grows it to index-1 and loses the value), so the fill from the last piece, which read every
+-- multi-piece stack back a piece short in game on 2026-10-30, reads 3,3 as 3 here too. A stack that reads back wrong is
+-- emptied and filled front to back (a fixed UE4SS's way); one that still reads wrong spawns nothing for that ladder,
+-- and says so.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -58,13 +61,17 @@ local function tarray()
 end
 local world_name='World /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P.MXIII_P'
 local spawned,worlds={},{}
+local script_fails=false -- The construction script run again after SpawnActor raises.
 local function new_world()
     local w=object({GetFullName=function() return world_name end})
     w.SpawnActor=function(_,class,at,rot)
         -- Spawned, its script has run once with no Meshes: the head alone.
         local a=object({class=class,at=at,rot=rot,how='SpawnActor',Meshes=tarray(),TotalHeight=79.885})
         -- Like the game's script: the stack starts at TotalHeight and adds to it (L1's 600+600 and head).
-        a.UserConstructionScript=function(self) self.rerun=true; self.TotalHeight=self.TotalHeight+1279.885 end
+        a.UserConstructionScript=function(self)
+            if script_fails then error('no such function') end
+            self.rerun=true; self.TotalHeight=self.TotalHeight+1279.885
+        end
         spawned[#spawned+1]=a
         return a
     end
@@ -77,6 +84,7 @@ local function wrapper(w) return setmetatable({},{__index=w}) end
 local eve=object({IsA=function() return true end,GetWorld=function() return wrapper(world) end})
 package.loaded.UEHelpers={GetPlayer=function() return eve end,GetPlayerController=function() return nil end}
 local deferred_fails=false
+local spawn_cost=0 -- Seconds a spawn moves the clock: 0 outside the pacing cases.
 local in_deferred=false -- Between BeginDeferredActorSpawnFromClass and FinishSpawningActor.
 local gs=object({
     BeginDeferredActorSpawnFromClass=function(_,ctx,class,t,how,owner)
@@ -88,6 +96,7 @@ local gs=object({
         return a
     end,
     FinishSpawningActor=function(_,a,t)
+        clock=clock+spawn_cost
         in_deferred=false
         a.finished,a.height_at_finish,a.meshes_at_finish=t,a.TotalHeight,#a.Meshes
         if a.class.path:find('BP_EM_Ladder') then a.TotalHeight=(a.TotalHeight or 0)+1279.885 end
@@ -95,7 +104,9 @@ local gs=object({
     end})
 local km=object({MakeTransform=function(_,at,rot,scale) return {at=at,rot=rot,scale=scale} end})
 local loaded,classes={},{}
+local find_cost=0 -- Seconds a class lookup moves the clock: UE4SS's StaticFindObject walk.
 StaticFindObject=function(path)
+    if path:find('_C$') then clock=clock+find_cost end
     if path=='/Script/Engine.Default__GameplayStatics' then return gs end
     if path=='/Script/Engine.Default__KismetMathLibrary' then return km end
     if path=='/Script/SB.SBCharacter' then return object({}) end
@@ -142,28 +153,37 @@ assert(ledge.how=='deferred' and ledge.TotalHeight==nil and ledge.finished and l
     and ledge.Meshes[1]==classes[MESH],'The ledge: the climbing mesh')
 assert(rope.class.path==M.ASSETS.rope..'_C' and rope.RopeDistanceB==1200 and rope.EnvActorName.name=='DLC02_10_EnvS_642'
     and rope.finished,'The rope: its drop and its row')
-assert(lines[1]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 5,5 built 1279.9 (critical), deferred spawn',
-    lines[1])
-assert(lines[2]=='ledge E1 at 1 2 3 yaw 85 (climb_R16), deferred spawn',lines[2])
-assert(lines[3]=='rope R1 at 4 5 6 yaw -95 drop 1200 env DLC02_10_EnvS_642 (critical), deferred spawn',lines[3])
-assert(lines[4]=='3/3 ladders, ledges and ropes spawned in world 2800',lines[4])
+-- A spawn as listed (the ladder built to its height) has no line of its own: its class line counts it.
+assert(lines[1]=='ladder: 1/1 spawned, 1 deferred spawn',lines[1])
+assert(lines[2]=='ledge: 1/1 spawned, 1 deferred spawn',lines[2])
+assert(lines[3]=='rope: 1/1 spawned, 1 deferred spawn',lines[3])
+assert(lines[4]=='spread over 1 tick in 0.0 s, the longest 0 ms, lookups 0 ms in all',lines[4])
+assert(lines[5]=='3/3 ladders, ledges and ropes spawned in world 2800' and #lines==5,lines[5])
 clock=2.0; mv.tick()
-assert(#spawned==3 and #lines==4,'Once a world')
+assert(#spawned==3 and #lines==5,'Once a world')
 -- A new world (a reload, a travel back): all again; the deferred call failing: SpawnActor and the script again.
 world=new_world()
 deferred_fails=true
 clock=3.0; mv.tick()
 assert(#spawned==6 and spawned[4].how=='SpawnActor' and spawned[4].rerun and spawned[4].Meshes[1]==5 and spawned[4].Meshes[2]==5
     and spawned[5].how=='SpawnActor','SpawnActor with the fields, then the construction script')
-assert(lines[5]:find('^deferred spawn failed %(.*no such function%): SpawnActor and the construction script from now '
-    ..'on$'),lines[5])
-assert(lines[6]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 5,5 built 1279.9 (critical), SpawnActor, '
-    ..'construction script run again',
-    lines[6])
+assert(lines[6]:find('^deferred spawn failed %(.*no such function%): SpawnActor and the construction script from now '
+    ..'on$'),lines[6])
+assert(lines[7]=='ladder: 1/1 spawned, 1 SpawnActor, construction script run again',lines[7])
 deferred_fails=false
 world=new_world()
+-- A construction script that does not run again: every entry keeps its own line with its key, the ladder's built 0.
+script_fails=true
+local said=#lines
 clock=4.0; mv.tick()
+script_fails=false
 assert(spawned[7].how=='SpawnActor','The fallback stays for the Lua load')
+assert(lines[said+1]=='ladder L1 at 10 20 30 yaw 175 height 1279.9 stack 5,5 built 0.0 (critical), SpawnActor, '
+    ..'construction script not run',lines[said+1])
+assert(lines[said+2]=='ledge E1 at 1 2 3 yaw 85 (climb_R16), SpawnActor, construction script not run',lines[said+2])
+assert(lines[said+3]=='rope R1 at 4 5 6 yaw -95 drop 1200 env DLC02_10_EnvS_642 (critical), SpawnActor, construction '
+    ..'script not run',lines[said+3])
+assert(lines[said+5]=='ledge: 1/1 spawned, 1 SpawnActor, construction script not run',lines[said+5])
 -- A class that does not load: its line says so, the others still spawn.
 world=new_world()
 loaded,classes={},{}
@@ -173,8 +193,9 @@ LoadAsset=function(path)
 end
 clock=5.0; mv.tick()
 assert(lines[#lines]=='1/3 ladders, ledges and ropes spawned in world 2800',lines[#lines])
-assert(lines[#lines-3]:find('^ladder L1 not spawned: .*BP_EM_Ladder_C does not load'),lines[#lines-3])
-assert(lines[#lines-1]:find('^rope R1 not spawned: .*Env_EM_VerticalRope_C does not load'),lines[#lines-1])
+assert(lines[#lines-6]:find('^ladder L1 not spawned: .*BP_EM_Ladder_C does not load'),lines[#lines-6])
+assert(lines[#lines-5]:find('^rope R1 not spawned: .*Env_EM_VerticalRope_C does not load'),lines[#lines-5])
+assert(lines[#lines-4]=='ladder: 0/1 spawned' and lines[#lines-2]=='rope: 0/1 spawned',lines[#lines-4])
 
 -- A UE4SS whose arrays grow to the index written: the first fill reads one piece long, the refill front to back holds.
 -- One whose writes past the first never land: that ladder is destroyed before its finish, named, and the deferred way
@@ -197,12 +218,14 @@ do
     local got,a=one('fixed',{3,3,2})
     assert(got[1]=='ladder L2 at 0 0 0 yaw 0 height 999.0 stack 5,5,4 (first fill read stack 5,5,4,4, filled again '
         ..'front to back) built 1279.9 (test), deferred spawn',got[1])
+    assert(got[3]=='ladder: 2/2 spawned, 2 deferred spawn; 1 stack filled again front to back',got[3])
     assert(a.finished and a.Meshes:GetArrayNum()==3,'The refilled stack reaches the finish')
     local got2,b,c=one('broken',{3,3})
     assert(got2[1]=='ladder L2 not spawned: Meshes read back stack 5, then stack 5, for 5,5: nothing spawned',got2[1])
     assert(b.destroyed and not b.finished,'The ladder that would not fill is destroyed before its finish')
     assert(c.how=='deferred' and c.finished and got2[2]:find('deferred spawn$'),'The next ladder still spawns deferred')
-    assert(got2[3]=='1/2 ladders, ledges and ropes spawned in world 2800',got2[3])
+    assert(got2[3]=='ladder: 1/2 spawned, 1 deferred spawn',got2[3])
+    assert(got2[5]=='1/2 ladders, ledges and ropes spawned in world 2800',got2[5])
 end
 
 -- The generated list: every ladder's height is its stack plus the head (StartUnit k with CollisionBottomZAdd 5 - 40 k,
@@ -263,5 +286,70 @@ do
     clock=clock+10; mv4.tick()
     local again=spawned[#spawned].Meshes[1]
     assert(again and again~=first and again==classes[MESH] and loaded[MESH],'back in Matrix XIII: the mesh found again')
+end
+-- The spread: one spawn a tick when it costs more than BUDGET (10 to 13 ms in game), the next one on the next tick (not
+-- a second later), list order kept, the class lines, the spread and the count after the last; a world left in the
+-- middle stops it with a line of what it spawned so far, a new one starts it over.
+do
+    world=new_world()
+    loaded,classes={},{}
+    LoadAsset=function(path) assert(not in_deferred,'LoadAsset inside a deferred spawn: '..path); loaded[path]=true end
+    local got={}
+    local before=#spawned
+    local mv5=M.new({log=function(l) got[#got+1]=l end,list=list})
+    spawn_cost=0.011
+    clock=clock+10
+    -- tick says whether it spawned, so matrix13/world/travel.lua holds the boxes back for that frame.
+    local busy=mv5.tick()
+    assert(busy==true and #spawned==before+1 and spawned[#spawned].class.path==M.ASSETS.ladder..'_C' and #got==0,
+        'one a tick')
+    busy=mv5.tick()
+    assert(busy==true and #spawned==before+2 and spawned[#spawned].class.path==M.ASSETS.ledge..'_C',
+        'the next tick at once')
+    world_name='World /Game/Art/BG/WorldMap/E05_GreatDesert_P/E05_GreatDesert_P.E05_GreatDesert_P'
+    busy=mv5.tick()
+    assert(busy==nil and #spawned==before+2 and #got==1,'another map: nothing more')
+    assert(got[1]=='spread stopped after 2/3 entries (world 2800 left): 2 spawned',got[1])
+    world_name='World /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P.MXIII_P'
+    world=new_world()
+    -- A class lookup of 2 ms: the ladder's and ledge's classes are in memory (one walk each), the rope's is loaded
+    -- first (two), 8 ms in all, counted in the ticks too.
+    find_cost=0.002
+    clock=clock+10; mv5.tick(); mv5.tick(); busy=mv5.tick()
+    find_cost=0
+    assert(busy==true and #spawned==before+5 and spawned[#spawned].class.path==M.ASSETS.rope..'_C',
+        'started over: '..(#spawned-before))
+    assert(mv5.tick()==nil,'done: nothing spawned, the boxes may go')
+    assert(got[2]=='ladder: 1/1 spawned, 1 deferred spawn' and got[5]=='spread over 3 ticks in 0.0 s, the longest 15 ms, lookups 8 ms in all'
+        and got[6]=='3/3 ladders, ledges and ropes spawned in world 2800' and #got==6,got[5])
+    -- The ledge mesh is found again on each spawning tick: a world reloaded at the same address between two ticks
+    -- frees it, and a held one would be read.
+    world=new_world()
+    local mv6=M.new({log=function() end,list={{cls='ledge',key='E6',at={0,0,0},yaw=0,role='test',mesh=MESH},
+        {cls='ledge',key='E7',at={0,0,0},yaw=0,role='test',mesh=MESH}}})
+    clock=clock+10; mv6.tick()
+    local first=spawned[#spawned].Meshes[1]
+    classes[MESH]=nil -- The next lookup gives another object.
+    mv6.tick()
+    local again=spawned[#spawned].Meshes[1]
+    assert(#spawned==before+7 and again and again~=first and again==classes[MESH],
+        'the second tick: the mesh found again')
+    spawn_cost=0
+end
+-- A spread cut short by a new world address, or by its first spawn gone (a reload at the same address frees it), says
+-- what it spawned so far, then starts over.
+do
+    world=new_world()
+    local got={}
+    local mv7=M.new({log=function(l) got[#got+1]=l end,list=list})
+    spawn_cost=0.011
+    clock=clock+10; mv7.tick()
+    world=new_world()
+    mv7.tick()
+    assert(got[1]=='spread stopped after 1/3 entries (new world): 1 spawned' and #got==1,tostring(got[1]))
+    spawned[#spawned].destroyed=true
+    mv7.tick()
+    assert(got[2]=='spread stopped after 1/3 entries (first spawn gone): 1 spawned' and #got==2,tostring(got[2]))
+    spawn_cost=0
 end
 print('matrix13/world/move_test: ok')

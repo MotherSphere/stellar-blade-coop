@@ -48,7 +48,7 @@ Roxanne.EXEC='Success2'
 -- off; after a co-op ask the partner could not join, before the next (each one's refusal is a notice).
 Roxanne.SHOP_AFTER,Roxanne.SHOP_WAIT,Roxanne.BOOK_EVERY,Roxanne.FIND_EVERY,Roxanne.ASK_EVERY=5,30,5,2,10
 Roxanne.JOIN_AGAIN=30
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
+local why=U.why
 -- Every label of roxanne_text.lua, in any language, to its row.
 local function labels()
     local by={}

@@ -7,11 +7,11 @@
 -- mode (for every row or one) a copy whose writes are lost; one field can be made to lose its write or to raise, and a
 -- row can be made to read as another one after the first FindRow. Covered: the gates before any read of a
 -- table; the zone event table count; the Join row's checks, its write and read-back (a copy stops there); the happy
--- path's exact writes, zone event and lines, and its +3 s check; a rerun with someone at the point; the condition,
--- spawn-row and filter faults; off and stop (also after Ctrl+R); one follow-up at a time; idle ticks; the guard; the
--- text step: on both paths one STOP: text line naming the UE4SS limit, after the Join write and before the condition,
--- and no call to a text, string or language library or to FText at any time (the text library's PolyglotDataToText
--- raises as UE4SS does on a plain Lua-table map, so the old registration would show its error in that line).
+-- path's exact writes, zone event and lines, and its +3 s check with on_ready after RECRUITER=yes only; a rerun with
+-- someone at the point; the condition, spawn-row and filter faults; off and stop (also after Ctrl+R); one follow-up at
+-- a time; idle ticks; the auto spawn at each Xion load (no save or session is asked: any save, solo or co-op); the
+-- guard; no text step on either path: no line about his text, and no call to a text, string or language library or to
+-- FText at any time (the text library's PolyglotDataToText raises as UE4SS does on a plain Lua-table map).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=100
 os.clock=function() return clock end
@@ -185,7 +185,8 @@ local SBCharacter=uobject('Class','Class /Script/SB.SBCharacter',{})
 local P={X=-5332.36,Y=7647.77,Z=689.20} -- TeleportPoint_Xion_MultiPlay (RECRUITER.md).
 local function off(dx,dy,dz) return {X=P.X+dx,Y=P.Y+(dy or 0),Z=P.Z+(dz or 0)} end
 local map='World /Game/Art/BG/WorldMap/Level_P/E04.E04'
-local world=strict('World',{GetFullName=function() return map end})
+local world_address=0x500 -- Another one: another load of the same map.
+local world=strict('World',{GetFullName=function() return map end,GetAddress=function() return world_address end})
 local eve_at=off(1000)
 local eve=uobject('EVE','BP_PC_EVE_C /Game/Art/BG/WorldMap/Level_P/E04.E04:PersistentLevel.BP_PC_EVE_C_0',{
     IsA=function(_,c) return c==SBCharacter end,K2_GetActorLocation=function() return eve_at end,
@@ -252,7 +253,8 @@ vanilla()
 local Recruiter=require('nightop.recruiter')
 local lines={}
 local function log(text) lines[#lines+1]=text end
-local rc=Recruiter.new(log)
+local readies={} -- Each time on_ready ran: the last line logged then.
+local rc=Recruiter.new(log,function() readies[#readies+1]=lines[#lines] end)
 local function reset() calls,lines={},{} end
 local ok,message
 local function run(...) reset(); ok,message=rc.run(...) end
@@ -376,11 +378,8 @@ local EDITS='MultiplayTest_Condition_001.ConditionEq=2,Test_Dialogue_01_E_CharS_
     ..'Test_Dialogue_01_E_CharS_021.Interaction='..GRAPH..','
     ..'LV_TempTestMap_LevelTargetFilter_002.EventSpawnAlias=#Test_Dialogue_01_E_CharS_021,'
     ..'BPL:CreateSBZoneEvent(0,Test_Dialogue_01_E_CharS_021)'
-local TEXT_NO='STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter '
-    ..'(PolyglotDataToText LocalizedStrings): nothing registered, his text stays Korean: TEXT=no'
 local LINES={'join row: MultiplayTest_ZoneE_059 #1296 type 15->0, alias None; read back type 0; 1 zone event table '
         ..'in memory',
-    TEXT_NO,
     'condition: MultiplayTest_Condition_001 #195 NetworkEnable Equal->NOT; read back NOT',
     'spawn row: Test_Dialogue_01_E_CharS_021 #75024021 N_XionGuardA -> ZoneEvent spawn at '
         ..'TeleportPoint_Xion_MultiPlay, zone Zone_Xion_10, save None, no path, graph Xion01_NPC_MultiPlay; read back',
@@ -392,7 +391,7 @@ local t0=clock
 run()
 assert(ok and message==ASKED,message)
 assert(effects()=='MultiplayTest_ZoneE_059.Type=0,'..EDITS,effects())
-assert(#lines==6,#lines)
+assert(#lines==5,#lines)
 for i,line in ipairs(LINES) do assert(lines[i]==line,lines[i]) end
 assert(textless(),'No text call')
 local fired
@@ -408,25 +407,24 @@ assert(store.zone[JOIN].Type==0 and store.zone[JOIN].EventAlias:GetComparisonInd
 assert(store.condition[CONDITION].ConditionEq==2 and store.filter[FILTER].EventSpawnAlias:ToString()==SPAWN)
 assert(store.filter[FILTER].TargetType==2 and store.spawn.Xion_10_E_CharS_084.SpawnType==0,'Other rows untouched')
 -- +3 s: a new character 0.3 m from the point.
-local guard=character('BP_N_XionGuardA_C',off(0,30))
+local guard=character('CH_NPC_XionGuard_Blueprint_C',off(0,30))
 loaded.SBCharacter={eve,roxanne,guard}
 clock=t0+2.9; reset(); rc.tick(); assert(#calls==0 and #lines==0,'Not due yet: not a call')
 clock=t0+3; rc.tick()
-assert(#lines==2 and lines[1]==string.format('+3 s: BP_N_XionGuardA_C@%.1f,%.1f,%.1f point_m=0.3',P.X,P.Y+30,P.Z),
-    lines[1])
-assert(lines[2]=='RECRUITER=yes: talk to him (Join does nothing in this preview)' and effects()=='')
+assert(#lines==2 and lines[1]==string.format('+3 s: CH_NPC_XionGuard_Blueprint_C@%.1f,%.1f,%.1f point_m=0.3',P.X,
+    P.Y+30,P.Z),lines[1])
+assert(lines[2]=='RECRUITER=yes: talk to him' and effects()=='')
+assert(#readies==1 and readies[1]=='RECRUITER=yes: talk to him','on_ready once, after the line')
 clock=t0+20; reset(); rc.tick(); assert(#calls==0,'Done')
 
--- 7. A rerun with him at the point: the Join row again (0->0), the text line again, then "already here" and nothing
--- else.
+-- 7. A rerun with him at the point: the Join row again (0->0), then "already here" and nothing else.
 t0=clock
 run()
-assert(ok and message=='already here: BP_N_XionGuardA_C stands 0.3 m from TeleportPoint_Xion_MultiPlay; nothing was '
-    ..'spawned',message)
-assert(effects()=='MultiplayTest_ZoneE_059.Type=0' and #lines==2,effects())
+assert(ok and message=='already here: CH_NPC_XionGuard_Blueprint_C stands 0.3 m from TeleportPoint_Xion_MultiPlay; '
+    ..'nothing was spawned',message)
+assert(effects()=='MultiplayTest_ZoneE_059.Type=0' and #lines==1,effects())
 assert(lines[1]=='join row: MultiplayTest_ZoneE_059 #1296 type 0->0, alias None; read back type 0; 1 zone event table '
-    ..'in memory',lines[1])
-assert(lines[2]==TEXT_NO and textless(),lines[2])
+    ..'in memory' and textless(),lines[1])
 clock=t0+10; reset(); rc.tick(); assert(#calls==0,'No follow-up after "already here"')
 -- EVE at the point is nobody; the edited rows take the same values again (Equal is now NOT).
 loaded.SBCharacter={eve,roxanne}
@@ -434,10 +432,10 @@ eve_at=off(0,0,50)
 t0=clock
 run()
 assert(ok and message==ASKED and effects()=='MultiplayTest_ZoneE_059.Type=0,'..EDITS,effects())
-assert(lines[1]:find('type 0->0',1,true) and lines[3]=='condition: MultiplayTest_Condition_001 #195 NetworkEnable '
-    ..'NOT->NOT; read back NOT',lines[3])
-assert(lines[6]=='spawn: CreateSBZoneEvent(0, Test_Dialogue_01_E_CharS_021) called; the point is 0.5 m from EVE',
-    lines[6])
+assert(lines[1]:find('type 0->0',1,true) and lines[2]=='condition: MultiplayTest_Condition_001 #195 NetworkEnable '
+    ..'NOT->NOT; read back NOT',lines[2])
+assert(lines[5]=='spawn: CreateSBZoneEvent(0, Test_Dialogue_01_E_CharS_021) called; the point is 0.5 m from EVE',
+    lines[5])
 clock=t0+3; reset(); rc.tick()
 assert(#lines==1 and lines[1]=='STOP: +3 s: no new character within 1.5 m of TeleportPoint_Xion_MultiPlay '
     ..'(RECRUITER=no; SB spawns a row once per game run, so a second try may need a game restart)',lines[1])
@@ -451,14 +449,25 @@ run(); assert(ok and message==ASKED,message)
 walker_at.X=P.X+50
 clock=t0+3; reset(); rc.tick()
 assert(#lines==1 and lines[1]:find('^STOP: %+3 s: no new character'),lines[1])
+-- An animal of the scene 0.8 m from the point is not him: the spawn goes on (UE4SS.log 2026-11-12 20:10:53 read
+-- "already here: Animal_BP_C stands 0.8 m"), and another one there at +3 s is not him either.
+local cat=character('Animal_BP_C',off(0,80))
+loaded.SBCharacter={eve,roxanne,cat}
+vanilla()
+t0=clock
+run(); assert(ok and message==ASKED,message)
+loaded.SBCharacter={eve,roxanne,cat,(character('Animal_BP_C',off(0,40)))}
+clock=t0+3; reset(); rc.tick()
+assert(#lines==1 and lines[1]:find('^STOP: %+3 s: no new character'),lines[1])
 -- Four new ones at the point: three lines, then the verdict.
 vanilla()
 loaded.SBCharacter={eve,roxanne}
 t0=clock
 run(); assert(ok and message==ASKED,message)
-for i=1,4 do loaded.SBCharacter[#loaded.SBCharacter+1]=(character('BP_N_XionGuardA_C',off(i*10))) end
+for i=1,4 do loaded.SBCharacter[#loaded.SBCharacter+1]=(character('CH_NPC_XionGuard_Blueprint_C',off(i*10))) end
 clock=t0+3; reset(); rc.tick()
 assert(#lines==4 and lines[3]:find('point_m=0.3$') and lines[4]:find('^RECRUITER=yes'),lines[4])
+assert(#readies==2,'Never on a STOP: line: only the two RECRUITER=yes runs')
 
 -- 8. Condition faults: a STOP before any spawn-row write and before the zone event.
 local function faults(cases,after)
@@ -622,6 +631,64 @@ clock=clock+2; rc.tick()
 reset()
 for _=1,1000 do clock=clock+0.001; rc.tick() end
 assert(#calls==0 and #lines==0,#calls)
+
+-- 16. The auto spawn (auto(), every 250 ms on any save): nothing outside Xion; at a Xion load the spawn sequence once;
+-- waits while the point is not loaded or EVE is too far, tried again every 5 s with one line per wait; an existing
+-- guard reused after a Lua reload; coop recruiter off ends it for that load; another load spawns again.
+world_as_shipped()
+vanilla()
+loaded.SBCharacter={eve,roxanne}
+local auto=Recruiter.new(log,function() readies[#readies+1]=lines[#lines] end)
+local function step(dt) clock=clock+(dt or 0); reset(); auto.auto() end
+map='World /Game/Art/BG/WorldMap/Level_P/E05.E05'
+step(); assert(effects()=='' and #lines==0 and count('FindAllOf')==0,'Not in Xion: no walk, no line')
+player=nil
+step(); assert(#calls==1 and #lines==0,'No EVE: only GetPlayer')
+player=eve
+map='World /Game/Art/BG/WorldMap/Level_P/E04.E04'
+loaded.SBSpawnPoint={POINTS[1]}
+step()
+assert(effects()=='' and #lines==1 and lines[1]=='auto: waits: '..POINT..' is not loaded: nothing was changed',lines[1])
+step(4.9); assert(count('FindAllOf')==0 and #lines==0,'Not due: no walk')
+step(0.1); assert(count('FindAllOf')==1 and #lines==0,'Tried again, the same wait: no line')
+loaded.SBSpawnPoint=POINTS
+eve_at=off(6000)
+step(5)
+assert(#lines==1 and lines[1]=='auto: waits: '..POINT..' is 60.0 m away, 50 m at most (stand near Roxanne in the '
+    ..'Scrap Market): nothing was changed' and effects()=='',lines[1])
+eve_at=off(7000)
+step(5); assert(#lines==0 and count('FindAllOf')==0,'The point found is kept; 70 m is the same wait')
+eve_at=off(1000)
+local t1=clock+5
+step(5)
+assert(effects()=='MultiplayTest_ZoneE_059.Type=0,'..EDITS,effects())
+assert(#lines==6 and lines[5]=='spawn: CreateSBZoneEvent(0, Test_Dialogue_01_E_CharS_021) called; the point is 10.0 m '
+    ..'from EVE' and lines[6]=='auto: '..ASKED and textless(),lines[6])
+loaded.SBCharacter={eve,roxanne,guard}
+clock=t1+3; reset(); auto.tick()
+assert(lines[2]=='RECRUITER=yes: talk to him' and readies[#readies]==lines[2],'on_ready on the auto path too')
+step(60); step(60); assert(effects()=='' and #lines==0 and count('FindAllOf')==0,'One spawn per load')
+-- A Lua reload with him there: the Join row again, then already here, and nothing more this load.
+auto=Recruiter.new(log)
+step()
+assert(effects()=='MultiplayTest_ZoneE_059.Type=0' and lines[#lines]=='auto: already here: '
+    ..'CH_NPC_XionGuard_Blueprint_C stands 0.3 m from TeleportPoint_Xion_MultiPlay; nothing was spawned',lines[#lines])
+step(10); assert(count('FindAllOf')==0 and effects()=='' and #lines==0,'Reused: no second try')
+-- coop recruiter off: him away, and no auto spawn for the rest of this load; the next load spawns again.
+auto=Recruiter.new(log)
+reset(); local ran,said_off=auto.run('off')
+assert(ran and said_off=='despawn asked: the +2 s line says whether he is gone' and effects()==
+    'BPL:CreateSBZoneEvent(5,LV_TempTestMap_LevelTargetFilter_002)',effects())
+loaded.SBCharacter={eve,roxanne}
+clock=clock+2; auto.tick()
+step(10); step(10); assert(effects()=='' and #lines==0,'Off for the rest of this load')
+world_address=0x600
+vanilla()
+step()
+assert(effects()=='MultiplayTest_ZoneE_059.Type=0,'..EDITS and lines[#lines]=='auto: '..ASKED,effects())
+clock=clock+3; auto.tick()
+world_as_shipped()
+world_address=0x500
 
 -- 15. The guard: exactly (0, the spawn row) and (5, the filter), for every kind a byte holds.
 local NAMES={SPAWN,FILTER,JOIN,CONDITION,'DED10_ZoneE_136','DED10_ZoneE_137','DED10_ZoneE_138','SE_10_E_ActorEff_011',

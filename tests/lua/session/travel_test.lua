@@ -9,8 +9,8 @@
 -- camp of the answer in her table under the host's world that her save has activated and that this game knows as a name
 -- (FNAME_Find, never a new name; UE's trailing number split off), the next one after SB's refusal, 3 calls at most,
 -- then the notices. Her activated camps come from the status line activated=<n>:<alias>,... (the native read):
--- without it, with activated=none:<why> or a list cut short, no offer, and every travel refused. Without follow
--- (main.lua's default) the same with a read: the follow stays off until it has been tested in game. The offer: once
+-- without it, with activated=none:<why> or a list cut short, no offer, and every travel refused. With follow=true, as
+-- main.lua passes it, the follow runs; without it the same refusals with a read: the follow is off. The offer: once
 -- per host map change or once the host stands more than 150 m away on her map (follow_host=ask), the travel by itself
 -- 5 s later with follow_key to cancel (always), nothing with off or with follow_key=none; no new offer for the place
 -- the travel brought her to, and his next move offered again after it. The guards, each refusing on its own (silent,
@@ -286,13 +286,13 @@ for _,case in ipairs({{nil,'no read yet'},{'none:phase','phase'},{'3:Xion_Camp_1
             and last(W.said)==FAILED,mode..': '..tostring(why))
     end
 end
--- The follow off (main.lua passes no follow): with a read, still no offer, and every travel refused the same way.
+-- The follow off (no follow; main.lua passes follow=true): with a read, still no offer, and every travel refused.
 for _,mode in ipairs({'ask','always'}) do
     t=world(function(w) w.settings.follow_host=mode; w.follow=nil; w.names={Xion_Camp_10=1} end)
     run(t,10)
     assert(#W.said==0 and #W.requests==0,mode)
     local ok,why=t.press()
-    assert(not ok and why=='the follow stays off until it has been tested in game' and #W.requests==0
+    assert(not ok and why=='the follow is off (no o.follow)' and #W.requests==0
         and last(W.said)==FAILED,mode..': '..tostring(why))
 end
 -- One camps? each 2.5 s (the host's game takes one each 2 s; the margin is for the network): a press sooner is

@@ -16,14 +16,15 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
 - `coop host` creates a friends-only lobby with room for 2 players and opens Steam's invite dialog. With
   `who_can_join=private`, Lua asks for `host private` instead, and the lobby is a private one that only invited friends
   can join. The lobby carries a tag under the key `stellarcoop`: the protocol and the game's Steam build
-  (`19:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
+  (`20:<build>`). A lobby from another protocol or game build is refused on joining, with both versions in the joiner's
   log and on screen. A lobby with no tag is another game's, and is refused as such.
 - The native request `host code` creates an invisible lobby (Steam's `ELobbyType` 3): anyone who has its id can ask to
-  join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it. Stellar Blade
-  Online never searches, and a player who finds it that way waits for the host's answer like any other player who is not
-  a friend. No invite dialog opens. The host gets a 7-character join code instead (`CCS-CBMH`), on screen and in
-  `coop-status.txt`. The request `copy` puts it on the Windows clipboard. Under Proton, Wine should pass it on to the
-  desktop's clipboard; the Wine smoke test checks the Windows side only. `join <code>` joins the lobby it names.
+  join, and the host's friends do not see it. Steamworks documents that a lobby search still returns it. The quick
+  match's search (below) asks for `sbo_mode` and `sbo_state`, which a co-op lobby never carries, so it never returns
+  one, and a player who finds it another way waits for the host's answer like any other player who is not a friend. No
+  invite dialog opens. The host gets a 7-character join code instead (`CCS-CBMH`), on screen and in `coop-status.txt`.
+  The request `copy` puts it on the Windows clipboard. Under Proton, Wine should pass it on to the desktop's clipboard;
+  the Wine smoke test checks the Windows side only. `join <code>` joins the lobby it names.
 - The code holds the low 32 bits of the lobby id in Crockford's base 32, which leaves out I, L, O and U. Every lobby
   id seen so far starts with the same high 32 bits, `0x01860000`, which the code leaves out. The 3 spare bits hold the
   low part modulo 7, so 89% of the codes with one character wrong are turned away (over 2,000 random ids) instead of
@@ -32,18 +33,72 @@ runs a pass every 50 ms, or every 5 ms while poses flow (the loopback, a recordi
   game for it. Either way the game joins only once a save is loaded (Lua writes `world=1` in `coop-state.txt`), so a
   launch never joins from the title screen. Until then the invite is held.
 - `coop join` without an id searches your Steam friends for one who is playing Stellar Blade in a lobby.
-- The host leads. When the host leaves, the guest leaves too, even though Steam would hand the lobby to them. A lobby
-  with more than 2 players is left.
+- The host leads. When the host leaves, the guest leaves too, even though Steam would hand the lobby to them. A co-op
+  lobby with more than 2 players is left.
 - When a guest's game loses the host's lobby another way, it rejoins automatically: it tries at 2, 12 and 42 s and
   gives up at 60 s. A lobby that is gone or has a new owner by then ends the session.
 
+### Match lobbies
+
+A match lobby holds up to 8 players. Its owner writes five keys beside `stellarcoop`: `sbo_mode` (the mode, only
+`ffa` so far), `sbo_state`, `sbo_map`, `sbo_room` and `sbo_hall`. A lobby whose `sbo_mode` names a mode the game knows
+is a match lobby, a co-op lobby carries none, and a lobby of a mode the game does not know is left. A match lobby keeps
+its mode while a player is in it: if its owner clears `sbo_mode` or writes another mode, the player leaves, so the
+rules of [In a match lobby](#in-a-match-lobby) never lapse for her. `sbo_state` is written on Public lobbies
+only: `open` while players can join, `playing` during a round. `sbo_map` names the round's map. `sbo_room` and
+`sbo_hall` are the last two words of the request that created the lobby: the SBO lobby map its players wait in
+(`xion`, or a hall lobby's key such as `hotel`) and the version of the hall lobby pak `zSBO_Lobby` (its `.utoc` and
+`.ucas` sizes joined by `_`, or `xion` without the pak). Lua's `session/sbo.lua` picks both words (`lobby_words()`):
+the lobby map the player stands in, or one drawn at random outside it, and the pak's version. Every member reads both
+keys each pass, keeps a word only when it holds letters, digits and `_` and is 40 bytes at most, and the status shows
+them after `owner=` on its `link=` line.
+
+- `match search <mode> <room> <hall>` is the quick match. It asks Steam for lobbies whose `stellarcoop` equals this
+  game's tag, `sbo_mode` the mode, `sbo_state` `open` and `sbo_hall` the hall word, with a free slot, at Steam's default
+  distance (the player's region and nearby ones). A player without the hall lobby pak, or with another build of it,
+  never finds a lobby on maps she lacks. It joins the first lobby found. When that join fails (the lobby filled up or is
+  gone), it tries the next one. With none left, it creates a Public lobby (Steam's `ELobbyType` 2) for 8, and the notice
+  names this game's protocol and build, since another version's lobbies never match the tag. Steam runs one lobby search
+  per player at a time: a second `match search` is ignored while one runs, and `match cancel` drops it.
+- Two players who search in the same second find nothing and each create a lobby. So a host alone in a Public match
+  lobby searches again every 5 s, with her lobby's `sbo_hall`, and moves to an open lobby with a lower id, never a
+  higher one. The two lobbies of one become one within about 5 s, and the next player who searches joins it. The
+  lobby she moves to can name another `sbo_room`.
+- `match create <mode> <room> <hall>` creates a private match lobby: Invisible like a code lobby, with a join code,
+  and without `sbo_state`, so no search returns it. Friends join it with `join <code>`. With the hall lobbies in use,
+  the host picks the room on the Map row of the lobby settings screen, or Random for a draw (`create()` in
+  `session/sbo.lua`). When the room is a hall other than the one she stands in, she warps there first and the request
+  goes out when she arrives.
+- In the SBO lobby, a guest of a match lobby whose `sbo_room` names another of the lobby maps her entries use (the
+  halls with the lobby pak, else Xion) warps there, once per arrival and joined lobby, so a refused warp is not asked
+  again before the next arrival or a new join. A lobby whose `sbo_room` names any other map, or whose `sbo_hall`
+  differs from hers (a join by code skips the search's filter), shows the notice
+  `Left the match: its lobby map is missing or a different version here.` and she leaves it. A host does not follow
+  `sbo_room`: her lobby names the map she stood on when she created it.
+- In a match lobby, public or private, nobody waits for the host's answer, Steam friend or not. The host can still
+  `remove` a player.
+- `match search` and `match create` are refused while the game is in a lobby.
+- Match sessions go through Steam's relays only. Before a match's search, create or join, and on entering a match
+  lobby joined by its code, the game sets `P2P_Transport_ICE_Enable` (104) to 0, so no player learns another's IP
+  address. The setting holds for the whole game run, so hosting or joining a co-op lobby afterwards sets it back to
+  -1, the Steam client's own setting, before the first session opens.
+- In a match lobby, Steam's lobby owner is the host. An owner who leaves from the menu first hands the lobby to the
+  member past the handshake who joined first (`SetLobbyOwner`), then leaves. When the owner changes during a round,
+  every game ends it with `host_left`. Ten seconds of silence from the owner also end it, with `host_lost` and the
+  notice `Round ended: the host stopped answering.` On a guest, the same silence stops a countdown the owner sent, with
+  the log line `countdown stopped: <owner> stopped answering`. The players then stay in the lobby, and no countdown
+  starts until Steam moves the ownership. The new owner makes the lobby joinable again, writes `sbo_state=open` on a
+  Public lobby, and runs the next countdown.
+- A guest whose game is no longer in a match lobby's member list leaves it, with no rejoin. Friend sessions keep the
+  rules in [Lobby and invites](#lobby-and-invites).
+
 ## Players who are not Steam friends
 
-In any lobby, a player who joins and is not the host's Steam friend waits for the host's answer. The host's game holds
-the handshake: it sends no hello and reads none of the player's messages, only pings them so that neither game reports
-a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says that a player who is not a
-Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` The host
-answers with native requests, which Lua writes to `coop-request.txt` like the others:
+In a co-op lobby, a player who joins and is not the host's Steam friend waits for the host's answer. The host's game
+holds the handshake: it sends no hello and reads none of the player's messages, only pings them so that neither game
+reports a lost connection. The host's status shows `pending=<SteamID> <name>` and a notice says that a player who is not
+a Steam friend is asking to join. The joiner's game shows `Joined <host>'s game. Waiting to be let in.` The host answers
+with native requests, which Lua writes to `coop-request.txt` like the others:
 
 - `allow <SteamID>` lets the player in. The handshake then runs as with a friend, and a rejoin after a drop is let in
   without a new question for as long as the lobby lasts.
@@ -66,6 +121,37 @@ forgets them.
 
 None of this adds a line to the protocol: it uses the hello's timing, the ping and the reject.
 
+### In a match lobby
+
+A match lobby lets players in without the host's answer (see [Match lobbies](#match-lobbies)), so these rules change
+there:
+
+- Only the lobby owner's `SBC reject` makes a game leave. A reject from another member counts as an invalid message
+  (`invalid message from <name>` in `coop-link.log`), and the game stays.
+- The owner refuses a member whose hello names another protocol or game build and keeps the lobby. Its notice reads
+  `<name> runs another version and was refused.` That player then stays refused for the lobby, as above. A guest who
+  gets such a hello from another guest marks that member incompatible, counts an invalid message, sends no reject and
+  stays. A mismatched hello from the owner still makes the guest reject it and leave.
+- No photo line (and so no photo or cutscene pause), gift, race line, camps line, night line or shared quests' `SBQ`
+  line goes either way. The game sends none. Such a line that arrives on channel 0 is dropped with no log line. An
+  `SBQ` line on channel 2 is dropped too, and the log says `dropped fight data from <name>: shared quests are off in a
+  match lobby` at most once a minute. `coop gift` gets its items back at once (`gift n <id> nolink`), and a camps
+  request ends with `camps line not sent: a match lobby` in the log.
+- Chat stays on, with a mute per player. `mute <SteamID>` drops that player's chat lines and `unmute <SteamID>` lets
+  them through again. The notices read `Muted <name>.` and `Unmuted <name>.` A dropped line counts in the chat totals
+  and gives `dropped chat lines from <name>: muted` in the log at most once a minute, never with its text. A mute
+  lasts for the game run in every lobby, co-op ones included, so a player muted in one match stays muted in the next.
+  The fifth field of that player's `member=` status line is 1 while muted.
+- A member who stays over a channel's rate limit for 5 s is refused: more than 128 lines a second on channel 0, or
+  past channel 1's or channel 2's limit, each second. This counts from her first message, handshake or not. One
+  second over, such as a list of 257 pak lines, is not enough. The owner keeps the lobby and a guest stays. The notice
+  reads `<name> sent too many messages and was refused.` and the log `refused <name> (<id>): channel-0 lines over the
+  rate limit for 5 s` (or `pose data`, `fight data`). Her session is closed and a new one of hers is never accepted,
+  so her messages stop reaching the game. She gets no reject every 10 s, as that would open a session again; she gets
+  one if she leaves the lobby and comes back. A guest logs her later messages once, as `ignored messages from <id>:
+  refused for a flood`. A guest whose owner floods leaves the match: `Left the match: <name> sent too many
+  messages.`
+
 ## Handshake
 
 Once both games are in the lobby, they exchange a hello on channel 0:
@@ -79,7 +165,8 @@ SBC reject <reason>
 The handshake format is the same in every protocol version, so a peer on another version always gets an answer. A
 peer whose protocol or game build differs from yours is rejected, with both versions in the reason, and both leave
 the lobby. The side that rejects shows `Version mismatch with <name>: ...`, the other `<name> refused the link: ...`.
-The mod version is reported but does not have to match.
+The mod version is reported but does not have to match. In a match lobby only the owner rejects, and it keeps the
+lobby (see [In a match lobby](#in-a-match-lobby)).
 
 A friend who passed the handshake both ways is linked (`peer linked: poses and tables go over Steam` in
 `coop-link.log`) while the native pose path is on (`engine=on`) and no loopback or replay runs. The ghost turns on with
@@ -92,23 +179,26 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC19 ping <seq> <ms>
-SBC19 pong <seq> <ms>
-SBC19 photo <0|1|s|c> <both|notice>
-SBC19 say <text>
-SBC19 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC19 pak <hash> <name>
-SBC19 paks <count> <hash>
-SBC19 camps? <id>
-SBC19 camps <id> <world> <camp>:<m> ...
-SBC19 camps <id> none <title|loading|nocamp|busy>
-SBC19 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
-SBC19 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
-SBC19 mark <n> [<text>]
-SBC19 race <text>
-SBC19 gift s <id> <item> <count>
-SBC19 gift a <id>
-SBC19 gift n <id> <why>
+SBC20 ping <seq> <ms>
+SBC20 pong <seq> <ms>
+SBC20 photo <0|1|s|c> <both|notice>
+SBC20 say <text>
+SBC20 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC20 pak <hash> <name>
+SBC20 paks <count> <hash>
+SBC20 camps? <id>
+SBC20 camps <id> <world> <camp>:<m> ...
+SBC20 camps <id> none <title|loading|nocamp|busy>
+SBC20 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC20 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC20 mark <n> [<text>]
+SBC20 race <text>
+SBC20 gift s <id> <item> <count>
+SBC20 gift a <id>
+SBC20 gift n <id> <why>
+SBC20 start <mode> <map> <seed> <id>,<id>,...
+SBC20 count <1-10|stop>
+SBC20 end
 ```
 
 ### The photo line
@@ -260,11 +350,42 @@ Lua gives the items back only when it was the gift's first line.
 Your friend's lines reach Lua in `coop-chat.txt` as `gift <payload>`, beside the chat and race lines. During
 `coop loopback` with no friend linked, your gift lines come back as your friend's.
 
+### The start, count and end lines
+
+These lines run a round in a [match lobby](#match-lobbies). Only the lobby's owner sends them, reliable, to each member
+past the handshake. A member counts the same line from anyone else as invalid.
+
+The owner counts the players past the handshake, itself included and lost players left out. When they reach the
+mode's minimum (2 for `ffa`), a 10 s countdown starts, and when the lobby is full (8) it drops to 5 s. Each member gets
+a count line with the seconds left at the start, at the drop to 5 s, and when they complete the handshake while it
+runs. If the count falls under the minimum, the countdown stops and the owner sends `count stop`.
+
+A member takes at most 8 start, count and end lines a second from the owner and drops the rest, with at most one log
+line a minute (`dropped round lines from <name>: over the rate limit`). It logs a count line only when the line moves
+its own countdown (`countdown: <n> s from <owner>`, `countdown stopped by <owner>`), so an owner who repeats one does
+not fill `coop-link.log`.
+
+At 0 the owner checks the count again. If it still holds, the owner sets the lobby not joinable, writes
+`sbo_state=playing` (Public lobbies only) and `sbo_map`, and sends the start line: the mode, the map, a 32-bit seed and
+the SteamIDs of the players counted at 0, the owner first, then in Steam's member order. A member whose SteamID is not
+in the list stays in the lobby, out of the round, with the notice `A round started without you.`, shown once for the
+countdown that member saw. A player who tries to
+join after the start gets Steam's answer 3 and the notice `Could not join: that game is closed (its match may have
+started).`
+
+`match end` on the owner ends the round: the lobby is joinable again, `sbo_state` goes back to `open` on a Public lobby,
+and each member gets the end line. While the minimum still holds, the next countdown starts at once. `coop status`
+shows the countdown as `match=countdown <mode> <players> 8 <seconds left>`, and the last round as `round=<n> start
+<mode> <map> <seed> <id>,...` while it plays, then `round=<n> end <why>`: `host` after `match end`, `left` when this
+game left the lobby during the round, `host_left` when the lobby changed owner, and `host_lost` after 10 s of silence
+from the owner.
+
 ### Unlinked peers, pings and session requests
 
-Say, vit, pak, paks, camps, night, mark, race and gift lines from a friend who has not passed the handshake are ignored, without a log line.
+Say, vit, pak, paks, camps, night, mark, race, gift, start, count and end lines from a friend who has not passed the handshake are ignored, without a log line.
 
-Accepted peers ping every 2 s. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
+Accepted peers ping every 2 s. A game answers at most 4 pings a second from one player and sends no pong for the
+rest. A peer silent on channel 0 for 10 s is marked lost (`<name> silent for 10 s: lost`)
 until they are heard again; they stay linked and their table is kept. A message longer than 512 bytes is treated as
 invalid.
 
@@ -273,7 +394,7 @@ other request is ignored.
 
 ## Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 19` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 20` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
@@ -325,7 +446,8 @@ is refused instead of misread:
 | 16 | Never released: the table's value lines alone, before the hide lines joined them |
 | 17 | The table's value lines (the colours and textures set on a dynamic material) and hide lines (the material slots a part hides); a 0.7.5 test build |
 | 18 | The table's fx lines (effect indexes 20 to 64 named by path) and pose effect slots up to index 64; 0.7.5 |
-| 19 | Matrix XIII's world rows (spawn rows, camps, warps): shared Naytibas key an enemy by its spawn row's ID, so a peer without those rows would never match the host's new enemies; no line changes shape, the number keeps 0.7.5 out (this version) |
+| 19 | Matrix XIII's world rows (spawn rows, camps, warps): shared Naytibas key an enemy by its spawn row's ID, so a peer without those rows would never match the host's new enemies; no line changes shape, the number keeps 0.7.5 out |
+| 20 | The PvP test's pvp line on channel 2: a drop of the attacker's stand-in for the victim, applied to the victim's EVE in her game, and the match lobbies' start, count and end lines on channel 0 (this version) |
 
 ## Link health in the log
 
@@ -343,5 +465,9 @@ step; readings in between neither count nor reset. When a step up is undone befo
 doubles (10, 20, 40, then 80 s), so on a link that carries 30 but not 60 the cap returns to 60 less and less often.
 Each step writes one line, for example `pose rate cap 30 a second for <name>: Steam's queue 150.0 ms, 70000 B pending
 (2 s at 100 ms or 64 KiB or more); send rate 131072 B/s, quality 0.91/0.93; up again after 10 s calm`. The stream
-line shows the cap in force as `link cap <n>`. A single 16 KiB keyframe takes 62.5 ms to leave at Steam's default send
-rate and a 64 KiB table 250 ms, which is why one reading over the limit is not enough.
+line shows the highest member cap as `link cap <n>`. A single 16 KiB keyframe takes 62.5 ms to leave at Steam's
+default send rate and a 64 KiB table 250 ms, which is why one reading over the limit is not enough.
+
+Each member has her own cap, and in a match lobby it starts at 30. The pose path encodes at the highest member cap,
+never above `send_rate`. A delta goes to a member only once 1000 / cap less 5 ms has passed since her last pose, so at
+30 she gets every second delta of a 60 a second stream. Keyframes, tables and SBE lines always go.

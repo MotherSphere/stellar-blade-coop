@@ -22,7 +22,8 @@ assert(chat_new[2]==false,'chat=off reaches the model')
 -- The kit off in a French game: why the box cannot open goes on the line above EVE, with its English.
 kit_language,in_world,kit_ready=('fr-FR'),true,true; quarter()
 kit_off=true; key('RETURN'); clock=clock+0.1; loops[1].f()
-assert(said[#said]=='La discussion demande une session.' and said_en[#said]=='Chat needs a session.',said[#said])
+assert(said[#said]=='La discussion demande une session ou le lobby JcJ.'
+    and said_en[#said]=='Chat needs a session or the PvP lobby.',said[#said])
 settings_text=''
 load_main(true)
 chat_feed={}
@@ -34,8 +35,8 @@ assert(kit_views.chat and feed and #feed.rows==12)
 local function enter() key('RETURN'); clock=clock+0.1; loops[1].f() end
 local printed_before=#printed
 enter()
-assert(chat_calls[#chat_calls]:find('^system Chat needs a session%. ') and not kit_said('show chat true')
-    and #printed==printed_before,'On screen only')
+assert(chat_calls[#chat_calls]:find('^system Chat needs a session or the PvP lobby%. ')
+    and not kit_said('show chat true') and #printed==printed_before,'On screen only')
 chat_active=true
 local calls_at=#chat_calls
 key('RETURN'); coop('status'); clock=clock+0.2; loops[1].f()
@@ -103,6 +104,61 @@ n=#kit_calls
 enter(); key('ESCAPE')
 assert(#kit_calls==n,'Nothing after coop off')
 chat_active,in_world,kit_ready,link_mode=false,false,false,'none'
+
+-- Alone in an SBO lobby (a hall or Xion's room: sb.here) the chat holds a session with nobody linked, and Enter opens
+-- the box. A line typed there stays on our screen: no coop-say.txt, not marked not sent, and one chat.alone notice an
+-- alone stretch. A member past the handshake, in any ghost slot (no friend= line), hears it; one before the handshake
+-- does not. Out of the lobby, or after coop off, no session.
+settings_text,status_text,link_mode='',plain,'none'
+load_main(true)
+in_world,kit_ready=true,true
+local ALONE='system No other player is connected yet: your messages stay on your screen. '
+local function last_session()
+    for i=#chat_calls,1,-1 do local s=chat_calls[i]:match('^session (%a+)$') if s then return s end end
+end
+local function alones(from)
+    local count=0
+    for i=from+1,#chat_calls do if chat_calls[i]:sub(1,#ALONE)==ALONE then count=count+1 end end
+    return count
+end
+local function fails(from) return (table.concat(chat_calls,'|',from+1)..'|'):find('|fail|',1,true)~=nil end
+chatting,sb.here=false,true; quarter()
+assert(last_session()=='true','Alone in the lobby: a session')
+lb.screen=nil -- B, opened at the arrival, closed.
+-- SB's interaction on EVE in a hall (sb.busy): that Enter is its Get up choice's, no box.
+chat_active,sb.busy=true,true; enter()
+assert(not kit_said('show chat true'),"SB's Get up: no box")
+sb.busy=false; clock=clock+0.5
+enter()
+assert(kit_said('show chat true'),'Enter opens the box')
+key('ESCAPE')
+local calls_at,said_at=#chat_calls,#said_lines
+chat_out={'salut'}; quarter()
+assert(#said_lines==said_at and not fails(calls_at) and alones(calls_at)==1,'Alone: on our screen, one notice')
+calls_at=#chat_calls
+chat_out={'encore'}; quarter()
+assert(#said_lines==said_at and not fails(calls_at) and alones(calls_at)==0,'No second notice')
+fake_link.members=function() return {{id='4003',slot=2,linked=true,lost=false,muted=false,rtt=30,name='P3'}} end
+quarter()
+assert(last_session()=='true')
+chat_out={'hello'}; quarter()
+assert(said_lines[#said_lines]=='hello','A member in slot 2 hears it, with no friend= line')
+fake_link.members=function() return {} end
+calls_at,said_at=#chat_calls,#said_lines
+chat_out={'seule'}; quarter()
+assert(#said_lines==said_at and alones(calls_at)==1,'Alone again: the notice again')
+sb.here=false; quarter()
+assert(last_session()=='false','Out of the lobby: no session')
+sb.here=true
+fake_link.members=function() return {{id='4003',slot=2,linked=false,lost=false,muted=false,rtt=-1,name='P3'}} end
+quarter()
+calls_at,said_at=#chat_calls,#said_lines
+chat_out={'attente'}; quarter()
+assert(#said_lines==said_at and not fails(calls_at) and alones(calls_at)==1,'Before the handshake: on our screen')
+fake_link.members=function() return {} end
+coop('off'); quarter()
+assert(last_session()=='false','coop off: no session')
+chat_active,in_world,kit_ready,sb.here=false,false,false,false
 
 -- Join codes (session/join.lua for real on the fake kit; join_test tests it). who_can_join=code hosts with a code. Join
 -- with a code closes the menu and opens the code box, the input passing from the menu to the box; while it is open the

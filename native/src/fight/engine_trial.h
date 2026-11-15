@@ -36,7 +36,7 @@ template <class Game> void Engine::drop_trial(Game &g, uint64_t logic) {
 
 template <class Game> void Engine::unfrozen(Game &g, uint64_t logic, const Actor &a, size_t i, const char *why) {
   caps_[i] = caps_[--captures_];
-  unmake(g, logic, a, "freeze refused", true);
+  unmake(g, logic, a, "freeze refused", kSummon);
   end_trial(g, why);
 }
 

@@ -1,7 +1,7 @@
 -- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
--- cut/enemy.lua's parts that need no world (lion_test and gardener_test run its flow through both specs): its 37 tables
+-- cut/enemy.lua's parts that need no world (lion_test and gardener_test run its flow through both specs): its 39 tables
 -- are link/protocol.h's kLionTables in order, a batch's line parses by its word only (from the start of its own line,
 -- each of its forms), the generated rows take their named form, the counts a batch's line gives once its rows are in,
 -- and an error's text loses its file and line.
@@ -19,11 +19,11 @@ do
         n=n+1
         assert(Enemy.TABLES[n]==t,'kLionTables order: '..t)
     end
-    assert(n==37 and #Enemy.TABLES==37)
+    assert(n==39 and #Enemy.TABLES==39)
     local words={}
     for w in assert(src:match('kRowWords%[kRowWordCount%] = {(.-)};')):gmatch('"(%a+)"') do words[#words+1]=w end
     assert(table.concat(words,' ')=='lion gardener tendril bolt mxiii shop signal mxspawn mxenv mxupper mxmiddle '
-        ..'mxlower mxnames mxlily mxrecords',
+        ..'mxlower mxnames mxlily mxrecords halls',
         'The words, the batches\' order')
 end
 

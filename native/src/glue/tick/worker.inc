@@ -31,15 +31,41 @@ std::wstring dir;                                                            // 
 bool pin_checked = false, fault_logged = false, fx_fault_logged = false, buffers_ready = false,
      warp_fault_logged = false;
 int pad_logged = kPadUnread; // pad_seen as last logged.
+int front_logged = -1; // Whether the game's window was in front, as last logged; -1 before the first pass.
 // The follow's travel: its fault, the last ask, watch and globals logged, and the alias of the last ask (with its
 // number), for the call's log line.
 bool travel_fault_logged = false, travel_globals_logged = false;
 bool camps_fault_logged = false; // The activated camps' read (camps_game.inc): its fault.
 bool camp_text_fault_logged = false; // Matrix XIII's camp names (camp_text_game.inc): their fault.
+bool uidev_fault_logged = false;     // SB's input device read (pad_game.inc): its fault.
 uint32_t travel_logged = 0, travel_watch_logged = 0, travel_alias_ask = 0;
 std::string travel_alias;
 uint64_t next_poll = 0, next_counters = 0;
 uint64_t vitals_reads = 0, vitals_max_us = 0; // local_vitals()'s, for the 60 s line.
+// The gap lines: at most kGapLines between two 60 s lines, which count every gap anyway, so a long load (each of its
+// frames a gap) cannot fill the log. vkd3d-proton writes its new pipelines to vkd3d-proton.cache.write beside the
+// game's exe (under Proton; no such file on Windows): its size at the last gap line, or at the worker's first pass.
+// A save load, its warp and a hall's arrival logged 25 gaps in 64 s; 600 at most fit a minute.
+constexpr int kGapLines = 200;
+int gap_lines = 0;
+std::wstring cache_path;
+uint64_t cache_bytes = 0;
+
+void log_gap(const Gap &g) {
+  if (gap_lines > kGapLines)
+    return;
+  if (gap_lines++ == kGapLines) {
+    say("gap lines: " + std::to_string(kGapLines) + " since the last native tick line, no more until the next one");
+    return;
+  }
+  const twins::Stat cache = sbo_stat(cache_path);
+  int64_t grew = -1;
+  if (cache.exists) { // A smaller file is a new one: all of it is new.
+    grew = int64_t(cache.size >= cache_bytes ? cache.size - cache_bytes : cache.size);
+    cache_bytes = cache.size;
+  }
+  say(gap_line(g.filetime, g.gap_us, g.frame, g.tick_us, grew));
+}
 State lua; // coop-state.txt as last read: a save loaded, the send rate, the synced photo mode's fields.
 uint64_t freeze_until = 0; // When the running coop freeze ends (GetTickCount64 ms); 0: none.
 uint32_t freeze_tests = 0; // coop freeze holds asked this run: each one's number.
@@ -51,19 +77,28 @@ Replay replay;
 std::unique_ptr<Recorder> recorder; // While coop record runs: reserved at its start, freed at its stop.
 uint64_t record_start_us = 0;
 constexpr uint64_t kRecordUs = 120'000'000;
-// EVE's capture (Lua's file) and the wire text sent for it; the remote table (from the wire) and its text, written
-// to coop-remote.txt (remote_count times so far, by its source); the ghost Lua built for it. Each *_text is the file or
-// message as last taken; "\x01" is never equal to a real one, so the next one is taken whatever it is.
-Table capture, remote;
-Display display;
-std::string session_text, capture_text = "\x01", sent_table, remote_text, display_text = "\x01";
-bool remote_unwritten = false; // The write failed (Lua had the file open): tried again at each pass.
-uint64_t remote_count = 0;
+// EVE's capture (Lua's file) and the wire text sent for it. Each *_text is the file or message as last taken; "\x01" is
+// never equal to a real one, so the next one is taken whatever it is.
+Table capture;
+std::string session_text, capture_text = "\x01", sent_table;
 const char kPeer[] = "peer";
-const char *remote_source = "loopback";
+// One per ghost slot (link/core.h's Peer::slot), with its own files (pose/core.h's slot_file): the remote table from
+// the wire and its text, written to the slot's coop-remote file (count times so far, by its source; unwritten: the
+// write failed, Lua had the file open, and is tried again at each pass); the ghost Lua built for it from the slot's
+// coop-display file, as last taken; renewal_us: when its last new ghost was taken. The loopback and the replay feed
+// slot 0 only.
+struct Remote {
+  Table table;
+  Display display;
+  std::string text, display_text = "\x01";
+  bool unwritten = false;
+  uint64_t count = 0, renewal_us = 0;
+  const char *source = kPeer;
+};
+std::array<Remote, kMaxRemote> remotes;
 void (*peer_send)(const uint8_t *, size_t, bool) = nullptr; // Set by peer() each pass, before peer_on can be true.
-uint64_t last_renewal_us = 0;
-TableResend table_resend; // Our table's resends to the linked friend.
+uint8_t peer_slots = 0;   // The slots linked as peer() last had them (none while off).
+TableResend table_resend; // Our table's resends to the linked members, all at once.
 // Link::pose_cap() as peer() last had it (60, the highest send_rate: none): the send interval is under it and the rate.
 uint32_t link_cap = 60;
 // Night Operation probe (Phase 6): read-only, its own latch (pinned && !blocked), so a pose fault leaves it running.
@@ -74,6 +109,13 @@ nightop::Poller poller;
 uint64_t nightop_next = 0;
 size_t nightop_bytes = 0;
 constexpr size_t kProbeCap = 4 << 20; // About 30 min of lines at 10 a second (a field flickering every sample).
+// A slot's file in the mod folder (its name is ASCII), and the slot for the log lines: none for slot 0, whose lines
+// read as they did with one friend.
+std::wstring slot_path(const char *stem, size_t slot) {
+  const std::string name = slot_file(stem, slot);
+  return dir + std::wstring(name.begin(), name.end());
+}
+std::string slot_tag(size_t slot) { return slot ? " in slot " + std::to_string(slot) : std::string(); }
 // ReadProcessMemory fails on unmapped memory instead of faulting, and never trips a guard page.
 bool rpm(uint64_t address, void *out, size_t n) {
   SIZE_T got = 0;
@@ -190,16 +232,25 @@ void hand_over(std::unique_ptr<Live> next) {
   incoming_set = true;
 }
 
-// The game thread's next Live from the worker's tables. Only when the capture generation, the remote generation or
-// the ghost changes: a new Live starts the ghost's playback again.
+// The game thread's next Live from the worker's tables. Only when the capture generation, a slot's remote generation
+// or a ghost changes: a new Live starts every ghost's playback again.
 // ponytail: a new Live also forgets her keyframe, so her deltas are dropped as keyless until her next one: up to 250 ms
 // frozen plus the playback's refill. A new capture generation (our outfit; hers in loopback) does so too while her
 // table and ghost stay; carry the playback and the decoder across then, if T4 shows it.
+// shortcut: a change on one slot rebuilds every ghost's playback (each waits up to 250 ms for a keyframe); hand over
+// one slot at a time if the 3+ PC test shows the hitch.
 void rebuild() {
-  std::unique_ptr<Live> next;
-  if (capture.generation || remote.generation)
-    next = std::make_unique<Live>(capture, remote, display.generation == remote.generation ? display : Display());
-  hand_over(std::move(next));
+  auto next = std::make_unique<Live>(capture);
+  bool any = capture.generation;
+  for (size_t k = 0; k < kMaxRemote; ++k) {
+    const Remote &r = remotes[k];
+    if (!r.table.generation)
+      continue;
+    next->remotes[k] =
+        std::make_unique<Drawn>(r.table, r.display.generation == r.table.generation ? r.display : Display());
+    any = true;
+  }
+  hand_over(any ? std::move(next) : nullptr);
 }
 
 // Ends the recording: written to coop-record.bin when it holds a pose (else an older good one stays), then freed.
@@ -229,10 +280,11 @@ void send_table() {
   wire_send(reinterpret_cast<const uint8_t *>(sent_table.data()), sent_table.size(), true, clock_us());
 }
 
-void write_remote() {
-  if (remote_unwritten && write_text(dir + L"coop-remote.txt", remote_text)) {
-    remote_unwritten = false;
-    ++remote_count; // Lua reads the file again when the count in the status changes.
+void write_remote(size_t slot) {
+  Remote &r = remotes[slot];
+  if (r.unwritten && write_text(slot_path("coop-remote", slot), r.text)) {
+    r.unwritten = false;
+    ++r.count; // Lua reads the file again when the count in the status changes.
   }
 }
 
@@ -245,43 +297,44 @@ void note_ignored(const Table &t) {
   }
 }
 
-// A table from the wire: refused whole, or the same as the remote one (sent again), or the new remote table, in its
-// canonical form for Lua. A new generation, or another layout under the same one, waits for Lua's new ghost; else it
-// is a part hung elsewhere or shown or hidden, which Lua applies to the ghost it has.
-void take_table(const uint8_t *data, size_t size) {
+// A table from the wire for a ghost slot: refused whole, or the same as the slot's (sent again), or its new remote
+// table, in its canonical form for Lua. A new generation, or another layout under the same one, waits for Lua's new
+// ghost; else it is a part hung elsewhere or shown or hidden, which Lua applies to the ghost it has.
+void take_table(size_t slot, const uint8_t *data, size_t size) {
   ++window_tables_in;
   auto t = parse_table(std::string(reinterpret_cast<const char *>(data), size), false);
   if (!t) {
     ++window_tables_refused;
-    say("remote table refused: malformed");
+    say("remote table refused" + slot_tag(slot) + ": malformed");
     return;
   }
   note_ignored(*t);
+  Remote &r = remotes[slot];
   std::string text = format_table(*t);
-  if (text == remote_text)
+  if (text == r.text)
     return;
-  bool renewed = t->generation != remote.generation || !same_layout(*t, remote);
+  bool renewed = t->generation != r.table.generation || !same_layout(*t, r.table);
   const char *source = replay.on() ? "replay" : loopback_on ? "loopback" : kPeer; // The sources exclude each other.
   // ROADMAP 4.7: one new ghost per 2 s from her at most (a LoadAsset hitch and new FNames each); her resend 5 s after
   // her last change brings the newest table later.
   uint64_t now = clock_us();
-  if (renewed && source == kPeer && now - last_renewal_us < 2'000'000) {
+  if (renewed && source == kPeer && now - r.renewal_us < 2'000'000) {
     ++window_tables_refused;
     return;
   }
   if (renewed)
-    last_renewal_us = now;
-  remote = std::move(*t);
-  remote_text = std::move(text);
-  remote_source = source;
-  remote_unwritten = true;
-  write_remote();
-  say("remote table " + std::to_string(remote.generation) + (renewed ? " from the " : " again from the ") +
-      remote_source + ": " + std::to_string(remote.eve.size()) + " parts, map " + remote.map);
+    r.renewal_us = now;
+  r.table = std::move(*t);
+  r.text = std::move(text);
+  r.source = source;
+  r.unwritten = true;
+  write_remote(slot);
+  say("remote table " + std::to_string(r.table.generation) + (renewed ? " from the " : " again from the ") + r.source +
+      slot_tag(slot) + ": " + std::to_string(r.table.eve.size()) + " parts, map " + r.table.map);
   if (!renewed)
     return;
-  display = Display();
-  display_text = "\x01";
+  r.display = Display();
+  r.display_text = "\x01";
   rebuild();
 }
 
@@ -312,14 +365,16 @@ void pilot_in(const uint8_t *data, size_t size) {
   pilot_in_lost += !pilot_lines_in.push(l);
 }
 
-// The only way in: a table to take_table, a pose or a delta of this protocol to the game thread's inbox, an SBE to the
-// drawn side, anything else counted. Show lines are channel 2's text: hers come through pilot_pass, a recording's
-// through replay_receive.
-void wire_receive(const uint8_t *data, size_t size, uint64_t now_us) {
+// The only way in, for one ghost slot: a table to take_table, a pose or a delta of this protocol to the game thread's
+// inbox, an SBE from slot 0 to the drawn side, anything else counted. Same-place enemies run with the co-op partner
+// only, who holds slot 0, so an SBE from another slot is dropped. Show lines are channel 2's text: hers come through
+// pilot_pass, a recording's through replay_receive.
+void wire_receive(size_t slot, const uint8_t *data, size_t size, uint64_t now_us) {
   if (size >= 3 && !std::memcmp(data, "SBE", 3)) {
-    pilot_in(data, size);
+    if (slot == 0)
+      pilot_in(data, size);
   } else if (size >= 3 && !std::memcmp(data, "SBT", 3)) {
-    take_table(data, size);
+    take_table(slot, data, size);
   } else if (size >= kPoseHeader && size <= kMaxPose && data[0] == 'S' && data[1] == 'B' &&
              (data[2] == 'P' || data[2] == 'D') && data[3] == kProtocol) {
     std::lock_guard<std::mutex> lock(m);
@@ -331,21 +386,23 @@ void wire_receive(const uint8_t *data, size_t size, uint64_t now_us) {
     std::memcpy(in.data.data(), data, size);
     in.size = size;
     in.time = now_us;
+    in.slot = static_cast<uint8_t>(slot);
   } else {
     ++window_malformed;
   }
 }
 
-// The remote table is gone with its source (loopback off, replay off, her unlink): so is the ghost.
-void drop_remote() {
-  if (!remote.generation)
+// A slot's remote table is gone with its source (loopback off, replay off, her unlink or leave): so is her ghost.
+void drop_remote(size_t slot) {
+  Remote &r = remotes[slot];
+  if (!r.table.generation)
     return;
-  remote = Table();
-  remote_text.clear();
-  remote_unwritten = false;
-  display = Display();
-  display_text = "\x01";
-  DeleteFileW((dir + L"coop-remote.txt").c_str());
+  r.table = Table();
+  r.text.clear();
+  r.unwritten = false;
+  r.display = Display();
+  r.display_text = "\x01";
+  DeleteFileW(slot_path("coop-remote", slot).c_str());
   rebuild();
 }
 
@@ -388,33 +445,36 @@ void take_capture(uint64_t now_ms) {
   rebuild();
 }
 
-// coop-display.txt, when it changed: the ghost Lua built for the remote table, or none.
-void take_display() {
+// A slot's coop-display file, when it changed: the ghost Lua built for the slot's remote table, or none. Read only
+// while the slot holds a table.
+void take_display(size_t slot) {
+  Remote &r = remotes[slot];
   bool exists = false;
-  std::string text = read_file(dir + L"coop-display.txt", exists, kMaxTable);
-  if (text == display_text)
+  std::string text = read_file(slot_path("coop-display", slot), exists, kMaxTable);
+  if (text == r.display_text)
     return;
-  display_text = text;
+  r.display_text = text;
   Display d;
-  if (auto got = parse_display(text, remote)) {
+  if (auto got = parse_display(text, r.table)) {
     d = std::move(*got);
     int leaders = 0, drawn = 0, mapped = 0;
-    for (size_t i = 0; i < remote.eve.size(); ++i) {
-      leaders += remote.eve[i].leader;
+    for (size_t i = 0; i < r.table.eve.size(); ++i) {
+      leaders += r.table.eve[i].leader;
       drawn += d.puppet[i].object != 0;
       mapped += !d.remap[i].empty();
     }
-    char line[180];
-    std::snprintf(line, sizeof line, "ghost of table %llu drawn: %d of %d leaders (%d on a fallback mesh), %zu bytes "
-                  "a pose%s", static_cast<unsigned long long>(d.generation), drawn, leaders, mapped, pose_size(remote),
-                  d.effects[0] ? ", 4 effect boxes" : "");
+    char line[200];
+    std::snprintf(line, sizeof line, "ghost of table %llu%s drawn: %d of %d leaders (%d on a fallback mesh), %zu "
+                  "bytes a pose%s", static_cast<unsigned long long>(d.generation), slot_tag(slot).c_str(), drawn,
+                  leaders, mapped, pose_size(r.table), d.effects[0] ? ", 4 effect boxes" : "");
     say(line);
-  } else if (remote.generation && text.rfind("display " + std::to_string(remote.generation) + "\n", 0) == 0) {
-    say("ghost of table " + std::to_string(remote.generation) + " refused: its display file is malformed");
+  } else if (r.table.generation && text.rfind("display " + std::to_string(r.table.generation) + "\n", 0) == 0) {
+    say("ghost of table " + std::to_string(r.table.generation) + slot_tag(slot) +
+        " refused: its display file is malformed");
   } // Else none yet, or an older table's, which Lua replaces.
-  if (!d.generation && !display.generation)
+  if (!d.generation && !r.display.generation)
     return;
-  display = std::move(d);
+  r.display = std::move(d);
   rebuild();
 }
 } // namespace
@@ -433,6 +493,13 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
       each.data.resize(kMaxPose);
     buffers_ready = true;
     base = reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+    wchar_t exe[MAX_PATH];
+    const DWORD exe_length = GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    const std::wstring exe_path(exe, exe_length && exe_length < MAX_PATH ? exe_length : 0);
+    if (const size_t slash = exe_path.find_last_of(L"\\/"); slash != std::wstring::npos) {
+      cache_path = exe_path.substr(0, slash + 1) + L"vkd3d-proton.cache.write";
+      cache_bytes = sbo_stat(cache_path).size; // The first gap line's growth: since this pass.
+    }
     std::string reason;
     if (!pin(reason))
       reason = "fault while reading the exe header";
@@ -467,6 +534,14 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
           line += " " + std::to_string(slot);
     }
     event(line);
+  }
+  // Each change of the window in front, at every pass: an alt-tab or a screenshot tool taking the foreground shows in
+  // the log next to the focus watchdog's lines. poll_pad's owner test, which it skips without XInput.
+  DWORD owner = 0;
+  if (const int front = GetWindowThreadProcessId(GetForegroundWindow(), &owner) && owner == GetCurrentProcessId();
+      front != front_logged) {
+    front_logged = front;
+    event(front ? "window: the game is in front" : "window: another window is in front");
   }
   if (faulted && !fault_logged) {
     fault_logged = true;
@@ -535,6 +610,17 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
                   static_cast<unsigned long long>(camp_text_fault_address.load()));
     event(text);
   }
+  if (uidev_faulted && !uidev_fault_logged) {
+    uidev_fault_logged = true;
+    char text[200];
+    std::snprintf(text, sizeof text,
+                  "input device read off: fault 0x%08llx at StellarCoop.dll+0x%llx reading 0x%llx; no uidev line "
+                  "until the game restarts",
+                  static_cast<unsigned long long>(uidev_fault_code.load()),
+                  static_cast<unsigned long long>(uidev_fault_rva.load()),
+                  static_cast<unsigned long long>(uidev_fault_address.load()));
+    event(text);
+  }
   if (travel_globals_read && !travel_globals_logged) { // Once: what the request carries at +0x3c and +0x48.
     travel_globals_logged = true;
     char text[120];
@@ -559,9 +645,11 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
   }
   if (nightop_on)
     poll_nightop(now_ms);
-  write_remote();
-  if (remote.generation && display.generation != remote.generation)
-    take_display(); // At every pass while the ghost for the remote table is awaited.
+  for (size_t k = 0; k < kMaxRemote; ++k) {
+    write_remote(k);
+    if (remotes[k].table.generation && remotes[k].display.generation != remotes[k].table.generation)
+      take_display(k); // At every pass while the ghost for the slot's remote table is awaited.
+  }
   if (now_ms < next_poll)
     return;
   next_poll = now_ms + 250;
@@ -570,9 +658,10 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
   if (exists && token != session_text) { // A new Lua load: what an older one published is stale.
     session_text = token;
     capture = Table();
-    display = Display();
+    for (Remote &r : remotes)
+      r.display = Display(), r.display_text = "\x01";
     sent_table.clear();
-    capture_text = display_text = "\x01";
+    capture_text = "\x01";
     rebuild();
     ++freeze_unsure; // Our pause tag is removed unless it is still wanted.
     debug_asks.asked = 0; // And SB's developer gates go back to the game's values.
@@ -580,7 +669,9 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
     event("new Lua session: capture and ghost dropped");
   }
   take_capture(now_ms);
-  take_display();
+  for (size_t k = 0; k < kMaxRemote; ++k)
+    if (remotes[k].table.generation)
+      take_display(k);
   // A missing or bad file keeps the previous values: Lua's put() removes the old file before it renames the new one in,
   // so the worker can find none in between.
   if (State now; parse_state(read_file(folder + L"coop-state.txt", exists, kMaxState), now)) {
@@ -592,12 +683,18 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
   }
   {
     std::vector<std::string> lines;
+    std::array<Gap, 8> long_gaps;
+    size_t gap_n = 0;
     {
       std::lock_guard<std::mutex> lock(m);
       lines.swap(outbox);
+      long_gaps = gaps;
+      std::swap(gap_n, gap_count);
     }
     for (auto &line : lines)
       event(line);
+    for (size_t i = 0; i < gap_n; ++i)
+      log_gap(long_gaps[i]);
   }
   if (now_ms >= next_counters) {
     bool first = next_counters == 0;
@@ -626,6 +723,7 @@ void worker_poll(const std::wstring &folder, uint64_t now_ms, const std::functio
       event(line);
     }
     vitals_reads = vitals_max_us = 0;
+    gap_lines = 0;
     if (!first && n) {
       char line[1100];
       std::snprintf(line, sizeof line,
@@ -694,48 +792,55 @@ bool worker_stream() {
     say(stop_record(blocked ? "coop off" : "120 s", now_us));
   if (blocked && replay.on())
     replay.stop();
-  auto receive = [now_us](const uint8_t *data, size_t size) { wire_receive(data, size, now_us); };
+  // The loopback and the replay are the single remote source they were with one friend: slot 0.
+  auto receive = [now_us](const uint8_t *data, size_t size) { wire_receive(0, data, size, now_us); };
   auto replay_receive = [now_us](const uint8_t *data, size_t size) { // A recording also holds the show lines.
     if (size >= 3 && !std::memcmp(data, "SBF", 3))
       pilot_in(data, size);
     else
-      wire_receive(data, size, now_us);
+      wire_receive(0, data, size, now_us);
   };
   delay_line.deliver(now_us, receive);
   replay.deliver(now_us, replay_receive);
   return loopback_on || record_on || replay.on() || peer_on; // Every 5 ms only while something streams.
 }
 
-void peer(bool linked, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool), uint32_t cap) {
+void peer(uint8_t slots, uint64_t now_ms, void (*send)(const uint8_t *, size_t, bool), uint32_t cap) {
   peer_send = send;
   if (cap != link_cap) { // Logged by the link, with its reason.
     link_cap = cap;
     send_us = 1'000'000 / std::min(lua.rate, cap);
   }
-  bool on = linked && peer_open(), was = peer_on.exchange(on);
+  bool on = slots && peer_open(), was = peer_on.exchange(on);
   if (was != on)
     say(on ? "peer linked: poses and tables go over Steam" : "peer unlinked");
-  if (was && !on && remote_source == kPeer)
-    drop_remote(); // She left, or a loopback or replay took over.
+  // A slot whose bit is clear keeps no member's table: she left, or a loopback or replay took over. Her table can only
+  // have come while her bit was set: the link hands channel 1 on from members past the handshake only, in the tick
+  // that runs before this call.
+  const uint8_t bits = on ? slots : 0, added = static_cast<uint8_t>(bits & ~peer_slots);
+  peer_slots = bits;
+  for (size_t k = 0; k < kMaxRemote; ++k)
+    if (!(bits >> k & 1) && remotes[k].source == kPeer)
+      drop_remote(k);
   if (!on)
     return;
-  // At once to a new friend, whatever take_capture or peer_receive planned while she was not linked: a capture change
-  // in the pass that completes the handshake went before her.
-  if (!was)
+  // At once to a new member, whatever take_capture or peer_receive planned while she was not linked (a capture change
+  // in the pass that completes the handshake went before her), and so to every member: one table goes to all.
+  if (added)
     table_resend = TableResend();
-  // At once, then 5, 10, 20, 40 and 60 s apart (pose/table.h TableResend). To her only: never looped back or recorded.
+  // At once, then 5, 10, 20, 40 and 60 s apart (pose/table.h TableResend). To them only: never looped back or recorded.
   if (!sent_table.empty() && table_resend.due(now_ms))
     send(reinterpret_cast<const uint8_t *>(sent_table.data()), sent_table.size(), true);
 }
 
 // Gated on peer_open, not peer_on: a table that follows the accept in the tick that completes the handshake comes
 // before this pass's peer(), and the link already checked the handshake.
-void peer_receive(const uint8_t *data, size_t size) {
-  if (!peer_open())
+void peer_receive(size_t slot, const uint8_t *data, size_t size) {
+  if (slot >= kMaxRemote || !peer_open())
     return;
   if (size >= 3 && (!std::memcmp(data, "SBP", 3) || !std::memcmp(data, "SBD", 3)))
     table_resend.heard(GetTickCount64()); // peer()'s clock. Her poses back after a gap: she may have lost our table.
-  wire_receive(data, size, clock_us());
+  wire_receive(slot, data, size, clock_us());
 }
 
 std::string ask_loopback(bool on, uint32_t delay_ms, uint32_t jitter_ms, uint32_t loss_percent) {
@@ -743,7 +848,7 @@ std::string ask_loopback(bool on, uint32_t delay_ms, uint32_t jitter_ms, uint32_
     if (!loopback_on.exchange(false))
       return "loopback is not on";
     delay_line.set({}, 1);
-    drop_remote();
+    drop_remote(0);
     return "loopback off: the ghost goes";
   }
   if (!engine_on)
@@ -788,7 +893,7 @@ std::string ask_replay(bool on) {
     if (!replay.on())
       return "replay is not on";
     replay.stop();
-    drop_remote();
+    drop_remote(0);
     return "replay off: the ghost goes";
   }
   if (!engine_on)

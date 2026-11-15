@@ -28,7 +28,8 @@ package.loaded['core.unreal']={
             return ids[name] and {ID={get=function() return ids[name] end}} or nil
         end}
     end,
-    value_of=function(v) return type(v)=='table' and v.get and v.get() or v end}
+    value_of=function(v) return type(v)=='table' and v.get and v.get() or v end,
+    why=dofile('mod/StellarCoop/Scripts/core/unreal.lua').why}
 local D=require('cut.devmenu')
 
 -- 1. The rows: unique names, and none of the effects the header leaves out.

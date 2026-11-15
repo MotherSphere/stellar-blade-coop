@@ -200,7 +200,7 @@ add(EN,'asset',DIR,'CH_NPC_Enya_Mech_PhysicsAsset test_PhysicsAsset')
 
 local function name_of(path) return path:match('[^.]+$') end
 local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end
-local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')) and pawn or nil end
+local her=U.her
 -- A console word as a number within lo..hi, else nil.
 local function num(x,lo,hi)
     x=tonumber(x)

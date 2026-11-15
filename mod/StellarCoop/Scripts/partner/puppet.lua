@@ -79,7 +79,7 @@ local MAX_STARTS=8 -- Effects started on one ghost in a second, at most: a peer'
 local MAX_VALUE_NAMES,MAX_TEXTURES,MIN_TEXTURE=1024,64,0.25
 local TEXTURE='/Script/Engine.Texture'
 local PHYSICS_ASSET='/Script/Engine.PhysicsAsset'
--- The solid partner (collide=on, off by default): one capsule on the ghost that only your EVE's movement meets. cm and
+-- The solid partner (collide=on, on by default): one capsule on the ghost that only your EVE's movement meets. cm and
 -- s, for Puppet.solid: inside her by more than SLACK, out again past LEAVE; feet STEP apart in height; contact within
 -- TOUCH, STUCK of it with no gap of GAP, then free until PART apart.
 local SLACK,LEAVE,STEP,TOUCH,STUCK,GAP,PART=1,20,60,5,2,0.5,50
@@ -1372,7 +1372,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
         if #said>0 then return false,table.concat(said,' ') end
         if line then return true,line end
     end
-    local function her(eve) return eve and eve:IsA(find('/Script/SB.SBCharacter')) and eve or nil end
+    local her=U.her
     -- Whether a save is loaded: EVE on any map but the title screen's. The link holds an accepted invite until then.
     -- Second: whether the title screen is shown, a pawn of any class on its map (never during a loading screen, which
     -- has no pawn); the native part changes the co-op saves only then. The same read keeps where she stands and her
@@ -1396,7 +1396,7 @@ function Puppet.new(link,capture,say,name_tag,look,words,sentinel)
     local CAMPS={'Env_VendingMachine_C','Env_VendingMachine_Simple_C','Env_Camp_TeleportMachine_C',
         'Env_Camp_TeleportMachine_Tetrapod_C'} -- Leaf classes: exact whether FindAllOf returns subclasses or not.
     local function xyz(v) return string.format('%.1f,%.1f,%.1f',v.X,v.Y,v.Z) end
-    local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
+    local metres=U.metres
     -- The nearest valid object of these classes to at: '<id>:<class>@x,y,z <unit>=<metres>', or 'none'.
     local function nearest(classes,at,id,unit)
         local best,line=nil,'none'

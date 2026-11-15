@@ -59,6 +59,8 @@
 //                                                                  comes into the set, and on her first line for a
 //                                                                  copy each one it lacks, so a repeat changes nothing
 //                                                                  and brings back a line refused before she paired
+//   SBF20 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
+//                                                                  sender's stand-in of us, to apply to our EVE
 // The host answers the guest's on and world with its whole list (world, its scale, place, aggro and bosses, then every
 // up), and the guest answers the host's on with its own (hers may have come while the host was off), so either side
 // may restart.
@@ -269,10 +271,11 @@ inline bool floor_row(int32_t id) { return id >= kFirstFloor && id <= kLastFloor
 // ---- Channel 2 ----
 
 // world..cc: the host's lines a recording keeps; hit, own-no, exec and have: the guest's; own, epoch, spawn, drop,
-// bstart and phase: the host's, never recorded. mate: the worker's own to the job (fight/engine.h), never a line.
+// bstart and phase: the host's, never recorded; pvp: either side's, never recorded. mate: the worker's own to the job
+// (fight/engine.h), never a line.
 enum class Type : uint8_t {
   invalid, on, off, world, scale, place, aggro, bosses, up, down, dead, hp, cc, hit, own, own_no, exec, have, spawn,
-  drop, epoch, bstart, phase, mate
+  drop, epoch, bstart, phase, pvp, mate
 };
 // One enemy in an hp message.
 struct Values {
@@ -284,12 +287,13 @@ struct Message {
   uint32_t gen = 0;            // All but on and off.
   uint32_t guid = 0;           // up, down, dead, hit, bstart, phase: the host's ActorGUID. A summon's spawn: its
                                // owner's.
-  uint32_t seq = 0;            // hit: the claim's number, from 1. hp: the ack, the last claim the host took.
+  uint32_t seq = 0;            // hit: the claim's number, from 1. hp: the ack, the last claim the host took. pvp:
+                               // the line's number, from 1.
   uint32_t spawn = 0, chr = 0; // up, spawn: EventSpawnId and charId (drop: the EventSpawnId).
   uint8_t index = 0;           // up, spawn, drop: SpawnIndex.
   int32_t max_hp = 0;          // up: MaxHP, rounded.
   uint32_t batch = 0;          // hp: the host's turn of values, from 1; its lines share it.
-  int32_t delta[kStats] = {};  // hit: the drops, each >= 0.
+  int32_t delta[kStats] = {};  // hit: the drops, each >= 0. pvp: delta[kHp] is d, 1..kMaxStat.
   int32_t pre_hp = 0;          // hit: the copy's HP before them.
   bool lethal = false;         // hit: the copy died of them.
   int32_t effect = 0;          // cc: one of kCcEffects. A summon's spawn: its SummonActor row.
@@ -311,6 +315,8 @@ struct Message {
   Values entries[kHpPerMessage];
   uint8_t count = 0;         // hp: entries used, 1..kHpPerMessage.
   Life life = Life::unknown; // mate: her life as her vitals say it (link/core.h's mate_life()).
+  int32_t skill = 0;         // pvp: the attacker's running skill, its SkillTable ID, 1..INT32_MAX.
+  uint64_t from = 0;         // pvp: the sender's SteamID, set by the worker, never on the wire.
 };
 
 // The text of a message; off carries reason (cleaned, "?" when empty).
@@ -369,6 +375,7 @@ inline std::string format(const Message &m, const std::string &reason = std::str
       ids += (i ? "," : "") + std::to_string(m.ids[i]);
     return t + "phase" + n(m.gen) + n(m.guid) + n(m.oe) + " " + (ids.empty() ? "-" : ids);
   }
+  case Type::pvp: return t + "pvp" + n(m.seq) + n(uint32_t(m.skill)) + n(m.delta[kHp]);
   case Type::mate: // Never on the wire.
   case Type::invalid: break;
   }
@@ -535,6 +542,11 @@ inline Message parse(const char *data, size_t size, std::string *reason = nullpt
          detail::ids(f[3], m);
     m.oe = static_cast<uint8_t>(v);
     type = Type::phase;
+  } else if (kind == "pvp") {
+    ok = split(rest, f, 3, nullptr) && id(f[0], m.seq) && number(f[1], v) && v && v <= uint64_t(INT32_MAX) &&
+         whole(f[2], m.delta[kHp]) && m.delta[kHp] > 0;
+    m.skill = int32_t(v);
+    type = Type::pvp;
   } else if (kind == "down" || kind == "dead") {
     ok = split(rest, f, 2, nullptr) && id(f[0], m.gen) && id(f[1], m.guid);
     type = kind == "down" ? Type::down : Type::dead;
@@ -692,7 +704,7 @@ struct Event {
   const char *why = "";
   uint32_t guid = 0, spawn = 0;
   uint8_t index = 0;
-  char note[160] = {}; // Numbers after the why (the engine's solo probes, through snprintf), or empty.
+  char note[192] = {}; // Numbers after the why (the engine's solo probes, through snprintf), or empty.
 };
 inline std::string line(const Event &e) {
   std::string t = e.what;

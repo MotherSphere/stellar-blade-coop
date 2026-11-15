@@ -57,7 +57,7 @@ Shop.WAIT,Shop.ROWS_WAIT=5,60
 -- console closed with Escape opens the pause menu).
 Shop.PLAY_WAIT=30
 local BUY='Use: coop nightop buy <item 1-'..#Shop.ITEMS..'> [count 1-10]'
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 local function whole(text) return type(text)=='string' and text:match('^%d+$') and math.tointeger(tonumber(text)) end
 -- The one grant call: an item alias, EVE's GUID and 1 to MOST items, into the inventory, with the game's pickup
 -- message; no stat level, no enhance message, not an event load, no saved instance. Shop.grant and coop gift

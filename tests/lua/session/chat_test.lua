@@ -230,10 +230,10 @@ local function since(n) return table.concat(calls,'|',n+1) end
 view.slow(0)
 assert(shown()=='' and #calls==0)
 local ok,why=view.open()
-assert(ok==false and why=='Chat needs a session.' and #calls==0)
+assert(ok==false and why=='Chat needs a session or the PvP lobby.' and #calls==0)
 assert(select(2,view.open())==nil,'Once per 10 s')
 view.slow(9.75); assert(select(2,view.open())==nil)
-view.slow(10); assert(select(2,view.open())=='Chat needs a session.')
+view.slow(10); assert(select(2,view.open())=='Chat needs a session or the PvP lobby.')
 -- No root up (a map loads, warming), the game paused or on one of its screens: nothing, quietly.
 model.session(true)
 state.ready=false; assert(view.open()==false and select(2,view.open())==nil and not view.can())

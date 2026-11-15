@@ -392,4 +392,47 @@ clock=clock+0.05
 assert(counted.tick()==nil and counted.active() and reads==2,'Still within 0.1 s')
 clock=clock+0.06
 assert(counted.tick()==nil and not counted.active() and reads==3,'Ended at the next read')
+
+-- The seats' sit loops (Emote.SEATS, outside the 39 emotes and their list): sit(kind) plays its Loop clip from
+-- Animation, looped, as the emote seat:<kind>, with every end rule of an emote; stop(why) ends it with that why. A kind
+-- with no loop plays nothing.
+local SEAT_LOOPS={outdoor='P_Eve_Interaction_OutDoorChair_Loop',table='P_Eve_Interaction_TableChair_Loop',
+    bar='P_Eve_Interaction_BarChair_Loop',camp='P_Eve_Interaction_CampChair_idle'}
+local kinds=0
+for kind,c in pairs(Emote.SEATS) do
+    kinds=kinds+1
+    assert(SEAT_LOOPS[kind]==c,kind)
+    assert(not Emote.POSES[kind] and not list:find(c,1,true),kind)
+end
+assert(kinds==4,kinds)
+on_disk('P_Eve_Interaction_BarChair_Loop',ANIM)
+eve=make_eve()
+answer('idle',0)
+local seats=Emote.new({log=log,ask=ask,status=function() return status end})
+ok,said=seats.sit('bar')
+local BAR=ANIM..'P_Eve_Interaction_BarChair_Loop.P_Eve_Interaction_BarChair_Loop'
+assert(ok and seats.active() and asked[#asked]:find('^anim play %d+ ') and asked[#asked]:sub(-#BAR-5)==BAR..' loop',
+    asked[#asked])
+assert(last():find('^emote seat:bar: P_Eve_Interaction_BarChair_Loop asked of the native part %(anim %d+, loop%)$'),
+    last())
+eve.stick={X=0.6,Y=0,Z=0}
+seats.tick()
+assert(not seats.active() and asked[#asked]=='anim stop' and last()=='emote seat:bar ended (movement input) after 0.0 s',
+    last())
+eve.stick={X=0,Y=0,Z=0}
+seats.sit('bar')
+seats.stop('stand up')
+assert(not seats.active() and last()=='emote seat:bar ended (stand up) after 0.0 s',last())
+local n_asked=#asked
+ok,said=seats.sit('folding')
+assert(ok==false and said=="no sit loop for seat kind 'folding'" and #asked==n_asked and not seats.active(),said)
+-- preload(kind): the seat's sit loop looked up now (in memory, else loaded), so the first sit finds it in memory; false
+-- for a loop missing on this PC and for a kind with none. Nothing plays.
+local TABLE=ANIM..'P_Eve_Interaction_TableChair_Loop.P_Eve_Interaction_TableChair_Loop'
+on_disk('P_Eve_Interaction_TableChair_Loop',ANIM)
+loads={}
+assert(seats.preload('table')==true and loads[1]==TABLE and #asked==n_asked and not seats.active(),
+    table.concat(loads,','))
+assert(seats.preload('table')==true and #loads==1,'In memory now: no second load')
+assert(seats.preload('outdoor')==false and seats.preload('folding')==false and #asked==n_asked)
 print('emote_test: ok')

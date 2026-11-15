@@ -32,8 +32,8 @@ local NONE={'UnlockAchievement','TargetQuest','ZoneEventAlias2','ZoneEventAlias3
 local function find_name(text) return FName(text,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.
 local function index_of(name) return U.value_of(name):GetComparisonIndex() end
 local function xyz(v) return string.format('%.1f,%.1f,%.1f',v.X,v.Y,v.Z) end
-local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local metres=U.metres
+local why=U.why
 -- One field that fails says why in place, as coop where does: the rest of the line still prints.
 local function try(f)
     local ok,v=pcall(f)

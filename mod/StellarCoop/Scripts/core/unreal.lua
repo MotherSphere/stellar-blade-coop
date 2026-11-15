@@ -4,9 +4,12 @@
 -- Helpers over UE4SS objects, shared by the capture (partner/capture.lua), the ghost (partner/puppet.lua) and the
 -- game-side scripts (nightop/run.lua, session/group.lua).
 local U={}
+-- Made once: a function made in each call was 80 B of garbage, twice per U.valid. The method is looked up inside the
+-- pcall, so an object whose __index raises still gives nil (pcall(value.type,value) would raise out of U.kind).
+local function type_of(value) return value:type() end
 function U.kind(value)
     if type(value)~='userdata' and type(value)~='table' then return nil end
-    local ok,result=pcall(function() return value:type() end)
+    local ok,result=pcall(type_of,value)
     return ok and result or nil
 end
 -- UE4SS may wrap values as RemoteUnrealParam/LocalUnrealParam; open them before use.
@@ -53,6 +56,31 @@ function U.find(path)
         found[path]=object
     end
     return object
+end
+-- The class at path while it is in memory, else nil, and the route ('soft path', or 'walk' with the reason the soft
+-- path is not used). The soft path asks the engine, which finds the class by its name hash and never loads anything
+-- (execConv_SoftClassReferenceToClass 0x14482c370 calls FSoftObjectPath::ResolveObject 0x142b82f40, then
+-- StaticFindObject 0x142b957b0, whose ResolveName 0x142b96d70 creates and loads nothing when asked not to; build
+-- 26123051). UE4SS's StaticFindObject walks the object array: 25 to 35 ms in game for a path not in memory, and a
+-- class loaded with the map can sit far down the array. Proven once a Lua load: the pawn's class must come back by its
+-- own path. Until there is a pawn, and for good if that fails, StaticFindObject as before.
+local soft_ok,soft_why=nil,nil
+local function soft(path)
+    local k=U.find('/Script/Engine.Default__KismetSystemLibrary')
+    return U.valid(k:Conv_SoftClassReferenceToClass(k:Conv_SoftClassPathToSoftClassRef(k:MakeSoftClassPath(path))))
+end
+function U.class_at(path,ctx)
+    local pawn=soft_ok==nil and ctx and U.valid(ctx:K2_GetPawn())
+    if pawn then
+        local cls=U.valid(pawn:GetClass())
+        local ok,back=pcall(soft,U.text(cls:GetFullName()):match('^%S+ (.+)$'))
+        soft_ok=ok and back~=nil and U.address(back)==U.address(cls)
+        if not soft_ok then
+            soft_why=ok and 'its pawn class came back as '..(back and U.hex(back) or 'nil') or tostring(back)
+        end
+    end
+    if soft_ok then return soft(path),'soft path' end
+    return U.valid(StaticFindObject(path)),soft_why and 'walk ('..soft_why..')' or 'walk'
 end
 -- The player controller while it is one: UEHelpers keeps its last one while that address is valid, and after a map
 -- change the address may hold another object (an input mode set on that one is a native fault).
@@ -138,6 +166,12 @@ function U.death_screen()
     end)
     return found
 end
+-- An error's message without the file and line.
+function U.why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
+-- The distance in metres between two points in cm.
+function U.metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
+-- The pawn when it is EVE (an SBCharacter), else nil.
+function U.her(pawn) return pawn and pawn:IsA(U.find('/Script/SB.SBCharacter')) and pawn or nil end
 -- The yaw in degrees that turns something at from towards to (a TextRender's text reads from its +X side).
 function U.yaw_to(from,to) return math.deg(math.atan(to.Y-from.Y,to.X-from.X)) end
 return U

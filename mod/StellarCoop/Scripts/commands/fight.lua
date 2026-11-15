@@ -2,10 +2,11 @@
 -- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 -- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The shared enemies' and the shared quests' console commands (Phases 11 and 12, experimental): coop fight, with its
--- pilot and spawn probe, and coop quests. main.lua builds them with new(o) at each Lua load and merges them into its
--- command table; its 250 ms loop runs coop fight on and coop quests on by itself for shared_enemies=on and
--- shared_quests=on. o: main.lua's link, settings, native_tick, ask (a line for the native part) and coop_slot, and
--- fight_auto_off() and quests_auto_off(): coop fight off and coop quests off cancel those asks.
+-- pilot and spawn probe, and coop quests; and coop pvp, the PvP test (a test tool). main.lua builds them with new(o)
+-- at each Lua load and merges them into its command table; its 250 ms loop runs coop fight on and coop quests on by
+-- itself for shared_enemies=on and shared_quests=on. o: main.lua's link, settings, native_tick, ask (a line for the
+-- native part) and coop_slot, and fight_auto_off() and quests_auto_off(): coop fight off and coop quests off cancel
+-- those asks.
 local Fight={}
 -- coop fight (Phase 11, experimental): its line for the native part, or nil when the arguments are off. A change is
 -- whole units, signed or not, never 0, at most 10000000 (the native part's cap).
@@ -32,6 +33,11 @@ local PILOT_TESTS={freeze=true,cmc=true,drive=true,replay=true,target=true,exec=
 -- the same quest within 10 s (it can unlock that quest's trophies). on, probe and record carry quest_deny.
 local QUESTS_USE='Use: coop quests on | off | status | probe | record | replay | force <quest number>'
 local QUESTS_ALONE={on=true,off=true,status=true,probe=true,record=true,replay=true}
+-- coop pvp (the PvP test, a test tool with no menu row, out of the usage line): on (needs pvp_spike=on and
+-- shared_enemies=off, as both run in the shared fight's job; the native part waits for a friend and a co-op save),
+-- off and status (the fight= line), which check nothing.
+local PVP_USE='Use: coop pvp on | off | status'
+local PVP_WORDS={on=true,off=true,status=true}
 function Fight.new(o)
     local link,settings,native_tick,ask,coop_slot=o.link,o.settings,o.native_tick,o.ask,o.coop_slot
     local self={}
@@ -141,6 +147,21 @@ function Fight.new(o)
         if not ok or sub~='status' then return ok,why end
         return true,(link.quests() or 'no shared quests status yet')
             ..' (the whole status follows in this log as quests_status lines)'
+    end
+    function self.pvp(sub,extra)
+        if extra~=nil or not PVP_WORDS[sub or ''] then return false,PVP_USE end
+        if sub=='on' then
+            if not native_tick then return false,'the native tick is unavailable' end
+            if not settings.pvp_spike then return false,'the PvP test is off in coop-settings.txt (pvp_spike=off)' end
+            if settings.shared_enemies then
+                return false,'the PvP test needs shared_enemies=off in coop-settings.txt: both use the same fight job'
+            end
+            return ask('fight pvp')()
+        end
+        if sub=='off' then return ask('fight pvp off')() end
+        local ok,why=ask('fight status')()
+        if not ok then return ok,why end
+        return true,link.fight() or 'no PvP status yet'
     end
     return self
 end

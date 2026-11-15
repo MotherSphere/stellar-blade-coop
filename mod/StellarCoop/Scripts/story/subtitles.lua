@@ -85,7 +85,7 @@ function Subtitles.borrow(n)
     end
     return best
 end
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
+local why=U.why
 -- The window of a talk's call: windows (lengths), w the window shown last ({k=, sb=, ours=, until_at=}; k 0 before
 -- the first), shown the slot's text at the call (nil when unread), now the os.clock. The window shown again when the
 -- slot still holds its text (SB's or ours) before until_at; else the next, never past the last.
