@@ -7,7 +7,7 @@ StellarCoopStory.txt, so two saves, or a save and an in-game dump, can be compar
   python3 tools/story_lines.py diff OLD NEW            ~ changed, + only in NEW, - only in OLD, sorted by key
   python3 tools/story_lines.py digest SAVE             the SHA-256 of the lines
   python3 tools/story_lines.py digest-lines FILE       the same over a file of lines, such as StellarCoopStory.txt
-  python3 tools/story_lines.py compare SAVE FILE       a save's lines against a dump's: exit 0 same, 1 different
+  python3 tools/story_lines.py compare SAVE FILE       each digest, the unmatched lines; exit 0 if all match, else 1
   python3 tools/story_lines.py selftest
 
 mod/StellarCoop/Scripts/story/snapshot.lua builds the same lines from the game's memory; both are held to
