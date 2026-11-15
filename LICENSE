@@ -1,6 +1,6 @@
-# SBO License
+                                  SBO LICENSE
 
-Version 1.0, 15 November 2026
+                         Version 1.0, 15 November 2026
 
 Copyright (C) 2026 MotherSphere, for the changes and additions. The rest of
 the text is copyright (C) 2007 Free Software Foundation, Inc., and is used as
@@ -8,7 +8,7 @@ the Free Software Foundation allows for licenses with another name.
 Everyone may copy and distribute verbatim copies of this license document.
 Changing it is not allowed.
 
-## About this document
+ABOUT THIS DOCUMENT
 
 The SBO License is a copyleft license written for Stellar Blade Online (SBO),
 a mod for the game Stellar Blade. Sections 0 to 12 and 14 to 17 reuse, with
@@ -18,7 +18,7 @@ different license. It is not the GNU General Public License, the Free
 Software Foundation has neither written nor endorsed it, and no version of it
 lets anyone convey a covered work under a GNU license.
 
-## Purpose
+PURPOSE
 
 This License lets everyone except the Excluded Parties run, study, change and
 share the Program free of charge. Anyone who conveys the Program, changed or
@@ -37,9 +37,9 @@ modified version over a network must offer them its source code (section
 agreement, it is governed by Belgian law (section 19). Sections 0, 2, 4, 6,
 7, 9, 10 and 11 carry the changes that follow from these.
 
-## TERMS AND CONDITIONS
+TERMS AND CONDITIONS
 
-### 0. Definitions.
+0. Definitions.
 
 "This License" refers to version 1.0 of the SBO License, including its
 Appendix A.
@@ -191,7 +191,7 @@ view a copy of this License. If the interface presents a list of user
 commands or options, such as a menu, a prominent item in the list meets this
 criterion.
 
-### 1. Source Code.
+1. Source Code.
 
 The "source code" for a work means the preferred form of the work for making
 modifications to it. "Object code" means any non-source form of a work.
@@ -229,7 +229,7 @@ regenerate automatically from other parts of the Corresponding Source.
 
 The Corresponding Source for a work in source code form is that same work.
 
-### 2. Basic Permissions.
+2. Basic Permissions.
 
 All rights granted under this License are granted for the term of copyright
 on the Program, and are irrevocable provided the stated conditions are met.
@@ -266,7 +266,7 @@ meet section 13 on Excluded Services and section 20 on sale.
 
 Every permission in this License is subject to sections 13, 20 and 21.
 
-### 3. Protecting Users' Legal Rights From Anti-Circumvention Law.
+3. Protecting Users' Legal Rights From Anti-Circumvention Law.
 
 No covered work shall be deemed part of an effective technological measure
 under any applicable law fulfilling obligations under article 11 of the WIPO
@@ -280,7 +280,7 @@ work, and you disclaim any intention to limit operation or modification of
 the work as a means of enforcing, against the work's users, your or third
 parties' legal rights to forbid circumvention of technological measures.
 
-### 4. Conveying Verbatim Copies.
+4. Conveying Verbatim Copies.
 
 You may convey verbatim copies of the Program's source code as you receive
 it, in any medium, provided that you conspicuously and appropriately publish
@@ -295,7 +295,7 @@ or for access to one. Section 20 states what is forbidden and what stays
 allowed. You may offer support or warranty protection for a covered work;
 unless you are the Licensor, you must offer it at no charge (section 20).
 
-### 5. Conveying Modified Source Versions.
+5. Conveying Modified Source Versions.
 
 You may convey a work based on the Program, or the modifications to produce
 it from the Program, in the form of source code under the terms of section
@@ -330,7 +330,7 @@ legal rights of the compilation's users beyond what the individual works
 permit. Inclusion of a covered work in an aggregate does not cause this
 License to apply to the other parts of the aggregate.
 
-### 6. Conveying Non-Source Forms.
+6. Conveying Non-Source Forms.
 
 You may convey a covered work in object code form under the terms of
 sections 4 and 5, provided that you also convey the machine-readable
@@ -422,7 +422,7 @@ accord with this section must be in a format that is publicly documented
 and must require no special password or key for unpacking, reading or
 copying.
 
-### 7. Additional Terms.
+7. Additional Terms.
 
 "Additional permissions" are terms that supplement the terms of this License
 by making exceptions from one or more of its conditions. Additional
@@ -492,7 +492,7 @@ Additional terms, permissive or non-permissive, may be stated in the form of
 a separately written license, or stated as exceptions; the above
 requirements apply either way.
 
-### 8. Termination.
+8. Termination.
 
 You may not propagate or modify a covered work except as expressly provided
 under this License. Any attempt otherwise to propagate or modify it is void,
@@ -517,7 +517,7 @@ License. If your rights have been terminated and not permanently reinstated,
 you do not qualify to receive new licenses for the same material under
 section 10.
 
-### 9. Acceptance Not Required for Having Copies.
+9. Acceptance Not Required for Having Copies.
 
 You are not required to accept this License in order to receive or run a copy
 of the Program, except that this License gives no permission to receive or
@@ -535,7 +535,7 @@ Therefore, by modifying or propagating a covered work, you indicate your
 acceptance of this License to do so. This section gives no permission to an
 Excluded Party.
 
-### 10. Automatic Licensing of Downstream Recipients.
+10. Automatic Licensing of Downstream Recipients.
 
 Each time you convey a covered work, the recipient automatically receives a
 license from the original licensors (the copyright holders who licensed the
@@ -566,7 +566,7 @@ covered work, and acting on them, does not impose a further restriction:
 they are part of this License, and every recipient other than an Excluded
 Party receives the same rights under them.
 
-### 11. Patents.
+11. Patents.
 
 A "contributor" is a copyright holder who authorizes use under this License
 of the Program or a work on which the Program is based. The work thus
@@ -633,7 +633,7 @@ Nothing in this License shall be construed as excluding or limiting any
 implied license or other defenses to infringement that may otherwise be
 available to you under applicable patent law.
 
-### 12. No Surrender of Others' Freedom.
+12. No Surrender of Others' Freedom.
 
 If conditions are imposed on you (whether by court order, agreement or
 otherwise) that contradict the conditions of this License, they do not
@@ -645,7 +645,7 @@ to collect a royalty for further conveying from those to whom you convey the
 Program, the only way you could satisfy both those terms and this License
 would be to refrain entirely from conveying the Program.
 
-### 13. Excluded Parties.
+13. Excluded Parties.
 
 Notwithstanding any other provision of this License, this section applies to
 every covered work, including modified versions, works based on the
@@ -778,7 +778,7 @@ a permission that this section withholds. In no case does such a holding
 make a party listed in Appendix A, or a person or organization that controls
 one, a licensee under this License.
 
-### 14. Revised Versions of this License.
+14. Revised Versions of this License.
 
 The Licensor may publish revised and/or new versions of the SBO License from
 time to time. No one else can publish a version of the SBO License. The
@@ -816,7 +816,7 @@ Later license versions may give you additional or different permissions.
 However, no additional obligations are imposed on any author or copyright
 holder as a result of your choosing to follow a later version.
 
-### 15. Disclaimer of Warranty.
+15. Disclaimer of Warranty.
 
 THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE
 LAW. EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR
@@ -827,7 +827,7 @@ ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.
 SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY
 SERVICING, REPAIR OR CORRECTION.
 
-### 16. Limitation of Liability.
+16. Limitation of Liability.
 
 IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING WILL
 ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS THE
@@ -838,7 +838,7 @@ DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR
 A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS), EVEN IF SUCH
 HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
 
-### 17. Interpretation of Sections 15 and 16.
+17. Interpretation of Sections 15 and 16.
 
 If the disclaimer of warranty and limitation of liability provided above
 cannot be given local legal effect according to their terms, reviewing
@@ -847,7 +847,7 @@ waiver of all civil liability in connection with the Program, unless a
 warranty or assumption of liability accompanies a copy of the Program in
 return for a fee.
 
-### 18. Names and Logo.
+18. Names and Logo.
 
 In this section, "Project Names" means the names "Stellar Blade Online",
 "SBO" and "StellarCoop", and any logo that the NOTICE file of the Program
@@ -918,13 +918,13 @@ This section is part of this License. It is not a further restriction under
 section 10, and section 7 does not let you remove it. It does not limit what
 trademark law or other law lets anyone do without a license.
 
-### 19. Governing Law.
+19. Governing Law.
 
 This License, as an agreement with a licensee, is governed by Belgian law.
 This does not change the law that applies to an infringement of copyright,
 or rules of a consumer's own law that cannot be set aside by agreement.
 
-### 20. No Sale.
+20. No Sale.
 
 Notwithstanding any other provision of this License, no one but the Licensor
 may sell a covered work or charge for it. In this License, to "charge" for a
@@ -1042,7 +1042,7 @@ it as to propagating a covered work otherwise than this License expressly
 provides. Reinstatement under section 8 applies only from the time of
 reinstatement. It does not make lawful what was done in breach before it.
 
-### 21. Servers and Network Use.
+21. Servers and Network Use.
 
 To run a covered work "as a server" means to run it, or let it be run, so
 that other people connect to it, or play, communicate or exchange data
@@ -1116,9 +1116,9 @@ covered work otherwise than this License expressly provides. Reinstatement
 under section 8 applies only from the time of reinstatement. It does not
 make lawful what was done in breach before it.
 
-## END OF TERMS AND CONDITIONS
+END OF TERMS AND CONDITIONS
 
-## Appendix A. Excluded Parties of version 1.0
+APPENDIX A. EXCLUDED PARTIES OF VERSION 1.0
 
 This appendix is part of this License. Each entry names a party under (a) of
 the definition of "Excluded Party" in section 0, then lists sites, pages,
@@ -1195,7 +1195,7 @@ successors that it considers covered by an entry above. Such a notice adds
 no party. Whether an entry covers a person, organization, service or
 program is decided under section 0 and this appendix.
 
-## How to apply this License to your work
+HOW TO APPLY THIS LICENSE TO YOUR WORK
 
 To license a work you wrote under this License, put a notice at the start of
 each source file. The notice gives the copyright, says that the work comes
@@ -1223,7 +1223,7 @@ least the copyright line and a pointer to the License.
 
 To license a work under version 1.0 only, write "version 1.0" in place of
 "version 1.0 or, at your option, any later version that the Licensor
-publishes", and use the identifier `LicenseRef-SBO-1.0`.
+publishes", and use the identifier LicenseRef-SBO-1.0.
 
 Put the full text of this License, with Appendix A, in a file named LICENSE
 at the top of the work. Add a way to contact you.
@@ -1233,7 +1233,7 @@ screen, show there the work's name, the copyright line, that it comes with
 no warranty, that it is licensed under the SBO License, and how to read the
 License.
 
-`LicenseRef-SBO-1.0` and `LicenseRef-SBO-1.0-or-later` are identifiers of the
+LicenseRef-SBO-1.0 and LicenseRef-SBO-1.0-or-later are identifiers of the
 form that SPDX uses for licenses outside its license list. They are not
 registered anywhere.
 
