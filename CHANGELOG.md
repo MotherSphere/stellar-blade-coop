@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.10.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.9.0...v0.10.0) (2026-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **license:** versions after 0.9.0 are under the SBO License 1.0 or any later version; 0.9.0 and earlier stay under GPL-3.0-or-later.
+
+### Features
+
+* **native:** give the DLL a version resource with the release and license ([dd64439](https://github.com/MotherSphere/stellar-blade-coop/commit/dd644392da5628ef4ce0319dc300ab11369b0884))
+* rebuild the story dump from a functional spec ([67dbd64](https://github.com/MotherSphere/stellar-blade-coop/commit/67dbd64c765a772f8a7945d534ac87e194a3786c))
+
+
+### Miscellaneous Chores
+
+* **license:** move Stellar Blade Online to the SBO License 1.0 ([2308cc3](https://github.com/MotherSphere/stellar-blade-coop/commit/2308cc30ac4d107f7655c2becbaa6434e2886b70))
+
 ## [0.9.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.8.0...v0.9.0) (2026-11-09)
 
 Both players need 0.9.0 and Stellar Blade's Steam build 26123051.
