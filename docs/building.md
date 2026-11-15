@@ -57,10 +57,12 @@ never touches saves, `StellarCoopSlot.txt` or `mods.txt`, and it reports any `mo
 StellarCoop.
 
 The release zip from `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, `NOTICE`, `EXCLUDED-PARTIES.md`, a
-`CHANGELOG.md` and a `SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`. The zip's
-`CHANGELOG.md` is generated from the commit history when the zip is built; the repository's own `CHANGELOG.md` is the
-one Release Please writes (see [Releases](#releases)). Commit subjects follow Conventional Commits. The zip's changelog
-lists the `feat` and `fix` subjects only, newest first, with their scope; a `!` marks a breaking change.
+`CHANGELOG.md` and a `SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`, and it leaves out
+`Assets/MotherSphere.png`, which is not covered by the SBO License (an install still copies it). The zip's
+`CHANGELOG.md` is generated when the zip is built, from the commits after `051ab509`, the last commit under
+GPL-3.0-or-later; the repository's own `CHANGELOG.md` is the one Release Please writes (see [Releases](#releases)).
+Commit subjects follow Conventional Commits. The zip's changelog lists the `feat` and `fix` subjects only, newest first,
+with their scope; a `!` marks a breaking change.
 
 ## tools/wine_smoke.py
 

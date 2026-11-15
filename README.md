@@ -128,7 +128,8 @@ list before a fight. [Night Operation: Credits](docs/night-operation.md#credits)
 that mark them.
 
 Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the SBO
-License. It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run.
+License. It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run. The release
+zip does not contain it.
 
 ## License
 

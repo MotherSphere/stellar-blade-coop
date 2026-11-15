@@ -197,14 +197,14 @@ with tempfile.TemporaryDirectory() as tmp:
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]
 
     # 12. The release zip: the same inputs give the same bytes, with the commit's time and one mode on every entry,
-    # in sorted names, and SHA256SUMS.txt covers every other entry, the docs included.
+    # in sorted names, and SHA256SUMS.txt covers every other entry, the docs included. The art is installed, not zipped.
     when = 1760000000  # An even second: a zip stores times in two-second steps.
     zips = [tmp / 'a/one.zip', tmp / 'b/two.zip']
     for path in zips: install.write_zip(path, files, '# changes\n', when)
     assert zips[0].read_bytes() == zips[1].read_bytes()
     with zipfile.ZipFile(zips[0]) as archive:
         entries = archive.infolist()
-        assert [e.filename for e in entries] == sorted(f'StellarCoop/{rel}' for rel in shipped)
+        assert [e.filename for e in entries] == sorted(f'StellarCoop/{rel}' for rel in shipped - {install.ART})
         for e in entries:
             assert (e.date_time, e.external_attr, e.compress_type) == (time.gmtime(when)[:6], 0o100644 << 16,
                                                                       zipfile.ZIP_DEFLATED), e
@@ -218,9 +218,12 @@ with tempfile.TemporaryDirectory() as tmp:
         assert b'SBO License' in archive.read('StellarCoop/LICENSE')
 
 # 13. CHANGELOG.md: features and fixes from the commit subjects, newest first; other types and empty sections left out.
-head = '# StellarCoop v1\n\nBuilt from the commit of 2025-10-09; generated from the commit history.\n'
+# The subjects are those after the last GPL-3.0 commit: none of 0.9.0's history.
+head = '# StellarCoop v1\n\nBuilt from the commit of 2025-10-09; generated from the commits after 0.9.0.\n'
 assert install.changelog('v1', 1760000000, ['feat: a', 'feat(native)!: b', 'fix: c', 'docs: d', 'test: e']) == (
     f'{head}\n## Features\n- a\n- native: b (breaking)\n\n## Fixes\n- c\n')
 assert install.changelog('v1', 1760000000, ['docs: d', 'fix(tools): c']) == f'{head}\n## Fixes\n- tools: c\n'
+install.git('merge-base', '--is-ancestor', install.LAST_GPL, 'HEAD')  # Fails when the range would not start there.
+assert install.subjects() and 'chore(main): release 0.9.0' not in install.subjects()
 
 print('install_test: ok')

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Checks and builds StellarCoop, then copies it into Stellar Blade's UE4SS Mods folder (never while the game runs).
 What an install replaces or removes is backed up first; --uninstall backs up the whole folder, then removes it.
---zip writes a release zip that the same commit always gives byte for byte, with a CHANGELOG.md from the commits."""
+--zip writes a release zip that the same commit always gives byte for byte, with a CHANGELOG.md from the commits made
+after the last GPL-3.0 commit."""
 import argparse
 import hashlib
 import os
@@ -22,6 +23,9 @@ RUNTIME = ('coop-*.log', 'coop-*.txt', '*.old.log')  # Written by the mod in gam
 OBSOLETE = {'steam-probe.txt'}  # Left by an old probe, before the manifest existed.
 BACKUPS = Path.home() / 'StellarCoop-install-backups'  # Outside the game folder: UE4SS would load a copy under Mods.
 CLOSE_GAME = 'Close Stellar Blade first: its mods must not change under it.'
+# The last commit released under GPL-3.0 (NOTICE): the zip's changelog lists only the commits after it.
+LAST_GPL = '051ab5090a2ea6832279345524e9cdaa816ee736'
+ART = 'Assets/MotherSphere.png'  # timediffer24's art, not under the SBO License (NOTICE): installed, never zipped.
 
 
 def running_game():
@@ -133,6 +137,11 @@ def uninstall(target, dry_run):
     print('Saves, the co-op copies and StellarCoopSlot.txt are never touched (INSTALL.md: Co-op saves).')
 
 
+def subjects():
+    """The subjects of the commits after LAST_GPL, newest first: what the zip's changelog lists."""
+    return git('log', '--no-merges', '--format=%s', f'{LAST_GPL}..HEAD').splitlines()
+
+
 def changelog(ver, when, subjects):
     """CHANGELOG.md from the commit subjects, newest first: features and fixes only. It goes into the zip, never
     into the repository."""
@@ -142,7 +151,7 @@ def changelog(ver, when, subjects):
             kind, _, scope, breaking, text = match.groups()
             sections[kind].append(f"- {f'{scope}: ' if scope else ''}{text}{' (breaking)' if breaking else ''}")
     day = time.strftime('%Y-%m-%d', time.gmtime(when))
-    lines = [f'# StellarCoop {ver}', '', f'Built from the commit of {day}; generated from the commit history.']
+    lines = [f'# StellarCoop {ver}', '', f'Built from the commit of {day}; generated from the commits after 0.9.0.']
     for title, kind in (('Features', 'feat'), ('Fixes', 'fix')):
         if sections[kind]: lines += ['', f'## {title}', *sections[kind]]
     return '\n'.join(lines) + '\n'
@@ -154,7 +163,8 @@ DOCS = ('INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md')  # Repository 
 def write_zip(path, files, changelog_text, when):
     """The same files, text and commit time give the same bytes: every entry gets the commit's time and one mode, in
     sorted names (writestr with a bare name would stamp the current time)."""
-    files = {**files, **{name: (ROOT / name).read_bytes() for name in DOCS}, 'CHANGELOG.md': changelog_text.encode()}
+    files = {**{rel: data for rel, data in files.items() if rel != ART},
+             **{name: (ROOT / name).read_bytes() for name in DOCS}, 'CHANGELOG.md': changelog_text.encode()}
     files['SHA256SUMS.txt'] = ''.join(f'{hashlib.sha256(data).hexdigest()}  {rel}\n'
                                       for rel, data in sorted(files.items())).encode()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -205,7 +215,7 @@ def main(argv=None):
     if args.zip:
         path = ROOT / f'build/StellarCoop-{ver}.zip' if args.zip is True else Path(args.zip)
         when = int(git('log', '-1', '--format=%ct'))
-        write_zip(path, files, changelog(ver, when, git('log', '--no-merges', '--format=%s').splitlines()), when)
+        write_zip(path, files, changelog(ver, when, subjects()), when)
         return print(f'Wrote {path}')
     target = mods / 'StellarCoop'
     if args.dry_run:

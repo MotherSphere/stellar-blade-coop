@@ -364,5 +364,6 @@ Stellar Blade Online is licensed under the SBO License 1.0 or any later version,
 lists the parties it excludes, and `NOTICE` holds the credits and the parts under other terms. Versions up to 0.9.0 stay
 under GPL-3.0-or-later.
 
-`Assets/MotherSphere.png` is not covered by the SBO License in `LICENSE`. It is the Mother Sphere art shown in the
-guide, by timediffer24 (https://x.com/timediffer24), given to this project.
+The release zip does not contain `Assets/MotherSphere.png`, the Mother Sphere art by timediffer24
+(https://x.com/timediffer24) that the guide shows when the file is in the mod folder. It was given to this project and
+is not covered by the SBO License. Without it, the guide opens with its text only.
