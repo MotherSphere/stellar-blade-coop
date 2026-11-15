@@ -148,11 +148,13 @@ def changelog(ver, when, subjects):
     return '\n'.join(lines) + '\n'
 
 
+DOCS = ('INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md')  # Repository files every release zip ships.
+
+
 def write_zip(path, files, changelog_text, when):
     """The same files, text and commit time give the same bytes: every entry gets the commit's time and one mode, in
     sorted names (writestr with a bare name would stamp the current time)."""
-    files = {**files, 'INSTALL.md': (ROOT / 'INSTALL.md').read_bytes(), 'LICENSE': (ROOT / 'LICENSE').read_bytes(),
-             'CHANGELOG.md': changelog_text.encode()}
+    files = {**files, **{name: (ROOT / name).read_bytes() for name in DOCS}, 'CHANGELOG.md': changelog_text.encode()}
     files['SHA256SUMS.txt'] = ''.join(f'{hashlib.sha256(data).hexdigest()}  {rel}\n'
                                       for rel, data in sorted(files.items())).encode()
     path.parent.mkdir(parents=True, exist_ok=True)

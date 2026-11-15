@@ -6,7 +6,8 @@
 -- HUD, the line) reads
 -- and feeds it; tests/lua/nightop/waves_test.lua covers it with lua5.4 alone.
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
--- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
+-- permission given on 2026-10-20. SchizoEffective agreed on 2026-11-14 to their licensing under the SBO License 1.0
+-- or any later version the Licensor publishes (NOTICE).
 local W={}
 local MASK=0xFFFFFFFF
 W.COUNTDOWN,W.LIMIT,W.BREATHER,W.RESULT=5,480,10,10 -- Seconds of game time.

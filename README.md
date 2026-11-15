@@ -9,7 +9,7 @@ native DLL. The link between the two games goes through the Steam client that th
 no other program and no server of its own. It was called StellarCoop until October 2026: the mod's folder, its DLL, its
 `[StellarCoop]` log tags and its release zip keep that name, and its console commands still start with `coop`.
 
-[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![License: SBO License 1.0](https://img.shields.io/badge/License-SBO%20License%201.0-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/MotherSphere/stellar-blade-coop?include_prereleases&label=release)](https://github.com/MotherSphere/stellar-blade-coop/releases)
 [![Nexus Mods: Stellar Blade Online](https://img.shields.io/badge/Nexus%20Mods-Stellar%20Blade%20Online-d98f40)](https://www.nexusmods.com/stellarblade/mods/4011)
 [![Game: Stellar Blade on Steam (PC)](https://img.shields.io/badge/game-Stellar%20Blade%20%28Steam%2C%20PC%29-informational)](https://store.steampowered.com/app/3489700/)
@@ -122,17 +122,22 @@ runs on your own copy of the game.
 
 Night Operation's run (`coop nightop`), the challenges (`coop challenge`, which run on the same code) and the friend's
 revive adapt code from [Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus
-Mods, Stellar Blade mod 4009). The author gave permission, and the code is distributed here under GPL-3.0-or-later. The
-challenge list follows Survival Protocol's graded stages: five difficulty stages picked from a list before a fight.
-[Night Operation: Credits](docs/night-operation.md#credits) lists the adapted parts and the files that mark them.
+Mods, Stellar Blade mod 4009). The author gave permission, and the code is distributed here under the SBO License (see
+[NOTICE](NOTICE)). The challenge list follows Survival Protocol's graded stages: five difficulty stages picked from a
+list before a fight. [Night Operation: Credits](docs/night-operation.md#credits) lists the adapted parts and the files
+that mark them.
 
-Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the GPL.
-It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run.
+Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the SBO
+License. It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run.
 
 ## License
 
-[GPL-3.0-or-later](LICENSE) © 2026 Stellar Blade Online contributors
+[SBO License 1.0 or later](LICENSE) © 2026 MotherSphere and the Stellar Blade Online contributors
 
-Stellar Blade Online is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
-License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
-version.
+Stellar Blade Online is free to use, study, change and share under the SBO License, version 1.0 or any later version
+that MotherSphere publishes. The License keeps these GPL-3.0 freedoms for everyone except the parties it excludes,
+which its Appendix A and [EXCLUDED-PARTIES.md](EXCLUDED-PARTIES.md) list (AyakaMods in version 1.0). It adds rules of
+its own: only MotherSphere may sell the mod, running it as a server for other people needs MotherSphere's written
+permission, a modified version that you release needs a name of its own, and if other people play with your modified
+version over a network, you offer them its source code. Versions up to 0.9.0 were released under GPL-3.0-or-later and
+stay under it. [NOTICE](NOTICE) holds the credits and lists the parts under other terms.

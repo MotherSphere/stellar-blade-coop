@@ -56,11 +56,11 @@ removes it. It does not touch a folder without `install-manifest.txt` (one copie
 never touches saves, `StellarCoopSlot.txt` or `mods.txt`, and it reports any `mods.txt` line that still names
 StellarCoop.
 
-The release zip from `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, a `CHANGELOG.md` and a
-`SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`. The zip's `CHANGELOG.md` is generated
-from the commit history when the zip is built; the repository's own `CHANGELOG.md` is the one Release Please writes
-(see [Releases](#releases)). Commit subjects follow Conventional Commits. The zip's changelog lists the `feat` and
-`fix` subjects only, newest first, with their scope; a `!` marks a breaking change.
+The release zip from `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, `NOTICE`, `EXCLUDED-PARTIES.md`, a
+`CHANGELOG.md` and a `SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`. The zip's
+`CHANGELOG.md` is generated from the commit history when the zip is built; the repository's own `CHANGELOG.md` is the
+one Release Please writes (see [Releases](#releases)). Commit subjects follow Conventional Commits. The zip's changelog
+lists the `feat` and `fix` subjects only, newest first, with their scope; a `!` marks a breaking change.
 
 ## tools/wine_smoke.py
 
@@ -171,7 +171,7 @@ it 0.8.0, but write its notes by hand in step 2.
 ```
 mod/StellarCoop/            the UE4SS mod folder
   enabled.txt               makes UE4SS start the mod
-  Assets/                   MotherSphere.png, the guide's art by timediffer24 (not covered by the GPL)
+  Assets/                   MotherSphere.png, the guide's art by timediffer24 (not covered by the SBO License)
   Scripts/                  the Lua side (see internals/architecture.md)
     main.lua                the entry UE4SS runs: settings, keys, the coop console command, the per-frame loop
     commands/               the coop console commands' handlers, by feature, merged into main.lua's command table
@@ -210,7 +210,10 @@ tools/
   nexus-upload.yml          sends a published release's zip to Nexus Mods
 docs/                       this documentation
 INSTALL.md                  the player install guide (shipped in the release zip)
-LICENSE                     GPL-3.0-or-later (shipped in the release zip)
+LICENSE                     SBO License 1.0 (shipped in the release zip)
+NOTICE                      credits and the parts under other terms (shipped in the release zip)
+EXCLUDED-PARTIES.md         the parties the SBO License excludes, version by version (shipped in the release zip)
+CONTRIBUTING.md             the license of contributions
 release-please-config.json  Release Please's settings
 .release-please-manifest.json
                             the last released version, read and bumped by Release Please

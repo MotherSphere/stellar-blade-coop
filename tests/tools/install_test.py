@@ -158,12 +158,13 @@ with tempfile.TemporaryDirectory() as tmp:
     before = tree()
     assert uninstall() == (left_alone, '') and tree() == before
 
-    # 11. The package content check: the shipped files plus the four docs, nothing the mod writes in game, no save
+    # 11. The package content check: the shipped files plus the six docs, nothing the mod writes in game, no save
     # and no game file. A stray file in mod/StellarCoop fails here, so it fails the dry run.
     dll = tmp / 'StellarCoop.dll'
     dll.write_bytes(b'dll')
     files = install.package('v', dll)
-    shipped = {'enabled.txt', 'StellarCoop.dll', 'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt',
+    docs = {'INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md', 'CHANGELOG.md', 'SHA256SUMS.txt'}
+    shipped = {'enabled.txt', 'StellarCoop.dll', *docs,
                'Assets/MotherSphere.png',
                *(f'Scripts/{name}.lua' for name in ('commands/guide', 'ui/guide', 'ui/guide_text')),
                *(f'Scripts/{name}.lua'
@@ -191,7 +192,7 @@ with tempfile.TemporaryDirectory() as tmp:
                               'session/group', 'session/join', 'session/saves', 'session/travel',
                               'story/snapshot', 'story/subtitles', 'ui/kit', 'ui/menu',
                               'ui/model', 'ui/notice', 'ui/region_tabs', 'ui/text', 'version'))}
-    assert set(files) == shipped - {'INSTALL.md', 'LICENSE', 'CHANGELOG.md', 'SHA256SUMS.txt'}, sorted(files)
+    assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]
 
@@ -211,7 +212,10 @@ with tempfile.TemporaryDirectory() as tmp:
         sums = archive.read('StellarCoop/SHA256SUMS.txt').decode()
         assert sums == ''.join(f'{hashlib.sha256(archive.read(e)).hexdigest()}  {e.filename[len("StellarCoop/"):]}\n'
                                for e in entries if e.filename != 'StellarCoop/SHA256SUMS.txt'), sums
-        assert '  CHANGELOG.md\n' in sums and '  INSTALL.md\n' in sums and '  LICENSE\n' in sums
+        assert all(f'  {name}\n' in sums for name in docs - {'SHA256SUMS.txt'}), sums
+        for name in install.DOCS:  # The license files go into the zip as they are in the repository.
+            assert archive.read(f'StellarCoop/{name}') == (install.ROOT / name).read_bytes(), name
+        assert b'SBO License' in archive.read('StellarCoop/LICENSE')
 
 # 13. CHANGELOG.md: features and fixes from the commit subjects, newest first; other types and empty sections left out.
 head = '# StellarCoop v1\n\nBuilt from the commit of 2025-10-09; generated from the commit history.\n'

@@ -299,8 +299,8 @@ game closed, and named on one line of `StellarCoopSlot.txt` (UTF-8) in the same 
 
 ## Check the files
 
-`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, including `INSTALL.md`, `LICENSE` and
-`CHANGELOG.md`.
+`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, including `INSTALL.md`, `LICENSE`, `NOTICE`,
+`EXCLUDED-PARTIES.md` and `CHANGELOG.md`.
 
 - Linux: in the `StellarCoop` folder, run `sha256sum -c SHA256SUMS.txt`. Every file must pass (`OK`, or the same word in
   your language). A mismatch ends with a warning.
@@ -360,5 +360,9 @@ stays in the logs you send.
 
 ## License
 
-`Assets/MotherSphere.png` is not covered by the GPL in `LICENSE`. It is the Mother Sphere art shown in the guide, by
-timediffer24 (https://x.com/timediffer24), given to this project.
+Stellar Blade Online is licensed under the SBO License 1.0 or any later version, in `LICENSE`. `EXCLUDED-PARTIES.md`
+lists the parties it excludes, and `NOTICE` holds the credits and the parts under other terms. Versions up to 0.9.0 stay
+under GPL-3.0-or-later.
+
+`Assets/MotherSphere.png` is not covered by the SBO License in `LICENSE`. It is the Mother Sphere art shown in the
+guide, by timediffer24 (https://x.com/timediffer24), given to this project.

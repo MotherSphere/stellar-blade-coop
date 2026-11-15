@@ -126,7 +126,7 @@ end
 -- The live HUD's death screen (the copy under GameEngine), whose animation plays from EVE's death on and none while she
 -- lives; nil when not found. FindAllOf walks every object: its callers keep what it returns and look again only while
 -- it is gone. Adapted from Survival Protocol's death watch, by SchizoEffective (nexusmods.com/stellarblade/mods/4009),
--- used with permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
+-- used with permission given on 2026-10-20 and licensed here under the SBO License (NOTICE).
 function U.death_screen()
     local found=nil
     U.each(FindAllOf('WB_MainHUD_Master_C') or {},function(_,m)
