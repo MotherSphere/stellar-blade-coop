@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.10.0...v0.11.0) (2026-11-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* the link protocol is now 20, so every player must update.
+
+### Features
+
+* add the SBO lobby, match lobbies and the PvP test ([2392e5e](https://github.com/MotherSphere/stellar-blade-coop/commit/2392e5e0a4eff8c4d81d1149915fa879711b936a))
+
 ## [0.10.0](https://github.com/MotherSphere/stellar-blade-coop/compare/v0.9.0...v0.10.0) (2026-11-15)
 
 
