@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Steam link's logic, free of Windows: lobby, invites, join codes, members, the host's approval of a joiner who is
 // not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines, the
 // follow's camps lines, Night Operation's night line, channel 1, where the pose path's tables and poses and the

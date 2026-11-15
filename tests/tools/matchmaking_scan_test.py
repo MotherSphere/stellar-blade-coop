@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """No script or native source of the mod can reach Stellar Blade's matchmaking. The cut recruiter's Join fires zone
 event MultiplayTest_ZoneE_059 (type 15) -> RunEvent_StartMatchMaking -> RequestMatchRequest, an HTTP client to Shift
 Up's stage servers; types 16 and 19 sit on the same path. A text scan: scan(root) lists the violations. It first runs

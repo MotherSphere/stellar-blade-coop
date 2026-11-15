@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Lion boss's table rows (coop lion, the Lion study's plan A made native), free of Windows:
 // tests/native/lion/rows_test.cpp checks it on the build machine against fake memory. The cut Naytiba CH_M_NA_02 ships
 // its blueprint, meshes, clips, collision data and 41 Shows but no table row, so SB cannot spawn it. These are the rows

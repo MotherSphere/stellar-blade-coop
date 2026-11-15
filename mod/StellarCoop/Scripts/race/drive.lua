@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Doro races' driving on the game thread: race/drive_model.lua's car model fed into EVE's own movement each frame while
 -- a race drives (race/run.lua turns it on at GO and off at our result) or the drive probe runs (coop race drive probe).
 -- Her movement component's MaxAcceleration, GroundFriction, BrakingDecelerationWalking and BrakingFrictionFactor go to

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/dev_panels.h on the build machine: the guard (each read failing alone, refused with its own reason; a close needs
 // neither flow nor phase), the plan over every mix of open panels and every ask, and the logic types and names.
 #include "game/dev_panels.h"

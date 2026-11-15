@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The challenge list without the game: the five definitions and the rules they keep (a co-op one's waves within the
 -- night line's masks and bounds), the lookup by name or number, the console list line, and the best runs in
 -- coop-records.txt (read, compared, rewritten).

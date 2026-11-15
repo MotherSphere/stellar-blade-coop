@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The shared fight's types around Engine (fight/engine.h): the pair table and stream flags for the game thread,
 // the job SB's logic thread runs, its counts and snapshot, the logic actors a turn reads, and the ring queues.
 #pragma once

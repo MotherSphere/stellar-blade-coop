@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop-settings.txt edited from the menu (D-UI4): one line rewritten in place, every other byte kept (comments, unknown
 -- lines, blank lines, a BOM, CRLF); the line rewritten is the one link.parse_settings uses, so the new value is the one
 -- the mod reads; a key not in the file is added at the end; a value that would not read back is refused. get() reads a

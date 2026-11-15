@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop fight (the shared enemies, experimental) through main.lua (fixture.lua): its arguments, the co-op slot, and its
 -- settings as words of its requests (fight_chars, guest_kills, kill_credit, the host's scaling, same_place, aggro,
 -- same_spawns, enemy_extra, spawn_filter, bosses and boss_hp_scale); its start once a load with shared_enemies=on; the

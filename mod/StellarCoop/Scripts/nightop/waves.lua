@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Night Operation's run without a game call: the monster pool and the five-wave schedule, the wave keys, the run byte,
 -- the seeded gate order and the spot of each monster, the score, the timer list and the run's states, solo or for two
 -- linked players (the night line's two codecs, the host's merge of her world, the guest's run following his). A run

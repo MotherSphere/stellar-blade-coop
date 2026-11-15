@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pose path's memory accesses against fake memory laid out like the pinned build: the build pin, liveness,
 // published components, EVE's read, the ghost's write gate (direct and remapped), the mailbox, EVE's effect read into
 // sticky slots and the effect boxes; a destroyed object whose memory went back to the system.

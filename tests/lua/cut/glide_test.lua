@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/glide.lua over a fake EVE, movement component and player controller: the rule (Jump held 0.2 s of her world
 -- time, a release starting it over, a hitch counted as 0.1 s, never while rising, on the ground or in the developer
 -- flight); nothing read while off; bGlide set once a glide starts and put back when Jump is released, she lands, flies

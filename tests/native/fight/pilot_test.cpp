@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Stage 3a's pure core (native/src/fight/pilot.h) on the build machine: the SBE message (round trip, every refusal, a
 // fuzz that re-encodes whatever it accepts byte for byte) and the gen and oe filters; the short rotator; the per-enemy
 // samples drawn on the ghost's own playback clock, with interpolation, the 150 ms extrapolation cap, the warp, hole and

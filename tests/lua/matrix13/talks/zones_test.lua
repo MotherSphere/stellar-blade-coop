@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's zone talks (matrix13/talks/zone1.lua to zone4.lua), merged: each scene once, in the zone file its
 -- number names.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path

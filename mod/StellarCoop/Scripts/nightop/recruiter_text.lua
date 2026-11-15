@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Xion recruiter's dialogue (coop recruiter, nightop/recruiter.lua) in the 23 text languages the game ships, copied
 -- byte for byte from the reviewed translation table. KEYS: his 12 FText keys (namespace "") -> {line, exact Korean
 -- source}; the engine keeps a registered text only while that source matches the asset's, "(임시) " included. TEXT:

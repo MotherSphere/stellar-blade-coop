@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu's model (UI-DESIGN 4.1 and its Options table), no engine call: the main page's rows by session state,
 -- the co-op line's (a camp phone booth's page: the main page's session rows, Co-op menu and Hang up),
 -- the Options tree (every co-op setting as a toggle, a choice, a range or a key), a cursor that skips section headers

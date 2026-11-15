@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The native pose path's Windows side. coop_tick runs on the game thread, called once per frame by the Lua loop; the
 // worker thread (glue/steam.cpp) calls worker_poll and worker_stream. They share only atomics and a mutex the game
 // thread never waits on (try_lock: a busy lock skips the hand-over until the next frame; only swaps happen under it,

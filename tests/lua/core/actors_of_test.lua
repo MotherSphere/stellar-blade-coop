@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- core/unreal.lua's actors_of: the class hash (UGameplayStatics::GetAllActorsOfClass) once it gave a PlayerController
 -- that FindAllOf gives too, else FindAllOf of the short name as before. Covered: no context, no proof and a walk; no
 -- player controller yet, no decision and a walk; the hash proven, then used alone (no FindAllOf at all); a hash that

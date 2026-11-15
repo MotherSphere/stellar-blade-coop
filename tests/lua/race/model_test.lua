@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Doro race without the game: the track file (round trip, every refusal), names, recording and the 15 m rule, the
 -- runner's rules (crossings at speed and at the radius edge, the teleport DNF, missed checkpoints, wrong way, two
 -- laps), slots, ranking, the line codec and its sizes, and the host and guest machines joined by a fake link that

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Doro (Dororong, the game's NPC) as a display only: a plain actor with one SkeletalMeshComponent, or one such
 -- component hung on a given parent (the ghost's main mesh), with collision off. No SB character, no table row, no AI,
 -- nothing that can die, so nothing of it reaches a quest, an achievement or a save. Doro's own anim Blueprint is never

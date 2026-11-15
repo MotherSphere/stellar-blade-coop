@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Matrix XIII's 25 records, the words game/camp_text.h adds to SB's live StringTable_Records: each record's title and text
 // in French and English. Copied from the lore bible (v3) and its story file by a one-off script, line breaks kept, with
 // the Yohan and Noa canon edits on MX13-Z3-04 and MX13-Z4-04. Memorysticks open and close on "... ... ...", documents do

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- session/group.lua over fakes of the game and of core/link.lua and partner/puppet.lua. The revive on the downed side:
 -- the call only once every condition held for 3 s with no gap (our life state 3, the death screen's animation,
 -- warp=idle, the friend alive on our map with her ghost shown within 2 m across and 1 m up or down, boss=0, standalone,

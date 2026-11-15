@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """Reads a Stellar Blade save (an EVAS wrapper around an Unreal 4.26 GVAS body) and prints every value in it as one
 `path = value` line, or the paths whose value differs between two saves. Read only: it never writes a file.
 

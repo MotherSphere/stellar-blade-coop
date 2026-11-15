@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The zone 4 talks of Matrix XIII (4A to 4N), scene by scene in play order (matrix13/quest/zone_talks.lua plays them):
 -- the speaker (a StringTable_Seq key, or a plain name for the dungeon's own people), then the English and French line.
 -- oblivion=true: only when Quest_Sub_030 (Oblivion) is complete. No line plays during a fight.

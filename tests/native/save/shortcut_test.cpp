@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // coop shortcut's names for the cut menu's saves (save/shortcut.h), on built GVAS bytes: the paths, the header's
 // branch and the three map values, an EVAS header stripped as the game does, a value before or after its map ignored,
 // copies, the lines and the summary.

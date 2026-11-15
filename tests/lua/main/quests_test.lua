@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop quests (the shared quests, experimental) through main.lua (fixture.lua): its arguments, the co-op slot and its
 -- settings, quest_deny carried, force asked of the native part only when typed twice, its start once a load with
 -- shared_quests=on, its end at a reload with shared_quests=off, and its notices on screen in the menu's words.

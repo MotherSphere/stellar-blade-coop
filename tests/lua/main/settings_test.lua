@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The settings main.lua reads from coop-settings.txt (fixture.lua's fake link): a modifier goes with its key, a refused
 -- setting is logged and keeps its default, the name tag, the look and collide reach the ghost, the pose rate reaches
 -- the state, the photo settings reach the state, the veils and the log line, photo_pause (experimental) makes

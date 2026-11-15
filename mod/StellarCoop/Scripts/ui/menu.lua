@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu (UI-DESIGN 4.1, D-UI2, D-UI4): ui/model.lua's two pages drawn with the Uplink kit (ui/kit.lua), opened
 -- and closed by menu_key, in a world only and never while the game is paused or shows the mouse cursor (one of its
 -- screens). While it is open the game ignores its own keys (the kit's input), and main.lua's binds hand it the

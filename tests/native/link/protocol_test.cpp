@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The link's text protocol and its Lua requests, checked on the build machine (no Windows, no Steam).
 #include "link/protocol.h"
 #include "quest/own.h" // kAskWords: the signal words in its order

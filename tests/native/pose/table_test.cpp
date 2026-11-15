@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The component table and the display file on the build machine: round trips, every refusal one defect at a time,
 // the mesh path rule (material and cloth paths too, the game's folders and a mod's), the cloth, mod, value and hide
 // lines, the capture's effect lines and the display's effect boxes, and mutated tables, which must re-format to

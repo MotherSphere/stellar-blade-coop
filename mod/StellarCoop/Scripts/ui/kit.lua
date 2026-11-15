@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Uplink kit (UI-DESIGN 3.2, 7.1-7.6): one root a world, a plain UserWidget built by hand, holding every group the
 -- views add (the menu, the feed, the card, the marker), each a canvas of its own, hidden (Collapsed) when unused, never
 -- removed. Hit tests pass through every group but one marked hit (the menu: its rows take the mouse). Each 250 ms

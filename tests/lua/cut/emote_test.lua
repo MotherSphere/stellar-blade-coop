@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/emote.lua over a fake EVE, animation instance, asset store and native part: the 39 emotes (31 looped poses, two
 -- waves and six cut clips played once) under seven categories and their list; the end rule (movement input past 0.1,
 -- in the air, a skill); coop emote's words; no start without EVE, in the air, during a skill, without her animation

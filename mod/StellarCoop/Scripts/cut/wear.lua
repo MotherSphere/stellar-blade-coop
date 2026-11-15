@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop wear: hairs and suits that are complete in the game's files but that no item gives, put on your EVE by setting
 -- her own components' meshes (display only). Her equipment, inventory, saves and quests are never read or written: the
 -- game still thinks she wears what it put on, and its next save holds that. Her parts (partner/capture.lua reads them):

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/move.lua with fake UE4SS objects: outside world 2800 nothing; in it, once a world, every ladder, ledge
 -- and rope of the MOVE list spawned by the deferred pair (BeginDeferredActorSpawnFromClass, then the ladder's Meshes,
 -- StartUnit and CollisionBottomZAdd, the ledge's mesh, the rope's drop and EnvActorName set before

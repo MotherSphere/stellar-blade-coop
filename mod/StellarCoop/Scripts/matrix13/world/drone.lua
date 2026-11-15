@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's drone light (matrix13/world/travel.lua ticks it): 20 % more range and cone than the shipped light, at
 -- the same intensity, in world 2800 only. CH_Drone_BP writes its spot light's attenuation radius each tick, capped at
 -- 1500, so a post hook on its ReceiveTick scales what it just wrote. The cone, which the blueprint never writes, is set

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop no: the Night Operation solo probe of the T6 test (Phase 6), on the game thread. A bare coop no asks the native
 -- part for its read-only poller (nightop-probe.txt, and a verdict 60 s after the rule request) and logs a baseline.
 -- Then, one console command each, in T6's order: a direct heal zone event (G6); a probe rule added to the empty

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's boxes and barrels (matrix13/world/travel.lua ticks it): in world 2800 only, once a world, the mod
 -- spawns SB's own BP_Destruction_Box_01_C, BP_Destruction_Box_02_C and BP_Barrel_01_Child_C at the points of
 -- matrix13/world/rows.lua's BREAK list. The cooked map holds a StaticMeshActor tagged MXIII_BREAK at each point, a

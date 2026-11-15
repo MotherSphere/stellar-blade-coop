@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The fixture every tests/lua/main/*_test.lua loads first: UE4SS stubbed for main.lua (the console command, key binds,
 -- game-thread queue, loops, FindAllOf and StaticFindObject), fakes of the link, the ghost and its capture, the notices,
 -- the kit, the chat model and the other modules main.lua builds, load_main() to load main.lua again, and the helpers

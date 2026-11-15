@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // coop devinfo: two read-only panels of SB's developer UI that ship with their UI logic, opened and closed through the
 // game's own UI manager (FSBUMGManager, at the client's +0x48) with the calls SB's code makes for its own UIs. The
 // quest debugger (UI definition QuestDebuggerMaster, ESBUILogicType_HUDQuestDebugger 51): QuestDebugger_Master's rich

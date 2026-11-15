@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Doro race without a game call: the track file and its recording, the runner's rules, the two start slots, the host's
 -- and the guest's race over the race lines, the live order and the ranking. race/run.lua feeds it EVE's feet, its clock
 -- and the race lines that came; tests/lua/race/model_test.lua covers it with lua5.4 alone. Centimetres, milliseconds

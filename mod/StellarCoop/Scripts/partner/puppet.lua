@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The ghost: a render-only EVE drawn from a component table (native/src/pose/table.h) the native part received, hers
 -- back through the loopback or a replayed recording, or a friend's over Steam. A plain actor with one
 -- PoseableMeshComponent per part and no collision: not a Pawn, so lock-on, AI and saves never see it, and nothing of it

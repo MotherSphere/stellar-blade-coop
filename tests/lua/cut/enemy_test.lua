@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/enemy.lua's parts that need no world (lion_test and gardener_test run its flow through both specs): its 37 tables
 -- are link/protocol.h's kLionTables in order, a batch's line parses by its word only (from the start of its own line,
 -- each of its forms), the generated rows take their named form, the counts a batch's line gives once its rows are in,

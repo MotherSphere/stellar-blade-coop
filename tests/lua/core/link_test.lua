@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Steam link's Lua side: requests reach the native part whole, and each status line is reported once.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local files,renames={},0

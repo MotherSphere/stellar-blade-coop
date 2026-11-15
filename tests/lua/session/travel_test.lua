@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- session/travel.lua over fakes of the game, core/link.lua and partner/puppet.lua. The camp table: 120 travel camps,
 -- each on one of the 12 story worlds, no autosave volume, no camp of a developer test world and none that leads to
 -- several worlds (together only: such a camp is never sent by the host's game nor accepted by the guest's). The host's

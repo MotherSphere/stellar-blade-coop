@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/anim.h on the build machine: which clip paths pass, the FString the call reads, the call's scalars, slot 0 as
 // read, and the track: an answer with and without an FGuid, the watch (ours, another clip, EVE gone, a slot that takes
 // no weight, a paused world), the stop, the fault, the word packed for the worker and the status line, and the log

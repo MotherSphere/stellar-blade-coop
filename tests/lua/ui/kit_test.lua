@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Uplink kit (ui/kit.lua's Ui.kit) with fake UE4SS objects and clock: nothing at all until a group is added; the
 -- assets warmed one lookup a 250 ms tick, the build in one call once the classes are in (default font and flat colour)
 -- and again once the look's assets are in (sounds after; not while the menu is open), every group's widgets in place

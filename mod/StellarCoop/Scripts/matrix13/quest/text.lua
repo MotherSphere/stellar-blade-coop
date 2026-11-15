@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Lily's signal (matrix13/quest/on_time.lua): the mod's words, written as FText into rows of the game in the game's
 -- language when the signal rows are in. English and French; every other language takes the English. No text key is
 -- registered (this UE4SS build cannot pass the languages as a map inside PolyglotDataToText's struct parameter), so a

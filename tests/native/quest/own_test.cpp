@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The mod's own quests in the quest unit (quest/own.h) against fake memory laid out like the pinned build: the logic,
 // world and manager globals, the unit's ID map with its allocation bits (inline, or on the heap past 128 slots), quest
 // objects with their groups, containers and tasks. Covered: nothing read off a co-op save, on SB's logic thread,

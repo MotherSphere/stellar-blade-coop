@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The copy request: our join code on the Windows clipboard, for glue/steam.cpp's worker (and tests/wine/smoke.cpp,
 // which reads it back under Proton's wine). Windows only. A message-only window owns the clipboard for the call, as
 // with no owner SetClipboardData fails; the text stays after the window goes. Wine should pass it on to the desktop's

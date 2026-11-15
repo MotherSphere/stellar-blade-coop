@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop race: Doro races on a track the player records, on the game thread. race/model.lua holds the track file, the
 -- rules and the race lines; this file is the game side. coop race record <name> starts a track at EVE's feet and
 -- facing, race_key (F9) or coop race cp drops a checkpoint at her feet, coop race save [laps] writes

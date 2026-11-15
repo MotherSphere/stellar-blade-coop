@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/drone.lua with fake UE4SS objects: nothing outside world 2800; in it, the hook once, each radius the
 -- blueprint writes scaled once and never compounded on a tick that wrote nothing, the cone set once per light and put
 -- back on stopping and forgotten, never called, on leaving; a raise stops it for good.

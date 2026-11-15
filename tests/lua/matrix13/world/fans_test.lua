@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/fans.lua with fake UE4SS objects: outside world 2800 and away from the room nothing is looked at; in
 -- the room each rotor is held still until its own lever reads On, then runs, one line a change; the objects are walked
 -- for once while held, and again once one goes stale (a level streamed back in), at most every FIND s; an error or no

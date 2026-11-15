@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- nightop/recruiter_text.lua, pure (no fakes): exactly the game's 23 text cultures, each with exactly the recruiter's 7
 -- lines; every line one clean UTF-8 string the subtitle and choice widgets can show as it is (no control, invisible
 -- format or rich-text character, no format brace, nothing outside the BMP, no edge space); no Korean and no developer

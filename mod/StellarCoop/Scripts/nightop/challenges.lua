@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop challenge's list without a game call: the definitions nightop/waves.lua runs (the fields are listed above
 -- W.NIGHT there), the lookup by id or number, the console list line, and each one's best run, Night Operation's levels'
 -- too, in coop-records.txt, one line best_<id>=<score> <whole seconds> read and rewritten through

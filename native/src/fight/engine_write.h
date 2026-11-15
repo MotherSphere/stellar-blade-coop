@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Engine's writes to the game: the stat writes, the mirrored crowd controls and the captures that hold an enemy
 // (freeze, HP floor, scaling), with their lift.
 #pragma once

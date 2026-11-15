@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu's, the co-op line's, the chat's, the partner HUD's, the co-op saves', the join codes', the shared
 -- enemies', same place's, same spawns', the shared quests', the follow's, Night Operation's, the challenges', the
 -- status line's, the status strip's above the partner card (overlay) and the notices' words that the Lua side writes.

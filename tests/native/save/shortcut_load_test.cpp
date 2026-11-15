@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // coop shortcut load's cleaning (save/shortcut_load.h): on built GVAS bytes, SBAchievement dropped, the six gears out
 // of Inventory and ItemOtaineSet with every size and count fixed, the rest byte for byte (items with no ItemTable row
 // included), a gear named anywhere else refused, the EVAS wrap and its CRC, the pin, cut bytes refused. Then the

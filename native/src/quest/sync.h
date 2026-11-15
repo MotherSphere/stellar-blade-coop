@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared quests: the host's quest progress, given to the guest's own game through SB's own quest functions, as pure
 // logic. The host is the only writer. It reads its quest unit four times a second and sends each quest that changed
 // as one line with the quest's whole state. The guest compares those lines with her own quests and plans one forward

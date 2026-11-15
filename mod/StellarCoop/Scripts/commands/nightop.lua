@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Night Operation's console commands: coop no (the T6 probe), coop nightop, coop challenge and coop recruiter, all on a
 -- co-op save only but coop nightop stop and coop challenge stop. main.lua builds them with new(o) at each Lua load and
 -- merges them into its command table. o: main.lua's coop_slot, nightop (nightop/probe.lua's), night

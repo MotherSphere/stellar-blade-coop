@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop story (story/snapshot.lua) with no game: FindAllOf, StaticFindObject and the files replaced, the live
 -- SBSaveGame built from tests/tools/story_case.json as UE4SS hands it over (arrays, maps, structs, FNames, enum
 -- numbers). Covered: Python's repr of every double in tests/tools/float_repr.txt; the lines of a plain tree and of the

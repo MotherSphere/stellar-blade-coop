@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/story_lines.py: the story lines of docs/story.md from parsed saves held in memory and from saves written into
 a temporary folder, their digest, and the snapshot, diff, digest, digest-lines and compare commands. The expected
 lines of story_case.json are in story_case.txt, which tests/lua/story/snapshot_test.lua holds the in-game dump to as

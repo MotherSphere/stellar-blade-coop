@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop chainspin: EVE's cut Tachy Mode ChainSpin, on a co-op save only. SB ships her clip P_Eve_Tachy_Skill_ChainSpin1,
 -- its two moves and an icon, but no skill row, no step of hers and no Show in her folder; the prologue's Tachy NPC kept
 -- a Show that plays her clip (CH_NPC_TachyNPC/Skill/N_TachyNPC_SwingChain). The native part adds the skill

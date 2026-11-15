@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/lines.lua with fake UE4SS objects: coop lines lists the five scenes with their line counts and lengths; a scene
 -- starts only while the co-op UI's feed can show a line, reads every line from the game at its start (the string-table
 -- scenes through TextFromStringTable, their speakers' rich text tags dropped, a line with no speaker alone; Sky Hall

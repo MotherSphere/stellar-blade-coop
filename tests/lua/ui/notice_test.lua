@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Notices on screen with fake UE4SS objects and clock: 4 s each, in order, at most 4 queued; dropped with no EVE; the
 -- line 120 cm above her, turned to the camera, wrapped at 40 columns (the shared fight's longest on two lines); in
 -- Latin-1 only (the engine's default font): a notice whose words go past it in English, '?' for what is left past it;

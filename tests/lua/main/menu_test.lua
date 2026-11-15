@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu (ui/menu.lua, ui/model.lua and ui/text.lua for real on fixture.lua's fake kit): it opens, moves, runs
 -- its rows, changes and applies settings (the shared enemies', shared quests' and same place's rows ask the native part
 -- at once), rebinds keys and migrates an old file; and the co-op line, which opens at a camp phone booth

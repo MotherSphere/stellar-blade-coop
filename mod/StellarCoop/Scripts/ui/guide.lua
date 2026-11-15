@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The first-launch guide (ui/guide_text.lua's nine pages) on the Uplink kit (ui/kit.lua): the Mother Sphere art on the
 -- left, the page's title and body on the right, Page n of 9 with a dot a page, four rows (Next, Back, Don't show again
 -- and Close) and the game's key hints.

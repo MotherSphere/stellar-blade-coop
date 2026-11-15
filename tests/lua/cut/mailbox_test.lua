@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop gift (cut/mailbox.lua) over fakes: the native status (slot, SteamID, peer, the engine line's items=), the gift
 -- file in memory, the requests to the native part, the friend and the loopback, EVE and the player controller with its
 -- remove and add requests, the clocks and the toast. Covered: the line shapes link/protocol.h takes and the file's; the

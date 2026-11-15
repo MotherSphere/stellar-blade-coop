@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop nightop shop and coop nightop buy: Night Operation's reward shop, on a co-op save only. A run that ends in
 -- success or time up credits points to this player's wallet (nightop/run.lua credits only a run of ours that went from
 -- its countdown to that end); the shop sells seven items for them. coop nightop shop opens SB's own shop screen, the

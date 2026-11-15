@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Matrix XIII's camp names and records, the native half, free of Windows: 12 entries added to SB's live StringTable_UI,
 // so the keys the mxnames rows name (lion/mxiii_rows.h) read as our names on every camp surface, and 50 to
 // StringTable_Records (game/record_text.h), the titles and texts the mxrecords rows name. This file names the calls and

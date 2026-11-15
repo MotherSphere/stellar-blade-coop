@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session's console commands: coop host (as who_can_join says), invite, join, leave, status, report, copy, mark,
 -- allow, deny and remove, with coop revive test, coop travel and coop saves. main.lua builds them with new(o) at each
 -- Lua load and merges them into its command table, whose run() logs each result and, after coop off, refuses all but

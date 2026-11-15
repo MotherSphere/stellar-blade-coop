@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- An XInput pad (the native part's coop_pad) and the mouse in the co-op UI, through main.lua on fixture.lua's fake kit;
 -- the focus watchdog; coop ui reset and coop ui off; and the Lua frame time, logged once a minute with the UI up.
 dofile('tests/lua/main/fixture.lua')

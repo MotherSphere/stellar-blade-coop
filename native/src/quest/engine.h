@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared quests in the game: quest/sync.h's sides on SB's quest unit. Four times a second, on the game thread where
 // SB's quest manager runs, tick() reads the local player's quests (the unit's Progress, Complete and Failed arrays and
 // its ID map, with reads only) and hands them to the Host, which sends their changes, or to the Guest, whose one step

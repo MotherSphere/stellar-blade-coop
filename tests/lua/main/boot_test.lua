@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- main.lua's console dispatch with UE4SS stubbed (fixture.lua): every coop command reaches the right handler, bad input
 -- is refused, the ghost's capture and remote table are fed every 250 ms with the world state, the keys only hand their
 -- action to the game thread, coop no reaches the Night Operation probe and coop recruiter the recruiter preview on the

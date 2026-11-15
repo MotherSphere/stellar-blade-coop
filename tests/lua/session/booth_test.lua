@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Camp phone booths (session/booth.lua) with strict recording fakes, as recruiter_test: a fake booth raises on a member
 -- it does not declare and on any write, FindAllOf raises on any class but the two booth classes (and gives nil for
 -- none, as UE4SS does), reading or writing any other global raises, and os.clock is a fake clock that a scan advances.

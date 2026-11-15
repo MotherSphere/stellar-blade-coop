@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The link's logic against a fake Steam, on the build machine: host, join (by id, friend scan, invite, launch), cancel,
 // the handshake and its rejects, the host leaving (D1), the guest's rejoin of a lost lobby, a lost peer, strangers,
 // session requests, relay, the journal, the player's notices, a v0.1.1 friend (protocol 6); and two Links through it:

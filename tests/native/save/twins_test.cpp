@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The co-op copies (save/twins.h) on a temporary folder: the game's save check and its CRC-32, the one name check every
 // write goes through, the manifest's grammar, every row of the copy policy, then whole passes as the worker runs them:
 // the backup once and before any copy, copies checked and read back, untouched copies following the player's saves,

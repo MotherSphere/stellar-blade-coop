@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The cut shooting test's score widget: /Game/Art/UI/Widget/Test/WB_ShootingTrainingTest, an SBUserWidget holding one
 -- TextBlock, Score, which reads '점수 76점 (^^*)' ("76 points (^^*)") in pink at font size 191 on a canvas, 472 by 380
 -- units from its top left corner. The exe never names it. A run whose definition says board (the

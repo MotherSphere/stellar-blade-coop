@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // What two StellarCoop players send each other, and what Lua asks the native part. Plain text, so a log shows it as
 // it is. No Windows or Steam types here: tests/native/link/protocol_test.cpp checks this file on the build machine.
 //

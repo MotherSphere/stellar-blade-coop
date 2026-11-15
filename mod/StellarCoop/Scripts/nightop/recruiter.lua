@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop recruiter [off]: the cut Night Operation recruiter's dialogue on a Xion guard near Roxanne (the Phase 8R
 -- preview), on the game thread. The dialogue's Join fires a StartMatchMaking zone event, which asks Shift Up's stage
 -- servers for a match: before anything else that row becomes a Spawn event with no alias (type 0, which returns at

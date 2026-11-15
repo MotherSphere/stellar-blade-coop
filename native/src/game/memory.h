@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The game image's base and globals block, and the two helpers every read of game memory goes through: plausible()
 // for a pointer before it reaches a read, get() for a value inside a block already read. Offsets are for Stellar
 // Blade's Steam build 26123051.

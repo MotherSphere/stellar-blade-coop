@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The native pose path's shared pieces, free of Windows: its limits, one skeletal mesh component as Lua names it, one
 // effect slot, and the hex addresses Lua writes. The component table is in pose/table.h, engine memory access in
 // pose/engine.h.

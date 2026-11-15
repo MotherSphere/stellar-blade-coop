@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Night Operation probe's decoder against a fake memory image laid out like the pinned build: every field at its
 // offset, null groups, hostile counts and pointers, the line throttle, re-arms and the verdict 60 s after the rule.
 #include "nightop/probe.h"

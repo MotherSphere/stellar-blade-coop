@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The shared enemies' and the shared quests' console commands (Phases 11 and 12, experimental): coop fight, with its
 -- pilot and spawn probe, and coop quests. main.lua builds them with new(o) at each Lua load and merges them into its
 -- command table; its 250 ms loop runs coop fight on and coop quests on by itself for shared_enemies=on and

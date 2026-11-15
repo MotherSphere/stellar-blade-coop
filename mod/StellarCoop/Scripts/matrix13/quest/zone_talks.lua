@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The zone talks of Matrix XIII (matrix13/talks/zone1.lua to zone4.lua) in game (experimental, untested in game): on a
 -- co-op save, solo, in world 2800 with "On Time" in progress (matrix13/quest/on_time.lua's look calls tick). Each scene
 -- has one trigger: a box around its room in the plan frame (Lily.plan; the design plans' rooms, markers and routes), a

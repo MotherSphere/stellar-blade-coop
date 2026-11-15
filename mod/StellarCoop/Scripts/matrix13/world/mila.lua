@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Mila as a body in world 2800 (experimental, untested in game): matrix13/quest/zone_talks.lua says where she is, at the
 -- shelf 1 recess from scene 4E on and on the drive room floor from scene 4N on. A display only, as race/doro.lua makes
 -- them: a plain actor with one SkeletalMeshComponent, collision off, no SB character, no row, no AI, so nothing of her

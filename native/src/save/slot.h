@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The co-op save slot (Phase 7, D2): the slot the game entered, read through a read function like the Night Operation
 // probe's (ReadProcessMemory on the worker, which fails rather than faults; a fake image in
 // tests/native/save/slot_test.cpp), the slot StellarCoopSlot.txt names beside the saves (tools/save_guard.py writes

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop tendril fight: the cut Naytiba 6, the Tendril (/Game/Art/Character/Monster/CH_M_NA_06/: a test mesh whose one
 -- material slot is empty, its skeleton, physics asset, blueprint, AnimBP and 42 clips, but no table row and no Show),
 -- spawned as a real enemy to fight, on the game thread. Its 107 rows (cut/lion_rows.lua's R.TENDRIL, the native part's

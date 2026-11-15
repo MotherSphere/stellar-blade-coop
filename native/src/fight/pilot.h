@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Phase 11 stages 3a to 3c, the same enemy in the same place, as pure logic: the owner of a pair (the side whose AI
 // runs it: the host's in 3a; in 3b the host hands it over by its rule, Owners and rule(), each change at the next owner
 // epoch oe, and in 3c a takedown hands it to its executor, Execs) streams each enemy's root at 30 Hz and its Shows; the

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop leviathan, coop gardener and coop tendril: three cut Naytibas whose files are in pakchunk0's index but which the
 -- game never shows. Naytiba 10, the Leviathan (/Game/Art/Character/Monster/CH_M_NA_10/); Naytiba 1, the Gardener
 -- (CH_M_NA_01/), an artillery Naytiba about 20 m tall at scale 1, in the shipped prologue as distant scenery only;

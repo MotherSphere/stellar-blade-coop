@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Lily's signal by hand: coop lily signal [status|quest|travel|next], coop lily talk prologue|arrival|finale [kit] and
 -- coop lily hold on|off (matrix13/quest/on_time.lua, experimental), and coop story [dump|find] (story/snapshot.lua, read
 -- only, any save). main.lua builds it with new(o) at each Lua load and merges it into its command table. o.lily: Lily's

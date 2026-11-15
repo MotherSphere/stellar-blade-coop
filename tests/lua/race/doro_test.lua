@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- race/doro.lua with fake UE4SS objects: Doro.pick's mapping (blend space input and play rate from the speed, all fours
 -- while sprinting with its hold, the ghost's speed threshold with its hysteresis, take-off, a held fall and landing,
 -- emotes only while standing, the smoothing; while a race drives, all fours by the top speed, the faster play rate,

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared quests' pure logic on the build machine: the generated table (rows, shapes, step marks, the chained Epic
 // acquire folded in, a Request's hand-in events left out), quest_deny, tuples from live quests, the lines and their
 // strict parser (bounds, the largest legal line, fuzzed junk), the record file, and a host and a guest over the

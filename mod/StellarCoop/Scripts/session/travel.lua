@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Follow the host's fast travel, on the game thread: main.lua ticks it every 250 ms with the Steam link; follow_key,
 -- coop travel host and coop travel probe reach it.
 -- The guest. When the host's map changes to another than hers, or he stands more than 150 m from her EVE on hers, an

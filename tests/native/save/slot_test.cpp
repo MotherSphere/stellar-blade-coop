@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The co-op save slot's native side: the marker grammar against the same table as tests/tools/save_guard_test.py, the
 // entered-slot read against a fake memory image at a relocated base (the plausible() guard, every failed read), every
 // row of the slot= line's table in PHASE7's order of rules and AUTO-COOP-SAVE §4.4's saves= verdicts, and the save

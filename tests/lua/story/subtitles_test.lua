@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Lily's talks (story/subtitles.lua) over fakes: UE4SS's RegisterHook (the callback kept, or a raise), the subtitle
 -- slot (its Duration, author, Message, Type and AuthorColor; its UpdateText calls the hook again, as a post hook
 -- would), the text library's StringTable_Seq names, the language, cut/scene.lua's talk side (talk, stop_talk, player,

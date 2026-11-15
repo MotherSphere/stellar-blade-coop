@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Roxanne's Night Operation choices: on a co-op save, once EVE is in Xion, Roxanne's dialogue offers Night Operation
 -- (Easy), (Normal) and (Hard) and its supplies above her own Shop and End Conversation. The game ships no such dialogue
 -- (her one dormant Night Operation branch only greets a customer who paid in Beta Seeds, and nothing reaches it), so

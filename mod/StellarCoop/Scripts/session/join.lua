@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Join codes on screen (UI-DESIGN 4.6, FEATURE-PARITY C5, C6 and Q7) on the Uplink kit (ui/kit.lua); no engine call
 -- here. The code box: the co-op menu's Join with a code row closes the menu and opens it. It is a text box like the
 -- chat's: Slate types the characters, the game's input goes to the box (focused again 50 ms later) and comes back 150

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/gardener.lua (and the parts of cut/enemy.lua the Lion's spec never reaches) with fake UE4SS objects. Its 13 rows
 -- are R.GARDENER (tests/lua/cut/lion_test.lua checks them against rows.h's kGardenerRecipe): ToxicBeam's steps last its
 -- Show's 5.4 s, its three skills are MeleeAttack, its stance never moves, its CharacterTable rows name its own dead,

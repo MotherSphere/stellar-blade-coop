@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Engine's same spawns (stage 4) and extra enemies (stage 4b): the host's keys, the guest's spawns and despawns, and
 // the extras both sides make.
 #pragma once

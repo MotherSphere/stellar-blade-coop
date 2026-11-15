@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop chainspin (cut/chainspin.lua) over fakes: the native status text, EVE and the player controller
 -- (nightop/probe.lua's her and controller), the controller's Cheat request, recorded or raising, and Lion.rows (in at
 -- once, refused, or waiting with its answer later). Covered: the effect's ID is the generated row's; only a GUID of 1 to

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's ladders, ledges and ropes (matrix13/world/travel.lua ticks it): in world 2800 only, once a world, the
 -- mod spawns SB's own BP_EM_Ladder_C, BP_EM_Ledge_C and Env_EM_VerticalRope_C at the points of
 -- matrix13/world/rows.lua's MOVE list. A cooked map never reruns construction scripts when a level streams in, so a

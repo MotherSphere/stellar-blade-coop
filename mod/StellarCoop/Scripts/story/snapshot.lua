@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop story [dump|find] and the request file coop-story.txt: the story lines (docs/story.md) of the game's live
 -- SBSaveGame, written to StellarCoopStory.txt in the mod folder in the format of tools/story_lines.py, so that a dump
 -- and a save compare line by line (story_lines.py compare). find lists the objects that may hold the story state

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The co-op saves' files (AUTO-COOP-SAVE §4.2): StellarBladeCoop0N.sav, the co-op copy of the player's own
 // StellarBladeSave0N.sav, made by the worker at the title before the game's save name is switched (save/slot.h).
 //

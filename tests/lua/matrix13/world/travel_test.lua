@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/travel.lua with fake UE4SS objects and a fake follow. Its rows match native/src/lion/mxiii_rows.h's
 -- recipes and patches batch by batch (names, templates, IDs, each patched field's kind and value, no field more). The
 -- dev rows first: the camp, then 7 env-spawn rows that all name it, the kit's 6 each at the spawn point of its own

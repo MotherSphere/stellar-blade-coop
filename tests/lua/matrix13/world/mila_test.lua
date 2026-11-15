@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/mila.lua over a fake Doro: she appears once at the place asked, with Kara's mesh, the sitting clip looped
 -- and the marker's yaw turned to the mesh's forward; asking again does nothing; another place moves her; no place removes
 -- her; a body gone with its world comes back; a failure logs one STOP and never retries; the next Lua load sweeps the

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/breakables.lua with fake UE4SS objects: outside world 2800 nothing; in it, once a world, one
 -- FindAllOf('StaticMeshActor') pass on its own tick, then PER_TICK entries a tick, each with its proxy's collision off
 -- and the proxy hidden before the deferred spawn, the class loaded before Begin, the alias and a barrel's fuse set

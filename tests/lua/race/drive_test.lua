@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- race/drive.lua over a fake EVE, movement component and player controller: on keeps the four values (the file first)
 -- and zeroes them; each frame the model's velocity as an impulse (Z at 0, the unused one cleared first) or a Velocity
 -- write, the yaw, a launch over a crest (her climb from her height: her movement keeps Velocity.Z at 0 on the ground);

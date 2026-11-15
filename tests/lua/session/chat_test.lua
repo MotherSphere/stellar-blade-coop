@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session chat's model: a line is cleaned (well-formed UTF-8 only, C0, DEL, C1, bidi and zero-width controls
 -- dropped, trimmed, at most 200 bytes and never cut inside a character); sent lines show at once and leave at most two
 -- a second, four waiting at most; received lines need a session and chat on; the history keeps its last 50 lines (or

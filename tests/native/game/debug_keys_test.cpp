@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // coop fly's and coop slowmo's gates (game/debug_keys.h) against fake memory laid out like the pinned build: the
 // settings singleton's pointer at kGlobals + 0x18, its TMap<int32, bool> at +0xa8 with FUN_1426235a0's fields, and the
 // two gate functions' key statics. Checked: the keys are UE's Strihash_DEPRECATED of the names; the lookup through

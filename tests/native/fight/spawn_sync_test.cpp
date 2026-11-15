@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Same spawns (stage 4) on the build machine: which rows take part, each side's epoch (zone change, a reset of the
 // spawn manager, many keys with a new GUID) and its grace; the host's epoch line, her rounds and its answers; the
 // guest's rounds and her checks of each answer (R33: the epoch, the shared zone, her own tables, 1 km, the rates, a

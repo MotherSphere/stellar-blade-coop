@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- race/run.lua over fakes of the game, the link, the ghost, the look and the UI kit (as nightop/run_test.lua's):
 -- recording (refusals, race_key and coop race cp, the 15 m rule, save and the file's text, cancel); a solo race from
 -- arming to its results (the start's refusals, the look on, the checkpoint Doros, the countdown, the banners and their

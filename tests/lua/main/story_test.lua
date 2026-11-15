@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop story and coop-story.txt through main.lua (fixture.lua; story/snapshot_test tests the dump itself): the module
 -- built with the mod folder and an [ST] logger; the command's words handed over and its result logged as OK or STOP;
 -- the 250 ms loop's poll told whether a world is loaded, its result logged, and nothing logged when it says nothing;

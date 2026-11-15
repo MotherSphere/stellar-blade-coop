@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared Naytibas, stages 1 and 2 (Phase 11): matched pairs with a host arbiter, as pure logic. Each world keeps
 // spawning its own enemies. The host announces the ones it arbitrates and decides their HP, Shield, Stamina (balance)
 // and death; the guest pairs each with its own copy by SB's spawn key, claims its own hits and corrects its copies

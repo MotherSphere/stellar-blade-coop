@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's and Matrix XIII's on the build machine against fake
 // memory laid out like the pinned build (Matrix XIII's camp and env-spawn rows with patches of their own, in the two
 // zone tables no other batch reads, and its 2 shipped trigger rows patched in place, never added, a wrong zone table,

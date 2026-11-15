@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pose codec on the build machine: round trips within NetPose's bounds (effect slots too), the decoder's refusals
 // one defect at a time, and fuzzed input (random and mutated messages) that must never crash or yield a non-finite
 // value. Codec v2's deltas: rebuilds within the sender's tolerance and at its edge, their refusals, fuzzed deltas,

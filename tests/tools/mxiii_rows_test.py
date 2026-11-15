@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/mxiii_rows.py: the two generated files match data/mxiii-world.json (--check passes on the tree), every row's
 fields are known with their offsets inside the row struct, and the checks refuse data the native part would refuse or
 misread: an unknown field, two patches on the same bytes, a batch of 256 rows, a name given twice, a list item with

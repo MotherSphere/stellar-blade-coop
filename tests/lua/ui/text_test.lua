@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- ui/text.lua, pure (no fakes): a language's table only under one of the 23 culture names nightop/recruiter_text.lua's
 -- culture() gives, and either empty or with exactly T.en's keys at every level, each word with T.en's format
 -- placeholders in T.en's order (Lua's format has no positional arguments; a percent sign, %%, may stand anywhere, as

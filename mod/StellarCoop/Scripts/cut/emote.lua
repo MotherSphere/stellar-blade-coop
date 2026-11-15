@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop emote [list] | <name> | off: one of EVE's animation clips on the player's own EVE, on any save (nothing of it is
 -- saved). The poses are the 31 clips of /Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/ outside Bear/ and the
 -- _Selfie files, each a still (7 frames over 0.2 s, or 2 frames over 0.033 s) played in a loop so EVE keeps it. They

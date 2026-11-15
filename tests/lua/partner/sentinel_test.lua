@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- partner/sentinel.lua with fake files: the marker written before a call with a declared mod asset and emptied after
 -- it, whether it returns or raises, never for another path or inside another call's span; a marker left full by the
 -- last Lua load sets that asset aside (logged by main.lua), on the list under the mod's version; a list of another

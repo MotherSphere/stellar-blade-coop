@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared Naytibas, stages 1 and 2, on the build machine: channel 2's text (round trips, every refusal, fuzz); the
 // host's announces, values, claims and death rules, and its checks of every claim (R33); the guest's pairing, claims
 // (R35), corrections and death rules; the crowd control told and mirrored both ways; the world fence and the clearing

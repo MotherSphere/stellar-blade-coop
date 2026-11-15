@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop scene [emil|orcal|stop]: two scenes cut from the game, played through SB's own theater on the game thread, and
 -- Lily's talks (story/subtitles.lua, through talk(); coop scene lily is coop lily talk prologue, commands/cut.lua).
 -- emil: Emil's farewell, /Game/DLC_1/Art/Cinema/MV_DLC_Ending_E03, a 48 s level sequence of the first DLC's ending that

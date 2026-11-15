@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Engine's control and its turn: the settings the worker sets, arming the job on the game thread, the turn the logic
 // thread runs (Simulate) and the census it hands Host or Guest.
 #pragma once

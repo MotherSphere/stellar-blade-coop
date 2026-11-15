@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The first-launch guide's words (ui/guide.lua) and its co-op menu row's (ui/menu.lua), kept apart from ui/text.lua.
 -- G.en is English: nine pages, each a title and a body (\n starts a new line), then the rows, the page line and the
 -- menu row. Another language's table sits under the culture name ui/text.lua gives it (G.fr, G['zh-Hans']...), with

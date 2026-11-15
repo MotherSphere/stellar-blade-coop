@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Doro races' console command, coop race: look on|off and probe doro here (race/doro.lua), the co-op save check of
 -- start and drive probe, and the rest in race/run.lua's command. main.lua builds it with new(o) at each Lua load and
 -- merges it into its command table. o: main.lua's puppet, doro, coop_slot and race (race/run.lua's).

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session UI on fixture.lua's fake kit, through main.lua: the session chat (session/chat.lua's view) opens on
 -- Enter, sends, cancels on Esc, hands its lines to the native part and takes the notices into its feed while the UI is
 -- up; join codes (session/join.lua: who_can_join=code, the menu's Copy my code, Join with a code and Remove rows, the

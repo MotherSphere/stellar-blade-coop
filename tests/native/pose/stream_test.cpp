@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The loopback pipeline on the build machine, in simulated time: a 60 fps game thread captures and encodes a pose
 // every 50 ms (or every frame, as keyframes and deltas), a 5 ms worker sends it into the delay line and hands what is
 // due back, the game thread decodes it into the playback and draws a pose every frame. The root's X is the publication

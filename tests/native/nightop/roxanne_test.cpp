@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Roxanne's and Lily's choice lists in SB's select cache (nightop/roxanne.h) against fake memory laid out like the
 // pinned build: the world global, its +0xe0 holder, the TMap's elements at +0x5f0, her entry among others; on, off, a
 // moved element array, an entry the game changed, and reads that fail. Lily's 8 rows are checked as a set in the

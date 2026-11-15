@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Roxanne's Night Operation choices (nightop/roxanne.lua) and Lily's signal choice (matrix13/quest/on_time.lua), free
 // of Windows: tests/native/nightop/roxanne_test.cpp checks it against fake memory. Roxanne's dialogue's choice list,
 // TS_Xion_Roxane_Choice, holds two TheaterSelectDataTable rows, Shop and End Conversation; Lily's, TS_Xion_Lily_Choice,

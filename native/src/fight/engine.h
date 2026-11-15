@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared Naytibas, stages 1 and 2 (Phase 11), and stage 3a's logic side: fight/sync.h's sides inside the game. SB's
 // logic thread runs a job of ours once a turn (Simulate): it reads the logic actor map, hands Host or Guest this turn's
 // enemies and turns their writes into SB's ApplyStat and their mirrored crowd controls into SB's effect call; with

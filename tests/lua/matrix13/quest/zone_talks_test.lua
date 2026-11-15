@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/quest/zone_talks.lua over fakes: every scene has one trigger, its box holds its design point, a box, a boss's
 -- death, an env state and a way out latch a scene; a fight or a screen delays it and sets the kit's gate shut, and a
 -- fight cuts a scene that waits for its theater or plays through it (not marked, said once, again from its start after

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session chat's model (UI-DESIGN 4.2, 5.2): the feed's lines, the lines waiting for the native part, and when
 -- they go. Lua tables only: a reload starts a new model, and nothing here writes a file, a log or the console. Chat
 -- text must never reach event(), notice(), status, a log, a report, the console or the settings; counts may.

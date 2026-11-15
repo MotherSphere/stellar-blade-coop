@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // An XInput pad's state turned into the co-op menu's navigation events, free of Windows: the native part
 // (glue/tick.cpp) reads the pads through PadSlots, steps Pad at each poll and hands Lua one event per coop_pad call.
 // The menu and the co-op saves' question take the game's input (UIOnly), so the game ignores the pad then, and UE4SS

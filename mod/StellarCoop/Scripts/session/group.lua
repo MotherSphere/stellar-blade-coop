@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The friend's revive and the wait during the host's cutscene, on the game thread: main.lua ticks it every 250 ms with
 -- the Steam link. The revive sends nothing: each side reads its own game and the friend's vitals and ghost.
 -- The downed side (us): our EVE is revived where she lies once all of these held for 3 s with no gap: our life state

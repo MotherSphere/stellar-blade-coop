@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/save_read.py on GVAS bodies built here: the header, scalars, structs, containers, the checks of the EVAS
 wrapper, the ByteProperty element guess, value paths, and the dump, diff and selftest commands on saves written into a
 temporary folder. Run: python3 tests/tools/save_read_test.py"""

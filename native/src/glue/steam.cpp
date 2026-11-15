@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // StellarCoop's native part, loaded by its Lua script (package.loadlib). It links two players over Steam, through the
 // Steamworks API the game loaded and started (never its own SteamAPI_Init); the logic lives in link/core.h, this file
 // is the Windows side: Steam's callbacks, the worker thread, files and fault containment.

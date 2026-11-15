@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The game's memory for the native pose path: the build pin, object liveness and the published-component checks, EVE's
 // pose and effects read and the ghost's written behind CopyPose's own gate. Plain accesses of addresses only, but for
 // alive()'s first read (safe_read); the caller runs every one of them under an SEH guard on the game thread. No

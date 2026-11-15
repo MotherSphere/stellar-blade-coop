@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """Places Matrix XIII's spawned ladders on the editor's ladders: writes each ladder of data/mxiii-world.json's move list
 that data/mxiii-climb.json has proxies for (at, yaw, Meshes, the TotalHeight they give), and checks that every
 ladder, ledge and rope of the move list overlays the editor geometry within 2 cm, its parts rebuilt the way the

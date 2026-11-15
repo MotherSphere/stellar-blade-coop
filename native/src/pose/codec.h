@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Codec v2 for EVE's pose on the wire: the sister repository's NetPose quantization ported (rotation as the smallest
 // three of its unit quaternion, translation in 1/32 cm, scale in 1/4096) in keyframes (Phase 3), and since protocol 9
 // deltas against the latest keyframe, so 60 poses a second fit the link (POSE60). No deflate. No Windows types:

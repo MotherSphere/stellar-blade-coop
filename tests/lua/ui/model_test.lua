@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op menu's model: the main page's rows by session state (the join code and the player let in who is not a
 -- Steam friend included), the co-op line's (a camp phone booth's page: the same session rows, Co-op menu and
 -- Hang up), a cursor that skips section headers and wraps, Leave and Remove only on a second Select of

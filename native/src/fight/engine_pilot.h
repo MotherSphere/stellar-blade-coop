@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Engine's same-place enemies (stages 3a to 3c): the pair table for the game thread, the frozen copies, the owners'
 // hand-over and the takedowns.
 #pragma once

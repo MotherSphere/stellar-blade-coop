@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/boss.lua with fake UE4SS objects: outside world 2800 nothing; in it, a Lion body of the Large
 -- blueprint near its spawn point is fixed once through coop lion's adopt, a Gardener body's mesh turned -90 degrees
 -- once, each with one [MXBOSS] line; a body far from the point is not the row's; bodies are looked for only near a boss

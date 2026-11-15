@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Same spawns, stage 4 of shared enemies (PHASE11-STAGE3 9.2), as pure logic: while both players stand within 100 m of
 // each other in one zone, the guest's game holds the common enemies the host's game holds there. The guest tells the
 // host her keys there (have); the host answers each key she lacks with spawn, from where its own enemy stands, and each

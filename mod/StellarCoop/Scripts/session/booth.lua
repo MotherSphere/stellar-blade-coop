@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The camp phone booths near EVE, for the co-op line: the booth of every full camp (Env_Camp_TeleportMachine_C) and
 -- the warp-only phones (Env_Camp_TeleportMachine_Standalone_C). The levels place them and they stream in and out with
 -- distance, so the list is found again: at once on a new map, then at most every EVERY s, and only while EVE moves at

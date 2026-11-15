@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pose stream's two ends, free of Windows (tests/native/pose/stream_test.cpp drives them with simulated time):
 // DelayLine stands in for Steam in loopback (Phase 3): the worker sends each encoded pose into it and gets it back after
 // a delay, with jitter and loss. Playback is the receiving side: the sister repository's RemoteEves clock and

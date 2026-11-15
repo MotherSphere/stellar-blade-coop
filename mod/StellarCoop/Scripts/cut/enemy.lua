@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion (cut/lion.lua), coop gardener
 -- fight (cut/gardener.lua) and coop tendril fight (cut/tendril.lua) share, each giving its own spec (coop mxiii,
 -- matrix13/world/travel.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and

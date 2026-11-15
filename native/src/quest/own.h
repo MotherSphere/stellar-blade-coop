@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The mod's own quests, the prologue "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164) and "On Time"
 // (Quest_Sub_MX13_01, QuestTable 163) (lion/rows.h's signal batch, matrix13/quest/on_time.lua), in the local player's
 // quest unit, free of Windows: tests/native/quest/own_test.cpp checks it against fake memory laid out like the pinned

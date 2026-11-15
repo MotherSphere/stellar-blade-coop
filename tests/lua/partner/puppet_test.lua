@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The ghost with fake UE4SS objects: built from the remote table one mesh a frame, each part on the mesh the table names
 -- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
 -- fallback; your EVE's render flags on each part; the display file; hidden until the first pose and after a second

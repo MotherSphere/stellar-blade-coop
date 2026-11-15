@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Notices on screen: one line of text about 30 cm above your EVE, turned to the camera each frame, each notice for 4 s
 -- in turn. A plain actor of its own, never attached to EVE, so the player actor is never touched. Notices queued with
 -- no EVE in the world (the title screen) are dropped: UE4SS.log already has them. During your own photo mode nothing is

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The fan room's three fans in world 2800 (experimental, untested in game): each stays still until its lever reads On.
 -- The cooked rotors (Z4_Z4R10_S_Fan1_Rotor to Fan3_Rotor in MXIII_Z4_Fans) carry a RotatingMovementComponent that turns
 -- from level load, and no row or sequence drives it, so this file holds the component off at run time and needs no cook
