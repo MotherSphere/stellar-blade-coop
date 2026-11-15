@@ -136,9 +136,10 @@ zip does not contain it.
 [SBO License 1.0 or later](LICENSE) © 2026 MotherSphere and the Stellar Blade Online contributors
 
 Stellar Blade Online is free to use, study, change and share under the SBO License, version 1.0 or any later version
-that MotherSphere publishes. The License keeps these GPL-3.0 freedoms for everyone except the parties it excludes,
-which its Appendix A and [EXCLUDED-PARTIES.md](EXCLUDED-PARTIES.md) list (AyakaMods in version 1.0). It adds rules of
-its own: only MotherSphere may sell the mod, running it as a server for other people needs MotherSphere's written
-permission, a modified version that you release needs a name of its own, and if other people play with your modified
-version over a network, you offer them its source code. Versions up to 0.9.0 were released under GPL-3.0-or-later and
-stay under it. [NOTICE](NOTICE) holds the credits and lists the parts under other terms.
+that MotherSphere publishes. GPL-3.0 gives these freedoms too. The SBO License gives them to everyone except the
+parties it excludes, which its Appendix A and [EXCLUDED-PARTIES.md](EXCLUDED-PARTIES.md) list (AyakaMods in version
+1.0). It adds rules of its own: only MotherSphere may sell the mod, running it as a server for other people needs
+MotherSphere's written permission, a modified version that you release needs a name of its own, and if other people
+play with your modified version over a network, you offer them its source code. Hosting or joining a game while you
+play is not running a server. Versions up to 0.9.0 were released under GPL-3.0-or-later and stay under it.
+[NOTICE](NOTICE) holds the credits and lists the parts under other terms.

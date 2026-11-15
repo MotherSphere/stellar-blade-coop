@@ -19,11 +19,12 @@ https://github.com/MotherSphere/stellar-blade-coop. To contact the Licensor,
 for example to ask for the written permission that section 21 of the License
 requires to run a server, open an issue there.
 
-Versions up to and including 0.9.0, and every commit of the public
-repository up to and including commit 051ab509, were released under
-GPL-3.0-or-later and stay available under that license. Every release after
-0.9.0 is licensed under the SBO License, apart from the parts that this file
-lists under other terms.
+Versions up to and including 0.9.0, every commit pushed to the public
+repository before the commit that moved it to the SBO License (the last one
+on the dev branch is commit 051ab509), and every test build whose LICENSE
+file is GPL-3.0 were released under GPL-3.0-or-later and stay available
+under that license. Every release after 0.9.0 is licensed under the SBO
+License, apart from the parts that this file lists under other terms.
 
 ## Additional permission under section 7 of the SBO License
 

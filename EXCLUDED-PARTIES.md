@@ -11,7 +11,7 @@ definition of "Excluded Service". Section 13 says what the exclusion covers.
 
 ## Version 1.0
 
-Added in version 1.0. The entry reads as in Appendix A:
+Added in version 1.0, 15 November 2026. The entry reads as in Appendix A:
 
 1. AyakaMods, under that name or any other name, and any company or
    organization that owns it or runs its business. A provider that only
