@@ -30,8 +30,8 @@
 -- (ui/kit.lua) and the board (nightop/board.lua), the HUD calls the game for one thing only: its own result words
 -- (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
--- permission given on 2026-10-20. SchizoEffective agreed on 2026-11-14 to their licensing under the SBO License 1.0
--- or any later version the Licensor publishes (NOTICE).
+-- permission given on 2026-10-20. SchizoEffective agreed on 2026-11-14 to the project's license change, and they are
+-- licensed here under the SBO License 1.0 or any later version the Licensor publishes (NOTICE).
 local U=require('core.unreal')
 local W=require('nightop.waves')
 local N=require('nightop.probe')
