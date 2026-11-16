@@ -7,6 +7,13 @@
 -- restore, its frame before the native tick, its 250 ms pass, coop off, the Options rows; riding() as coop emote, the
 -- race and the hall seats read it.
 dofile('tests/lua/main/fixture.lua')
+-- coop fly's keys: cut/flight.lua for real, with fly_on in place of its active() (on() needs SB's player input).
+local Flight,fly_on=require('cut.flight'),nil
+package.loaded['cut.flight']={new=function(o)
+    local f=Flight.new(o)
+    f.active=function() return fly_on end
+    return f
+end}
 local USE='[StellarCoop] STOP: Use: coop bike [status | tune [<name> <value>]]\n'
 settings_text,status_text,in_world='',plain,true
 load_main(true)
@@ -24,6 +31,7 @@ assert(o.busy()==nil)
 for _,case in ipairs({{function(on) dr.active=on end,'the Doro look is on: coop race look off ends it'},
         {function(on) em.active=on end,'coop emote plays: coop emote off ends it'},
         {function(on) sb.sitting=on end,'EVE sits on a hall seat: stand her up first'},
+        {function(on) fly_on=on end,'coop fly is on: coop fly off ends it'},
         {function(on) gl.active=on end,'coop glide is on: coop glide off ends it'},
         {function(on) nr.running=on end,'Night Operation is running: coop nightop stop ends it'}}) do
     case[1](true)
@@ -81,6 +89,17 @@ bk.slow_says={false,'Off the bike: a cutscene holds EVE'}
 quarter()
 assert(logged('STOP: Off the bike: a cutscene holds EVE') and said[#said]==bk.slow_says[2])
 bk.slow_says=nil
+
+-- Our screens: the co-op menu, the lobby's screens, the guide in front of the co-op saves' question.
+kit_ready=true; quarter()
+local SCREEN='an SBO menu or the chat is open'
+key('F5'); assert(kit_shown.menu and o.busy()==SCREEN,tostring(o.busy()))
+-- F3 with the menu open still reaches the ride, which refuses a mount while busy() says why (bike/ride_test).
+key('F3'); assert(kit_shown.menu and bk.toggles[#bk.toggles]=='bike_key' and o.busy()==SCREEN)
+key('F5'); assert(not kit_shown.menu and o.busy()==nil)
+lb.screen='menu'; assert(o.busy()==SCREEN); lb.screen=nil
+coop('guide'); assert(kit_shown.guide and o.busy()==SCREEN,tostring(o.busy()))
+coop('ui','reset'); assert(not kit_shown.guide and o.busy()==nil)
 
 -- The pad: D-pad Right held 1 s (the native part's tenth event) as bike_key, in a world with our HUD shown, none of
 -- our screens open and the game not paused; otherwise nothing, with the reason logged.
