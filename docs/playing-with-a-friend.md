@@ -116,9 +116,11 @@ lobbies and after the game restarts. Deny only refuses them for the current lobb
 - `coop unblock <SteamID>` takes one player off the list and `coop unblock all` empties it. A player unblocked while
   still in your lobby is greeted again (or asked about, if not your Steam friend) at once.
 - `coop blocked` prints how many players the list holds. It cannot name them.
-- The list is `coop-blocked.txt` in the mod folder. It holds a salted hash of each SteamID, never the SteamID itself.
-  The salt is the same for every player, so someone who has your file and a SteamID can check whether that SteamID is
-  on it. Keep the file when you update the mod (see [INSTALL.md](../INSTALL.md#update)).
+- The list is `coop-blocked.txt` in the mod folder. It holds a hash of each SteamID, so the SteamIDs do not show as
+  they are. The hash does not keep them secret. The salt is the same for every player. Steam has about 4 billion
+  personal accounts, few enough for one PC to hash them all in a few minutes. Anyone who gets your file can list every
+  SteamID on it that way, so do not share it. Keep it when you update the mod (see
+  [INSTALL.md](../INSTALL.md#update)).
 - The list applies to games you host. A game you join yourself, with a code or an invite, is up to you: you can
   still join a blocked player's game. Quick match is the exception. Your game never stays in a public match lobby with
   a player on your list: it leaves, then searches again and skips that lobby for the rest of the game run. A blocked

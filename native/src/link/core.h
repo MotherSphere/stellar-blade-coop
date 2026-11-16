@@ -108,8 +108,9 @@ inline uint64_t splitmix64(uint64_t x) {
   x = (x ^ x >> 27) * 0x94d049bb133111ebull;
   return x ^ x >> 31;
 }
-// The block list's key for a SteamID64: FNV-1a 64 over a fixed salt and its digits, so coop-blocked.txt never holds a
-// SteamID in clear. Steam has about 2^32 accounts, so anyone who holds the file can still test a SteamID against it.
+// The block list's key for a SteamID64: FNV-1a 64 over a fixed salt and its digits, so coop-blocked.txt shows no
+// SteamID as it is. It hides little: a personal SteamID is 76561197960265728 plus a 32-bit account number. One PC
+// hashes all 2^32 in about 5 minutes, which lists every SteamID in the file.
 inline uint64_t block_hash(uint64_t id) {
   uint64_t h = 0xcbf29ce484222325ull;
   for (char c : "SBO block list 1 " + std::to_string(id))
@@ -955,8 +956,9 @@ public:
   std::string take_blocks() {
     if (!std::exchange(blocks_changed_, false))
       return {};
-    std::string text = "# SBO's block list: the players coop remove and coop block keep out of every game you host.\n"
-                       "# Each line is a salted hash of a SteamID, never the SteamID. coop unblock all empties it.\n";
+    std::string text = "# SBO's block list: the players coop remove and coop block keep out of every game you host. "
+                       "coop unblock all empties it.\n"
+                       "# Each line hashes a SteamID. Trying every SteamID finds them again, so keep this file private.\n";
     char line[20];
     for (uint64_t hash : blocked_) {
       std::snprintf(line, sizeof line, "%016llx\n", static_cast<unsigned long long>(hash));

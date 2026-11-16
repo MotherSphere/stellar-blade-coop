@@ -2908,6 +2908,7 @@ int main() {
     assert(noticed(s, "Block list emptied.") && sent_to(kFriend, "SBC hello ") == hellos + 1);
     const std::string emptied = w.link.take_blocks(); // The two comment lines alone.
     assert(emptied.rfind("# ", 0) == 0 && std::count(emptied.begin(), emptied.end(), '\n') == 2);
+    assert(emptied.find("keep this file private") != std::string::npos); // Hashing every SteamID finds them.
     w.tick("unblock all"); // Already empty: no write.
     assert(w.link.take_blocks().empty());
   }
