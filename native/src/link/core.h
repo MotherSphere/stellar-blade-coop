@@ -664,12 +664,13 @@ public:
   // Channel 2 (Phase 11, shared enemies): a line for every member past the handshake (to 0) or for the member with
   // that SteamID, sent by the next tick(), reliable (on, off, world, up, down, dead, hit) or not (hp). False when it
   // cannot go: not linked, to someone who is not a member past the handshake, empty or past kMaxMessage, kFightQueue
-  // lines already waiting, or a shared quests' or shared world's line in a match lobby. Both queues hold one session's
+  // lines already waiting, or a shared quests', shared world's or story together's line in a match lobby. Both queues hold one session's
   // lines: a session that starts or ends (linked() changes) empties them, so no line crosses into the next one, and
   // the fight logic restarts at the same changes. Worker thread, like tick().
   bool send_fight(const std::string &line, bool reliable, uint64_t to = 0) {
     if (!linked() || line.empty() || line.size() > kMaxMessage || fight_out_.size() >= kFightQueue ||
-        (match() && (line.rfind(quest_tag(), 0) == 0 || line.rfind(world_tag(), 0) == 0)))
+        (match() && (line.rfind(quest_tag(), 0) == 0 || line.rfind(world_tag(), 0) == 0 ||
+                     line.rfind(story_tag(), 0) == 0)))
       return false;
     if (to && std::none_of(peers_.begin(), peers_.end(),
                            [to](const Peer &p) { return p.id == to && p.compatible && p.accepted; }))
@@ -2098,6 +2099,7 @@ private:
                         : size == 0 || size > kMaxMessage            ? "bad size"
                         : match() && text.rfind(quest_tag(), 0) == 0 ? "shared quests are off in a match lobby"
                         : match() && text.rfind(world_tag(), 0) == 0 ? "the shared world is off in a match lobby"
+                        : match() && text.rfind(story_tag(), 0) == 0 ? "story together is off in a match lobby"
                         : fight_in_.size() >= kFightQueue            ? "inbox full"
                                                                      : nullptr;
       try {
