@@ -20,8 +20,11 @@
 -- the activated camps, or the follow off; UE4SS.log says why).
 -- The host. Its game answers each new camps? from the link's status: its world and the 8 camps of this table under it
 -- nearest its EVE, in whole metres, or none and why (title, loading, nocamp, busy). The camps are the map's
--- SBSpawnPoint actors named after a camp of its world, read once a map (FindAllOf walks every object), never during a
--- load.
+-- SBSpawnPoint actors named after a camp of its world, read once a map (FindAllOf walks every object; a read that found
+-- none, again a minute later), never during a load.
+-- The host's row in the session list (outside a match lobby, a guest linked or not): its map's last path part and the
+-- camp of this table nearest its EVE (core/link.lua's where), at once on each map and again at most once a minute;
+-- its rules word (Link.rules) whenever a setting changes it. The link asks each only when it changed.
 -- Only the 120 camps of this table are ever sent or taken: no autosave volume, no camp of a developer test world, none
 -- that leads to several worlds. The travel moves her EVE only; nothing changes in the host's game.
 -- coop travel probe <camp> (a test tool): solo, on a co-op save only, a camp of the table that the read lists as
@@ -30,6 +33,7 @@
 -- ZoneEnvSpawn rows turned On, and none names its row. coop mxiii leave takes camps() (the read's travel camps and the
 -- camp EVE respawns at) and probes one of them as coop travel probe does. A Lua error turns the follow off for the run.
 local U=require('core.unreal')
+local Link=require('core.link')
 local Travel={}
 -- Each story world's map, as core/unreal.lua's map_of() names it, from WorldTable's UMapPath.
 Travel.WORLDS={AbyssLab='/game/art/bg/worldmap/dungeon_p/abysslab_p',
@@ -114,6 +118,7 @@ local FAR,NEAR=150,100 -- m: the host this far on her map starts an offer, which
 -- s: always's delay; after an accepted call; for an answer; for a result; between two camps? (the host's game takes one
 -- each 2 s, and the network can bring two closer together).
 local AUTO,WAIT,ANSWER,RESULT,ASK=5,10,10,5,2.5
+local PLACE=60 -- s: the host's camp for the session list, chosen again at most this often on one map.
 local CALLS,SENT=3,8 -- Calls a travel at most; camps an answer sends at most.
 -- The native part's refusals that pass by themselves (busy); any other is failed.
 local BUSY={wait=true,calls=true,warp=true,camp=true,respawn=true,flow=true,phase=true}
@@ -169,7 +174,8 @@ function Travel.new(o)
     -- The offer: key, the place offered (the host's map, or far on ours); due, always's start; quiet, no offer for the
     -- next place (the one a travel brought her to).
     local offer={}
-    local answered,cache=nil,{} -- The host's: the last camps? answered; its camps on cache.map.
+    local answered,cache=nil,{} -- The host's: the last camps? answered; its camps on cache.map, read at cache.at.
+    local placed=nil -- The host's last place for the session list: {map=, at=}.
     -- The host's map, ours, and the metres between his ghost and our EVE when both are on one map and it shows.
     local function where()
         local me,host=puppet.me(),puppet.her_map()
@@ -359,6 +365,32 @@ function Travel.new(o)
             start()
         end
     end
+    -- The camps of world on our EVE's map, nearest first ({alias=, m=whole metres}). Once a map, the spawn points named
+    -- after a camp of its world; a read that found none again a minute later, since a map's spawn points may not all be
+    -- loaded when its EVE first shows.
+    local function nearest(me,world)
+        if cache.map~=me.map or #cache.list==0 and now-cache.at>=PLACE then
+            local list,seen={},{}
+            U.each(FindAllOf('SBSpawnPoint') or {},function(_,sp)
+                sp=U.valid(sp)
+                local alias=sp and U.text(sp.SpawnPointName)
+                if alias and not seen[alias] and CAMP[alias] and CAMP[alias].world==world then
+                    seen[alias]=true
+                    local p=U.value_of(sp:K2_GetActorLocation())
+                    list[#list+1]={alias=alias,at={X=p.X,Y=p.Y,Z=p.Z}}
+                end
+            end)
+            cache={map=me.map,list=list,at=now}
+            log(string.format('travel: %d travel camps among the spawn points of %s',#list,me.map))
+        end
+        local camps={}
+        for _,c in ipairs(cache.list) do
+            local m=math.sqrt((c.at.X-me.at.X)^2+(c.at.Y-me.at.Y)^2+(c.at.Z-me.at.Z)^2)/100
+            camps[#camps+1]={alias=c.alias,m=math.min(65535,math.floor(m+0.5))}
+        end
+        table.sort(camps,function(a,b) return a.m<b.m or a.m==b.m and a.alias<b.alias end)
+        return camps
+    end
     local function host()
         local _,linked=link.friend()
         if link.mode()~='host' or linked~=true then answered=nil; return end
@@ -372,31 +404,32 @@ function Travel.new(o)
             or not line('engine'):find(' warp=idle',1,true) and 'busy' or nil
         local camps={}
         if not reason then
-            if cache.map~=me.map then -- Once a map: the spawn points named after a camp of its world.
-                local list,seen={},{}
-                U.each(FindAllOf('SBSpawnPoint') or {},function(_,sp)
-                    sp=U.valid(sp)
-                    local alias=sp and U.text(sp.SpawnPointName)
-                    if alias and not seen[alias] and CAMP[alias] and CAMP[alias].world==world then
-                        seen[alias]=true
-                        local p=U.value_of(sp:K2_GetActorLocation())
-                        list[#list+1]={alias=alias,at={X=p.X,Y=p.Y,Z=p.Z}}
-                    end
-                end)
-                cache={map=me.map,list=list}
-                log(string.format('travel: %d travel camps among the spawn points of %s',#list,me.map))
-            end
-            for _,c in ipairs(cache.list) do
-                local m=math.sqrt((c.at.X-me.at.X)^2+(c.at.Y-me.at.Y)^2+(c.at.Z-me.at.Z)^2)/100
-                camps[#camps+1]={alias=c.alias,m=math.min(65535,math.floor(m+0.5))}
-            end
-            table.sort(camps,function(a,b) return a.m<b.m or a.m==b.m and a.alias<b.alias end)
+            camps=nearest(me,world)
             if #camps==0 then reason='nocamp' end
         end
         local text='camps '..asked..' '..(reason and 'none '..reason or world)
         for i=1,math.min(#camps,SENT) do text=text..' '..camps[i].alias..':'..camps[i].m end
         link.request(text)
         log('travel: answered '..text)
+    end
+    -- The host's row in the session list: the rules word, and its place once EVE stands on a map (none at the title or
+    -- in a load); a map outside the camp table goes with no camp.
+    -- A refusal is logged once until it changes or the ask goes through (a request file that cannot be written would
+    -- come back every 250 ms).
+    local refused={}
+    local function said(kind,ok,why)
+        if ok~=false then refused[kind]=nil
+        elseif refused[kind]~=why then refused[kind]=why; log(kind..' not asked: '..tostring(why)) end
+    end
+    local function rows()
+        if link.mode()~='host' or link.match() then return end
+        said('rules',link.rules(Link.rules(settings)))
+        local me=puppet.me()
+        if not me or placed and placed.map==me.map and now-placed.at<PLACE then return end
+        placed={map=me.map,at=now}
+        local world=WORLD[me.map]
+        local camp=world and nearest(me,world)[1]
+        said('where',link.where(me.map:match('([^/]+)$') or '',camp and camp.alias))
     end
     -- One part's Lua error turns the follow off for the run, with one line.
     local function guard(f,...)
@@ -410,7 +443,7 @@ function Travel.new(o)
     -- Every 250 ms (main.lua's loop); t: its clock in seconds.
     function self.tick(t)
         now=t
-        guard(function() host(); follow(); pump() end)
+        guard(function() host(); rows(); follow(); pump() end)
     end
     -- follow_key and coop travel host: always's start cancelled, or the travel started.
     function self.press()
