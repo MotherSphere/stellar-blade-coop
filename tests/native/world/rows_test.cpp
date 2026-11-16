@@ -4,8 +4,8 @@
 // Shared world's generated lists on the build machine: each list strictly sorted (so the binary searches hold) and
 // every SetEnvActive row with states of its own; the lookups at both ends of each list and on near misses; and rows
 // of build 26123051 each rule keeps or leaves out: a door and a lift with every state, the monorail without its
-// camp-bound garage run, the crane without its camera states, a supply box, a story-only door, a quest's env control
-// row, a monorail speed row whose chain plays a scene.
+// camp-bound garage run, the crane without its camera states, the hyperdrive without its story states, a supply box,
+// the boss cores, a story-only door, a quest's env control row, a monorail speed row whose chain plays a scene.
 #include "world/rows.h"
 
 #include <algorithm>
@@ -62,16 +62,21 @@ void test_rules() {
   // The monorail: its run to the garage interacts with a camp, so that state stays local, and with it Disable.
   assert(state_allowed("DED20_EnvS_151", "N_1_Go_Station1") && state_allowed("DED20_EnvS_151", "N_4_Stop_Station2"));
   assert(!state_allowed("DED20_EnvS_151", "N_5_Go_Garage2") && !object_state_allowed("DED20_EnvS_151"));
-  // The crane: its camera states stay out.
-  assert(state_allowed("DED20_E_EnvC_001", "On") && state_allowed("DED20_E_EnvC_001", "CallPuzzle"));
+  // The crane: its camera states stay out, and CallPuzzle, which a ChangeState achievement credits.
+  assert(state_allowed("DED20_E_EnvC_001", "On") && !state_allowed("DED20_E_EnvC_001", "CallPuzzle"));
   assert(!state_allowed("DED20_E_EnvC_001", "ResetCam") && !state_allowed("DED20_E_EnvC_001", "ChangeCam"));
   assert(!object_state_allowed("DED20_E_EnvC_001"));
+  // Xion's hyperdrive: A and B credit Xion_Phase_2 and Xion_Phase_3, so only C and Off travel.
+  assert(!state_allowed("Xion_22_EnvS_002", "A") && !state_allowed("Xion_22_EnvS_002", "B"));
+  assert(state_allowed("Xion_22_EnvS_002", "C") && !object_state_allowed("Xion_22_EnvS_002"));
   // A lever whose On shows a hint and plays a scene: Off travels, On does not.
   assert(state_allowed("ATL_01_EnvS_015", "Off") && !state_allowed("ATL_01_EnvS_015", "On"));
-  // Per player: a supply box, by family, scan type, reward and trophy.
+  // Per player: a supply box, by family, scan type, reward and trophy; the Beta and Burst cores (Env_Alphacore).
   for (const char *tag : {"Close", "Open"})
     assert(!state_allowed("DED10_EnvS_105", tag));
   assert(!object_state_allowed("DED10_EnvS_105"));
+  for (const char *core : {"DED30_EnvS_048", "ME_03_EnvS_066"})
+    assert(!state_allowed(core, "On") && !state_allowed(core, "Off") && !object_state_allowed(core));
   // Story driven: an Env_Door that only quests move.
   for (const char *tag : {"Closed", "Open"})
     assert(!state_allowed("ME_03_EnvS_026", tag));

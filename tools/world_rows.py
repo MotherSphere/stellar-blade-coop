@@ -10,8 +10,9 @@ and apply. It reads the tables only.
 The block holds three sorted lists: the (EnvSpawnAlias, state tag) pairs a ChangeEnvState root may carry, the
 EnvSpawnAliases a SetEnvActive root may carry, and the ZoneEventTable rows a ZoneEvent root may run.
 
-A ZoneEnvSpawnTable row is out, all its states with it, when it is per player (its EnvAlias family, an EnvType Camp,
-Can or Nikke, an EnvCrate scan type, a box or record trophy on it), belongs to a camp (a TargetCamp, a camp object
+A ZoneEnvSpawnTable row is out, all its states with it, when it is per player (its EnvAlias family, the boss cores
+whose graph gives the item included, an EnvType Camp, Can or Nikke, an EnvCrate scan type, a box or record trophy on
+it), belongs to a camp (a TargetCamp, a camp object
 type, an Env_Camp_ or Env_SaveCamp alias), has a reward group on any state (State_RewardGroupN, or its ZoneEnvTable
 row's StateRewardGroupList), has no ZoneEnvTable row (no states to name), or is story driven: the target of an
 EventEnvControlTable row that a quest's acquire or complete events, its task groups' events or its tasks' event
@@ -19,7 +20,9 @@ aliases reach, through chained rows and the states those rows set.
 
 A state of a kept row is out when it is ResetCam or ChangeCam (the crane's camera states), or when the zone events
 ChangeState runs for it, followed through AddEvents, FinishEvents and the events of every state an env control row
-among them sets, reach a type that acts on the player, her items or her story (PLAYER_EVENTS). A row goes on the
+among them sets, reach a type that acts on the player, her items or her story (PLAYER_EVENTS), or when that state, or
+one an env control row among them sets, has a ChangeState achievement: ChangeState credits it to the caster, and the
+receiver applies with her own player as caster. A row goes on the
 SetEnvActive list only when every one of its states is kept, so a forwarded Disable never locks a lever whose state
 change stayed local. A ZoneEvent row is kept when it and every row it chains to are env control rows, none names a
 camp, each names a kept row, every tag it can set (its TagName, and for a progress control its env's progress change
@@ -40,10 +43,11 @@ END = '// ---- world rows: generated, end ----'
 TABLES = ('ZoneEnvSpawnTable', 'ZoneEnvTable', 'ZoneEventTable', 'EventEnvControlTable', 'QuestTable',
           'QuestTaskGroupTable', 'QuestTaskTable', 'AchievementTable')
 
-# Loot, records and collectibles, by EnvAlias family; the reward test misses cabinets, chargers and angel remains.
+# Loot, records and collectibles, by EnvAlias family; the reward test misses cabinets, chargers, angel remains and the
+# boss cores (Env_Alphacore: the Beta core and the Burst core, which their interaction graphs give).
 FAMILY = re.compile(r'Env_(SupplyBox|Cabinet|RecordsObject|MemoryStick|RobotObject|Corpse_|AngelRemains_|BulletCharger'
                     r'|Can|Car_Interaction|Car_FusionCell|Passcode_Hint|VendingMachine_NewsPaper'
-                    r'|VendingMachine_Fake_Can|LostItem_)')
+                    r'|VendingMachine_Fake_Can|LostItem_|Alphacore)')
 TYPES = {'ESBENV_Camp', 'ESBENV_Can', 'ESBENV_NikkeDefenseArea', 'ESBENV_NikkeLostGoods_Normal',
          'ESBENV_NikkeLostGoods_Request'}
 TROPHIES = {'Trophy_Open_AllBox', 'Trophy_Acquire_AllRecords'}
@@ -147,6 +151,18 @@ def story_aliases(t):
             if kind(row) == ENV_CONTROL and row['EventAlias'] in controls} - {'None'}
 
 
+def change_state_achievements(t):
+    """The ChangeState achievements by (EnvSpawnAlias, tag): the tag None when the row names no state."""
+    out = set()
+    for r in t['AchievementTable'].values():
+        if enum(r['EventType']) != 'ESBAchievementEventType_ChangeState':
+            continue
+        params = [(enum(r[f'ParamType{n}']), r[f'ParamValue{n}']) for n in range(1, 5)]
+        tags = [v for k, v in params if k == 'ESBAchievementParamType_EnvState'] or [None]
+        out |= {(v, tag) for k, v in params if k == 'ESBAchievementParamType_ZoneEnvSpawnAlias' for tag in tags}
+    return out
+
+
 def trophy_aliases(t):
     """The envs a ChangeState achievement counts for the box or record trophy."""
     out = set()
@@ -175,11 +191,20 @@ def row_reasons(t, alias, story, trophy):
     return [k for k, v in why.items() if v]
 
 
-def state_reasons(t, alias, tag):
-    """Why a state of a kept row is out: 'camera', or the player event types its events reach; empty when kept."""
+def state_reasons(t, alias, tag, credits=None):
+    """Why a state of a kept row is out: 'camera', the player event types its events reach, or 'achievement'; empty
+    when kept. credits: change_state_achievements(t), made when not given."""
     if tag in CAMERA:
         return ['camera']
-    return sorted({kind(row) for _, row in walk(t, state_events(t, alias, tag))} & PLAYER_EVENTS)
+    credits = change_state_achievements(t) if credits is None else credits
+    controls = t['EventEnvControlTable']
+    rows = [row for _, row in walk(t, state_events(t, alias, tag))]
+    why = {kind(row) for row in rows} & PLAYER_EVENTS
+    sets = [(alias, tag)] + [(c['EnvSpawnAlias'], x) for row in rows if kind(row) == ENV_CONTROL
+                             for c in [controls.get(row['EventAlias'])] if c for x in control_tags(t, c)]
+    if any(p in credits or (p[0], None) in credits for p in sets):
+        why.add('achievement')
+    return sorted(why)
 
 
 def event_reason(t, name, pairs, kept, active):
@@ -205,7 +230,7 @@ def event_reason(t, name, pairs, kept, active):
 def build(t):
     """(pairs, SetEnvActive aliases, ZoneEvent rows, counts): the lists sorted, counts a Counter per list of reasons;
     a row or state counts under each reason it meets."""
-    story, trophy = story_aliases(t), trophy_aliases(t)
+    story, trophy, credits = story_aliases(t), trophy_aliases(t), change_state_achievements(t)
     counts = {'rows': Counter(), 'states': Counter(), 'events': Counter()}
     pairs, active = [], []
     for alias in t['ZoneEnvSpawnTable']:
@@ -216,7 +241,7 @@ def build(t):
         tags = states(t, alias)
         ok = []
         for tag in tags:
-            why = state_reasons(t, alias, tag)
+            why = state_reasons(t, alias, tag, credits)
             counts['states'].update(why or ['kept'])
             if not why:
                 ok.append(tag)

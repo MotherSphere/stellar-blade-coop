@@ -3,10 +3,11 @@
 # SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/world_rows.py on small made-up tables, without the game's: each rule that keeps a ZoneEnvSpawnTable row out
 (EnvAlias family, EnvType Camp, Can and Nikke, EnvCrate, TargetCamp, camp object types and aliases, reward groups on
-the spawn row or the env row, a box trophy, no env row, story envs reached from quest, task group and task events
-through chains and the states they set), each that keeps a state out (every player event type, reached directly,
-through AddEvents and FinishEvents, through the StateZoneEventList, through another env's state that an env control
-row sets, and through a progress control's change tags; the crane's camera tags), the SetEnvActive list (all states
+the spawn row or the env row, a box trophy, a boss core, no env row, story envs reached from quest, task group and task
+events through chains and the states they set), each that keeps a state out (every player event type, reached
+directly, through AddEvents and FinishEvents, through the StateZoneEventList, through another env's state that an env
+control row sets, and through a progress control's change tags; the crane's camera tags; a ChangeState achievement on
+the state, on any state of its env, or on a state its events set), the SetEnvActive list (all states
 kept), each ZoneEvent rule (chain, missing control row, camp, target pair, target row, progress tags, Disable), unknown
 names and loops in chains, and the written block: sorted, between its markers, the rest of the header untouched, a
 name that cannot go into a C++ literal refused, and load and main over a folder of table exports.
@@ -59,14 +60,16 @@ def control(alias, tag='None', kind='BaseState', activate='Enable', camp='None')
             'Activate': f'ESBObjectState::ESBObject_{activate}'}
 
 
-def achievement(alias, progress, field='ProgressAchievementOnCompleted'):
+def achievement(alias, progress='None', field='ProgressAchievementOnCompleted', state='Open'):
+    """A ChangeState achievement on alias in state (None: no state named)."""
     row = {'EventType': 'ESBAchievementEventType::ESBAchievementEventType_ChangeState',
            'ProgressAchievementOnCompleted': 'None', 'ProgressAchievementOnCompleted2': 'None',
            'ProgressAchievementArrayOnCompleted': []}
     for n in range(1, 5):
         row[f'ParamType{n}'], row[f'ParamValue{n}'] = 'ESBAchievementParamType::ESBAchievementParamType_None', ''
     row['ParamType1'], row['ParamValue1'] = 'ESBAchievementParamType::ESBAchievementParamType_ZoneEnvSpawnAlias', alias
-    row['ParamType2'], row['ParamValue2'] = 'ESBAchievementParamType::ESBAchievementParamType_EnvState', 'Open'
+    if state:
+        row['ParamType2'], row['ParamValue2'] = 'ESBAchievementParamType::ESBAchievementParamType_EnvState', state
     row[field] = [progress] if field == 'ProgressAchievementArrayOnCompleted' else progress
     return row
 
@@ -92,6 +95,7 @@ def reasons(t, alias):
 
 def test_row_rules():
     t = world({'lever': spawn(), 'box': spawn('Env_SupplyBox_Normal01'), 'remains': spawn('Env_AngelRemains_BodyCore'),
+               'core': spawn('Env_Alphacore'),
                'can': spawn('Env_Thing_Can'), 'camp': spawn('Env_Thing_Camp'), 'nikke': spawn('Env_Thing_Nikke'),
                'crate': spawn('Env_Thing_Crate'), 'target camp': spawn(camp='Camp_01'),
                'chair': spawn('Env_Camp_Chair'), 'save': spawn('Env_SaveCamp'), 'disc': spawn('Env_Thing_Turntable'),
@@ -106,7 +110,7 @@ def test_row_rules():
                             'c': achievement('array trophy', 'Trophy_Acquire_AllRecords',
                                              'ProgressAchievementArrayOnCompleted')})
     del t['ZoneEnvTable']['Env_Missing']
-    want = {'lever': [], 'box': ['family'], 'remains': ['family'], 'can': ['type'], 'camp': ['type'],
+    want = {'lever': [], 'box': ['family'], 'remains': ['family'], 'core': ['family'], 'can': ['type'], 'camp': ['type'],
             'nikke': ['type'], 'crate': ['crate'], 'target camp': ['camp'], 'chair': ['camp'], 'save': ['camp'],
             'disc': ['camp'], 'gift': ['reward'], 'chest': ['reward'], 'trophy': ['trophy'], 'other trophy': [],
             'array trophy': ['trophy'], 'orphan': ['no env row']}
@@ -174,6 +178,35 @@ def test_player_events():
     assert ('crane', 'On') in pairs and ('crane', 'ResetCam') not in pairs and 'crane' not in active
     assert ('lever', 'Off') not in pairs and 'lever' not in active and 'gate' in active
     assert counts['states']['camera'] == 2 and counts['states']['PlayerWarp'] == 2
+
+
+def test_achievements():
+    # The hyperdrive's A credits a story flag, the door's Open a map entry, and the console has one on every state;
+    # the lever opens the door, and the counter's progress moves it to its credited Full.
+    t = world({'drive': spawn('Env_Drive'), 'door': spawn('Env_Door'), 'console': spawn(),
+               'lever': spawn(events={'On': ['open door']}), 'add': spawn(events={'On': ['add one']}),
+               'counter': spawn('Env_Count'), 'free': spawn()},
+              envs={'Env_Drive': env(('A', 'B', 'C', 'Off')), 'Env_Door': env(('Closed', 'Open')),
+                    'Env_Count': env(('Off', 'Full'), progress={'Off': 'Full'})},
+              events={'open door': event('ZoneEnvControl', 'c open', finish=['done']), 'done': event('PlayLevelSeq'),
+                      'add one': event('ZoneEnvControl', 'c add'), 'set A': event('ZoneEnvControl', 'c drive'),
+                      'set C': event('ZoneEnvControl', 'c drive C')},
+              controls={'c open': control('door', 'Open'), 'c add': control('counter', kind='StateProgress'),
+                        'c drive': control('drive', 'A'), 'c drive C': control('drive', 'C')},
+              achievements={'Phase_2': achievement('drive', state='A'), 'Map_Door': achievement('door'),
+                            'Any': achievement('console', state=None), 'Full': achievement('counter', state='Full'),
+                            'Not_An_Env': achievement('Area_E_EnvC_001', state='On')})
+    assert gen.change_state_achievements(t) == {('drive', 'A'), ('door', 'Open'), ('console', None),
+                                                ('counter', 'Full'), ('Area_E_EnvC_001', 'On')}
+    assert gen.state_reasons(t, 'drive', 'A') == ['achievement'] and gen.state_reasons(t, 'drive', 'C') == []
+    assert gen.state_reasons(t, 'lever', 'On') == ['achievement']  # Through the door it opens.
+    assert gen.state_reasons(t, 'add', 'On') == ['achievement']  # The counter's Full, at its count.
+    assert gen.state_reasons(t, 'console', 'Off') == ['achievement'] == gen.state_reasons(t, 'console', 'On')
+    pairs, active, events, counts = gen.build(t)
+    assert [tag for a, tag in pairs if a == 'drive'] == ['B', 'C', 'Off'] and 'drive' not in active
+    assert ('door', 'Closed') in pairs and ('door', 'Open') not in pairs and ('lever', 'Off') in pairs
+    assert ('free', 'On') in pairs and 'free' in active and 'console' not in {a for a, _ in pairs}
+    assert events == ['set C'] and counts['states']['achievement'] == 7
 
 
 def test_zone_events():
