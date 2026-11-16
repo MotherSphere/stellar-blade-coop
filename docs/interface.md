@@ -125,8 +125,8 @@ closes.
 
 ### Options
 
-Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt). The rows are in groups: Controls
-(the menu, status, leave, travel and race checkpoint keys), Photo mode, Partner (the name tag and the
+Each row of the Options page is a setting of [coop-settings.txt](settings.md#coop-settingstxt), except Reset all keys. The rows are
+in groups: Controls (the menu, status, leave, travel and race checkpoint keys, then Reset all keys), Photo mode, Partner (the name tag and the
 [partner HUD](#partner-hud)), Ghost (the looks, the [solid partner](ghost.md#solid-partner-experimental) and the send rate),
 Session (who can join a session you host, the [revive](playing-with-a-friend.md#revive-by-your-friend-experimental), the
 [cutscene wait](playing-with-a-friend.md#cutscene-wait), [following the host](playing-with-a-friend.md#following-the-host) and the
@@ -137,7 +137,8 @@ Display (the [status strip](#status-strip-above-the-card) above the partner card
 the menu, the chat and the partner HUD) and Chat.
 
 Left and right change a value, and Enter does the same as right. Each change rewrites only that setting's line in
-`coop-settings.txt`; comments and other lines stay as they are. The first change since the mod loaded keeps the file as
+`coop-settings.txt`; comments and other lines stay as they are. Reset all keys rewrites the line of every key setting
+(`host_key` included) and adds those the file lacks. The first change since the mod loaded keeps the file as
 it was as `coop-settings.old.txt`. A change applies at once, except for the name tag, which says `Saved. It takes effect
 when the mod reloads (game start or Ctrl+R).`, and the Enemies attack, Same spawns, Extra enemies, Shared bosses,
 scaling and kill reward rows, which
