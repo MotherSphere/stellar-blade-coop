@@ -79,6 +79,10 @@ constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpd
 constexpr int kPublic = 2, kMatchListId = 510, kChatUpdateId = 506, kLobbyEqual = 0, kDistanceDefault = 1;
 // ESteamNetworkingConfigValue P2P_Transport_ICE_Enable and its values: 0 relays only, -1 is the Steam client's own.
 constexpr int kIceEnable = 104, kIceDisable = 0, kIceDefault = -1;
+// A refused ICE_Enable 0 is asked again at a guard() this long after; after kIceTries refusals in a row the link with
+// the player who needs relay only is refused. A send held meanwhile returns EResult AccessDenied.
+constexpr int kIceTries = 3, kResultDenied = 15;
+constexpr uint64_t kIceRetryMs = 1000;
 // A host alone in a Public match lobby searches again this often and moves to an open lobby with a lower id, so two
 // players who searched in the same second (each hosting a lobby of one) end up in one lobby (ruling R1).
 constexpr uint64_t kRegroupMs = 5000;
@@ -1118,8 +1122,11 @@ private:
     return who;
   }
 
-  // Steam's EResult: 1 sent (queued), anything else not.
+  // Steam's EResult: 1 sent (queued), anything else not. Nothing goes to a player who needs relay only while it is not
+  // set: our first send would open her session with ICE on.
   int send(const Peer &peer, const void *data, size_t size, int flags, int channel = kChannel) {
+    if (!relay_ok(peer.id))
+      return kResultDenied;
     Identity who = identity(peer.id);
     return api_.send(msgs_, &who, data, static_cast<uint32_t>(size), flags, channel);
   }
@@ -1201,6 +1208,8 @@ private:
       end_round("left");
     allowed_.clear(); // Our answers as host hold for that lobby only: never for the next one, nor once we are a guest.
     refused_.clear();
+    ice_tries_ = 0;
+    ice_retry_at_ = 0;
   }
 
   void join(uint64_t lobby, const std::string &how) {
@@ -1591,19 +1600,34 @@ private:
   // Relay only (ICE_Enable 0), so no player learns another's IP address: for match sessions, and in co-op with a player
   // who is not our Steam friend (guard()); else the Steam client's own setting. Process-wide, for sessions opened after
   // the call: set before a match's search, create or join, before a co-op lobby's first hello, and before the first
-  // session with a stranger. A co-op host keeps it on until she hosts again. why says what it is for.
+  // session with a stranger. A co-op host keeps it on until she hosts again. why says what it is for. ice_off_ is what
+  // Steam took: a refused ICE off leaves it false (send() holds every line to whoever needs it, guard() asks again), a
+  // refused ICE back leaves relay only on.
   void relay_only(bool on, const std::string &why = "") {
     if (on == ice_off_)
       return;
+    if (!api_.set_config_int(nu_, kIceEnable, on ? kIceDisable : kIceDefault)) {
+      if (!on)
+        return event("Steam refused the ICE setting: relay only stays on");
+      ice_retry_at_ = now_ + kIceRetryMs;
+      return event("Steam refused relay only, try " + std::to_string(++ice_tries_) + "/" + std::to_string(kIceTries) +
+                   ": " + why);
+    }
     ice_off_ = on;
-    if (!api_.set_config_int(nu_, kIceEnable, on ? kIceDisable : kIceDefault))
-      return event("Steam refused the ICE setting");
+    ice_tries_ = 0;
     event(on ? "relay only (ICE off): " + why : "ICE back to the Steam client's setting");
   }
-  // Relay only before our first session with her, when she is not our Steam friend.
-  void guard(uint64_t id) {
-    if (!ice_off_ && !api_.has_friend(friends_, id, kImmediateFriends))
-      relay_only(true, name_of(id) + " is not a Steam friend");
+  // Whether a session with her may open: relay only is set, or she is our Steam friend outside a match.
+  bool relay_ok(uint64_t id) const {
+    return ice_off_ || (!match() && api_.has_friend(friends_, id, kImmediateFriends));
+  }
+  // relay_ok(), asking Steam for relay only first when it is not (again kIceRetryMs after a refusal).
+  bool guard(uint64_t id) {
+    if (relay_ok(id))
+      return true;
+    if (now_ >= ice_retry_at_)
+      relay_only(true, match() ? "match session" : name_of(id) + " is not a Steam friend");
+    return ice_off_;
   }
   // A lobby data key the owner writes, when it changed.
   void put(const char *key, const std::string &value) {
@@ -1970,7 +1994,6 @@ private:
         continue;
       }
       if (!find_peer(id)) {
-        guard(id); // Before anything goes to her.
         Peer peer;
         peer.id = id;
         while (peer.slot < kMaxRemote && std::any_of(peers_.begin(), peers_.end(),
@@ -1998,6 +2021,19 @@ private:
         refuse(id, "no answer within 60 s", peer.name + " was not let in: no answer within 60 s.");
         continue;
       }
+      if (!guard(id)) { // No relay only yet: send() holds every line to her, her session request waits.
+        if (ice_tries_ < kIceTries)
+          continue;
+        ice_tries_ = 0;
+        event("no link with " + peer.name + ": Steam refused relay only " + std::to_string(kIceTries) + " times");
+        if (host_ && !match()) {
+          refuse(id, "relay only failed", peer.name + " was refused: Steam would not set relay only.");
+          continue;
+        }
+        notice(match() ? "Left the match: Steam would not set relay only."
+                       : "Left " + peer.name + "'s game: Steam would not set relay only.");
+        return leave("Steam refused relay only");
+      }
       if (!peer.hello_sent && !peer.asking) {
         send(peer, hello(kProtocol, mod_, build_), kReliable);
         peer.hello_sent = true;
@@ -2009,7 +2045,8 @@ private:
   // A session from a lobby member is accepted after a live membership check; anything else is ignored, never closed.
   void on_session_request(uint64_t id) {
     if (lobby_ && id && id != me_ && !refused_.count(id) && !barred(id) && member_now(id)) {
-      guard(id);
+      if (!guard(id))
+        return event("session request from " + name_of(id) + " held: no relay only yet");
       Identity who = identity(id);
       api_.accept_session(msgs_, &who);
       event("accepted a session from " + name_of(id));
@@ -2751,6 +2788,8 @@ private:
   std::vector<uint64_t> found_;
   size_t found_at_ = 0;
   bool regrouping_ = false, ice_off_ = false, public_ = false;
+  int ice_tries_ = 0;         // Relay only refusals in a row (kIceTries).
+  uint64_t ice_retry_at_ = 0; // When guard() may ask Steam for relay only again.
   bool world_ = false; // A save is loaded (Lua's coop-state.txt).
   uint64_t held_ = 0;  // An invite waiting for a world, or for the pending lobby call to end, and how it came.
   std::string held_how_;

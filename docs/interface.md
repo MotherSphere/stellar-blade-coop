@@ -376,6 +376,7 @@ a Steam name or a chat line shows as `?`.
 | `coop mute`, `coop unmute` | `Muted <name>.` or `Unmuted <name>.` |
 | A player on another protocol or game build joins the match lobby you host | `<name> runs another version and was refused.` |
 | A player in your match lobby stays over a channel's rate limit for 5 s; you keep the lobby | `<name> sent too many messages and was refused.` |
+| Steam refused relay only 3 times, 1 s apart (needed in a match and with a player who is not your Steam friend) | `<name> was refused: Steam would not set relay only.` (co-op host), `Left <host>'s game: Steam would not set relay only.` (co-op guest) or `Left the match: Steam would not set relay only.` |
 | The match host stays over a channel's rate limit for 5 s; you leave | `Left the match: <name> sent too many messages.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
 | [Following the host](playing-with-a-friend.md#following-the-host) (guest) | `<host> is in <map>. Press F7 to travel to the camp nearest them.`, `Following <host> in 5 s. Press F7 to stay.`, `Travelling to <host>.`, `No camp you have found is near <host>.`, `You cannot travel now. Try again in a moment.` or `The travel did not start. UE4SS.log says why.` |

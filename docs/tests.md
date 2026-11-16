@@ -183,7 +183,10 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
   joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
-  removed, a flood while waiting), with relay only set on both games before their first session with each other. A
+  removed, a flood while waiting), with relay only set on both games before their first session with each other.
+  With a Steam that refuses relay only, nothing goes to that player and her session request waits; Steam is asked
+  again 1 s later. After 3 refusals the host refuses her with a notice, or the guest leaves with one. A friend's
+  session never asks. A
   join Steam refuses gets its notice for each answer Steamworks documents, or the number for any other. The block
   list: its fixed hash; its file with no SteamID in clear, written once for each change and read back with CRLF ends
   and other lines skipped; a removed player refused in the next lobby before any hello, with one notice and her
@@ -210,7 +213,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   cancelled search), a private match lobby by code (Invisible, no `sbo_state`, its code, a stranger joining with no
   approval), the room and hall a created lobby carries and its `link=` line, a search that finds only lobbies of its
   own hall, a member reading both each pass and dropping a word `alias_word` refuses, the ICE setting given back in a
-  co-op lobby, the host's
+  co-op lobby, a joiner whose Steam refuses relay only sending nothing and leaving after 3 tries, the host's
   countdown (none alone, 10 s from two members with each member told, a member joining while it runs told the time
   left, 5 s once eight, stopped under the minimum, checked again at 0), the start (the lobby closed, `sbo_state` and
   `sbo_map`, one start line with the same seed and member order everywhere), `match end` and the next round's countdown

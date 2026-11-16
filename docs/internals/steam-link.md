@@ -87,6 +87,14 @@ them after `owner=` on its `link=` line.
   lobby sets it back to -1, the Steam client's own setting, and so does joining a co-op lobby whose host is a Steam
   friend, before the first session opens. A co-op host stays on relays only after a stranger has been in her lobby,
   until she hosts again or joins a friend's co-op lobby.
+- Relay only fails closed. When Steam refuses ICE off, the game keeps ICE marked on and logs `Steam refused relay
+  only, try <n>/3: <why>`. While it is on, no line goes to a player who needs relay only (every member of a match
+  lobby, any player who is not a Steam friend in a co-op lobby): the send returns EResult 15 and her session request
+  waits (`session request from <name> held: no relay only yet`). The next member pass at least 1 s later asks Steam
+  again. After 3 refusals in a row the log reads `no link with <name>: Steam refused relay only 3 times`. A co-op
+  host refuses her (`<name> was refused: Steam would not set relay only.`). A co-op guest leaves with `Left <host>'s
+  game: Steam would not set relay only.` In a match lobby every role leaves with `Left the match: Steam would not set
+  relay only.` A refused ICE back to -1 leaves relay only on.
 - In a match lobby, Steam's lobby owner is the host. An owner who leaves from the menu first hands the lobby to the
   member past the handshake who joined first (`SetLobbyOwner`), then leaves. When the owner changes during a round,
   every game ends it with `host_left`. Ten seconds of silence from the owner also end it, with `host_lost` and the

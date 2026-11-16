@@ -93,6 +93,9 @@ join`, with Accept and Deny. It opens on its own, maybe while you walk or use th
 - A session with a player who is not your Steam friend goes through Steam's relays only, on both games, so neither
   of you learns the other's IP address. The relay route can add ping. Once such a player has been in your lobby, your
   game stays on relays only until you host again or join a friend's game.
+- If Steam refuses the relays-only setting, nothing goes to that player and your game asks Steam again each second.
+  After 3 refusals the link with that player stops. The host sees `<name> was refused: Steam would not set relay
+  only.` A guest's game leaves with `Left <host>'s game: Steam would not set relay only.`
 - While a player who is not your Steam friend is in your session, the menu shows Remove <name>, which also blocks
   them. After a Lua reload (Ctrl+R) that row stays hidden for a player let in before the reload;
   `coop remove <SteamID>` still works.

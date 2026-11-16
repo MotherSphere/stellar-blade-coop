@@ -93,6 +93,11 @@ For the player who types the code:
   session stays closed to you. A new session the host starts has a new code and the host is asked again. A removed
   player stays on the host's [block list](playing-with-a-friend.md#block-list), so every later session of that host
   refuses them too until the host types `coop unblock`.
+- `Left <host>'s game: Steam would not set relay only.` or, in a match, `Left the match: Steam would not set relay
+  only.`: every match goes through Steam's relays only, as does a session with a player who is not your Steam friend.
+  Steam refused that setting 3 times, 1 s apart, so your game sent nothing and left. `coop-link.log` has each try
+  (`Steam refused relay only, try <n>/3`). Restart the game and try again. If it happens again, send the logs (see
+  [Which logs to send](#which-logs-to-send)).
 
 For the host:
 
@@ -106,6 +111,9 @@ For the host:
   when it is refused, but a game that does not keeps the lobby's second place. It gets the refusal again every 10 s and
   never links. Host again: the new session has a new code.
 - Players you do not know keep asking: host again for a new code, and give it only to the player you expect.
+- `<name> was refused: Steam would not set relay only.`: a session with a player who is not your Steam friend goes
+  through Steam's relays only. Steam refused that setting 3 times, 1 s apart. Nothing went to that player. Restart
+  the game and host again.
 - `No join code to copy.`: you do not host, or you host with Friends or Invited only. Set Who can join to With a code,
   then host again.
 - `Could not copy the join code <code>.`: the Windows clipboard was busy. Select Copy my code again, or read the code

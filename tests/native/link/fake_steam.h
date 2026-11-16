@@ -94,6 +94,8 @@ struct Fake {
   // (DoesntExist) whatever it says: Steam drops an empty lobby. One set not joinable gets 3 (NotAllowed), one at its
   // member limit 4 (Full).
   uint32_t join_response = 1;
+  // This client's Steam refuses ICE_Enable 0 (relay only): no write, the try is in ops as "config <id> 104 0 refused".
+  uint64_t refuse_ice = 0;
 };
 inline Fake F;
 
@@ -352,8 +354,10 @@ template <int N> Api make_api() {
     return true;
   };
   a.set_config_int = [](void *, int key, int32_t value) {
-    op("config " + std::to_string(F.client[N].id) + " " + std::to_string(key) + " " + std::to_string(value));
-    return true;
+    const bool refused = F.refuse_ice == F.client[N].id && key == kIceEnable && value == kIceDisable;
+    op("config " + std::to_string(F.client[N].id) + " " + std::to_string(key) + " " + std::to_string(value) +
+       (refused ? " refused" : ""));
+    return !refused;
   };
   return a;
 }

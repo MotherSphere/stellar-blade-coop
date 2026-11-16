@@ -3025,6 +3025,81 @@ int main() {
     t.tick(t.a, 50, "host");
     assert(ops_with("config 1001 104 -1") == 1 && ops_with("config ") == 3);
   }
+  // Relay only refused (fail closed): ICE stays on, her session request waits and nothing goes to her, her answer
+  // included. The next try comes 1 s later; once Steam takes it, the hello goes out after it.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.refuse_ice = kMe;
+    F.members[5000].push_back(kStranger);
+    w.tick("", 0, kStranger);
+    assert(has_op("config 1001 104 0 refused") && !has_op("config 1001 104 0"));
+    assert(saw("Steam refused relay only, try 1/3: Stranger is not a Steam friend"));
+    assert(saw("session request from Stranger held: no relay only yet") && F.accepted.empty());
+    assert(noticed(w.status(), "A player who is not your Steam friend is asking to join."));
+    w.tick("allow 9009", 0, 0, 600); // Let in under 1 s after the try: no new try, no hello.
+    assert(ops_with("config 1001 104 0") == 1 && F.sent.empty() && F.sessions.empty());
+    F.refuse_ice = 0;
+    w.tick("", 0, 0, 400);
+    assert(op_index("config 1001 104 0") >= 0 && op_index("config 1001 104 0") < op_index("session 1001 9009"));
+    assert(saw("relay only (ICE off): Stranger is not a Steam friend") && sent_to(kStranger, "SBC hello ") == 1);
+    w.tick("", 0, kStranger);
+    assert(F.accepted == std::vector<uint64_t>{kStranger});
+  }
+  // Three refusals 1 s apart: the host refuses her with a notice. Nothing ever went to her, the reject included.
+  reset();
+  {
+    World w;
+    assert(w.link.ready(L"SB.exe") == Link::Ready::now);
+    w.tick("host");
+    finish_all();
+    w.tick();
+    F.refuse_ice = kMe;
+    F.members[5000].push_back(kStranger);
+    w.tick("", 0, kStranger);
+    w.tick("", 0, 0, 1000);
+    assert(ops_with("config 1001 104 0 refused") == 2 && w.status().find("\npending=9009 ") != std::string::npos);
+    w.tick("", 0, 0, 1000);
+    std::string s = w.status();
+    assert(ops_with("config 1001 104 0 refused") == 3 && s.find("\npending=") == std::string::npos);
+    assert(saw("no link with Stranger: Steam refused relay only 3 times") &&
+           saw("refused Stranger (9009): relay only failed"));
+    assert(noticed(s, "Stranger was refused: Steam would not set relay only."));
+    w.tick("", 0, kStranger, 10000); // Her new request and our reject 10 s later stay held too.
+    assert(F.sent.empty() && F.sessions.empty() && F.accepted.empty() && w.link.lobby() == 5000);
+  }
+  // A friend needs no relay only: a Steam that refuses it changes nothing for her.
+  reset();
+  {
+    World w;
+    F.refuse_ice = kMe;
+    linked_host(w);
+    assert(w.link.linked() && ops_with("config ") == 0 && sent_to(kFriend, "SBC accept") == 1);
+  }
+  // Two Links, the joiner's Steam refusing relay only: she answers nothing of the host's (no session of hers opens),
+  // then leaves after 3 tries with a notice.
+  reset();
+  {
+    Two t;
+    F.refuse_ice = kStranger;
+    code_session(t);
+    assert(has_op("config 9009 104 0 refused") &&
+           saw("B: Steam refused relay only, try 1/3: Me is not a Steam friend"));
+    t.tick(t.a, 50, "allow 9009"); // The host's hello waits in her inbox.
+    t.tick(t.b, 1000);
+    assert(t.b.lobby() == kCodeLobby && ops_with("config 9009 104 0 refused") == 2);
+    t.tick(t.b, 1000);
+    assert(ops_with("config 9009 104 0 refused") == 3 && t.b.lobby() == 0);
+    assert(saw("B: no link with Me: Steam refused relay only 3 times"));
+    assert(noticed(t.b.status(Counters{}), "Left Me's game: Steam would not set relay only."));
+    assert(sent_to(kMe, "SBC hello ") == 0 && !F.sessions.count({kStranger, kMe}));
+    for (auto &sent : F.sent)
+      assert(sent.from != kStranger);
+  }
   // A friend with the code: no question, the usual handshake, the usual notices on both sides.
   reset();
   {

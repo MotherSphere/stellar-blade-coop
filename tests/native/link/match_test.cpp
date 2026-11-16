@@ -500,6 +500,30 @@ int main() {
     m.round();
     assert(ops_with("config 1001 104 -1") == 1 && ops_with("config 1001 ") == 2);
   }
+  // Relay only refused in a match, friends or not (fail closed): the joiner answers nothing. After 3 tries 1 s apart
+  // she leaves with a notice; the host stays. A search Steam refused relay only for goes on, its try counted.
+  reset();
+  {
+    Mesh m(2);
+    F.next_lobby = kCodeLobby;
+    F.refuse_ice = kFriend;
+    m.tick(0, "match create ffa xion xion");
+    m.round();
+    m.round();
+    m.tick(1, "join ccs cbmh");
+    m.round();
+    assert(has_op("config 2002 104 0 refused") && saw("P2: Steam refused relay only, try 1/3: match session"));
+    m.round(1000);
+    assert(m[1].lobby() == kCodeLobby && ops_with("config 2002 104 0 refused") == 2);
+    m.round(1000);
+    assert(ops_with("config 2002 104 0 refused") == 3 && m[1].lobby() == 0 && m[0].lobby() == kCodeLobby);
+    assert(saw("P2: no link with P1: Steam refused relay only 3 times") &&
+           noticed(m.status(1), "Left the match: Steam would not set relay only."));
+    for (auto &sent : F.sent)
+      assert(sent.from != kFriend);
+    m.tick(1, "match search ffa xion xion");
+    assert(ops_with("config 2002 104 0 refused") == 4 && ops_with("search 2002") == 1);
+  }
   // create_sets_room_and_hall: a match lobby carries its creator's room (the lobby map) and hall (the lobby pak's
   // version), and the link= line names both after owner=.
   reset();

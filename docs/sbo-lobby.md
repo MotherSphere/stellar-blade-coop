@@ -103,7 +103,9 @@ to its last 4 digits, which `coop remove` takes too. The host's game refuses a p
 or game build (`<name> runs another version and was refused.`). A player who sends more messages than the link allows
 for 5 s is refused too (`<name> sent too many messages and was refused.`).
 
-- Match lobbies go through Steam's relays only, so no player learns another's IP address.
+- Match lobbies go through Steam's relays only, so no player learns another's IP address. If Steam refuses that
+  setting, your game sends nothing to the other players and asks again each second. After 3 refusals it leaves the
+  match with `Left the match: Steam would not set relay only.`
 - Chat stays on with players who are not your Steam friends. Mute a player in Settings > SBO, or with
   `coop mute <SteamID>`. A mute lasts until the game closes, in every lobby.
 - Gifts, Doro races, the photo pause, the cutscene wait, the travel to the host, Night Operation and shared quests do
