@@ -12,6 +12,7 @@ bool world_setting = false; // shared_world as Lua last asked it (world on or of
 bool world_tried = false;   // The swaps were made or refused this run.
 bool world_event_slot = false; // The ZoneEvent slot holds the SBO lobby's hook, which hands the game thread our roots.
 bool world_fault_logged = false;
+bool world_slot_coop = false; // The save-slot line's last verdict, kept through a load (world::slot_coop()).
 constexpr size_t kWorldInbox = 1024; // Her lines waiting for the game thread; past that they are dropped and counted.
 std::vector<std::string> world_waiting; // Not handed over yet: the game thread had not taken the last ones.
 uint64_t world_dropped = 0, world_unsent = 0;
@@ -160,7 +161,7 @@ void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, b
   g.setting = world_setting;
   g.partner = partner;
   g.match = match || sbo_run.record.state != sbo::Record::closed; // A match lobby, or the SBO lobby's session.
-  g.coop_save = quest_slot_line.rfind("slot=coop ", 0) == 0;
+  g.coop_save = world::slot_coop(quest_slot_line, world_slot_coop);
   if (!world_tried && g.setting && g.partner && !g.match && g.coop_save)
     world_install();
   for (std::string &line : hers)

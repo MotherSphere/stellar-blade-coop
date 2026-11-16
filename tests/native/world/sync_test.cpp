@@ -5,8 +5,8 @@
 // legal line, malformed lines and fuzzed junk; the ring's capacity and wrap; and two players' sides wired to each
 // other over the parser with a fake engine: the on and off lines, each gate on both sides, the lists on both sides
 // (a supply box, a story door, a camera state and a quest's row never leave), names without text, sequence numbers,
-// lost and old lines, the queue's order while loading and its overflow, the apply limit per pass, the echo backstop,
-// refusals logged once per env, a new partner, and the status line.
+// lost and old lines, a load that reads no save for a while, the queue's order while loading and its overflow, the
+// apply limit per pass, the echo backstop, refusals logged once per env, a new partner, and the status line.
 #include "world/sync.h"
 
 #include <cassert>
@@ -343,6 +343,38 @@ void test_gates() {
   assert(p.b.queued() == 0 && p.b.counters.gated == 1 && p.fb.applied.empty());
 }
 
+void test_load() {
+  // The slot line through a load keeps the last verdict; a main save ends it.
+  bool was = false;
+  assert(!slot_coop("slot=unknown index=? marker=? saves=?", was)); // Nothing read yet.
+  assert(!slot_coop("slot=none index=4 marker=none saves=coop", was));
+  assert(slot_coop("slot=coop index=4 marker=none saves=coop", was));
+  assert(slot_coop("slot=none index=4 marker=none saves=coop", was));
+  assert(slot_coop("slot=unknown index=? marker=none saves=coop", was));
+  assert(slot_coop("slot=coop index=4 marker=none saves=coop", was));
+  assert(!slot_coop("slot=main index=0 marker=none saves=main", was));
+  assert(!slot_coop("slot=none index=0 marker=none saves=main", was));
+  // B fast travels: her slot line reads none and she is not in game. Neither side turns off, A's lines and the
+  // one already on its way wait in her queue, and both reach her game once she is in.
+  Pair p;
+  p.step();
+  bool b_was = false;
+  p.gb.coop_save = slot_coop("slot=coop index=4 marker=none saves=coop", b_was);
+  p.gb.in_game = false;
+  p.ra.push(root(p.fa, Kind::state, "DED20_EnvS_193", "Open"));
+  p.step();
+  p.gb.coop_save = slot_coop("slot=none index=4 marker=none saves=coop", b_was);
+  p.ra.push(root(p.fa, Kind::state, "DED20_EnvS_132", "Up"));
+  p.step();
+  assert(p.a.partner_on() && p.a.counters.sent == 2 && p.a.counters.skipped == 0);
+  assert(p.b.queued() == 2 && p.b.counters.gated == 0 && p.fb.applied.empty());
+  assert(p.b.status().rfind("world=on ", 0) == 0);
+  p.gb.coop_save = slot_coop("slot=coop index=4 marker=none saves=coop", b_was);
+  p.gb.in_game = true;
+  p.step();
+  assert(p.fb.applied.size() == 2 && p.fb.applied[0].alias == "DED20_EnvS_193" && p.b.counters.applied == 2);
+}
+
 void test_queue() {
   Pair p;
   p.step();
@@ -558,6 +590,7 @@ int main() {
   test_send_and_apply();
   test_deny_never_sent();
   test_gates();
+  test_load();
   test_queue();
   test_echo();
   test_refusals();

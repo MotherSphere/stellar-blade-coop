@@ -202,9 +202,18 @@ struct Gates {
   bool setting = true;    // shared_world on (coop-settings.txt, or coop world on|off until reload)
   uint64_t partner = 0;   // her SteamID while she is linked in a co-op session, else 0
   bool match = false;     // a match lobby or the SBO lobby, where nobody plays a co-op save
-  bool coop_save = false; // we play a co-op save (the save-slot line says slot=coop)
+  bool coop_save = false; // we play a co-op save (slot_coop())
   bool in_game = false;   // in game, not loading: her lines wait otherwise
 };
+
+// Gates::coop_save from the save-slot line (save/slot.h line()): slot=coop. A load (the title, a map, leaving Xion)
+// reads slot=none or unknown for a while, so those keep the verdict of the last line that had one, held in was: the
+// feature stays on through a load and her lines wait for in_game instead of being dropped. A main save ends it.
+inline bool slot_coop(std::string_view slot, bool &was) {
+  if (slot.rfind("slot=none ", 0) != 0 && slot.rfind("slot=unknown ", 0) != 0)
+    was = slot.rfind("slot=coop ", 0) == 0;
+  return was;
+}
 
 // The game side, behind world/engine.h.
 class Engine {
