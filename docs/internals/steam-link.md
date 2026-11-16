@@ -86,7 +86,7 @@ them after `owner=` on its `link=` line.
   `relay only (ICE off): <name> is not a Steam friend`. The setting holds for the whole game run. Hosting a co-op
   lobby sets it back to -1, the Steam client's own setting, and so does joining a co-op lobby whose host is a Steam
   friend, before the first session opens. A co-op host stays on relays only after a stranger has been in her lobby,
-  until she hosts again.
+  until she hosts again or joins a friend's co-op lobby.
 - In a match lobby, Steam's lobby owner is the host. An owner who leaves from the menu first hands the lobby to the
   member past the handshake who joined first (`SetLobbyOwner`), then leaves. When the owner changes during a round,
   every game ends it with `host_left`. Ten seconds of silence from the owner also end it, with `host_lost` and the

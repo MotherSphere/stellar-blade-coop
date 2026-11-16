@@ -88,8 +88,8 @@ join`, with Accept and Deny. It opens on its own, maybe while you walk or use th
   let in` (or `you were removed from this session`) and leaves.
 - If players you do not know keep asking, host again: the new lobby gets a new code.
 - A session with a player who is not your Steam friend goes through Steam's relays only, on both games, so neither
-  of you learns the other's IP address. The relay route can add ping. As host, your game stays on relays only until
-  you host again.
+  of you learns the other's IP address. The relay route can add ping. Once such a player has been in your lobby, your
+  game stays on relays only until you host again or join a friend's game.
 - While a player who is not your Steam friend is in your session, the menu shows Remove <name>. After a Lua reload
   (Ctrl+R) that row stays hidden for a player let in before the reload; `coop remove <SteamID>` still works.
 - `coop allow <SteamID>` and `coop deny <SteamID>` answer from the console. `coop status` shows the waiting player on

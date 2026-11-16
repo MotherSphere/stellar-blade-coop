@@ -2924,7 +2924,6 @@ int main() {
     assert(!t.a.chat_waiting());
   }
 
-  // A friend with the code: no question, the usual handshake, the usual notices on both sides.
   // Relay only with a stranger, two Links: each game turns ICE off before its first session with the other (the host
   // before she pings her, the joiner before her hello), so neither learns the other's IP address. It stays off through
   // the handshake, and hosting again gives the Steam client's setting back. A friend's session never changes it.
@@ -2942,6 +2941,7 @@ int main() {
     t.tick(t.a, 50, "host");
     assert(ops_with("config 1001 104 -1") == 1 && ops_with("config ") == 3);
   }
+  // A friend with the code: no question, the usual handshake, the usual notices on both sides.
   reset();
   {
     Two t;
