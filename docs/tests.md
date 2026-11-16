@@ -584,11 +584,19 @@ The C++ tests cover the platform-free headers in `native/src`.
   A1b live and offline, A3's call and its list check, A4's order (a None tag, an env already in the tag, a refusing
   guard), and the refusals for a missing world, player or name.
 
+### Story together
+
+- `story_rows_test`: `story/rows.h`'s lists sorted (scenes by path, trips by row), the lookups at both ends and on near
+  misses, rows of build 26123051: the camp talk six rows share (told apart by priority, then by zone, then by table
+  order), the Pod landing scene whose end warps the player, a two-event end chain, a shared quest's subtitle sequence,
+  a row whose condition is tested before the call, Lily's warp (sent), the lift's zone change (not sent) and the trips
+  left out.
+
 ### Quests
 
 - `quest_sync_test`: the shared quests' quest table (its kill and item tasks), line format and parser (with a fuzz),
   the host's and the guest's rules, the zone marks, the item hold, the steps made together and those that are not,
-  the record file, and lost lines and reloads;
+  the record file, lost lines and reloads;
 - `quest_engine_test`: the shared quests against a fake quest unit: the walk, the guards before each game call, the
   gate, a fault, two PCs through channel 2's text with delay and loss, a recording replayed into another save, and
   the worker's side (the gates that start and end a side, channel 2's lines beside the fight's, the record file and
@@ -626,9 +634,17 @@ The C++ tests cover the platform-free headers in `native/src`.
   through the states an env control row sets and through a progress control's change tags; the crane's camera tags;
   ChangeState achievements and EnvState quest tasks on the state or on a state its events set), the SetEnvActive list,
   each ZoneEvent rule, the no-progress list, unknown names and loops in chains, Matrix XIII's rows from its data file,
-  and the written block (sorted, between its markers, the rest of the header untouched, a name that cannot go into a
+  the written block (sorted, between its markers, the rest of the header untouched, a name that cannot go into a
   C++ literal refused). After new table exports, run `python3 -I tools/world_rows.py <folder>` and commit
   `native/src/world/rows.h`;
+- `story_rows_test.py`: `tools/story_rows.py` on small made-up tables: the quest events read from a quest table block,
+  the zone a row's name gives, each scene rule (a theater path, a level sequence alone, Stop rows, rows with no theater
+  row or no path, the priority as the theater manager keeps it, the condition kept only beside AddEvents, the quest
+  flag, the order), the ambiguity counts, each trip rule (camp and spawn point targets, a ChangeZone, no target, a test
+  world by name and by target, the cut multiplayer warp) with every starter letter, the written block (parsed back
+  to the same values, lines within 116 columns, between its markers, the rest of the header untouched, a name that
+  cannot go into a C++ literal refused). After new table exports or a new quest table, run
+  `python3 -I tools/story_rows.py <folder>` and commit `native/src/story/rows.h`;
 - `matchmaking_scan_test.py`: a scan that fails if any script or native source could reach the game's matchmaking
   (see [night-operation-previews.md](night-operation-previews.md#how-the-original-matchmaking-is-blocked)). Stellar
   Blade's RunZoneEvent address is held once in `native/src/game/sbo.h` and called at two sites: once in
