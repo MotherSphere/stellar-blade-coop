@@ -144,7 +144,8 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 - `coop allow`, `coop deny`, `coop remove`, `coop block`, `coop mute` and `coop unmute` take a full SteamID, or the 4
   digits the logs show after `***` for one. With the 4 digits they act on the one player in your lobby whose SteamID
   ends in them. When two players do, use the full SteamID from `coop-status.txt` in the mod folder, which keeps it
-  whole. `coop unblock` takes the full SteamID only, since a blocked player is never in your lobby.
+  whole. `coop unblock` takes the 4 digits only for a player blocked in this game run: `coop-status.txt` lists each
+  one whole on a `block=<SteamID> <name>` line. For a player blocked in an earlier game run it needs the full SteamID.
 
 ### Ghost commands
 
@@ -349,7 +350,8 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
 
 - Steam: `mod=<version> proto=21 steam=<waiting|ready>`, then the Steam ID, app id, game build, overlay, relay
   availability and callback counts, your Steam name on a `me=` line, then `blocked=<n>`: the players on your
-  [block list](playing-with-a-friend.md#block-list).
+  [block list](playing-with-a-friend.md#block-list). A `block=<SteamID> <name>` line follows for each player you
+  blocked in this game run.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
   (`none` unless the lobby was made with `host code`) and the number of players refused for the rest of this lobby,

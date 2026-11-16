@@ -2885,6 +2885,12 @@ int main() {
     assert(w.status().find("\nblocked=1\n") != std::string::npos && noticed(w.status(), "Player blocked."));
     w.tick("block 76561198000000009");
     assert(w.link.take_blocks().empty() && w.status().find("\nblocked=1\n") != std::string::npos);
+    // The status names each player blocked in this game run whole (coop unblock takes her last 4 digits from it).
+    assert(w.status().find("\nblocked=1\nblock=76561198000000009 \n") != std::string::npos);
+    w.tick("unblock 76561198000000009");
+    assert(w.status().find("\nblock=") == std::string::npos && !w.link.take_blocks().empty());
+    w.tick("block 76561198000000009");
+    assert(!w.link.take_blocks().empty());
     std::string crlf = "junk\n7A46ACB03C8829BB\n";
     for (char c : file)
       crlf += c == '\n' ? std::string("\r\n") : std::string(1, c);
@@ -2911,10 +2917,11 @@ int main() {
     w.tick("block 2002");
     assert(!w.link.linked() && sent_to(kFriend, "SBC reject you were removed from this session") == 1);
     assert(saw("blocked Kaanta (2002)") && noticed(w.status(), "Kaanta was removed and blocked."));
-    assert(w.status().find("\nblocked=1\n") != std::string::npos && !w.link.take_blocks().empty());
+    assert(w.status().find("\nblocked=1\nblock=2002 Kaanta\n") != std::string::npos && !w.link.take_blocks().empty());
     w.tick("unblock all");
     std::string s = w.status();
     assert(s.find("\nblocked=0\n") != std::string::npos && s.find("\ncode=none refused=0\n") != std::string::npos);
+    assert(s.find("\nblock=") == std::string::npos); // Only the players still on the list.
     assert(noticed(s, "Block list emptied.") && sent_to(kFriend, "SBC hello ") == hellos + 1);
     const std::string emptied = w.link.take_blocks(); // The two comment lines alone.
     assert(emptied.rfind("# ", 0) == 0 && std::count(emptied.begin(), emptied.end(), '\n') == 2);

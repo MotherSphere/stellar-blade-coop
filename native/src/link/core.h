@@ -991,6 +991,8 @@ public:
                     " cb506=" + std::to_string(c.chat_update) + " cb1251=" + std::to_string(c.session_request) + "\n";
     s += "me=" + my_name_ + "\n"; // Our Steam name, cleaned (kMaxName), maybe empty.
     s += "blocked=" + std::to_string(blocked_.size()) + "\n"; // How many players the block list holds.
+    for (const auto &[id, name] : blocked_now_) // The file keeps no SteamID: these let coop unblock take 4 digits.
+      s += "block=" + std::to_string(id) + " " + name + "\n";
     // In a match lobby, its owner's SteamID after the lobby id, then its room and hall words when it has them.
     s += std::string("link=") + (!lobby_ ? "none" : host_ ? "host" : "guest") + " lobby=" + std::to_string(lobby_) +
          (match() ? " owner=" + std::to_string(host_id_) + (room_.empty() ? std::string() : " room=" + room_) +
@@ -1205,6 +1207,10 @@ private:
   bool block(uint64_t id, bool on) {
     const bool changed = on ? blocked_.insert(block_hash(id)).second : blocked_.erase(block_hash(id)) > 0;
     blocks_changed_ = blocks_changed_ || changed;
+    if (on)
+      blocked_now_[id] = name_of(id);
+    else
+      blocked_now_.erase(id);
     return changed;
   }
 
@@ -1433,6 +1439,7 @@ private:
           it = barred(it->first) ? refused_.erase(it) : std::next(it);
         blocks_changed_ = blocks_changed_ || !blocked_.empty();
         blocked_.clear();
+        blocked_now_.clear();
         event("unblocked everyone");
         notice("Block list emptied.");
       } else {
@@ -2931,6 +2938,7 @@ private:
   std::set<uint64_t> muted_;     // The players coop mute named, in any lobby, for the game run (my call 18).
   // The block list (block_hash()es, coop-blocked.txt), kept across lobbies and game runs.
   std::set<uint64_t> blocked_;
+  std::map<uint64_t, std::string> blocked_now_; // The players blocked in this game run, by SteamID: their names.
   bool blocks_kept_ = false; // coop-blocked.txt was not read in full: never written (blocks()).
   bool blocks_changed_ = false; // take_blocks() owes the file a write.
   // While we host: who_can_join of the lobby asked for, its join code (empty outside who_can_join=code), the members

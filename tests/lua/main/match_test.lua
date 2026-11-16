@@ -45,6 +45,15 @@ status_text='mod=v proto=3 steam=ready\nme=Me\nblocked=2\nlink=none lobby=0\n'
 coop('blocked'); assert(last()=='[StellarCoop] OK: 2 players are on your block list\n',last())
 status_text='mod=v proto=3 steam=ready\nme=Me\nblocked=1\nlink=none lobby=0\n'
 coop('blocked'); assert(last()=='[StellarCoop] OK: 1 player is on your block list\n',last())
+-- unblock takes the 4 digits the logs show for a player blocked in this game run (the status's block= lines).
+status_text='mod=v proto=3 steam=ready\nme=Me\nblocked=3\nblock=76561198000000002 Kaanta\n'
+    ..'block=76561198000010007 A\nblock=76561198000000007 B\nlink=none lobby=0\n'
+coop('unblock','0002'); assert(asked[#asked]=='unblock 76561198000000002',asked[#asked])
+n=#asked
+coop('unblock','0007'); assert(#asked==n and last():find('STOP: two players blocked in this game run have a SteamID '
+    ..'ending in 0007',1,true),last())
+coop('unblock','0009'); assert(#asked==n and last():find('STOP: no player blocked in this game run has a SteamID '
+    ..'ending in 0009',1,true),last())
 status_text=before
 assert(#asked==n,'blocked asks nothing')
 io.stdout:write('match_test ok\n') -- The fixture's print keeps lines for last().

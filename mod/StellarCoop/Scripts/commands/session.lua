@@ -54,11 +54,28 @@ function Session.new(o)
     self.mute,self.unmute=answer('mute'),answer('unmute')
     -- The block list (coop-blocked.txt, which the native part keeps): block keeps a player out of every game you host,
     -- across game runs, as coop remove does; unblock takes one player off, or all; blocked counts them, since the file
-    -- holds hashes and never a SteamID.
+    -- holds hashes and never a SteamID. unblock takes the 4 digits the logs show too, for a player blocked in this
+    -- game run: the status's block= lines name those whole.
     self.block=answer('block')
     function self.unblock(id)
         if id=='all' then return ask('unblock all')() end
         if type(id)~='string' or not id:match('^%d+$') or #id>20 then return false,'Use: coop unblock <SteamID>|all' end
+        if #id==4 then
+            local found
+            for full in (link and link.status() or ''):gmatch('\nblock=(%d+)') do
+                if full:sub(-4)==id then
+                    if found then
+                        return false,'two players blocked in this game run have a SteamID ending in '..id
+                            ..': use the full SteamID from coop-status.txt'
+                    end
+                    found=full
+                end
+            end
+            if not found then
+                return false,'no player blocked in this game run has a SteamID ending in '..id..': use the full SteamID'
+            end
+            id=found
+        end
         return ask('unblock '..id)()
     end
     function self.blocked()

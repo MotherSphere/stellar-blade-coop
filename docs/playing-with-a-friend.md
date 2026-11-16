@@ -114,7 +114,8 @@ lobbies and after the game restarts. Deny only refuses them for the current lobb
 - `coop block <SteamID>` blocks a player without a session. If that player is in the game you host, they are removed
   as well.
 - `coop unblock <SteamID>` takes one player off the list and `coop unblock all` empties it. A player unblocked while
-  still in your lobby is greeted again (or asked about, if not your Steam friend) at once.
+  still in your lobby is greeted again (or asked about, if not your Steam friend) at once. For a player you blocked
+  in this game run, `coop unblock` also takes the 4 digits the logs show after `***`.
 - `coop blocked` prints how many players the list holds. It cannot name them.
 - The list is `coop-blocked.txt` in the mod folder. It holds a hash of each SteamID, so the SteamIDs do not show as
   they are. The hash does not keep them secret. The salt is the same for every player. Steam has about 4 billion
