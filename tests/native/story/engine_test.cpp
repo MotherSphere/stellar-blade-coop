@@ -6,7 +6,12 @@
 // her copy read (no path before its first take), the gate's reads, a play started with and without its row's
 // condition, a talk with her key and his place, the host's seek (and its wait) and take skips (by index, by alias, to
 // the end, a random take refused), the leash's pause and its careful play, her dialogue closed, her skip blocked and
-// given back.
+// given back. Then choices, QTEs and InputCounters: the host's menus read when they close (an InteractionSelect of
+// another play left out, ordinals by take), his QTE and InputCounter blocks read once final (a Flow's results, a
+// widget read before its next start, one gone, one he did not lead); her line stored in her take context (a name or
+// alias she lacks refused) and her menu for it closed, her PlayerChoice answered through her OK (its index checked, a
+// block not open yet, one she passed), her QTE and InputCounter given the host's values (late, gone, a success that
+// finishes at once, Flow results), her presses taken on their start, her menus held and given back.
 #include "story/engine.h"
 
 #include <cassert>
@@ -112,6 +117,16 @@ struct FakeGame {
     calls.push_back("finish " + std::to_string(result));
     put<int32_t>(widget + kBlockResult, result);
   }
+  std::map<uint64_t, bool> gone; // Widgets the engine collected.
+  void call(uint64_t function, uint64_t) {
+    static const std::map<uint64_t, const char *> kNames = {
+        {kQteUnbind, "qte unbind"},     {kQteShow, "qte show"},       {kQteSelect, "qte select"},
+        {kQteSkip, "qte skip"},         {kCounterUnbind, "cnt unbind"}, {kCounterShow, "cnt show"},
+        {kCounterSelect, "cnt select"}, {kCounterSkip, "cnt skip"},     {kChoiceOk, "ok"}};
+    calls.push_back(kNames.at(function));
+  }
+  uint64_t weak_make(uint64_t object) { return object ^ 0x5a5a; }
+  uint64_t weak_get(uint64_t weak) { return gone.count(weak ^ 0x5a5a) ? 0 : weak ^ 0x5a5a; }
 };
 
 const Scene &plain_row() {
@@ -312,7 +327,7 @@ void test_skips() {
          w.g.get<uint64_t>(w.c + kNextAlias) == w.g.name("None"));
   w.g.put<uint8_t>(w.data + kRandomNext, 1);
   assert(w.e.apply(m, why) == Did::refused && std::string(why) == "random");
-  m.type = Type::qte;
+  m.type = Type::end;
   assert(w.e.apply(m, why) == Did::refused && std::string(why) == "kind");
 }
 
@@ -371,6 +386,214 @@ void test_holds() {
   assert(!w.e.holding());
 }
 
+
+// A menu's lines: line 0 names a take, line 1 a graph exec only.
+uint64_t lines(World &w) {
+  const uint64_t at = w.g.alloc(2 * kLine), none = w.g.name("None");
+  w.g.put(at + kLineAlias, w.g.name("Take_B")), w.g.put(at + kLineExec, none);
+  w.g.put(at + kLine + kLineAlias, none), w.g.put(at + kLine + kLineExec, w.g.name("Exec_X"));
+  w.g.put(w.select + kLines, at), w.g.put<int32_t>(w.select + kLineCount, 2);
+  return at;
+}
+void open(World &w, uint64_t widget, int32_t play = 41) {
+  w.g.put<int32_t>(widget + kBlockResult, -1);
+  if (widget == w.select)
+    w.g.put<int32_t>(w.select + kSelectPlay, play), w.g.put<int32_t>(w.select + kSelectIndex, kNoIndex);
+}
+
+void test_host_results() {
+  World w;
+  lines(w);
+  assert(w.e.theater().results.empty());
+  // An InteractionSelect of this play: read when it closes, by its line's names.
+  open(w, w.select);
+  assert(w.e.theater().results.empty());
+  w.g.put<int32_t>(w.select + kSelectIndex, 1), w.g.put<int32_t>(w.select + kBlockResult, 0);
+  std::vector<Outcome> r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].play == 41 && r[0].m.type == Type::sel && r[0].m.take == 100 && r[0].m.n == 0);
+  assert(r[0].m.name == "-" && r[0].m.exec == "Exec_X");
+  open(w, w.select), w.e.theater();
+  w.g.put<int32_t>(w.select + kSelectIndex, 0), w.g.put<int32_t>(w.select + kBlockResult, 0);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.n == 1 && r[0].m.name == "Take_B" && r[0].m.exec == "-");
+  // No line chosen (its section ended), or a menu of another play: nothing.
+  open(w, w.select), w.e.theater();
+  w.g.put<int32_t>(w.select + kBlockResult, 0);
+  assert(w.e.theater().results.empty());
+  open(w, w.select, 99), w.e.theater();
+  w.g.put<int32_t>(w.select + kSelectIndex, 0), w.g.put<int32_t>(w.select + kBlockResult, 0);
+  assert(w.e.theater().results.empty());
+  // A PlayerChoice: its block result. A new take counts its blocks from 0 again.
+  open(w, w.choice), w.e.theater();
+  w.g.put<int32_t>(w.choice + kBlockResult, 2);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.type == Type::pch && r[0].m.value == 2 && r[0].m.n == 0);
+  const uint64_t data = w.g.alloc(0x70);
+  w.g.put(w.c + kTakeData, data), w.g.put<int32_t>(data + kTakeUid, 200);
+  open(w, w.choice), w.e.theater();
+  w.g.put<int32_t>(w.choice + kBlockResult, 0);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.take == 200 && r[0].m.n == 0 && r[0].m.value == 0);
+  // A menu that closes as its theater ends goes with its play id.
+  open(w, w.choice), w.e.theater();
+  w.g.put<int32_t>(w.choice + kBlockResult, 1), w.g.put<uint64_t>(w.mgr + kCurrent, 0);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].play == 41 && r[0].m.value == 1);
+  w.g.put(w.mgr + kCurrent, w.p);
+
+  // A QTE he leads: read once its Result shows, with its count and his option's forced success.
+  const uint64_t qte = w.g.alloc(0x860);
+  w.g.put<int32_t>(qte + kBlockResult, -1); // The block start opens it before OnStartBlock.
+  w.e.block_started(Type::qte, qte, true, false);
+  assert(w.g.calls.empty() && w.e.theater().results.empty());
+  w.g.put<int32_t>(qte + kQteCount, 5), w.g.put<uint8_t>(qte + kQteForce, 1), w.g.put<uint8_t>(qte + kQteShown, 1);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.type == Type::qte && r[0].m.take == 200 && r[0].m.n == 0 && r[0].m.value == 5 &&
+         r[0].m.flag);
+  assert(w.e.theater().results.empty());
+  // An InputCounter: a Flow's entry results as bits, read once its block closed.
+  const uint64_t counter = w.g.alloc(0x8a8), infos = w.g.alloc(3 * kInfo);
+  w.g.put<uint8_t>(counter + kCounterKind, 3), w.g.put(counter + kInfos, infos), w.g.put<int32_t>(counter + kInfoCount, 3);
+  w.g.put<uint8_t>(infos + kInfoResult, 1), w.g.put<uint8_t>(infos + 2 * kInfo + kInfoResult, 1);
+  w.g.put<int32_t>(counter + kBlockResult, -1);
+  w.e.block_started(Type::cnt, counter, true, false);
+  assert(w.e.theater().results.empty());
+  w.g.put<int32_t>(counter + kCounterCount, 2), w.g.put<int32_t>(counter + kBlockResult, 0);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.type == Type::cnt && r[0].m.n == 0 && r[0].m.value == 2 && r[0].m.bits == 5);
+  // Its next start reads the block before, still open, before the start clears it.
+  w.g.put<int32_t>(counter + kBlockResult, -1);
+  w.e.block_started(Type::cnt, counter, true, false);
+  w.g.put<int32_t>(counter + kCounterCount, 1);
+  w.e.block_closing(counter);
+  w.e.block_started(Type::cnt, counter, true, false);
+  r = w.e.theater().results;
+  assert(r.size() == 1 && r[0].m.n == 1 && r[0].m.value == 1);
+  // A widget gone before its result: said, not sent. A block he did not lead: not his to read.
+  const uint64_t other = w.g.alloc(0x860);
+  w.g.put<int32_t>(other + kBlockResult, -1);
+  w.e.block_started(Type::qte, other, true, false);
+  w.g.gone[other] = true;
+  assert(w.e.theater().results.empty() && w.e.log.back().find("went before its result") != std::string::npos);
+  const uint64_t third = w.g.alloc(0x860);
+  w.e.block_started(Type::qte, third, false, false);
+  w.g.put<uint8_t>(third + kQteShown, 1);
+  assert(w.e.theater().results.empty());
+}
+
+void test_guest_choices() {
+  World w;
+  const char *why = nullptr;
+  Message m;
+  m.type = Type::sel, m.take = 100, m.name = "Take_Y", m.exec = "-";
+  assert(w.e.apply(m, why) == Did::refused && std::string(why) == "name");
+  w.g.name("Take_Y");
+  assert(w.e.apply(m, why) == Did::refused && std::string(why) == "alias"); // Not in her theater's map.
+  const uint64_t elements = w.g.alloc(kEntry), hash = w.g.alloc(4), target = w.g.alloc(0x30);
+  w.g.put(elements, w.g.name("Take_Y")), w.g.put(elements + kEntryValue, target), w.g.put<int32_t>(elements + kEntryNext, -1);
+  w.g.put<int32_t>(hash, 0);
+  w.g.put(w.p + kAliases, elements), w.g.put<int32_t>(w.p + kAliases + kMapCount, 1);
+  w.g.put(w.p + kAliases + kMapHashAt, hash), w.g.put<int32_t>(w.p + kAliases + kMapHashSize, 1);
+  assert(w.e.apply(m, why) == Did::done && w.g.get<uint64_t>(w.c + kNextAlias) == w.g.name("Take_Y"));
+  assert(w.g.calls.empty()); // No menu of hers: nothing to close.
+  m.name = "-", m.exec = "Exec_X", m.n = 1;
+  w.g.name("Exec_X");
+  assert(w.e.apply(m, why) == Did::done && w.g.get<uint64_t>(w.c + kNextExec) == w.g.name("Exec_X"));
+  // Her menu of this play opens later as block 0: held, its skip taken, closed with no line of its own.
+  open(w, w.select), w.g.put<float>(w.select + kSelectBlock, 0.5f), w.g.put<int32_t>(w.select + kSelectIndex, 0);
+  w.e.her();
+  w.e.hold_widgets();
+  assert(w.g.calls.size() == 1 && w.last() == "finish 0" && w.g.get<int32_t>(w.select + kSelectIndex) == kNoIndex);
+  assert(w.g.get<uint8_t>(w.select + kSelectSkipped) == 1 && w.g.get<float>(w.select + kSelectBlock) == kHeld);
+  open(w, w.select), w.e.her(), w.e.hold_widgets(); // Block 1: its line came too.
+  assert(w.g.calls.size() == 2);
+  // Block 2 waits held; its line closes it at once.
+  open(w, w.select), w.e.her(), w.e.hold_widgets();
+  assert(w.g.calls.size() == 2 && w.e.holding());
+  m.n = 2;
+  assert(w.e.apply(m, why) == Did::done && w.last() == "finish 0" && w.g.calls.size() == 3);
+  // One of another play is not hers to hold.
+  open(w, w.select, 99), w.g.put<float>(w.select + kSelectBlock, 0.5f), w.e.her(), w.e.hold_widgets();
+  assert(w.g.get<float>(w.select + kSelectBlock) == 0.5f && !w.e.holding());
+  w.g.put<int32_t>(w.select + kBlockResult, 0), w.e.her();
+
+  // PlayerChoice: not open yet, then open: the index, her OK with the delay at 0, the delay held again.
+  m = Message();
+  m.type = Type::pch, m.take = 100, m.value = 1;
+  assert(w.e.apply(m, why) == Did::wait);
+  open(w, w.choice), w.g.put<int32_t>(w.choice + kChoiceCount, 3);
+  w.e.her();
+  assert(w.e.apply(m, why) == Did::done && w.last() == "ok");
+  assert(w.g.get<int32_t>(w.choice + kChoiceIndex) == 1 && w.g.get<float>(w.choice + kChoiceDelay) == kHeld);
+  // Pressed by her already: only the index, which her "Select" reads at its end. An index past her lines: refused.
+  w.g.put<uint8_t>(w.choice + kChoiceDone, 1), m.value = 2;
+  const size_t calls = w.g.calls.size();
+  assert(w.e.apply(m, why) == Did::done && w.g.calls.size() == calls && w.g.get<int32_t>(w.choice + kChoiceIndex) == 2);
+  m.value = 3;
+  assert(w.e.apply(m, why) == Did::refused && std::string(why) == "index");
+  // A block she passed (its section ended, its own close stored 0): the host's index in her context.
+  w.g.put<int32_t>(w.choice + kBlockResult, 0), w.e.her();
+  m.value = 1;
+  assert(w.e.apply(m, why) == Did::done && w.g.get<int32_t>(w.c + kNextIndex) == 1);
+  m.n = 1; // Her second block has not opened.
+  assert(w.e.apply(m, why) == Did::wait);
+
+  // Holds given back: the select's countdown ends at its next frame, the delay at 0, both skips hers.
+  open(w, w.select), open(w, w.choice), w.g.put<float>(w.select + kSelectBlock, 0.4f), w.e.her();
+  w.e.hold_widgets();
+  assert(w.e.holding() && w.g.get<uint8_t>(w.choice + kChoiceSkipped) == 1);
+  w.e.release();
+  assert(!w.e.holding() && w.g.get<float>(w.select + kSelectBlock) == 0.001f && w.g.get<float>(w.choice + kChoiceDelay) == 0);
+  assert(w.g.get<uint8_t>(w.select + kSelectSkipped) == 0 && w.g.get<uint8_t>(w.choice + kChoiceSkipped) == 0);
+}
+
+void test_guest_counts() {
+  World w;
+  const char *why = nullptr;
+  Message m;
+  m.type = Type::qte, m.take = 100, m.value = 4, m.flag = true;
+  assert(w.e.apply(m, why) == Did::wait); // Her block has not started.
+  // Her QTE starts while her copy follows his: her presses go.
+  const uint64_t qte = w.g.alloc(0x860);
+  w.e.block_started(Type::qte, qte, false, true);
+  assert(w.last() == "qte unbind");
+  w.g.put<int32_t>(qte + kBlockResult, -1), w.g.put<int32_t>(qte + kGoal, 10);
+  assert(w.e.apply(m, why) == Did::done && w.g.calls.size() == 1);
+  assert(w.g.get<int32_t>(qte + kQteCount) == 4 && w.g.get<uint8_t>(qte + kQteForce) == 1);
+  // A success that finishes at once: Result, then the take select and skip with +0x6dd.
+  w.g.put<uint8_t>(qte + kImmediate, 1), w.g.put<uint8_t>(qte + kImmediateNow, 1);
+  assert(w.e.apply(m, why) == Did::done && w.g.calls.size() == 4 && w.last() == "qte skip");
+  w.g.put<uint8_t>(qte + kIgnoreForce, 1); // The section ignores the option and 4 is short of 10: no success.
+  assert(w.e.apply(m, why) == Did::done && w.g.calls.size() == 4);
+  w.g.put<uint8_t>(qte + kQteSelectDone, 1);
+  assert(w.e.apply(m, why) == Did::refused && std::string(why) == "late");
+  w.g.gone[qte] = true;
+  assert(w.e.apply(m, why) == Did::refused && std::string(why) == "gone");
+  m.n = 1;
+  assert(w.e.apply(m, why) == Did::wait);
+
+  // Her InputCounter, a Flow of three: unbound, sticks off, entries marked bound; then the host's results, fired.
+  const uint64_t counter = w.g.alloc(0x8a8), infos = w.g.alloc(3 * kInfo);
+  w.g.put<uint8_t>(counter + kCounterKind, 3), w.g.put(counter + kInfos, infos), w.g.put<int32_t>(counter + kInfoCount, 3);
+  w.g.put<uint8_t>(counter + kCounterSticks, 1), w.g.put<uint8_t>(infos + kInfo + kInfoSticks + 1, 1);
+  w.e.block_started(Type::cnt, counter, false, true);
+  assert(w.last() == "cnt unbind" && w.g.get<uint8_t>(counter + kCounterSticks) == 0);
+  assert(w.g.get<uint8_t>(infos + kInfo + kInfoSticks + 1) == 0 && w.g.get<uint8_t>(infos + 2 * kInfo + kInfoBound) == 1);
+  w.g.put<int32_t>(counter + kBlockResult, -1), w.g.put<uint8_t>(counter + kCounterNow, 1);
+  m = Message();
+  m.type = Type::cnt, m.take = 100, m.value = 3, m.bits = 5;
+  const size_t calls = w.g.calls.size();
+  assert(w.e.apply(m, why) == Did::done && w.g.calls.size() == calls); // One entry failed: no success.
+  assert(w.g.get<int32_t>(counter + kCounterCount) == 3 && w.g.get<uint8_t>(infos + kInfoResult) == 1);
+  assert(w.g.get<uint8_t>(infos + kInfo + kInfoResult) == 0 && w.g.get<uint8_t>(infos + kInfo + kInfoFired) == 1);
+  m.bits = 7;
+  assert(w.e.apply(m, why) == Did::done && w.last() == "cnt show");
+  // A block she did not start while following him keeps its presses.
+  const uint64_t own = w.g.alloc(0x860);
+  w.e.block_started(Type::qte, own, false, false);
+  assert(w.last() == "cnt show");
+}
+
 } // namespace
 
 int main() {
@@ -379,5 +602,8 @@ int main() {
   test_start();
   test_skips();
   test_holds();
+  test_host_results();
+  test_guest_choices();
+  test_guest_counts();
   std::printf("story engine: ok\n");
 }

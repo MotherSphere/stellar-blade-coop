@@ -599,7 +599,16 @@ The C++ tests cover the platform-free headers in `native/src`.
   host's end with her copy played out, the replay guard and its expiry, a first take that differs, a scene that never
   shows, a refused start, a busy game, an attach, a quest row, a talk, trips that wait for her copy, the host's
   position rate, sequence numbers, the queue while she loads and its overflow, a new partner, the feature off and the
-  status line.
+  status line. The host's choice and QTE results go before his skip, his position and the end of a theater they
+  closed in; those of a play he does not share are logged once.
+- `story_engine_test`: `story/engine.h` over fake memory and fake SB functions. Host side: his theater, hook 1's
+  read, his menus read when they close (a menu of another play left out, ordinals counted by take), his QTE and
+  InputCounter blocks read once final (Flow results as bits, a widget read before its next start, one gone, one he
+  did not lead). Guest side: her copy and the gate's reads, a play and a talk started, the host's seek and take
+  skips, the leash, her dialogue closed, her skip blocked and given back, a choice line stored in her take context
+  (a name or alias she lacks refused) with her menu for it closed, her PlayerChoice answered through her OK, her QTE
+  and InputCounter given the host's values (late, gone, a success that finishes at once, Flow results), her presses
+  taken when a block starts and her menus held then given back.
 
 ### Quests
 

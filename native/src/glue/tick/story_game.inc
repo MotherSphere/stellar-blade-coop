@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
-// Story together (story/engine.h, story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot. Each
-// frame's pass takes her lines in, follows her copy, then reads and sends our theater while we host.
+// Story together (story/engine.h, story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot, hooks 2
+// and 3 in the QTE's and the InputCounter's OnStartBlock slots. Each frame's pass takes her lines in, follows her copy,
+// then reads and sends our theater while we host.
 
 namespace coop::pose {
 namespace {
@@ -25,6 +26,8 @@ story::Gates story_gates;
 std::string story_line = "story=off";
 // The game thread's own.
 bool story_applying = false; // While a pass applies her lines: a talk her copy starts is hers, not ours to send.
+bool story_leading = false;  // We read our theater for her: hook 3 reads a block before its widget's next start.
+bool story_holding = false;  // Her copy follows his: hooks 2 and 3 take her presses on each new block.
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
 
 // story/engine.h's Game: the shared world's reads, writes and names, then SB's theater calls.
@@ -61,6 +64,17 @@ struct WinStoryGame : WinWorldGame {
   void finish_block(uint64_t widget, int32_t result) {
     game_function<void (*)(uintptr_t, int32_t)>(story::kFinishBlock)(widget, result);
   }
+  void call(uint64_t function, uint64_t widget) { game_function<void (*)(uintptr_t)>(function)(widget); }
+  // The engine's weak pointer {object index, serial}, packed in one value.
+  uint64_t weak_make(uint64_t object) {
+    int32_t weak[2] = {-1, 0};
+    game_function<void (*)(int32_t *, uintptr_t)>(story::kWeakSet)(weak, object);
+    return uint32_t(weak[0]) | uint64_t(uint32_t(weak[1])) << 32;
+  }
+  uint64_t weak_get(uint64_t packed) {
+    const int32_t weak[2] = {int32_t(uint32_t(packed)), int32_t(packed >> 32)};
+    return game_function<uintptr_t (*)(const int32_t *)>(story::kWeak)(weak);
+  }
 };
 WinStoryGame story_game;
 story::GameEngine<WinStoryGame> story_engine{story_game};
@@ -94,6 +108,45 @@ void story_theater_hook(int64_t *node) {
     story_lead.talked(id);
 }
 
+// ---- Hooks 2 and 3: the slots' targets once swapped, on the game thread inside the sequence's evaluation ----
+// Before the game's start, while we lead, a block of the same widget not read yet is read (the InputCounter's one
+// widget serves every section and its start clears the count). After it, the new block is kept with its take and
+// ordinal; while her copy follows his, her presses on it go. Out of line for the latch, as hook 1.
+__declspec(noinline) void story_block_body(story::Type type, uint64_t widget, bool before) {
+  try { // Out of memory turns story together off for the run, as a fault does.
+    if (before)
+      story_engine.block_closing(widget);
+    else
+      story_engine.block_started(type, widget, story_leading, story_holding);
+  } catch (...) {
+    story_faulted = true;
+  }
+}
+void story_block_guarded(story::Type type, uint64_t widget, bool before) {
+  __try {
+    story_block_body(type, widget, before);
+  } __except (fault_filter(GetExceptionInformation(), story_fault_code, story_fault_rva, story_fault_address)) {
+    story_faulted = true;
+  }
+  if (story_faulted)
+    story_scene = false; // story_tick no longer runs to clear it: the photo freeze holds again.
+}
+// The game's start always runs; ours only on the game thread, after the worker's swap, before a fault.
+using BlockStart = void (*)(int64_t *widget);
+void story_block_hook(story::Type type, uint64_t start, int64_t *widget) {
+  const bool ours = story_hooked && !story_faulted, here = ours && GetCurrentThreadId() == story_thread;
+  const uint64_t w = reinterpret_cast<uintptr_t>(widget);
+  if (here && story_leading)
+    story_block_guarded(type, w, true);
+  game_function<BlockStart>(start)(widget);
+  if (ours && !here)
+    ++story_elsewhere;
+  else if (here && !story_faulted)
+    story_block_guarded(type, w, false);
+}
+void story_qte_hook(int64_t *widget) { story_block_hook(story::Type::qte, story::kQteStart, widget); }
+void story_counter_hook(int64_t *widget) { story_block_hook(story::Type::cnt, story::kCounterStart, widget); }
+
 // ---- The pass, each frame ----
 // In game as the shared world reads it (world_in_game: lion_gate open, the client in game and playing, not on SB's
 // logic thread, our player's actor ID), then that actor.
@@ -121,11 +174,13 @@ __declspec(noinline) void story_body(std::vector<std::string> &in, story::Gates 
     const uint64_t now = GetTickCount64();
     story_applying = true;
     story_sync.pass(gates, now);
-    if (gates.in_game && story_sync.sharing())
-      story_engine.block_skip();
+    story_holding = gates.in_game && story_sync.sharing();
+    if (story_holding)
+      story_engine.block_skip(), story_engine.hold_widgets();
     story_applying = false;
     // Read only with a friend who can take it; a pass out of game keeps the scene as it stood.
-    if (gates.host && in_game && gates.setting && gates.partner && !gates.match && gates.coop_save)
+    story_leading = gates.host && in_game && gates.setting && gates.partner && !gates.match && gates.coop_save;
+    if (story_leading)
       story_lead.pass(story_engine.theater(), story_engine.zone(), story_sync, now);
     story_scene = story_sync.active() || story_sync.pending();
     for (std::string &l : story_sync.out)
@@ -149,7 +204,7 @@ void story_guarded(std::vector<std::string> &in, const story::Gates &gates, std:
   }
   story_applying = false;
   if (story_faulted)
-    story_scene = false;
+    story_scene = false, story_leading = story_holding = false;
 }
 void story_tick() {
   story_thread = GetCurrentThreadId();
@@ -175,8 +230,9 @@ void story_tick() {
 }
 // A fault in this DLL (one of our reads) or out of memory: SB's state is whole, so a second call is safe.
 bool story_whole() { return !story_fault_code || fault_in_dll(story_fault_rva); }
-// Once in game: her skip byte put back, then the leash's pause played again, so her copy plays on as hers. release()
-// goes first as it only reads and writes memory: the byte comes back even when hold(false)'s play call faults.
+// Once in game: her skip byte and her menus' input put back, then the leash's pause played again, so her copy plays
+// on as hers. release() goes first as it only reads and writes memory: they come back even when hold(false)'s play
+// call faults. Her presses on a QTE or InputCounter block already unbound stay off until that block ends.
 // hold(false) forgets the paused player before it calls SB, so such a fault leaves that player paused.
 __declspec(noinline) void story_undo_body() {
   try {
