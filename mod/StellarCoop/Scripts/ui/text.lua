@@ -5232,12 +5232,21 @@ function T.mods(fmt,name,list)
     return fit(fmt,name,short,list.n,200)
 end
 -- The DLC notice (main.lua): in w's words, the sentence of hers we lack (missing) and the one of ours she lacks
--- (extra), each when its list of names is not empty, in the feed's 200 bytes: the first takes the names that fit once
--- the second has room for its count alone, the second the names that fit in what is left.
+-- (extra), each when its list of names is not empty, in the feed's 200 bytes: the first takes the first two names that
+-- fit once the second has room for its count alone, the second the first two that fit in what is left. Her name comes
+-- in both: when it is so long (link/protocol.h's kMaxName is 64 bytes) that the two counts alone pass 200 bytes, it is
+-- cut at a character's start until they fit.
 function T.dlcs(w,name,missing,extra)
     local parts,said,room={},{},200
     if #missing>0 then parts[#parts+1]={w.dlc.theirs,missing} end
     if #extra>0 then parts[#parts+1]={w.dlc.yours,extra} end
+    local least=-1
+    for _,part in ipairs(parts) do least=least+1+#fit(part[1],name,{},#part[2],200) end
+    if least>200 then
+        local at=math.max(0,#name-(least-200+#parts-1)//#parts)+1
+        while at>1 and (name:byte(at) or 0)>=0x80 and name:byte(at)<0xC0 do at=at-1 end
+        name=name:sub(1,at-1)
+    end
     for i,part in ipairs(parts) do
         local later=parts[i+1] and 1+#fit(parts[i+1][1],name,{},#parts[i+1][2],200) or 0
         said[i]=fit(part[1],name,part[2],#part[2],room-later)

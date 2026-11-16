@@ -312,4 +312,15 @@ local hundred,other=('a'):rep(100),('b'):rep(100)
 assert(T.dlcs(T.en,'Kaanta',{hundred},{other})==DLC_THEIRS..hundred..'. '..DLC_YOURS..'(+1).')
 assert(T.dlcs(T.fr,'Kaanta',{'Alpha'},{'Delta'})=="Kaanta a des DLC que vous n'avez pas : Alpha. Vous avez des DLC que "
     .."Kaanta n'a pas : Delta.")
+-- Her name at link/protocol.h's kMaxName (64 bytes, 32 Cyrillic letters) in both sentences: cut at a character's
+-- start in every language until both counts fit, so the feed's 200 bytes never cut the second sentence.
+local LONG_NAME=('Ж'):rep(32)
+for lang,w in pairs(T) do
+    if type(w)=='table' and w.dlc then
+        local line=T.dlcs(w,LONG_NAME,{hundred},{other})
+        assert(#line<=200 and utf8.len(line) and Chat.clean(line)==line,lang..': '..line)
+        assert(select(2,line:gsub('%(%+1%)',''))==2,lang..': '..line)
+    end
+end
+assert(T.dlcs(T.en,LONG_NAME,{'Alpha'},{'Delta'}):find(LONG_NAME,1,true),'A name that fits stays whole')
 print('ui_text_test ok')
