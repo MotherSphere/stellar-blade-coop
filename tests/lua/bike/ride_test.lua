@@ -502,6 +502,20 @@ assert(not R.riding() and stored=='/Game/Map.Map:PersistentLevel.EVE_1\t0\t-90\t
 assert(last():find('^bike off %(coop off%) after [%d.]+ s: her mesh not written back %(read only%), '
     ..'coop%-bike%.txt kept$'),last())
 assert(R.stop('coop off')==nil,'Off already')
+-- The next mount of this Lua load keeps that file's base, not the lean her mesh still has; its dismount writes it.
+eve.Mesh.RelativeRotation,eve.Mesh.RelativeLocation={Pitch=2,Yaw=-90,Roll=10},{X=0,Y=0,Z=-90}
+id=mount()
+assert(stored=='/Game/Map.Map:PersistentLevel.EVE_1\t0\t-90\t0\t0\t0\t-90',stored)
+assert(find(' R=0%.00, location 0%.00 0%.00 %-90%.00 %(kept in coop%-bike%.txt%)$'))
+R.toggle()
+assert(stored==nil and eve.Mesh.RelativeRotation.Roll==0 and eve.Mesh.RelativeRotation.Pitch==0)
+-- A file for another EVE is no base for her.
+stored='/Game/Map.Map:PersistentLevel.EVE_9\t9\t9\t9\t9\t9\t9'
+id=mount()
+assert(stored=='/Game/Map.Map:PersistentLevel.EVE_1\t0\t-90\t0\t0\t0\t-90',stored)
+eve.Mesh.locked=true
+R.stop('coop off')
+eve.Mesh.locked=nil
 
 -- 11. The next Lua load: coop-bike.txt puts her mesh back and hides the part, once, the file cleared; the part is found
 -- again, not made. A path that is no EVE only clears the file.

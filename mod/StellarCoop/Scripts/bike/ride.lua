@@ -9,13 +9,13 @@
 -- Ctrl+R the part is already there: it is found among her components by its mesh and used again. The capture sends it
 -- to every ghost like any part of her outfit, shown or hidden, so nothing new travels.
 -- A mount (self.toggle) checks EVE first and refuses with its reason; then, in this order: coop-bike.txt (her object
--- path, her main mesh's relative rotation and location), race/drive.lua's drive with bike/model.lua (why 'bike'), "bike
--- gate on" (SB's actions off on her controller, Jump left on), "anim play <id> <clip> ride" (the riding clip looped,
--- her foot IK off) and the part shown. A dismount runs it backward: the part hidden, "anim stop", "bike gate off", the
--- drive off, her mesh's rotation and location back, the file cleared. A dismount comes from the key, the pad, coop
--- bike, coop off, bike=off, a new EVE, a check every 250 ms (self.slow) and a failure; the next Lua load replays the
--- file at its first tick (self.restore) when this one could not (Ctrl+R). The native part turns the gate off and stops
--- the clip itself at a new Lua load.
+-- path, her main mesh's relative rotation and location, or those of a file this Lua load kept for her),
+-- race/drive.lua's drive with bike/model.lua (why 'bike'), "bike gate on" (SB's actions off on her controller, Jump
+-- left on), "anim play <id> <clip> ride" (the riding clip looped, her foot IK off) and the part shown. A dismount runs
+-- it backward: the part hidden, "anim stop", "bike gate off", the drive off, her mesh's rotation and location back, the
+-- file cleared. A dismount comes from the key, the pad, coop bike, coop off, bike=off, a new EVE, a check every 250 ms
+-- (self.slow) and a failure; the next Lua load replays the file at its first tick (self.restore) when this one could
+-- not (Ctrl+R). The native part turns the gate off and stops the clip itself at a new Lua load.
 -- Each frame (self.steer, before the native tick): the drive's frame, then her lean and pitch on her main mesh's
 -- relative rotation, the base rotation then a turn about her actor's forward axis (lean) and side axis (pitch), through
 -- KismetMathLibrary's ComposeRotators, written with teleport off (a teleport clears cloth inertia). The ghosts get it
@@ -99,6 +99,12 @@ local function make_part(e)
     return c
 end
 local function number(v) return (string.format('%.9g',v):gsub(',','.')) end
+-- The tab-separated fields of a coop-bike.txt line (none for nil).
+local function fields(line)
+    local f={}
+    for field in ((line or '')..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=field end
+    return f
+end
 
 -- o: log (the [BK] lines); ask(line) (a native request: ok and its line); status() (the native status text); store
 -- (coop-bike.txt through link.store); drive (race/drive.lua's); settings (main.lua's: bike); paused() (the game paused
@@ -267,7 +273,13 @@ function Ride.new(o)
         local began=os.clock()
         local mesh=assert(valid(e.Mesh),'EVE has no main mesh')
         local rot,at=value_of(mesh.RelativeRotation),value_of(mesh.RelativeLocation)
-        local r={eve=e,path=path_of(e),at=address(e),mesh=mesh,part=part,part_path=here.part_path,
+        -- A file this Lua load kept for her (a dismount that could not write her mesh back) holds her base: her mesh
+        -- may still lean.
+        local left,path=fields(store.load()),path_of(e)
+        local function base(k,v) return left[1]==path and tonumber(left[k]) or v end
+        rot={Pitch=base(2,rot.Pitch),Yaw=base(3,rot.Yaw),Roll=base(4,rot.Roll)}
+        at={X=base(5,at.X),Y=base(6,at.Y),Z=base(7,at.Z)}
+        local r={eve=e,path=path,at=address(e),mesh=mesh,part=part,part_path=here.part_path,
             base={Pitch=rot.Pitch,Yaw=rot.Yaw,Roll=rot.Roll},base_at={X=at.X,Y=at.Y,Z=at.Z},lean=0,pitch=0,
             since=began,read=began,ends={}}
         local saved,save_why=store.save(table.concat({r.path,number(rot.Pitch),number(rot.Yaw),number(rot.Roll),
@@ -294,8 +306,9 @@ function Ride.new(o)
             stop('the mount failed: '..why_not)
             return false,why_not
         end
-        log(('bike on in %.1f ms: her mesh relative rotation P=%.2f Y=%.2f R=%.2f, location %.2f %.2f %.2f'):format(
-            (os.clock()-began)*1000,rot.Pitch,rot.Yaw,rot.Roll,at.X,at.Y,at.Z))
+        log(('bike on in %.1f ms: her mesh relative rotation P=%.2f Y=%.2f R=%.2f, location %.2f %.2f %.2f%s'):format(
+            (os.clock()-began)*1000,rot.Pitch,rot.Yaw,rot.Roll,at.X,at.Y,at.Z,
+            left[1]==path and ' (kept in coop-bike.txt)' or ''))
         return true,'On the bike: coop bike gets her off.'
     end
 
@@ -426,8 +439,7 @@ function Ride.new(o)
         restored=true
         local line=store.load()
         if not line then return end
-        local f={}
-        for field in (line..'\t'):gmatch('([^\t]*)\t') do f[#f+1]=field end
+        local f=fields(line)
         local ok,said=pcall(function()
             local e=U.her(valid(StaticFindObject(f[1])))
             if not e then return 'her EVE is gone' end
