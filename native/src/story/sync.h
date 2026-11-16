@@ -346,12 +346,16 @@ public:
   virtual const char *trip(const Message &m) = 0;
   // A result for her current take: done, wait (her widget for it is not there yet) or refused, with why set.
   virtual Did apply(const Message &m, const char *&why) = 0;
-  virtual void hold(bool pause) = 0; // the leash: pause her copy's player, or play again the pause made here
-  virtual void wake() = 0;           // her dialogue line that waits for a press closes, with a result of 0
-  virtual void release() = 0;        // her copy is hers again: the holds on her input go
+  // The leash: pause her copy's player, or play again the pause made here. After a drop out of game the play again
+  // and release() come at the next pass in game, when that player may be gone: the engine checks it still stands.
+  virtual void hold(bool pause) = 0;
+  virtual void wake() = 0;    // her dialogue line that waits for a press closes, with a result of 0
+  virtual void release() = 0; // her copy is hers again: the holds on her input go
 };
 
-constexpr size_t kQueue = 256;       // Her lines that wait while we load; past that the newest are dropped.
+constexpr size_t kQueue = 256;       // Her lines that wait while we load; past that the newest are dropped. A
+                                     // position that follows one of the same scene replaces it, so positions never
+                                     // fill the queue.
 constexpr size_t kResults = 64;      // Results that wait for her copy to reach their take.
 constexpr size_t kTripQueue = 8;     // Trips that wait for her shared copy to end.
 constexpr uint64_t kStartMs = 5000;  // How long her copy may take to appear after a start or an attach.
@@ -393,7 +397,8 @@ public:
     const Message back = parse(line.data(), line.size());
     if (back.type != m.type || back.type == Type::on || back.type == Type::off) {
       ++counters.invalid;
-      say("invalid " + std::to_string(int(m.type)), "a value no line carries, not sent: " + line.substr(0, 160));
+      say("invalid " + std::to_string(int(m.type)) + " " + m.zone + " " + m.name + " " + m.exec,
+          "a value no line carries, not sent: " + line.substr(0, 160));
       return false;
     }
     if (!allowed(m)) {
@@ -442,6 +447,11 @@ public:
       ++counters.dropped;
       return say("list " + m.name, m.name + " from the host is not on the lists, dropped");
     }
+    // Only the last of positions in a row counts: take() keeps each one until the next.
+    if (m.type == Type::pos && !queue_.empty() && queue_.back().type == Type::pos && queue_.back().scene == m.scene) {
+      queue_.back() = m;
+      return;
+    }
     if (queue_.size() == kQueue) {
       ++counters.overflow;
       if (!std::exchange(overflowing_, true))
@@ -455,6 +465,8 @@ public:
   // seq order (one start per pass), her copy followed, then a waiting trip once no shared copy plays.
   void pass(const Gates &g, uint64_t now_ms) {
     follow(g);
+    if (g.in_game)
+      settle();
     if (queue_.empty())
       overflowing_ = false;
     if (!ready(g) || !her_on_ || g.host) {
@@ -577,7 +589,8 @@ private:
   void take(const Message &m, const Her &her, uint64_t now_ms, bool &called) {
     if (m.type == Type::trip) {
       if (her.zone != m.zone)
-        return drop("trip zone " + m.name, "trip " + m.name + " dropped: she was not in " + m.zone + " when it came");
+        return drop("trip zone " + m.name + " " + m.zone,
+                    "trip " + m.name + " dropped: she was not in " + m.zone + " when it came");
       if (trips_.size() == kTripQueue)
         return drop("trip full " + m.name,
                     "trip " + m.name + " dropped: " + std::to_string(kTripQueue) + " trips wait");
@@ -613,6 +626,8 @@ private:
 
   // A play or talk line: the gate, then a start or an attach, or today's wait.
   void begin(const Message &m, const Her &her, uint64_t now_ms, bool &called) {
+    // Keys hold the host's scene numbers: each scene logs anew, so a long play never fills kMaxSaid.
+    said_keys_.clear(), said_full_ = false;
     const std::string scene = "scene " + std::to_string(m.scene);
     if (copy_.state == State::shared)
       to_out("the host started another scene");
@@ -646,7 +661,7 @@ private:
       why = e_.trip(m);
     if (why) {
       ++counters.refused;
-      return say("trip refused " + m.name, "trip " + m.name + " refused (" + why + ")");
+      return say("trip refused " + m.name + " " + why, "trip " + m.name + " refused (" + why + ")");
     }
     ++counters.trips;
     log.push_back("story: trip " + m.name + " run in her game");
@@ -731,12 +746,11 @@ private:
     copy_.state = State::out;
     log.push_back("story: scene " + std::to_string(copy_.scene) + ": " + why + ", her copy plays out");
   }
-  // Forget her copy (it plays on as hers); in_game: the game can still be called for the holds.
+  // Forget her copy (it plays on as hers). Its pause and input holds go now in game, else at the next pass in game.
   void drop_copy(bool in_game, const char *why) {
-    if (in_game && copy_.held)
-      e_.hold(false);
-    if (in_game && copy_.state == State::shared)
-      e_.release();
+    unhold_ |= copy_.held, unrelease_ |= copy_.state == State::shared;
+    if (in_game)
+      settle();
     counters.dropped += copy_.results.size();
     if (why)
       log.push_back("story: scene " + std::to_string(copy_.scene) + ": " + why + ", her copy plays as hers (" +
@@ -745,6 +759,13 @@ private:
       log.push_back("story: scene " + std::to_string(copy_.scene) + ": " + std::to_string(copy_.results.size()) +
                     " results dropped with it");
     copy_ = Copy();
+  }
+  // The pause and input holds of a copy dropped out of game. In game only.
+  void settle() {
+    if (std::exchange(unhold_, false))
+      e_.hold(false);
+    if (std::exchange(unrelease_, false))
+      e_.release();
   }
   // A scene she waits through as before: today's cutscene wait. Its later lines are dropped.
   void fallback(uint32_t scene, const char *why) {
@@ -796,6 +817,7 @@ private:
   Gates gates_;
   uint64_t partner_ = 0;
   bool her_on_ = false, overflowing_ = false, gap_logged_ = false, said_full_ = false;
+  bool unhold_ = false, unrelease_ = false; // A copy dropped out of game: its pause and input holds still to go.
   uint32_t seq_ = 0, last_ = 0;
   std::string said_; // Our last state line to her ("on" or "off <reason>"), empty after a new partner.
   Message last_pos_; // Host: the last position sent in this scene.

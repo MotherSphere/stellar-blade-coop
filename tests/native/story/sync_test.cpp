@@ -8,7 +8,8 @@
 // take and dropped once her copy left it, a widget that comes late, her dialogue wait closed once, the host's end and
 // her copy played out, the replay guard and its expiry, a first take that differs, a scene that never shows, an
 // attach, a quest row, a talk, trips that wait for her copy, the host's position rate, sequence numbers, the queue
-// while she loads and its overflow, a new partner, the feature off, lines from the wrong side and the status line.
+// while she loads with its positions kept to the newest and its overflow, a new partner, a copy dropped out of game,
+// the feature off, a log that hundreds of scenes do not use up, lines from the wrong side and the status line.
 #include "story/sync.h"
 
 #include <cassert>
@@ -584,6 +585,9 @@ void test_talk() {
   // A path no line carries is not sent.
   t.name = "/Game/Talk/T Lily";
   assert(!p.send(t) && p.host.counters.invalid == 1 && saw(p.host.log, "a value no line carries, not sent"));
+  // Each bad value gets its line.
+  t.name = "/Game/Talk/T Eve";
+  assert(!p.send(t) && p.host.counters.invalid == 2 && saw(p.host.log, "T Eve"));
 }
 
 void test_trips() {
@@ -616,7 +620,11 @@ void test_trips() {
   p.game.trip_why = "nowarp";
   assert(p.trip(kTripSent, zone));
   p.flow();
-  assert(p.game.trips.size() == 2 && p.guest.counters.refused == 2);
+  assert(p.game.trips.size() == 2 && p.guest.counters.refused == 2 && saw(p.guest.log, "refused (nowarp)"));
+  // Another zone gets its line too.
+  assert(p.trip(kTripSent, "Zone_Far"));
+  p.flow();
+  assert(saw(p.guest.log, "she was not in Zone_Far when it came"));
 }
 
 void test_seq_and_sides() {
@@ -648,16 +656,34 @@ void test_load_and_overflow() {
   assert(p.play(1, row) && p.pos(1, 100, 5));
   p.flow();
   assert(p.game.starts.empty() && p.guest.queued() == 2);
-  for (int i = 0; i < int(kQueue); ++i) {
+  // Positions in a row keep only the newest, so a long load keeps the end that follows them.
+  for (int i = 0; i < int(kQueue) + 10; ++i) {
     p.now += kPosMs;
     assert(p.pos(1, 100, 6 + i));
   }
+  assert(p.end(1));
+  p.flow();
+  assert(p.guest.queued() == 3 && p.guest.counters.overflow == 0);
+  p.gg.in_game = true;
+  p.flow();
+  assert(p.game.starts.size() == 1 && p.guest.queued() == 0);
+  p.her(row.path, 100, 7);
+  p.flow();
+  assert(p.guest.active() && !p.guest.sharing() && !p.game.paused);
+  p.her("");
+  p.flow();
+  assert(!p.guest.active());
+  // Other lines past kQueue are dropped, the newest first.
+  p.gg.in_game = false;
+  for (uint32_t n = 0; n < kQueue + 2; ++n)
+    assert(p.widget(Type::qte, 1, 100, n));
   p.flow();
   assert(p.guest.queued() == kQueue && p.guest.counters.overflow == 2 && saw(p.guest.log, "newer ones are dropped"));
   p.gg.in_game = true;
   p.flow();
-  assert(p.game.starts.size() == 1 && p.guest.queued() == 0);
-  // A second start waits for the next pass.
+  assert(p.guest.queued() == 0);
+  // A second start waits for the next pass. Past the replay guard: she saw the row's scene above.
+  p.now += kReplayMs;
   p.gg.in_game = false;
   assert(p.end(1) && p.play(2, row) && p.play(3, other_row()) && p.pos(3, 100, 1));
   p.flow();
@@ -681,6 +707,22 @@ void test_partner_and_off() {
     p.flow();
     assert(!p.guest.active() && !p.game.paused && p.game.releases == 1 && saw(p.guest.log, "a new partner"));
   }
+  { // Her copy dropped out of game: the pause SBO made goes at the next pass in game.
+    Pair p;
+    assert(p.play(1, row) && p.pos(1, 100, 5));
+    p.flow();
+    p.her(row.path, 100, 5);
+    p.flow();
+    assert(p.guest.sharing() && p.game.paused);
+    p.gg.in_game = false, p.gg.partner = 0;
+    p.flow();
+    assert(!p.guest.active() && p.game.paused && p.game.releases == 0);
+    p.gg.in_game = true;
+    p.flow();
+    assert(!p.game.paused && p.game.plays == 1 && p.game.releases == 1);
+    p.flow();
+    assert(p.game.plays == 1 && p.game.releases == 1);
+  }
   { // The host's feature off: hers drops the copy the same way.
     Pair p;
     assert(p.play(1, row));
@@ -691,6 +733,19 @@ void test_partner_and_off() {
     p.step();
     assert(!p.guest.active() && p.game.releases == 1 && saw(p.guest.log, "the feature is off on one side"));
     assert(!p.play(2, row));
+  }
+  { // Hundreds of scenes she cannot play leave the log room for a refusal after them.
+    Pair p;
+    p.game.reads.idle = false;
+    for (uint32_t s = 1; s <= kMaxSaid + 10; ++s) {
+      assert(p.play(s, row));
+      p.flow();
+    }
+    assert(p.guest.counters.fallbacks == kMaxSaid + 10 && saw(p.guest.log, "(busy), she waits as before"));
+    p.game.reads.in_step = false;
+    assert(p.trip(kTripSent, p.game.now.zone));
+    p.flow();
+    assert(saw(p.guest.log, "refused (story)") && !saw(p.guest.log, "counted only"));
   }
   { // A match lobby on her side.
     Pair p;
