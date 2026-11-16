@@ -442,27 +442,32 @@ function Ride.new(o)
         if why then return off_line(why) end
     end
     -- At the first tick of a Lua load: an earlier load's coop-bike.txt (it left EVE on the bike) puts her main mesh's
-    -- rotation and location back on that EVE if she still is one and hides the bike part, then the file is cleared.
-    -- Once. Its drive comes back through coop-drive.txt (race/drive.lua's restore).
+    -- rotation and location back on that EVE if she still is one and hides the bike part, then the file is cleared
+    -- unless that mesh write failed. Once. Its drive comes back through coop-drive.txt (race/drive.lua's restore).
     function self.restore()
         if restored then return end
         restored=true
         local line=store.load()
         if not line then return end
         local f=fields(line)
+        -- A mesh write that fails keeps the file: her mesh may still lean, the next mount takes her base from it.
+        local kept=false
         local ok,said=pcall(function()
             local e=U.her(valid(StaticFindObject(f[1])))
             if not e then return 'her EVE is gone' end
             local n={}
             for k=2,7 do n[k]=assert(tonumber(f[k]),'value '..(k-1)..' unreadable in the file') end
+            kept=true
             valid(e.Mesh):K2_SetRelativeLocationAndRotation({X=n[5],Y=n[6],Z=n[7]},{Pitch=n[2],Yaw=n[3],Roll=n[4]},
                 false,{},false)
+            kept=false
             local p=find_part(e)
             if p then p:SetVisibility(false,false) end
             return 'her mesh back'..(p and ', the bike hidden' or '')
         end)
-        store.clear()
-        log('bike restored from coop-bike.txt: '..(ok and said or 'failed ('..why_of(said)..')'))
+        if not kept then store.clear() end
+        log('bike restored from coop-bike.txt: '..(ok and said or 'failed ('..why_of(said)..')')
+            ..(kept and ', coop-bike.txt kept' or ''))
     end
     -- coop bike status: the preload, the part, the ride and the values.
     function self.status()

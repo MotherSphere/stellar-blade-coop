@@ -536,6 +536,21 @@ R2.slow()
 clock=clock+2
 R2.slow()
 assert(eve.added==added and last():find('^bike part ready on EVE %(found in'),'Found, not made: '..last())
+-- A value the file cannot give clears it. A mesh write that fails keeps it: the next mount takes her base from it.
+stored='/Game/Map.Map:PersistentLevel.EVE_1\t0\tx\t0\t0\t0\t-90'
+new().restore()
+assert(stored==nil and last()=='bike restored from coop-bike.txt: failed (value 2 unreadable in the file)',last())
+stored='/Game/Map.Map:PersistentLevel.EVE_1\t0\t-90\t0\t0\t0\t-90'
+eve.Mesh.RelativeRotation={Pitch=2,Yaw=-90,Roll=10}
+eve.Mesh.locked=true
+new().restore()
+eve.Mesh.locked=nil
+assert(stored=='/Game/Map.Map:PersistentLevel.EVE_1\t0\t-90\t0\t0\t0\t-90' and eve.Mesh.RelativeRotation.Roll==10)
+assert(last()=='bike restored from coop-bike.txt: failed (read only), coop-bike.txt kept',last())
+id=mount()
+assert(stored=='/Game/Map.Map:PersistentLevel.EVE_1\t0\t-90\t0\t0\t0\t-90',stored)
+R.toggle()
+assert(stored==nil and eve.Mesh.RelativeRotation.Roll==0)
 
 -- 12. bike=off: off the bike, the part removed, the preload released, once; on again asks the load again.
 id=mount()
