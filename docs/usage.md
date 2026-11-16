@@ -20,10 +20,12 @@ The keys work with or without the console. They need the native part (`StellarCo
 | F7 | As the guest, travel to the camp nearest the host, or cancel the travel that `follow_host=always` is about to start ([Following the host](playing-with-a-friend.md#following-the-host)) | `coop travel host` |
 | F8 | Leave the session | `coop leave` |
 | F9 | While you record a [Doro race](doro-races.md) track, set a checkpoint where EVE stands; nothing otherwise | `coop race cp` |
+| F3 | Put EVE on the [bike](bike.md) or take her off it; a refusal shows its reason on screen | `coop bike` |
+| D-pad Right held 1 s, on a controller | The same as F3, in a world with none of the mod's screens open | `coop bike` |
 | Enter | During a session or in the SBO lobby, open the [chat](interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 
-You can change F5, F6, F7, F8 and F9 in the menu's Options page or in [coop-settings.txt](settings.md#coop-settingstxt), and
+You can change F3, F5, F6, F7, F8 and F9 in the menu's Options page or in [coop-settings.txt](settings.md#coop-settingstxt), and
 `host_key` in the file only. A key passes its action to the game thread, where the same checks as for the console
 command apply (`coop off` included). The log says `key F5: menu`. The other keys then log the usual `OK:` or `STOP:`
 line; the menu key logs one only when the menu cannot open.
@@ -67,6 +69,9 @@ Every command starts with `coop`. Each answer goes to `UE4SS.log` as a `[Stellar
 | `coop wear [<name>\|off [hair\|suit]]` | Put a [cut hair or suit](cut-eve.md#cut-hairs-and-suits-coop-wear) on your EVE (display only, untested in game), or give the game's back |
 | `coop lines [<name>\|stop]` | Show the subtitles of a [scene cut before it was voiced](cut-scenes-and-menus.md#cut-scene-lines-coop-lines) in the chat's feed, or play unused voice takes, or end it (untested in game) |
 | `coop emote [list\|<name>\|off]` | Play one of [EVE's clips](cut-eve.md#emotes-coop-emote) (a photo-mode pose held until she moves, a wave, a clip of the Cut category; untested in game), list them or end it |
+| `coop bike` | Put EVE on the [bike](bike.md) or take her off it, on any save (untested in game) |
+| `coop bike status` | The bike's preload, whether it is on EVE, whether she rides, its four riding values |
+| `coop bike tune [<name> <value>]` | The four [riding values](bike.md#coop-bike), or one changed for your next rides until the mod reloads |
 | `coop loopback <delay ms> <jitter ms> <loss %>` | Run your own ghost through a simulated network on one PC |
 | `coop loopback off` | Stop the loopback |
 | `coop record` / `coop record off` | Record what you send (table and poses) to `coop-record.bin` |
@@ -305,6 +310,8 @@ word, `coop chainspin`, a scene of `coop scene`, `coop fly on`, `coop slowmo on`
 - the `coop wear` look (your EVE's own hair and suit come back) and a `coop lines` scene;
 - the game's developer flight and slow motion (`coop fly` and `coop slowmo`: the game's values come back), the cut glide
   (`coop glide`: EVE's glide flag is cleared) and a `coop emote` clip (it blends out);
+- the [bike](bike.md) (EVE gets off: the game's actions, her movement values and her mesh come back; the native part
+  frees the bike's loaded files);
 - the game's developer panels (`coop devinfo`: closed);
 - a `coop shortcut` list under way and the gift toast (taken off the screen).
 
@@ -314,7 +321,7 @@ only the enemies near EVE at that moment, and both are skipped while a respawn o
 the items left your inventory and before the gift reached your mailbox file stops there, and those items are lost. Gift
 lines from your friend that arrive after `coop off` are dropped without an answer. Afterwards only `coop status` and
 `coop report` answer. Every other command answers `STOP: coop off is active until the game restarts`, and so do the
-menu, host and leave keys. The race key does nothing.
+menu, host, leave and bike keys. The race key does nothing.
 
 ## Status lines
 
@@ -355,9 +362,10 @@ F6 gives one line, in the log (`OK: ...`) and on screen as a notice:
   `remote<k>=<generation> <count>` for each other member's ghost slot k from 1 to 6), or `engine=off reason=<why>`; then
   `warp=<idle|busy> me=<n>` (a respawn or a warp under way, and your EVE's id, for the revive), `travel=<state>
   travel_calls=<n>` (the last travel's state: `idle`, `pending`, `warping`, `arrived` or `refused:<why>`, and the travel
-  requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip the native part took and what
-  became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`, `refused:<why>` or `fault`, see
-  [Emotes](cut-eve.md#emotes-coop-emote)), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
+  requests handled so far), `anim=<state> anim_id=<n>` (the last `coop emote` clip or bike pose the native part took
+  and what became of it: `idle`, `playing`, `ended`, `ended:weight`, `stopped`, `refused:<why>` or `fault`, see
+  [Emotes](cut-eve.md#emotes-coop-emote)), `bike=<off|loading|ready|failed:<why>|fault> bike_gate=<on|off|refused:<why>>`
+  (the [bike](internals/bike.md#status-words-and-the-latch)'s preload and the game's actions while EVE rides), `items=<ask> <count>` or `items=<ask> none <why>` (the answer to
   [`coop gift`](cut-scenes-and-menus.md#cut-mailbox-coop-gift)'s last inventory read, by its number; why is `unpinned`, `noeve`, `nomanager`,
   `nobucket` or `unread`), and `nightop=on` or `nightop=rule` while the probe's poller runs.
 - Activated camps: `activated=<n>:<camp>,<camp>,...` lists the camps of the game's camp table (simple and full camps,

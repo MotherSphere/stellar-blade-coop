@@ -15,9 +15,9 @@ build/host/pose_codec_test
 
 ## Lua tests
 
-The Lua tests (`core/`: `actors_of`, `class_at`, `keybind`, `link`, `pak_gate`, `settings_file`, `ue4ss_settings`,
+The Lua tests (`bike/`: `model`, `ride`; `core/`: `actors_of`, `class_at`, `keybind`, `link`, `pak_gate`, `settings_file`, `ue4ss_settings`,
 `unreal`; `cut/`: `chainspin`, `devmenu`, `emote`, `enemy`, `flight`, `gardener`, `glide`, `leviathan`, `lines`, `lion`,
-`mailbox`, `scene`, `tendril`, `wear`; `main/`: `boot`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
+`mailbox`, `scene`, `tendril`, `wear`; `main/`: `bike`, `boot`, `fight`, `fight_notices`, `guide`, `idle`, `input`, `match`,
 `menu`, `quests`, `sbo`, `session_ui`, `settings`, `story`, `world`; `matrix13/quest/`: `on_time`, `zone_talks`;
 `matrix13/talks/`: `zones`; `matrix13/world/`: `boss`, `breakables`, `drone`, `fans`, `mila`, `move`, `travel`;
 `nightop/`: `board`, `challenges`, `guard_text`, `probe`, `recruiter`, `recruiter_text`, `roxanne`, `run`, `shop`,
@@ -28,9 +28,19 @@ the scripts, with fake UE4SS objects for those that call the engine. In the capt
 fails the test. The `main/` tests load
 `main/fixture.lua` first, with UE4SS stubbed for `main.lua`.
 
+- `bike/model_test` rides `bike/model.lua` on flat ground with Eve On Wheels' default values: 90% of the top speed
+  after 3.9 s, a real top of about 2252 cm/s, 15.8 m of braking from the top, reverse after 0.3 s at a stop, the yaw
+  rate and lean at full lock at five speeds, the drift's 42-degree slip cap, a wall, the air, a ramp launch only after
+  0.12 s of climb, the pitch, root motion holding the state and the values' bounds;
+- `bike/ride_test` covers `bike/ride.lua` over a fake EVE and native part: the preload asked once and released at
+  `bike=off`, the part made once (at the seat, hidden) or found again after a reload, every mount refusal with its
+  reason and nothing written, the mount's order and the dismount backward, the lean, the riding pose played again or
+  ending the ride, the 250 ms checks, `coop-bike.txt` and its restore, `coop bike status` and `tune`, the Doro look
+  refused while she rides;
 - `core/link_test` also covers the status's `uidev=`, `me=` and `world=` lines and the `owner=`, `room=` and `hall=`
   fields of a match lobby's `link=` line, each read as nil without it (`me=` also when the name is empty), and never
-  from a player's name, and the `shared_world` setting;
+  from a player's name, the `shared_world` setting; `bike` and `bike_key` (an older file whose keys hold F3 gets no
+  bike key);
 - `core/pak_gate_test` finds the hall lobby pak `zSBO_Lobby` in `~mods`, else `LogicMods`, over fake files, checks its
   version (the `.utoc` size and the `.ucas` size from the `.utoc`'s compression blocks, joined by `_`) and that each
   read is bounded,
@@ -44,6 +54,10 @@ fails the test. The `main/` tests load
 - `main/fight_notices_test` covers the same place and same spawns notices in both languages;
 - `main/quests_test` covers `coop quests` with the `shared_quests` and `quest_deny` settings and the shared quests'
   notices;
+- `main/bike_test` covers the bike through `main.lua` with a fake `bike/ride.lua`: the load line, what the ride gets
+  (its asks, `coop-bike.txt`, the driving, the settings, SBO's busy reasons), `coop bike` and its words, F3 and the
+  pad's D-pad Right hold with a refusal on screen, the restore, the frame and the 250 ms pass with an end said on
+  screen, the Options rows, `coop off`; `riding()` as `coop emote`, the race and the hall seats read it;
 - `main/world_test` covers `coop world` (its words, on and off whatever `shared_world` says, status), the start once a
   load with `shared_world=on`, the end at a reload with `shared_world=off`, and the shared world's two notices;
 - `main/idle_test` counts the FindAllOf and StaticFindObject calls of main.lua's two loops over one idle minute, each
@@ -161,7 +175,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `aggro-host`, `bosses <boss %>`, `spawns`, `extra <n>` and `filter` words and its `pilot` requests, `test target` and
   the boss tests included; `coop fight pvp` and `pvp off`; `lion rows`, `gardener rows`, `tendril rows`, `bolt rows`,
   `mxiii rows`, `shop rows` and `signal rows` with their 25 table words and bad addresses, the longest of them 813
-  bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once` or `loop`, and `anim stop`;
+  bytes; `fly` and `slowmo` on or off; `anim play` with its id, path and `once`, `loop` or `ride`, and `anim stop`;
+  `bike load <clip>`, `bike free`, `bike gate on` and `bike gate off`, a mesh, a package path or a mod's clip refused;
   `shortcut list` and `shortcut load <map> <1-4>`; `hud hide on` and `hud hide off`; `loading lift`; `nightshop`,
   `roxanne`, `lily`,
   `guardtext` and the 8 `signal` words, in `quest/own.h`'s order; the `sbo` requests (`on`, `arm`, `enter`, `warp`,
@@ -524,7 +539,11 @@ The C++ tests cover the platform-free headers in `native/src`.
   our clip, another clip, a cleared slot, a gone EVE and a slot that takes no weight, with paused time left out,
   the stops, the fault, the status word and the log lines), our EVE as the controller's pawn and the check that she
   is still the object played on, over fake memory (no pawn, a pawn of another class, a pending kill, a new serial),
-  and what each frame does;
+  what each frame does; the bike's `ride` play (a loop forever with foot IK type 2);
+- `bike_test`: the bike's native side (`game/bike.h`): the preload path rule, the 55 gated names, the gate over a fake
+  action map (each state kept and put back, an absent name back as on, a name SB changed during the ride left as SB set
+  it, a name the game never made skipped, a controller gone, a fault), the words packed for the worker and the status
+  line, the ride plays' clip lookups and the log lines;
 - `items_test`: `coop gift`'s inventory read against a fake image laid out like the pinned build: the FName and
   CityHash64 hashes checked against the game's, a count over two instances and along chains of collisions, an item
   EVE does not carry, no manager, bucket or owner, an instance the manager no longer holds, and hostile memory (a
@@ -532,8 +551,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   `unread`, never in a hang;
 - `pad_test`: the controller's events for the co-op menu (each press, up and down repeating while held, a D-pad
   diagonal read as up or down and the stick along its main axis, which keeps its pressed axis near 45 degrees, the
-  stick's thresholds, View held 1 s, LB and RB once a press and in event order with up's repeat going on, a disconnect,
-  the event queue) and which XInput slots each poll asks;
+  stick's thresholds, View held 1 s, D-pad Right held 1 s for the bike, LB and RB once a press and in event order with
+  up's repeat going on, a disconnect, the event queue) and which XInput slots each poll asks;
 - `dev_panels_test`: `coop devinfo`'s guard (each read failing alone, refused with its own reason; a close needs
   neither the flow nor the phase), the plan over every mix of open panels and every ask (the other panel closes, the
   one asked opens unless it is open), and the two panels' logic types and names;
