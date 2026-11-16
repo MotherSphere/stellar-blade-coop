@@ -59,7 +59,7 @@
 //                                                                  comes into the set, and on her first line for a
 //                                                                  copy each one it lacks, so a repeat changes nothing
 //                                                                  and brings back a line refused before she paired
-//   SBF20 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
+//   SBF21 pvp <seq> <skill> <d>                                    both, reliable: the PvP test, a drop of the
 //                                                                  sender's stand-in of us, to apply to our EVE
 // The host answers the guest's on and world with its whole list (world, its scale, place, aggro and bosses, then every
 // up), and the guest answers the host's on with its own (hers may have come while the host was off), so either side

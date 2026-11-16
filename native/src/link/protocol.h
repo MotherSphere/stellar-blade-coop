@@ -50,7 +50,7 @@
 #include "game/pak_list.h"
 
 namespace coop {
-constexpr int kProtocol = 20; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
+constexpr int kProtocol = 21; // Bump on any wire change. 1 was the first link (hello with a name, no accept/reject);
                               // 3 added the component table (SBT) beside the pose (SBP); 4 carries them on channel 1;
                               // 5 adds the table's material lines (dyes); 6 adds four effect slots to the pose; 7 adds
                               // channel 2 (shared enemies, SBF7) and the photo line; 8 adds the say and vit lines,
@@ -82,10 +82,13 @@ constexpr int kProtocol = 20; // Bump on any wire change. 1 was the first link (
                               // attacker's game, applied to the victim's EVE in hers), which a protocol-19 peer would
                               // count malformed, and stage 1's match lines (start, count and end on channel 0) and
                               // the match lobby keys sbo_mode, sbo_state and sbo_map, which a protocol-19 game never
-                              // reads. An older peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds,
-                              // 11: v0.4.0-beta.1, 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1,
-                              // 17: a v0.7.5 test build, 18: v0.7.5, 19: v0.8.0 to v0.9.0; 15 and 16 were never
-                              // released) is told why: the lobby tag, then the hello's reject, name both.
+                              // reads; 21 adds the shared world's SBW lines on channel 2 (doors, levers, lifts and
+                              // other envs one player changes, changed in the other player's world), which a
+                              // protocol-20 peer would count malformed, so her world would stay as it was. An older
+                              // peer (6: v0.1.1, 7: v0.2.0, 9: v0.3.0, 10: stage 2's builds, 11: v0.4.0-beta.1,
+                              // 12: v0.5.0-beta.1, 13: v0.6.0-beta.1 to beta.3, 14: v0.7.0-beta.1, 17: a v0.7.5 test
+                              // build, 18: v0.7.5, 19: v0.8.0 to v0.10.0, 20: v0.11.0; 15 and 16 were never released)
+                              // is told why: the lobby tag, then the hello's reject, name both.
 constexpr char kLobbyKey[] = "stellarcoop";
 constexpr size_t kMaxMessage = 512; // Longer messages are junk.
 constexpr size_t kMaxName = 64, kMaxToken = 40, kMaxReason = 200;
@@ -366,7 +369,7 @@ inline std::string count_line(uint32_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " count " + (seconds ? std::to_string(seconds) : "stop");
 }
 inline std::string end_line() { return "SBC" + std::to_string(kProtocol) + " end"; }
-// Channel 2's tags, versioned like channel 0's: "SBF20" for the shared fight, "SBQ20" for the shared quests, "SBW20"
+// Channel 2's tags, versioned like channel 0's: "SBF21" for the shared fight, "SBQ21" for the shared quests, "SBW21"
 // for the shared world.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }

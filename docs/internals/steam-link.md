@@ -184,26 +184,26 @@ Channel 0 carries short text messages over Steam's relayed P2P messages (SteamNe
 handshake, every message carries the protocol number, and a peer that runs another protocol drops it:
 
 ```
-SBC20 ping <seq> <ms>
-SBC20 pong <seq> <ms>
-SBC20 photo <0|1|s|c> <both|notice>
-SBC20 say <text>
-SBC20 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
-SBC20 pak <hash> <name>
-SBC20 paks <count> <hash>
-SBC20 camps? <id>
-SBC20 camps <id> <world> <camp>:<m> ...
-SBC20 camps <id> none <title|loading|nocamp|busy>
-SBC20 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
-SBC20 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
-SBC20 mark <n> [<text>]
-SBC20 race <text>
-SBC20 gift s <id> <item> <count>
-SBC20 gift a <id>
-SBC20 gift n <id> <why>
-SBC20 start <mode> <map> <seed> <id>,<id>,...
-SBC20 count <1-10|stop>
-SBC20 end
+SBC21 ping <seq> <ms>
+SBC21 pong <seq> <ms>
+SBC21 photo <0|1|s|c> <both|notice>
+SBC21 say <text>
+SBC21 vit <hp> <max hp> <shield> <max shield> <shield blocks> <beta> <max beta> <burst> <max burst> <tachy> <max tachy> <life>
+SBC21 pak <hash> <name>
+SBC21 paks <count> <hash>
+SBC21 camps? <id>
+SBC21 camps <id> <world> <camp>:<m> ...
+SBC21 camps <id> none <title|loading|nocamp|busy>
+SBC21 night h <n> <run> <seed> <phase> <wave> <run time ms> <score> <kills> <clears> <found> <x> <y> <z> <yaw> <map> <end> <level> <down> <help>
+SBC21 night g <n> <run> <state> <up> <killed> <done> <why> <down> <help>
+SBC21 mark <n> [<text>]
+SBC21 race <text>
+SBC21 gift s <id> <item> <count>
+SBC21 gift a <id>
+SBC21 gift n <id> <why>
+SBC21 start <mode> <map> <seed> <id>,<id>,...
+SBC21 count <1-10|stop>
+SBC21 end
 ```
 
 ### The photo line
@@ -399,7 +399,7 @@ other request is ignored.
 
 ## Channel 1: tables and poses
 
-Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 20` (sent reliable), and
+Channel 1 carries the pose path's bytes unchanged: the component table as text starting `SBT 21` (sent reliable), and
 each pose as a binary message starting `SBP` (a keyframe) or `SBD` (a delta), then the protocol byte (sent unreliable,
 without Nagle delay). Same-place enemies add a binary message starting `SBE` and the protocol byte, at most 30 a
 second (sent unreliable): the place, rotation and animation speed of up to 16 enemies that the sender moves on the
