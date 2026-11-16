@@ -998,8 +998,9 @@ end
 -- game never answers a stranger), nor while the menu waits for a key, but back, which stops the wait (menu.nav). The
 -- chat's box and the code box take only back, which closes them as Esc does: nothing typed, nothing sent, and a pad
 -- alone is never stuck there. LB and RB (tab_left, tab_right) change C's tabs while C is open, and nothing elsewhere.
--- bike (D-pad Right held 1 s) gets EVE on the bike or off it as bike_key does, in a world with our HUD shown and none
--- of our screens open; it does nothing otherwise.
+-- bike (D-pad Right held 1 s) gets EVE on the bike or off it as bike_key does, in a world with our HUD shown, none of
+-- our screens open (the host's question included) and the game neither paused nor showing one of its own screens,
+-- such as its inventory or map; otherwise it logs why and does nothing.
 local PAD={'up','down','left','right','select','back','menu','tab_left','tab_right','bike'}
 -- bike_key and the pad's bike: EVE on the bike or off it, logged as a command is. A refusal also goes on screen, in
 -- English as the bike gives it, since the press shows nothing else.
@@ -1011,15 +1012,17 @@ local function bike_press(by)
     if not ok then say(tostring(message)) end
 end
 local function pad_event(what)
-    if approval.is_open() then return end
     if what=='bike' then
-        if hud_shown and not (lobby.is_open() or code_box.is_open() or box.is_open() or menu.is_open()
-            or saves_ui.is_open()) then
-            log('pad: bike')
-            bike_press('the pad')
-        end
+        local why=not hud_shown and 'our HUD is not shown'
+            or (approval.is_open() or lobby.is_open() or code_box.is_open() or box.is_open() or menu.is_open()
+                or saves_ui.is_open()) and 'one of our screens is open'
+            or kit~=nil and kit.paused(true) and 'the game is paused or shows one of its screens'
+        if why then log('pad: bike ignored: '..why); return end
+        log('pad: bike')
+        bike_press('the pad')
         return
     end
+    if approval.is_open() then return end
     if what=='tab_left' or what=='tab_right' then
         if lobby.is_open()=='settings' then lobby.nav(what) end
         return

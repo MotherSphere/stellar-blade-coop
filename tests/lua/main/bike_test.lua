@@ -82,20 +82,27 @@ quarter()
 assert(logged('STOP: Off the bike: a cutscene holds EVE') and said[#said]==bk.slow_says[2])
 bk.slow_says=nil
 
--- The pad: D-pad Right held 1 s (the native part's tenth event) as bike_key, in a world with our HUD shown and none of
--- our screens open; at the title nothing.
+-- The pad: D-pad Right held 1 s (the native part's tenth event) as bike_key, in a world with our HUD shown, none of
+-- our screens open and the game not paused; otherwise nothing, with the reason logged.
 local function pad(...) for _,e in ipairs({...}) do pd.q[#pd.q+1]=e end; loops[1].f() end
 n=#bk.toggles
 in_world,at_title=false,true; quarter()
 pad(10)
-assert(#bk.toggles==n and not logged('pad: bike'),'At the title: nothing')
+assert(#bk.toggles==n and not logged('pad: bike') and logged('pad: bike ignored: our HUD is not shown'),
+    'At the title: nothing')
 in_world,at_title,kit_ready=true,false,true; quarter()
 pad(10)
 assert(#bk.toggles==n+1 and bk.toggles[#bk.toggles]=='the pad' and logged('pad: bike'))
 key('F5'); assert(kit_shown.menu)
 pad(10)
-assert(#bk.toggles==n+1 and kit_shown.menu,'The co-op menu open: nothing')
+assert(#bk.toggles==n+1 and kit_shown.menu and logged('pad: bike ignored: one of our screens is open'),
+    'The co-op menu open: nothing')
 key('F5')
+kit_paused=true
+pad(10)
+assert(#bk.toggles==n+1 and logged('pad: bike ignored: the game is paused or shows one of its screens'),
+    'The game paused or one of its screens: nothing')
+kit_paused=false
 -- The Options rows: bike off at once in the settings the ride reads (its 250 ms pass acts on it).
 key('F5'); to('Options'); key('RETURN'); to('Bike')
 assert(select(2,focus())=='On')

@@ -21,7 +21,7 @@ The keys work with or without the console. They need the native part (`StellarCo
 | F8 | Leave the session | `coop leave` |
 | F9 | While you record a [Doro race](doro-races.md) track, set a checkpoint where EVE stands; nothing otherwise | `coop race cp` |
 | F3 | Put EVE on the [bike](bike.md) or take her off it; a refusal shows its reason on screen | `coop bike` |
-| D-pad Right held 1 s, on a controller | The same as F3, in a world with none of the mod's screens open | `coop bike` |
+| D-pad Right held 1 s, on a controller | The same as F3, in a world with none of the mod's screens or the game's menus open | `coop bike` |
 | Enter | During a session or in the SBO lobby, open the [chat](interface.md#session-chat) box, then send a line; Esc closes the box | (none) |
 | none | Host a session at once, or open the Steam invite dialog again while you host (`host_key`) | `coop host` |
 

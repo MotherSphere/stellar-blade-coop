@@ -10,8 +10,9 @@ How the mod loads the bike, puts it on EVE and turns the game's actions off is i
 ## Getting on and off
 
 Press F3 (`bike_key`), hold D-pad Right for 1 s on a pad, or type `coop bike`. The same again gets her off. The pad's
-hold works in a world while none of the mod's screens (the co-op menu, the chat box, the lobby's screens) is open. With
-Eve On Wheels installed too, both mods react to D-pad Right.
+hold works in a world while none of the mod's screens (the co-op menu, the chat box, the lobby's screens) is open and
+the game is not paused or showing one of its menus, such as the inventory or the map. Otherwise the log says why it did
+nothing. With Eve On Wheels installed too, both mods react to D-pad Right.
 
 The mod loads the bike once `bike=on` (the default) and the native part runs, then hangs it on EVE, hidden, once she has
 been in the world for 2 s. Until then a mount is refused with `the bike is still loading`. A ride starts at once: the
