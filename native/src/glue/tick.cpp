@@ -145,8 +145,9 @@
 // The bike (game/bike.h): the worker hands over Lua's bike load (the riding clip's path), bike free and bike gate on or
 // off; the game thread asks SB's own streamable manager for the bike's mesh and that clip at priority 100, as SB loads
 // EVE's custom animations. It keeps the handle, reads its loaded flag every 250 ms until the load completes, then finds
-// each asset in memory before it says ready (SB completes a load that failed too). It releases the handle at bike free
-// and at coop off. The gate turns SB's gameplay actions off on the player controller
+// each asset in memory before it says ready (SB completes a load that failed too). It releases the handle when an asset
+// is not in memory once the flag is set, at bike free and at coop off.
+// The gate turns SB's gameplay actions off on the player controller
 // with SB's own setter of its per-action map, keeps each one's state and puts it back at gate off, at a new Lua load and
 // at coop off, unless SB changed it during the ride. All of it runs under its own SEH latch; status() puts the
 // preload's state and the gate's in the engine line for bike/ride.lua. The worker logs each change with the load's
@@ -368,9 +369,12 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   if (game_pinned && !debug_faulted && (!blocked || debug_holding))
     debug_tick();
   // The bike's preload and SB's actions while she rides, their own latch: the asks each frame, the loaded flag each
-  // 250 ms while it loads; after coop off only to put the actions back and release the preload.
+  // 250 ms while it loads; after coop off only to put the actions back and release the preload. After the latch or once
+  // nothing is held, a gate word the worker's lock held back is still handed over (our own copy, no game call).
   if (game_pinned && !bike_faulted && (!blocked || bike_holding()))
     bike_tick();
+  else if (game_pinned && bike_gate_pending)
+    bike_publish();
   // coop emote's native clips, their own latch: an ask each frame, the watch each 100 ms while ours plays; after coop
   // off only to stop ours.
   if (game_pinned && !anim_faulted)

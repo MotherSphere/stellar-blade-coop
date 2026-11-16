@@ -129,11 +129,9 @@ int main() {
     assert(describe_gate(false, Why::off, g) == "bike gate off (coop off)");
   }
 
-  { // A fault with the gate never on: it is not on, so the latch writes nothing back and logs no gate line. A put-back
-    // that faulted too says so, never that actions came back.
-    Map m;
+  { // A put-back that faulted says so, never that actions came back. Only the text is checked here: the latch's skip of
+    // a gate never on is Windows-only code.
     Gate never;
-    assert(!never.is_on() && m.writes == 0);
     assert(describe_gate(false, Why::fault, never) ==
            "bike gate off: a fault stopped the put-back, so some of SB's actions may stay off");
   }

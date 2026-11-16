@@ -8,8 +8,9 @@ namespace {
 // ---- The bike (game/bike.h): its preload and SB's action gate, the game thread's calls ----
 // The preload asks SB's streamable manager for the mesh and the riding clip in one request, as SB asks for EVE's custom
 // animations, keeps the handle, reads its loaded flag every bike::kPollMs, then finds each asset in memory (a load that
-// failed sets the flag too) and releases the handle at bike free, at a new load with another clip and at coop off. The
-// gate turns game/bike.h's actions off on the player controller (fight/pilot.h's is_a: an SBPlayerController) with
+// failed sets the flag too). It releases the handle when an asset is not in memory once the flag is set, at bike free,
+// at a new load with another clip and at coop off.
+// The gate turns game/bike.h's actions off on the player controller (fight/pilot.h's is_a: an SBPlayerController) with
 // SB's own setter. It puts each kept state back at gate off, at a new Lua load and at coop off, unless the controller
 // is gone. Every call runs in coop_tick on the pinned build, under its own SEH latch: the first fault ends the bike for
 // the run after one try to put the actions back. The handle is then left as it is (a leaked reference only keeps the
