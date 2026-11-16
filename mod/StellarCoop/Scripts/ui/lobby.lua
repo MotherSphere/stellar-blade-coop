@@ -12,8 +12,9 @@
 -- Accept or close animation and sound; the countdown UpdateTimer and StartTimer. A transparent kit row over each row
 -- takes the mouse, so no part ever sees it. A part is made on the first draw after a root build (a map change or the
 -- look warmed drops them all) and again when its slot's content changes. Rows, words and actions are
--- ui/lobby_model.lua's over main.lua's view(); what a row asks for goes to main.lua's act(). Every part call runs in
--- pcall; a refusal is logged once, and a part that cannot be made is logged once and left out until the mod reloads.
+-- ui/lobby_model.lua's over main.lua's view(); what a row asks for goes to main.lua's act(). The parts are made and
+-- driven through ui/parts.lua: every part call runs in pcall; a refusal is logged once, and a part that cannot be made
+-- is logged once and left out until the mod reloads.
 -- B or C opened, both closed, the question asked and answered, and C's Back each log one line (the focus watchdog's
 -- context).
 -- Ruling 5's fallback then draws the same shape with the kit: B's and C's rows as kit rows (the mouse zones' own
@@ -22,20 +23,14 @@
 local U=require('core.unreal')
 local Model=require('ui.lobby_model')
 local T=require('ui.text')
+local Parts=require('ui.parts')
 local THEME=require('ui.kit').THEME
 local culture=require('nightop.recruiter_text').culture
 local Lobby={}
 local STATICS='/Script/Engine.Default__GameplayStatics'
--- The six parts (L4 1.2), in the parts check's order; each one's object path (warm_part) and class (part).
-local PARTS={{'row','Lobby/WB_Lobby_Menu_Slot'},{'option','GameMenu/Setting/Slot/WB_Setting_Button_Slot'},
-    {'header','GameMenu/Setting/Slot/WB_Setting_Category'},
-    {'hint','GameMenu/Common/Indicator/WB_Common_IndicatorBtnDefault'},{'popup','GameMenu/Common/WB_Common_Popup'},
-    {'count','HUD/WB_MainHUD_CountDown'}}
-local ASSET,CLASS={},{}
-for _,p in ipairs(PARTS) do
-    ASSET[p[1]]='/Game/Art/UI/Widget/'..p[2]..'.'..p[2]:match('[^/]+$')
-    CLASS[p[1]]=ASSET[p[1]]..'_C'
-end
+-- The six parts (L4 1.2), in the parts check's order (ui/parts.lua's).
+local ORDER,ASSET,CLASS=Parts.ORDER,Parts.ASSET,Parts.CLASS
+local hint,header=Parts.hint,Parts.header
 -- B's stack in units (WB_Lobby's own, L4 3.1): rows 106 apart, the mode text's block (my call 12) 20 under the mode
 -- rows and 36 above the action rows, the list's bottom at 2000, the 512-unit logo 115 above the list.
 local PITCH,TEXT,DESC_GAP,ACTION_GAP,BOTTOM,LOGO,LOGO_GAP=106,94,20,36,2000,512,115
@@ -83,72 +78,14 @@ function Lobby.new(o)
     local ask,leaving=nil,nil
     local timer,counting=nil,nil -- The countdown part; Model.count's state.
     local room_on,back_at,hover,hover_at=false,nil,false,0
-    local broken,said={},{}
-    for _,p in ipairs(PARTS) do kit.warm_part(ASSET[p[1]]) end
+    local P=Parts.new(kit,log,'lobby')
+    local call,make,sync,look,broken=P.call,P.make,P.sync,P.look,P.broken
+    for _,kind in ipairs(ORDER) do kit.warm_part(ASSET[kind]) end
     local function words() return o.words and o.words() or T.en end
-    -- A call on a part while it is ours; a refusal logged once a kind (what).
-    local function call(rec,what,f)
-        local w=rec and kit.alive(rec)
-        if not w then return end
-        local ok,why=pcall(f,w)
-        if not ok and not said[what] then
-            said[what]=true
-            log('lobby: '..what..' refused: '..tostring(why))
-        end
-    end
-    -- A part of kind made in group, or nil: a failure (but the UI not up yet) is logged once and the kind left out.
-    local function make(group,kind,x,y,w,h,fill,hit)
-        if broken[kind] then return nil end
-        local rec,why=kit.part(group,CLASS[kind],x,y,w,h,fill,hit)
-        if rec then rec.kind,rec.look=kind,'normal'; return rec end -- Construct played Normal (or Disable).
-        if not why:find('not up',1,true) then
-            broken[kind]=true
-            log('lobby: '..why..'; left out until the mod reloads')
-        end
-    end
-    -- The parts of one set by slot, 1 to n, as specs say ({kind, x, y, w, h, sig, fill, after} or false: none): a
-    -- slot whose part is gone (a root build), moved or whose sig changed is made again; after: its EventNotification
-    -- once in the canvas.
-    local function sync(set,group,specs,n)
-        for i=1,n do
-            local s,have=specs[i],set[i]
-            local sig=s and s.sig..'@'..s.x..','..s.y
-            if have and not (sig==have.sig and kit.alive(have)) then kit.drop(have); set[i],have=nil,nil end
-            if s and not have then
-                local rec=make(group,s.kind,s.x,s.y,s.w,s.h,s.fill)
-                if rec then
-                    rec.sig,set[i]=sig,rec
-                    if s.after then call(rec,s.kind..' '..s.after,function(w) w:EventNotification(s.after) end) end
-                end
-            end
-        end
-    end
-    -- A row's look, on change only: B rows 'select' or 'normal' (SelectAnimation, NormalAnimation), C rows 'focus' or
-    -- 'normal' (StateFocus, StateNormal).
-    local function look(rec,want)
-        if not rec or rec.look==want then return end
-        rec.look=want
-        call(rec,rec.kind..' look',function(w)
-            if rec.kind~='row' then w:EventNotification(want=='focus' and 'StateFocus' or 'StateNormal')
-            elseif want=='select' then w:SelectAnimation() else w:NormalAnimation() end
-        end)
-    end
-    -- Key hints {{label, icon, second icon}, ...}, right to left from HINT_RIGHT; a hint never takes a click.
-    local function hint(x,y,label,icon,icon2)
-        return {kind='hint',x=x,y=y,sig=label..icon..(icon2 or ''),fill=function(w)
-            w:SetText(FText(label))
-            w:SetResourceAction(FName(icon))
-            w:SetResourceAction2(FName(icon2 or 'None'))
-            w:SetButtonClickable(false)
-        end}
-    end
     local function hints(list)
         local specs={}
         for i,h in ipairs(list) do specs[i]=hint(HINT_RIGHT-HINT_STEP*i,HINT_Y,h[1],h[2],h[3]) end
         return specs
-    end
-    local function header(x,y,label)
-        return {kind='header',x=x,y=y,sig=label,fill=function(w) w.Category_Name=FText(label) end}
     end
     -- Eight member rows (a mark, the name, its tag, the ping or the link's word at the right edge).
     local function members_view(b,x,y,pitch,width,style)
@@ -682,13 +619,13 @@ function Lobby.new(o)
     -- and a line for the console.
     function self.parts_check()
         local made=0
-        for _,p in ipairs(PARTS) do
-            local rec,why=kit.part('lobby_count',CLASS[p[1]],0,0)
-            log('lobby parts: '..CLASS[p[1]]:match('[^.]+$')..' '..(rec and 'ok' or (why:gsub('^part [^:]+: ',''))))
+        for _,kind in ipairs(ORDER) do
+            local rec,why=kit.part('lobby_count',CLASS[kind],0,0)
+            log('lobby parts: '..CLASS[kind]:match('[^.]+$')..' '..(rec and 'ok' or (why:gsub('^part [^:]+: ',''))))
             if rec then made=made+1; kit.drop(rec) end
         end
         kit.refocus() -- The popup's Construct took the focus.
-        return made==#PARTS,string.format('lobby parts: %d of %d made (the log has each)',made,#PARTS)
+        return made==#ORDER,string.format('lobby parts: %d of %d made (the log has each)',made,#ORDER)
     end
     return self
 end
