@@ -279,6 +279,12 @@ public:
     return nullptr;
   }
 
+  // The game thread: story together's gate on the guest (Guest::story_in_step) over the views of the last pass. False
+  // while no guest side runs, so a scene waits as before when the shared quests are off.
+  bool story_in_step() const {
+    return running_ && guest_ && side_.mode == Mode::guest && guest_->story_in_step(views_.data());
+  }
+
 private:
   uint64_t rebased(uint64_t address) const { return base_ + (address - kImageBase); }
   template <class Game> bool read(Game &g, uint64_t at, void *out, size_t n) {
@@ -820,11 +826,6 @@ private:
            std::to_string(requests[1]) + ", acquire " + (arm_ ? "armed" : "not armed") + ", zone " +
            (zone_.empty() ? "unknown" : zone_) + ", walk " + std::to_string(loads_) + ", quests" +
            (held.empty() ? " none" : held);
-  }
-  // The game thread: story together's gate on the guest (Guest::story_in_step) over the views of the last pass. False
-  // while no guest side runs, so a scene waits as before when the shared quests are off.
-  bool story_in_step() const {
-    return running_ && guest_ && side_.mode == Mode::guest && guest_->story_in_step(views_.data());
   }
   // Under the lock.
   std::string status_text() const {

@@ -234,6 +234,7 @@
 #include "save/shortcut.h"
 #include "save/shortcut_load.h"
 #include "save/slot.h"
+#include "story/engine.h"
 #include "world/engine.h"
 
 #include "glue/tick/pose_game.inc"
@@ -254,6 +255,7 @@
 #include "glue/tick/guard_text_game.inc" // After camp_text_game.inc: its calls and camp_text_view.
 #include "glue/tick/shortcut_game.inc"
 #include "glue/tick/world_game.inc" // After lion_game.inc, freeze_game.inc and shortcut_game.inc; before sbo_game.inc.
+#include "glue/tick/story_game.inc" // After world_game.inc and quests_game.inc: their Game, in-game read and quests.
 #include "glue/tick/sbo_game.inc"
 #include "glue/tick/worker.inc"
 #include "glue/tick/saves_worker.inc"
@@ -266,6 +268,7 @@
 #include "glue/tick/items_worker.inc"
 #include "glue/tick/quests_worker.inc"
 #include "glue/tick/world_worker.inc" // After sbo_worker.inc and quests_worker.inc: the shared slot, the slot line.
+#include "glue/tick/story_worker.inc" // After world_worker.inc: its hex, its outbox and slot verdict.
 #include "glue/tick/freeze_worker.inc"
 #include "glue/tick/debug_worker.inc"
 #include "glue/tick/anim_worker.inc"
@@ -324,6 +327,10 @@ extern "C" __declspec(dllexport) int coop_tick(void *) noexcept {
   // off or its first fault.
   if (game_pinned && !world_faulted && !blocked)
     world_tick();
+  // Story together, its own latch: a pass each frame (her lines, her copy, our theater while we host), none after coop
+  // off or its first fault.
+  if (game_pinned && !story_faulted && !blocked)
+    story_tick();
   // The mod's own quests, their own latch: a pass each 250 ms, none after coop off or its first fault.
   if (game_pinned && !own_faulted && !blocked)
     own_tick();

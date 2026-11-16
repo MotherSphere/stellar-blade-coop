@@ -30,6 +30,9 @@ std::atomic<uint32_t> freeze_test{0};   // The running coop freeze's number, 0 w
 std::atomic<uint32_t> freeze_unsure{0}; // Bumped at each Lua load.
 std::atomic<uint64_t> freeze_reapplied{0}, freeze_dropped{0};
 std::atomic<uint64_t> freeze_fault_code{0}, freeze_fault_rva{0}, freeze_fault_address{0};
+// Story together (story_game.inc): a shared scene starts or plays in her game, so the pause for the host's cutscene is
+// not held; with none, the pause works as before.
+std::atomic<bool> story_scene{false};
 // The game thread's.
 photo::Freeze freeze;
 uint64_t freeze_name = 0; // FName "StellarCoopFreeze" (ComparisonIndex, Number), made once.
@@ -55,7 +58,7 @@ __declspec(noinline) void freeze_body() {
     freeze_unsure_seen = n;
     freeze.unsure();
   }
-  const bool sync = freeze_sync && !blocked;
+  const bool sync = freeze_sync && !blocked && !story_scene;
   const uint32_t test = blocked ? 0 : freeze_test.load();
   if (!sync && !test && !freeze.held())
     return;

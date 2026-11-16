@@ -127,6 +127,19 @@ void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, b
 // unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or world=off why=build|coop_off, or
 // world=stopped after a fault.
 std::string world_status();
+// Worker, every pass after world_pass and before fight_pass, story together (story/sync.h, story/engine.h): takes her
+// SBS lines out of lines and hands them to the game thread with the gates (shared_story, on while Lua sets nothing;
+// partner: her SteamID while she is linked, else 0; host: we own the lobby and lead; match: a match lobby, the SBO
+// lobby's session counts too; a co-op save, from the save-slot line quest_pass read), swaps hook 1 in once those gates
+// first open, and sends and logs what the game thread's passes made. send: a line to her on channel 2, reliable (false
+// when it cannot go: the line then waits for the next pass). After the first fault: off to her once, the hook out,
+// nothing more.
+void story_pass(uint64_t partner, bool host, bool match, std::vector<std::string> &lines,
+                bool (*send)(const std::string &));
+// Worker: coop-status.txt's story line (story/sync.h's Sync::status, then hooks=<slots of 1> inbox_dropped=<n>
+// unsent=<lines dropped unsent> elsewhere=<hooks off the game thread>), or story=off why=build|coop_off, or
+// story=stopped after a fault.
+std::string story_status();
 // Worker thread, the follow's travel (game/travel.h): Lua's travel request, the camp's FName for the game thread's next
 // frame, which calls SB's fast travel once game/travel.h's guard passes. Refused off the pinned build, after coop off
 // and after the travel latch's fault. Returns the line for the log; the call's own line follows from worker_poll.
