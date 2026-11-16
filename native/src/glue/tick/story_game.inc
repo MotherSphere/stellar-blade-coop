@@ -86,6 +86,7 @@ void story_theater_hook(int64_t *node) {
     id = story_node_read(node);
   } __except (fault_filter(GetExceptionInformation(), story_fault_code, story_fault_rva, story_fault_address)) {
     story_faulted = true;
+    story_scene = false; // story_tick no longer runs to clear it: the photo freeze holds again.
   }
   if (id >= 0)
     story_lead.talked(id);
