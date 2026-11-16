@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The between-regions teleport screen's extra tabs. WB_AreaTeleport_Set has 7 tabs, and SB's Region logic drops every
 -- active Tetrapod past them. This makes tabs 8 and 9 when the screen is built, and SB fills them: the native part
 -- (game/region_tabs.h) gives each one the logic node a class-property tab gets, so its camp, thumbnail, unlock and

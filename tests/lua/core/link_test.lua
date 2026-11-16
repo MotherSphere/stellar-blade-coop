@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Steam link's Lua side: requests reach the native part whole, and each status line is reported once.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local files,renames={},0
@@ -174,6 +177,26 @@ assert(link.pilot()==nil,'Not from a peer line nor from the last line')
 files[STATUS]=nil
 link.changes()
 assert(link.pilot()==nil,'No status: none either')
+-- The SBO lobby's line (L1's status_line), from the start of its own line only: '-' reads nil; nil without one.
+files[STATUS]='mod=v\nsbo=armed join=2 record=arrived slot=1 arrivals=3 zone=91234:0 loader=3 '
+    ..'copy=20261111T201502Z-session.sav last=5 warp done\nlast=#12 x\n'
+link.changes()
+local sbo=link.sbo()
+assert(sbo.state=='armed' and sbo.join==2 and sbo.record=='arrived' and sbo.slot==1 and sbo.arrivals==3
+    and sbo.zone=='91234:0' and sbo.loader==3 and sbo.copy=='20261111T201502Z-session.sav' and sbo.last.n==5
+    and sbo.last.verb=='warp' and sbo.last.result=='done')
+for _,v in ipairs({sbo.join,sbo.slot,sbo.arrivals,sbo.loader,sbo.last.n}) do assert(math.type(v)=='integer') end
+files[STATUS]='mod=v\r\nsbo=off join=0 record=closed slot=- arrivals=0 zone=0:0 loader=0 copy=- last=0 - -\r\n'
+link.changes()
+sbo=link.sbo()
+assert(sbo.state=='off' and sbo.join==0 and sbo.record=='closed' and sbo.slot==nil and sbo.zone=='0:0'
+    and sbo.copy==nil and sbo.last.n==0 and sbo.last.verb==nil and sbo.last.result==nil)
+files[STATUS]='mod=v\npeer=2 name=x sbo=on join=0\nlast=#13 x\n'
+link.changes()
+assert(link.sbo()==nil,'Not from a peer line')
+files[STATUS]=nil
+link.changes()
+assert(link.sbo()==nil,'No status: none either')
 -- Her .pak mods against ours (paks=same|differ <ours> <hers>), from the start of its own line only; nil without one.
 files[STATUS]='mod=v\npeer=2 name=x paks=same 1 1\npaks=differ 2 0\nlast=#9 x\n'
 link.changes()
@@ -367,7 +390,7 @@ s,notes=Link.parse_settings('#'..string.rep('x',17000)..'\nsend_rate=25\n')
 assert(s.send_rate==25 and #notes==0,notes[1])
 -- The default file saved with CRLF and five ids in fight_chars is read to its last line (status_overlay).
 local crlf=Link.DEFAULT:gsub('fight_chars=auto','fight_chars=15011001 15011002 15011003 15011004 15011005')
-crlf=crlf:gsub('card_details=on','card_details=off'):gsub('status_overlay=off','status_overlay=detailed')
+crlf=crlf:gsub('card_details=on','card_details=off'):gsub('status_overlay=compact','status_overlay=detailed')
 crlf=crlf:gsub('\n','\r\n')
 s,notes=Link.parse_settings(crlf)
 assert(#notes==0 and s.card_details==false and s.status_overlay=='detailed' and #crlf>4096,notes[1])
@@ -417,8 +440,8 @@ s,notes=Link.parse_settings('Chat=OFF\n'); assert(#notes==0 and s.chat==false)
 s,notes=Link.parse_settings('chat=maybe\n')
 assert(#notes==1 and s.chat==true and notes[1]=="settings: line 1: 'maybe' is not allowed for chat (use on or off); "
     ..'chat stays on',notes[1])
-assert(s.cloth==true and s.dyes==false and s.effects==false,
-    'The looks are comments in the defaults: cloth on, dyes and effects off, as the code says')
+assert(s.cloth==true and s.dyes==true and s.effects==true,
+    'The looks are comments in the defaults: cloth, dyes and effects on, as the code says')
 -- The partner HUD's parts (Options > Partner): the HP marker over her, the off-screen arrow, the card and its ping
 -- and map, each on or off; a new file names them.
 s=Link.parse_settings('')
@@ -427,20 +450,38 @@ assert(Link.DEFAULT:find('\npartner_bar=on\npartner_arrow=on\npartner_card=on\nc
 s,notes=Link.parse_settings('Partner_Bar=OFF\npartner_arrow=off\npartner_card=off\ncard_details=off\n')
 assert(#notes==0 and s.partner_bar==false and s.partner_arrow==false and s.partner_card==false
     and s.card_details==false)
--- The status strip above her card: off (the default, and an old file's), compact or detailed, any case; a bad value
--- keeps off, with a line; a new file names it after card_details, with its comment.
-assert(Link.parse_settings('').status_overlay=='off')
-assert(Link.DEFAULT:find('\ncard_details=on\n# status_overlay[^\n]*\nstatus_overlay=off\n'))
-assert(Link.parse_settings(Link.DEFAULT).status_overlay=='off')
--- shortcut_load (coop shortcut load, a test tool, no menu row): on or off in any case, off by default, in a new file
--- (last, after its comment, which names the achievement risk) and in an old one; a bad value keeps off, with a line.
-assert(Link.parse_settings('').shortcut_load==false and Link.parse_settings(Link.DEFAULT).shortcut_load==false)
-assert(Link.DEFAULT:find('\nstatus_overlay=off\n# Shortcut saves, a test tool: on or off, off by default.',1,true)
-    and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=off\n$'))
-assert(Link.parse_settings('shortcut_load=ON').shortcut_load==true)
+-- The status strip above her card: compact (the default, and an old file's), off or detailed, any case; a bad value
+-- keeps compact, with a line; a new file names it after card_details, with its comment.
+assert(Link.parse_settings('').status_overlay=='compact')
+assert(Link.DEFAULT:find('\ncard_details=on\n# status_overlay[^\n]*\nstatus_overlay=compact\n'))
+assert(Link.parse_settings(Link.DEFAULT).status_overlay=='compact')
+-- shortcut_load (coop shortcut load, a test tool, no menu row): on or off in any case, on by default, in a new file
+-- (after its comment, which names the achievement risk) and in an old one; a bad value keeps on, with a line.
+assert(Link.parse_settings('').shortcut_load==true and Link.parse_settings(Link.DEFAULT).shortcut_load==true)
+assert(Link.DEFAULT:find('\nstatus_overlay=compact\n# Shortcut saves, a test tool: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('cannot be taken back',1,true) and Link.DEFAULT:find('\nshortcut_load=on\n'))
+assert(Link.parse_settings('shortcut_load=OFF').shortcut_load==false)
 s,notes=Link.parse_settings('shortcut_load=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shortcut_load (use on or off); "
-    .."shortcut_load stays off" and s.shortcut_load==false,notes[1])
+    .."shortcut_load stays on" and s.shortcut_load==true,notes[1])
+-- pvp_spike (coop pvp, a test tool, no menu row): on or off in any case, on by default, before sbo_lobby in a new
+-- file after shortcut_load, with its comment (which still names shared_enemies=off); a bad value keeps on, with a line.
+assert(Link.parse_settings('').pvp_spike==true and Link.parse_settings(Link.DEFAULT).pvp_spike==true)
+assert(Link.DEFAULT:find('\nshortcut_load=on\n# PvP test, a test tool: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('co-op save with shared_enemies=off.',1,true) and Link.DEFAULT:find('\npvp_spike=on\n'))
+assert(Link.parse_settings('pvp_spike=OFF').pvp_spike==false)
+s,notes=Link.parse_settings('pvp_spike=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for pvp_spike (use on or off); "
+    .."pvp_spike stays on" and s.pvp_spike==true,notes[1])
+-- sbo_lobby (the SBO lobby, no menu row): on or off in any case, on by default, last in a new file after pvp_spike,
+-- with its comment; a bad value keeps on, with a line.
+assert(Link.parse_settings('').sbo_lobby==true and Link.parse_settings(Link.DEFAULT).sbo_lobby==true)
+assert(Link.DEFAULT:find('\npvp_spike=on\n# SBO lobby: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nsbo_lobby=on\n$'))
+assert(Link.parse_settings('sbo_lobby=OFF').sbo_lobby==false)
+s,notes=Link.parse_settings('sbo_lobby=yes')
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for sbo_lobby (use on or off); "
+    .."sbo_lobby stays on" and s.sbo_lobby==true,notes[1])
 for _,case in ipairs({{'off','off'},{'Compact','compact'},{'DETAILED','detailed'}}) do
     s,notes=Link.parse_settings('status_overlay='..case[1]..'\n')
     assert(#notes==0 and s.status_overlay==case[2],case[1])
@@ -448,19 +489,19 @@ end
 for _,bad in ipairs({'on','full','2',''}) do
     s,notes=Link.parse_settings('status_overlay='..bad..'\n')
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for status_overlay (use off, "
-        .."compact or detailed); status_overlay stays off" and s.status_overlay=='off',notes[1])
+        .."compact or detailed); status_overlay stays compact" and s.status_overlay=='compact',notes[1])
 end
--- The ghost's looks: on or off, any case; a bad value keeps the default (cloth on, dyes and effects off). A file that
--- says cloth=off (the menu writes it only when the player picks off) keeps it off.
+-- The ghost's looks: on or off, any case; a bad value keeps the default (cloth, dyes and effects on). A file that
+-- says cloth=off or dyes=off (the menu writes it only when the player picks off) keeps it off.
 s,notes=Link.parse_settings('cloth=on'); assert(#notes==0 and s.cloth==true)
 s,notes=Link.parse_settings('CLOTH=Off'); assert(#notes==0 and s.cloth==false)
-s,notes=Link.parse_settings('dyes=ON'); assert(#notes==0 and s.dyes==true and s.cloth==true)
-s,notes=Link.parse_settings('effects=on'); assert(#notes==0 and s.effects==true and s.dyes==false)
+s,notes=Link.parse_settings('dyes=OFF'); assert(#notes==0 and s.dyes==false and s.cloth==true)
+s,notes=Link.parse_settings('effects=off'); assert(#notes==0 and s.effects==false and s.dyes==true)
 s,notes=Link.parse_settings('cloth=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for cloth (use on or off); cloth stays on"
     and s.cloth==true,notes[1])
 s,notes=Link.parse_settings('dyes=maybe')
-assert(#notes==1 and notes[1]:find('; dyes stays off$') and s.dyes==false,notes[1])
+assert(#notes==1 and notes[1]:find('; dyes stays on$') and s.dyes==true,notes[1])
 -- The shared enemies (Phase 11, experimental): shared_enemies on or off, on by default; fight_chars auto (the default:
 -- every common enemy, an empty list for the native part) or at most 16 whole character ids from 1 to 2^32-1 separated
 -- by spaces. An empty value is auto too: the files written before auto said fight_chars= and shared nothing. A bad
@@ -597,28 +638,28 @@ for _,bad in ipairs({'4','-1','1.5','two','03'}) do
     assert(#notes==1 and notes[1]=="settings: line 1: '"..bad.."' is not allowed for enemy_extra (use 0 to 3); "
         .."enemy_extra stays 0" and s.enemy_extra==0,notes[1])
 end
--- spawn_filter (the guest's own, experimental, no menu row): on or off in any case, off by default and in a file
+-- spawn_filter (the guest's own, experimental, no menu row): on or off in any case, on by default and in a file
 -- written before it; a new file names it right after enemy_extra, with its comment (one pointer in the game's memory
--- on her PC, off until tested in game); a bad value keeps off, with a line.
+-- on her PC, not tested in game yet); a bad value keeps on, with a line.
 assert(Link.DEFAULT:find('\nenemy_extra=0\n# Spawn filter, experimental, ',1,true)
-    and Link.DEFAULT:find('\nspawn_filter=off\n',1,true))
+    and Link.DEFAULT:find('\nspawn_filter=on\n',1,true))
 assert(Link.DEFAULT:find('one pointer in the game\'s memory on your PC',1,true)
-    and Link.DEFAULT:find('off\n# until it has been tested in game.',1,true))
+    and Link.DEFAULT:find('on by\n# default, not tested in game yet.',1,true))
 s,notes=Link.parse_settings(older)
-assert(#notes==0 and s.spawn_filter==false)
+assert(#notes==0 and s.spawn_filter==true)
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(#notes==0 and s.spawn_filter==false)
+assert(#notes==0 and s.spawn_filter==true)
 for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
     s,notes=Link.parse_settings('spawn_filter='..case[1])
     assert(#notes==0 and s.spawn_filter==case[2],case[1])
 end
 s,notes=Link.parse_settings('spawn_filter=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for spawn_filter (use on or off); "
-    .."spawn_filter stays off" and s.spawn_filter==false,notes[1])
+    .."spawn_filter stays on" and s.spawn_filter==true,notes[1])
 -- bosses (stage 5, experimental, the host's): on or off in any case, on by default and in a file written before it;
 -- boss_hp_scale (the host's) from 1.0 to 4.0 like the other scales, 2.0 by default. A new file names both right after
 -- spawn_filter, with their comment; a bad value keeps the default, with a line.
-assert(Link.DEFAULT:find('\nspawn_filter=off\n# Shared bosses, experimental, ',1,true)
+assert(Link.DEFAULT:find('\nspawn_filter=on\n# Shared bosses, experimental, ',1,true)
     and Link.DEFAULT:find('\nbosses=on\nboss_hp_scale=2.0\n',1,true))
 s,notes=Link.parse_settings(older)
 assert(#notes==0 and s.bosses==true and s.boss_hp_scale==2)
@@ -633,22 +674,22 @@ assert(#notes==2 and notes[1]=="settings: line 1: 'yes' is not allowed for bosse
     and notes[2]=="settings: line 2: '4.5' is not allowed for boss_hp_scale (use 1.0 to 4.0); boss_hp_scale stays 2.0"
     and s.bosses==true and s.boss_hp_scale==2,table.concat(notes,'|'))
 
--- shared_quests (Phase 12, experimental): on or off in any case, off by default and in a file written before it;
+-- shared_quests (Phase 12, experimental): on or off in any case, on by default and in a file written before it;
 -- quest_deny (the host's) empty by default, else names or numbers with spaces or commas, at most 200 bytes. A new file
 -- names both right after boss_hp_scale, with their comment; a bad value keeps the default, with a line.
-assert(Link.DEFAULT:find('\nboss_hp_scale=2.0\n# Shared quests, experimental: on or off, off by default.',1,true)
-    and Link.DEFAULT:find('\nshared_quests=off\nquest_deny=\n',1,true))
+assert(Link.DEFAULT:find('\nboss_hp_scale=2.0\n# Shared quests, experimental: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nshared_quests=on\nquest_deny=\n',1,true))
 s,notes=Link.parse_settings(older)
-assert(#notes==0 and s.shared_quests==false and s.quest_deny=='')
+assert(#notes==0 and s.shared_quests==true and s.quest_deny=='')
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(#notes==0 and s.shared_quests==false and s.quest_deny=='')
+assert(#notes==0 and s.shared_quests==true and s.quest_deny=='')
 for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
     s,notes=Link.parse_settings('shared_quests='..case[1])
     assert(#notes==0 and s.shared_quests==case[2],case[1])
 end
 s,notes=Link.parse_settings('shared_quests=yes')
 assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for shared_quests (use on or off); "
-    .."shared_quests stays off" and s.shared_quests==false,notes[1])
+    .."shared_quests stays on" and s.shared_quests==true,notes[1])
 for _,good in ipairs({'Quest_Epic_14_1','Quest_Sub_017, 54 Quest_Epic_14_3','54,55',('1'):rep(200)}) do
     s,notes=Link.parse_settings('quest_deny='..good..'  ')
     assert(#notes==0 and s.quest_deny==good,good)
@@ -660,21 +701,21 @@ for _,bad in ipairs({'Quest;Sub','a\tb','Quête',('1'):rep(201)}) do
         and s.quest_deny=='',notes[1])
 end
 
--- revive (experimental, your own): on or off in any case, off by default and in a file written before it. A new file
+-- revive (experimental, your own): on or off in any case, on by default and in a file written before it. A new file
 -- names it right after quest_deny, with its comment; a bad value keeps the default, with a line.
-assert(Link.DEFAULT:find('\nquest_deny=\n# Revive, experimental: on or off, off by default.',1,true)
-    and Link.DEFAULT:find('\nrevive=off\n',1,true))
+assert(Link.DEFAULT:find('\nquest_deny=\n# Revive, experimental: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\nrevive=on\n',1,true))
 s,notes=Link.parse_settings(older)
-assert(#notes==0 and s.revive==false)
+assert(#notes==0 and s.revive==true)
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(#notes==0 and s.revive==false)
+assert(#notes==0 and s.revive==true)
 for _,case in ipairs({{'on',true},{'ON',true},{'Off',false}}) do
     s,notes=Link.parse_settings('revive='..case[1])
     assert(#notes==0 and s.revive==case[2],case[1])
 end
 s,notes=Link.parse_settings('revive=yes')
-assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for revive (use on or off); revive stays off"
-    and s.revive==false,notes[1])
+assert(#notes==1 and notes[1]=="settings: line 1: 'yes' is not allowed for revive (use on or off); revive stays on"
+    and s.revive==true,notes[1])
 -- cutscene_wait (yours, as the guest): on or off in any case, on by default and in a file written before it, named
 -- right after photo_pause with its comment (it takes photo sync's pause and its cap).
 assert(Link.DEFAULT:find('\nphoto_pause=full\n# Cutscene wait: on or off.',1,true)
@@ -703,27 +744,27 @@ assert(#notes==0 and s.status_key.name=='F7' and s.follow_key.name=='none','An o
 s,notes=Link.parse_settings('status_key=F7\nfollow_key=F7\n')
 assert(#notes==1 and notes[1]=='settings: F7 is set for two actions: default keys used' and s.follow_key.name=='F7'
     and s.status_key.name=='F6')
--- collide (experimental, your own): on or off in any case, off by default and in a file written before it, named
+-- collide (experimental, your own): on or off in any case, on by default and in a file written before it, named
 -- right after follow_host with its comment; a bad value keeps the default, with a line.
-assert(Link.DEFAULT:find('\nfollow_host=ask\n# Solid partner, experimental: on or off, off by default.',1,true)
-    and Link.DEFAULT:find('\ncollide=off\n',1,true))
+assert(Link.DEFAULT:find('\nfollow_host=ask\n# Solid partner, experimental: on or off, on by default.',1,true)
+    and Link.DEFAULT:find('\ncollide=on\n',1,true))
 s,notes=Link.parse_settings(older)
-assert(#notes==0 and s.collide==false)
-s,notes=Link.parse_settings(Link.DEFAULT)
-assert(#notes==0 and s.collide==false)
-s,notes=Link.parse_settings('COLLIDE=On')
 assert(#notes==0 and s.collide==true)
+s,notes=Link.parse_settings(Link.DEFAULT)
+assert(#notes==0 and s.collide==true)
+s,notes=Link.parse_settings('COLLIDE=Off')
+assert(#notes==0 and s.collide==false)
 s,notes=Link.parse_settings('collide=solid')
-assert(#notes==1 and notes[1]=="settings: line 1: 'solid' is not allowed for collide (use on or off); collide stays off"
-    and s.collide==false,notes[1])
+assert(#notes==1 and notes[1]=="settings: line 1: 'solid' is not allowed for collide (use on or off); collide stays on"
+    and s.collide==true,notes[1])
 -- The synced photo mode's: photo_sync both, notice or off (any case, both by default); photo_freeze_max 0 or 30 to
--- 3600 whole seconds (600); photo_ghost on and photo_name_tag off. A new file names all four with their defaults; one
+-- 3600 whole seconds (600); photo_ghost and photo_name_tag on. A new file names all four with their defaults; one
 -- written before them reads the defaults with no line. A bad value keeps the default, with a line.
 s,notes=Link.parse_settings('')
-assert(s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost==true and s.photo_name_tag==false)
+assert(s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost==true and s.photo_name_tag==true)
 assert(math.type(s.photo_freeze_max)=='integer','The state line prints it whole')
-s,notes=Link.parse_settings('Photo_Sync=NOTICE\nphoto_freeze_max=0\nphoto_ghost=OFF\nphoto_name_tag=on\n')
-assert(#notes==0 and s.photo_sync=='notice' and s.photo_freeze_max==0 and not s.photo_ghost and s.photo_name_tag)
+s,notes=Link.parse_settings('Photo_Sync=NOTICE\nphoto_freeze_max=0\nphoto_ghost=OFF\nphoto_name_tag=off\n')
+assert(#notes==0 and s.photo_sync=='notice' and s.photo_freeze_max==0 and not s.photo_ghost and not s.photo_name_tag)
 for _,good in ipairs({{'off','30',30},{'both','3600',3600},{'both','0600',600}}) do
     s,notes=Link.parse_settings('photo_sync='..good[1]..'\nphoto_freeze_max='..good[2])
     assert(#notes==0 and s.photo_sync==good[1] and s.photo_freeze_max==good[3])
@@ -742,9 +783,9 @@ end
 s,notes=Link.parse_settings('photo_ghost=maybe')
 assert(#notes==1 and notes[1]=="settings: line 1: 'maybe' is not allowed for photo_ghost (use on or off); photo_ghost "
     .."stays on" and s.photo_ghost==true,notes[1])
-assert(Link.DEFAULT:find('\nphoto_sync=both\nphoto_freeze_max=600\nphoto_ghost=on\nphoto_name_tag=off\n',1,true))
+assert(Link.DEFAULT:find('\nphoto_sync=both\nphoto_freeze_max=600\nphoto_ghost=on\nphoto_name_tag=on\n',1,true))
 s,notes=Link.parse_settings(Link.DEFAULT)
-assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost and not s.photo_name_tag)
+assert(#notes==0 and s.photo_sync=='both' and s.photo_freeze_max==600 and s.photo_ghost and s.photo_name_tag)
 -- photo_pause, experimental: full (the game's whole pause, the default) or scenery (SB's own PauseMethod 1), any case.
 -- A new file names it after the other photo settings.
 s,notes=Link.parse_settings('')
@@ -754,7 +795,7 @@ assert(#notes==0 and s.photo_pause=='scenery')
 s,notes=Link.parse_settings('photo_pause=off\n')
 assert(#notes==1 and notes[1]=="settings: line 1: 'off' is not allowed for photo_pause (use full or scenery); "
     .."photo_pause stays full" and s.photo_pause=='full',notes[1])
-assert(Link.DEFAULT:find('\nphoto_name_tag=off\nphoto_pause=full\n',1,true))
+assert(Link.DEFAULT:find('\nphoto_name_tag=on\nphoto_pause=full\n',1,true))
 local before_photo=Link.DEFAULT:gsub('# Synced photo mode.*$','')
 assert(before_photo~=Link.DEFAULT and not before_photo:find('photo'))
 s,notes=Link.parse_settings(before_photo)
@@ -902,6 +943,87 @@ local name,linked,lost=fresh.friend()
 assert(name=='Ka anta' and linked==true and lost==false,name)
 assert(#lines==2 and lines[1]=='friend=1 0 Ka anta' and lines[2]=='notice=5 Ka anta joined.',table.concat(lines,'|'))
 assert(#fresh.changes()==0,'Logged once')
+-- The member lines: one per lobby member, her name last; never logged, as their rtt moves with each ping.
+do
+    files[STATUS]=HEAD..'member=4003 1 1 0 0 40 P 3 with spaces\nmember=2002 0 1 1 0 -1 Kaanta\n'
+    local lines=link.changes()
+    for _,l in ipairs(lines) do assert(not l:find('^member='),'member lines stay out of the log') end
+    local all=link.members()
+    assert(#all==2 and all[1].id=='4003' and all[1].slot==1 and all[1].linked and not all[1].lost and not all[1].muted
+        and all[1].rtt==40 and all[1].name=='P 3 with spaces')
+    assert(link.member('2002').lost and link.member('2002').rtt==-1 and link.member('9') == nil)
+end
+-- The match and round lines: the match line never logged (its countdown changes each second), each round line once.
+do
+    files[STATUS]=HEAD..'match=countdown ffa 3 8 7\nround=2 start ffa NK_Boss_Scarlet 12345 1001,2002,4003\n'
+    local lines=link.changes()
+    for _,l in ipairs(lines) do assert(not l:find('^match='),'match lines stay out of the log') end
+    local m,r=link.match(),link.round()
+    assert(m.state=='countdown' and m.mode=='ffa' and m.members==3 and m.limit==8 and m.left==7)
+    assert(r.n==2 and r.kind=='start' and r.map=='NK_Boss_Scarlet' and r.seed==12345 and #r.ids==3 and r.ids[3]=='4003')
+    files[STATUS]=HEAD..'match=searching ffa\nround=2 end host_left\n'; link.changes()
+    assert(link.match().state=='searching' and link.match().members==nil and link.round().why=='host_left')
+    files[STATUS]=HEAD; link.changes(); assert(link.match()==nil)
+end
+-- SB's input device (uidev=), our Steam name (me=, an empty one nil) and a match lobby's owner (owner= on the link
+-- line); each nil without its line or field, and never from a name a player chooses.
+do
+    files[STATUS]='mod=v proto=4 steam=ready steamid=1\nme=Eve Tester\nlink=guest lobby=7 owner=76561198000000001\n'
+        ..'uidev=2\n'
+    link.changes()
+    assert(link.uidev()==2 and link.me()=='Eve Tester' and link.owner()=='76561198000000001' and link.lobby()=='7'
+        and link.mode()=='guest')
+    files[STATUS]='mod=v proto=4 steam=ready steamid=1\nme=\nlink=guest lobby=7\n'
+    link.changes()
+    assert(link.uidev()==nil and link.me()==nil and link.owner()==nil)
+    files[STATUS]=HEAD..'peer=2 name=x me=Eve uidev=5 owner=9 hello=1\nfriend=1 0 me=Eve uidev=5\n'
+    link.changes()
+    assert(link.uidev()==nil and link.me()==nil and link.owner()==nil,'Not from a name')
+end
+-- parses_room_and_hall: a match lobby's map (room=) and lobby pak version (hall=) after owner= on the link line; each
+-- nil without its field, and never from a name a player chooses.
+do
+    files[STATUS]='mod=v proto=4 steam=ready steamid=1\nlink=guest lobby=7 owner=76561198000000001 room=hotel '
+        ..'hall=47101_5096\n'
+    link.changes()
+    assert(link.room()=='hotel' and link.hall()=='47101_5096' and link.owner()=='76561198000000001')
+    files[STATUS]='mod=v proto=4 steam=ready steamid=1\nlink=guest lobby=7 owner=76561198000000001 hall=xion\n'
+    link.changes()
+    assert(link.room()==nil and link.hall()=='xion')
+    files[STATUS]=HEAD..'peer=2 name=x room=hotel hall=1_2 hello=1\n'
+    link.changes()
+    assert(link.room()==nil and link.hall()==nil,'Not from a name')
+end
+-- A ghost slot's files (slot k from 1, partner/ghosts.lua): her table, our display and the ghost's path, each with -<k>;
+-- her name from the member line holding slot k; her table's generation and count from the engine line's remote<k>=.
+do
+    local s=link.slot(3)
+    assert(s.display('x') and files['C:\\Mod\\coop-display-3.txt']=='x' and not files['C:\\Mod\\coop-display.txt'])
+    assert(s.display(nil) and files['C:\\Mod\\coop-display-3.txt']==nil)
+    files['C:\\Mod\\coop-remote-3.txt']='SBT 9\ngeneration 9\n'
+    assert(s.remote_table()=='SBT 9\ngeneration 9\n')
+    files['C:\\Mod\\coop-remote-3.txt']=nil
+    assert(s.store().save('/Game/A.A') and files['C:\\Mod\\coop-puppet-3.txt']=='/Game/A.A\n'
+        and s.store().load()=='/Game/A.A')
+    s.store().clear()
+    assert(files['C:\\Mod\\coop-puppet-3.txt']==nil)
+    assert(s.mod_assets()==link.mod_assets())
+    files[STATUS]=HEAD..'member=4003 1 1 0 0 40 P 3\nmember=4004 3 1 0 0 40 P4\nengine=on remote=5 2 peer remote3=9 1\n'
+    link.changes()
+    assert(s.friend()=='P4' and link.slot(1).friend()=='P 3' and link.slot(2).friend()==nil)
+    local g,n,source=link.remote(3)
+    assert(g==9 and n==1 and source=='peer',tostring(g))
+    g,n,source=link.remote()
+    assert(g==5 and n==2 and source=='peer',tostring(g))
+    g,n,source=link.remote(0)
+    assert(g==5 and n==2 and source=='peer')
+    assert(select('#',link.remote(2))==0 or link.remote(2)==nil,'No table in slot 2')
+    files[STATUS]=HEAD..'engine=on remote3=9 1\n'
+    link.changes()
+    g,n,source=link.remote()
+    assert(g==nil and n==nil and source==nil,'remote3= is not slot 0')
+    assert(link.remote(3)==9)
+end
 -- The status key's line, from the link line and the friend line.
 local function summary(status) files[STATUS]=status; fresh.changes(); return fresh.summary() end
 assert(summary(nil)=='Co-op: waiting for Steam.')
@@ -1011,7 +1133,7 @@ files[STATUS]=nil
 
 -- Chat (UI-DESIGN 4.2, 5.2): coop-say.txt, a typed line, is written only while the last one is gone, whole (beside,
 -- then renamed), and never left as a temporary; no returned message carries its text. coop-chat.txt is taken and
--- deleted at once: "in <text>" is her line, "fail" says ours could not go, anything else is ignored.
+-- deleted at once: "in <SteamID> <text>" is a member's line, "fail" says ours could not go, anything else is ignored.
 local SAY,CHAT='C:\\Mod\\coop-say.txt','C:\\Mod\\coop-chat.txt'
 ok,message=link.say('Salut é à tous')
 assert(ok and files[SAY]=='Salut é à tous\n' and not files[SAY..'.tmp'],message)
@@ -1028,14 +1150,18 @@ ok,message=link.say('the fourth')
 assert(not ok and message=='cannot write' and not files[SAY] and not files[SAY..'.tmp'])
 fs.rename=rename
 assert(#link.take_chat()==0,'Nothing waiting')
-files[CHAT]='in Coucou\nfail\nin ça va ?\nin \njunk\nfail now\nin  two spaces\n'
+files[CHAT]='in 2002 Coucou\nin 4003 ça va ?\nin Coucou\n'
 local chat=link.take_chat()
+assert(#chat==2 and chat[1].text=='Coucou' and chat[1].from=='2002' and chat[2].text=='ça va ?'
+    and chat[2].from=='4003','Each line with its sender; one with no id is ignored')
+files[CHAT]='in 2002 Coucou\nfail\nin 2002 ça va ?\nin 2002 \njunk\nfail now\nin 2002  two spaces\n'
+chat=link.take_chat()
 assert(#chat==4 and chat[1].text=='Coucou' and chat[2].fail and chat[3].text=='ça va ?' and chat[4].text==' two spaces')
 assert(files[CHAT]==nil and #link.take_chat()==0,'Taken: deleted at once')
 local remove=fs.remove
 fs.remove=function() return nil,'in use' end -- An indexer holds it: read again next time, never shown twice.
-files[CHAT]='in once\n'
-assert(#link.take_chat()==0 and files[CHAT]=='in once\n')
+files[CHAT]='in 2002 once\n'
+assert(#link.take_chat()==0 and files[CHAT]=='in 2002 once\n')
 fs.remove=remove
 chat=link.take_chat()
 assert(#chat==1 and chat[1].text=='once' and files[CHAT]==nil and #link.take_chat()==0)
@@ -1099,14 +1225,14 @@ files[RACE]=nil
 link.race_flush()
 assert(files[RACE]=='cp 7 1 1 1000\n' and not files[RACE..'.tmp'],'Written once it is gone')
 files[RACE]=nil
-files[CHAT]='race track 7 2 1 0 0 0 90 /game/map\nin Coucou\nrace cps 7 1 4000 0 0 1200 8000 0 0 1200\nrace \n'
-    ..'in race 9\nrace go 7 4000\n'
+files[CHAT]='race track 7 2 1 0 0 0 90 /game/map\nin 2002 Coucou\nrace cps 7 1 4000 0 0 1200 8000 0 0 1200\nrace \n'
+    ..'in 2002 race 9\nrace go 7 4000\n'
 chat=link.take_chat()
 assert(#chat==5 and chat[1].race=='track 7 2 1 0 0 0 90 /game/map' and not chat[1].text and chat[2].text=='Coucou'
     and not chat[2].race and chat[3].race=='cps 7 1 4000 0 0 1200 8000 0 0 1200' and chat[4].text=='race 9'
     and not chat[4].race and chat[5].race=='go 7 4000','Race lines apart from the chat, in order')
 -- Gift lines (coop gift, cut/mailbox.lua): hers, or ours that could not go, apart from the chat and the race.
-files[CHAT]='gift s 17 HP_Potion 3\nin gift a 9\ngift \nrace gift a 1\ngift n 18 nolink\n'
+files[CHAT]='gift s 17 HP_Potion 3\nin 2002 gift a 9\ngift \nrace gift a 1\ngift n 18 nolink\n'
 chat=link.take_chat()
 assert(#chat==4 and chat[1].gift=='s 17 HP_Potion 3' and not chat[1].text and chat[2].text=='gift a 9'
     and not chat[2].gift and chat[3].race=='gift a 1' and not chat[3].gift and chat[4].gift=='n 18 nolink',
@@ -1319,6 +1445,57 @@ do
     assert(s.kill_credit=='fought' and files[SETTINGS]==kept and #notes==0,'fought: the comment only, no line')
     files[SETTINGS],files[OLD_FILE]=nil,nil
 end
+
+-- A file written by 0.5.0-beta.1 to 0.9.0 or a PvP test build (comments that say off by default, and a ghost comment
+-- that says dyes and effects are off unless set) gets each of its off lines set to the new default and the comments
+-- as Link.DEFAULT has them, once, with a log line. A comment stands for its own settings only, and a file without one
+-- is left alone.
+do
+    local function swap(text,from,to)
+        local at,stop=text:find(from,1,true)
+        assert(at,from)
+        return text:sub(1,at-1)..to..text:sub(stop+1)
+    end
+    local old=Link.DEFAULT
+    for _,name in ipairs({'Shared quests, experimental','Revive, experimental','Solid partner, experimental',
+        'Shortcut saves, a test tool','PvP test, a test tool'}) do
+        old=swap(old,'# '..name..': on or off, on by default.','# '..name..': on or off, off by default.')
+    end
+    old=swap(old,'on or off, on by\n# default, not tested in game yet.',
+        'on or off, off\n# until it has been tested in game.')
+    old=swap(old,"# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in "
+        .."solo; it sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill "
+        .."effects). dyes and effects off\n# also stop sending yours.\n# For example: dyes=off",
+        "# What the ghost shows, each on or off: cloth (her ponytail swings as in solo; on unless set here, and it "
+        .."sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects), "
+        .."both off unless set\n# here. dyes and effects off also stop sending yours.\n# For example: dyes=on")
+    for _,key in ipairs({'spawn_filter','photo_name_tag','shared_quests','collide','shortcut_load','pvp_spike'}) do
+        old=swap(old,'\n'..key..'=on\n','\n'..key..'=off\n')
+    end
+    old=swap(swap(old,'\nrevive=on\n','\nrevive=Off\n'),'\nstatus_overlay=compact\n','\nstatus_overlay=off\n')
+    s,notes=Link.parse_settings(old)
+    assert(#notes==0 and not s.revive and not s.collide and not s.pvp_spike and s.status_overlay=='off','Old file: off')
+    assert(Link.migrate_off(old)==Link.DEFAULT,'The new defaults, comments and values')
+    assert(Link.migrate_off((old:gsub('\n','\r\n')))==Link.DEFAULT:gsub('\n','\r\n'),'CRLF kept')
+    assert(Link.migrate_off(Link.DEFAULT)==nil,'once')
+    assert(Link.migrate_off('revive=off\ncollide=off\nstatus_overlay=off\n')==nil,
+        'no old comment: an off picked by hand stays')
+    local one='# Revive, experimental: on or off, off by default.\nrevive=off\ncollide=off\n'
+    assert(Link.migrate_off(one)=='# Revive, experimental: on or off, on by default.\nrevive=on\ncollide=off\n',
+        'its own settings only')
+    -- Through settings(): the file rewritten once, the old one kept, one log line.
+    local OLD_FILE='C:\\Mod\\coop-settings.old.txt'
+    files[SETTINGS]=old
+    s,notes=require('core.link').new('C:\\Mod',fs).settings()
+    assert(s.revive and s.shared_quests and s.status_overlay=='compact' and files[SETTINGS]==Link.DEFAULT
+        and files[OLD_FILE]==old)
+    assert(#notes==1 and notes[1]=='settings: spawn_filter, photo_name_tag, shared_quests, revive, collide, '
+        ..'shortcut_load and pvp_spike are now on and status_overlay compact in coop-settings.txt, where they said off',
+        notes[1])
+    s,notes=require('core.link').new('C:\\Mod',fs).settings()
+    assert(s.revive and #notes==0,'Once only')
+    files[SETTINGS],files[OLD_FILE]=nil,nil
+end
 -- The real read: no such file gives nil with errno 2 (coop-records.txt tells it from a file it cannot open).
 do
     local text,e,code=require('core.link').files.read('tests/no such file.txt')
@@ -1334,4 +1511,36 @@ do
     assert(read(path)=='0123456789' and read(path,4)=='0123' and read(path,4,6)=='6789' and read(path,4,8)=='89'
         and read(path,4,20)=='')
     os.remove(path)
+end
+-- One read of coop-status.txt a 250 ms pass: status() serves the text changes() read until settle() or a request(),
+-- which the next status() reads from the disk.
+do
+    local files,reads={},0
+    local STATUS='C:\\Mod\\coop-status.txt'
+    local fs={
+        read=function(path) if path==STATUS then reads=reads+1 end return files[path] end,
+        write=function(path,text) files[path]=text; return true end,
+        remove=function(path) files[path]=nil; return true end,
+        rename=function(from,to) if files[to] then return nil,'exists' end files[to],files[from]=files[from],nil; return true end,
+    }
+    local l=require('core.link').new('C:\\Mod',fs)
+    assert(l.status()==nil and reads==1,'No pass yet: the disk')
+    files[STATUS]='link=host lobby=7\n'
+    l.changes()
+    files[STATUS]='link=host lobby=8\n'
+    reads=0
+    assert(l.status()=='link=host lobby=7\n' and l.status()=='link=host lobby=7\n' and reads==0,'The pass text')
+    l.request('fight on')
+    assert(l.status()=='link=host lobby=8\n' and reads==1,'After a request: the disk')
+    assert(l.status()=='link=host lobby=8\n' and reads==2,'And again until the next pass')
+    l.changes()
+    files[STATUS]='link=host lobby=9\n'
+    reads=0
+    l.settle()
+    assert(l.status()=='link=host lobby=9\n' and reads==1,'After settle: the disk')
+    files[STATUS]=nil
+    l.changes()
+    files[STATUS]='link=host lobby=10\n'
+    reads=0
+    assert(l.status()=='link=host lobby=10\n' and reads==1,'No status at the pass: the disk')
 end

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The camps the current save has activated, the native half, free of Windows: SB's own list, as its camp list screen
 // (the TeleportCamp list, FUN_141f69530) builds it, read on the game thread for session/travel.lua and
 // matrix13/world/travel.lua. This file names the calls and offsets, checks the guard over the game thread's reads, says

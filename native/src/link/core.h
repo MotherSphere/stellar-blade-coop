@@ -1,9 +1,13 @@
-// The Steam link's logic, free of Windows: lobby, invites, join codes, members, the host's approval of a joiner who is
-// not her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines, the
-// follow's camps lines, Night Operation's night line, channel 1, where the pose path's tables and poses and the
-// pilot's enemy roots (SBE) travel, and channel 2, where the shared enemies' lines and the pilot's show lines travel.
-// Every Steam call goes through the Api table, so tests/native/link/core_test.cpp drives this file with a fake Steam on
-// the build machine, and glue/steam.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+// The Steam link's logic, free of Windows: lobby, invites, join codes, match lobbies (quick match, a private match
+// lobby by code, relay only, the host's countdown and round lines), members, the host's approval of a joiner who is not
+// her Steam friend, handshake, liveness and status, the synced photo mode's line, the chat and vitals lines, the
+// follow's camps lines, Night Operation's night line, channel 1, where the pose path's tables and poses and the pilot's
+// enemy roots (SBE) travel, and channel 2, where the shared enemies' lines and the pilot's show lines travel. Every
+// Steam call goes through the Api table, so tests/native/link/core_test.cpp drives this file with a fake Steam on the
+// build machine, and glue/steam.cpp fills the table from the game's steam_api64.dll (flat API, SDK 1.59).
 #pragma once
 
 #include <algorithm>
@@ -44,6 +48,13 @@ struct LobbyEnter { // LobbyEnter_t, call result 504
 struct JoinRequested { // GameLobbyJoinRequested_t, callback 333
   uint64_t lobby, friend_id;
 };
+struct LobbyMatchList { // LobbyMatchList_t, call result 510
+  uint32_t count;
+};
+struct ChatUpdate { // LobbyChatUpdate_t, callback 506: who changed, who made the change, EChatMemberStateChange bits.
+  uint64_t lobby, user, by;
+  uint32_t state;
+};
 struct Identity { // SteamNetworkingIdentity (packed): type, size, 128-byte union (a SteamID64 first).
   int32_t type, size;
   uint8_t data[128];
@@ -55,13 +66,44 @@ struct NetMessage { // SteamNetworkingMessage_t: only the first fields are read.
   Identity peer;
 };
 static_assert(sizeof(FriendGame) == 24 && sizeof(LobbyCreated) == 16 && sizeof(LobbyEnter) == 24 &&
-                  sizeof(JoinRequested) == 16 && sizeof(Identity) == 136 && offsetof(NetMessage, peer) == 16,
+                  sizeof(JoinRequested) == 16 && sizeof(LobbyMatchList) == 4 && sizeof(ChatUpdate) == 32 &&
+                  sizeof(Identity) == 136 && offsetof(NetMessage, peer) == 16,
               "Steamworks 1.59 layouts");
 // ELobbyType: who_can_join=private (invite only), friends, code (invisible: joined by id, hidden from the host's
 // friends; Steamworks says a lobby search still returns it, which StellarCoop never makes).
 constexpr int kPrivate = 0, kFriendsOnly = 1, kInvisible = 3;
 constexpr int kResultOk = 1, kEnterSuccess = 1, kImmediateFriends = 4, kIdentitySteamId = 16;
 constexpr int kCreatedId = 513, kEnterId = 504, kJoinRequestedId = 333, kDataUpdateId = 505, kSessionRequestId = 1251;
+// Match lobbies: ELobbyType Public, LobbyMatchList_t and LobbyChatUpdate_t's IDs, ELobbyComparison Equal,
+// ELobbyDistanceFilter Default.
+constexpr int kPublic = 2, kMatchListId = 510, kChatUpdateId = 506, kLobbyEqual = 0, kDistanceDefault = 1;
+// ESteamNetworkingConfigValue P2P_Transport_ICE_Enable and its values: 0 relays only, -1 is the Steam client's own.
+constexpr int kIceEnable = 104, kIceDisable = 0, kIceDefault = -1;
+// A host alone in a Public match lobby searches again this often and moves to an open lobby with a lower id, so two
+// players who searched in the same second (each hosting a lobby of one) end up in one lobby (ruling R1).
+constexpr uint64_t kRegroupMs = 5000;
+// Where we stand in matchmaking, for the status's match= line: a search, or its create or join, pending; then, in a
+// match lobby, open to players, counting down, or a round playing.
+enum class Match : uint8_t { none, searching, open, countdown, playing };
+// The host's countdown (design 5.5): from the mode's minimum of players, and once the lobby is full.
+constexpr uint64_t kCountdownMs = 10000, kFullCountdownMs = 5000;
+// Our last round in a match lobby: its number among the rounds this game took part in during the run, whether it
+// plays, its mode, map, seed and players (host first) from the start line, and once over why it ended: "host" (the
+// host's match end) or "left" (we left the lobby).
+struct Round {
+  uint32_t n = 0;
+  bool playing = false;
+  std::string mode, map, why;
+  uint32_t seed = 0;
+  std::vector<uint64_t> ids;
+};
+// SplitMix64's mixer: the round's seed from the host's clock, its SteamID and the round number.
+inline uint64_t splitmix64(uint64_t x) {
+  x += 0x9e3779b97f4a7c15ull;
+  x = (x ^ x >> 30) * 0xbf58476d1ce4e5b9ull;
+  x = (x ^ x >> 27) * 0x94d049bb133111ebull;
+  return x ^ x >> 31;
+}
 constexpr int kReliable = 8 | 32, kUnreliable = 1 | 32; // Reliable or Unreliable|NoNagle, |AutoRestartBrokenSession.
 constexpr int kChannel = 0, kPoseChannel = 1, kFightChannel = 2, kMaxMembers = 2;
 constexpr size_t kMaxBinary = 65536; // pose/table.h kMaxTable
@@ -88,6 +130,14 @@ constexpr uint64_t kRacePerSecond = 40;
 constexpr size_t kChatInbox = 64;
 // Night Operation's lines a second, each way: Lua writes one a tick (4 a second) at most.
 constexpr uint64_t kNightPerSecond = 8;
+// Her pings a second (ours go each kPingEveryMs), and her round lines a second as a match lobby's owner (a few per
+// countdown).
+constexpr uint64_t kPingPerSecond = 4, kRoundPerSecond = 8;
+// Design 7.3 rule 12, floods: her channel-0 lines a second, counted, never dropped (in a match lobby about 16 a second:
+// 11 vitals, 3 chat lines, pings; and a list of up to 257 pak lines after a hello, once each 10 s at most), and how
+// long a member stays over one of her channel windows (0, 1 or 2) in a match lobby before she is refused. Each receive
+// reads 16 messages a channel for all members together.
+constexpr uint64_t kLinesPerSecond = 128, kFloodMs = 5000;
 // coop gift's lines a second, each way: a gift, its answer and a resend each 10 s are a few a minute.
 constexpr uint64_t kGiftPerSecond = 8;
 // A hello we send unasked, or to answer a repeated one, waits this long after our last to the same member.
@@ -156,6 +206,15 @@ struct Api {
   int (*relay_status)(void *, void *);
   void (*set_steam_id)(Identity *, uint64_t);
   uint64_t (*get_steam_id)(const Identity *);
+  uint64_t (*request_lobby_list)(void *);
+  void (*string_filter)(void *, const char *, const char *, int);
+  void (*slots_filter)(void *, int);
+  void (*distance_filter)(void *, int);
+  uint64_t (*lobby_by_index)(void *, int);
+  bool (*set_member_limit)(void *, uint64_t, int);
+  bool (*set_joinable)(void *, uint64_t, bool);
+  bool (*set_owner)(void *, uint64_t, uint64_t);
+  bool (*set_config_int)(void *, int, int32_t);
 };
 
 // Fills the table through resolve(name); returns the first missing name, or nothing.
@@ -207,6 +266,15 @@ template <class Resolve> std::string load(Api &api, Resolve resolve) {
   get(api.relay_status, "SteamAPI_ISteamNetworkingUtils_GetRelayNetworkStatus");
   get(api.set_steam_id, "SteamAPI_SteamNetworkingIdentity_SetSteamID64");
   get(api.get_steam_id, "SteamAPI_SteamNetworkingIdentity_GetSteamID64");
+  get(api.request_lobby_list, "SteamAPI_ISteamMatchmaking_RequestLobbyList");
+  get(api.string_filter, "SteamAPI_ISteamMatchmaking_AddRequestLobbyListStringFilter");
+  get(api.slots_filter, "SteamAPI_ISteamMatchmaking_AddRequestLobbyListFilterSlotsAvailable");
+  get(api.distance_filter, "SteamAPI_ISteamMatchmaking_AddRequestLobbyListDistanceFilter");
+  get(api.lobby_by_index, "SteamAPI_ISteamMatchmaking_GetLobbyByIndex");
+  get(api.set_member_limit, "SteamAPI_ISteamMatchmaking_SetLobbyMemberLimit");
+  get(api.set_joinable, "SteamAPI_ISteamMatchmaking_SetLobbyJoinable");
+  get(api.set_owner, "SteamAPI_ISteamMatchmaking_SetLobbyOwner");
+  get(api.set_config_int, "SteamAPI_ISteamNetworkingUtils_SetGlobalConfigValueInt32");
   return missing;
 }
 
@@ -273,6 +341,10 @@ private:
 // tests/native/link/pose_cap_test.cpp checks it.
 constexpr uint32_t kPoseCaps[] = {60, 30, 20};
 constexpr size_t kPoseCapCount = sizeof kPoseCaps / sizeof kPoseCaps[0];
+// Each member has her own cap (my call 20): the stream goes at the highest, and a delta reaches a member once
+// 1000 / cap less this slack (ms) passed since her last pose, so a send a few ms early is not skipped. Keyframes always
+// go.
+constexpr uint64_t kPoseSlackMs = 5;
 constexpr int64_t kQueueOverUs = 100'000, kQueueCalmUs = 20'000;
 constexpr int32_t kPendingOver = 65536, kPendingCalm = 16384;
 constexpr int kOverReadings = 2, kCalmReadings = 10, kCalmMaxReadings = 80;
@@ -318,20 +390,24 @@ struct PoseCap {
   }
 };
 
-// One second of a member's messages on a channel that passed the rate limit.
+// One second of a member's messages on a channel that passed the rate limit; whether that second went over it, and
+// since when each second has (0: the last one did not).
 struct Window {
-  uint64_t at = 0, count = 0, bytes = 0;
+  uint64_t at = 0, count = 0, bytes = 0, over_from = 0;
+  bool over = false;
 };
 
 struct Peer {
   uint64_t id = 0;
   std::string name; // From Steam, never from the peer's own messages; cleaned.
+  size_t slot = 0;  // Her ghost slot, 0 to kMaxRemote - 1: the lowest no other peer held when she came in.
   bool hello_sent = false, hello_received = false, accepted = false, compatible = false, lost = false;
   // Not the host's Steam friend (on the host only): no hello and nothing of hers read until the host lets her in, at
   // most kApprovalMs from asking_at.
   bool asking = false;
   uint64_t asking_at = 0;
   int invalid = 0; // Junk messages received; only the first is logged.
+  bool told = false; // On a match lobby's host: our count line for the countdown running now reached her.
   uint64_t ping_seq = 0, next_ping = 0, last_heard = 0;
   uint64_t next_hello = 0; // Our last hello to her plus kHelloAgainMs.
   int64_t rtt_ms = -1;
@@ -348,6 +424,9 @@ struct Peer {
   Window night_window;     // Her night lines.
   Window race_window;      // Her race lines.
   Window gift_window;      // Her gift lines.
+  Window ping_window;      // Her pings.
+  Window line_window;      // All her channel-0 lines, for the flood rule only.
+  Window round_window;     // Her start, count and end lines, from a match lobby's owner.
   // Her .pak mods beyond the base game's (game/pak_list.h) from her paks line, once one came; her mod containers by
   // name with their hashes, from the pak lines her last paks line ended (named: some came, or she loads no .pak mod;
   // mod_names=off on her side sends none), and the pak lines since then; the status lines comparing them with ours,
@@ -359,10 +438,15 @@ struct Peer {
   std::map<std::string, uint64_t> pak_list, pak_in;
   std::string mods_status;
   size_t paks_at = 0;
+  // Her last vitals (her vit line) and when they came: the partner card's and the shared fight's, for the partner.
+  Vitals vitals{};
+  uint64_t vitals_at = 0;
+  bool has_vitals = false;
   bool say_logged = false; // One chat drop line per 60 s line, never with a text.
   bool night_logged = false; // The same for her night lines.
   bool mark_logged = false; // The same for her mark lines, which share her chat lines' window.
   bool race_logged = false; // The same for her race lines.
+  bool round_logged = false; // The same for her round lines.
   // Counted for the 60 s line, then restarted.
   uint64_t in = 0, in_bytes = 0, out = 0, out_bytes = 0, dropped = 0, failed = 0, pings = 0, pongs = 0;
   int64_t rtt_sum = 0, rtt_max = 0;
@@ -374,18 +458,33 @@ struct Peer {
   int32_t send_rate = 0, pending = 0;
   int64_t queue_us = 0;
   PoseCap cap;
+  uint64_t pose_due = 0; // Her next delta may go from here: our last pose to her plus 1000 / cap less kPoseSlackMs.
 };
+
+// A channel-2 line as take_fight() hands it on: its sender's SteamID and the line as it came.
+struct FightLine {
+  uint64_t from;
+  std::string line;
+};
+// The lines from one sender, in order (none for 0): what the fight and quest workers take from the co-op partner.
+inline std::vector<std::string> lines_from(const std::vector<FightLine> &lines, uint64_t from) {
+  std::vector<std::string> out;
+  for (const FightLine &l : lines)
+    if (from && l.from == from)
+      out.push_back(l.line);
+  return out;
+}
 
 // Callback counters, kept by the caller (they are bumped on the game's Steam thread).
 struct Counters {
-  int join_requested = 0, data_update = 0, session_request = 0;
+  int join_requested = 0, data_update = 0, chat_update = 0, session_request = 0;
 };
 
 class Link {
 public:
-  // binary: a handshaken member's channel-1 message (her table, pose or SBE), called from tick().
+  // binary: a handshaken member's channel-1 message (her table, pose or SBE) with her ghost slot, called from tick().
   Link(const Api &api, std::string mod_version, std::function<void(const std::string &)> event,
-       std::function<void(const uint8_t *, size_t)> binary = nullptr)
+       std::function<void(size_t slot, const uint8_t *, size_t)> binary = nullptr)
       : api_(api), mod_(token(std::move(mod_version))), event_(std::move(event)), binary_(std::move(binary)) {}
 
   enum class Ready { no, now, yes };
@@ -427,6 +526,7 @@ public:
   // One pass: a Lua request (or empty), what Steam's callbacks stored (0 when nothing), then the polls.
   void tick(uint64_t now, const std::string &request, uint64_t join_request, uint64_t session_request) {
     now_ = now;
+    ++passes_;
     if (!request.empty())
       handle(parse_request(request));
     if (join_request)
@@ -452,7 +552,10 @@ public:
       poll_members();
       if (lobby_)
         receive();
+      if (lobby_)
+        run_match();
     }
+    regroup();
     fight_session();
     chat_session();
     if (lobby_) { // A reject may have made us leave.
@@ -468,43 +571,89 @@ public:
     poll_relay();
   }
 
-  // A friend passed the handshake both ways.
-  bool linked() const { return partner() != 0; }
-  // The friend past the handshake both ways (her SteamID), or 0: the shared quests keep their record per partner.
+  // Callback 506 for our lobby: logged only, by its first state bit. The members are still polled every pass.
+  void member_update(const ChatUpdate &u) {
+    if (!lobby_ || u.lobby != lobby_)
+      return;
+    static const char *const kStates[] = {"entered", "left", "disconnected", "kicked", "banned"};
+    for (int bit = 0; bit < 5; ++bit)
+      if (u.state >> bit & 1) {
+        event("lobby update: " + name_of(u.user) + " " + kStates[bit]);
+        return;
+      }
+  }
+
+  // A member passed the handshake both ways.
+  bool linked() const {
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted)
+        return true;
+    return false;
+  }
+  // The friend past the handshake both ways (her SteamID), or 0: the shared quests keep their record per partner. 0 in
+  // a match lobby, which has members and no partner: shared quests, shared enemies, the follow and the revive see none.
   uint64_t partner() const {
+    if (match())
+      return 0;
     for (auto &p : peers_)
       if (p.compatible && p.accepted)
         return p.id;
     return 0;
   }
+  // A match lobby: its kModeKey data named a known mode at the last pass. Its mode's name, empty in a co-op lobby.
+  bool match() const { return !mode_.empty(); }
+  const std::string &mode() const { return mode_; }
+  // Our last round in a match lobby (n 0: none yet this run).
+  const Round &round() const { return round_; }
+  // The members past the handshake both ways, by SteamID, in the order they came in.
+  std::vector<uint64_t> members() const {
+    std::vector<uint64_t> out;
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted)
+        out.push_back(p.id);
+    return out;
+  }
+  // Bit k set: the member in ghost slot k is past the handshake both ways.
+  uint8_t slots() const {
+    uint8_t bits = 0;
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted)
+        bits = static_cast<uint8_t>(bits | 1u << p.slot);
+    return bits;
+  }
 
   // This account's SteamID: 0 until Steam is ready.
   uint64_t me() const { return me_; }
 
-  // The player's send_rate (10 to 60 poses a second), for the pose cap's steps down; and the cap: the lowest of the
-  // friends' past the handshake (PoseCap), kPoseCaps[0] with none. The pose path sends at the lower of the two.
+  // The player's send_rate (10 to 60 poses a second), for the pose cap's steps down; and the cap: the highest of the
+  // members' past the handshake (PoseCap), kPoseCaps[0] with none. The pose path encodes at the lower of the two, and
+  // send_binary() skips deltas for each member under her own cap.
   void pose_rate(uint32_t rate) { pose_rate_ = rate; }
   uint32_t pose_cap() const {
-    uint32_t cap = kPoseCaps[0];
+    uint32_t cap = 0;
     for (auto &p : peers_)
       if (p.compatible && p.accepted)
-        cap = p.cap.cap() < cap ? p.cap.cap() : cap;
-    return cap;
+        cap = p.cap.cap() > cap ? p.cap.cap() : cap;
+    return cap ? cap : kPoseCaps[0];
   }
 
-  // The pose path's table (reliable), pose or SBE (unreliable), on channel 1 to every friend past the handshake only.
-  // Worker thread, like tick().
+  // The pose path's table (reliable), pose or SBE (unreliable), on channel 1 to every member past the handshake only.
+  // A delta (SBD) skips a member until her pose_due; a pose sent (SBP keyframe or SBD) sets it from her cap. Tables
+  // and SBE always go and leave it. Worker thread, like tick().
   // ponytail: queued unreliable poses never expire, so a send rate below the stream rate builds latency (the 60 s
   // line's queue). PoseCap lowers the pose rate past 100 ms of queue; if the queue still grows at 20 a second, add
   // NoDelay (4) or SendRateMin/Max through SetConfigValue.
   void send_binary(const uint8_t *data, size_t size, bool reliable) {
+    const bool pose = size >= 3 && data[0] == 'S' && data[1] == 'B' && (data[2] == 'P' || data[2] == 'D');
     for (auto &p : peers_) {
-      if (!p.compatible || !p.accepted)
+      if (!p.compatible || !p.accepted || (pose && data[2] == 'D' && now_ < p.pose_due))
         continue;
       int r = send(p, data, size, reliable ? kReliable : kUnreliable, kPoseChannel);
       if (r == kResultOk) {
         ++p.out;
         p.out_bytes += size;
+        if (pose)
+          p.pose_due = now_ + 1000 / p.cap.cap() - kPoseSlackMs;
       } else {
         ++p.failed;
         p.last_result = r; // 25 LimitExceeded: Steam's send buffer is full.
@@ -512,19 +661,25 @@ public:
     }
   }
 
-  // Channel 2 (Phase 11, shared enemies): a line for the friend past the handshake, sent by the next tick(), reliable
-  // (on, off, world, up, down, dead, hit) or not (hp). False when it cannot go: not linked, empty or past kMaxMessage,
-  // or kFightQueue lines already waiting. Both queues hold one session's lines: a session that starts or ends (linked()
-  // changes) empties them, so no line crosses into the next one, and the fight logic restarts at the same changes.
-  // Worker thread, like tick().
-  bool send_fight(const std::string &line, bool reliable) {
-    if (!linked() || line.empty() || line.size() > kMaxMessage || fight_out_.size() >= kFightQueue)
+  // Channel 2 (Phase 11, shared enemies): a line for every member past the handshake (to 0) or for the member with
+  // that SteamID, sent by the next tick(), reliable (on, off, world, up, down, dead, hit) or not (hp). False when it
+  // cannot go: not linked, to someone who is not a member past the handshake, empty or past kMaxMessage, kFightQueue
+  // lines already waiting, or a shared quests' line in a match lobby. Both queues hold one session's lines: a session
+  // that starts or ends (linked() changes) empties them, so no line crosses into the next one, and the fight logic
+  // restarts at the same changes. Worker thread, like tick().
+  bool send_fight(const std::string &line, bool reliable, uint64_t to = 0) {
+    if (!linked() || line.empty() || line.size() > kMaxMessage || fight_out_.size() >= kFightQueue ||
+        (match() && line.rfind(quest_tag(), 0) == 0))
       return false;
-    fight_out_.emplace_back(line, reliable);
+    if (to && std::none_of(peers_.begin(), peers_.end(),
+                           [to](const Peer &p) { return p.id == to && p.compatible && p.accepted; }))
+      return false;
+    fight_out_.push_back({line, reliable, to});
     return true;
   }
-  // Her channel-2 lines since the last call, oldest first. The link never parses them: fight/sync.h does, strictly.
-  std::vector<std::string> take_fight() { return std::exchange(fight_in_, {}); }
+  // The members' channel-2 lines since the last call, oldest first, each with its sender. The link never parses
+  // them: fight/sync.h does, strictly.
+  std::vector<FightLine> take_fight() { return std::exchange(fight_in_, {}); }
 
   // Our .pak mods beyond the base game's and our mod containers (game/pak_list.h), once, before the first tick(): each
   // friend past the handshake gets them, and status() compares hers. No paks line goes before this call.
@@ -540,22 +695,20 @@ public:
       if (pak_lines_.size() < kMaxMods && mod_name_ok(m.name))
         pak_lines_.push_back(pak_line(m));
   }
-  // Her mod containers of the same name and hash as ours, sorted: what the ghost may load from (game/pak_list.h's
-  // shared_assets()). None unless a friend is linked, her last paks line ended a named list (her mod_names=on) and
-  // our mod_names is on.
+  // Our mod containers that every member past the handshake whose last paks line ended a named list (her
+  // mod_names=on) has with the same hash, sorted: what the ghosts may load from (game/pak_list.h's shared_assets()).
+  // None unless one such member is linked and our mod_names is on.
   std::vector<std::string> same_mods() const {
     std::vector<std::string> out;
-    for (auto &p : peers_) {
-      if (!(p.compatible && p.accepted))
-        continue;
-      if (p.pak_named && paks_on_ && names_)
-        for (const auto &[name, hash] : p.pak_list) {
-          const auto at = mods_.find(name);
-          if (at != mods_.end() && at->second == hash)
-            out.push_back(name);
-        }
-      break;
-    }
+    const auto named = [](const Peer &p) { return p.compatible && p.accepted && p.pak_named; };
+    if (!paks_on_ || !names_ || std::none_of(peers_.begin(), peers_.end(), named))
+      return out;
+    for (const auto &mod : mods_) // Not a structured binding: C++17 lambdas cannot capture one.
+      if (std::all_of(peers_.begin(), peers_.end(), [&](const Peer &p) {
+            const auto at = p.pak_list.find(mod.first);
+            return !named(p) || (at != p.pak_list.end() && at->second == mod.second);
+          }))
+        out.push_back(mod.first);
     return out;
   }
   // mod_names from Lua's coop-state.txt, before each tick(): off sends the paks line alone, without the pak lines. A
@@ -609,7 +762,7 @@ public:
         if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
           ok = false;
     } else if (ok) {
-      ++(for_lua("in " + clean) ? chat_in_ : chat_dropped_);
+      ++(for_lua("in " + std::to_string(me_) + " " + clean) ? chat_in_ : chat_dropped_);
     }
     if (!ok) {
       for_lua("fail");
@@ -619,11 +772,11 @@ public:
     return true;
   }
   // A race line from Lua (coop-race.txt), as it is, reliable to the friend past the handshake, or back as hers
-  // ("race <text>" for Lua) in the loopback with no friend. False when it cannot go: no session, or, counted as
-  // dropped, a text race_line() would not carry, past kRacePerSecond, or Steam refused it. Worker thread, after
-  // tick().
+  // ("race <text>" for Lua) in the loopback with no friend. False when it cannot go: no session, a match lobby, or,
+  // counted as dropped, a text race_line() would not carry, past kRacePerSecond, or Steam refused it. Worker thread,
+  // after tick().
   bool race(const std::string &text) {
-    if (!chatting())
+    if (!chatting() || match())
       return false;
     const std::string line = race_line(text);
     bool ok = parse(line.data(), line.size()).kind == Kind::race &&
@@ -640,13 +793,14 @@ public:
   }
   // coop gift's line (cut/mailbox.lua, through a gift request): reliable to the friend past the handshake, or back as
   // hers ("gift <payload>" for Lua) in the loopback with no friend, at most kGiftPerSecond a second. Each one goes in
-  // the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, past the
-  // rate, Steam refused it) comes back to Lua at once as her refusal, "gift n <id> nolink", so the sender gets the
-  // items back without waiting for her answer (only for a first send: cut/mailbox.lua ignores it for a send again).
-  // Worker thread, in tick().
+  // the log, as each of hers does: a gift moves items between two saves. A gift that cannot go (no session, a match
+  // lobby, past the rate, Steam refused it) comes back to Lua at once as her refusal, "gift n <id> nolink", so the
+  // sender gets the items back without waiting for her answer (only for a first send: cut/mailbox.lua ignores it for a
+  // send again). Worker thread, in tick().
   void gift(const std::string &payload) {
     const std::string line = gift_line(payload);
-    bool ok = chatting() && !line.empty() && !over_rate(gift_window_, 1, kGiftPerSecond, kGiftPerSecond * kMaxMessage);
+    bool ok = !match() && chatting() && !line.empty() &&
+              !over_rate(gift_window_, 1, kGiftPerSecond, kGiftPerSecond * kMaxMessage);
     if (ok && linked()) {
       for (auto &p : peers_)
         if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
@@ -681,16 +835,17 @@ public:
       vitals_ = mine, vitals_at_ = now_, vitals_sent_ = true;
   }
   // Her life for the shared fight (fight/engine.h's Worker), as of the last tick(): life_of() her vitals while a
-  // session holds and her last line is under kMateMs old, else unknown.
+  // session holds and her last line is under kMateMs old (mate_vitals()), else unknown.
   Life mate_life() const {
-    return has_mate_ && chatting() && now_ - mate_at_ < kMateMs ? life_of(mate_) : Life::unknown;
+    const Vitals *v = mate_vitals();
+    return v ? life_of(*v) : Life::unknown;
   }
   // Night Operation's line (nightop/run.lua, through coop-night.txt): reliable on channel 0 to the friend past the
   // handshake, an "h" line only while we own the lobby and a "g" line only as her guest, at most kNightPerSecond a
-  // second (one log line a minute past it). False when it cannot go. Her last one is the status's night= line while
-  // the session holds. Worker thread, after tick().
+  // second (one log line a minute past it). False when it cannot go, and in a match lobby. Her last one is the status's
+  // night= line while the session holds. Worker thread, after tick().
   bool night(const std::string &payload) {
-    if (!linked() || !night_ok(payload) || payload[0] != (host_ ? 'h' : 'g'))
+    if (match() || !linked() || !night_ok(payload) || payload[0] != (host_ ? 'h' : 'g'))
       return false;
     if (over_rate(night_window_, 1, kNightPerSecond, kNightPerSecond * kMaxMessage)) {
       if (!night_logged_)
@@ -705,8 +860,9 @@ public:
         sent = true;
     return sent;
   }
-  // For coop-chat.txt (glue/steam.cpp), oldest first: "in <text>" (hers, chat_clean()), "fail" (ours could not go),
-  // "race <text>" (her race line) and "gift <payload>" (her gift line, or our gift that could not go).
+  // For coop-chat.txt (glue/steam.cpp), oldest first: "in <SteamID> <text>" (a member's, chat_clean(); ours in the
+  // loopback), "fail" (ours could not go), "race <text>" (her race line) and "gift <payload>" (her gift line, or our
+  // gift that could not go).
   std::vector<std::string> take_chat() { return std::exchange(chat_, {}); }
   bool chat_waiting() const { return !chat_.empty(); }
 
@@ -736,10 +892,32 @@ public:
                     " overlay=" + (overlay_ ? "1" : "0") +
                     " relay=" + (relay_known_ ? std::to_string(relay_) : std::string("unknown")) +
                     " cb333=" + std::to_string(c.join_requested) + " cb505=" + std::to_string(c.data_update) +
-                    " cb1251=" + std::to_string(c.session_request) + "\n";
+                    " cb506=" + std::to_string(c.chat_update) + " cb1251=" + std::to_string(c.session_request) + "\n";
+    s += "me=" + my_name_ + "\n"; // Our Steam name, cleaned (kMaxName), maybe empty.
+    // In a match lobby, its owner's SteamID after the lobby id, then its room and hall words when it has them.
     s += std::string("link=") + (!lobby_ ? "none" : host_ ? "host" : "guest") + " lobby=" + std::to_string(lobby_) +
-         (create_call_ || join_call_ ? " pending=1" : "") + (held_ ? " held=" + std::to_string(held_) : "") +
+         (match() ? " owner=" + std::to_string(host_id_) + (room_.empty() ? std::string() : " room=" + room_) +
+                        (hall_.empty() ? std::string() : " hall=" + hall_)
+                  : "") +
+         (create_call_ || join_call_ ? " pending=1" : "") +
+         (held_ ? " held=" + std::to_string(held_) : "") +
          (rejoin_.lobby ? " rejoin=" + std::to_string(rejoin_.tries) + "/3" : "") + "\n";
+    // Matchmaking: "match=searching <mode>", then in a match lobby its state, mode, the members past the handshake
+    // with us, and its limit; while it counts down, the whole seconds left (rounded up).
+    static const char *const kStages[] = {"none", "searching", "open", "countdown", "playing"};
+    if (const Match st = stage(); st == Match::searching)
+      s += "match=searching " + seeking_ + "\n";
+    else if (st != Match::none)
+      s += std::string("match=") + kStages[static_cast<int>(st)] + " " + mode_ + " " +
+           std::to_string(members().size() + 1) + " " + std::to_string(kMatchMembers) +
+           (st == Match::countdown ? " " + std::to_string(count_left()) : std::string()) + "\n";
+    // Our last round this run: "round=<n> start <mode> <map> <seed> <id>,..." while it plays, "round=<n> end <why>"
+    // once over.
+    if (round_.n) {
+      const std::string start = start_line(round_.mode, round_.map, round_.seed, round_.ids);
+      s += "round=" + std::to_string(round_.n) + " " +
+           (round_.playing ? start.substr(start.find(' ') + 1) : "end " + round_.why) + "\n";
+    }
     // While we host: our join code (none outside who_can_join=code), the players refused for the rest of this lobby,
     // and each joiner waiting for our answer, her name last.
     if (host_ && lobby_) {
@@ -755,28 +933,30 @@ public:
            " lost=" + (p.lost ? "1" : "0") + " invalid=" + std::to_string(p.invalid) +
            " rtt_ms=" + std::to_string(p.rtt_ms) + " session=" + std::to_string(p.session_state) +
            " session_ping=" + std::to_string(p.session_ping) + "\n";
-    // The name last, so a space in it cannot shift the fields Lua reads.
-    if (!peers_.empty()) {
-      const Peer &p = peers_.front();
-      s += std::string("friend=") + (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
-           p.name + "\n";
-    }
+    // Each member: her SteamID, ghost slot, past the handshake, lost, muted (coop mute), RTT in ms (-1 before the
+    // first pong), and her name last, so a space in it cannot shift the fields Lua reads.
+    for (auto &p : peers_)
+      s += "member=" + std::to_string(p.id) + " " + std::to_string(p.slot) + " " +
+           (p.compatible && p.accepted ? "1" : "0") + " " + (p.lost ? "1" : "0") + " " +
+           (muted_.count(p.id) ? "1" : "0") + " " + std::to_string(p.rtt_ms) + " " + p.name + "\n";
+    // The member in slot 0 (friend co-op's only one), the name last.
+    if (const Peer *p = slot_zero())
+      s += std::string("friend=") + (p->compatible && p->accepted ? "1" : "0") + " " + (p->lost ? "1" : "0") + " " +
+           p->name + "\n";
     // The last coop mark, ours or hers, kept for the run: "mark=<n> ours[: <text>]" or "mark=<n> from <name>[:
     // <text>]".
     if (!mark_.empty())
       s += mark_ + "\n";
-    // Her .pak mods against ours, once her paks line came: "paks=same <ours> <hers>" or "paks=differ <ours> <hers>";
-    // then, when it ended a named list, her mod containers against ours by name (mods_lines()).
-    if (!peers_.empty() && peers_.front().has_paks && paks_on_) {
-      const Peer &p = peers_.front();
-      s += std::string("paks=") + (p.paks_hash == paks_hash_ ? "same " : "differ ") + std::to_string(paks_count_) +
-           " " + std::to_string(p.paks_count) + "\n" + p.mods_status;
-    }
-    // Her vitals for the partner card, while a session holds and her last line is under kMateMs old.
-    if (has_mate_ && chatting() && now_ - mate_at_ < kMateMs) {
+    // The slot-0 member's .pak mods against ours, once her paks line came: "paks=same <ours> <hers>" or "paks=differ
+    // <ours> <hers>"; then, when it ended a named list, her mod containers against ours by name (mods_lines()).
+    if (const Peer *p = slot_zero(); p && p->has_paks && paks_on_)
+      s += std::string("paks=") + (p->paks_hash == paks_hash_ ? "same " : "differ ") + std::to_string(paks_count_) +
+           " " + std::to_string(p->paks_count) + "\n" + p->mods_status;
+    // Her vitals for the partner card (mate_vitals()): none in a match lobby.
+    if (const Vitals *v = mate_vitals()) {
       s += "mate=";
-      for (size_t i = 0; i < mate_.size(); ++i)
-        s += (i ? " " : "") + std::to_string(mate_[i]);
+      for (size_t i = 0; i < v->size(); ++i)
+        s += (i ? " " : "") + std::to_string((*v)[i]);
       s += "\n";
     }
     // Our life state and HP, from our last vitals read while a session holds and it is under kMateMs old (the revive's
@@ -804,6 +984,66 @@ public:
 
 private:
   void event(const std::string &line) { event_(line); }
+
+  Match stage() const {
+    return match()            ? (round_.playing ? Match::playing : count_end_ ? Match::countdown : Match::open)
+           : seeking_.empty() ? Match::none
+                              : Match::searching;
+  }
+  // The countdown's whole seconds left, rounded up; 0 at its end or with none.
+  uint64_t count_left() const { return count_end_ > now_ ? (count_end_ - now_ + 999) / 1000 : 0; }
+
+  // The member in ghost slot 0, or null.
+  const Peer *slot_zero() const {
+    for (auto &p : peers_)
+      if (p.slot == 0)
+        return &p;
+    return nullptr;
+  }
+  // Her vitals while a session holds and they are under kMateMs old: the partner's, or with no member linked ours back
+  // as hers in the loopback; null otherwise, and in a match lobby (no partner).
+  const Vitals *mate_vitals() const {
+    if (!chatting())
+      return nullptr;
+    if (!linked())
+      return has_mate_ && now_ - mate_at_ < kMateMs ? &mate_ : nullptr;
+    const uint64_t id = partner();
+    for (auto &p : peers_)
+      if (id && p.id == id)
+        return p.has_vitals && now_ - p.vitals_at < kMateMs ? &p.vitals : nullptr;
+    return nullptr;
+  }
+
+  // A word of the lobby's data, kept only as alias_word takes it and at most kMaxToken bytes (its owner may be a
+  // stranger), else empty.
+  std::string data_word(const char *key) {
+    const char *v = api_.lobby_data(mm_, lobby_, key);
+    const std::string w = v ? v : "";
+    return alias_word(w) && w.size() <= kMaxToken ? w : std::string();
+  }
+  // The lobby's match mode (kModeKey, which only its owner writes), read each pass: a known one makes it a match
+  // lobby, none a co-op lobby, and an unknown one is left. A match lobby stays one with the same mode while we are in
+  // it: an owner who clears or changes it would lift the stranger rules, so we leave. Its room and hall words too
+  // (Lua follows the room and leaves a lobby of another hall). False when we left.
+  bool read_mode() {
+    const char *mode = api_.lobby_data(mm_, lobby_, kModeKey);
+    const std::string was = std::exchange(mode_, clean(mode ? mode : "", kMaxToken));
+    if (!was.empty() && mode_ != was) {
+      event("lobby " + std::to_string(lobby_) + " changed its match mode from " + was + " to " +
+            (mode_.empty() ? "none" : mode_));
+      notice("Left the match: the lobby changed its mode.");
+      leave("match mode changed");
+      return false;
+    }
+    if (mode_.empty() || find_mode(mode_)) {
+      room_ = data_word(kRoomKey), hall_ = data_word(kHallKey);
+      return true;
+    }
+    event("lobby " + std::to_string(lobby_) + " runs an unknown match mode " + mode_);
+    notice("Could not join: unknown match mode " + mode_ + ".");
+    leave("unknown match mode");
+    return false;
+  }
 
   Identity identity(uint64_t id) const {
     Identity who{};
@@ -840,7 +1080,9 @@ private:
   }
 
   // Why a non-peer's messages are ignored, for the log.
-  const char *outsider(uint64_t id) const { return refused_.count(id) ? "refused by the host" : "not in our lobby"; }
+  const char *outsider(uint64_t id) const {
+    return !refused_.count(id) ? "not in our lobby" : host_ ? "refused by the host" : "refused for a flood";
+  }
 
   // The host's no (deny, remove, or no answer in time): a reject with why, which every protocol reads and on which a
   // StellarCoop game leaves, then she is out for the rest of this lobby. Her session stays open, so the reject still
@@ -871,7 +1113,13 @@ private:
     api_.leave_lobby(mm_, lobby_);
     event("left lobby " + std::to_string(lobby_) + ": " + why);
     lobby_ = host_id_ = 0;
-    host_ = false;
+    host_ = public_ = false;
+    mode_.clear();
+    room_.clear();
+    hall_.clear();
+    count_end_ = 0; // The countdown and the round in play belong to that lobby.
+    if (round_.playing)
+      end_round("left");
     allowed_.clear(); // Our answers as host hold for that lobby only: never for the next one, nor once we are a guest.
     refused_.clear();
   }
@@ -881,11 +1129,15 @@ private:
       return event("busy: a lobby call is still pending, " + how + " ignored");
     if (lobby == lobby_)
       return event("already in lobby " + std::to_string(lobby));
+    if (search_call_) // The player's later choice wins.
+      drop_search(how);
     leave("joining another lobby");
     joining_ = lobby;
     join_call_ = api_.join_lobby(mm_, lobby);
     if (!join_call_) {
       joining_ = 0;
+      found_.clear(); // A search's join ends its attempt.
+      seeking_.clear();
       return event("Steam refused to join lobby " + std::to_string(lobby));
     }
     event("joining lobby " + std::to_string(lobby) + " (" + how + ")");
@@ -940,7 +1192,9 @@ private:
     const char *asked = r.command == Command::host    ? "host"
                         : r.command == Command::join  ? (r.code && !r.lobby ? nullptr : "join") // A bad code: nothing.
                         : r.command == Command::leave ? "leave"
-                                                      : nullptr;
+                        : r.command == Command::match && (r.match == MatchAsk::search || r.match == MatchAsk::create)
+                            ? "match"
+                            : nullptr;
     bool dropped = held_ && asked;
     if (dropped)
       event("held invite to lobby " + std::to_string(std::exchange(held_, 0)) + " dropped (" + asked + " asked)");
@@ -959,6 +1213,8 @@ private:
         event("busy: a lobby call is still pending, host ignored");
       } else {
         leave("hosting instead");
+        drop_search("host");
+        relay_only(false); // Before a co-op lobby's first session opens.
         hosting_ = r.who;
         create_call_ = api_.create_lobby(mm_,
                                          r.who == Who::code      ? kInvisible
@@ -992,10 +1248,12 @@ private:
       }
       break;
     case Command::leave:
+      drop_search("leave");
       if (create_call_ || join_call_) {
         cancel_ = true;
         event("leave queued: a lobby call is pending");
       } else if (lobby_) {
+        hand_over();
         leave("asked");
         notice("Left the session.");
       } else {
@@ -1033,11 +1291,12 @@ private:
       break;
     }
     // The follow's camps lines (session/travel.lua writes them; link/protocol.h checked their shape): reliable, on
-    // channel 0, to the friend past the handshake, the guest's camps? and the host's answers only. A camps? of ours
-    // forgets the answer to the one before.
+    // channel 0, to the friend past the handshake, the guest's camps? and the host's answers only, never in a match
+    // lobby. A camps? of ours forgets the answer to the one before.
     case Command::camps: {
       const bool ask = r.line.find(" camps? ") != std::string::npos;
-      const char *why = !linked()        ? "no session"
+      const char *why = match()          ? "a match lobby"
+                        : !linked()      ? "no session"
                         : ask && host_   ? "the host does not ask"
                         : !ask && !host_ ? "only the host answers"
                                          : nullptr;
@@ -1098,11 +1357,259 @@ private:
     case Command::nightshop:
     case Command::roxanne:
     case Command::signal:
+    case Command::sbo:
+    case Command::guardtext:
+    case Command::hud:
+    case Command::loading:
       break;
+    case Command::match:
+      ask_match(r);
+      break;
+    case Command::mute: { // Any player's, in any lobby, kept for the game run (my call 18).
+      const std::string name = name_of(r.player);
+      if (r.off)
+        muted_.erase(r.player);
+      else
+        muted_.insert(r.player);
+      event((r.off ? "unmuted " : "muted ") + name + " (" + std::to_string(r.player) + ")");
+      notice((r.off ? "Unmuted " : "Muted ") + name + ".");
+      break;
+    }
     case Command::none:
       event("unknown request");
       break;
     }
+  }
+
+  // match search, match create, match cancel (a create or join already sent goes on: leave undoes it), match end.
+  void ask_match(const Request &r) {
+    if (r.match == MatchAsk::cancel) {
+      if (!search_call_ && found_.empty())
+        return event("match cancel ignored: no search pending");
+      return drop_search("match cancel");
+    }
+    if (r.match == MatchAsk::end) { // The host's: the lobby opens again and every member hears the round is over.
+      if (!host_ || !lobby_ || !match())
+        return event("match end ignored: not hosting");
+      if (!round_.playing)
+        return event("match end ignored: no round");
+      joinable(true);
+      if (public_)
+        put(kStateKey, "open");
+      to_members(end_line(), "end");
+      return end_round("host");
+    }
+    const std::string what = r.match == MatchAsk::search ? "match search" : "match create";
+    if (!find_mode(r.mode)) {
+      std::string modes;
+      for (const Mode &m : kModes)
+        modes += (modes.empty() ? "" : ", ") + std::string(m.name);
+      event(what + " ignored: no mode " + r.mode);
+      return notice("No such mode: " + r.mode + ". Modes: " + modes + ".");
+    }
+    if (lobby_) {
+      event(what + " ignored: in lobby " + std::to_string(lobby_));
+      return notice("Leave this game first.");
+    }
+    if (create_call_ || join_call_ || search_call_)
+      return event(std::string("busy: ") +
+                   (search_call_ ? "a search is pending, " : "a lobby call is still pending, ") + what + " ignored");
+    relay_only(true, "match session");
+    seeking_ = r.mode, want_room_ = r.room, want_hall_ = r.hall;
+    if (r.match == MatchAsk::search) {
+      search(r.mode, r.hall);
+      if (search_call_)
+        return event("searching for an open " + r.mode + " match lobby");
+      event("Steam refused the lobby search");
+      notice("Could not search: Steam refused.");
+    } else {
+      public_ = false;
+      hosting_ = Who::code;
+      create_call_ = api_.create_lobby(mm_, kInvisible, kMatchMembers);
+      if (create_call_)
+        return event("creating a private " + r.mode + " match lobby (joined with its code)");
+      event("Steam refused to create a lobby");
+      notice("Could not host: Steam refused.");
+    }
+    seeking_.clear();
+  }
+
+  // The quick-match search (design 7.2): our tag, the mode, still open, the lobby pak's version, a free slot, the
+  // default distance.
+  void search(const std::string &mode, const std::string &hall) {
+    api_.string_filter(mm_, kLobbyKey, tag_.c_str(), kLobbyEqual);
+    api_.string_filter(mm_, kModeKey, mode.c_str(), kLobbyEqual);
+    api_.string_filter(mm_, kStateKey, "open", kLobbyEqual);
+    api_.string_filter(mm_, kHallKey, hall.c_str(), kLobbyEqual);
+    api_.slots_filter(mm_, 1);
+    api_.distance_filter(mm_, kDistanceDefault);
+    search_call_ = api_.request_lobby_list(mm_);
+  }
+  // Forgets a pending search and the results left to try. A create or join it sent already goes on.
+  void drop_search(const std::string &why) {
+    if (!search_call_ && found_.empty())
+      return;
+    search_call_ = 0;
+    found_.clear();
+    if (!create_call_ && !join_call_)
+      seeking_.clear();
+    if (!std::exchange(regrouping_, false))
+      event("match search cancelled (" + why + ")");
+  }
+  // Quick match has no lobby to join: host a Public one.
+  void host_match() {
+    event("no " + seeking_ + " match found: creating one");
+    notice("No " + seeking_ + " match found (SBO protocol " + std::to_string(kProtocol) + ", build " +
+           std::to_string(build_) + "): hosting one.");
+    public_ = true;
+    create_call_ = api_.create_lobby(mm_, kPublic, kMatchMembers);
+    if (create_call_)
+      return;
+    public_ = false;
+    seeking_.clear();
+    event("Steam refused to create a lobby");
+    notice("Could not host: Steam refused.");
+  }
+  // Open only: a host left alone in a countdown or a round in play keeps its lobby.
+  bool lone_public_host() const { return public_ && host_ && lobby_ && peers_.empty() && stage() == Match::open; }
+  // Ruling R1: a lone host of a Public match lobby searches again each kRegroupMs, then moves to a lower lobby id. No
+  // event for the search itself: one each 5 s would fill the log.
+  void regroup() {
+    if (!lone_public_host() || create_call_ || join_call_ || search_call_ || now_ < regroup_at_)
+      return;
+    regroup_at_ = now_ + kRegroupMs;
+    search(mode_, hall_);
+    regrouping_ = search_call_ != 0;
+  }
+  // Relay only (ICE_Enable 0), so no player learns another's IP address: for match sessions, and in co-op with a player
+  // who is not our Steam friend (guard()); else the Steam client's own setting. Process-wide, for sessions opened after
+  // the call: set before a match's search, create or join, before a co-op lobby's first hello, and before the first
+  // session with a stranger. A co-op host keeps it on until she hosts again. why says what it is for.
+  void relay_only(bool on, const std::string &why = "") {
+    if (on == ice_off_)
+      return;
+    ice_off_ = on;
+    if (!api_.set_config_int(nu_, kIceEnable, on ? kIceDisable : kIceDefault))
+      return event("Steam refused the ICE setting");
+    event(on ? "relay only (ICE off): " + why : "ICE back to the Steam client's setting");
+  }
+  // Relay only before our first session with her, when she is not our Steam friend.
+  void guard(uint64_t id) {
+    if (!ice_off_ && !api_.has_friend(friends_, id, kImmediateFriends))
+      relay_only(true, name_of(id) + " is not a Steam friend");
+  }
+  // A lobby data key the owner writes, when it changed.
+  void put(const char *key, const std::string &value) {
+    if (!host_ || !lobby_ || api_.lobby_owner(mm_, lobby_) != me_)
+      return;
+    const char *now = api_.lobby_data(mm_, lobby_, key);
+    if (!now || value != now)
+      api_.set_lobby_data(mm_, lobby_, key, value.c_str());
+  }
+  // The lobby open to joins or shut, by its owner only, as for put().
+  void joinable(bool open) {
+    if (host_ && lobby_ && api_.lobby_owner(mm_, lobby_) == me_)
+      api_.set_joinable(mm_, lobby_, open);
+  }
+  // A reliable channel-0 line to every member past the handshake; a refused send is logged.
+  void to_members(const std::string &line, const char *what) {
+    for (auto &p : peers_)
+      if (p.compatible && p.accepted && send(p, line.data(), line.size(), kReliable) != kResultOk)
+        event(std::string(what) + " line not sent to " + p.name);
+  }
+  void end_round(const std::string &why) {
+    round_.playing = false;
+    round_.why = why;
+    event("round " + std::to_string(round_.n) + " ended (" + why + ")");
+  }
+  // The owner of a match lobby leaving from the menu: the lobby goes to the longest-standing member past the handshake
+  // first (my call 16), not to Steam's pick.
+  void hand_over() {
+    const std::vector<uint64_t> ids = members();
+    if (!match() || !host_ || ids.empty() || api_.lobby_owner(mm_, lobby_) != me_)
+      return;
+    const std::string to = std::to_string(lobby_) + " to " + name_of(ids[0]);
+    event(api_.set_owner(mm_, lobby_, ids[0]) ? "handed lobby " + to : "Steam refused to hand lobby " + to);
+  }
+  // Steam moved the match lobby to another owner (design 7.7, decision 7): a round in play ends, a countdown stops,
+  // and the new owner opens the lobby again and hosts the next countdown.
+  void owner_changed(uint64_t owner) {
+    host_id_ = owner;
+    host_ = owner == me_;
+    const std::string name = name_of(owner);
+    event("lobby " + std::to_string(lobby_) + " owner is now " + name);
+    notice(name + " hosts the match now.");
+    if (round_.playing)
+      end_round("host_left");
+    count_end_ = 0;
+    for (auto &p : peers_)
+      p.told = false;
+    if (!host_)
+      return;
+    joinable(true);
+    if (public_)
+      put(kStateKey, "open");
+    else
+      code_ = join_code(lobby_);
+  }
+
+  // The host's pass in a match lobby (design 5.5), after channel 0. With n players past the handshake and not lost (us
+  // included): the countdown starts at kCountdownMs once n reaches the mode's minimum, drops to kFullCountdownMs once
+  // the lobby is full, stops when n falls under the minimum, and at 0, with n checked again, starts the round. Each
+  // member past the handshake gets our count line at its start, at the drop, at her own handshake while it runs (the
+  // seconds left, rounded up), and at its stop. A round in play waits for match end.
+  void run_match() {
+    if (!host_ || !match() || round_.playing)
+      return;
+    const Mode &mode = *find_mode(mode_);
+    uint32_t n = 1;
+    for (auto &p : peers_)
+      n += p.compatible && p.accepted && !p.lost;
+    if (n < mode.min) {
+      if (!count_end_)
+        return;
+      count_end_ = 0;
+      to_members(count_line(0), "count");
+      for (auto &p : peers_)
+        p.told = false;
+      return event("countdown stopped: " + std::to_string(n) + " of " + std::to_string(mode.min) + " players");
+    }
+    if (!count_end_) {
+      count_end_ = now_ + (n == kMatchMembers ? kFullCountdownMs : kCountdownMs);
+      event("countdown started: " + std::to_string(count_left()) + " s, " + std::to_string(n) + " players");
+    } else if (now_ >= count_end_) {
+      return start_round(mode);
+    } else if (n == kMatchMembers && count_end_ - now_ > kFullCountdownMs) {
+      count_end_ = now_ + kFullCountdownMs;
+      for (auto &p : peers_)
+        p.told = false;
+      event("countdown: the lobby is full, 5 s left");
+    }
+    const std::string line = count_line(static_cast<uint32_t>(count_left()));
+    for (auto &p : peers_) // A refused send goes again at the next pass, with the seconds left then.
+      if (p.compatible && p.accepted && !p.told && send(p, line.data(), line.size(), kReliable) == kResultOk)
+        p.told = true;
+  }
+  // At 0: the lobby shut, sbo_state=playing (Public only) and sbo_map, then one start line to every member past the
+  // handshake, listing us first, then the players counted at 0 in Steam's member order (my call 11).
+  void start_round(const Mode &mode) {
+    std::vector<uint64_t> ids = {me_};
+    const int count = api_.member_count(mm_, lobby_);
+    for (int i = 0; i < count; ++i)
+      if (const Peer *p = find_peer(api_.member(mm_, lobby_, i)); p && p->compatible && p->accepted && !p->lost)
+        ids.push_back(p->id);
+    joinable(false);
+    if (public_)
+      put(kStateKey, "playing");
+    put(kMapKey, mode.map);
+    const auto seed = static_cast<uint32_t>(splitmix64(now_ ^ me_ ^ (uint64_t(round_.n + 1) << 32))); // My call 14.
+    to_members(start_line(mode_, mode.map, seed, ids), "start");
+    for (auto &p : peers_)
+      p.told = false;
+    count_end_ = 0;
+    round_ = {round_.n + 1, true, mode_, mode.map, "", seed, ids};
+    event("round " + std::to_string(round_.n) + " started: " + mode_ + " on " + mode.map + ", seed " +
+          std::to_string(seed) + ", " + std::to_string(ids.size()) + " players");
   }
 
   // "protocol X, build Y" from a lobby tag "X:Y", for the person who cannot join.
@@ -1122,20 +1629,35 @@ private:
       if (!got || failed || r.result != kResultOk || !r.lobby) {
         event("lobby creation failed (result " + std::to_string(r.result) + ")");
         notice("Could not host: Steam result " + std::to_string(r.result) + ".");
+        public_ = false;
       } else {
         lobby_ = r.lobby;
         host_ = true;
         host_id_ = me_;
-        code_ = hosting_ == Who::code ? join_code(lobby_) : std::string();
+        code_ = hosting_ == Who::code && !public_ ? join_code(lobby_) : std::string();
         const std::string id = std::to_string(lobby_);
         if (cancel_) {
           leave("leave asked while it was being created");
           notice("Left the session.");
         } else {
+          if (!seeking_.empty()) // A match lobby: room for 8.
+            api_.set_member_limit(mm_, lobby_, kMatchMembers);
           api_.set_lobby_data(mm_, lobby_, kLobbyKey, tag_.c_str());
-          if (!code_.empty()) { // The player shares the code: no overlay over the game.
-            event("hosting lobby " + id + ", join code " + code_);
-            notice("Hosting. Your join code is " + code_ + ".");
+          if (!seeking_.empty()) {
+            put(kModeKey, seeking_);
+            if (public_) // A code match lobby has no sbo_state, so no search finds it.
+              put(kStateKey, "open");
+            put(kRoomKey, want_room_);
+            put(kHallKey, want_hall_);
+          }
+          if (public_) {
+            regroup_at_ = now_ + kRegroupMs;
+            event("hosting " + seeking_ + " match lobby " + id + " (public)");
+            notice("Hosting a " + seeking_ + " match: waiting for players.");
+          } else if (!code_.empty()) { // The player shares the code: no overlay over the game.
+            event("hosting " + (seeking_.empty() ? "" : seeking_ + " match ") + "lobby " + id + ", join code " + code_);
+            notice(seeking_.empty() ? "Hosting. Your join code is " + code_ + "."
+                                    : "Hosting a private " + seeking_ + " match. Your join code is " + code_ + ".");
           } else if (hosting_ == Who::code) {
             api_.invite_dialog(friends_, lobby_);
             event("hosting lobby " + id +
@@ -1150,6 +1672,7 @@ private:
         }
       }
       cancel_ = false;
+      seeking_.clear();
     }
     failed = false;
     if (join_call_ && api_.call_done(utils_, join_call_, &failed)) {
@@ -1175,10 +1698,22 @@ private:
           return event("rejoin of lobby " + id + " failed (response " + response + "), next try in " +
                        std::to_string(due > now_ ? (due - now_ + 999) / 1000 : 0) + " s");
         }
+        // A lobby a search found (my call 7): the next result, then a lobby of our own, before any notice.
+        if (found_at_ + 1 < found_.size())
+          return join(found_[++found_at_], "the next result");
+        if (!found_.empty()) {
+          found_.clear();
+          return host_match();
+        }
+        seeking_.clear();
+        // 3 NotAllowed: a match lobby its owner shut at the start of a round (no join in progress).
         return notice(r.response == 2   ? "Could not join: that game no longer exists."
+                      : r.response == 3 ? "Could not join: that game is closed (its match may have started)."
                       : r.response == 4 ? "Could not join: that game is full."
                                         : "Could not join: Steam response " + response + ".");
       }
+      found_.clear();
+      seeking_.clear();
       lobby_ = lobby;
       uint64_t owner = api_.lobby_owner(mm_, lobby);
       if (rejoin && owner != rejoin_.host) { // Steam gave her lobby to someone else: she left (D1).
@@ -1206,11 +1741,42 @@ private:
         notice("Version mismatch: that game runs " + describe_tag(theirs) + "; yours runs " + describe_tag(tag_) + ".");
         return leave("incompatible lobby");
       }
+      if (!read_mode())
+        return;
       std::string host = name_of(host_id_);
-      // Not her Steam friend: her game holds the handshake until she lets us in (an answer she keeps for a rejoin).
-      const bool asking = !rejoin && !api_.has_friend(friends_, host_id_, kImmediateFriends);
+      const bool stranger = !match() && !api_.has_friend(friends_, host_id_, kImmediateFriends);
+      // Before our first hello, which poll_members() sends in this pass.
+      relay_only(match() || stranger, match() ? "match session" : host + " is not a Steam friend");
+      const char *state = api_.lobby_data(mm_, lobby, kStateKey);
+      public_ = match() && state && *state;
+      // Not her Steam friend: her game holds the handshake until she lets us in (an answer she keeps for a rejoin). A
+      // match lobby lets everyone in.
+      const bool asking = !rejoin && stranger;
       event("joined lobby " + id + " hosted by " + host + (asking ? ", not a Steam friend: waiting to be let in" : ""));
       notice((rejoin ? "Rejoined " : "Joined ") + host + "'s game." + (asking ? " Waiting to be let in." : ""));
+    }
+    failed = false;
+    if (search_call_ && api_.call_done(utils_, search_call_, &failed)) { // LobbyMatchList_t: join the first, or host.
+      LobbyMatchList r{};
+      const bool got =
+          api_.call_result(utils_, std::exchange(search_call_, 0), &r, sizeof r, kMatchListId, &failed) && !failed;
+      found_.clear();
+      found_at_ = 0;
+      for (uint32_t i = 0; got && i < r.count; ++i)
+        if (const uint64_t id = api_.lobby_by_index(mm_, static_cast<int>(i)); id && (!regrouping_ || id < lobby_))
+          found_.push_back(id);
+      if (std::exchange(regrouping_, false)) { // Ruling R1: the lowest lower id; none, or a member came: stay.
+        std::sort(found_.begin(), found_.end());
+        if (found_.empty() || !lone_public_host())
+          return found_.clear();
+        seeking_ = mode_, want_room_ = room_, want_hall_ = hall_; // Our lobby's words, for a create if the join fails.
+        return join(found_[0], "a lower " + mode_ + " lobby");
+      }
+      if (!got)
+        event("lobby search failed");
+      if (found_.empty())
+        return host_match();
+      join(found_[0], "match search");
     }
   }
 
@@ -1218,14 +1784,18 @@ private:
   // so a member's first message always finds its peer. On the host, a new member who is not her Steam friend (nor let
   // in before in this lobby) waits for her answer with no hello, refused at kApprovalMs; a member refused in this
   // lobby is never a peer again and gets a reject each time she comes in, and every 10 s while she stays (a
-  // StellarCoop game leaves on the first). The host leaving ends the session for the guest (D1: the leader
-  // is always the host), even though Steam hands the lobby to the guest. Any other loss of her lobby may be ours (a
-  // network cut): the guest leaves and tries to get back in for 60 s.
+  // StellarCoop game leaves on the first). In a co-op lobby, the host leaving ends the session for the guest (D1: the
+  // leader is always the host), even though Steam hands the lobby to the guest. Any other loss of her lobby may be ours
+  // (a network cut): the guest leaves and tries to get back in for 60 s. In a match lobby, Steam's owner is the host:
+  // an owner change ends the round (owner_changed()), and a guest no longer listed leaves with no rejoin.
   void poll_members() {
+    if (!read_mode())
+      return;
+    const int cap = match() ? kMatchMembers : kMaxMembers;
     int n = api_.member_count(mm_, lobby_);
-    if (n > kMaxMembers) { // Only a lobby made elsewhere can be bigger: greet nobody there.
-      leave("more than 2 players in it");
-      return notice("Left: the lobby has more than 2 players.");
+    if (n > cap) { // Only a lobby made elsewhere can be bigger: greet nobody there.
+      leave("more than " + std::to_string(cap) + " players in it");
+      return notice("Left: the lobby has more than " + std::to_string(cap) + " players.");
     }
     std::vector<uint64_t> members;
     bool me_here = false, host_here = false;
@@ -1236,7 +1806,14 @@ private:
       if (id && id != me_)
         members.push_back(id);
     }
-    if (!host_) {
+    if (match()) { // Every role: the owner may change, and nobody rejoins a match lobby (my call 17).
+      if (const uint64_t owner = api_.lobby_owner(mm_, lobby_); owner && owner != host_id_)
+        owner_changed(owner);
+      if (!host_ && !me_here) {
+        notice("Left the match: lost the lobby.");
+        return leave("lost the match lobby");
+      }
+    } else if (!host_) {
       uint64_t owner = api_.lobby_owner(mm_, lobby_);
       if (me_here && owner == me_) { // Steam handed us the lobby: only her leaving does that.
         notice("Session ended: " + name_of(host_id_) + " left.");
@@ -1275,6 +1852,7 @@ private:
         if (now_ >= it->second) {
           Peer out;
           out.id = id;
+          guard(id);
           send(out, reject("you cannot join this session again"), kReliable);
           if (!it->second)
             event("refused " + name_of(id) + " came back: told to leave");
@@ -1283,11 +1861,20 @@ private:
         continue;
       }
       if (!find_peer(id)) {
+        guard(id); // Before anything goes to her.
         Peer peer;
         peer.id = id;
+        while (peer.slot < kMaxRemote && std::any_of(peers_.begin(), peers_.end(),
+                                                     [&](const Peer &p) { return p.slot == peer.slot; }))
+          ++peer.slot;
+        if (peer.slot == kMaxRemote) // Steam lists kMatchMembers others without us: no slot, so no peer.
+          continue;
         peer.name = name_of(id);
         peer.last_heard = now_;
-        peer.asking = host_ && !allowed_.count(id) && !api_.has_friend(friends_, id, kImmediateFriends);
+        if (match()) // 30 a second to start (my call 20, design 7.4): each upload carries a stream per member.
+          peer.cap.level = 1;
+        // A match lobby lets everyone in: no approval.
+        peer.asking = host_ && !match() && !allowed_.count(id) && !api_.has_friend(friends_, id, kImmediateFriends);
         peer.asking_at = now_;
         peers_.push_back(peer);
         event(peer.name + " is in the lobby" +
@@ -1313,6 +1900,7 @@ private:
   // A session from a lobby member is accepted after a live membership check; anything else is ignored, never closed.
   void on_session_request(uint64_t id) {
     if (lobby_ && id && id != me_ && !refused_.count(id) && member_now(id)) {
+      guard(id);
       Identity who = identity(id);
       api_.accept_session(msgs_, &who);
       event("accepted a session from " + name_of(id));
@@ -1324,10 +1912,12 @@ private:
   void receive() {
     NetMessage *batch[16];
     int n = api_.receive(msgs_, kChannel, batch, 16);
+    full_batches_ += n == 16;
     for (int i = 0; i < n; ++i) {
       NetMessage *m = batch[i];
       uint64_t from = api_.get_steam_id(&m->peer);
-      Message message = parse(static_cast<const char *>(m->data), static_cast<size_t>(m->size));
+      const size_t size = m->size > 0 ? static_cast<size_t>(m->size) : 0;
+      Message message = parse(static_cast<const char *>(m->data), size);
       api_.release_message(m); // Every message is released, even after a reject made us leave mid-batch.
       if (!lobby_)
         continue;
@@ -1335,6 +1925,11 @@ private:
       if (!peer) {
         if (strangers_.insert(from).second)
           event("ignored messages from " + std::to_string(from) + ": " + outsider(from));
+        continue;
+      }
+      over_rate(peer->line_window, size, kLinesPerSecond, kLinesPerSecond * kMaxMessage); // Counted only.
+      if (flooding(peer->line_window)) {
+        flood(*peer, "channel-0 lines");
         continue;
       }
       peer->last_heard = now_;
@@ -1357,23 +1952,25 @@ private:
   void receive_binary() {
     NetMessage *batch[16];
     int n = api_.receive(msgs_, kPoseChannel, batch, 16);
+    full_batches_ += n == 16;
     for (int i = 0; i < n; ++i) {
       NetMessage *m = batch[i];
       uint64_t from = api_.get_steam_id(&m->peer);
       size_t size = m->size > 0 ? static_cast<size_t>(m->size) : 0;
       Peer *peer = find_peer(from);
-      const char *why = !peer                                  ? outsider(from)
-                        : !peer->compatible || !peer->accepted ? "before the handshake"
-                        : size == 0 || size > kMaxBinary       ? "bad size"
+      // The window first, so a member's flood before the handshake counts for the flood rule too.
+      const char *why = !peer ? outsider(from)
                         : over_rate(peer->pose_window, size, kBinaryPerSecond, kBinaryBytesPerSecond)
                             ? "over the rate limit"
-                            : nullptr;
+                        : !peer->compatible || !peer->accepted ? "before the handshake"
+                        : size == 0 || size > kMaxBinary       ? "bad size"
+                                                               : nullptr;
       if (!why) {
         ++peer->in;
         peer->in_bytes += size;
         try {
           if (binary_)
-            binary_(static_cast<const uint8_t *>(m->data), size);
+            binary_(peer->slot, static_cast<const uint8_t *>(m->data), size);
         } catch (...) { // Out of memory in the pose path: this message is lost, never the release below.
           ++peer->dropped;
         }
@@ -1389,6 +1986,8 @@ private:
             peer->drop_logged = true;
             event("dropped pose data from " + peer->name + ": " + why);
           }
+          if (flooding(peer->pose_window))
+            flood(*peer, "pose data");
         }
       } catch (...) { // Out of memory: a lost line, never the release of the batch's other messages.
       }
@@ -1400,14 +1999,41 @@ private:
   // passes counts.
   bool over_rate(Window &w, size_t size, uint64_t count, uint64_t bytes) {
     if (now_ - w.at >= 1000) {
+      if (!w.over || now_ - w.at >= 2000) // A second under the limit, or one with no message, ends a run.
+        w.over_from = 0;
       w.at = now_;
       w.count = w.bytes = 0;
+      w.over = false;
     }
-    if (w.count >= count || w.bytes + size > bytes)
+    if (w.count >= count || w.bytes + size > bytes) {
+      w.over = true;
+      if (!w.over_from)
+        w.over_from = w.at;
       return true;
+    }
     ++w.count;
     w.bytes += size;
     return false;
+  }
+
+  // Design 7.3 rule 12: in a match lobby, a member over one of her channel windows each second for kFloodMs is refused
+  // as a mismatched hello is (rule 1), and her session closes so her lines stop taking the shared reads: a new one of
+  // hers is never accepted (on_session_request), and no reject goes every 10 s to open one while she stays. Her reject
+  // goes with the closed session. A guest leaves an owner who floods.
+  bool flooding(const Window &w) const { return match() && w.over_from && now_ - w.over_from >= kFloodMs; }
+  void flood(const Peer &peer, const std::string &what) {
+    const std::string why = what + " over the rate limit for 5 s";
+    if (host_ || peer.id != host_id_) {
+      const uint64_t id = peer.id;
+      refuse(id, why, peer.name + " sent too many messages and was refused.");
+      Identity who = identity(id);
+      api_.close_session(msgs_, &who);
+      refused_[id] = UINT64_MAX; // Told again only if she leaves and comes back (poll_members).
+      return;
+    }
+    event(peer.name + ", the host, sent " + why);
+    notice("Left the match: " + peer.name + " sent too many messages.");
+    leave("the host's messages over the rate limit");
   }
 
   // linked() changes only before this point of a pass (requests, calls, members, channel 0): a session that starts or
@@ -1439,6 +2065,8 @@ private:
     chat_.clear();
     chat_in_ = chat_out_ = chat_dropped_ = race_in_ = race_out_ = race_dropped_ = 0;
     has_mate_ = has_own_ = vitals_sent_ = false;
+    for (auto &p : peers_)
+      p.has_vitals = false;
   }
   // A line for Lua while fewer than kChatInbox wait; false when it is dropped.
   bool for_lua(std::string line) {
@@ -1448,26 +2076,31 @@ private:
     return true;
   }
 
-  // Channel 2: lines kept for take_fight(), only from a member past the handshake, within kMaxMessage and the rate
-  // limit, while fewer than kFightQueue wait. A friend's flood or a stranger's junk stops here.
+  // Channel 2: lines kept for take_fight() with their sender, only from a member past the handshake, within
+  // kMaxMessage and the rate limit, while fewer than kFightQueue wait, and no shared quests' line in a match lobby. A
+  // friend's flood or a stranger's junk stops here.
   void receive_fight() {
     NetMessage *batch[16];
     int n = api_.receive(msgs_, kFightChannel, batch, 16);
+    full_batches_ += n == 16;
     for (int i = 0; i < n; ++i) {
       NetMessage *m = batch[i];
       uint64_t from = api_.get_steam_id(&m->peer);
       size_t size = m->size > 0 ? static_cast<size_t>(m->size) : 0;
       Peer *peer = find_peer(from);
-      const char *why = !peer                                  ? outsider(from)
-                        : !peer->compatible || !peer->accepted ? "before the handshake"
-                        : size == 0 || size > kMaxMessage      ? "bad size"
-                        : fight_in_.size() >= kFightQueue      ? "inbox full"
+      const std::string_view text(static_cast<const char *>(m->data), size);
+      // The window first, so a member's flood before the handshake counts for the flood rule too.
+      const char *why = !peer ? outsider(from)
                         : over_rate(peer->fight_window, size, kFightPerSecond, kFightBytesPerSecond)
                             ? "over the rate limit"
-                            : nullptr;
+                        : !peer->compatible || !peer->accepted       ? "before the handshake"
+                        : size == 0 || size > kMaxMessage            ? "bad size"
+                        : match() && text.rfind(quest_tag(), 0) == 0 ? "shared quests are off in a match lobby"
+                        : fight_in_.size() >= kFightQueue            ? "inbox full"
+                                                                     : nullptr;
       try {
         if (!why)
-          fight_in_.emplace_back(static_cast<const char *>(m->data), size);
+          fight_in_.push_back({from, std::string(text)});
       } catch (...) { // Out of memory: this line is lost, never the release below.
         why = "out of memory";
       }
@@ -1476,27 +2109,31 @@ private:
         if (!peer) {
           if (strangers_.insert(from).second)
             event("ignored fight data from " + std::to_string(from) + ": " + why);
-        } else if (why && !peer->fight_logged) {
-          peer->fight_logged = true;
-          event("dropped fight data from " + peer->name + ": " + why);
+        } else if (why) {
+          if (!peer->fight_logged) {
+            peer->fight_logged = true;
+            event("dropped fight data from " + peer->name + ": " + why);
+          }
+          if (flooding(peer->fight_window))
+            flood(*peer, "fight data");
         }
       } catch (...) { // Out of memory: a lost line, never the release of the batch's other messages.
       }
     }
   }
 
-  // What send_fight() queued, in order, to the friend past the handshake on channel 2. A reliable line Steam refuses
-  // (25 LimitExceeded: the session's send buffer, shared with channel 1, is full) waits with the reliable lines after
-  // it for the next pass, so none is lost or overtaken. An hp line refused, or behind a waiting line, is dropped, as
-  // the next values replace it: what waits stays small, and fits in the friend's rate limit once Steam takes it. Each
-  // refused line is one failure of the 60 s line, however many passes it waits.
+  // What send_fight() queued, in order, on channel 2 to its member, or to every member past the handshake for to 0. A
+  // reliable line Steam refuses (25 LimitExceeded: the session's send buffer, shared with channel 1, is full) waits
+  // with the reliable lines after it for the next pass, so none is lost or overtaken. An hp line refused, or behind a
+  // waiting line, is dropped, as the next values replace it: what waits stays small, and fits in the friend's rate
+  // limit once Steam takes it. Each refused line is one failure of the 60 s line, however many passes it waits.
   void send_fight_queue() {
     size_t done = 0;
     for (; done < fight_out_.size(); ++done) {
-      auto &[line, reliable] = fight_out_[done];
+      auto &[line, reliable, to] = fight_out_[done];
       bool refused = false;
       for (auto &p : peers_)
-        if (p.compatible && p.accepted) {
+        if (p.compatible && p.accepted && (!to || p.id == to)) {
           int r = send(p, line.data(), line.size(), reliable ? kReliable : kUnreliable, kFightChannel);
           if (r != kResultOk) {
             if (done > 0 || !fight_waiting_) // A line refused at an earlier pass was counted then.
@@ -1507,7 +2144,7 @@ private:
         }
       if (refused && reliable) {
         auto behind = fight_out_.begin() + static_cast<std::ptrdiff_t>(done) + 1;
-        fight_out_.erase(std::remove_if(behind, fight_out_.end(), [](const auto &l) { return !l.second; }),
+        fight_out_.erase(std::remove_if(behind, fight_out_.end(), [](const auto &l) { return !l.reliable; }),
                          fight_out_.end());
         break;
       }
@@ -1517,6 +2154,13 @@ private:
   }
 
   void on_message(Peer &peer, const Message &message) {
+    // A match lobby carries no photo or cutscene pause, gift, race, follow or night line, either way (decision 10):
+    // each is dropped with no log line.
+    const Kind k = message.kind;
+    if (match() && (k == Kind::photo || k == Kind::gift || k == Kind::race || k == Kind::camps_ask ||
+                    k == Kind::camps ||
+                    k == Kind::night)) // Stage 6 adds the night mode: then the owner's lines count in it.
+      return;
     switch (message.kind) {
     case Kind::hello: {
       bool first = !peer.hello_received;
@@ -1526,6 +2170,15 @@ private:
         std::string why = "protocol " + std::to_string(message.a) + " build " + std::to_string(message.b) + " (mod " +
                           message.text + "), mine protocol " + std::to_string(kProtocol) + " build " +
                           std::to_string(build_) + " (mod " + mod_ + ")";
+        // In a match lobby, its owner refuses that member and keeps the lobby; a guest ignores it from another guest.
+        if (match() && host_)
+          return refuse(peer.id, why, peer.name + " runs another version and was refused.");
+        if (match() && peer.id != host_id_) {
+          peer.compatible = false;
+          if (++peer.invalid == 1)
+            event("invalid message from " + peer.name);
+          return;
+        }
         send(peer, reject(why), kReliable);
         event("rejected " + peer.name + ": " + why);
         notice("Version mismatch with " + peer.name + ": " + why + ".");
@@ -1556,12 +2209,18 @@ private:
       }
       break;
     case Kind::reject:
+      if (match() && peer.id != host_id_) { // In a match lobby, only its owner can send us away.
+        if (++peer.invalid == 1)
+          event("invalid message from " + peer.name);
+        break;
+      }
       event(peer.name + " rejected us: " + message.text);
       notice(peer.name + " refused the link: " + message.text);
       leave("rejected by " + peer.name);
       break;
-    case Kind::ping:
-      send(peer, pong(message.a, message.b), kUnreliable);
+    case Kind::ping: // Past kPingPerSecond, no pong: a flood of pings never makes us send as many.
+      if (!over_rate(peer.ping_window, 1, kPingPerSecond, kPingPerSecond * kMaxMessage))
+        send(peer, pong(message.a, message.b), kUnreliable);
       break;
     case Kind::pong:
       if (message.a == peer.ping_seq && message.b <= now_) {
@@ -1616,15 +2275,16 @@ private:
     }
     case Kind::vitals:
       if (peer.compatible && peer.accepted) // Before the handshake: ignored, with no log line.
-        mate_ = message.vitals, mate_at_ = now_, has_mate_ = true;
+        peer.vitals = message.vitals, peer.vitals_at = now_, peer.has_vitals = true;
       break;
     case Kind::say: {
       if (!peer.compatible || !peer.accepted)
         break;
-      const char *why = over_rate(peer.say_window, 1, kHeardPerSecond, kHeardPerSecond * kMaxMessage)
+      const char *why = muted_.count(peer.id) ? "muted"
+                        : over_rate(peer.say_window, 1, kHeardPerSecond, kHeardPerSecond * kMaxMessage)
                             ? "over the rate limit"
-                        : !for_lua("in " + message.text) ? "too many waiting"
-                                                         : nullptr;
+                        : !for_lua("in " + std::to_string(peer.id) + " " + message.text) ? "too many waiting"
+                                                                                          : nullptr;
       ++(why ? chat_dropped_ : chat_in_);
       if (why && !peer.say_logged) {
         peer.say_logged = true;
@@ -1639,6 +2299,7 @@ private:
       const bool ask = message.kind == Kind::camps_ask;
       const char *why = ask && !host_   ? "a request to the guest"
                         : !ask && host_ ? "an answer to the host"
+                        : !ask && peer.id != host_id_ ? "an answer not from the host"
                         : ask && has_camps_ask_ && now_ - camps_at_ < kCampsEveryMs
                             ? "over the rate limit (one each 2 s)"
                         : !ask && (!asked_camps_ || message.a != camps_asked_) ? "not the id of our last request"
@@ -1709,6 +2370,39 @@ private:
       event("gift line from " + peer.name + (why ? std::string(" dropped (") + why + "): " : ": ") + message.text);
       break;
     }
+    // A match lobby's round lines count only from its owner (never on the host, whose own id is no peer's).
+    case Kind::start:
+    case Kind::count:
+    case Kind::end:
+      if (!peer.compatible || !peer.accepted) // Before the handshake: ignored, with no log line.
+        break;
+      if (!match() || peer.id != host_id_) {
+        if (++peer.invalid == 1)
+          event("invalid message from " + peer.name);
+      } else if (over_rate(peer.round_window, 1, kRoundPerSecond, kRoundPerSecond * kMaxMessage)) {
+        if (!std::exchange(peer.round_logged, true))
+          event("dropped round lines from " + peer.name + ": over the rate limit");
+      } else if (message.kind == Kind::count) { // Our own clock from her seconds; stop: open again.
+        if (message.a != count_left() || (!message.a && count_end_)) // Logged when it moves our countdown only.
+          event(message.a ? "countdown: " + std::to_string(message.a) + " s from " + peer.name
+                          : "countdown stopped by " + peer.name);
+        count_end_ = message.a ? now_ + message.a * 1000 : 0;
+      } else if (message.kind == Kind::end) {
+        if (round_.playing)
+          end_round("host");
+      } else if (message.text != mode_ || std::find(message.ids.begin(), message.ids.end(), me_) == message.ids.end()) {
+        if (count_end_) { // Not in it (my call 23): we stay in the lobby, told once for the countdown we saw.
+          event("round started without us");
+          notice("A round started without you.");
+        }
+        count_end_ = 0;
+      } else {
+        count_end_ = 0;
+        round_ = {round_.n + 1, true, message.text, message.map, "", static_cast<uint32_t>(message.a), message.ids};
+        event("round " + std::to_string(round_.n) + " started by " + peer.name + ": " + mode_ + " on " + round_.map +
+              ", seed " + std::to_string(round_.seed) + ", " + std::to_string(round_.ids.size()) + " players");
+      }
+      break;
     case Kind::invalid:
       if (++peer.invalid == 1)
         event("invalid message from " + peer.name);
@@ -1746,9 +2440,10 @@ private:
   }
   // Our photo line to each friend past the handshake when it changed, or after her hello; a refused send goes again at
   // the next pass. photo_sync=off sends "0 notice": a friend our photo mode paused resumes, and we pause for nobody.
-  // Our cutscene ('c') goes whatever photo_sync says: the guest's own setting decides whether it pauses her.
+  // Our cutscene ('c') goes whatever photo_sync says: the guest's own setting decides whether it pauses her. None in a
+  // match lobby.
   void send_photo() {
-    if (!photo_on_)
+    if (!photo_on_ || match())
       return;
     const std::string line = photo_line(photo_ == 'c' || sync_ != Sync::off ? photo_ : '0', sync_ == Sync::both);
     for (auto &p : peers_)
@@ -1763,12 +2458,7 @@ private:
   // the same pause on a guest whose Lua asked for it (cut), with the same cap, a log line each way and no notice: Lua
   // says it in the player's language.
   void photo_pass() {
-    Peer *p = nullptr;
-    for (auto &peer : peers_)
-      if (peer.compatible && peer.accepted) {
-        p = &peer;
-        break;
-      }
+    Peer *p = find_peer(partner()); // None in a match lobby, where partner() is 0.
     const char theirs = p && !p->lost ? p->photo : '0';
     const bool cut = theirs == 'c';
     const bool asked = cut ? cut_ && !host_ : sync_ == Sync::both && theirs == '1' && p->photo_both;
@@ -1825,6 +2515,14 @@ private:
         night_.clear(); // Her night line is stale now: nightop/run.lua's watch sees it gone.
         event(peer.name + " silent for 10 s: lost");
         notice(peer.name + ": connection lost.");
+        if (match() && peer.id == host_id_ && round_.playing) { // Review Focus 5: the owner hangs and stays owner.
+          end_round("host_lost");
+          notice("Round ended: the host stopped answering.");
+        }
+        if (match() && peer.id == host_id_ && count_end_) { // Her countdown would sit at 0 while she stays owner.
+          count_end_ = 0;
+          event("countdown stopped: " + peer.name + " stopped answering");
+        }
       }
     }
     if (now_ < next_info_)
@@ -1872,7 +2570,9 @@ private:
   }
 
   // Every 60 s from the first pass, per friend past the handshake: channel 1 both ways, drops, send failures, RTT, ping
-  // loss and Steam's view of the session; T1 and T4 read their exit criteria here. Then the counts start over.
+  // loss and Steam's view of the session; T1 and T4 read their exit criteria here. Then our passes and the receive
+  // batches that came back full on any channel (more may have waited: design 7.4's pass rate). Then the counts start
+  // over.
   void log_peers() {
     if (now_ < next_peers_line_)
       return;
@@ -1895,8 +2595,12 @@ private:
       p.in = p.in_bytes = p.out = p.out_bytes = p.dropped = p.failed = p.pings = p.pongs = 0;
       p.rtt_sum = p.rtt_max = 0;
       p.last_result = kResultOk;
-      p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = p.mark_logged = p.race_logged = false;
+      p.drop_logged = p.fight_logged = p.say_logged = p.night_logged = p.mark_logged = p.race_logged =
+          p.round_logged = false;
     }
+    event("link, last 60 s: " + std::to_string(passes_) + " passes, " + std::to_string(full_batches_) +
+          " full receive batches (16 messages)");
+    passes_ = full_batches_ = 0;
     night_logged_ = false;
   }
 
@@ -1913,7 +2617,7 @@ private:
   const Api &api_;
   const std::string mod_;
   std::function<void(const std::string &)> event_;
-  std::function<void(const uint8_t *, size_t)> binary_;
+  std::function<void(size_t, const uint8_t *, size_t)> binary_;
   void *user_ = nullptr, *friends_ = nullptr, *utils_ = nullptr, *mm_ = nullptr, *msgs_ = nullptr, *nu_ = nullptr;
   uint64_t me_ = 0, now_ = 0;
   uint32_t app_ = 0, build_ = 0;
@@ -1923,6 +2627,20 @@ private:
   bool cancel_ = false, report_ = false;                  // coop leave while a call was pending; coop report.
   uint64_t lobby_ = 0, host_id_ = 0;
   bool host_ = false;
+  std::string mode_; // The lobby's match mode (kModeKey) as of the last pass; empty in a co-op lobby or none.
+  std::string room_, hall_; // Its room and hall words (kRoomKey, kHallKey) as of the last pass, or empty.
+  // In a match lobby: when the countdown reaches 0 on our clock (0: none runs), and our last round this run.
+  uint64_t count_end_ = 0;
+  Round round_;
+  // Matchmaking: the mode of a match search or create until its lobby is entered or it fails, and the room and hall
+  // words of the lobby it creates; the pending lobby search (RequestLobbyList), the lobbies it found and the one being
+  // joined; whether that search is a lone host's (ruling R1) and when her next one is due; whether we set relay only;
+  // whether the lobby is a Public match lobby.
+  std::string seeking_, want_room_, want_hall_;
+  uint64_t search_call_ = 0, regroup_at_ = 0;
+  std::vector<uint64_t> found_;
+  size_t found_at_ = 0;
+  bool regrouping_ = false, ice_off_ = false, public_ = false;
   bool world_ = false; // A save is loaded (Lua's coop-state.txt).
   uint64_t held_ = 0;  // An invite waiting for a world, or for the pending lobby call to end, and how it came.
   std::string held_how_;
@@ -1934,6 +2652,7 @@ private:
   } rejoin_;
   std::vector<Peer> peers_;
   std::set<uint64_t> strangers_; // Non-members already logged once.
+  std::set<uint64_t> muted_;     // The players coop mute named, in any lobby, for the game run (my call 18).
   // While we host: who_can_join of the lobby asked for, its join code (empty outside who_can_join=code), the members
   // let in, and those refused, with when a reject may go to her again (0: she is gone), all for this lobby only; our
   // code once the copy request asked for it.
@@ -1942,14 +2661,21 @@ private:
   std::set<uint64_t> allowed_;
   std::map<uint64_t, uint64_t> refused_;
   uint64_t next_info_ = 0, next_relay_ = 0, next_peers_line_ = 0;
+  uint64_t passes_ = 0, full_batches_ = 0; // For the 60 s line: tick() calls and receive batches that came back full.
   uint32_t pose_rate_ = kPoseCaps[0]; // The player's send_rate (Lua's coop-state.txt).
   int relay_ = 0;
   bool relay_known_ = false, overlay_ = false;
   std::deque<std::string> notices_; // The last kNotices, oldest first; notice_count_ numbers the newest.
   uint64_t notice_count_ = 0;
-  // Channel 2: her lines not taken yet, ours not sent yet with their delivery, and whether they belong to a session.
-  std::vector<std::string> fight_in_;
-  std::vector<std::pair<std::string, bool>> fight_out_;
+  // Channel 2: the members' lines not taken yet, ours not sent yet with their delivery and member (0: all), and whether
+  // they belong to a session.
+  std::vector<FightLine> fight_in_;
+  struct FightOut {
+    std::string line;
+    bool reliable;
+    uint64_t to;
+  };
+  std::vector<FightOut> fight_out_;
   bool fight_linked_ = false;
   bool fight_waiting_ = false; // fight_out_'s first line was refused at an earlier pass.
   // The follow's camps lines in this session: as the host, her last camps? taken and when; as the guest, our last camps?
@@ -1973,7 +2699,8 @@ private:
   bool freeze_ = false, capped_ = false, cut_ = false;
   uint64_t freeze_since_ = 0;
   // Chat and vitals: coop loopback runs; a session held at the last pass; the lines for Lua and this session's counts;
-  // our rate window; ours as last sent and when; hers as last heard and when.
+  // our rate window; ours as last sent and when; ours back as hers in the loopback and when (a member's are her
+  // Peer's).
   bool loopback_ = false, chat_session_ = false;
   std::vector<std::string> chat_;
   uint64_t chat_in_ = 0, chat_out_ = 0, chat_dropped_ = 0;

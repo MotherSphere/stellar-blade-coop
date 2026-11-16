@@ -40,16 +40,6 @@
        true
       ],
       [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Base.Env_Camp_Base_C",
-       true
-      ],
-      [
-       "SpawnPointName",
-       "DLC02_10_EnvS_900",
-       true
-      ],
-      [
        "TargetCamp",
        "DLC02_10_Camp_01",
        true
@@ -65,16 +55,6 @@
      "set": [
       [
        "EnvActorName",
-       "DLC02_10_EnvS_901",
-       true
-      ],
-      [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_SkillMachine.Env_Camp_SkillMachine_C",
-       true
-      ],
-      [
-       "SpawnPointName",
        "DLC02_10_EnvS_901",
        true
       ],
@@ -97,16 +77,6 @@
        true
       ],
       [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Chair.Env_Camp_Chair_C",
-       true
-      ],
-      [
-       "SpawnPointName",
-       "DLC02_10_EnvS_902",
-       true
-      ],
-      [
        "TargetCamp",
        "DLC02_10_Camp_01",
        true
@@ -121,16 +91,6 @@
      "set": [
       [
        "EnvActorName",
-       "DLC02_10_EnvS_903",
-       true
-      ],
-      [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Storage.Env_Camp_Storage_C",
-       true
-      ],
-      [
-       "SpawnPointName",
        "DLC02_10_EnvS_903",
        true
       ],
@@ -153,16 +113,6 @@
        true
       ],
       [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Turntable.Env_Camp_Turntable_C",
-       true
-      ],
-      [
-       "SpawnPointName",
-       "DLC02_10_EnvS_904",
-       true
-      ],
-      [
        "TargetCamp",
        "DLC02_10_Camp_01",
        true
@@ -181,16 +131,6 @@
        true
       ],
       [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine.Env_Camp_TeleportMachine_C",
-       true
-      ],
-      [
-       "SpawnPointName",
-       "DLC02_10_EnvS_905",
-       true
-      ],
-      [
        "TargetCamp",
        "DLC02_10_Camp_01",
        true
@@ -205,16 +145,6 @@
      "set": [
       [
        "EnvActorName",
-       "DLC02_10_EnvS_906",
-       true
-      ],
-      [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C",
-       true
-      ],
-      [
-       "SpawnPointName",
        "DLC02_10_EnvS_906",
        true
       ],
@@ -570,16 +500,6 @@
      "id": 2800032420,
      "set": [
       [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_SkillMachine.Env_Camp_SkillMachine_C",
-       true
-      ],
-      [
-       "SpawnPointName",
-       "DLC02_10_EnvS_420",
-       true
-      ],
-      [
        "TargetCamp",
        "DLC02_10_Camp_02",
        true
@@ -593,16 +513,6 @@
      "id": 2800032421,
      "set": [
       [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Chair.Env_Camp_Chair_C",
-       true
-      ],
-      [
-       "SpawnPointName",
-       "DLC02_10_EnvS_421",
-       true
-      ],
-      [
        "TargetCamp",
        "DLC02_10_Camp_02",
        true
@@ -615,16 +525,6 @@
      "donor": "DLC02_10_EnvS_423",
      "id": 2800032423,
      "set": [
-      [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_Camp_Turntable.Env_Camp_Turntable_C",
-       true
-      ],
-      [
-       "SpawnPointName",
-       "DLC02_10_EnvS_423",
-       true
-      ],
       [
        "TargetCamp",
        "DLC02_10_Camp_02",
@@ -641,16 +541,6 @@
       [
        "EnvAlias",
        "Env_Camp_VendingMachine_Simple",
-       true
-      ],
-      [
-       "EnvBPPath",
-       "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine_Simple.Env_VendingMachine_Simple_C",
-       true
-      ],
-      [
-       "SpawnPointName",
-       "DLC02_10_EnvS_426",
        true
       ],
       [

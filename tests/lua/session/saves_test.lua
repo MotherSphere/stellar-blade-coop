@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op saves at the title (session/saves.lua) on a fake kit and a fake link: with auto_coop_save=ask the question
 -- shows once a visit of the title, while the game uses your own saves (saves=main), the Steam ID is known and no copy
 -- pass runs, once the kit has its whole look; Convert and play co-op (Play co-op once a co-op copy exists) asks for

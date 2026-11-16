@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Shock Bolt's two lists on the build machine against fake memory laid out like the pinned build: both gun stances
 // get the two fire commands at the end of their CommandArray (one through SB's grow, one inside its Max), the const
 // list Bullet_Shock as a sixth FString (its array reallocated) and the slot manager's list its FName (SB's grow), the

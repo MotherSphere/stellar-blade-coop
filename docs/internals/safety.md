@@ -13,12 +13,12 @@ claim the host accepts):
 - That kill kills our copy, with our EVE as the cause, only when our EVE took part in its fight: a drop on our copy
   that no write of ours made (her own hit), our EVE as the game's last player on the copy, or, with
   `kill_credit=together` (the default), our EVE within 30 m of the copy (FSBActor `+0x4cc`) at the kill. The last
-  player is the GUID at logic actor `+0x638`, which the game stores (`FUN_141ba8190`) when an enemy targets a player or
-  a player's hit lands, and which its death handler (`FUN_141bae5d0`) takes as the killer of a death with no player
+  player is the GUID at logic actor `+0x638`, which the game stores (`FUN_141ba93d0`) when an enemy targets a player or
+  a player's hit lands, and which its death handler (`FUN_141baf820`) takes as the killer of a death with no player
   cause. No EVE of ours found counts as no part. Damage from before the enemy was shared or paired does not count as
   our hit: the other player's claims before a pause hurt it too.
-- Our mirrored crowd controls go through the game's effect call (`FUN_141ad08b0`) with our EVE as the caster. Whether
-  that call can reach `FUN_141ba8190` is not ruled out, so the engine reads `+0x638` before and after each such call:
+- Our mirrored crowd controls go through the game's effect call (`FUN_141ad1af0`) with our EVE as the caster. Whether
+  that call can reach `FUN_141ba93d0` is not ruled out, so the engine reads `+0x638` before and after each such call:
   a copy on which it turned into our EVE is noted for the session (`last player ... set by a mirrored crowd control`),
   and its `+0x638` no longer counts as our part.
 - Without part, our copy does not die, since a death with no cause still drops loot, records the death in the zone and
@@ -34,7 +34,7 @@ claim the host accepts):
   body. While a player is down, the hand-overs move an enemy only within 30 m of the EVE that takes it
   ([A player down](group-play.md#a-player-down)).
 - `coop fight test kill` (the solo probe) kills only an enemy our EVE took part in, by the same test with the 30 m.
-- The [spawn filter](shared-enemies.md#the-spawn-filter) (off by default) refuses the guest's spawn of an enemy the host's game lacks
+- The [spawn filter](shared-enemies.md#the-spawn-filter) (on by default) refuses the guest's spawn of an enemy the host's game lacks
   and never kills, so no kill, reward, drop, quest kill or achievement comes of it, and no death is recorded in her
   zone.
 - The mod's kills pass no skill to ApplyStat, so they never count toward the skill-kill achievements. The mirrored
@@ -55,12 +55,11 @@ claim the host accepts):
 - Every camp travel of the mod but `coop mxiii`'s and `coop mxiii 30`'s goes only to a camp the player's save has
   already activated, because activating a camp counts toward achievements and the game's fast travel does not check it
   ([Following the host](group-play.md#following-the-host)). The native read asks the game's own camp list
-  (`FUN_141d1d650`, the function the camp list screen calls) for the camps of the travel table that hold an active
-  ZoneEnvSpawn row, so the mod travels only where the game's own camp list would let the player travel. The follow is
-  off in this version and makes no call at all.
-  - `coop travel probe <camp>`, the follow's solo test, and `coop mxiii leave` refuse any camp the read does not list,
-    and every camp while there is no read (a load, the title, after a fault). Whether arriving at a camp through the
-    game's fast travel activates it has not been checked.
+  (`FUN_141d1f860`, the function the camp list screen calls) for the camps of the travel table that hold an active
+  ZoneEnvSpawn row, so the mod travels only where the game's own camp list would let the player travel.
+  - The follow, `coop travel probe <camp>` (its solo test) and `coop mxiii leave` refuse any camp the read does not
+    list, and every camp while there is no read (a load, the title, after a fault). Whether arriving at a camp through
+    the game's fast travel activates it has not been checked.
   - `coop mxiii` and `coop mxiii 30` travel to their own camps (`DLC02_00_Camp_00` or `DLC02_10_Camp_01`, and
     `DLC02_30_Camp_01`) without that read ([The cut Matrix XIII dungeon](matrix-xiii.md)): the two camp trophies count
     only named ZoneEnvSpawnTable rows turning On (`Trophy_Activate_FirstCamp` one, `Trophy_Activate_AllCamp` the 89
@@ -75,7 +74,7 @@ claim the host accepts):
     and TrophyTable, and only its 89 `ChangeState_ZoneEnv_*_Camp` rows raise it, each on one named shipped
     ZoneEnvSpawnTable row turning On (`DED10_EnvS_113` and the others). `Trophy_Activate_FirstCamp` takes
     `DED10_EnvS_100` alone. No count of ZoneCampTable or ZoneEnvSpawnTable rows goes into either: the game's code names
-    `Trophy_Activate_AllCamp` once, in `FSBActorProgressAchievement::Execute` (`FUN_141b1b280`), to call `FUN_141ce5c30`
+    `Trophy_Activate_AllCamp` once, in `FSBActorProgressAchievement::Execute` (`FUN_141b1c4c0`), to call `FUN_141ce8050`
     after that row has progressed.
   - None of the 2747 AchievementTable rows names a `DLC02` row, zone or world, `MXIII` or `DLCMatrix13`. The only rows
     that match a camp object by its class are the skill machine's guide rows (`Ach_Guide_InteractEnvAlias_SkillMachine`,
@@ -149,14 +148,15 @@ feature or drops the input.
   could not.
 - The co-op save copies (`StellarBladeCoop00.sav` to `04.sav`) are made only on a `saves convert`, `saves coop` or
   `saves refresh N` request (the question on the title screen, `auto_coop_save=always` or `coop saves`), and only at the
-  title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, and Continue or Load Game
-  was not chosen (the game's load mode is 0).
+  title: Lua reports the title screen (`world=title` in `coop-state.txt`), no save is loaded, Continue or Load Game
+  was not chosen (the game's load mode is 0), and the game is not reloading the save itself (client +0x2f9c is 0).
   - A pass checks this again before each file and before the switch. The native part reads your saves and writes each
     copy as a `.coop-tmp` file, renames it over the copy and reads it back.
   - One name check guards every write but the export's (below): only the copies, their temporary files,
     `StellarCoopSaves.txt`, the shared quests' records `StellarCoopQuests00.txt` to `04.txt`, the shortcut saves' marks
-    `StellarCoopShortcut00.txt` to `04.txt` and the backup in `StellarCoopBackups` pass it. The backup is taken before
-    any copy whenever `StellarCoopSaves.txt` does not exist yet, and a refresh backs up the copy it replaces first.
+    `StellarCoopShortcut00.txt` to `04.txt`, the SBO session records `StellarCoopSBO00.bin` to `04.bin` and the backup in
+    `StellarCoopBackups` pass it. The backup is taken before any copy whenever `StellarCoopSaves.txt` does not exist
+    yet, and a refresh backs up the copy it replaces first.
   - A `saves export N M` request is the one write to your own saves, behind a check of its own that passes only
     `StellarBladeSave00.sav` to `04.sav` and their `.coop-tmp` files. It refuses a co-op copy with a shortcut save's
     mark beside it before it reads anything.
@@ -173,10 +173,27 @@ feature or drops the input.
       save through a `.coop-tmp` file and a rename, then read it back. It never edits a save's bytes.
   - The switch to the copies is one 8-byte compare-and-swap in the game's memory, on the pinned build only, read back
     every 250 ms; an entry that moves or changes stops it for the run.
-- The [spawn filter](shared-enemies.md#the-spawn-filter), off by default, is the one write into the game's image rather than into
-  memory the game allocated: one 8-byte pointer in `.rdata`, swapped by compare-and-swap from the game's own value
-  only, with the page writable for that store alone, and swapped back from the mod's value only at `coop off` or after
-  a fault. A slot that holds another value is never written.
+  - With `sbo_lobby=on`, the game thread reads the game's `Backup\StellarBladeCoop0N_Old.sav` once the game's save
+    queue falls to 0 after a write to that co-op save, in the same call, so no save of the game's is under way. The
+    worker writes it into `StellarCoopBackups\autosave\StellarBladeCoop0N\` through a `.coop-tmp` file and reads it
+    back; only then does it remove the oldest copies there past the 10 newest, by a name check that passes only those
+    copies' names, and never the two copies an open SBO session's record names
+    ([saves.md](../saves.md#copies-before-each-save)).
+- Five slots in the game's image, rather than in memory the game allocated, can hold the mod's value, for four hooks.
+  Each one is an 8-byte pointer in `.rdata`. Each swap is a compare-and-swap from the game's own value only, with the
+  page writable for that store alone. A slot that holds another value is never written.
+  - The [spawn filter](shared-enemies.md#the-spawn-filter)'s slot, `0x145c15ea0`, is swapped when the filter's gate
+    first opens (on by default) and swapped back from the mod's value at `coop off` or after a fault.
+  - The [teleport screen's extra tabs](group-play.md#the-teleport-screens-extra-tabs) use `0x145c44978`. It is swapped
+    once a run on the pinned build, with no setting in front of it, and swapped back at `coop off` or after a fault. If
+    it will not swap back, the hook stays in it and passes every call on to the game's function.
+  - The [level flight](cut-eve.md#developer-flight-and-slow-motion) uses `0x145ccd738` and `0x145cd9a38`, swapped
+    together at the first `coop fly on` of a run. If the second will not swap, the first is swapped back. Both are
+    swapped back at `coop off` or after a fault, and a slot that will not swap back keeps a hook that does nothing past
+    the game's pass.
+  - The recruiter's Join slot, `0x145bfece8`, is swapped at the first `sbo arm`, which Lua sends once the recruiter
+    stands in Xion, only with `sbo_lobby=on`; with it off, the slot is never written. Its hook counts the recruiter's
+    Join and always calls the game's own function, and the slot is swapped back from the mod's value at `coop off`.
 - Except for those copies, the mod never reads or writes a save, unlocks or equipment. It adds to the inventory only
   for a Night Operation shop buy (`coop nightop buy`, co-op saves only) and for `coop gift` (a take, or a gift coming
   back, co-op saves only), through the game's own request (`ServerRequest_ItemBucketItemAdd`) with an item of its list
@@ -184,7 +201,7 @@ feature or drops the input.
   (`ServerRequest_ItemBucketItemRemove`) with one of seven consumables and 1 to 10 of it, after the native part read
   that EVE carries that many. Apart from enemy stats with the
   experimental shared enemies (`coop fight`, on by default, co-op saves only), their positions and animations with the
-  experimental same place (on by default), the quest steps of the experimental shared quests (off by default, co-op
+  experimental same place (on by default), the quest steps of the experimental shared quests (on by default, co-op
   saves only, made by the guest's game through its own quest functions) and a Night Operation run's state on the night
   line and `coop gift`'s consumables, nothing is copied between the two players' games. Beside
   the saves it reads only the co-op marker `StellarCoopSlot.txt` and the copies' manifest `StellarCoopSaves.txt`; Lua

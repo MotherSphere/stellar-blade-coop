@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The first-launch guide (ui/guide_text.lua's nine pages) on the Uplink kit (ui/kit.lua): the Mother Sphere art on the
 -- left, the page's title and body on the right, Page n of 9 with a dot a page, four rows (Next, Back, Don't show again
 -- and Close) and the game's key hints.
@@ -14,10 +17,10 @@
 -- 150 ms after a close. It closes by itself when the place it opened in goes (the title left, a map change), the kit's
 -- root hides or turns off, the game pauses in the world, or after 3 minutes with no key (a pad that is not XInput
 -- cannot answer); the host's question (session/join.lua) closes it as it opens, as it does the menu. The art, by
--- timediffer24 and given to this project (not covered by the GPL), is Assets\MotherSphere.png in the mod folder,
--- imported once with the engine's ImportFileAsTexture2D (again only once the engine freed it: a root built again drops
--- the old image); an import that fails is logged once and the guide shows without it. That import is its only engine
--- call: the kit makes the others.
+-- timediffer24 and given to this project (not covered by the SBO License), is Assets\MotherSphere.png in the mod
+-- folder, imported once with the engine's ImportFileAsTexture2D (again only once the engine freed it: a root built
+-- again drops the old image); an import that fails is logged once and the guide shows without it. That import is its
+-- only engine call: the kit makes the others.
 local U=require('core.unreal')
 local G=require('ui.guide_text')
 local T=require('ui.text')

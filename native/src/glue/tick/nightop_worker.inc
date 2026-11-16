@@ -1,6 +1,10 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
-// The Night Operation shop screen's, Roxanne's choices' and Lily's signal choice's worker side (nightop/shop_ui.h,
-// nightop/roxanne.h): the asks, the log lines of the game thread's answers and the three status lines.
+// The Night Operation shop screen's, Roxanne's choices', Lily's signal choice's and the Xion guard's text's worker side
+// (nightop/shop_ui.h, nightop/roxanne.h, nightop/guard_text.h): the asks, the log lines of the game thread's answers
+// and the four status lines.
 
 namespace coop::pose {
 
@@ -39,6 +43,27 @@ std::string ask_roxanne(const coop::Request &request) {
   }
   return word + " asked: at the first frame with net mode 0 and no logic task in flight (at most " +
          std::to_string(lion::kGateTicks) + " frames)";
+}
+
+// The Xion guard's lines (nightop/guard_text.lua): written into his 12 texts at the game thread's next frame; a request
+// it has not taken yet is replaced. Refused off the pinned build, after its fault, after coop off and when the request
+// fails guard_text::parse. The line never holds his lines.
+std::string ask_guard(const coop::Request &request) {
+  if (!game_pinned || guard_faulted || blocked)
+    return std::string("guardtext refused: ") +
+           (guard_faulted ? std::string("the guard's text stopped for this run (a fault)")
+            : blocked     ? std::string("coop off")
+                          : engine_reason);
+  guard_text::Lines lines;
+  if (!guard_text::parse(request.text, lines))
+    return "guardtext refused: not one of the 23 cultures with 7 clean lines";
+  const std::string culture = guard_text::kCultures[lines.culture];
+  {
+    std::lock_guard<std::mutex> lock(guard_m);
+    guard_asked_lines = std::move(lines);
+    guard_has_asked = true;
+  }
+  return "guardtext " + culture + " asked: his 12 texts at the game thread's next frame";
 }
 
 namespace {
@@ -93,14 +118,17 @@ void nightop_pass() {
 }
 } // namespace
 
-// coop-status.txt's nightshop, roxanne and lily lines (nightop/shop_ui.h's and nightop/roxanne.h's status_line).
+// coop-status.txt's nightshop, roxanne and lily lines (nightop/shop_ui.h's and nightop/roxanne.h's status_line), then
+// on the pinned build the guardtext line (nightop/guard_text.h's line).
 std::string nightop_status() {
   shopui::Status s;
   s.word = nightshop_done, s.open = nightshop_open, s.seeds = nightshop_seeds, s.faulted = nightshop_faulted;
   if (s.faulted)
     s.fault = fault_where(nightshop_fault_rva);
   return shopui::status_line(s) + "\n" + roxanne::status_line(roxanne_side.list, swap_read(roxanne_side)) + "\n" +
-         roxanne::status_line(lily_side.list, swap_read(lily_side));
+         roxanne::status_line(lily_side.list, swap_read(lily_side)) +
+         (game_pinned ? "\n" + guard_text::line(guard_word, guard_faulted ? fault_where(guard_fault_rva) : "")
+                      : std::string());
 }
 
 } // namespace coop::pose

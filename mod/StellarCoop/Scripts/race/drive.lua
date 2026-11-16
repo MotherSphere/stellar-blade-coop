@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Doro races' driving on the game thread: race/drive_model.lua's car model fed into EVE's own movement each frame while
 -- a race drives (race/run.lua turns it on at GO and off at our result) or the drive probe runs (coop race drive probe).
 -- Her movement component's MaxAcceleration, GroundFriction, BrakingDecelerationWalking and BrakingFrictionFactor go to
@@ -23,7 +26,7 @@ local function same(o,path)
     o=valid(o)
     return o and path_of(o)==path and o or nil
 end
-local function her(pawn) return pawn and pawn:IsA(find('/Script/SB.SBCharacter')) and pawn or nil end
+local her=U.her
 local function list(values)
     local out={}
     for _,name in ipairs(M.NAMES) do out[#out+1]=name..'='..values[name] end

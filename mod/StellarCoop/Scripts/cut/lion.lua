@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop lion: the cut Naytiba 02, the Lion (/Game/Art/Character/Monster/CH_M_NA_02/: blueprint, mesh, clips, collision
 -- data and 41 Shows, but no table row), spawned as a real enemy to fight, on the game thread (plan A of the Lion study,
 -- made native). Its 222 rows, each authored for it (cut/lion_rows.lua lists them), go into SB's tables through the
@@ -30,7 +33,7 @@ local Doro=require('race.doro')
 local Enemy=require('cut.enemy')
 local valid,value_of,why=U.valid,U.value_of,Enemy.why
 local Lion={}
-Lion.TABLES=Enemy.TABLES -- The native part's 37 tables, in its order (link/protocol.h's kLionTables).
+Lion.TABLES=Enemy.TABLES -- The native part's 39 tables, in its order (link/protocol.h's kLionTables).
 -- The only IDs the spawn call takes, with what each is; the brains are the Lion's two CharacterTable rows.
 Lion.IDS={[50020]='M_LionC',[50021]='M_LionC_Lurker',[50110]='M_Antlion'}
 local BRAINS={skulling=50020,lurker=50021}

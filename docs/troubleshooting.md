@@ -47,9 +47,9 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `Version mismatch: ...`: you run different Stellar Blade Online protocols or game builds. Both players update
   together: see [INSTALL.md: Update](../INSTALL.md#update).
 - `Invite held: joining once your save has loaded.`: they join once their save has loaded. This is normal.
-- `Could not join: that game is full.`: a session holds 2 players. `Left: the lobby has more than 2 players.` means the
-  lobby was not made by Stellar Blade Online (it holds more players than a Stellar Blade Online lobby can), so the mod
-  left it.
+- `Could not join: that game is full.`: a co-op session holds 2 players, and a match lobby of the
+  [SBO lobby](sbo-lobby.md) 8. `Left: the lobby has more than 2 players.` means the co-op lobby was not made by
+  Stellar Blade Online (it holds more players than a Stellar Blade Online co-op lobby can), so the mod left it.
 - `coop join` without an id logs `no friend is in a Stellar Blade lobby`: ask your friend to host, then accept their
   invite, or use `coop join <lobby id>`.
 - `You are in <host>'s game: leave it first.`: a guest cannot host. Press F8 first.
@@ -126,7 +126,7 @@ matched by name; one that cannot be loaded is left out, with the parts that foll
 
 ### A look misbehaves
 
-The cloth, dyes and effects looks have not been tested in game yet, and cloth is on by default. If the game crashes or
+The cloth, dyes and effects looks have not been tested in game yet, and all three are on by default. If the game crashes or
 the ghost looks wrong with one on, turn it off: `cloth=off` (or `dyes=off`, `effects=off`) in `coop-settings.txt`,
 Options > Ghost in the co-op menu, or `coop look <look> off`. An `effects off: fault ...` line means a fault turned
 effects off until the game restarts; the ghost stays, without effects.
@@ -176,20 +176,26 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
 
 ### No co-op line hint at a camp phone booth
 
-- Look for `booths:` lines in `UE4SS.log`. `booths: <n> on <map> (<ms> ms)` gives the number of booths that the last
-  scan found on that map. With no `booths:` line at all, no scan has run yet: the on-screen UI is off
+- Look for `booths:` lines in `UE4SS.log`. `booths: <n> on <map> (<ms> ms)` gives the number of booths that the scans
+  have found on that map so far. With no `booths:` line at all, no scan has run yet: the on-screen UI is off
   (`UI off until the mod reloads`, or `coop ui off`), `coop off` ran, or the native part is not loaded.
-  `booths: 0 on <map>` means that no booth was loaded at the scan: walk closer, stop and wait 4 s. No scan runs while
-  EVE runs or sprints.
-  `booths: scan failed on <map>: <why> (<ms> ms)` means that the scan hit an error; the next one runs 4 s later.
+  `booths: 0 on <map>` means that no booth was loaded at the scans so far. A scan runs at once on a new map, then
+  once EVE is 100 m from where the last one ran and 30 s after it, never while she runs or sprints. Walk 100 m away
+  and back, then stand at the booth for up to 30 s.
+  `booths: scan failed on <map>: <why> (<ms> ms)` means that the scan hit an error; the next one runs 30 s later.
 - Press the menu key at the booth. `line: booth <name> (<class>) at <d> m` after `key F5: menu` means that the line
   opened. If the main page opens with no `line:` line, no booth was within 3 m of EVE: stand closer to the booth.
 - The hint stays hidden while the chat box, the code box, the host's question or the co-op saves' question is open.
   `coop ui reset` in the console (F10 or `~`) closes them all.
-- `booths: slow scan <ms> ms (<n> found, <route>)`: one scan took 5 ms or more on that PC. The scan runs on the game
-  thread, so that frame took as much longer. `class hash` is the fast route; `walk` means this UE4SS could not use it
-  and each scan walks every object. If the line comes back, send `UE4SS.log` (see
-  [Which logs to send](#which-logs-to-send)).
+- `booths: slow scan <ms> ms (<n> found, <route>, <lookup>)`: one scan took 5 ms or more on that PC. The scan runs on
+  the game thread, so that frame took as much longer. `<route>` is how the scan listed the booths: `class hash` is the
+  fast route, and `walk` means this UE4SS could not use it, so each scan walks every object. `<lookup>` is how it found
+  the two booth classes: `soft path` asks the engine by name; `walk` means UE4SS walked the objects because the
+  soft path was not checked yet (no pawn at that scan); `walk (<reason>)` means the check failed for this Lua load,
+  with the reason. If the line comes back, send `UE4SS.log` (see [Which logs to send](#which-logs-to-send)).
+- `booths: class lookup route: soft path`, or `booths: class lookup route: walk (<reason>)`, comes once a Lua load, at
+  the first scan with a pawn, whatever that scan took. `walk (<reason>)` means every booth class lookup of that load
+  walks the objects (25 to 35 ms in game for a class that is not in memory).
 
 ### The co-op menu or the chat box closed by itself
 
@@ -198,8 +204,10 @@ off; notices then show on the line above EVE. `coop ui off` turns the UI off the
   window switch), so the mod closed it as `coop ui reset` does and gave the game its keys back. Who is `menu`, `chat`,
   `code`, `ask` (the host's question, answered with Deny) or `saves` (the co-op saves' question, closed as Decide later;
   a copy already under way keeps going and its result shows as a notice). A click of the middle or a side mouse button
-  does this too. Open the menu again. If it closes this way with nothing else on screen, send `UE4SS.log` with a note of
-  what you did just before. See [interface.md: Focus watchdog](interface.md#focus-watchdog).
+  does this too. Open the menu again. If it closes this way with nothing else on screen, send `UE4SS.log` and
+  `coop-link.log` with a note of what you did just before: the line before the watchdog's names what held the focus, and
+  `coop-link.log` has a `window:` line when another window took the foreground. See [interface.md: Focus
+  watchdog](interface.md#focus-watchdog).
 - No watchdog line: the menu also closes when the game pauses or shows the mouse cursor for one of its own screens
   (EVE dies, a shop opens, your friend's photo mode pauses your game). The chat box closes the same way, and what you
   typed is lost.
@@ -262,10 +270,11 @@ reload builds it again. Send `UE4SS.log` either way.
 
 - `runs only on a co-op save`: at the title, choose Play co-op (or Convert and play co-op), then load your save. See
   [saves.md](saves.md#co-op-saves).
-- `STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter ...` is expected: the
-  recruiter's lines stay in Korean, and the Emil scene's subtitles in Korean and Japanese. `coop recruiter` and
-  `coop scene emil` go on (see [night-operation-previews.md](night-operation-previews.md#his-language) and
+- `STOP: text: this UE4SS build cannot pass a Lua table as a map inside a struct parameter ...` comes from
+  `coop scene emil` and is expected: the Emil scene's subtitles stay in Korean and Japanese, and the scene goes on (see
   [cut-scenes-and-menus.md](cut-scenes-and-menus.md#cut-scenes-coop-scene)).
+- `[RC] STOP: text: the native part stopped at a fault ...`: the recruiter's lines stay as they are until the game
+  restarts, and the rest goes on (see [night-operation-previews.md](night-operation-previews.md#his-language)).
 - Most other `STOP:` lines from the previews give the reason, and many say that nothing was changed. If the probe logs
   `STOP: a new character is ... m from EVE: kill the game now`, kill the game at once. See
   [night-operation-previews.md](night-operation-previews.md).
@@ -354,7 +363,7 @@ co-op menu. The `fight=` line of `coop status` says what is missing (see
 
 ### Quests are not shared
 
-Shared quests are experimental and off by default, and both players need Options > Saves > Shared quests
+Shared quests are experimental and on by default, and both players need Options > Saves > Shared quests
 (experimental) set to On. The `quests=` line of `coop status` says what is missing (see
 [playing-with-a-friend.md: Shared quests](playing-with-a-friend.md#shared-quests-experimental)):
 
@@ -490,14 +499,11 @@ counting that record for this enemy, so only your hit or the 30 m make its kill 
 
 ### Travel to the host does not start
 
-In this version the travel never starts and no offer shows. F7 or `coop travel host` writes `travel refused: the
-follow stays off until it has been tested in game` in `UE4SS.log` ([Following the host](playing-with-a-friend.md#following-the-host)).
-The rest of this section applies once the follow is on. A refusal that ends in `no read of the camps this save has
-activated (<why>)` means the mod had no read of your activated camps at that moment (a load, the title); the
-`activated=` line of `coop status` shows the read. With `(fault)`, a fault stopped that read until the game restarts,
-and `coop-link.log` has `camps read off: fault 0x... at StellarCoop.dll+0x... reading 0x...; coop travel probe and
-coop mxiii leave refused until the game restarts`. Restart the game; if the line comes back, send `coop-link.log` (see
-[Which logs to send](#which-logs-to-send)).
+A refusal that ends in `no read of the camps this save has activated (<why>)` means the mod had no read of your
+activated camps at that moment (a load, the title); the `activated=` line of `coop status` shows the read. With
+`(fault)`, a fault stopped that read until the game restarts, and `coop-link.log` has `camps read off: fault 0x... at
+StellarCoop.dll+0x... reading 0x...; coop travel probe and coop mxiii leave refused until the game restarts`. Restart
+the game; if the line comes back, send `coop-link.log` (see [Which logs to send](#which-logs-to-send)).
 
 Following the host is for the guest, on a co-op save, with `follow_host` not `off`. Each refusal writes a
 `[StellarCoop][TR] travel refused: <why>` line in `UE4SS.log`, and the native part's refusals are also in
@@ -521,7 +527,7 @@ Following the host is for the guest, on a co-op save, with `follow_host` not `of
 
 ### A revive is not offered
 
-The revive is experimental and off by default. Each player's own `revive` setting decides for their own EVE, and your
+The revive is experimental and on by default. Each player's own `revive` setting decides for their own EVE, and your
 friend's `<name> is down` notice shows whatever that setting says. The downed player's `UE4SS.log` has a
 `[StellarCoop][GR] revive waits: <why>` line each time the reason changes:
 
@@ -600,14 +606,14 @@ line in `coop-link.log` saying whether same spawns would handle it. For a report
 `coop-fight.log` from both PCs.
 
 An enemy that the host's game lacks still appears for a moment on the guest's screen after her death or a camp rest,
-then vanishes: that is same spawns with the spawn filter off, its default. With `spawn_filter=on` on her PC it stays
+then vanishes: that is same spawns with the spawn filter off. With `spawn_filter=on` (the default) on her PC it stays
 away after the first entry into the zone, unless her reset is also a world change (`fight world <why>` in her
 `coop-link.log`; see [Turn the spawn filter off](#turn-the-spawn-filter-off) and
 [shared-enemies.md: Spawn filter](shared-enemies.md#spawn-filter-experimental)).
 
 ### Turn the spawn filter off
 
-The spawn filter (`spawn_filter`, the guest's own setting, off by default) has not been tested in game. If the game
+The spawn filter (`spawn_filter`, the guest's own setting, on by default) has not been tested in game. If the game
 misbehaves with it on (a crash, a door or a zone event that waits for enemies that never come), close the game, set
 `spawn_filter=off` in the guest's `coop-settings.txt` and start again. `coop off` puts the game's pointer back at once,
 until the game restarts. Send the guest's `coop-link.log` and `coop-fight.log`: the `spawn filter` lines name each
@@ -622,32 +628,53 @@ Every 60 s, `coop-link.log` gets these lines for diagnosing performance problems
 
 - `native tick, last 60 s: ...`: the per-frame tick's count, mean and maximum cost, the largest gap between ticks and
   the gaps over 100 ms.
-- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, the link's cap on the rate as `link cap <n>`,
-  size, KB/s; keyframes, deltas and their mean size, and frames held back by the 192 KiB/s byte budget), tables in
-  and refused, poses received, foreign (of no table, or of one the ghost is not built on yet), malformed and
+- `stream, last 60 s: ...`, while poses flow: poses sent (count, rate, the highest cap among the members as
+  `link cap <n>`, size, KB/s; keyframes, deltas and their mean size, and frames held back by the 192 KiB/s byte budget),
+  tables in and refused, poses received, foreign (of no table, or of one the ghost is not built on yet), malformed and
   rejected, keyless (deltas whose keyframe was lost), losses, stalls, the one-way delay, and poses drawn and written.
   Between two PCs the one-way delay includes the offset between their clocks, so the value means nothing there. At 60
   poses a second a lost keyframe leaves a gap of about 270 ms, so it also counts as one stall, and the deltas dropped
-  with it count as both keyless and missing.
+  with it count as both keyless and missing. In a match lobby the deltas a sender skips for your cap also count as
+  missing, because the playback counts each gap in the sequence numbers as lost.
 - `<name>, last 60 s: ...`, per linked friend: channel 1 traffic, drops, failed sends with the last Steam result (25
   means its send buffer is full), ping RTT and loss, and Steam's view of the session.
+- `link, last 60 s: <p> passes, <f> full receive batches (16 messages)`: the link's passes (one every 5 ms while
+  poses stream, every 50 ms otherwise) and the reads that returned 16 messages on one channel, so more may have waited
+  for the next pass. The first of these lines in a run counts only its first pass.
 - `effects, last 60 s: ...`, with any effect activity: effects started, over 4, unlisted reads and boxes written.
 - `vitals read, last 60 s: ...`, during a session: the reads of your vitals for your friend's partner card and the
   slowest one in µs. Over 1000 µs, the next read waits 500 ms instead of 100.
 
-Between the 60 s lines, `pose rate cap <n> a second for <name>: ...` marks each change of the cap on the poses you
-send. A cap of 30 or 20 means Steam's queue to that friend reached 100 ms, or 64 KiB waited to be sent, two seconds in
-a row: the ghost they see moves with fewer poses a second, still interpolated, instead of falling behind. The line
-gives the queue time, the pending bytes, Steam's send rate and the session quality at that moment. The cap goes up one
-step after 10 s calm (`10 s calm (queue under 20 ms, pending under 16 KiB)`); if it keeps coming back down, the wait
-before the next step up grows to 80 s. A cap that stays at 20 points at the connection itself: compare the send rate
-and quality in the `<name>, last 60 s:` line on both PCs.
+Between the 60 s lines, `pose rate cap <n> a second for <name>: ...` marks each change of the cap on the poses you send.
+In a match lobby each member's cap starts at 30, with no line. A step down to 30 or 20 means Steam's queue to that
+friend reached 100 ms, or 64 KiB waited to be sent, two seconds in a row: the ghost they see moves with fewer poses a
+second, still interpolated, instead of falling behind. The line gives the queue time, the pending bytes, Steam's send
+rate and the session quality at that moment. The cap goes up one step after 10 s calm
+(`10 s calm (queue under 20 ms, pending under 16 KiB)`); if it keeps coming back down, the wait before the next step up
+grows to 80 s. A cap that stays at 20 points at the connection itself: compare the send rate and quality in the
+`<name>, last 60 s:` line on both PCs.
 
 `UE4SS.log` gets one more line each minute while the on-screen UI is up: `[StellarCoop] Lua frame time, last 60 s:
-ghost <x> ms, doro <d> ms, race <r> ms, UI <y> ms a frame (<n> frames)`. It gives the game-thread cost of placing the
-ghost, of the Doro look, of a Doro race and of the co-op menu, chat and partner HUD. To see what the marker and the
-arrow cost, compare a minute with them on against a minute with Options > Partner > HP marker and Off-screen arrow set
-to Off.
+ghost <x> ms, doro <d> ms, race <r> ms, UI <y> ms a frame (<n> frames); longest frame <f> ms (<a> over 16 ms, <b> over
+50 ms): mxiii <m> ms, lion <l> ms, scene <s> ms; longest 250 ms pass <p> ms (<c> over 16 ms, <e> over 50 ms): booth
+<o> ms, kit.slow <k> ms`. Its first part is the mean game-thread cost per frame of placing the ghost, of the Doro look,
+of a Doro race and of the co-op menu, chat and partner HUD. To see what the marker and the arrow cost, compare a minute
+with them on against a minute with Options > Partner > HP marker and Off-screen arrow set to Off. A mean hides a single
+frozen frame, so the rest of the line gives the longest Lua work in one frame and in one pass of the 250 ms loop, how
+many frames and passes took over 16 ms (one frame at 60 fps) or over 50 ms, and the longest call of Matrix XIII, the
+Lion, `coop scene`, the camp booth scan and the UI's 250 ms pass. The game's clock counts whole milliseconds, so each of
+these values is accurate to about 1 ms.
+
+Between the 60 s lines, each gap over 100 ms between two native ticks has a line of its own in `coop-link.log`:
+`gap 20:00:44.512Z: 312 ms since the last native tick (frame 4818231), that tick took 0.05 ms; vkd3d cache +496 bytes`.
+The time is when the gap ended, in UTC, and `that tick took` is the mod's per-frame native work in the frame before it.
+Under Proton the last field says how much `vkd3d-proton.cache.write`, next to `SB-Win64-Shipping.exe`, grew since the
+previous gap line. vkd3d-proton adds the GPU pipelines it builds to that file, so growth next to a gap hints at a
+pipeline built on first use. On Windows the file does not exist and the field is left out. `UE4SS.log` gets the Lua
+side of the same gap: `[StellarCoop] gap 312 ms before this frame; 250 ms pass in it: 88 ms (kit.slow 36, booth 0)`,
+or `no pass in it` when the mod's 250 ms pass did not run in the gap. Both logs keep at most 200 gap lines a minute and
+then write `gap lines: 200 ...` once, because every frame of a long load is a gap; the `native tick` line still counts
+them all.
 
 A write the engine refuses is logged once per new ghost or capture generation as `write refused: ...`.
 

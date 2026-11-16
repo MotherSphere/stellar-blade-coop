@@ -1,12 +1,19 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's ladders, ledges and ropes (matrix13/world/travel.lua ticks it): in world 2800 only, once a world, the
 -- mod spawns SB's own BP_EM_Ladder_C, BP_EM_Ledge_C and Env_EM_VerticalRope_C at the points of
 -- matrix13/world/rows.lua's MOVE list. A cooked map never reruns construction scripts when a level streams in, so a
 -- ladder placed in the cooked map keeps the components it was cooked with; one spawned at run time runs its
 -- construction script with ours. The spawn is deferred (UGameplayStatics::BeginDeferredActorSpawnFromClass, the fields
 -- set, then FinishSpawningActor) so the construction script sees them; if that call fails once, every later spawn of
--- the Lua load uses World:SpawnActor, sets the fields and calls the class's UserConstructionScript again. Each spawn
--- logs one [MXMOVE] line with the way it took and, for a ladder, its Meshes stack as read back before the finish; a
--- ladder whose stack does not read back as written is destroyed before its finish and its line says so.
+-- the Lua load uses World:SpawnActor, sets the fields and calls the class's UserConstructionScript again. The spawns
+-- are spread over ticks on a time budget (BUDGET), in list order. After the last entry come one [MXMOVE] line per
+-- class with the ways the spawns took, the spread and the count; a spread cut short gives one line of what it spawned
+-- so far. An entry logs its own line only when it did not spawn,
+-- when its construction script did not run again after SpawnActor, or for a ladder whose TotalHeight does not read back
+-- as its listed height (the line gives its Meshes stack as read back before the finish); a ladder whose stack does not
+-- read back as written is destroyed before its finish and its line says so.
 -- A ladder's height comes from its Meshes stack (the list names Enum_EM_LadderMeshes' NewEnumeratorN: 0 160.9 cm, 1 200,
 -- 2 240, 3 600, 11 40.9) plus the 79.885 cm head. A stack holds an enumerator's value, its place in the enum, not N:
 -- BYTE below, read from the cooked enum (N written raw built ladders short with their head mid-way, 2026-10-31). Its construction script stacks the pieces up from the actor's origin, the foot, starting at
@@ -28,7 +35,12 @@ local DIR='/Game/GameDesign/Level/BluePrintActor/SBEventMove/'
 local BYTE={[11]=1,[0]=2,[1]=3,[2]=4,[3]=5} -- NewEnumeratorN to its value (10 None 0, 9 600_Guard 6 are unused).
 Move.ASSETS={ladder=DIR..'BP_EM_Ladder.BP_EM_Ladder',ledge=DIR..'BP_EM_Ledge.BP_EM_Ledge',
     rope=DIR..'Env_EM_VerticalRope.Env_EM_VerticalRope'}
-local EVERY=1 -- s between looks at the world.
+local EVERY=1 -- s between looks at the world while nothing is left to spawn.
+-- Seconds of spawning a tick: at least one entry, then more until this is spent. One spawn took 10 to 13 ms in game
+-- (UE4SS.log 2026-11-12 21:49), so in practice one a tick; all 48 in one tick froze a frame for 689 ms. A spawn cannot
+-- be split: FinishSpawningActor (exec 0x144773be0) runs AActor::FinishSpawning 0x143f6b580, construction script and
+-- BeginPlay included, before it returns.
+Move.BUDGET=0.004
 local ALWAYS_SPAWN=1 -- ESpawnActorCollisionHandlingMethod::AlwaysSpawn.
 
 -- o: log (the [MXMOVE] lines), list (the MOVE list; matrix13/world/rows.lua's by default).
@@ -36,6 +48,12 @@ function Move.new(o)
     local log,list=o.log,o.list or Rows.MOVE
     local self={}
     local world,spawned,next_look,deferred=nil,{},0,true
+    local todo,made=nil,0 -- The next entry to spawn (nil when done) and the spawns so far, in this world.
+    -- The world's counts by class (order: the classes in list order) and its spread (ticks, the longest, its start).
+    local counts,order,ticks,longest,began={},{},0,0,0
+    -- Seconds the world's spawns spent finding their class and the ledge mesh: UE4SS's StaticFindObject walks the
+    -- object array, so the spread line tells that share of a spawn from FinishSpawningActor's.
+    local looked=0
     local function class_of(cls)
         local path=Move.ASSETS[cls]..'_C'
         local c=U.valid(StaticFindObject(path))
@@ -45,8 +63,8 @@ function Move.new(o)
         end
         return assert(c,path..' does not load')
     end
-    -- An object of the ledge's mesh, loaded once a world: the game unloads it with the map, and a held object read in
-    -- the next Matrix XIII world crashed the game (2026-11-03).
+    -- An object of the ledge's mesh, found again each spawning tick and never held past it: the game unloads it with
+    -- the map, and a held object read in the next Matrix XIII world crashed the game (2026-11-03).
     local meshes={}
     local function mesh_of(path)
         if not meshes[path] then
@@ -125,9 +143,11 @@ function Move.new(o)
     local function spawn(eve,m)
         local at={X=m.at[1],Y=m.at[2],Z=m.at[3]}
         local rot={Pitch=0,Yaw=m.yaw,Roll=0}
+        local t0=os.clock()
         local c=class_of(m.cls)
         -- Loaded before the deferred pair: an asset load between Begin and Finish crashed the game (2026-10-30).
         local mesh=m.cls=='ledge' and mesh_of(m.mesh) or nil
+        looked=looked+os.clock()-t0
         if deferred then
             local ok,a,got=pcall(function()
                 local gs=U.find('/Script/Engine.Default__GameplayStatics')
@@ -150,39 +170,81 @@ function Move.new(o)
         local ran=pcall(function() a:UserConstructionScript() end)
         return a,got,ran and 'SpawnActor, construction script run again' or 'SpawnActor, construction script not run'
     end
+    -- A spread cut short: what it spawned so far, since the class lines come only after the last entry.
+    local function stopped(why)
+        if todo then log(string.format('spread stopped after %d/%d entries (%s): %d spawned',todo-1,#list,why,made)) end
+    end
+    -- True when this tick spent its time spawning: matrix13/world/travel.lua then holds the boxes back for the frame.
     function self.tick()
         local now=os.clock()
-        if now<next_look then return end
+        if not todo and now<next_look then return end
         next_look=now+EVERY
         local ok,map,eve=pcall(function()
             local x=U.valid(N.her())
             return x and U.map_of(x),x
         end)
         if not ok or not map or map:sub(-#Move.MAP)~=Move.MAP then
-            world,spawned,meshes=nil,{},{}
+            stopped('world 2800 left')
+            world,spawned,meshes,todo=nil,{},{},nil
             return
         end
         -- By address: UE4SS hands out a new wrapper on every call, so two wrappers of one world never compare equal.
         local w=U.valid(eve:GetWorld())
         local here=w and U.address(w)
-        if here==world and (not spawned[1] or U.valid(spawned[1])) then return end
-        world,spawned,meshes=here,{},{}
-        local made=0
-        for _,m in ipairs(list) do
+        if here~=world or (spawned[1] and not U.valid(spawned[1])) then
+            stopped(here~=world and 'new world' or 'first spawn gone')
+            world,spawned,todo,made=here,{},1,0
+            counts,order,ticks,longest,began,looked={},{},0,0,os.clock(),0
+        end
+        if not todo then return end
+        meshes={}
+        local start=os.clock()
+        while todo<=#list do
+            local m=list[todo]
+            local c=counts[m.cls]
+            if not c then
+                c={n=0,made=0,ways={},refilled=0}
+                counts[m.cls],order[#order+1]=c,m.cls
+            end
+            c.n=c.n+1
             local fine,a,got,how=pcall(spawn,eve,m)
             if fine then
                 spawned[#spawned+1]=a
-                made=made+1
-                local extra=(m.height and string.format(' height %.1f',m.height) or '')
-                    ..got..(m.cls=='ladder' and built(a) or '')..(m.drop and string.format(' drop %.0f',m.drop) or '')
-                    ..(m.env and ' env '..m.env or '')
-                log(string.format('%s %s at %.0f %.0f %.0f yaw %.0f%s (%s), %s',m.cls,m.key,m.at[1],m.at[2],m.at[3],
-                    m.yaw,extra,m.role,how))
+                made,c.made=made+1,c.made+1
+                c.ways[how]=(c.ways[how] or 0)+1
+                if got:find('filled again',1,true) then c.refilled=c.refilled+1 end
+                local h=m.cls=='ladder' and built(a) or ''
+                if (m.cls=='ladder' and (not m.height or h~=string.format(' built %.1f',m.height)))
+                    or how:find('not run',1,true) then
+                    local extra=(m.height and string.format(' height %.1f',m.height) or '')
+                        ..got..h..(m.drop and string.format(' drop %.0f',m.drop) or '')
+                        ..(m.env and ' env '..m.env or '')
+                    log(string.format('%s %s at %.0f %.0f %.0f yaw %.0f%s (%s), %s',m.cls,m.key,m.at[1],m.at[2],
+                        m.at[3],m.yaw,extra,m.role,how))
+                end
             else
                 log(string.format('%s %s not spawned: %s',m.cls,m.key,tostring(a)))
             end
+            todo=todo+1
+            if os.clock()-start>=Move.BUDGET then break end
         end
-        log(string.format('%d/%d ladders, ledges and ropes spawned in world 2800',made,#list))
+        ticks,longest=ticks+1,math.max(longest,os.clock()-start)
+        if todo>#list then
+            todo=nil
+            for _,cls in ipairs(order) do
+                local c,ways=counts[cls],{}
+                for how,n in pairs(c.ways) do ways[#ways+1]=n..' '..how end
+                table.sort(ways)
+                log(string.format('%s: %d/%d spawned%s%s',cls,c.made,c.n,
+                    #ways>0 and ', '..table.concat(ways,'; ') or '',
+                    c.refilled>0 and '; '..c.refilled..' stack'..(c.refilled==1 and '' or 's')
+                        ..' filled again front to back' or ''))
+            end
+            log(string.format('spread over %d tick%s in %.1f s, the longest %.0f ms, lookups %.0f ms in all',ticks,
+                ticks==1 and '' or 's',os.clock()-began,longest*1000,looked*1000))
+            log(string.format('%d/%d ladders, ledges and ropes spawned in world 2800',made,#list))
+        end
+        return true
     end
     return self
 end

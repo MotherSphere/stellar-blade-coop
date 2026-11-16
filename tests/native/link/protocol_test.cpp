@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The link's text protocol and its Lua requests, checked on the build machine (no Windows, no Steam).
 #include "link/protocol.h"
 #include "quest/own.h" // kAskWords: the signal words in its order
@@ -7,6 +10,7 @@
 #include <cstdio>
 #include <cstring>
 #include <random>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -17,6 +21,9 @@ static Message parse_text(const std::string &text) { return parse(text.data(), t
 int main() {
   // Lobby tag: protocol and game build.
   assert(lobby_tag(24463856) == std::to_string(kProtocol) + ":24463856");
+  // The match modes: FFA on its first arena, nothing else.
+  assert(find_mode("ffa") && find_mode("ffa")->min == 2 && std::string(find_mode("ffa")->map) == "NK_Boss_Scarlet" &&
+         !find_mode("tdm") && !find_mode(""));
 
   // The handshake envelope reads the same whatever the sender's protocol: a mismatch is answered, never ignored.
   Message m = parse_text(hello(kProtocol, "v0.2-3-gabc", 24463856));
@@ -112,7 +119,7 @@ int main() {
   m = parse_text(p + " say  two spaces ");
   assert(m.kind == Kind::say && m.text == "two spaces");
 
-  // The race line, reliable: Lua's text after "SBC19 race ", printable ASCII only, the whole line within kMaxMessage.
+  // The race line, reliable: Lua's text after "SBC20 race ", printable ASCII only, the whole line within kMaxMessage.
   // Anything else is invalid, never cleaned into another line.
   assert(race_line("cp 7 1 2 34567") == p + " race cp 7 1 2 34567");
   m = parse_text(race_line("cp 7 1 2 34567"));
@@ -127,7 +134,7 @@ int main() {
                                  race + "end\r", race + "\xff", p + " race", race})
     assert(parse_text(bad).kind == Kind::invalid);
   assert(parse(race.data(), race.size() + 1).kind == Kind::invalid); // A NUL after the prefix.
-  for (const char *other : {"SBC18 race cp 7 1 2 3", "SBC20 race cp 7 1 2 3", "SBC race end 7"})
+  for (const char *other : {"SBC19 race cp 7 1 2 3", "SBC21 race cp 7 1 2 3", "SBC race end 7"})
     assert(parse_text(other).kind == Kind::invalid);
   for (int c = 0x20; c < 0x7f; ++c) { // Every printable byte passes as it is.
     m = parse_text(race + "x" + static_cast<char>(c) + "x");
@@ -157,7 +164,7 @@ int main() {
     assert(!gift_ok(bad) && gift_line(bad).empty());
     assert(parse_text(p + " gift " + bad).kind == Kind::invalid);
   }
-  for (const char *other : {"SBC18 gift a 1", "SBC20 gift a 1", "SBC gift a 1"})
+  for (const char *other : {"SBC19 gift a 1", "SBC21 gift a 1", "SBC gift a 1"})
     assert(parse_text(other).kind == Kind::invalid);
 
   // The vit line, unreliable: the partner card's twelve numbers, whole units. Each rule holds at its edge.
@@ -255,7 +262,7 @@ int main() {
   assert(m.kind == Kind::mark && m.text == std::string(kMaxMark, 'y'));
   for (const std::string &bad : {p + " mark", p + " mark 0", p + " mark 0 x", p + " mark 4294967296", p + " mark -1",
                                  p + " mark x", p + " mark 3 ", p + " mark  3", p + " mark 3x boss", p + " marks 3",
-                                 std::string("SBC18 mark 3 x"), std::string("SBC mark 3"), std::string("SBC20 mark 3")})
+                                 std::string("SBC19 mark 3 x"), std::string("SBC mark 3"), std::string("SBC21 mark 3")})
     assert(parse_text(bad).kind == Kind::invalid);
 
   // A v0.1.1 peer runs protocol 6, and her lobby tag says so. Her hello still parses, so the link answers it with a
@@ -285,17 +292,20 @@ int main() {
   // index 32, so her ghost of you would stop changing or freeze. Protocol 18 refuses the link.
   // A v0.7.5 peer runs protocol 18 and has none of Matrix XIII's world rows: the host's new enemies, keyed by their spawn
   // row's ID, would have no row on her side. Protocol 19 refuses the link.
-  static_assert(kProtocol == 19, "19 adds Matrix XIII's world rows; 18 the table's fx lines and effect slots to 64; 17 "
-                                 "the hide lines; 16 the value lines; 15 was never released; 14 the night lines' level "
-                                 "and down words and the gift line; 13 the pak lines; "
-                                 "12 the shared quests' lines and the race lines; 11 SBE and the show lines; 10 the "
-                                 "fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
+  // A v0.8.0 to v0.9.0 peer runs protocol 19: it would count every pvp line malformed. Protocol 20 refuses the link.
+  static_assert(kProtocol == 20, "20 adds the PvP test's pvp line on channel 2; 19 Matrix XIII's world rows; 18 the "
+                                 "table's fx lines and effect slots to 64; 17 the hide lines; 16 the value lines; 15 "
+                                 "was never released; 14 the night lines' level and down words and the gift line; 13 "
+                                 "the pak lines; 12 the shared quests' lines and the race lines; 11 SBE and the show "
+                                 "lines; 10 the fight's scale line; 9 pose deltas (SBD); 8 say and vit; 7 is v0.2.0's");
   assert(lobby_tag(24463856) != "7:24463856" && lobby_tag(24463856) != "8:24463856" &&
          lobby_tag(24463856) != "9:24463856" && lobby_tag(24463856) != "10:24463856" &&
          lobby_tag(24463856) != "11:24463856" && lobby_tag(24463856) != "12:24463856" &&
          lobby_tag(24463856) != "13:24463856" && lobby_tag(24463856) != "14:24463856" &&
          lobby_tag(24463856) != "15:24463856" && lobby_tag(24463856) != "16:24463856" &&
-         lobby_tag(24463856) != "17:24463856" && lobby_tag(24463856) != "18:24463856");
+         lobby_tag(24463856) != "17:24463856" && lobby_tag(24463856) != "18:24463856" &&
+         lobby_tag(24463856) != "19:24463856");
+  assert(parse_text("SBC19 ping 1 2").kind == Kind::invalid);
   assert(parse_text("SBC18 ping 1 2").kind == Kind::invalid && parse_text("SBC18 gift x").kind == Kind::invalid);
   m = parse_text("SBC hello 18 v0.7.5 24463856"); // Answered too, and rejected by its number.
   assert(m.kind == Kind::hello && m.a == 18 && m.text == "v0.7.5");
@@ -358,7 +368,8 @@ int main() {
   const std::string seeds[] = {hello(kProtocol, "v1", 24463856), accept(), reject("why"), ping(1, 2), pong(1, 2),
                                photo_line('1', true), say_line("é ok"), vit_line(v), paks_line(3, 77),
                                pak_line({"~mods/lily_hair_p", 1024, 0xfedcba9876543210ull}), night_line(host_line),
-                               mark_line(9, "é ok")};
+                               mark_line(9, "é ok"), start_line("ffa", "NK_Boss_Scarlet", 7, {1001, 2002}),
+                               count_line(5), end_line()};
   for (int round = 0; round < 200000; ++round) {
     std::string text;
     if (round % 2) {
@@ -385,6 +396,13 @@ int main() {
       assert(night_ok(f.text) && text == night_line(f.text));
     if (f.kind == Kind::mark) // Numbered from 1, cleaned and cut, maybe empty.
       assert(f.a >= 1 && f.a <= UINT32_MAX && f.text.size() <= kMaxMark && f.text == chat_clean(f.text, kMaxMark));
+    if (f.kind == Kind::start) { // 1 to 8 distinct SteamIDs, none 0; a 32-bit seed; mode and map are words.
+      std::set<uint64_t> ids(f.ids.begin(), f.ids.end());
+      assert(!f.ids.empty() && f.ids.size() <= kMatchMembers && ids.size() == f.ids.size() && !ids.count(0) &&
+             f.a <= UINT32_MAX && alias_word(f.text) && alias_word(f.map));
+    }
+    if (f.kind == Kind::count)
+      assert(f.a <= 10);
     if (f.kind != Kind::invalid) {
       assert(text.size() <= kMaxMessage && f.text.size() <= (f.kind == Kind::night ? kMaxNight : kMaxReason));
       for (char c : f.text)
@@ -400,6 +418,48 @@ int main() {
   for (const char *bad : {"host public", "host  private", "host Code", "host code x", "hostcode", "host friends"})
     assert(parse_request(bad).command == Command::none);
   assert(parse_request("invite").command == Command::invite);
+  // Match lobbies: match search|create <mode> <room> <hall>, match cancel. find_mode is the link's check; the room
+  // (the lobby map's key) and the hall (the lobby pak's version) are words as alias_word takes them.
+  Request mr = parse_request("match search ffa hotel 47101_5096");
+  assert(mr.command == Command::match && mr.match == MatchAsk::search && mr.mode == "ffa" && mr.room == "hotel" &&
+         mr.hall == "47101_5096");
+  mr = parse_request("match create tdm xion xion");
+  assert(mr.command == Command::match && mr.match == MatchAsk::create && mr.mode == "tdm" && mr.room == "xion" &&
+         mr.hall == "xion");
+  assert(parse_request("match cancel").match == MatchAsk::cancel);
+  for (const char *bad : {"match", "match search", "match search ff a", "match search ffa!", "match cancel now",
+                          "match search ffa extra", "match end now", "match search ffa", "match create ffa xion",
+                          "match search ffa xion xion extra", "match search ffa xion  xion"})
+    assert(parse_request(bad).command == Command::none);
+  // A room or hall word that alias_word refuses, or longer than kMaxToken: no request.
+  const std::string longer(kMaxToken + 1, 'a');
+  for (const std::string &bad :
+       std::vector<std::string>{"match search ffa ho-tel xion", "match search ffa hotel 47101-5096",
+                                "match create ffa hotel x!", "match search ffa " + longer + " xion",
+                                "match search ffa xion " + longer})
+    assert(parse_request(bad).command == Command::none);
+  assert(parse_request("match end").match == MatchAsk::end);
+  // The match lines on channel 0, from the lobby's owner: start (mode, map, a 32-bit seed, 1 to 8 distinct non-zero
+  // SteamIDs, host first), count (1 to 10 s, or stop) and end.
+  {
+    const std::string start = start_line("ffa", "NK_Boss_Scarlet", 4294967295u, {1001, 2002, 4003});
+    assert(start == "SBC" + std::to_string(kProtocol) + " start ffa NK_Boss_Scarlet 4294967295 1001,2002,4003");
+    Message sm = parse_text(start);
+    assert(sm.kind == Kind::start && sm.text == "ffa" && sm.map == "NK_Boss_Scarlet" && sm.a == 4294967295u &&
+           (sm.ids == std::vector<uint64_t>{1001, 2002, 4003}));
+    assert(parse_text(count_line(10)).kind == Kind::count && parse_text(count_line(10)).a == 10);
+    assert(count_line(0) == "SBC" + std::to_string(kProtocol) + " count stop" && parse_text(count_line(0)).a == 0);
+    assert(parse_text(end_line()).kind == Kind::end);
+    assert(parse_text(start_line("ffa", "NK", 1, {1, 2, 3, 4, 5, 6, 7, 8})).ids.size() == kMatchMembers);
+    for (const std::string bad : {"start ffa NK 4294967296 1001", "start ffa NK 1 1001,1001", "start ffa NK 1 0",
+                                  "start ffa NK 1 1001,", "start ffa NK 1 1,2,3,4,5,6,7,8,9", "start f!a NK 1 1001",
+                                  "count 0", "count 11", "count", "end now"})
+      assert(parse_text("SBC" + std::to_string(kProtocol) + " " + bad).kind == Kind::invalid);
+  }
+  assert(parse_request("match search " + std::string(kMaxToken, 'a') + " xion xion").command == Command::match &&
+         parse_request("match search " + std::string(kMaxToken + 1, 'a') + " xion xion").command == Command::none);
+  assert(parse_request("match search ffa " + std::string(kMaxToken, 'a') + " " + std::string(kMaxToken, 'b')).command ==
+         Command::match);
   // coop mark: "mark" alone or with a text, cleaned like a chat line and cut to kMaxMark bytes; the text may clean
   // away.
   Request mk = parse_request("mark\n");
@@ -548,6 +608,13 @@ int main() {
   assert(f.fight == Fight::test && f.stat == 2 && f.change == 10000000);
   f = parse_request("fight test kill");
   assert(f.command == Command::fight && f.fight == Fight::test && f.stat == -1);
+  // The PvP test (coop pvp on|off): fight pvp, and fight pvp off.
+  Request pr = parse_request("fight pvp");
+  assert(pr.command == Command::fight && pr.fight == Fight::pvp && !pr.off);
+  pr = parse_request("fight pvp off");
+  assert(pr.command == Command::fight && pr.fight == Fight::pvp && pr.off);
+  for (const char *bad : {"fight pvp on", "fight pvp off x", "fight pvp  off", "fight pvpoff", "fight PVP"})
+    assert(parse_request(bad).command == Command::none);
   // Same-place enemies (stage 3a): same_place=on as "place", one word after the scaling, before the ids, with the modes
   // that can host or pilot (on, probe, record, replay); none: off.
   f = parse_request("fight on confirmed fought scale 135 115 place 15011001");
@@ -715,6 +782,17 @@ int main() {
   for (const char *bad : {"devinfo", "devinfo Quest", "devinfo quest now", "devinfoquest", "devinfo  off", "devinfo on",
                           "devinfo boss"})
     assert(parse_request(bad).command == Command::none);
+  // SB's HUD under the SBO lobby's screens: hud hide on or off, nothing else.
+  assert(parse_request("hud hide on\n").command == Command::hud && parse_request("hud hide on").on &&
+         parse_request("hud hide off\r\n").command == Command::hud && !parse_request("hud hide off").on);
+  for (const char *bad : {"hud", "hud hide", "hud on", "hud hide On", "hud hide on now", "hud  hide on", "hudhide off",
+                          "hud show on", "hud hide 1"})
+    assert(parse_request(bad).command == Command::none);
+  // The SBO lobby arrival's black lifted (session/arrival.lua): loading lift, nothing else.
+  assert(parse_request("loading lift\n").command == Command::loading &&
+         parse_request("loading lift\r\n").command == Command::loading);
+  for (const char *bad : {"loading", "loading Lift", "loading lift now", "loading  lift", "loadinglift", "loading off"})
+    assert(parse_request(bad).command == Command::none);
   Request r = parse_request("join");
   assert(r.command == Command::join && r.lobby == 0 && !r.code);
   r = parse_request("join 109775241234567890\n");
@@ -738,8 +816,14 @@ int main() {
   assert(parse_request("deny 9009").command == Command::deny && parse_request("deny 9009").player == 9009);
   assert(parse_request("remove 2002\r\n").command == Command::remove && parse_request("remove 2002").player == 2002);
   assert(parse_request("copy\n").command == Command::copy);
+  // The chat mute, any player's, by SteamID.
+  r = parse_request("mute 76561198000000001");
+  assert(r.command == Command::mute && r.player == 76561198000000001ull && !r.off);
+  r = parse_request("unmute 76561198000000001\n");
+  assert(r.command == Command::mute && r.player == 76561198000000001ull && r.off);
   for (const char *bad : {"", "dance", "hostile", "host now", "allow", "allow 0", "allow x", "allow  1", "allow 1 2",
-                          "deny", "deny -1", "remove", "remove all", "copy CCS-CBMH", "copyCCS", "joincode CCS-CBMH"})
+                          "deny", "deny -1", "remove", "remove all", "copy CCS-CBMH", "copyCCS", "joincode CCS-CBMH",
+                          "mute", "mute x", "mute 0", "unmute", "unmute 0", "mute 1 2"})
     assert(parse_request(bad).command == Command::none);
 
   // Join codes (UI-DESIGN 4.6): the low 32 bits of a lobby id with the high part 0x01860000, low % 7 in the 3 bits
@@ -925,6 +1009,26 @@ int main() {
         std::string("travel ") + a65 + " 1 0", std::string("travel Xion_Camp_10 1"), std::string("travel"),
         std::string("travel Xion_Camp_10 1 0 1"), std::string("travel Xion_Camp_10 -1 0")})
     assert(parse_request(bad).command == Command::none);
+  // sbo requests (design-lobby 3.3, 3.7): exact words, decimal FName ids, a plausible hex manager, one abort word.
+  {
+    Request r = parse_request("sbo arm 123456 0");
+    assert(r.command == Command::sbo && r.sbo == SboAsk::arm && r.index == 123456 && r.number == 0);
+    r = parse_request("sbo enter 0x1f2e3d4c50");
+    assert(r.command == Command::sbo && r.sbo == SboAsk::enter && r.address == 0x1f2e3d4c50ull);
+    r = parse_request("sbo warp 91234 0 91240 0");
+    assert(r.sbo == SboAsk::warp && r.index == 91234 && r.number == 0 && r.point_index == 91240 &&
+           r.point_number == 0);
+    r = parse_request("sbo abort rows");
+    assert(r.sbo == SboAsk::abort && r.why == "rows");
+    assert(parse_request("sbo on").sbo == SboAsk::on && parse_request("sbo leave").sbo == SboAsk::leave);
+    r = parse_request("sbo seq 5123 0"); // coop sbo seq: a light sequence's FName.
+    assert(r.command == Command::sbo && r.sbo == SboAsk::seq && r.index == 5123 && r.number == 0);
+    for (const char *bad : {"sbo", "sbo ON", "sbo arm", "sbo arm 0 0", "sbo arm x 0", "sbo arm 1 0 2", "sbo enter 123",
+                            "sbo enter 0x0", "sbo enter 0x7", "sbo warp 1 0 0 0", "sbo warp 0 0 1 0", "sbo warp 1 0 1",
+                            "sbo abort", "sbo abort Rows", "sbo abort rows x", "sbo abort abcdefghijklmnopq",
+                            "sbo leave now", "sbo on x", "sbo seq 0 0", "sbo seq 1", "sbo seq 1 0 2"})
+      assert(parse_request(bad).command == Command::none);
+  }
 
   // coop gift's requests: gift <payload> goes to the friend as written, once gift_ok() took it; items <ask> <alias>
   // <FName index> <FName number> is the worker's inventory read. Anything off is refused.
@@ -947,13 +1051,13 @@ int main() {
     assert(parse_request(bad).command == Command::none);
 
   // coop lion's rows (batch 0), coop gardener fight's (batch 1), coop tendril fight's (batch 2), the Shock Bolt's
-  // (batch 3), coop mxiii's (batch 4), the Night Operation shop's (batch 5), Lily's signal's (batch 6) and Matrix
-  // XIII's mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily and mxrecords (batches 7 to 14): one
-  // <Table>=0x<address> word for each table the batch writes, 1 to 37 of them, in any order, each once (the others stay
-  // 0); the addresses in 1 to 16 hex digits of either case, plausible (user space, 8-aligned). The longest request Lua
-  // could write (all 37, %x, so 12 digits at most under plausible's bound) is 1204 bytes with its line end; the longest
-  // one parsed (16 digits each, 1352 bytes) fits the native part's read of its request file (kMaxRequestFile 2048, up
-  // from 1024 when the table list passed 27). Anything off is refused.
+  // (batch 3), coop mxiii's (batch 4), the Night Operation shop's (batch 5), Lily's signal's (batch 6), Matrix XIII's
+  // mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily and mxrecords (batches 7 to 14) and the hall lobbies'
+  // halls (batch 15): one <Table>=0x<address> word for each table the batch writes, 1 to 39 of them, in any order, each
+  // once (the others stay 0); the addresses in 1 to 16 hex digits of either case, plausible (user space, 8-aligned).
+  // The longest request Lua could write (all 39, %x, so 12 digits at most under plausible's bound) is 1255 bytes with
+  // its line end; the longest one parsed (16 digits each, 1411 bytes) fits the native part's read of its request file
+  // (kMaxRequestFile 2048, up from 1024 when the table list passed 27). Anything off is refused.
   const auto rows = [](const char *word, const std::vector<std::string> &words) {
     std::string text = std::string(word) + " rows";
     for (const std::string &w : words)
@@ -995,7 +1099,7 @@ int main() {
   Request mx = parse_request(mxiii(shuffled));
   assert(mx.command == Command::rows && mx.batch == 4 && mx.tables == li.tables);
   Request so = parse_request(shop(shuffled));
-  assert(so.command == Command::rows && so.batch == 5 && so.tables == li.tables && kLionTableCount == 37 &&
+  assert(so.command == Command::rows && so.batch == 5 && so.tables == li.tables && kLionTableCount == 39 &&
          li.tables[17] == 0x1f4a2b3c1100ull && li.tables[18] == 0x1f4a2b3c1200ull &&
          li.tables[19] == 0x1f4a2b3c1300ull && li.tables[24] == 0x1f4a2b3c1800ull &&
          li.tables[31] == 0x1f4a2b3c1f00ull);
@@ -1013,7 +1117,7 @@ int main() {
   assert(mi.command == Command::rows && mi.batch == 10 && mi.tables == li.tables);
   const Request lo = parse_request(mxlower({words[31], words[28], words[27], words[25], words[16]}));
   assert(lo.command == Command::rows && lo.batch == 11 && lo.tables[31] == 0x1f4a2b3c1f00ull &&
-         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 15);
+         lo.tables[16] == 0x1f4a2b3c1000ull && lo.tables[0] == 0 && kRowWordCount == 16);
   const Request na = parse_request(rows("mxnames", {words[15]}));
   assert(na.command == Command::rows && na.batch == 12 && na.tables[15] != 0 && na.tables[16] == 0);
   const Request ly = parse_request(rows("mxlily", {words[32], words[33]}));
@@ -1022,6 +1126,11 @@ int main() {
   assert(re.command == Command::rows && re.batch == 14 && re.tables[34] != 0 && re.tables[36] != 0 && re.tables[15] == 0);
   assert(!std::strcmp(kLionTables[34], "AlbumTable") && !std::strcmp(kLionTables[35], "AchievementTable") &&
          !std::strcmp(kLionTables[36], "PuzzleStringArrayTable"));
+  // The hall lobbies' batch (15) names its three tables only, ZoneEnvSpawnTable and the last two.
+  const Request ha = parse_request(rows("halls", {words[16], words[37], words[38]}));
+  assert(ha.command == Command::rows && ha.batch == 15 && ha.tables[16] != 0 && ha.tables[37] == 0x1f4a2b3c2500ull &&
+         ha.tables[38] == 0x1f4a2b3c2600ull && ha.tables[36] == 0 && !std::strcmp(kRowWords[15], "halls"));
+  assert(!std::strcmp(kLionTables[37], "WorldTable") && !std::strcmp(kLionTables[38], "ZoneTable"));
   assert(!std::strcmp(kLionTables[15], "ZoneCampTable") && !std::strcmp(kLionTables[16], "ZoneEnvSpawnTable") &&
          !std::strcmp(kLionTables[17], "ShopTable") && !std::strcmp(kLionTables[18], "ShopItemTable") &&
          !std::strcmp(kLionTables[19], "ZoneTriggerTable") && !std::strcmp(kLionTables[20], "QuestTable") &&
@@ -1035,14 +1144,14 @@ int main() {
   std::vector<std::string> tables_longest;
   for (size_t i = 0; i < kLionTableCount; ++i)
     tables_longest.push_back(std::string(kLionTables[i]) + "=0x7ffffffefff8");
-  assert(gardener(tables_longest).size() + 1 == 1204 &&
+  assert(gardener(tables_longest).size() + 1 == 1255 &&
          parse_request(gardener(tables_longest)).command == Command::rows);
   assert(parse_request(lion(tables_longest)).command == Command::rows);
   tables_longest[0] = "CharacterTable=0x00007ffffffefff8"; // Leading zeros Lua never writes: still parsed.
   assert(parse_request(lion(tables_longest)).command == Command::rows);
   for (std::string &w : tables_longest)
     w = w.substr(0, w.find('=')) + "=0x00007ffffffefff8";
-  assert(gardener(tables_longest).size() + 1 == 1352 && gardener(tables_longest).size() + 1 <= kMaxRequestFile &&
+  assert(gardener(tables_longest).size() + 1 == 1411 && gardener(tables_longest).size() + 1 <= kMaxRequestFile &&
          parse_request(gardener(tables_longest)).command == Command::rows);
   const auto with = [&words](size_t i, const std::string &w) {
     std::vector<std::string> v = words;
@@ -1060,7 +1169,8 @@ int main() {
   assert(lone.command == Command::rows && lone.batch == 6 && lone.tables[20] == 0x1f4a2b3c1400ull &&
          lone.tables[21] == 0);
   const Request short_one = parse_request(lion(one_short));
-  assert(short_one.command == Command::rows && short_one.tables[31] == 0x1f4a2b3c1f00ull && short_one.tables[36] == 0);
+  assert(short_one.command == Command::rows && short_one.tables[31] == 0x1f4a2b3c1f00ull &&
+         short_one.tables[37] == 0x1f4a2b3c2500ull && short_one.tables[38] == 0);
   std::vector<std::string> doubled = {words[3], words[7], words[3]};
   for (const std::string &bad :
        {lion(one_more), lion(with(1, words[0])), lion(doubled), signal({}) + " ",
@@ -1068,7 +1178,7 @@ int main() {
         lion(with(2, "CharacterDeadTable=1f4a2b3c0200")), lion(with(2, "CharacterDeadTable=0x1f4a2b3c0201")),
         lion(with(2, "CharacterDeadTable=0xfff8")), lion(with(2, "CharacterDeadTable=0x7ffffffff0000")),
         lion(with(2, "CharacterDeadTable=0x1f4a2b3c02g0")), lion(with(2, "CharacterDeadTable=0x00001f4a2b3c0200000")),
-        lion(with(2, "ZoneTable=0x1f4a2b3c0200")), lion(with(2, "characterdeadtable=0x1f4a2b3c0200")),
+        lion(with(2, "ZoneTables=0x1f4a2b3c0200")), lion(with(2, "characterdeadtable=0x1f4a2b3c0200")),
         lion(with(2, "CharacterDeadTable=-0x1f4a2b3c0200")), lion(words) + " extra", std::string("lion rows"),
         std::string("lion rows "), std::string("lion"), "lion rows  " + lion(words).substr(10),
         gardener(with(2, "CharacterDeadTable=0xfff8")), gardener(words) + " extra", gardener({words[2], "", words[3]}),
@@ -1098,6 +1208,11 @@ int main() {
   assert(parse_request("lily on").command == Command::roxanne && parse_request("lily on").on &&
          parse_request("lily on").lily && parse_request("lily off\r\n").command == Command::roxanne &&
          !parse_request("lily off").on && parse_request("lily off").lily);
+  // The Xion guard's lines: guardtext and what follows it, which nightop/guard_text.h's parse checks in the glue.
+  assert(parse_request("guardtext fr\ta\tb\tc\td\te\tf\tg\r\n").command == Command::guardtext &&
+         parse_request("guardtext fr\ta\tb\tc\td\te\tf\tg").text == "fr\ta\tb\tc\td\te\tf\tg");
+  for (const char *bad : {"guardtext", "guardtext ", "guardtextfr", "Guardtext fr\ta", "guard fr\ta"})
+    assert(parse_request(bad).command == Command::none);
   // Every signal word, in quest/own.h's Ask order (the glue casts the index to an Ask), and only those.
   static_assert(kSignalWordCount == coop::quest::own::kAsks, "one word for each ask");
   for (size_t w = 0; w < kSignalWordCount; ++w) {

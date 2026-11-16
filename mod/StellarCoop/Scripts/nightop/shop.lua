@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop nightop shop and coop nightop buy: Night Operation's reward shop, on a co-op save only. A run that ends in
 -- success or time up credits points to this player's wallet (nightop/run.lua credits only a run of ours that went from
 -- its countdown to that end); the shop sells seven items for them. coop nightop shop opens SB's own shop screen, the
@@ -54,7 +57,7 @@ Shop.WAIT,Shop.ROWS_WAIT=5,60
 -- console closed with Escape opens the pause menu).
 Shop.PLAY_WAIT=30
 local BUY='Use: coop nightop buy <item 1-'..#Shop.ITEMS..'> [count 1-10]'
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 local function whole(text) return type(text)=='string' and text:match('^%d+$') and math.tointeger(tonumber(text)) end
 -- The one grant call: an item alias, EVE's GUID and 1 to MOST items, into the inventory, with the game's pickup
 -- message; no stat level, no enhance message, not an event load, no saved instance. Shop.grant and coop gift

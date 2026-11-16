@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Doro races' driving without a game call: an arcade car model, and the host's values that both players drive with.
 -- race/drive.lua reads EVE's stick, the drift key and her velocity each frame and gives her movement the velocity
 -- step() returns; tests/lua/race/drive_model_test.lua covers it with lua5.4 alone. The model owns a heading (where Doro

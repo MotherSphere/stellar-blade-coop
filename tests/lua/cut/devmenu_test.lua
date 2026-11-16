@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop devmenu (cut/devmenu.lua) over fakes: the game's EffectTable (FindRow by name, an ID field, a raising lookup),
 -- the native status text, EVE and the player controller (nightop/probe.lua's her and controller, through the real
 -- cut/chainspin.lua) and the controller's Cheat request, recorded or raising. Covered: the rows' names are unique and
@@ -25,7 +28,8 @@ package.loaded['core.unreal']={
             return ids[name] and {ID={get=function() return ids[name] end}} or nil
         end}
     end,
-    value_of=function(v) return type(v)=='table' and v.get and v.get() or v end}
+    value_of=function(v) return type(v)=='table' and v.get and v.get() or v end,
+    why=dofile('mod/StellarCoop/Scripts/core/unreal.lua').why}
 local D=require('cut.devmenu')
 
 -- 1. The rows: unique names, and none of the effects the header leaves out.

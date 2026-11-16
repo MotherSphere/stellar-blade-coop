@@ -1,0 +1,104 @@
+NOTICE
+
+Stellar Blade Online (SBO), formerly StellarCoop
+Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+
+Each contributor keeps the copyright in their contributions. Contributions
+are licensed under the SBO License, as CONTRIBUTING.md states.
+
+LICENSE
+
+Stellar Blade Online is licensed under the SBO License, version 1.0 or, at
+your option, any later version that the Licensor publishes
+(LicenseRef-SBO-1.0-or-later). The License is in the file LICENSE. The
+parties it excludes are defined in its section 0 and listed in its Appendix
+A; EXCLUDED-PARTIES.md repeats the list.
+
+The License is published at
+https://github.com/MotherSphere/stellar-blade-coop. To contact the Licensor,
+for example to ask for the written permission that section 21 of the License
+requires to run a server, open an issue there.
+
+Versions up to and including 0.9.0, every commit pushed to the public
+repository before the commit that moved it to the SBO License (the last one
+on the dev branch is commit 051ab509), and every test build whose LICENSE
+file is GPL-3.0 were released under GPL-3.0-or-later and stay available
+under that license. Every release after 0.9.0 is licensed under the SBO
+License, apart from the parts that this file lists under other terms.
+
+ADDITIONAL PERMISSION UNDER SECTION 7 OF THE SBO LICENSE
+
+If you modify Stellar Blade Online, or any covered work, by linking or
+combining it with Stellar Blade (the game program and the libraries it
+ships, such as steam_api64.dll) or with UE4SS, or with a modified version of
+either, the copyright holders of Stellar Blade Online give you permission to
+convey the resulting work. Its Corresponding Source need not include the
+source code of those programs. This permission gives nothing to an Excluded
+Party.
+
+SURVIVAL PROTOCOL
+
+Night Operation's run (coop nightop), the challenges (coop challenge,
+which run on the same code) and the friend's revive adapt code from Survival
+Protocol by SchizoEffective (Nexus Mods, Stellar Blade mod 4009,
+https://www.nexusmods.com/stellarblade/mods/4009). The challenge list
+follows Survival Protocol's graded stages: five difficulty stages picked
+from a list before a fight.
+
+SchizoEffective gave permission to use this code in Stellar Blade Online on
+2026-10-20, and agreed on Discord on 2026-11-14 to the project's move from
+GPL-3.0 to a license that bans AyakaMods. The adapted code is licensed here
+under the SBO License, version 1.0 or any later version that the Licensor
+publishes, with the additional permission above. The adapted functions are
+marked in mod/StellarCoop/Scripts/nightop/run.lua, nightop/waves.lua
+and core/unreal.lua. Stellar Blade Online contains no file from Survival
+Protocol.
+
+THIRD-PARTY COMPONENTS
+
+A third-party component keeps its own license, and the SBO License grants
+nothing in it. The repository holds no third-party library source. These
+parts come close:
+
+- The DLL is built with clang-cl against the Microsoft C and C++ runtime,
+  linked statically. That runtime is Microsoft's and comes under the terms
+  of the build tools that provided it.
+- The native part calls the Steamworks API in the game's own
+  steam_api64.dll. Stellar Blade Online ships no Steamworks file. Steamworks
+  is Valve's.
+- UE4SS, which loads the mod, is installed by the player. The release zip
+  does not contain it.
+
+ARTWORK
+
+The Mother Sphere illustration (mod/StellarCoop/Assets/MotherSphere.png,
+shown in the guide the mod opens at its first run) is by timediffer24
+(https://x.com/timediffer24) and was given to this project. It is not
+licensed under the SBO License, and the release zip does not contain it.
+The guide shows without it.
+
+GAME MATERIAL
+
+Stellar Blade and its assets belong to SHIFT UP. Names, values and table
+rows taken from the game (for example the rows in data/ that copy the
+game's own rows) are not licensed under the SBO License, to the extent they
+are protected at all.
+
+NAMES
+
+The SBO License grants no right to use the names "Stellar Blade Online",
+"SBO" and "StellarCoop", or the project's logo, as the name or logo of a
+modified version that you release (section 18 of the License). It grants no
+right in the domain stellarbladeonline.com either. You may say that your
+work is based on Stellar Blade Online, is a fork of it or works with it,
+and name its authors; section 18 lists what else you may do.
+
+Logo: the Stellar Blade Online emblem, a solid rhombus with four small
+squares cut out of its middle, drawn for stellarbladeonline.com, is a logo
+of Stellar Blade Online, and so is any logo that MotherSphere makes from it.
+The Mother Sphere illustration is not a logo of the project.
+
+"Stellar Blade" belongs to SHIFT UP. The License grants no right in it and
+the project claims none. Stellar Blade Online is an unofficial fan mod. It
+is not affiliated with or endorsed by SHIFT UP or Sony Interactive
+Entertainment.

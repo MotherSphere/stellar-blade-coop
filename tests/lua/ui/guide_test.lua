@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The first-launch guide (ui/guide.lua and ui/guide_text.lua) on a fake kit, a fake link and fake engine objects, as
 -- saves_test fakes them: every page and label in English, the other languages present and complete with English's
 -- commands, keys, names and placeholders (English for what one lacks), every page within its rows and columns in every

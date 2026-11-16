@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The co-op saves' files (AUTO-COOP-SAVE §4.2): StellarBladeCoop0N.sav, the co-op copy of the player's own
 // StellarBladeSave0N.sav, made by the worker at the title before the game's save name is switched (save/slot.h).
 //
@@ -22,8 +25,9 @@
 // never backs up again. A folder with no save of the player's gets no pass at all, so nothing is written there.
 //
 // Every write goes through a name check: in the account's folder only the copies, their temporary files, the manifest,
-// the plants' marks and the shared quests' record of each co-op slot (StellarCoopQuests0N.txt, quest/engine.h's
-// Worker); in the backup folder only StellarBlade*.sav names. The player's saves are only ever read, except by the
+// the plants' marks, the shared quests' record of each co-op slot (StellarCoopQuests0N.txt, quest/engine.h's Worker)
+// and its SBO session record (StellarCoopSBO0N.bin, save/sbo_record.h); in the backup folder only StellarBlade*.sav
+// names. The player's saves are only ever read, except by the
 // export's one write, behind a check of its own (exportable).
 //
 // Switch drives a conversion one job per worker pass and switches the name at its end, at the title only. No Windows
@@ -69,12 +73,15 @@ inline std::string quests_name(int n) { return "StellarCoopQuests0" + std::to_st
 // A plant's mark beside co-op slot n: the copy there is a developer save coop shortcut load wrote, played since or not.
 // A .txt too.
 inline std::string shortcut_name(int n) { return "StellarCoopShortcut0" + std::to_string(n) + ".txt"; }
+// The SBO session record beside co-op slot n (save/sbo_record.h): a .bin, which Steam Cloud never syncs either.
+inline std::string sidecar_name(int n) { return "StellarCoopSBO0" + std::to_string(n) + ".bin"; }
 
 // The only names written, renamed onto or removed in the account's folder.
 inline bool writable(const std::string &name) {
   for (int n = 0; n < kSlots; ++n)
     if (name == twin_name(n) || name == twin_name(n) + kTemp || name == quests_name(n) ||
-        name == quests_name(n) + kTemp || name == shortcut_name(n) || name == shortcut_name(n) + kTemp)
+        name == quests_name(n) + kTemp || name == shortcut_name(n) || name == shortcut_name(n) + kTemp ||
+        name == sidecar_name(n) || name == sidecar_name(n) + kTemp)
       return true;
   return name == kManifest || name == std::string(kManifest) + kTemp;
 }
@@ -216,7 +223,7 @@ inline std::pair<size_t, size_t> snapshot(const std::string &b) {
 // every item ever held, so neither counts. What the New Game+ snapshot holds is said apart: playing cannot clear it.
 // The mod's quests, the prologue A Second Signal (Quest_Sub_MX13_00) and On Time (Quest_Sub_MX13_01, lion/rows.h's
 // signal batch), count wherever their alias is: the save keys quests by alias, the tracked one included, and keeps a
-// finished one's in CompleteQuestList (docs/story.md), so no play takes them out.
+// finished one's in CompleteQuestList, so no play takes them out.
 // Matrix XIII's records (the mxrecords batch) count as well: the save keeps their unlock achievements and red dots by
 // alias, and nothing takes a record out.
 inline std::string mod_only(const std::string &b) {
@@ -675,8 +682,10 @@ private:
     return "co-op saves: " + std::to_string(next_) + " files backed up in " + folder_;
   }
 
+public:
   // A file of the account read whole between two equal stats, once more when it changed meanwhile (the game writing
-  // it) or, for a save, failed the game's own check (a torn read): empty, or why not.
+  // it) or, for a save, failed the game's own check (a torn read): empty, or why not. Also the SBO entry's reads of a
+  // co-op save (glue/tick/sbo_game.inc, E3 and E5).
   template <class Fs>
   static std::string read_whole(Fs &fs, const std::string &name, std::string &bytes, Stat &stat, bool save) {
     std::string why;
@@ -694,6 +703,7 @@ private:
     return why;
   }
 
+private:
   // One copy: the player's save read whole and checked (a plant's bytes instead, which the game's check must pass too,
   // after its mark), then written beside the copy, renamed over it and read back. A failure leaves the copy as it was,
   // except one that reads back different: removed. A copy of the player's save removes a plant's mark.
@@ -805,7 +815,8 @@ private:
 // The co-op saves' requests and the worker's passes (AUTO-COOP-SAVE §4.3, §4.5). Game is the caller's view of the game:
 //   slot::Saves saves() (the name as last read back), std::string why() (why it reads off or ?), bool world() (Lua
 //   says a save is loaded), bool title() (Lua says the title screen is shown), int load_mode() (client +0x86c),
-//   std::string swap(bool coop) (save/slot.h's Names::swap, empty once switched).
+//   int reloading() (client +0x2f9c's byte, SB's own reload), std::string swap(bool coop) (save/slot.h's Names::swap,
+//   empty once switched).
 // saves convert makes the copies; saves coop makes them, then switches the name at the pass's end; saves main switches
 // back, or withdraws the switch a running saves coop pass would make; saves refresh N replaces slot N's copy (Convert's
 // refresh), while the game uses the player's saves, and saves coop is refused until its end; saves export N M writes
@@ -833,7 +844,7 @@ public:
     if (now != slot::Saves::main && now != slot::Saves::coop)
       return std::string("co-op saves refused: the save name reads ") + slot::saves_name(now) +
              (game.why().empty() ? "" : ": " + game.why());
-    if (std::string why = slot::not_title(game.world(), game.title(), game.load_mode()); !why.empty())
+    if (std::string why = slot::not_title(game.world(), game.title(), game.load_mode(), game.reloading()); !why.empty())
       return "co-op saves refused: " + why;
     if (what == SavesAsk::main) {
       if (played_)
@@ -876,7 +887,7 @@ public:
     if (now != slot::Saves::coop)
       return std::string("the save name reads ") + slot::saves_name(now) +
              (game.why().empty() ? "" : ": " + game.why());
-    if (std::string why = slot::not_title(game.world(), game.title(), game.load_mode()); !why.empty())
+    if (std::string why = slot::not_title(game.world(), game.title(), game.load_mode(), game.reloading()); !why.empty())
       return why;
     if (!fs)
       return "the Steam account is not known yet";
@@ -905,7 +916,7 @@ public:
       return lines;
     std::string why = off         ? "coop off"
                       : now != at_ ? "the save name changed"
-                                   : slot::not_title(game.world(), game.title(), game.load_mode());
+                                   : slot::not_title(game.world(), game.title(), game.load_mode(), game.reloading());
     if (!why.empty()) {
       asked_ = false;
       lines.push_back(convert_.stop(*fs, why));
@@ -921,7 +932,7 @@ public:
     asked_ = false;
     if (!convert_.ready())
       lines.push_back("co-op saves stay off: " + convert_.error());
-    else if (why = slot::not_title(game.world(), game.title(), game.load_mode()); !why.empty())
+    else if (why = slot::not_title(game.world(), game.title(), game.load_mode(), game.reloading()); !why.empty())
       lines.push_back("co-op saves refused: " + why);
     else if (why = game.swap(true); !why.empty())
       lines.push_back("co-op saves switch failed: " + why);

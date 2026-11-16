@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The zone talks of Matrix XIII (matrix13/talks/zone1.lua to zone4.lua) in game (experimental, untested in game): on a
 -- co-op save, solo, in world 2800 with "On Time" in progress (matrix13/quest/on_time.lua's look calls tick). Each scene
 -- has one trigger: a box around its room in the plan frame (Lily.plan; the design plans' rooms, markers and routes), a
@@ -114,8 +117,9 @@ local function has_lily(id)
     end
     return false
 end
--- Whether an enemy within NEAR of EVE fights: IsBattle, standing, shown, with a controller.
-local function engaged(eve)
+-- Whether an enemy within near cm (NEAR unless given) of EVE fights: IsBattle, standing, shown, with a controller.
+-- Also session/sbo.lua's fight check, through main.lua.
+local function engaged(eve,near)
     local here=U.value_of(eve:K2_GetActorLocation())
     local mine=U.address(eve)
     for _,c in ipairs((U.actors_of(U.find('/Script/SB.SBCharacter'),'SBCharacter',eve))) do
@@ -123,12 +127,13 @@ local function engaged(eve)
             if U.address(c)==mine or c:IsBattle()~=true or c.bCharacterHiddenInGame==true then return false end
             local st,at=c.InteractionState,U.value_of(c:K2_GetActorLocation())
             local d=math.sqrt((at.X-here.X)^2+(at.Y-here.Y)^2+(at.Z-here.Z)^2)
-            return (st==0 or st==1) and U.valid(c.Controller)~=nil and d<=Zones.NEAR
+            return (st==0 or st==1) and U.valid(c.Controller)~=nil and d<=(near or Zones.NEAR)
         end)
         if ok and fights then return true end
     end
     return false
 end
+Zones.engaged=engaged
 
 -- o: log (the [LY] lines), talks (story/subtitles.lua's player), plan (world cm to plan m), read(name) and write(name,
 -- text) (a file of ours beside coop-settings.txt).

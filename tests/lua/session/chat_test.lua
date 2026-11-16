@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session chat's model: a line is cleaned (well-formed UTF-8 only, C0, DEL, C1, bidi and zero-width controls
 -- dropped, trimmed, at most 200 bytes and never cut inside a character); sent lines show at once and leave at most two
 -- a second, four waiting at most; received lines need a session and chat on; the history keeps its last 50 lines (or
@@ -227,10 +230,10 @@ local function since(n) return table.concat(calls,'|',n+1) end
 view.slow(0)
 assert(shown()=='' and #calls==0)
 local ok,why=view.open()
-assert(ok==false and why=='Chat needs a session.' and #calls==0)
+assert(ok==false and why=='Chat needs a session or the PvP lobby.' and #calls==0)
 assert(select(2,view.open())==nil,'Once per 10 s')
 view.slow(9.75); assert(select(2,view.open())==nil)
-view.slow(10); assert(select(2,view.open())=='Chat needs a session.')
+view.slow(10); assert(select(2,view.open())=='Chat needs a session or the PvP lobby.')
 -- No root up (a map loads, warming), the game paused or on one of its screens: nothing, quietly.
 model.session(true)
 state.ready=false; assert(view.open()==false and select(2,view.open())==nil and not view.can())

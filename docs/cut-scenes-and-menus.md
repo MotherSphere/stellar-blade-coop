@@ -155,9 +155,10 @@ Some of those items are not in the released game. In Matrix_XI 1 to 4, EVE wears
 2 and 3 hold three old `DesignPattern_*` items. They stay as the developer saved them, and whether the game loads them
 cleanly has not been tried.
 
-The command is off by default and has not been tried in game. To use it:
+The command is on by default (`shortcut_load=on`) and has not been tried in game. To use it:
 
-1. Close the game, set `shortcut_load=on` in `coop-settings.txt`, then start the game.
+1. Check that `coop-settings.txt` says `shortcut_load=on`. If it says `off`, close the game, set it to `on`, then start
+   the game.
 2. At the title screen, turn the co-op saves on: Convert and play co-op in the question, or `coop saves coop`. The
    title then shows `CO-OP SAVES`.
 3. Type `coop shortcut load F02 1`: a map (`B07`, `F02`, `G03` or `Matrix_XI`), then 1 to 4. `coop shortcut` lists what

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared quests in the game, on the build machine against fake memory laid out like the pinned build: the walk over
 // the quest unit's three arrays and its ID map (inline and heap allocation bits, a free slot's stale pointer, Request
 // objects only in the map), implausible reads latching, the zone's FName from the name pool with its number, the guards

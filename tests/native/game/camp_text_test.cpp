@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/camp_text.h on the build machine: the keys (unique, the camp keys one each for the 11 rows, the region's ending
 // in a letter since FName would split digits off it), the language pick, when a pass is due, the status line.
 #include "game/camp_text.h"

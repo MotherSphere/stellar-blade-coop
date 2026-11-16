@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // coop gift's inventory read (game/items.h) against a fake memory image laid out like the pinned build: the manager's
 // bucket map, the owner's bucket, the alias map and the instance map, each a TSet with its hash chains. Covered: the
 // two hashes against the game's (CityHash64 emulated in Ghidra on FUN_14283b5f0; the FName hash as FUN_140ecc9d0 writes

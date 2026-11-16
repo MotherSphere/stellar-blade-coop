@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- race/drive_model.lua with lua5.4 alone: a Doro driven on flat open ground by the model's own target (the read-back is
 -- the velocity it asked for, as EVE's movement gives it with its acceleration fields at 0): the time to 90% of top
 -- speed; the turn rate standing, at half and at full speed; the slide's decay with grip and with the drift key; the

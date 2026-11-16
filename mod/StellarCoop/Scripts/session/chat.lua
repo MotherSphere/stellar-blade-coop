@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session chat's model (UI-DESIGN 4.2, 5.2): the feed's lines, the lines waiting for the native part, and when
 -- they go. Lua tables only: a reload starts a new model, and nothing here writes a file, a log or the console. Chat
 -- text must never reach event(), notice(), status, a log, a report, the console or the settings; counts may.
@@ -48,7 +51,8 @@ function Chat.new(lines,on)
         return line
     end
     function self.clear() feed,outbox,taken={},{},nil end
-    -- Each check of the link: true while a session holds (a friend linked, or a rejoin pending, or the loopback);
+    -- Each check of the link: true while a session holds (a friend linked, a rejoin pending, the loopback, a lobby
+    -- member linked, or EVE in the SBO lobby: main.lua);
     -- its end clears everything, notices too: call it before adding the notice that says the session ended.
     function self.session(active)
         if session and not active then self.clear() end
@@ -97,11 +101,12 @@ end
 -- card and holds chat lines and notices, newest at the bottom: while the box is closed, the last 6 rows of the lines
 -- under 8 s old; while open, the last 12 on the panel's glass, the box under them. Her lines are teal (the partner
 -- colour), ours white, notices grey, a line not sent red; lines wrap at a space, 70 columns a row. Enter (main.lua's
--- bind) opens the box in a world during a session (or coop loopback) with chat on, never while the game is paused or
--- shows the mouse cursor; outside a session it says so, once per 10 s. While open the game ignores its keys and the box
--- has the keyboard (kit.input with the chat's field, focused again 50 ms later): Slate types the characters, so any
--- layout, accents and dead keys work. Enter sends the line (shown at once; an empty one closes the box; one too fast
--- stays in it), Esc cancels; the game's input comes back 150 ms after a close, so that key never reaches the game.
+-- bind) opens the box in a world during a session (or coop loopback, or in the SBO lobby) with chat on, never while the
+-- game is paused or shows the mouse cursor; outside a session it says so, once per 10 s. While open the game ignores
+-- its keys and the box has the keyboard (kit.input with the chat's field, focused again 50 ms later): Slate types the
+-- characters, so any layout, accents and dead keys work. Enter sends the line (shown at once; an empty one closes the
+-- box; one too fast stays in it), Esc cancels; the game's input comes back 150 ms after a close, so that key never
+-- reaches the game.
 -- The box closes and empties by itself when the session ends (the history goes with it), chat turns off (her lines
 -- hide too), the game pauses or shows the mouse cursor (UI-DESIGN 7.4: a game screen keeps its keys; the friend's
 -- photo pause too), our HUD hides or the kit turns off. While the co-op menu covers the feed, the menu shows the newest
@@ -221,7 +226,7 @@ function Chat.view(o)
             if lines[i].who=='system' then return lines[i].text end
         end
     end
-    -- Whether the box can open now (the menu's Chat row): a session, chat on, our root up.
+    -- Whether the box can open now (the menu's Chat row): a session (the SBO lobby is one), chat on, our root up.
     function self.can() return model.active() and settings.chat~=false and kit.ready() end
     -- Enter, the box closed: true once open; false, and why (then the same in English) once per 10 s outside a session,
     -- with chat off or the kit off, else quietly (no root yet, the game paused or on a screen of its own: Enter is the

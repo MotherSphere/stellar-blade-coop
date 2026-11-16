@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The cut shooting test's score widget (nightop/board.lua) over strict fakes: an object raises on a member it does not
 -- declare and every call is recorded. Covered: nothing called before a first score or while there is no player
 -- controller; the class loaded once when it is not in memory, the widget made with CreateWidget for the player

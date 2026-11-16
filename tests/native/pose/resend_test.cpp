@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Our table's resends on the build machine (pose/table.h TableResend), on a worker passing every 50 ms: at once to a
 // new friend, then 5, 10, 20, 40 and 60 s apart, 60 s from then on; a change brings the next 5 s after it and the
 // doubling starts over; a sign her side lost our table (her pose after a second without one) brings it within 5 s,

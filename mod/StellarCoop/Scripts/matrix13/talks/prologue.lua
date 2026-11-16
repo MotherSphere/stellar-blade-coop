@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Lily's prologue talk, one entry per subtitle window of the sequence it borrows (story/subtitles.lua
 -- plays it): the speaker's StringTable_Seq key ('' for none), then the English and French line.
 -- It fills the first 17 of Subtitle_POD_1stMeetAdam_01's 21 windows.

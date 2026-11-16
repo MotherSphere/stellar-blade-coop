@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop no (nightop/probe.lua) with strict recording fakes: every fake object raises on a member it does not declare, so
 -- EnterZone, RemoveRow, EmptyTable, SetRemainTime and any save, equip, inventory or quest call are unreachable by
 -- construction, and every method call is recorded. Covered: bare coop no (the request first, the baseline, no SB call);

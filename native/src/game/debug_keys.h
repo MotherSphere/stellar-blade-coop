@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // coop fly and coop slowmo: two developer gates that SB ships switched off. ASBCharacter's tick (FUN_1420634f0) reads
 // the flight key (USBPlayerInput's bPushedFlyingActionKey: R2, or Z) only through FUN_1423cf670 and the time-control
 // key (bPushedTimeControlKey: R1) only through FUN_1423cf760, and each passes its key on only while its gate reads

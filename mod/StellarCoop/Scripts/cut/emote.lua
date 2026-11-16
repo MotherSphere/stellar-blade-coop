@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop emote [list] | <name> | off: one of EVE's animation clips on the player's own EVE, on any save (nothing of it is
 -- saved). The poses are the 31 clips of /Game/Art/Character/PC/CH_P_EVE_01/Animation/PhotoMode/ outside Bear/ and the
 -- _Selfie files, each a still (7 frames over 0.2 s, or 2 frames over 0.033 s) played in a loop so EVE keeps it. They
@@ -26,6 +29,9 @@
 -- end, and each frame while one plays GetLastMovementInputVector, IsFalling, IsRunningSkill and the status line's
 -- anim field (every 0.1 s once the native part says it plays) or Montage_IsPlaying. The native part stops a clip an earlier Lua load left playing; the next Lua load
 -- stops a montage an earlier one left (restore, at its first tick).
+-- The hall lobby seats whose SB chair did not bind (session/sbo.lua) play their sit loop the same way, as the emote
+-- seat:<kind> (self.sit), with the same end rules; those loops are not emotes of coop emote. self.preload looks one up
+-- ahead of the sit.
 local UE=require('UEHelpers')
 local U=require('core.unreal')
 local Doro=require('race.doro')
@@ -69,6 +75,9 @@ for _,category in ipairs(Emote.CATEGORIES) do
         Emote.POSES[pose[1]]={clip=pose[2],path=ANIM..category.dir..pose[2]..'.'..pose[2],once=pose[3]==true}
     end
 end
+-- The sit loop of each seat kind of session/sbo_maps.lua, the clips SB's own seats show, directly under ANIM.
+Emote.SEATS={outdoor='P_Eve_Interaction_OutDoorChair_Loop',table='P_Eve_Interaction_TableChair_Loop',
+    bar='P_Eve_Interaction_BarChair_Loop',camp='P_Eve_Interaction_CampChair_idle'}
 -- The names by category, for coop emote and coop emote list.
 function Emote.list()
     local parts={}
@@ -94,7 +103,7 @@ function Emote.native(status)
     return state,tonumber(id)
 end
 
-local function why_of(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why_of=U.why
 local function her()
     local e=valid(UE.GetPlayer())
     return e and e:IsA(find('/Script/SB.SBCharacter')) and e or nil
@@ -230,6 +239,18 @@ function Emote.new(o)
         if not pose then return false,"no emote '"..sub.."': coop emote list names them" end
         return play(sub,pose)
     end
+    -- A seat's sit loop, looped until an end rule or a stop; ok and why.
+    function self.sit(kind)
+        local c=Emote.SEATS[kind]
+        if not c then return false,"no sit loop for seat kind '"..tostring(kind).."'" end
+        return play('seat:'..kind,{clip=c,path=ANIM..c..'.'..c,once=false})
+    end
+    -- A seat's sit loop looked up now (in memory, else loaded: Doro.resolve), so a sit soon after finds it in memory;
+    -- true when found. The engine's collector may still unload it later: a Lua reference keeps nothing.
+    function self.preload(kind)
+        local c=Emote.SEATS[kind]
+        return c~=nil and Doro.resolve(ANIM..c..'.'..c,SEQUENCE)~=nil
+    end
     -- Each frame, only while one plays. A failure stops it; returns false and why for the screen, as for a clip the
     -- game refused or did not show.
     function self.tick()
@@ -247,8 +268,8 @@ function Emote.new(o)
         log(message..(stopped and '' or ' (montage not stopped)'))
         return false,message
     end
-    -- coop off.
-    function self.stop() stop('coop off') end
+    -- coop off, or why (a seat's stand-up).
+    function self.stop(why) stop(why or 'coop off') end
     -- At the first tick of a Lua load: a montage an earlier load left (a dynamic one, under /Engine/Transient: the
     -- game's own come from its packages) is stopped on the player's EVE. Once. The native part stops a native clip
     -- itself at a new Lua load.

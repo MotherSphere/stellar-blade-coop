@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Record and replay on the build machine: the recorder's file reads back, every refusal of the reader one defect at a
 // time, fuzzed files that must never crash and replay sanely whenever they are accepted, re-stamping across 3 loops
 // (deltas too: their keyframe's age stays right; same-place enemies' SBE and show lines on the poses' clock), and a
@@ -253,7 +256,7 @@ int main() {
               protocol_8 = good, protocol_9 = good, protocol_10 = good, protocol_12 = good,
               protocol_13 = good, protocol_14 = good, d_age_0 = d1;
   bad_protocol[3] = char(coop::kProtocol + 1);
-  assert(kHead == "SBR\x13");
+  assert(kHead == "SBR\x14");
   protocol_5[3] = 5; // Before the effect slots: its poses are 60 bytes short.
   protocol_6[3] = 6; // v0.1.1's: the same bytes, made before channel 2.
   protocol_7[3] = 7; // v0.2.0's: the same bytes, made before chat.

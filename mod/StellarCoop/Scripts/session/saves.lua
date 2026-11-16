@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The co-op saves at the title (AUTO-COOP-SAVE §6), on the Uplink kit (ui/kit.lua). UE4SS is not known yet to hold the
 -- game's Continue and Load Game presses, so the question comes when the title screen shows, before any press; it takes
 -- a choice (Enter, Space, A on a pad, a click) only 1 s after it shows, so a press meant for the title does not answer

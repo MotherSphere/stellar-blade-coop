@@ -7,23 +7,23 @@ WorldTable row `DLCMatrix13` (ID 2800) points to `/Game/Art/BG/WorldMap_DLC_01/L
 build 24463856 holds. ZoneTable keeps its four zones (`Zone_DLC02_10` to `Zone_DLC02_40`, IDs 2800 to 2815) and
 EventSpawnTable 92 spawn rows for them, but no camp, zone warp, world transition or cheat row leads there. `coop mxiii`
 tests one way in. The zMXIII_P test pak, built outside the repository from shipped Matrix 11 levels and never in the
-mod's zip, puts a map at that path. Its four builds add these spawn points:
+mod's zip, puts a map at that path. Its first four builds add these spawn points:
 
 - v1: one named `DLC02_10_Camp_01`;
 - v2: those of a camp's objects;
 - v3: one named `DLC02_30_Camp_01`, in the third zone;
 - v4, the full map: one named `DLC02_00_Camp_00`, at the zone 0 Tetrapod, 4.4 m from Lily.
 
-The mod adds the rows of a camp in `Zone_DLC02_10` and of a camp with no objects in `Zone_DLC02_30`, patches five
-trigger rows of the later zones in place, then calls the game's camp travel: on v4 `coop mxiii` goes to the Tetrapod
-camp, on older paks to the first camp, and `coop mxiii 30` to the second. With the test pak installed and the game on
-the co-op save files, the same rows also go in at the title, before any save loads ([At the title](#at-the-title)).
+v5 adds the `MXIII_Camps_A` level, which places the objects of the two `Zone_DLC02_10` camps. The mod adds the rows of
+a camp in `Zone_DLC02_10` and of a camp with no objects in `Zone_DLC02_30`, patches five trigger rows of the later
+zones in place, then calls the game's camp travel: `coop mxiii` goes to the Tetrapod camp and `coop mxiii 30` to the
+second camp, both on v5 only. With the test pak installed and the game on the co-op save files, the same rows also go in at the title, before any save loads ([At the title](#at-the-title)).
 
 ## Its rows
 
-The camp travel (`FUN_141cdd7b0`, see [Following the host](group-play.md#following-the-host)) looks the camp up in the zone
+The camp travel (`FUN_141cdfbd0`, see [Following the host](group-play.md#following-the-host)) looks the camp up in the zone
 manager's camp list, takes the camp's first ZoneEnvSpawnTable row, then that row's zone and the zone's world. The
-arrival (`FUN_141a8afe0`) puts EVE at the actor named after the camp, the test pak's spawn point. A camp's objects are
+arrival (`FUN_141a8bef0`) puts EVE at the actor named after the camp, the test pak's spawn point. A camp's objects are
 ZoneEnvSpawnTable rows too: each row's `EnvAlias` picks the ZoneEnvTable row that gives the object its type and its
 interaction graph, and its `TargetCamp` is the camp that activating, resting, the phone booth and a respawn act on. The
 game keeps the DLC02_10 camp kit (`DLC02_10_EnvS_420` to `_426`), but its rows name placeholder camps of other worlds
@@ -35,17 +35,20 @@ rows, each a copy of a shipped row with its own name and ID:
 | Row | Table | ID | Template | Changes |
 | --- | --- | --- | --- | --- |
 | `DLC02_10_Camp_01` | ZoneCampTable | 280001 | `ME01_Camp_03` | `CoinSpawnPointName` `DLC02_10_E_ItemS_001`; `CampType` stays FullCamp, `CampDisplayType` stays WhenActive |
-| `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` and `SpawnPointName` its own name; `EnvBPPath` the camp base `Env_Camp_Base`; `ZoneList` stays `Zone_DLC02_10` |
-| `DLC02_10_EnvS_901` to `_905` | ZoneEnvSpawnTable | 2800032901 to 2800032905 | `DLC02_10_EnvS_420` to `_424` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` and `SpawnPointName` their own name; `EnvBPPath` the skill machine, chair, storage, turntable and phone booth blueprints under `/Game/GameDesign/Level/ZoneEnv/` |
-| `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same four, with `Env_VendingMachine`; `LinkEnvSpawnList` 901, 902, 900, 903, 904, 905, in the shipped order; `ShopDataList` its own name |
+| `DLC02_10_EnvS_900` | ZoneEnvSpawnTable | 2800032900 | `DLC02_10_EnvS_425` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` its own name; `EnvBPPath` stays empty and `SpawnPointName` None; `ZoneList` stays `Zone_DLC02_10` |
+| `DLC02_10_EnvS_901` to `_905` | ZoneEnvSpawnTable | 2800032901 to 2800032905 | `DLC02_10_EnvS_420` to `_424` | `TargetCamp` `DLC02_10_Camp_01`; `EnvActorName` their own name; `EnvBPPath` stays empty and `SpawnPointName` None |
+| `DLC02_10_EnvS_906` | ZoneEnvSpawnTable | 2800032906 | `DLC02_10_EnvS_426` | The same; `LinkEnvSpawnList` 901, 902, 900, 903, 904, 905, in the shipped order; `ShopDataList` its own name |
 | `DLC02_30_Camp_01` | ZoneCampTable | 281001 | `ME01_Camp_02` | `CampType` stays SimplyCamp, `CoinSpawnPointName` `DLC02_30_E_ItemS_001`, Region `Matrix13` |
 | `DLC02_30_EnvS_900` | ZoneEnvSpawnTable | 2810032900 | `DLC02_10_EnvS_425` | `ZoneList` `Zone_DLC02_30`, `TargetCamp` `DLC02_30_Camp_01`, `EnvActorName` its own name |
 
-`FUN_141d18100` lists a camp's rows in table order, and AddRow appends, so row 900 stays the camp's first: it leads the
-travel to `Zone_DLC02_10`. All seven spawn their objects. `FUN_141d1e5b0`, which makes a zone's env objects, looks for a
-placed actor named `EnvActorName` when `EnvBPPath` is empty; with `EnvBPPath` set it spawns that class at the actor
-named `SpawnPointName`, as 137 shipped rows do (Xion's supply boxes, `DLC02_10_EnvS_441`), none of them a camp object
-until now. The blueprints are the six kit actors of the Space Elevator's full camp `SE02_Camp_02`.
+`FUN_141d1a310` lists a camp's rows in table order, and AddRow appends, so row 900 stays the camp's first: it leads the
+travel to `Zone_DLC02_10`. All seven bind the camp objects that the v5 test pak places in its `MXIII_Camps_A` level, as
+the zone 10 simple camp's rows `DLC02_10_EnvS_420`, `_421`, `_423` and `_426` do. `FUN_141d207c0`, which makes a zone's
+env objects, looks for a placed actor whose `EnvActorName` property equals the row's `EnvActorName` when `EnvBPPath` is
+empty; with `EnvBPPath` set it spawns that class at the actor named `SpawnPointName`, as 137 shipped rows do (Xion's
+supply boxes, `DLC02_10_EnvS_441`), none of them a camp object until now. The other camps' kit rows spawn the six kit
+blueprints of the Space Elevator's full camp `SE02_Camp_02`. The `MXIII_Camps_A` objects are copies of the two camp
+kits placed in Matrix 11's `Matrix_XI_Area06_LD_Unload` level.
 
 The vending machine row starts enabled and the others disabled: activating the camp with a coin sets it and every row in
 its `LinkEnvSpawnList` on, 900 included, as the shipped full camp `ME03_Camp_01` links its base row `ME_03_EnvS_012`.
@@ -71,7 +74,7 @@ site: their rows belong to `Zone_ME_03`, which never starts in this world, and t
 other Matrix 11 camps in its levels: two more in Area03, two in Area04 and one in Area01
 ([Achievements](safety.md#achievements)).
 
-The two zone tables are the sixteenth and seventeenth of the 37 tables every rows request names (`kLionTables`), and
+The two zone tables are the sixteenth and seventeenth of the 39 tables every rows request names (`kLionTables`), and
 only Matrix XIII's batches write them; their struct sizes (0xa8 and 0x508) and offsets come from the SDK, as the generator reads
 them for the other tables, and neither struct has a Transient field. The batch's line is `mxiii=`, in the `lion=`
 line's forms (`mxiii=rows added=15/15 asks=<a> spawns=<s> char=0/0 skills=0/0 stance=0/0`), and `cut/enemy.lua` reads
@@ -108,7 +111,7 @@ and only this batch reads it. A row whose template is itself is a shipped row pa
 RowMap under its name and its ID in the ID map naming it, copies it into the block, patches the block and copies the
 block back over the row with CopyScriptStruct, which reassigns `TouchEvents` through the game's allocator. The row
 keeps its address, ID and lazy-init flag, and AddRow is never called for it, so nothing that holds the row loses it.
-`describe` says `15/15 in, 10 added through SB's AddRow 0x14417ba30 and 5 shipped rows patched in place`. A missing
+`describe` says `15/15 in, 10 added through SB's AddRow 0x1441815b0 and 5 shipped rows patched in place`. A missing
 row refuses with `no shipped row of that name`, an ID that names another row with `ID <id> does not name it`. The
 trigger rows keep their shipped `SaveType`: `ResetZone` for 001, `Save` for 005 and 006, `None` for the zone 40 pair.
 When the game reads `InitActivate` and `TouchEvents` was not traced: the patches go in before the travel, so a zone that
@@ -135,10 +138,12 @@ check although the engine mounts paks only at start. It reads those files once a
 
 Then the rows go in through `cut/enemy.lua`'s rows part, and once they read back, the follow's probe calls the camp
 travel for the Tetrapod camp `DLC02_00_Camp_00` (`DLC02_30_Camp_01` for `coop mxiii 30`), a camp in none of its tables
-(`probe(alias, true)`). A pak before v4 has no spawn point named after the Tetrapod camp, so there `coop mxiii` travels
-to `DLC02_10_Camp_01`. `coop mxiii 30` stops before the rows unless the pak is v3 or later: on v1 or v2 the arrival
-would find no spawn point of that name, and what it does then was not traced. The native side is the follow's: the
-guard, the count and the watch of `game/travel.h`. The travel's result comes in `[TR]` lines.
+(`probe(alias, true)`). Both commands stop before the rows unless the pak is v5. The zone 10 camps' 11 kit rows set
+no `EnvBPPath`, and only v5's `MXIII_Camps_A` holds actors with their names. With an older pak `FUN_142281550` finds
+none, makes a new GUID and a reserve object, so `FUN_141d207c0` still makes each env object, with no actor and no
+`++ Fail` line. At the title the rows go in with an older pak all the same, for a co-op save that names them, and one
+`title:` line says the two zone 10 camps will have no kit. The native side is the follow's: the guard, the count and
+the watch of `game/travel.h`. The travel's result comes in `[TR]` lines.
 
 The command's answer names the way out, `coop mxiii leave`: the follow's probe, with its activation read
 ([Following the host](group-play.md#following-the-host)), to a camp the read lists among the 120 travel camps. The
@@ -153,17 +158,19 @@ UE 4.26 keeps its own name map, in plain text when the container is not compress
 and a number with no leading zero is stored as its base: v2's `MXIII_10_LD` holds `DLC02_10_EnvS`, the base of the six
 spawn point names, and v1 has no such name (its own names, such as `DLC02_10_E_CharS_001` and `DLC02_10_Camp_01`, are
 stored whole). v3's `MXIII_30_LD` holds `DLC02_30_Camp_01` whole, a name neither older build has, and the full map
-holds `DLC02_00_Camp_00` whole too, which makes it v4. The checks line says
+holds `DLC02_00_Camp_00` whole too, which makes it v4. v5 is a v4 pak whose `.utoc` directory index also names
+`MXIII_Camps_A.umap`. The checks line says
 which build it found and where its camp's spawn point stands: at the dungeon start (40368, 35663, -846) in v1, beside
 the camp objects at Matrix 11's first simple camp site (36624, 16140, -2136) in v2, and in v3 also where `coop mxiii
-30` arrives (26392, -23650, 4414); v4 adds the Tetrapod arrival (38290, 36221, 715). All get the same rows; on v1 the objects find no spawn point and none appears.
+30` arrives (26392, -23650, 4414); v4 adds the Tetrapod arrival (38290, 36221, 715). At the title all of them get the
+same rows; the commands go on with v5 only.
 A container compressed with Oodle would read as v1.
 
 ## The arrival and the coins
 
 The camps of the map start inactive, so the first trip lands at the Tetrapod camp, whose machine stands 11.8 m from the
 spawn point and Lily 4.4 m from it. `DLC02_00_Camp_00` is CampType 4 and its only env row is `DLC02_00_EnvS_960`
-(`ZoneList` `Zone_DLC02_10`). The arrival (`FUN_141a8afe0`) writes EVE's fields only: her respawn row `+0x26d0` becomes
+(`ZoneList` `Zone_DLC02_10`). The arrival (`FUN_141a8bef0`) writes EVE's fields only: her respawn row `+0x26d0` becomes
 960 and, since the camp is CampType 4, `+0x2738` (`TetrapodCampEnvSpawnAlias`) becomes the camp. It writes no env state
 (read from its code), and in a shipped save a Tetrapod arrival left `LastFullCampEnvSpawnAlias` as it was, so the trip
 activates nothing. The machine's row keeps `InitActivate` Enable and `InitStateTag` On, as 2 of the 7
@@ -213,10 +220,10 @@ On Time running leaves that quest unfinished.
 
 ## The camp list
 
-`FSBGameWorld::Init` (`FUN_141c97ca0`, named by its own log line) makes a new zone manager at the world's `+0xe0`. Its
-setup (`FUN_141d1a520`, `FUN_141d1af70`) runs `FUN_141d18100`, which goes over every ZoneEnvSpawnTable row, adds each
+`FSBGameWorld::Init` (`FUN_141c98ef0`, named by its own log line) makes a new zone manager at the world's `+0xe0`. Its
+setup (`FUN_141d1c730`, `FUN_141d1d180`) runs `FUN_141d1a310`, which goes over every ZoneEnvSpawnTable row, adds each
 row with a `TargetCamp` under that camp at `+0x4a8` and each row to the env list of every zone in its `ZoneList`, with
-no world filter; `FUN_141d1a700` clears the list. Rows added after the current world started are then missing from its
+no world filter; `FUN_141d1c910` clears the list. Rows added after the current world started are then missing from its
 lists, and the first `coop mxiii` should end in `SB refused DLC02_10_Camp_01`. After the next world start (a save
 loaded, a travel to a camp), a second `coop mxiii` reads the rows back without asking again and travels, and the world
 it lands in lists the camp objects in `Zone_DLC02_10`. When the rows went in at the title, the first world
@@ -257,25 +264,25 @@ later while the title shows, at most four times a visit of the title. Any other 
 `before any save loads` only when the last call, at most 250 ms earlier, still saw the title with no save loaded;
 otherwise it says the title closed and that a save may have loaded first.
 
-What the title holds, read in Ghidra on build 24463856:
+What the title holds, read in Ghidra on build 24463856 (the addresses are build 26123051's):
 
-- The tables. `FSBLocalClient::StartLobby` (`FUN_141cc8150`, named by its own log string) calls the table holder's
-  getter (`FUN_141a97f20`, the global at `0x147032510`). The first time, that getter loads every table of its list by
-  path (`FUN_1426292c0`, a `StaticLoadObject` of `/Game/Local/<path>`) and roots each one (`FUN_1426293f0` keeps a weak
+- The tables. `FSBLocalClient::StartLobby` (`FUN_141cca410`, named by its own log string) calls the table holder's
+  getter (`FUN_141a98e30`, the global at `0x1470373b0`). The first time, that getter loads every table of its list by
+  path (`FUN_14262edd0`, a `StaticLoadObject` of `/Game/Local/<path>`) and roots each one (`FUN_14262ef00` keeps a weak
   pointer in the registry's first set at `+0x8` and sets the object's `RootSet` flag). StartLobby's reset
-  (`FUN_142629ed0`, a jump to `FUN_14c8618d0`) un-roots and drops only the registry's second set at `+0x60`, the
-  override set that `FUN_141c451b0` reads first while `+0x58` is set. So the 20 tables of the first batches are in
+  (`FUN_14262f9e0`, a jump to `FUN_14ca3b4d0`) un-roots and drops only the registry's second set at `+0x60`, the
+  override set that `FUN_141c46400` reads first while `+0x58` is set. So the 20 tables of the first batches are in
   memory at the title and stay rooted through the load that follows, and rows added there are in the objects the game
   reads after it. The quest tables of Lily's signal are in the same holder (QuestTable at index `0x21`, QuestTaskTable
   `0x22`, QuestTaskGroupTable `0x23`); whether LevelTargetFilter and TheaterSelectDataTable are in its list was not
   checked (one missing at the title shows as `tables: 4/5 found, missing ...` on the `[LY]` lines and the title asks
   again; each batch sends only the tables its rows use, so the other batches never wait for these two).
-- The gate's globals. The logic singleton (`0x147032568`) and the net-mode cache (`0x147032528`) are made by their
-  getters (`FUN_141a97b20`, `FUN_141a97aa0`) on first use and never freed. The cache starts at 4 and takes the world's
-  mode at the first of the game's many inlined reads that resolves it (the dispatch's, `FUN_141aca570`,
-  `FUN_141d256c0` and others). The logic task at `+0x5c0` is set only by the logic dispatch (`FUN_141acd5c0`), which
-  waits for the last task and clears it before it starts the next. `FUN_14b85e230` registers that dispatch as a tick
-  once, at the first world start (`FUN_141c72100`, `FUN_141cd8590`), which also sets the logic's run flag `+0x5b2`
+- The gate's globals. The logic singleton (`0x1470373e0`) and the net-mode cache (`0x1470373e8`) are made by their
+  getters (`FUN_141a98a30`, `FUN_141a989b0`) on first use and never freed. The cache starts at 4 and takes the world's
+  mode at the first of the game's many inlined reads that resolves it (the dispatch's, `FUN_141acb7b0`,
+  `FUN_141d278d0` and others). The logic task at `+0x5c0` is set only by the logic dispatch (`FUN_141ace800`), which
+  waits for the last task and clears it before it starts the next. `FUN_14b9ae970` registers that dispatch as a tick
+  once, at the first world start (`FUN_141c73350`, `FUN_141cda9b0`), which also sets the logic's run flag `+0x5b2`
   that the dispatch needs before it starts a task.
 - So at the title of a fresh game no logic task can be in flight, and the gate opens if both globals exist and the
   cached mode reads 0. If a global is still unmade or the mode still reads 4, the gate stays shut and no table call is
@@ -494,8 +501,19 @@ two or more past its end to the index before and loses the value (its TArray fix
 last piece, every multi-piece stack read back one piece short in game (R28's 3,3 as 3). The `Meshes` stack now gets its
 first piece, then a write one past its last piece that only sizes the array, then every piece inside it. It is read
 back; a stack that differs is emptied and written front to back, and one that still differs is destroyed before its
-finish and named in the log. Each spawn logs an `[MX] [MXMOVE]` line, a ladder's with its stack as read back before
-`FinishSpawningActor` and the `TotalHeight` its script built.
+finish and named in the log. After the last spawn, `[MX] [MXMOVE]` gives one line per class with the ways the spawns
+took and the number of stacks filled a second time, then the spread (frames, seconds, the longest frame, and the time all the class and mesh lookups took) and the count.
+A spread cut short before its last entry gives one `spread stopped after` line instead, with the entries it reached,
+the spawns so far and why it stopped.
+A spawn that failed gets a line of its own, and so does an entry whose construction script did not run again after
+`SpawnActor`, and a ladder whose built `TotalHeight` is not its listed height, with its stack as read back before
+`FinishSpawningActor`.
+
+The spawns run in list order, and spawning stops for the frame once 4 ms have gone into it, after at least one entry. A
+spawn takes 10 to 13 ms in game, so one ladder, ledge or rope spawns a frame; all 48 in one frame had frozen the game
+for 689 ms (2026-11-12). The 10 to 13 ms are the gaps between two spawn lines of that log, so they include the class
+lookup, a UE4SS `StaticFindObject` walk; the spread line's `lookups` gives that share. The ledge mesh is looked up again
+on each of those frames and never held between them.
 
 ### Bosses
 
@@ -524,9 +542,19 @@ hidden before its actor spawns, and gets both back if the spawn fails. A proxy t
 point. The R23 box in front of `DLC02_10_E_ItemS_015` has no cooked proxy and spawns alone. It stands in the way of that
 pickup until it is broken.
 
-The list spawns 40 entries per tick, and the Z4R21 Box_02 spawns before the Box_01 that rests on it. Only the world's
-address decides a new spawn, since a broken box destroys itself. Each entry writes one `[MX] [MXBREAK]` line, and a
-total line follows the last one. Each PC spawns its own boxes, so a box broken on one PC stays whole on the other.
+The boxes spawn on the same 4 ms budget as the ladders, one a frame in list order (8 to 13 ms each; 40 a frame had
+frozen the game for 350 to 454 ms each time). `matrix13/world/travel.lua` ticks `breakables.lua` only on a frame where
+`move.lua` spawned nothing, so the proxy pass and the boxes start once the 48 ladders, ledges and ropes are in, and no
+frame carries a ladder and a box. The Z4R21 Box_02 spawns before the Box_01 that rests on it. A broken box
+destroys itself, so the world's address decides a new spawn. The proxies are held for the whole spread (about 317
+frames, 9 s); during it the world's real time (`UGameplayStatics::GetRealTimeSeconds`, exec `0x14475baa0`, the world's
+`RealTimeSeconds` at `+0x750`) is read at each tick too. A new world starts that time from 0, so a smaller value means
+world 2800 loaded again at the same address: the list starts over on a new proxy pass, with a line that says so. The
+map's sublevels are built as `LevelStreamingAlwaysLoaded`, so none of them streams out during the spread. An entry writes its own `[MX] [MXBREAK]` line
+only when it did not spawn as listed: not spawned, another alias read back, or no proxy in the cook (the R23 box).
+After the last entry come one line per class, the spread and the total; a spread cut short gives one `spread stopped
+after` line with the entries it reached, the spawns and hidden proxies so far, and why. Each PC spawns its own boxes,
+so a box broken on one PC stays whole on the other.
 Whether a ZoneEventActor spawned after its level loaded registers with its row and breaks is untested.
 
 ### Export
@@ -567,14 +595,14 @@ The rows hold keys of `StringTable_UI`, so the names go in two steps, in this or
    IDs, applied to rows the `mxiii` batch added. It writes `CampName` (`+0x18`) and `RegionName` (`+0x34`) and no other field, on the Tetrapod row
    `DLC02_00_Camp_00` too, which keeps Region `Matrix11` ([above](#its-rows)).
 
-The order is there because of what this build does with a key it cannot find: `FUN_142879140` shows `<key>`. A row names
+The order is there because of what this build does with a key it cannot find: `FUN_14287ebf0` shows `<key>`. A row names
 a key only after its entry exists, so this path cannot show `<key>`. If the pass faults (`camptext=fault`, with a `camp
 names off` line in the log) or the table never loads at the title, `mxnames` is never asked, the rows keep their donors'
 keys and show the donors' names. `coop mxiii` does not wait for this batch, so the travel works either way.
 
 This build has no `FStringTable::SetSourceString`, and `ImportStrings` clears the table first, so the pass makes each
-entry with the out of line calls `ImportStrings` makes (`14285a4f2`-`14285a643`), under the table's lock. The first fault
-latches the passes off for the run; the handler lets go of the locks the mod's code took. `FUN_14287d320` overrides an
+entry with the out of line calls `ImportStrings` makes (`14285fff2`-`142860143`), under the table's lock. The first fault
+latches the passes off for the run; the handler lets go of the locks the mod's code took. `FUN_142882dd0` overrides an
 existing display string only under the culture `ko`, so on a language change the pass assigns the display string and
 the source directly, under the manager's lock. Saves hold the camp's alias and are not touched: only rows in memory
 and the live table change.
@@ -625,8 +653,8 @@ reading prompt are [inference].
 - whether the native gate opens at the title of a fresh game ([At the title](#at-the-title)), and what a co-op save
   that names a mod camp does when the rows are not in;
 - whether the game loads `MXIII_P` from a mod container, and whether it accepts retoc's zen output of a renamed map;
-- whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d18100` lists the camps of every world;
-- whether the camp arrival (`FUN_141a8afe0`) finds the spawn points named `DLC02_00_Camp_00`, `DLC02_10_Camp_01` and
+- whether `FSBGameWorld::Init` runs at each map load, and whether `FUN_141d1a310` lists the camps of every world;
+- whether the camp arrival (`FUN_141a8bef0`) finds the spawn points named `DLC02_00_Camp_00`, `DLC02_10_Camp_01` and
   `DLC02_30_Camp_01` in the test map, whether a floor coin spawns in any zone of the map, whether the `mxlily` patch
   opens Lily's menu and leaves the Great Desert Lily as she was, and whether a death in the third or fourth zone brings EVE back to the second camp;
 - whether camp blueprints spawned through `EnvBPPath` work as placed ones do (their `CampRespawnActor` is unset; the

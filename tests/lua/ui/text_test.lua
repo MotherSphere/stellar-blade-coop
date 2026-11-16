@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- ui/text.lua, pure (no fakes): a language's table only under one of the 23 culture names nightop/recruiter_text.lua's
 -- culture() gives, and either empty or with exactly T.en's keys at every level, each word with T.en's format
 -- placeholders in T.en's order (Lua's format has no positional arguments; a percent sign, %%, may stand anywhere, as
@@ -10,7 +13,8 @@
 -- co-op one with a partner's 32-byte name too), the
 -- co-op line's hint and sentences within theirs, the status strip's rows (partner/hud.lua): the second with every fact
 -- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
--- without its prefix, the race's panel, marker, banner and results within theirs, and no Thai word that ends on a
+-- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
+-- values and status within their columns and its waiting-room notice within 200 bytes, and no Thai word that ends on a
 -- leading vowel.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
@@ -81,7 +85,7 @@ local function notices(w)
         lines[#lines+1]=text
     end
     for _,text in ipairs({w.saves.on,fill(w.saves.off),w.saves.off:format(w.saves.see_log),w.saves.build,
-        w.saves.manual:format('4','4'),w.chat.no_session,
+        w.saves.manual:format('4','4'),w.chat.no_session,w.chat.alone,
         w.chat.off,w.chat.ui_off,w.join.bad}) do lines[#lines+1]=text end
     -- Night Operation's notices (nightop/run.lua, with the UI off): the start, a wave, a clear, the end and why; for
     -- two players, her notice of his start and his of each refusal, and whose EVE died; the points a run earned, or
@@ -115,6 +119,11 @@ local function notices(w)
     local s=w.summary
     for _,k in ipairs({'stopped','waiting','held','rejoin','none','alone','connecting','hosting','guest'}) do
         lines[#lines+1]=fill(s[k])..fill(s.paused)..s.lost -- Paused and lost added to each, beyond what can happen.
+    end
+    -- The SBO lobby's notices (session/sbo.lua): the save before the entry, each refusal and each failure.
+    lines[#lines+1]=w.sbo.saving
+    for _,group in ipairs({'no','fail'}) do
+        for _,text in pairs(w.sbo[group]) do lines[#lines+1]=text end
     end
     return lines
 end
@@ -182,6 +191,9 @@ for name in pairs(R.TEXT) do
     -- each sentence in the menu's note (the status style, 78 columns as the saves' question's body) with a 32-byte
     -- name, and within the feed's line.
     fits(name..'.line.prompt','Shift+F12  '..w.line.prompt,700//UNIT)
+    -- The hall lobby seats' hint, in the same place: Sit near a free seat, Stand up while EVE sits.
+    fits(name..'.sit','Shift+F12  '..w.sit,700//UNIT)
+    fits(name..'.stand','Shift+F12  '..w.stand,700//UNIT)
     for _,k in ipairs({'free','open','linked'}) do
         local text=fill(w.line[k])
         fits(name..'.line.'..k,text,78)
@@ -224,6 +236,20 @@ for name in pairs(R.TEXT) do
     fits(name..'.race flags',r.fast..' · '..r.pause,54)
     for _,who in ipairs({w.chat.you,w.chat.partner,('W'):rep(20)..'…'}) do fits(name..'.race row: '..who,'2  '..who,27) end
     fits(name..'.race.dnf value',r.dnf,14)
+    -- The lobby menu (mockup B, ui/lobby.lua): a row and the mode's name within B's row box (Bold 55 in 512 units, 18
+    -- columns), the code row with a join code; a setting's title in C within 32 columns, Mute with a name cut as
+    -- Join.name cuts it; a value within 40, with a join code, a long version and protocol 20; the status line within
+    -- 40 (Mideum 36, about 19 units a column, ends before the members box at x 2660) at 8 of 8 and a 10 s countdown;
+    -- the waiting room's notice with its key within the feed's line.
+    for k,text in pairs(w.lobby.row) do fits(name..'.lobby.row.'..k,text:format('ABC-1234'),18) end
+    fits(name..'.lobby.mode.ffa',w.lobby.mode.ffa,18)
+    for k,text in pairs(w.lobby.set) do fits(name..'.lobby.set.'..k,text:format(('W'):rep(16)..'...'),32) end
+    for k,text in pairs(w.lobby.val) do
+        fits(name..'.lobby.val.'..k,text:format(k=='version' and 'v0.9.0-99-gabcdef12' or 'ABC-1234',20),40)
+    end
+    for k,text in pairs(w.lobby.status) do fits(name..'.lobby.status.'..k,text:format(k=='start' and 10 or 8,8),40) end
+    local room=w.lobby.room:format('F5')
+    assert(Chat.clean(room)==room,name..'.lobby.room: '..#room..' bytes or a control')
 end
 -- Thai writes a leading vowel (U+0E40 to U+0E44) before its consonant: no word ends on one.
 local function thai(t,at)

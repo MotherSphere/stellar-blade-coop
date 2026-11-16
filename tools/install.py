@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """Checks and builds StellarCoop, then copies it into Stellar Blade's UE4SS Mods folder (never while the game runs).
 What an install replaces or removes is backed up first; --uninstall backs up the whole folder, then removes it.
---zip writes a release zip that the same commit always gives byte for byte, with a CHANGELOG.md from the commits."""
+--zip writes a release zip that the same commit always gives byte for byte, with a CHANGELOG.md from the commits made
+after the last GPL-3.0 commit. --pak also copies the hall lobby pak, kept on this PC and never in the zip, into
+SB/Content/Paks/~mods; --uninstall backs up and removes its three files there, and nothing else in ~mods."""
 import argparse
 import hashlib
 import os
@@ -22,6 +27,10 @@ RUNTIME = ('coop-*.log', 'coop-*.txt', '*.old.log')  # Written by the mod in gam
 OBSOLETE = {'steam-probe.txt'}  # Left by an old probe, before the manifest existed.
 BACKUPS = Path.home() / 'StellarCoop-install-backups'  # Outside the game folder: UE4SS would load a copy under Mods.
 CLOSE_GAME = 'Close Stellar Blade first: its mods must not change under it.'
+# The last commit released under GPL-3.0 (NOTICE): the zip's changelog lists only the commits after it.
+LAST_GPL = '051ab5090a2ea6832279345524e9cdaa816ee736'
+ART = 'Assets/MotherSphere.png'  # timediffer24's art, not under the SBO License (NOTICE): installed, never zipped.
+PAK = ('zSBO_Lobby.pak', 'zSBO_Lobby.ucas', 'zSBO_Lobby.utoc')  # The only files --pak and --uninstall touch in ~mods.
 
 
 def running_game():
@@ -80,8 +89,8 @@ def replaced(target, files):
     return sorted(gone | {rel for rel in [*files, MANIFEST] if (target / rel).is_file()})
 
 
-def backup(target, rels):
-    """Copies these files of target into a new BACKUPS/<UTC time>[-n]/StellarCoop and returns that folder."""
+def backup(target, rels, name='StellarCoop'):
+    """Copies these files of target into a new BACKUPS/<UTC time>[-n]/<name> and returns that folder."""
     stamp, n = time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()), 0
     # Outside the loop: a BACKUPS that is a file or a link to an unmounted disk fails here, never retried forever.
     BACKUPS.mkdir(parents=True, exist_ok=True)
@@ -92,7 +101,7 @@ def backup(target, rels):
             break
         except FileExistsError:  # A second backup within one second: never mixed into the first.
             n += 1
-    dest /= 'StellarCoop'
+    dest /= name
     for rel in rels:
         (dest / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(target / rel, dest / rel)
@@ -133,6 +142,50 @@ def uninstall(target, dry_run):
     print('Saves, the co-op copies and StellarCoopSlot.txt are never touched (INSTALL.md: Co-op saves).')
 
 
+def subjects():
+    """The subjects of the commits after LAST_GPL, newest first: what the zip's changelog lists."""
+    return git('log', '--no-merges', '--format=%s', f'{LAST_GPL}..HEAD').splitlines()
+
+
+def pak_sources(folder):
+    """The three hall lobby pak files of folder; a folder without one of them is refused."""
+    if missing := [name for name in PAK if not (folder / name).is_file()]:
+        sys.exit(f'No {", ".join(missing)} in {folder}')
+    return [folder / name for name in PAK]
+
+
+def sha256(path):
+    with path.open('rb') as data: return hashlib.file_digest(data, 'sha256').hexdigest()
+
+
+def install_pak(sources, paks, dry_run):
+    """Backs up the pak files these sources replace in paks (~mods), then copies each one and checks that the copy
+    hashes like its source."""
+    old = [path.name for path in sources if (paks / path.name).is_file()]
+    if dry_run:
+        if old: print(f'Dry run: would back up {len(old)} pak files first')
+        return print(f'Dry run: would install {len(sources)} pak files into {paks}')
+    if running_game(): sys.exit(CLOSE_GAME)
+    if old: backup(paks, old, 'Paks')
+    paks.mkdir(exist_ok=True)
+    for path in sources:
+        shutil.copyfile(path, paks / path.name)
+        if sha256(paks / path.name) != sha256(path):
+            sys.exit(f'{paks / path.name} does not hash like {path}: run --pak again')
+    print(f'Installed {len(sources)} pak files into {paks}')
+
+
+def uninstall_pak(paks, dry_run):
+    """Backs up, then removes the hall lobby pak files in paks (~mods). Silent when none is there."""
+    if not (old := [name for name in PAK if (paks / name).is_file()]): return
+    if dry_run: return print(f'Dry run: would back up {len(old)} pak files into {BACKUPS} and remove them from {paks}')
+    if running_game(): sys.exit(CLOSE_GAME)
+    backup(paks, old, 'Paks')
+    for name in old:
+        (paks / name).unlink()
+        print(f'Removed {paks / name}')
+
+
 def changelog(ver, when, subjects):
     """CHANGELOG.md from the commit subjects, newest first: features and fixes only. It goes into the zip, never
     into the repository."""
@@ -142,17 +195,20 @@ def changelog(ver, when, subjects):
             kind, _, scope, breaking, text = match.groups()
             sections[kind].append(f"- {f'{scope}: ' if scope else ''}{text}{' (breaking)' if breaking else ''}")
     day = time.strftime('%Y-%m-%d', time.gmtime(when))
-    lines = [f'# StellarCoop {ver}', '', f'Built from the commit of {day}; generated from the commit history.']
+    lines = [f'# StellarCoop {ver}', '', f'Built from the commit of {day}; generated from the commits after 0.9.0.']
     for title, kind in (('Features', 'feat'), ('Fixes', 'fix')):
         if sections[kind]: lines += ['', f'## {title}', *sections[kind]]
     return '\n'.join(lines) + '\n'
 
 
+DOCS = ('INSTALL.md', 'LICENSE', 'NOTICE', 'EXCLUDED-PARTIES.md')  # Repository files every release zip ships.
+
+
 def write_zip(path, files, changelog_text, when):
     """The same files, text and commit time give the same bytes: every entry gets the commit's time and one mode, in
     sorted names (writestr with a bare name would stamp the current time)."""
-    files = {**files, 'INSTALL.md': (ROOT / 'INSTALL.md').read_bytes(), 'LICENSE': (ROOT / 'LICENSE').read_bytes(),
-             'CHANGELOG.md': changelog_text.encode()}
+    files = {**{rel: data for rel, data in files.items() if rel != ART},
+             **{name: (ROOT / name).read_bytes() for name in DOCS}, 'CHANGELOG.md': changelog_text.encode()}
     files['SHA256SUMS.txt'] = ''.join(f'{hashlib.sha256(data).hexdigest()}  {rel}\n'
                                       for rel, data in sorted(files.items())).encode()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -173,15 +229,25 @@ def main(argv=None):
                       help='Check, build and write StellarCoop-<version>.zip with INSTALL.md and CHANGELOG.md '
                            '(default: into build/) instead of installing. Needs a clean tree, no game folder.')
     mode.add_argument('--uninstall', action='store_true',
-                      help='Back up the StellarCoop folder into ~/StellarCoop-install-backups, then remove it. No '
-                           'checks or build; saves are never touched.')
+                      help='Back up the StellarCoop folder into ~/StellarCoop-install-backups, then remove it, and '
+                           'the same for the hall lobby pak files in ~mods. No checks or build; saves are never '
+                           'touched.')
+    mode.add_argument('--pak', type=Path, metavar='DIR',
+                      help=f'After the install, also copy {", ".join(PAK)} from DIR into SB/Content/Paks/~mods, '
+                           'backing up the ones they replace')
     args = parser.parse_args(argv)
     # Only a committed tree: the zip, its version and its changelog all name one commit.
     if args.zip and git('status', '--porcelain'):
         sys.exit('A release zip needs a clean tree: commit first (git status is not empty).')
     mods = args.game / 'SB/Binaries/Win64/ue4ss/Mods'
     if not args.zip and not mods.is_dir(): sys.exit(f'No UE4SS Mods folder at {mods}')
-    if args.uninstall: return uninstall(mods / 'StellarCoop', args.dry_run)
+    paks = args.game / 'SB/Content/Paks/~mods'
+    if args.uninstall:
+        uninstall_pak(paks, args.dry_run)
+        return uninstall(mods / 'StellarCoop', args.dry_run)
+    if args.pak:  # Before the tests and the build: a wrong folder fails in a second, not after six minutes.
+        if not paks.parent.is_dir(): sys.exit(f'No Paks folder at {paks.parent}')
+        sources = pak_sources(args.pak)
     for test in sorted((ROOT / 'tests/lua').rglob('*_test.lua')):
         subprocess.run(['lua5.4', test.relative_to(ROOT)], cwd=ROOT, check=True)  # The game embeds Lua 5.4.
     checks = sanitizers()
@@ -203,14 +269,16 @@ def main(argv=None):
     if args.zip:
         path = ROOT / f'build/StellarCoop-{ver}.zip' if args.zip is True else Path(args.zip)
         when = int(git('log', '-1', '--format=%ct'))
-        write_zip(path, files, changelog(ver, when, git('log', '--no-merges', '--format=%s').splitlines()), when)
+        write_zip(path, files, changelog(ver, when, subjects()), when)
         return print(f'Wrote {path}')
     target = mods / 'StellarCoop'
     if args.dry_run:
         if rels := replaced(target, files): print(f'Dry run: would back up {len(rels)} files first')
         for path in stale(target, files): print(f'Dry run: would remove {path}')
-        return print(f'Dry run: would install {len(files)} files into {target}')
-    install_files(target, files)
+        print(f'Dry run: would install {len(files)} files into {target}')
+    else:
+        install_files(target, files)
+    if args.pak: install_pak(sources, paks, args.dry_run)
 
 
 if __name__ == '__main__':

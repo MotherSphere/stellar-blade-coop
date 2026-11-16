@@ -1,13 +1,18 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The native pose path's shared pieces, free of Windows: its limits, one skeletal mesh component as Lua names it, one
-// effect slot, and the hex addresses Lua writes. The component table is in pose/table.h, engine memory access in
-// pose/engine.h.
+// effect slot, the hex addresses Lua writes, the ghost slots' file names and the native tick's gap line. The component
+// table is in pose/table.h, engine memory access in pose/engine.h.
 #pragma once
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <string>
 #include <string_view>
 
-#include "link/protocol.h" // number() and kProtocol, for the table's grammar
+#include "link/protocol.h" // number() and kProtocol, for the table's grammar; kMaxRemote
 
 namespace coop::pose {
 
@@ -31,6 +36,36 @@ struct Part {
   uint32_t bones = 0;
   bool leader = false; // Leaders own their pose; followers copy a leader (SetMasterPoseComponent).
 };
+
+// One ghost slot per other member of a match lobby, 0 to kMaxRemote - 1 (link/core.h's Peer::slot). Each has its own
+// files in the mod folder: slot 0 keeps the co-op names (coop-remote.txt), slot k from 1 adds -<k> (coop-remote-3.txt).
+using coop::kMaxRemote;
+inline std::string slot_file(std::string_view stem, size_t slot) {
+  return std::string(stem) + (slot ? "-" + std::to_string(slot) : std::string()) + ".txt";
+}
+
+// The game thread's pose inbox (glue/tick/pose_game.inc), one for all the ghost slots: 400 ms of poses at 60 a second
+// from each other member of a match lobby. When it is full, the worker drops the newest pose (wire_receive).
+constexpr size_t kInbox = 24 * kMaxRemote;
+
+// The worker's line for one gap over 100 ms between two native ticks (glue/tick/pose_game.inc's game_tick): when it
+// ended, in UTC (filetime: a FILETIME, 100 ns ticks since 1601-01-01), how long it was, the engine frame it ended in,
+// how long the coop_tick before it took, and how much vkd3d-proton.cache.write grew since the last gap line
+// (cache_grew < 0: no such file, so no field). tests/native/pose/gap_test.cpp checks it.
+inline std::string gap_line(uint64_t filetime, uint64_t gap_us, uint64_t frame, uint64_t tick_us, int64_t cache_grew) {
+  // 1601-01-01 begins at midnight, and FILETIME has no leap seconds.
+  const uint64_t ms = filetime / 10'000 % 86'400'000;
+  char line[160];
+  int n = std::snprintf(line, sizeof line,
+                        "gap %02u:%02u:%02u.%03uZ: %llu ms since the last native tick (frame %llu), that tick took "
+                        "%.2f ms",
+                        unsigned(ms / 3'600'000), unsigned(ms / 60'000 % 60), unsigned(ms / 1'000 % 60),
+                        unsigned(ms % 1'000), static_cast<unsigned long long>(gap_us / 1'000),
+                        static_cast<unsigned long long>(frame), tick_us / 1'000.0);
+  if (cache_grew >= 0)
+    std::snprintf(line + n, sizeof line - size_t(n), "; vkd3d cache +%lld bytes", static_cast<long long>(cache_grew));
+  return line;
+}
 
 inline bool hex(std::string_view text, uint64_t &out) {
   if (text.size() < 3 || text.size() > 18 || text[0] != '0' || (text[1] != 'x' && text[1] != 'X'))

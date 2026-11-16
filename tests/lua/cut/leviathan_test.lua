@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/leviathan.lua with fake UE4SS objects: list only reads (a line per asset: missing, or its class with a mesh's
 -- or clip's skeleton and a class's super class, a class found once its Blueprint's package loads; the CharacterTable
 -- rows that name it, by row name or name field, with their ID and MeshScale; a table it cannot read said so) and

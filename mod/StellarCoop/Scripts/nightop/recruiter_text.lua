@@ -1,10 +1,14 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Xion recruiter's dialogue (coop recruiter, nightop/recruiter.lua) in the 23 text languages the game ships, copied
 -- byte for byte from the reviewed translation table. KEYS: his 12 FText keys (namespace "") -> {line, exact Korean
 -- source}; the engine keeps a registered text only while that source matches the asset's, "(임시) " included. TEXT:
 -- culture -> line -> text. Lines: T speaker title, Q question, J and C the Join and Cancel choices, A1 after Join, A2
 -- after Cancel, A3 the reply shown while the game's network option is on. The official terms (Night Operation, Xion,
 -- Cancel, Settings) are the game's own strings in each language; the French Q keeps its no-break space before "?".
--- Not registered for now (nightop/recruiter.lua says why): his text stays Korean. culture() serves the other modules.
+-- nightop/guard_text.lua sends one culture's seven lines to the native part, which writes them under the 12 keys;
+-- culture() serves it and the other text modules.
 local KEYS={
     ["1369C3D149FBA96B3A868A8DDB37F6DB"]={"T","자이온 모병관"}, -- A1 title
     ["90E21C7C499D1388F4FE8398516ADE70"]={"T","자이온 모병관"}, -- A2 title

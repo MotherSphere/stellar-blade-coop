@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- main.lua's console dispatch with UE4SS stubbed (fixture.lua): every coop command reaches the right handler, bad input
 -- is refused, the ghost's capture and remote table are fed every 250 ms with the world state, the keys only hand their
 -- action to the game thread, coop no reaches the Night Operation probe and coop recruiter the recruiter preview on the
@@ -58,20 +61,21 @@ for k,line in ipairs(printed) do
     end
 end
 assert(look.cloth==true and look.dyes==false and look.effects==false,
-    'Cloth on unless the settings say off, dyes and effects off unless they say on')
+    'Cloth on unless the settings say off, dyes and effects as fixture.lua reads them (off)')
 assert(capture_look==look,'The capture holds the same table: dyes and effects off stop sending them')
 assert(logged('keys: F6 is also bound by a mod loaded earlier; both run') and not logged('keys: F5 is also bound')
     and not logged('keys: F8 is also bound'),'Checked before our own bind')
 -- Every F-key but F10 bound once, with Shift, Ctrl, Alt, then alone (a modified press first); then Alt+Enter, Enter
--- and the twelve navigation keys, then the left mouse button (the co-op menu, the co-op saves' question) and the right
--- one (the co-op menu).
-assert(#binds==44+2+12+2,#binds)
+-- and the thirteen navigation keys (E for the lobby's settings tabs), then the left mouse button (the co-op menu, the
+-- co-op saves' question) and the right one (the co-op menu).
+assert(#binds==44+2+13+2,#binds)
 assert(binds[1].key=='Key.F1' and binds[1].modifiers[1]==0x10 and binds[2].modifiers[1]==0x11
     and binds[3].modifiers[1]==0x12 and binds[4].key=='Key.F1' and not binds[4].modifiers and binds[44].key=='Key.F12')
 for _,b in ipairs(binds) do assert(b.key~='Key.F10','F10 opens the console') end
 assert(binds[45].key=='Key.RETURN' and binds[45].modifiers[1]==0x12 and binds[46].key=='Key.RETURN'
-    and not binds[46].modifiers and binds[58].key=='Key.ESCAPE' and binds[59].key=='Key.LEFT_MOUSE_BUTTON'
-    and binds[60].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[59].modifiers and not binds[60].modifiers)
+    and not binds[46].modifiers and binds[58].key=='Key.E' and binds[59].key=='Key.ESCAPE'
+    and binds[60].key=='Key.LEFT_MOUSE_BUTTON' and binds[61].key=='Key.RIGHT_MOUSE_BUTTON' and not binds[60].modifiers
+    and not binds[61].modifiers)
 local executed=executes
 press('F8'); assert(executes==executed+1 and #queued==1 and #asked==0,'Nothing runs before the flush')
 flush(); assert(executes==executed+1 and asked[1]=='leave' and printed[#printed-1]=='[StellarCoop] key F8: leave\n')
@@ -175,6 +179,7 @@ loops[1].f(); loops[1].f()
 assert(ticks==2 and notice_ticks==2 and probe_ticks==2 and rc_ticks==2 and ra.ticks==2,
     'The native tick, the notices, the probe, the recruiter and the race run every frame')
 assert(rt.ticks==2 and rt.stops==0,'The teleport tabs tick every frame')
+assert(settles==2,'Each frame first drops the status text a 250 ms pass kept (core/link.lua)')
 assert(rt.o.ready()==true,'A link and a player controller: the teleport tabs may load')
 cv.pc=nil; assert(rt.o.ready()==false,'No player controller yet'); cv.pc=cv.stale
 assert(rt.o.ready()==false,'Another object at the old address'); cv.pc=cv.PC
@@ -419,7 +424,9 @@ for _,bad in ipairs({{'cloth'},{'cloth','maybe'},{'cloth','ON'},{'dyes'},{'effec
     assert(last()==LOOK_USE and #rebuilds==6 and look.cloth==true and look.dyes==false and look.effects==false,last())
 end
 assert(#loops==2 and loops[1].ms==1 and loops[2].ms==250,'the ghost every frame, the link every 250 ms')
+local settled=settles
 loops[2].f()
+assert(settles==settled+1,'The pass ends with link.settle(): status() reads coop-status.txt again')
 -- coop-chat.txt: taken at every pass, session or not, so it never stays on disk; no text of it is ever logged. Its
 -- lines reach the chat after the pass's session check, with her name; an unread status (nil) ends no session.
 local takes,calls=chat_takes,#chat_calls
@@ -1015,11 +1022,13 @@ for _,bad in ipairs({{},{'TEST'},{'test','x'},{'on'}}) do
     coop('revive',table.unpack(bad))
     assert(gr.tests==1 and last()=='[StellarCoop] STOP: Use: coop revive test\n',last())
 end
--- The follow: built with the link, the ghost, the settings and her name; ticked every 250 ms on the chat's clock; it
--- waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run and during a
--- cutscene. coop travel host is follow_key; coop travel probe <camp> its solo test; anything else its usage line.
-assert(tv.o.link==fake_link and tv.o.settings.follow_host=='ask' and tv.o.settings.follow_key.name=='F7'
-    and tv.o.name(require('ui.text').en)=='Kaanta' and type(tv.o.tell)=='function'
+-- The follow: built on (follow=true) with the link, the ghost, the settings and her name; ticked every 250 ms on the
+-- chat's clock; it waits while the game is paused, in photo mode or in the co-op menu, during a Night Operation run
+-- and during a cutscene. coop travel host is follow_key; coop travel probe <camp> its solo test; anything else its
+-- usage line.
+assert(tv.o.follow==true and tv.o.link==fake_link and tv.o.settings.follow_host=='ask'
+    and tv.o.settings.follow_key.name=='F7' and tv.o.name(require('ui.text').en)=='Kaanta'
+    and type(tv.o.tell)=='function'
     and tv.o.puppet.her_map()=='/game/e04')
 tv.o.log('travel: answered camps 1 none title'); assert(last()=='[StellarCoop][TR] travel: answered camps 1 none title\n')
 assert(tv.o.paused()==false and tv.o.night()==false and tv.o.cutscene()==false)
@@ -1036,10 +1045,15 @@ for _,bad in ipairs({{},{'HOST'},{'host','x'},{'probe'},{'probe','a','b'},{'go'}
     assert(tv.presses==2 and #tv.probes==1 and last()=='[StellarCoop] STOP: Use: coop travel host\n',last())
 end
 nr.ticked=nr.ticks
-rx.ticked=rx.ticks
+rx.ticked,gt.ticked=rx.ticks,gt.ticks
 loops[2].f(); assert(nr.ticks==nr.ticked+1 and #nr.stops==0,'The run ticks every 250 ms')
 assert(rx.ticks==rx.ticked+1 and rx.stops==0 and rx.stopped==false,"Roxanne's choices tick every 250 ms too")
 assert(ly.ticks>0 and ly.stops==0 and ly.stopped==false,"Lily's signal ticks every 250 ms too")
+-- The Xion guard's lines: [RC] lines, the native part's status, its requests; ticked every 250 ms until coop off.
+gt.o.log('text: x'); assert(last()=='[StellarCoop][RC] text: x\n',last())
+assert(gt.o.status()==status_text)
+gt.o.ask('guardtext fr\tx'); assert(asked[#asked]=='guardtext fr\tx',asked[#asked])
+assert(gt.ticks==gt.ticked+1,"The guard's lines tick every 250 ms too")
 assert(ts.ticks>0 and ts.hud and ts.hud.kit and ts.hud.theme,"Lily's talks tick each frame, with the kit's group")
 -- A tick of hers that raises is logged, and the rest of the loop goes on.
 rx.tick_raise='roxanne.lua:9: boom'
@@ -1068,7 +1082,7 @@ assert(gf.stops==1,'off takes the gift toast off')
 local gift_ticks_off=gf.ticks
 assert(rx.stops==1,"off puts Roxanne's two choices back")
 assert(ly.stops==1,"off puts Lily's eight choices back")
-rx.ticked=rx.ticks
+rx.ticked,gt.ticked=rx.ticks,gt.ticks
 assert(notice_stops==1,'off hides the notice line on screen')
 assert(rc_stops==1,'off despawns the recruiter, once')
 assert(gr.stops==1,'off gives back a death screen the revive hid')
@@ -1095,6 +1109,7 @@ assert(ra.slows==ra.s,'No race check after coop off')
 assert(nr.ticks==nr.ticked+1,'No run tick after coop off')
 assert(rx.ticks==rx.ticked+1 and rx.stopped==true,"Roxanne's tick goes on after coop off, as stopped")
 assert(ly.stopped==true,"Lily's tick goes on after coop off, as stopped")
+assert(gt.ticks==gt.ticked,"No tick of the guard's lines after coop off: the native part puts his Korean back")
 assert(#gr.ticks==gr.count+3,'No revive tick after coop off')
 assert(#tv.ticks==tv.count+2,'No follow tick after coop off')
 assert(gf.ticks==gift_ticks_off and #gf.received==2,'No gift tick nor gift line after coop off')
@@ -1102,7 +1117,11 @@ assert(chat_takes==takes+1,'coop-chat.txt is still taken after coop off')
 assert(table.concat(chat_calls,'|',#chat_calls-1)=='clear|session false','coop off clears the chat and ends it')
 chatting=true; loops[2].f(); chatting=false
 assert(chat_calls[#chat_calls]=='session false','No session after coop off, whatever the link says')
-assert(#states==written,'No world state after coop off: no engine access')
+assert(#states==written+2 and photos[#photos]:sub(1,2)=='0 ','The world state goes on after coop off, no photo mode')
+local was_world,was_title=in_world,at_title
+in_world,at_title=false,true; loops[2].f()
+assert(states[#states]=='world=title rate=60','The title too: the native part checks the SBO records there after off')
+in_world,at_title=was_world,was_title
 coop('host'); assert(last():find('STOP: coop off is active until the game restarts',1,true),last())
 before=#asked
 coop('mark','x'); assert(#asked==before and last()=='[StellarCoop] STOP: coop off is active until the game restarts\n')
@@ -1153,7 +1172,7 @@ assert(dv.restores==1 and ra.steers==0,'Her movement an earlier load left drivin
 assert(wr.restores==1 and wr.ticks==0,'Her own meshes after an earlier load\'s coop wear too')
 assert(sc.restores==1 and sc.ticks==0,'An earlier load\'s scene stopped too')
 assert(em.restores==1 and em.ticks==0,'An earlier load\'s pose stopped too')
-loops[2].f(); assert(#states==0,'Nor a world state')
+loops[2].f(); assert(#states==1,'The world state goes on after the reload too')
 -- Only the pose path's line says so: a peer may call herself anything.
 status_text='mod=v proto=3 steam=ready\nlink=host lobby=7\npeer=2 name=x reason=coop_off hello=1\nengine=on\nlast=#1 ready\n'
 load_main(true)

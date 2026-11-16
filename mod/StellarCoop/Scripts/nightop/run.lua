@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop nightop: Night Operation's run on a co-op save (commands/nightop.lua checks the slot), on the game thread. Five
 -- timed waves of the game's base monsters come at EVE where she stands, at one of four levels (nightop/waves.lua's
 -- W.LEVELS: the monsters a wave holds, the time limit, the shop points; the host's level in a co-op run, which his
@@ -30,7 +33,8 @@
 -- (ui/kit.lua) and the board (nightop/board.lua), the HUD calls the game for one thing only: its own result words
 -- (StringTable_UI).
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
--- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
+-- permission given on 2026-10-20. SchizoEffective agreed on 2026-11-14 to the project's license change, and they are
+-- licensed here under the SBO License 1.0 or any later version the Licensor publishes (NOTICE).
 local U=require('core.unreal')
 local W=require('nightop.waves')
 local N=require('nightop.probe')
@@ -96,9 +100,9 @@ local CUT={UI_Night_Watching='Spectating',UI_Night_Revive='Resuscitate',
     UI_Night_Message_RequestRevive='Asked {Name} for a resuscitation.',
     UI_Night_Message_RequestRevive_Receive='{Name} has requested resuscitation.',
     UI_Night_Message_ComeBackFriend='{Name} has joined the game.'}
-local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
+local metres=U.metres
 local function xyz(v) return string.format('%.0f,%.0f,%.0f',v.X,v.Y,v.Z) end
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 local function location(actor)
     local v=U.value_of(actor:K2_GetActorLocation())
     return {X=v.X,Y=v.Y,Z=v.Z}
@@ -755,7 +759,7 @@ function Run.new(o)
         return false,no
     end
     -- A co-op run's death is a down while life= reads (our vitals, read in a session only) and revive=on (the
-    -- downed player's opt-in to the in-place respawn, off by default): the death screen's start, or life 3 to 5 that
+    -- downed player's opt-in to the in-place respawn, on by default): the death screen's start, or life 3 to 5 that
     -- its watch missed. Else the death ends the run as in a solo run. A down lasts W.DOWN s of ticks (a pause does not
     -- hold it), plus CALL s past it once a call went, and input.down tells the host's states that both downs held
     -- with no call that can still land (failed 'both'). The partner's line at help 100 asks for the call. Up again

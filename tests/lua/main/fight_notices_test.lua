@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The shared fight's notices on screen through main.lua (fixture.lua), in English and in French: as the guest, enemies
 -- with another max HP and the host down; camp rests in a shared area; the French ones with their English for the line
 -- above EVE; same place's (stage 3a) and same spawns' (stage 4) notices; what keeps coop fight on from sharing; and

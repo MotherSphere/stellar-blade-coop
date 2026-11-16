@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Wine smoke test for StellarCoop.dll, built and run by tools/wine_smoke.py. It loads the DLL where no
 // steam_api64.dll exists and checks that it attaches, that its link waits for Steam (coop-status.txt says
 // steam=waiting, and the engine refuses smoke.exe as not the pinned game, within 3 s; with no Steam and no pinned

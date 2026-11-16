@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Roxanne's Night Operation choices (nightop/roxanne.lua, nightop/roxanne_text.lua) over fakes: the status text, the
 -- four test rows of TheaterSelectDataTable (FName fields by comparison index, DisplayText as an FText), the language
 -- library, a text library whose PolyglotDataToText raises as UE4SS does on a Lua-table map, EVE's world, the select

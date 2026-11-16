@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Key settings for the menu's rebind: the grammar of coop-settings.txt (F1 to F12 but F10, at most one of Shift+,
 -- Ctrl+, Alt+), the same answer as link.parse_settings on every case, none for the keys that may be off only, a
 -- pressed key turned into that text, and a clash found against every other key setting.

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop nightop (nightop/run.lua) over strict fakes of the game: an object raises on a member it does not declare and
 -- every method call is recorded; a freed body raises and records a violation on any touch, and so does a body read
 -- while the game is paused (the IsValid crash and the pause rule). Covered: each start refusal with no spawn; the

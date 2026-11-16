@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/tendril.lua (and the parts of cut/enemy.lua the other specs never reach) with fake UE4SS objects. Its 107 rows
 -- are R.TENDRIL (tests/lua/cut/lion_test.lua checks them against rows.h's kTendrilRecipe): 11 MeleeAttack skills, each
 -- whose first step plays the run-time Show of its name and turns it toward EVE, whose steps last as long as that

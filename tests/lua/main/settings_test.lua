@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The settings main.lua reads from coop-settings.txt (fixture.lua's fake link): a modifier goes with its key, a refused
 -- setting is logged and keeps its default, the name tag, the look and collide reach the ghost, the pose rate reaches
 -- the state, the photo settings reach the state, the veils and the log line, photo_pause (experimental) makes
@@ -17,6 +20,15 @@ in_world=false
 loops[2].f(); assert(states[1]=='world=0 rate=25' and logged('state: world=0 rate=25'),'The settings\' rate in the state')
 press('F8'); flush(); assert(#asked==0 and not logged('key F8:'),'Plain F8 is not the leave key here')
 press('F8','CONTROL'); flush(); assert(asked[1]=='leave' and logged('key Ctrl+F8: leave'))
+-- The defaults as a new file has them, with the looks (comments only there) on as the code's defaults: every switch
+-- named, so fixture.lua pins nothing, and the load logs them on.
+settings_text=Link.DEFAULT..'dyes=on\neffects=on\n'
+load_main(true)
+assert(logged('look: cloth=on dyes=on effects=on') and logged('shared enemies: on (experimental), fight_chars auto, '
+    ..'same place on (experimental), same spawns on (experimental), extra enemies 0, bosses on (experimental), boss HP '
+    ..'200 %, spawn filter on (experimental)')
+    and logged('photo sync: both, longest pause 600 s, ghost in your photos on, its name tag on')
+    and logged('shared quests: on (experimental)') and look.dyes==true and look.effects==true,table.concat(printed,'|'))
 settings_text=''
 
 -- The photo settings: refused values keep their defaults; these reach the state, the veils and the log line.
@@ -27,7 +39,7 @@ assert(logged('photo sync: notice, longest pause no limit, ghost in your photos 
 in_world,photo_mode=true,true; loops[2].f()
 assert(photos[#photos]=='1 notice 0' and veils[#veils]==true)
 assert(photo_veils[#photo_veils][1]==true and photo_veils[#photo_veils][2]==false,'The ghost goes, its tag would stay')
-assert(package.loaded['partner.puppet'].collide==false,'collide=off by default, to the ghost each 250 ms')
+assert(package.loaded['partner.puppet'].collide==false,'collide=off as fixture.lua reads it, to the ghost each 250 ms')
 settings_text='collide=on\n'
 load_main(true)
 loops[2].f()

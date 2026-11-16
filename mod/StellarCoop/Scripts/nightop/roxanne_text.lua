@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Roxanne's four Night Operation choices (nightop/roxanne.lua) in the 23 text languages the game ships, in the form
 -- nightop/recruiter_text.lua has. KEYS: the FText keys (namespace "") of the four shipped test rows that carry them ->
 -- {line, exact Korean source}, the DisplayText a row gets back when her choices go off. TEXT: culture -> line -> text;

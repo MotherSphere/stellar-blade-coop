@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The guest's follow (Phase 13), the native half, free of Windows: SB's own fast travel to a camp,
 // FUN_141cdfbd0(client, request), as SB's ReturnToCamp job (FUN_141b2c240) calls it. This file builds the request,
 // checks the guard over the reads glue/tick.cpp makes on the game thread right before the call, counts the calls and

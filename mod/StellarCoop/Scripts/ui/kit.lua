@@ -1,20 +1,27 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Uplink kit (UI-DESIGN 3.2, 7.1-7.6): one root a world, a plain UserWidget built by hand, holding every group the
 -- views add (the menu, the feed, the card, the marker), each a canvas of its own, hidden (Collapsed) when unused, never
 -- removed. Hit tests pass through every group but one marked hit (the menu: its rows take the mouse). Each 250 ms
 -- (slow): the root an earlier Lua load left (Ctrl+R) is swept by its path; the classes and the game's fonts, textures
--- and sounds warm one lookup a tick (about 4 ms each); the root is built in one call once the classes are in (in the
--- default font and flat colour while an asset it uses still warms: the menu works from the start), built once again
--- when those are in (not while the menu is open), checked to be still ours and in the viewport each tick, and built
--- again, as it was, once a map change took it (off after 4 losses in a row: no rebuild storm). Each frame (tick): only
--- the open and close tweens, while one runs. Updates touch the engine only on change, and only a widget still ours: a
--- map change frees them, and an address may hold another object by then. Every engine call runs in pcall on the game
--- thread, never in a coroutine; the first error in a build or an update turns the kit off for this Lua load (off(): the
--- callers go back to the notice line above EVE and the name tag), said once by the next slow or tick. A look that
--- cannot be had (a font, a texture, a text colour) only degrades, with one log line a build.
+-- and sounds warm one lookup a tick (about 4 ms each; more while veiled); the root is built in one call once the
+-- classes are in (in the default font and flat colour while an asset it uses still warms: the menu works from the
+-- start; each texture it wanted held by a collapsed image of it once warmed, so the engine's GC cannot free it first),
+-- built once again when those are in (not while the menu is open), checked to be still ours and in the viewport each
+-- tick, and built again, as it was, once a map change took it (off after 4 losses in a row: no rebuild storm). Each
+-- frame (tick): only the open and close tweens, while one runs. Updates touch the engine only on change, and only a
+-- widget still ours: a map change frees them, and an address may hold another object by then. Every engine call runs in
+-- pcall on the game thread, never in a coroutine; the first error in a build or an update turns the kit off for this
+-- Lua load (off(): the callers go back to the notice line above EVE and the name tag), said once by the next slow or
+-- tick. A look that cannot be had (a font, a texture, a text colour) only degrades, with one log line a build.
 local U=require('core.unreal')
 local valid,value_of=U.valid,U.value_of
 local Ui={}
 local Z=100 -- The root's viewport z.
+-- s of warm-up lookups a 250 ms tick while veiled (veil): at least one, then more until this is spent. The 7 assets a
+-- map change frees took up to 36 ms each to load again.
+Ui.VEIL_BUDGET=0.1
 local UMG={'UserWidget','WidgetTree','CanvasPanel','Border','TextBlock','Image','ProgressBar','EditableTextBox'}
 local GAME_FONT,ENGINE_FONT='/Game/Art/Font/Bold.Bold','/Engine/EngineFonts/Roboto.Roboto'
 local DOTS='/Game/Art/UI/Texture/HUD/Gauge/Hp_Dot1_5x.Hp_Dot1_5x'
@@ -63,6 +70,11 @@ for _,a in ipairs({{'mark',TEX..'Item/CommonIcon/4DotMark'},{'link',TEX..'Common
         {'key_enter',KEY..'Enter'},{'key_escape',KEY..'Escape'},{'key_space',KEY..'SpaceBar'},{'key_up',KEY..'Up'},
         {'key_arrows',KEY..'DirectionAll',alt=TEX..'Interaction/PC_ActionAssist/KeyIcon_KeyBoard_directionAll'},
         {'key_move',KEY..'MoveAll'},{'key_move_azerty',KEY..'MoveAll_AZERTY'},
+        -- The lobby screens': SB's title logo (WB_Lobby's Chinese ones), its shades, the HUD's soft shadow, a dither.
+        {'logo',TEX..'Splash/Main_title'},{'logo_hans',TEX..'Splash/Main_title_hans'},
+        {'logo_hant',TEX..'Splash/Main_title_hant'},{'shade_left',TEX..'Common/lobby_menu_gra'},
+        {'shade_bottom',TEX..'Common/theater_subtitle_gra'},{'more_shadow',TEX..'HUD/HUD_MoreShadow'},
+        {'dither',TEX..'Common/gradation_dithering_white'},
         {'open',SOUND..'MainMenu/Ui_MoveIn_Cue',1},{'close',SOUND..'MainMenu/UI_MoveOut_Cue',1},
         {'move',SOUND..'UI_Common_Hover_Cue',1},{'select',SOUND..'ui_button_Confirm_Cue',1},
         {'back',SOUND..'ui_button_cancel',1},{'change',SOUND..'MainMenu/UI_Setting_Select_Cue',1},
@@ -98,7 +110,7 @@ local function make(n,class,outer)
 end
 local function put(canvas,w,x,y,width,height) -- Layout units: the HUD's 3840x2160.
     -- In a hit group, hit tests pass through every widget not said otherwise (a row's own area takes them).
-    if canvas.hit and not w.v then w.v=HIT_TEST_INVISIBLE; w.o:SetVisibility(w.v) end
+    if canvas.hit and w.v==nil then w.v=HIT_TEST_INVISIBLE; w.o:SetVisibility(w.v) end
     w.slot=need(valid(canvas.o:AddChildToCanvas(w.o)),'no canvas slot')
     w.slot:SetPosition({X=x,Y=y})
     if width then w.slot:SetSize({X=width,Y=height}) else w.slot:SetAutoSize(true) end
@@ -107,14 +119,15 @@ end
 local function hide(w) w.v=COLLAPSED; w.o:SetVisibility(COLLAPSED) end
 local controller=U.controller
 -- opts: {log=function(line), store={save,load,clear} (link.store('coop-ui.txt')), azerty=true or false for the AZERTY
--- move keys (unset: AZERTY when the game's language is French, read at each build), scale=ui_scale (75 to 150 %),
--- sounds=false for ui_sounds=off}.
+-- move keys (unset: azerty() at each build), uidev=function returning SB's input device byte or nil (link.uidev),
+-- scale=ui_scale (75 to 150 %), sounds=false for ui_sounds=off}.
 function Ui.kit(opts)
     opts=opts or {}
     local log=opts.log or function() end
     local store=opts.store or {save=function() end,load=function() end,clear=function() end}
     local self,order,by,cache,found={},{},{},{},{} -- cache: asset name to {o=, full=} or false (not in this build).
     local built,pending,off,said,hidden,swept,lost,holder=nil,nil,false,nil,false,false,0,nil
+    local veiled=false -- veil(): the root collapsed under SB's black while the lobby gets ready.
     local pointing=false -- The holder asked for the mouse cursor (the guide's, input's mouse).
     local quiet,no_color,sounding,tweens,inputting=false,false,opts.sounds~=false,{},false
     local screen,projecting=nil,true -- The viewport in layout units, read once a second; the engine's projection.
@@ -124,8 +137,19 @@ function Ui.kit(opts)
     -- fired for (lost() takes it), and its two lines said.
     local watch,fired,unfocusable_said,never_said=nil,nil,false,false
     local refocus_at=nil -- A mouse button pressed while our UI holds the game's input: when our focus goes back.
+    local clicked_at=nil -- That button's clock, for the watchdog's focus line.
+    local parts,warmed={},{} -- warm_part's object paths in order; those looked up.
+    -- SB's last keyboard answer, AZERTY or not: its device byte (opts.uidev) reads 1 for a QWERTY keyboard and 2 for one
+    -- whose scan code 0x10 types A; 3 to 6 are pads, 0 is before SB's first device report (L10-R1).
+    local keyboard=nil
+    local function device()
+        local d=opts.uidev and opts.uidev()
+        if d==1 or d==2 then keyboard=d==2 end
+    end
     local function clamp(pct) return math.max(75,math.min(150,tonumber(pct) or 100))/100 end
     local scale=clamp(opts.scale)
+    -- A group's scale at ui_scale s (the current one unless said): 1 for a fixed group, else s up to its most.
+    local function scale_of(p,s) return p.fixed and 1 or math.min(s or scale,p.most or math.huge) end
     -- A widget record ({o=, name=, slot=, v=its visibility as last set}): its object while it is still ours.
     local function alive(w)
         local x=w and valid(w.o)
@@ -244,8 +268,9 @@ function Ui.kit(opts)
             return put(g,w,x,y,width,height)
         end
         -- A line of text in a style (STYLES) and colour, its point (x, y) at align of its box (top left unless said;
-        -- {X=0, Y=0.5}: centred on that line): set(text), color(c), show(on).
-        local function text(x,y,str,style,color,align)
+        -- {X=0, Y=0.5}: centred on that line); o: {shadow={x, y, r, g, b, a} (its offset and linear colour), wrap=its
+        -- width in layout units, written as is, like the font size}. set(text), color(c), show(on).
+        local function text(x,y,str,style,color,align,o)
             local w=make(n,'TextBlock',n.tree.o)
             local st=STYLES[style] or STYLES.body
             local f=get(st[1]) or get('Roboto')
@@ -257,6 +282,16 @@ function Ui.kit(opts)
             str,color=str or '',color or THEME.text
             w.o:SetText(FText(str))
             paint(w.o,color,n)
+            local sh=o and o.shadow
+            if sh and not pcall(function()
+                w.o:SetShadowOffset({X=sh[1],Y=sh[2]})
+                w.o:SetShadowColorAndOpacity({R=sh[3],G=sh[4],B=sh[5],A=sh[6]})
+            end) then n.look['text shadow refused']=true end
+            -- WrapTextAt alone: with AutoWrapText the engine wraps at min(WrapTextAt, last drawn width), and an
+            -- auto-sized slot never grows back (UE 4.26 FSlateTextBlockLayout::CalculateWrappingWidth).
+            if o and o.wrap and not pcall(function() w.o.WrapTextAt=o.wrap end) then
+                n.look['text wrap refused']=true
+            end
             put(g,w,x,y)
             if align then w.slot:SetAlignment(align) end
             return {set=function(s) s=s or ''; if s~=str then str=s; upd(w,function(x2) x2:SetText(FText(s)) end) end end,
@@ -457,14 +492,13 @@ function Ui.kit(opts)
             if x and U.text(x:GetFullName())==e.full then assets[name]=x elseif e then cache[name]=nil end
         end
         local started=os.clock()
-        local n={classes={},assets=assets,count=0,look={},groups={},views={},size=#order,azerty=opts.azerty}
-        -- French players type on AZERTY keyboards. W, A and Z, Q all move, so either icon is true on any layout.
-        if n.azerty==nil then n.azerty=(self.language() or ''):lower():find('^fr')~=nil end
+        local n={classes={},assets=assets,count=0,look={},groups={},views={},size=#order,azerty=self.azerty()}
         for _,name in ipairs(UMG) do n.classes[name]=U.find('/Script/UMG.'..name) end
         pending=n
         n.root=make(n,'UserWidget',pc)
         n.tree=make(n,'WidgetTree',n.root.o)
         local canvas=make(n,'CanvasPanel',n.tree.o)
+        n.canvas=canvas
         n.root.o.WidgetTree=n.tree.o
         n.tree.o.RootWidget=canvas.o
         local hit=false
@@ -474,7 +508,7 @@ function Ui.kit(opts)
             g.x,g.y,g.hit,g.on=p.x,p.y,p.hit,p.hit and SELF_HIT or HIT_TEST_INVISIBLE
             hit=hit or p.hit
             g.o:SetRenderTransformPivot(p.pivot or {X=0,Y=0})
-            local s=math.min(scale,p.most or scale)
+            local s=scale_of(p)
             if s~=1 then g.o:SetRenderScale({X=s,Y=s}) end
             g.v=def.shown and g.on or COLLAPSED
             g.o:SetVisibility(g.v)
@@ -484,8 +518,8 @@ function Ui.kit(opts)
         end
         n.root.o:SetOwningPlayer(pc)
         n.root.on=hit and SELF_HIT or HIT_TEST_INVISIBLE -- Mouse hits pass through, but a hit group's.
-        n.root.v=n.root.on
-        n.root.o:SetVisibility(n.root.on)
+        n.root.v=veiled and COLLAPSED or n.root.on
+        n.root.o:SetVisibility(n.root.v)
         -- Focusable, so the input mode focuses our root and the focus watchdog can read it.
         local why
         n.focusable,why=pcall(function() n.root.o.bIsFocusable=true end)
@@ -512,17 +546,54 @@ function Ui.kit(opts)
         end
         return false
     end
-    -- One class or asset not tried yet looked up (look: all but the sounds): true when one was.
+    -- A texture the partial root wanted (its look note), warmed while that root is up: held by a collapsed image of it
+    -- until the build that uses it. Nothing else may hold what LoadAsset brought in, and SB's GC would free it before
+    -- then (that build partial again, the texture loaded again). A refusal ends the holding for this Lua load, said
+    -- once.
+    local holding=true
+    local function hold(name,x)
+        local n=built
+        local canvas=holding and n and n.partial and n.look[name..' missing'] and alive(n.canvas)
+        if not canvas then return end
+        local ok,why=pcall(function()
+            local w=make(n,'Image',n.tree.o)
+            hide(w)
+            w.o:SetBrushFromTexture(x,true)
+            need(valid(canvas:AddChildToCanvas(w.o)),'no canvas slot')
+        end)
+        if not ok then
+            holding=false
+            log('warmed textures not held from now on: '..tostring(why))
+        end
+    end
+    -- One class or asset not tried yet looked up (look: all but the sounds and parts): true when one was. Then the
+    -- parts' (warm_part), one LoadAsset each.
     local function warm(look)
         if classes() then return true end
         for _,a in ipairs(Ui.ASSETS) do
             if cache[a[1]]==nil and not (look and a.volume) then
                 local x=load(a[2]) or a.alt and load(a.alt)
                 cache[a[1]]=x and {o=x,full=U.text(x:GetFullName())} or false
+                if x then hold(a[1],x) end
                 return true
             end
         end
+        if look then return false end
+        -- shortcut: a class a map change's GC freed is not warmed again (part() loads it then); track it as cache does
+        -- if that hitch shows.
+        for _,p in ipairs(parts) do
+            if not warmed[p] then warmed[p]=true; load(p); return true end
+        end
         return false
+    end
+    -- warm once; while veiled, again until VEIL_BUDGET is spent: true when one lookup ran.
+    local function warming(look)
+        local started,any=os.clock(),false
+        while warm(look) do
+            any=true
+            if not veiled or os.clock()-started>=Ui.VEIL_BUDGET then break end
+        end
+        return any
     end
     -- The root an earlier Lua load left (Ctrl+R): true when its path was looked up. That load's menu or guide open, the
     -- game's input is given back first and the mouse cursor put back as that load found it (or once there is a player
@@ -560,8 +631,9 @@ function Ui.kit(opts)
             local kept=r and r:IsInViewport()
             if kept and built.size==#order then
                 lost=0
-                if built.root.v~=built.root.on then built.root.v=built.root.on; r:SetVisibility(built.root.on) end
-                if warm(built.partial) or not built.partial then return end
+                local v=veiled and COLLAPSED or built.root.on
+                if built.root.v~=v then built.root.v=v; r:SetVisibility(v) end
+                if warming(built.partial) or not built.partial then return end
                 for _,def in ipairs(order) do if def.shown and def.place.hit then return end end -- Not under the mouse.
                 if inputting then return end -- Nor the root the input focused (the host's question has no hit group).
             elseif built.size==#order then
@@ -572,6 +644,24 @@ function Ui.kit(opts)
             built,tweens=nil,{}
         end
         if not classes() then build() end
+    end
+    -- The watchdog's focus line, as it fires: the class of each top-level UserWidget but our root that holds the focus
+    -- or a widget with it, whether the game is paused or shows its cursor, and the seconds since the last mouse button.
+    local function focus_line(now)
+        local pc=need(controller(),'no player controller')
+        local out,held={},{}
+        U.find(WIDGETS):GetAllWidgetsOfClass(pc,out,U.find('/Script/UMG.UserWidget'),true)
+        U.each(out,function(_,w)
+            w=valid(w)
+            local name=w and U.text(w:GetFullName())
+            if name and name~=built.root.name and (w:HasAnyUserFocus() or w:HasFocusedDescendants()) then
+                held[#held+1]=name:match('^%S+')
+            end
+        end)
+        log(string.format('focus watchdog: focus on %s; game paused or its cursor shown: %s; %s',
+            #held>0 and table.concat(held,', ') or 'none (the game viewport, a Slate-only widget or another window '
+            ..'has it)',tostring(self.paused(true)),clicked_at and string.format('last mouse button %.1f s before',
+            now-clicked_at) or 'no mouse button since the Lua load'))
     end
     -- The focus watchdog, each 250 ms while our UI holds the game's input and shows: whether our root or a widget in it
     -- has the focus. Armed by a first yes since the input was taken; armed, 1 s of no fires it (lost()), once a take; a
@@ -587,7 +677,12 @@ function Ui.kit(opts)
         if yes then watch.armed,watch.since=true,nil
         elseif watch.armed then
             watch.since=watch.since or now
-            if now-watch.since>=1 then fired,watch=holder or 'menu',nil end
+            if now-watch.since>=1 then
+                fired,watch=holder or 'menu',nil
+                -- Its own pcall: an error here in run() would turn the UI off.
+                local ok,why=pcall(focus_line,now)
+                if not ok then log('focus watchdog: focus not read ('..tostring(why)..')') end
+            end
         elseif now-watch.at>=2 and not never_said then
             never_said=true
             log('focus watchdog: our root never took the focus')
@@ -596,6 +691,7 @@ function Ui.kit(opts)
     -- Each 250 ms with whether our HUD may show (a world with EVE, not paused, the game's HUD up, no photo mode, or
     -- the title screen) and whether the title screen shows. Returns false and why once, when the kit turned off.
     function self.slow(world,title)
+        device()
         titled=title==true
         if not off and order[1] then run(step,world) end
         if not off and watch then run(guard) end
@@ -617,18 +713,24 @@ function Ui.kit(opts)
     -- ponytail: the left and right buttons only; the middle and side ones move the focus too (the watchdog then closes
     -- our UI): bind them in main.lua if a tester trips it.
     function self.click()
-        refocus_at=os.clock()+REFOCUS
+        clicked_at=os.clock()
+        refocus_at=clicked_at+REFOCUS
         if watch then watch.since=nil end
+    end
+    -- Our focus back now where the input put it (the root, or the holder's box), while the input is ours and the world
+    -- shows: a click's, and a popup part's that took it in its Construct and left (the focus watchdog would fire).
+    function self.refocus()
+        if inputting and not hidden and built then
+            local g=holder and built.groups[holder]
+            upd(g and g.field or built.root,function(x) x:SetKeyboardFocus() end)
+        end
     end
     -- Each frame: our focus back once due, while the input is still ours and the world shows; the open and close
     -- tweens, only while one runs.
     function self.tick(now)
         if refocus_at and now>=refocus_at then
             refocus_at=nil
-            if inputting and not hidden and built then
-                local g=holder and built.groups[holder]
-                upd(g and g.field or built.root,function(x) x:SetKeyboardFocus() end)
-            end
+            self.refocus()
         end
         if not off and next(tweens) then
             run(function()
@@ -670,6 +772,18 @@ function Ui.kit(opts)
     function self.whole() return self.ready() and not built.partial end
     -- Turned off for this Lua load: only then do the callers go back to the notice line above EVE and the name tag.
     function self.off() return off end
+    -- The root collapsed (on) or shown again, at once when it is up in a world shown, and so at each build and slow
+    -- until veil(false); the build and the warm-up go on, faster (VEIL_BUDGET). session/arrival.lua's hold: our root
+    -- (z-order 100) would draw over SB's black (10).
+    function self.veil(on)
+        veiled=on==true
+        local v=built and (veiled and COLLAPSED or built.root.on)
+        if hidden or not v or built.root.v==v then return end
+        run(function()
+            local r=alive(built.root)
+            if r then built.root.v=v; r:SetVisibility(v) end
+        end)
+    end
     -- Shown or hidden; with now (the 1 ms loop's clock), the open tween (160 ms: a slide from the left with a
     -- flicker) or the close one (120 ms).
     function self.show(name,on,now)
@@ -711,7 +825,7 @@ function Ui.kit(opts)
     local function inside(p,x,y)
         local v=viewport(os.clock())
         if not v then return x,y end
-        local pivot,s=p.pivot or {X=0,Y=0},math.min(scale,p.most or scale)
+        local pivot,s=p.pivot or {X=0,Y=0},scale_of(p)
         local left,top=x+pivot.X*p.w*(1-s),y+pivot.Y*p.h*(1-s)
         local function fit(at,size,room) return math.max(SAFE,math.min(at,room-SAFE-size*s)) end
         return x+fit(left,p.w,v.w)-left,y+fit(top,p.h,v.h)-top
@@ -768,9 +882,8 @@ function Ui.kit(opts)
         if s==scale then return end
         scale=s
         for name,g in pairs(built and built.groups or {}) do
-            local most=by[name].place.most or math.huge
-            local t=math.min(s,most)
-            if t~=math.min(was,most) then upd(g,function(x) x:SetRenderScale({X=t,Y=t}) end) end
+            local t=scale_of(by[name].place,s)
+            if t~=scale_of(by[name].place,was) then upd(g,function(x) x:SetRenderScale({X=t,Y=t}) end) end
         end
     end
     function self.sounds(on) sounding=on end -- ui_sounds.
@@ -824,6 +937,51 @@ function Ui.kit(opts)
         local ok,culture=pcall(function() return U.text(U.find(LANGUAGE):GetCurrentLanguage()) end)
         if ok and culture then culture_seen=culture end
         return ok and culture or nil
+    end
+    -- AZERTY or not (the move keys' icon, the settings screen's tab keys): azerty= when given, else SB's last keyboard
+    -- answer, else the game's language (French players type on AZERTY keyboards).
+    function self.azerty()
+        if opts.azerty~=nil then return opts.azerty end
+        device()
+        if keyboard~=nil then return keyboard end
+        return (self.language() or ''):lower():find('^fr')~=nil
+    end
+    -- An SB widget part (L4 2) from its class path ('/Game/.../WB_X.WB_X_C', loaded now when warm_part has not):
+    -- made with WidgetBlueprintLibrary:Create, HitTestInvisible unless hit, fill(widget) before it enters the group's
+    -- canvas at x, y (width by height in layout units). Returns its record {o=, name=}, or nil and why; a failure leaves
+    -- the kit on (the screen draws its own instead).
+    function self.part(group,class_path,x,y,width,height,fill,hit)
+        local short=class_path:match('[^.]+$')
+        local g=self.ready() and alive(built.groups[group])
+        local pc=g and controller()
+        if not pc then return nil,'part '..short..': the UI is not up' end
+        local class=load(class_path,class_path:sub(1,-3))
+        if not class then return nil,'part '..short..': not in this game build' end
+        local made,w=pcall(function() return valid(U.find(WIDGETS):Create(pc,class,pc)) end)
+        if not (made and w) then return nil,'part '..short..': Create failed: '..tostring(w or 'no widget') end
+        local rec={o=w,name=U.text(w:GetFullName()),build=built,v=false} -- v false: put() leaves its visibility.
+        local ok,why=pcall(function()
+            if not hit then rec.v=HIT_TEST_INVISIBLE; w:SetVisibility(rec.v) end
+            if fill then fill(w) end
+            put(built.groups[group],rec,x,y,width,height)
+        end)
+        if ok then return rec end
+        pcall(function() w:RemoveFromParent() end)
+        return nil,'part '..short..': '..tostring(why)
+    end
+    -- A part's widget while it is still ours and in the root that made it; nil once that root went (a rebuild).
+    function self.alive(rec) return rec and built and rec.build==built and alive(rec) or nil end
+    -- A part out of its group now, once.
+    function self.drop(rec)
+        local x=self.alive(rec)
+        if not x then return end
+        rec.build=nil
+        run(function() x:RemoveFromParent() end)
+    end
+    -- A part's class loaded ahead (its object path), one LoadAsset a slow tick after the look and its sounds.
+    function self.warm_part(object_path)
+        for _,p in ipairs(parts) do if p==object_path then return end end
+        parts[#parts+1]=object_path
     end
     -- coop ui reset, the escape hatch (UI-DESIGN 7.5): the game's input given back now whoever holds it, even when this
     -- load thinks the game has it, and the menu's mouse cursor put back (a later input(false) tries again while there

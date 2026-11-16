@@ -1,7 +1,10 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The component table and the display file on the build machine: round trips, every refusal one defect at a time,
 // the mesh path rule (material and cloth paths too, the game's folders and a mod's), the cloth, mod, value and hide
 // lines, the capture's effect lines and the display's effect boxes, and mutated tables, which must re-format to
-// the same bytes whenever they are accepted.
+// the same bytes whenever they are accepted; and the ghost slots' file names.
 #include "pose/table.h"
 
 #include <algorithm>
@@ -129,6 +132,11 @@ std::string blade(const std::string &path) {
 } // namespace
 
 int main() {
+  // One ghost slot per other member of a match lobby; slot 0 keeps today's file names.
+  static_assert(kMaxRemote == 7);
+  assert(slot_file("coop-remote", 0) == "coop-remote.txt" && slot_file("coop-display", 1) == "coop-display-1.txt" &&
+         slot_file("coop-puppet", 6) == "coop-puppet-6.txt");
+
   // The capture file: every field, the addresses from its read lines.
   auto local = parse_table(kLocal, true);
   assert(local && local->generation == 100001 && local->map == "/game/art/bg/worldmap/level_p/e04");
@@ -371,7 +379,7 @@ int main() {
   assert(dropped.look[2].materials == (Materials{{3, kTail}}));
   assert(format_table(dropped) == with(kWire, "material 2 0 " + kTypeB + "\n", ""));
   // Material lines (5), effect slots (6), channel 2 (7), chat (8), deltas (9), scale (10), same-place enemies (11).
-  assert(kSbt == "SBT 19\n");
+  assert(kSbt == "SBT 20\n");
   // Text that is not canonical is read, and passed on in the canonical form only.
   auto loose = parse_table(with(kWire, "generation 100001", "generation 0100001"), false);
   assert(loose && format_table(*loose) == kWire);

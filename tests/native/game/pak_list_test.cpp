@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pak list's filter and digest on the build machine: the base game's files left out, mods in any folder and any
 // case counted, the order of the listing and the case of a name changing nothing, a size or a name changing the hash;
 // CNS packs, their outfits and the assets they declare.

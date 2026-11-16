@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Lily's signal (matrix13/quest/on_time.lua, matrix13/quest/text.lua) over fakes: the status text (slot, signal=,
 -- lily=, signalquest= lines as the native part writes them), the 25 tables with the signal rows as the native part
 -- writes them (FName fields by comparison index, the groups' TaskContainerArray as an array of structs each holding a

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The synced photo mode's pause (FEATURE-PARITY.md 6.3): while the friend takes photos, or a coop freeze test runs,
 // this game holds a pause tag of its own in SB's set, through the function SB's photo mode pauses with
 // (FUN_1422b07b0: the world pauses when the set's first tag comes and resumes when its last goes, so ours overlaps SB's

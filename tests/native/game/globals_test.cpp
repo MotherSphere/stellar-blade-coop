@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // SB's globals as build 26123051 lays them out (game/memory.h): the block's offsets the fight engine, the photo freeze,
 // the lion gate and the Night Operation probe read land on the globals their getters read (0x141a98bc0 the registry,
 // 0x141a98b50 the world, 0x141a98a30 logic, 0x141a989b0 the net-mode cache), and every header that names one of them

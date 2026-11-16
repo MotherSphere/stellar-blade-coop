@@ -1,6 +1,7 @@
 # Stellar Blade Online
 
-**Two-player online co-op for Stellar Blade on PC, linked through Steam.**
+**Two-player online co-op for Stellar Blade on PC, linked through Steam, with a test lobby for matches of up to 8
+players.**
 
 <img align="right" width="200" src="mod/StellarCoop/Assets/MotherSphere.png" alt="Mother Sphere, illustration by timediffer24">
 
@@ -9,7 +10,7 @@ native DLL. The link between the two games goes through the Steam client that th
 no other program and no server of its own. It was called StellarCoop until October 2026: the mod's folder, its DLL, its
 `[StellarCoop]` log tags and its release zip keep that name, and its console commands still start with `coop`.
 
-[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](LICENSE)
+[![License: SBO License 1.0](https://img.shields.io/badge/License-SBO%20License%201.0-blue.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/MotherSphere/stellar-blade-coop?include_prereleases&label=release)](https://github.com/MotherSphere/stellar-blade-coop/releases)
 [![Nexus Mods: Stellar Blade Online](https://img.shields.io/badge/Nexus%20Mods-Stellar%20Blade%20Online-d98f40)](https://www.nexusmods.com/stellarblade/mods/4011)
 [![Game: Stellar Blade on Steam (PC)](https://img.shields.io/badge/game-Stellar%20Blade%20%28Steam%2C%20PC%29-informational)](https://store.steampowered.com/app/3489700/)
@@ -48,7 +49,14 @@ when the game starts ([INSTALL.md: Update](INSTALL.md#update)).
 
 Two-PC co-op was first played on 2026-10-17, between a Linux PC with Proton and a Windows PC.
 [Features and test status](docs/features.md#status) lists every later test and what has not been tested between two
-PCs yet.
+PCs yet. The SBO lobby has run on one PC only, and no match lobby has held two players in game yet. Leave and the
+return to Xion have not run in game, nor has the restore at the title after a failed return. In the lobby EVE wears
+Stellar Blade's `Preset_Eve_Max` build, and only that return or restore gives the co-op save its own skills and
+equipment back ([SBO lobby: Leaving](docs/sbo-lobby.md#leaving)).
+
+This version uses link protocol 20 and does not link with 0.10.0 or older, so every player has to update. Every on/off
+setting is now on by default, the experimental ones included; most of them have not been tested in game
+([Settings](docs/settings.md#coop-settingstxt)).
 
 ## What it does
 
@@ -60,14 +68,19 @@ PCs yet.
   [Ghost](docs/ghost.md).
 - Your friend's card at the top left shows their ping, map, HP, shield and Beta. During a session, Enter opens a chat
   box. See [Interface](docs/interface.md#partner-hud).
+- The SBO lobby (a test) is a waiting room in Xion's training room for matches of up to 8 players. On a co-op save,
+  talk to the recruiter near Roxanne and choose Join. Its menu searches for a public free-for-all match, hosts a
+  private one with a join code, or joins one by code, and a countdown starts once 2 players have linked. The
+  free-for-all itself is not built yet, so a round's start takes nobody to an arena. `coop pvp` tests PvP damage
+  between two linked friends. See [SBO lobby and matches](docs/sbo-lobby.md).
 - Shared enemies (experimental, on by default) give each common enemy one HP bar and one death in both games, while
   both players play a co-op save. Same place, same spawns and shared bosses build on them, and the host's settings
   apply to both games. See [Shared enemies](docs/shared-enemies.md).
 - Co-op saves (`StellarBladeCoop00.sav` to `04.sav`) are copies of your own saves that the mod makes on the title
   screen. Night Operation, the challenges, shared enemies and shared quests run on them only, and nothing goes back to
   your own saves unless you export it. See [Co-op saves](docs/playing-with-a-friend.md#co-op-saves).
-- Group play adds the friend's revive and shared quests (both experimental and off by default), a pause while a
-  cutscene plays in the host's game, and travel to the camp nearest the host (F7, off in this version). See
+- Group play adds the friend's revive and shared quests (both experimental and on by default), a pause while a
+  cutscene plays in the host's game, and travel to the camp nearest the host (F7, not tested in game yet). See
   [Playing with a friend](docs/playing-with-a-friend.md).
 - In Doro races you record a track with F9 checkpoints, then race it alone or against your friend, each racer drawn
   as a Doro. See [Doro races](docs/doro-races.md).
@@ -96,7 +109,7 @@ features; Matrix XIII and Lily's signal have their own pages.
 | UE4SS | v3.0.1 Beta, as packaged in "Stellar Blade UE4SS 1.3". |
 | System | Windows, or Linux with Proton (Steam Deck included). |
 | Console | Optional: ConsoleEnablerMod (in that UE4SS package) for the `coop` console commands. The keys work without it. |
-| Playing together | The same game build and the same link protocol: 19 in 0.8.0 and 0.9.0, which does not link with 0.7.5 (protocol 18) or older versions. |
+| Playing together | The same game build and the same link protocol: 20 in this version, which does not link with 0.8.0 to 0.10.0 (protocol 19) or older versions. |
 
 ## Documentation
 
@@ -104,6 +117,7 @@ features; Matrix XIII and Lily's signal have their own pages.
 | --- | --- |
 | [Install](INSTALL.md) | Install, update and uninstall on Windows, Linux and Steam Deck |
 | [Playing with a friend](docs/playing-with-a-friend.md) | Hosting, joining, join codes and the co-op saves |
+| [SBO lobby and matches](docs/sbo-lobby.md) | The recruiter's Join, the lobby menu, match lobbies of up to 8 players, the hall lobbies, the PvP test |
 | [Keys and commands](docs/usage.md) | Every key and `coop` console command, and the F6 and `coop status` lines |
 | [Features and test status](docs/features.md) | What the features do and when each was tested |
 | [Troubleshooting](docs/troubleshooting.md) | Common problems and which logs to send |
@@ -122,17 +136,24 @@ runs on your own copy of the game.
 
 Night Operation's run (`coop nightop`), the challenges (`coop challenge`, which run on the same code) and the friend's
 revive adapt code from [Survival Protocol](https://www.nexusmods.com/stellarblade/mods/4009) by SchizoEffective (Nexus
-Mods, Stellar Blade mod 4009). The author gave permission, and the code is distributed here under GPL-3.0-or-later. The
-challenge list follows Survival Protocol's graded stages: five difficulty stages picked from a list before a fight.
-[Night Operation: Credits](docs/night-operation.md#credits) lists the adapted parts and the files that mark them.
+Mods, Stellar Blade mod 4009). The author gave permission, and the code is distributed here under the SBO License (see
+[NOTICE](NOTICE)). The challenge list follows Survival Protocol's graded stages: five difficulty stages picked from a
+list before a fight. [Night Operation: Credits](docs/night-operation.md#credits) lists the adapted parts and the files
+that mark them.
 
-Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the GPL.
-It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run.
+Mother Sphere illustration by timediffer24 (https://x.com/timediffer24), given to this project; not covered by the SBO
+License. It is `mod/StellarCoop/Assets/MotherSphere.png`, shown in the guide the mod opens at its first run. The release
+zip does not contain it.
 
 ## License
 
-[GPL-3.0-or-later](LICENSE) © 2026 Stellar Blade Online contributors
+[SBO License 1.0 or later](LICENSE) © 2026 MotherSphere and the Stellar Blade Online contributors
 
-Stellar Blade Online is free software: you can redistribute it and/or modify it under the terms of the GNU General Public
-License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
-version.
+Stellar Blade Online is free to use, study, change and share under the SBO License, version 1.0 or any later version
+that MotherSphere publishes. GPL-3.0 gives these freedoms too. The SBO License gives them to everyone except the
+parties it excludes, which its Appendix A and [EXCLUDED-PARTIES.md](EXCLUDED-PARTIES.md) list (AyakaMods in version
+1.0). It adds rules of its own: only MotherSphere may sell the mod, running it as a server for other people needs
+MotherSphere's written permission, a modified version that you release needs a name of its own, and if other people
+play with your modified version over a network, you offer them its source code. Hosting or joining a game while you
+play is not running a server. Versions up to 0.9.0 were released under GPL-3.0-or-later and stay under it.
+[NOTICE](NOTICE) holds the credits and lists the parts under other terms.

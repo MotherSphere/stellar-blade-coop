@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Record and replay (Phase 3b): what wire_send sends, kept in memory and written to coop-record.bin at the stop; the
 // file read back whole and checked before anything plays; then played in a loop as if a peer were sending it now.
 // Worker thread only. No Windows types: tests/native/pose/record_test.cpp checks it on the build machine, fuzzing the

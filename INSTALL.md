@@ -70,7 +70,10 @@ so check for a new Stellar Blade Online version first. Both players need the sam
 
 `CHANGELOG.md` in the zip gives the zip's version and its features and fixes, newest first. Both players must update
 together. Two games with different protocols cannot link, and the player who tries to join sees
-`Version mismatch: that game runs protocol ..., build ...; yours runs ...`.
+`Version mismatch: that game runs protocol ..., build ...; yours runs ...`. This version uses protocol 20, for the PvP
+test and the match lobbies of the [SBO lobby](docs/sbo-lobby.md), and does not link with 0.10.0 or older (protocol 19).
+In a match lobby, the host's game refuses a player on another protocol, and Search never finds a lobby made by
+another version.
 
 1. Close the game.
 2. From the old `Mods/StellarCoop` folder, copy out what you want to keep: `coop-settings.txt` if you changed a setting,
@@ -83,7 +86,12 @@ together. Two games with different protocols cannot link, and the player who tri
 3. Delete the old `StellarCoop` folder, so that no file of the old version remains.
 4. Install the new zip with install steps 2 to 4, and put the `coop-*.txt` files from step 2 back into the new folder.
    A file from version 0.2 says `shared_enemies=off`: shared enemies stay off until you turn them on in
-   Options > Combat.
+   Options > Combat. In a file written by 0.5.0-beta.1 to 0.10.0, the settings that it says are off by default (the
+   spawn filter, shared quests, the revive, the solid partner, the Load Shortcut saves, the name tag in photos and the
+   status strip) are turned on once at the first load, since every on/off setting is now on by default. The old file
+   is kept as `coop-settings.old.txt` until your first change in Options in a later game run writes over it, so copy it
+   elsewhere to keep it. Turn a setting off again in Options or in the file (see
+   [docs/settings.md](docs/settings.md#coop-settingstxt)).
 5. Do install step 5, with your status key if you changed it.
 
 ## Other mods
@@ -111,7 +119,11 @@ changes the file.
 - `F6` (status) shows one line on screen and writes it to `UE4SS.log`, for example `Co-op: hosting Alex.`
 - `F8` leaves the session. When the host leaves, the guest leaves too.
 - `F9` sets a checkpoint while you record a Doro race track. See [docs/doro-races.md](docs/doro-races.md).
-- `Enter`, during a session, opens the chat box. See [docs/interface.md](docs/interface.md#session-chat).
+- `Enter`, during a session or in the SBO lobby, opens the chat box. See
+  [docs/interface.md](docs/interface.md#session-chat).
+- On a co-op save in Xion, the recruiter near Roxanne in the Scrap Market takes you to the SBO lobby when you choose
+  Join: a test lobby for matches of up to 8 players, where `F5` opens the lobby menu. See
+  [docs/sbo-lobby.md](docs/sbo-lobby.md).
 
 Your friend accepts the invite in Steam. If their game is closed, Steam starts it. They join once they have loaded a
 save, and both ghosts turn on automatically. Session events (a friend joined or left, connection lost, a rejoin)
@@ -144,8 +156,8 @@ changes one line of the file at a time, and keeps the file as it was before its 
 - `send_rate`: poses sent to your friend per second, from 10 to 60 (60 by default), at most one per game frame. The
   ghost you see moves at your friend's rate, so both of you need the new value. A file made by an older version that
   still says 20, the old default, is changed to 60 when the mod loads, once; any other value stays.
-- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. `cloth` is on by default, `dyes` and
-  `effects` are off. The file names them only in a comment, so add a line such as `dyes=on` or `cloth=off`.
+- `cloth`, `dyes`, `effects`: `on` or `off`, what your friend's ghost shows. All three are on by default. The file
+  names them only in a comment, so add a line such as `dyes=off` or `cloth=off`.
   - `cloth`: her ponytail moves as cloth, as in solo. Off, it stays rigid.
   - `dyes`: her hair colour and other material variants. Off, each part has its mesh's own colours.
   - `effects`: her attack and skill effects (19 of EVE's effects, at most 4 at a time).
@@ -189,11 +201,13 @@ cloud. Then restore your backup.
 
 ## Co-op saves
 
-`coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter` and `coop gift` run only on a co-op save, a
-copy of your save, and never on your own saves (`coop nightop stop` and `coop challenge stop` work on any save). The
-ghost, the keys and the Steam link work on any save. Nothing is copied back to your own saves unless you export a
-co-op save (below). Items bought in Night Operation's shop (`coop nightop shop` or `coop nightop buy`) and gifts
-(`coop gift`) go into or leave the co-op save you play, never your own saves.
+`coop fight`, `coop nightop`, `coop challenge`, `coop no`, `coop recruiter`, `coop gift`, `coop pvp` and the recruiter's
+Join to the SBO lobby run only on a co-op save, a copy of your save, and never on your own saves (`coop nightop stop`
+and `coop challenge stop` work on any save). The recruiter himself appears near Roxanne at each Xion load on any save,
+your own saves included; there his Join changes nothing and a notice says why. The ghost, the keys and the Steam link
+work on any save. Nothing is copied back to your own saves unless you export a co-op save (below). Items bought in Night
+Operation's shop (`coop nightop shop` or `coop nightop buy`) and gifts (`coop gift`) go into or leave the co-op save you
+play, never your own saves.
 
 The mod makes the copies itself, in the save folder above: `StellarBladeCoop00.sav` to `StellarBladeCoop04.sav`, one
 for each of your saves `StellarBladeSave00.sav` to `StellarBladeSave04.sav`. Once the game uses the copies, Continue,
@@ -299,8 +313,8 @@ game closed, and named on one line of `StellarCoopSlot.txt` (UTF-8) in the same 
 
 ## Check the files
 
-`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, including `INSTALL.md`, `LICENSE` and
-`CHANGELOG.md`.
+`SHA256SUMS.txt` lists the SHA-256 sum of every other file in the folder, including `INSTALL.md`, `LICENSE`, `NOTICE`,
+`EXCLUDED-PARTIES.md` and `CHANGELOG.md`.
 
 - Linux: in the `StellarCoop` folder, run `sha256sum -c SHA256SUMS.txt`. Every file must pass (`OK`, or the same word in
   your language). A mismatch ends with a warning.
@@ -360,5 +374,10 @@ stays in the logs you send.
 
 ## License
 
-`Assets/MotherSphere.png` is not covered by the GPL in `LICENSE`. It is the Mother Sphere art shown in the guide, by
-timediffer24 (https://x.com/timediffer24), given to this project.
+Stellar Blade Online is licensed under the SBO License 1.0 or any later version, in `LICENSE`. `EXCLUDED-PARTIES.md`
+lists the parties it excludes, and `NOTICE` holds the credits and the parts under other terms. Versions up to 0.9.0 stay
+under GPL-3.0-or-later.
+
+The release zip does not contain `Assets/MotherSphere.png`, the Mother Sphere art by timediffer24
+(https://x.com/timediffer24) that the guide shows when the file is in the mod folder. It was given to this project and
+is not covered by the SBO License. Without it, the guide opens with its text only.

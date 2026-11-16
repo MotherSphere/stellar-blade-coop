@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The synced photo mode's pause (game/photo_freeze.h) against a fake SB pause set that behaves like FUN_1422b07b0: the
 // world pauses when the set's first tag comes and resumes when its last goes, a call without the set or a player
 // controller does nothing, and a load makes a new, running world while the set keeps its tags. Checked: the removal at

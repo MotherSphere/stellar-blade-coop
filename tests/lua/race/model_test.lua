@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Doro race without the game: the track file (round trip, every refusal), names, recording and the 15 m rule, the
 -- runner's rules (crossings at speed and at the radius edge, the teleport DNF, missed checkpoints, wrong way, two
 -- laps), slots, ranking, the line codec and its sizes, and the host and guest machines joined by a fake link that
@@ -304,10 +307,10 @@ local lines=R.track_lines(huge,0xFFFFFFFF)
 assert(#lines==8 and lines[1]:find('^track ') and lines[7]:find('^cps 4294967295 61 '),'One track line, 6 cps')
 assert(lines[8]=='drive 4294967295 2200 950 2400 250 80 15 220 75 45','The driving values last')
 for _,line in ipairs(lines) do
-    assert(#('SBC19 race '..line)<=512 and #line<=R.MAX_LINE,#line)
+    assert(#('SBC20 race '..line)<=512 and #line<=R.MAX_LINE,#line)
     assert(R.decode(line),line)
 end
-assert(#('SBC19 race '..lines[3])==400,'The longest: a 10-digit id, a 2-digit first, 12 checkpoints at the bounds')
+assert(#('SBC20 race '..lines[3])==400,'The longest: a 10-digit id, a 2-digit first, 12 checkpoints at the bounds')
 
 -- The machines, through a fake link. Each side stands in its slot until its GO, then runs the track's centres at its
 -- speed on its own clock. Lines to each side arrive in order, each 30 to 300 ms after it was sent (o.delay), unless
@@ -410,7 +413,7 @@ assert(said.host[#said.host]=='end 7' and host.phase=='over' and guest.phase=='o
 assert(find(log.host,'over') and find(log.guest,'over') and host.dropped==0 and guest.dropped==0)
 for _,side in ipairs({'host','guest'}) do
     for _,text in ipairs(said[side]) do
-        assert(#('SBC19 race '..text)<=512 and R.decode(text),text)
+        assert(#('SBC20 race '..text)<=512 and R.decode(text),text)
     end
 end
 for _,what in ipairs({'missed','wrong_way','dnf','false_start','refused'}) do assert(not find(log.host,what),what) end

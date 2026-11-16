@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The teleport screen's extra tabs (ui/region_tabs.lua) over fakes. Covered: nothing before the game is ready; the
 -- classes loaded when not in memory, the keeper made once, the focus hook registered before the Construct hook; tabs 8
 -- and 9 made collapsed with their count, name, slot and number, the trailing spacer last, the row clipped with its bar; a

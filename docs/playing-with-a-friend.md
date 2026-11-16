@@ -1,6 +1,7 @@
 # Playing with a friend
 
-One player hosts a session and the other joins it through Steam. Shared enemies and your friend's EVE have their own
+One player hosts a session and the other joins it through Steam. A co-op session holds 2 players; the match lobbies
+of up to 8 players start from the [SBO lobby](sbo-lobby.md) instead. Shared enemies and your friend's EVE have their own
 pages, [Shared enemies](shared-enemies.md) and [Ghost](ghost.md). How the link and the features below work is in
 [The Steam link](internals/steam-link.md) and [Group play: how it works](internals/group-play.md).
 
@@ -86,6 +87,9 @@ join`, with Accept and Deny. It opens on its own, maybe while you walk or use th
 - A denied or removed player cannot come back to that lobby. Their game shows `<host> refused the link: you were not
   let in` (or `you were removed from this session`) and leaves.
 - If players you do not know keep asking, host again: the new lobby gets a new code.
+- A session with a player who is not your Steam friend goes through Steam's relays only, on both games, so neither
+  of you learns the other's IP address. The relay route can add ping. Once such a player has been in your lobby, your
+  game stays on relays only until you host again or join a friend's game.
 - While a player who is not your Steam friend is in your session, the menu shows Remove <name>. After a Lua reload
   (Ctrl+R) that row stays hidden for a player let in before the reload; `coop remove <SteamID>` still works.
 - `coop allow <SteamID>` and `coop deny <SteamID>` answer from the console. `coop status` shows the waiting player on
@@ -99,11 +103,9 @@ another map, or more than 150 m from you on yours, one notice offers it:
 camps nearest their EVE, and your game travels to the first of them that it can use (`Travelling to <host>.`). Nothing
 changes in the host's game. This has not been tested in game yet.
 
-In this version the travel is off until it has been tested in game: no offer shows and F7 shows
-`The travel did not start. UE4SS.log says why.` The game's fast travel does not check whether your save has activated a
-camp, and activating a camp counts toward the game's camp trophies, so the travel takes only a camp the mod reads as
-activated in your save: one the game's own camp list would show. `coop status` lists them on its `activated=` line.
-The rest of this section describes the travel as built.
+The game's fast travel does not check whether your save has activated a camp, and activating a camp counts toward the
+game's camp trophies, so the travel takes only a camp the mod reads as activated in your save: one the game's own camp
+list would show. `coop status` lists them on its `activated=` line.
 
 - `follow_host=ask` (the default) shows that notice. With `always`, it reads
   `Following <host> in 5 s. Press F7 to stay.` and the travel starts 5 s later unless you press F7. With `off`, nothing
@@ -138,7 +140,7 @@ When one EVE dies, the other player keeps playing (see [internals/group-play.md]
 
 ## Revive by your friend (experimental)
 
-With `revive=on` (Options > Session > Friend can revive me; off by default, not tested in game yet), your friend can
+With `revive=on` (Options > Session > Friend can revive me; on by default, not tested in game yet), your friend can
 revive you where you fell. On the death screen you see `<name> can revive you: wait, or respawn at a camp.` Your
 friend sees `<name> is down. Stand next to them for 3 s to revive them.` Once their EVE has stood within 2 m of yours
 across, and 1 m up or down, for 3 s in a row, your game calls the game's own in-place respawn on your EVE. You get up
@@ -170,7 +172,7 @@ guest's rest works as in solo play.
 ## Known limits
 
 - The friend's `<name> is down` notice does not know the downed player's `revive` setting, since no line carries it.
-  With `revive=off` (the default) on the downed side, standing next to them does nothing.
+  With `revive=off` on the downed side, standing next to them does nothing.
 - On one map a shared enemy keeps one HP bar at any distance: the host's hits on an enemy 500 m from the guest lower
   her copy's HP too. Its death reaches her game only if she took part in its fight (`kill_credit`).
 - A boss fight that the guest starts alone can pair with the host's copy of that boss. Her boss then takes the HP of
@@ -237,7 +239,7 @@ the game's own pause, held in memory only, and nothing is saved. This has not be
   `photo_freeze_max` seconds (10 min by default) until the photographer's next photo session.
 - During your own photo or selfie mode, the mod's screen is hidden (the feed, the menu, the partner HUD), and notices
   wait until it ends, then show above EVE. Your friend's ghost stays in the shot unless `photo_ghost=off`, and its name
-  tag is hidden unless `photo_name_tag=on`.
+  tag too unless `photo_name_tag=off`.
 - The pause works on game build 26123051 only. On another build, or after a fault (`photo pause off: ...` in the log),
   photo sync gives notices only.
 - `coop freeze <seconds>` (1 to 3600) holds the same pause in your game alone, so you can test it without a friend.
@@ -276,8 +278,8 @@ boss intro counts as a cutscene there has not been checked in game yet.
 ## Shared quests (experimental)
 
 Shared quests carry the quest steps that the host and the guest make together into the guest's co-op save. They are
-off by default and have not been tested in game yet. Back up your saves before you turn them on (see
-[saves.md](saves.md)), and keep Steam Cloud off.
+on by default and have not been tested in game yet. Back up your saves before you play a co-op save with them on
+(see [saves.md](saves.md)), and keep Steam Cloud off.
 
 They run while a friend is linked, both players play a co-op save and both have them on: Options > Saves > Shared
 quests (experimental) in the co-op menu, or `shared_quests=on` in [coop-settings.txt](settings.md#coop-settingstxt). The row asks

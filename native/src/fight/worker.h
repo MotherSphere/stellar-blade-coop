@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The shared fight's worker side (fight/engine.h describes the whole): Mail between the logic thread, the game
 // thread and the worker, and the Worker that runs the user's coop fight requests, the gates and the lines.
 #pragma once
@@ -129,7 +132,10 @@ private:
 //     coop-fight-record.txt, written when the mode ends. With scaling it writes (the enemies' maxes), so it waits for
 //     fight writes=armed too;
 //   replay: that file played into the guest's side from its start; the guest's own lines go nowhere. It writes, so
-//     it waits for fight writes=armed too.
+//     it waits for fight writes=armed too;
+//   pvp: the PvP test (design 13), with the linked friend and on a co-op save as on: only her pvp, on and off lines
+//     reach the job, her pvp lines with her SteamID; a change of lobby owner changes nothing. Never beside another
+//     mode: either one refuses the other.
 // A mode runs while a save is loaded, our player is not in photo mode and the world is not paused (SB holds a pause
 // tag: its menu, a movie, a lost focus; and, while running, our job took no turn for kStallMs) and, for on, a friend is
 // linked and the save is a co-op one (the gate's kNoCoopSave). In photo mode SB's logic stands still, and in a paused
@@ -163,18 +169,19 @@ public:
   // stats. photo: our player in photo mode (photo_mode()). mate: her life (link/core.h's mate_life()), which the job
   // gets while the mode runs with her as a local mate message: at each change, and while it is down or alive each
   // kMateEveryMs and at each new session (the job reads unknown at its start, and kMateMs after the last). paused: SB
-  // holds a pause tag (world_paused()).
+  // holds a pause tag (world_paused()). partner: the linked friend's SteamID (0: none), for the PvP test.
   template <class Gate, class Io>
   void pass(uint64_t now_ms, bool linked, bool hosting, bool world, const std::vector<std::string> &lines, Gate &&gate,
-            Io &io, bool photo = false, Life mate = Life::unknown, bool paused = false) {
+            Io &io, bool photo = false, Life mate = Life::unknown, bool paused = false, uint64_t partner = 0) {
     now_ = now_ms, linked_ = linked, hosting_ = hosting, world_ = world, photo_ = photo;
+    e_.pvp_peer(partner);
     if (!linked)
       her_ = "?", her_said_ = 0;
     last_ = mail_.take(
         [&](const Message &m) { // A stopped session's last lines go nowhere: she dropped it.
           if (running_ && ran_ == Fight::record)
             record(m);
-          else if (running_ && ran_ == Fight::on && linked && !io.send(format(m), m.type != Type::hp))
+          else if (running_ && with_her(ran_) && linked && !io.send(format(m), m.type != Type::hp))
             ++unsent_;
         },
         [&](const Event &ev) { io.say("fight " + line(ev)); },
@@ -190,7 +197,7 @@ public:
       if (pilot_line(text)) // Same-place enemies' (fight/pilot.h): never the job's.
         continue;
       std::string reason;
-      const Message m = parse(text.data(), text.size(), &reason);
+      Message m = parse(text.data(), text.size(), &reason);
       if (m.type == Type::invalid) {
         if (!malformed_++)
           io.say("fight: a malformed line from her dropped (said once a session)");
@@ -203,7 +210,12 @@ public:
         io.say("fight: her shared fight off: " + reason);
       }
       her_ = state;
-      if (running_ && ran_ == Fight::on && !mail_.give(m))
+      // The PvP test takes her pvp, on and off lines alone, the shared fight all but her pvp lines.
+      const bool taken = ran_ == Fight::pvp ? m.type == Type::pvp || m.type == Type::on || m.type == Type::off
+                                            : ran_ == Fight::on && m.type != Type::pvp;
+      if (m.type == Type::pvp)
+        m.from = partner;
+      if (running_ && taken && !mail_.give(m))
         ++dropped_;
     }
     if (running_ && ran_ == Fight::replay) {
@@ -223,7 +235,7 @@ public:
       said = end(std::string("stopped for this run (") + e_.why() + ")", io);
     } else if (record_full_) {
       said = end("the recording is full (4 MB or 20000 lines)", io);
-    } else if ((running_ || mode_ == Fight::on) && world_ && now_ms >= next_gate_) { // A load only pauses (update).
+    } else if ((running_ || with_her(mode_)) && world_ && now_ms >= next_gate_) { // A load only pauses (update).
       next_gate_ = now_ms + kGateMs;
       said = check(gate, io);
     }
@@ -263,17 +275,19 @@ public:
   }
   bool piloting() const { return pilot().rfind("on ", 0) == 0; }
   Fight mode() const { return mode_; } // What was asked last (none: idle, or ended).
-  // For the status line: " fight=on <enemies the host arbitrates or pairs the guest follows>", " fight=probe" (no
-  // count: its actors may change at each census, and Lua logs each new status line), " fight=waiting" (asked but
-  // paused), " fight=stopped" (latched for the run), or empty.
+  // For the status line: " fight=on <enemies the host arbitrates or pairs the guest follows>", " fight=probe" and
+  // " fight=pvp" (no count: its actors may change at each census, and Lua logs each new status line),
+  // " fight=waiting" (asked but paused), " fight=stopped" (latched for the run), or empty.
   std::string status() const {
     if (e_.latched())
       return " fight=stopped";
+    if (running_ && (ran_ == Fight::probe || ran_ == Fight::pvp))
+      return std::string(" fight=") + name(ran_);
     if (running_)
-      return ran_ == Fight::probe ? " fight=probe" : " fight=on " + std::to_string(side_ ? last_.hosted : last_.paired);
+      return " fight=on " + std::to_string(side_ ? last_.hosted : last_.paired);
     return mode_ != Fight::none ? " fight=waiting" : "";
   }
-  // coop-status.txt's own line: "fight=on mode=<on|probe|record|replay> ..." with the counts as of the last second,
+  // coop-status.txt's own line: "fight=on mode=<on|probe|record|replay|pvp> ..." with the counts as of the last second,
   // "fight=waiting mode=<mode> why=<what it waits for>", "fight=stopped why=<the latch>", or "fight=off", with
   // " why=<why it last stopped>" once it ran; while she is linked, " her=<on|own-save|off|stopped|waiting|?>" before
   // the why. The why last: it has spaces.
@@ -291,11 +305,15 @@ public:
   }
 
 private:
-  // ask()'s answer. On waits for a co-op save (the gate's kNoCoopSave); the solo tools need one now, and any other
-  // refusal of the gate refuses them all.
+  // ask()'s answer. On and pvp wait for a co-op save (the gate's kNoCoopSave); the solo tools need one now, and any
+  // other refusal of the gate refuses them all. fight pvp off ends a pvp mode, waiting or running, and nothing else.
   template <class Gate, class Io> std::string asked(const Request &r, Gate &&gate, Io &io) {
     switch (r.fight) {
     case Fight::off: return mode_ == Fight::none ? "shared fight is not on" : end("coop fight off", io);
+    case Fight::pvp:
+      if (r.off)
+        return mode_ == Fight::pvp ? end("coop pvp off", io) : "the PvP test is not on";
+      break;
     case Fight::status:
       if (running_)
         stats(now_, io, true);
@@ -306,11 +324,15 @@ private:
     }
     if (e_.latched())
       return std::string("shared fight off: stopped for this run (") + e_.why() + ")";
+    if (mode_ != Fight::none && r.fight == Fight::pvp && mode_ != Fight::pvp)
+      return std::string("PvP test refused: the shared fight is on (") + name(mode_) + "); coop fight off first";
+    if (mode_ == Fight::pvp && r.fight != Fight::pvp)
+      return "shared fight refused: the PvP test is on; coop pvp off first";
     if (mode_ != Fight::none)
       return std::string("shared fight is already on (") + name(mode_) + ")";
     const std::string refused = gate();
     coop_ = refused.empty(), gate_ms_ = now_;
-    if (!coop_ && !(r.fight == Fight::on && no_coop(refused)))
+    if (!coop_ && !(with_her(r.fight) && no_coop(refused)))
       return "shared fight off: " + refused;
     if (r.fight == Fight::record && scaling(r.scale, r.bosses) && !armed_)
       return "shared fight record refused: its scaling writes, and writes are not armed yet (coop fight probe first)";
@@ -341,32 +363,34 @@ private:
     std::string said = update(gate, io);
     return !said.empty() ? said
                          : std::string("shared fight ") + name(mode_) + ": waiting for " +
-                               (mode_ == Fight::on && !linked_ ? "a linked friend"
-                                : !world_                      ? "a loaded save"
-                                : mode_ == Fight::on && !coop_ ? "a co-op save"
-                                : photo_                       ? "the end of photo mode"
-                                                               : "the end of the game's pause");
+                               (with_her(mode_) && !linked_ ? "a linked friend"
+                                : !world_                    ? "a loaded save"
+                                : with_her(mode_) && !coop_  ? "a co-op save"
+                                : photo_                     ? "the end of photo mode"
+                                                             : "the end of the game's pause");
   }
   static bool no_coop(const std::string &why) { return why.rfind(kNoCoopSave, 0) == 0; }
-  // The gate asked again: why the mode ends, or empty. For on, a save that is not a co-op one only waits.
+  // The modes run with the linked friend: on and pvp.
+  static bool with_her(Fight f) { return f == Fight::on || f == Fight::pvp; }
+  // The gate asked again: why the mode ends, or empty. For on and pvp, a save that is not a co-op one only waits.
   template <class Gate, class Io> std::string check(Gate &&gate, Io &io) {
     const std::string why = gate();
     coop_ = why.empty(), gate_ms_ = now_;
-    return coop_ || (mode_ == Fight::on && no_coop(why)) ? std::string() : end(why, io);
+    return coop_ || (with_her(mode_) && no_coop(why)) ? std::string() : end(why, io);
   }
   // While she is linked and we do not share: our state as an off line, when it changes and every kTellMs (a line sent
   // as the link comes up may reach her before her side passed the handshake, which drops it). Sharing, she heard our
   // on at its start. Not asked: why it last ended (coop fight off, coop off, the gate), or kFeatureOff before any end
   // and while a solo tool runs.
   template <class Io> void tell(uint64_t now_ms, Io &io) {
-    if (!linked_ || (running_ && ran_ == Fight::on)) {
+    if (!linked_ || (running_ && with_her(ran_))) {
       told_.clear();
       return;
     }
-    const char *wait = mode_ == Fight::on ? waits() : nullptr;
+    const char *wait = with_her(mode_) ? waits() : nullptr;
     const std::string why = e_.latched()          ? std::string("stopped for this run (") + e_.why() + ")"
                             : mode_ == Fight::none && !last_why_.empty() ? last_why_
-                            : mode_ != Fight::on ? kFeatureOff
+                            : !with_her(mode_)   ? kFeatureOff
                             : wait               ? wait
                                                  : "starting";
     if (why == told_ && now_ms < told_ms_ + kTellMs)
@@ -388,17 +412,21 @@ private:
     return why.rfind("stopped for this run", 0) == 0 ? "stopped" : "waiting";
   }
   static const char *name(Fight f) {
-    return f == Fight::on ? "on" : f == Fight::probe ? "probe" : f == Fight::record ? "record" : "replay";
+    return f == Fight::on       ? "on"
+           : f == Fight::probe  ? "probe"
+           : f == Fight::record ? "record"
+           : f == Fight::pvp    ? "pvp"
+                                : "replay";
   }
 
   // What the mode asked waits for, or nullptr.
   const char *waits() const {
-    return mode_ == Fight::on && !linked_ ? "no friend linked"
-           : !world_                      ? "no save loaded"
-           : mode_ == Fight::on && !coop_ ? kNoCoopSave
-           : photo_                       ? "photo mode"
-           : paused_                      ? "world paused"
-                                          : nullptr;
+    return with_her(mode_) && !linked_ ? "no friend linked"
+           : !world_                   ? "no save loaded"
+           : with_her(mode_) && !coop_ ? kNoCoopSave
+           : photo_                    ? "photo mode"
+           : paused_                   ? "world paused"
+                                       : nullptr;
   }
   // Starts, pauses or restarts the job for the gates as they stand: the line for the log, or empty.
   template <class Gate, class Io> std::string update(Gate &&gate, Io &io) {
@@ -413,12 +441,13 @@ private:
     }
     return start(io); // Or a new session on the other side.
   }
-  // A new session of the mode (on: the lobby owner hosts; record hosts, replay is the guest): nothing carries over. On
-  // sends our on first; the job says it again at its first turn, behind what the old session left.
+  // A new session of the mode (on: the lobby owner hosts; record hosts, replay is the guest, pvp has no side): nothing
+  // carries over. On and pvp send our on first; the job says it again at its first turn, behind what the old session
+  // left.
   template <class Io> std::string start(Io &io) {
     const bool host = mode_ == Fight::on ? hosting_ : mode_ == Fight::record;
     mail_.clear();
-    e_.set(true, host, mode_ == Fight::probe);
+    e_.set(true, host, mode_ == Fight::probe, mode_ == Fight::pvp);
     own_session();
     running_ = true, side_ = host, ran_ = mode_;
     malformed_ = 0;
@@ -439,6 +468,9 @@ private:
                " %) are not used");
       }
       return std::string("shared fight on: as ") + (host ? "host" : "guest");
+    case Fight::pvp:
+      io.send(format(on), true);
+      return "shared fight pvp: on with her (the PvP test)";
     case Fight::record:
       mail_.give(on); // As a guest's on: the host announces its enemies and sends their values.
       if (recording_.empty())
@@ -559,15 +591,25 @@ private:
       text += " none of the host's";
     return text + "; " + std::to_string(s.lonely) + " of ours not on the host's list";
   }
-  // The status line's counts as of the last second.
+  // The status line's counts as of the last second. The probe and the PvP test have no enemies' fields.
   std::string counts_line() const {
     const Snapshot &s = last_;
     using u = unsigned long long;
     char head[320], tail[160], guards[96] = "";
+    const bool enemies = ran_ != Fight::probe && ran_ != Fight::pvp;
     if (ran_ == Fight::probe)
       std::snprintf(head, sizeof head, "fight=on mode=probe actors=%zu eve=%d turn=%u turns_per_s=%llu writes=%s",
                     s.actors, int(s.eve), s.turn, u(rate_), armed_ ? "armed" : "off");
-    else if (side_)
+    else if (ran_ == Fight::pvp) {
+      uint64_t refused = 0; // Her lines refused, every reason.
+      for (const uint64_t n : s.pvp.refusals)
+        refused += n;
+      std::snprintf(head, sizeof head,
+                    "fight=on mode=pvp proxy=%u sent=%llu unnamed=%llu lines=%llu applied=%llu capped=%llu "
+                    "refused=%llu game_refused=%llu floor=%s",
+                    s.pvp.proxy, u(s.pvp.sent), u(s.pvp.unnamed), u(s.pvp.lines), u(s.pvp.applied), u(s.pvp.capped),
+                    u(refused), u(s.pvp.game_refused), s.pvp.floor ? "on" : "off");
+    } else if (side_)
       std::snprintf(head, sizeof head,
                     "fight=on mode=%s role=host enemies=%zu claims=%llu refused=%llu kills=%llu floored=%llu",
                     name(ran_), s.hosted, u(s.host.claims), u(s.host.refused), u(s.host.kills), u(s.host.floored));
@@ -581,16 +623,16 @@ private:
     // bosses (stage 5) the same way, with their boss_hp_scale, or off. Then the revive's and the travel's guards
     // (Snapshot::boss, battle, and the epoch as zone/n/resets).
     std::snprintf(tail, sizeof tail, "%s sim_us=%llu/%llu threads=%u/%u/%u%s",
-                  ran_ == Fight::probe ? "" : (" scale=" + std::to_string(s.scale[kScaleHp]) + "/" +
-                                               std::to_string(s.scale[kScaleBalance])).c_str(),
+                  !enemies ? "" : (" scale=" + std::to_string(s.scale[kScaleHp]) + "/" +
+                                   std::to_string(s.scale[kScaleBalance])).c_str(),
                   u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread,
-                  ran_ == Fight::probe ? ""
-                  : s.bosses           ? (" bosses=" + std::to_string(s.bosses)).c_str()
-                                       : " bosses=off");
-    if (ran_ != Fight::probe)
+                  !enemies  ? ""
+                  : s.bosses ? (" bosses=" + std::to_string(s.bosses)).c_str()
+                             : " bosses=off");
+    if (enemies)
       std::snprintf(guards, sizeof guards, " boss=%d battle=%u epoch=%u/%u/%u", int(s.boss), s.battle, s.zone, s.epoch,
                     s.resets);
-    return std::string(head) + spawns_field(s) + tail + guards;
+    return std::string(head) + (ran_ == Fight::pvp ? std::string() : spawns_field(s)) + tail + guards;
   }
   // Same spawns (stage 4): " spawns=off", " spawns=on", or " spawns=stopped" (on, but the pilot's latch stopped them:
   // where the other EVE stands is no longer told), and on the guest's side while not off what she created, despawned,
@@ -608,8 +650,24 @@ private:
               " spawns_differ=" + std::to_string(s.spawns.differ);
     return text;
   }
+  // The PvP test's stats line before the job's: the attacker's counts, then the victim's (fight/pvp.h's Counts).
+  static std::string pvp_stats(const pvp::Counts &c) {
+    using u = unsigned long long;
+    const auto refused = [&](pvp::Refusal r) { return u(c.refusals[size_t(r)]); };
+    char text[512];
+    std::snprintf(text, sizeof text,
+                  "fight stats: pvp, proxy guid=%u, made %llu, refused %llu, gone %llu, %llu hits sent, %llu unnamed, "
+                  "shield emptied %llu, moved %llu; her lines %llu, applied %llu, capped %llu, refused by the game "
+                  "%llu, refused member %llu rate %llu range %llu move %llu spent %llu no EVE %llu; floor %s",
+                  c.proxy, u(c.made), u(c.refused), u(c.gone), u(c.sent), u(c.unnamed), u(c.emptied), u(c.moved),
+                  u(c.lines), u(c.applied), u(c.capped), u(c.game_refused), refused(pvp::Refusal::member),
+                  refused(pvp::Refusal::rate), refused(pvp::Refusal::range), refused(pvp::Refusal::move),
+                  refused(pvp::Refusal::spent), refused(pvp::Refusal::eve), c.floor ? "on" : "off");
+    return text;
+  }
   // Each second while running: the status line's counts, and a line of them traced when the side's counts (the
-  // probe's actors, EVE or turn going back) moved, else each minute; at once for coop fight status.
+  // probe's actors, EVE or turn going back; the PvP test's counts) moved, else each minute; at once for coop fight
+  // status.
   template <class Io> void stats(uint64_t now_ms, Io &io, bool force = false) {
     const Snapshot &s = last_;
     const uint64_t ms = now_ms - tick_ms_, runs = s.runs - tick_runs_, us = s.us - tick_us_;
@@ -620,13 +678,17 @@ private:
     detail_ = counts_line();
     const Counts &c = side_ ? s.host : s.guest;
     const bool probe = ran_ == Fight::probe;
-    const bool moved = probe ? s.actors != said_actors_ || s.eve != said_eve_ || s.turn < said_turn_
-                             : std::memcmp(&c, &said_counts_, sizeof c) != 0 ||
-                                   std::memcmp(&s.spawns, &said_spawns_, sizeof s.spawns) != 0;
+    // pvp::Counts has padding, so its line is compared, not its bytes.
+    const std::string versus = ran_ == Fight::pvp ? pvp_stats(s.pvp) : std::string();
+    const bool moved = probe                ? s.actors != said_actors_ || s.eve != said_eve_ || s.turn < said_turn_
+                       : ran_ == Fight::pvp ? versus != said_pvp_
+                                            : std::memcmp(&c, &said_counts_, sizeof c) != 0 ||
+                                                  std::memcmp(&s.spawns, &said_spawns_, sizeof s.spawns) != 0;
     said_turn_ = s.turn;
     if (!force && !moved && now_ms < said_ms_ + kQuietMs)
       return;
     said_counts_ = c, said_spawns_ = s.spawns, said_actors_ = s.actors, said_eve_ = s.eve, said_ms_ = now_ms;
+    said_pvp_ = versus;
     using u = unsigned long long;
     const char *as = ran_ == Fight::record ? " (record)" : ran_ == Fight::replay ? " (replay)" : "";
     char head[768], tail[1024];
@@ -692,7 +754,7 @@ private:
                   u(j.slow_turns), u(j.slow_min), u(j.frozen), u(j.refrozen), u(j.freeze_lost), u(j.thawed),
                   u(j.thaw_refused), u(j.battles), u(j.owns), u(j.own_nos), u(s.lost), u(dropped_), u(unsent_),
                   u(malformed_), u(mean_us_), u(s.max_us), s.thread, s.sb_thread, s.game_thread);
-    io.trace(std::string(head) + spawns + filter + bosses + tail);
+    io.trace(ran_ == Fight::pvp ? versus + tail : std::string(head) + spawns + filter + bosses + tail);
   }
 
   Engine &e_;
@@ -721,6 +783,7 @@ private:
   Snapshot last_;
   Counts said_counts_;
   SpawnCounts said_spawns_;
+  std::string said_pvp_; // The PvP test's stats line as last traced.
   size_t said_actors_ = 0;
   bool said_eve_ = false;
   uint32_t said_turn_ = 0;

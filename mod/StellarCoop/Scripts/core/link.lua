@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Lua side of the files shared with the native part. Lua writes whole files beside and renames them, so the native
 -- part never reads one half-written: coop-request.txt (a console request), coop-session.txt (a token per Lua load),
 -- coop-components.txt (EVE's capture), coop-display.txt (the ghost built for the remote table), coop-puppet.txt (the
@@ -23,8 +26,10 @@
 -- guest's travel to the camp nearest the host), which reads camps() here; its collide partner/puppet.lua's (the solid
 -- partner); its drift_keys the Doro races' driving (race/drive.lua); its mod_names the native part's (through
 -- coop-state.txt: names=0 keeps the names of our .pak mods from the friend); its shortcut_load commands/cut.lua's
--- (coop shortcut load, a test tool with no menu row). The co-op menu (ui/menu.lua) changes the file, one line at a
--- time (D-UI4).
+-- (coop shortcut load, a test tool with no menu row); its pvp_spike commands/fight.lua's (coop pvp, the PvP test, a
+-- test tool with no menu row; main.lua's reload ends it when off); its sbo_lobby session/sbo.lua's (the SBO lobby in
+-- Xion, on by default, no menu row), which also reads sbo() here. The co-op menu (ui/menu.lua) changes the file, one
+-- line at a time (D-UI4).
 local K=require('core.keybind')
 local SF=require('core.settings_file')
 local T=require('ui.text')
@@ -61,10 +66,10 @@ auto_coop_save=ask
 name_tag=on
 # Poses sent to your friend a second: 10 to 60.
 send_rate=60
-# What the ghost shows, each on or off: cloth (her ponytail swings as in solo; on unless set here, and it sends
-# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects), both off unless set
-# here. dyes and effects off also stop sending yours.
-# For example: dyes=on
+# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends
+# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and effects off
+# also stop sending yours.
+# For example: dyes=off
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
 # and Alpha Naytibas) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them),
@@ -96,31 +101,31 @@ same_spawns=on
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
-# Spawn filter, experimental, yours, used when you are the guest and the host has same_spawns=on: on or off, off
-# until it has been tested in game. On, the mod changes one pointer in the game's memory on your PC. An enemy your
+# Spawn filter, experimental, yours, used when you are the guest and the host has same_spawns=on: on or off, on by
+# default, not tested in game yet. On, the mod changes one pointer in the game's memory on your PC. An enemy your
 # game removed because the host's game no longer has it, or a shared enemy you fought that died in both games, then
 # stays away when your zone resets after your death or your camp rest, instead of appearing for a moment before it is
 # removed.
-spawn_filter=off
+spawn_filter=on
 # Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
 # hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
 # boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
 # to 4.0.
 bosses=on
 boss_hp_scale=2.0
-# Shared quests, experimental: on or off, off by default. On, while you and your friend both play a co-op save, a
+# Shared quests, experimental: on or off, on by default. On, while you and your friend both play a co-op save, a
 # quest step the host makes while you stand in the same zone, with that quest at the same point in your game, is made
 # in your game too (Epic, Sub and Request quests). A step made without you is never given to you; a kill step waits
 # for your own kill, and a Request waits until you hand it in at your own request board. quest_deny, the host's: quests
 # never shared, by name or number, separated by spaces or commas (for example quest_deny=Quest_Epic_14_1).
-shared_quests=off
+shared_quests=on
 quest_deny=
-# Revive, experimental: on or off, off by default. Yours, for your own EVE: on, while you are on the death screen and
+# Revive, experimental: on or off, on by default. Yours, for your own EVE: on, while you are on the death screen and
 # your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
 # recovery items refilled as at a camp. It needs the shared enemies running (shared_enemies=on, on a co-op save), and
 # never happens during a boss fight on your side. In a co-op Night Operation run, on also turns your death into a 30 s
 # down: your friend revives you by holding the interact key next to your EVE, or you type coop nightop revive.
-revive=off
+revive=on
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
@@ -130,7 +135,7 @@ revive=off
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
-photo_name_tag=off
+photo_name_tag=on
 photo_pause=full
 # Cutscene wait: on or off. Yours, as the guest: on, your game pauses while a cutscene plays in the host's game and you
 # are both on one map, with the same pause as photo sync and for at most photo_freeze_max.
@@ -140,16 +145,17 @@ cutscene_wait=on
 # game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
 # follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
-# Solid partner, experimental: on or off, off by default. Yours: on, your EVE cannot walk through your friend's ghost
+# Solid partner, experimental: on or off, on by default. Yours: on, your EVE cannot walk through your friend's ghost
 # while she walks, runs or falls. The ghost lets her through while it overlaps her, while your feet are 60 cm or more
 # apart in height, after 2 s of contact (until you are 50 cm apart) and while your friend is down. A dodge into it
 # stops at it. Enemies, NPCs and the camera pass through it.
-collide=off
+collide=on
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
 ui_language=game
-# The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
+# The session chat (Enter opens it during a session or in the PvP lobby): on or off. Off hides your friend's lines
+# and sends none.
 chat=on
 # Mod names: on or off. On, your friend's game gets the names of the .pak mods your game loads (beyond the base game's,
 # under SB/Content/Paks), so each of you is told which mods the other uses and you lack. Off sends only how many there
@@ -164,29 +170,38 @@ partner_arrow=on
 partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
-status_overlay=off
-# Shortcut saves, a test tool: on or off, off by default. On, coop shortcut load <map> <1-4> writes one of the game's
+status_overlay=compact
+# Shortcut saves, a test tool: on or off, on by default. On, coop shortcut load <map> <1-4> writes one of the game's
 # cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
 # A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
 # matter (docs/usage.md, Cut Load Shortcut saves).
-shortcut_load=off
+shortcut_load=on
+# PvP test, a test tool: on or off, on by default. On, coop pvp on starts it while you and your friend both play a
+# co-op save with shared_enemies=off. A stand-in enemy follows your friend's ghost in your game, and your hits on it
+# take HP from your friend's EVE in their game, down to 1 HP.
+pvp_spike=on
+# SBO lobby: on or off, on by default. On, the recruiter's Join saves the co-op game and opens the PvP lobby in Xion,
+# and each co-op save is copied before the game rewrites it (the 10 newest kept per slot).
+sbo_lobby=on
 ]]
 -- The looks are comments only in the file above: an old file and a new one both follow the code's default here. A file
 -- written before shared_enemies and fight_chars existed lacks them: on and auto, as here; one written before the photo
 -- settings, or the menu's, lacks those: the defaults here. One written before menu_key: see parse_settings.
 local DEFAULTS={menu_key='F5',host_key='none',status_key='F6',leave_key='F8',race_key='F9',
     drift_keys='Gamepad_RightTrigger B',name_tag='on',
-    send_rate='60',cloth='on',dyes='off',effects='off',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
+    send_rate='60',cloth='on',dyes='on',effects='on',shared_enemies='on',fight_chars='auto',guest_kills='at_once',
     enemy_hp_scale='1.35',enemy_balance_scale='1.15',kill_credit='together',same_place='on',aggro='game',
-    same_spawns='on',enemy_extra='0',spawn_filter='off',bosses='on',boss_hp_scale='2.0',
-    photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='off',photo_pause='full',ui_scale='100',
+    same_spawns='on',enemy_extra='0',spawn_filter='on',bosses='on',boss_hp_scale='2.0',
+    photo_sync='both',photo_freeze_max='600',photo_ghost='on',photo_name_tag='on',photo_pause='full',ui_scale='100',
     ui_sounds='on',ui_language='game',chat='on',partner_bar='on',partner_arrow='on',partner_card='on',card_details='on',
-    status_overlay='off',who_can_join='friends',auto_coop_save='ask',shared_quests='off',quest_deny='',revive='off',
-    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='off',mod_names='on',shortcut_load='off'}
+    status_overlay='compact',who_can_join='friends',auto_coop_save='ask',shared_quests='on',quest_deny='',revive='on',
+    cutscene_wait='on',follow_host='ask',follow_key='F7',collide='on',mod_names='on',shortcut_load='on',
+    pvp_spike='on',sbo_lobby='on'}
 -- On or off.
 local SWITCHES={name_tag=true,shared_enemies=true,same_place=true,same_spawns=true,spawn_filter=true,bosses=true,
     photo_ghost=true,photo_name_tag=true,ui_sounds=true,chat=true,partner_bar=true,partner_arrow=true,partner_card=true,
-    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true}
+    card_details=true,shared_quests=true,revive=true,cutscene_wait=true,collide=true,mod_names=true,shortcut_load=true,
+    pvp_spike=true,sbo_lobby=true}
 local LOOKS={cloth=true,dyes=true,effects=true} -- What the ghost shows (partner/puppet.lua), each on or off.
 local KEYS={'menu_key','host_key','status_key','leave_key','follow_key','race_key'}
 local CHOICES={photo_sync={'both','notice','off'},ui_language={'game','english'},guest_kills={'at_once','confirmed'},
@@ -315,6 +330,51 @@ function Link.migrate_credit(text)
     if (SF.get(new,'kill_credit') or ''):lower()~='all' then return new end
     return SF.set(new,'kill_credit','together')
 end
+-- 0.5.0-beta.1 to 0.9.0 wrote spawn_filter, photo_name_tag, shared_quests, revive, collide and status_overlay as off,
+-- 0.7.0-beta.1 and later shortcut_load too, and the PvP test builds pvp_spike. Each has a comment that says off, but
+-- photo_name_tag and status_overlay: the shared quests comment, which the same builds wrote, stands for them. Their
+-- ghost comment said dyes and effects are off unless set. A file with one of those comments: its text with each as
+-- Link.DEFAULT has it and the settings it stands for that say off set to their default, so it is changed once and an
+-- off picked later stays. nil for any other file, and nil, why when a line cannot be set.
+local OLD_OFF_NOTES={
+    {"same_spawns=on: on or off, off\n# until it has been tested in game.",
+        "same_spawns=on: on or off, on by\n# default, not tested in game yet.",{'spawn_filter'}},
+    {'# Shared quests, experimental: on or off, off by default.',
+        '# Shared quests, experimental: on or off, on by default.',{'shared_quests','photo_name_tag','status_overlay'}},
+    {'# Revive, experimental: on or off, off by default.','# Revive, experimental: on or off, on by default.',
+        {'revive'}},
+    {'# Solid partner, experimental: on or off, off by default.',
+        '# Solid partner, experimental: on or off, on by default.',{'collide'}},
+    {'# Shortcut saves, a test tool: on or off, off by default.',
+        '# Shortcut saves, a test tool: on or off, on by default.',{'shortcut_load'}},
+    {'# PvP test, a test tool: on or off, off by default.','# PvP test, a test tool: on or off, on by default.',
+        {'pvp_spike'}},
+    {"# What the ghost shows, each on or off: cloth (her ponytail swings as in solo; on unless set here, and it "
+        .."sends\n# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects), "
+        .."both off unless set\n# here. dyes and effects off also stop sending yours.\n# For example: dyes=on",
+    "# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends\n"
+        .."# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and "
+        .."effects off\n# also stop sending yours.\n# For example: dyes=off",{}}}
+function Link.migrate_off(text)
+    local nl=text:find('\r\n',1,true) and '\r\n' or '\n'
+    local new,keys=text,{}
+    for _,note in ipairs(OLD_OFF_NOTES) do
+        local at,stop=new:find((note[1]:gsub('\n',nl)),1,true)
+        if at then
+            new=new:sub(1,at-1)..(note[2]:gsub('\n',nl))..new:sub(stop+1)
+            for _,key in ipairs(note[3]) do keys[#keys+1]=key end
+        end
+    end
+    if new==text then return nil end
+    for _,key in ipairs(keys) do
+        if (SF.get(new,key) or ''):lower()=='off' then
+            local set,why=SF.set(new,key,DEFAULTS[key])
+            if not set then return nil,why end
+            new=set
+        end
+    end
+    return new
+end
 -- The settings from the file's text, and the log lines for what was refused: a bad value keeps its default.
 function Link.parse_settings(text)
     local settings,notes,n={},{},0
@@ -410,7 +470,7 @@ function Link.new(folder,fs)
     fs=fs or Link.files
     local function path(name) return folder..'\\'..name end
     local status_path=path('coop-status.txt')
-    local seen,remote={},{}
+    local seen,remote,engine={},{},'' -- engine: the pose path's line as of the last changes() (remote(k)).
     -- As of the last changes(); dead: the worker stopped for good (a fault or another Steamworks build); held: an
     -- invite waits for a save; rejoin: the tries started to get back into a lost game; shown: the last notice number
     -- handed out; fight: the shared fight's line; pilot: same-place enemies' line; photo: the photo line's {mine=,
@@ -419,19 +479,23 @@ function Link.new(folder,fs)
     -- changes() until she is linked or we are no longer a guest); saves: the co-op saves' state (saves()); paks: her
     -- .pak mods against ours (paks()); mods: her mod containers against ours by name (mods()); cns: our CNS packs
     -- (cns()); quests: the shared quests' line; noted: their notes listed; noted_shown: the last note number handed
-    -- out.
+    -- out; sbo: the SBO lobby's line (sbo()).
     local mode,friend,listed,dead,held,rejoin,shown,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil,nil
     local mate,life,ping,loopback,rejoined,saves,paks,mods,cns=nil,nil,nil,false,false,{},nil,nil,nil
-    local quests,noted,noted_shown=nil,nil,nil
+    local quests,noted,noted_shown,sbo=nil,nil,nil,nil
     local shared_version=0 -- The status's shared= line's version (shared_assets()); kept across changes().
     local camps_asked,camps_answer=nil,nil -- The follow's camps lines (camps()).
+    local match,round=nil,nil -- The match line and our last round's line (match(), round()).
+    local uidev,my_name,owner=nil,nil,nil -- uidev(), me(), owner(): SB's input device, our name, the lobby's owner.
+    local room,hall=nil,nil -- room(), hall(): the match lobby's map and lobby pak version words.
     -- As of the last changes() too: lobby, the link line's; code, our join code while we host with one; refused, the
     -- players refused in this lobby; pending, the first joiner waiting for our answer ({id=, name=}); members, the
-    -- lobby members' SteamIDs (peer lines). strangers: each joiner seen waiting in the lobby strangers_in names
-    -- (SteamID to her last name), none a Steam friend.
+    -- lobby members' SteamIDs (peer lines); roster, the member lines (members()). strangers: each joiner seen waiting
+    -- in the lobby strangers_in names (SteamID to her last name), none a Steam friend.
     -- ponytail: Lua memory only: a Lua reload forgets them, and the Remove row with them (coop remove still works); a
     -- flag on her peer line from the native part would outlive the reload.
     local lobby,code,refused,pending,members,strangers,strangers_in=nil,nil,nil,nil,{},{},nil
+    local roster={}
     local self={}
     local function put(name,text,keep)
         local final=path(name)
@@ -449,12 +513,16 @@ function Link.new(folder,fs)
     -- file on disk is never removed, since it may be a request the native part has not read yet.
     -- ponytail: 8 at most, the newest kept, for a native part that never takes them (a fault, another build).
     local queue={}
+    -- The status text changes() read, served by status() until settle() (main.lua, at the end of its 250 ms pass and
+    -- at the top of each frame) or the next request(). nil: status() reads the file.
+    local pass=nil
     local function send()
         if queue[1] and not fs.read(path('coop-request.txt')) and put('coop-request.txt',queue[1]..'\n',true) then
             table.remove(queue,1)
         end
     end
     function self.request(line)
+        pass=nil -- Whatever reads next may look for its answer.
         if not queue[1] and not fs.read(path('coop-request.txt')) then
             local ok,why,beside=put('coop-request.txt',line..'\n',true)
             if ok then return true,'asked the native part: '..line end
@@ -493,7 +561,11 @@ function Link.new(folder,fs)
     -- The ghost built for the remote table, or nil when there is none.
     function self.display(text) return put_or_remove('coop-display.txt',text) end
     function self.remote_table() return fs.read(path('coop-remote.txt')) end
-    function self.status() return fs.read(status_path) end
+    function self.status()
+        if pass then return pass end
+        return fs.read(status_path)
+    end
+    function self.settle() pass=nil end
     -- A whole file of ours beside coop-settings.txt (a race track, coop-track-<name>.txt): its text or nil, and
     -- written through a temporary file (true, or false and why).
     function self.read_file(name) return fs.read(path(name)) end
@@ -518,8 +590,13 @@ function Link.new(folder,fs)
     end
     -- The remote table the native part holds, from its status ("remote=<generation> <count> <source>") as of the last
     -- changes(): its generation, how many times it wrote coop-remote.txt (a new count: read it again) and where it came
-    -- from ('loopback', 'replay' or 'peer'); all nil when there is none.
-    function self.remote() return remote[1],remote[2],remote[3] end
+    -- from ('loopback', 'replay' or 'peer'); all nil when there is none. Ghost slot k from 1: its own table, from
+    -- " remote<k>=<generation> <count>" (always a member's: 'peer').
+    function self.remote(k)
+        if (k or 0)==0 then return remote[1],remote[2],remote[3] end
+        local generation,count=engine:match(' remote'..k..'=(%d+) (%d+)')
+        if generation then return tonumber(generation),tonumber(count),'peer' end
+    end
     -- Chat (UI-DESIGN 4.2, 5.2). A typed line goes into coop-say.txt, written only while the native part has taken the
     -- last one (else false, 'busy'), whole and never left as a temporary; false, 'cannot write' when it cannot be.
     -- No message here ever holds the text: callers log them.
@@ -549,16 +626,18 @@ function Link.new(folder,fs)
             race_queue={}
         end
     end
-    -- The native part's coop-chat.txt, taken and deleted at once: {text=} for each of her lines, {fail=true} when one
-    -- of ours could not go, {race=} for each of her race lines, {gift=} for each of her gift lines (or a gift of ours
-    -- that could not go, as her refusal), oldest first; anything else is ignored.
+    -- The native part's coop-chat.txt, taken and deleted at once: {text=,from=} for each member's line (from: her
+    -- SteamID as digits; ours in the loopback), {fail=true} when one of ours could not go, {race=} for each of her race
+    -- lines, {gift=} for each of her gift lines (or a gift of ours that could not go, as her refusal), oldest first;
+    -- anything else is ignored.
     function self.take_chat()
         local name=path('coop-chat.txt')
         local text,lines=fs.read(name),{}
         if not text or not fs.remove(name) then return lines end -- Not deleted: taken next time, never shown twice.
         for line in text:gmatch('[^\n]+') do
-            local said,raced,gifted=line:match('^in (.+)$'),line:match('^race (.+)$'),line:match('^gift (.+)$')
-            if said then lines[#lines+1]={text=said}
+            local from,said=line:match('^in (%d+) (.+)$')
+            local raced,gifted=line:match('^race (.+)$'),line:match('^gift (.+)$')
+            if said then lines[#lines+1]={text=said,from=from}
             elseif raced then lines[#lines+1]={race=raced}
             elseif gifted then lines[#lines+1]={gift=gifted}
             elseif line=='fail' then lines[#lines+1]={fail=true} end
@@ -569,25 +648,29 @@ function Link.new(folder,fs)
         send()
         self.race_flush()
         local text,now,new=fs.read(status_path),{},{}
+        pass=text
         -- From the pose path's line only: a peer line before it carries a Steam name the other player chooses.
-        local engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
+        engine=('\n'..(text or '')):match('\nengine=[^\r\n]*') or ''
         local generation,count,source=engine:match(' remote=(%d+) (%d+) (%a+)')
         remote={tonumber(generation),tonumber(count),source}
         mode,friend,listed,dead,held,rejoin,fight,photo,pilot=nil,nil,nil,false,nil,nil,nil,nil,nil
         mate,life,ping,loopback,saves,paks,mods,cns=nil,nil,nil,engine:find(' loopback=')~=nil,{},nil,nil,nil
-        quests,noted=nil,nil
-        camps_asked,camps_answer=nil,nil
+        quests,noted,sbo=nil,nil,nil
+        camps_asked,camps_answer,match,round=nil,nil,nil,nil
+        uidev,my_name,owner,room,hall=nil,nil,nil,nil,nil
         -- The engine off on another game build (check_build's reasons): a game update, said at the title
         -- (session/saves.lua).
         if engine:find(' reason=build stamp ',1,true) or engine:find(' reason=code bytes differ',1,true) then
             saves.build=true
         end
-        lobby,code,refused,pending,members=nil,nil,nil,nil,{}
+        lobby,code,refused,pending,members,roster=nil,nil,nil,nil,{},{}
         if not text then return new end
         listed,noted={},{}
         for line in text:gmatch('[^\r\n]+') do
             now[line]=true
-            if not seen[line] and not line:find('^peer=') and not line:find('^fight=') and not line:find('^mate=')
+            if not seen[line] and not line:find('^peer=') and not line:find('^member=') and not line:find('^fight=')
+                and not line:find('^mate=')
+                and not line:find('^match=') -- Its countdown changes each second.
                 and not line:find('^life=')
                 and not line:find('^night=') -- nightop/run.lua logs each night line itself.
                 -- Their spawns= moves with every enemy; cut/enemy.lua logs what it reads for each.
@@ -610,18 +693,50 @@ function Link.new(folder,fs)
             if own then life={state=tonumber(own),hp=tonumber(hp)} end
             if not mode and line:find('^link=') then
                 mode,held,rejoin=line:match('^link=(%a+)'),line:match(' held=(%d+)'),line:match(' rejoin=(%d)/3')
-                lobby=line:match(' lobby=(%d+)')
+                lobby,owner=line:match(' lobby=(%d+)'),line:match(' owner=(%d+)')
+                room,hall=line:match(' room=([%w_]+)'),line:match(' hall=([%w_]+)')
             end
+            uidev=tonumber(line:match('^uidev=(%d+)$')) or uidev
+            local named=line:match('^me=(.*)$')
+            if named then my_name=named~='' and named or nil end
             local ours,out=line:match('^code=([%w%-]+) refused=(%d+)$')
             if ours then code,refused=ours~='none' and ours or nil,tonumber(out) end
             local id,name=line:match('^pending=(%d+) (.*)$')
             if id and not pending then pending={id=id,name=name} end
             id=line:match('^peer=(%d+) ')
             if id then members[#members+1]=id end
+            local slot,on,gone,muted,rtt
+            id,slot,on,gone,muted,rtt,name=line:match('^member=(%d+) (%d) ([01]) ([01]) ([01]) (%-?%d+) (.*)$')
+            if id then
+                roster[#roster+1]={id=id,slot=tonumber(slot),linked=on=='1',lost=gone=='1',muted=muted=='1',
+                    rtt=tonumber(rtt),name=name}
+            end
+            local state,game,count,limit,left=line:match('^match=(%a+) (%S+) ?(%d*) ?(%d*) ?(%d*)$')
+            if state then
+                match={state=state,mode=game,members=tonumber(count),limit=tonumber(limit),left=tonumber(left)}
+            end
+            local rn,rkind,rest=line:match('^round=(%d+) (%a+) (.*)$')
+            if rkind=='start' then
+                local played,map,seed,ids=rest:match('^(%S+) (%S+) (%d+) ?([%d,]*)$')
+                if played then
+                    round={n=tonumber(rn),kind=rkind,mode=played,map=map,seed=tonumber(seed),ids={}}
+                    for each in ids:gmatch('%d+') do round.ids[#round.ids+1]=each end
+                end
+            elseif rkind=='end' then
+                round={n=tonumber(rn),kind=rkind,why=rest}
+            end
             dead=dead or line:find('^stopped=')~=nil or line:find('^missing=')~=nil
             if line:find('^fight=') then fight=line end
             if line:find('^pilot=') then pilot=line end
             if line:find('^quests=') then quests=line end
+            local on,join,record,slot,arrivals,zone,loader,copy,last,verb,result=line:match('^sbo=(%a+) join=(%d+) '
+                ..'record=(%a+) slot=(%S+) arrivals=(%d+) zone=(%d+:%d+) loader=(%-?%d+) copy=(%S+) last=(%d+) '
+                ..'(%S+) (%S+)$')
+            if on then
+                sbo={state=on,join=tonumber(join),record=record,slot=tonumber(slot),arrivals=tonumber(arrivals),
+                    zone=zone,loader=tonumber(loader),copy=copy~='-' and copy or nil,
+                    last={n=tonumber(last),verb=verb~='-' and verb or nil,result=result~='-' and result or nil}}
+            end
             camps_asked=tonumber(line:match('^camps%?=(%d+)$')) or camps_asked
             camps_answer=line:match('^camps=(%d+ %S.*)$') or camps_answer
             local qn,kind,id,alias,zone=line:match('^quest_note=(%d+) ([%a_]+) (%d+) ([%w_]+) ([%w_%-]+)$')
@@ -747,6 +862,11 @@ function Link.new(folder,fs)
     -- "quests=off", "quests=stopped"; native quest/engine.h's Worker::status()), from the start of its own line; nil
     -- without one.
     function self.quests() return quests end
+    -- The SBO lobby's line (the native part's game/sbo.h status_line), from the start of its own line: {state='off',
+    -- 'on' or 'armed', join=the Joins counted, record=the session record's state, slot=its save slot (nil for none),
+    -- arrivals=the type-5 arrivals seen, zone='<index>:<number>' of the last, loader=SB's loader state, copy=the last
+    -- co-op save copy's name (nil for none), last={n=the requests answered, verb=, result=} (nil for none)}, or nil.
+    function self.sbo() return sbo end
     -- Their notes numbered above the last one handed out, oldest first, each {kind=, id=, alias=, zone=} (kind: ahead,
     -- behind, zone, board, locked, kill, unseen, forced, forced_warp or not_forced; id the quest's number as text;
     -- alias its row name; zone for kind zone only). The first call only primes the count, as notices() does.
@@ -763,8 +883,46 @@ function Link.new(folder,fs)
     -- her last camps? (a number); as the guest, the host's answer to ours ('<id> <world> <alias>:<m> ...' or
     -- '<id> none <why>'); nil without them.
     function self.camps() return camps_asked,camps_answer end
-    -- The first peer: her Steam name, linked (hello accepted, compatible), lost; nil without one.
+    -- The slot-0 member: her Steam name, linked (hello accepted, compatible), lost; nil without one.
     function self.friend() if friend then return friend[1],friend[2],friend[3] end end
+    -- The lobby members as of the last changes(), in the status's order: each {id=her SteamID (digits), slot=her ghost
+    -- slot (0 to 6), linked=, lost=, muted=, rtt=her round trip in ms (-1 before the first pong), name=her Steam name
+    -- as the native part cleaned it, maybe ''}.
+    function self.members() return roster end
+    -- The match line ({state='searching'|'open'|'countdown'|'playing', mode=, members= (past the handshake, us
+    -- included), limit=, left= (whole seconds of the countdown)}; members and limit nil while searching, left nil
+    -- outside the countdown), or nil outside matchmaking.
+    function self.match() return match end
+    -- Our last round this run: {n=, kind='start', mode=, map=, seed=, ids={SteamIDs (digits), host first}} while it
+    -- plays, {n=, kind='end', why=} once over; nil before the first.
+    function self.round() return round end
+    -- SB's input device as the native part last read it (1 a QWERTY keyboard, 2 an AZERTY one, 3 to 6 a pad type), or
+    -- nil before its first read.
+    function self.uidev() return uidev end
+    -- Our Steam name as the native part cleaned it, or nil before Steam is ready and when it is empty.
+    function self.me() return my_name end
+    -- A match lobby's owner (her SteamID, digits), or nil outside a match lobby.
+    function self.owner() return owner end
+    -- A match lobby's map (session/sbo.lua's key of a lobby target) and lobby pak version ('xion' without the pak), as
+    -- its owner's lobby data names them; nil outside a match lobby or when it names none.
+    function self.room() return room end
+    function self.hall() return hall end
+    -- Ghost slot k's files (1 to 6, partner/ghosts.lua), shaped as partner/puppet.lua reads this link:
+    -- coop-remote-<k>.txt, coop-display-<k>.txt and coop-puppet-<k>.txt, and the name of the member holding slot k.
+    function self.slot(k)
+        local function file(stem) return stem..'-'..k..'.txt' end
+        return {
+            remote_table=function() return fs.read(path(file('coop-remote'))) end,
+            display=function(text) return put_or_remove(file('coop-display'),text) end,
+            store=function() return self.store(file('coop-puppet')) end,
+            friend=function() for _,m in ipairs(roster) do if m.slot==k then return m.name end end end,
+            mod_assets=self.mod_assets,
+        }
+    end
+    -- The member with this SteamID (digits), or nil.
+    function self.member(id)
+        for _,m in ipairs(roster) do if m.id==id then return m end end
+    end
     -- Whether her photo mode pauses our game now: linked to her, and the photo line's frozen=1 with peer_photo=1.
     function self.paused() return (friend and friend[2] and photo and photo.frozen and photo.peer=='1')==true end
     -- The notices numbered above the last one handed out, oldest first. The first call only primes the count, so a
@@ -822,7 +980,7 @@ function Link.new(folder,fs)
     end
     -- The settings and their log lines. A file that cannot be read is kept as well: the rename fails if it exists.
     function self.settings()
-        local text,wrote,turned,credited=fs.read(path('coop-settings.txt')),nil,nil,nil
+        local text,wrote,turned,credited,switched=fs.read(path('coop-settings.txt')),nil,nil,nil,nil
         if not text then
             text=Link.DEFAULT
             local ok,why=put('coop-settings.txt',text,true)
@@ -864,8 +1022,21 @@ function Link.new(folder,fs)
             elseif why_credit then
                 credited='settings: kill_credit=all is gone, read as together: '..why_credit
             end
+            local off,why_off=Link.migrate_off(text) -- 0.5.0-beta.1 to 0.9.0's off lines, read as the new defaults.
+            if off then
+                local ok
+                ok,why_off=self.write_settings(off)
+                text=off
+                switched=ok and 'settings: spawn_filter, photo_name_tag, shared_quests, revive, collide, shortcut_load '
+                    ..'and pvp_spike are now on and status_overlay compact in coop-settings.txt, where they said off'
+                    or 'settings: the old off defaults read as the new ones (coop-settings.txt not rewritten: '
+                        ..tostring(why_off)..')'
+            elseif why_off then
+                switched='settings: the old off defaults kept as they are: '..why_off
+            end
         end
         local settings,notes=Link.parse_settings(text)
+        if switched then table.insert(notes,1,switched) end
         if credited then table.insert(notes,1,credited) end
         if turned then table.insert(notes,1,turned) end
         if wrote then table.insert(notes,1,wrote) end

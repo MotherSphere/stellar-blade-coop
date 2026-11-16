@@ -1,22 +1,24 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop mxiii (a test tool, experimental, left out of the usage line): SB's own camp travel into Zone_DLC02_10, the
 -- first zone of the cut Matrix XIII dungeon (WorldTable DLCMatrix13, ID 2800), and a camp there. No pak of the game
 -- holds its map, /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, and no row of the game leads to its world. The zMXIII_P
 -- test pak, built outside the mod and never shipped with it, adds a map at that path. On the game thread, in order: the
 -- checks the travel needs, once a command (the follow's own guards: solo, a co-op save, the native travel there and
--- none under way; then the test pak, v1 to v4); the native part's mxiii rows batch (lion/mxiii_rows.h, written by
+-- none under way; then the test pak, v5); the native part's mxiii rows batch (lion/mxiii_rows.h, written by
 -- tools/mxiii_rows.py from data/mxiii-world.json: the zone 10 camp DLC02_10_Camp_01 with DLC02_10_EnvS_900, which
--- leads the travel there and is the camp base, and its kit 901 to 906, which SB spawns at the pak's spawn points of
--- those names; zone 30's
+-- leads the travel there and is the camp base, and its kit 901 to 906, which SB binds by name to the objects the pak
+-- places in its MXIII_Camps_A level, as it does the zone 10 simple camp's 420, 421, 423 and 426; zone 30's
 -- rest stop DLC02_30_Camp_01; 5 shipped ZoneTriggerTable rows patched in place, so the zone 20 waves and the zone 40
 -- chains of spawns fire without the cut map's gates and drain devices; then the map's other camps, their kits and
 -- coins, and zone 0's Tetrapod with Lily), added by SB's own row call with no logic task in flight,
 -- through cut/enemy.lua's rows flow (the tables, the ask, the wait, the read-back); then SB's camp travel to the
 -- Tetrapod camp DLC02_00_Camp_00, beside Lily, through the follow's probe (session/travel.lua; the native part's
--- game/travel.h). The travel activates no camp: only a coin at a vending machine does. A pak before v4 has no spawn
--- point of that name, and the travel goes to DLC02_10_Camp_01 instead. coop mxiii 30 is
+-- game/travel.h). The travel activates no camp: only a coin at a vending machine does. coop mxiii 30 is
 -- the same with the travel to DLC02_30_Camp_01, which reaches the dungeon's upper half without the zone 20 climb (it
--- runs on Matrix 11 triggers and sequences the test pak leaves out); it needs the v3 pak or later, the first with that camp's
--- spawn point, and asks nothing on v1 or v2. Each step logs an [MX] line, the travel's result a [TR] line. A warp into
+-- runs on Matrix 11 triggers and sequences the test pak leaves out). Both ask nothing on a pak before v5: its two
+-- zone 10 camps would have no kit. Each step logs an [MX] line, the travel's result a [TR] line. A warp into
 -- a world the save has never been in may write that world into the save: main.lua lets it run on a co-op save only. The
 -- rows stay for the game run; a second coop mxiii reads them back and travels again. The same batch goes in on its own
 -- at the title, before any save loads, while the game uses the co-op save files and the test pak is there (title()
@@ -41,7 +43,9 @@
 -- .ucas names the kit's spawn points: their FName base DLC02_10_EnvS (DLC02_10_EnvS_901 is that name with the number
 -- 902) is in its MXIII_10_LD package's name map, plain text in an uncompressed container; v1 has no such name. v3 is
 -- the pak whose .ucas names the zone 30 camp's spawn point DLC02_30_Camp_01 (in MXIII_30_LD's name map whole: FName
--- keeps a number written with a leading zero as text); v1 and v2 have no such name.
+-- keeps a number written with a leading zero as text); v1 and v2 have no such name. v4 is the pak whose .ucas names the
+-- Tetrapod camp's spawn point DLC02_00_Camp_00, and v5 a v4 pak whose .utoc also names MXIII_Camps_A.umap, the level
+-- that places the two zone 10 camps' kits, in its directory index.
 -- shortcut: the live folder, not what the engine mounted at start, so a pak copied in while the game runs passes;
 -- upgrade to the native part's start list (game/pak_list.h) if that happens in a test.
 -- The .ucas is read in windows of 16 MB up to its end as the .utoc's compression blocks give it (the header's block
@@ -51,44 +55,33 @@
 -- shortcut: an Oodle-compressed container (a compression method in the .utoc) reads as v1 or as what its compressed
 -- bytes happen to hold; retoc writes ours uncompressed.
 local Enemy=require('cut.enemy')
+local PakGate=require('core.pak_gate')
 local Mxiii={}
 Mxiii.CAMP='DLC02_10_Camp_01'
-Mxiii.ARRIVAL='DLC02_00_Camp_00' -- coop mxiii's camp from v4 on, and the name of its spawn point in that pak.
+Mxiii.ARRIVAL='DLC02_00_Camp_00' -- coop mxiii's camp, and the name of its spawn point from the v4 pak on.
 Mxiii.CAMP30='DLC02_30_Camp_01' -- coop mxiii 30's camp, and the name of its spawn point from the v3 pak on.
 Mxiii.EXIT='coop mxiii leave'
 Mxiii.PAK='zMXIII_P'
 Mxiii.MAP='MXIII_P.umap'
 -- The directory index's names of the WorldTable path /Game/Art/BG/WorldMap_DLC_01/Level_P/MXIII_P, the map last.
 Mxiii.INDEX={'WorldMap_DLC_01','Level_P',Mxiii.MAP}
-Mxiii.DIRS={'~mods','LogicMods'}
 Mxiii.KIT='DLC02_10_EnvS'
+-- The level whose placed actors the zone 10 camps' 11 kit rows bind, in the directory index from the v5 pak on.
+Mxiii.CAMPS_MAP='MXIII_Camps_A.umap'
 -- What the checks line says of each test pak: the camp's spawn point, where SB's arrival puts EVE.
 Mxiii.VERSIONS={
     'v1 (no '..Mxiii.KIT..' point in its .ucas: the camp has no objects; arrival at the dungeon start, 40368 35663 '
         ..'-846)',
-    'v2 ('..Mxiii.KIT..' points in its .ucas: the camp kit stands at the spawn points; arrival at the kit, 36624 16140 '
-        ..'-2136)',
+    'v2 ('..Mxiii.KIT..' points in its .ucas: the zone 10 camp kit stood at them on paks v2 to v4; arrival at the kit, '
+        ..'36624 16140 -2136)',
     'v3 ('..Mxiii.CAMP30..' point in its .ucas: v2 and a zone 30 camp with no kit; coop mxiii 30 arrives at 26392 '
         ..'-23650 4414)',
-    'v4 ('..Mxiii.ARRIVAL..' point in its .ucas: coop mxiii arrives beside Lily at the Tetrapod, 38290 36221 715)'}
-local LIMIT=1<<20 -- Bytes read of a .utoc: its directory index comes last, under 1 KB for the test pak's two maps.
+    'v4 ('..Mxiii.ARRIVAL..' point in its .ucas: coop mxiii arrives beside Lily at the Tetrapod, 38290 36221 715)',
+    'v5 ('..Mxiii.CAMPS_MAP..' in its .utoc: v4, and the zone 10 camp kits are placed objects of MXIII_Camps_A)'}
 Mxiii.WINDOW=1<<24 -- Bytes a read of the .ucas takes: v1's is 793 KB, with the names 9 KB in; v3's 2.2 MB.
 local OVERLAP=64 -- Bytes each window repeats of the last one, so a name across two windows is found.
--- The .ucas's size as the .utoc's compression blocks give it (the furthest offset plus compressed size), or nil when
--- the text does not read as a .utoc header.
-function Mxiii.ucas_size(utoc)
-    if #utoc<144 or utoc:sub(1,16)~='-==--==--==--==-' then return nil end
-    local header,entries,blocks,size=string.unpack('<I4I4I4I4',utoc,21)
-    local first=header+entries*22+1 -- Past the chunk IDs (12 bytes each) and their offsets and lengths (10).
-    if header~=144 or size~=12 or blocks<1 or first+blocks*12-1>#utoc then return nil end
-    local last=0
-    for k=0,blocks-1 do
-        local at=first+k*12
-        local offset=string.unpack('<I5',utoc,at)
-        last=math.max(last,offset+string.unpack('<I3',utoc,at+5))
-    end
-    return last
-end
+-- The .ucas's size as the .utoc's compression blocks give it (core/pak_gate.lua's, shared with the hall lobby pak).
+Mxiii.ucas_size=PakGate.ucas_size
 -- SB lists every camp's env-spawn rows in FSBGameWorld::Init (FUN_141c98ef0 makes the zone manager, whose setup runs
 -- FUN_141d1a310 over ZoneEnvSpawnTable), so the world the rows went in on may know neither camp until the next one
 -- (not when they went in at the title). Read from the code, untested.
@@ -126,8 +119,8 @@ Mxiii.BATCHES={
     {word='mxupper',name='Matrix XIII zones 0 to 2 mechanism',rows=Enemy.rows(Rows.MXUPPER)},
     {word='mxmiddle',name='Matrix XIII zone 3 mechanism',rows=Enemy.rows(Rows.MXMIDDLE)},
     {word='mxlower',name='Matrix XIII zone 4 mechanism',rows=Enemy.rows(Rows.MXLOWER)},
-    {word='lion',name='Lion',rows=Enemy.rows(require('cut.lion_rows').ROWS)},
-    {word='gardener',name='Gardener',rows=Enemy.rows(require('cut.lion_rows').GARDENER)},
+    {word='lion',name='Lion',rows=require('cut.lion').ROWS},
+    {word='gardener',name='Gardener',rows=require('cut.gardener').ROWS},
     {word='mxlily',name='Lily at the Matrix XIII Tetrapod',rows=Enemy.rows(Rows.MXLILY),optional=true},
     {word='mxnames',name='Matrix XIII camp names',rows=Enemy.rows(Rows.MXNAMES),optional=true,ready=function(status)
         local s=Enemy.parse(status,'camptext')
@@ -154,40 +147,24 @@ function Mxiii.paks_of(folder)
     local sb=type(folder)=='string' and folder:match('^(.*)[\\/][Bb]inaries[\\/][Ww]in64[\\/]')
     return sb and sb..'\\Content\\Paks' or nil
 end
--- The test pak's .utoc that names the map, beside its .pak and .ucas, and its version (1 to 4), or nil and why.
--- paks: SB/Content/Paks (nil: unknown); read(path, limit, offset): core/link.lua's files.read (the text, or nil when the file
--- cannot be opened).
+-- The test pak's .utoc that names the map, beside its .pak and .ucas (core/pak_gate.lua's container), and its version
+-- (1 to 5), or nil and why. paks: SB/Content/Paks (nil: unknown); read(path, limit, offset): core/link.lua's files.read
+-- (the text, or nil when the file cannot be opened).
 function Mxiii.find_map(paks,read)
-    if not paks then return nil,'the game folder is unknown (the mod folder is not under SB\\Binaries\\Win64)' end
-    local tried={}
-    for _,dir in ipairs(Mxiii.DIRS) do
-        local path=paks..'\\'..dir..'\\'..Mxiii.PAK..'.utoc'
-        local text=read(path,LIMIT)
-        if text then
-            for _,name in ipairs(Mxiii.INDEX) do
-                if not text:find(name,1,true) then return nil,path..' does not hold '..name end
-            end
-            local got={}
-            for _,ext in ipairs({'.pak','.ucas'}) do
-                local other=path:sub(1,-6)..ext
-                got[ext]=read(other,ext=='.ucas' and Mxiii.WINDOW or 1)
-                if not got[ext] then return nil,'no '..other..' beside '..path end
-            end
-            -- The .ucas, window after window (the first one read above), while a name is still unseen.
-            local ucas,size=path:sub(1,-6)..'.ucas',Mxiii.ucas_size(text) or Mxiii.WINDOW
-            local arrival,camp30,kit,at=false,false,false,0
-            repeat
-                local window=at==0 and got['.ucas'] or read(ucas,Mxiii.WINDOW,at) or ''
-                arrival=arrival or window:find(Mxiii.ARRIVAL,1,true)~=nil
-                camp30=camp30 or window:find(Mxiii.CAMP30,1,true)~=nil
-                kit=kit or window:find(Mxiii.KIT,1,true)~=nil
-                at=at+Mxiii.WINDOW-OVERLAP
-            until (arrival and camp30 and kit) or at>=size or #window<Mxiii.WINDOW
-            return path,arrival and 4 or camp30 and 3 or kit and 2 or 1
-        end
-        tried[#tried+1]=path
-    end
-    return nil,'no '..table.concat(tried,' or ')
+    local path,text,first=PakGate.container(paks,read,Mxiii.PAK,Mxiii.INDEX,Mxiii.WINDOW)
+    if not path then return nil,text end
+    -- The .ucas, window after window (the first one read by the container), while a name is still unseen.
+    local ucas,size=path:sub(1,-6)..'.ucas',Mxiii.ucas_size(text) or Mxiii.WINDOW
+    local arrival,camp30,kit,at=false,false,false,0
+    repeat
+        local window=at==0 and first or read(ucas,Mxiii.WINDOW,at) or ''
+        arrival=arrival or window:find(Mxiii.ARRIVAL,1,true)~=nil
+        camp30=camp30 or window:find(Mxiii.CAMP30,1,true)~=nil
+        kit=kit or window:find(Mxiii.KIT,1,true)~=nil
+        at=at+Mxiii.WINDOW-OVERLAP
+    until (arrival and camp30 and kit) or at>=size or #window<Mxiii.WINDOW
+    local version=arrival and 4 or camp30 and 3 or kit and 2 or 1
+    return path,version==4 and text:find(Mxiii.CAMPS_MAP,1,true) and 5 or version
 end
 
 -- o: log (the [MX] lines), ask(line) the native request, status() the native status text, travel() the follow
@@ -261,11 +238,14 @@ function Mxiii.new(o)
         end
         log('checks: solo on a co-op save, the native travel idle, '..map..' holds '..table.concat(Mxiii.INDEX,'/')
             ..' beside its .pak and .ucas; test pak '..Mxiii.VERSIONS[said])
-        -- Without the v3 pak SB finds no spawn point of that name, and an arrival that finds none was never traced.
-        if camp==Mxiii.CAMP30 and said<3 then
-            log('refused: test pak v'..said..' has no '..camp..' spawn point')
-            return false,command..' needs the v3 zMXIII_P test pak: '..map..' is v'..said..', with no '..camp
-                ..' spawn point for the arrival: nothing was asked'
+        -- The zone 10 camps' 11 kit rows set no EnvBPPath, so SB binds each to the placed actor whose EnvActorName
+        -- equals the row's (FUN_141d207c0 calls FUN_142281550). Before v5 no placed actor holds those names: the miss
+        -- makes a new GUID there, so FUN_141d207c0 still makes the env object, with no actor and no "++ Fail" line.
+        -- Each version holds the spawn points of the ones before it, so v5 has both commands' camps.
+        if said<5 then
+            log('refused: test pak v'..said..' has no '..Mxiii.CAMPS_MAP)
+            return false,command..' needs the v5 zMXIII_P test pak: '..map..' is v'..said..', with no '..Mxiii.CAMPS_MAP
+                ..' for the zone 10 camps\' objects: nothing was asked'
         end
         -- The other batches go in at the title only. Without them world 2800 has no Naytibas, loot, doors, gates or
         -- lifts, and a peer's shared Naytibas match no spawn row.
@@ -277,15 +257,20 @@ function Mxiii.new(o)
                     ..'): return to the title with the co-op save files, then run '..command..' again'
             end
         end
-        if camp==Mxiii.ARRIVAL and said<4 then camp=Mxiii.CAMP end -- No point of that name: the old way in.
         return e.rows(function(ok,message) return warp(camp,command,ok,message) end)
     end
     -- The title's batch (cut/enemy.lua's title_batch): while the game uses the co-op save files and the test pak is
     -- there (looked for once a Lua load; with none there is nothing to add, and nothing is said: most players have
-    -- none).
+    -- none). A pak before v5 gets the rows all the same, for a co-op save that names them, and one line says so.
     local pak=nil
     local function ready()
-        if pak==nil then pak=select(2,Mxiii.find_map(o.paks,o.read)) end
+        if pak==nil then
+            pak=select(2,Mxiii.find_map(o.paks,o.read))
+            if type(pak)=='number' and pak<5 then
+                log('title: test pak v'..pak..' has no '..Mxiii.CAMPS_MAP..': the rows go in, but the two zone 10 '
+                    ..'camps will have no kit, and coop mxiii refuses this pak')
+            end
+        end
         return type(pak)=='number' and 'the co-op save files and test pak v'..pak or nil
     end
     local title,title_stop=e.title_batch(ready,'coop mxiii')
@@ -361,8 +346,9 @@ function Mxiii.new(o)
     function self.tick()
         local ok,message=e.tick()
         for _,x in ipairs(others) do x.e.tick() end
-        move.tick()
-        breakables.tick()
+        -- One spawn a frame over both lists: each spends 4 ms a tick, and a ladder (10 to 13 ms) and a box (8 to 13 ms)
+        -- in one frame took it to 18 to 26 ms, so the boxes and barrels wait while the ladders spawn.
+        if not move.tick() then breakables.tick() end
         boss.tick()
         drone.tick()
         fans.tick()

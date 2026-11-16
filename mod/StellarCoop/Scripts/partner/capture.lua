@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- EVE's capture: what a ghost of her is made of, published for the native part as coop-components.txt (the grammar of
 -- native/src/pose/table.h, with read lines naming her leaders' memory). The native part sends it on as the wire table
 -- and, while the loopback runs or a recording is made, her pose in its layout.

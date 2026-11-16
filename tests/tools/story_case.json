@@ -1,0 +1,85 @@
+{
+  "PlayTime": 5021.25,
+  "DataMap_SBQuest": {"$map": [["Quest", {
+    "ProgressQuestList": [
+      {"QuestAlias": "Quest_Case_01", "QuestState": 1, "LastUpdateTimestamp": 638000000000000000,
+       "QuestTaskGroupList": [
+         {"TaskGroupAlias": "Quest_Case_01_G1", "TaskGroupState": "TaskGroup_Progress",
+          "AllChildTaskList": {"$map": [
+            ["Quest_Case_01_T1", {"TaskAlias": "Quest_Case_01_T1", "TaskState": "ESBQuestTaskState_Complete",
+                                  "CurrentValue": 3, "CompleteOrder": 0}],
+            ["Quest_Case_01_T2", {"TaskAlias": "Quest_Case_01_T2", "TaskState": "ESBQuestTaskState_Progress",
+                                  "CurrentValue": -2, "CompleteOrder": -1}]]},
+          "TaskList": [{"TaskAlias": "Quest_Case_01_T2", "TaskState": "ESBQuestTaskState_Progress", "CurrentValue": 9,
+                        "CompleteOrder": -1}]},
+         {"TaskGroupAlias": "Quest_Case_01_G1", "TaskGroupState": "TaskGroup_None",
+          "AllChildTaskList": {"$map": [
+            ["Quest_Case_01_T1", {"TaskAlias": "Quest_Case_01_T1", "TaskState": "ESBQuestTaskState_None",
+                                  "CurrentValue": 0, "CompleteOrder": -1}]]}}]},
+      {"QuestAlias": "Quest_Case_01", "QuestState": 1, "QuestTaskGroupList": []},
+      {"QuestAlias": "None", "QuestState": 3, "QuestTaskGroupList": [
+        {"TaskGroupState": "TaskGroup_Progress",
+         "AllChildTaskList": {"$map": [["Key_Only", {"TaskState": "ESBQuestTaskState_Progress", "CurrentValue": 1}]]}}]}],
+    "TrackingQuestAliases": ["Quest_Case_01", "Quest_Elsewhere"],
+    "CompleteQuestList": ["Quest_Case_00", "None", ""],
+    "FailedQuestList": [{"QuestAlias": "Quest_Case_09", "QuestState": 3}, {"QuestState": 3}],
+    "TaskValueMap": {"$map": []},
+    "QuestMarkerLocation": [1.0, 2.0, 3.0]}]]},
+  "GamePlayProgressRecordData": {"ProgressRecordGroup": [
+    {"RecordGroupName": "Quest_Case_01_G1", "RecordTaskGroupMap": {"$map": [
+      ["ESBMission_EnterTrigger", {"TaskDataList": [{"DataAlias": "Case_Trigger_01", "bSuccessTask": true},
+                                                    {"bSuccessTask": false},
+                                                    {"DataAlias": "Case_Trigger_01", "bSuccessTask": false}]}],
+      ["ESBMission_EnvState", {"TaskDataList": [{"DataAlias": "Case_Env_07", "bSuccessTask": true}]}]]}},
+    {"RecordTaskGroupMap": {"$map": [
+      ["ESBMission_Achievement", {"TaskDataList": [{"DataAlias": "Case_Ach_1", "bSuccessTask": true}]}]]}},
+    {"RecordGroupName": "Quest_Case_01_G1", "RecordTaskGroupMap": {"$map": [
+      ["ESBMission_EnvState", {"TaskDataList": [{"DataAlias": "Case_Env_07", "bSuccessTask": false}]}]]}}]},
+  "DataMap_SBEnv": {"$map": [["Env", {
+    "WorldContainerList": [
+      {"WorldAlias": "World_Case_A", "ZoneEventActorStorageList": [
+        {"ActorLocation": [10.5, -3.0, 0.25], "ActorRotation": [0.0, 90.0, 0.0],
+         "ElementInfoMap": {"$map": [["Element_Fire", {"ElementAmount": 0.30000001192092896}],
+                                     ["Element_Water", {"ElementAmount": 0.0}]]},
+         "SaveType": "ESBZoneObjSaveType_Save", "Count": 4, "LastUpdateTimestamp": 638000000000000000},
+        {"EventName": "None", "Tags": ["a", "b"], "Flags": 7,
+         "Parts": [{"PartAlias": "Part_Case_X", "Hp": 10}, {"Hp": 5}],
+         "Slots": {"$map": [[3, {"On": true}], [-1, {"On": false}]]}}]},
+      {"ZoneEventActorStorageList": [{"Count": 1}]},
+      {"WorldAlias": "World_Case_A", "ZoneEventActorStorageList": []}],
+    "ZoneContainerList": [
+      {"ZoneAlias": "Zone_Case_B", "ZoneObjectState": "ESBObject_Enable", "bZoneReset": false,
+       "ZoneEnvStorageList": [], "ZoneNpcStorageList": [], "ZoneTriggerStorageList": [],
+       "WorldObjectStorageMap": {"$map": []}, "ZoneEventItemStorageList": [], "ZoneEventActorStorageList": []},
+      {"ZoneAlias": "Zone_Case_A", "ZoneObjectState": "ESBObject_Disable", "bZoneReset": true,
+       "ZoneEnvStorageList": [
+         {"EnvAlias": "Case_Door_01", "EnvActivate": "ESBObject_Enable", "EnvActiveState": "ESBENV_State_Open",
+          "CurrentTriggerCount": 2, "EnvStateSlotTag": "Slot_Open", "InteractData": {"bInteracted": true},
+          "SaveType": "ESBZoneObjSaveType_Save", "EnvPosition": [1.0, 2.0, 3.0],
+          "StateInfoList": [{"Ratio": 2.5e-05, "Step": 1}, {"Ratio": 1e+16, "Step": 2}],
+          "EnvProgressInfo": {"Progress": 0.5, "Phase": "None"}},
+         {"EnvAlias": "Case_Door_01", "EnvActivate": "ESBObject_Disable", "CurrentTriggerCount": 0,
+          "EnvStateSlotTag": "None", "InteractData": {"bInteracted": false}, "StateInfoList": [],
+          "EnvProgressInfo": {}},
+         {"EnvActivate": "ESBObject_Enable", "EnvActiveState": "ESBENV_State_Close"}],
+       "ZoneNpcStorageList": [
+         {"CharacterDataAlias": "Npc_Case_Kaya", "bActiveActor": true, "bHiddenGame": false, "LifeState": 0,
+          "SpawnIndex": 2, "ObjectState": "ESBObject_Enable", "InteractData": {"bInteracted": true},
+          "StayZoneAlias": "Zone_Case_A", "RetargetSpawnPointName": "None"}],
+       "ZoneTriggerStorageList": [
+         {"TriggerAlias": "Case_Trigger_01", "TriggerActivate": "ESBObject_Disable", "DoingCount": 1},
+         {"TriggerAlias": "Case_Trigger_01", "TriggerActivate": "ESBObject_Enable", "DoingCount": 0,
+          "InteractData": {"bInteracted": false}}],
+       "WorldObjectStorageMap": {"$map": [
+         [41, {"UniqueKey": "Case_EffVol_020", "Activate": "ESBObject_Enable", "EffectVolumeDeadCount": 3,
+               "JsonInfo": "", "ObjectType": 2, "SaveType": "ESBZoneObjSaveType_Save"}],
+         [7, {"Activate": "ESBObject_Disable", "EffectVolumeDeadCount": 0}],
+         [12, {"UniqueKey": "Case_EffVol_020", "EffectVolumeDeadCount": 1}]]},
+       "ZoneEventItemStorageList": [
+         {"ObjectName": "Case_Pickup_03", "bTaken": true, "SaveType": "ESBZoneObjSaveType_Save",
+          "Label": "Café", "Share": 0.10000000149011612},
+         {"ObjectName": "Case_Pickup_03", "bTaken": false}],
+       "ZoneEventActorStorageList": [
+         {"ActorLocation": [0.0, 0.0, 0.0], "Hp": 100, "Big": 1.152921504606847e+18}]},
+      {"ZoneObjectState": "ESBObject_Disable", "ZoneEnvStorageList": [{"EnvAlias": "Case_Lost", "EnvActivate": "ESBObject_Enable"}]}]}]]}
+}

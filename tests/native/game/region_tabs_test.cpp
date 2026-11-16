@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/region_tabs.h on the build machine: a list refused when it could not be the screen's, a name found, and a record
 // appended as SB's own code does (the count up before the grow, every earlier record kept).
 #include "game/region_tabs.h"

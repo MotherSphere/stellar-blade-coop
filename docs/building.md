@@ -24,7 +24,7 @@ is no runtime DLL to ship.
 `<game>/SB/Binaries/Win64/ue4ss/Mods/StellarCoop`. It refuses while the game runs.
 
 ```
-python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run | --zip [PATH] | --uninstall]
+python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run] [--zip [PATH] | --uninstall | --pak <folder>]
 ```
 
 | Option | What it does |
@@ -33,9 +33,10 @@ python3 tools/install.py [--game <Stellar Blade folder>] [--dry-run | --zip [PAT
 | `--game <folder>` | The Stellar Blade folder (the default points at one particular Steam library; see `--help`) |
 | `--dry-run` | Runs the tests and the build, then says what an install would back up, remove and write, and changes nothing |
 | `--zip [PATH]` | Runs the tests and the build, then writes a release zip (by default `build/StellarCoop-<version>.zip`) instead of installing. Needs a clean tree; no game folder needed |
-| `--uninstall` | Backs up the installed folder, then removes it. No tests and no build; with `--dry-run` it changes nothing |
+| `--uninstall` | Backs up the hall lobby pak files in `~mods` and the installed folder, then removes them. No tests and no build; with `--dry-run` it changes nothing |
+| `--pak <folder>` | Installs the mod, then copies the hall lobby pak `zSBO_Lobby.pak`, `.ucas` and `.utoc` from the folder into `<game>/SB/Content/Paks/~mods`. With `--dry-run` it changes nothing |
 
-Except with `--zip`, the game's UE4SS `Mods` folder must exist.
+Except with `--zip`, the game's UE4SS `Mods` folder must exist. `--pak` also needs `<game>/SB/Content/Paks`.
 
 A run does these steps in order:
 
@@ -56,11 +57,20 @@ removes it. It does not touch a folder without `install-manifest.txt` (one copie
 never touches saves, `StellarCoopSlot.txt` or `mods.txt`, and it reports any `mods.txt` line that still names
 StellarCoop.
 
-The release zip from `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, a `CHANGELOG.md` and a
-`SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`. The zip's `CHANGELOG.md` is generated
-from the commit history when the zip is built; the repository's own `CHANGELOG.md` is the one Release Please writes
-(see [Releases](#releases)). Commit subjects follow Conventional Commits. The zip's changelog lists the `feat` and
-`fix` subjects only, newest first, with their scope; a `!` marks a breaking change.
+The hall lobby pak is kept on this PC and never goes into the release zip. `--pak` refuses a folder that lacks one of
+its three files before the tests run. After the mod install, it backs up the `zSBO_Lobby` files it replaces into
+`~/StellarCoop-install-backups/<UTC time>/Paks`, creates `~mods` if it is missing, copies the three files, and stops
+on the first copy whose SHA-256 differs from its source's. `--uninstall` handles these three files before the mod
+folder: it backs them up into their own `Paks` backup folder and removes them. No other file in `~mods` or `LogicMods`
+is read, backed up or removed, so the Matrix XIII pak `zMXIII_P` and other mods' files stay.
+
+The release zip from `--zip` holds the mod folder with `INSTALL.md`, `LICENSE`, `NOTICE`, `EXCLUDED-PARTIES.md`, a
+`CHANGELOG.md` and a `SHA256SUMS.txt` over every other file. It never holds `coop-settings.txt`, and it leaves out
+`Assets/MotherSphere.png`, which is not covered by the SBO License (an install still copies it). The zip's
+`CHANGELOG.md` is generated when the zip is built, from the commits after `051ab509`, the last commit under
+GPL-3.0-or-later; the repository's own `CHANGELOG.md` is the one Release Please writes (see [Releases](#releases)).
+Commit subjects follow Conventional Commits. The zip's changelog lists the `feat` and `fix` subjects only, newest first,
+with their scope; a `!` marks a breaking change.
 
 ## tools/wine_smoke.py
 
@@ -171,7 +181,7 @@ it 0.8.0, but write its notes by hand in step 2.
 ```
 mod/StellarCoop/            the UE4SS mod folder
   enabled.txt               makes UE4SS start the mod
-  Assets/                   MotherSphere.png, the guide's art by timediffer24 (not covered by the GPL)
+  Assets/                   MotherSphere.png, the guide's art by timediffer24 (not covered by the SBO License)
   Scripts/                  the Lua side (see internals/architecture.md)
     main.lua                the entry UE4SS runs: settings, keys, the coop console command, the per-frame loop
     commands/               the coop console commands' handlers, by feature, merged into main.lua's command table
@@ -186,7 +196,7 @@ mod/StellarCoop/            the UE4SS mod folder
     matrix13/               the cut Matrix XIII dungeon, by place then quest: world/ (coop mxiii's travel, rows,
                             ladders, bosses, drone light), quest/ ("On Time" and its words),
                             talks/ (the talks' lines, one file per talk or zone), culture.lua
-    story/                  the story dump and the talk player (subtitles.lua)
+    story/                  the talk player (subtitles.lua), the story dump (snapshot.lua, see story.md)
 native/                     the DLL (CMake)
   CMakeLists.txt
   src/                      platform-free headers by feature, tested on the build machine; glue/ is the Windows side
@@ -196,19 +206,28 @@ tests/
   tools/                    Python tests of tools/
   wine/smoke.cpp            the Wine smoke test's program
 data/
+  mxiii-climb.json          the editor's ladders, ledges and ropes of Matrix XIII, read by tools/mxiii_climb.py
   mxiii-world.json          Matrix XIII's world rows, the one source of tools/mxiii_rows.py
+  sbo-lobby.json            the five hall lobby maps, the one source of tools/sbo_lobby_rows.py
 tools/
   install.py                checks, build, install, uninstall, release zip
+  mxiii_climb.py            places Matrix XIII's ladders on the editor's in data/mxiii-world.json, and checks them
   mxiii_rows.py             writes native/src/lion/mxiii_rows.h and matrix13/world/rows.lua from data/mxiii-world.json
   release.py                builds a tagged release's zip, attaches it and publishes the release (see Releases)
   save_guard.py             save backups and the manual co-op slot
+  save_read.py              every value of a .sav file, and the values two saves differ in (see story.md)
+  sbo_lobby_rows.py         writes session/sbo_maps.lua and native/src/lion/halls_rows.h from data/sbo-lobby.json
+  story_lines.py            a save's story lines, their digest, and a save against an in-game dump (see story.md)
   wine_smoke.py             loads the DLL under Wine
 .github/workflows/
   release-please.yml        the release pull request, the tag and the draft release (see Releases)
   nexus-upload.yml          sends a published release's zip to Nexus Mods
 docs/                       this documentation
 INSTALL.md                  the player install guide (shipped in the release zip)
-LICENSE                     GPL-3.0-or-later (shipped in the release zip)
+LICENSE                     SBO License 1.0 (shipped in the release zip)
+NOTICE                      credits and the parts under other terms (shipped in the release zip)
+EXCLUDED-PARTIES.md         the parties the SBO License excludes, version by version (shipped in the release zip)
+CONTRIBUTING.md             the license of contributions
 release-please-config.json  Release Please's settings
 .release-please-manifest.json
                             the last released version, read and bumped by Release Please
@@ -232,13 +251,16 @@ Platform-free headers, tested on the build machine:
 | `nightop/probe.h` | The `coop no` poller's reads, lines and verdict |
 | `nightop/roxanne.h` | Roxanne's Night Operation choices and Lily's signal choice: a choice list's entry in SB's select cache pointed at rows of ours followed by the list's own, and put back; the checks and the `roxanne=` and `lily=` lines |
 | `nightop/shop_ui.h` | The Night Operation shop in SB's own shop screen: the guard, the answer word, the `nightshop=` line and the log lines |
-| `lion/rows.h` | Fifteen batches of rows (the first four and the shop's with their data part written by a generator outside the repository, which also describes the first 25 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, the Night Operation shop screen's 6, Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand, and Matrix XIII's nine from `lion/mxiii_rows.h`; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=`, `signal=`, `mxspawn=`, `mxenv=`, `mxupper=`, `mxmiddle=`, `mxlower=`, `mxnames=`, `mxlily=` and `mxrecords=` lines and the log lines |
+| `lion/rows.h` | Sixteen batches of rows (the first four and the shop's with their data part written by a generator outside the repository, which also describes the first 25 tables): `coop lion`'s 237, the Lion's 222, the cut stimpacks' 4 and the cut Tachy ChainSpin's 11, `coop gardener fight`'s 13, `coop tendril fight`'s 107, the cut Shock Bolt's 4, the Night Operation shop screen's 6, Lily's signal's 24 quest rows and 1 shipped choice row patched in place, written by hand, Matrix XIII's nine from `lion/mxiii_rows.h` and the SBO hall lobbies' 181 from `lion/halls_rows.h`; their build and AddRow call, the read-back, the answer word, the `lion=`, `gardener=`, `tendril=`, `bolt=`, `mxiii=`, `shop=`, `signal=`, `mxspawn=`, `mxenv=`, `mxupper=`, `mxmiddle=`, `mxlower=`, `mxnames=`, `mxlily=`, `mxrecords=` and `halls=` lines and the log lines |
 | `lion/mxiii_rows.h` | Matrix XIII's nine batches (`mxiii` 75 rows, `mxspawn` 51, `mxenv` 172, `mxupper` 168, `mxmiddle` 106, `mxlower` 105, `mxlily` 6, `mxnames` 11, `mxrecords` 100), written by `tools/mxiii_rows.py` from `data/mxiii-world.json`: do not edit it by hand |
+| `lion/halls_rows.h` | The SBO hall lobbies' `halls` batch: 5 WorldTable rows, 5 ZoneTable rows, then 171 ZoneEnvSpawnTable rows, one per kept seat but the 2 camp seats, written by `tools/sbo_lobby_rows.py` from `data/sbo-lobby.json`: do not edit it by hand |
 | `lion/shock.h` | The Shock Bolt's two lists grown in place once its bolt rows are in: the fire commands at the end of EVE's two gun stances' `CommandArray` and `Bullet_Shock` at the end of the const ammo list and the slot manager's list; the checks, the answer word, the `shock=` line and the log line |
 | `save/watch.h` | The save watcher |
 | `save/slot.h` | The entered slot's read, the marker's grammar, the save file name's lookup and switch, the probe and the `slot=` line |
 | `save/twins.h` | The co-op save copies, their manifest and backup, the export to a save of the player's with its scan for the mod's items and Matrix XIII, and the `saves` requests |
 | `save/shortcut.h` | `coop shortcut`: the cut Load Shortcut menu's 16 paths, the read of each save's map, camp and date, and the lines |
+| `save/rotation.h` | The SBO lobby's copies before each save: the rotation folder's names, the keep-10 drop, the save queue's fall |
+| `save/sbo_record.h` | The SBO session record beside each co-op save: its text, its write with backup and read-back, `NewGameCreateTime` |
 | `save/shortcut_load.h` | `coop shortcut load`: the 15 files' CRC-32 pin, the GVAS walk that drops `SBAchievement` and six gears, the EVAS wrap, the check and the log line |
 | `fight/sync.h` | The shared enemies' host and guest rules, and channel 2's text |
 | `fight/engine.h` | The shared enemies' side inside the game (`Engine`), and the vitals read for the partner card. The class holds the declarations; the bodies are in `fight/engine_run.h` (settings, arming, the turn), `engine_read.h` (reads of the game), `engine_write.h` (stat writes, crowd controls, captures), `engine_pilot.h` (same-place enemies), `engine_spawns.h` (same spawns, extra enemies), `engine_bosses.h` (shared bosses), `engine_trial.h` (the solo boss trial) and `engine_lines.h` (her lines) |
@@ -256,6 +278,8 @@ Platform-free headers, tested on the build machine:
 | `game/memory.h` | The game image's base and globals block, `plausible()` and `get()` |
 | `game/travel.h` | The follow's fast travel request, its guard, its calls and the warp watch |
 | `game/region_tabs.h` | The teleport screen's extra tabs: the slot, the calls and offsets, the record list's layout and append |
+| `game/loading.h` | The SBO lobby arrival's black: the game's UI manager and its list of timed loading screens, and the lift that sets their lifetime to 0 |
+| `game/sbo.h` | The SBO lobby: the Join slot and the action's offsets, SB's save manager and its queue, the Join match, the session record's states, the why words and the `sbo=` line |
 | `game/camp_text.h` | Matrix XIII's camp names: the 12 entries added to the live `StringTable_UI`, the calls and offsets, the language pick, when a pass is due and the `camptext=` and `recordtext=` status lines |
 | `game/record_text.h` | The 25 records' words for the `mxrecords` batch: the 50 entries added to the live `StringTable_Records` |
 | `game/camps.h` | The camps the save has activated, as SB's own camp list builds them, and the camp EVE respawns at: the calls and offsets, the guard, when to read and the `activated=` status line |
@@ -268,5 +292,6 @@ The Windows side:
 | File | Contents |
 | --- | --- |
 | `glue/steam.cpp` | Steam callbacks, the worker thread, files and fault containment |
-| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`glue/tick/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`glue/tick/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`); the read of the camps the save has activated (`glue/tick/camps_game.inc`); Matrix XIII's camp names (`glue/tick/camp_text_game.inc`); the teleport screen's slot swap and hook (`glue/tick/region_tabs_worker.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
+| `glue/version.rc` | The DLL's version resource: the release (`git describe`) and "SBO License 1.0 or later" |
+| `glue/tick.cpp`, `glue/tick.h` | `coop_tick`, and the worker's side of the pose path: what is sent and received, the files shared with Lua; `coop_pad` and its XInput reads; the spawn filter's slot swap and hook; the Lion's, the Gardener's and the Tendril's rows through the game's AddRow (`glue/tick/lion_game.inc`); SB's developer gates and the level flight's slot swap and hook in the player controller's input pass (`glue/tick/debug_game.inc`); `coop emote`'s clips through SB's custom animation play and stop (`glue/tick/anim_game.inc`); `coop shortcut`'s reads through the game's file manager, and the one file a load keeps (`glue/tick/shortcut_game.inc`); `coop gift`'s inventory read on the worker (`glue/tick/items_worker.inc`); the read of the camps the save has activated (`glue/tick/camps_game.inc`); Matrix XIII's camp names (`glue/tick/camp_text_game.inc`); the teleport screen's slot swap and hook (`glue/tick/region_tabs_worker.inc`); the SBO lobby's Join slot swap and hook, and the copies of the co-op saves before each game save, from SB's save queue to the rotation folder (`glue/tick/sbo_game.inc`, `glue/tick/sbo_worker.inc`); the lift of the SBO lobby arrival's black (`glue/tick/loading_game.inc`, `glue/tick/loading_worker.inc`). `tick.cpp` is one translation unit made of the parts in `glue/tick/`, in order: `*_game.inc` run on the game thread (or SB's logic thread), `*_worker.inc` on our worker |
 | `glue/clipboard.h` | The `copy` request's clipboard call, also built into the Wine smoke test |

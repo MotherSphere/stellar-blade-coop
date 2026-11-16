@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Night Operation probe (Phase 6): the worker's read-only view of the game's rule manager, world, logic, net-mode cache
 // and spawn registry, turned into nightop-probe.txt lines and one verdict 60 s after the rule request. It never touches
 // a game pointer itself: every access goes through a read function (ReadProcessMemory on the worker, which fails rather

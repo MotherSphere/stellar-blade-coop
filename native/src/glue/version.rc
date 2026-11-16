@@ -1,0 +1,29 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+// The DLL's version resource (the file's Properties, Details on Windows): the release and the license it ships under.
+#include <winver.h>
+#ifndef STELLARCOOP_VERSION
+#define STELLARCOOP_VERSION "dev"
+#endif
+
+VS_VERSION_INFO VERSIONINFO
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_DLL
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "Stellar Blade Online, a co-op mod for Stellar Blade"
+            VALUE "FileVersion", STELLARCOOP_VERSION
+            VALUE "LegalCopyright", "Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors. SBO License 1.0 or later."
+            VALUE "ProductName", "Stellar Blade Online"
+            VALUE "ProductVersion", STELLARCOOP_VERSION
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

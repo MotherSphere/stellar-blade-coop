@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/wear.lua with fake UE4SS objects: unknown names and extra words refused with the usage line, with no call; the
 -- list of what is worn and of the names; no EVE, a missing asset and coop-wear.txt not written refused before any call;
 -- a hair sets SBHair's mesh (with a new pose), AnimBP class (its Blueprint's package loaded when the class is not in

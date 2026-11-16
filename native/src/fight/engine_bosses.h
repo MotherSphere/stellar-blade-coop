@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Engine's shared bosses (stage 5): battle mode, phases, summons and the finish guard.
 #pragma once
 
@@ -114,7 +117,7 @@ template <class Game> void Engine::bosses(Game &g, uint64_t logic, size_t n, boo
     } else if (turn_ - c.turn >= kSummonWaitTurns && fighting(a)) {
       caps_[i] = caps_[--captures_];
       refuse(g, c.key, nullptr, true);
-      unmake(g, logic, a, "unpaired", true);
+      unmake(g, logic, a, "unpaired", kSummon);
     } else {
       ++i;
     }

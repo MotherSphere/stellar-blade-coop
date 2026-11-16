@@ -1,3 +1,6 @@
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """tools/mxiii_climb.py: every ladder of data/mxiii-world.json's move list with editor proxies is what the proxies give
 (--check passes on the tree), and rebuilt the way BP_EM_Ladder_C's construction script builds it (pieces stacked up
 from the actor's origin, TotalHeight starting at 0) it lays within 2 cm on the editor's ladder, the R16 ledges on the

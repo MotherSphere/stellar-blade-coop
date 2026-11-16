@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """Wine smoke test: builds StellarCoop.dll and tests/wine/smoke.exe, then loads the DLL under Proton's wine in a scratch
 WINEPREFIX with no steam_api64.dll around. Checks that it attaches, waits for Steam, answers coop_tick when exported,
 says pilot=refused for same-place enemies and quests=off, refuses the Night Operation poller, the shared fight's probe, a

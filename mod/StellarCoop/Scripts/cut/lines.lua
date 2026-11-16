@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop lines [adam|warrior|quinn|skyhall|enya|stop]: the subtitles of four cut scenes that were never voiced, said line
 -- by line in the co-op UI's feed (main.lua's say: session/chat.lua's feed, whose game font draws Korean and the game's
 -- other scripts; the line above EVE draws Latin-1 only, so it is never used) at the times their level sequences give

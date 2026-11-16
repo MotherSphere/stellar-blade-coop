@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- matrix13/world/fans.lua with fake UE4SS objects: outside world 2800 and away from the room nothing is looked at; in
 -- the room each rotor is held still until its own lever reads On, then runs, one line a change; the objects are walked
 -- for once while held, and again once one goes stale (a level streamed back in), at most every FIND s; an error or no
@@ -67,6 +70,11 @@ assert(#lines==3 and lines[1]:find('Fan1_Rotor held still',1,true),lines[1])
 -- Nothing changes, nothing is called or walked again.
 step(); step()
 assert(walks==1 and F[1].sets==1 and #lines==3)
+-- A lever streamed back in while every rotor is held: refreshed through the class hash, no rotor walk.
+L[2].destroyed=true
+L[2]=lever('DLC02_40_EnvS_024')
+clock=clock+Fans.FIND; step()
+assert(walks==1 and not F[2].active,'a missing lever alone walks for no rotor')
 -- Lever 023 On: fan 1 runs, the others stay still.
 L[1].state='On'; step()
 assert(F[1].active and not F[2].active and not F[3].active and #lines==4 and lines[4]:find('Fan1_Rotor runs',1,true))

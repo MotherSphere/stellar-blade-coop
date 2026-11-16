@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The arrival talk, one entry per subtitle window of the sequence it borrows (story/subtitles.lua
 -- plays it): the speaker's StringTable_Seq key ('' for none), then the English and French line.
 -- On arrival at Matrix 13 station, all 9 windows of Subtitle_POD_ArriveDED_01. The French is the user's own.

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The partner marker's maths: a point in camera space (UE: X forward, Y right, Z up; camera roll 0), the marker on
 -- screen or an arrow on the screen's edge pointing at her (behind and straight above included), with hysteresis
 -- between the two (off at 48 units from an edge, back at 72), the distance text, and whether she is on your map.

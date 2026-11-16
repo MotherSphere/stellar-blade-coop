@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The fixture every tests/lua/main/*_test.lua loads first: UE4SS stubbed for main.lua (the console command, key binds,
 -- game-thread queue, loops, FindAllOf and StaticFindObject), fakes of the link, the ghost and its capture, the notices,
 -- the kit, the chat model and the other modules main.lua builds, load_main() to load main.lua again, and the helpers
@@ -36,10 +39,13 @@ end
 clock=0
 os.clock=function() return clock end
 settings_text=''
--- Same place, same spawns and shared bosses are on by default (link_test, ui_model_test). This file reads them as off
--- unless a case's own text names them, so each case names the one it tests: the missing ones go after its lines.
+-- Same place, same spawns, shared bosses and the switches turned on for the 2026-11-12 test build (the looks, the spawn
+-- filter, the photo name tag, shared quests, revive, collide, the two test tools, the status strip's compact) are on by
+-- default (link_test, ui_model_test). This file reads them as off unless a case's own text names them, so each case
+-- names the one it tests: the missing ones go after its lines.
 function pinned(text)
-    for _,key in ipairs({'same_place','same_spawns','bosses'}) do
+    for _,key in ipairs({'same_place','same_spawns','bosses','dyes','effects','spawn_filter','photo_name_tag',
+            'shared_quests','revive','collide','shortcut_load','pvp_spike','status_overlay'}) do
         if not ('\n'..text):find('\n%s*'..key..'%s*=') then
             text=text..((text=='' or text:sub(-1)=='\n') and '' or '\n')..key..'=off\n'
         end
@@ -53,7 +59,7 @@ photo_mode,selfie_mode,photo_error,photo_reads=false,false,nil,0
 -- player controller (nil: none yet; cv.stale: one whose address now holds another object).
 cv={value=0,reads=0,runs={},class={type=function() return 'UObject' end,IsValid=function() return true end}}
 cv.PC={type=function() return 'UObject' end,IsValid=function() return true end,
-    IsA=function(_,class) return class==cv.class end}
+    IsA=function(_,class) return class==cv.class end,K2_GetPawn=function() return nil end} -- No pawn: the booths walk.
 cv.stale={type=function() return 'UObject' end,IsValid=function() return true end,IsA=function() return false end}
 cv.pc=cv.PC
 cv.kismet={type=function() return 'UObject' end,IsValid=function() return true end,
@@ -78,10 +84,15 @@ art.library={type=function() return 'UObject' end,IsValid=function() return true
         art.imports[#art.imports+1]={world,path}
         return art.texture
     end}
+-- Each engine lookup main.lua's loops make, counted whatever it asks for (UE4SS's FindAllOf walks every object, 25 to
+-- 80 ms in game; a StaticFindObject of a path not in memory costs 25 to 35 ms): idle_test pins the counts.
+finds={all=0,static=0}
 StaticFindObject=function(path)
+    finds.static=finds.static+1
     if path=='/Script/Engine.Default__KismetSystemLibrary' then return cv.kismet end
     if path=='/Script/Engine.Default__KismetRenderingLibrary' then return art.library end
     if path=='/Script/Engine.PlayerController' then return cv.class end
+    if path=='/Script/SB.Default__SBBlueprintLibrary' then return fades.library end
     if path:find('^/Game/GameDesign/Level/ZoneEnv/Env_Camp_TeleportMachine') then -- The booth classes (in memory).
         return {type=function() return 'UClass' end,IsValid=function() return true end}
     end
@@ -90,9 +101,16 @@ StaticFindObject=function(path)
     return {type=function() return 'UObject' end,IsValid=function() return true end,
         IsPhotoMode=function() return read(photo_mode) end,IsSelfieMode=function() return read(selfie_mode) end}
 end
+-- UE4SS's RegisterHook: each callback by its function's path (hooks). SB's blueprint library: each
+-- LoadingScreenFadeAuto call's arguments (fades.calls, one text each).
+hooks={}
+RegisterHook=function(path,f) hooks[path]=f end
+fades={calls={}}
+fades.library={type=function() return 'UObject' end,IsValid=function() return true end,
+    LoadingScreenFadeAuto=function(_,...) fades.calls[#fades.calls+1]=table.concat({...},' ') end}
 Link=dofile('mod/StellarCoop/Scripts/core/link.lua') -- The real parser behind the fake link.
 LoopInGameThreadWithDelay=function(ms,f) loops[#loops+1]={ms=ms,f=f} end
-asked,sessions,ticks,withdrawn,states,photos={},{},0,{},{},{}
+asked,huds,sessions,ticks,withdrawn,states,photos={},{},{},0,{},{},{}
 status_text='mod=v proto=3 steam=ready\nlink=none lobby=0\nlast=#1 ready\n'
 link_mode='none' -- What link.mode() says, as of the last changes().
 ping_ms,write_refusal=nil,nil -- link.ping(); why link.write_settings fails (nil: it writes).
@@ -115,11 +133,20 @@ fake_link={
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
     display=function(text) if text==nil then withdrawn[#withdrawn+1]='display' end; return true end,
     store=function(name) return 'store '..name end,
-    remote=function() return 3,1,'loopback' end,
+    remote=function(k) if (k or 0)==0 then return 3,1,'loopback' end end, -- No table in ghost slots 1 to 6.
+    slot=function(k) return {} end, -- A ghost slot's files (partner/ghosts.lua): no member holds one in these tests.
     remote_table=function() return nil end,
-    request=function(line) asked[#asked+1]=line; return true,'asked the native part: '..line end,
+    -- The hud requests of the lobby's screens go to huds (tests/lua/main/sbo_test), the others to asked. hud_refuse:
+    -- a hud request is refused with that why, as link.request answers when coop-request.txt cannot be written.
+    request=function(line)
+        if hud_refuse and line:find('^hud ') then return false,hud_refuse end
+        local into=line:find('^hud ') and huds or asked
+        into[#into+1]=line
+        return true,'asked the native part: '..line
+    end,
     status=function() return status_text end,
     changes=function() return {'link=host lobby=7'} end,
+    settle=function() settles=settles+1 end,
     mode=function() return link_mode end,
     saves=function() return saves_info end,
     read_file=function(name) return link_files[name] end,
@@ -149,7 +176,7 @@ fake_link={
     cns=function() return cns_v end,
     shared_version=function() return shared_v or 0 end,
     -- coop-settings.txt for the menu: the same text the settings were read from at load, as written (so the menu
-    -- shows the real defaults, On for the three that pinned() reads as off).
+    -- shows the real defaults, On for those that pinned() reads as off).
     settings_text=function() return settings_text end,
     write_settings=function(text)
         if write_refusal then return false,write_refusal end
@@ -175,6 +202,15 @@ fake_link.quests=function() return fake_link.Q.line end
 fake_link.quest_notes=function() local notes=fake_link.Q.notes; fake_link.Q.notes={}; return notes end
 fake_link.life=function() return fake_link.Q.life end -- link.life(): our life state and HP, in fake_link.Q.life.
 fake_link.friend=function() return friend_name,friend_linked,fake_link.lost==true end
+fake_link.member=function(id) return nil end -- link.member(id): no member line in these tests.
+fake_link.members=function() return {} end
+-- link.match(), link.round(), link.me(), link.owner() and link.uidev() (SB's input device: 1 QWERTY, 2 AZERTY).
+link_match,link_round,link_me,link_owner,link_uidev=nil,nil,nil,nil,nil
+fake_link.match=function() return link_match end
+fake_link.round=function() return link_round end
+fake_link.me=function() return link_me end
+fake_link.owner=function() return link_owner end
+fake_link.uidev=function() return link_uidev end
 native_ok=nil
 captured,remoted={},nil
 fake_capture={tick=function(on) captured[#captured+1]=on; return true,'Capture 7: 3 parts' end,yaw_delta=function() return 0 end}
@@ -197,6 +233,7 @@ her_map_v='/game/e04' -- puppet.her_map(): her map, from her table (yours is /ga
 -- bt.me: puppet.me().
 bt={world={},scans=0,me={at={X=0,Y=0,Z=0},map='/game/e04'}}
 FindAllOf=function(class)
+    finds.all=finds.all+1
     if class=='PlayerController' then return nil end
     assert(class=='Env_Camp_TeleportMachine_C' or class=='Env_Camp_TeleportMachine_Standalone_C',class)
     bt.scans=bt.scans+1
@@ -336,7 +373,8 @@ package.loaded['cut.leviathan']={new=function(o)
         stop=function() lv.stops=lv.stops+1 end,filming=function() return lv.filming==true end}
 end}
 -- coop lion (cut/lion.lua; lion_test tests it): what new got (log, ask, status), its commands, ticks and stops, what a
--- tick says, a tick that raises; its rows (the shop's cut items, with the batch word it was given) answer done at once.
+-- tick says, a tick that raises, the seconds a tick takes on the fake clock (cost); its rows (the shop's cut items,
+-- with the batch word it was given) answer done at once.
 li={}
 package.loaded['cut.lion']={new=function(o)
     li.o=o
@@ -344,6 +382,7 @@ package.loaded['cut.lion']={new=function(o)
         rows=function(done,word) return done(true,'li rows'..(word and ' '..word or '')) end,
         tick=function()
             li.ticks=li.ticks+1
+            clock=clock+(li.cost or 0)
             if li.raise then error(li.raise,0) end
             if li.says then return table.unpack(li.says) end
         end,
@@ -450,7 +489,9 @@ package.loaded['cut.emote']={new=function(o)
     return {command=function(...) em.cmds[#em.cmds+1]=table.pack(...); return true,'em '..tostring((...)) end,
         restore=function() em.restores=em.restores+1 end,
         tick=function() em.ticks=em.ticks+1; if em.says then return table.unpack(em.says) end end,
-        stop=function() em.stops=em.stops+1 end}
+        stop=function() em.stops=em.stops+1 end,
+        sit=function(kind) return true,'em sit '..tostring(kind) end,active=function() return false end,
+        preload=function() return true end}
 end}
 -- The races' driving (race/drive.lua; drive_test tests it): what drive.new got, its restores.
 dv={restores=0}
@@ -492,6 +533,9 @@ package.loaded['nightop.roxanne']={new=function(o)
         stop=function() rx.stops=rx.stops+1; if rx.raise then error(rx.raise,0) end end,
         cancel=function() local b=rx.booked; rx.booked=nil; return b end}
 end}
+-- The Xion guard's lines (nightop/guard_text.lua; guard_text_test tests it): what guard_text.new got (o), its ticks.
+gt={o=nil,ticks=0}
+package.loaded['nightop.guard_text']={new=function(o) gt.o=o; return {tick=function() gt.ticks=gt.ticks+1 end} end}
 -- Lily's signal (matrix13/quest/on_time.lua; matrix13/quest/on_time_test tests it): what lily.new got (o), its ticks
 -- (the last one's stopped), title calls, stops and commands.
 ly={o=nil,ticks=0,stops=0,titles={},cmds={},talks={},holds={}}
@@ -510,17 +554,89 @@ package.loaded['story.subtitles']={new=function(o)
     ts.o=o
     return {hud=function(h) ts.hud=h end,tick=function() ts.ticks=ts.ticks+1 end}
 end}
-rc_log,rc_runs,rc_stops,rc_ticks,rc_raise=nil,{},0,0,nil -- recruiter.new's logger, coop recruiter's arguments.
-package.loaded['nightop.recruiter']={new=function(log)
-    rc_log=log
+-- coop story (story/snapshot.lua; story/snapshot_test tests it): what new got (o), its commands, each poll's world
+-- flag, what the next poll answers.
+st={o=nil,cmds={},polls={},says=nil}
+package.loaded['story.snapshot']={new=function(o)
+    st.o=o
+    return {command=function(...) st.cmds[#st.cmds+1]=table.pack(...); return true,'st '..tostring((...)) end,
+        poll=function(world)
+            st.polls[#st.polls+1]=world
+            local says=st.says
+            st.says=nil
+            if says then return table.unpack(says) end
+        end}
+end}
+-- recruiter.new's logger and on_ready, coop recruiter's arguments, its stops, ticks and auto spawn passes. The Join's
+-- FName: index 4242.
+rc_log,rc_ready,rc_runs,rc_stops,rc_ticks,rc_autos,rc_raise=nil,nil,{},0,0,0,nil
+package.loaded['nightop.recruiter']={JOIN='MultiplayTest_ZoneE_059',find_name=function(text) return 'FName '..text end,
+    index_of=function(name) return name=='FName MultiplayTest_ZoneE_059' and 4242 or 0 end,new=function(log,on_ready)
+    rc_log,rc_ready=log,on_ready
     return {run=function(sub,extra) rc_runs[#rc_runs+1]={sub,extra}; return true,'recruiter '..tostring(sub) end,
         stop=function() rc_stops=rc_stops+1; if rc_raise then error(rc_raise,0) end end,
-        tick=function() rc_ticks=rc_ticks+1 end}
+        tick=function() rc_ticks=rc_ticks+1 end,auto=function() rc_autos=rc_autos+1 end}
+end}
+-- The SBO lobby (session/sbo.lua; session/sbo_test tests it): what new got (o), its console words called, its sbo on
+-- calls, ticks, title passes, coop off calls, how many native asks there were at its last one, and what active() says;
+-- what hall() says (sb.hall, nil: 'xion') and the last Private match asked (created: its request and room); the hall
+-- lobby seats: the free seat within reach (sb.seat; seat_error: what near_seat raises), the seat EVE sits on
+-- (sb.sitting), the last seat sat on (sat), the stand-ups asked (stands) and whether SB's interaction runs on EVE
+-- (sb.busy); the arrival's hold: what unready() gives (sb.unready, nil: none).
+sb={}
+package.loaded['session.sbo']={OFF='the SBO lobby is off in coop-settings.txt (sbo_lobby=off)',new=function(o)
+    sb.o=o
+    local function word(name) return function() sb.calls[#sb.calls+1]=name; return true,'sb '..name end end
+    return {enter=word('enter'),leave=word('leave'),status=word('status'),hop=word('hop'),back=word('back'),
+        view=word('view'),view_set=word('view set'),
+        seq=function(alias) sb.calls[#sb.calls+1]='seq '..tostring(alias); return true,'sb seq' end,
+        to_menu=function() sb.to_menus=sb.to_menus+1 end,to_room=function() sb.to_rooms=sb.to_rooms+1 end,
+        unready=function() return {table.unpack(sb.unready or {})} end,
+        in_lobby=function() return sb.here end,
+        active=function() return sb.active end,gate=function() return nil,'no zSBO_Lobby (fixture)' end,
+        lobby_words=function() return 'hotel 47101_5096' end,hall=function() return sb.hall or 'xion' end,
+        create=function(request,room) sb.created=request..' '..tostring(room); return true,'sb create' end,
+        near_seat=function() if sb.seat_error then error(sb.seat_error,0) end return sb.seat end,
+        seated=function() return sb.sitting end,busy=function() return sb.busy end,
+        sit=function(seat) sb.sat=seat; return true,'sb sit' end,
+        stand=function() sb.stands=sb.stands+1; return true,'sb stand' end,
+        on_load=function() sb.on_loads=sb.on_loads+1 end,tick=function() sb.ticks=sb.ticks+1 end,
+        title=function() sb.titles=sb.titles+1 end,off=function() sb.offs=sb.offs+1; sb.asked_at_off=#asked end}
+end}
+-- The lobby screens (ui/lobby.lua; ui/lobby_test tests them): what new got (o), its calls as words (lb.calls; each
+-- frame's tick and each slow counted apart), the screen open ('menu', 'settings' or nil; refuse: why open fails) and,
+-- while the leave question asks, its answer function (lb.ask).
+lb={}
+package.loaded['ui.lobby']={new=function(o)
+    lb.o=o
+    local function said(...)
+        local w={}
+        for i=1,select('#',...) do w[i]=tostring((select(i,...))) end
+        lb.calls[#lb.calls+1]=table.concat(w,' ')
+    end
+    return {is_open=function() return lb.ask and 'popup' or lb.screen end,
+        open=function(which)
+            said('open',which)
+            if lb.refuse then return false,lb.refuse end
+            if not lb.screen then o.kit.input(true,'lobby',true) end
+            lb.screen=which
+            return true
+        end,
+        close=function() said('close'); lb.screen,lb.ask=nil,nil end,
+        nav=function(what) said('nav',what) end,
+        popup=function(id,answer) said('popup',id); lb.ask=answer; return true end,
+        count=function(left,now) said('count',left,now) end,
+        stop_count=function() said('stop_count') end,
+        room=function(on) said('room',on) end,
+        slow=function() lb.slows=lb.slows+1 end,
+        tick=function(now) lb.ticks[#lb.ticks+1]=now end,
+        parts_check=function() said('parts'); return true,'lobby parts: 6 of 6 made (the log has each)' end}
 end}
 -- The kit (ui/kit.lua's Ui.kit; ui_kit_test tests it): its calls as words, its input on change only (as the kit makes
 -- the engine call), every input asked counted; the menu's view built at once by a builder that keeps what each text and
--- row was last set to. kit_ready: its root is up; kit_off: it turned off; kit_language: the game's culture, read only
--- while on (once off the kit gives the last one read).
+-- row was last set to. kit_ready: its root is up; kit_whole: false while that root is a build whose look still warms
+-- (nil: whole); kit_off: it turned off; kit_language: the game's culture, read only while on (once off the kit gives
+-- the last one read). kit_slow_cost: the seconds its slow pass takes on the fake clock.
 kit_calls,kit_opts,menu_view,kit_ready,kit_off,kit_paused,kit_language,kit_sounds={},nil,nil,false,false,false,nil,{}
 language_reads=0 -- kit.language(): a game call.
 menu_place,kit_input,input_asks,input_refused=nil,false,0,false -- refused: the kit turns off as it takes it.
@@ -577,9 +693,12 @@ package.loaded['ui.kit']={kit=function(opts)
             kit_views[name]=build(builder(name))
             if name=='menu' then assert(place.hit); menu_place,menu_view=place,kit_views.menu end
         end,
-        slow=function(up,title) kit_calls[#kit_calls+1]='slow '..tostring(up)..(title and ' title' or '') end,
+        slow=function(up,title)
+            kit_calls[#kit_calls+1]='slow '..tostring(up)..(title and ' title' or '')
+            clock=clock+(kit_slow_cost or 0)
+        end,
         tick=function() end,ready=function() return kit_ready and not kit_off end,
-        whole=function() return kit_ready and not kit_off end,
+        whole=function() return kit_ready and not kit_off and kit_whole~=false end,
         view=function(name) return kit_ready and not kit_off and kit_views[name] or nil end,
         off=function() return kit_off end,
         show=function(name,on) -- As the kit: on change only.
@@ -604,8 +723,9 @@ package.loaded['ui.kit']={kit=function(opts)
             return kit_language_seen
         end,
         stop=said_kit('stop'),
-        reset=said_kit('reset'),
+        reset=said_kit('reset'),veil=said_kit('veil'),
         holding=function() return kit_input end,click=said_kit('click'),
+        azerty=function() return opts.uidev~=nil and opts.uidev()==2 end, -- SB's last keyboard (no language here).
         lost=function() local who=kit_lost; kit_lost=nil; return who~=nil,who end,
         move=function() end,fade=function() end,
         project=function(anchor)
@@ -638,6 +758,7 @@ package.loaded['session.chat']={new=function(lines,on)
 end,view=Chat.view,clean=Chat.clean,wrap=Chat.wrap}
 package.loaded.version='v9-test'
 USAGE='Use: coop puppet | host | invite | join [lobby id|code] | copy | allow|deny|remove <SteamID> | leave | '
+    ..'match search|create <mode>|cancel|end|join <code>|leave | mute|unmute <SteamID> | '
     ..'status | report | mark [text] | where | near [metres] | travel host | loopback '
     ..'<delay ms> <jitter ms> <loss %>|off | record [off] | replay [off] | basesuit | look [cloth|dyes|effects '
     ..'on|off] | cns [reset] | wear [<name>|off [hair|suit]] | scene [emil|orcal|stop] | lines [<name>|stop] | '
@@ -664,7 +785,7 @@ function load_main(with_native,no_folder,source)
         if name=='coop_pad' then
             if pd.missing then return nil,'not exported' end
             return function(...)
-                assert(select('#',...)==7,'Seven arguments: the most the native part hands back')
+                assert(select('#',...)==9,'Nine arguments: the most the native part hands back')
                 pd.calls=pd.calls+1
                 return table.unpack({...},1,table.remove(pd.q,1) or 0)
             end
@@ -672,12 +793,20 @@ function load_main(with_native,no_folder,source)
         return true
     end
     pd.q,pd.calls,kit_lost={},0,nil
-    printed,handler,loops,asked,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},0,false,{},{},{}
+    printed,handler,loops,asked,huds,sessions,ticks,active,withdrawn,captured,states={},nil,{},{},{},{},0,false,{},{},{}
     state_names={} -- link.state's mod_names argument, each call.
+    settles=0 -- link.settle() calls: the end of each 250 ms pass and the top of each frame.
     photos,veils,photo_veils={},{},{}
     queued,binds,the_notice,probe,probe_runs,probe_ticks={},{},nil,nil,{},0
-    rc_log,rc_runs,rc_stops,rc_ticks=nil,{},0,0
+    rc_log,rc_ready,rc_runs,rc_stops,rc_ticks,rc_autos=nil,nil,{},0,0,0
+    sb.o,sb.calls,sb.on_loads,sb.ticks,sb.titles,sb.offs,sb.asked_at_off,sb.active=nil,{},0,0,0,0,nil,false
+    sb.to_menus,sb.to_rooms,sb.here,sb.hall,sb.created,sb.unready=0,0,false,nil,nil,nil
+    hooks,fades.calls={},{}
+    sb.seat,sb.seat_error,sb.sitting,sb.sat,sb.stands,sb.busy=nil,nil,nil,nil,0,false
+    lb.o,lb.calls,lb.screen,lb.ask,lb.refuse,lb.slows,lb.ticks=nil,{},nil,nil,nil,0,{}
+    link_match,link_round,link_me,link_owner,link_uidev=nil,nil,nil,nil,nil
     rx.o,rx.ticks,rx.stops,rx.booked,rx.raise,rx.tick_raise,rx.stopped=nil,0,0,nil,nil,nil,nil
+    gt.o,gt.ticks=nil,0
     nr.o,nr.runs,nr.chs,nr.ticks,nr.stops=nil,{},{},0,{}
     gr.o,gr.ticks,gr.tests,gr.owns,gr.cuts,gr.wire,gr.cut=nil,{},0,{},{},nil,nil
     dr.calls,dr.restores,dr.ticks,dr.ghost,dr.ghost_log={},0,0,nil,nil
@@ -688,6 +817,7 @@ function load_main(with_native,no_folder,source)
     mx.o,mx.folder,mx.cmds,mx.ticks,mx.stops,mx.says,mx.titles=nil,nil,{},0,0,nil,{}
     ly.o,ly.ticks,ly.stops,ly.titles,ly.cmds,ly.stopped,ly.talks,ly.holds=nil,0,0,{},{},nil,{},{}
     ts.o,ts.hud,ts.ticks=nil,nil,0
+    st.o,st.cmds,st.polls,st.says=nil,{},{},nil
     cs.o,cs.cmds=nil,{}
     dm.o,dm.cmds,dm.stops,dm.asked_at_stop=nil,{},0,nil
     gf.o,gf.cmds,gf.received,gf.ticks,gf.stops=nil,{},{},0,0

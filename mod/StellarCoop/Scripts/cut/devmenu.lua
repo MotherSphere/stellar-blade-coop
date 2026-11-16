@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop devmenu: the rows of SB's developer cheat menu that still work in the shipping build, on a co-op save only. SB
 -- ships the menu (WB_DebugCommand_Master, its tab and slot widgets, the DebugCommand UI definition) and its data
 -- (CheatCommandTable, 7,139 rows over 18 tabs), but no UI logic for it: ESBUILogicType_DebugCommand (191) is not in
@@ -58,7 +61,7 @@ local BY={}
 for _,r in ipairs(DevMenu.ROWS) do BY[r[1]]=r end
 function DevMenu.row(name) return BY[name] end -- The row of that name, or nil.
 local USE='Use: coop devmenu [list|<row>]'
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 -- An effect's EffectTable ID by its row name, or nil when this game has no such row.
 function DevMenu.effect_id(name)
     local row=U.find(EFFECTS):FindRow(name)

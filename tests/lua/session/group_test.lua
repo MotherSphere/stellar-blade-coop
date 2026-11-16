@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- session/group.lua over fakes of the game and of core/link.lua and partner/puppet.lua. The revive on the downed side:
 -- the call only once every condition held for 3 s with no gap (our life state 3, the death screen's animation,
 -- warp=idle, the friend alive on our map with her ghost shown within 2 m across and 1 m up or down, boss=0, standalone,
@@ -350,7 +353,7 @@ ok,no=g.night_revive('friend')
 assert(not ok and no=='a revive call is under way' and #W.calls==1)
 run(g,2)
 assert(logged('revive result (Kaanta): life 3/1') and W.vis==2 and W.said[1]==REVIVED and #W.said==1)
--- revive=off (the downed player's opt-in, off by default): no call, by the friend or by herself.
+-- revive=off (the downed player's opt-in): no call, by the friend or by herself.
 g=world(function(w) w.night,w.settings.revive=true,false end)
 for _,by in ipairs({'friend','self'}) do
     ok,no=g.night_revive(by)

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Join codes on screen (session/join.lua) on a fake kit, link and console (ui_kit_test tests the kit itself: the field,
 -- its focus and who holds the game's input). The code box: opened by the menu's row in a world only, the game's input
 -- on the box and its keyboard focus again 50 ms later; Enter joins with a join code in either case, with or without the

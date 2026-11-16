@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The friend's revive and the wait during the host's cutscene, on the game thread: main.lua ticks it every 250 ms with
 -- the Steam link. The revive sends nothing: each side reads its own game and the friend's vitals and ghost.
 -- The downed side (us): our EVE is revived where she lies once all of these held for 3 s with no gap: our life state
@@ -42,7 +45,7 @@ local LOOK=10 -- s between two lookups of the death screen while it is not found
 local HIDDEN=2 -- ESlateVisibility Hidden.
 local function alive(m) return m~=nil and (m.life==1 or m.life==6) and m.hp>0 end
 local function down(m) return m~=nil and (m.life>=3 and m.life<=5 or m.hp==0 and m.max_hp>0) end
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 local weak=U.weak
 -- Our EVE's mesh location (her ghost's place is the friend's mesh), or nil.
 local function feet()

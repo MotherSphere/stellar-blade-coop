@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's drone light (matrix13/world/travel.lua ticks it): 20 % more range and cone than the shipped light, at
 -- the same intensity, in world 2800 only. CH_Drone_BP writes its spot light's attenuation radius each tick, capped at
 -- 1500, so a post hook on its ReceiveTick scales what it just wrote. The cone, which the blueprint never writes, is set
@@ -17,6 +20,7 @@ function Drone.new(o)
     local self={}
     local active,hooked,failed=false,false,false
     local next_look,next_hook=0,0
+    local said -- The hook error already logged in this stay in world 2800.
     local written,lights={},{} -- By light address: the radius last written, the light with our cone.
     local function apply(ctx)
         local drone=U.valid(ctx)
@@ -62,11 +66,13 @@ function Drone.new(o)
         next_look=now+EVERY
         local inside=here()~=nil
         if inside and not hooked and now>=next_hook then
-            local ok=pcall(RegisterHook,Drone.HOOK,on_tick)
+            local ok,e=pcall(RegisterHook,Drone.HOOK,on_tick)
             hooked=ok
             next_hook=now+RETRY
-            if ok then log('light: CH_Drone_BP_C:ReceiveTick hooked') end
+            if ok then log('light: CH_Drone_BP_C:ReceiveTick hooked')
+            elseif not said then said=true; log('light: no hook yet: '..tostring(e)..'; next try every '..RETRY..' s') end
         end
+        if not inside then said=nil end
         -- Out of 2800 its lights are the old world's, freed or dying: forgotten, never called.
         if active and not inside then written,lights={},{} end
         active=inside and hooked

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // An XInput pad's state turned into the co-op menu's navigation events, free of Windows: the native part
 // (glue/tick.cpp) reads the pads through PadSlots, steps Pad at each poll and hands Lua one event per coop_pad call.
 // The menu and the co-op saves' question take the game's input (UIOnly), so the game ignores the pad then, and UE4SS
@@ -26,7 +29,7 @@ constexpr uint64_t kPadRetryMs = 2000;      // A slot with no pad is asked again
 // whether any pad is connected.
 struct PadState {
   static constexpr uint16_t DPAD_UP = 0x0001, DPAD_DOWN = 0x0002, DPAD_LEFT = 0x0004, DPAD_RIGHT = 0x0008,
-                            BACK = 0x0020, A = 0x1000, B = 0x2000;
+                            BACK = 0x0020, LEFT_SHOULDER = 0x0100, RIGHT_SHOULDER = 0x0200, A = 0x1000, B = 0x2000;
   uint16_t buttons = 0;
   int16_t lx = 0, ly = 0;
   bool connected = false;
@@ -34,14 +37,14 @@ struct PadState {
 
 class Pad {
 public:
-  enum Event : uint8_t { kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu };
+  enum Event : uint8_t { kNone = 0, kUp, kDown, kLeft, kRight, kSelect, kBack, kMenu, kTabLeft, kTabRight };
 
   // Each poll. Directions (the D-pad or the left stick) on their press; up and down again after kPadRepeatDelayMs
   // and every kPadRepeatEveryMs while held (left and right change a value: once a press). A diagonal is up or down
   // (the stick: its main axis, and near 45 degrees the axis already pressed, so noise does not flip it), so a move
-  // never changes a value too. A and B on their press only; View once it was held kPadMenuHoldMs, once a hold. One
-  // step's events go in event order. No pad connected forgets what was held, so the next press is a new one; the
-  // events already made stay.
+  // never changes a value too. A, B, LB and RB on their press only; View once it was held kPadMenuHoldMs, once a
+  // hold. One step's events go in event order. No pad connected forgets what was held, so the next press is a new one;
+  // the events already made stay.
   void step(const PadState &s, uint64_t now_ms) {
     if (!s.connected) {
       held_ = {};
@@ -98,6 +101,10 @@ public:
       menu_sent_ = true;
       push(kMenu);
     }
+    if (pressed & PadState::LEFT_SHOULDER)
+      push(kTabLeft);
+    if (pressed & PadState::RIGHT_SHOULDER)
+      push(kTabRight);
   }
 
   // The oldest event waiting, or kNone.
@@ -121,7 +128,7 @@ private:
 
   std::array<bool, 4> held_{}, stick_{}; // Up, down, left, right: the direction, and the stick's part of it.
   std::array<uint64_t, 4> next_{};       // When each held direction repeats next.
-  uint16_t buttons_ = 0;                 // The last step's, for A's and B's press.
+  uint16_t buttons_ = 0;                 // The last step's, for A's, B's, LB's and RB's press.
   bool back_held_ = false, menu_sent_ = false;
   uint64_t back_since_ = 0;
   std::array<uint8_t, kPadRing> ring_{};

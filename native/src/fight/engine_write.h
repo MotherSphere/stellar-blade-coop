@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Engine's writes to the game: the stat writes, the mirrored crowd controls and the captures that hold an enemy
 // (freeze, HP floor, scaling), with their lift.
 #pragma once
@@ -167,9 +170,9 @@ template <class Game> bool Engine::lift(Game &g, uint64_t logic, size_t i, bool 
   Actor a;
   const uint64_t la = g.find(logic, c.guid);
   const bool found = la && live(g, la, c.guid, a), thaw = found && c.type == kFreeze && fighting(a);
-  if (c.type == kExtra || c.type == kSummon) { // A dying one is left to its death.
+  if (c.type == kExtra || c.type == kSummon || c.type == kProxy) { // A dying one is left to its death.
     if (found && fighting(a))
-      unmake(g, logic, a, "end", c.type == kSummon);
+      unmake(g, logic, a, "end", c.type);
   } else if (c.type == kGuard) {
     // Still at 1 HP in its Finish stance, with our Immortal: that goes, so her own hit ends the boss in her world
     // and its death events run there. Above 1 HP its Immortal is its own. Through the game's call even after the

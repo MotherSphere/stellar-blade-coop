@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The crash sentinel for mod assets. Before the ghost (partner/puppet.lua) hands the engine an asset your CNS packs
 -- declare or a mod both players have holds (core/link.lua's mod_assets(): its load, SetSkeletalMesh, a cloth built on it, SetMaterial, a dynamic instance and its values, the hidden slots, an effect's spawn), call() writes
 -- coop-cns-call.txt with that asset's path and outfit (or container), and empties it once the call returns or raises. Only that span

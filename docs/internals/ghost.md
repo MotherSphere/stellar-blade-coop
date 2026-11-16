@@ -121,8 +121,10 @@ pose still arrives before it is needed:
   250 ms above it for 5 s (a clock step) moves it at once.
 - Without jitter the ghost is drawn 1.5 send intervals behind the newest pose. With jitter it is drawn far enough back
   that a late pose is still ahead of it (the recent jitter peak, decaying, capped at 250 ms).
-- The send interval is the time between two poses' publications divided by the difference of their sequence numbers,
-  so lost poses, or the deltas dropped after a lost keyframe, do not push the ghost further back.
+- The send interval is the median of the last 8 gaps between the publications of the poses received. A match lobby
+  member whose deltas the sender skips for her cap gets every 2nd or 3rd pose, so her interval is 33 or 50 ms, the
+  spacing of the poses she receives. One hole, such as the deltas dropped after a lost keyframe, does not move the
+  median, so it does not push the ghost further back.
 - Between two poses the pose is interpolated. Past the newest one it is extrapolated by at most half an interval.
   After 3 s without a pose the old ones are dropped, so the ghost never slides across the gap.
 
@@ -292,7 +294,7 @@ it back. Not tested in game yet.
 
 ## Solid partner
 
-With `collide=on` (experimental, off by default, not tested in game yet), `partner/puppet.lua` adds one CapsuleComponent
+With `collide=on` (experimental, on by default, not tested in game yet), `partner/puppet.lua` adds one CapsuleComponent
 to the ghost the first time the ghost shows. The capsule copies your EVE's movement capsule: its radius and half height
 (40 and 95 cm in this build) and its height above her feet (her mesh's offset, 97 cm). It hangs on the ghost's main mesh
 with an absolute rotation, so it stays upright. Its object type is your capsule's own (channel 24, `PawnCollision`, in

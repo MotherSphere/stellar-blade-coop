@@ -10,7 +10,7 @@ enemies: the same pairs, the same host and the same Steam channel 2. Each pair h
 the enemy's AI and moves it; the other game draws its copy (stages 3a and 3b of Phase 11). The host decides the owner.
 HP, Shield, balance and death stay with the host's game whoever owns the pair.
 
-- The host's `same_place` decides for both games. The host sends it as `SBF19 place <gen> <0|1>` after its world line
+- The host's `same_place` decides for both games. The host sends it as `SBF20 place <gen> <0|1>` after its world line
   (and its scale line) while it is on, and again at each change, `coop fight pilot off` and an error included. The
   guest draws her copies only while the host's last place line says 1, and forgets it with the host's next world, on or
   off line. Her own value is not read at a start: her co-op menu row only stops same place on her side, or starts it
@@ -23,17 +23,17 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   an AI task runs on the owner's copy, during Down, Groggy, Airborne or a takedown, while the enemy dies, or while the
   host draws a copy that the game froze before the mod did (below: its AI would not run once the host owns it); the
   start of a takedown is the exception (below). Each change moves the owner epoch one up and goes to her as
-  `SBF19 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
-  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF19 aggro <gen> <game|host>`.
+  `SBF20 own <gen> <hguid> <H|G> <oe>`; the host freezes its copy as it sends own G and thaws it as it sends own H. With
+  `aggro=host` the host keeps every pair (stage 3a). The host sends `SBF20 aggro <gen> <game|host>`.
 - The guest takes an own G only at her epoch plus one, for a paired copy in life state 1 while same place runs on her
   side, and thaws her copy in that turn. She refuses a copy that the game froze before the mod did (why `state`),
   except for her takedown. Otherwise, and when she can no longer run a pair she owns, she answers
-  `SBF19 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
+  `SBF20 own-no <gen> <hguid> <oe> <why>`, where why is `unpaired`, `state`, `off`, `epoch`, `aggro`, `full` or
   `target`, and the pair is the host's again. After `off` or `aggro` the host hands her nothing for 30 s, and after any
   other reason not that pair. A world line, an on or an off line starts the epochs over on both sides and ends both
   pauses.
 - In the frame a hand-over makes a pair a game's own at a new epoch, its game thread first puts the copy back
-  (below), then calls the game's force target function (`FUN_141a36010`) toward its own EVE: detect result 3, aggro
+  (below), then calls the game's force target function (`FUN_141a361b0`) toward its own EVE: detect result 3, aggro
   level 1, and the game's own TargetedByEnemy jobs. The call runs only with the cached net mode 0 (in net mode 3 that
   function would send server requests), no logic task in flight, the two game objects it fetches already made (their
   getters would make them), the copy found by its GUID, its own EVE found and an AI owner on the copy. A task in
@@ -69,7 +69,7 @@ HP, Shield, balance and death stay with the host's game whoever owns the pair.
   that ends, then it blends back to the stream over 300 ms (a snap beyond 2 m).
 - Takedowns (stage 3c). Each pass reads two takedown markers in a copy's effect list, `Check_LinkSkillHit_Skill`
   (5000039) and `LinkState_MonsterHit` (2006004). When one shows on the guest's copy while same place runs on her side
-  with `aggro=game`, she sends `SBF19 exec <gen> <hguid> 1`, and `SBF19 exec <gen> <hguid> 0` once her copy has held
+  with `aggro=game`, she sends `SBF20 exec <gen> <hguid> 1`, and `SBF20 exec <gen> <hguid> 0` once her copy has held
   none for 200 ms, or at once when the copy dies or goes (a turn between the two markers ends nothing). The host takes
   one exec 1 an enemy in 2 s, none while one runs, and only when its own copy is a Monster (ActorType 3) in life state 1
   holding Groggy or a marker, or with its balance at 0 after her claims of that turn. It then hands her the enemy
@@ -108,27 +108,27 @@ pairs through its spawn key like any other.
   enemies share (`fight_chars`, or with `auto` every Monster but the few it leaves out) and whose SaveType is None,
   ResetZone or ResetZoneWithTransform take part. Save and SaveWithTransform rows, rows that keep
   their object through a zone reset (`bResetZoneKeepObject`), and ZoneEvent and quest rows are never touched. Each
-  game reads a row through the game's own lookup (`FUN_141a9db80`) and the row's zone through the ZoneTable lookup
-  (`FUN_141a9b8a0`), and keeps what it read for the session. The game runs a row's lazy init (vtable slot `+0x20`)
+  game reads a row through the game's own lookup (`FUN_141a9eba0`) and the row's zone through the ZoneTable lookup
+  (`FUN_141a9c8c0`), and keeps what it read for the session. The game runs a row's lazy init (vtable slot `+0x20`)
   before its first use; in this build that slot is an empty function for both row types, so reading the rows without
   it skips nothing.
 - Zones travel as ZoneTable row IDs: a zone's name is an FName, whose index differs between two processes.
 - Each game counts its own epoch: one more when its current zone (logic `+0x598`) changes, when the game's spawn
   manager starts entering or resetting a zone again (its `+0x1c` goes to 1 or 2 after 3 or 4), and when 3 or more of
-  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF19
+  its enemies come back under new GUIDs in one census (two enemies of one key are no change). The host sends `SBF20
   epoch <gen> <zone> <n>` at each change and every 5 s, so a line lost on the way stalls nothing for long, and each
   side drops a line of another epoch.
 - The zone is shared while both games are in the host's zone, each settled 3 s after its last epoch began with no
   spawn pass running, and the other EVE (as its ghost stands) is within 100 m. The guest then sends her keys there as
-  `SBF19 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
-  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF19 spawn <gen> <n> <spawnId> <idx>
+  `SBF20 have <gen> <n> <part> <parts> <spawnId>:<idx> ...`, 24 keys a line and 10 lines at most, at once at a new
+  epoch and every 5 s after. The host answers one round each 500 ms at most: `SBF20 spawn <gen> <n> <spawnId> <idx>
   <charId> <x> <y> <z> <yaw>` for each of its Monsters there she lacks within 1 km of her EVE (as her ghost stands in
   the host's world; never a dying one), where it stands in whole
-  centimetres, and `SBF19 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
+  centimetres, and `SBF20 drop <gen> <n> <spawnId> <idx>` for each key of hers it lacks, 16 of each a round.
 - The guest checks each line: the epoch, the shared zone, the row in her own tables and its zone, a place within 1 km of
   her EVE, no enemy of hers with that key, and 32 calls a second at most. She creates a key through the game's spawn
-  function on its spawn manager (`FUN_141c1c9a0`, as `FSBCreateActor` does) and removes one through the game's despawn
-  job (`FUN_141b077f0`, as a ZoneEvent despawn does): never a kill, and never an enemy that shared enemies pair. A
+  function on its spawn manager (`FUN_141c1dbf0`, as `FSBCreateActor` does) and removes one through the game's despawn
+  job (`FUN_141b08a30`, as a ZoneEvent despawn does): never a kill, and never an enemy that shared enemies pair. A
   created enemy that shows up as no Monster, or as another character than the host's, is removed again, within the same
   32 calls a second. One the despawn cannot find again (a dying one, for example) stays and is logged as kept. A key she
   refused counts as hers in her next list, so the host stops asking for it until the epoch moves. So does an enemy she
@@ -137,13 +137,13 @@ pairs through its spawn key like any other.
   too, and the key leaves the list. A key refused as too far or for room (`full`) is left out of the list, so the host
   asks again once she is nearer or has room, and an enemy she created leaves the list once it has died or left her game.
 - Both calls run inside the shared fight's job on the logic thread, under its fault latch. The spawn manager, the table
-  holder and the job sender are read from their globals and never made by the mod: their getters (`FUN_141adc3d0`,
-  `FUN_141a97f20`, `FUN_141a97b90`) allocate one when it is missing.
+  holder and the job sender are read from their globals and never made by the mod: their getters (`FUN_141add610`,
+  `FUN_141a98e30`, `FUN_141a98aa0`) allocate one when it is missing.
   - The spawn call gets the spawn manager, the EventSpawnId, the SpawnIndex, the position, the rotation (0, yaw, 0), no
-    extra request data and flag 0 (what the flag does is not known yet). `FUN_141c1c9a0` itself passes a delay of 0 to
-    `FUN_141c1ca40`, so the key spawns at once. It reads the table holder through its getter, and for a row with
+    extra request data and flag 0 (what the flag does is not known yet). `FUN_141c1dbf0` itself passes a delay of 0 to
+    `FUN_141c1dc90`, so the key spawns at once. It reads the table holder through its getter, and for a row with
     EventOnSpawning events it sends them through the job sender's getter. The spawn it starts reaches `NewActor`, whose
-    actor setup reads the reg through `FUN_141a97cb0`. So the guest calls it only while the holder, its tables, the job
+    actor setup reads the reg through `FUN_141a98bc0`. So the guest calls it only while the holder, its tables, the job
     sender and the reg exist; with the spawn manager or one of those not made she refuses the key (`no spawn manager`)
     and calls nothing.
   - The despawn call gets the job sender, the logic turn and the enemy's GUID, after the enemy is found again by GUID
@@ -167,7 +167,7 @@ The log lines are in [Shared enemies](../shared-enemies.md#same-spawns-experimen
 
 Same spawns let the guest's game spawn its own enemies on each zone entry and reset, then remove the ones the host's
 game lacks on its drop lines, at best 3 s after the zone settles. The spawn filter (`spawn_filter`, the guest's own,
-off by default, not tested in game) has her game refuse those spawns instead. Lua adds the word `filter` to the `coop
+on by default, not tested in game) has her game refuse those spawns instead. Lua adds the word `filter` to the `coop
 fight on` request (and to the spawn probe's); it is a word of that request, never a line on the wire, so the protocol
 stays 12.
 
@@ -185,10 +185,10 @@ stays 12.
 - After each of her steps, and before each spawn of hers, the shared fight's job publishes the list to a table of 240
   atomics (`BlockTable`, `spawnId << 8 | index` a slot), which a hook on any thread can read without a lock. A new
   session empties the table before its gate opens.
-- The hook sits in one slot of the game's image: the second entry of the SpawnRequest vtable (`.rdata` `0x145c10020`,
-  the vtable at `0x145c10018`), which holds `SpawnRequest::Execute` (`0x141c10a90`). RequestSpawn (`FUN_141c1ca40`)
+- The hook sits in one slot of the game's image: the second entry of the SpawnRequest vtable (`.rdata` `0x145c15ea0`,
+  the vtable at `0x145c15e98`), which holds `SpawnRequest::Execute` (`0x141c11ce0`). RequestSpawn (`FUN_141c1dc90`)
   calls Execute directly while the slot holds it and through the slot otherwise, and the consumer of its delayed queue
-  (`FUN_141c1cd20`) always calls through the slot; neither has a CFG check. One aligned 8-byte store therefore routes
+  (`FUN_141c1df70`) always calls through the slot; neither has a CFG check. One aligned 8-byte store therefore routes
   both through the hook, and no instruction byte of the game changes.
 - The worker makes the swap once a run, when the gate first opens (the guest's side asked with `filter`, or the spawn
   probe), on the pinned build, before `coop off` and before any fault of the hook. It reads the slot, makes its page
@@ -198,8 +198,8 @@ stays 12.
   Execute back; any other value is left. The DLL is pinned, so a thread still inside the hook after the undo returns
   into mapped code. Between sessions the hook stays and passes every request on.
 - The hook takes the request. With the gate shut it calls Execute at once. With the gate open, under its own SEH latch,
-  it reads the table holder (`DAT_147032510`, never through its getter `FUN_141a97f20`, which makes one when none
-  exists), finds the request's EventSpawnTable row with `FUN_141a9a780(holder, 0, request + 0x28)` (the row's FName,
+  it reads the table holder (`DAT_1470373b0`, never through its getter `FUN_141a98e30`, which makes one when none
+  exists), finds the request's EventSpawnTable row with `FUN_141a9b690(holder, 0, request + 0x28)` (the row's FName,
   the call Execute makes first), and builds the key from the row's EventSpawnId (`+0x10`) and the request's SpawnIndex
   (`+0x30`), the two values Execute passes to `NewActor`. A key in the table is counted, pushed to a 16-entry ring for
   the worker's log, and refused: the hook returns null, which every caller takes (the immediate path returns it, the
@@ -238,10 +238,10 @@ guest's game like any other key of the host's that she lacks.
   `0xE0000101`; if they do, extras stay off for the session. The game's death path skips the respawn and the zone
   bookkeeping for an actor whose key has no row; that a save never holds one is still to be checked in game.
 - Slot s stands 100 + 100 s cm from its enemy (2, 3 or 4 m), 120 degrees apart around the enemy's yaw, at the
-  enemy's height and facing its way. The game's `NewActor` (`FUN_141ad1290`) makes it, with the arguments
+  enemy's height and facing its way. The game's `NewActor` (`FUN_141ad24d0`) makes it, with the arguments
   `SpawnRequest::Execute` passes: the logic singleton, the charId, the position, the rotation (0, yaw, 0), not a
   player (0, 0), the key, 0 for the row field, 0, 1, no request extra data, 0, flag 0 (no actor replaced) and 0. The
-  request extra data is null because the game's FSBActor creation (`FUN_141ca9100`) checks it for null and then keeps
+  request extra data is null because the game's FSBActor creation (`FUN_141caa350`) checks it for null and then keeps
   the same default a fresh request would copy in.
 - Same spawns count an extra's key as part of the shared zone without a row: the host sends `spawn` for one she lacks
   and `drop` for one of hers it lacks. She makes the key through `NewActor` too, with the charId of the host's line,
@@ -255,11 +255,11 @@ guest's game like any other key of the host's that she lacks.
   end every extra still fighting is despawned in each game, and a dying one is left to its death. The host's extras
   also go when her shared enemies stop (her off line) or her lines are ignored, and hers when the host's same spawns
   stop on her side (its off or world line). Every despawn goes through the game's despawn
-  job (`FUN_141b077f0`), never a kill.
+  job (`FUN_141b08a30`), never a kill.
 - `NewActor` runs inside the shared fight's job on the logic thread, under its fault latch, only while the table
   holder, the world's actor manager, the job sender and the reg exist: `NewActor` and its actor setup
-  (`FUN_141ba6d20`) read them through getters that would make them (the job sender's `FUN_141a97b90` and the reg's
-  `FUN_141a97cb0` for the last two). An extra whose GUID cannot be read right after `NewActor` stops the shared fight
+  (`FUN_141ba7f60`) read them through getters that would make them (the job sender's `FUN_141a98aa0` and the reg's
+  `FUN_141a98bc0` for the last two). An extra whose GUID cannot be read right after `NewActor` stops the shared fight
   for the run and is logged as kept, since no capture can take it off.
 
 The log lines are in [Shared enemies](../shared-enemies.md#extra-enemies-experimental).
@@ -269,15 +269,15 @@ The log lines are in [Shared enemies](../shared-enemies.md#extra-enemies-experim
 Shared bosses (`bosses`, experimental, the host's value, on by default, not tested in game yet) add the bosses and
 Alpha Naytibas (the game's BossMonster type, ActorType 4) to the pairs of shared enemies. A boss takes a place before
 any common enemy, its maximum HP takes the host's `boss_hp_scale`, and with same place on its AI stays in the host's
-game. The host sends `SBF19 bosses <gen> <percent>` with its list.
+game. The host sends `SBF20 bosses <gen> <percent>` with its list.
 
 With same place on, the guest's copy of a boss is frozen and never casts a skill, so on its own it would never enter
 battle mode, change phase or summon anything. The host's job reads them on its own copy and tells her game, which
 applies them to her copy:
 
-- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF19 bstart <gen> <hguid>` when it turns on,
+- The host reads its boss's battle mode (FSBActor `+0xb58`) and sends `SBF20 bstart <gen> <hguid>` when it turns on,
   then every second while it stays on.
-  - The guest calls the game's SetBattleMode wrapper (`FUN_141a7cd30`) on her copy, once while the copy stays in battle
+  - The guest calls the game's SetBattleMode wrapper (`FUN_141a7db20`) on her copy, once while the copy stays in battle
     mode, with the arguments of the game's own `FSBActor::AddTargetedByEnemy`: on, then `0, 0, 0, 1`. The fifth
     argument, 0, runs the boss's `EventOnBattle` (mostly the arena walls), and the call runs `EventFirstTimeOnBattle`
     once. Called from the logic thread, the game queues it for its game thread. She calls it only for a copy her game
@@ -292,9 +292,9 @@ applies them to her copy:
 - The host reads its boss's effect list and keeps the rows of that boss's allowlist, a table built from the game's
   tables for build 26123051: its phase rows and their FX rows that a skill applies, and its MinimumHP rows (the phase
   thresholds, and `MinimumHP_Dispel` 1001323). It sends them in list order as
-  `SBF19 phase <gen> <hguid> <oe> <id,id,...|->` when they change and every second in battle mode.
+  `SBF20 phase <gen> <hguid> <oe> <id,id,...|->` when they change and every second in battle mode.
   - The guest refuses a line with an ID her own table does not hold for that boss (a bad line), of another owner epoch,
-    or for a copy her game does not draw. Through the game's effect call (`FUN_141ad08b0`), her copy its own caster as
+    or for a copy her game does not draw. Through the game's effect call (`FUN_141ad1af0`), her copy its own caster as
     for the boss's own skill step, she applies each row that came into the host's set since her last line for that copy,
     in the host's order, a dispel row first (the host's copy holds a row next to the dispel that would end it only when
     that row started later).
@@ -311,7 +311,7 @@ applies them to her copy:
   and the Elder's dummy have none and stay in the host's game.
   - A summon gets a key in the summon range, EventSpawnId `0xF0000000 | n` and SpawnIndex 0, where n counts the summons
     since the game started, and joins the shared list under it. After its up the host sends
-    `SBF19 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner hguid> <row>`, with epoch 1 when same spawns do not
+    `SBF20 spawn <gen> <n> <key> 0 <charId> <x> <y> <z> <yaw> <owner hguid> <row>`, with epoch 1 when same spawns do not
     run, and sends it again every second while it follows the summon: her game takes a repeat as one it has, and a line
     it refused for a passing reason (its boss not paired yet) can go through later.
   - The guest makes it through `NewActor`, as for extra enemies, with that key where the host's stands: only within 1 km

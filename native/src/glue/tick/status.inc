@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // coop off's block() and the native status line.
 
@@ -5,12 +8,14 @@ namespace coop::pose {
 
 void block() {
   blocked = true;
+  guard_undo = true; // The game thread writes the guard's Korean sources back over his lines.
   engine_on = false;
   quest_worker.block(); // Its side ends; the game thread's passes stop with it.
   fight_engine.set(false, false); // Its job ends at its next turn; the worker says why at its next pass.
   filter_undo("coop off");
   hold_undo("coop off");
   region_tabs_undo("coop off");
+  sbo_off();
   loopback_on = false;
   record_on = false; // worker_stream writes what was recorded and stops the replay.
 }
@@ -29,8 +34,12 @@ std::string status() {
     s += " record=on"; // No seconds: each changed status line goes to UE4SS.log (the stop line gives the length).
   if (engine_on && replay.on())
     s += " replay=on";
-  if (engine_on && remote.generation && remote_count) // Once coop-remote.txt was written at least once.
-    s += " remote=" + std::to_string(remote.generation) + " " + std::to_string(remote_count) + " " + remote_source;
+  // Each slot holding a table, once its coop-remote file was written at least once: slot 0 with its source, the
+  // others from members only.
+  for (size_t k = 0; k < kMaxRemote; ++k)
+    if (const Remote &r = remotes[k]; engine_on && r.table.generation && r.count)
+      s += " remote" + (k ? std::to_string(k) : std::string()) + "=" + std::to_string(r.table.generation) + " " +
+           std::to_string(r.count) + (k ? std::string() : std::string(" ") + r.source);
   s += fight_worker.status();
   // The revive's guard (session/group.lua): a respawn or a warp in flight, and our EVE's GUID, as of the game thread's
   // last read; none before the first one, after coop off or after its fault.
@@ -86,8 +95,8 @@ std::string camp_text_status() {
 }
 
 // coop-status.txt's lion, gardener, tendril, bolt, mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower,
-// mxnames, mxlily and mxrecords lines (lion/rows.h's status_line), from what the game thread published, then the shock line (lion/shock.h's
-// shock_line), read after the bolt line it was published before, then the nightshop, roxanne and lily lines
+// mxnames, mxlily, mxrecords and halls lines (lion/rows.h's status_line), from what the game thread published, then the shock line (lion/shock.h's
+// shock_line), read after the bolt line it was published before, then the nightshop, roxanne, lily and guardtext lines
 // (nightop_worker.inc's nightop_status).
 std::string rows_status() {
   std::string lines;

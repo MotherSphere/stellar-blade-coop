@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Lion's rows, the Gardener's, the Tendril's, the Shock Bolt's and Matrix XIII's on the build machine against fake
 // memory laid out like the pinned build (Matrix XIII's camp and env-spawn rows with patches of their own, in the two
 // zone tables no other batch reads, and its 2 shipped trigger rows patched in place, never added, a wrong zone table,
@@ -25,9 +28,13 @@
 // rows (8 target filters, 7 tasks, 7 groups, the two quest rows last of them) in the four quest tables no other batch
 // writes, its group rows' task containers (a TArray of structs of FName arrays, built in the pool), the 8 filters'
 // list on both "Talk to Lily" tasks, then her borrowed choice row patched in place in TheaterSelectDataTable with no ID
-// check, last, so a refusal there leaves the quest rows in.
+// check, last, so a refusal there leaves the quest rows in. The hall lobbies' batch (lion/halls_rows.h, patches of its
+// own): five WorldTable rows, then five ZoneTable rows naming them, in the two tables no other batch writes, then 171
+// ZoneEnvSpawnTable seat rows over Xion's chair rows, each naming its own row and its hall's zone; a taken zone ID
+// stops it after the worlds, a taken seat ID at that seat, a ZoneTable of another row size before any row.
 #include "lion/rows.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -158,6 +165,7 @@ struct Game {
     donor_rows(kMxlower);
     donor_rows(kMxlily);
     donor_rows(kMxrecords);
+    donor_rows(kHalls);
   }
   uint64_t vtable_at = 0;
 
@@ -463,7 +471,13 @@ int main() {
       assert(size_t(world[k].t) == 25 + k && !std::strcmp(info.name, world[k].name) && info.size == world[k].size &&
              info.id && !info.transient[0]);
     }
-    static_assert(kTableCount == 37, "25 tables, Matrix XIII's seven, Lily's two and the records' three");
+    static_assert(kTableCount == 39,
+                  "25 tables, Matrix XIII's seven, Lily's two, the records' three and the hall lobbies' two");
+    // The hall lobbies' two, last: WorldTable and ZoneTable, each with an ID at +0x10 and no Transient field.
+    assert(size_t(Table::world) == 37 && !std::strcmp(table_info(Table::world).name, "WorldTable") &&
+           table_info(Table::world).size == 0x30 && table_info(Table::world).id && !table_info(Table::world).transient[0]);
+    assert(size_t(Table::zone) == 38 && !std::strcmp(table_info(Table::zone).name, "ZoneTable") &&
+           table_info(Table::zone).size == 0x150 && table_info(Table::zone).id && !table_info(Table::zone).transient[0]);
     assert(size_t(Table::puzzle) == 36 && !std::strcmp(table_info(Table::album).name, "AlbumTable") &&
            table_info(Table::album).size == 0x90 && table_info(Table::achievement).size == 0xf0 &&
            table_info(Table::puzzle).size == 0x30 && !table_info(Table::album).transient[0]);
@@ -564,6 +578,83 @@ int main() {
            at(choice, 0x58).f == 1 && at(choice, 0x80).kind == Kind::i32 && at(choice, 0x80).f == 3 &&
            !std::strcmp(at(choice, 0x84).text, "Success5") && !std::strcmp(at(choice, 0x78).text, "None"));
   }
+  // The hall lobbies' batch (lion/halls_rows.h, generated from data/sbo-lobby.json) with patches of its own: the five
+  // world rows first (World 7121-7125, copies of CombatTestMapMk2 with the cooked map's UMapPath), then the five zone
+  // rows (Zone 1000121-1000125, copies of Zone_Xion_Boss_Mann whose WorldAlias names the world row of the same map,
+  // ZoneType 5, StartPointAlias the spawn point, named after the world row, AdditiveDesignLevel emptied), in the map
+  // order Hotel, Station, Cloister, Terrace, Foyer, then one ZoneEnvSpawnTable row per kept seat but the camp ones (25,
+  // 40, 24, 38 and 44, maps in the same order, seats by number): SBO_<Map>_Seat<nnn>, ID 39m0032nnn over every shipped
+  // ID of build 26123051 (3305032001), a copy of Xion's outdoor, bar or table chair row with ZoneList its zone,
+  // EnvActorName its own name, InitStateTag FirstInteraction and SaveType None. No name ends in _<digits> (the warp
+  // sends FName number 0, and the chair spawned for a seat names its row), every patch inside its struct past the ID,
+  // no two on the same bytes, the world and zone tables written by no other batch, and no seat row's name or ID one of
+  // Matrix XIII's.
+  static_assert(kHallsRows == 181, "five worlds, five zones, then 171 seats");
+  {
+    const char *const kMaps[] = {"Hotel", "Station", "Cloister", "Terrace", "Foyer"};
+    const size_t kSeats[] = {25, 40, 24, 38, 44};
+    size_t n = 0, seats[5] = {}, last = 0;
+    std::set<std::string> names;
+    std::set<uint32_t> ids;
+    for (size_t i = 0; i < kHallsRows; ++i) {
+      const Row &r = kHallsRecipe[i];
+      const TableInfo &info = table_info(r.table);
+      assert(r.first == n && !shipped_row(r) && split_number(r.name).number == 0);
+      assert(std::strpbrk(std::strrchr(r.name, '_') + 1, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"));
+      for (size_t p = r.first; p < size_t(r.first) + r.count; ++p, ++n) {
+        const Patch &x = kHallsPatches[p];
+        assert(x.at >= kIdAt + 4 && x.at + kind_size(x.kind) <= info.size);
+        assert((x.kind == Kind::u8) == (x.text == nullptr));
+        for (size_t q = r.first; q < p; ++q)
+          assert(kHallsPatches[q].at + kind_size(kHallsPatches[q].kind) <= x.at ||
+                 x.at + kind_size(x.kind) <= kHallsPatches[q].at);
+      }
+      const Patch *x = &kHallsPatches[r.first];
+      if (i >= 10) {
+        const size_t m = (r.id - 3900032000u) / 10000000u - 1, seat = r.id % 1000u;
+        assert(r.table == Table::env && r.id > 3305032001u && r.id > last && m < 5 && seat >= 1 && r.count == 4);
+        last = r.id, ++seats[m];
+        char want[32];
+        std::snprintf(want, sizeof want, "SBO_%s_Seat%03zu", kMaps[m], seat);
+        assert(!std::strcmp(r.name, want) && r.id == 3900032000u + 10000000u * uint32_t(m + 1) + seat);
+        assert(!std::strcmp(r.donor, "Xion_10_EnvS_035") || !std::strcmp(r.donor, "Xion_10_EnvS_021") ||
+               !std::strcmp(r.donor, "Xion_10_EnvS_025"));
+        assert(names.insert(r.name).second && ids.insert(r.id).second);
+        assert(x[0].at == 0x20 && x[0].kind == Kind::names && x[0].text == "Zone_SBO_" + std::string(kMaps[m]));
+        assert(x[1].at == 0x30 && x[1].kind == Kind::name && !std::strcmp(x[1].text, r.name));
+        assert(x[2].at == 0x64 && x[2].kind == Kind::name && !std::strcmp(x[2].text, "FirstInteraction"));
+        assert(x[3].at == 0x6c && x[3].kind == Kind::u8 && x[3].f == 0);
+        continue;
+      }
+      const bool world = i < 5;
+      const std::string map = kMaps[i % 5], name = (world ? "SBO_" : "Zone_SBO_") + map;
+      assert(r.table == (world ? Table::world : Table::zone) && r.name == name);
+      assert(r.id == (world ? 7121u : 1000121u) + i % 5 && r.count == (world ? 1 : 4));
+      assert(!std::strcmp(r.donor, world ? "CombatTestMapMk2" : "Zone_Xion_Boss_Mann"));
+      if (world) {
+        assert(x[0].at == 0x18 && x[0].kind == Kind::string &&
+               x[0].text == "/Game/SBO_Lobby/Lobby_" + map + ".Lobby_" + map);
+        continue;
+      }
+      const char *point = kHallsRecipe[i - 5].name;
+      assert(x[0].at == 0x14 && x[0].kind == Kind::name && !std::strcmp(x[0].text, point));
+      assert(x[1].at == 0x25 && x[1].kind == Kind::u8 && x[1].f == 5);
+      assert(x[2].at == 0x30 && x[2].kind == Kind::string && !std::strcmp(x[2].text, point));
+      assert(x[3].at == 0x138 && x[3].kind == Kind::names && !*x[3].text);
+    }
+    assert(n == sizeof kHallsPatches / sizeof kHallsPatches[0] && n == 25 + 171 * 4 &&
+           kHalls.patches == kHallsPatches && !std::strcmp(kHalls.word, "halls"));
+    assert(std::equal(seats, seats + 5, kSeats) && coop::lion::rows_of(kHalls, Table::env) == 171);
+    for (const Row &r : all) // The world and zone tables are the halls batch's alone.
+      assert(r.table != Table::world && r.table != Table::zone);
+    for (const Batch *b : {&kMxiii, &kMxspawn, &kMxenv, &kMxupper, &kMxmiddle, &kMxlower, &kMxnames, &kMxlily,
+                           &kMxrecords, &kSignal})
+      for (size_t i = 0; i < b->count; ++i) {
+        const Row &r = b->rows[i];
+        assert(r.table != Table::world && r.table != Table::zone);
+        assert(r.table != Table::env || (!names.count(r.name) && !ids.count(r.id)));
+      }
+  }
   // Matrix XIII's eight batches (lion/mxiii_rows.h, generated from data/mxiii-world.json): each under 256 rows with its
   // own patches; names unique per table across the first six, IDs unique per table, and mxnames only the mxiii batch's
   // rows again, patched in place, under the same names and IDs; each row's patches in order, inside its
@@ -651,15 +742,23 @@ int main() {
     assert(!std::strcmp(camp.name, "DLC02_10_Camp_01") && !std::strcmp(camp.donor, "ME01_Camp_03") &&
            camp.id == 280001 && value(kMxiii, camp, 0x28) == 3 &&
            text(kMxiii, camp, 0x60) == "DLC02_10_E_ItemS_001" && !find(kMxiii, camp, 0x6c));
+    // The zone 10 camps' 11 rows bind the objects the pak places by EnvActorName (+0x30): no EnvBPPath (+0x38) or
+    // SpawnPointName (+0x48) patch, so each keeps its donor's, empty and None in the dumps. The other kits still spawn.
     assert(!std::strcmp(first.name, "DLC02_10_EnvS_900") && !std::strcmp(first.donor, "DLC02_10_EnvS_425") &&
-           first.count == 4 && text(kMxiii, first, 0x38).find("Env_Camp_Base_C") != std::string::npos &&
-           text(kMxiii, first, 0x48) == first.name && text(kMxiii, first, 0x270) == camp.name);
-    for (size_t i = 2; i < 8; ++i) {
+           first.count == 2 && text(kMxiii, first, 0x30) == first.name && text(kMxiii, first, 0x270) == camp.name);
+    for (size_t i = 1; i < 8; ++i) {
       const Row &r = kMxiiiRecipe[i];
-      assert(r.id == 2800032900u + i - 1 && text(kMxiii, r, 0x48) == r.name && text(kMxiii, r, 0x30) == r.name &&
-             text(kMxiii, r, 0x38).rfind("/Game/GameDesign/Level/ZoneEnv/", 0) == 0 &&
-             text(kMxiii, r, 0x270) == camp.name);
+      assert(r.id == 2800032900u + i - 1 && text(kMxiii, r, 0x30) == r.name && !find(kMxiii, r, 0x38) &&
+             !find(kMxiii, r, 0x48) && text(kMxiii, r, 0x270) == camp.name);
     }
+    for (const char *n : {"DLC02_10_EnvS_420", "DLC02_10_EnvS_421", "DLC02_10_EnvS_423", "DLC02_10_EnvS_426"}) {
+      const Row &r = row(kMxiii, n);
+      assert(shipped_row(r) && !find(kMxiii, r, 0x30) && !find(kMxiii, r, 0x38) && !find(kMxiii, r, 0x48) &&
+             text(kMxiii, r, 0x270) == "DLC02_10_Camp_02");
+    }
+    const Row &spawned = row(kMxiii, "DLC02_20_EnvS_049");
+    assert(text(kMxiii, spawned, 0x38) == "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C" &&
+           text(kMxiii, spawned, 0x48) == spawned.name);
     assert(text(kMxiii, vending, 0x260) == "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_900|DLC02_10_EnvS_903|"
                                            "DLC02_10_EnvS_904|DLC02_10_EnvS_905");
     const Row &camp30 = kMxiiiRecipe[8];
@@ -1174,8 +1273,8 @@ int main() {
     // Matrix XIII's camp batch after them all, on its own Builder: its new rows from its own patches (AddRow), its
     // shipped rows copied back over themselves and never handed to AddRow, so the ID map still names each and RowMap
     // still holds it at its address. Its IDs above 2^31 go in whole; the zone 10 camp's rows name it, the vending
-    // machine with its blueprint path and its 6 links (901 to 905 and the base row 900). SB's lookups by ID have nothing of it to
-    // find.
+    // machine with its donor's empty EnvBPPath and None SpawnPointName and its 6 links (901 to 905 and the base row
+    // 900). SB's lookups by ID have nothing of it to find.
     const auto shipped_count = [](const Batch &batch) {
       size_t n = 0;
       for (size_t i = 0; i < batch.count; ++i)
@@ -1204,9 +1303,10 @@ int main() {
       assert(g.adds[zone + i].table == size_t(Table::env) &&
              Game::field<uint32_t>(g.adds[zone + i], kIdAt) == 2800032900u + (i - 1) &&
              g.name_text(Game::field<uint64_t>(g.adds[zone + i], 0x270)) == "DLC02_10_Camp_01");
+    // The vending machine binds its placed object by its own name; EnvBPPath and SpawnPointName stay the donor's.
     const Game::Add &machine = g.adds[zone + 7];
-    assert(g.string_field(machine, 0x38) == "/Game/GameDesign/Level/ZoneEnv/Env_VendingMachine.Env_VendingMachine_C" &&
-           g.name_text(Game::field<uint64_t>(machine, 0x48)) == "DLC02_10_EnvS_906" &&
+    assert(g.name_text(Game::field<uint64_t>(machine, 0x30)) == "DLC02_10_EnvS_906" &&
+           std::equal(machine.block.begin() + 0x38, machine.block.begin() + 0x50, machine.donor.begin() + 0x38) &&
            g.list_field(machine, 0x260, Kind::names) == "DLC02_10_EnvS_901|DLC02_10_EnvS_902|DLC02_10_EnvS_900|"
                                                          "DLC02_10_EnvS_903|DLC02_10_EnvS_904|DLC02_10_EnvS_905");
     assert(g.id_name(g.tables[size_t(Table::env)], 2800032900u) == g.name("DLC02_10_EnvS_900") &&
@@ -1371,6 +1471,74 @@ int main() {
     const Answer b = hb.run(h, kBase, h.tables, h.block);
     assert(b.state == State::refused && b.why == Why::id && b.row == 23 && h.adds.size() == 23 && h.puts.empty());
     assert(describe(kSignal, b) == "signal rows refused Quest_Sub_MX13_00: ID 164 taken; 23/25 added");
+  }
+  {
+    // halls_rows_build: the hall lobbies' batch on its own Builder adds its 181 rows, the five worlds before the five
+    // zones, then the 171 seats, each from its template with its ID in the table's ID map; each zone's WorldAlias is
+    // its world row's FName (so SB's warp finds our world row from our zone row), each seat's EnvActorName its own row
+    // name's FName and ZoneList its zone's, and a later run adds nothing.
+    Game g;
+    Builder hb(kHalls);
+    const Answer a = hb.run(g, kBase, g.tables, g.block);
+    assert(a.state == State::rows && a.why == Why::none && a.added == kHallsRows && g.adds.size() == kHallsRows &&
+           g.puts.empty());
+    verify(g, hb, kHalls, 0);
+    for (size_t i = 0; i < 5; ++i) {
+      const Game::Add &world = g.adds[i], &zone = g.adds[5 + i];
+      assert(world.table == size_t(Table::world) && zone.table == size_t(Table::zone));
+      assert(Game::field<uint64_t>(zone, 0x14) == world.name && zone.block[0x25] == 5 &&
+             g.string_field(zone, 0x30) == g.name_text(world.name) && g.list_field(zone, 0x138, Kind::names).empty());
+      assert(g.id_name(g.tables[size_t(Table::world)], 7121 + uint32_t(i)) == world.name &&
+             g.id_name(g.tables[size_t(Table::zone)], 1000121 + uint32_t(i)) == zone.name);
+    }
+    assert(g.string_field(g.adds[0], 0x18) == "/Game/SBO_Lobby/Lobby_Hotel.Lobby_Hotel" &&
+           g.id_name(g.tables[size_t(Table::zone)], 1000121) == g.name("Zone_SBO_Hotel"));
+    for (size_t i = 10; i < kHallsRows; ++i) {
+      const Game::Add &seat = g.adds[i];
+      assert(seat.table == size_t(Table::env) && Game::field<uint64_t>(seat, 0x30) == seat.name &&
+             Game::field<uint32_t>(seat, kIdAt) == kHallsRecipe[i].id && seat.block[0x6c] == 0 &&
+             Game::field<uint64_t>(seat, 0x64) == g.name("FirstInteraction"));
+      const Game::Add &zone = g.adds[5 + (kHallsRecipe[i].id / 10000000u) % 10 - 1]; // The seat's map's.
+      assert(g.list_field(seat, 0x20, Kind::names) == g.name_text(zone.name));
+    }
+    assert(g.name_text(g.adds[10].name) == "SBO_Hotel_Seat001" &&
+           g.id_name(g.tables[size_t(Table::env)], 3950032060u) == g.name("SBO_Foyer_Seat060"));
+    assert(describe(kHalls, a) == "halls rows: 181/181 added through SB's AddRow 0x1441815b0, 0 refused");
+    Status s;
+    s.word = pack(a, 1);
+    assert(status_line(kHalls, s) == "halls=rows added=181/181 asks=1 spawns=? char=0/0 skills=0/0 stance=0/0");
+    assert(hb.run(g, kBase, g.tables, g.block).added == kHallsRows && g.adds.size() == kHallsRows);
+  }
+  {
+    // halls_refuses_taken_id: a zone ID a later SB update takes stops the batch at that zone, the five worlds in.
+    Game h;
+    h.ids[{h.tables[size_t(Table::zone)], 1000121}] = h.name("Other");
+    Builder hb(kHalls);
+    const Answer b = hb.run(h, kBase, h.tables, h.block);
+    assert(b.state == State::refused && b.why == Why::id && b.row == 5 && b.added == 5 && h.adds.size() == 5);
+    assert(describe(kHalls, b) == "halls rows refused Zone_SBO_Hotel: ID 1000121 taken; 5/181 added");
+    // halls_refuses_taken_seat_id: a seat ID taken stops the batch at that seat, the worlds, the zones and the seats
+    // before it in.
+    Game e;
+    e.ids[{e.tables[size_t(Table::env)], 3910032002u}] = e.name("Other");
+    Builder eb(kHalls);
+    const Answer c = eb.run(e, kBase, e.tables, e.block);
+    assert(c.state == State::refused && c.why == Why::id && c.row == 11 && c.added == 11 && e.adds.size() == 11);
+    assert(describe(kHalls, c) == "halls rows refused SBO_Hotel_Seat002: ID 3910032002 taken; 11/181 added");
+    // halls_refuses_wrong_row_size: a ZoneTable row struct not of the SDK's size stops it before any row, and the
+    // status line names the batch's first ZoneTable row.
+    Game g;
+    const uint64_t rs = g.mem.get<uint64_t>(g.tables[size_t(Table::zone)] + kRowStruct);
+    g.mem.put<int32_t>(rs + kPropertiesSize, 0x148);
+    Builder gb(kHalls);
+    const Answer a = gb.run(g, kBase, g.tables, g.block);
+    assert(a.state == State::refused && a.why == Why::size && a.detail == 0x148 && g.adds.empty());
+    Status s;
+    s.word = pack(a, 1);
+    assert(status_line(kHalls, s) ==
+           "halls=refused added=0/181 asks=1 spawns=? why=size table=ZoneTable row=Zone_SBO_Hotel detail=0x148");
+    assert(describe(kHalls, a) ==
+           "halls rows refused Zone_SBO_Hotel: ZoneTable's row size 0x148 not 0x150; 0/181 added");
   }
   {
     // Matrix XIII's camp batch reads only its own tables: a ZoneEnvSpawnTable whose row size is not the SDK's stops it

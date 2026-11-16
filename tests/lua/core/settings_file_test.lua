@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop-settings.txt edited from the menu (D-UI4): one line rewritten in place, every other byte kept (comments, unknown
 -- lines, blank lines, a BOM, CRLF); the line rewritten is the one link.parse_settings uses, so the new value is the one
 -- the mod reads; a key not in the file is added at the end; a value that would not read back is refused. get() reads a
@@ -18,14 +21,14 @@ assert(F.set(text,'fight_chars','')==Link.DEFAULT:gsub('\nfight_chars=auto\n','\
     'An empty value is a value')
 
 -- spawn_filter has no menu row: a hand edit through set() changes its line only, and the mod reads it.
-text=assert(F.set(Link.DEFAULT,'spawn_filter','on'))
-assert(text==Link.DEFAULT:gsub('\nspawn_filter=off\n','\nspawn_filter=on\n'))
-assert(Link.parse_settings(text).spawn_filter==true and Link.parse_settings(Link.DEFAULT).spawn_filter==false)
+text=assert(F.set(Link.DEFAULT,'spawn_filter','off'))
+assert(text==Link.DEFAULT:gsub('\nspawn_filter=on\n','\nspawn_filter=off\n'))
+assert(Link.parse_settings(text).spawn_filter==false and Link.parse_settings(Link.DEFAULT).spawn_filter==true)
 
 -- A commented example is a comment: the key goes at the end instead, and the comment stays.
-text=assert(F.set(Link.DEFAULT,'dyes','on'))
-assert(text==Link.DEFAULT..'dyes=on\n' and text:find('# For example: dyes=on\n',1,true))
-assert(Link.parse_settings(text).dyes==true)
+text=assert(F.set(Link.DEFAULT,'dyes','off'))
+assert(text==Link.DEFAULT..'dyes=off\n' and text:find('# For example: dyes=off\n',1,true))
+assert(Link.parse_settings(text).dyes==false)
 
 -- Comments, unknown lines, blank lines, spacing and case of the line's own name are kept; trailing spaces go.
 local mine='# mine\n\ncolour=red\n  SEND_RATE = 12  \n# send_rate=30\nname_tag=off\n'

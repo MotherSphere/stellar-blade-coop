@@ -1,6 +1,10 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The Uplink kit (ui/kit.lua's Ui.kit) with fake UE4SS objects and clock: nothing at all until a group is added; the
 -- assets warmed one lookup a 250 ms tick, the build in one call once the classes are in (default font and flat colour)
--- and again once the look's assets are in (sounds after; not while the menu is open), every group's widgets in place
+-- and again once the look's assets are in (sounds after; not while the menu is open; each texture the first build
+-- wanted held by it meanwhile, so a GC cannot free it first, a refused hold said once), every group's widgets in place
 -- before AddToViewport; the game's fonts, dots, cubes, key icons and colours; hit tests passing through all but the
 -- menu's rows; updates only on change; groups hidden and shown again, never removed; the open (slide and flicker) and
 -- close tweens in the 1 ms loop, and no engine call while none runs; the scale; the game's sounds; a new root after a
@@ -8,7 +12,7 @@
 -- no rebuild storm; the root an earlier Lua load left swept; the first engine error, in a build's own update too,
 -- turning the kit off (off(): the notice line above EVE is the fallback); a look that cannot be had only degrading;
 -- an image's texture made at run time, refused without turning the kit off; the mouse cursor for a group that asks;
--- nothing while the world is hidden or after coop off.
+-- nothing while the world is hidden or after coop off; the veil (the root collapsed, the warm-up faster).
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local clock=0
 os.clock=function() return clock end
@@ -145,12 +149,13 @@ local function reset()
     end
 end
 local store={save=function(path) saved=path end,load=function() return saved end,clear=function() saved=nil end}
-local function count(prefix)
+local function count(prefix,after)
     local n=0
-    for _,c in ipairs(calls) do if c:sub(1,#prefix)==prefix then n=n+1 end end
+    for i=(after or 0)+1,#calls do if calls[i]:sub(1,#prefix)==prefix then n=n+1 end end
     return n
 end
 local function at(name,after) for i=(after or 0)+1,#calls do if calls[i]==name then return i end end end
+local function last(name) local i=0; for j,c in ipairs(calls) do if c==name then i=j end end return i end
 local function of(class)
     local list={}
     for i=since+1,#constructed do if stores[constructed[i]].class==class then list[#list+1]=constructed[i] end end
@@ -213,6 +218,12 @@ assert(PATHS.chevron=='/Game/Art/UI/Texture/WorkShop/TriPatternUp.TriPatternUp'
     and ALT.chevron=='/Game/Art/UI/Texture/HUD/triangle.triangle',PATHS.chevron)
 assert(ALT.key_arrows=='/Game/Art/UI/Texture/Interaction/PC_ActionAssist/KeyIcon_KeyBoard_directionAll.'
     ..'KeyIcon_KeyBoard_directionAll',ALT.key_arrows)
+-- The lobby screens' art: SB's title logo (and its Chinese ones), the lobby's shades, the HUD's soft shadow, the dither.
+for name,file in pairs({logo='Splash/Main_title',logo_hans='Splash/Main_title_hans',logo_hant='Splash/Main_title_hant',
+        shade_left='Common/lobby_menu_gra',shade_bottom='Common/theater_subtitle_gra',more_shadow='HUD/HUD_MoreShadow',
+        dither='Common/gradation_dithering_white'}) do
+    assert(PATHS[name]=='/Game/Art/UI/Texture/'..file..'.'..file:match('[^/]+$'),name..' '..tostring(PATHS[name]))
+end
 -- Colours as the engine takes them: linear, from the hex Slate shows (#ADD1C4).
 assert(math.abs(T.teal.R-0.418)<0.001 and math.abs(T.teal.G-0.637)<0.001 and T.teal.A==1 and T.panel.A==0.78)
 
@@ -229,7 +240,7 @@ reset()
 k=kit({azerty=true})
 local builds,roots={},{}
 for i=1,200 do
-    local before,first=#calls,#constructed
+    local before,first,adds=#calls,#constructed,count('UserWidget.AddToViewport')
     k.slow(true)
     local finds,loads=0,0
     for j=before+1,#calls do
@@ -237,7 +248,7 @@ for i=1,200 do
         if calls[j]:find('^load ') then loads=loads+1 end
     end
     assert(finds<=1 and loads==0,'One lookup a tick at most')
-    if #constructed>first then
+    if count('UserWidget.AddToViewport')>adds then
         assert(finds==0 and #viewport==1,'The build looks nothing up')
         builds[#builds+1],roots[#roots+1],since=i,viewport[1],first
         if #builds==2 then break end
@@ -507,7 +518,15 @@ viewport={}
 k.slow(true)
 assert(#viewport==1 and viewport[1]~=root2 and stores[root2].last.RemoveFromParent)
 -- Assets freed with the map (one's address now holding another object): the new root at once, flat where it uses
--- one (the dots); they are looked up again, one a tick, then it is built again with them.
+-- one (the dots); they are looked up again, one a tick, the dots held by that root meanwhile (a collapsed image of its
+-- own canvas), then it is built again with them.
+local function held(root) -- The images a root's own canvas holds (the warmed textures it wanted), its groups aside.
+    local list={}
+    for _,o in ipairs(stores[stores[stores[root].props.WidgetTree].props.RootWidget].children) do
+        if stores[o].class=='Image' then list[#list+1]=o end
+    end
+    return list
+end
 local root3=viewport[1]
 viewport={}
 stores[asset('Mideum')].alive=false
@@ -519,8 +538,11 @@ assert(#viewport==1 and viewport[1]~=root3 and #textured('dot')==0 and logs[#log
 local root4=viewport[1]
 k.slow(true)
 assert(calls[#calls]=='Mideum.GetFullName','The font looked up again')
+n=#calls
 k.slow(true)
-assert(calls[#calls]=='dot.GetFullName','The dots')
+assert(at('dot.GetFullName',n) and #held(root4)==1 and vis(held(root4)[1])==1
+    and stores[held(root4)[1]].brush.ResourceObject==asset('dot'),'The dots, held by the root built without them')
+since=#constructed
 k.slow(true)
 assert(#viewport==1 and viewport[1]~=root4 and #textured('dot')==1 and stores[root4].last.RemoveFromParent,
     'Built again with the dots found again')
@@ -548,6 +570,68 @@ k.stop()
 assert(#viewport==0 and saved==nil and k.view('card')==nil)
 n=#calls; k.slow(true); k.tick(clock+1); k.sound('open'); k.show('menu',true,clock); k.scale(90); k.stop()
 assert(#calls==n and k.slow(true)==nil,'Nothing after coop off')
+
+-- A texture only LoadAsset brings in (the lobby's art in a world), warmed while the root built without it is up: held
+-- by a collapsed image of that root, so the engine's GC, which frees what nothing references, leaves it to the build
+-- that uses it (else that build is partial again and the texture loaded again). Only the textures that root wanted.
+local function refs(o,list) -- The assets a widget and those in it reference.
+    local s=stores[o]
+    if s.brush and s.brush.ResourceObject then list[s.brush.ResourceObject]=true end
+    if s.font and s.font.FontObject then list[s.font.FontObject]=true end
+    for _,c in ipairs(s.children or {}) do refs(c,list) end
+    return list
+end
+local function gc() -- Frees each asset only LoadAsset brings in that no root in the viewport references.
+    local used={}
+    for _,o in ipairs(viewport) do refs(stores[stores[o].props.WidgetTree].props.RootWidget,used) end
+    for path,o in pairs(loadable) do
+        if registry[path]==o and not used[o] then
+            stores[o].alive,registry[path],loadable[path]=false,nil,object(stores[o].class)
+        end
+    end
+end
+reset()
+local link=registry[PATHS.link]
+registry[PATHS.link],loadable[PATHS.link]=nil,link
+k=kit()
+for _=1,#UMG+6 do k.slow(true) end
+local partial=viewport[1]
+assert(partial and logs[#logs]:find('while its look warms') and #held(partial)==0)
+for _=1,40 do if at('load '..PATHS.link) then break end k.slow(true) end
+local holds=held(partial)
+assert(at('load '..PATHS.link) and stores[holds[#holds]].brush.ResourceObject==link,'Held once warmed')
+gc()
+assert(stores[link].alive,'Kept through the GC')
+up(k)
+assert(count('construct UserWidget')==2 and count('load ')==1 and #textured('link')==1
+    and stores[partial].last.RemoveFromParent and k.whole(),'Built once more only, the texture loaded once')
+-- Held: each texture that root wanted, once, collapsed (those its successor uses); no font, no texture no group uses.
+local wanted,kinds={},0
+for _,o in ipairs(of('Image')) do
+    local x=stores[o].brush.ResourceObject
+    if x and not wanted[x] then wanted[x]=true; kinds=kinds+1 end
+end
+holds=held(partial)
+assert(#holds==kinds and #stores[stores[stores[partial].props.WidgetTree].props.RootWidget].children==2+kinds,
+    #holds..' '..kinds)
+for _,o in ipairs(holds) do assert(vis(o)==1 and wanted[stores[o].brush.ResourceObject]) end
+-- A refused hold ends the holding for this Lua load, said once; the kit stays on, the root is built again as before.
+reset()
+k=kit()
+for _=1,#UMG+6 do k.slow(true) end
+partial=viewport[1]
+raise['Image.SetBrushFromTexture']='no texture'
+for _=1,40 do if logs[#logs]:find('not held') then break end k.slow(true) end
+assert(logs[#logs]=='warmed textures not held from now on: no texture' and k.ready() and not k.off(),logs[#logs])
+raise['Image.SetBrushFromTexture']=nil
+n=#calls
+up(k)
+local rebuilt=last('construct UserWidget')
+assert(rebuilt>n and count('construct Image',n)==count('construct Image',rebuilt) and #held(partial)==0,
+    'No hold tried again')
+local refused=0
+for _,l in ipairs(logs) do if l:find('not held') then refused=refused+1 end end
+assert(refused==1 and logs[#logs]:find('^UI built: ') and k.whole(),'Said once')
 
 -- Ctrl+R: the root an earlier Lua load left is swept by its path (the tick's one lookup), only when it is one.
 reset()
@@ -643,7 +727,9 @@ assert(text('CO-OP').font.FontObject==asset('Roboto') and text('CO-OP').font.Siz
 assert(text('Alex').font.FontObject==asset('Roboto'))
 assert(logs[#logs]:find('; look: Bold missing %(Roboto%), brush tiling did not take, key_escape missing$'),
     logs[#logs])
-assert(count('Image.SetBrushFromTexture')==#textured('cube0')*5+#textured('key_enter')+#textured('key_move')
+-- The last build's calls (the root built while the look warmed held each texture it wanted, tiled or not).
+assert(count('Image.SetBrushFromTexture',last('construct UserWidget'))==#textured('cube0')*5+#textured('key_enter')
+    +#textured('key_move')
     +#textured('link')+#textured('chevron') and #textured('dot')==0,'Only the untiled images get their texture')
 reset()
 modes.Font='raise'
@@ -1155,6 +1241,56 @@ special['GameplayStatics.IsGamePaused']=nil
     special['UserWidget.HasAnyUserFocus'],special['UserWidget.HasFocusedDescendants']=nil,nil
 end)()
 
+-- The watchdog's focus line, logged as it fires: the class of each top-level UserWidget but our root that holds the
+-- focus (none: the game's viewport, a Slate-only widget or another window), whether the game is paused or shows its
+-- cursor, and the seconds since the last mouse button. A lookup that raises logs why; the kit stays on and it fired.
+;(function()
+    local has,stub_has=false,true
+    special['UserWidget.HasAnyUserFocus']=function() return has end
+    special['UserWidget.HasFocusedDescendants']=function() return false end
+    reset()
+    local stub=object('WB_Stub_C')
+    special['WB_Stub_C.HasAnyUserFocus']=function() return stub_has end
+    special['WB_Stub_C.HasFocusedDescendants']=function() return false end
+    special['WidgetBlueprintLibrary.GetAllWidgetsOfClass']=function(_,_,context,out,class,top)
+        assert(context==pc and class==registry['/Script/UMG.UserWidget'] and top==true)
+        out[1],out[2]=viewport[1],stub -- Our root too: never named.
+    end
+    local k=kit()
+    local function quarter() clock=clock+0.25; k.slow(true) end
+    up(k)
+    -- Taken, armed, then 1 s without our focus (after a mouse button when clicked); the lines it logged.
+    local function fire(clicked)
+        local n=#logs
+        k.input(true)
+        has=true; quarter(); has=false
+        if clicked then k.click(); clock=clock+0.05 end
+        for _=1,4 do quarter() end
+        assert(k.lost()==false and #logs==n,'Not before 1 s')
+        quarter()
+        assert(k.lost()==true and not k.off())
+        k.input(false)
+        return table.concat(logs,'|',n+1)
+    end
+    local line=fire()
+    assert(line=='focus watchdog: focus on WB_Stub_C; game paused or its cursor shown: false; no mouse button since '
+        ..'the Lua load',line)
+    stub_has=false
+    special['GameplayStatics.IsGamePaused']=function() return true end
+    line=fire(true)
+    assert(line=='focus watchdog: focus on none (the game viewport, a Slate-only widget or another window has it); '
+        ..'game paused or its cursor shown: true; last mouse button 1.3 s before',line)
+    special['GameplayStatics.IsGamePaused']=nil
+    raise['WidgetBlueprintLibrary.GetAllWidgetsOfClass']='no world'
+    line=fire()
+    assert(line=='focus watchdog: focus not read (no world)',line)
+    raise['WidgetBlueprintLibrary.GetAllWidgetsOfClass']=nil
+    for _,name in ipairs({'UserWidget.HasAnyUserFocus','UserWidget.HasFocusedDescendants','WB_Stub_C.HasAnyUserFocus',
+            'WB_Stub_C.HasFocusedDescendants','WidgetBlueprintLibrary.GetAllWidgetsOfClass'}) do
+        special[name]=nil
+    end
+end)()
+
 -- The chat box (b.field): an EditableTextBox that keeps its keyboard focus on Enter and reverts on Esc, in Mideum 34,
 -- white on the dark glass, with its hint, all set before AddToViewport; it takes the mouse in its hit group (a click
 -- focuses it). input(true, 'chat') puts the game's input on it with its keyboard focus. Who holds the input gives it
@@ -1267,5 +1403,184 @@ assert(pos(shades[1])=='-1920,-1080' and size(shades[1])=='7680x4320'
 assert(T.shade.A>0 and T.shade.A<1,'See-through')
 k.slow(false)
 assert(not k.whole() and not k.ready(),'Hidden')
+
+-- The veil (session/arrival.lua's hold under SB's black): the root built and checked as usual, but collapsed; the
+-- warm-up takes as many lookups a tick as VEIL_BUDGET allows (this fake clock stands still: all in one tick), so the
+-- whole look is in two ticks after the classes; whole() while veiled. veil(false) shows the root at once, veil(true)
+-- collapses a root already up, and a hidden world's root stays collapsed.
+assert(Ui.VEIL_BUDGET==0.1)
+reset()
+k=kit()
+k.veil(true)
+assert(up(k)==#UMG+6+2)
+root=viewport[1]
+assert(vis(root)==1 and k.whole(),'Collapsed, with its whole look')
+k.slow(true)
+assert(vis(root)==1,'Still collapsed')
+k.veil(false)
+assert(vis(root)==4,'Shown at once')
+k.slow(true)
+assert(vis(root)==4)
+k.veil(true)
+assert(vis(root)==1,'Collapsed at once')
+k.slow(false)
+k.veil(false)
+assert(vis(root)==1 and not k.ready(),'Hidden with the world')
+k.slow(true)
+assert(vis(root)==4,'Shown with the world')
+
+-- Stellar Blade's own widget parts in a kit group (L4 2): made with WidgetBlueprintLibrary:Create(pc, class, pc), never
+-- StaticConstructObject; filled before they enter the group's canvas; HitTestInvisible unless hit, so no hover, click or
+-- Slate navigation reaches their buttons; alive while the root that holds them is (a rebuild makes every one dead);
+-- dropped once. A class not loaded yet is loaded then (its object path: the class path without _C). A failure is the
+-- caller's (nil and why): the kit stays on.
+local SLOT='/Game/Art/UI/Widget/Lobby/WB_Lobby_Menu_Slot.WB_Lobby_Menu_Slot_C'
+local SLOT_ASSET='/Game/Art/UI/Widget/Lobby/WB_Lobby_Menu_Slot.WB_Lobby_Menu_Slot'
+local function lobby_kit(options)
+    options=options or {}
+    options.store,options.log=store,function(m) logs[#logs+1]=m end
+    local lk=Ui.kit(options)
+    lk.add('lobby',{x=0,y=0,w=3840,h=2160,hit=true,fixed=true,shown=true},function() end)
+    return lk
+end
+reset()
+local slot_class=object('WidgetBlueprintGeneratedClass')
+registry[SLOT]=slot_class
+special['WidgetBlueprintLibrary.Create']=function(_,_,owner,class,outer)
+    assert(owner==pc and class==slot_class and outer==pc)
+    return object('WB_Lobby_Menu_Slot_C')
+end
+k=lobby_kit()
+local r0,why0=k.part('lobby',SLOT,0,0,10,10)
+assert(r0==nil and why0=='part WB_Lobby_Menu_Slot_C: the UI is not up',tostring(why0))
+up(k)
+local lobby_canvas=stores[stores[stores[viewport[1]].props.WidgetTree].props.RootWidget].children[1]
+n=#calls
+local filled=nil
+local rec=k.part('lobby',SLOT,172,1002,1100,96,function(w) filled=w; w:SetIsEnabled(false) end,false)
+assert(rec and rec.o==filled and rec.name==stores[rec.o].full and k.alive(rec)==rec.o)
+assert(vis(rec.o)==3 and pos(rec.o)=='172,1002' and size(rec.o)=='1100x96','HitTestInvisible, in place')
+assert(at('WB_Lobby_Menu_Slot_C.SetVisibility',n)<at('WB_Lobby_Menu_Slot_C.SetIsEnabled',n)
+    and at('WB_Lobby_Menu_Slot_C.SetIsEnabled',n)<at('CanvasPanel.AddChildToCanvas',n),'Filled before AddChild')
+local kids=stores[lobby_canvas].children
+assert(kids[#kids]==rec.o and count('construct WB_')==0,"In the group's canvas, through Create only")
+local hit=k.part('lobby',SLOT,172,1108,1100,96,nil,true)
+assert(hit and stores[hit.o].last.SetVisibility==nil,'hit: its visibility left alone')
+local dropped=k.part('lobby',SLOT,172,1214,1100,96)
+k.drop(dropped); k.drop(dropped)
+assert(count('WB_Lobby_Menu_Slot_C.RemoveFromParent')==1 and k.alive(dropped)==nil,'Dropped once')
+raise['WidgetBlueprintLibrary.Create']='bad class'
+local failed,why=k.part('lobby',SLOT,0,0,10,10)
+assert(failed==nil and why=='part WB_Lobby_Menu_Slot_C: Create failed: bad class' and not k.off(),tostring(why))
+raise={}
+registry[SLOT]=nil
+failed,why=k.part('lobby',SLOT,0,0,10,10)
+assert(failed==nil and why=='part WB_Lobby_Menu_Slot_C: not in this game build' and count('load '..SLOT_ASSET)==1,
+    tostring(why))
+registry[SLOT]=slot_class
+-- A root rebuild (out of the viewport here, a map change too): every record dead, though its object still lives.
+viewport={}
+k.slow(true)
+assert(#viewport==1 and stores[rec.o].alive and k.alive(rec)==nil and k.alive(hit)==nil,'Dead after a rebuild')
+n=#calls; k.drop(rec); assert(#calls==n,'A dead record: no call')
+special['WidgetBlueprintLibrary.Create']=nil
+-- warm_part: one LoadAsset a slow tick in the warm-up queue, after the look and its sounds; each path once.
+reset()
+k=kit()
+k.warm_part(SLOT_ASSET); k.warm_part(SLOT_ASSET); k.warm_part('/Game/Art/UI/Widget/HUD/WB_MainHUD_CountDown.'
+    ..'WB_MainHUD_CountDown')
+up(k)
+for _=1,SOUNDS do k.slow(true) end
+assert(count('load ')==0,'Not before the sounds')
+k.slow(true)
+assert(count('load ')==1 and at('load '..SLOT_ASSET),'The first queued')
+k.slow(true)
+assert(count('load ')==2 and at('load /Game/Art/UI/Widget/HUD/WB_MainHUD_CountDown.WB_MainHUD_CountDown'))
+for _=1,5 do k.slow(true) end
+assert(count('load ')==2,'Each once')
+
+-- refocus: the keyboard focus back on our root now (a popup part leaves), only while our UI holds the game's input.
+reset()
+k=kit()
+up(k)
+k.refocus()
+assert(count('UserWidget.SetKeyboardFocus')==0,'The game has its input: nothing')
+k.input(true)
+k.refocus()
+assert(count('UserWidget.SetKeyboardFocus')==1 and stores[viewport[1]].last.SetKeyboardFocus,'Our root, now')
+k.input(false)
+
+-- A text's shadow and wrap width, set before AddToViewport. The wrap is in layout units as the font size is, and both
+-- are written as is (the kit's unit scale is 1). A refused one only degrades, said in the build's look line.
+reset()
+k=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end}) -- No hit group shown: built again with its look.
+k.add('words',{x=0,y=0,w=10,h=10,shown=true},function(b)
+    b.text(170,1500,'Find a match','name',T.grey,nil,{shadow={2,2,0,0,0,0.8},wrap=1280})
+    b.text(170,1600,'Plain','name')
+end)
+up(k)
+local shadowed=text('Find a match')
+assert(shadowed.last.SetShadowOffset[1].X==2 and shadowed.last.SetShadowOffset[1].Y==2)
+local shadow=shadowed.last.SetShadowColorAndOpacity[1]
+assert(shadow.R==0 and shadow.G==0 and shadow.B==0 and shadow.A==0.8)
+assert(shadowed.props.AutoWrapText==nil and shadowed.props.WrapTextAt==1280*1)
+assert(at('set TextBlock.WrapTextAt')<last_at('UserWidget.AddToViewport'),'Before AddToViewport')
+assert(not text('Plain').last.SetShadowOffset and text('Plain').props.AutoWrapText==nil,'Only when asked')
+reset()
+raise['TextBlock.SetShadowOffset']='no such function'
+raise['set TextBlock.WrapTextAt']='no such property'
+k=Ui.kit({store=store,log=function(m) logs[#logs+1]=m end})
+k.add('words',{x=0,y=0,w=10,h=10,shown=true},function(b)
+    b.text(0,0,'Find a match','name',nil,nil,{shadow={2,2,0,0,0,0.8},wrap=1280})
+end)
+up(k)
+assert(not k.off() and logs[#logs]:find('text shadow refused',1,true) and logs[#logs]:find('text wrap refused',1,true),
+    logs[#logs])
+
+-- A fixed group (the lobby's full-screen layouts, anchored to the screen's edges) stays at scale 1 whatever ui_scale
+-- says, at a build and on change, its place and size as given; the others follow ui_scale.
+reset()
+k=lobby_kit()
+k.add('room',{x=96,y=1900,w=2000,h=160,shown=true},function() end)
+up(k)
+local fixed_g,room_g=table.unpack(stores[stores[stores[viewport[1]].props.WidgetTree].props.RootWidget].children)
+k.scale(150)
+assert(not stores[fixed_g].last.SetRenderScale and stores[room_g].last.SetRenderScale[1].X==1.5)
+assert(pos(fixed_g)=='0,0' and size(fixed_g)=='3840x2160','Its place and size as given')
+reset()
+k=lobby_kit({scale=150})
+k.add('room',{x=96,y=1900,w=2000,h=160,shown=true},function() end)
+up(k)
+fixed_g,room_g=table.unpack(stores[stores[stores[viewport[1]].props.WidgetTree].props.RootWidget].children)
+assert(not stores[fixed_g].last.SetRenderScale and stores[room_g].last.SetRenderScale[1].X==1.5,'Built at 150 %')
+
+-- azerty(): SB's own device byte (link.uidev()): 1 a QWERTY keyboard, 2 an AZERTY one; any other value (3 to 6 the
+-- pads, 0 before SB's first device report) keeps the last keyboard answer, and with none yet the language guess.
+reset()
+special['KismetInternationalizationLibrary.GetCurrentLanguage']=function() return 'fr' end
+local device=nil
+local function by_device() return device end
+k=Ui.kit({store=store,uidev=by_device})
+local seen={}
+for _,d in ipairs({false,1,4,2,5}) do device=d or nil; seen[#seen+1]=tostring(k.azerty()) end
+assert(table.concat(seen,' ')=='true false false true true',table.concat(seen,' '))
+k=Ui.kit({store=store,uidev=by_device})
+device=0; assert(k.azerty()==true,'0 first: the language guess')
+device=1; assert(k.azerty()==false)
+device=0; assert(k.azerty()==false,'0 after 1: the last keyboard answer')
+-- The build's move icon follows it, and a keyboard answer seen by slow stays through a pad.
+reset()
+special['KismetInternationalizationLibrary.GetCurrentLanguage']=function() return 'en-US' end
+device=2
+k=kit({uidev=by_device})
+up(k)
+assert(#textured('key_move_azerty')==1 and #textured('key_move')==0,'AZERTY by the device, in English')
+reset()
+device=2
+k=Ui.kit({store=store,uidev=by_device})
+k.slow(true)
+device=4
+assert(k.azerty()==true,'Seen by slow before the pad')
+special['KismetInternationalizationLibrary.GetCurrentLanguage']=nil
 
 print('ui_kit_test ok')

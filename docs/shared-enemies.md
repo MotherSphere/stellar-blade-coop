@@ -372,7 +372,7 @@ probe reads two game tables and calls neither the spawn function nor the despawn
 ## Spawn filter (experimental)
 
 `spawn_filter=on` in the guest's own coop-settings.txt keeps away, in her game, enemies that the host's game no longer
-has. It is off by default, has no row in the co-op menu, and has not been tested in game. On, the mod changes one
+has. It is on by default, has no row in the co-op menu, and has not been tested in game. On, the mod changes one
 pointer in the game's memory on her PC ([internals/shared-enemies.md](internals/shared-enemies.md#the-spawn-filter)).
 
 With it off, [same spawns](#same-spawns-experimental) work as above: when her zone resets (her death, a camp rest),

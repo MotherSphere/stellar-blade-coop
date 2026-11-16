@@ -51,15 +51,15 @@ parts exist:
   partner, who revives her with the interact key, or revives herself a few times a run (see
   [Down and revive](#down-and-revive)).
 - The reward shop, on the console, with two cut items the game never sold (see [The reward shop](night-operation-shop.md)).
-- The recruiter, as a preview: he stands next to Roxanne in Xion's Scrap Market. His lines stay in Korean (see
-  [His language](night-operation-previews.md#his-language)).
+- The recruiter, as a preview: he stands next to Roxanne in Xion's Scrap Market. His lines show in the game's language
+  (see [His language](night-operation-previews.md#his-language)).
 - Everything runs on a co-op save, a copy of your save, and never on your own saves.
 
 These parts do not exist yet:
 
-- The recruiter's Join choice starting Stellar Blade Online's Steam friends matchmaking. Today the host types
-  `coop nightop start`.
-- More players, up to six. The Steam link holds two.
+- The recruiter's Join choice starting a Night Operation match. Today the host types `coop nightop start`, and Join
+  takes you to the [SBO lobby](sbo-lobby.md), whose match lobbies have no Night Operation mode yet.
+- More players, up to six. A co-op session holds two.
 - A boss wave.
 
 The Steam link connects two players and shows each player the other's ghost (see [playing-with-a-friend.md](playing-with-a-friend.md)). The previews
@@ -314,8 +314,8 @@ Restoring a backup does not take an unlocked achievement back.
 
 With a partner linked over the Steam link, the host starts the run for both players. Each game spawns the same waves
 at the same points around the host's start point, and both cards show one timer and one score. The host's level is
-the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. The
-Steam link holds two players, so a run has two at most, each on a co-op save.
+the run's: the waves, the score for each kill, the heals and the time limit are those of a solo run at that level. A
+co-op session holds two players, so a run has two at most, each on a co-op save.
 
 ### Starting a run together
 
@@ -366,7 +366,7 @@ the run is on. Her notice and card do not.
 ### Down and revive
 
 In a co-op run a death does not end the run at once when the dead player has the experimental `revive` setting on
-(Options > Session > Friend can revive me, or `revive=on` in `coop-settings.txt`; off by default): the dead EVE is down.
+(Options > Session > Friend can revive me, or `revive=on` in `coop-settings.txt`; on by default): the dead EVE is down.
 She lies where she fell with the game's death screen up, and the run goes on for her partner. The cut mode put a
 downed player in a coma that its rule set up; the rule table ships empty and the run starts no rule, so the mod keeps
 the game's death screen and revives with the game's in-place respawn. With `revive=off`, a death ends the run as it

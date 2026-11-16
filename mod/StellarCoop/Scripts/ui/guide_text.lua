@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The first-launch guide's words (ui/guide.lua) and its co-op menu row's (ui/menu.lua), kept apart from ui/text.lua.
 -- G.en is English: nine pages, each a title and a body (\n starts a new line), then the rows, the page line and the
 -- menu row. Another language's table sits under the culture name ui/text.lua gives it (G.fr, G['zh-Hans']...), with
@@ -27,8 +30,8 @@ G.en={
          body='On the same map, common enemies have one HP bar for both of you and die on both screens at once. '
             ..'They stand in the same spot in both games and go after whoever hit them last. Bosses share their HP '
             ..'and their phases.\nBy default a kill counts for you if you fought or stood within 30 m.\nWhile the '
-            .."host watches a cutscene, the guest's game waits. Shared quests and revives by your friend are off "
-            ..'by default. Turn them on in the Options.'},
+            .."host watches a cutscene, the guest's game waits. Shared quests and revives by your friend are on "
+            ..'by default. Turn them off in the Options.'},
         {title='Night Operation',
          body='Night Operation is a wave survival mode that Shift Up cut before release. A run has five timed '
             ..'waves. When the host starts it during a session, you share the timer and the score. Points from a '
@@ -82,8 +85,8 @@ G.fr={
             ..'temps sur les deux écrans. Ils se tiennent au même endroit dans les deux parties et attaquent celui '
             ..'qui les a frappés en dernier. Les boss partagent leurs PV et leurs phases.\nPar défaut, un ennemi tué '
             .."compte pour vous si vous l'avez combattu ou si vous étiez à moins de 30 m.\nQuand l'hôte regarde une "
-            .."cinématique, la partie de l'invité attend. Par défaut, les quêtes partagées sont coupées et votre "
-            ..'partenaire ne peut pas vous relever. Les deux se règlent dans les Options.'},
+            .."cinématique, la partie de l'invité attend. Par défaut, les quêtes partagées sont actives et votre "
+            ..'partenaire peut vous relever. Les deux se règlent dans les Options.'},
         {title='Opération nocturne',
          body="L'opération nocturne est un mode de survie par vagues que Shift Up a retiré avant la sortie. Une "
             .."opération compte cinq vagues chronométrées. Quand l'hôte la lance pendant une session, vous partagez "
@@ -134,7 +137,7 @@ G.ar={
          body='في الخريطة نفسها، يملك الأعداء العاديون شريط نقاط صحة واحدًا لكما معًا، ويموتون على الشاشتين في اللحظة '
             ..'نفسها. يقفون في الموضع نفسه في اللعبتين ويلاحقون آخر من ضربهم. ويتشارك الزعماء نقاط صحتهم '
             ..'ومراحلهم.\nافتراضيًا، يُحتسب العدو المهزوم لك إن قاتلته أو كنت ضمن 30 م.\nأثناء مشاهدة المضيف مشهدًا '
-            ..'سينمائيًا، تنتظر لعبة الضيف. مشاركة المهام وإنعاش صديقك لك متوقفان افتراضيًا. فعّلهما من "الخيارات".'},
+            ..'سينمائيًا، تنتظر لعبة الضيف. مشاركة المهام وإنعاش صديقك لك مفعّلان افتراضيًا. عطّلهما من "الخيارات".'},
         {title='التشغيل الليلي',
          body='التشغيل الليلي طور بقاء بالموجات حذفته Shift Up قبل الإصدار. يتكون كل تشغيل من خمس موجات محددة الوقت. '
             ..'عندما يبدأه المضيف أثناء جلسة، تتشاركان المؤقت والنقاط. وبنقاط التشغيل تشتري عناصر.\nاكتب هذه الأوامر '
@@ -184,8 +187,8 @@ G.da={
          body='I samme område har almindelige fjender én HP-bjælke for jer begge og dør på begge skærme på samme '
             ..'tid. De står samme sted i begge spil og går efter den, der ramte dem sidst. Bosser deler HP og '
             ..'faser.\nSom standard tæller et drab for dig, hvis du kæmpede eller stod inden for 30 m.\nMens værten '
-            ..'ser en mellemsekvens, venter gæstens spil. Delte quests og genoplivning fra din ven er slået fra som '
-            ..'standard. Slå dem til i Indstillinger.'},
+            ..'ser en mellemsekvens, venter gæstens spil. Delte quests og genoplivning fra din ven er slået til som '
+            ..'standard. Slå dem fra i Indstillinger.'},
         {title='Natmission',
          body='Natmission er en overlevelsestilstand med bølger, som Shift Up fjernede før udgivelsen. En mission '
             ..'har fem bølger på tid. Når værten starter den under en session, deler I tiden og pointene. Pointene '
@@ -238,7 +241,7 @@ G.de={
             ..'sie zuletzt getroffen hat. Bosse teilen ihre LP und ihre Phasen.\nStandardmäßig zählt ein Kill für '
             ..'dich, wenn du mitgekämpft hast oder höchstens 30 m entfernt warst.\nWährend der Host eine '
             ..'Zwischensequenz sieht, wartet das Spiel des Gastes. Gemeinsame Quests und das Wiederbeleben durch den '
-            ..'Partner sind standardmäßig aus. Du schaltest sie in den Optionen ein.'},
+            ..'Partner sind standardmäßig an. Du schaltest sie in den Optionen aus.'},
         {title='Nächtlicher Einsatz',
          body='Der nächtliche Einsatz ist ein Überlebensmodus in Wellen, den Shift Up vor dem Release gestrichen '
             ..'hat. Ein Einsatz hat fünf Wellen mit Zeitlimit. Startet der Host ihn in einer Sitzung, teilt ihr Zeit '
@@ -294,8 +297,8 @@ G.es={
             ..'ambas pantallas. Están en el mismo sitio en las dos partidas y atacan a quien los golpeó por última '
             ..'vez. Los jefes comparten sus PS y sus fases.\nPor defecto, una baja cuenta para ti si combatiste o '
             ..'estabas a menos de 30 m.\nMientras el anfitrión ve una cinemática, la partida del invitado espera. '
-            ..'Por defecto, las misiones compartidas están desactivadas y tu compañero no puede reanimarte. Ambas '
-            ..'cosas se activan en las Opciones.'},
+            ..'Por defecto, las misiones compartidas están activadas y tu compañero puede reanimarte. Ambas '
+            ..'cosas se desactivan en las Opciones.'},
         {title='Operación nocturna',
          body='La operación nocturna es un modo de supervivencia por oleadas que Shift Up eliminó antes del '
             ..'lanzamiento. Una operación tiene cinco oleadas con tiempo límite. Si el anfitrión la inicia durante '
@@ -349,8 +352,8 @@ G['es-MX']={
             ..'pantallas a la vez. Están en el mismo lugar en ambas partidas y van tras quien los golpeó por última '
             ..'vez. Los jefes comparten su salud y sus fases.\nDe forma predeterminada, un enemigo derrotado cuenta '
             ..'para ti si lo combatiste o estabas a menos de 30 m.\nMientras el anfitrión ve una cinemática, la '
-            ..'partida del invitado espera. Las misiones compartidas y la reanimación por tu amigo están desactivadas '
-            ..'de forma predeterminada. Actívalas en Opciones.'},
+            ..'partida del invitado espera. Las misiones compartidas y la reanimación por tu amigo están activadas '
+            ..'de forma predeterminada. Desactívalas en Opciones.'},
         {title='Operación nocturna',
          body='La operación nocturna es un modo de supervivencia por oleadas que Shift Up quitó antes del lanzamiento. '
             ..'Cada operación tiene cinco oleadas con tiempo límite. Si el anfitrión la inicia durante una sesión, '
@@ -405,7 +408,7 @@ G.fi={
             ..'kummallakin ruudulla yhtä aikaa. Ne seisovat samassa paikassa kummassakin pelissä ja käyvät sen '
             ..'kimppuun, joka osui niihin viimeksi. Pomot jakavat HP:nsa ja vaiheensa.\nOletuksena tappo lasketaan '
             ..'sinulle, jos taistelit tai olit alle 30 m:n päässä.\nKun isäntä katsoo välianimaatiota, vieraan peli '
-            ..'odottaa. Jaetut tehtävät ja kumppanin elvytykset ovat oletuksena pois päältä. Ota ne käyttöön '
+            ..'odottaa. Jaetut tehtävät ja kumppanin elvytykset ovat oletuksena päällä. Poista ne käytöstä '
             ..'Asetuksissa.'},
         {title='Yöoperaatio',
          body='Yöoperaatio on aaltoihin perustuva selviytymistila, jonka Shift Up poisti ennen julkaisua. '
@@ -459,8 +462,8 @@ G.it={
             ..'gli schermi nello stesso istante. Stanno nello stesso punto in entrambe le partite e attaccano chi li '
             .."ha colpiti per ultimo. I boss condividono PS e fasi.\nPer impostazione predefinita, un'uccisione "
             .."conta per te se hai combattuto o eri entro 30 m.\nMentre l'host guarda un filmato, la partita di chi "
-            .."si è unito resta in attesa. Missioni condivise e rianimazione da parte dell'amico sono disattivate "
-            ..'per impostazione predefinita. Attivale nelle Opzioni.'},
+            .."si è unito resta in attesa. Missioni condivise e rianimazione da parte dell'amico sono attive "
+            ..'per impostazione predefinita. Disattivale nelle Opzioni.'},
         {title='Operazione notturna',
          body="L'operazione notturna è una modalità di sopravvivenza a ondate che Shift Up ha tagliato prima "
             .."dell'uscita. Un'operazione ha cinque ondate a tempo. Se l'host la avvia durante una sessione, "
@@ -515,7 +518,7 @@ G.ja={
             ..'敵は両方のゲームで同じ位置に立ち、最後に攻撃した人を狙います。ボスもHPとフェーズを共有します。'
             ..'\n初期設定では、交戦したか30m以内にいた場合、あなたの撃破としてカウントされます。'
             ..'\nホストがイベントシーンを見ている間、ゲストのゲームは待機します。'
-            ..'クエスト共有とパートナーによる蘇生は初期設定でオフです。「オプション」でオンにできます。'},
+            ..'クエスト共有とパートナーによる蘇生は初期設定でオンです。「オプション」でオフにできます。'},
         {title='夜間オペレーション',
          body='夜間オペレーションは、Shift Upが発売前にカットしたウェーブ制のサバイバルモードです。'
             ..'1回のオペレーションは、制限時間付きの5ウェーブです。セッション中にホストが開始すると、'
@@ -563,8 +566,8 @@ G.ko={
          body="같은 맵에서는 일반 적의 생명력 바 하나를 두 사람이 공유하고, 적은 두 화면에서 동시에 처치됩니다. 적은 "
             .."두 게임에서 같은 위치에 있고, 마지막으로 공격한 사람을 노립니다. 보스는 생명력과 페이즈를 "
             .."공유합니다.\n기본 설정에서는 교전했거나 30m 이내에 있었다면 처치 보상을 받습니다.\n호스트가 컷신을 보는 "
-            .."동안 게스트의 게임은 대기합니다. 퀘스트 공유와 친구의 부활은 기본적으로 꺼져 있습니다. '옵션'에서 "
-            .."켜세요."},
+            .."동안 게스트의 게임은 대기합니다. 퀘스트 공유와 친구의 부활은 기본적으로 켜져 있습니다. '옵션'에서 "
+            .."끄세요."},
         {title='야간 작전',
          body='야간 작전은 Shift Up이 출시 전에 삭제한 웨이브 생존 모드입니다. 한 번의 작전은 제한 시간이 있는 웨이브 '
             ..'5개로 이루어집니다. 세션 중에 호스트가 시작하면 타이머와 점수를 공유합니다. 작전에서 얻은 포인트로 '
@@ -616,7 +619,7 @@ G.nl={
             ..'beide schermen. Ze staan in beide games op dezelfde plek en gaan achter degene aan die ze het laatst '
             ..'raakte. Bazen delen hun HP en hun fases.\nStandaard telt een verslagen vijand voor jou als je '
             ..'meevocht of binnen 30 m stond.\nTerwijl de host een tussenfilmpje kijkt, wacht de game van de gast. '
-            ..'Gedeelde quests en reanimeren door je vriend staan standaard uit. Zet ze aan in de Opties.'},
+            ..'Gedeelde quests en reanimeren door je vriend staan standaard aan. Zet ze uit in de Opties.'},
         {title='Nachtelijke missie',
          body='De nachtelijke missie is een survivalmodus met golven die Shift Up vóór de release heeft geschrapt. '
             ..'Een missie heeft vijf golven op tijd. Als de host er een start tijdens een sessie, delen jullie de '
@@ -668,8 +671,8 @@ G.no={
          body='I samme område har vanlige fiender én HP-måler for dere begge og dør på begge skjermene samtidig. De '
             ..'står på samme sted i begge spillene og går etter den som traff dem sist. Bosser deler HP og '
             ..'faser.\nSom standard teller et drap for deg hvis du kjempet eller sto innen 30 m.\nMens verten ser en '
-            ..'mellomsekvens, venter gjestens spill. Delte oppdrag og gjenoppliving fra vennen er slått av som '
-            ..'standard. Slå dem på under Alternativer.'},
+            ..'mellomsekvens, venter gjestens spill. Delte oppdrag og gjenoppliving fra vennen er slått på som '
+            ..'standard. Slå dem av under Alternativer.'},
         {title='Nattoperasjon',
          body='Nattoperasjon er en overlevelsesmodus i bølger som Shift Up kuttet før lansering. En operasjon har '
             ..'fem bølger på tid. Når verten starter den under en økt, deler dere tiden og poengene. For poengene '
@@ -721,7 +724,7 @@ G.pl={
             ..'ekranach. Stoją w tym samym miejscu w obu grach i atakują tego, kto uderzył ich ostatni. Bossowie '
             ..'dzielą PŻ i fazy.\nDomyślnie zabójstwo liczy się dla ciebie, jeśli walczysz z wrogiem lub stoisz do '
             ..'30 m od niego.\nGdy host ogląda przerywnik, gra gościa czeka. Wspólne zadania i ożywianie przez '
-            ..'partnera są domyślnie wyłączone. Włącz je w sekcji Opcje.'},
+            ..'partnera są domyślnie włączone. Wyłącz je w sekcji Opcje.'},
         {title='Nocna operacja',
          body='Nocna operacja to tryb przetrwania z falami wrogów, który Shift Up wyciął przed premierą. Operacja to '
             ..'pięć fal na czas. Gdy host rozpocznie ją podczas sesji, dzielicie licznik czasu i punkty. Za punkty z '
@@ -773,7 +776,7 @@ G.pt={
             ..'tempo. Ficam no mesmo sítio nos dois jogos e vão atrás de quem lhes acertou por último. Os bosses '
             ..'partilham os PV e as fases.\nPor predefinição, um inimigo abatido conta para ti se o combateste ou '
             ..'estavas a menos de 30 m.\nEnquanto o anfitrião vê uma cinemática, o jogo do convidado espera. As '
-            ..'missões partilhadas e a reanimação pelo teu parceiro estão desativadas por predefinição. Ativa-as nas '
+            ..'missões partilhadas e a reanimação pelo teu parceiro estão ativadas por predefinição. Desativa-as nas '
             ..'Opções.'},
         {title='Operação noturna',
          body='A operação noturna é um modo de sobrevivência por vagas que a Shift Up cortou antes do lançamento. Cada '
@@ -828,7 +831,7 @@ G['pt-BR']={
             ..'tempo. Eles ficam no mesmo lugar nos dois jogos e vão atrás de quem os atingiu por último. Chefes '
             ..'compartilham os PV e as fases.\nPor padrão, um abate conta para você se você combateu ou estava a até '
             ..'30 m.\nEnquanto o anfitrião assiste a uma cinemática, o jogo do convidado espera. Missões '
-            ..'compartilhadas e reanimação pelo seu amigo vêm desativadas por padrão. Ative-as nas Opções.'},
+            ..'compartilhadas e reanimação pelo seu amigo vêm ativadas por padrão. Desative-as nas Opções.'},
         {title='Operação Noturna',
          body='A Operação Noturna é um modo de sobrevivência em ondas que a Shift Up cortou antes do lançamento. Uma '
             ..'operação tem cinco ondas cronometradas. Quando o anfitrião inicia uma durante a sessão, vocês dividem '
@@ -882,8 +885,8 @@ G.ru={
          body='В одной локации у обычных врагов одна полоска ОЗ на вас обоих, и они погибают на обоих экранах сразу. '
             ..'Они стоят на одном и том же месте в обеих играх и атакуют того, кто ударил их последним. Боссы делят '
             ..'ОЗ и фазы.\nПо умолчанию убийство засчитывается вам, если вы сражались или были не дальше 30 м.\nПока '
-            ..'хост смотрит заставку, игра гостя ждет. Общие задания и оживление другом по умолчанию выключены. '
-            ..'Включите их в настройках.'},
+            ..'хост смотрит заставку, игра гостя ждет. Общие задания и оживление другом по умолчанию включены. '
+            ..'Выключите их в настройках.'},
         {title='Ночная операция',
          body='Ночная операция — режим выживания против волн врагов, который Shift Up вырезала до релиза. В операции '
             ..'пять волн на время. Если хост запускает ее во время сессии, у вас общие таймер и очки. За очки из '
@@ -935,8 +938,8 @@ G.sv={
          body='På samma karta har vanliga fiender en gemensam hälsomätare för er båda och dör på båda skärmarna '
             ..'samtidigt. De står på samma plats i båda spelen och går efter den som träffade dem sist. Bossar delar '
             ..'hälsa och faser.\nSom standard räknas en dödad fiende som din om du bekämpade den eller stod inom 30 '
-            ..'m.\nNär värden tittar på en mellansekvens väntar gästens spel. Som standard är delade uppdrag av och '
-            ..'din vän kan inte återuppliva dig. Båda slås på under Alternativ.'},
+            ..'m.\nNär värden tittar på en mellansekvens väntar gästens spel. Som standard är delade uppdrag på och '
+            ..'din vän kan återuppliva dig. Båda slås av under Alternativ.'},
         {title='Nattinsats',
          body='Nattinsatsen är ett överlevnadsläge med vågor som Shift Up tog bort före lanseringen. En insats har '
             ..'fem tidsbegränsade vågor. När värden startar den under en session delar ni tiden och poängen. För '
@@ -982,7 +985,7 @@ G.th={
         {title='โลกร่วมกัน',
          body='ในแผนที่เดียวกัน ศัตรูทั่วไปมีแถบ HP เดียวสำหรับทั้งสองคน และตายบนทั้งสองจอพร้อมกัน ศัตรูอยู่ตำแหน่งเดียวกันในทั้งสองเกม '
             ..'และไล่ตามคนที่ตีมันล่าสุด บอสใช้ HP และเฟสร่วมกัน\nโดยค่าเริ่มต้น คุณจะได้รางวัลจากศัตรูที่ตาย ถ้าคุณได้ต่อสู้หรืออยู่ในระยะ 30 '
-            ..'ม.\nขณะที่โฮสต์ดูคัตซีน เกมของผู้เข้าร่วมจะรอ แชร์เควสต์และการให้เพื่อนชุบชีวิตปิดอยู่โดยค่าเริ่มต้น เปิดได้ใน [ตัวเลือก]'},
+            ..'ม.\nขณะที่โฮสต์ดูคัตซีน เกมของผู้เข้าร่วมจะรอ แชร์เควสต์และการให้เพื่อนชุบชีวิตเปิดอยู่โดยค่าเริ่มต้น ปิดได้ใน [ตัวเลือก]'},
         {title='ปฏิบัติการกลางคืน',
          body='ปฏิบัติการกลางคืนคือโหมดเอาชีวิตรอดแบบเป็นคลื่นที่ Shift Up ตัดออกก่อนวางจำหน่าย หนึ่งรอบมี 5 คลื่นแบบจับเวลา '
             ..'เมื่อโฮสต์เริ่มระหว่างเซสชัน คุณทั้งสองจะใช้ตัวจับเวลาและคะแนนร่วมกัน แต้มจากแต่ละรอบใช้ซื้อไอเท็ม\nพิมพ์คำสั่งเหล่านี้ในคอนโซล '
@@ -1029,7 +1032,7 @@ G.tr={
             ..'ölürler. İki oyunda da aynı yerde durur ve onlara en son kim vurduysa onun peşine düşerler. Baş '
             ..'düşmanlar canlarını ve aşamalarını paylaşır.\nVarsayılan olarak, savaştıysan ya da 30 m içindeysen '
             ..'öldürme sana sayılır.\nEv sahibi ara sahne izlerken misafirin oyunu bekler. Ortak görevler ve '
-            .."arkadaşının seni diriltmesi varsayılan olarak kapalıdır. Bunları Seçenekler'den aç."},
+            .."arkadaşının seni diriltmesi varsayılan olarak açıktır. Bunları Seçenekler'den kapat."},
         {title='Gece Operasyonu',
          body="Gece Operasyonu, Shift Up'ın oyun çıkmadan önce kaldırdığı, dalgalara karşı hayatta kalma modudur. "
             ..'Bir operasyonda süreli beş dalga vardır. Ev sahibi oturum sırasında başlatınca süreyi ve puanı '
@@ -1075,7 +1078,7 @@ G['zh-Hans']={
         {title='共享世界',
          body='在同一地图上，普通敌人的生命条由你们两人共享，并在两边屏幕上同时死亡。它们在两边游戏中位于同一位置，'
             ..'并攻击最后击中它们的人。首领共享生命和阶段。\n默认情况下，只要你参与交战或在30米内，击杀就算你的。\n'
-            ..'房主观看过场动画时，加入者的游戏会等待。共享任务和队友救起默认关闭，可在“选项”中开启。'},
+            ..'房主观看过场动画时，加入者的游戏会等待。共享任务和队友救起默认开启，可在“选项”中关闭。'},
         {title='暗夜行动',
          body='暗夜行动是Shift Up在发售前删减的波次生存模式。一次行动有五个限时波次。房主在房间中发起行动时，'
             ..'你们共享计时和得分。行动获得的点数可以购买物品。\n在合作存档中，于控制台（F10或~）输入：\ncoop '
@@ -1118,7 +1121,7 @@ G['zh-Hant']={
          body='在同一張地圖上，一般敵人只有一條你們共用的生命值條，並在雙方畫面同時死亡。'
             ..'敵人在雙方遊戲中站在同一位置，並追擊最後打中它的人。頭目共享生命值與階段。\n預設情況下，'
             ..'只要你與敵人交戰過或在30公尺內，擊殺就會算你一份。\n主機觀看過場動畫時，加入者的遊戲會等待。'
-            ..'預設會關閉共享任務，隊友也無法救起你。兩者都可在「選項」中開啟。'},
+            ..'預設會開啟共享任務，隊友也能救起你。兩者都可在「選項」中關閉。'},
         {title='夜間行動',
          body='夜間行動是Shift Up在發售前刪除的波次生存模式。一場行動有五個限時波次。在房間中由主機發起時，'
             ..'你們共享計時與得分。行動獲得的點數可用來購買道具。\n在合作存檔中，於主控台（F10或~）輸入：\ncoop '

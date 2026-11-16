@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/camps.h on the build machine: each guard refusing with its own reason (a warp, a respawn or a logic task as
 // busy), when the list is read (at once with none held, in a new world or after a drop, then each 2 s) and the
 // status line (the list, the camp EVE respawns at, a refusal, names that would not split left out).

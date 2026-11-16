@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pak files a game loads beyond the base game's, as one count and one hash, so two players whose games load
 // different .pak mods get a warning (never a refusal: enemies that differ already stay unshared by the per-pair
 // checks), and as a list of mod containers by name, so each player can be told which mods the other has and they lack.

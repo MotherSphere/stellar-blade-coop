@@ -1,9 +1,13 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- nightop/recruiter_text.lua, pure (no fakes): exactly the game's 23 text cultures, each with exactly the recruiter's 7
 -- lines; every line one clean UTF-8 string the subtitle and choice widgets can show as it is (no control, invisible
 -- format or rich-text character, no format brace, nothing outside the BMP, no edge space); no Korean and no developer
 -- marker outside ko;
 -- the French no-break space; the 12 keys, their lines and their Korean sources against a copy of the asset text kept
--- here; and culture()'s mapping of the names the game can report.
+-- here; culture()'s mapping of the names the game can report; and that nightop/guard_text.h holds the same 12 keys,
+-- sources and lines and the same 23 cultures.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local R=require('nightop.recruiter_text')
 local CULTURES={'ko','en','en-GB','fr','de','it','es','es-MX','pt','pt-BR','nl','da','no','sv','fi','pl','ru','tr','ar',
@@ -91,4 +95,27 @@ for _,case in ipairs({{'fr-FR','fr'},{'en-US','en'},{'en','en'},{'en-AU','en-GB'
     local got=R.culture(case[1])
     assert(got==case[2],string.format('culture(%s) is %s, not %s',tostring(case[1]),tostring(got),case[2]))
 end
+-- The native part's copy (nightop/guard_text.h): a key, its source and its line there must be these, byte for byte.
+local f=assert(io.open('native/src/nightop/guard_text.h','rb'))
+local h=f:read('a')
+f:close()
+local index={}
+for i,line in ipairs(LINES) do index[line]=i-1 end
+n=0
+for key,source,line in h:gmatch('{%s*u"(%x+)",%s*u"([^"]*)",%s*(%d)%s*}') do
+    n=n+1
+    source=source:gsub('\\u(%x%x%x%x)',function(x) return utf8.char(tonumber(x,16)) end)
+    local want=R.KEYS[key]
+    assert(want,'guard_text.h: '..key..' is not one of KEYS')
+    assert(source==want[2],'guard_text.h: '..key..': its source is not KEYS\'s')
+    assert(tonumber(line)==index[want[1]],'guard_text.h: '..key..': line '..line..', not '..index[want[1]])
+end
+assert(n==12,'guard_text.h: '..n..' keys, not 12')
+local names=assert(h:match('kCultures%[[^%]]*%]%s*=%s*(%b{})'),'guard_text.h: no kCultures')
+local seen={}
+for name in names:gmatch('"(.-)"') do
+    assert(not seen[name],'guard_text.h: '..name..' twice')
+    seen[name]=true
+end
+exactly(seen,CULTURES,'guard_text.h kCultures')
 print('recruiter_text_test ok')

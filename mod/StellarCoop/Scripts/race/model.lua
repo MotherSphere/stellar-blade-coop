@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Doro race without a game call: the track file and its recording, the runner's rules, the two start slots, the host's
 -- and the guest's race over the race lines, the live order and the ranking. race/run.lua feeds it EVE's feet, its clock
 -- and the race lines that came; tests/lua/race/model_test.lua covers it with lua5.4 alone. Centimetres, milliseconds
@@ -6,7 +9,7 @@
 local Dm=require('race.drive_model')
 local R={}
 -- Bounds: |x| and |y|, |z|, a time in ms, a race id; checkpoints in a track, laps; a checkpoint's radius and its
--- default; a track file's and a line's bytes (the link's 512 less "SBC19 race "). 12 checkpoints on one cps line make
+-- default; a track file's and a line's bytes (the link's 512 less "SBC20 race "). 12 checkpoints on one cps line make
 -- 400 bytes on the link at the bounds.
 R.XY,R.Z,R.MS,R.ID=2000000,500000,3600000,0xFFFFFFFF
 R.MIN_CPS,R.MAX_CPS,R.PER_LINE,R.MAX_LAPS=2,64,12,9
@@ -188,7 +191,7 @@ function R.run(r,a,b,ms,dt)
     return ev
 end
 
--- The race lines, without the link's "SBC19 race " (id: the host's race number):
+-- The race lines, without the link's "SBC20 race " (id: the host's race number):
 --   track <id> <n> <laps> <grid x y z yaw> <map>   host: a race is armed, n checkpoints follow
 --   cps <id> <first> <x y z r>...                  host: 1 to 12 checkpoints, from the first'th
 --   drive <id> <top> <accel> <brake> <coast> <grip> <drift_grip> <turn_slow> <turn_fast> <drift_angle>

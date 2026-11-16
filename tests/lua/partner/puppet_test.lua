@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The ghost with fake UE4SS objects: built from the remote table one mesh a frame, each part on the mesh the table names
 -- (LoadAsset, never SetMaterial) or on the base suit with a bone remap, left out with its followers when it has no
 -- fallback; your EVE's render flags on each part; the display file; hidden until the first pose and after a second
@@ -1642,7 +1645,7 @@ assert(ok==false and message:find('^Doro mode off on the ghost: .*the Doro mesh 
 assert(actor.parts[1].visible==true and #actor.parts==8,'Drawn as her, no Doro added')
 meshes[DORO.mesh],doro_mesh.destroyed=doro_mesh,nil
 
--- The solid partner (collide=on, off by default). Puppet.solid's rules a to g as a table, one case each, then the
+-- The solid partner (collide=on, on by default). Puppet.solid's rules a to g as a table, one case each, then the
 -- latches of b and e and their reset by a. Then on fakes: no capsule while off; built the first time the ghost shows
 -- with collide on, from your EVE's capsule (size, height, object type), blocking her type alone, never a step, with
 -- the tag's collision off and the actor's on; closed or opened only on a change; one line at each contact; the

@@ -19,16 +19,18 @@ The step-by-step procedures for players are in [INSTALL.md](../INSTALL.md#saves-
   `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\<UTC time>\`, before the first copy. On a `saves export` request it
   reads a co-op copy and writes it over the save you named, after a backup of that save in the same folder. The rules
   are in [internals/safety.md](internals/safety.md#safety-design).
-- With the experimental shared quests on (off by default), the native part also writes `StellarCoopQuests00.txt` to
+- With the experimental shared quests on (the default), the native part also writes `StellarCoopQuests00.txt` to
   `04.txt` beside the co-op copies: the record of the quest steps shared on that co-op slot, through the same name
   check. On the guest's side, her game makes the host's quest steps through its own quest functions, in the co-op save
   it plays.
-- `coop shortcut load` (off unless `shortcut_load=on`) writes a cleaned developer save as `StellarBladeCoop04.sav`
+- `coop shortcut load` (with `shortcut_load=on`, the default) writes a cleaned developer save as `StellarBladeCoop04.sav`
   and its mark `StellarCoopShortcut04.txt` beside it, through the same name check (see [Co-op saves](#co-op-saves)).
+- With `sbo_lobby=on` (the default), the native part keeps a copy of each co-op save before the game
+  writes over it, and removes the oldest of those copies (see [Copies before each save](#copies-before-each-save)).
 - When the question shows, Lua checks whether a co-op copy exists, to name its first choice: it opens each
   `StellarBladeCoop0N.sav` and closes it at once, without reading it.
 - Apart from enemy stats with the experimental shared enemies (`coop fight`, on by default, co-op saves only), the quest
-  steps of the experimental shared quests (`coop quests`, off by default, co-op saves only), a Night Operation run's
+  steps of the experimental shared quests (`coop quests`, on by default, co-op saves only), a Night Operation run's
   state (its waves, timer, score and end) and the consumables sent with `coop gift` (co-op saves only, taken out of the
   sender's inventory and added to the receiver's when she takes them), nothing is copied between the two players'
   games. The ghost is display only: a plain actor that is not a Pawn, so lock-on, AI and saves skip it, and nothing of
@@ -92,8 +94,8 @@ cloud. Then restore your backup.
 Keep Steam Cloud off during Night Operation runs, challenges and previews and while you test new features.
 
 Steam Cloud syncs the co-op copies (`StellarBladeCoop0N.sav`), but not `StellarCoopSaves.txt`, the shared quests'
-records `StellarCoopQuests0N.txt`, a shortcut save's mark `StellarCoopShortcut04.txt`, the backups in
-`StellarCoopBackups` or the `.coop-tmp` files. On another PC every
+records `StellarCoopQuests0N.txt`, a shortcut save's mark `StellarCoopShortcut04.txt`, the SBO session records
+`StellarCoopSBO0N.bin`, the backups in `StellarCoopBackups` or the `.coop-tmp` files. On another PC every
 copy then counts as played in co-op, so the mod never replaces one there. Steam Cloud also syncs a manual co-op slot's
 `.sav` copy but not `StellarCoopSlot.txt`: on another PC that copy counts as an ordinary save, and the previews,
 Night Operation's run and the challenges refuse to run there.
@@ -152,7 +154,7 @@ The `convert=` line shows the pass as any other, and `coop-link.log` has `slot N
 `coop saves coop` is refused until that pass ends, since the other slots may have no copy or an older one; once it has
 ended, `coop saves coop` runs its own pass over every slot first.
 
-`coop shortcut load` ([cut-scenes-and-menus.md](cut-scenes-and-menus.md#loading-one-coop-shortcut-load), off unless `shortcut_load=on`) writes a
+`coop shortcut load` ([cut-scenes-and-menus.md](cut-scenes-and-menus.md#loading-one-coop-shortcut-load), with `shortcut_load=on`, the default) writes a
 cleaned developer save as `StellarBladeCoop04.sav` through the same kind of pass, while the game uses the copies: the
 old copy goes to a new folder of `StellarCoopBackups` first, and the new one gets no line in `StellarCoopSaves.txt`, so
 later passes keep it as played. Before the save, it writes `StellarCoopShortcut04.txt` beside it, a mark that names
@@ -248,6 +250,30 @@ To check, `coop status` (or the `[StellarCoop] link: slot=...` line in `UE4SS.lo
 | `slot=unknown`, `index=?` or `saves=?` | Not read yet, another game build, or after `coop off` |
 
 The `convert=` line gives the last copy pass: `idle`, `busy <done>/<jobs>`, `done` or `error:<why>`.
+
+### Copies before each save
+
+With `sbo_lobby=on` in `coop-settings.txt`, Lua sends `sbo on` at each load, and from then until the game exits the
+native part keeps a copy of a co-op save each time the game writes it. Once the game's save queue is empty again
+after a write to `StellarBladeCoop0N.sav`, the mod reads the game's own copy of the version before that write,
+`Backup\StellarBladeCoop0N_Old.sav` in the save folder, checks it as the game does (header and CRC-32), writes it as
+`<UTC time>.sav` into `%LOCALAPPDATA%\SB\Saved\StellarCoopBackups\autosave\StellarBladeCoop0N\` and reads it back.
+Only then does it remove the oldest copies in that folder, so that the 10 newest stay. A copy is the size of the save,
+about 23 MB for the largest co-op save today, so a slot's folder holds up to about 230 MB.
+
+The SBO lobby's session record, `StellarCoopSBO0N.bin` beside the co-op save, names two more copies in the same
+folder: `<UTC time>-pre.sav` and `<UTC time>-session.sav`, the save before and after the save made at the start of a
+session. While the record says the session is open, those two are never removed, even when they are older than the
+10 newest. A failed copy removes nothing, a record that cannot be read stops the removal, and a file whose name is not
+one of these three forms is never touched. Every rewrite of the record first copies the old one into
+`StellarCoopBackups\sidecar\StellarCoopSBO0N\<UTC time>.bin`; those are all kept. Before the mod puts the session
+copy back over `StellarBladeCoop0N.sav`, it writes the file it replaces into the same folder as
+`<UTC time>-replaced.sav` and reads it back. If that fails, nothing is put back. The mod never removes a
+`-replaced.sav` file: it can hold play made after the session (for example after `coop off` in the lobby and a reload
+by the game), so only you delete it, once you no longer need it.
+
+`coop-link.log` has `saves: copy of StellarBladeCoop0N.sav before the game's save: <name> (kept <k>, removed <r>)`,
+or why no copy was made. These copies are the first backups the mod removes.
 
 ### Manual co-op slot
 

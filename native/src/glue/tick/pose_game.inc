@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
 // The ghost's pose path, the game thread's half: the shared state, EVE's read and encode, the ghost's write, coop_tick's body.
 
@@ -20,6 +23,11 @@ using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
 std::atomic<XInputGetStateFn> xinput_get{nullptr};
 constexpr int kPadUnread = -1, kPadMissing = -2;
 std::atomic<int> pad_seen{kPadUnread};
+// SB's input device as the game thread last read it (pad_game.inc's uidev_tick): -1 before the first read and after
+// its latch's fault.
+std::atomic<int> uidev_value{-1};
+std::atomic<bool> uidev_faulted{false};
+std::atomic<uint64_t> uidev_fault_code{0}, uidev_fault_rva{0}, uidev_fault_address{0};
 
 // What the worker asks the game thread to send: EVE's pose while the loopback runs (with its settings), while a
 // recording is made or while a friend is linked.
@@ -34,24 +42,21 @@ size_t leader_bytes(const Table &t) {
   return bytes;
 }
 
-// What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose as read for
-// sending; the remote table (the layout poses arrive in) with the playback and the pose drawn this frame; and the
-// ghost Lua built for the remote table, drawn only when it is of the remote generation.
-struct Live {
-  Table capture, remote;
+// One ghost slot's side, as the worker hands it over: the slot's remote table (the layout her poses arrive in) with
+// the playback and the pose drawn this frame, and the ghost Lua built for the table, drawn only when it is of the
+// table's generation.
+struct Drawn {
+  Table remote;
   Display display;
   Playback playback;
-  std::vector<uint8_t> capture_bones, draw;
-  float capture_root[10] = {}, draw_root[10] = {};
-  bool refusal_logged = false; // Game thread: only the first refused write on this ghost is logged.
-  bool ghost_gone = false;      // Game thread: Lua destroyed this ghost; nothing is drawn until its display is dropped.
-  // Her effect slots as read for sending; the ghost's drawn this frame, and as last written into its boxes.
-  Effect capture_fx[kEffectSlots], draw_fx[kEffectSlots], fx_drawn[kEffectSlots];
-  KeyedEncoder encoder; // Her keyframe and the byte budget: a new Live starts with a keyframe.
-  KeyedDecoder decoder; // The remote keyframe held: a new Live waits for the next one (250 ms at most).
-  Live(Table c, Table r, Display d) : capture(std::move(c)), remote(std::move(r)), display(std::move(d)) {
-    capture_bones.assign(leader_bytes(capture), 0);
-    encoder.reset(pose_size(capture));
+  KeyedDecoder decoder; // Her keyframe held: a new Live waits for the next one (250 ms at most).
+  std::vector<uint8_t> draw;
+  float draw_root[10] = {};
+  Effect draw_fx[kEffectSlots], fx_drawn[kEffectSlots]; // Her effect slots drawn this frame, and as last written.
+  // Game thread: only the first refused write on this ghost is logged; Lua destroyed this ghost, so nothing is drawn
+  // until its display is dropped.
+  bool refusal_logged = false, ghost_gone = false;
+  Drawn(Table r, Display d) : remote(std::move(r)), display(std::move(d)) {
     decoder.reset(pose_size(remote));
     playback.reset(leader_bytes(remote));
     draw.assign(leader_bytes(remote), 0);
@@ -61,14 +66,30 @@ struct Live {
   bool drawn() const { return display.generation && display.generation == remote.generation; }
 };
 
+// What the worker hands the game thread, all sized off the game thread: EVE's capture table with her pose and effect
+// slots as read for sending, and each ghost slot holding a remote table (null for an empty slot).
+struct Live {
+  Table capture;
+  std::vector<uint8_t> capture_bones;
+  float capture_root[10] = {};
+  Effect capture_fx[kEffectSlots];
+  KeyedEncoder encoder; // Her keyframe and the byte budget: a new Live starts with a keyframe.
+  std::array<std::unique_ptr<Drawn>, kMaxRemote> remotes;
+  explicit Live(Table c) : capture(std::move(c)) {
+    capture_bones.assign(leader_bytes(capture), 0);
+    encoder.reset(pose_size(capture));
+  }
+};
+
 // An encoded pose on its way: bytes (sized kMaxPose once, by the worker, before the engine goes on; only swapped after
-// that), its size, and when it was read (outgoing) or received (incoming), in µs.
+// that), its size, when it was read (outgoing) or received (incoming), in µs, and the ghost slot it came for
+// (incoming).
 struct Message {
   std::vector<uint8_t> data;
   size_t size = 0;
   uint64_t time = 0;
+  uint8_t slot = 0;
 };
-constexpr size_t kInbox = 24; // 400 ms of poses at 60 a second.
 
 // Hand-over, guarded by m: the worker's newest Live (or a withdrawal) for the game thread, and the game thread's
 // result lines for the worker to log; the newest encoded pose for the worker (out_fresh), and the poses the worker got
@@ -86,12 +107,22 @@ Message out_mid;
 bool out_fresh = false;
 std::array<Message, kInbox> inbox;
 size_t inbox_count = 0;
+// Each native tick gap over 100 ms, for the worker's line (pose/core.h's gap_line): its end as a FILETIME, its length,
+// the frame it ended in and the coop_tick before it, in µs. The worker takes them every 250 ms, with the outbox.
+struct Gap {
+  uint64_t filetime, gap_us, frame, tick_us;
+};
+std::array<Gap, 8> gaps;
+size_t gap_count = 0;
 
 // Game thread only.
 std::unique_ptr<Live> session;
 std::vector<std::string> pending; // Results not handed over yet (the lock was busy, or the worker had not read them).
 LARGE_INTEGER frequency{}, last_call{};
 uint64_t last_frame = 0, next_capture = 0;
+uint64_t coop_tick_us = 0; // The last coop_tick's own time, entry to exit.
+Gap gap_waiting{};         // A gap not in gaps yet (the lock was busy, or gaps was full)...
+bool gap_held = false;     // ...while this is set. A newer gap takes its place: the 60 s line counts both.
 uint32_t sequence = 0; // Of the poses sent: never restarts in a run, so a pose still in flight is always the older.
 uint32_t seen_epoch = 0;
 float stamp = 1; // The mailbox's scale Z: the engine default is 1, our stamps run from 2 up.
@@ -186,11 +217,11 @@ Io read_eve(const Table &capture, float *root, uint8_t *bones) {
 }
 
 // A write the gate refused: counted, and logged the first time on this ghost (part -1: the mailbox, -2: an effect box).
-void refused(Live &live, int part, Io r) {
+void refused(Drawn &ghost, int part, Io r) {
   last_refusal = static_cast<int>(r);
-  if (live.refusal_logged)
+  if (ghost.refusal_logged)
     return;
-  live.refusal_logged = true;
+  ghost.refusal_logged = true;
   char line[160];
   char what[24] = "mailbox";
   if (part == -2)
@@ -198,7 +229,7 @@ void refused(Live &live, int part, Io r) {
   else if (part >= 0)
     std::snprintf(what, sizeof what, "part %d", part);
   std::snprintf(line, sizeof line, "write refused: %s %s (table %llu)", what, describe(r),
-                static_cast<unsigned long long>(live.remote.generation));
+                static_cast<unsigned long long>(ghost.remote.generation));
   pending.push_back(line);
 }
 
@@ -208,11 +239,11 @@ __declspec(noinline) void effects_read(Live &live) {
   read_effects(objects, live.capture, fx_state, live.capture_fx, fx_counts);
 }
 // The boxes whose slot changed since last written; false when one was refused (written again next frame).
-__declspec(noinline) bool effects_write(Live &live, uint64_t &written) {
-  const Display &d = live.display;
+__declspec(noinline) bool effects_write(Drawn &ghost, uint64_t &written) {
+  const Display &d = ghost.display;
   bool all = true;
   for (size_t n = 0; n < kEffectSlots; ++n) {
-    const Effect &e = live.draw_fx[n], &was = live.fx_drawn[n];
+    const Effect &e = ghost.draw_fx[n], &was = ghost.fx_drawn[n];
     if (e.asset == was.asset && e.part == was.part && e.serial == was.serial &&
         !std::memcmp(e.place, was.place, sizeof e.place))
       continue;
@@ -220,7 +251,7 @@ __declspec(noinline) bool effects_write(Live &live, uint64_t &written) {
       all = false;
       continue;
     }
-    live.fx_drawn[n] = e;
+    ghost.fx_drawn[n] = e;
     ++written;
   }
   return all;
@@ -242,11 +273,11 @@ void guarded_effects_read(Live &live) {
 }
 // The drawn slots into the ghost's effect boxes, then a new fx_stamp when one was written, so Lua reads them. False
 // when a box was refused or faulted.
-bool guarded_effects_write(Live &live) {
+bool guarded_effects_write(Drawn &ghost) {
   uint64_t written = 0;
   bool all = false;
   __try {
-    all = effects_write(live, written);
+    all = effects_write(ghost, written);
   } __except (fault_filter(GetExceptionInformation(), fx_fault_code, fx_fault_rva, fx_fault_address)) {
     fx_fault_part = -1; // A box, not a part.
     effects_on = false;
@@ -260,9 +291,9 @@ bool guarded_effects_write(Live &live) {
 
 // The pose drawn this frame into the ghost: each remote leader Lua built a part for, as it came or through its remap,
 // then its effect boxes and the mailbox. True when every write passed its checks.
-bool write_puppet(Live &live) {
-  const Table &remote = live.remote;
-  const Display &d = live.display;
+bool write_puppet(Drawn &ghost) {
+  const Table &remote = ghost.remote;
+  const Display &d = ghost.display;
   size_t offset = 0;
   bool all = true;
   for (size_t i = 0; i < remote.eve.size(); ++i) {
@@ -270,39 +301,40 @@ bool write_puppet(Live &live) {
       continue;
     const Part &p = d.puppet[i];
     if (p.object) { // Else left out: its bytes are skipped.
-      const uint8_t *bones = live.draw.data() + offset;
+      const uint8_t *bones = ghost.draw.data() + offset;
       current_part = static_cast<int>(i);
       Io r = d.remap[i].empty() ? write_leader(objects, p, bones)
                                 : write_leader_mapped(objects, p, bones, d.remap[i].data(), remote.eve[i].bones);
       current_part = -1;
       if (r != Io::ok) {
         all = false;
-        refused(live, static_cast<int>(i), r);
+        refused(ghost, static_cast<int>(i), r);
       }
     }
     offset += size_t(remote.eve[i].bones) * kTransformBytes;
   }
-  if (effects_on && d.effects[0] && !guarded_effects_write(live)) {
+  if (effects_on && d.effects[0] && !guarded_effects_write(ghost)) {
     all = false;
     if (effects_on) // Refused, not faulted: a fault has its own line.
-      refused(live, -2, Io::gone);
+      refused(ghost, -2, Io::gone);
   }
   stamp = stamp >= 1e6f ? 2.f : stamp + 1.f;
-  if (write_mailbox(objects, d.mailbox, d.mailbox_class, d.puppet[0], live.draw_root, fx_stamp, stamp) != Io::ok) {
+  if (write_mailbox(objects, d.mailbox, d.mailbox_class, d.puppet[0], ghost.draw_root, fx_stamp, stamp) != Io::ok) {
     all = false;
-    refused(live, -1, Io::gone);
+    refused(ghost, -1, Io::gone);
   }
   return all;
 }
 
 // Each frame: EVE's pose every send interval while the byte budget allows, encoded as a keyframe or a delta for the
-// worker, while it sends; the poses the worker got back, decoded with the remote table into the playback, once Lua
-// built the ghost for it; the playback's pose for now, written into the ghost.
+// worker, while it sends; the poses the worker got back, each decoded with its slot's remote table into that slot's
+// playback, once Lua built the ghost for it; each playback's pose for now, written into its ghost.
 void stream(uint64_t now_us) {
   Live &live = *session;
   if (uint32_t epoch = loopback_epoch.load(); epoch != seen_epoch) {
     seen_epoch = epoch; // New settings: the poses in flight were dropped, and the old delay must not pass for a step.
-    live.playback.clear();
+    if (live.remotes[0]) // The loopback feeds slot 0 only.
+      live.remotes[0]->playback.clear();
   }
   const bool capture_due = (loopback_on || record_on || peer_on) && live.capture.generation && now_us >= next_capture;
   if (capture_due && !live.encoder.due(now_us, pilot_sending)) {
@@ -346,15 +378,16 @@ void stream(uint64_t now_us) {
     }
   }
   for (size_t i = 0; i < game_inbox_count; ++i) {
-    if (!live.drawn()) { // No ghost for the remote table yet, or no remote table.
+    const Message &in = game_inbox[i];
+    Drawn *ghost = live.remotes[in.slot].get(); // The worker's slots are below kMaxRemote.
+    if (!ghost || !ghost->drawn()) { // No ghost for the slot's remote table yet, or no remote table.
       ++window_foreign;
       continue;
     }
-    Playback::Frame &f = live.playback.scratch();
+    Playback::Frame &f = ghost->playback.scratch();
     PoseHeader h;
-    const Message &in = game_inbox[i];
     if (const char *why =
-            live.decoder.decode(live.remote, in.data.data(), in.size, h, f.root, f.bones.data(), f.fx)) {
+            ghost->decoder.decode(ghost->remote, in.data.data(), in.size, h, f.root, f.bones.data(), f.fx)) {
       if (!std::strcmp(why, "generation")) { // Of a table the ghost is not built on (yet): an outfit in flight.
         ++window_foreign;
       } else if (!std::strcmp(why, "key")) { // A delta whose keyframe was lost, or came before this Live.
@@ -367,26 +400,31 @@ void stream(uint64_t now_us) {
     }
     f.sequence = h.sequence;
     f.publication = h.publication;
-    live.playback.accept(in.time);
+    ghost->playback.accept(in.time);
   }
-  if (live.drawn() && !live.ghost_gone) {
-    // Lua destroys the ghost (a level change, coop puppet, coop basesuit) and withdraws its display in the same frame,
-    // but the worker reads that withdrawal only within 250 ms: a destroyed ghost is no refused write, just the end.
-    if (!alive(objects, static_cast<uintptr_t>(live.display.puppet[0].object)))
-      live.ghost_gone = true;
-    else if (live.playback.sample(now_us, live.draw_root, live.draw.data(), live.draw_fx))
-      ++(write_puppet(live) ? window_drawn_written : window_drawn_refused);
+  for (const std::unique_ptr<Drawn> &slot : live.remotes) {
+    if (!slot)
+      continue;
+    Drawn &ghost = *slot;
+    if (ghost.drawn() && !ghost.ghost_gone) {
+      // Lua destroys a ghost (a level change, coop puppet, coop basesuit) and withdraws its display in the same frame,
+      // but the worker reads that withdrawal only within 250 ms: a destroyed ghost is no refused write, just the end.
+      if (!alive(objects, static_cast<uintptr_t>(ghost.display.puppet[0].object)))
+        ghost.ghost_gone = true;
+      else if (ghost.playback.sample(now_us, ghost.draw_root, ghost.draw.data(), ghost.draw_fx))
+        ++(write_puppet(ghost) ? window_drawn_written : window_drawn_refused);
+    }
+    Playback::Stats s = ghost.playback.take(); // Summed over the slots: the 60 s line's means stay per pose.
+    window_poses += s.poses;
+    window_stale += s.stale;
+    window_missing += s.lost;
+    window_stalls += s.stalls;
+    window_steps += s.steps;
+    window_drawn += s.drawn;
+    window_extrapolated += s.extrapolated;
+    window_lag_us += int64_t(s.lag_ms * 1000);
+    window_behind_us += int64_t(s.behind_ms * 1000);
   }
-  Playback::Stats s = live.playback.take();
-  window_poses += s.poses;
-  window_stale += s.stale;
-  window_missing += s.lost;
-  window_stalls += s.stalls;
-  window_steps += s.steps;
-  window_drawn += s.drawn;
-  window_extrapolated += s.extrapolated;
-  window_lag_us += int64_t(s.lag_ms * 1000);
-  window_behind_us += int64_t(s.behind_ms * 1000);
 }
 
 void game_tick() {
@@ -402,8 +440,13 @@ void game_tick() {
   if (last_call.QuadPart) {
     uint64_t gap = micros_between(last_call, now);
     raise_max(window_max_gap_us, gap);
-    if (gap > 100000)
+    if (gap > 100000) {
       ++window_long_gaps;
+      FILETIME utc;
+      GetSystemTimePreciseAsFileTime(&utc);
+      gap_waiting = {uint64_t(utc.dwHighDateTime) << 32 | utc.dwLowDateTime, gap, frame, coop_tick_us};
+      gap_held = true;
+    }
   }
   last_call = now;
   ++ticks;
@@ -424,6 +467,10 @@ void game_tick() {
     if (inbox_count) { // game_inbox_count is 0: every tick ends by emptying it.
       inbox.swap(game_inbox);
       std::swap(inbox_count, game_inbox_count);
+    }
+    if (gap_held && gap_count < gaps.size()) {
+      gaps[gap_count++] = gap_waiting;
+      gap_held = false;
     }
     m.unlock();
   }

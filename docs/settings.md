@@ -41,10 +41,10 @@ auto_coop_save=ask
 name_tag=on
 # Poses sent to your friend a second: 10 to 60.
 send_rate=60
-# What the ghost shows, each on or off: cloth (her ponytail swings as in solo; on unless set here, and it sends
-# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects), both off unless set
-# here. dyes and effects off also stop sending yours.
-# For example: dyes=on
+# What the ghost shows, each on or off and on unless set here: cloth (her ponytail swings as in solo; it sends
+# nothing), dyes (hair colours and material variants) and effects (her attack and skill effects). dyes and effects off
+# also stop sending yours.
+# For example: dyes=off
 # Shared enemies, experimental: on or off. On, the enemies you and your friend both fight share one HP bar and one
 # death, while both of you play a co-op save. fight_chars: auto (every common enemy, and with bosses=on the bosses
 # and Alpha Naytibas) or the enemy character ids to share instead, separated by spaces (coop fight probe logs them),
@@ -76,31 +76,31 @@ same_spawns=on
 # 2 to 4 m from its enemy and goes once both players are more than 120 m from it, or when shared enemies stop. Bosses,
 # Alpha Naytibas, Elites, quest and event enemies, and the enemies a save records get none.
 enemy_extra=0
-# Spawn filter, experimental, yours, used when you are the guest and the host has same_spawns=on: on or off, off
-# until it has been tested in game. On, the mod changes one pointer in the game's memory on your PC. An enemy your
+# Spawn filter, experimental, yours, used when you are the guest and the host has same_spawns=on: on or off, on by
+# default, not tested in game yet. On, the mod changes one pointer in the game's memory on your PC. An enemy your
 # game removed because the host's game no longer has it, or a shared enemy you fought that died in both games, then
 # stays away when your zone resets after your death or your camp rest, instead of appearing for a moment before it is
 # removed.
-spawn_filter=off
+spawn_filter=on
 # Shared bosses, experimental, the host's for both games: on or off. On, a boss or an Alpha Naytiba that both games
 # hold shares one HP bar and one death, as a common enemy does. With same_place=on it fights the host only.
 # boss_hp_scale, the host's too, multiplies a shared boss's maximum HP in place of enemy_hp_scale, from 1.0 (no change)
 # to 4.0.
 bosses=on
 boss_hp_scale=2.0
-# Shared quests, experimental: on or off, off by default. On, while you and your friend both play a co-op save, a
+# Shared quests, experimental: on or off, on by default. On, while you and your friend both play a co-op save, a
 # quest step the host makes while you stand in the same zone, with that quest at the same point in your game, is made
 # in your game too (Epic, Sub and Request quests). A step made without you is never given to you; a kill step waits
 # for your own kill, and a Request waits until you hand it in at your own request board. quest_deny, the host's: quests
 # never shared, by name or number, separated by spaces or commas (for example quest_deny=Quest_Epic_14_1).
-shared_quests=off
+shared_quests=on
 quest_deny=
-# Revive, experimental: on or off, off by default. Yours, for your own EVE: on, while you are on the death screen and
+# Revive, experimental: on or off, on by default. Yours, for your own EVE: on, while you are on the death screen and
 # your friend stands within 2 m of your EVE for 3 s, your game revives you where you fell, with full health and your
 # recovery items refilled as at a camp. It needs the shared enemies running (shared_enemies=on, on a co-op save), and
 # never happens during a boss fight on your side. In a co-op Night Operation run, on also turns your death into a 30 s
 # down: your friend revives you by holding the interact key next to your EVE, or you type coop nightop revive.
-revive=off
+revive=on
 # Synced photo mode: while your friend is in photo mode, your game pauses. both: pause and be paused (both PCs need
 # both), notice: a notice only, off: nothing. photo_freeze_max: the longest pause in seconds, 30 to 3600, or 0 for no
 # limit. photo_ghost: your friend's ghost in your own photos; photo_name_tag: its name tag in them. photo_pause,
@@ -110,7 +110,7 @@ revive=off
 photo_sync=both
 photo_freeze_max=600
 photo_ghost=on
-photo_name_tag=off
+photo_name_tag=on
 photo_pause=full
 # Cutscene wait: on or off. Yours, as the guest: on, your game pauses while a cutscene plays in the host's game and you
 # are both on one map, with the same pause as photo sync and for at most photo_freeze_max.
@@ -120,16 +120,17 @@ cutscene_wait=on
 # game's own fast travel (one of the camps you have found); always starts that travel by itself 5 s later, and
 # follow_key cancels it; off does neither. With follow_key=none, only the console command coop travel host travels.
 follow_host=ask
-# Solid partner, experimental: on or off, off by default. Yours: on, your EVE cannot walk through your friend's ghost
+# Solid partner, experimental: on or off, on by default. Yours: on, your EVE cannot walk through your friend's ghost
 # while she walks, runs or falls. The ghost lets her through while it overlaps her, while your feet are 60 cm or more
 # apart in height, after 2 s of contact (until you are 50 cm apart) and while your friend is down. A dodge into it
 # stops at it. Enemies, NPCs and the camera pass through it.
-collide=off
+collide=on
 # The co-op menu: ui_scale 75 to 150 (%), ui_sounds on or off, ui_language game (the game's language) or english.
 ui_scale=100
 ui_sounds=on
 ui_language=game
-# The session chat (Enter opens it during a session): on or off. Off hides your friend's lines and sends none.
+# The session chat (Enter opens it during a session or in the PvP lobby): on or off. Off hides your friend's lines
+# and sends none.
 chat=on
 # Mod names: on or off. On, your friend's game gets the names of the .pak mods your game loads (beyond the base game's,
 # under SB/Content/Paks), so each of you is told which mods the other uses and you lack. Off sends only how many there
@@ -144,12 +145,19 @@ partner_arrow=on
 partner_card=on
 card_details=on
 # status_overlay, a strip above her card: off, compact (the status line and the ping) or detailed (and what is shared).
-status_overlay=off
-# Shortcut saves, a test tool: on or off, off by default. On, coop shortcut load <map> <1-4> writes one of the game's
+status_overlay=compact
+# Shortcut saves, a test tool: on or off, on by default. On, coop shortcut load <map> <1-4> writes one of the game's
 # cut developer saves as your co-op slot 5 (StellarBladeCoop04.sav, backed up first), without its achievement list.
 # A Steam achievement it still unlocks cannot be taken back: use it only on a Steam account whose achievements do not
 # matter (docs/usage.md, Cut Load Shortcut saves).
-shortcut_load=off
+shortcut_load=on
+# PvP test, a test tool: on or off, on by default. On, coop pvp on starts it while you and your friend both play a
+# co-op save with shared_enemies=off. A stand-in enemy follows your friend's ghost in your game, and your hits on it
+# take HP from your friend's EVE in their game, down to 1 HP.
+pvp_spike=on
+# SBO lobby: on or off, on by default. On, the recruiter's Join saves the co-op game and opens the PvP lobby in Xion,
+# and each co-op save is copied before the game rewrites it (the 10 newest kept per slot).
+sbo_lobby=on
 ```
 
 | Setting | Values | Default |
@@ -166,8 +174,8 @@ shortcut_load=off
 | `name_tag` | `on` or `off`: your friend's Steam name above their ghost | `on` |
 | `send_rate` | `10` to `60` poses sent a second at most (a link that cannot keep up lowers it to 30 or 20 for a while: [link health](internals/steam-link.md#link-health-in-the-log)) | `60` |
 | `cloth` | `on` or `off`: her ponytail as cloth on the ghost you see | `on` |
-| `dyes` | `on` or `off` | `off` |
-| `effects` | `on` or `off` | `off` |
+| `dyes` | `on` or `off` | `on` |
+| `effects` | `on` or `off` | `on` |
 | `shared_enemies` | `on` or `off`: [shared enemies](shared-enemies.md#shared-enemies-experimental), experimental | `on` |
 | `fight_chars` | `auto` (every common enemy), or at most 16 enemy character ids, whole numbers separated by spaces | `auto` |
 | `guest_kills` | `at_once` or `confirmed`: as the guest, whether an enemy your hit kills dies at once on your screen or waits for the host's game (see [shared enemies](shared-enemies.md#shared-enemies-experimental)) | `at_once` |
@@ -178,19 +186,20 @@ shortcut_load=off
 | `aggro` | `game` or `host`: with same place, whether each enemy fights the player who hit it last (or else the nearer one) or the host only; the host's value counts for both games | `game` |
 | `same_spawns` | `on` or `off`: [same spawns](shared-enemies.md#same-spawns-experimental), experimental; the host's value counts for both games | `on` |
 | `enemy_extra` | `0` to `3`: [extra enemies](shared-enemies.md#extra-enemies-experimental) for each common enemy, experimental, with same spawns only; the host's value counts for both games | `0` |
-| `spawn_filter` | `on` or `off`: the [spawn filter](shared-enemies.md#spawn-filter-experimental), experimental; your own, used when you are the guest; no menu row | `off` |
+| `spawn_filter` | `on` or `off`: the [spawn filter](shared-enemies.md#spawn-filter-experimental), experimental; your own, used when you are the guest; no menu row | `on` |
 | `bosses` | `on` or `off`: [shared bosses](shared-enemies.md#shared-bosses-experimental), experimental; the host's value counts for both games | `on` |
 | `boss_hp_scale` | `1.0` to `4.0`: the host's multiplier for a shared boss's maximum HP, used in both games | `2.0` |
-| `shared_quests` | `on` or `off`: [shared quests](playing-with-a-friend.md#shared-quests-experimental), experimental; both players need it on | `off` |
+| `shared_quests` | `on` or `off`: [shared quests](playing-with-a-friend.md#shared-quests-experimental), experimental; both players need it on | `on` |
 | `quest_deny` | quest names or numbers separated by spaces or commas, at most 200 characters: quests never shared; the host's value counts | empty |
-| `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; in a co-op Night Operation run, your death is a [down](night-operation.md#down-and-revive) | `off` |
+| `revive` | `on` or `off`: your friend may [revive](playing-with-a-friend.md#revive-by-your-friend-experimental) your EVE where she fell, experimental; in a co-op Night Operation run, your death is a [down](night-operation.md#down-and-revive) | `on` |
 | `photo_sync` | `both`, `notice` or `off`: the [synced photo mode](playing-with-a-friend.md#synced-photo-mode); a pause needs `both` on both PCs | `both` |
 | `photo_freeze_max` | `0` (no limit) or `30` to `3600`: the longest pause your friend's photo mode holds your game in, in seconds | `600` |
 | `photo_ghost` | `on` or `off`: your friend's ghost in your own photos | `on` |
-| `photo_name_tag` | `on` or `off`: its name tag in your own photos | `off` |
+| `photo_name_tag` | `on` or `off`: its name tag in your own photos | `on` |
+| `photo_pause` | `full` or `scenery`: how your own photo mode [pauses your game](playing-with-a-friend.md#photo-mode-pause-experimental), experimental, from your next photo mode | `full` |
 | `cutscene_wait` | `on` or `off`: as the guest, your game [waits](playing-with-a-friend.md#cutscene-wait) while a cutscene plays in the host's game | `on` |
 | `follow_host` | `ask`, `always` or `off`: as the guest, the offer to [travel to the host](playing-with-a-friend.md#following-the-host) | `ask` |
-| `collide` | `on` or `off`: the [solid partner](ghost.md#solid-partner-experimental), experimental | `off` |
+| `collide` | `on` or `off`: the [solid partner](ghost.md#solid-partner-experimental), experimental | `on` |
 | `ui_scale` | `75` to `150`: the size of the menu, the chat and the partner HUD, in percent | `100` |
 | `ui_sounds` | `on` or `off`: the game's UI sounds in the menu, the chat and the partner HUD | `on` |
 | `ui_language` | `game` (the game's text language) or `english` | `game` |
@@ -200,8 +209,10 @@ shortcut_load=off
 | `partner_arrow` | `on` or `off`: the arrow toward your friend when they are out of view | `on` |
 | `partner_card` | `on` or `off`: your friend's card at the top left | `on` |
 | `card_details` | `on` or `off`: the ping and your friend's map on the card | `on` |
-| `status_overlay` | `off`, `compact` or `detailed`: the [status strip](interface.md#status-strip-above-the-card) above the card | `off` |
-| `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `off` |
+| `status_overlay` | `off`, `compact` or `detailed`: the [status strip](interface.md#status-strip-above-the-card) above the card | `compact` |
+| `shortcut_load` | `on` or `off`: lets `coop shortcut load` write a [cut developer save](cut-scenes-and-menus.md#loading-one-coop-shortcut-load) as co-op slot 5; it can unlock Steam achievements; no menu row | `on` |
+| `pvp_spike` | `on` or `off`: lets `coop pvp on` start the [PvP test](sbo-lobby.md#the-pvp-test) with your friend: a stand-in enemy at their ghost takes your hits for their game, down to 1 HP; needs `shared_enemies=off`; no menu row | `on` |
+| `sbo_lobby` | `on` or `off`: the [SBO lobby](sbo-lobby.md), a test. On, the recruiter's Join saves the co-op game and takes you to the lobby in Xion's training room (a hall lobby with the hall lobby pak), and each co-op save is copied before the game rewrites it (10 copies kept per slot). At each arrival in the lobby the screen stays black until the lobby menu is ready, 8 s at most, then fades onto the open menu. No menu row | `on` |
 
 Rules:
 
@@ -229,6 +240,12 @@ Rules:
   `all` and the new comment once, keeps the file as it was as `coop-settings.old.txt`, and logs a
   `[StellarCoop] settings:` line. `kill_credit=fought` stays. A hand-written `kill_credit=all` is refused and reads
   `together`.
+- A file written by 0.5.0-beta.1 to 0.10.0 has comments that say `spawn_filter`, `shared_quests`, `revive`, `collide`
+  and, from 0.7.0-beta.1, `shortcut_load` are off (a PvP test build adds `pvp_spike`). The mod sets each of them that
+  says `off` to `on` and writes the new comment once. `photo_name_tag` and `status_overlay` go with the `shared_quests`
+  comment, which the same versions wrote: `on` and `compact`. The old ghost comment, which said `dyes` and `effects`
+  are off unless set, is replaced too. The mod keeps the file as it was as `coop-settings.old.txt` and logs a
+  `[StellarCoop] settings:` line. An `off` set after that stays.
 - The `[StellarCoop] keys:` line gives the keys in use, the name tag and the send rate, for example
   `keys: menu=F5 host=none status=F6 leave=F8 race=F9, name tag on, 60 poses a second`. Another line says when a mod
   loaded earlier binds the same key; both actions then run. The `[StellarCoop] photo sync:` line gives the photo
@@ -262,7 +279,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-request.txt` | Lua | A console request for the native part |
 | `coop-session.txt` | Lua | A token per Lua load |
 | `coop-components.txt` | Lua | Your EVE's capture (the component table) |
-| `coop-remote.txt` | native | The remote table the ghost is built from |
+| `coop-remote.txt` | native | The remote table the ghost is built from. In a match lobby, `coop-remote-<k>.txt` holds the table of the member in ghost slot k, 1 to 6 |
 | `coop-cns.txt` | native, at start | The assets your CNS packs declare, one `<path> <outfit>` line each (empty without CNS packs): with `coop-shared-assets.txt`, the only paths from a mod's folder the ghost loads |
 | `coop-cns-call.txt` | Lua | The crash sentinel's marker: `<path> <outfit>` while the ghost hands the engine an asset your CNS packs declare or a mod you both have holds (the container name in place of the outfit), empty otherwise. Written in place, with no `.tmp` file (see [When a mod asset fails](ghost.md#when-a-mod-asset-fails)) |
 | `coop-shared-assets.txt` | native, when the list changes | The assets of the mods you and your friend both have in one version, one `<path> <container>` line each: loaded by the ghost as CNS paths are (see [Mods you both have](ghost.md#mods-you-both-have)) |
@@ -273,6 +290,8 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-ui.txt` | Lua | The co-op UI's on-screen root, so the next Lua load (Ctrl+R) can remove it and, if the menu was open, give the game its keys back |
 | `coop-say.txt` | Lua | A chat line you typed, for a moment: the native part takes and deletes it at its next pass |
 | `coop-chat.txt` | native | Your friend's chat lines and race lines, for a moment: Lua takes and deletes the file within 250 ms, or within a frame while a race is armed |
+| `StellarCoopStory.txt` | Lua, on `coop story` | The [story dump](story.md#the-file), replaced at each run |
+| `coop-story.txt` | you | A [story dump request](story.md#the-request-file-coop-storytxt): the mod removes it and runs the dump once a world is loaded |
 | `coop-night.txt` | Lua | Your side of a Night Operation run, for a moment: the native part takes and deletes it at its next pass and sends it to your friend |
 | `coop-night-<steamid>-<index>.txt` | Lua | Your Night Operation shop points on that co-op slot, one line (see [night-operation-shop.md](night-operation-shop.md)) |
 | `coop-gift-<steamid>-<index>.txt` | Lua | Your mailbox on that co-op slot: the gifts that wait, the ones you sent that wait for an answer or come back, and the last 64 gifts taken (see [Cut mailbox](cut-scenes-and-menus.md#cut-mailbox-coop-gift)) |
@@ -282,6 +301,7 @@ Everything the mod writes stays in `Mods/StellarCoop/`, apart from the save fold
 | `coop-look.txt` | Lua | While the Doro look is on: EVE's object path, her main mesh's animation option before the look, the Doro's object path, the names of the parts the look hid and, once the look hid the drone's body, the drone's object path, so the next Lua load (Ctrl+R) can show both again |
 | `coop-race-doros.txt` | Lua | While a race shows Doros: their object paths, so the next Lua load (Ctrl+R) can remove them |
 | `coop-drive.txt` | Lua | While a race or the drive probe drives EVE: her object path and her movement's four values from before, so the next Lua load (Ctrl+R) can put them back |
+| `coop-sbo.txt` | Lua | The object path of the SBO lobby's last menu camera, so the next Lua load (Ctrl+R) can remove it if it still stands |
 | `coop-leviathan.txt` | Lua | While `coop leviathan show`, `coop gardener show` or `coop tendril show` shows a mesh or the free camera is on: the mesh actor's object path and the mesh's, the camera actor's path, the player controller's path, whether its move and look input were ignored before and the path of its view target before, so the next Lua load (Ctrl+R) can remove both and give the controller back |
 | `coop-devmenu.txt` | Lua | After a `coop devmenu` row reached the game, until `coop off`: one line, so `coop off` runs `clear` and `lockswitch` even after a Lua reload (Ctrl+R) |
 | `coop-wear.txt` | Lua | While `coop wear` puts a look on: your EVE's object path and, for her hair and her suit, the worn mesh's path and her own look (the mesh's path, the hair's animation Blueprint class, the hair's physics asset and the materials the game set on its slots), so the next Lua load (Ctrl+R) can give it back |

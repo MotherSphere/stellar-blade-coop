@@ -1,9 +1,12 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- A cut monster spawned as a real enemy to fight, on the game thread: the flow coop lion (cut/lion.lua), coop gardener
 -- fight (cut/gardener.lua) and coop tendril fight (cut/tendril.lua) share, each giving its own spec (coop mxiii,
 -- matrix13/world/travel.lua, uses its rows part only, as do the Night Operation shop's cut items, its Shock Bolt and
 -- its screen, through cut/lion.lua). The monster's rows
 -- are a batch of the native part (lion/rows.h, glue/tick/lion_game.inc: SB's own AddRow on the game thread with no
--- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 37) by their fixed
+-- logic task in flight). This file finds the tables the spec's rows go into (of the native part's 39) by their fixed
 -- paths and sends their addresses (the spec's "<word> rows" request: no console word reaches an address), so a table
 -- no row of the batch uses never stops it; it waits for the answer in coop-status.txt's <word> line,
 -- then reads every row of the batch back through FindRow by field name, independent of the SDK's offsets, and stops at
@@ -47,7 +50,7 @@ local N=require('nightop.probe')
 local Doro=require('race.doro')
 local valid,value_of,text=U.valid,U.value_of,U.text
 local Enemy={}
--- The native part's 37 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a
+-- The native part's 39 tables, in its order (link/protocol.h's kLionTables), each at /Game/Local/Data/<T>.<T>; a
 -- request names only those its batch's rows go into.
 Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','CharacterStanceTable',
     'CharacterAnimSetTable','SkillCommandTable','SkillTable','SkillActiveStepTable','CharacterMoveTable',
@@ -56,7 +59,7 @@ Enemy.TABLES={'CharacterTable','CharacterAppearanceTable','CharacterDeadTable','
     'QuestTaskGroupTable','QuestTaskTable','LevelTargetFilter','TheaterSelectDataTable','EventSpawnTable',
     'EventItemTable','ZoneEventTable','EventEnvControlTable','WorldTransitionTable','EventZoneWarpTable',
     'EffectVolumeTable','ConditionTable','ConditionGroupTable','AlbumTable','AchievementTable',
-    'PuzzleStringArrayTable'}
+    'PuzzleStringArrayTable','WorldTable','ZoneTable'}
 local DATA='/Game/Local/Data/'
 local ROOT_FAR=2000 -- cm: the copy's root ending farther from the spot than this spawns at the spot.
 local POLL,WAIT=0.25,30 -- s: the status line read while the rows are asked, and how long before giving up.
@@ -80,7 +83,7 @@ local BONE='Bip001-L-Hand'
 local BOSS_TEXT,BOSS_LOOK,LIVE='TextBlock_BossName',10,'/Engine/Transient'
 local MATERIAL='/Script/Engine.MaterialInterface'
 
-function Enemy.why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+Enemy.why=U.why
 local why=Enemy.why
 -- The generated rows (cut/lion_rows.lua's R.ROWS or R.GARDENER, {table, name, ID, checks}) as {table=, name=, id=
 -- <nil in the dead table>, checks={{field, kind, value, changed}}}. kind: f a float, i an int32, b a bool (0 or 1), e
@@ -168,7 +171,7 @@ local function read_back(rows,tables)
 end
 
 local function xyz(v) return string.format('%.0f,%.0f,%.0f',v.X,v.Y,v.Z) end
-local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
+local metres=U.metres
 local function location(actor) local v=value_of(actor:K2_GetActorLocation()); return {X=v.X,Y=v.Y,Z=v.Z} end
 local function class_of(o) return text(o:GetFullName()):match('^%S+') end
 local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end

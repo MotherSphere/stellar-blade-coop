@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Lion boss's table rows (coop lion, the Lion study's plan A made native), free of Windows:
 // tests/native/lion/rows_test.cpp checks it on the build machine against fake memory. The cut Naytiba CH_M_NA_02 ships
 // its blueprint, meshes, clips, collision data and 41 Shows but no table row, so SB cannot spawn it. These are the rows
@@ -45,8 +48,9 @@
 // first zone lacks for a camp of its own (coop mxiii, matrix13/world/travel.lua): ZoneCampTable DLC02_10_Camp_01
 // (280001, a copy of ME01_Camp_03 that the camp list shows once activated) and 7 ZoneEnvSpawnTable rows in
 // Zone_DLC02_10 whose TargetCamp names that camp (2800032900 to 2800032906, copies of the DLC02_10 camp kit's rows 420
-// to 426): DLC02_10_EnvS_900 leads SB's camp travel there, and the kit 901 to 906 spawns at the test pak's spawn points
-// of those names, in the two zone tables only it writes. Then 2 rows give zone 30 a camp with no kit (coop mxiii 30):
+// to 426): DLC02_10_EnvS_900 leads SB's camp travel there, and the camp's 7 rows bind by name the kit the test pak
+// places in its MXIII_Camps_A level, in the two zone tables only it writes. Then 2 rows give zone 30 a camp with no
+// kit (coop mxiii 30):
 // ZoneCampTable DLC02_30_Camp_01 (281001, a copy of ME03_Camp_03) and DLC02_30_EnvS_900 (2810032900,
 // DLC02_10_EnvS_900's recipe in Zone_DLC02_30). After them it patches 5 shipped ZoneTriggerTable rows in place, the
 // table only it reads, so the zone 20 waves and the zone 40 chains of spawns fire without the dungeon's own props. A
@@ -58,10 +62,13 @@
 // no tag. A seventh, Lily's signal (kSignalRecipe, written by hand like Matrix XIII's, matrix13/quest/on_time.lua),
 // holds the mod's own quests, the prologue "A Second Signal" (Quest_Sub_MX13_00, 164) and "On Time" (Quest_Sub_MX13_01,
 // 163): 8 LevelTargetFilter rows, 7 tasks, 7 groups and the two quest rows last of them, and patches Lily's borrowed
-// choice row TS_GoToTest_2 in place, last. A Batch names its rows, its patches and
+// choice row TS_GoToTest_2 in place, last. The hall lobbies' (kHallsRecipe, lion/halls_rows.h, which
+// tools/sbo_lobby_rows.py writes; session/halls_rows.lua) holds one WorldTable row and one type-5 ZoneTable row for
+// each SBO hall lobby map, so SB's warp reaches the cooked maps of the local lobby pak, then one ZoneEnvSpawnTable row
+// for each kept seat of those maps, for the chair of SB's spawned there. A Batch names its rows, its patches and
 // the word its status line, log lines and request start with ("lion", "gardener", "tendril", "bolt", "mxiii", "shop",
-// "signal": coop-status.txt's shock line is lion/shock.h's); every batch shares the table checks, the block and the
-// rules below, and each keeps its own Builder.
+// "signal", "halls": coop-status.txt's shock line is lion/shock.h's); every batch shares the table checks, the block
+// and the rules below, and each keeps its own Builder.
 //
 // SB reads CharacterTable, SkillTable and CharacterStanceTable by ID through maps that only its own AddRow fills (the
 // table's vtable slot +0x2b0), so every row goes in through that call, on the game thread with no logic task in flight
@@ -112,18 +119,19 @@ constexpr size_t kInitFlag = 8, kIdAt = 0x10;
 // The glue's block: the row at +0, the patches' strings and lists in the pool after it.
 constexpr size_t kRowBytes = 0x1000, kPoolBytes = 0x1000, kBlock = kRowBytes + kPoolBytes;
 
-// The 37 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
-// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords) name those their batch writes, each with its
-// address. kTables describes them all: the generated part's, the two zone tables camp (ZoneCampTable) and env
-// (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which Matrix XIII's batches write, the five only Lily's signal
-// batch writes: quest (QuestTable), group (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and
-// select (TheaterSelectDataTable, whose ID the batch neither writes nor checks: it only patches a shipped row in
-// place), then the seven only Matrix XIII's batches write (lion/mxiii_rows.h): spawn (EventSpawnTable), eitem
-// (EventItemTable), zevent (ZoneEventTable), envc (EventEnvControlTable), transition (WorldTransitionTable), warp
-// (EventZoneWarpTable) and effvol (EffectVolumeTable), then the two only the mxlily batch writes: condition
-// (ConditionTable) and cgroup (ConditionGroupTable), then the three only the mxrecords batch writes: album (AlbumTable),
-// achievement (AchievementTable) and puzzle (PuzzleStringArrayTable). None of the twelve has a Transient field (SDK
-// stellar-sdk-647527f).
+// The 39 tables, in coop::kLionTables' order (link/protocol.h): Lua's rows requests (lion, gardener, tendril, bolt,
+// mxiii, shop, signal, mxspawn, mxenv, mxupper, mxmiddle, mxlower, mxnames, mxlily, mxrecords, halls) name those their
+// batch writes, each with its address. kTables describes them all: the generated part's, the two zone tables camp
+// (ZoneCampTable) and env (ZoneEnvSpawnTable) and trigger (ZoneTriggerTable), which Matrix XIII's batches write (env
+// also the halls batch's seats), the five only Lily's signal batch writes: quest (QuestTable), group
+// (QuestTaskGroupTable), task (QuestTaskTable), target (LevelTargetFilter) and select (TheaterSelectDataTable, whose ID
+// the batch neither writes nor checks: it only patches a shipped row in place), then the seven only Matrix XIII's
+// batches write (lion/mxiii_rows.h): spawn (EventSpawnTable), eitem (EventItemTable), zevent (ZoneEventTable), envc
+// (EventEnvControlTable), transition (WorldTransitionTable), warp (EventZoneWarpTable) and effvol (EffectVolumeTable),
+// then the two only the mxlily batch writes: condition (ConditionTable) and cgroup (ConditionGroupTable), then the
+// three only the mxrecords batch writes: album (AlbumTable), achievement (AchievementTable) and puzzle
+// (PuzzleStringArrayTable), then the two only the halls batch writes: world (WorldTable) and zone (ZoneTable). None of
+// the fourteen has a Transient field (SDK stellar-sdk-647527f).
 enum class Table : uint8_t {
   character,
   appearance,
@@ -161,9 +169,11 @@ enum class Table : uint8_t {
   cgroup,
   album,
   achievement,
-  puzzle
+  puzzle,
+  world,
+  zone
 };
-constexpr size_t kTableCount = 37;
+constexpr size_t kTableCount = 39;
 struct TableInfo {
   const char *name;       // The asset, /Game/Local/Data/<name>.<name>.
   uint32_t size;          // Its row struct's PropertiesSize.
@@ -342,6 +352,9 @@ constexpr TableInfo kTables[kTableCount] = {
     {"AlbumTable", 0x90, true, {}},            // SBAlbumTableProperty
     {"AchievementTable", 0xf0, true, {}},      // SBAchievementTableProperty
     {"PuzzleStringArrayTable", 0x30, true, {}}, // SBPuzzleStringArrayTableProperty
+    // The hall lobbies' two (by hand too).
+    {"WorldTable", 0x30, true, {}}, // SBWorldTableProperty
+    {"ZoneTable", 0x150, true, {}}, // SBZoneTableProperty
 };
 constexpr Patch kPatches[] = {
     // P_Eve_Sword_Normal_Buff_1 (SkillTable, cut item)
@@ -6371,9 +6384,13 @@ constexpr Row kShopRecipe[] = {
 // mxiii: the camps and what they need. Zone_DLC02_10 (ZoneTable 2800, world DLCMatrix13) has no camp, so SB's camp
 // travel (game/travel.h) cannot reach it without these. DLC02_10_Camp_01 and its first env row DLC02_10_EnvS_900 (the
 // camp base; FUN_141cdfbd0 reads only a camp's first env row, its Zone or ZoneList[0], to find the world), then its kit
-// 901 to 906. With EnvBPPath set, FUN_141d207c0 spawns that class at the SBSpawnPoint named SpawnPointName when the zone's
-// env rows are created; the shipped DLC02 kit rows have none and look for placed actors no pak holds, so every kit row
-// gets one, and its TargetCamp names its own camp instead of the placeholders WLB10_Camp_05 and SE02_Camp_02. A vending
+// 901 to 906. When the zone's env rows are created, FUN_141d207c0 reads EnvBPPath: empty (Num below 2), it binds the
+// placed SBZoneEnvActor whose EnvActorName equals the row's (FUN_142281550); set, it spawns that class at the
+// SBSpawnPoint named SpawnPointName (FUN_1422925c0). The shipped DLC02 kit rows have none and look for placed actors no
+// shipped pak holds. The zone 10 camps' 11 rows (900 to 906 and 420, 421, 423, 426) keep their donor's empty EnvBPPath
+// and None SpawnPointName and bind by their own name the kit actors the test pak places in its MXIII_Camps_A level;
+// every other kit row gets a blueprint and the spawn point of its own name. Each kit row's TargetCamp names its own
+// camp instead of the placeholders WLB10_Camp_05 and SE02_Camp_02. A vending
 // machine's LinkEnvSpawnList switches its kit objects on once a coin activates the camp; a full camp's lists its base
 // row too, in the shipped order (not yet run in game). Then zone 30's rest stop DLC02_30_Camp_01 (a simple
 // camp now; the alias stays) with its travel row, zone 40's triggers 001 and 002 (enabled from the start), the other 9
@@ -6561,6 +6578,29 @@ constexpr Row kSignalRecipe[] = {
     {Table::select, "TS_GoToTest_2", "TS_GoToTest_2", 0, 52, 5},
 };
 
+// ---- The hall lobbies' batch (session/halls_rows.lua), lion/halls_rows.h, written by tools/sbo_lobby_rows.py ----
+// One world row and one zone row for each SBO hall lobby map of session/sbo_maps.lua (Hotel, Station, Cloister,
+// Terrace, Foyer, in that order), so session/sbo.lua's warp (game/sbo.h: the zone row by name, its WorldAlias +0x14,
+// that world row's UMapPath +0x18, type 5 at +0x25) reaches the maps of the local lobby pak zSBO_Lobby. The five worlds
+// come first, so no zone names a world row not in yet. Each world is a copy of CombatTestMapMk2 (1003: only UMapPath and
+// FileSuffix exist, and FileSuffix is None in every shipped row) with the cooked persistent level's path; each zone a
+// copy of Zone_Xion_Boss_Mann (1692, the zone the SBO lobby uses in Xion: type 5 BossChallenge, PS5_Default graphics,
+// no events) with WorldAlias naming its world row, ZoneType 5 kept as a guard, StartPointAlias the map's spawn point
+// (named after its world row, as the cooked SBSpawnPoint is) and AdditiveDesignLevel emptied (the donor's E04_LD_Mann
+// is Xion's). IDs World 7121-7125 and Zone 1000121-1000125, above every shipped ID on build 26123051 (World max 7000,
+// Zone max 999992). Then one ZoneEnvSpawnTable row for each kept seat but the camp ones (171), maps in the same order:
+// SBO_<Map>_Seat<nnn>, the row the chair of SB's spawned at that seat binds to by its EnvActorName. Each is a copy of
+// Xion's chair row of the seat's sit loop (Xion_10_EnvS_035 outdoor, _021 bar, _025 table: the InteractionGraph and
+// the alias Env_Camp_Chair come with it, EnvBPPath stays empty, Zone None and the range fields 0) with ZoneList its
+// hall's zone (+0x20), EnvActorName its own name (+0x30), InitStateTag FirstInteraction (+0x64: SB's graph runs the
+// sit from there without the first use's camp-rest effect) and SaveType None (+0x6c: nothing goes into the save).
+// IDs 39m0032nnn (m the map's place, nnn the seat), above ZoneEnvSpawnTable's highest on build 26123051 (3305032001,
+// 4430 rows). No name ends in _<digits>: the warp sends FName number 0, and Lua names the chair's row by its text. An
+// update that takes an ID refuses the batch (Why::id) and the lobby stays in Xion. Struct sizes and offsets from the
+// SDK (stellar-sdk-647527f): SBWorldTableProperty 0x30, SBZoneTableProperty 0x150, neither with a Transient field,
+// SBZoneEnvSpawnTableProperty 0x508.
+#include "lion/halls_rows.h"
+
 constexpr size_t kRows = sizeof kRecipe / sizeof kRecipe[0];
 constexpr size_t kGardenerRows = sizeof kGardenerRecipe / sizeof kGardenerRecipe[0];
 constexpr size_t kTendrilRows = sizeof kTendrilRecipe / sizeof kTendrilRecipe[0];
@@ -6576,6 +6616,7 @@ constexpr size_t kMxlilyRows = sizeof kMxlilyRecipe / sizeof kMxlilyRecipe[0];
 constexpr size_t kMxrecordsRows = sizeof kMxrecordsRecipe / sizeof kMxrecordsRecipe[0];
 constexpr size_t kShopRows = sizeof kShopRecipe / sizeof kShopRecipe[0];
 constexpr size_t kSignalRows = sizeof kSignalRecipe / sizeof kSignalRecipe[0];
+constexpr size_t kHallsRows = sizeof kHallsRecipe / sizeof kHallsRecipe[0];
 // A batch: its rows, the patches their first and count index (the generated kPatches unless said) and its word, which
 // starts its status line, its log lines and Lua's request for it (link/protocol.h's kRowWords).
 struct Batch {
@@ -6595,7 +6636,8 @@ constexpr Batch kLion{"lion", kRecipe, kRows}, kGardener{"gardener", kGardenerRe
     kMxlower{"mxlower", kMxlowerRecipe, kMxlowerRows, kMxlowerPatches},
     kMxnames{"mxnames", kMxnamesRecipe, kMxnamesRows, kMxnamesPatches},
     kMxlily{"mxlily", kMxlilyRecipe, kMxlilyRows, kMxlilyPatches},
-    kMxrecords{"mxrecords", kMxrecordsRecipe, kMxrecordsRows, kMxrecordsPatches};
+    kMxrecords{"mxrecords", kMxrecordsRecipe, kMxrecordsRows, kMxrecordsPatches},
+    kHalls{"halls", kHallsRecipe, kHallsRows, kHallsPatches};
 
 // FName's own split of a trailing number (UE 4.26 ParseNumber), so our FNames equal those SB makes from the same text:
 // "X_1" is "X" with the internal number 2; "X_04", "X_" and "X" keep their whole text and number 0.
@@ -6641,7 +6683,7 @@ struct Answer {
 static_assert(kRows < 256 && kGardenerRows < 256 && kTendrilRows < 256 && kBoltRows < 256 && kMxiiiRows < 256 &&
                   kShopRows < 256 && kSignalRows < 256 && kMxspawnRows < 256 && kMxenvRows < 256 &&
                   kMxupperRows < 256 && kMxmiddleRows < 256 && kMxlowerRows < 256 && kMxnamesRows < 256 &&
-                  kMxlilyRows < 256 && kMxrecordsRows < 256,
+                  kMxlilyRows < 256 && kMxrecordsRows < 256 && kHallsRows < 256,
               "a row index fits a byte");
 // One word for the worker, so it never reads half an answer: detail 0-23, row 24-31, added 32-39, why 40-43, state
 // 44-47, and the asks the game thread finished in 48-63.
@@ -6677,7 +6719,7 @@ inline uint32_t rows_of(const Batch &b, Table t) {
 class Builder {
 public:
   explicit Builder(const Batch &batch) : batch_(batch) {}
-  // One run over the batch (see the top of this file). tables: the 37 tables' addresses as Lua found them, in Table's
+  // One run over the batch (see the top of this file). tables: the 39 tables' addresses as Lua found them, in Table's
   // order (0 for a table the batch never writes, which is never read); block: kBlock bytes of the glue's, 16-aligned;
   // base: SB's image base. Runs every row not added yet and stops at the first refusal.
   template <class Game> Answer run(Game &g, uint64_t base, const uint64_t (&tables)[kTableCount], uint64_t block) {

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- UE4SS's own settings, UE4SS-settings.ini beside UE4SS.dll and its Mods folder: main.lua reads it once a Lua load, at
 -- most LIMIT bytes, and never writes it. Two of its keys make Stellar Blade unstable. HookBeginPlay ([Hooks]) on makes
 -- the game crash when EVE lets go of a movable crate (issue #3 of Chrisr0's RE-UE4SS; the Stellar Blade UE4SS 1.3

@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop fly's keys (cut/flight.lua) with fakes: R2 written over every slot of the flight key list (two, or three as an
 -- earlier version left it), the four Shift evade mappings added once and taken out (and the first version's A and E
 -- ones), a climb or a descent each frame only while EVE flies with Z or S held (none with both), its line once a flight

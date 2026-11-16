@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Lily's signal (experimental, untested in game): on a co-op save, solo, with the zMXIII_P test pak, in Phase 5 (from
 -- "Talk to Lily to decide on the next destination" until "Leave for the Nest", Quest_Epic_11 M04), the mod's prologue
 -- "A Second Signal" (Quest_Sub_MX13_00, QuestTable 164) starts by itself and tracks Lily at every Tetrapod; Lily's
@@ -135,7 +138,7 @@ for i=1,5 do
 end
 Lily.CHOICE={'TheaterSelectDataTable','TS_GoToTest_2',86,{{'DisplayText','L'}},'Success5'}
 Lily.TEXTS[#Lily.TEXTS+1]=Lily.CHOICE
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end
+local why=U.why
 -- The signalquest line (quest/own.h) as fields: held (unread, none, held, fault), state, group (0 is M01), task,
 -- epic12, sub005, pro (the prologue: unread, none, held), prostate, progroup, protask, epic11 (Quest_Epic_11's active
 -- group), epic11state, asks (numbers), want, why; nil without one.

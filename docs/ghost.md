@@ -6,9 +6,9 @@ the ghost in [internals/ghost.md](internals/ghost.md).
 
 ## Looks
 
-Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`: `cloth` is on by default,
-`dyes` and `effects` are off. The file names them in a comment only, so add a line such as `dyes=on` or `cloth=off`,
-or change them in the menu's Options > Ghost. A file that already says `cloth=off` keeps it off. `coop look` changes
+Three looks change what the ghost shows. Each is `on` or `off` in `coop-settings.txt`, and all three are on by
+default. The file names them in a comment only, so add a line such as `dyes=off` or `cloth=off`, or change them in
+the menu's Options > Ghost. A file that already says `cloth=off` keeps it off. `coop look` changes
 one until the mod reloads. With one on, the `Ghost ... built` log line ends with `; look: ...`.
 
 The three looks have not been tested in game yet. Back up your saves before you play with one on (see
@@ -152,7 +152,7 @@ their followers until the pose fits, and its log line ends with `<n> leaders lef
 
 ## Solid partner (experimental)
 
-With `collide=on` (Options > Ghost > Solid partner; off by default, not tested in game yet), your EVE cannot walk
+With `collide=on` (Options > Ghost > Solid partner; on by default, not tested in game yet), your EVE cannot walk
 through your friend's ghost, as with an NPC in town. It is your own setting and changes nothing in your friend's game.
 Only your EVE is stopped: enemies, NPCs, the camera and attacks pass through the ghost. If a game update changes her
 capsule's collision, the mod falls back to a capsule that the enemies run by your PC meet too, and its build line in

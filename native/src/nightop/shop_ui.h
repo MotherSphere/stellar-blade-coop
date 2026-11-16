@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The Night Operation shop in SB's own shop screen (coop nightop shop, nightop/shop.lua): the vending machine's screen
 // (ESBUILogicType_Shop, 171) opened on one of the two ShopTable rows the shop rows batch adds (lion/rows.h's kShop:
 // Shop_NightOperation_Coop, or Shop_NightOperation_CoopBolt once the Shock Bolt can fire), with the calls SB's

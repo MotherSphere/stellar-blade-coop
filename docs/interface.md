@@ -171,6 +171,11 @@ question closes as Decide later, the mouse cursor goes, and the game gets its ke
 already chose co-op and the copies are being made, that choice stays, and the result shows as a notice when the copy
 ends. Nothing else shows on screen. `UE4SS.log` says `[StellarCoop] focus watchdog: <who> lost the focus for 1 s: co-op
 UI closed, the game has its input back`, where who is `menu`, `chat`, `code`, `ask` (the host's question) or `saves`.
+The line before it, `focus watchdog: focus on <widgets>; game paused or its cursor shown: <true or false>; <time since
+the last mouse button>`, names the game's widgets that held the focus, or `none` when the game's view, a widget the
+mod cannot list or another window had it. `coop-link.log` says `window: another window is in front` and
+`window: the game is in front` each time the game's window loses or gets back the foreground (alt-tab, a screenshot
+tool).
 The watchdog has not been tested in game yet.
 
 - The Steam overlay (Shift+Tab) should leave the focus where it was and then not trip the watchdog (not tested in
@@ -183,11 +188,13 @@ The watchdog has not been tested in game yet.
 
 ## Session chat
 
-During a session (or `coop loopback`), Enter opens a text box at the top left of the screen, under the feed. It opens
-in a world only, and not while the game is paused or shows the mouse cursor for one of its own screens. While the box
-is open, the game ignores its own keys, so EVE stands still, and the mod's keys (F5, F6, F8) do nothing. If the game
-pauses or shows the mouse cursor while the box is open (EVE dies, or your friend's photo mode pauses your game), the
-box closes and what you typed is lost. Alt+Enter never opens it.
+During a session, in the PvP lobby (Xion's training room or a hall lobby) or with `coop loopback`, Enter opens a text
+box at the top left of the screen, under the feed. It opens in a world only, and not while the game is paused or shows
+the mouse cursor for one of its own screens. In a hall lobby it does not open while EVE sits on one of the game's
+chairs: Enter there picks the game's Get up. While the box is open, the game ignores its own keys, so EVE stands still,
+and the mod's keys (F5, F6, F8) do nothing. If the game pauses or shows the mouse cursor while the box is open (EVE
+dies, or your friend's photo mode pauses your game), the box closes and what you typed is lost. Alt+Enter never opens
+it.
 
 | Key | In the chat box |
 | --- | --- |
@@ -203,7 +210,13 @@ box closes and what you typed is lost. Alt+Enter never opens it.
 - While the box is closed, the feed shows the lines of the last 8 s, at most 6 rows. While it is open, the feed shows
   the last 12 rows. The feed hides while the co-op menu is open, and the menu shows the newest notice instead.
 - A sound plays when a line from your friend arrives (unless `ui_sounds=off`).
-- Outside a session, Enter shows `Chat needs a session.`, at most once every 10 s.
+- In the PvP lobby, your lines go to every player of your match lobby who has finished connecting. With nobody
+  connected, they stay on your screen only, and the first one adds a grey notice:
+  `No other player is connected yet: your messages stay on your screen.` The notice comes back each time you are alone
+  again, after a connected player left or after you come back to the lobby. A player who connects later does not get
+  the lines typed before. With nobody connected, leaving the lobby world clears the history as the end of a session
+  does, and a warp to another hall, the hop to an arena or the return to Xion each leave it.
+- Outside a session and the PvP lobby, Enter shows `Chat needs a session or the PvP lobby.`, at most once every 10 s.
 - `chat=off` in [coop-settings.txt](settings.md#coop-settingstxt), or Options > Chat, hides your friend's lines and sends none.
   Enter then shows `Chat is off (Options > Chat).`
 - The history is kept in memory only, 50 lines at most. It is cleared when the session ends, at `coop off` and when
@@ -247,7 +260,7 @@ shop, a dialogue choice). Your own photo mode hides them too, like the rest of t
 
 ### Status strip above the card
 
-Options > Display > Status line (`status_overlay`) adds a status strip above the card: Off (the default), Compact or
+Options > Display > Status line (`status_overlay`) adds a status strip above the card: Off, Compact (the default) or
 Detailed. Each player's setting is their own, and a change shows at once. The strip shows whenever the
 [status line](usage.md#the-status-key-f6) says something other than `not in a session` or `waiting for Steam`: while you host
 (alone too), while a friend connects or you play in their game, while an invite is held or you rejoin, and after the
@@ -334,7 +347,7 @@ a Steam name or a chat line shows as `?`.
 | A wrong join code | `That is not a join code: check its 7 characters.` or `Could not join: that is not a StellarCoop game.` |
 | A player who is not your Steam friend asks to join | `A player who is not your Steam friend is asking to join.` |
 | Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed.` |
-| Could not join | `Could not join: that game no longer exists.`, `... that game is full.` or `... Steam response <n>.` |
+| Could not join | `Could not join: that game no longer exists.`, `... that game is closed (its match may have started).`, `... that game is full.` or `... Steam response <n>.` |
 | A friend joined, left, came back | `<name> joined.`, `<name> left.`, `<name> is back.` |
 | Connection lost | `<name>: connection lost.` |
 | Version mismatch | `Version mismatch: that game runs protocol ..., build ...; yours runs ...` (on joining) or `Version mismatch with <name>: ...` |
@@ -342,8 +355,25 @@ a Steam name or a chat line shows as `?`.
 | Invite held | `Invite held: joining once your save has loaded.` |
 | Rejoin | `Lost <host>'s game: rejoining.`, then `Rejoined <host>'s game.` |
 | Session ended | `Session ended: <host> left.`, `Session ended: <host>'s game is gone.` or `Session ended: could not rejoin <host>'s game.` |
-| Too many players | `Left: the lobby has more than 2 players.` |
+| Too many players | `Left: the lobby has more than 2 players.`, or `... 8 players.` in a match lobby |
 | Leaving | `Left the session.`, `Not in a session.` or `Held invite dropped.` |
+| `coop match search` or `create` with a mode this version does not have | `No such mode: <mode>. Modes: <modes>.` |
+| `coop match search` or `create` while you are in a lobby | `Leave this game first.` |
+| Steam refused the match search | `Could not search: Steam refused.` |
+| Quick match found no open lobby of that mode | `No <mode> match found (SBO protocol <n>, build <n>): hosting one.` |
+| Hosting a public match lobby | `Hosting a <mode> match: waiting for players.` |
+| Hosting a private match lobby | `Hosting a private <mode> match. Your join code is <code>.` |
+| Joining a match lobby whose mode this version does not have | `Could not join: unknown match mode <mode>.` |
+| The host started a round without you (your link to the host was not ready when the countdown ended); you stay in the lobby | `A round started without you.` |
+| The match lobby has a new host (a round in play ends) | `<name> hosts the match now.` |
+| The match host was silent for 10 s during a round | `Round ended: the host stopped answering.` |
+| Your game is no longer in the match lobby's member list | `Left the match: lost the lobby.` |
+| The match lobby's owner cleared or changed its mode while you were in it | `Left the match: the lobby changed its mode.` |
+| In the SBO lobby, you joined a match lobby on a hall lobby map you do not have, or on another build of the hall lobby pak | `Left the match: its lobby map is missing or a different version here.` |
+| `coop mute`, `coop unmute` | `Muted <name>.` or `Unmuted <name>.` |
+| A player on another protocol or game build joins the match lobby you host | `<name> runs another version and was refused.` |
+| A player in your match lobby stays over a channel's rate limit for 5 s; you keep the lobby | `<name> sent too many messages and was refused.` |
+| The match host stays over a channel's rate limit for 5 s; you leave | `Left the match: <name> sent too many messages.` |
 | Friend on another map | `<name> is in <map>, you are in <map>.` |
 | [Following the host](playing-with-a-friend.md#following-the-host) (guest) | `<host> is in <map>. Press F7 to travel to the camp nearest them.`, `Following <host> in 5 s. Press F7 to stay.`, `Travelling to <host>.`, `No camp you have found is near <host>.`, `You cannot travel now. Try again in a moment.` or `The travel did not start. UE4SS.log says why.` |
 | Your friend down | `<name> is down. Stand next to them for 3 s to revive them.`, then `You revived <name>.` when they get up next to you |

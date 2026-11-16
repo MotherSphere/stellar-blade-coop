@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Night Operation's run without a game call: the monster pool and the five-wave schedule, the wave keys, the run byte,
 -- the seeded gate order and the spot of each monster, the score, the timer list and the run's states, solo or for two
 -- linked players (the night line's two codecs, the host's merge of her world, the guest's run following his). A run
@@ -6,7 +9,8 @@
 -- HUD, the line) reads
 -- and feeds it; tests/lua/nightop/waves_test.lua covers it with lua5.4 alone.
 -- Parts of this file adapt Survival Protocol by SchizoEffective (nexusmods.com/stellarblade/mods/4009), used with
--- permission given on 2026-10-20 and distributed here under GPL-3.0-or-later.
+-- permission given on 2026-10-20. SchizoEffective agreed on 2026-11-14 to the project's license change, and they are
+-- licensed here under the SBO License 1.0 or any later version the Licensor publishes (NOTICE).
 local W={}
 local MASK=0xFFFFFFFF
 W.COUNTDOWN,W.LIMIT,W.BREATHER,W.RESULT=5,480,10,10 -- Seconds of game time.

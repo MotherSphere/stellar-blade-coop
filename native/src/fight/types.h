@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The shared fight's types around Engine (fight/engine.h): the pair table and stream flags for the game thread,
 // the job SB's logic thread runs, its counts and snapshot, the logic actors a turn reads, and the ring queues.
 #pragma once
@@ -19,6 +22,7 @@
 #include "fight/pilot.h"      // Side, kBattle, kDying: same-place enemies' pair table
 #include "fight/spawn_sync.h" // Epochs, SpawnHost, SpawnGuest, Mine, SpawnRow, BlockTable: same spawns
 #include "fight/sync.h"       // Host, Guest, Seen, Write, Message, Event, kStatType
+#include "fight/pvp.h"        // pvp::Counts: the PvP test's counts
 #include "game/memory.h"      // kImageBase, kGlobalsBlock, plausible, get
 
 namespace coop::fight {
@@ -78,8 +82,11 @@ inline const char *auto_out(uint32_t chr, float max_hp) {
 constexpr size_t kStateMap = 0x560;
 constexpr int32_t kNoDamage = 4; // And fight/sync.h's kNoDamageNoHit, 3.
 constexpr int32_t kBattleState = 30, kDelayDeath = 32, kBlockAiState = 39; // BattleMode, DelayDeath, BlockAI.
-// Then Down, Groggy, Airborne, Immortal, and same-place enemies' three.
-constexpr int32_t kStatesRead[] = {kNoDamageNoHit, kNoDamage, 6, 7, 8, 27, kBattleState, kDelayDeath, kBlockAiState};
+// Either one held drops an actor from SB's hit candidates (FUN_141c73660); read for the PvP test's stand-in.
+constexpr int32_t kNoCandidate = 23, kNotTargeted = 48;
+// Then Down, Groggy, Airborne, Immortal, same-place enemies' three, and the two above.
+constexpr int32_t kStatesRead[] = {
+    kNoDamageNoHit, kNoDamage, 6, 7, 8, 27, kBattleState, kDelayDeath, kBlockAiState, kNoCandidate, kNotTargeted};
 // The states of kStatesRead that fsb holds, as bits by state number; false when the map fails a check (a torn read
 // during a game-thread change: the walk never loops or leaves the array). read as a Game's.
 template <class Read> bool held_states(Read &&read, uint64_t fsb, uint64_t &held) {
@@ -402,6 +409,7 @@ struct Snapshot {
   // rest, a respawn) this run (the guest's: only in the zone she shares with the host).
   bool boss = false;
   uint32_t battle = 0, zone = 0, resets = 0;
+  pvp::Counts pvp; // The PvP test's, both sides.
 };
 
 // One logic actor as the liveness test and the reads see it.

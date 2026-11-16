@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop gardener fight: the cut Naytiba 1, the Gardener (/Game/Art/Character/Monster/CH_M_NA_01/), an artillery tower
 -- about 20 m tall that never walks, spawned as a real enemy to fight, on the game thread. The game ships its blueprint,
 -- Shows, skill kit, shells, appearance, dead and detect rows but no CharacterTable row and no tree; its 13 rows

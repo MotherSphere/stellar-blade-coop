@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // game/travel.h on the build machine: the fast travel request's bytes at each offset, each guard refusing with its own
 // reason, the call count (three calls in 10 s, a 10 s wait after an accepted call, none after a refused one) and the
 // watch over the warp block (pending, warping, arrived, a block cleared before it ran, and one that never ran: stuck).

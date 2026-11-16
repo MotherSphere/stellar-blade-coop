@@ -1,9 +1,14 @@
-// The link's logic against a fake Steam, on the build machine: host, join (by id, friend scan, invite, launch), cancel,
-// the handshake and its rejects, the host leaving (D1), the guest's rejoin of a lost lobby, a lost peer, strangers,
-// session requests, relay, the journal, the player's notices, a v0.1.1 friend (protocol 6); and two Links through it:
-// the handshake both ways, channel 1 with its checks, channel 2 with its checks and its session-long queues, channel 2
-// wired to the shared fight's worker on each side as glue/steam.cpp wires it, join and leave cycles, the host leaving,
-// a rejoin the host never saw, and the synced photo mode's line, pause, cap and notices on both sides.
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
+// The link's logic against the shared fake Steam (fake_steam.h), on the build machine: host, join (by id, friend scan,
+// invite, launch), cancel, the handshake and its rejects, the host leaving (D1), the guest's rejoin of a lost lobby, a
+// lost peer, strangers, session requests, relay, the journal, the player's notices, a v0.1.1 friend (protocol 6); and
+// two Links through it: the handshake both ways, channel 1 with its checks, channel 2 with its checks and its
+// session-long queues, channel 2 wired to the shared fight's worker on each side as glue/steam.cpp wires it, join and
+// leave cycles, the host leaving, a rejoin the host never saw, and the synced photo mode's line, pause, cap and notices
+// on both sides.
+#include "fake_steam.h"
 #include "fight/worker.h"
 #include "link/core.h"
 #include "pose/table.h"
@@ -27,245 +32,6 @@ using namespace coop;
 static_assert(kMaxBinary == pose::kMaxTable, "channel 1 carries a whole component table");
 
 namespace {
-constexpr uint64_t kMe = 1001, kFriend = 2002, kOther = 3003, kStranger = 9009;
-constexpr uint32_t kBuild = 24463856;
-
-struct Call {
-  bool done = false;
-  int id = 0;
-  std::vector<unsigned char> result;
-  std::function<void()> on_done;
-};
-struct Sent {
-  uint64_t from, to;
-  int channel, flags;
-  std::string text;
-};
-using Inbox = std::vector<std::pair<uint64_t, std::string>>; // Sender and text.
-// One player's own Steam: who she is, what waits for her on each channel, and her Steam friends.
-struct Client {
-  uint64_t id;
-  Inbox inbox[3]; // Channels 0, 1 and 2.
-  std::set<uint64_t> friends;
-};
-
-// The fake Steam's whole state. Lobbies, calls and names are shared; each client (0 is us, 1 is Kaanta) has its own id
-// and inboxes, so two Links can talk through it.
-struct Fake {
-  int user_handle = 1;
-  int build = kBuild;
-  uint64_t next_call = 100, next_lobby = 5000;
-  bool refuse_create = false;
-  int lobby_type = -1; // The last lobby created's ELobbyType.
-  std::map<uint64_t, Call> calls;
-  std::map<uint64_t, std::vector<uint64_t>> members;
-  std::map<uint64_t, uint64_t> owner;
-  std::map<uint64_t, std::map<std::string, std::string>> data;
-  std::vector<Sent> sent;
-  Inbox inbox; // Client 0's channel 0, filled by hand in the one-Link tests.
-  Client client[2] = {{kMe, {}, {kFriend}}, {kFriend, {}, {kMe}}};
-  std::vector<uint64_t> accepted, closed, left;
-  std::map<uint64_t, std::string> names = {{kFriend, "Kaanta"}, {kOther, "Third"}, {kStranger, "Stranger"}};
-  std::map<uint64_t, uint64_t> friend_lobby; // A friend playing in a lobby.
-  int invites = 0, released = 0, relay = 100, session_state = 3, session_ping = 42;
-  int32_t pending = 4096; // Steam's pending unreliable bytes and queue time.
-  int64_t queue_us = 25000;
-  int send_result = 1; // Anything but 1: Steam refuses the send, which is neither recorded nor delivered.
-  // Anything but 1: the join fails with that EChatRoomEnterResponse, no member added. A lobby with no members gets 2
-  // (DoesntExist) whatever it says: Steam drops an empty lobby.
-  uint32_t join_response = 1;
-} F;
-
-int dummy;
-void *iface() { return &dummy; }
-
-void finish(uint64_t call) {
-  Call &c = F.calls.at(call);
-  c.done = true;
-  if (c.on_done)
-    c.on_done();
-}
-void finish_all() {
-  for (auto &[id, c] : F.calls)
-    if (!c.done)
-      finish(id);
-}
-template <class T> void store(Call &c, const T &value) {
-  c.result.resize(sizeof value);
-  std::memcpy(c.result.data(), &value, sizeof value);
-}
-Inbox &inbox(int client, int channel) {
-  assert(channel >= 0 && channel <= 2);
-  return client == 0 && channel == kChannel ? F.inbox : F.client[client].inbox[channel];
-}
-
-// Client N's Steam. Captureless lambdas, as the Api holds plain function pointers: N picks the client.
-template <int N> Api make_api() {
-  Api a{};
-  a.user_handle = [] { return F.user_handle; };
-  a.release_memory = [] {};
-  a.register_callback = [](void *, int) {};
-  a.user = a.friends = a.utils = a.matchmaking = a.messages = a.net_utils = a.apps = iface;
-  a.steam_id = [](void *) { return F.client[N].id; };
-  a.app_id = [](void *) { return 3489700u; };
-  a.overlay = [](void *) { return true; };
-  a.build_id = [](void *) { return F.build; };
-  a.persona = [](void *) -> const char * { return "Me"; };
-  a.friend_persona = [](void *, uint64_t id) -> const char * {
-    auto it = F.names.find(id);
-    return it == F.names.end() ? "" : it->second.c_str();
-  };
-  a.friend_count = [](void *, int) { return static_cast<int>(F.friend_lobby.size()); };
-  a.friend_by_index = [](void *, int i, int) {
-    auto it = F.friend_lobby.begin();
-    std::advance(it, i);
-    return it->first;
-  };
-  a.friend_game = [](void *, uint64_t id, FriendGame *g) {
-    *g = FriendGame{3489700, 0, 0, 0, F.friend_lobby.at(id)};
-    return true;
-  };
-  a.has_friend = [](void *, uint64_t id, int flags) {
-    assert(flags == kImmediateFriends);
-    return F.client[N].friends.count(id) > 0;
-  };
-  a.invite_dialog = [](void *, uint64_t) { ++F.invites; };
-  a.call_done = [](void *, uint64_t call, bool *failed) {
-    *failed = false;
-    return F.calls.count(call) && F.calls[call].done;
-  };
-  a.call_result = [](void *, uint64_t call, void *out, int size, int id, bool *failed) {
-    Call &c = F.calls.at(call);
-    assert(c.id == id && static_cast<size_t>(size) == c.result.size());
-    std::memcpy(out, c.result.data(), c.result.size());
-    *failed = false;
-    return true;
-  };
-  a.create_lobby = [](void *, int type, int max) -> uint64_t {
-    assert((type == kFriendsOnly || type == kPrivate || type == kInvisible) && max == 2);
-    F.lobby_type = type;
-    if (F.refuse_create)
-      return 0;
-    uint64_t call = F.next_call++, lobby = F.next_lobby++;
-    Call &c = F.calls[call];
-    c.id = kCreatedId;
-    store(c, LobbyCreated{kResultOk, lobby});
-    c.on_done = [lobby] {
-      F.members[lobby] = {F.client[N].id};
-      F.owner[lobby] = F.client[N].id;
-    };
-    return call;
-  };
-  a.join_lobby = [](void *, uint64_t lobby) -> uint64_t {
-    uint64_t call = F.next_call++;
-    Call &c = F.calls[call];
-    c.id = kEnterId;
-    uint32_t response = F.members[lobby].empty() ? 2 : F.join_response;
-    store(c, LobbyEnter{lobby, 0, false, response});
-    c.on_done = [lobby, response] {
-      if (response == kEnterSuccess)
-        F.members[lobby].push_back(F.client[N].id);
-    };
-    return call;
-  };
-  a.leave_lobby = [](void *, uint64_t lobby) {
-    auto &m = F.members[lobby];
-    m.erase(std::remove(m.begin(), m.end(), F.client[N].id), m.end());
-    F.left.push_back(lobby);
-  };
-  a.set_lobby_data = [](void *, uint64_t lobby, const char *k, const char *v) {
-    F.data[lobby][k] = v;
-    return true;
-  };
-  a.lobby_data = [](void *, uint64_t lobby, const char *k) -> const char * {
-    auto &d = F.data[lobby];
-    return d.count(k) ? d[k].c_str() : "";
-  };
-  a.lobby_owner = [](void *, uint64_t lobby) { return F.owner[lobby]; };
-  a.member_count = [](void *, uint64_t lobby) { return static_cast<int>(F.members[lobby].size()); };
-  a.member = [](void *, uint64_t lobby, int i) { return F.members[lobby].at(static_cast<size_t>(i)); };
-  a.send = [](void *, const Identity *who, const void *data, uint32_t size, int flags, int channel) {
-    if (F.send_result != 1)
-      return F.send_result;
-    uint64_t from = F.client[N].id, to = steam_id_of(*who);
-    std::string text(static_cast<const char *>(data), size);
-    F.sent.push_back({from, to, channel, flags, text});
-    for (int i = 0; i < 2; ++i)
-      if (F.client[i].id == to)
-        inbox(i, channel).push_back({from, text});
-    return 1;
-  };
-  a.receive = [](void *, int channel, NetMessage **out, int max) {
-    Inbox &box = inbox(N, channel);
-    int n = 0;
-    while (n < max && !box.empty()) {
-      auto [from, text] = box.front();
-      box.erase(box.begin());
-      auto *m = new NetMessage{};
-      auto *copy = new std::string(text);
-      m->data = copy->data();
-      m->size = static_cast<int32_t>(copy->size());
-      m->peer.type = kIdentitySteamId;
-      std::memcpy(m->peer.data, &from, 8);
-      std::memcpy(m->peer.data + 8, &copy, sizeof copy); // Keep the text alive until release.
-      out[n++] = m;
-    }
-    return n;
-  };
-  a.accept_session = [](void *, const Identity *who) {
-    F.accepted.push_back(steam_id_of(*who));
-    return true;
-  };
-  a.close_session = [](void *, const Identity *who) {
-    F.closed.push_back(steam_id_of(*who));
-    return true;
-  };
-  a.session_info = [](void *, const Identity *, void *info, void *quick) {
-    assert(!info);
-    std::memcpy(quick, &F.session_state, 4);
-    std::memcpy(static_cast<char *>(quick) + 4, &F.session_ping, 4);
-    // The other fields, each distinct, so a wrong offset shows in the 60 s line. Queue and pending (PoseCap's) sit
-    // between its calm and its over the line, unless a test sets them.
-    const float quality[2] = {0.75f, 0.5f};
-    const int32_t rate_pending[2] = {262144, F.pending};
-    std::memcpy(static_cast<char *>(quick) + 8, quality, 8);
-    std::memcpy(static_cast<char *>(quick) + 32, rate_pending, 8);
-    std::memcpy(static_cast<char *>(quick) + 48, &F.queue_us, 8);
-    return F.session_state;
-  };
-  a.release_message = [](NetMessage *m) {
-    std::string *copy = nullptr;
-    std::memcpy(&copy, m->peer.data + 8, sizeof copy);
-    delete copy;
-    delete m;
-    ++F.released;
-  };
-  a.init_relay = [](void *) {};
-  a.relay_status = [](void *, void *) { return F.relay; };
-  a.set_steam_id = [](Identity *who, uint64_t id) {
-    who->type = kIdentitySteamId;
-    who->size = 8;
-    std::memcpy(who->data, &id, 8);
-  };
-  a.get_steam_id = [](const Identity *who) { return steam_id_of(*who); };
-  return a;
-}
-
-std::vector<std::string> events;
-bool saw(const std::string &part) {
-  for (auto &e : events)
-    if (e.find(part) != std::string::npos)
-      return true;
-  return false;
-}
-// Control messages only: the handshake, pings and pongs must go on channel 0, as a joiner reads them there.
-int sent_to(uint64_t id, const std::string &prefix) {
-  int n = 0;
-  for (auto &s : F.sent)
-    n += s.to == id && s.channel == kChannel && s.text.rfind(prefix, 0) == 0;
-  return n;
-}
-
 struct World {
   Api api = make_api<0>();
   Link link{api, "v1.2-dev", [](const std::string &e) { events.push_back(e); }};
@@ -289,7 +55,18 @@ void take(int side, const uint8_t *data, size_t size) {
     throw std::bad_alloc();
   sink[side].push_back(bytes);
 }
+// The lines take_fight() handed on, without their sender.
+std::vector<std::string> lines_of(const std::vector<FightLine> &taken) {
+  std::vector<std::string> out;
+  for (const FightLine &l : taken)
+    out.push_back(l.line);
+  return out;
+}
 struct Two {
+  Two() {
+    sink[0].clear();
+    sink[1].clear();
+  }
   Api api[2] = {make_api<0>(), make_api<1>()};
   Link a{api[0], "v1.2-dev",
          [](const std::string &e) {
@@ -297,9 +74,9 @@ struct Two {
              throw std::bad_alloc();
            events.push_back("A: " + e);
          },
-         [](const uint8_t *d, size_t n) { take(0, d, n); }};
+         [](size_t, const uint8_t *d, size_t n) { take(0, d, n); }};
   Link b{api[1], "v1.2-dev", [](const std::string &e) { events.push_back("B: " + e); },
-         [](const uint8_t *d, size_t n) { take(1, d, n); }};
+         [](size_t, const uint8_t *d, size_t n) { take(1, d, n); }};
   uint64_t now = 1000;
   void tick(Link &link, uint64_t step, const std::string &request = "") {
     now += step;
@@ -316,7 +93,6 @@ bool settle(Two &t) {
 }
 // A hosts with who_can_join=code in the real lobby 109775241346428561 (code CCS-CBMH); B, a stranger to A unless
 // friends says otherwise, joins with the code typed loosely, and A's next pass sees her.
-constexpr uint64_t kCodeLobby = 109775241346428561ull;
 void code_session(Two &t, bool friends = false) {
   F.names[kMe] = "Me";
   F.next_lobby = kCodeLobby;
@@ -334,18 +110,6 @@ void code_session(Two &t, bool friends = false) {
   t.tick(t.b, 50);
   t.tick(t.a, 600);
 }
-void send_binary(Link &link, const std::string &bytes, bool reliable) {
-  link.send_binary(reinterpret_cast<const uint8_t *>(bytes.data()), bytes.size(), reliable);
-}
-// A notice line of the status with exactly this text, whatever its number.
-bool noticed(const std::string &status, const std::string &text) {
-  for (size_t at = 0; (at = status.find("notice=", at)) != std::string::npos; ++at) {
-    size_t space = status.find(' ', at), end = status.find('\n', at);
-    if ((at == 0 || status[at - 1] == '\n') && status.compare(space + 1, end - space - 1, text) == 0)
-      return true;
-  }
-  return false;
-}
 // A Link's notices numbered above mark, oldest first; mark moves to the newest.
 using Texts = std::vector<std::string>;
 Texts fresh_notices(const Link &link, uint64_t &mark) {
@@ -361,20 +125,6 @@ Texts fresh_notices(const Link &link, uint64_t &mark) {
   }
   return out;
 }
-// The last photo line sent from one id to another, or empty.
-std::string last_photo(uint64_t from, uint64_t to) {
-  std::string line;
-  for (auto &s : F.sent)
-    if (s.from == from && s.to == to && s.channel == kChannel && s.text.find(" photo ") != std::string::npos)
-      line = s.text;
-  return line;
-}
-int count(const std::string &part) {
-  int n = 0;
-  for (auto &e : events)
-    n += e.find(part) != std::string::npos;
-  return n;
-}
 // JoinLobby calls made so far.
 int joins() {
   int n = 0;
@@ -387,13 +137,6 @@ void her_lobby(uint64_t lobby, const std::string &tag = lobby_tag(kBuild)) {
   F.members[lobby] = {kFriend};
   F.owner[lobby] = kFriend;
   F.data[lobby][kLobbyKey] = tag;
-}
-
-void reset() {
-  F = Fake{};
-  events.clear();
-  sink[0].clear();
-  sink[1].clear();
 }
 
 // A host with a lobby and Kaanta inside, after both hellos and accepts: the common start of several tests. A fight line
@@ -1352,7 +1095,8 @@ int main() {
     t.tick(t.a, 1);
     t.tick(t.b, 1);
     t.tick(t.a, 1);
-    assert(t.b.take_fight() == (std::vector<std::string>{up, hp}) && t.a.take_fight() == std::vector<std::string>{hit});
+    assert(lines_of(t.b.take_fight()) == (std::vector<std::string>{up, hp}) &&
+           lines_of(t.a.take_fight()) == std::vector<std::string>{hit});
     assert(t.a.take_fight().empty() && t.b.take_fight().empty());
     int reliable = 0, unreliable = 0;
     for (auto &s : F.sent)
@@ -1373,7 +1117,8 @@ int main() {
     by_hand += 2;
     t.tick(t.b, 1);
     t.tick(t.a, 1);
-    assert(t.a.take_fight() == std::vector<std::string>{widest} && saw("A: dropped fight data from Kaanta: bad size"));
+    assert(lines_of(t.a.take_fight()) == std::vector<std::string>{widest} &&
+           saw("A: dropped fight data from Kaanta: bad size"));
 
     // d. In one second, 64 poses and kFightPerSecond + 2 lines, queued kFightQueue at a time: the poses and
     // kFightPerSecond lines pass (a batch is 16), the rest are over the rate limit. Each channel has its own window. A
@@ -1389,7 +1134,7 @@ int main() {
       t.tick(t.b, 1);
       for (size_t i = 0; i <= kFightQueue / 16; ++i)
         t.tick(t.a, 1);
-      std::vector<std::string> taken = t.a.take_fight();
+      std::vector<std::string> taken = lines_of(t.a.take_fight());
       got.insert(got.end(), taken.begin(), taken.end());
     }
     assert(got.size() == kFightPerSecond && got.front() == hp + " 0");
@@ -1399,7 +1144,7 @@ int main() {
     assert(t.b.send_fight(on, true));
     t.tick(t.b, 1);
     t.tick(t.a, 1000);
-    assert(t.a.take_fight() == std::vector<std::string>{on});
+    assert(lines_of(t.a.take_fight()) == std::vector<std::string>{on});
 
     // e. Lines nobody takes: kFightQueue wait, the next is dropped; taken, they come in order.
     reset_drop_lines();
@@ -1415,7 +1160,7 @@ int main() {
     t.tick(t.b, 1);
     t.tick(t.a, 1000);
     assert(saw("A: dropped fight data from Kaanta: inbox full"));
-    got = t.a.take_fight();
+    got = lines_of(t.a.take_fight());
     assert(got.size() == kFightQueue && got.front() == hp + " 0" && got.back() == hp + " 255");
 
     // f. Steam refuses: a reliable line waits for the next pass as long as Steam refuses, with the reliable lines after
@@ -1438,7 +1183,7 @@ int main() {
     t.tick(t.a, 1);
     for (size_t i = 0; i <= kFightQueue / 16; ++i)
       t.tick(t.b, 1);
-    assert(t.b.take_fight() == waiting);
+    assert(lines_of(t.b.take_fight()) == waiting);
     F.send_result = 25;
     assert(t.a.send_fight(hp, false));
     t.tick(t.a, 1);
@@ -1483,7 +1228,8 @@ int main() {
     t.tick(t.a, 1);
     t.tick(t.b, 1);
     t.tick(t.a, 1);
-    assert(t.b.take_fight() == std::vector<std::string>{up} && t.a.take_fight() == std::vector<std::string>{on});
+    assert(lines_of(t.b.take_fight()) == std::vector<std::string>{up} &&
+           lines_of(t.a.take_fight()) == std::vector<std::string>{on});
 
     // j. Every message pushed is released, once both read what is left.
     auto all_read = [] {
@@ -1527,7 +1273,7 @@ int main() {
       assert(t.b.send_fight(quest_tag() + " on 0", true));
       t.tick(t.b, 1);
       t.tick(t.a, 1);
-      assert(t.a.take_fight() == std::vector<std::string>{quest_tag() + " on 0"});
+      assert(lines_of(t.a.take_fight()) == std::vector<std::string>{quest_tag() + " on 0"});
       assert(std::count_if(F.sent.begin() + std::ptrdiff_t(from), F.sent.end(), [](const Sent &x) {
                return x.text == quest_tag() + " on 0" && x.channel == kFightChannel && x.flags == kReliable;
              }) == 1);
@@ -1550,8 +1296,8 @@ int main() {
     } a{&t.a}, b{&t.b};
     const auto gate = [] { return std::string(); };
     const auto pass = [&](Side &s, bool photo = false) {
-      s.worker.pass(t.now, s.link->linked(), s.link->linked() && s.link->host(), true, s.link->take_fight(), gate, s.io,
-                    photo);
+      s.worker.pass(t.now, s.link->linked(), s.link->linked() && s.link->host(), true,
+                    lines_from(s.link->take_fight(), s.link->partner()), gate, s.io, photo);
     };
     const auto ask = [&](Side &s) { return s.worker.ask(parse_request("fight on 15011001"), gate, s.io); };
     const auto line = [](const std::string &text) { return fight::parse(text.data(), text.size()); };
@@ -1648,7 +1394,7 @@ int main() {
   {
     World w;
     linked_host(w, fight_tag() + " on");
-    assert(w.link.linked() && w.link.take_fight() == std::vector<std::string>{fight_tag() + " on"});
+    assert(w.link.linked() && lines_of(w.link.take_fight()) == std::vector<std::string>{fight_tag() + " on"});
   }
   reset();
   {
@@ -2085,17 +1831,17 @@ int main() {
       if (s.text.rfind(say, 0) == 0)
         assert(s.flags == kReliable && s.channel == kChannel);
     t.tick(t.b, 50);
-    assert(t.b.chat_waiting() && t.b.take_chat() == Texts{"in Salut é à tous"} && !t.b.chat_waiting());
+    assert(t.b.chat_waiting() && t.b.take_chat() == Texts{"in 1001 Salut é à tous"} && !t.b.chat_waiting());
     assert(t.b.say("Coucou") && t.b.say("ça va") && t.b.say("?"));
     assert(!t.b.say("a fourth in the same second") && t.b.take_chat() == Texts{"fail"}); // Lua paces 2 a second.
     assert(!t.b.say(" \x01 ") && !t.b.chat_waiting()); // Nothing left: nothing sent, nothing to tell.
     t.tick(t.a, 50);
-    assert((t.a.take_chat() == Texts{"in Coucou", "in ça va", "in ?"}));
+    assert((t.a.take_chat() == Texts{"in 2002 Coucou", "in 2002 ça va", "in 2002 ?"}));
     t.now += 1000;
     t.tick(t.b, 0);
     assert(t.b.say("again"));
     t.tick(t.a, 0);
-    assert(t.a.take_chat() == Texts{"in again"});
+    assert(t.a.take_chat() == Texts{"in 2002 again"});
     // A refused send says so to Lua.
     F.send_result = 25;
     assert(!t.a.say("lost") && t.a.take_chat() == Texts{"fail"});
@@ -2646,7 +2392,7 @@ int main() {
     w.link.loopback(true);
     w.tick();
     assert(w.link.chatting() && w.link.say("écho 😀") && F.sent.empty());
-    assert(w.link.take_chat() == Texts{"in écho 😀"});
+    assert(w.link.take_chat() == Texts{"in 1001 écho 😀"});
     const Vitals mine = {1500, 1600, 30, 50, 5, 400, 1000, 0, 0, 0, 0, 1};
     w.link.vitals(mine);
     assert(w.status().find("\nmate=1500 1600 30 50 5 400 1000 0 0 0 0 1\n") != std::string::npos);
@@ -2707,7 +2453,7 @@ int main() {
     F.inbox.push_back({kFriend, say_line("salut")});
     F.inbox.push_back({kFriend, race_line("abort 7 false_start")});
     w.tick();
-    assert((w.link.take_chat() == Texts{"race go 7 4000", "in salut", "race abort 7 false_start"}));
+    assert((w.link.take_chat() == Texts{"race go 7 4000", "in 2002 salut", "race abort 7 false_start"}));
     // Her flood: 40 a second kept, the rest dropped with one log line, which never holds a text.
     w.tick("", 0, 0, 1000);
     for (int i = 0; i < 45; ++i)
@@ -2805,7 +2551,7 @@ int main() {
     F.inbox.push_back({kFriend, gift + "s 5 FlashGrenade 11"});
     F.inbox.push_back({kFriend, gift_line("s 5 FlashGrenade 2")});
     w.tick();
-    assert((w.link.take_chat() == Texts{"gift a 18", "in merci", "gift s 5 FlashGrenade 2"}));
+    assert((w.link.take_chat() == Texts{"gift a 18", "in 2002 merci", "gift s 5 FlashGrenade 2"}));
     assert(saw("gift line from Kaanta: a 18") && saw("gift line from Kaanta: s 5 FlashGrenade 2") &&
            saw("invalid message from Kaanta"));
     // Her flood: 8 a second kept, the rest dropped, each in the log.
@@ -3005,6 +2751,9 @@ int main() {
     w.tick("", 0, kStranger);
     std::string s = w.status();
     assert(saw("Stranger is in the lobby, not a Steam friend: waiting for the host's answer"));
+    // Relay only before her session opens, so our IP address never reaches her game.
+    assert(op_index("config 1001 104 0") >= 0 && op_index("config 1001 104 0") < op_index("session 1001 9009"));
+    assert(saw("relay only (ICE off): Stranger is not a Steam friend"));
     assert(noticed(s, "A player who is not your Steam friend is asking to join.") && !noticed(s, "Stranger joined."));
     assert(s.find("\ncode=none refused=0\npending=9009 Stranger\n") != std::string::npos);
     assert(F.accepted == std::vector<uint64_t>{kStranger} && sent_to(kStranger, "SBC hello ") == 0);
@@ -3078,7 +2827,7 @@ int main() {
     assert(noticed(t.a.status(Counters{}), "Stranger was let in."));
     assert(t.a.say("salut"));
     t.tick(t.b, 50);
-    assert(t.b.take_chat() == Texts{"in salut"});
+    assert(t.b.take_chat() == Texts{"in 1001 salut"});
     t.tick(t.a, 50, "remove 9009");
     t.tick(t.b, 50);
     b = t.b.status(Counters{});
@@ -3175,12 +2924,29 @@ int main() {
     assert(!t.a.chat_waiting());
   }
 
+  // Relay only with a stranger, two Links: each game turns ICE off before its first session with the other (the host
+  // before she pings her, the joiner before her hello), so neither learns the other's IP address. It stays off through
+  // the handshake, and hosting again gives the Steam client's setting back. A friend's session never changes it.
+  reset();
+  {
+    Two t;
+    code_session(t);
+    assert(op_index("config 1001 104 0") >= 0 && op_index("config 1001 104 0") < op_index("session 1001 9009"));
+    assert(op_index("config 9009 104 0") >= 0 && op_index("config 9009 104 0") < op_index("session 9009 1001"));
+    assert(saw("A: relay only (ICE off): Stranger is not a Steam friend") &&
+           saw("B: relay only (ICE off): Me is not a Steam friend"));
+    t.tick(t.a, 50, "allow 9009");
+    assert(settle(t) && ops_with("config ") == 2);
+    t.tick(t.a, 50, "leave");
+    t.tick(t.a, 50, "host");
+    assert(ops_with("config 1001 104 -1") == 1 && ops_with("config ") == 3);
+  }
   // A friend with the code: no question, the usual handshake, the usual notices on both sides.
   reset();
   {
     Two t;
     code_session(t, true);
-    assert(settle(t) && t.a.status(Counters{}).find("\npending=") == std::string::npos);
+    assert(settle(t) && t.a.status(Counters{}).find("\npending=") == std::string::npos && ops_with("config ") == 0);
     assert(noticed(t.a.status(Counters{}), "Kaanta joined.") && noticed(t.b.status(Counters{}), "Joined Me's game."));
     assert(!saw("not a Steam friend") &&
            t.a.status(Counters{}).find("\ncode=CCS-CBMH refused=0\n") != std::string::npos);

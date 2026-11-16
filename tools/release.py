@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+# SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+# SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 """Finishes a release that Release Please created and the workflow holds as a draft. build: tools/install.py --zip in
 a temporary worktree at the tag. upload: puts the zip on the draft release and checks the uploaded asset. publish:
 checks the asset again, then publishes the release, which starts .github/workflows/nexus-upload.yml.

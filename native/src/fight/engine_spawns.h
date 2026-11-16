@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Engine's same spawns (stage 4) and extra enemies (stage 4b): the host's keys, the guest's spawns and despawns, and
 // the extras both sides make.
 #pragma once
@@ -194,7 +197,7 @@ template <class Game> const char *Engine::make_extra(Game &g, uint64_t logic, co
     Actor a;
     if (live(g, la, guid, a) && fighting(a)) {
       --captures_; // Ours, the last one: nothing captured since. Else it stays, for the session's end.
-      unmake(g, logic, a, kUnlisted, true);
+      unmake(g, logic, a, kUnlisted, kSummon);
     }
     return kUnlisted;
   }
@@ -232,17 +235,19 @@ template <class Game> void Engine::hold_extras(Game &g, uint64_t logic, const fl
   }
 }
 
-template <class Game> void Engine::unmake(Game &g, uint64_t logic, const Actor &a, const char *why, bool summon) {
+template <class Game> void Engine::unmake(Game &g, uint64_t logic, const Actor &a, const char *why, int type) {
   uint64_t sender = 0;
   uint32_t turn = 0;
   const bool sent =
       get(g, base_ + (kJobSender - kImageBase), sender) && plausible(sender) && get(g, logic + kTurn, turn);
   if (sent) {
     g.despawn(sender, turn, a.seen.guid);
-    spawn_counts().extras_gone += !summon;
+    spawn_counts().extras_gone += type == kExtra;
   }
-  g.event(Event{summon ? sent ? "summon despawned" : "summon kept" : sent ? "extra despawned" : "extra kept", why, 0,
-                a.seen.spawn, a.seen.index});
+  const char *what = type == kSummon  ? sent ? "summon despawned" : "summon kept"
+                     : type == kProxy ? sent ? "pvp proxy despawned" : "pvp proxy kept"
+                                      : sent ? "extra despawned" : "extra kept";
+  g.event(Event{what, why, 0, a.seen.spawn, a.seen.index});
 }
 
 template <class Game> const char *Engine::despawn(Game &g, uint64_t logic, uint32_t guid, const SpawnKey &k) {

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The save watcher's logic, free of Windows: the worker lists the save files every 5 s (name, size, modification time)
 // and hands the list here, which logs what changed since the previous list. It never opens a save. It maps when the
 // game writes its saves. tests/native/save/watch_test.cpp checks this file on the build machine.

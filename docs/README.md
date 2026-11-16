@@ -13,6 +13,7 @@ start with `coop`.
 | [Install](../INSTALL.md) | Install, update and uninstall on Windows, Linux and the Steam Deck; saves and Steam Cloud; which logs to send |
 | [Features and test status](features.md) | The features with their test status, the dated two-PC tests and which versions link together |
 | [Playing with a friend](playing-with-a-friend.md) | Hosting and joining, join codes, following the host, the revive, co-op saves, synced photo mode, shared quests |
+| [SBO lobby and matches](sbo-lobby.md) | The recruiter's Join, the lobby menu, Search, private matches, the countdown, leaving, the hall lobbies, the PvP test, the link protocol |
 | [Interface](interface.md) | The co-op menu, the session chat, the partner HUD, the guide, the teleport screen, notices |
 | [Ghost](ghost.md) | The ghost's looks, .pak mods and CNS outfits, the solid partner |
 | [Shared enemies](shared-enemies.md) | Shared enemies, same place, same spawns, the spawn filter, extra enemies, shared bosses |
@@ -43,14 +44,14 @@ start with `coop`.
 
 ## Building and internals
 
-The game addresses in the internals pages were read on build 24463856, unless a page names another build. The code
-holds their build 26123051 values, matched by comparing the two executables.
+The game addresses in the internals pages are build 26123051's, the build the code pins. They were read on build
+24463856 and matched to their build 26123051 values by comparing the two executables; none of the old addresses is
+left. The pages still name build 24463856 where a fact was read on that build, such as the table dumps.
 
 | Page | What it covers |
 | --- | --- |
 | [Building](building.md) | Toolchain, `tools/install.py`, `tools/wine_smoke.py`, the reproducible build, releases, repository layout |
 | [Tests](tests.md) | The Lua, C++ and Python tests and what each one checks |
-| [Story](story.md) | Where the save keeps the story and world state, the tool that snapshots and diffs it, the live dump (`coop story`) |
 | [How it works](how-it-works.md) | Index of the internals pages, and where each section of the old single page went |
 | [Architecture](internals/architecture.md) | The Lua and native parts, the Lua scripts, the files they share, the co-op UI's input, loopback, record and replay |
 | [The Steam link](internals/steam-link.md) | Lobby and invites, the handshake, channels 0 and 1, protocol versions, link health |
@@ -65,3 +66,4 @@ holds their build 26123051 values, matched by comparing the two executables.
 | [Matrix XIII: how it works](internals/matrix-xiii.md) | The cut dungeon's rows, event spawns, arrival, camps, save, title and world rows |
 | [Lily's signal: how it works](internals/lily-signal.md) | The rows, quests and talks of Lily's signal |
 | [Achievements and safety design](internals/safety.md) | Which kills and achievements count for each player, the safety design |
+| [Story dump](story.md) | `coop story`, `tools/story_lines.py` and `tools/save_read.py`: the story state of a save or of the running game, one line per value |

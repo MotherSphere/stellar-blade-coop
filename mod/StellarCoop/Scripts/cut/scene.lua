@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- coop scene [emil|orcal|stop]: two scenes cut from the game, played through SB's own theater on the game thread, and
 -- Lily's talks (story/subtitles.lua, through talk(); coop scene lily is coop lily talk prologue, commands/cut.lua).
 -- emil: Emil's farewell, /Game/DLC_1/Art/Cinema/MV_DLC_Ending_E03, a 48 s level sequence of the first DLC's ending that
@@ -108,11 +111,11 @@ Scene.LINES={
     ['BCA05D8745BD69D048CDE9ACE6CFDE69']={4,'ja','ここでの思い出は 何があっても忘れません'},
     ['C6B85A604489C976A99EE39D4189704D']={5,'ja','また会える日まで どうかお元気で'},
 }
-local function why(e) return (tostring(e):gsub('^.-:%d+: ','')) end -- Without the file and line.
+local why=U.why
 local function path_of(o) return text(o:GetFullName()):match('^%S+ (.+)$') end
 local function short(p) return (tostring(p):match('[^./]+$')) end
 local function xyz(v) return string.format('%.0f %.0f %.0f',v.X,v.Y,v.Z) end
-local function metres(a,b) return math.sqrt((a.X-b.X)^2+(a.Y-b.Y)^2+(a.Z-b.Z)^2)/100 end
+local metres=U.metres
 -- The only zone events this file fires: the two rows, kind 6.
 function Scene.allowed(kind,name) return kind==THEATER and (name==PLAY or name==STOP) end
 local function find_name(t) return FName(t,EFindName.FNAME_Find) end -- None (index 0) when not a name yet.

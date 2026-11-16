@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
 
 namespace coop::pose {
@@ -216,12 +219,14 @@ __declspec(noinline) void pilot_body() {
     taker.step(g, base, t.gen, fresh ? owned : nullptr, n, t.on, start / 1000);
     taker.refused(pilot_stream.untaken, pilot_stream.untaken_oe, pilot_stream.untaken_count);
     // Where her ghost's main mesh was last drawn in our world, for the host's nearer rule (stage 3b); none before its
-    // first pose (a drawn root's scale is never 0).
-    pilot_stream.her_ok = session && session->drawn() && !session->ghost_gone && session->draw_root[7] > 0;
+    // first pose (a drawn root's scale is never 0). Hers is slot 0's ghost, the co-op partner's: the one same-place
+    // enemies and the PvP test's stand-in follow (stage 4 gives each proxy its own slot).
+    const Drawn *her = session ? session->remotes[0].get() : nullptr;
+    pilot_stream.her_ok = her && her->drawn() && !her->ghost_gone && her->draw_root[7] > 0;
     if (pilot_stream.her_ok)
-      std::copy(session->draw_root + 4, session->draw_root + 7, pilot_stream.her);
+      std::copy(her->draw_root + 4, her->draw_root + 7, pilot_stream.her);
     const double now_ms = start / 1000.0,
-                 draw = session ? session->playback.display_ms(now_ms) : std::numeric_limits<double>::quiet_NaN();
+                 draw = her ? her->playback.display_ms(now_ms) : std::numeric_limits<double>::quiet_NaN();
     for (SbeIn m; pilot_sbe_here.pop(m);)
       driver.sbe(m.data, m.size);
     for (pilot::ShowLine l; pilot_lines_here.pop(l);)

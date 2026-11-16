@@ -1,8 +1,12 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- The session's console commands: coop host (as who_can_join says), invite, join, leave, status, report, copy, mark,
--- allow, deny and remove, with coop revive test, coop travel and coop saves. main.lua builds them with new(o) at each
--- Lua load and merges them into its command table, whose run() logs each result and, after coop off, refuses all but
--- status and report. o: main.lua's link, settings, puppet, ask (a line for the native part) and coop_slot, and group()
--- and travel(), read at each call: the revive and the follow are built later, with the Steam link only.
+-- allow, deny and remove, coop match, mute and unmute, with coop revive test, coop travel, coop saves and coop sbo.
+-- main.lua builds them with new(o) at each Lua load and merges them into its command table, whose run() logs each
+-- result and, after coop off, refuses all but status and report. o: main.lua's link, settings, puppet, ask (a line for
+-- the native part), coop_slot and sbo, and group(), travel() and lobby (ui/lobby.lua's), read at each call: the
+-- revive, the follow and the lobby's screens are built later, with the Steam link only.
 local Session={}
 -- Host by who_can_join: code (an invisible lobby with a join code), private (invited only), friends.
 local HOSTS={code='host code',private='host private'}
@@ -30,6 +34,8 @@ function Session.new(o)
         return link.request(text~='' and 'mark '..text or 'mark')
     end
     self.allow,self.deny,self.remove=answer('allow'),answer('deny'),answer('remove')
+    -- A player's chat lines dropped (mute) or heard again (unmute), in any lobby, for the game run.
+    self.mute,self.unmute=answer('mute'),answer('unmute')
     -- A lobby id, or a join code as the native part takes it.
     function self.join(lobby)
         if lobby and link then
@@ -37,6 +43,22 @@ function Session.new(o)
             if not lobby then return false,'a lobby id is digits only, a join code 7 letters and digits' end
         end
         return ask(lobby and 'join '..lobby or 'join')()
+    end
+    -- Matches: search <mode> (join an open public match lobby of that mode, or host one), create <mode> (a private
+    -- match lobby joined with its code), cancel (the search), end (the host's round in play), join <code> and leave
+    -- (as coop join and coop leave). The native part checks the mode; search and create name the SBO lobby's room and
+    -- hall (session/sbo.lua's lobby_words()).
+    function self.match(sub,arg,extra)
+        if extra==nil then
+            if (sub=='search' or sub=='create') and arg~=nil then
+                if not o.sbo then return false,'the Steam link needs the native part' end
+                return ask('match '..sub..' '..arg..' '..o.sbo.lobby_words())()
+            end
+            if (sub=='cancel' or sub=='end') and arg==nil then return ask('match '..sub)() end
+            if sub=='join' and arg~=nil then return self.join(arg) end
+            if sub=='leave' and arg==nil then return self.leave() end
+        end
+        return false,'Use: coop match search|create <mode> | cancel | end | join <code> | leave'
     end
     -- test: the revive's solo probe at the death screen, on a co-op save only (session/group.lua says why not).
     function self.revive(sub,extra)
@@ -96,6 +118,23 @@ function Session.new(o)
             return false,'Use: coop saves probe | convert | coop | main | refresh <0-4> | export <0-4> <0-4>'
         end
         return ask('saves '..sub)()
+    end
+    -- The SBO lobby by hand (session/sbo.lua, o.sbo: with the Steam link only): enter, leave, status, hop and back (the
+    -- arena round trip), view and view set (the menu camera's view), seq (a light sequence) and parts (the lobby's SB
+    -- widget parts made once each). Every word says the lobby is off while sbo_lobby=off. Left out of coop's usage
+    -- line, as a test tool.
+    function self.sbo(word,extra,more)
+        if not o.sbo then return false,'the Steam link needs the native part' end
+        if not settings.sbo_lobby then return false,require('session.sbo').OFF end
+        if more==nil then
+            if extra==nil and ({enter=true,leave=true,status=true,hop=true,back=true,view=true})[word or ''] then
+                return o.sbo[word]()
+            end
+            if word=='view' and extra=='set' then return o.sbo.view_set() end
+            if word=='seq' and extra then return o.sbo.seq(extra) end
+            if word=='parts' and extra==nil and o.lobby then return o.lobby.parts_check() end
+        end
+        return false,'Use: coop sbo enter | leave | status | hop | back | view [set] | seq <alias> | parts'
     end
     -- The native part's status on one line, our CNS packs in words when there are some, then the ghost's.
     function self.status()

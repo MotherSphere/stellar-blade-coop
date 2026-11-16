@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- cut/scene.lua with fake UE4SS objects. coop scene lists the two scenes. A scene is refused, with no zone event, with
 -- no EVE, off its map, more than 50 m from its stage or while a theater of the game plays; so it is when a donor row is
 -- not the row we know (its ID, Play or Stop, conditions, theater) or does not read back. emil points both rows at the

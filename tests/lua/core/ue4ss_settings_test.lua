@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- UE4SS-settings.ini's check, pure (no fakes): HookBeginPlay under [Hooks] and bUseUObjectArrayCache under [General],
 -- each on when it reads 1, true, anything but 0 or false, or is missing from its section; names in any case, spaces
 -- around '=', CRLF, a BOM, comment lines and a comment after the value; the last line wins; a text over LIMIT bytes is

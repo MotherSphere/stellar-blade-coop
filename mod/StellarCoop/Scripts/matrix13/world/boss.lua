@@ -1,3 +1,6 @@
+-- Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+-- SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+-- SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 -- Matrix XIII's Lion and Gardener when the game spawns them from their spawn rows (DLC02_40_E_CharS_051 and
 -- DLC02_20_E_CharS_904, the mxspawn batch; matrix13/world/travel.lua ticks this file). cut/enemy.lua fixes only the
 -- bodies its own spawn call made, so in world 2800, once a second, this file looks for a body of each boss's blueprint

@@ -1,6 +1,9 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // The pad's events for the co-op menu, checked on the build machine (no Windows, no XInput): edges, the held
-// direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, a disconnect, the ring,
-// and the slots asked at each poll.
+// direction's repeats (up and down only), diagonals, the stick's thresholds, the View hold, LB and RB, a disconnect,
+// the ring, and the slots asked at each poll.
 #include "game/pad.h"
 
 #include <cassert>
@@ -29,10 +32,10 @@ using V = std::vector<int>;
 
 int main() {
   static_assert(PadState::DPAD_UP == 0x0001 && PadState::DPAD_DOWN == 0x0002 && PadState::DPAD_LEFT == 0x0004 &&
-                PadState::DPAD_RIGHT == 0x0008 && PadState::BACK == 0x0020 && PadState::A == 0x1000 &&
-                PadState::B == 0x2000);
+                PadState::DPAD_RIGHT == 0x0008 && PadState::BACK == 0x0020 && PadState::LEFT_SHOULDER == 0x0100 &&
+                PadState::RIGHT_SHOULDER == 0x0200 && PadState::A == 0x1000 && PadState::B == 0x2000);
   static_assert(Pad::kUp == 1 && Pad::kDown == 2 && Pad::kLeft == 3 && Pad::kRight == 4 && Pad::kSelect == 5 &&
-                Pad::kBack == 6 && Pad::kMenu == 7);
+                Pad::kBack == 6 && Pad::kMenu == 7 && Pad::kTabLeft == 8 && Pad::kTabRight == 9);
 
   { // Edges: one event per press, none while held (before the repeat), none on release.
     Pad pad;
@@ -294,6 +297,36 @@ int main() {
     slots.poll(4032, read);
     slots.poll(4040, read);
     assert(asked == (U{1, 2, 2}) && slots.answered() == 0b0100);
+  }
+
+  { // LB and RB: one event a press, none while held or on release; both in one poll in event order; the D-pad's repeat
+    // goes on under them.
+    Pad pad;
+    const uint16_t lb = PadState::LEFT_SHOULDER, rb = PadState::RIGHT_SHOULDER;
+    pad.step(buttons(lb), 0);
+    assert(drain(pad) == V{Pad::kTabLeft});
+    for (uint64_t t = 16; t <= 2000; t += 16)
+      pad.step(buttons(lb), t);
+    assert(drain(pad).empty());
+    pad.step(buttons(0), 2016);
+    assert(drain(pad).empty());
+    pad.step(buttons(lb), 2032);
+    assert(drain(pad) == V{Pad::kTabLeft});
+    pad.step(buttons(0), 2048);
+    pad.step(buttons(rb), 2064);
+    assert(drain(pad) == V{Pad::kTabRight});
+    pad.step(buttons(0), 2080);
+    pad.step(buttons(lb | rb), 2096);
+    assert(drain(pad) == (V{Pad::kTabLeft, Pad::kTabRight}));
+    pad.step(buttons(0), 3000);
+    pad.step(buttons(PadState::DPAD_UP), 3016); // Up's repeat due at 3416, then every 120 ms.
+    assert(drain(pad) == V{Pad::kUp});
+    pad.step(buttons(PadState::DPAD_UP | lb), 3200);
+    assert(drain(pad) == V{Pad::kTabLeft});
+    pad.step(buttons(PadState::DPAD_UP | lb), 3416);
+    assert(drain(pad) == V{Pad::kUp});
+    pad.step(buttons(PadState::DPAD_UP), 3536);
+    assert(drain(pad) == V{Pad::kUp});
   }
 
   { // A ring of 8: once full the newest is dropped, then it fills again as Lua takes them.

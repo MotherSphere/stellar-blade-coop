@@ -1,3 +1,6 @@
+// Copyright (C) 2026 MotherSphere and the Stellar Blade Online contributors
+// SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
+// SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Engine's control and its turn: the settings the worker sets, arming the job on the game thread, the turn the logic
 // thread runs (Simulate) and the census it hands Host or Guest.
 #pragma once
@@ -21,13 +24,16 @@ inline bool Engine::filtering() const {
   return on_ && filter_ && !latched_ && (probing_ ? same_spawns_.load() : !hosting_.load());
 }
 
-inline void Engine::set(bool on, bool hosting, bool probing) {
+inline void Engine::set(bool on, bool hosting, bool probing, bool pvp) {
   test_ = 0, exec_test_ = false, boss_test_ = 0;
   if (on) {
     hosting_ = hosting;
     probing_ = probing;
+    pvp_ = pvp;
     ++session_;
     blocks_.publish(nullptr, 0); // Before the gate opens: an old session's last run may never have come.
+  } else {
+    pvp_ = false;
   }
   on_ = on;
 }
@@ -143,6 +149,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     session_seen_ = session;
     hosting_seen_ = hosting_; // set() stores the side before the session, so a turn never runs one with the other.
     probing_seen_ = probing_;
+    pvp_seen_ = pvp_;
     census_turn_ = kNever;
     eve_ = 0;
     lost_count_ = 0;
@@ -168,6 +175,7 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     probe_fence_.clear();
     next_probe_ = 0;
     mate_ = Life::unknown, mate_ms_ = 0, bstart_ms_ = 0, boss_ = false, battle_ = zone_ = 0;
+    proxy_ = pvp::Proxy(), pvp_counts_ = pvp::Counts(), gate_ = pvp::HitGate(), skill_ = 0, skill_ms_ = 0, seq_ = 0;
     // Our on again, behind every line the old session queued from this thread: the friend drops what still comes
     // from it (a late claim number would make the new guest's claims look like lies, and 16 of them ignore her).
     Message on;
@@ -182,6 +190,18 @@ template <class Game> void Engine::simulate(Job &job, Game &g, uint64_t now_ms) 
     pilot_why_ = "fight";
     publish(g, now_ms);
     if (!latched_)
+      g.push(&job);
+    return;
+  }
+  if (pvp_seen_) {
+    pvp_turn(g, logic, now_ms);
+    table_ = PilotTable();
+    pilot_why_ = "fight";
+    const bool stop = latched_; // As below: a latch in this turn gets no other run, so our stand-in goes now.
+    if (stop)
+      lift_all(g, logic);
+    publish(g, now_ms);
+    if (!stop)
       g.push(&job);
     return;
   }
@@ -350,6 +370,8 @@ inline Snapshot Engine::snapshot() const {
   s.extra = per_;
   s.boss = boss_, s.battle = battle_, s.resets = resets_;
   s.zone = hosting_seen_ ? zone_ : spawn_guest_.zone();
+  s.pvp = pvp_counts_;
+  s.pvp.proxy = proxy_.guid;
   for (size_t i = 0; i < captures_; ++i) {
     s.floors += caps_[i].type == kFloorStat;
     s.scaled += caps_[i].type == kMaxHpValue && caps_[i].delta;
