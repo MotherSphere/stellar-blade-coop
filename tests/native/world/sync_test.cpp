@@ -3,7 +3,8 @@
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Shared world's pure logic on the build machine: every line kind through format() and parse() and back, the largest
 // legal line, malformed lines and fuzzed junk; the ring's capacity and wrap; and two players' sides wired to each
-// other over the parser with a fake engine: the on and off lines, each gate on both sides, the lists on both sides
+// other over the parser with a fake engine: the on and off lines and the answer to an on, a rejoin one side did not
+// see, the lines the link refuses waiting in order, each gate on both sides, the lists on both sides
 // (a supply box, a story door, a camera state and a quest's row never leave), names without text, sequence numbers,
 // lost and old lines, a load that reads no save for a while, the queue's order while loading and its overflow, the
 // apply limit per pass, the echo backstop, refusals logged once per env, a new partner, and the status line.
@@ -102,7 +103,7 @@ struct Pair {
 };
 
 void test_lines() {
-  for (const std::string &l : {T + "on", T + "off setting", T + "off save", T + "off match",
+  for (const std::string &l : {T + "on", T + "on reply", T + "off setting", T + "off save", T + "off match",
                                T + "s 1 Zone_DED20 DED20_EnvS_193 Open", T + "a 2 Zone_DED20 DED20_EnvS_193 1",
                                T + "a 4294967295 Zone_DED20 DED20_EnvS_193 2", T + "e 3 Zone_DED10 DED10_E_EnvC_084",
                                T + "l 4 Zone_DED20 DED20_EnvS_193 Open 0 0", T + "l 5 Z A B 2 -1",
@@ -116,6 +117,7 @@ void test_lines() {
   const Message l = P(T + "l 7 Z A B 1 -2147483648");
   assert(l.type == Type::link && l.object == 1 && l.progress == INT32_MIN && l.alias == "A" && l.name == "B");
   assert(P(T + "off save").reason == "save" && P(T + "a 2 Z A 2").object == 2);
+  assert(!P(T + "on").reply && P(T + "on reply").reply && P(T + "on reply").type == Type::on);
   // Leading zeros read as the number.
   assert(P(T + "s 007 Z A B").seq == 7 && P(T + "l 1 Z A B 02 0012").progress == 12);
   // The largest legal line fits kMaxMessage.
@@ -127,7 +129,8 @@ void test_lines() {
 void test_malformed() {
   const std::string w(coop::kMaxAlias + 1, 'W');
   for (const std::string &l :
-       {std::string(), std::string("SBW"), T, T + "on ", T + "on 1", T + "off", T + "off ", T + "off a b",
+       {std::string(), std::string("SBW"), T, T + "on ", T + "on 1", T + "on reply ", T + "on  reply", T + "on Reply",
+        T + "on replies", T + "reply", T + "off", T + "off ", T + "off a b",
         T + "off bad-word", std::string("SBQ") + T.substr(3) + "s 1 Z A B", std::string("SBW1 s 1 Z A B"), T + "x 1 Z A B",
         T + "S 1 Z A B", T + "s 0 Z A B", T + "s 4294967296 Z A B", T + "s -1 Z A B", T + "s 1x Z A B",
         T + "s 1 Z A", T + "s 1 Z A B C", T + "s  1 Z A B", T + "s 1 Z A B ", " " + T + "s 1 Z A B",
@@ -226,6 +229,75 @@ void test_on_off() {
   g.partner = kHer;
   s.pass(g, r, 0);
   assert(s.out.size() == 1 && s.out[0] == T + "off save");
+}
+
+void test_answer() {
+  // Each side answers her on with its own state: the side whose on comes second answers with it, and a reply is never
+  // answered.
+  Pair p;
+  p.step();
+  p.step();
+  assert(p.a.partner_on() && p.b.partner_on());
+  size_t says = 0;
+  for (const auto *log : {&p.a.log, &p.b.log})
+    for (const std::string &l : *log)
+      says += l.rfind("world: on sent", 0) == 0;
+  assert(says == 2);
+  // B loses the lobby and rejoins before A sees her leave: B starts again, A's link never changed. A's answer gives
+  // B its on back, and A's lines reach B's game again.
+  p.gb.partner = 0;
+  p.step();
+  p.gb.partner = kMe;
+  p.step();
+  assert(p.a.partner_on() && p.b.partner_on() && p.b.status().rfind("world=on ", 0) == 0);
+  p.ra.push(root(p.fa, Kind::state, "DED20_EnvS_193", "Open"));
+  p.step();
+  assert(p.fb.applied.size() == 1 && p.fb.applied[0].seq == 1 && p.b.counters.gated == 0);
+  // Her on while we are off: the answer is our off, which she does not answer.
+  p.ga.coop_save = false;
+  p.step();
+  p.a.out.clear(), p.b.out.clear();
+  p.a.receive(T + "on", p.ga);
+  p.a.pass(p.ga, p.ra, p.now);
+  assert(p.a.out.size() == 1 && p.a.out[0] == T + "off save");
+  p.b.receive(T + "on reply", p.gb);
+  p.b.pass(p.gb, p.rb, p.now);
+  assert(p.b.out.empty());
+}
+
+void test_outbox() {
+  Outbox box;
+  std::vector<std::string> sent, lines{"1", "2", "3"};
+  bool full = false;
+  auto send = [&](const std::string &l) {
+    if (full)
+      return false;
+    sent.push_back(l);
+    return true;
+  };
+  box.pass(kHer, lines, send);
+  assert(sent.size() == 3 && lines.empty() && !box.waiting());
+  // The link's queue is full: the lines wait, in order, and go first once it takes them again.
+  full = true;
+  lines = {"4", "5"};
+  box.pass(kHer, lines, send);
+  assert(box.waiting() == 2 && sent.size() == 3);
+  full = false;
+  lines = {"6"};
+  box.pass(kHer, lines, send);
+  assert(sent == std::vector<std::string>({"1", "2", "3", "4", "5", "6"}) && box.dropped == 0);
+  // Past kOutbox waiting lines the newest are dropped; a new partner drops what waits.
+  full = true;
+  for (size_t i = 0; i < kOutbox + 3; ++i)
+    lines.push_back("x");
+  box.pass(kHer, lines, send);
+  assert(box.waiting() == kOutbox && box.dropped == 3);
+  lines = {"y"};
+  box.pass(kHer + 1, lines, send);
+  assert(box.waiting() == 1 && box.dropped == 3 + kOutbox);
+  lines = {"z"};
+  box.pass(0, lines, send);
+  assert(box.waiting() == 0 && box.dropped == 5 + kOutbox);
 }
 
 void test_send_and_apply() {
@@ -556,7 +628,7 @@ void test_new_partner() {
   assert(p.b.queued() == 1);
   // Another friend links: her lines go, her on is needed again, her seq starts again.
   p.gb.partner = kMe + 1;
-  p.step();
+  p.b.pass(p.gb, p.rb, p.now);
   assert(p.b.queued() == 0 && !p.b.partner_on() && p.b.counters.gated == 1);
   p.b.receive(T + "s 1 Z DED20_EnvS_193 Open", p.gb);
   assert(p.b.counters.gated == 2 && p.b.counters.bad == 0);
@@ -587,6 +659,8 @@ int main() {
   test_malformed();
   test_ring();
   test_on_off();
+  test_answer();
+  test_outbox();
   test_send_and_apply();
   test_deny_never_sent();
   test_gates();

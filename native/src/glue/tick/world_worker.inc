@@ -15,7 +15,8 @@ bool world_fault_logged = false;
 bool world_slot_coop = false; // The save-slot line's last verdict, kept through a load (world::slot_coop()).
 constexpr size_t kWorldInbox = 1024; // Her lines waiting for the game thread; past that they are dropped and counted.
 std::vector<std::string> world_waiting; // Not handed over yet: the game thread had not taken the last ones.
-uint64_t world_dropped = 0, world_unsent = 0;
+uint64_t world_dropped = 0;
+world::Outbox world_outbox; // Our lines the link refused wait there for the next pass.
 // Each slot of ours: one aligned 8-byte store into a vtable, as the spawn filter does (fight_worker.inc), made by a
 // compare-and-swap from the game's run only and undone by one from our hook only, so another mod's value is never
 // overwritten. The DLL is pinned, so a thread still inside a hook after the undo is safe.
@@ -114,7 +115,7 @@ std::string world_status() {
   for (const WorldSlot &s : world_slots)
     hooks += s.state == Filter::on;
   return line + " hooks=" + std::to_string(hooks) + " inbox_dropped=" + std::to_string(world_dropped) +
-         " unsent=" + std::to_string(world_unsent) + " elsewhere=" + std::to_string(world_elsewhere.load());
+         " unsent=" + std::to_string(world_outbox.dropped) + " elsewhere=" + std::to_string(world_elsewhere.load());
 }
 
 std::string ask_world(const coop::Request &request) {
@@ -178,9 +179,7 @@ void world_pass(uint64_t partner, bool match, std::vector<std::string> &lines, b
     out.swap(world_out);
     said.swap(world_said);
   }
-  for (const std::string &line : out)
-    if (!send(line))
-      ++world_unsent;
+  world_outbox.pass(partner, out, send);
   for (const std::string &line : said)
     say(line);
 }

@@ -18,7 +18,10 @@
 //   SBWn e <seq> <zone> <row>                                 a ZoneEventTable row run
 //   SBWn l <seq> <zone> <alias> <tag> <objectState> <progress> a linked env: state, ObjectState 0 to 2, progress add
 //   SBWn on, SBWn off <reason>                                the sender's feature state: setting, match or save
-// seq is 1 for the first line after each on and one more for each later one; the receiver logs a gap.
+//   SBWn on reply                                             on, as the answer to her on
+// seq is 1 for the first line after each on and one more for each later one; the receiver logs a gap. Each side
+// answers her on (not her on reply) with its own state, so a side that started again (a rejoin she did not see)
+// hears where the other stands.
 #pragma once
 
 #include <algorithm>
@@ -49,6 +52,7 @@ struct Message {
   uint8_t object = 0;   // a: 1 Enable, 2 Disable; l: 0 to 2, as the node holds it
   int32_t progress = 0; // l
   std::string reason;   // off
+  bool reply = false;   // on: the answer to her on, never answered itself
 };
 // What a line names for the echo backstop and the refusal log: the row of an e line, else the env.
 inline const std::string &key(const Message &m) { return m.type == Type::event ? m.name : m.alias; }
@@ -57,7 +61,7 @@ inline std::string format(const Message &m) {
   const std::string t = world_tag() + " ";
   const std::string head = " " + std::to_string(m.seq) + " " + m.zone + " ";
   switch (m.type) {
-  case Type::on: return t + "on";
+  case Type::on: return t + (m.reply ? "on reply" : "on");
   case Type::off: return t + "off " + m.reason;
   case Type::state: return t + "s" + head + m.alias + " " + m.name;
   case Type::active: return t + "a" + head + m.alias + " " + std::to_string(m.object);
@@ -90,8 +94,9 @@ inline Message parse(const char *data, size_t size) {
   if (text.find('\0') != std::string::npos)
     return Message();
   Message m;
-  if (text == world_tag() + " on") {
+  if (text == world_tag() + " on" || text == world_tag() + " on reply") {
     m.type = Type::on;
+    m.reply = text != world_tag() + " on";
     return m;
   }
   std::string head[2], rest, f[6];
@@ -275,8 +280,8 @@ public:
 
   // One of her channel 2 lines that starts with world_tag().
   void receive(std::string_view line, const Gates &g) {
-    follow(g);
     const Message m = parse(line.data(), line.size());
+    follow(g, m.type == Type::on && !m.reply);
     if (m.type == Type::invalid)
       return bad("malformed");
     if (m.type == Type::on || m.type == Type::off) {
@@ -346,8 +351,8 @@ private:
     return why ? std::string("waiting why=") + why : "on";
   }
 
-  // A new partner starts from nothing; our state goes to her whenever it changes.
-  void follow(const Gates &g) {
+  // A new partner starts from nothing; our state goes to her whenever it changes, and again to answer her on.
+  void follow(const Gates &g, bool answer = false) {
     gates_ = g;
     if (g.partner != partner_) {
       counters.gated += queue_.size();
@@ -358,16 +363,17 @@ private:
       return;
     const char *why = mine(g);
     const std::string word = why ? std::string("off ") + why : "on";
-    if (word == said_)
+    if (word == said_ && !answer)
       return;
     Message m;
     m.type = why ? Type::off : Type::on;
     m.reason = why ? why : "";
+    m.reply = answer;
     out.push_back(format(m));
     said_ = word;
     if (!why)
       seq_ = 0;
-    log.push_back("world: " + word + " sent");
+    log.push_back("world: " + word + (answer ? " sent, as the answer to her on" : " sent"));
   }
 
   void offer(const Root &r, bool open, uint64_t now_ms) {
@@ -456,6 +462,36 @@ private:
   std::deque<Message> queue_;
   std::array<Echo, kEchoes> echoes_;
   std::set<std::string> refusals_;
+};
+
+// Our lines on their way to link/core.h's send_fight(), which refuses a line while its channel 2 queue is full: a
+// refused line waits with the lines after it for the next pass, so none is lost or overtaken. A new partner, or none,
+// drops what waits (the link empties its own queue then too), and so does a wait past kOutbox lines.
+constexpr size_t kOutbox = 1024;
+class Outbox {
+public:
+  // send: bool(const std::string &), true when the link took the line.
+  template <class Send> void pass(uint64_t partner, std::vector<std::string> &lines, Send send) {
+    if (partner != partner_) {
+      dropped += wait_.size();
+      wait_.clear();
+      partner_ = partner;
+    }
+    for (std::string &l : lines)
+      if (partner && wait_.size() < kOutbox)
+        wait_.push_back(std::move(l));
+      else
+        ++dropped;
+    lines.clear();
+    while (!wait_.empty() && send(wait_.front()))
+      wait_.pop_front();
+  }
+  size_t waiting() const { return wait_.size(); }
+  uint64_t dropped = 0; // Lines never sent.
+
+private:
+  std::deque<std::string> wait_;
+  uint64_t partner_ = 0;
 };
 
 } // namespace coop::world
