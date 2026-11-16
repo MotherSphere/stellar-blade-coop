@@ -1917,6 +1917,21 @@ public:
     const int i = row_index(id);
     return i < 0 ? none : plans_[size_t(i)];
   }
+  // Story together's gate (story/sync.h, Here::in_step): each Epic quest of hers covers the host's line of this
+  // snapshot and his covers hers, so a scene's end events run at the same story point in both games. A quest his
+  // snapshot did not name counts as not acquired on his side. False until a whole snapshot came.
+  bool story_in_step(const View *views) const {
+    if (!complete_)
+      return false;
+    for (size_t i = 0; i < kRowCount; ++i) {
+      if (kRows[i].type != 'E')
+        continue;
+      const Tuple g = tuple_of(kRows[i], views[i]), h = held_[i] ? h_[i].t : Tuple();
+      if (!covers(g, h) || !covers(h, g))
+        return false;
+    }
+    return true;
+  }
   uint32_t generation() const { return gen_; }
   bool host_on() const { return host_on_; }
   bool snapshot_complete() const { return complete_; }

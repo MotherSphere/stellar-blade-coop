@@ -821,6 +821,11 @@ private:
            (zone_.empty() ? "unknown" : zone_) + ", walk " + std::to_string(loads_) + ", quests" +
            (held.empty() ? " none" : held);
   }
+  // The game thread: story together's gate on the guest (Guest::story_in_step) over the views of the last pass. False
+  // while no guest side runs, so a scene waits as before when the shared quests are off.
+  bool story_in_step() const {
+    return running_ && guest_ && side_.mode == Mode::guest && guest_->story_in_step(views_.data());
+  }
   // Under the lock.
   std::string status_text() const {
     if (latched_)

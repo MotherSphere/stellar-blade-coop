@@ -1192,6 +1192,28 @@ void applied_set() {
   assert(sent);
 }
 
+// Story together's gate: every Epic quest of hers equal to the host's line, a quest he never named as not acquired.
+void story_step() {
+  auto link = std::make_unique<Link>();
+  Link &k = *link;
+  assert(!k.guest.story_in_step(k.gw.v.data())); // No snapshot yet.
+  k.step();
+  assert(k.guest.snapshot_complete() && k.guest.story_in_step(k.gw.v.data()));
+  const size_t e1 = at("Quest_Epic_01"), s1 = at("Quest_Sub_001");
+  k.hw.acquire(e1);
+  k.step(false); // His step, not made in her world yet: she is behind.
+  assert(!k.guest.story_in_step(k.gw.v.data()));
+  k.gw.acquire(e1);
+  assert(k.guest.story_in_step(k.gw.v.data()));
+  k.gw.play(e1); // Ahead of him: not in step either.
+  assert(!k.guest.story_in_step(k.gw.v.data()));
+  k.hw.play(e1);
+  k.step(false);
+  assert(k.guest.story_in_step(k.gw.v.data()));
+  k.gw.acquire(s1); // A side quest of her own does not count.
+  assert(k.guest.story_in_step(k.gw.v.data()));
+}
+
 void idempotence() {
   World gw;
   Guest guest(Record(), kHostId);
@@ -1354,6 +1376,7 @@ int main() {
   host_marks();
   ahead_and_back();
   applied_set();
+  story_step();
   idempotence();
   checks();
   host_lines();
