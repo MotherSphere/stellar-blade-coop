@@ -15,10 +15,15 @@
 // The handle comes back as a TSharedPtr {object, reference controller}, one strong reference ours: SB's own keeps its
 // handle the same way at ASBCharacter +0x36b8. The handle's bools sit at +0x10: bLoadCompleted (set by CompleteLoad
 // FUN_1445c2af0 once every asset loaded or failed), +0x11 bReleased, +0x12 bCanceled, +0x13 bStalled (the one
-// FUN_1445c5440 sets for bStartStalled). Releasing is the TSharedPtr's own end: the controller's strong count (+8) down
-// by one, at 0 its DestroyObject (vtable +0; the handle's destructor FUN_1445da400 marks it released and frees it),
-// then its weak count (+0xc) down, at 0 its deleting destructor (vtable +8, argument 1). Until then the handle keeps the
-// assets from the garbage collector, so a later StaticLoadObject of one of them is a find, not a load.
+// FUN_1445c5440 sets for bStartStalled). CompleteLoad sets bLoadCompleted for a path whose package did not load too.
+// bCanceled comes only from CancelHandle FUN_1445c2280, which FUN_1445c5440 calls for an empty or short-name path list
+// and then returns no handle. So once the flag is set the glue looks each path up with SB's
+// FSoftObjectPath::ResolveObject FUN_142b82f40 (kResolveObject): StaticFindObject FUN_142b957b0 with ResolveName
+// FUN_142b96d70's create off, then any redirector followed. It finds an object in memory and never loads one.
+// Releasing is the TSharedPtr's own end: the controller's strong count (+8) down by one, at 0 its DestroyObject
+// (vtable +0; the handle's destructor FUN_1445da400 marks it released and frees it), then its weak count (+0xc) down,
+// at 0 its deleting destructor (vtable +8, argument 1). Until then the handle keeps the assets from the garbage
+// collector, so a later StaticLoadObject of one of them is a find, not a load.
 //
 // The gate is SB's ASBPlayerController::InputActionStateMap (TMap<FName, uint8>, transient, controller +0x6b0): SB's
 // action bindings run FUN_142047190 as their predicate, which looks the action's name up there (a missing name counts
@@ -44,6 +49,7 @@ constexpr size_t kSoftPath = 0x18;            // FSoftObjectPath: the asset's FN
 constexpr size_t kLoaded = 0x10, kCanceled = 0x12; // The handle's bLoadCompleted and bCanceled.
 constexpr size_t kStrong = 8, kWeak = 0xc;    // The reference controller's counts.
 constexpr uint64_t kPollMs = 250;             // The game thread reads the loaded flag this often while it loads.
+constexpr uint64_t kResolveObject = 0x142b82f40; // FSoftObjectPath::ResolveObject: the object in memory, or null.
 constexpr uint64_t kSetAction = 0x1423ca710, kFindAction = 0x140e6c8e0;
 constexpr uint64_t kControllerClassAt = 0x1470402c8; // SBPlayerController's UClass, as FUN_14276fe90 returns it.
 constexpr size_t kActionMap = 0x6b0, kActionStride = 0x14, kActionValue = 8;
@@ -122,11 +128,13 @@ private:
 enum class Load : uint8_t { off, loading, ready, failed, fault };
 // Why. manager: no asset manager on GEngine. memory: GMalloc gave nothing. name: no FName for a path. game: SB gave no
 // handle. canceled: SB canceled the request. controller: no SB player controller for the gate. gone: the controller the
-// gate was made on is gone. off: coop off. fault: the put-back after a fault faulted too.
-enum class Why : uint8_t { none, manager, memory, name, game, canceled, controller, gone, off, fault };
+// gate was made on is gone. off: coop off. fault: the put-back after a fault faulted too. missing_mesh, missing_clip:
+// SB's load ended without that asset in memory.
+enum class Why : uint8_t { none, manager, memory, name, game, canceled, controller, gone, off, fault, missing_mesh,
+                           missing_clip };
 inline const char *why_name(Why w) {
   static const char *const kNames[] = {"none", "manager", "memory", "name", "game", "canceled", "controller", "gone",
-                                       "off", "fault"};
+                                       "off", "fault", "missing_mesh", "missing_clip"};
   return size_t(w) < sizeof kNames / sizeof kNames[0] ? kNames[size_t(w)] : "?";
 }
 // The status line's bike= word: off, loading, ready, failed:<why> or fault.
@@ -181,7 +189,13 @@ inline std::string describe_load(Load s, Why w, uint64_t ms) {
     case Why::name:
       return "bike preload failed: no FName for a path";
     case Why::canceled:
-      return "bike preload failed: SB canceled the request (a path it cannot load)";
+      return "bike preload failed: SB canceled the request";
+    case Why::missing_mesh:
+      return "bike preload failed: SB's load ended without the bike's mesh in memory (not in the game's files, or its "
+             "load failed)";
+    case Why::missing_clip:
+      return "bike preload failed: SB's load ended without the riding clip in memory (not in the game's files, or its "
+             "load failed)";
     default:
       return "bike preload failed: SB gave no handle";
     }

@@ -151,7 +151,16 @@ int main() {
          gate_text(false, Why::gone) == "off" && gate_text(false, Why::controller) == "refused:controller");
   assert(describe_load(Load::ready, Why::none, 1250) == "bike preload ready after 1250 ms (read every 250 ms)");
   assert(describe_load(Load::failed, Why::canceled, 0) ==
-         "bike preload failed: SB canceled the request (a path it cannot load)");
+         "bike preload failed: SB canceled the request");
+  assert(describe_load(Load::failed, Why::missing_mesh, 0) ==
+         "bike preload failed: SB's load ended without the bike's mesh in memory (not in the game's files, or its load "
+         "failed)");
+  assert(describe_load(Load::failed, Why::missing_clip, 0) ==
+         "bike preload failed: SB's load ended without the riding clip in memory (not in the game's files, or its load "
+         "failed)");
+  assert(load_text(Load::failed, Why::missing_clip) == "failed:missing_clip" &&
+         load_text(Load::failed, Why::missing_mesh) == "failed:missing_mesh" &&
+         why_name(Why::fault) == std::string("fault"));
   assert(describe_load(Load::failed, Why::game, 0) == "bike preload failed: SB gave no handle");
   assert(describe_load(Load::failed, Why::manager, 0) == "bike preload failed: the game has no asset manager yet");
   assert(describe_load(Load::off, Why::off, 0) == "bike preload released (coop off)");
