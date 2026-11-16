@@ -195,7 +195,8 @@ with tempfile.TemporaryDirectory() as tmp:
                               'session/group', 'session/halls_rows', 'session/join', 'session/saves', 'session/sbo',
                               'session/arrival', 'session/sbo_maps', 'session/travel', 'story/snapshot',
                               'story/subtitles', 'ui/kit', 'ui/lobby', 'ui/lobby_model', 'ui/menu',
-                              'ui/model', 'ui/notice', 'ui/region_tabs', 'ui/text', 'version'))}
+                              'ui/model', 'ui/notice', 'ui/parts', 'ui/region_tabs', 'ui/sessions',
+                              'ui/sessions_model', 'ui/text', 'version'))}
     assert set(files) == shipped - docs, sorted(files)
     assert not [rel for rel in files
                 if any(fnmatch(Path(rel).name, bad) for bad in ('coop-*', '*.sav', 'steam_api*', '*.pak', '*.uasset'))]
