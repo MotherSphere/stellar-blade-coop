@@ -662,7 +662,12 @@ bool step() {
           [](size_t slot, const uint8_t *d, size_t n) { coop::pose::peer_receive(slot, d, n); });
       link->paks(game_paks.count, game_paks.hash, game_mods);
       bool exists = false; // The block list, kept across game runs; no file yet is an empty list.
-      link->blocks(coop::pose::read_file(folder + L"coop-blocked.txt", exists, coop::kMaxBlockFile));
+      const std::wstring blocked = folder + L"coop-blocked.txt";
+      const std::string text = coop::pose::read_file(blocked, exists, coop::kMaxBlockFile);
+      // read_file() cannot tell a missing file from one it could not open, nor a read cut short: the size can.
+      WIN32_FILE_ATTRIBUTE_DATA file{};
+      const bool there = GetFileAttributesExW(blocked.c_str(), GetFileExInfoStandard, &file);
+      link->blocks(text, !there || (!file.nFileSizeHigh && file.nFileSizeLow == text.size()));
     }
     if (loaded && !account && !saves_dir.empty() && link->me()) { // The game's save folder for this account.
       account = std::make_unique<WinFs>(saves_dir + L"\\" + std::to_wstring(link->me()), backups_dir);

@@ -121,6 +121,9 @@ lobbies and after the game restarts. Deny only refuses them for the current lobb
   personal accounts, few enough for one PC to hash them all in a few minutes. Anyone who gets your file can list every
   SteamID on it that way, so do not share it. Keep it when you update the mod (see
   [INSTALL.md](../INSTALL.md#update)).
+- When the file is there at game start but the mod cannot read all of it (another program holds it open, for
+  example), you see `Could not read the whole block list: changes to it are not saved until the game restarts.` The
+  players it read stay blocked. The file stays as it is until the next game start, so no player on it is lost.
 - The list applies to games you host. A game you join yourself, with a code or an invite, is up to you: you can
   still join a blocked player's game. Quick match is the exception. Your game never stays in a public match lobby with
   a player on your list: it leaves, then searches again and skips that lobby for the rest of the game run. A blocked

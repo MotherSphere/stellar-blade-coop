@@ -940,8 +940,15 @@ public:
   std::string take_copy() { return std::exchange(copy_, {}); }
 
   // The block list from coop-blocked.txt (glue/steam.cpp, once at start): one block_hash() in 16 hex digits a line,
-  // any other line skipped.
-  void blocks(const std::string &text) {
+  // any other line skipped. whole=false: the file is there but was not read in full (another program held it, a read
+  // error, over kMaxBlockFile). The lines read still apply. The file is never written in this game run, so the
+  // players it holds that were not read stay on it.
+  void blocks(const std::string &text, bool whole = true) {
+    if (!whole) {
+      blocks_kept_ = true;
+      event("coop-blocked.txt could not be read in full: it stays as it is until the game restarts");
+      notice("Could not read the whole block list: changes to it are not saved until the game restarts.");
+    }
     for (size_t at = 0, end; at < text.size(); at = end + 1) {
       end = std::min(text.find('\n', at), text.size());
       std::string_view line(text.data() + at, end - at);
@@ -956,6 +963,11 @@ public:
   std::string take_blocks() {
     if (!std::exchange(blocks_changed_, false))
       return {};
+    if (blocks_kept_) {
+      event("block list not saved: coop-blocked.txt was not read in full");
+      notice("Could not save the block list: it holds until the game closes.");
+      return {};
+    }
     std::string text = "# SBO's block list: the players coop remove and coop block keep out of every game you host. "
                        "coop unblock all empties it.\n"
                        "# Each line hashes a SteamID. Trying every SteamID finds them again, so keep this file private.\n";
@@ -2919,6 +2931,7 @@ private:
   std::set<uint64_t> muted_;     // The players coop mute named, in any lobby, for the game run (my call 18).
   // The block list (block_hash()es, coop-blocked.txt), kept across lobbies and game runs.
   std::set<uint64_t> blocked_;
+  bool blocks_kept_ = false; // coop-blocked.txt was not read in full: never written (blocks()).
   bool blocks_changed_ = false; // take_blocks() owes the file a write.
   // While we host: who_can_join of the lobby asked for, its join code (empty outside who_can_join=code), the members
   // let in, and those refused, with when a reject may go to her again (0: she is gone), all for this lobby only; our

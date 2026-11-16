@@ -2892,6 +2892,16 @@ int main() {
     v.link.blocks(crlf + "7a46acb03c8829b\n");
     assert(v.link.ready(L"SB.exe") == Link::Ready::now && v.status().find("\nblocked=1\n") != std::string::npos);
     assert(v.link.take_blocks().empty());
+    // A file there but not read in full (another program held it, a read cut short): what was read applies, the file
+    // is never written in this game run, so the players it held that were not read stay on it.
+    World u;
+    u.link.blocks(file.substr(0, file.size() / 2), false);
+    assert(u.link.ready(L"SB.exe") == Link::Ready::now && saw("coop-blocked.txt could not be read in full"));
+    assert(noticed(u.status(), "Could not read the whole block list: changes to it are not saved until the game "
+                               "restarts."));
+    u.tick("block 2002");
+    assert(u.status().find("\nblocked=1\n") != std::string::npos && u.link.take_blocks().empty());
+    assert(noticed(u.status(), "Could not save the block list: it holds until the game closes."));
   }
   reset();
   {
