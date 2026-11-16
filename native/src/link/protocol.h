@@ -29,8 +29,9 @@
 // All of these go on channel 0. Channel 1 carries the pose path's bytes as they are: its table text "SBT <protocol>"
 // (pose/table.h), its pose "SBP<protocol>" and its delta "SBD<protocol>" (pose/codec.h), and beside them the enemy
 // roots of same-place enemies, "SBE<protocol>" (fight/pilot.h). Channel 2 carries the shared enemies' text lines and
-// the pilot's show lines, which start with fight_tag() (fight/sync.h and fight/pilot.h parse them), and the shared
-// quests' lines, which start with quest_tag() (quest/sync.h parses them).
+// the pilot's show lines, which start with fight_tag() (fight/sync.h and fight/pilot.h parse them), the shared
+// quests' lines, which start with quest_tag() (quest/sync.h parses them), and the shared world's lines, which start
+// with world_tag() (world/sync.h parses them).
 #pragma once
 
 #include <algorithm>
@@ -365,9 +366,11 @@ inline std::string count_line(uint32_t seconds) {
   return "SBC" + std::to_string(kProtocol) + " count " + (seconds ? std::to_string(seconds) : "stop");
 }
 inline std::string end_line() { return "SBC" + std::to_string(kProtocol) + " end"; }
-// Channel 2's tags, versioned like channel 0's: "SBF20" for the shared fight, "SBQ20" for the shared quests.
+// Channel 2's tags, versioned like channel 0's: "SBF20" for the shared fight, "SBQ20" for the shared quests, "SBW20"
+// for the shared world.
 inline std::string fight_tag() { return "SBF" + std::to_string(kProtocol); }
 inline std::string quest_tag() { return "SBQ" + std::to_string(kProtocol); }
+inline std::string world_tag() { return "SBW" + std::to_string(kProtocol); }
 
 // Digits only, no sign, no overflow.
 inline bool number(std::string_view text, uint64_t &out) {
