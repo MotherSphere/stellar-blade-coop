@@ -86,8 +86,8 @@ ChangeState credits such an achievement to its caster. The receiver's caster is 
 `Xion_22_EnvS_002` A would complete `Xion_Phase_2` in her game. 65 states are out for an achievement, 43 of them
 directly. The same holds for a state that an EnvState quest task waits for (QuestTaskTable `CustomStr` and
 `CustomStr2`): the task tests only the env and its state, so a line would complete it outside the shared quests' rules.
-16 states are out for a quest task, ten of them for no other reason. Seven of those ten are states that nine tasks of
-eight shared quests wait for, such as `DED20_EnvS_210` On for `Quest_Epic_02_M01_T01`; the shared quests move those
+16 states are out for a quest task, ten of them for no other reason. Seven of those ten are states that one task in each of
+nine shared quests waits for, such as `DED20_EnvS_210` On for `Quest_Epic_02_M01_T01`; the shared quests move those
 tasks. The other three, `DED10_EnvS_197` On and `Xion_10_EnvS_042` B and Off, belong to collectible quests, which are
 not shared: each player sets them in her own game. A row is on the ObjectState list only when every one of its states
 is kept, so a forwarded Disable never locks a lever whose state change stayed local. A ZoneEvent row is kept when it and every row it chains to are env
