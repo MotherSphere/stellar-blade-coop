@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-SBO-1.0-or-later
 // SBO License 1.0 or later, in LICENSE and at github.com/MotherSphere/stellar-blade-coop; NOTICE adds a permission.
 // Part of glue/tick.cpp, one translation unit with it (see there).
-// Story together (story/engine.h, story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot, and each
-// frame's pass: her lines in, her copy followed, our theater read and sent while we host.
+// Story together (story/engine.h, story/sync.h) on the game thread: hook 1 in the ActionTheater node's slot. Each
+// frame's pass takes her lines in, follows her copy, then reads and sends our theater while we host.
 
 namespace coop::pose {
 namespace {
@@ -22,6 +22,7 @@ story::Gates story_gates;
 std::string story_line = "story=off";
 // The game thread's own.
 bool story_applying = false; // While a pass applies her lines: a talk her copy starts is hers, not ours to send.
+bool story_undo_faulted = false; // story_undo faulted: it is not tried again.
 std::vector<std::string> story_pending_out, story_pending_said; // Not handed over yet (the lock was busy).
 
 // story/engine.h's Game: the shared world's reads, writes and names, then SB's theater calls.
@@ -136,7 +137,7 @@ __declspec(noinline) void story_body(std::vector<std::string> &in, story::Gates 
   }
 }
 // The first fault turns story together off for the run: the worker tells her, swaps the slot back and logs it. The
-// photo freeze holds again as before.
+// photo freeze holds again as before. story_undo gives her copy back.
 void story_guarded(std::vector<std::string> &in, const story::Gates &gates, std::string &line) {
   __try {
     story_body(in, gates, line);
@@ -167,6 +168,19 @@ void story_tick() {
       story_said.swap(story_pending_said);
     story_line.swap(line);
     story_m.unlock();
+  }
+}
+// After coop off or the first fault, while her copy is still held: once in game, the leash's pause played again and
+// her skip byte put back, so it plays on as hers. A fault in it leaves both as they are.
+__declspec(noinline) void story_undo_body() {
+  if (world_in_game())
+    story_engine.hold(false), story_engine.release();
+}
+void story_undo() {
+  __try {
+    story_undo_body();
+  } __except (passed_on(GetExceptionCode()) ? EXCEPTION_CONTINUE_SEARCH : EXCEPTION_EXECUTE_HANDLER) {
+    story_undo_faulted = true;
   }
 }
 } // namespace
