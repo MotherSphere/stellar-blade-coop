@@ -70,8 +70,8 @@ so check for a new Stellar Blade Online version first. Both players need the sam
 
 `CHANGELOG.md` in the zip gives the zip's version and its features and fixes, newest first. Both players must update
 together. Two games with different protocols cannot link, and the player who tries to join sees
-`Version mismatch: that game runs protocol ..., build ...; yours runs ...`. This version uses protocol 21, for the shared
-world's lines, and does not link with 0.11.0 or older (protocol 20).
+`Version mismatch: that game runs protocol ..., build ...; yours runs ...`. This version uses protocol 22, for the lines of
+the shared world and of story together. It does not link with 0.11.0 or older (protocol 20).
 In a match lobby, the host's game refuses a player on another protocol, and Search never finds a lobby made by
 another version.
 

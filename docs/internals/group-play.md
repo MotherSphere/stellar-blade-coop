@@ -15,11 +15,11 @@ player's quest unit (the quest manager at `0x147037428`, its unit from `FUN_141c
 latch. The pass walks the unit's three quest arrays (in progress, complete, failed) and its ID map, and for each shared
 quest reads its state, its active group and the state of each task the game made for it. Before each pass and each call
 it checks that it is not on the game's logic worker thread (whose ID the game keeps at `0x1470683b0`) and that the save
-is still the co-op save it started on: another save ends the side with `SBQ21 off slot` (the worker starts a new one
+is still the co-op save it started on: another save ends the side with `SBQ22 off slot` (the worker starts a new one
 on the next co-op save), while a load (the title screen, a map change) only pauses it.
 
 - The host only reads. Each quest whose state changed goes to the guest as one reliable line on channel 2 with the
-  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ21 q <gen> <seq> <id> <state>
+  whole state, numbered per quest, so a repeated or late line changes nothing: `SBQ22 q <gen> <seq> <id> <state>
   <acquire mark> <finished groups> <tasks done> <done mark>`. A group or a task is named by its place (container and
   position), which the game builds the same on both PCs from the same tables.
 - Each step carries a mark that says where it may be made: `-` anywhere (no zone event, or only quest, item, UI or

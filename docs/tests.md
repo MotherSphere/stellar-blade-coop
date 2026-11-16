@@ -170,7 +170,7 @@ The C++ tests cover the platform-free headers in `native/src`.
   codes (both real lobby ids, loose typing, malformed codes, and the share of one-character typos the check turns away),
   the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
   missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`,
-  the match lines (start, count, end) with their bounds, and protocol 21 refusing a protocol-20 lobby and line;
+  the match lines (start, count, end) with their bounds, and protocol 22 refusing a protocol-21 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
   joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
