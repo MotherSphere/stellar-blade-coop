@@ -182,7 +182,8 @@ The C++ tests cover the platform-free headers in `native/src`.
   the same shape it leaves whole),
   the match modes (`find_mode`), `match search` and `match create` with their room and hall words (each refused when
   missing, extra, too long or not an alias word), `match cancel` and `match end`, `mute` and `unmute`, `block`,
-  `unblock` and `unblock all`,
+  `unblock` and `unblock all`, the `host` words (`public`, `friends`, `invitation` with the older `code` and
+  `private`, `closed`, then `ask`), `list public|friends|stop`, `where`, `rules` and the row cleaner,
   the match lines (start, count, end) with their bounds, the dlc and dlcs lines with their bounds and the DLC
   comparison by app id, and protocol 21 refusing a protocol-20 lobby and line;
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
@@ -239,6 +240,16 @@ The C++ tests cover the platform-free headers in `native/src`.
   a start without her, past 8 a second dropped and logged once), the per-player chat mute kept for the run, per-peer
   pose caps (30 a second for a member of a match lobby, one peer's cap stepping down alone, one second of poses
   reaching peers at 20, 30 and 60 a second, tables always sent) and the 60 s line of passes and full receive batches;
+- `link_list_test`: the session list through the same fake Steam, which follows Steamworks' read rules (no data for a
+  lobby before a search returned it or `RequestLobbyData` was answered, `GetLobbyOwner` for members only, a result
+  count, friends-only lobbies never in a search). A Public host's rows with `where` and `rules`, no relay only forced
+  and no regroup alone; the Public search's exact filters, its one row and no join; a player who is not the host's
+  Steam friend joining from the list, `wait=` counting down, denied then let in, with `sbo_players` following; a
+  friend let in at once; `friends_ask` making a friend wait; a Private session shut to joins, with no rows, code or
+  invite dialog, refusing a member Steam let in; what the Public tab hides (Friends only, Invitation, another version,
+  full, no rows, match lobby, blocked on Steam or with `coop block`, our own) and its order by ping; the Friends tab's
+  walk (a lobby read only once Steam answered, dropped after 5 s with no answer); the list search's refusals and a
+  match search ending it; the row cleaner; `sbo_ping` waiting for Steam's ping location;
 
 ### Poses
 

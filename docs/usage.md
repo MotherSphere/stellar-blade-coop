@@ -355,9 +355,11 @@ line the mod writes to its logs. `coop-status.txt` in the mod folder holds the s
   blocked in this game run.
 - Link: `link=<none|host|guest> lobby=<id>`, with `pending=1` while a lobby call runs, `held=<lobby>` for an invite held
   and `rejoin=<n>/3` while rejoining. While you host, a `code=<join code|none> refused=<n>` line follows: the join code
-  (`none` unless the lobby was made with `host code`) and the number of players refused for the rest of this lobby,
-  blocked players who came in included; then
-  a `pending=<SteamID> <name>` line for a player who is not your Steam friend and waits for your answer. Then a
+  (`none` outside an Invitation session) and the number of players refused for the rest of this lobby, blocked
+  players who came in included; then a `pending=<SteamID> <name>` line for a player who waits for your answer (not
+  your Steam friend, or any player with `friends_ask=on`). As a joiner who waits for the host's answer, a
+  `wait=<seconds left> <host's name>` line. While a session list lasts, a `list=` line and a `session=` line per row
+  ([The session list](internals/steam-link.md#the-session-list)). Then a
   `peer=...` line per lobby member (handshake, lost flag, RTT), a `friend=<linked 0|1> <lost 0|1> <name>` line, after a
   [coop mark](#coop-mark) a `mark=<n> ours: <text>` or `mark=<n> from <name>: <text>` line (no `: <text>` for a mark
   with no text), a `mate=<12 numbers>` line with your friend's HP, shield, Beta, Burst and Tachy for the partner card
