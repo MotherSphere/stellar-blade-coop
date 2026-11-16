@@ -8,9 +8,9 @@
 // from its own tables. Each host result is written once into her copy for its take. It is dropped once her copy has
 // left that take. A leash pauses her copy where the host's last position stands and lets it play when he
 // moves on, so it never runs ahead of him. When his scene ends, the link drops or he starts another scene, the leash
-// goes and her copy plays out. A scene she cannot play keeps today's cutscene wait. Nothing here reads memory or calls
-// the game: story/engine.h does, behind Engine. tests/native/story/sync_test.cpp drives this file on the build machine
-// with a fake one. No Windows types.
+// goes and her copy plays out. A scene she cannot play keeps today's cutscene wait. Lead turns the host's theater, as
+// story/engine.h reads it, into his lines. Nothing here reads memory or calls the game: story/engine.h does, behind
+// Engine. tests/native/story/sync_test.cpp drives this file on the build machine with a fake one. No Windows types.
 //
 // Channel 2 (link/core.h), reliable, plain text after story_tag(), at most kMaxMessage bytes. Names are FName text
 // (alias_word()) and paths path_word(); the receiver finds them, never makes them. scene is the host's own number for
@@ -38,6 +38,8 @@
 // position that passes them, so each result is in her copy before her copy reaches the point where the game reads it.
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
@@ -515,6 +517,12 @@ public:
   size_t queued() const { return queue_.size(); }
   // A shared copy starts or plays in her game: the photo freeze for the host's cutscene is not held.
   bool active() const { return copy_.state != State::none; }
+  // A play or talk line waits for her next pass in game: the photo freeze is not held either, so it is gone before
+  // the start.
+  bool pending() const {
+    return std::any_of(queue_.begin(), queue_.end(),
+                       [](const Message &m) { return m.type == Type::play || m.type == Type::talk; });
+  }
   // Her copy follows the host's: the holds on her input (her skip, her widgets' presses) apply.
   bool sharing() const { return copy_.state == State::shared; }
 
@@ -829,6 +837,122 @@ private:
   Played played_;
   std::string last_path_; // The path her theater manager played at the last pass.
   std::set<std::string> said_keys_;
+};
+
+// ---- The host's reader ----
+
+// The host's theater as story/engine.h reads it each pass in game.
+struct Theater {
+  bool present = false; // the theater manager plays one
+  int32_t id = 0;       // its play id, this PC's own count
+  bool ready = false;   // its first take started; pos.take is the take it plays
+  std::string path;     // the path the play handed the manager, "" when it is not plain text
+  int32_t priority = 0;
+  std::string finish;   // its FinishEvents, one space between names
+  int32_t at[6] = {};   // where it plays: whole centimetres, hundredths of a degree
+  Pos pos;              // pos.sequence is "" while its player has no sequence
+  uint8_t skips = 0;    // the skip latches: 1 the manager's input skip, 2 InteractionSelect's, 4 PlayerChoice's
+};
+
+constexpr int32_t kSeekFrames = 5; // A skip within a take moves at least this far (SB's can-skip test).
+constexpr size_t kTalks = 8;       // The last play ids hook 1 saw.
+
+// The host's side: each pass in game, his theater turned into lines through Sync::send, which drops them while the
+// feature is off on either side. A new theater sends its root once its first take started: talk when hook 1 saw an
+// ActionTheater node start it, else play with its ZoneEventTable row (story/rows.h scene()). A path neither one names
+// came from one of the other starts (an env state, a fight); it is logged once and not shared. While it plays: a skip
+// that moved it (a rise of a skip latch, then a new take or a forward jump of kSeekFrames or more), then its position.
+// When it ends or another one starts: end. A skip that ended it sends take -1 before the end.
+class Lead {
+public:
+  // Hook 1: an ActionTheater node started a theater with this play id.
+  void talked(int32_t id) { talks_[next_++ % kTalks] = id; }
+
+  void pass(const Theater &t, const std::string &zone, Sync &s, uint64_t now_ms) {
+    const bool same = live_ && t.present && t.id == id_;
+    const uint8_t rises = uint8_t(t.skips & ~skips_);
+    skips_ = t.skips;
+    if (live_ && sent_ && have_last_ && rises) {
+      Message k;
+      k.type = Type::skip, k.scene = scene_, k.take = last_.take;
+      if (!same || !t.ready || t.pos.take != last_.take)
+        k.flag = true, k.value = same && t.ready ? t.pos.take : -1, s.send(k, now_ms);
+      else if (t.pos.sequence == last_.sequence && t.pos.frame >= last_.frame + kSeekFrames)
+        k.frame = t.pos.frame, s.send(k, now_ms);
+    }
+    if (live_ && !same) {
+      if (sent_) {
+        Message e;
+        e.type = Type::end, e.scene = scene_;
+        s.send(e, now_ms);
+      }
+      live_ = false;
+    }
+    if (!t.present)
+      return;
+    if (!live_)
+      live_ = true, id_ = t.id, scene_ = ++scenes_, sent_ = started_ = have_last_ = false;
+    if (!started_) {
+      if (!t.ready)
+        return; // Its data still loads.
+      started_ = true;
+      sent_ = root(t, zone, s, now_ms);
+    }
+    if (!sent_ || !t.ready || t.pos.sequence.empty())
+      return;
+    Message p;
+    p.type = Type::pos, p.scene = scene_, p.take = t.pos.take, p.name = t.pos.sequence, p.frame = t.pos.frame;
+    p.flag = t.pos.playing;
+    s.send(p, now_ms);
+    last_ = t.pos, have_last_ = true;
+  }
+
+private:
+  bool root(const Theater &t, const std::string &zone, Sync &s, uint64_t now_ms) {
+    Message m;
+    m.scene = scene_, m.zone = zone, m.name = t.path, m.take = t.pos.take;
+    if (std::find(talks_.begin(), talks_.end(), t.id) != talks_.end()) {
+      m.type = Type::talk, m.priority = t.priority;
+      std::copy(std::begin(t.at), std::end(t.at), m.at);
+      return s.send(m, now_ms);
+    }
+    size_t others = 0;
+    const Scene *row = scene(t.path, t.priority, t.finish, zone, &others);
+    if (!row) {
+      ++s.counters.denied;
+      note(s, t.path, "the scene " + (t.path.empty() ? std::string("with no path") : t.path) +
+                          " is no talk and no ZoneEventTable row (another start), not shared");
+      return false;
+    }
+    if (others)
+      note(s, row->row, "the scene " + t.path + " matches " + std::to_string(others) + " more rows than " + row->row +
+                            ", which is sent: they play the same theater with the same end");
+    m.type = Type::play, m.name = row->row;
+    return s.send(m, now_ms);
+  }
+  // Said once a key; past kMaxSaid keys, nothing more.
+  void note(Sync &s, const std::string &key, const std::string &text) {
+    if (said_.size() == kMaxSaid) {
+      if (!std::exchange(said_full_, true))
+        s.log.push_back("story: " + std::to_string(kMaxSaid) + " scenes logged as not shared, later ones are counted");
+      return;
+    }
+    if (said_.insert(key).second)
+      s.log.push_back("story: " + text);
+  }
+
+  std::array<int32_t, kTalks> talks_ = [] {
+    std::array<int32_t, kTalks> a{};
+    a.fill(-1); // A play that failed returns below 0, so no talk holds -1.
+    return a;
+  }();
+  size_t next_ = 0;
+  bool live_ = false, started_ = false, sent_ = false, have_last_ = false, said_full_ = false;
+  int32_t id_ = 0;
+  uint32_t scene_ = 0, scenes_ = 0;
+  uint8_t skips_ = 0;
+  Pos last_; // His place at the last pass, for the skip test.
+  std::set<std::string> said_;
 };
 
 } // namespace coop::story

@@ -9,7 +9,8 @@
 // her copy played out, the replay guard and its expiry, a first take that differs, a scene that never shows, an
 // attach, a quest row, a talk, trips that wait for her copy, the host's position rate, sequence numbers, the queue
 // while she loads with its positions kept to the newest and its overflow, a new partner, a copy dropped out of game,
-// the feature off, a log that hundreds of scenes do not use up, lines from the wrong side and the status line.
+// the feature off, a log that hundreds of scenes do not use up, lines from the wrong side, the host's reader and the
+// status line.
 #include "story/sync.h"
 
 #include <cassert>
@@ -761,6 +762,83 @@ void test_partner_and_off() {
   }
 }
 
+// The host's reader over his theater as the engine reads it: the root once the first take started (play by its row,
+// talk by hook 1's id, nothing for a path neither names), positions, skips by their latches, the end, and her pending
+// start while she loads.
+void test_lead() {
+  Pair p;
+  Lead lead;
+  const Scene &row = plain_row();
+  auto lines = [&] { return std::exchange(p.host.out, {}); };
+  Theater t;
+  t.present = true, t.id = 40, t.path = row.path, t.priority = row.priority, t.finish = row.finish;
+  t.pos = Pos{100, "Seq_A", 0, true};
+  lead.pass(t, row.zone, p.host, p.now);
+  assert(lines().empty()); // Its data still loads.
+  t.ready = true;
+  lead.pass(t, row.zone, p.host, p.now);
+  std::vector<std::string> l = lines();
+  assert(l.size() == 2 && l[0] == T + "play 1 1 " + row.zone + " " + row.row + " 100");
+  assert(l[1] == T + "pos 2 1 100 Seq_A 0 1");
+  // Her pending start, then her copy.
+  p.gg.in_game = false;
+  p.host.out = l;
+  p.deliver();
+  p.guest.pass(p.gg, p.now);
+  assert(p.guest.pending() && !p.guest.active());
+  p.gg.in_game = true;
+  p.guest.pass(p.gg, p.now);
+  assert(!p.guest.pending() && p.guest.active() && p.game.starts.size() == 1);
+  // The frame within 100 ms: no line. A latch that rises with no move: no skip.
+  t.pos.frame = 3, t.skips = 1;
+  lead.pass(t, row.zone, p.host, p.now += 16);
+  assert(lines().empty());
+  // A skip that jumps within the take, then one that finishes it: each before the position.
+  t.skips = 0, t.pos.frame = 4;
+  lead.pass(t, row.zone, p.host, p.now += 16);
+  t.skips = 4, t.pos.frame = 4 + kSeekFrames;
+  lead.pass(t, row.zone, p.host, p.now += 16);
+  l = lines();
+  assert(l.size() == 1 && l[0] == T + "skip 3 1 100 seek 9");
+  t.skips = 6, t.pos = Pos{200, "Seq_B", 0, true};
+  lead.pass(t, row.zone, p.host, p.now += 16);
+  l = lines();
+  assert(l.size() == 2 && l[0] == T + "skip 4 1 100 take 200" && l[1] == T + "pos 5 1 200 Seq_B 0 1");
+  t.pos.sequence = ""; // No sequence in its player: no position.
+  t.pos.playing = false;
+  lead.pass(t, row.zone, p.host, p.now += 200);
+  assert(lines().empty());
+  // A skip that ended it: take -1, then its end.
+  t.skips = 7, t.ready = false;
+  lead.pass(t, row.zone, p.host, p.now += 16);
+  t.present = false;
+  lead.pass(t, row.zone, p.host, p.now += 16);
+  l = lines();
+  assert(l.size() == 2 && l[0] == T + "skip 6 1 200 take -1" && l[1] == T + "end 7 1");
+  // A talk: hook 1 saw its id.
+  lead.talked(41);
+  Theater k;
+  k.present = k.ready = true, k.id = 41, k.path = "/Game/Talk/T.T", k.priority = 3;
+  const int32_t at[6] = {-150, 2000, 35, 0, -9000, 18000};
+  std::copy(std::begin(at), std::end(at), k.at);
+  k.pos = Pos{7, "Seq_T", 0, true};
+  lead.pass(k, "Zone_A", p.host, p.now += 16);
+  l = lines();
+  assert(l.size() == 2 && l[0] == T + "talk 8 2 Zone_A /Game/Talk/T.T 3 -150 2000 35 0 -9000 18000 7");
+  // Another theater in its place: its end, then the next root. A path no row and no talk names: not shared, said once.
+  Theater o = k;
+  o.id = 42, o.path = "/Game/Fight/Intro.Intro";
+  lead.pass(o, "Zone_A", p.host, p.now += 16);
+  l = lines();
+  assert(l.size() == 1 && l[0] == T + "end 10 2" && p.host.counters.denied == 1);
+  assert(saw(p.host.log, "the scene /Game/Fight/Intro.Intro is no talk and no ZoneEventTable row"));
+  o.pos.frame = 30;
+  lead.pass(o, "Zone_A", p.host, p.now += 200);
+  o.present = false;
+  lead.pass(o, "Zone_A", p.host, p.now += 16);
+  assert(lines().empty()); // Nothing of it went, its end neither.
+}
+
 void test_status() {
   Pair p;
   assert(p.guest.status() ==
@@ -789,6 +867,7 @@ int main() {
   test_seq_and_sides();
   test_load_and_overflow();
   test_partner_and_off();
+  test_lead();
   test_status();
   std::printf("story sync: ok\n");
 }
