@@ -370,7 +370,7 @@ int main() {
     finish_all();
     w.tick();
     assert(saw("rejoin of lobby 7000 failed (response 5), next try in 10 s"));
-    assert(!noticed(w.status(), "Could not join: Steam response 5."));
+    assert(!noticed(w.status(), join_refusal(5)));
     w.to(lost + 11999);
     assert(joins() == 2);
     w.to(lost + 12000);
@@ -522,7 +522,7 @@ int main() {
     finish_all();
     w.tick();
     assert(saw("rejoin of lobby 7000 failed (response 5), next try in 10 s") &&
-           !noticed(w.status(), "Could not join: Steam response 5."));
+           !noticed(w.status(), join_refusal(5)));
     w.to(lost + 12000);
     assert(joins() == 3 && saw("joining lobby 7000 (rejoin, try 2/3)"));
   }
@@ -581,10 +581,22 @@ int main() {
                                    std::to_string(kProtocol) + ", build 24463856."));
   }
 
-  // A join Steam answers with a failure: the reason by response, and no lobby.
-  for (auto [response, text] : {std::pair<uint32_t, std::string>{2, "Could not join: that game no longer exists."},
-                                {4, "Could not join: that game is full."},
-                                {5, "Could not join: Steam response 5."}}) {
+  // A join Steam answers with a failure: the reason by response (each EChatRoomEnterResponse Steamworks documents; its
+  // number for any other) and no lobby.
+  for (auto [response, text] : {
+           std::pair<uint32_t, std::string>{2, "Could not join: that game no longer exists."},
+           {3, "Could not join: that game is closed (its match may have started)."},
+           {4, "Could not join: that game is full."},
+           {5, "Could not join: Steam had an unexpected error. Try again."},
+           {6, "Could not join: Steam has banned you from that game's lobby."},
+           {7, "Could not join: your Steam account is limited. Spending 5 USD on Steam lifts the limit."},
+           {8, "Could not join: that Steam group is locked or disabled."},
+           {9, "Could not join: your Steam account has a community ban."},
+           {10, "Could not join: a player in that game has blocked you on Steam."},
+           {11, "Could not join: you have blocked a player in that game on Steam."},
+           {12, "Could not join: Steam response 12."},
+           {15, "Could not join: too many tries in a short time. Wait a moment and try again."},
+           {16, "Could not join: Steam response 16."}}) {
     reset();
     World w;
     assert(w.link.ready(L"SB.exe") == Link::Ready::now);

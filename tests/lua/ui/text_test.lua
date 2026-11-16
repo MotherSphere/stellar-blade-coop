@@ -15,7 +15,7 @@
 -- within its columns, the top one with its connection lost and paused words whole before the status line, which comes
 -- without its prefix, the race's panel, marker, banner and results within theirs, the lobby menu's rows, settings,
 -- values and status within their columns and its waiting-room notice within 200 bytes, and no Thai word that ends on a
--- leading vowel.
+-- leading vowel; each join Steam refused as link/core.h words it, in every language.
 package.path='mod/StellarCoop/Scripts/?.lua;'..package.path
 local T=require('ui.text')
 local R=require('nightop.recruiter_text')
@@ -76,7 +76,8 @@ end
 -- put them together.
 local function notices(w)
     local lines={}
-    for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','travel','ue4ss'}) do
+    for _,group in ipairs({'fight','spawns','group','ghost','refused','quests','world','travel','ue4ss',
+        'join_refused'}) do
         for _,text in pairs(w[group]) do lines[#lines+1]=fill(text) end
     end
     lines[#lines+1]=w.fight.on:format(16)..' '..w.fight.scale:format(200,200) -- The longest on.
@@ -262,4 +263,37 @@ local function thai(t,at)
     end
 end
 if T.th then thai(T.th,'th.') end
+
+-- A join Steam refused: link/core.h's join_refusal() gives the English lines T.en.join_refused holds and no other.
+-- Any other number gets T.en's other words. T.join_refused gives each in every language's words; any other notice
+-- gets nil.
+local src=io.open('native/src/link/core.h'):read('a')
+local body=src:match('inline std::string join_refusal%(uint32_t response%) {(.-)\n}\n')
+assert(body,'link/core.h: no join_refusal()')
+local native,en={},T.en.join_refused
+for line in body:gmatch('return "([^"]*)";') do native[line]=true end
+for key,text in pairs(en) do assert(key=='other' or native[text],'link/core.h lacks T.en.join_refused.'..key) end
+for line in pairs(native) do
+    local found=false
+    for _,text in pairs(en) do found=found or text==line end
+    assert(found,'T.en.join_refused lacks "'..line..'"')
+end
+local head,tail=en.other:match('^(.*)%%d(.*)$')
+assert(body:find('return "'..head..'" + std::to_string(response) + "'..tail..'";',1,true),'link/core.h: other')
+for name,w in pairs(T) do
+    if type(w)=='table' then
+        w=T.pick(name)
+        for key,text in pairs(en) do
+            if key~='other' then assert(T.join_refused(text)(w)==w.join_refused[key],name..'.'..key) end
+        end
+        assert(T.join_refused(en.other:format(12))(w)==w.join_refused.other:format(12),name..'.other')
+        assert(T.join_refused(en.other:format(4294967295))(w)==w.join_refused.other:format(4294967295),name)
+    end
+end
+assert(T.join_refused(en.full)(T.pick('fr-FR'))=='Impossible de rejoindre : cette partie est complète.')
+assert(T.join_refused(en.other:format(16))(T.en)=='Could not join: Steam response 16.')
+for _,text in ipairs({'Kaanta joined.','Could not join: Steam response .','Could not join: Steam response -1.',
+    'Could not join: Steam response 5. ','x'..en.full,'Could not join: unknown match mode tdm.',en.other}) do
+    assert(T.join_refused(text)==nil,text)
+end
 print('ui_text_test ok')

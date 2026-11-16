@@ -95,7 +95,8 @@ fails the test. The `main/` tests load
   Map row only with no lobby open and the hall lobbies in use) and the countdown's resync;
 - `ui/text_test` checks each language's notices against the feed's 200-byte line, the SBO lobby's notices included,
   and the lobby menu's rows, settings, values and status within their columns, and the hall seats' Sit and Stand up
-  hint within the booth hint's width;
+  hint within the booth hint's width. It also reads `link/core.h` to check that each join Steam refused has the same
+  English line there and in `T.en.join_refused`, then that `T.join_refused` turns each one into every language's words;
 - `session/arrival_test` covers the hold at a lobby arrival: nothing without a lobby warp or before its new
   controller; SB's black up and the kit veiled at the next pass; held while anything is missing, then lifted once with
   one line; the 8 s cap, which lifts whatever is missing and names it, also when the missing items cannot be read; a
@@ -179,7 +180,8 @@ The C++ tests cover the platform-free headers in `native/src`.
 - `link_core_test`: the link against the shared fake Steam, and two links through it with the handshake both ways,
   channel 1 and channel 2 with their checks, the photo line, the chat and vitals lines, Night Operation's night line,
   joining with a code, and the host's approval of a player who is not a Steam friend (let in, refused, no answer,
-  removed, a flood while waiting), with relay only set on both games before their first session with each other;
+  removed, a flood while waiting), with relay only set on both games before their first session with each other. A
+  join Steam refuses gets its notice for each answer Steamworks documents, or the number for any other;
 - `link_pose_cap_test`: the adaptive pose rate (`PoseCap` in `link/core.h`), one reading a second: a calm link and
   a lone bad reading never step; two readings in a row over the line (queue time or pending bytes) step down 60, 30,
   20, to the first cap under the player's `send_rate`, never below 20; 10 calm readings step up one cap; a step up

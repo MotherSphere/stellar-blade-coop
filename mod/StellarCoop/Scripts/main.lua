@@ -1577,7 +1577,10 @@ if link then
             if last_mode=='none' and mode~='none' and not off and not puppet.active() then report(puppet.toggle()) end
             last_mode=mode
         end
-        for _,text in ipairs(link.notices()) do say(text) end
+        for _,text in ipairs(link.notices()) do -- A join Steam refused in the menu's words, any other as it came.
+            local build=T.join_refused(text)
+            if build then tell(build) else say(text) end
+        end
         if not off then -- Whether a save is loaded (an accepted invite waits for one), the send rate, the photo mode.
             local world,title=guarded('ghost',puppet.world)
             if title==true and not at_title then guarded('sbo',sbo.title) end -- Each title visit: the rows as shipped.

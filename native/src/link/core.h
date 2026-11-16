@@ -162,6 +162,36 @@ inline uint64_t steam_id_of(const Identity &who) {
     id = (id << 8) | who.data[i];
   return id;
 }
+// The notice for a join Steam refused, by its EChatRoomEnterResponse (Steamworks marks 12 to 14 no longer used).
+// ui/text.lua's join_refused holds the same lines in every menu language: change both together.
+inline std::string join_refusal(uint32_t response) {
+  switch (response) {
+  case 2: // DoesntExist
+    return "Could not join: that game no longer exists.";
+  case 3: // NotAllowed: a match lobby its owner shut at the start of a round (no join in progress).
+    return "Could not join: that game is closed (its match may have started).";
+  case 4: // Full
+    return "Could not join: that game is full.";
+  case 5: // Error
+    return "Could not join: Steam had an unexpected error. Try again.";
+  case 6: // Banned
+    return "Could not join: Steam has banned you from that game's lobby.";
+  case 7: // Limited
+    return "Could not join: your Steam account is limited. Spending 5 USD on Steam lifts the limit.";
+  case 8: // ClanDisabled
+    return "Could not join: that Steam group is locked or disabled.";
+  case 9: // CommunityBan
+    return "Could not join: your Steam account has a community ban.";
+  case 10: // MemberBlockedYou
+    return "Could not join: a player in that game has blocked you on Steam.";
+  case 11: // YouBlockedMember
+    return "Could not join: you have blocked a player in that game on Steam.";
+  case 15: // RatelimitExceeded
+    return "Could not join: too many tries in a short time. Wait a moment and try again.";
+  default:
+    return "Could not join: Steam response " + std::to_string(response) + ".";
+  }
+}
 
 // The flat API functions the link uses.
 struct Api {
@@ -1707,11 +1737,7 @@ private:
           return host_match();
         }
         seeking_.clear();
-        // 3 NotAllowed: a match lobby its owner shut at the start of a round (no join in progress).
-        return notice(r.response == 2   ? "Could not join: that game no longer exists."
-                      : r.response == 3 ? "Could not join: that game is closed (its match may have started)."
-                      : r.response == 4 ? "Could not join: that game is full."
-                                        : "Could not join: Steam response " + response + ".");
+        return notice(join_refusal(r.response));
       }
       found_.clear();
       seeking_.clear();

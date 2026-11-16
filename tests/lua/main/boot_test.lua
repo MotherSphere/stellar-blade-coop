@@ -450,6 +450,14 @@ kit_language=nil
 chatting=false
 assert(table.concat(printed,'|'):find('[StellarCoop] link: link=host lobby=7\n',1,true),'Status lines go to the log')
 assert(said[#said-1]=='Kaanta joined.' and said[#said]=='Kaanta: connection lost.','Notices go to the screen')
+-- A join Steam refused goes in the menu's words, with its English for the line above EVE; any other notice as it came.
+local full,other='Could not join: that game is full.','Could not join: Steam response 16.'
+link_notices,kit_language={full,other,'Kaanta joined.'},'fr-FR'
+loops[2].f()
+link_notices,kit_language=nil,nil
+assert(table.concat(said,'|',#said-2)=='Impossible de rejoindre : cette partie est complète.|Impossible de rejoindre : '
+    ..'réponse Steam 16.|Kaanta joined.',table.concat(said,'|',#said-2))
+assert(said_en[#said-2]==full and said_en[#said-1]==other)
 assert(captured[#captured]==true and last():find('OK: Capture 7',1,true),'The capture runs while the ghost is on')
 assert(remoted[1]==3 and remoted[2]==1 and remoted[3]=='loopback','The ghost learns the remote table every 250 ms')
 -- The world state every 250 ms, across a title round trip (a save loaded, the title, another save): never a request.

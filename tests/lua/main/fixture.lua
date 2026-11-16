@@ -128,6 +128,7 @@ saves_info={} -- link.saves(): the slot line's verdict and saves=, the convert= 
 link_files={['coop-guide.txt']='The co-op guide opens by itself on the title screen while this file is missing.\n'}
 -- link.code() (our join code, the players refused), link.pending(), link.stranger(), link.lobby().
 link_code,link_refused,link_pending,link_stranger,link_lobby=nil,nil,nil,nil,'0'
+link_notices=nil -- link.notices() when set; nil: a friend's join and lost connection every pass.
 fake_link={
     session=function(token) sessions[#sessions+1]=token; return true end,
     components=function(text) if text==nil then withdrawn[#withdrawn+1]='components' end; return true end,
@@ -160,7 +161,7 @@ fake_link={
         said_lines[#said_lines+1]=text
         return true
     end,
-    notices=function() return {'Kaanta joined.','Kaanta: connection lost.'} end,
+    notices=function() return link_notices or {'Kaanta joined.','Kaanta: connection lost.'} end,
     summary=function(words) return words and words.summary.none or 'Co-op: not in a session.' end,
     paused=function() return false end,
     valid_lobby=function(text) return text:match('^%d+$')~=nil end,

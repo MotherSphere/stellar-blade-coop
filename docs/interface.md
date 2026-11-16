@@ -151,9 +151,10 @@ works at once.
 The menu, the guide, the chat, the partner HUD, the code box, the host's question, the co-op saves' question and
 notices, the shared enemies', same place, same spawns and shared quests notices, Night Operation's card, result panel
 and notices, and the Doro race's panel, banners, results and notices use the game's text language, any of the 23 that
-the game ships. So do the status line (under the menu and on F6) and the ghost's notices. `ui_language=english` keeps
-them all in English. The notices of the Steam link (a friend joined or left, your join code) and `UE4SS.log` stay in
-English, and so do the error messages from the coop commands, shown in the menu or the code box.
+the game ships. So do the status line (under the menu and on F6), the ghost's notices and the notices of a join Steam
+refused (`Could not join: ...`). `ui_language=english` keeps them all in English. The other notices of the Steam link
+(a friend joined or left, your join code) and `UE4SS.log` stay in English. So do the error messages from the coop
+commands, shown in the menu or the code box.
 
 If the menu or the chat box ever leaves the game without its own keys, open the console (F10 or `~`) and type
 `coop ui reset`: the menu and the boxes close, an open [host's question](playing-with-a-friend.md#join-codes) is answered with Deny, and the
@@ -348,7 +349,7 @@ a Steam name or a chat line shows as `?`.
 | A wrong join code | `That is not a join code: check its 7 characters.` or `Could not join: that is not a StellarCoop game.` |
 | A player who is not your Steam friend asks to join | `A player who is not your Steam friend is asking to join.` |
 | Your answer | `<name> was let in.`, `<name> was not let in.`, `<name> was not let in: no answer within 60 s.` or `<name> was removed.` |
-| Could not join | `Could not join: that game no longer exists.`, `... that game is closed (its match may have started).`, `... that game is full.` or `... Steam response <n>.` |
+| Could not join | `Could not join: <reason>` for each answer Steam documents (listed in [Troubleshooting](troubleshooting.md#my-friend-cannot-join)), or `Could not join: Steam response <n>.` for any other |
 | A friend joined, left, came back | `<name> joined.`, `<name> left.`, `<name> is back.` |
 | Connection lost | `<name>: connection lost.` |
 | Version mismatch | `Version mismatch: that game runs protocol ..., build ...; yours runs ...` (on joining) or `Version mismatch with <name>: ...` |

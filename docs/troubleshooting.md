@@ -51,6 +51,20 @@ Stellar Blade Online is an experimental beta, played in only a few sessions betw
 - `Could not join: that game is full.`: a co-op session holds 2 players, and a match lobby of the
   [SBO lobby](sbo-lobby.md) 8. `Left: the lobby has more than 2 players.` means the co-op lobby was not made by
   Stellar Blade Online (it holds more players than a Stellar Blade Online co-op lobby can), so the mod left it.
+- `Could not join: that game is closed (its match may have started).`: the match lobby of the
+  [SBO lobby](sbo-lobby.md) shut when its round started. It opens again when the round ends.
+- `Could not join: Steam had an unexpected error. Try again.`: Steam failed the join on its side.
+- `Could not join: too many tries in a short time. Wait a moment and try again.`: Steam limits how often an account
+  can try to join.
+- `Could not join: a player in that game has blocked you on Steam.` or `... you have blocked a player in that game on
+  Steam.`: Steam does not let two players into one lobby when one has blocked the other. Removing the block in Steam
+  lets the join through.
+- `Could not join: your Steam account is limited. Spending 5 USD on Steam lifts the limit.`: Steam does not let a
+  limited account join this lobby.
+- `Could not join: Steam has banned you from that game's lobby.`, `... your Steam account has a community ban.` or
+  `... that Steam group is locked or disabled.`: Steam refused the account. Stellar Blade Online cannot change that.
+- `Could not join: Steam response <n>.`: Steam gave an answer its documentation does not list. `coop-link.log` has the
+  same number in `joining lobby ... failed (response <n>)`. Send `coop-report.txt` (`coop report`) with a bug report.
 - `coop join` without an id logs `no friend is in a Stellar Blade lobby`: ask your friend to host, then accept their
   invite, or use `coop join <lobby id>`.
 - `You are in <host>'s game: leave it first.`: a guest cannot host. Press F8 first.
